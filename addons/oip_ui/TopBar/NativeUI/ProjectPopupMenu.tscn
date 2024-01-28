@@ -1,0 +1,74 @@
+[gd_scene format=3 uid="uid://c3bfl5tynmswl"]
+
+[node name="Project" type="PopupMenu"]
+size = Vector2i(333, 271)
+visible = true
+unfocusable = true
+item_count = 14
+item_0/text = "Project Settings..."
+item_0/id = 36
+item_1/text = ""
+item_1/id = -1
+item_1/separator = true
+item_2/text = "Version Control"
+item_2/id = 40
+item_3/text = ""
+item_3/id = -1
+item_3/separator = true
+item_4/text = "Export..."
+item_4/id = 10
+item_5/text = "Install Android Build Template..."
+item_5/id = 12
+item_6/text = "Open User Data Folder"
+item_6/id = 37
+item_7/text = ""
+item_7/id = -1
+item_7/separator = true
+item_8/text = "Customize Engine Build Configuration..."
+item_8/id = 31
+item_9/text = ""
+item_9/id = -1
+item_9/separator = true
+item_10/text = "Tools"
+item_10/id = 10
+item_11/text = ""
+item_11/id = -1
+item_11/separator = true
+item_12/text = "Reload Current Project"
+item_12/id = 38
+item_13/text = "Quit to Project List"
+item_13/id = 39
+
+[node name="Tools" type="PopupMenu" parent="."]
+unfocusable = true
+item_count = 5
+item_0/text = "Orphan Resource Explorer..."
+item_0/id = 30
+item_1/text = "Upgrade Mesh Surfaces..."
+item_1/id = 32
+item_2/text = "C#"
+item_2/id = 33
+item_3/text = "Jolt Physics"
+item_3/id = 33
+item_4/text = "Editor Theme Explorer"
+item_4/id = 33
+
+[node name="CSharpTools" type="PopupMenu" parent="Tools"]
+unfocusable = true
+item_count = 1
+item_0/text = "Create C# solution"
+item_0/id = 0
+
+[node name="@PopupMenu@17223" type="PopupMenu" parent="Tools"]
+unfocusable = true
+item_count = 1
+item_0/text = "Dump Debug Snapshots"
+item_0/id = 0
+
+[node name="Version Control" type="PopupMenu" parent="."]
+unfocusable = true
+item_count = 2
+item_0/text = "Create Version Control Metadata..."
+item_0/id = 41
+item_1/text = "Version Control Settings..."
+item_1/id = 42

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dycho1swlmeh4"]
+
+[ext_resource type="Texture2D" uid="uid://c0eyekboytbdw" path="res://addons/oip_ui/TopBar/Icons/Debug.png" id="1_c65g3"]
+
+[node name="NativeModeButton" type="Button"]
+toggle_mode = true
+icon = ExtResource("1_c65g3")

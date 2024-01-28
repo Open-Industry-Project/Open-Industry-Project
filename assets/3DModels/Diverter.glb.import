@@ -1,0 +1,115 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://bdhksi8p0v4g1"
+path="res://.godot/imported/Diverter.glb-fb5f8d221760a4e601c0431829fa7e2b.scn"
+
+[deps]
+
+source_file="res://assets/3DModels/Diverter.glb"
+dest_files=["res://.godot/imported/Diverter.glb-fb5f8d221760a4e601c0431829fa7e2b.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+import_script/path=""
+_subresources={
+"materials": {
+"LampGreen": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/LampGreen.tres"
+},
+"LampRed": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/LampRed.tres"
+},
+"Metall1": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/Metall1.tres"
+},
+"Metall2": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/Metall2.tres"
+},
+"Plastic1": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/Plastic1.tres"
+},
+"Plastic2": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/Plastic2.tres"
+},
+"PlasticControl": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/PlasticControl.tres"
+},
+"SideTiled": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/SideTiled.tres"
+},
+"Text": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/Materials/Text.tres"
+}
+},
+"meshes": {
+"Diverter_Cube_001": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://3DModels/Meshes/Diverter_Cube_001.res"
+},
+"Diverter_Cube_003": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://3DModels/Meshes/Diverter_Cube_003.res"
+},
+"Diverter_Cube_004": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://3DModels/Meshes/Diverter_Cube_004.res"
+},
+"Diverter_Cube_006": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://3DModels/Meshes/Diverter_Cube_006.res"
+}
+}
+}
+gltf/naming_version=1
+gltf/embedded_image_handling=1
