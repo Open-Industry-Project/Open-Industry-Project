@@ -1,0 +1,440 @@
+[gd_scene load_steps=94 format=3 uid="uid://b7gctngoqja4a"]
+
+[ext_resource type="Script" path="res://Main/Root.cs" id="1_fh1er"]
+[ext_resource type="Resource" uid="uid://bx3h3qodi7p8v" path="res://Resources/MainInstances.tres" id="2_etlxn"]
+[ext_resource type="MeshLibrary" uid="uid://qe567y4r5nfd" path="res://MeshLibs/Floor.meshlib" id="3_06di4"]
+[ext_resource type="PackedScene" uid="uid://co2mqmdwpn57w" path="res://EquipmentAndDevices/BoxSpawner.tscn" id="3_kjqu0"]
+[ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://EquipmentAndDevices/Conveyor.tscn" id="4_ceirv"]
+[ext_resource type="MeshLibrary" uid="uid://ts85f4i6j21q" path="res://MeshLibs/Walls.meshlib" id="4_hohnd"]
+[ext_resource type="MeshLibrary" uid="uid://ywavdt3n2yvt" path="res://MeshLibs/Roof.meshlib" id="5_64gid"]
+[ext_resource type="PackedScene" uid="uid://bq16fe5njnr2i" path="res://EquipmentAndDevices/Box.tscn" id="5_w6ypn"]
+[ext_resource type="Shader" uid="uid://bejqoybamob1y" path="res://3DModels/Shaders/BeltShader.tres" id="7_kgo07"]
+[ext_resource type="PackedScene" uid="uid://cr8u3bta0skiy" path="res://EquipmentAndDevices/LegsStandBC.tscn" id="7_q70u0"]
+[ext_resource type="PackedScene" uid="uid://b2hnylsj67c5m" path="res://EquipmentAndDevices/LegsStandCBC.tscn" id="8_k0isp"]
+[ext_resource type="Shader" uid="uid://lg3xcvqgjhjj" path="res://3DModels/Shaders/MetalShader.tres" id="8_n314v"]
+[ext_resource type="PackedScene" uid="uid://5pjmdoyiub35" path="res://EquipmentAndDevices/Diverter.tscn" id="9_i7glj"]
+[ext_resource type="PackedScene" uid="uid://b567tts2001h8" path="res://EquipmentAndDevices/SideGuardCBC.tscn" id="9_y8q4q"]
+[ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://3DModels/Shaders/MetalShaderSideGuard.tres" id="10_bj0nv"]
+[ext_resource type="PackedScene" uid="uid://kdpe7o4ec1fa" path="res://EquipmentAndDevices/ImfDiffuserSensor.tscn" id="10_jrcqk"]
+[ext_resource type="PackedScene" uid="uid://rv5ef61beh35" path="res://EquipmentAndDevices/LegsStandRC.tscn" id="10_qhng3"]
+[ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://EquipmentAndDevices/RollerConveyor.tscn" id="11_4qotb"]
+[ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://EquipmentAndDevices/Pallet.tscn" id="11_fwx0r"]
+[ext_resource type="PackedScene" uid="uid://somtwmiih8bb" path="res://EquipmentAndDevices/LegsStandCRC.tscn" id="12_1fbsj"]
+[ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://3DModels/Materials/LegsStandMaterial.tres" id="12_4rnon"]
+[ext_resource type="PackedScene" uid="uid://6vu4cx2v1ltg" path="res://Conveyor/ConveyorCorner.tscn" id="12_7mtav"]
+[ext_resource type="PackedScene" uid="uid://c3cdcxifx4eej" path="res://EquipmentAndDevices/CurvedRollerConveyor.tscn" id="13_2n0s8"]
+[ext_resource type="PackedScene" uid="uid://dvjrx5crpqs5f" path="res://EquipmentAndDevices/SideGuard.tscn" id="13_8fuqk"]
+[ext_resource type="Shader" uid="uid://dxne1xcfurkp2" path="res://3DModels/Shaders/MetalShaderCorner.tres" id="14_p6y6y"]
+[ext_resource type="PackedScene" uid="uid://c4xqkx88xf1dy" path="res://EquipmentAndDevices/CRCSideGuard.tscn" id="16_78x1v"]
+[ext_resource type="Shader" uid="uid://b4wwduhuvem3q" path="res://3DModels/Shaders/SideGuardShaderCBC.tres" id="17_siwns"]
+[ext_resource type="Shader" uid="uid://d0c82kmt01y6x" path="res://3DModels/Shaders/MetalShaderRoller.tres" id="19_7rmp0"]
+[ext_resource type="PackedScene" uid="uid://drle8i15nwr68" path="res://EquipmentAndDevices/TripleStackLight.tscn" id="19_prvll"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8ah1m"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -18.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g3s3c"]
+render_priority = 0
+shader = ExtResource("8_n314v")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 18.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vrm5d"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 12.6312
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hek8a"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 2.75
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tftwx"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 18.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_o1j7e"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wlqby"]
+render_priority = 0
+shader = ExtResource("14_p6y6y")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+shader_parameter/Metallic = null
+shader_parameter/Roughness = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_p0deq"]
+render_priority = 0
+shader = ExtResource("17_siwns")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jao4n"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_kmhwf"]
+render_priority = 0
+shader = ExtResource("8_n314v")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_f7h2n"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yyxgt"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_whk0v"]
+render_priority = 0
+shader = ExtResource("19_7rmp0")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 2.11613
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sq8d0"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 4.5
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fn3wt"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 4.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ilvlv"]
+render_priority = 0
+shader = ExtResource("19_7rmp0")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ghd8u"]
+render_priority = 0
+shader = ExtResource("17_siwns")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_85pmp"]
+render_priority = 0
+shader = ExtResource("19_7rmp0")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 5.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gj86v"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 2.5
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ga4uh"]
+render_priority = 0
+shader = ExtResource("19_7rmp0")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_loux2"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.5
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1txe4"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -8.5
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cft4a"]
+render_priority = 0
+shader = ExtResource("8_n314v")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 8.5
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_h6hf4"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 3.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_v4re1"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 0.699496
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jhe5x"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 0.965
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_a0atc"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_a6pvf"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.25
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_h33ow"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pbyhs"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_50mas"]
+render_priority = 0
+shader = ExtResource("14_p6y6y")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+shader_parameter/Metallic = null
+shader_parameter/Roughness = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gvt7f"]
+render_priority = 0
+shader = ExtResource("17_siwns")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_och6b"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_un5x1"]
+render_priority = 0
+shader = ExtResource("8_n314v")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ng7s5"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0wfmu"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dueo1"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_et0oq"]
+render_priority = 0
+shader = ExtResource("14_p6y6y")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+shader_parameter/Metallic = null
+shader_parameter/Roughness = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xiw7p"]
+render_priority = 0
+shader = ExtResource("17_siwns")
+shader_parameter/Scale = 1.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_004vp"]
+render_priority = 0
+shader = ExtResource("7_kgo07")
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = -5.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_awwgk"]
+render_priority = 0
+shader = ExtResource("8_n314v")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 5.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1l3qq"]
+shading_mode = 0
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_u5es0"]
+material = SubResource("StandardMaterial3D_1l3qq")
+top_radius = 0.003
+bottom_radius = 0.003
+height = 6.0
+radial_segments = 4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wbteq"]
+shading_mode = 0
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_r0qix"]
+material = SubResource("StandardMaterial3D_wbteq")
+top_radius = 0.003
+bottom_radius = 0.003
+height = 6.0
+radial_segments = 4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ehejv"]
+resource_name = "color-seg-1.001"
+cull_mode = 2
+metallic = 1.0
+roughness = 0.929289
+emission_enabled = true
+emission = Color(0, 11.3137, 0, 11.3137)
+emission_energy_multiplier = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_doead"]
+resource_name = "color-seg-1.001"
+cull_mode = 2
+metallic = 1.0
+roughness = 0.929289
+emission_enabled = true
+emission = Color(11.3137, 6.33568, 0, 11.3137)
+emission_energy_multiplier = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lath6"]
+resource_name = "color-seg-1.001"
+cull_mode = 2
+metallic = 1.0
+roughness = 0.929289
+emission_enabled = true
+emission = Color(11.3137, 0, 0, 11.3137)
+emission_energy_multiplier = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_r1lbl"]
+render_priority = 0
+shader = ExtResource("19_7rmp0")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 6.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_su0ik"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 6.12501
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_b2s2o"]
+render_priority = 0
+shader = ExtResource("10_bj0nv")
+shader_parameter/Scale = 2.11719
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="Shader

@@ -1,0 +1,35 @@
+[gd_scene load_steps=5 format=3 uid="uid://kdpe7o4ec1fa"]
+
+[ext_resource type="Script" path="res://IMFDiffuseSensor/ImfDiffuserSensor.cs" id="1_1namx"]
+[ext_resource type="PackedScene" uid="uid://dbfqxnq3cmeps" path="res://3DModels/IMFDiffuseSensor.glb" id="1_nol3p"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2pps1"]
+shading_mode = 0
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_dvmoi"]
+material = SubResource("StandardMaterial3D_2pps1")
+top_radius = 0.003
+bottom_radius = 0.003
+height = 6.0
+radial_segments = 4
+
+[node name="IMFDiffuserSensor" type="Node3D"]
+transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 0, 0, 0)
+script = ExtResource("1_1namx")
+DebugBeam = false
+collisionColor = Color(1, 1, 0, 1)
+scanColor = Color(1, 0, 0, 1)
+metadata/_edit_group_ = true
+
+[node name="IMFDiffuseSensor" parent="." instance=ExtResource("1_nol3p")]
+
+[node name="RayMarker" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+visible = false
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 3)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("CylinderMesh_dvmoi")

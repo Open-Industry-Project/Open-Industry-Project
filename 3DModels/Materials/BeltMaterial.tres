@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://du46ksuaixoxi"]
+
+[ext_resource type="Shader" uid="uid://bejqoybamob1y" path="res://3DModels/Shaders/BeltShader.tres" id="1_al2cb"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_al2cb")
+shader_parameter/Scale = 1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false

@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://ch8a017kf55t"]
+
+[ext_resource type="Texture2D" uid="uid://d1chq2ilrnjrx" path="res://addons/oip_ui/TopBar/Icons/HelpSearch.png" id="1_h6dxc"]
+[ext_resource type="Texture2D" uid="uid://ck6sg5e1ox6r8" path="res://addons/oip_ui/TopBar/Icons/ExternalLink.png" id="2_scioh"]
+
+[node name="Help" type="PopupMenu"]
+title = "Help"
+size = Vector2i(268, 66)
+visible = true
+item_count = 3
+item_0/text = "Search Help"
+item_0/icon = ExtResource("1_h6dxc")
+item_0/id = 0
+item_1/text = ""
+item_1/id = 1
+item_1/separator = true
+item_2/text = "Online Documentation"
+item_2/icon = ExtResource("2_scioh")
+item_2/id = 2

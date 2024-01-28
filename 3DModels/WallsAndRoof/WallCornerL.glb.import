@@ -1,0 +1,57 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://d00h2r0m2ng5a"
+path="res://.godot/imported/WallCornerL.glb-c02384b166f8c5564201b35fc97d0525.scn"
+
+[deps]
+
+source_file="res://3DModels/WallsAndRoof/WallCornerL.glb"
+dest_files=["res://.godot/imported/WallCornerL.glb-c02384b166f8c5564201b35fc97d0525.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+meshes/ensure_tangents=true
+meshes/generate_lods=false
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+import_script/path=""
+_subresources={
+"materials": {
+"WallCornerLConcrete": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/WallsAndRoof/Materials/WallCornerLConcrete.tres"
+},
+"WallCornerLMetal": {
+"use_external/enabled": true,
+"use_external/path": "res://3DModels/WallsAndRoof/Materials/WallCornerLMetal.tres"
+}
+},
+"meshes": {
+"WallCornerL_WallCornerL": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://3DModels/WallsAndRoof/Meshes/WallCornerL_WallCornerL.res"
+}
+}
+}
+gltf/naming_version=1
+gltf/embedded_image_handling=1
