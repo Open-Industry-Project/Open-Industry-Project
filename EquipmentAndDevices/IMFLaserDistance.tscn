@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://nsio1mg8ru3w"]
+
+[ext_resource type="PackedScene" uid="uid://ou8gjlysq0jh" path="res://assets/3DModels/IMFLaserDistance.glb" id="1_rgt1d"]
+[ext_resource type="Script" path="res://src/IMFLaserDistance/IMFLaserDistance.cs" id="1_ufgoq"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wapb1"]
+shading_mode = 0
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_3bd3p"]
+material = SubResource("StandardMaterial3D_wapb1")
+top_radius = 0.003
+bottom_radius = 0.003
+height = 10.0
+
+[node name="IMFLaserDistance" type="Node3D"]
+script = ExtResource("1_ufgoq")
+collisionColor = Color(1, 1, 0, 1)
+scanColor = Color(1, 0, 0, 1)
+metadata/_edit_group_ = true
+
+[node name="IMFLaserDistance" parent="." instance=ExtResource("1_rgt1d")]
+
+[node name="RayMarker" type="Marker3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 5)
+mesh = SubResource("CylinderMesh_3bd3p")
+skeleton = NodePath("../..")
+
+[node name="ScanTimer" type="Timer" parent="."]
+process_mode = 3
+wait_time = 0.25

@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3 uid="uid://bc71peokxkxdb"]
+
+[ext_resource type="Script" path="res://addons/oip_ui/TopBar/RunBar.gd" id="1_akwgd"]
+[ext_resource type="Texture2D" uid="uid://dg5f0ryhxqj4a" path="res://addons/oip_ui/TopBar/Icons/MainPlay.png" id="2_cpndj"]
+[ext_resource type="Texture2D" uid="uid://b1xq8qtpci5uy" path="res://addons/oip_ui/TopBar/Icons/Pause.png" id="3_ci4su"]
+[ext_resource type="Texture2D" uid="uid://nd3pesjqlu83" path="res://addons/oip_ui/TopBar/Icons/Stop.png" id="4_ahhx3"]
+
+[node name="RunBar" type="PanelContainer"]
+process_mode = 3
+offset_right = 80.0
+offset_bottom = 24.0
+script = ExtResource("1_akwgd")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Play" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+icon = ExtResource("2_cpndj")
+
+[node name="Pause" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+disabled = true
+toggle_mode = true
+icon = ExtResource("3_ci4su")
+
+[node name="Stop" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+disabled = true
+icon = ExtResource("4_ahhx3")

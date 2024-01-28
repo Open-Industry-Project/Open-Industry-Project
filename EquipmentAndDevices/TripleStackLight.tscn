@@ -1,0 +1,51 @@
+[gd_scene load_steps=11 format=3 uid="uid://drle8i15nwr68"]
+
+[ext_resource type="Script" path="res://src/TripleStackLight/TripleStackLight.cs" id="1_i0e1j"]
+[ext_resource type="Script" path="res://src/TripleStackLight/TripleStackLightData.cs" id="2_7q4sd"]
+[ext_resource type="PackedScene" uid="uid://dlm5s307lqs6b" path="res://src/TripleStackLight/TripleStackSegment.tscn" id="2_ajcxn"]
+[ext_resource type="ArrayMesh" uid="uid://cxswic5dtpchm" path="res://assets/3DModels/TripleStack/Meshes/TripleStackBottom_TripleStackBottom.res" id="2_je4s3"]
+[ext_resource type="ArrayMesh" uid="uid://ddhxidtun1ygr" path="res://assets/3DModels/TripleStack/Meshes/TripleStackStem_TripleStackStem.res" id="3_3pm6i"]
+[ext_resource type="ArrayMesh" uid="uid://bvfsnircubh7j" path="res://assets/3DModels/TripleStack/Meshes/TripleStackMid_TripleStackMid.res" id="4_uw8vl"]
+[ext_resource type="ArrayMesh" uid="uid://b6ko36gue766v" path="res://assets/3DModels/TripleStack/Meshes/TripleStackTop_TripleStackTop.res" id="6_eflbk"]
+[ext_resource type="Script" path="res://src/TripleStackLight/TripleStackSegmentData.cs" id="6_sj8wm"]
+
+[sub_resource type="Resource" id="Resource_nqx55"]
+resource_local_to_scene = true
+script = ExtResource("6_sj8wm")
+Tag = ""
+Active = false
+SegmentColor = Color(0, 1, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_mgyfw"]
+resource_local_to_scene = true
+script = ExtResource("2_7q4sd")
+segmentDatas = [SubResource("Resource_nqx55")]
+
+[node name="TripleStackLight" type="Node3D"]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
+script = ExtResource("1_i0e1j")
+"Light 1" = SubResource("Resource_nqx55")
+data = SubResource("Resource_mgyfw")
+metadata/_edit_group_ = true
+
+[node name="Bottom" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 2.22222, 0, 0, 0, 1, 0, 0, 0)
+mesh = ExtResource("2_je4s3")
+
+[node name="Stem" type="MeshInstance3D" parent="."]
+mesh = ExtResource("3_3pm6i")
+
+[node name="Mid" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 6.66667, 0, 0, 0, 1, 0, 1, 0)
+mesh = ExtResource("4_uw8vl")
+
+[node name="Segments" type="Node3D" parent="Mid"]
+
+[node name="TripleStackSegment" parent="Mid/Segments" instance=ExtResource("2_ajcxn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0385172, 0)
+SegmentData = SubResource("Resource_nqx55")
+
+[node name="Top" type="MeshInstance3D" parent="Mid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.087, 0)
+mesh = ExtResource("6_eflbk")
+skeleton = NodePath("../..")

@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://d1rion8l6ftyd"]
+
+[ext_resource type="PackedScene" uid="uid://c3vcl2btogylt" path="res://EquipmentAndDevices/Main.tscn" id="1_d5unj"]
+[ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://EquipmentAndDevices/Building.tscn" id="2_qt7xj"]
+
+[node name="Main" instance=ExtResource("1_d5unj")]
+
+[node name="Building" parent="." index="0" instance=ExtResource("2_qt7xj")]
+metadata/_edit_lock_ = true

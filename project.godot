@@ -1,0 +1,55 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Open Industry Project"
+run/main_scene="res://src/NewSimulation.tscn"
+config/features=PackedStringArray("4.2", "C#", "Forward Plus")
+boot_splash/image="res://assets/png/splash.png"
+boot_splash/fullsize=false
+
+[autoload]
+
+SimulationEvents="*res://addons/oip_ui/Autoload/SimulationEvents.gd"
+
+[dotnet]
+
+project/assembly_name="OpenIndustryProject"
+
+[editor]
+
+naming/default_signal_callback_name="_on_{NodeName}_{signal_name}"
+naming/scene_name_casing=1
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/oip_ui/plugin.cfg")
+
+[filesystem]
+
+import/blender/enabled=false
+import/fbx/enabled=false
+
+[layer_names]
+
+3d_physics/layer_1="Static"
+3d_physics/layer_2="Dynamic"
+3d_physics/layer_3="Belt"
+3d_physics/layer_4="Box"
+
+[physics]
+
+3d/physics_engine="JoltPhysics3D"
+jolt_3d/solver/velocity_iterations=100
+jolt_3d/solver/position_iterations=20
+jolt_3d/solver/active_edge_threshold=0.0
+jolt_3d/solver/contact_speculative_distance=0.0
+jolt_3d/solver/contact_allowed_penetration=0.0

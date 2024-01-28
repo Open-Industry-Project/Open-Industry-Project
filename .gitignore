@@ -1,0 +1,24 @@
+.vs/
+.godot/shader_cache
+.godot/mono
+.godot/editor
+addons/godot-jolt/windows/~godot-jolt_windows-x64_editor.dll
+build.txt
+uid_cache.bin
+
+# Godot-specific ignores
+export.cfg
+export_presets.cfg
+
+# Imported translations (automatically generated from CSV files)
+*.translation
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# User-specific files (MonoDevelop/Xamarin Studio)
+*.userprefs
