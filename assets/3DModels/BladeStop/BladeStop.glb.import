@@ -1,0 +1,135 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://db4g7c6vveq70"
+path="res://.godot/imported/BladeStop.glb-0f9442842b58af8eb52900cd6e7ca5e4.scn"
+
+[deps]
+
+source_file="res://assets/3DModels/BladeStop/BladeStop.glb"
+dest_files=["res://.godot/imported/BladeStop.glb-0f9442842b58af8eb52900cd6e7ca5e4.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+meshes/ensure_tangents=true
+meshes/generate_lods=false
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+import_script/path=""
+_subresources={
+"materials": {
+"StopBladeBelt": {
+"use_external/enabled": true,
+"use_external/path": "res://assets/3DModels/BladeStop/Materials/StopBladeBelt.tres"
+},
+"StopBladeBlade": {
+"use_external/enabled": true,
+"use_external/path": "res://assets/3DModels/BladeStop/Materials/StopBladeBlade.tres"
+},
+"StopBladeMetal": {
+"use_external/enabled": true,
+"use_external/path": "res://assets/3DModels/BladeStop/Materials/StopBladeMetal.tres"
+},
+"StopBladePlate": {
+"use_external/enabled": true,
+"use_external/path": "res://assets/3DModels/BladeStop/Materials/StopBladePlate.tres"
+}
+},
+"meshes": {
+"BladeStop_Cube_001": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_001.res"
+},
+"BladeStop_Cube_003": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_003.res"
+},
+"BladeStop_Cube_004": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_004.res"
+},
+"BladeStop_Cube_005": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_005.res"
+},
+"BladeStop_Cube_006": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_006.res"
+},
+"BladeStop_Cube_007": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_007.res"
+},
+"BladeStop_Cube_008": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_008.res"
+},
+"BladeStop_Cube_009": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 60.0,
+"lods/normal_split_angle": 25.0,
+"save_to_file/enabled": true,
+"save_to_file/make_streamable": "",
+"save_to_file/path": "res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_009.res"
+}
+}
+}
+gltf/naming_version=1
+gltf/embedded_image_handling=1
