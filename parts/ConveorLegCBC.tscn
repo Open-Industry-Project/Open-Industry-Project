@@ -90,19 +90,18 @@ mesh = SubResource("ArrayMesh_qbj2v")
 [node name="LegsBar" parent="LegsBars" index="0"]
 mesh = SubResource("ArrayMesh_11l6m")
 
-[node name="LegsGrab1" parent="." index="2"]
-visible = false
-
-[node name="LegsGrab2" parent="." index="3"]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1, 1)
-visible = false
-
 [node name="LegsTop1" parent="Ends" index="0"]
 mesh = ExtResource("4_w11cr")
+
+[node name="LegsGrab1" parent="Ends/LegsTop1" index="0"]
+visible = false
 
 [node name="LegsTop2" parent="Ends" index="1"]
 transform = Transform3D(-1, 0, -1.50996e-07, 0, 1, 0, 1.50996e-07, 0, -1, 0, 1, 1)
 mesh = ExtResource("4_w11cr")
+
+[node name="LegsGrab2" parent="Ends/LegsTop2" index="0"]
+visible = false
 
 [node name="LegsBottom2" parent="Ends" index="3"]
 transform = Transform3D(-1, 0, -1.50996e-07, 0, 1, 0, 1.50996e-07, 0, -1, 0, 0, 1)
