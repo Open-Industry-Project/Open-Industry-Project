@@ -21,16 +21,13 @@ public partial class LegBars : Node3D
 			int roundedScale = Mathf.FloorToInt(value) + 1;
 			int barsCount = GetChildCount();
 			
-			if (roundedScale - 1 > barsCount && roundedScale != 0)
+			for (; roundedScale - 1 > barsCount && roundedScale != 0; barsCount++)
 			{
 				SpawnBar();
 			}
-			else if (barsCount > roundedScale - 1)
+			for (; barsCount > roundedScale - 1 && barsCount > 1; barsCount--)
 			{
-				if (barsCount > 1)
-				{
-					RemoveBar();
-				}
+				RemoveBar();
 			}
 			
 			parentScale = value;
@@ -43,6 +40,8 @@ public partial class LegBars : Node3D
 	{
 		owner = Owner as ConveyorLeg;
 		FixBars();
+
+		ParentScale = parentScale;
 	}
 	
 	public override void _PhysicsProcess(double delta)
@@ -55,10 +54,9 @@ public partial class LegBars : Node3D
 	
 	void SpawnBar()
 	{
-		if (GetParent() == null) return;
 		Node3D legsBar = legsBarScene.Instantiate() as Node3D;
 		AddChild(legsBar, forceReadableName: true);
-		legsBar.Owner = GetParent();
+		legsBar.Owner = this;
 		legsBar.Position = new Vector3(0, barsDistance * GetChildCount(), 0);
 		FixBars();
 	}
@@ -70,6 +68,7 @@ public partial class LegBars : Node3D
 
 	void FixBars()
 	{
+		if (GetParent() == null) return;
 		((Node3D)GetChild(0)).Owner = GetParent();
 		((Node3D)GetChild(0)).Position = new Vector3(0, barsDistance, 0);
 	}
