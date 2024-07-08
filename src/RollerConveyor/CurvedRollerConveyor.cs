@@ -23,7 +23,7 @@ public partial class CurvedRollerConveyor : Node3D
 	private int updateRate = 100;
 	[Export]
 	float Speed = -1.0f;
-	
+
 	enum Scales { Low, Mid, High }
 	Scales currentScale = Scales.Mid;
 	Scales CurrentScale
@@ -58,7 +58,7 @@ public partial class CurvedRollerConveyor : Node3D
 			}
 		}
 	}
-	
+
 	bool run = true;
 
 	readonly Guid id = Guid.NewGuid();
@@ -68,11 +68,11 @@ public partial class CurvedRollerConveyor : Node3D
 
 	MeshInstance3D meshInstance;
 	Material metalMaterial;
-	
+
 	Node3D rollersLow;
 	Node3D rollersMid;
 	Node3D rollersHigh;
-	
+
 	Node3D ends;
 
 	Root Main;
@@ -91,15 +91,15 @@ public partial class CurvedRollerConveyor : Node3D
 		meshInstance.Mesh = meshInstance.Mesh.Duplicate() as Mesh;
 		metalMaterial = meshInstance.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
 		meshInstance.Mesh.SurfaceSetMaterial(0, metalMaterial);
-		
+
 		rollersLow = GetNode<Node3D>("RollersLow");
 		rollersMid = GetNode<Node3D>("RollersMid");
 		rollersHigh = GetNode<Node3D>("RollersHigh");
-		
+
 		ends = GetNode<Node3D>("Ends");
-		
+
 		SetCurrentScale();
-		
+
 		SetRollersSpeed(rollersLow, Speed);
 		SetRollersSpeed(rollersMid, Speed);
 		SetRollersSpeed(rollersHigh, Speed);
@@ -116,13 +116,13 @@ public partial class CurvedRollerConveyor : Node3D
 	public override void _PhysicsProcess(double delta)
 	{
 		Scale = new Vector3(Scale.X, 1, Scale.X);
-		
+
 		if (Scale.X > 0.5f)
 		{
 			if (metalMaterial != null && Speed != 0)
 				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
 		}
-		
+
 		if (ends != null)
 		{
 			foreach(MeshInstance3D end in ends.GetChildren())
@@ -150,7 +150,7 @@ public partial class CurvedRollerConveyor : Node3D
 
 		SetCurrentScale();
 	}
-	
+
 	void SetCurrentScale()
 	{
 		if (Scale.X < 0.8f)
@@ -166,7 +166,7 @@ public partial class CurvedRollerConveyor : Node3D
 			CurrentScale = Scales.High;
 		}
 	}
-	
+
 	void SetRollersSpeed(Node3D rollers, float speed)
 	{
 		if (rollers != null)

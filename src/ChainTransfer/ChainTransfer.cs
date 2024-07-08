@@ -93,8 +93,8 @@ public partial class ChainTransfer : Node3D
 		}
 		set
 		{
-            popupChains = value;
-        }
+			popupChains = value;
+		}
 	}
 	
 	bool running = false;
@@ -133,15 +133,15 @@ public partial class ChainTransfer : Node3D
 		if(!running)
 		{
 			popupChains = false;
-            return;
-        }
+			return;
+		}
 		
 		if (running)
 		{
-            SetChainsPopupChains(popupChains);
-            SetChainsSpeed(speed);
+			SetChainsPopupChains(popupChains);
+			SetChainsSpeed(speed);
 
-            if (EnableComms && readSuccessful)
+			if (EnableComms && readSuccessful)
 			{
 				scan_interval += delta;
 				if (scan_interval > (float)updateRate/1000 && readSuccessful)
@@ -231,13 +231,13 @@ public partial class ChainTransfer : Node3D
 	{
 		try
 		{
-            Speed = await Main.ReadFloat(speedId);
-        }
-        catch
+			Speed = await Main.ReadFloat(speedId);
+		}
+		catch
 		{
-            GD.PrintErr("Failure to read: " + speedTag + " in Node: " + Name);
-            readSuccessful = false;
-        }
+			GD.PrintErr("Failure to read: " + speedTag + " in Node: " + Name);
+			readSuccessful = false;
+		}
 
 		try
 		{
@@ -248,7 +248,7 @@ public partial class ChainTransfer : Node3D
 			GD.PrintErr("Failure to write: " + popupTag + " in Node: " + Name);
 			readSuccessful = false;
 		}
-    }
+	}
 	
 	void OnSimulationStarted()
 	{

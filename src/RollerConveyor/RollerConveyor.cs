@@ -23,7 +23,7 @@ public partial class RollerConveyor : Node3D
 	private int updateRate = 100;
 	[Export]
 	public float Speed = 1.0f;
-	
+
 	float skewAngle = 0.0f;
 	[Export]
 	public float SkewAngle
@@ -38,11 +38,11 @@ public partial class RollerConveyor : Node3D
 			SetRollersRotation();
 		}
 	}
-	
+
 	float nodeScaleX = 1.0f;
 	float nodeScaleZ = 1.0f;
 	float lastScale = 0.0f;
-	
+
 	MeshInstance3D meshInstance;
 	Material metalMaterial;
 	Rollers rollers;
@@ -106,12 +106,12 @@ public partial class RollerConveyor : Node3D
 			nodeScaleX = Scale.X;
 		if (Scale.Z >= 1.0f)
 			nodeScaleZ = Scale.Z;
-		
+
 		Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
-		
+
 		if (metalMaterial != null)
 			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
-		
+
 		if (rollers != null && lastScale != Scale.X)
 		{
 			rollers.ChangeScale(Scale.X);
@@ -133,7 +133,7 @@ public partial class RollerConveyor : Node3D
 			}
 		}
 	}
-	
+
 	void SetRollersSpeed()
 	{
 		if (rollers != null)
@@ -143,7 +143,7 @@ public partial class RollerConveyor : Node3D
 				roller.speed = Speed;
 			}
 		}
-		
+
 		if (ends != null)
 		{
 			foreach(RollerConveyorEnd end in ends.GetChildren())
@@ -152,7 +152,7 @@ public partial class RollerConveyor : Node3D
 			}
 		}
 	}
-	
+
 	void SetRollersRotation()
 	{
 		if (rollers != null)
@@ -162,7 +162,7 @@ public partial class RollerConveyor : Node3D
 				roller.RotationDegrees = new Vector3(0, SkewAngle, 0);
 			}
 		}
-		
+
 		if (ends != null)
 		{
 			foreach(RollerConveyorEnd end in ends.GetChildren())
