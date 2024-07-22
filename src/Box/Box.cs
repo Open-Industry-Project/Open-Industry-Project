@@ -94,8 +94,8 @@ public partial class Box : Node3D
 		{
 			rigidBody.TopLevel = true;
 			rigidBody.Freeze = false;
-			GlobalPosition = rigidBody.GlobalPosition;
-			GlobalRotation = rigidBody.GlobalRotation;
+			Position = rigidBody.Position;
+			Rotation = rigidBody.Rotation;
 			Scale = rigidBody.Scale;
 		}
 	}
