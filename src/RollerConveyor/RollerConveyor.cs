@@ -104,8 +104,8 @@ public partial class RollerConveyor : Node3D
 	{
 		if (Scale.X >= 1.0f)
 			nodeScaleX = Scale.X;
-		if (Scale.Z >= 1.0f)
-			nodeScaleZ = Scale.Z;
+
+		nodeScaleZ = Scale.Z;
 
 		Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
 
