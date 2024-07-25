@@ -3,12 +3,12 @@ using System;
 using System.Threading.Tasks;
 
 [Tool]
-public partial class RollerConveyor : Node3D
+public partial class RollerConveyor : Node3D, IRollerConveyor
 {
 	private bool enableComms;
 
 	[Export]
-	private bool EnableComms
+	public bool EnableComms
 	{
 		get => enableComms;
 		set
@@ -18,11 +18,13 @@ public partial class RollerConveyor : Node3D
 		}
 	}
 	[Export]
-	string tag;
+	private string tag;
+	public string Tag { get => tag; set => tag = value; }
 	[Export]
 	private int updateRate = 100;
+	public int UpdateRate { get => updateRate; set => updateRate = value; }
 	[Export]
-	public float Speed = 1.0f;
+	public float Speed { get; set; } = 1.0f;
 
 	float skewAngle = 0.0f;
 	[Export]

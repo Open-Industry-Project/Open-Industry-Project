@@ -3,12 +3,12 @@ using System;
 using System.Threading.Tasks;
 
 [Tool]
-public partial class CurvedRollerConveyor : Node3D
+public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 {
 	private bool enableComms;
 
 	[Export]
-	private bool EnableComms
+	public bool EnableComms
 	{
 		get => enableComms;
 		set
@@ -19,10 +19,12 @@ public partial class CurvedRollerConveyor : Node3D
 	}
 	[Export]
 	string tag;
+	public string Tag { get => tag; set => tag = value; }
 	[Export]
 	private int updateRate = 100;
+	public int UpdateRate { get => updateRate; set => updateRate = value; }
 	[Export]
-	float Speed = -1.0f;
+	public float Speed { get; set; } = -1.0f;
 
 	enum Scales { Low, Mid, High }
 	Scales currentScale = Scales.Mid;
