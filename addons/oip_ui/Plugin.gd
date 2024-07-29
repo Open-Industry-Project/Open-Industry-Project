@@ -21,6 +21,17 @@ var _project_popup_menu: PopupMenu
 var _editor_popup_menu: PopupMenu
 var _help_popup_menu: PopupMenu
 
+# Menu item IDs
+var _item_id_editor_toggle_native_ui: int
+# The IDs here must match those in _project_popup_menu and CustomProject.tscn.
+const ID_PROJECT_SETTINGS = 37
+const ID_OPEN_USER_DATA_FOLDER = 38
+const ID_RELOAD_CURRENT_PROJECT = 39
+const ID_QUIT_TO_PROJECT_LIST = 40
+const NATIVE_PROJECT_MENU_ITEM_IDS = [ID_PROJECT_SETTINGS, ID_OPEN_USER_DATA_FOLDER, ID_RELOAD_CURRENT_PROJECT, ID_QUIT_TO_PROJECT_LIST]
+# This ID must match the ID for the "Search Help..." item in the native Help menu (_help_popup_menu).
+const ID_SEARCH_HELP = 65
+
 # Top bar content
 var _title_bar: Node
 var _center_buttons: HBoxContainer
@@ -105,6 +116,7 @@ func _enter_tree() -> void:
 
 	_editor_popup_menu.add_separator()
 	_editor_popup_menu.add_check_item("Toggle Godot Native UI")
+	_item_id_editor_toggle_native_ui = _editor_popup_menu.get_item_id(_editor_popup_menu.item_count - 1)
 	_editor_popup_menu.id_pressed.connect(_on_editor_popup_id_pressed)
 
 	_custom_project_menu.id_pressed.connect(_on_custom_project_menu_id_pressed)
@@ -133,8 +145,9 @@ func _exit_tree() -> void:
 	if _empty_margin:
 		_empty_margin.queue_free()
 
-	_editor_popup_menu.remove_item(13)
-	_editor_popup_menu.remove_item(13)
+	var item_index = _editor_popup_menu.get_item_index(_item_id_editor_toggle_native_ui)
+	_editor_popup_menu.remove_item(item_index)
+	_editor_popup_menu.remove_item(item_index - 1)
 
 	if _editor_popup_menu.id_pressed.is_connected(_on_editor_popup_id_pressed):
 		_editor_popup_menu.id_pressed.disconnect(_on_editor_popup_id_pressed)
@@ -225,19 +238,19 @@ func _set_original_popup_menu(value: bool, original: PopupMenu, custom: PopupMen
 
 
 func _on_editor_popup_id_pressed(id: int) -> void:
-	if id == 14:
+	if id == _item_id_editor_toggle_native_ui:
 		_editor_popup_menu.set_item_checked(id, !_editor_popup_menu.is_item_checked(id))
 		_toggle_native_mode(_editor_popup_menu.is_item_checked(id))
 
 
 func _on_custom_project_menu_id_pressed(id: int) -> void:
-	if id in [36, 37, 38, 39]:
+	if id in NATIVE_PROJECT_MENU_ITEM_IDS:
 		_project_popup_menu.id_pressed.emit(id)
 
 
 func _on_custom_help_menu_id_pressed(id: int) -> void:
 	if id == 0:
-		_help_popup_menu.id_pressed.emit(64)
+		_help_popup_menu.id_pressed.emit(ID_SEARCH_HELP)
 	if id == 2:
 		OS.shell_open("https://github.com/Open-Industry-Project/Open-Industry-Project")
 
