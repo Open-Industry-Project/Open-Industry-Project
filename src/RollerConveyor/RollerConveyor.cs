@@ -3,12 +3,12 @@ using System;
 using System.Threading.Tasks;
 
 [Tool]
-public partial class RollerConveyor : Node3D
+public partial class RollerConveyor : Node3D, IRollerConveyor
 {
 	private bool enableComms;
 
 	[Export]
-	private bool EnableComms
+	public bool EnableComms
 	{
 		get => enableComms;
 		set
@@ -18,12 +18,14 @@ public partial class RollerConveyor : Node3D
 		}
 	}
 	[Export]
-	string tag;
+	private string tag;
+	public string Tag { get => tag; set => tag = value; }
 	[Export]
 	private int updateRate = 100;
+	public int UpdateRate { get => updateRate; set => updateRate = value; }
 	[Export]
-	public float Speed = 1.0f;
-	
+	public float Speed { get; set; } = 1.0f;
+
 	float skewAngle = 0.0f;
 	[Export]
 	public float SkewAngle
@@ -38,11 +40,11 @@ public partial class RollerConveyor : Node3D
 			SetRollersRotation();
 		}
 	}
-	
+
 	float nodeScaleX = 1.0f;
 	float nodeScaleZ = 1.0f;
 	float lastScale = 0.0f;
-	
+
 	MeshInstance3D meshInstance;
 	Material metalMaterial;
 	Rollers rollers;
@@ -104,14 +106,14 @@ public partial class RollerConveyor : Node3D
 	{
 		if (Scale.X >= 1.0f)
 			nodeScaleX = Scale.X;
-		if (Scale.Z >= 1.0f)
-			nodeScaleZ = Scale.Z;
-		
+
+		nodeScaleZ = Scale.Z;
+
 		Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
-		
+
 		if (metalMaterial != null)
 			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
-		
+
 		if (rollers != null && lastScale != Scale.X)
 		{
 			rollers.ChangeScale(Scale.X);
@@ -133,7 +135,7 @@ public partial class RollerConveyor : Node3D
 			}
 		}
 	}
-	
+
 	void SetRollersSpeed()
 	{
 		if (rollers != null)
@@ -143,7 +145,7 @@ public partial class RollerConveyor : Node3D
 				roller.speed = Speed;
 			}
 		}
-		
+
 		if (ends != null)
 		{
 			foreach(RollerConveyorEnd end in ends.GetChildren())
@@ -152,7 +154,7 @@ public partial class RollerConveyor : Node3D
 			}
 		}
 	}
-	
+
 	void SetRollersRotation()
 	{
 		if (rollers != null)
@@ -162,7 +164,7 @@ public partial class RollerConveyor : Node3D
 				roller.RotationDegrees = new Vector3(0, SkewAngle, 0);
 			}
 		}
-		
+
 		if (ends != null)
 		{
 			foreach(RollerConveyorEnd end in ends.GetChildren())

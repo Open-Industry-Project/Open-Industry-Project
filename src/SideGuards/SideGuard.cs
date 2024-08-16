@@ -1,8 +1,7 @@
 using Godot;
-using System;
 
 [Tool]
-public partial class SideGuard : Node3D
+public partial class SideGuard : MeshInstance3D
 {
 	bool leftEnd = false;
 	[Export]
@@ -34,23 +33,23 @@ public partial class SideGuard : Node3D
 				rEnd.Visible = value;
 		}
 	}
-	
+
 	MeshInstance3D meshInstance;
 	ShaderMaterial metalMaterial;
-	
+
 	Node3D lEnd;
 	Node3D rEnd;
-	
+
 	public override void _Ready()
 	{
-		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
+		meshInstance = this;
 		meshInstance.Mesh = meshInstance.Mesh.Duplicate() as Mesh;
 		metalMaterial = meshInstance.Mesh.SurfaceGetMaterial(0).Duplicate() as ShaderMaterial;
 		meshInstance.Mesh.SurfaceSetMaterial(0, metalMaterial);
-		
+
 		lEnd = GetNodeOrNull<Node3D>("Ends/SideGuardEndL");
 		rEnd = GetNodeOrNull<Node3D>("Ends/SideGuardEndR");
-		
+
 		lEnd.Visible = leftEnd;
 		rEnd.Visible = rightEnd;
 	}
@@ -59,7 +58,7 @@ public partial class SideGuard : Node3D
 	{
 		if (metalMaterial != null)
 			metalMaterial.SetShaderParameter("Scale", Scale.X);
-		
+
 		lEnd.Scale = new Vector3(1 / Scale.X, 1, 1);
 		rEnd.Scale = new Vector3(1 / Scale.X, 1, 1);
 	}

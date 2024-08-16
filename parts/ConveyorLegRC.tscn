@@ -89,8 +89,8 @@ mesh = SubResource("ArrayMesh_i0ecv")
 [node name="LegsBar" parent="LegsBars" index="0"]
 mesh = SubResource("ArrayMesh_ucn4r")
 
-[node name="LegsGrab1" parent="." index="2"]
+[node name="LegsGrab1" parent="Ends/LegsTop1" index="0"]
 mesh = ExtResource("4_4tjn2")
 
-[node name="LegsGrab2" parent="." index="3"]
+[node name="LegsGrab2" parent="Ends/LegsTop2" index="0"]
 mesh = ExtResource("4_4tjn2")

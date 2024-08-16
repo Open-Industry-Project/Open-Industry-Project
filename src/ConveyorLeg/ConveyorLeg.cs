@@ -32,12 +32,10 @@ public partial class ConveyorLeg : Node3D
 	LegBars legsBars;
 	Node3D ends;
 
-	bool setGrabsTopLevel = true;
-
 	public override void _Ready()
 	{
-		grab1 = GetNode<MeshInstance3D>("LegsGrab1");
-		grab2 = GetNode<MeshInstance3D>("LegsGrab2");
+		grab1 = GetNode<MeshInstance3D>("Ends/LegsTop1/LegsGrab1");
+		grab2 = GetNode<MeshInstance3D>("Ends/LegsTop2/LegsGrab2");
 
 		legsSidesMesh1 = GetNode<MeshInstance3D>("Sides/LegsSide1");
 		legsSidesMesh2 = GetNode<MeshInstance3D>("Sides/LegsSide2");
@@ -51,17 +49,10 @@ public partial class ConveyorLeg : Node3D
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (setGrabsTopLevel)
-		{
-			grab1.TopLevel = true;
-			grab2.TopLevel = true;
-			setGrabsTopLevel = false;
-		}
-
 		if (Scale.Y >= 1.0f)
 			nodeScaleY = Scale.Y;
-		if (Scale.Z >= 1.0f)
-			nodeScaleZ = Scale.Z;
+
+		nodeScaleZ = Scale.Z;
 
 		Scale = new Vector3(1, nodeScaleY, nodeScaleZ);
 
@@ -79,10 +70,10 @@ public partial class ConveyorLeg : Node3D
 		legsSidesMesh1.Scale = new Vector3(1 / Scale.X, 1, 1 / Scale.Z);
 		legsSidesMesh2.Scale = new Vector3(1 / Scale.X, 1, 1 / Scale.Z);
 
-		grab1.GlobalPosition = ((Node3D)ends.GetChild(0)).GlobalPosition;
-		grab2.GlobalPosition = ((Node3D)ends.GetChild(1)).GlobalPosition;
-
 		grab1.GlobalRotationDegrees = new Vector3(0, GlobalRotationDegrees.Y, grabsRotation);
 		grab2.GlobalRotationDegrees = new Vector3(0, GlobalRotationDegrees.Y + 180, -grabsRotation);
+
+		grab1.Scale = Vector3.One;
+		grab2.Scale = Vector3.One;
 	}
 }

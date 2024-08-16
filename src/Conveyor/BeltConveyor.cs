@@ -3,12 +3,12 @@ using System;
 using System.Threading.Tasks;
 
 [Tool]
-public partial class BeltConveyor : Node3D, IConveyor
+public partial class BeltConveyor : Node3D, IBeltConveyor
 {
 	private bool enableComms;
 
 	[Export]
-	private bool EnableComms
+	public bool EnableComms
 	{
 		get => enableComms;
 		set
@@ -19,12 +19,14 @@ public partial class BeltConveyor : Node3D, IConveyor
 	}
 	[Export]
 	public string tag;
+	public string Tag { get => tag; set => tag = value; }
 	[Export]
-	private int updateRate = 100;
-	
+	int updateRate = 100;
+	public int UpdateRate { get => updateRate; set => updateRate = value; }
+
 	Color beltColor = new Color(1, 1, 1, 1);
 	[Export]
-	Color BeltColor
+	public Color BeltColor
 	{
 		get
 		{
@@ -33,7 +35,7 @@ public partial class BeltConveyor : Node3D, IConveyor
 		set
 		{
 			beltColor = value;
-			
+
 			if (beltMaterial != null)
 				((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 			if (conveyorEnd1 != null)
@@ -42,16 +44,10 @@ public partial class BeltConveyor : Node3D, IConveyor
 				((ShaderMaterial)conveyorEnd2.beltMaterial).SetShaderParameter("ColorMix", beltColor);
 		}
 	}
-	
-	public enum ConvTexture 
-	{
-		Standard,
-		Arrow
-	}
-	
-	ConvTexture beltTexture = ConvTexture.Standard;
+
+	IBeltConveyor.ConvTexture beltTexture = IBeltConveyor.ConvTexture.Standard;
 	[Export]
-	public ConvTexture BeltTexture
+	public IBeltConveyor.ConvTexture BeltTexture
 	{
 		get
 		{
@@ -61,11 +57,11 @@ public partial class BeltConveyor : Node3D, IConveyor
 		{
 			beltTexture = value;
 			if (beltMaterial != null)
-				((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == ConvTexture.Standard);
+				((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 			if (conveyorEnd1 != null)
-				((ShaderMaterial)conveyorEnd1.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == ConvTexture.Standard);
+				((ShaderMaterial)conveyorEnd1.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 			if (conveyorEnd2 != null)
-				((ShaderMaterial)conveyorEnd2.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == ConvTexture.Standard);
+				((ShaderMaterial)conveyorEnd2.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 		}
 	}
 
@@ -81,11 +77,11 @@ public partial class BeltConveyor : Node3D, IConveyor
 	MeshInstance3D mesh;
 	Material beltMaterial;
 	Material metalMaterial;
-	
+
 	bool running = false;
 	public double beltPosition = 0.0;
 	Vector3 boxSize;
-	
+
 	ConveyorEnd conveyorEnd1;
 	ConveyorEnd conveyorEnd2;
 
@@ -103,7 +99,7 @@ public partial class BeltConveyor : Node3D, IConveyor
 	public override void _Ready()
 	{
 		rb = GetNode<RigidBody3D>("RigidBody3D");
-		
+
 		mesh = GetNode<MeshInstance3D>("RigidBody3D/MeshInstance3D");
 		mesh.Mesh = mesh.Mesh.Duplicate() as Mesh;
 		beltMaterial = mesh.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
@@ -111,16 +107,16 @@ public partial class BeltConveyor : Node3D, IConveyor
 		mesh.Mesh.SurfaceSetMaterial(0, beltMaterial);
 		mesh.Mesh.SurfaceSetMaterial(1, metalMaterial);
 		mesh.Mesh.SurfaceSetMaterial(2, metalMaterial);
-		
+
 		conveyorEnd1 = GetNode<ConveyorEnd>("RigidBody3D/Ends/ConveyorEnd");
 		conveyorEnd2 = GetNode<ConveyorEnd>("RigidBody3D/Ends/ConveyorEnd2");
-		
+
 		origin = rb.Position;
 
-		((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == ConvTexture.Standard);
-		conveyorEnd1.beltMaterial.SetShaderParameter("BlackTextureOn", beltTexture == ConvTexture.Standard);
-		conveyorEnd2.beltMaterial.SetShaderParameter("BlackTextureOn", beltTexture == ConvTexture.Standard);
-		
+		((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+		conveyorEnd1.beltMaterial.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+		conveyorEnd2.beltMaterial.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+
 		((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd1.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd2.beltMaterial.SetShaderParameter("ColorMix", beltColor);
@@ -166,14 +162,14 @@ public partial class BeltConveyor : Node3D, IConveyor
 		}
 
 		Scale = new Vector3(Scale.X, 1, Scale.Z);
-		
+
 		if (beltMaterial != null && Speed != 0)
 			((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Scale.X * Mathf.Sign(Speed));
-		
+
 		if (metalMaterial != null && Speed != 0)
 			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
 	}
-	
+
 	void OnSimulationStarted()
 	{
 		if (Main == null) return;
@@ -184,25 +180,25 @@ public partial class BeltConveyor : Node3D, IConveyor
 		running = true;
 		readSuccessful = true;
 	}
-	
+
 	void OnSimulationEnded()
 	{
 		running = false;
-		
+
 		beltPosition = 0;
 		((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition);
-		
+
 		rb.Position = Vector3.Zero;
 		rb.Rotation = Vector3.Zero;
 		rb.LinearVelocity = Vector3.Zero;
-		
+
 		foreach (Node3D child in rb.GetChildren())
 		{
 			child.Position = Vector3.Zero;
 			child.Rotation = Vector3.Zero;
 		}
 	}
-	
+
 	async Task ScanTag()
 	{
 		try

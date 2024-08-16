@@ -105,16 +105,6 @@ legsBarScene = ExtResource("4_kogpx")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 mesh = SubResource("ArrayMesh_d2apy")
 
-[node name="LegsGrab1" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -1)
-mesh = ExtResource("6_ef0e1")
-skeleton = NodePath("")
-
-[node name="LegsGrab2" type="MeshInstance3D" parent="."]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1, 1)
-mesh = ExtResource("6_ef0e1")
-skeleton = NodePath("")
-
 [node name="Ends" type="Node3D" parent="."]
 
 [node name="LegsTop1" type="MeshInstance3D" parent="Ends"]
@@ -122,9 +112,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -1)
 mesh = ExtResource("6_r6cyh")
 skeleton = NodePath("")
 
+[node name="LegsGrab1" type="MeshInstance3D" parent="Ends/LegsTop1"]
+mesh = ExtResource("6_ef0e1")
+skeleton = NodePath("")
+
 [node name="LegsTop2" type="MeshInstance3D" parent="Ends"]
 transform = Transform3D(-1, 0, -1.50996e-07, 0, 1, 0, 1.50996e-07, 0, -1, 0, 1, 1)
 mesh = ExtResource("6_r6cyh")
+skeleton = NodePath("")
+
+[node name="LegsGrab2" type="MeshInstance3D" parent="Ends/LegsTop2"]
+mesh = ExtResource("6_ef0e1")
 skeleton = NodePath("")
 
 [node name="LegsBottom1" type="MeshInstance3D" parent="Ends"]
