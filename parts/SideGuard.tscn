@@ -48,13 +48,11 @@ shadow_mesh = SubResource("ArrayMesh_gn6s2")
 [sub_resource type="BoxShape3D" id="BoxShape3D_mn2rf"]
 size = Vector3(1, 0.602947, 0.0693115)
 
-[node name="SideGuard" type="Node3D"]
+[node name="SideGuard" type="MeshInstance3D"]
+mesh = SubResource("ArrayMesh_xosif")
 script = ExtResource("1_ut3rj")
 LeftEnd = true
 RightEnd = true
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = SubResource("ArrayMesh_xosif")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 collision_mask = 8
