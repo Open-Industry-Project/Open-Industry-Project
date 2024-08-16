@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bdhksi8p0v4g1"
-path="res://.godot/imported/Diverter.glb-fb5f8d221760a4e601c0431829fa7e2b.scn"
+valid=false
 
 [deps]
 
 source_file="res://assets/3DModels/Diverter.glb"
-dest_files=["res://.godot/imported/Diverter.glb-fb5f8d221760a4e601c0431829fa7e2b.scn"]
 
 [params]
 
@@ -17,6 +16,7 @@ nodes/root_type=""
 nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
 meshes/ensure_tangents=true
 meshes/generate_lods=true
 meshes/create_shadow_meshes=true
@@ -28,6 +28,7 @@ animation/import=true
 animation/fps=30
 animation/trimming=false
 animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
 import_script/path=""
 _subresources={
 "materials": {
