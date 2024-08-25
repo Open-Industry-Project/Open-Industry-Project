@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bbbsql5upsk0f"
+uid="uid://dbvo3wfxqenus"
 path.s3tc="res://.godot/imported/Diverter_Warning.png-cf4d8647a867aa99bfcf476693798574.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

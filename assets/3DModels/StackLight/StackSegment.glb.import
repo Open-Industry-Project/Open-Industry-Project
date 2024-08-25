@@ -3,12 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cpyn3685prc78"
-valid=false
+uid="uid://cg31mloa1uyee"
+path="res://.godot/imported/StackSegment.glb-66470a9c214e89ad281e05655bcba577.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/StackLight/StackSegment.glb"
+dest_files=["res://.godot/imported/StackSegment.glb-66470a9c214e89ad281e05655bcba577.scn"]
 
 [params]
 
@@ -30,25 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"TripleStackLight": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/TripleStack/Materials/TripleStackLight.tres"
-}
-},
-"meshes": {
-"TripleStackSegment_TripleStackLight": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/TripleStack/Meshes/TripleStackSegment_TripleStackLight.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

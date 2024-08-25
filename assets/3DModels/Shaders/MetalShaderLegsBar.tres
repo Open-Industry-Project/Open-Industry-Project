@@ -1,6 +1,6 @@
 [gd_resource type="VisualShader" load_steps=12 format=3 uid="uid://b6uso6bqiurpv"]
 
-[ext_resource type="Texture2D" uid="uid://bkrhcs85w38m5" path="res://assets/3DModels/Textures/LegsBar_GrayMetal.png" id="1_hiafm"]
+[ext_resource type="Texture2D" uid="uid://bfoh4u2xut8f3" path="res://assets/3DModels/Textures/LegsBar_GrayMetal.png" id="1_hiafm"]
 
 [sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_06lb5"]
 default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]

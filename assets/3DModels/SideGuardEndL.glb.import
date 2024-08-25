@@ -3,12 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bhqjalnhtt2fu"
-valid=false
+uid="uid://dh8ouuh6iqld5"
+path="res://.godot/imported/SideGuardEndL.glb-6a0a2b853d6c7f7a2ce32ad102ada7ca.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/SideGuardEndL.glb"
+dest_files=["res://.godot/imported/SideGuardEndL.glb-6a0a2b853d6c7f7a2ce32ad102ada7ca.scn"]
 
 [params]
 
@@ -30,25 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"SideGuards_metal": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/Materials/SideGuards_metal.tres"
-}
-},
-"meshes": {
-"SideGuardEndL_SideGuardEndL": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/Meshes/SideGuardEndL_SideGuardEndL.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

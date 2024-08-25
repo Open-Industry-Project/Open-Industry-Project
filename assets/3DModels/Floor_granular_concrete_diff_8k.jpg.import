@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c7dsdgum1b1l"
+uid="uid://b5wtrgidr8gps"
 path.s3tc="res://.godot/imported/Floor_granular_concrete_diff_8k.jpg-20fe0ef77d8234aeefb990886ea04c4f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

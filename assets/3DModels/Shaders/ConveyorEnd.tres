@@ -1,7 +1,7 @@
 [gd_resource type="VisualShader" load_steps=21 format=3 uid="uid://cnasha667mnsl"]
 
-[ext_resource type="Texture2D" uid="uid://bhu3hehqmwg0x" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="1_o1k2q"]
-[ext_resource type="Texture2D" uid="uid://cixv1hj8tb11r" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="2_k7jsh"]
+[ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="1_o1k2q"]
+[ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="2_k7jsh"]
 
 [sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_vq50m"]
 default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]

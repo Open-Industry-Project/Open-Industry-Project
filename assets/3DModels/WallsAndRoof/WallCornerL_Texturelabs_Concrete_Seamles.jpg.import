@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1m30mce5ej8d"
+uid="uid://dqb5ghx6cubgw"
 path.s3tc="res://.godot/imported/WallCornerL_Texturelabs_Concrete_Seamles.jpg-32bd0374236b510351f0b1665c07238f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bitjuevv0n0hb"
+uid="uid://csdxeq0v42ln0"
 path.s3tc="res://.godot/imported/Box_TexturesCom_Cardboard_Dirty_1K_roughness.png-c8270e3e4988664d352c06bfb4724f68.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

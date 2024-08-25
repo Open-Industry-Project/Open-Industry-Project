@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dnltm0y223vu4"
+uid="uid://dyum176qcb5ta"
 path.s3tc="res://.godot/imported/SideGuardCBC_Untitled.png-85fd4981abd2ff17d0da279e21eabdea.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

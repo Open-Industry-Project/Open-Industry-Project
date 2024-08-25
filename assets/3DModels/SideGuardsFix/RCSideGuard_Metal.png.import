@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://u022y5jgdfdp"
+uid="uid://bluep0m8r7gin"
 path.s3tc="res://.godot/imported/RCSideGuard_Metal.png-ed1139f9b7991618a1c969d034477d34.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

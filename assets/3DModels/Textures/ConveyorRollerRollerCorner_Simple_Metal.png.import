@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b0ww28te3v2ed"
+uid="uid://mf1dfywkqgol"
 path.s3tc="res://.godot/imported/ConveyorRollerRollerCorner_Simple_Metal.png-254c5eaee55ff90b9789654d1621d462.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

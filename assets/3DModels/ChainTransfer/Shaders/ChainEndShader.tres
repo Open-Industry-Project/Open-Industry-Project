@@ -1,6 +1,6 @@
 [gd_resource type="VisualShader" load_steps=15 format=3 uid="uid://dny8ls5gyqoq0"]
 
-[ext_resource type="Texture2D" uid="uid://dwjdpsgkqspm8" path="res://assets/3DModels/ChainTransfer/ChainTransfer_chain_tex_pattern.png" id="1_5pt6p"]
+[ext_resource type="Texture2D" uid="uid://ss03sm2hsofi" path="res://assets/3DModels/ChainTransfer/ChainTransfer_chain_tex_pattern.png" id="1_5pt6p"]
 
 [sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_06lb5"]
 default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]

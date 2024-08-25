@@ -434,21 +434,21 @@ public partial class Root : Node3D
 	{
 		Start = true;
 
-        if (Protocol == Protocols.opc_ua && opc_tags.Count > 0)
-        {
+		if (Protocol == Protocols.opc_ua && opc_tags.Count > 0)
+		{
 			if(session != null && session.Endpoint.EndpointUrl.TrimEnd('/') != EndPoint.TrimEnd('/'))
 			{
 				session.Close();
 				session = null;
 			}
-            if (session == null)
-            {
-                OpcConnect();
-            }
-        }
-    }
+			if (session == null)
+			{
+				OpcConnect();
+			}
+		}
+	}
 
-    void OnSimulationSetPaused(bool _paused)
+	void OnSimulationSetPaused(bool _paused)
 	{
 		paused = _paused;
 		

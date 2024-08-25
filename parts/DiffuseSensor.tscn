@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://kdpe7o4ec1fa"]
 
 [ext_resource type="Script" path="res://src/DiffuseSensor/DiffuseSensor.cs" id="1_1namx"]
-[ext_resource type="PackedScene" uid="uid://dbfqxnq3cmeps" path="res://assets/3DModels/DiffuseSensor.glb" id="1_nol3p"]
+[ext_resource type="PackedScene" uid="uid://b02agejuqxpw8" path="res://assets/3DModels/DiffuseSensor.glb" id="1_nol3p"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_28m7p"]
 shading_mode = 0

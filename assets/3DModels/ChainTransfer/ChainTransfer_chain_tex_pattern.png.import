@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dwjdpsgkqspm8"
+uid="uid://ss03sm2hsofi"
 path.s3tc="res://.godot/imported/ChainTransfer_chain_tex_pattern.png-d5a916a4884c20bfb21cb636ef46c88b.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "6925ae5743c83fa1f31cecb91d34348a"
 }
 
 [deps]

@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://be42gbu6qv3o2"
+uid="uid://b77uw0t6btlrk"
 path.s3tc="res://.godot/imported/Pallet_Mat_Base_Color.png-77444adc69921dafe41a56138e758d07.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

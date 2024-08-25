@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://7crle14yqw4e"
+uid="uid://banwkhj4fgesx"
 path.s3tc="res://.godot/imported/ConvEnd_Conv_text__arrows_1024.png-8be4f69c5dff64f0b60525724dffebda.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

@@ -3,12 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://coc0s13lxmkt8"
-valid=false
+uid="uid://ct1e85akh155c"
+path="res://.godot/imported/LegsBar.glb-b2eac825934a51f23862ce921b8574fb.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/LegsBar.glb"
+dest_files=["res://.godot/imported/LegsBar.glb-b2eac825934a51f23862ce921b8574fb.scn"]
 
 [params]
 
@@ -30,25 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"LegsStand_grayMetal.003": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/Materials/LegsStand_grayMetal.003.tres"
-}
-},
-"meshes": {
-"LegsBar_Bar": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/Meshes/LegsBar_Bar.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

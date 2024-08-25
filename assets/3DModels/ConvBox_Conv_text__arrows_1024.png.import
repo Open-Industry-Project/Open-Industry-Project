@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dkwpyfsylvpxh"
+uid="uid://b0h1q3nq683yk"
 path.s3tc="res://.godot/imported/ConvBox_Conv_text__arrows_1024.png-b0ffea56fd6f5b466f1bc8737b37a623.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

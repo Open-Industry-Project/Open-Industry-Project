@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c0djtbe3622p2"
+uid="uid://bl4ku85osaxkd"
 path.s3tc="res://.godot/imported/Diverter_Simple_Metal.png-d947e5bc5880382689e7d9c889635448.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

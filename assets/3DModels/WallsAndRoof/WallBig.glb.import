@@ -3,12 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bdr4ddufn10nl"
-valid=false
+uid="uid://b4lh51286vc8r"
+path="res://.godot/imported/WallBig.glb-c3e6a82c344ef0ff5d056f57cd8ffd0e.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/WallsAndRoof/WallBig.glb"
+dest_files=["res://.godot/imported/WallBig.glb-c3e6a82c344ef0ff5d056f57cd8ffd0e.scn"]
 
 [params]
 
@@ -18,7 +19,7 @@ nodes/apply_root_scale=true
 nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
 meshes/ensure_tangents=true
-meshes/generate_lods=false
+meshes/generate_lods=true
 meshes/create_shadow_meshes=true
 meshes/light_baking=1
 meshes/lightmap_texel_size=0.2
@@ -30,29 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"WallBigConcrete": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/WallsAndRoof/Materials/WallBigConcrete.tres"
-},
-"WallBigMetal": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/WallsAndRoof/Materials/WallBigMetal.tres"
-}
-},
-"meshes": {
-"WallBig_WallBig": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/WallsAndRoof/Meshes/WallBig_WallBig.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1
