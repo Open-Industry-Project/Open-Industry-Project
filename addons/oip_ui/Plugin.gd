@@ -54,11 +54,6 @@ var _godot_version: VBoxContainer
 var _create_root_vbox: VBoxContainer
 var _scene_tabs: TabBar
 
-var callable: Callable
-
-func build() -> void:
-	callable.call()
-
 func _process(delta):
 	var root = get_tree().edited_scene_root
 
@@ -94,10 +89,10 @@ func _enter_tree() -> void:
 
 	if(!FileAccess.file_exists("res://addons/oip_ui/build.txt")):
 		var msBuildPanel = find_build_panel(get_parent())
-		callable = Callable(msBuildPanel,"BuildProject")
 		get_tree().root.connect("ready",Callable(self,"build"))
 		var file = FileAccess.open("res://addons/oip_ui/build.txt",FileAccess.WRITE)
 		file.store_string("This file was automatically generated. Do not delete")
+		msBuildPanel.BuildProject()
 
 
 	_toggle_native_mode(false)
