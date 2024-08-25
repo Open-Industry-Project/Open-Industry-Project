@@ -24,18 +24,15 @@ https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/
 
 ## Out of the Box Features 
 
-Dynamic Devices
-
-https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/1e74dc9c-0613-43cf-a864-8fc78a2785ca
-
 Customizable Equipment
 
 https://github.com/user-attachments/assets/0d3ae08d-e80a-4495-8059-7056c406584f
 
-
 https://github.com/user-attachments/assets/00a2b3e6-03c3-45a1-b917-d71f6fdef13a
 
+Dynamic Devices
 
+https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/1e74dc9c-0613-43cf-a864-8fc78a2785ca
 
 ## Getting Started
 
