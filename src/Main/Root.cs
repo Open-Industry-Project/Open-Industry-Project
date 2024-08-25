@@ -178,11 +178,6 @@ public partial class Root : Node3D
 					new UserIdentity(),
 					preferredLocales
 				).Result;
-
-		if (session != null && session.Connected)
-		{
-			Console.WriteLine("connected");
-		}
 	}
 
 
@@ -439,13 +434,21 @@ public partial class Root : Node3D
 	{
 		Start = true;
 
-		if(Protocol == Protocols.opc_ua && opc_tags.Count > 0)
-		{
-			OpcConnect();
-		}
-	}
-	
-	void OnSimulationSetPaused(bool _paused)
+        if (Protocol == Protocols.opc_ua && opc_tags.Count > 0)
+        {
+			if(session != null && session.Endpoint.EndpointUrl.TrimEnd('/') != EndPoint.TrimEnd('/'))
+			{
+				session.Close();
+				session = null;
+			}
+            if (session == null)
+            {
+                OpcConnect();
+            }
+        }
+    }
+
+    void OnSimulationSetPaused(bool _paused)
 	{
 		paused = _paused;
 		
