@@ -30,7 +30,12 @@ https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/
 
 Customizable Equipment
 
-https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/e1c5857e-c86e-476e-92ce-49c67a36a715
+https://github.com/user-attachments/assets/0d3ae08d-e80a-4495-8059-7056c406584f
+
+
+https://github.com/user-attachments/assets/00a2b3e6-03c3-45a1-b917-d71f6fdef13a
+
+
 
 ## Getting Started
 
@@ -50,7 +55,7 @@ At the moment there is no reason to "run" this project as if it were a game like
 
 Use the Project Manager to create a new project.
 
-![image](https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/c523b828-8435-4071-affa-6441f3d387a9)
+![image](https://github.com/user-attachments/assets/3de4a320-89bc-4088-86b7-a814da0e726d)
 
 All objects used in a simulation scene will be in the Parts tab. 
 
