@@ -2,6 +2,7 @@
 .godot/shader_cache
 .godot/mono
 .godot/editor
+.godot/imported
 addons/godot-jolt/windows/~godot-jolt_windows-x64_editor.dll
 build.txt
 uid_cache.bin
