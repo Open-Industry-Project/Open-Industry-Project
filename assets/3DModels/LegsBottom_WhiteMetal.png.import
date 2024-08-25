@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dlp311fsw875q"
+uid="uid://t3sxqeoaukw7"
 path.s3tc="res://.godot/imported/LegsBottom_WhiteMetal.png-e4896a161a94633787bbef81280bca22.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

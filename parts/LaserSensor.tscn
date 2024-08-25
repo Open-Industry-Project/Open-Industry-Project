@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://nsio1mg8ru3w"]
 
-[ext_resource type="PackedScene" uid="uid://ou8gjlysq0jh" path="res://assets/3DModels/LaserSensor.glb" id="1_rgt1d"]
+[ext_resource type="PackedScene" uid="uid://cneqqcurcibg6" path="res://assets/3DModels/LaserSensor.glb" id="1_rgt1d"]
 [ext_resource type="Script" path="res://src/LaserSensor/LaserSensor.cs" id="1_ufgoq"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1qutr"]

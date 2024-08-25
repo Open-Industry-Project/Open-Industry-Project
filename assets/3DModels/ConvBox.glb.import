@@ -3,17 +3,18 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dn0wnvhsyjnnp"
-valid=false
+uid="uid://dx7v5ypnl6ygi"
+path="res://.godot/imported/ConvBox.glb-f60b5eb6382685011980a9049ba61129.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/ConvBox.glb"
+dest_files=["res://.godot/imported/ConvBox.glb-f60b5eb6382685011980a9049ba61129.scn"]
 
 [params]
 
-nodes/root_type="Node3D"
-nodes/root_name="Scene Root"
+nodes/root_type=""
+nodes/root_name=""
 nodes/apply_root_scale=true
 nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
@@ -30,33 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"BeltSide": {
-"use_external/enabled": true,
-"use_external/path": ""
-},
-"BeltSide2": {
-"use_external/enabled": true,
-"use_external/path": ""
-},
-"BeltTopDown": {
-"use_external/enabled": true,
-"use_external/path": ""
-}
-},
-"meshes": {
-"ConvBox_Cube_002": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/ConvBox.tres"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

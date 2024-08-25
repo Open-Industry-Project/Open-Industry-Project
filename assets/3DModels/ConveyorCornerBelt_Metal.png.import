@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://byirautxuvf52"
+uid="uid://dcgdn2qbjsswx"
 path.s3tc="res://.godot/imported/ConveyorCornerBelt_Metal.png-dd18b7d7e88535b00f572206e3b86af2.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

@@ -3,12 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://nteyh0awxmg"
-valid=false
+uid="uid://ce5vch8curnq6"
+path="res://.godot/imported/LegsBottom.glb-1da036fe515425cc5873488f4be2e914.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/LegsBottom.glb"
+dest_files=["res://.godot/imported/LegsBottom.glb-1da036fe515425cc5873488f4be2e914.scn"]
 
 [params]
 
@@ -30,29 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"LegsStand_grayMetal": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/Materials/LegsStand_grayMetal.tres"
-},
-"LegsStand_whiteMetal": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/Materials/LegsStand_whiteMetal.tres"
-}
-},
-"meshes": {
-"LegsBottom_Bottom": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/Meshes/LegsBottom_Bottom.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

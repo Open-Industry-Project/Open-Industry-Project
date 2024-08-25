@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d3j4sau0yidye"
+uid="uid://dkpx3sw1b854i"
 path.s3tc="res://.godot/imported/ConvEnd_Metal.png-38046f3092eee3770e8de6f595a526dc.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

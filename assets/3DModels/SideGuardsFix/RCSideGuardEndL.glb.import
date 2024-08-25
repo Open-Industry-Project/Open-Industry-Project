@@ -3,12 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://b17dajqkogr01"
-valid=false
+uid="uid://b0dewi6o517x0"
+path="res://.godot/imported/RCSideGuardEndL.glb-add58b392661839ebedda0e004eed13b.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/SideGuardsFix/RCSideGuardEndL.glb"
+dest_files=["res://.godot/imported/RCSideGuardEndL.glb-add58b392661839ebedda0e004eed13b.scn"]
 
 [params]
 
@@ -30,19 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"meshes": {
-"RCSideGuardEndL_RCSideGuardEndL": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/SideGuardsFix/Meshes/RCSideGuardEndL_RCSideGuardEndL.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

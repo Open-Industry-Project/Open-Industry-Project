@@ -3,12 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://b147wiypbmjv8"
-valid=false
+uid="uid://bp8ikxw5wl6lw"
+path="res://.godot/imported/ConveyorRollerBase.glb-ceb85fb97271c461f621a1d3db596335.scn"
 
 [deps]
 
 source_file="res://assets/3DModels/ConveyorRollerBase.glb"
+dest_files=["res://.godot/imported/ConveyorRollerBase.glb-ceb85fb97271c461f621a1d3db596335.scn"]
 
 [params]
 
@@ -30,25 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"BeltTopDown": {
-"use_external/enabled": true,
-"use_external/path": "res://3DModels/Materials/BeltTopDown.tres"
-}
-},
-"meshes": {
-"ConveyorRollerBase_Cube_001": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://3DModels/Meshes/ConveyorRollerBase_Cube_001.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

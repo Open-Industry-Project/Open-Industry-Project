@@ -1,6 +1,6 @@
 [gd_resource type="VisualShader" load_steps=10 format=3 uid="uid://wtu5yyfpdcgl"]
 
-[ext_resource type="Texture2D" uid="uid://dguhq8f5xh64a" path="res://assets/3DModels/Textures/Metal.png" id="1_asjns"]
+[ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="1_asjns"]
 
 [sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_06lb5"]
 default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]

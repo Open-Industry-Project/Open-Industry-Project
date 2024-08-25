@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://4slbr1d2fjqy"
+uid="uid://s2fwq5o6it3b"
 path.s3tc="res://.godot/imported/WallMid_Metal030_4K-JPG_Color.jpg-782309fb2967c496beefcaa4ca65e2e4.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

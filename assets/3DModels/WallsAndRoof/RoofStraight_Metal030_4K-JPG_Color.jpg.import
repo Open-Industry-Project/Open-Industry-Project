@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c65wt2y0p823k"
+uid="uid://chr7sewlduoi5"
 path.s3tc="res://.godot/imported/RoofStraight_Metal030_4K-JPG_Color.jpg-ce01d23d98d16ffe1acdc70ffb985875.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

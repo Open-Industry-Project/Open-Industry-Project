@@ -1,6 +1,6 @@
 [gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://ciqf7hxr3obn2"]
 
-[ext_resource type="Texture2D" uid="uid://b8ey1tm16f25a" path="res://assets/3DModels/WallsAndRoof/RoofCurved_Texturelabs_Concrete_Seamles.jpg" id="1_w1jfc"]
+[ext_resource type="Texture2D" uid="uid://b3xkiq6kd4hyk" path="res://assets/3DModels/WallsAndRoof/RoofCurved_Texturelabs_Concrete_Seamles.jpg" id="1_w1jfc"]
 
 [resource]
 resource_name = "RoofCurvedConcrete"

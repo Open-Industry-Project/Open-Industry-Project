@@ -3,7 +3,7 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://lpaunbg1ocq6"
+uid="uid://j0m57ao3caih"
 path="res://.godot/imported/ChainTransfer.glb-9e81cae8eb7212def7b06f9be43e0889.scn"
 
 [deps]
@@ -19,7 +19,7 @@ nodes/apply_root_scale=true
 nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
 meshes/ensure_tangents=true
-meshes/generate_lods=false
+meshes/generate_lods=true
 meshes/create_shadow_meshes=true
 meshes/light_baking=1
 meshes/lightmap_texel_size=0.2
@@ -31,123 +31,6 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-_subresources={
-"materials": {
-"Base": {
-"use_external/enabled": true,
-"use_external/path": "res://assets/3DModels/ChainTransfer/Materials/Base.tres"
-},
-"Chain": {
-"use_external/enabled": true,
-"use_external/path": "res://assets/3DModels/ChainTransfer/Materials/Chain.tres"
-},
-"Support": {
-"use_external/enabled": true,
-"use_external/path": "res://assets/3DModels/ChainTransfer/Materials/Support.tres"
-}
-},
-"meshes": {
-"ChainTransfer_Base": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Base.res"
-},
-"ChainTransfer_Base_001": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Base_001.res"
-},
-"ChainTransfer_Base_002": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Base_002.res"
-},
-"ChainTransfer_Chain": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Chain.res"
-},
-"ChainTransfer_ChainEnd": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_ChainEnd.res"
-},
-"ChainTransfer_Container": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Container.res"
-},
-"ChainTransfer_Container_001": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Container_001.res"
-},
-"ChainTransfer_Container_002": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Container_002.res"
-},
-"ChainTransfer_Wheel": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Wheel.res"
-},
-"ChainTransfer_Wheel_001": {
-"generate/lightmap_uv": 0,
-"generate/lods": 0,
-"generate/shadow_meshes": 0,
-"lods/normal_merge_angle": 60.0,
-"lods/normal_split_angle": 25.0,
-"save_to_file/enabled": true,
-"save_to_file/make_streamable": "",
-"save_to_file/path": "res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Wheel_001.res"
-}
-}
-}
+_subresources={}
 gltf/naming_version=1
 gltf/embedded_image_handling=1

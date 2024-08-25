@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://jridt2wvqycc"
+uid="uid://bmr3o2uwu3nyj"
 path.s3tc="res://.godot/imported/RoofCurved_Metal030_4K-JPG_Color.jpg-daa7e62896d361cd99849a2ba528507b.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

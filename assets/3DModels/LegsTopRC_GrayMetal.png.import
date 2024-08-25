@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxskjcd5pge6b"
+uid="uid://duqbdgkvx4v2r"
 path.s3tc="res://.godot/imported/LegsTopRC_GrayMetal.png-7806d9920a0267cce4e339dbb8115245.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 

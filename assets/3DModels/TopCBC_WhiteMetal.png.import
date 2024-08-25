@@ -2,13 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cd6g177e0nxef"
+uid="uid://20174a1vo4d4"
 path.s3tc="res://.godot/imported/TopCBC_WhiteMetal.png-c8f73fd2ecf2200736fab382bba328c8.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={}
 
 [deps]
 
