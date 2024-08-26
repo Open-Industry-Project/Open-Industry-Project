@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://src/Box/Box.cs" id="1_qlesu"]
 [ext_resource type="Texture2D" uid="uid://jf0rgqy7atfe" path="res://src/Box/Box_Cardboard box 24.png" id="2_bpads"]
-[ext_resource type="Texture2D" uid="uid://bitjuevv0n0hb" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_roughness.png" id="3_rqr71"]
+[ext_resource type="Texture2D" uid="uid://csdxeq0v42ln0" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_roughness.png" id="3_rqr71"]
 [ext_resource type="Texture2D" uid="uid://dh3q2sjb870tg" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_normal.png" id="4_y5qrc"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_jt2n8"]
@@ -35,6 +35,7 @@ resource_name = "Material.003"
 cull_mode = 2
 vertex_color_use_as_albedo = true
 albedo_color = Color(0.466659, 0.438254, 0.38347, 1)
+albedo_texture = ExtResource("3_rqr71")
 roughness = 0.5
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_e42t8"]
