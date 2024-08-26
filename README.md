@@ -44,11 +44,11 @@ It is **highly** recommended to download the latest package here: https://github
 
 It comes with a fork that contains functions and features that are not avaliable in regular Godot.
 
-The contents of this repo are parts of a regular Godot project. You will ~~import~~ (importing will break the project at the moment due to issues with current versions of Godot) open this project via the Godot project manager, just like any other Godot project.
+The contents of this repo are parts of a regular Godot project. You can open this project via the project manager, just like any other Godot project.
 
-If you are familiar with Godot and you open this project, you will notice that some things look different. This is intentional. This project is meant to be entirely contained with in the editor.
+This project is meant to be entirely contained with in the editor. At the moment there is no reason to "run" this project as if it were a game like you normally would for development done in Godot. 
 
-At the moment there is no reason to "run" this project as if it were a game like you normally would for development done in Godot. The editor viewport(s) are where all simulations will take place.
+The editor viewport(s) are where all simulations will take place.
 
 Use the Project Manager to create a new project.
 
