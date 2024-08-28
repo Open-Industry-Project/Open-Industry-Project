@@ -15,6 +15,5 @@ texture_script = ExtResource("3_ctd1b")
 
 [node name="Button" type="Button" parent="."]
 layout_mode = 2
-toggle_mode = true
 text = "3D"
 icon = ExtResource("2_5o2r8")
