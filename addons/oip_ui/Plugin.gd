@@ -258,14 +258,3 @@ func find_build_panel(node):
 			if found_child != null:
 				return found_child  # Return the found child up the call stack
 	return null  # Return None if no child with the method is found
-
-
-func create_inherited_scene(_inherits: PackedScene, _root_name: String = "") -> PackedScene:
-	if(_root_name == ""):
-		_root_name = _inherits._bundled["names"][0];
-	var scene := PackedScene.new();
-	scene._bundled = {"base_scene": 0, "conn_count": 0, "conns": [], "editable_instances": [],
-					"names": [_root_name], "node_count": 1, "node_paths": [],
-					"nodes": [-1, -1, 2147483647, 0, -1, 0, 0],
-					"variants": [_inherits], "version": 2};
-	return scene;
