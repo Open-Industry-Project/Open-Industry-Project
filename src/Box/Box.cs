@@ -9,18 +9,8 @@ public partial class Box : Node3D
 	bool selected = false;
 	bool frozen = false;
 	bool keyHeld = false;
-	Root main;
-	public Root Main
-	{
-		get
-		{
-			return main;
-		}
-		set
-		{
-			main = value;
-		}
-	}
+
+	Root Main;
 	public override void _Ready()
 	{
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
@@ -29,14 +19,12 @@ public partial class Box : Node3D
 		{
 			return;
 		}
-		else
-		{
-			main.SimulationStarted += Set;
-			main.SimulationEnded += Reset;
-			main.SimulationSetPaused += OnSetPaused;
-		}
 
-		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
+        Main.SimulationStarted += Set;
+        Main.SimulationEnded += Reset;
+        Main.SimulationSetPaused += OnSetPaused;
+
+        rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
 		SetPhysicsProcess(false);
 	}
@@ -45,9 +33,9 @@ public partial class Box : Node3D
 	{
 		if (Main != null && !instanced)
 		{
-			main.SimulationStarted += Set;
-			main.SimulationEnded += Reset;
-			main.SimulationSetPaused += OnSetPaused;
+			Main.SimulationStarted += Set;
+			Main.SimulationEnded += Reset;
+			Main.SimulationSetPaused += OnSetPaused;
 		}
 	}
 	
@@ -55,9 +43,9 @@ public partial class Box : Node3D
 	{
 		if(Main == null) return;
 
-		main.SimulationStarted -= Set;
-		main.SimulationEnded -= Reset;
-		main.SimulationSetPaused -= OnSetPaused;
+		Main.SimulationStarted -= Set;
+		Main.SimulationEnded -= Reset;
+		Main.SimulationSetPaused -= OnSetPaused;
 		
 		if (instanced) QueueFree();
 	}
@@ -114,9 +102,9 @@ public partial class Box : Node3D
 	{
 		if (instanced)
 		{
-			main.SimulationStarted -= Set;
-			main.SimulationEnded -= Reset;
-			main.SimulationSetPaused -= OnSetPaused;
+			Main.SimulationStarted -= Set;
+			Main.SimulationEnded -= Reset;
+			Main.SimulationSetPaused -= OnSetPaused;
 			QueueFree();
 		}
 		else
