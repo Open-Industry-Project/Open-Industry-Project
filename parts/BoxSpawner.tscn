@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://src/BoxSpawner/BoxSpawner.cs" id="1_fwalv"]
 [ext_resource type="PackedScene" uid="uid://bq16fe5njnr2i" path="res://parts/Box.tscn" id="2_2xggy"]
 [ext_resource type="Texture2D" uid="uid://jf0rgqy7atfe" path="res://src/Box/Box_Cardboard box 24.png" id="2_4vevq"]
-[ext_resource type="Texture2D" uid="uid://bitjuevv0n0hb" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_roughness.png" id="3_erpmv"]
+[ext_resource type="Texture2D" uid="uid://csdxeq0v42ln0" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_roughness.png" id="3_erpmv"]
 [ext_resource type="Texture2D" uid="uid://dh3q2sjb870tg" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_normal.png" id="4_kt8y2"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ekrlf"]
