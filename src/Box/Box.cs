@@ -20,11 +20,11 @@ public partial class Box : Node3D
 			return;
 		}
 
-        Main.SimulationStarted += Set;
-        Main.SimulationEnded += Reset;
-        Main.SimulationSetPaused += OnSetPaused;
+		Main.SimulationStarted += Set;
+		Main.SimulationEnded += Reset;
+		Main.SimulationSetPaused += OnSetPaused;
 
-        rigidBody = GetNode<RigidBody3D>("RigidBody3D");
+		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
 		SetPhysicsProcess(false);
 	}
