@@ -19,7 +19,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_i0ecv"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_m24d6"]
 resource_name = "LegsSide_Side"
 _surfaces = [{
 "aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
@@ -37,7 +37,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_lqk25")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_rrnka"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ktx1g"]
 render_priority = 0
 shader = ExtResource("3_8poj4")
 shader_parameter/Scale = 1.0
@@ -60,7 +60,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_ucn4r"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_pxb4j"]
 resource_name = "LegsBar_Bar"
 _surfaces = [{
 "aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
@@ -68,7 +68,7 @@ _surfaces = [{
 "format": 34896613431,
 "index_count": 48,
 "index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_rrnka"),
+"material": SubResource("ShaderMaterial_ktx1g"),
 "name": "LegsStand_grayMetal.003",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -79,18 +79,27 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_xr7le")
 
 [node name="LegsStandRC" instance=ExtResource("1_0pp1r")]
+metadata/_edit_group_ = true
 
 [node name="LegsSide1" parent="Sides" index="0"]
-mesh = SubResource("ArrayMesh_i0ecv")
+mesh = SubResource("ArrayMesh_m24d6")
 
 [node name="LegsSide2" parent="Sides" index="1"]
-mesh = SubResource("ArrayMesh_i0ecv")
+transform = Transform3D(-1, 0, 1.50996e-07, 0, 1, 0, -1.50996e-07, 0, -1, 0, 0, 1)
+mesh = SubResource("ArrayMesh_m24d6")
 
 [node name="LegsBar" parent="LegsBars" index="0"]
-mesh = SubResource("ArrayMesh_ucn4r")
+mesh = SubResource("ArrayMesh_pxb4j")
 
 [node name="LegsGrab1" parent="Ends/LegsTop1" index="0"]
 mesh = ExtResource("4_4tjn2")
 
+[node name="LegsTop2" parent="Ends" index="1"]
+transform = Transform3D(-1, 0, -1.50996e-07, 0, 1, 0, 1.50996e-07, 0, -1, 0, 1, 1)
+
 [node name="LegsGrab2" parent="Ends/LegsTop2" index="0"]
+transform = Transform3D(1, 0, -6.3573e-08, 0, 1, 0, 6.3573e-08, 0, 1, 0, 0, 0)
 mesh = ExtResource("4_4tjn2")
+
+[node name="LegsBottom2" parent="Ends" index="3"]
+transform = Transform3D(-1, 0, -1.50996e-07, 0, 1, 0, 1.50996e-07, 0, -1, 0, 0, 1)
