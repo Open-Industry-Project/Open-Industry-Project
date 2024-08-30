@@ -23,7 +23,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_ee8xg"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_5dlna"]
 resource_name = "LegsSide_Side"
 _surfaces = [{
 "aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
@@ -41,7 +41,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_lqk25")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_scihx"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qrmub"]
 render_priority = 0
 shader = ExtResource("5_vjkus")
 shader_parameter/Scale = 1.0
@@ -64,7 +64,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_d2apy"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_mr6od"]
 resource_name = "LegsBar_Bar"
 _surfaces = [{
 "aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
@@ -72,7 +72,7 @@ _surfaces = [{
 "format": 34896613431,
 "index_count": 48,
 "index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_scihx"),
+"material": SubResource("ShaderMaterial_qrmub"),
 "name": "LegsStand_grayMetal.003",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -84,17 +84,18 @@ shadow_mesh = SubResource("ArrayMesh_xr7le")
 
 [node name="LegsStandBC" type="Node3D"]
 script = ExtResource("1_24p2s")
+metadata/_edit_group_ = true
 
 [node name="Sides" type="Node3D" parent="."]
 
 [node name="LegsSide1" type="MeshInstance3D" parent="Sides"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1)
-mesh = SubResource("ArrayMesh_ee8xg")
+mesh = SubResource("ArrayMesh_5dlna")
 skeleton = NodePath("")
 
 [node name="LegsSide2" type="MeshInstance3D" parent="Sides"]
 transform = Transform3D(-1, 0, 1.50996e-07, 0, 1, 0, -1.50996e-07, 0, -1, 0, 0, 1)
-mesh = SubResource("ArrayMesh_ee8xg")
+mesh = SubResource("ArrayMesh_5dlna")
 skeleton = NodePath("")
 
 [node name="LegsBars" type="Node3D" parent="."]
@@ -103,7 +104,7 @@ legsBarScene = ExtResource("4_kogpx")
 
 [node name="LegsBar" parent="LegsBars" instance=ExtResource("4_kogpx")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-mesh = SubResource("ArrayMesh_d2apy")
+mesh = SubResource("ArrayMesh_mr6od")
 
 [node name="Ends" type="Node3D" parent="."]
 
@@ -122,6 +123,7 @@ mesh = ExtResource("6_r6cyh")
 skeleton = NodePath("")
 
 [node name="LegsGrab2" type="MeshInstance3D" parent="Ends/LegsTop2"]
+transform = Transform3D(1, 0, -6.3573e-08, 0, 1, 0, 6.3573e-08, 0, 1, 0, 0, 0)
 mesh = ExtResource("6_ef0e1")
 skeleton = NodePath("")
 
