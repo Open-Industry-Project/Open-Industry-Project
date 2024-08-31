@@ -8,6 +8,10 @@
 
 config_version=5
 
+[addons]
+
+scene_library/cache/path="res://addons/scene-library/thumb_cache/"
+
 [application]
 
 config/name="Open Industry Project"
