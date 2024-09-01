@@ -6,7 +6,6 @@ public partial class Pallet : Node3D
 	RigidBody3D rigidBody;
 	Vector3 initialPos;
 	bool selected = false;
-	bool frozen = false;
 	bool keyHeld = false;
 	Root Main;
 	
@@ -18,14 +17,12 @@ public partial class Pallet : Node3D
 		{
 			return;
 		}
-		else
-		{
-			Main.SimulationStarted += Set;
-			Main.SimulationEnded += Reset;
-			Main.SimulationSetPaused += OnSetPaused;
-		}
 
-		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
+        Main.SimulationStarted += Set;
+        Main.SimulationEnded += Reset;
+        Main.SimulationSetPaused += OnSetPaused;
+
+        rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
 		SetPhysicsProcess(false);
 	}
@@ -41,8 +38,8 @@ public partial class Pallet : Node3D
 			if (!keyHeld)
 			{
 				keyHeld = true;
-				frozen = !frozen;
-			}
+                rigidBody.Freeze = !rigidBody.Freeze;
+            }
 		}
 
 		if (!Input.IsPhysicalKeyPressed(Key.G))
@@ -50,9 +47,8 @@ public partial class Pallet : Node3D
 			keyHeld = false;
 		}
 
-		if (frozen)
+		if (rigidBody.Freeze)
 		{
-			rigidBody.Freeze = true;
 			rigidBody.TopLevel = false;
 			rigidBody.Position = Vector3.Zero;
 			rigidBody.Rotation = Vector3.Zero;
@@ -61,7 +57,6 @@ public partial class Pallet : Node3D
 		else
 		{
 			rigidBody.TopLevel = true;
-			rigidBody.Freeze = false;
 			GlobalPosition = rigidBody.GlobalPosition;
 			GlobalRotation = rigidBody.GlobalRotation;
 			Scale = rigidBody.Scale;
@@ -96,6 +91,6 @@ public partial class Pallet : Node3D
 	
 	void OnSetPaused(bool paused)
 	{
-		frozen = paused;
+		rigidBody.Freeze = paused;
 	}
 }

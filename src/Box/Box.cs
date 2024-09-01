@@ -7,7 +7,6 @@ public partial class Box : Node3D
 	Vector3 initialPos;
 	public bool instanced = false;
 	bool selected = false;
-	bool frozen = false;
 	bool keyHeld = false;
 
 	Root Main;
@@ -61,7 +60,7 @@ public partial class Box : Node3D
 			if (!keyHeld)
 			{
 				keyHeld = true;
-				frozen = !frozen;
+				rigidBody.Freeze = !rigidBody.Freeze;
 			}
 		}
 
@@ -70,9 +69,8 @@ public partial class Box : Node3D
 			keyHeld = false;
 		}
 
-		if (frozen)
+		if (rigidBody.Freeze)
 		{
-			rigidBody.Freeze = true;
 			rigidBody.TopLevel = false;
 			rigidBody.Position = Vector3.Zero;
 			rigidBody.Rotation = Vector3.Zero;
@@ -81,7 +79,6 @@ public partial class Box : Node3D
 		else
 		{
 			rigidBody.TopLevel = true;
-			rigidBody.Freeze = false;
 			Position = rigidBody.Position;
 			Rotation = rigidBody.Rotation;
 			Scale = rigidBody.Scale;
@@ -126,7 +123,7 @@ public partial class Box : Node3D
 	
 	void OnSetPaused(bool paused)
 	{
-		frozen = paused;
+		rigidBody.Freeze = paused;
 	}
 	
 	public void SetNewOwner(Root newOwner)
