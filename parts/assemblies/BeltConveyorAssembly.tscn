@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=4 uid="uid://bqlkj4ar8q1ws"]
+[gd_scene load_steps=30 format=4 uid="uid://bqlkj4ar8q1ws"]
 
 [ext_resource type="Script" path="res://src/Assembly/ConveyorAssembly.cs" id="1_au6en"]
 [ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="2_kdap4"]
@@ -6,11 +6,11 @@
 [ext_resource type="Shader" uid="uid://bejqoybamob1y" path="res://assets/3DModels/Shaders/BeltShader.tres" id="3_kusy2"]
 [ext_resource type="PackedScene" uid="uid://cr8u3bta0skiy" path="res://parts/ConveyorLegBC.tscn" id="4_aq24s"]
 [ext_resource type="Shader" uid="uid://lg3xcvqgjhjj" path="res://assets/3DModels/Shaders/MetalShader.tres" id="4_h84ar"]
-[ext_resource type="Script" path="res://src/SideGuards/SideGuard.cs" id="6_u56ao"]
+[ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="6_0biw3"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="9_sct53"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="12_jgtyw"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ki0b1"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_uqgmi"]
 render_priority = 0
 shader = ExtResource("3_kusy2")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
@@ -19,7 +19,7 @@ shader_parameter/Scale = -1.0
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ngsdv"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xf7hd"]
 render_priority = 0
 shader = ExtResource("4_h84ar")
 shader_parameter/BeltPosition = 0.0
@@ -61,7 +61,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_54x4o"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_lwy3y"]
 resource_name = "ConvBox_Cube_002"
 _surfaces = [{
 "aabb": AABB(-0.5, -0.25, -1, 1.00001, 0.50001, 2),
@@ -69,7 +69,7 @@ _surfaces = [{
 "format": 34896613399,
 "index_count": 36,
 "index_data": PackedByteArray("AQANAAkAAQAFAA0AFAAMAAQAFAAVAAwACgAGAAIACgAOAAYAEQAAAAgAEQAQAAAACwATABIACwADABMABwAWABcABwAPABYA"),
-"material": SubResource("ShaderMaterial_ki0b1"),
+"material": SubResource("ShaderMaterial_uqgmi"),
 "name": "BeltTopDown",
 "primitive": 3,
 "uv_scale": Vector4(2.05123, 2, 0, 0),
@@ -81,7 +81,7 @@ _surfaces = [{
 "format": 34896613399,
 "index_count": 84,
 "index_data": PackedByteArray("MwADAC0AMwAFAAMAJwAJABkAJwAPAAkAAgAHAAEAAgAEAAcAEgAwAC4AEgATADAACAANAAsACAAOAA0AHQAVABQAHQAjABUAKgAGADQAKgAAAAYAHgAMACAAHgAKAAwAGAAlACYAGAAbACUAHAAhACIAHAAfACEAFwAkABoAFwAWACQALAAxADIALAAvADEAKAA1ADYAKAArADUAKQAQABEAKQA3ABAA"),
-"material": SubResource("ShaderMaterial_ngsdv"),
+"material": SubResource("ShaderMaterial_xf7hd"),
 "name": "BeltSide",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -93,7 +93,7 @@ _surfaces = [{
 "format": 34896613399,
 "index_count": 108,
 "index_data": PackedByteArray("FQAEAAYAEQAhACAAFQARAAQAHAAVAB0ADgAVABwAFQAhABEAFQAIACEADgAIABUACQAjACIADgAJAAgAHgAPAB8ADwAJAA4ACQASACMAEgAHAAUAFgAPAB4AEgAWAAcADwASAAkAEgAPABYAAAAUAAIAFAAbABoAFAANABsAEAAUAAAAJgAQACcACwAQACYAEAANABQADAAZABgAEAAMAA0ACwAMABAADAAXABkAFwABAAMAEwAlACQAFwATAAEACwAXAAwAEwAKACUACgAXAAsAFwAKABMA"),
-"material": SubResource("ShaderMaterial_ngsdv"),
+"material": SubResource("ShaderMaterial_xf7hd"),
 "name": "BeltSide2",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -102,6 +102,72 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_5v2fq")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6xv4n"]
+render_priority = 0
+shader = ExtResource("6_0biw3")
+shader_parameter/Scale = 4.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_gn6s2"]
+_surfaces = [{
+"aabb": AABB(-0.5, -0.00427932, -1.12983, 1, 0.604281, 0.169856),
+"format": 34896613377,
+"index_count": 204,
+"index_data": PackedByteArray("AAACAAEAAAADAAIADQACAAwADQABAAIAAwAJAAoAAwAAAAkACAAKAAkACAALAAoACAAHAAsACAAGAAcADgAMAA8ADgANAAwABAAPAAUABAAOAA8ABAARABAABAAFABEAEgAUABUAEgATABQAHwAUABMAHwAeABQAFQAbABIAFQAcABsAGgAcAB0AGgAbABwAGgAZABgAGgAdABkAIAAeAB8AIAAhAB4AFgAhACAAFgAXACEAFgAjABcAFgAiACMAAQASAAAAAQATABIAAwAUAAIAAwAVABQAAgAeAAwAAgAUAB4ACgAVAAMACgAcABUAAAAbAAkAAAASABsACQAaAAgACQAbABoACwAcAAoACwAdABwABwAdAAsABwAZAB0ACAAYAAYACAAaABgADAAhAA8ADAAeACEADQATAAEADQAfABMADgAfAA0ADgAgAB8ADwAXAAUADwAhABcAEAAWAAQAEAAiABYABAAgAA4ABAAWACAABQAjABEABQAXACMABgAZAAcABgAYABkAEQAiABAAEQAjACIA"),
+"name": "BeltTopDown",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 36,
+"vertex_data": PackedByteArray("AADMEI2IAAAAAPkeREsAAP//+R5ESwAA///MEI2IAAAAAIX3ukoAAP//hfe6SgAAAAASAEDhAAD//xIAQOEAAAAAKxC/4QAAAADNEIvfAAD//80Qi98AAP//KxC/4QAA//+KVhxLAAAAAIpWHEsAAAAAHfTESgAA//8d9MRKAAAAAIX3AAAAAP//hfcAAAAAAABFGVuTAAAAAPoiZmkAAP//+iJmaQAA//9FGVuTAAAAAP//yGgAAP///v/IaAAAAAAAAGX/AAD//wAAZf8AAAAAlhP+/wAAAABGGT7sAAD//0YZPuwAAP//lhP//wAA//+MVkFpAAAAAIxWQWkAAAAAIfToaAAA//8g9OhoAAAAAP//AAAAAP///v8AAAAA")
+}]
+blend_shape_mode = 0
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_4whp8"]
+resource_name = "RCSideGuard_RCSideGuard"
+_surfaces = [{
+"aabb": AABB(-0.5, -0.00427932, -1.12983, 1, 0.604281, 0.169856),
+"attribute_data": PackedByteArray("lm///5Zv//+Wb///lm///110//8AABfVAAAX1V10//8AAHopXXRhVAAAeilddGFUlm9hVJZvYVSWb2FUiFkX1YhZF9WIWRfViFl6KYhZeimIWXopiFl6KV10//9ddP//XXT//110YVRddGFUXXRhVEx8//9MfP//d2X//5t+//93Zf//m37//3dlYVSafmFUd2VhVJp+YVRMfGFUTHxhVOQUeinkFHop5BR6KeQUF9XkFBfV5BQX1bpUF9W6VBfVulQX1bpUeim6VHopulR6KXdlF9V3ZRfVd2UX1Xdleil3ZXopd2V6KZZv//+Wb///lm///5Zv//9ddP//AAAX1QAAF9VddP//XXRhVAAAeikAAHopXXRhVJZvYVSWb2FUlm9hVJZvYVSIWRfViFkX1YhZF9WIWRfViFl6KYhZeimIWXopiFl6KV10//9ddP//XXT//110YVRddGFUXXRhVEx8//9MfP//THz//0x8//93Zf//m37//3dl//+bfv//mn5hVHdlYVSafmFUd2VhVEx8YVRMfGFUTHxhVEx8YVTkFHop5BR6KeQUeinkFBfV5BQX1eQUF9W6VBfVulQX1bpUF9W6VBfVulR6KbpUeim6VHopulR6KXdlF9V3ZRfVd2UX1Xdleil3ZXopd2V6KQ=="),
+"format": 34896613399,
+"index_count": 204,
+"index_data": PackedByteArray("AgAJAAcAAgAMAAkALAAIACgALAAGAAgADAAgACIADAADACAAHQAjACEAHQAmACMAHQAaACYAHQAYABoALwApADEALwAtACkAEQAyABMAEQAwADIAEAA3ADUAEAASADcAPQBCAEYAPQBBAEIAbQBDAEAAbQBpAEMARwBeADwARwBhAF4AWgBgAGUAWgBfAGAAWwBWAFQAWwBkAFYAcQBoAGwAcQByAGgATABzAHAATABPAHMATQB6AE4ATQB4AHoABAA7AAAABAA+ADsADgBFAAsADgBIAEUACgBqACoACgBEAGoAJABJAA0AJABjAEkAAQBcAB4AAQA6AFwAHwBYABwAHwBdAFgAJwBiACUAJwBnAGIAGwBmACcAGwBXAGYAHABSABYAHABZAFIAKgB0ADMAKgBqAHQAKwA/AAUAKwBrAD8ALgBrACsALgBuAGsAMwBQABQAMwB1AFAANABKAA8ANAB2AEoADwBvAC4ADwBLAG8AFQB7ADkAFQBRAHsAFwBVABkAFwBTAFUAOAB3ADYAOAB5AHcA"),
+"material": SubResource("ShaderMaterial_6xv4n"),
+"name": "BeltTopDown",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 124,
+"vertex_data": PackedByteArray("AADMEI2IH88AAMwQjYgdwwAAzBCNiNjdAADMEI2I1t0AAPkeREu11gAA+R5ES+jfAAD5HkRLVPMAAPkeREtU8///+R5ES1Tz///5HkRLVPP///keREvo3///+R5ES7XW///MEI2I1t3//8wQjYgdw///zBCNiCHPAACF97pKqaUAAIX3ukqf6QAAhfe6SqDp//+F97pKn+n//4X3ukqg6f//hfe6Sqml//+F97pKqaUAABIAQOH/vwAAEgBA4VjAAAASAEDhv////xIAQOFYwP//EgBA4b////8SAEDh/78AACsQv+GqowAAKxC/4QP1AADNEIvf4rQAAM0Qi9/itAAAzRCL30DfAADNEIvfQN///80Qi99A3///zRCL30Df///NEIvf4rT//80Qi9/itP//KxC/4QP1//8rEL/hqqP//4pWHEv5////ilYcS/v///+KVhxL/78AAIpWHEv/vwAAilYcS/n/AACKVhxL+/8AAB30xEqiqgAAHfTESvH/AAAd9MRK8v///x30xErx////HfTESvL///8d9MRKoqoAAIX3AAD/vwAAhfcAAFTVAACF9wAA/////4X3AABU1f//hfcAAP////+F9wAA/78AAEUZW5Pk3AAARRlbk8ulAABFGVuT2d0AAEUZW5PBzQAA+iJmaZXQAAD6ImZpfrcAAPoiZmnzwQAA+iJmacPP///6ImZp88H///oiZmnwwf//+iJmaX63///6ImZpldD//0UZW5Pgwv//RRlbk8HN//9FGVuTzaX//0UZW5Pk3AAA///IaJ/pAAD//8ho5L8AAP//yGjrxQAA///IaALG///+/8hon+n///7/yGgBxv///v/IaOS////+/8hon+kAAAAAZf//vwAAAABl/1jAAAAAAGX//7///wAAZf9YwP//AABl//+///8AAGX//78AAJYT/v+B1AAAlhP+/z3AAACWE/7/d8EAAJYT/v+awQAARhk+7EHfAABGGT7sX6sAAEYZPuyqzAAARhk+7GjB//9GGT7sqcz//0YZPuxD3///Rhk+7F6r//9GGT7sQd///5YT//93wf//lhP//4LM//+WE///PcD//5YT//+B1P//jFZBaf+///+MVkFp/7///4xWQWn/vwAAjFZBaf+/AACMVkFp/78AAIxWQWn/vwAAIfToaP+/AAAh9Oho/78AACH06Gj/vwAAIfToaP+///8g9Oho/7///yD06Gj/v///IPToaP+///8g9Oho/78AAP//AAD/vwAA//8AAP//AAD//wAAVNX///7/AAD//////v8AAFTV///+/wAA/79YOle6EjUStalQqVCoUKhQMD4wvuBn4Od0RnRGdEZ0RnRGdEZ0RnRG4GceGDA+zkGoUKhQEjXsSlo6pEWx0Eyv/0r/Sv9K/0r/Sv9K/0r/SrHQslCx0LJQ/3///wAA/3/cv9y/AAD/f9y/3L//fwAAzq0v0qVFpUVoypa1aMqWtfNP80/yT/JP80/zT/JP8k9oymhKaMpoSqVFpUXOrc8tAkACQAFAAUD/fwAA/3///wJAAkABQAFA/3///wdAB0AGQAZAB0AHQAZABkD/fwAA/3///1RVVFX///9/VFVUVf///3//fwAAPZ/B4JROk86t3lcvKO3NKKHIXLcCMwGzO+wp7IDwdyuHz0YR1hPEEwIz/UyhyKJIltOAFNPKayWJTnUxPZ89H/9///+MJYulEx3eHA+6CB3+6f80JuPw4owlc1r/fwAA/3///wAA/3+LAHP/AAD/f4sAc///fwAAIcLdvVMzUrNQ03APwBGKEvJ/8v+XPZa9AMmBJPnSJw8o8h4pGOANMJg9Z0LyfwwAb+057t7x4ChTM6xMIcIhQvX/CQDx/w0A/38AAP9////1/wkA8f8NAPU/9L8JwPS/uP8bAB8ACwDz/9//4/9GAPU/CkAJwApA/3///////39U1aoq////f1TVqir/fwAA")
+}]
+blend_shape_mode = 0
+shadow_mesh = SubResource("ArrayMesh_gn6s2")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yebul"]
+render_priority = 0
+shader = ExtResource("6_0biw3")
+shader_parameter/Scale = 4.0
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_5xd6x"]
+resource_name = "RCSideGuard_RCSideGuard"
+_surfaces = [{
+"aabb": AABB(-0.5, -0.00427932, -1.12983, 1, 0.604281, 0.169856),
+"attribute_data": PackedByteArray("lm///5Zv//+Wb///lm///110//8AABfVAAAX1V10//8AAHopXXRhVAAAeilddGFUlm9hVJZvYVSWb2FUiFkX1YhZF9WIWRfViFl6KYhZeimIWXopiFl6KV10//9ddP//XXT//110YVRddGFUXXRhVEx8//9MfP//d2X//5t+//93Zf//m37//3dlYVSafmFUd2VhVJp+YVRMfGFUTHxhVOQUeinkFHop5BR6KeQUF9XkFBfV5BQX1bpUF9W6VBfVulQX1bpUeim6VHopulR6KXdlF9V3ZRfVd2UX1Xdleil3ZXopd2V6KZZv//+Wb///lm///5Zv//9ddP//AAAX1QAAF9VddP//XXRhVAAAeikAAHopXXRhVJZvYVSWb2FUlm9hVJZvYVSIWRfViFkX1YhZF9WIWRfViFl6KYhZeimIWXopiFl6KV10//9ddP//XXT//110YVRddGFUXXRhVEx8//9MfP//THz//0x8//93Zf//m37//3dl//+bfv//mn5hVHdlYVSafmFUd2VhVEx8YVRMfGFUTHxhVEx8YVTkFHop5BR6KeQUeinkFBfV5BQX1eQUF9W6VBfVulQX1bpUF9W6VBfVulR6KbpUeim6VHopulR6KXdlF9V3ZRfVd2UX1Xdleil3ZXopd2V6KQ=="),
+"format": 34896613399,
+"index_count": 204,
+"index_data": PackedByteArray("AgAJAAcAAgAMAAkALAAIACgALAAGAAgADAAgACIADAADACAAHQAjACEAHQAmACMAHQAaACYAHQAYABoALwApADEALwAtACkAEQAyABMAEQAwADIAEAA3ADUAEAASADcAPQBCAEYAPQBBAEIAbQBDAEAAbQBpAEMARwBeADwARwBhAF4AWgBgAGUAWgBfAGAAWwBWAFQAWwBkAFYAcQBoAGwAcQByAGgATABzAHAATABPAHMATQB6AE4ATQB4AHoABAA7AAAABAA+ADsADgBFAAsADgBIAEUACgBqACoACgBEAGoAJABJAA0AJABjAEkAAQBcAB4AAQA6AFwAHwBYABwAHwBdAFgAJwBiACUAJwBnAGIAGwBmACcAGwBXAGYAHABSABYAHABZAFIAKgB0ADMAKgBqAHQAKwA/AAUAKwBrAD8ALgBrACsALgBuAGsAMwBQABQAMwB1AFAANABKAA8ANAB2AEoADwBvAC4ADwBLAG8AFQB7ADkAFQBRAHsAFwBVABkAFwBTAFUAOAB3ADYAOAB5AHcA"),
+"material": SubResource("ShaderMaterial_yebul"),
+"name": "BeltTopDown",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 124,
+"vertex_data": PackedByteArray("AADMEI2IH88AAMwQjYgdwwAAzBCNiNjdAADMEI2I1t0AAPkeREu11gAA+R5ES+jfAAD5HkRLVPMAAPkeREtU8///+R5ES1Tz///5HkRLVPP///keREvo3///+R5ES7XW///MEI2I1t3//8wQjYgdw///zBCNiCHPAACF97pKqaUAAIX3ukqf6QAAhfe6SqDp//+F97pKn+n//4X3ukqg6f//hfe6Sqml//+F97pKqaUAABIAQOH/vwAAEgBA4VjAAAASAEDhv////xIAQOFYwP//EgBA4b////8SAEDh/78AACsQv+GqowAAKxC/4QP1AADNEIvf4rQAAM0Qi9/itAAAzRCL30DfAADNEIvfQN///80Qi99A3///zRCL30Df///NEIvf4rT//80Qi9/itP//KxC/4QP1//8rEL/hqqP//4pWHEv5////ilYcS/v///+KVhxL/78AAIpWHEv/vwAAilYcS/n/AACKVhxL+/8AAB30xEqiqgAAHfTESvH/AAAd9MRK8v///x30xErx////HfTESvL///8d9MRKoqoAAIX3AAD/vwAAhfcAAFTVAACF9wAA/////4X3AABU1f//hfcAAP////+F9wAA/78AAEUZW5Pk3AAARRlbk8ulAABFGVuT2d0AAEUZW5PBzQAA+iJmaZXQAAD6ImZpfrcAAPoiZmnzwQAA+iJmacPP///6ImZp88H///oiZmnwwf//+iJmaX63///6ImZpldD//0UZW5Pgwv//RRlbk8HN//9FGVuTzaX//0UZW5Pk3AAA///IaJ/pAAD//8ho5L8AAP//yGjrxQAA///IaALG///+/8hon+n///7/yGgBxv///v/IaOS////+/8hon+kAAAAAZf//vwAAAABl/1jAAAAAAGX//7///wAAZf9YwP//AABl//+///8AAGX//78AAJYT/v+B1AAAlhP+/z3AAACWE/7/d8EAAJYT/v+awQAARhk+7EHfAABGGT7sX6sAAEYZPuyqzAAARhk+7GjB//9GGT7sqcz//0YZPuxD3///Rhk+7F6r//9GGT7sQd///5YT//93wf//lhP//4LM//+WE///PcD//5YT//+B1P//jFZBaf+///+MVkFp/7///4xWQWn/vwAAjFZBaf+/AACMVkFp/78AAIxWQWn/vwAAIfToaP+/AAAh9Oho/78AACH06Gj/vwAAIfToaP+///8g9Oho/7///yD06Gj/v///IPToaP+///8g9Oho/78AAP//AAD/vwAA//8AAP//AAD//wAAVNX///7/AAD//////v8AAFTV///+/wAA/79YOle6EjUStalQqVCoUKhQMD4wvuBn4Od0RnRGdEZ0RnRGdEZ0RnRG4GceGDA+zkGoUKhQEjXsSlo6pEWx0Eyv/0r/Sv9K/0r/Sv9K/0r/SrHQslCx0LJQ/3///wAA/3/cv9y/AAD/f9y/3L//fwAAzq0v0qVFpUVoypa1aMqWtfNP80/yT/JP80/zT/JP8k9oymhKaMpoSqVFpUXOrc8tAkACQAFAAUD/fwAA/3///wJAAkABQAFA/3///wdAB0AGQAZAB0AHQAZABkD/fwAA/3///1RVVFX///9/VFVUVf///3//fwAAPZ/B4JROk86t3lcvKO3NKKHIXLcCMwGzO+wp7IDwdyuHz0YR1hPEEwIz/UyhyKJIltOAFNPKayWJTnUxPZ89H/9///+MJYulEx3eHA+6CB3+6f80JuPw4owlc1r/fwAA/3///wAA/3+LAHP/AAD/f4sAc///fwAAIcLdvVMzUrNQ03APwBGKEvJ/8v+XPZa9AMmBJPnSJw8o8h4pGOANMJg9Z0LyfwwAb+057t7x4ChTM6xMIcIhQvX/CQDx/w0A/38AAP9////1/wkA8f8NAPU/9L8JwPS/uP8bAB8ACwDz/9//4/9GAPU/CkAJwApA/3///////39U1aoq////f1TVqir/fwAA")
+}]
+blend_shape_mode = 0
+shadow_mesh = SubResource("ArrayMesh_gn6s2")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_7urge"]
 _surfaces = [{
@@ -117,7 +183,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_ygivf"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_gifq4"]
 resource_name = "LegsSide_Side"
 _surfaces = [{
 "aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
@@ -135,7 +201,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_7urge")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8e7ul"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gvcrw"]
 render_priority = 0
 shader = ExtResource("12_jgtyw")
 shader_parameter/Scale = 1.0
@@ -158,7 +224,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_w7wrf"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_w2fjb"]
 resource_name = "LegsBar_Bar"
 _surfaces = [{
 "aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
@@ -166,7 +232,7 @@ _surfaces = [{
 "format": 34896613431,
 "index_count": 48,
 "index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_8e7ul"),
+"material": SubResource("ShaderMaterial_gvcrw"),
 "name": "LegsStand_grayMetal.003",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -176,7 +242,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ukrly")
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_huecj"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_rqdyw"]
 resource_name = "LegsSide_Side"
 _surfaces = [{
 "aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
@@ -194,7 +260,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_7urge")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_fs5pc"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_773q7"]
 render_priority = 0
 shader = ExtResource("12_jgtyw")
 shader_parameter/Scale = 1.0
@@ -203,7 +269,7 @@ shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_vpa4b"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_ffamf"]
 resource_name = "LegsBar_Bar"
 _surfaces = [{
 "aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
@@ -211,7 +277,7 @@ _surfaces = [{
 "format": 34896613431,
 "index_count": 48,
 "index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_fs5pc"),
+"material": SubResource("ShaderMaterial_773q7"),
 "name": "LegsStand_grayMetal.003",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -221,7 +287,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ukrly")
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_0lm7i"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_w26j5"]
 resource_name = "LegsSide_Side"
 _surfaces = [{
 "aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
@@ -239,7 +305,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_7urge")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_nn6pn"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g1lrl"]
 render_priority = 0
 shader = ExtResource("12_jgtyw")
 shader_parameter/Scale = 1.0
@@ -248,7 +314,7 @@ shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_xpwmt"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_s7uuf"]
 resource_name = "LegsBar_Bar"
 _surfaces = [{
 "aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
@@ -256,7 +322,7 @@ _surfaces = [{
 "format": 34896613431,
 "index_count": 48,
 "index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_nn6pn"),
+"material": SubResource("ShaderMaterial_g1lrl"),
 "name": "LegsStand_grayMetal.003",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -269,6 +335,11 @@ shadow_mesh = SubResource("ArrayMesh_ukrly")
 [node name="BeltConveyorAssembly" type="Node3D"]
 transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("1_au6en")
+UpdateRate = 100
+BeltConveyorBeltColor = Color(1, 1, 1, 1)
+BeltConveyorSpeed = -2.0
+RollerConveyorSpeed = -2.0
+metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
@@ -276,7 +347,7 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
 [node name="Conveyor" parent="Conveyors" instance=ExtResource("2_kdap4")]
 
 [node name="MeshInstance3D" parent="Conveyors/Conveyor/RigidBody3D" index="1"]
-mesh = SubResource("ArrayMesh_54x4o")
+mesh = SubResource("ArrayMesh_lwy3y")
 
 [node name="ConveyorEnd" parent="Conveyors/Conveyor/RigidBody3D/Ends" index="0"]
 transform = Transform3D(0.25, -1.50996e-07, -1.50996e-07, -3.7749e-08, -1, 1.69622e-07, -3.7749e-08, -1.69622e-07, -1, 0.5, 8.66714e-18, 0)
@@ -287,20 +358,16 @@ transform = Transform3D(-0.25, -1.50996e-07, 1.50996e-07, -3.7749e-08, 1, -1.562
 [node name="LeftSide" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
 
-[node name="AutoSideGuard1" type="Node3D" parent="LeftSide" instance=ExtResource("3_k3wlu")]
+[node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("3_k3wlu")]
 transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-script = ExtResource("6_u56ao")
-LeftEnd = true
-RightEnd = true
+mesh = SubResource("ArrayMesh_4whp8")
 
 [node name="RightSide" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
 
-[node name="AutoSideGuard1" type="Node3D" parent="RightSide" instance=ExtResource("3_k3wlu")]
+[node name="AutoSideGuard1" parent="RightSide" instance=ExtResource("3_k3wlu")]
 transform = Transform3D(-4, 0, -8.74228e-08, 0, 1, 0, 3.49691e-07, 0, -1, 0, 0, 0)
-script = ExtResource("6_u56ao")
-LeftEnd = true
-RightEnd = true
+mesh = SubResource("ArrayMesh_5xd6x")
 
 [node name="LegStands" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -309,18 +376,18 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 transform = Transform3D(1, 0, 0, 0, 1.61792, 0, 0, 0, 1, -1.8, 0, 0)
 
 [node name="LegsSide1" parent="LegStands/AutoLegsStandFront/Sides" index="0"]
-mesh = SubResource("ArrayMesh_ygivf")
+mesh = SubResource("ArrayMesh_gifq4")
 
 [node name="LegsSide2" parent="LegStands/AutoLegsStandFront/Sides" index="1"]
 transform = Transform3D(-1, 0, 1.50996e-07, 0, 1, 0, -1.50996e-07, 0, -1, 0, 0, 1)
-mesh = SubResource("ArrayMesh_ygivf")
+mesh = SubResource("ArrayMesh_gifq4")
 
 [node name="LegsBars" parent="LegStands/AutoLegsStandFront" index="1"]
 transform = Transform3D(1, 0, 0, 0, 0.618078, 0, 0, 0, 1, 0, 0, 0)
 ParentScale = 1.61792
 
 [node name="LegsBar" parent="LegStands/AutoLegsStandFront/LegsBars" index="0"]
-mesh = SubResource("ArrayMesh_w7wrf")
+mesh = SubResource("ArrayMesh_w2fjb")
 
 [node name="LegsTop1" parent="LegStands/AutoLegsStandFront/Ends" index="0"]
 transform = Transform3D(1, 0, 0, 0, 0.618078, 0, 0, 0, 1, 0, 1, -1)
@@ -341,18 +408,18 @@ transform = Transform3D(-1, 0, -1.50996e-07, 0, 0.618078, 0, 1.50996e-07, 0, -1,
 transform = Transform3D(1, 0, 0, 0, 1.61792, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="LegsSide1" parent="LegStands/AutoLegsStand1/Sides" index="0"]
-mesh = SubResource("ArrayMesh_huecj")
+mesh = SubResource("ArrayMesh_rqdyw")
 
 [node name="LegsSide2" parent="LegStands/AutoLegsStand1/Sides" index="1"]
 transform = Transform3D(-1, 0, 1.50996e-07, 0, 1, 0, -1.50996e-07, 0, -1, 0, 0, 1)
-mesh = SubResource("ArrayMesh_huecj")
+mesh = SubResource("ArrayMesh_rqdyw")
 
 [node name="LegsBars" parent="LegStands/AutoLegsStand1" index="1"]
 transform = Transform3D(1, 0, 0, 0, 0.618078, 0, 0, 0, 1, 0, 0, 0)
 ParentScale = 1.61792
 
 [node name="LegsBar" parent="LegStands/AutoLegsStand1/LegsBars" index="0"]
-mesh = SubResource("ArrayMesh_vpa4b")
+mesh = SubResource("ArrayMesh_ffamf")
 
 [node name="LegsTop1" parent="LegStands/AutoLegsStand1/Ends" index="0"]
 transform = Transform3D(1, 0, 0, 0, 0.618078, 0, 0, 0, 1, 0, 1, -1)
@@ -373,18 +440,18 @@ transform = Transform3D(-1, 0, -1.50996e-07, 0, 0.618078, 0, 1.50996e-07, 0, -1,
 transform = Transform3D(1, 0, 0, 0, 1.61792, 0, 0, 0, 1, 1.8, 0, 0)
 
 [node name="LegsSide1" parent="LegStands/AutoLegsStandRear/Sides" index="0"]
-mesh = SubResource("ArrayMesh_0lm7i")
+mesh = SubResource("ArrayMesh_w26j5")
 
 [node name="LegsSide2" parent="LegStands/AutoLegsStandRear/Sides" index="1"]
 transform = Transform3D(-1, 0, 1.50996e-07, 0, 1, 0, -1.50996e-07, 0, -1, 0, 0, 1)
-mesh = SubResource("ArrayMesh_0lm7i")
+mesh = SubResource("ArrayMesh_w26j5")
 
 [node name="LegsBars" parent="LegStands/AutoLegsStandRear" index="1"]
 transform = Transform3D(1, 0, 0, 0, 0.618078, 0, 0, 0, 1, 0, 0, 0)
 ParentScale = 1.61792
 
 [node name="LegsBar" parent="LegStands/AutoLegsStandRear/LegsBars" index="0"]
-mesh = SubResource("ArrayMesh_xpwmt")
+mesh = SubResource("ArrayMesh_s7uuf")
 
 [node name="LegsTop1" parent="LegStands/AutoLegsStandRear/Ends" index="0"]
 transform = Transform3D(1, 0, 0, 0, 0.618078, 0, 0, 0, 1, 0, 1, -1)
