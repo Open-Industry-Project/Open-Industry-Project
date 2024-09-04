@@ -88,10 +88,9 @@ func _enter_tree() -> void:
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
 
 	if(!FileAccess.file_exists("res://addons/oip_ui/build.txt")):
-		var msBuildPanel = find_build_panel(get_parent())
 		var file = FileAccess.open("res://addons/oip_ui/build.txt",FileAccess.WRITE)
 		file.store_string("This file was automatically generated. Do not delete")
-		msBuildPanel.BuildProject()
+		BuildProject.build()
 
 	_toggle_native_mode(false)
 
@@ -246,15 +245,3 @@ func _on_custom_help_menu_id_pressed(id: int) -> void:
 		_help_popup_menu.id_pressed.emit(ID_SEARCH_HELP)
 	if id == 2:
 		OS.shell_open("https://github.com/Open-Industry-Project/Open-Industry-Project")
-
-func find_build_panel(node):
-	# Iterate through each child of the current node
-	for child in node.get_children():
-		# Check if the child has the 'BuildProject' method
-		if child.has_method("BuildProject"):
-			return child  # Return the child if it has the method
-		else:
-			var found_child = find_build_panel(child)
-			if found_child != null:
-				return found_child  # Return the found child up the call stack
-	return null  # Return None if no child with the method is found

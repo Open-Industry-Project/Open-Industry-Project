@@ -23,6 +23,7 @@ boot_splash/fullsize=false
 [autoload]
 
 SimulationEvents="*res://addons/oip_ui/Autoload/SimulationEvents.gd"
+BuildProject="*res://addons/oip_ui/Autoload/BuildProject.gd"
 
 [dotnet]
 

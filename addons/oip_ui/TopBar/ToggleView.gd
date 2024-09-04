@@ -4,21 +4,26 @@ extends HBoxContainer
 @export var texture_3d: Texture
 @export var texture_script: Texture
 
-@onready var _button: Button = $Button
+@onready var _screen_button: Button = $ScreenButton
+@onready var _build_button: Button = $BuildButton
 
 func _ready() -> void:
-	_button.pressed.connect(self._button_pressed)
+	_screen_button.pressed.connect(self._screen_button_pressed)
+	_build_button.pressed.connect(self._build_button_pressed)
+	
+func _build_button_pressed():
+	BuildProject.build()
 
-func _button_pressed():
+func _screen_button_pressed():
 	var window = _get_visible_window()
 	
 	if window.contains("WindowWrapper"):
-		_button.icon = texture_3d
-		_button.text = "3D"
+		_screen_button.icon = texture_3d
+		_screen_button.text = "3D"
 		EditorInterface.set_main_screen_editor("3D")
 	else:
-		_button.icon = texture_script
-		_button.text = "Script"
+		_screen_button.icon = texture_script
+		_screen_button.text = "Script"
 		EditorInterface.set_main_screen_editor("Script")
 
 func _get_visible_window() -> String:
