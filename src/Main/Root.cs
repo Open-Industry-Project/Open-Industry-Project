@@ -467,10 +467,5 @@ public partial class Root : Node3D
 	void OnSimulationEnded()
 	{
 		Start = false;
-
-		if (Protocol == Protocols.opc_ua)
-		{
-			//session.CloseAsync().Wait();
-		}
 	}
 }
