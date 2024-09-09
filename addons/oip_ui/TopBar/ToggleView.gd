@@ -19,11 +19,9 @@ func _screen_button_pressed():
 	
 	if window.contains("WindowWrapper"):
 		_screen_button.icon = texture_3d
-		_screen_button.text = "3D"
 		EditorInterface.set_main_screen_editor("3D")
 	else:
 		_screen_button.icon = texture_script
-		_screen_button.text = "Script"
 		EditorInterface.set_main_screen_editor("Script")
 
 func _get_visible_window() -> String:

@@ -31,5 +31,5 @@ icon = ExtResource("4_50jkv")
 
 [node name="ScreenButton" type="Button" parent="."]
 layout_mode = 2
-text = "3D"
+tooltip_text = "Toggle Script/3D"
 icon = ExtResource("2_5o2r8")
