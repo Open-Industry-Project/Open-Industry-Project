@@ -261,10 +261,26 @@ public partial class Root : Node3D
 		}
 	}
 
+	private T HandleOpcUaRead<T>(Guid guid)
+	{
+		var value = session.ReadValueAsync(opc_tags[guid]).Result.Value;
+		
+		if (value is T typedValue)
+		{
+			return typedValue;
+		}
+		else
+		{
+			string errorMessage = $"Expected {typeof(T)} but received {value.GetType()} for nodeid: {opc_tags[guid]}";
+			GD.PrintErr(errorMessage);
+			throw new InvalidCastException(errorMessage);
+		}
+	}
+
 	public async Task<bool> ReadBool(Guid guid)
 	{
 		if (Protocol == Protocols.opc_ua)
-			return Convert.ToBoolean(session.ReadValueAsync(opc_tags[guid]).Result.Value);
+			return HandleOpcUaRead<bool>(guid);
 		else
 			return Convert.ToBoolean(await bool_tags[guid].ReadAsync());
 	}
@@ -272,7 +288,7 @@ public partial class Root : Node3D
 	public async Task<int> ReadInt(Guid guid)
 	{
 		if (Protocol == Protocols.opc_ua)
-			return Convert.ToInt32(session.ReadValueAsync(opc_tags[guid]).Result.Value);
+			return HandleOpcUaRead<int>(guid);
 		else
 			return Convert.ToInt32(await bool_tags[guid].ReadAsync());
 	}
@@ -280,7 +296,7 @@ public partial class Root : Node3D
 	public async Task<float> ReadFloat(Guid guid)
 	{
 		if (Protocol == Protocols.opc_ua)
-			return (float)session.ReadValueAsync(opc_tags[guid]).Result.Value;
+			return HandleOpcUaRead<float>(guid);
 		else
 			return (float)(await float_tags[guid].ReadAsync());
 	}
