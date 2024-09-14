@@ -56,7 +56,7 @@ public partial class BoxSpawner : Node3D
 		AddChild(box, forceReadableName:true);
 		box.SetNewOwner(Main);
 		box.SetPhysicsProcess(true);
-		box.Position = Vector3.Zero;
+		box.Position = GlobalPosition;
 	}
 	
 	void OnSimulationStarted()
