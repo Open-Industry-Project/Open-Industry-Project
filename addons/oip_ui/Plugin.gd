@@ -48,6 +48,7 @@ var _camera_button: Button
 var _debugger_button: Button
 var _audio_button: Button
 var _animation_button: Button
+var _shader_editor_button: Button
 var _godot_version: VBoxContainer
 
 # Create Root Node
@@ -79,6 +80,7 @@ func _enter_tree() -> void:
 	_debugger_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(1)
 	_audio_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(3)
 	_animation_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(4)
+	_shader_editor_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(7)
 
 	_create_root_vbox = get_tree().root.get_child(0).find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
 	_scene_tabs = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
@@ -199,6 +201,7 @@ func _toggle_native_mode(native_mode: bool) -> void:
 	_debugger_button.visible = native_mode
 	_audio_button.visible = native_mode
 	_animation_button.visible = native_mode
+	_shader_editor_button.visible = native_mode
 
 	_set_original_popup_menu(native_mode, _project_popup_menu, _custom_project_menu, "Project")
 	_set_original_popup_menu(native_mode, _help_popup_menu, _custom_help_menu, "Help")
