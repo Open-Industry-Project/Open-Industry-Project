@@ -118,6 +118,7 @@ shadow_mesh = SubResource("ArrayMesh_e42t8")
 
 [node name="Box" type="Node3D"]
 process_mode = 3
+top_level = true
 script = ExtResource("1_qlesu")
 metadata/_edit_group_ = true
 metadata/Spawned = true
@@ -129,7 +130,6 @@ collision_mask = 15
 mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_jt2n8")
 can_sleep = false
-freeze = true
 continuous_cd = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
