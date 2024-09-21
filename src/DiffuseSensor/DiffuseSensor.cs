@@ -86,8 +86,16 @@ public partial class DiffuseSensor : Node3D
 
 		rayMarker.Visible = debugBeam;
 	}
-	
-	public override void _PhysicsProcess(double delta)
+
+    public override void _ExitTree()
+    {
+        if (Main == null) return;
+
+        Main.SimulationStarted -= OnSimulationStarted;
+        Main.SimulationEnded -= OnSimulationEnded;
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		PhysicsDirectSpaceState3D spaceState = GetWorld3D().DirectSpaceState;
 		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * distance);

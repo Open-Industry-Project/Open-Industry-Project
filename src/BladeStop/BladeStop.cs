@@ -102,8 +102,16 @@ public partial class BladeStop : Node3D
 		airPressureR.Position = new Vector3(airPressureR.Position.X, airPressureHeight, airPressureR.Position.Z);
 		airPressureL.Position = new Vector3(airPressureL.Position.X, airPressureHeight, airPressureL.Position.Z);
 	}
-	
-	public override void _PhysicsProcess(double delta)
+
+    public override void _ExitTree()
+    {
+        if (Main == null) return;
+
+        Main.SimulationStarted -= OnSimulationStarted;
+        Main.SimulationEnded -= OnSimulationEnded;
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		if (!running)
 		{

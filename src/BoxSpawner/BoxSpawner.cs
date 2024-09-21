@@ -29,7 +29,15 @@ public partial class BoxSpawner : Node3D
 		SetProcess(false);
 	}
 
-	public override void _Process(double delta)
+    public override void _ExitTree()
+    {
+        if (Main == null) return;
+
+        Main.SimulationStarted -= OnSimulationStarted;
+        Main.SimulationEnded -= OnSimulationEnded;
+    }
+
+    public override void _Process(double delta)
 	{
 		if (Main == null) return;
 		

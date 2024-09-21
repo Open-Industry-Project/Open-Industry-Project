@@ -193,7 +193,15 @@ public partial class StackLight : Node3D
 		InitSegments();
 	}
 
-	public override void _PhysicsProcess(double delta)
+    public override void _ExitTree()
+    {
+        if (Main == null) return;
+
+        Main.SimulationStarted -= OnSimulationStarted;
+        Main.SimulationEnded -= OnSimulationEnded;
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		Scale = new Vector3(Scale.X, Scale.Y, Scale.X);
 		bottomMesh.Scale = new Vector3(1, 1 / Scale.Y, 1);
@@ -229,7 +237,6 @@ public partial class StackLight : Node3D
 		{
 			Node3D segment = segmentScene.Instantiate() as Node3D;
 			segmentsContainer.AddChild(segment, forceReadableName: true);
-			//segment.Owner = this;
 			segment.Position = new Vector3(0, segmentInitialYPos + (step * segment.GetIndex()), 0);
 		}
 	}

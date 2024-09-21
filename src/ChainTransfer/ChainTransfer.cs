@@ -125,8 +125,16 @@ public partial class ChainTransfer : Node3D
 		SetChainsSpeed(speed);
 		SetChainsPopupChains(popupChains);
 	}
-	
-	public override void _PhysicsProcess(double delta)
+
+    public override void _ExitTree()
+    {
+        if (Main == null) return;
+
+        Main.SimulationStarted -= OnSimulationStarted;
+        Main.SimulationEnded -= OnSimulationEnded;
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		Scale = new Vector3(Scale.X, 1, 1);
 

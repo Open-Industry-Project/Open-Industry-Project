@@ -26,8 +26,17 @@ public partial class Pallet : Node3D
 
 		SetPhysicsProcess(false);
 	}
-	
-	public override void _PhysicsProcess(double delta)
+
+    public override void _ExitTree()
+    {
+        if (Main == null) return;
+
+        Main.SimulationStarted -= Set;
+        Main.SimulationEnded -= Reset;
+        Main.SimulationSetPaused -= OnSetPaused;
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null) return;
 

@@ -177,8 +177,16 @@ public partial class PushButton : Node3D
 		SetButtonColor(ButtonColor);
 		SetActive(Lamp);
 	}
-	
-	public override void _PhysicsProcess(double delta)
+
+    public override void _ExitTree()
+    {
+        if (Main == null) return;
+
+        Main.SimulationStarted -= OnSimulationStarted;
+        Main.SimulationEnded -= OnSimulationEnded;
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		if(!running)
 		{
