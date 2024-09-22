@@ -54,7 +54,7 @@ metadata/_edit_group_ = true
 collision_layer = 8
 collision_mask = 7
 physics_material_override = SubResource("PhysicsMaterial_vb87h")
-freeze = true
+can_sleep = false
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.107211, 0)

@@ -19,7 +19,9 @@ public partial class Root : Node3D
 	[Signal]
 	public delegate void SimulationEndedEventHandler();
 
-	private bool _start = false;
+	public bool simulationRunning = false;
+
+    private bool _start = false;
 	public bool Start
 	{
 		get
@@ -34,7 +36,8 @@ public partial class Root : Node3D
 			{
 				PhysicsServer3D.SetActive(true);
 				EmitSignal(SignalName.SimulationStarted);
-			}
+                simulationRunning = true;
+            }
 			else
 			{
 				PhysicsServer3D.SetActive(false);
@@ -43,7 +46,8 @@ public partial class Root : Node3D
 				float_tags.Clear();
 				opc_tags.Clear();
 				EmitSignal(SignalName.SimulationEnded);
-			}
+                simulationRunning = false;
+            }
 		}
 	}
 

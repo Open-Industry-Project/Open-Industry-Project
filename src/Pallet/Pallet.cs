@@ -5,7 +5,8 @@ public partial class Pallet : Node3D
 {	
 	RigidBody3D rigidBody;
 	Vector3 initialPos;
-	bool selected = false;
+    public bool instanced = false;
+    bool selected = false;
 	bool keyHeld = false;
 	Root Main;
 	
@@ -24,8 +25,16 @@ public partial class Pallet : Node3D
 
         rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
-		SetPhysicsProcess(false);
-	}
+        if (Main.simulationRunning)
+        {
+            SetPhysicsProcess(true);
+            instanced = true;
+        }
+        else
+        {
+            SetPhysicsProcess(false);
+        }
+    }
 
     public override void _ExitTree()
     {
@@ -34,6 +43,8 @@ public partial class Pallet : Node3D
         Main.SimulationStarted -= Set;
         Main.SimulationEnded -= Reset;
         Main.SimulationSetPaused -= OnSetPaused;
+
+        if (instanced) QueueFree();
     }
 
     public override void _PhysicsProcess(double delta)
@@ -84,19 +95,29 @@ public partial class Pallet : Node3D
 	
 	void Reset()
 	{
-		SetPhysicsProcess(false);
-		rigidBody.TopLevel = false;
-		
-		rigidBody.Position = Vector3.Zero;
-		rigidBody.Rotation = Vector3.Zero;
-		rigidBody.Scale = Vector3.One;
-		
-		rigidBody.LinearVelocity = Vector3.Zero;
-		rigidBody.AngularVelocity = Vector3.Zero;
-		
-		GlobalPosition = initialPos;
-		Rotation = Vector3.Zero;
-	}
+        if (instanced)
+        {
+            Main.SimulationStarted -= Set;
+            Main.SimulationEnded -= Reset;
+            Main.SimulationSetPaused -= OnSetPaused;
+            QueueFree();
+        }
+        else
+        {
+            SetPhysicsProcess(false);
+            rigidBody.TopLevel = false;
+
+            rigidBody.Position = Vector3.Zero;
+            rigidBody.Rotation = Vector3.Zero;
+            rigidBody.Scale = Vector3.One;
+
+            rigidBody.LinearVelocity = Vector3.Zero;
+            rigidBody.AngularVelocity = Vector3.Zero;
+
+            GlobalPosition = initialPos;
+            Rotation = Vector3.Zero;
+        }
+    }
 	
 	void OnSetPaused(bool paused)
 	{
