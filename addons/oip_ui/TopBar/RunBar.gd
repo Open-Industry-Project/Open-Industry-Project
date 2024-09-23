@@ -10,11 +10,13 @@ var pause = true
 var stop = true
 
 func _disable_buttons() -> void:
+	PhysicsServer3D.set_active(false)
 	play_button.disabled = true
 	pause_button.disabled = true
 	stop_button.disabled = true
 	
 func _enable_buttons() -> void:
+	PhysicsServer3D.set_active(play)
 	play_button.disabled = play
 	pause_button.disabled = pause
 	stop_button.disabled = stop
