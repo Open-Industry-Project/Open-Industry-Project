@@ -9,7 +9,7 @@ public partial class Box : Node3D
 	bool selected = false;
 	bool keyHeld = false;
 
-    Root Main;
+	Root Main;
 	public override void _Ready()
 	{
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
@@ -26,14 +26,14 @@ public partial class Box : Node3D
 		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
 		if(Main.simulationRunning)
-        {
-            SetPhysicsProcess(true);
+		{
+			SetPhysicsProcess(true);
 			instanced = true;
-        }
-        else
-        {
-            SetPhysicsProcess(false);
-        }
+		}
+		else
+		{
+			SetPhysicsProcess(false);
+		}
 	}
 	
 	public override void _EnterTree()
@@ -61,7 +61,7 @@ public partial class Box : Node3D
 	{
 		if (Main == null) return;
 
-        selected = Main.selectedNodes.Contains(this);
+		selected = Main.selectedNodes.Contains(this);
 
 		if (selected && Input.IsPhysicalKeyPressed(Key.G) && !Main.paused)
 		{

@@ -1,16 +1,12 @@
 using Godot;
 
 [Tool]
-public partial class BoxSpawner : Node3D
+public partial class PalletSpawner : Node3D
 {
 	[Export]
 	PackedScene scene;
 	[Export]
-	public bool SpawnRandomScale = false;
-	[Export]
-	public Vector2 spawnRandomSize = new(0.5f, 1f);
-	[Export]
-	public float spawnInterval = 1f;
+	public float spawnInterval = 3f;
 
 	private float scan_interval = 0;
 
@@ -40,41 +36,33 @@ public partial class BoxSpawner : Node3D
 	public override void _Process(double delta)
 	{
 		if (Main == null) return;
-		
+
 		scan_interval += (float)delta;
 		if (scan_interval > spawnInterval)
 		{
 			scan_interval = 0;
-			SpawnBox();
+			SpawnPallet();
 		}
 	}
-	
-	private void SpawnBox()
+
+	private void SpawnPallet()
 	{
-		var box = (Box)scene.Instantiate();
+		var pallet = (Pallet)scene.Instantiate();
 
-		if (SpawnRandomScale)
-		{
-			var x = (float)GD.RandRange(spawnRandomSize.X, spawnRandomSize.Y);
-			var y = (float)GD.RandRange(spawnRandomSize.X, spawnRandomSize.Y);
-			var z = (float)GD.RandRange(spawnRandomSize.X, spawnRandomSize.Y);
-			box.Scale = new Vector3(x, y, z);
-		}
-
-		AddChild(box, forceReadableName:true);
-		box.SetNewOwner(Main);
-		box.SetPhysicsProcess(true);
-		box.Position = GlobalPosition;
+		AddChild(pallet, forceReadableName: true);
+		pallet.SetNewOwner(Main);
+		pallet.SetPhysicsProcess(true);
+		pallet.Position = GlobalPosition;
 	}
-	
+
 	void OnSimulationStarted()
 	{
 		if (Main == null) return;
-		
+
 		SetProcess(true);
 		scan_interval = spawnInterval;
 	}
-	
+
 	void OnSimulationEnded()
 	{
 		SetProcess(false);

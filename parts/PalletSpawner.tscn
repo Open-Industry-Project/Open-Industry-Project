@@ -1,17 +1,13 @@
-[gd_scene load_steps=8 format=4 uid="uid://ccnjj66g0dynu"]
+[gd_scene load_steps=7 format=4 uid="uid://rqr8ymsl2cph"]
 
-[ext_resource type="Script" path="res://src/Pallet/Pallet.cs" id="1_3gyy2"]
-[ext_resource type="Texture2D" uid="uid://b77uw0t6btlrk" path="res://assets/3DModels/Textures/Pallet_Mat_Base_Color.png" id="2_u7a1e"]
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_vb87h"]
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_kbfuw"]
-size = Vector3(2.4, 0.243, 2.18)
+[ext_resource type="Script" path="res://src/PalletSpawner/PalletSpawner.cs" id="1_by57j"]
+[ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://parts/Pallet.tscn" id="2_g1ntt"]
+[ext_resource type="Texture2D" uid="uid://b77uw0t6btlrk" path="res://assets/3DModels/Textures/Pallet_Mat_Base_Color.png" id="2_j7tet"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_adrf5"]
 resource_name = "Mat"
 cull_mode = 2
-albedo_texture = ExtResource("2_u7a1e")
+albedo_texture = ExtResource("2_j7tet")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_6uvh1"]
 _surfaces = [{
@@ -45,25 +41,11 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_6uvh1")
 
-[node name="Pallet" type="Node3D"]
-process_mode = 3
-top_level = true
-script = ExtResource("1_3gyy2")
-metadata/_edit_group_ = true
+[node name="PalletSpawner" type="Node3D"]
+script = ExtResource("1_by57j")
+scene = ExtResource("2_g1ntt")
 
-[node name="RigidBody3D" type="RigidBody3D" parent="."]
-process_mode = 3
-collision_layer = 8
-collision_mask = 15
-mass = 1000.0
-physics_material_override = SubResource("PhysicsMaterial_vb87h")
-can_sleep = false
-continuous_cd = true
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.107211, 0)
-shape = SubResource("BoxShape3D_kbfuw")
-
-[node name="Wood_Pallet" type="MeshInstance3D" parent="RigidBody3D"]
+[node name="Wood_Pallet" type="MeshInstance3D" parent="."]
+transparency = 0.7
+cast_shadow = 0
 mesh = SubResource("ArrayMesh_dllc6")
-skeleton = NodePath("")

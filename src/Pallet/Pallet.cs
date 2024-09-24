@@ -5,8 +5,8 @@ public partial class Pallet : Node3D
 {	
 	RigidBody3D rigidBody;
 	Vector3 initialPos;
-    public bool instanced = false;
-    bool selected = false;
+	public bool instanced = false;
+	bool selected = false;
 	bool keyHeld = false;
 	Root Main;
 	
@@ -19,35 +19,35 @@ public partial class Pallet : Node3D
 			return;
 		}
 
-        Main.SimulationStarted += Set;
-        Main.SimulationEnded += Reset;
-        Main.SimulationSetPaused += OnSetPaused;
+		Main.SimulationStarted += Set;
+		Main.SimulationEnded += Reset;
+		Main.SimulationSetPaused += OnSetPaused;
 
-        rigidBody = GetNode<RigidBody3D>("RigidBody3D");
+		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
-        if (Main.simulationRunning)
-        {
-            SetPhysicsProcess(true);
-            instanced = true;
-        }
-        else
-        {
-            SetPhysicsProcess(false);
-        }
-    }
+		if (Main.simulationRunning)
+		{
+			SetPhysicsProcess(true);
+			instanced = true;
+		}
+		else
+		{
+			SetPhysicsProcess(false);
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main == null) return;
+	public override void _ExitTree()
+	{
+		if (Main == null) return;
 
-        Main.SimulationStarted -= Set;
-        Main.SimulationEnded -= Reset;
-        Main.SimulationSetPaused -= OnSetPaused;
+		Main.SimulationStarted -= Set;
+		Main.SimulationEnded -= Reset;
+		Main.SimulationSetPaused -= OnSetPaused;
 
-        if (instanced) QueueFree();
-    }
+		if (instanced) QueueFree();
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null) return;
 
@@ -58,8 +58,8 @@ public partial class Pallet : Node3D
 			if (!keyHeld)
 			{
 				keyHeld = true;
-                rigidBody.Freeze = !rigidBody.Freeze;
-            }
+				rigidBody.Freeze = !rigidBody.Freeze;
+			}
 		}
 
 		if (!Input.IsPhysicalKeyPressed(Key.G))
@@ -77,8 +77,8 @@ public partial class Pallet : Node3D
 		else
 		{
 			rigidBody.TopLevel = true;
-			GlobalPosition = rigidBody.GlobalPosition;
-			GlobalRotation = rigidBody.GlobalRotation;
+			Position = rigidBody.Position;
+			Rotation = rigidBody.Rotation;
 			Scale = rigidBody.Scale;
 		}
 	}
@@ -95,32 +95,38 @@ public partial class Pallet : Node3D
 	
 	void Reset()
 	{
-        if (instanced)
-        {
-            Main.SimulationStarted -= Set;
-            Main.SimulationEnded -= Reset;
-            Main.SimulationSetPaused -= OnSetPaused;
-            QueueFree();
-        }
-        else
-        {
-            SetPhysicsProcess(false);
-            rigidBody.TopLevel = false;
+		if (instanced)
+		{
+			Main.SimulationStarted -= Set;
+			Main.SimulationEnded -= Reset;
+			Main.SimulationSetPaused -= OnSetPaused;
+			QueueFree();
+		}
+		else
+		{
+			SetPhysicsProcess(false);
+			rigidBody.TopLevel = false;
 
-            rigidBody.Position = Vector3.Zero;
-            rigidBody.Rotation = Vector3.Zero;
-            rigidBody.Scale = Vector3.One;
+			rigidBody.Position = Vector3.Zero;
+			rigidBody.Rotation = Vector3.Zero;
+			rigidBody.Scale = Vector3.One;
 
-            rigidBody.LinearVelocity = Vector3.Zero;
-            rigidBody.AngularVelocity = Vector3.Zero;
+			rigidBody.LinearVelocity = Vector3.Zero;
+			rigidBody.AngularVelocity = Vector3.Zero;
 
-            GlobalPosition = initialPos;
-            Rotation = Vector3.Zero;
-        }
-    }
+			GlobalPosition = initialPos;
+			Rotation = Vector3.Zero;
+		}
+	}
 	
 	void OnSetPaused(bool paused)
 	{
 		rigidBody.Freeze = paused;
+	}
+
+	public void SetNewOwner(Root newOwner)
+	{
+		instanced = true;
+		Owner = newOwner;
 	}
 }
