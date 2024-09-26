@@ -133,10 +133,4 @@ public partial class Box : Node3D
 	{
 		rigidBody.Freeze = paused;
 	}
-	
-	public void SetNewOwner(Root newOwner)
-	{
-		instanced = true;
-		Owner = newOwner;
-	}
 }

@@ -60,12 +60,18 @@ public partial class BoxSpawner : Node3D
 			var z = (float)GD.RandRange(spawnRandomSize.X, spawnRandomSize.Y);
 			box.Scale = new Vector3(x, y, z);
 		}
+		else
+		{
+            box.Scale = Scale;
+        }
 
-		AddChild(box, forceReadableName:true);
-		box.SetNewOwner(Main);
-		box.SetPhysicsProcess(true);
-		box.Position = GlobalPosition;
-	}
+        box.Rotation = Rotation;
+        box.Position = GlobalPosition;
+        box.instanced = true;
+
+        AddChild(box, forceReadableName:true);
+		box.Owner = Main;
+    }
 	
 	void OnSimulationStarted()
 	{
