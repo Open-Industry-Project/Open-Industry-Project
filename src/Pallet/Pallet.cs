@@ -123,10 +123,4 @@ public partial class Pallet : Node3D
 	{
 		rigidBody.Freeze = paused;
 	}
-
-	public void SetNewOwner(Root newOwner)
-	{
-		instanced = true;
-		Owner = newOwner;
-	}
 }

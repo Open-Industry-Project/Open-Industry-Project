@@ -49,11 +49,13 @@ public partial class PalletSpawner : Node3D
 	{
 		var pallet = (Pallet)scene.Instantiate();
 
-		AddChild(pallet, forceReadableName: true);
-		pallet.SetNewOwner(Main);
-		pallet.SetPhysicsProcess(true);
-		pallet.Position = GlobalPosition;
-	}
+        pallet.Rotation = Rotation;
+        pallet.Position = GlobalPosition;
+        pallet.instanced = true;
+
+        AddChild(pallet, forceReadableName: true);
+        pallet.Owner = Main;
+    }
 
 	void OnSimulationStarted()
 	{
