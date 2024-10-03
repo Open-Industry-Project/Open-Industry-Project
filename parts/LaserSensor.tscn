@@ -326,21 +326,22 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ssju6")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0hv5e"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nd7f3"]
 shading_mode = 0
-albedo_color = Color(1, 0, 0, 1)
+albedo_color = Color(0, 1, 0, 1)
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_gpdhd"]
-material = SubResource("StandardMaterial3D_0hv5e")
+[sub_resource type="CylinderMesh" id="CylinderMesh_w3xtk"]
+material = SubResource("StandardMaterial3D_nd7f3")
 top_radius = 0.003
 bottom_radius = 0.003
 height = 10.0
 
 [node name="LaserSensor" type="Node3D"]
 script = ExtResource("1_ufgoq")
-collisionColor = Color(1, 1, 0, 1)
-scanColor = Color(1, 0, 0, 1)
-DebugBeam = false
+ShowBeam = false
+beamBlockedColor = Color(1, 0, 0, 1)
+beamScanColor = Color(0, 1, 0, 1)
+distance = 10.0
 metadata/_edit_group_ = true
 
 [node name="LaserSensor" type="Node3D" parent="."]
@@ -389,7 +390,7 @@ visible = false
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 5)
-mesh = SubResource("CylinderMesh_gpdhd")
+mesh = SubResource("CylinderMesh_w3xtk")
 skeleton = NodePath("../..")
 
 [node name="ScanTimer" type="Timer" parent="."]
