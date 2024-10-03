@@ -22,36 +22,38 @@ public partial class DiffuseSensor : Node3D
 	[Export]
 	private int updateRate = 100;
 	[Export]
-	float distance = 6.0f;
+	float maxRange = 6.0f;
 
 	readonly Guid id = Guid.NewGuid();
 	double scan_interval = 0;
 	bool readSuccessful = false;
 	bool running = false;
 
-	bool blocked = false;
-
-	bool debugBeam = true;
+	bool showBeam = true;
 	[Export]
-	bool DebugBeam
+	bool ShowBeam
 	{
 		get
 		{
-			return debugBeam;
+			return showBeam;
 		}
 		set
 		{
-			debugBeam = value;
+			showBeam = value;
+			NotifyPropertyListChanged();
 			if (rayMarker != null)
 				rayMarker.Visible = value;
 		}
 	}
 	
 	[Export]
-	Color collisionColor;
+	Color beamBlockedColor;
 	[Export]
-	Color scanColor;
-	
+	Color beamScanColor;
+
+	[Export]
+	bool blocked = false;
+
 	Marker3D rayMarker;
 	MeshInstance3D rayMesh;
 	CylinderMesh cylinderMesh;
@@ -65,6 +67,14 @@ public partial class DiffuseSensor : Node3D
 		if (propertyName == PropertyName.updateRate || propertyName == PropertyName.tag)
 		{
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
+		}
+		else if (propertyName == PropertyName.beamBlockedColor || propertyName == PropertyName.beamScanColor)
+		{
+			property["usage"] = (int)(ShowBeam ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
+		}
+		else if (propertyName == PropertyName.blocked)
+		{
+			property["usage"] = (int)(PropertyUsageFlags.Default | PropertyUsageFlags.ReadOnly);
 		}
 	}
 	public override void _Ready()
@@ -84,21 +94,21 @@ public partial class DiffuseSensor : Node3D
 			Main.SimulationEnded += OnSimulationEnded;
 		}
 
-		rayMarker.Visible = debugBeam;
+		rayMarker.Visible = showBeam;
 	}
 
-    public override void _ExitTree()
-    {
-        if (Main == null) return;
+	public override void _ExitTree()
+	{
+		if (Main == null) return;
 
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
-    }
+		Main.SimulationStarted -= OnSimulationStarted;
+		Main.SimulationEnded -= OnSimulationEnded;
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		PhysicsDirectSpaceState3D spaceState = GetWorld3D().DirectSpaceState;
-		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * distance);
+		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * maxRange);
 		query.CollisionMask = 8;
 		var result = spaceState.IntersectRay(query);
 		
@@ -108,16 +118,16 @@ public partial class DiffuseSensor : Node3D
 			float resultDistance = rayMarker.GlobalPosition.DistanceTo((Vector3)result["position"]);
 			if (cylinderMesh.Height != resultDistance)
 				cylinderMesh.Height = resultDistance;
-			if (rayMaterial.AlbedoColor != collisionColor)
-				rayMaterial.AlbedoColor = collisionColor;
+			if (rayMaterial.AlbedoColor != beamBlockedColor)
+				rayMaterial.AlbedoColor = beamBlockedColor;
 		}
 		else
 		{
 			blocked = false;
-			if (cylinderMesh.Height != distance)
-				cylinderMesh.Height = distance;
-			if (rayMaterial.AlbedoColor != scanColor)
-				rayMaterial.AlbedoColor = scanColor;
+			if (cylinderMesh.Height != maxRange)
+				cylinderMesh.Height = maxRange;
+			if (rayMaterial.AlbedoColor != beamScanColor)
+				rayMaterial.AlbedoColor = beamScanColor;
 		}
 
 		if (enableComms && running && readSuccessful)
@@ -147,8 +157,8 @@ public partial class DiffuseSensor : Node3D
 	void OnSimulationEnded()
 	{
 		running = false;
-		cylinderMesh.Height = distance;
-		rayMaterial.AlbedoColor = scanColor;
+		cylinderMesh.Height = maxRange;
+		rayMaterial.AlbedoColor = beamScanColor;
 		rayMesh.Position = new Vector3(0, 0, cylinderMesh.Height * 0.5f);
 	}
 

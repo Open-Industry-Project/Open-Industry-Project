@@ -166,23 +166,23 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_0umne")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rh7b5"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jxp2v"]
 shading_mode = 0
-albedo_color = Color(1, 0, 0, 1)
+albedo_color = Color(0, 1, 0, 1)
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_shxoo"]
-material = SubResource("StandardMaterial3D_rh7b5")
+[sub_resource type="CylinderMesh" id="CylinderMesh_ov2tl"]
+material = SubResource("StandardMaterial3D_jxp2v")
 top_radius = 0.003
 bottom_radius = 0.003
-height = 6.0
+height = 10.0
 radial_segments = 4
 
 [node name="DiffuseSensor" type="Node3D"]
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 0, 0, 0)
 script = ExtResource("1_1namx")
-DebugBeam = false
-collisionColor = Color(1, 1, 0, 1)
-scanColor = Color(1, 0, 0, 1)
+ShowBeam = false
+beamBlockedColor = Color(1, 0, 0, 1)
+beamScanColor = Color(0, 1, 0, 1)
 metadata/_edit_group_ = true
 
 [node name="Photoeye" type="Node3D" parent="."]
@@ -214,7 +214,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
 visible = false
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 3)
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 5)
 cast_shadow = 0
 gi_mode = 0
-mesh = SubResource("CylinderMesh_shxoo")
+mesh = SubResource("CylinderMesh_ov2tl")
