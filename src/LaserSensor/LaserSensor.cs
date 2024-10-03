@@ -22,25 +22,13 @@ public partial class LaserSensor : Node3D
 	[Export]
 	private int updateRate = 100;
 	[Export]
-	float distance = 10.0f;
+	float maxRange = 10.0f;
 	int value = 0;
-	
-	[Export]
-	Color collisionColor;
-	[Export]
-	Color scanColor;
-
-	readonly Guid id = Guid.NewGuid();
-	double scan_interval = 0;
-	bool readSuccessful = false;
-	bool running = false;
 
 	bool debugBeam = true;
 
-	float distanceToTarget = 0.0f;
-
 	[Export]
-	bool DebugBeam
+	bool ShowBeam
 	{
 		get
 		{
@@ -49,10 +37,24 @@ public partial class LaserSensor : Node3D
 		set
 		{
 			debugBeam = value;
-			if (rayMarker != null)
+            NotifyPropertyListChanged();
+            if (rayMarker != null)
 				rayMarker.Visible = value;
 		}
 	}
+
+	[Export]
+	Color beamBlockedColor;
+	[Export]
+	Color beamScanColor;
+
+	readonly Guid id = Guid.NewGuid();
+	double scan_interval = 0;
+	bool readSuccessful = false;
+	bool running = false;
+
+	[Export]
+	float distance = 0.0f;
 
 	Marker3D rayMarker;
 	MeshInstance3D rayMesh;
@@ -67,6 +69,14 @@ public partial class LaserSensor : Node3D
 		if (propertyName == PropertyName.updateRate || propertyName == PropertyName.tag)
 		{
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
+		}
+		else if(propertyName == PropertyName.beamBlockedColor || propertyName == PropertyName.beamScanColor)
+		{
+			property["usage"] = (int)(ShowBeam ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
+        }
+		else if(propertyName == PropertyName.distance)
+		{
+			property["usage"] = (int)(PropertyUsageFlags.Default | PropertyUsageFlags.ReadOnly);
 		}
 	}
 	public override void _Ready()
@@ -89,31 +99,31 @@ public partial class LaserSensor : Node3D
 		rayMarker.Visible = debugBeam;
 	}
 
-    public override void _ExitTree()
-    {
-        if (Main == null) return;
+	public override void _ExitTree()
+	{
+		if (Main == null) return;
 
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
-    }
+		Main.SimulationStarted -= OnSimulationStarted;
+		Main.SimulationEnded -= OnSimulationEnded;
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		PhysicsDirectSpaceState3D spaceState = GetWorld3D().DirectSpaceState;
-		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * distance);
+		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * maxRange);
 		var result = spaceState.IntersectRay(query);
 		
 		if (result.Count > 0)
 		{
 			cylinderMesh.Height = rayMarker.GlobalPosition.DistanceTo((Vector3)result["position"]);
-			rayMaterial.AlbedoColor = collisionColor;
-			distanceToTarget = cylinderMesh.Height;
+			rayMaterial.AlbedoColor = beamBlockedColor;
+			distance = cylinderMesh.Height;
 		}
 		else
 		{
-			cylinderMesh.Height = distance;
-			rayMaterial.AlbedoColor = scanColor;
-			distanceToTarget = distance;
+			cylinderMesh.Height = maxRange;
+			rayMaterial.AlbedoColor = beamScanColor;
+			distance = maxRange;
 		}
 		rayMesh.Position = new Vector3(0, 0, cylinderMesh.Height * 0.5f);
 
@@ -141,8 +151,8 @@ public partial class LaserSensor : Node3D
 	void OnSimulationEnded()
 	{
 		running = false;
-		cylinderMesh.Height = distance;
-		rayMaterial.AlbedoColor = scanColor;
+		cylinderMesh.Height = maxRange;
+		rayMaterial.AlbedoColor = beamScanColor;
 		rayMesh.Position = new Vector3(0, 0, cylinderMesh.Height * 0.5f);
 	}
 
@@ -150,7 +160,7 @@ public partial class LaserSensor : Node3D
 	{
 		try
 		{
-			await Main.Write(id, distanceToTarget);
+			await Main.Write(id, distance);
 		}
 		catch
 		{
