@@ -16,7 +16,7 @@ scene_library/cache/path="res://addons/scene-library/thumb_cache/"
 
 config/name="Open Industry Project"
 run/main_scene="res://src/NewSimulation.tscn"
-config/features=PackedStringArray("4.3", "C#", "Forward Plus")
+config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 boot_splash/image="res://assets/png/splash.png"
 boot_splash/fullsize=false
 
