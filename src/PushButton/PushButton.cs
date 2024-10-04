@@ -277,15 +277,12 @@ public partial class PushButton : Node3D
 	
 	void OnSimulationStarted()
 	{
-		if (enableComms)
-		{
-			Main.Connect(buttonId, Root.DataType.Bool, PushbuttonTag);
-			Main.Connect(activeId, Root.DataType.Bool, LampTag);
-		}
-		
-		running = true;
-		readSuccessful = true;
-	}
+        running = true;
+        if (enableComms)
+        {
+            readSuccessful = Main.Connect(buttonId, Root.DataType.Bool, Name, PushbuttonTag) && Main.Connect(activeId, Root.DataType.Bool, Name, LampTag);
+        }
+    }
 	
 	void OnSimulationEnded()
 	{

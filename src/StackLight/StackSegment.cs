@@ -25,7 +25,7 @@ public partial class StackSegment : Node3D
 	bool running = false;
 	double scan_interval = 0;
 
-	readonly Guid segmentId = Guid.NewGuid();
+	readonly Guid id = Guid.NewGuid();
 	
 	Root main;
 	public Root Main { get; set; }
@@ -113,7 +113,7 @@ public partial class StackSegment : Node3D
 	{
 		if (segmentData.Tag != string.Empty)
 		{
-			segmentData.Active = await Main.ReadBool(segmentId);
+			segmentData.Active = await Main.ReadBool(id);
 		}
 	}
 	
@@ -146,14 +146,12 @@ public partial class StackSegment : Node3D
 	
 	void OnSimulationStarted()
 	{
-		if (enableComms)
-		{
-			Main.Connect(segmentId, Root.DataType.Bool, segmentData.Tag);
-		}
-		
-		running = true;
-		readSuccessful = true;
-	}
+        running = true;
+        if (enableComms)
+        {
+            readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
+        }
+    }
 	
 	void OnSimulationEnded()
 	{

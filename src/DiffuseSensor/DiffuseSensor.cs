@@ -149,9 +149,8 @@ public partial class DiffuseSensor : Node3D
 		running = true;
 		if (enableComms)
 		{
-			Main.Connect(id, Root.DataType.Bool, tag);
+			readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
 		}
-		readSuccessful = true;
 	}
 	
 	void OnSimulationEnded()

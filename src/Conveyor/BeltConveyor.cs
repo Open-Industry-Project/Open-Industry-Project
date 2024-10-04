@@ -180,13 +180,11 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 
 	void OnSimulationStarted()
 	{
-		if (Main == null) return;
-		if (EnableComms)
-		{
-			Main.Connect(id, Root.DataType.Float, tag);
-		}
 		running = true;
-		readSuccessful = true;
+		if (enableComms)
+		{
+			readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
+		}
 	}
 
 	void OnSimulationEnded()

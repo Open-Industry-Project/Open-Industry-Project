@@ -259,18 +259,14 @@ public partial class ChainTransfer : Node3D
 	}
 	
 	void OnSimulationStarted()
-	{
-		if (Main == null) return;
-		
-		if (enableComms)
+    {
+        running = true;
+        TurnOnChains();
+        if (enableComms)
 		{
-			Main.Connect(speedId, Root.DataType.Float, speedTag);
-			Main.Connect(popupId, Root.DataType.Bool, popupTag);
-		}
-		
-		running = true;
-		readSuccessful = true;
-		TurnOnChains();
+			readSuccessful = Main.Connect(speedId, Root.DataType.Float, Name, speedTag) && Main.Connect(popupId, Root.DataType.Bool, Name, popupTag);
+
+        }
 	}
 	
 	void OnSimulationEnded()

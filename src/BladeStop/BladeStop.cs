@@ -189,14 +189,11 @@ public partial class BladeStop : Node3D
 	
 	void OnSimulationStarted()
 	{
-		if (Main == null) return;
-		if (EnableComms)
-		{
-			Main.Connect(id, Root.DataType.Bool, tag);
-		}
-		
 		running = true;
-		readSuccessful = true;
+		if (enableComms)
+		{
+			readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
+		}
 	}
 
 	void OnSimulationEnded()

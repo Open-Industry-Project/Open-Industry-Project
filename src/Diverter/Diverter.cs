@@ -137,17 +137,12 @@ public partial class Diverter : Node3D
 	}
 	void OnSimulationStarted()
 	{
-		if (Main == null) return;
-
-		running = true;
-
-		if (enableComms)
-		{
-			Main.Connect(id, Root.DataType.Bool, tag);
-		}
-
-		readSuccessful = true;
-	}
+        running = true;
+        if (enableComms)
+        {
+            readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
+        }
+    }
 
 	void OnSimulationEnded()
 	{

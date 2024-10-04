@@ -21,7 +21,7 @@ public partial class Root : Node3D
 
 	public bool simulationRunning = false;
 
-    private bool _start = false;
+	private bool _start = false;
 	public bool Start
 	{
 		get
@@ -35,9 +35,10 @@ public partial class Root : Node3D
 			if (_start)
 			{
 				PhysicsServer3D.SetActive(true);
+
 				EmitSignal(SignalName.SimulationStarted);
-                simulationRunning = true;
-            }
+				simulationRunning = true;
+			}
 			else
 			{
 				PhysicsServer3D.SetActive(false);
@@ -46,8 +47,8 @@ public partial class Root : Node3D
 				float_tags.Clear();
 				opc_tags.Clear();
 				EmitSignal(SignalName.SimulationEnded);
-                simulationRunning = false;
-            }
+				simulationRunning = false;
+			}
 		}
 	}
 
@@ -120,8 +121,6 @@ public partial class Root : Node3D
 			property["usage"] = (int)(Protocol == Protocols.opc_ua ? PropertyUsageFlags.NoEditor : PropertyUsageFlags.Default);
 		}
 	}
-
-
 	private void OpcConnect()
 	{
 		var config = new ApplicationConfiguration()
@@ -184,15 +183,51 @@ public partial class Root : Node3D
 				).Result;
 	}
 
-
-	public void Connect(Guid guid, DataType dataType, string tagName)
-	{
-
-		//OPC UA
-		if (Protocol == Protocols.opc_ua)
+    public bool Connect(Guid guid, DataType dataType, string nodeName, string tagName)
+    {
+        if (Protocol == Protocols.opc_ua)
 		{
-			opc_tags.Add(guid, tagName);
-		}
+            if (string.IsNullOrWhiteSpace(tagName))
+            {
+                GD.PrintErr($"Error connecting tag NULL in node {nodeName}: Empty tag name");
+                return false;
+            }
+
+            if (tagName.Contains("ns=") && tagName.Contains(';') && tagName.Split(';')[1].StartsWith(" s="))
+            {
+                GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: space after namespaceIndex. Format should be: ns=<namespaceIndex>;<identifiertype>=<identifier>");
+                return false;
+            }
+
+            try
+            {
+                NodeId.Parse(tagName);
+            }
+            catch (ArgumentException ex)
+            {
+                GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {ex.Message}");
+                return false;
+            }
+
+            var nodesToRead = new ReadValueIdCollection
+			{
+				new ReadValueId
+				{
+					NodeId = tagName,
+					AttributeId = Attributes.UserAccessLevel
+				}
+			};
+
+            session.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out _);
+
+            if (StatusCode.IsBad(results[0].StatusCode))
+            {
+                GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {results[0].StatusCode}");
+                return false;
+            }
+
+            opc_tags.Add(guid, tagName);
+        }
 		else
 		{
 			if (dataType == DataType.Bool)
@@ -214,7 +249,8 @@ public partial class Root : Node3D
 				}
 				catch(Exception e)
 				{
-					GD.PrintErr(tag.Name + ": " + e.Message);
+					GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {e.Message}");
+					return false;
 				}
 
 			}
@@ -237,7 +273,8 @@ public partial class Root : Node3D
 				}
 				catch (Exception e)
 				{
-					GD.PrintErr(tag.Name + ": " + e.Message);
+					GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {e.Message}");
+					return false;
 				}
 			}
 			else if (dataType == DataType.Float)
@@ -259,10 +296,13 @@ public partial class Root : Node3D
 				}
 				catch (Exception e)
 				{
-					GD.PrintErr(tag.Name + ": " + e.Message);
+					GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {e.Message}");
+					return false;
 				}
 			}
 		}
+
+		return true;
 	}
 
 	private T HandleOpcUaRead<T>(Guid guid)
@@ -374,7 +414,6 @@ public partial class Root : Node3D
 
 	public async Task Write(Guid guid, float value)
 	{
-		//OPC UA
 		if (Protocol == Protocols.opc_ua)
 		{
 			RequestHeader requestHeader = new();
@@ -452,9 +491,7 @@ public partial class Root : Node3D
 	
 	void OnSimulationStarted()
 	{
-		Start = true;
-
-		if (Protocol == Protocols.opc_ua && opc_tags.Count > 0)
+		if (Protocol == Protocols.opc_ua)
 		{
 			if(session != null && session.Endpoint.EndpointUrl.TrimEnd('/') != EndPoint.TrimEnd('/'))
 			{
@@ -466,6 +503,8 @@ public partial class Root : Node3D
 				OpcConnect();
 			}
 		}
+
+		Start = true;
 	}
 
 	void OnSimulationSetPaused(bool _paused)

@@ -192,15 +192,12 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 
 	void OnSimulationStarted()
 	{
-		if (Main == null) return;
-
-		if (enableComms)
-		{
-			Main.Connect(id, Root.DataType.Float, tag);
-		}
-		running = true;
-		readSuccessful = true;
-	}
+        running = true;
+        if (enableComms)
+        {
+            readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
+        }
+    }
 
 	void OnSimulationEnded()
 	{

@@ -37,8 +37,8 @@ public partial class LaserSensor : Node3D
 		set
 		{
 			debugBeam = value;
-            NotifyPropertyListChanged();
-            if (rayMarker != null)
+			NotifyPropertyListChanged();
+			if (rayMarker != null)
 				rayMarker.Visible = value;
 		}
 	}
@@ -73,7 +73,7 @@ public partial class LaserSensor : Node3D
 		else if(propertyName == PropertyName.beamBlockedColor || propertyName == PropertyName.beamScanColor)
 		{
 			property["usage"] = (int)(ShowBeam ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
-        }
+		}
 		else if(propertyName == PropertyName.distance)
 		{
 			property["usage"] = (int)(PropertyUsageFlags.Default | PropertyUsageFlags.ReadOnly);
@@ -141,11 +141,10 @@ public partial class LaserSensor : Node3D
 	void OnSimulationStarted()
 	{
 		running = true;
-		if(enableComms)
+		if (enableComms)
 		{
-			Main.Connect(id, Root.DataType.Float, tag);
+			readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
 		}
-		readSuccessful = true;
 	}
 
 	void OnSimulationEnded()

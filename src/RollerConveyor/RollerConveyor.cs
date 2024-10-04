@@ -102,15 +102,15 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		}
 	}
 
-    public override void _ExitTree()
-    {
-        if (Main == null) return;
+	public override void _ExitTree()
+	{
+		if (Main == null) return;
 
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
-    }
+		Main.SimulationStarted -= OnSimulationStarted;
+		Main.SimulationEnded -= OnSimulationEnded;
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		if (Scale.X >= 1.0f)
 			nodeScaleX = Scale.X;
@@ -184,13 +184,11 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 	void OnSimulationStarted()
 	{
+		running = true;
 		if (enableComms)
 		{
-			Main.Connect(id, Root.DataType.Float, tag);
+			readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
 		}
-
-		running = true;
-		readSuccessful = true;
 	}
 
 	void OnSimulationEnded()

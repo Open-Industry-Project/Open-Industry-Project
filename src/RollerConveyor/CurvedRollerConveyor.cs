@@ -182,14 +182,12 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 	void OnSimulationStarted()
 	{
-		if (enableComms)
-		{
-			Main.Connect(id, Root.DataType.Float, tag);
-		}
-
-		running = true;
-		readSuccessful = true;
-	}
+        running = true;
+        if (enableComms)
+        {
+            readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
+        }
+    }
 
 	void OnSimulationEnded()
 	{
