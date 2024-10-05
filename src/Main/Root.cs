@@ -491,7 +491,7 @@ public partial class Root : Node3D
 	
 	void OnSimulationStarted()
 	{
-		if (Protocol == Protocols.opc_ua)
+		if (Protocol == Protocols.opc_ua && !string.IsNullOrEmpty(EndPoint))
 		{
 			if(session != null && session.Endpoint.EndpointUrl.TrimEnd('/') != EndPoint.TrimEnd('/'))
 			{
