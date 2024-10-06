@@ -90,9 +90,9 @@ public partial class Root : Node3D
 
 	public bool paused = false;
 	
-	public Array<Godot.Node> selectedNodes;
+	public Array<Godot.Node> selectedNodes = [];
 
-	public Session session;
+    public Session session;
 
 	public enum Protocols
 	{
