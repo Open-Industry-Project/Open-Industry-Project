@@ -68,7 +68,7 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	[Export]
 	public float Speed { get; set; }
 
-	RigidBody3D rb;
+	StaticBody3D sb;
 	MeshInstance3D mesh;
 	Material beltMaterial;
 	Material metalMaterial;
@@ -109,18 +109,18 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 
 	public override void _Ready()
 	{
-		rb = GetNode<RigidBody3D>("RigidBody3D");
-		mesh = GetNode<MeshInstance3D>("RigidBody3D/MeshInstance3D");
+		sb = GetNode<StaticBody3D>("StaticBody3D");
+		mesh = GetNode<MeshInstance3D>("StaticBody3D/MeshInstance3D");
 		mesh.Mesh = mesh.Mesh.Duplicate() as Mesh;
 		metalMaterial = mesh.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
 		beltMaterial = mesh.Mesh.SurfaceGetMaterial(1).Duplicate() as Material;
 		mesh.Mesh.SurfaceSetMaterial(0, metalMaterial);
 		mesh.Mesh.SurfaceSetMaterial(1, beltMaterial);
 
-		conveyorEnd1 = GetNode<ConveyorEnd>("RigidBody3D/Ends/ConveyorEnd");
-		conveyorEnd2 = GetNode<ConveyorEnd>("RigidBody3D/Ends/ConveyorEnd2");
+		conveyorEnd1 = GetNode<ConveyorEnd>("StaticBody3D/Ends/ConveyorEnd");
+		conveyorEnd2 = GetNode<ConveyorEnd>("StaticBody3D/Ends/ConveyorEnd2");
 
-		origin = rb.Position;
+		origin = sb.Position;
 
 		((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 		conveyorEnd1.beltMaterial.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
@@ -139,43 +139,39 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-    public override void _ExitTree()
-    {
-        if (Main == null) return;
+	public override void _ExitTree()
+	{
+		if (Main == null) return;
 
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
-    }
+		Main.SimulationStarted -= OnSimulationStarted;
+		Main.SimulationEnded -= OnSimulationEnded;
+	}
 
-    public override void _Process(double delta)
-    {
+	public override void _Process(double delta)
+	{
 
 		Vector3 newScale = new(Scale.X, 1, Scale.X);
 		if(Scale != newScale)
 		{
-            Scale = new Vector3(Scale.X, 1, Scale.X);
-        }
-    }
+			Scale = new Vector3(Scale.X, 1, Scale.X);
+		}
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null) return;
 
 		if (running)
 		{
-			var localUp = rb.GlobalTransform.Basis.Y.Normalized();
+			var localUp = sb.GlobalTransform.Basis.Y.Normalized();
 			var velocity = -localUp * Speed * MathF.PI * 0.25f * (1 / Scale.X);
-			rb.AngularVelocity = velocity;
+			sb.ConstantAngularVelocity = velocity;
 
 			beltPosition += Speed * delta;
 			if (Speed != 0)
 				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(Speed));
 			if (beltPosition >= 1.0)
 				beltPosition = 0.0;
-
-			rb.Position = Vector3.Zero;
-			rb.Rotation = Vector3.Zero;
-			rb.Scale = new Vector3(1, 1, 1);
 
 			if (enableComms && running && readSuccessful)
 			{
@@ -200,12 +196,12 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 
 	void OnSimulationStarted()
 	{
-        running = true;
-        if (enableComms)
-        {
-            readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
-        }
-    }
+		running = true;
+		if (enableComms)
+		{
+			readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
+		}
+	}
 
 	void OnSimulationEnded()
 	{
@@ -214,11 +210,7 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		beltPosition = 0;
 		((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition);
 
-		rb.Position = Vector3.Zero;
-		rb.Rotation = Vector3.Zero;
-		rb.AngularVelocity = Vector3.Zero;
-
-		foreach (Node3D child in rb.GetChildren())
+		foreach (Node3D child in sb.GetChildren())
 		{
 			child.Position = Vector3.Zero;
 			child.Rotation = Vector3.Zero;
