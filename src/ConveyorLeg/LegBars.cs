@@ -43,15 +43,19 @@ public partial class LegBars : Node3D
 
 		ParentScale = parentScale;
 	}
-	
-	public override void _PhysicsProcess(double delta)
-	{
-		if (owner != null)
-		{
-			Scale = new Vector3(1 / owner.Scale.X, 1 / owner.Scale.Y, 1);
-		}
-	}
-	
+
+    public override void _Process(double delta)
+    {
+        if (owner != null)
+        {
+			Vector3 newScale = new(1 / owner.Scale.X, 1 / owner.Scale.Y, 1);
+			if(Scale != newScale)
+			{
+                Scale = new Vector3(1 / owner.Scale.X, 1 / owner.Scale.Y, 1);
+            }
+        }
+    }
+
 	void SpawnBar()
 	{
 		Node3D legsBar = legsBarScene.Instantiate() as Node3D;

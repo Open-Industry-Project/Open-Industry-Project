@@ -110,15 +110,22 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		Main.SimulationEnded -= OnSimulationEnded;
 	}
 
-	public override void _PhysicsProcess(double delta)
+    public override void _Process(double delta)
+    {
+        if (Scale.X >= 1.0f)
+            nodeScaleX = Scale.X;
+
+        nodeScaleZ = Scale.Z;
+
+        Vector3 newScale = new(nodeScaleX, 1, nodeScaleZ);
+        if (Scale != newScale)
+        {
+            Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
+        }
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
-		if (Scale.X >= 1.0f)
-			nodeScaleX = Scale.X;
-
-		nodeScaleZ = Scale.Z;
-
-		Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
-
 		if (metalMaterial != null)
 			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
 

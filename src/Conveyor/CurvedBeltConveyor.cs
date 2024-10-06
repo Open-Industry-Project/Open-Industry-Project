@@ -147,6 +147,16 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
         Main.SimulationEnded -= OnSimulationEnded;
     }
 
+    public override void _Process(double delta)
+    {
+
+		Vector3 newScale = new(Scale.X, 1, Scale.X);
+		if(Scale != newScale)
+		{
+            Scale = new Vector3(Scale.X, 1, Scale.X);
+        }
+    }
+
     public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null) return;
@@ -177,8 +187,6 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 				}
 			}
 		}
-
-		Scale = new Vector3(Scale.X, 1, Scale.X);
 
 		if (Scale.X > 0.5f)
 		{

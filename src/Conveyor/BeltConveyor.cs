@@ -138,7 +138,15 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		Main.SimulationEnded -= OnSimulationEnded;
 	}
 
-	public override void _PhysicsProcess(double delta)
+    public override void _Process(double delta)
+    {
+        if (Scale.Y != 1)
+        {
+            Scale = new Vector3(Scale.X, 1, Scale.Z);
+        }
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null) return;
 
@@ -164,8 +172,6 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 				}
 			}
 		}
-
-		Scale = new Vector3(Scale.X, 1, Scale.Z);
 
 		if (beltMaterial != null && Speed != 0)
 			((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Scale.X * Mathf.Sign(Speed));

@@ -14,12 +14,18 @@ public partial class RollerConveyorEnd : Node3D
 		roller = GetNode<Roller>("Roller");
 		owner = Owner as Node3D;
 	}
-	
-	public override void _PhysicsProcess(double delta)
-	{
-		if (owner != null)
-			Scale = new Vector3(1 / owner.Scale.X, 1, 1);
-	}
+
+    public override void _Process(double delta)
+    {
+        if (owner != null)
+        {
+            Vector3 newScale = new(1 / owner.Scale.X, 1, 1);
+            if (Scale != newScale)
+            {
+                Scale = newScale;
+            }
+        }
+    }
 	
 	public void SetSpeed(float speed)
 	{

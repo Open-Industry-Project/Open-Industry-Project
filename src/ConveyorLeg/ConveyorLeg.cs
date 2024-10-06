@@ -47,15 +47,23 @@ public partial class ConveyorLeg : Node3D
 		ends = GetNode<Node3D>("Ends");
 	}
 
-	public override void _PhysicsProcess(double delta)
+	public override void _Process(double delta)
 	{
 		if (Scale.Y >= 1.0f)
 			nodeScaleY = Scale.Y;
 
 		nodeScaleZ = Scale.Z;
 
-		Scale = new Vector3(1, nodeScaleY, nodeScaleZ);
+		Vector3 newScale = new(1, nodeScaleY, nodeScaleZ);
+		
+		if(Scale != newScale)
+		{
+			Scale = new Vector3(1, nodeScaleY, nodeScaleZ);
+		}
+	}
 
+	public override void _PhysicsProcess(double delta)
+	{
 		if (legsSidesMaterial != null)
 			legsSidesMaterial.SetShaderParameter("Scale", Scale.Y);
 

@@ -47,16 +47,20 @@ public partial class Rollers : Node3D
 
 		FixRollers();
 	}
-	
-	public override void _PhysicsProcess(double delta)
-	{
-		if (owner != null)
-		{
-			Scale = new Vector3(1 / owner.Scale.X, 1, 1);
-		}
-	}
 
-		void SpawnRoller(bool foreign = false)
+    public override void _Process(double delta)
+    {
+        if (owner != null)
+        {
+            Vector3 newScale = new(1 / owner.Scale.X, 1, 1);
+            if (Scale != newScale)
+            {
+                Scale = newScale;
+            }
+        }
+    }
+
+	void SpawnRoller(bool foreign = false)
 	{
 		if (GetParent() == null || owner == null) return;
 		Roller roller = rollerScene.Instantiate() as Roller;

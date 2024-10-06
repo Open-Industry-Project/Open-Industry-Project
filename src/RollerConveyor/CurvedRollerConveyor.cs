@@ -115,10 +115,18 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		}
 	}
 
-	public override void _PhysicsProcess(double delta)
-	{
-		Scale = new Vector3(Scale.X, 1, Scale.X);
+    public override void _Process(double delta)
+    {
 
+        Vector3 newScale = new(Scale.X, 1, Scale.X);
+        if (Scale != newScale)
+        {
+            Scale = new Vector3(Scale.X, 1, Scale.X);
+        }
+    }
+
+    public override void _PhysicsProcess(double delta)
+	{
 		if (Scale.X > 0.5f)
 		{
 			if (metalMaterial != null && Speed != 0)
