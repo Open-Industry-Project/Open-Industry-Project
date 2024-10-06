@@ -52,8 +52,6 @@ public partial class ConveyorEnd : Node3D
 				rigidBody.AngularVelocity = Vector3.Zero;
 			}
 			
-			rigidBody.Position = Vector3.Zero;
-			rigidBody.Scale = new Vector3(1, 1, 1);
 			((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(-owner.Speed));
 		}
 	}

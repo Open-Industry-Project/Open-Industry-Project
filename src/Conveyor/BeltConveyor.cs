@@ -147,16 +147,12 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 			var localLeft = rb.GlobalTransform.Basis.X.Normalized();
 			var velocity = localLeft * Speed;
 			rb.LinearVelocity = velocity;
-			rb.Position = origin;
 
 			beltPosition += Speed * delta;
 			if (Speed != 0)
 				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(Speed));
 			if (beltPosition >= 1.0)
 				beltPosition = 0.0;
-
-			rb.Rotation = Vector3.Zero;
-			rb.Scale = new Vector3(1, 1, 1);
 
 			if (EnableComms && readSuccessful)
 			{
@@ -194,8 +190,6 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		beltPosition = 0;
 		((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition);
 
-		rb.Position = Vector3.Zero;
-		rb.Rotation = Vector3.Zero;
 		rb.LinearVelocity = Vector3.Zero;
 
 		foreach (Node3D child in rb.GetChildren())

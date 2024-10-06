@@ -35,9 +35,5 @@ public partial class Roller : Node3D
 	{
 		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
 		rigidBody.AngularVelocity = localFront * speed * MathF.PI * 2;
-		
-		rigidBody.Position = Vector3.Zero;
-		rigidBody.Rotation = Vector3.Zero;
-		rigidBody.Scale = new Vector3(1, 1, 1);
 	}
 }
