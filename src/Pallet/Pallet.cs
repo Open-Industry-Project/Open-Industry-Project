@@ -14,15 +14,10 @@ public partial class Pallet : Node3D
 	{
 		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
-		if (Main.simulationRunning)
-		{
-			SetPhysicsProcess(true);
-			instanced = true;
-		}
-		else
-		{
-			SetPhysicsProcess(false);
-		}
+        if (Main != null)
+        {
+            rigidBody.Freeze = false;
+        }
 	}
 
     public override void _EnterTree()
@@ -34,6 +29,16 @@ public partial class Pallet : Node3D
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
             Main.SimulationSetPaused += OnSimulationSetPaused;
+
+            if (Main.simulationRunning)
+            {
+                SetPhysicsProcess(true);
+                instanced = true;
+            }
+            else
+            {
+                SetPhysicsProcess(false);
+            }
         }
     }
 

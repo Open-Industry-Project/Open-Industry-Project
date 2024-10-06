@@ -14,26 +14,32 @@ public partial class PalletSpawner : Node3D
 
 	public override void _Ready()
 	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
-
 		SetProcess(false);
 	}
 
-	public override void _ExitTree()
-	{
-		if (Main == null) return;
+    public override void _EnterTree()
+    {
+        scan_interval = spawnInterval;
 
-		Main.SimulationStarted -= OnSimulationStarted;
-		Main.SimulationEnded -= OnSimulationEnded;
-	}
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-	public override void _Process(double delta)
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
+    }
+
+    public override void _Process(double delta)
 	{
 		if (Main == null) return;
 
@@ -59,8 +65,6 @@ public partial class PalletSpawner : Node3D
 
 	void OnSimulationStarted()
 	{
-		if (Main == null) return;
-
 		SetProcess(true);
 		scan_interval = spawnInterval;
 	}

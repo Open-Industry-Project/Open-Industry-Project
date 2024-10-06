@@ -58,7 +58,9 @@ collision_mask = 15
 mass = 1000.0
 physics_material_override = SubResource("PhysicsMaterial_vb87h")
 can_sleep = false
+freeze = true
 continuous_cd = true
+linear_velocity = Vector3(0, -0.489184, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.107211, 0)

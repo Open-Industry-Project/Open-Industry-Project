@@ -23,6 +23,8 @@ public partial class BoxSpawner : Node3D
 
     public override void _EnterTree()
     {
+        scan_interval = spawnInterval;
+
         Main = GetParent().GetTree().EditedSceneRoot as Root;
 
         if (Main != null)
@@ -79,8 +81,6 @@ public partial class BoxSpawner : Node3D
 	
 	void OnSimulationStarted()
 	{
-		if (Main == null) return;
-		
 		SetProcess(true);
 		scan_interval = spawnInterval;
 	}
