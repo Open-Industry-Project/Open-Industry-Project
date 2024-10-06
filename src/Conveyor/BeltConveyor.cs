@@ -107,8 +107,8 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		mesh.Mesh.SurfaceSetMaterial(1, metalMaterial);
 		mesh.Mesh.SurfaceSetMaterial(2, metalMaterial);
 
-		conveyorEnd1 = GetNode<ConveyorEnd>("StaticBody3D/Ends/ConveyorEnd");
-		conveyorEnd2 = GetNode<ConveyorEnd>("StaticBody3D/Ends/ConveyorEnd2");
+		conveyorEnd1 = GetNode<ConveyorEnd>("ConveyorEnd");
+		conveyorEnd2 = GetNode<ConveyorEnd>("ConveyorEnd2");
 
 		((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 		conveyorEnd1.beltMaterial.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
@@ -117,25 +117,29 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd1.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd2.beltMaterial.SetShaderParameter("ColorMix", beltColor);
+	}
 
+    public override void _EnterTree()
+    {	
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
+
+    public override void _ExitTree()
+	{
 		if (Main != null)
 		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
 		}
 	}
 
-	public override void _ExitTree()
-	{
-		if (Main == null) return;
-
-		Main.SimulationStarted -= OnSimulationStarted;
-		Main.SimulationEnded -= OnSimulationEnded;
-	}
-
-	public override void _Process(double delta)
+    public override void _Process(double delta)
 	{
 		if (Scale.Y != 1)
 		{

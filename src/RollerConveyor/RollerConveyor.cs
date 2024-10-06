@@ -92,39 +92,43 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 		SetRollersSpeed();
 		SetRollersRotation();
-
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
 	}
 
-	public override void _ExitTree()
-	{
-		if (Main == null) return;
-
-		Main.SimulationStarted -= OnSimulationStarted;
-		Main.SimulationEnded -= OnSimulationEnded;
-	}
-
-    public override void _Process(double delta)
+    public override void _EnterTree()
     {
-        if (Scale.X >= 1.0f)
-            nodeScaleX = Scale.X;
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        nodeScaleZ = Scale.Z;
-
-        Vector3 newScale = new(nodeScaleX, 1, nodeScaleZ);
-        if (Scale != newScale)
+        if (Main != null)
         {
-            Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
         }
     }
 
-    public override void _PhysicsProcess(double delta)
+    public override void _ExitTree()
+    {
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
+    }
+
+    public override void _Process(double delta)
+	{
+		if (Scale.X >= 1.0f)
+			nodeScaleX = Scale.X;
+
+		nodeScaleZ = Scale.Z;
+
+		Vector3 newScale = new(nodeScaleX, 1, nodeScaleZ);
+		if (Scale != newScale)
+		{
+			Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
+		}
+	}
+
+	public override void _PhysicsProcess(double delta)
 	{
 		if (metalMaterial != null)
 			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);

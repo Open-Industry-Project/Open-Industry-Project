@@ -105,15 +105,27 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		SetRollersSpeed(rollersLow, Speed);
 		SetRollersSpeed(rollersMid, Speed);
 		SetRollersSpeed(rollersHigh, Speed);
-
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
 	}
+
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
+
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
+    }
 
     public override void _Process(double delta)
     {

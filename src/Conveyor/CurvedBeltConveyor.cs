@@ -117,8 +117,8 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		mesh.Mesh.SurfaceSetMaterial(0, metalMaterial);
 		mesh.Mesh.SurfaceSetMaterial(1, beltMaterial);
 
-		conveyorEnd1 = GetNode<ConveyorEnd>("StaticBody3D/Ends/ConveyorEnd");
-		conveyorEnd2 = GetNode<ConveyorEnd>("StaticBody3D/Ends/ConveyorEnd2");
+		conveyorEnd1 = GetNode<ConveyorEnd>("ConveyorEnd");
+		conveyorEnd2 = GetNode<ConveyorEnd>("ConveyorEnd2");
 
 		origin = sb.Position;
 
@@ -129,22 +129,26 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd1.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd2.beltMaterial.SetShaderParameter("ColorMix", beltColor);
-
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
 	}
 
-	public override void _ExitTree()
-	{
-		if (Main == null) return;
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-		Main.SimulationStarted -= OnSimulationStarted;
-		Main.SimulationEnded -= OnSimulationEnded;
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
+
+    public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
 	}
 
 	public override void _Process(double delta)
