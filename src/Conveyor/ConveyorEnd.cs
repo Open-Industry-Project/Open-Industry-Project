@@ -14,6 +14,8 @@ public partial class ConveyorEnd : Node3D
 	
 	IConveyor owner;
 	Root main;
+
+	Vector3 prevScale;
 	
 	public override void _Ready()
 	{
@@ -28,13 +30,23 @@ public partial class ConveyorEnd : Node3D
 		
 		owner = Owner as IConveyor;
 	}
-	
-	public override void _PhysicsProcess(double delta)
+
+    public override void _Process(double delta)
+    {
+        if(Scale != prevScale)
+		{
+            Scale = new Vector3(1 / owner.Scale.X, 1, 1);
+        }
+
+		prevScale = owner.Scale;
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		if (owner != null)
 		{
-			RemakeMesh(owner);
-			
+            RemakeMesh(owner);
+            
 			if (owner.Main == null) return;
 		
 			if (owner.Main.Start)
@@ -57,8 +69,7 @@ public partial class ConveyorEnd : Node3D
 	}
 	
 	public void RemakeMesh(IConveyor conveyor)
-	{
-		Scale = new Vector3(1 / conveyor.Scale.X, 1, 1);
+	{	
 		if (conveyor.Speed != 0)
 			((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Mathf.Sign(conveyor.Speed));
 	}

@@ -221,9 +221,9 @@ public partial class StackLight : Node3D
 
 	void Rescale()
 	{
-        Scale = new Vector3(Scale.X, Scale.Y, Scale.X);
-        bottomMesh.Scale = new Vector3(1, 1 / Scale.Y, 1);
-        midMesh.Scale = new Vector3(1, (1 / Scale.Y) * Scale.X, 1);
+        Scale = new(Scale.X, Scale.Y, Scale.X);
+        bottomMesh.Scale = new(1, 1 / Scale.Y, 1);
+        midMesh.Scale = new(1, (1 / Scale.Y) * Scale.X, 1);
     }
 
 	void OnSimulationStarted()

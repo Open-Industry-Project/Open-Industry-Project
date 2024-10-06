@@ -31,7 +31,6 @@ public partial class ChainTransfer : Node3D
 	double scan_interval = 0;
 	bool readSuccessful = false;
 	
-	// Implemented logic from StackLight.cs
 	int chains = 2;
 	[Export] int Chains
 	{
@@ -98,6 +97,8 @@ public partial class ChainTransfer : Node3D
 	}
 	
 	bool running = false;
+
+	Vector3 prevScale;
 	
 	public Root Main { get; set; }
 	
@@ -117,7 +118,10 @@ public partial class ChainTransfer : Node3D
 		SetChainsDistance(distance);
 		SetChainsSpeed(speed);
 		SetChainsPopupChains(popupChains);
-	}
+
+        prevScale = Scale;
+        Rescale();
+    }
 
     public override void _EnterTree()
     {
@@ -139,9 +143,17 @@ public partial class ChainTransfer : Node3D
         }
     }
 
+    public override void _Process(double delta)
+    {
+        if(Scale != prevScale)
+		{
+			Rescale();
+        }
+    }
+
     public override void _PhysicsProcess(double delta)
 	{
-		Scale = new Vector3(Scale.X, 1, 1);
+
 
 		if(!running)
 		{
@@ -165,6 +177,11 @@ public partial class ChainTransfer : Node3D
 			}
 		}
 	}
+
+	void Rescale()
+	{
+        Scale = new Vector3(Scale.X, 1, 1);
+    }
 	
 	void SetChainsDistance(float distance)
 	{
