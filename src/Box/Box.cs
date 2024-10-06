@@ -17,6 +17,16 @@ public partial class Box : Node3D
 		if (Main != null)
 		{
             rigidBody.Freeze = false;
+
+            if (Main.simulationRunning)
+            {
+                SetPhysicsProcess(true);
+                instanced = true;
+            }
+            else
+            {
+                SetPhysicsProcess(false);
+            }
         }
 	}
 
@@ -29,16 +39,6 @@ public partial class Box : Node3D
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
             Main.SimulationSetPaused += OnSimulationSetPaused;
-
-            if (Main.simulationRunning)
-            {
-                SetPhysicsProcess(true);
-                instanced = true;
-            }
-            else
-            {
-                SetPhysicsProcess(false);
-            }
         }
     }
 
