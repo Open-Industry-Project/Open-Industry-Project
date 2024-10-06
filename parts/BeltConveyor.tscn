@@ -11,7 +11,7 @@ friction = 0.5
 [sub_resource type="BoxShape3D" id="BoxShape3D_me2ob"]
 size = Vector3(1, 0.5, 2)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_upipo"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5lg53"]
 render_priority = 0
 shader = ExtResource("2_7ui2k")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
@@ -20,7 +20,7 @@ shader_parameter/Scale = -1.0
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_rasep"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_kwng8"]
 render_priority = 0
 shader = ExtResource("3_ceo50")
 shader_parameter/BeltPosition = 0.0
@@ -62,7 +62,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_dbom6"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_oj4bq"]
 resource_name = "ConvBox_Cube_002"
 _surfaces = [{
 "aabb": AABB(-0.5, -0.25, -1, 1.00001, 0.50001, 2),
@@ -70,7 +70,7 @@ _surfaces = [{
 "format": 34896613399,
 "index_count": 36,
 "index_data": PackedByteArray("AQANAAkAAQAFAA0AFAAMAAQAFAAVAAwACgAGAAIACgAOAAYAEQAAAAgAEQAQAAAACwATABIACwADABMABwAWABcABwAPABYA"),
-"material": SubResource("ShaderMaterial_upipo"),
+"material": SubResource("ShaderMaterial_5lg53"),
 "name": "BeltTopDown",
 "primitive": 3,
 "uv_scale": Vector4(2.05123, 2, 0, 0),
@@ -82,7 +82,7 @@ _surfaces = [{
 "format": 34896613399,
 "index_count": 84,
 "index_data": PackedByteArray("MwADAC0AMwAFAAMAJwAJABkAJwAPAAkAAgAHAAEAAgAEAAcAEgAwAC4AEgATADAACAANAAsACAAOAA0AHQAVABQAHQAjABUAKgAGADQAKgAAAAYAHgAMACAAHgAKAAwAGAAlACYAGAAbACUAHAAhACIAHAAfACEAFwAkABoAFwAWACQALAAxADIALAAvADEAKAA1ADYAKAArADUAKQAQABEAKQA3ABAA"),
-"material": SubResource("ShaderMaterial_rasep"),
+"material": SubResource("ShaderMaterial_kwng8"),
 "name": "BeltSide",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -94,7 +94,7 @@ _surfaces = [{
 "format": 34896613399,
 "index_count": 108,
 "index_data": PackedByteArray("FQAEAAYAEQAhACAAFQARAAQAHAAVAB0ADgAVABwAFQAhABEAFQAIACEADgAIABUACQAjACIADgAJAAgAHgAPAB8ADwAJAA4ACQASACMAEgAHAAUAFgAPAB4AEgAWAAcADwASAAkAEgAPABYAAAAUAAIAFAAbABoAFAANABsAEAAUAAAAJgAQACcACwAQACYAEAANABQADAAZABgAEAAMAA0ACwAMABAADAAXABkAFwABAAMAEwAlACQAFwATAAEACwAXAAwAEwAKACUACgAXAAsAFwAKABMA"),
-"material": SubResource("ShaderMaterial_rasep"),
+"material": SubResource("ShaderMaterial_kwng8"),
 "name": "BeltSide2",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -110,32 +110,20 @@ script = ExtResource("1_5d505")
 Speed = -2.0
 metadata/_edit_group_ = true
 
-[node name="RigidBody3D" type="RigidBody3D" parent="."]
-collision_layer = 4
-collision_mask = 8
-axis_lock_linear_y = true
-axis_lock_angular_x = true
-axis_lock_angular_y = true
-axis_lock_angular_z = true
-mass = 10000.0
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
 physics_material_override = SubResource("PhysicsMaterial_hcu6p")
-gravity_scale = 0.0
-can_sleep = false
-lock_rotation = true
-freeze = true
-continuous_cd = true
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
 shape = SubResource("BoxShape3D_me2ob")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D"]
-mesh = SubResource("ArrayMesh_dbom6")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
+mesh = SubResource("ArrayMesh_oj4bq")
 skeleton = NodePath("../..")
 
-[node name="Ends" type="Marker3D" parent="RigidBody3D"]
+[node name="Ends" type="Marker3D" parent="StaticBody3D"]
 
-[node name="ConveyorEnd" parent="RigidBody3D/Ends" instance=ExtResource("3_rx6or")]
+[node name="ConveyorEnd" parent="StaticBody3D/Ends" instance=ExtResource("3_rx6or")]
 transform = Transform3D(0.25, -1.50996e-07, -1.50996e-07, -3.7749e-08, -1, 1.69622e-07, -3.7749e-08, -1.69622e-07, -1, 0.5, 8.66714e-18, 0)
 
-[node name="ConveyorEnd2" parent="RigidBody3D/Ends" instance=ExtResource("3_rx6or")]
+[node name="ConveyorEnd2" parent="StaticBody3D/Ends" instance=ExtResource("3_rx6or")]
 transform = Transform3D(-0.25, -1.50996e-07, 1.50996e-07, -3.7749e-08, 1, -1.56219e-07, -3.77489e-08, -1.56219e-07, -1, -0.5, 0, 0)
