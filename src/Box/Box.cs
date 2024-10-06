@@ -12,17 +12,6 @@ public partial class Box : Node3D
 	Root Main;
 	public override void _Ready()
 	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main == null)
-		{
-			return;
-		}
-
-		Main.SimulationStarted += Set;
-		Main.SimulationEnded += Reset;
-		Main.SimulationSetPaused += OnSetPaused;
-
 		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
 		if(Main.simulationRunning)
@@ -35,29 +24,32 @@ public partial class Box : Node3D
 			SetPhysicsProcess(false);
 		}
 	}
-	
-	public override void _EnterTree()
-	{
-		if (Main != null && !instanced)
-		{
-			Main.SimulationStarted += Set;
-			Main.SimulationEnded += Reset;
-			Main.SimulationSetPaused += OnSetPaused;
-		}
-	}
-	
-	public override void _ExitTree()
-	{
-		if(Main == null) return;
 
-		Main.SimulationStarted -= Set;
-		Main.SimulationEnded -= Reset;
-		Main.SimulationSetPaused -= OnSetPaused;
-		
-		if (instanced) QueueFree();
-	}
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-	public override void _PhysicsProcess(double delta)
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+            Main.SimulationSetPaused += OnSimulationSetPaused;
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+            Main.SimulationSetPaused -= OnSimulationSetPaused;
+
+            if (instanced) QueueFree();
+        }
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null) return;
 
@@ -93,7 +85,7 @@ public partial class Box : Node3D
 		}
 	}
 	
-	void Set()
+	void OnSimulationStarted()
 	{
 		if (Main == null) return;
 		
@@ -103,13 +95,13 @@ public partial class Box : Node3D
 		SetPhysicsProcess(true);
 	}
 	
-	void Reset()
+	void OnSimulationEnded()
 	{
 		if (instanced)
 		{
-			Main.SimulationStarted -= Set;
-			Main.SimulationEnded -= Reset;
-			Main.SimulationSetPaused -= OnSetPaused;
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+			Main.SimulationSetPaused -= OnSimulationSetPaused;
 			QueueFree();
 		}
 		else
@@ -129,7 +121,7 @@ public partial class Box : Node3D
 		}
 	}
 	
-	void OnSetPaused(bool paused)
+	void OnSimulationSetPaused(bool paused)
 	{
 		rigidBody.Freeze = paused;
 	}

@@ -12,17 +12,6 @@ public partial class Pallet : Node3D
 	
 	public override void _Ready()
 	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main == null)
-		{
-			return;
-		}
-
-		Main.SimulationStarted += Set;
-		Main.SimulationEnded += Reset;
-		Main.SimulationSetPaused += OnSetPaused;
-
 		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
 
 		if (Main.simulationRunning)
@@ -36,16 +25,29 @@ public partial class Pallet : Node3D
 		}
 	}
 
-	public override void _ExitTree()
-	{
-		if (Main == null) return;
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-		Main.SimulationStarted -= Set;
-		Main.SimulationEnded -= Reset;
-		Main.SimulationSetPaused -= OnSetPaused;
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+            Main.SimulationSetPaused += OnSimulationSetPaused;
+        }
+    }
 
-		if (instanced) QueueFree();
-	}
+    public override void _ExitTree()
+    {
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+            Main.SimulationSetPaused -= OnSimulationSetPaused;
+
+            if (instanced) QueueFree();
+        }
+    }
 
 	public override void _PhysicsProcess(double delta)
 	{
@@ -83,7 +85,7 @@ public partial class Pallet : Node3D
 		}
 	}
 	
-	void Set()
+	void OnSimulationStarted()
 	{
 		if (Owner == null) return;
 		
@@ -93,13 +95,13 @@ public partial class Pallet : Node3D
 		SetPhysicsProcess(true);
 	}
 	
-	void Reset()
+	void OnSimulationEnded()
 	{
 		if (instanced)
 		{
-			Main.SimulationStarted -= Set;
-			Main.SimulationEnded -= Reset;
-			Main.SimulationSetPaused -= OnSetPaused;
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+			Main.SimulationSetPaused -= OnSimulationSetPaused;
 			QueueFree();
 		}
 		else
@@ -119,7 +121,7 @@ public partial class Pallet : Node3D
 		}
 	}
 	
-	void OnSetPaused(bool paused)
+	void OnSimulationSetPaused(bool paused)
 	{
 		rigidBody.Freeze = paused;
 	}

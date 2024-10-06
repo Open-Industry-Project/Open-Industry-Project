@@ -85,27 +85,30 @@ public partial class DiffuseSensor : Node3D
 		rayMesh.Mesh = cylinderMesh;
 		rayMaterial = cylinderMesh.Material.Duplicate() as StandardMaterial3D;
 		cylinderMesh.Material = rayMaterial;
-
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
-
 		rayMarker.Visible = showBeam;
 	}
 
-	public override void _ExitTree()
-	{
-		if (Main == null) return;
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-		Main.SimulationStarted -= OnSimulationStarted;
-		Main.SimulationEnded -= OnSimulationEnded;
-	}
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
 
-	public override void _PhysicsProcess(double delta)
+    public override void _ExitTree()
+    {
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
+    }
+
+    public override void _PhysicsProcess(double delta)
 	{
 		PhysicsDirectSpaceState3D spaceState = GetWorld3D().DirectSpaceState;
 		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * maxRange);

@@ -84,13 +84,6 @@ public partial class BladeStop : Node3D
 	
 	public override void _Ready()
 	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
-		
 		blade = GetNode<StaticBody3D>("Blade");
 		airPressureR = GetNode<MeshInstance3D>("Corners/AirPressureR");
 		airPressureL = GetNode<MeshInstance3D>("Corners/AirPressureL");
@@ -103,12 +96,24 @@ public partial class BladeStop : Node3D
 		airPressureL.Position = new Vector3(airPressureL.Position.X, airPressureHeight, airPressureL.Position.Z);
 	}
 
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
+
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
+
     public override void _ExitTree()
     {
-        if (Main == null) return;
-
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
     }
 
     public override void _PhysicsProcess(double delta)

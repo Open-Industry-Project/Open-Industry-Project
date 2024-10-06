@@ -12,8 +12,12 @@ public partial class RollerConveyorEnd : Node3D
 	public override void _Ready()
 	{
 		roller = GetNode<Roller>("Roller");
-		owner = Owner as Node3D;
 	}
+
+    public override void _EnterTree()
+    {
+        owner = Owner as Node3D;
+    }
 
     public override void _Process(double delta)
     {

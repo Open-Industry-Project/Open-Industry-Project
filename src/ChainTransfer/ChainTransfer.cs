@@ -112,26 +112,31 @@ public partial class ChainTransfer : Node3D
 	}
 	
 	public override void _Ready()
-	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
-		
+	{	
 		SpawnChains(chains - GetChildCount());
 		SetChainsDistance(distance);
 		SetChainsSpeed(speed);
 		SetChainsPopupChains(popupChains);
 	}
 
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
+
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
+
     public override void _ExitTree()
     {
-        if (Main == null) return;
-
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
     }
 
     public override void _PhysicsProcess(double delta)

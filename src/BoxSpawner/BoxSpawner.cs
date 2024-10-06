@@ -18,26 +18,30 @@ public partial class BoxSpawner : Node3D
 
 	public override void _Ready()
 	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
-
 		SetProcess(false);
 	}
 
-	public override void _ExitTree()
-	{
-		if (Main == null) return;
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-		Main.SimulationStarted -= OnSimulationStarted;
-		Main.SimulationEnded -= OnSimulationEnded;
-	}
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
 
-	public override void _Process(double delta)
+    public override void _ExitTree()
+    {
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
+    }
+
+    public override void _Process(double delta)
 	{
 		if (Main == null) return;
 		

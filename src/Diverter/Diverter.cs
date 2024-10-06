@@ -56,23 +56,27 @@ public partial class Diverter : Node3D
 	public override void _Ready()
 	{
 		diverterAnimator = GetNode<DiverterAnimator>("DiverterAnimator");
-
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
 	}
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
+
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
 
     public override void _ExitTree()
     {
-        if (Main == null) return;
-
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
     }
+
     public override void _PhysicsProcess(double delta)
 	{
 		if (!running)

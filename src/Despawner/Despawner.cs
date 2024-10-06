@@ -13,23 +13,26 @@ public partial class Despawner : Node3D
 		area = GetNode<Area3D>("Area3D");
 
 		origin = area.Position;
-
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
-
 	}
+
+    public override void _EnterTree()
+    {
+        Main = GetParent().GetTree().EditedSceneRoot as Root;
+
+        if (Main != null)
+        {
+            Main.SimulationStarted += OnSimulationStarted;
+            Main.SimulationEnded += OnSimulationEnded;
+        }
+    }
 
     public override void _ExitTree()
     {
-        if (Main == null) return;
-
-        Main.SimulationStarted -= OnSimulationStarted;
-        Main.SimulationEnded -= OnSimulationEnded;
+        if (Main != null)
+        {
+            Main.SimulationStarted -= OnSimulationStarted;
+            Main.SimulationEnded -= OnSimulationEnded;
+        }
     }
 
     public override void _Process(double delta)
