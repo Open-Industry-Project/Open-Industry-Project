@@ -6,6 +6,8 @@ public partial class StackLight : Node3D
 	PackedScene segmentScene = (PackedScene)ResourceLoader.Load("res://src/StackLight/StackSegment.tscn");
 	StackLightData data = (StackLightData)ResourceLoader.Load("res://src/StackLight/StackLightData.tres");
 
+	Vector3 prevScale;
+
 	bool enableComms = false;
 	bool EnableComms
 	{
@@ -182,7 +184,11 @@ public partial class StackLight : Node3D
 
 		topMesh.Position = new Vector3(0, topMeshInitialYPos + (step * (segments - 1)), 0);
 		InitSegments();
-	}
+
+		prevScale = Scale;
+
+        Rescale();
+    }
 
     public override void _EnterTree()
     {
@@ -204,12 +210,21 @@ public partial class StackLight : Node3D
         }
     }
 
-    public override void _PhysicsProcess(double delta)
+    public override void _Process(double delta)
 	{
-		Scale = new Vector3(Scale.X, Scale.Y, Scale.X);
-		bottomMesh.Scale = new Vector3(1, 1 / Scale.Y, 1);
-		midMesh.Scale = new Vector3(1, (1 / Scale.Y) * Scale.X, 1);
+		if(Scale != prevScale)
+		{
+			Rescale();
+        }
+		prevScale = Scale;
 	}
+
+	void Rescale()
+	{
+        Scale = new Vector3(Scale.X, Scale.Y, Scale.X);
+        bottomMesh.Scale = new Vector3(1, 1 / Scale.Y, 1);
+        midMesh.Scale = new Vector3(1, (1 / Scale.Y) * Scale.X, 1);
+    }
 
 	void OnSimulationStarted()
 	{
