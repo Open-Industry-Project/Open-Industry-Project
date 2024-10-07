@@ -6,13 +6,13 @@ public partial class Roller : Node3D
 {	
 	public float speed = 1.0f;
 	MeshInstance3D meshInstance;
-	RigidBody3D rigidBody;
+	StaticBody3D staticBody;
 	Root Main;
 
 	public override void _Ready()
 	{
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
-		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
+		staticBody = GetNode<StaticBody3D>("StaticBody3D");
 	}
 	
 	public override void _Process(double delta)
@@ -34,6 +34,6 @@ public partial class Roller : Node3D
 	public override void _PhysicsProcess(double delta)
 	{
 		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
-		rigidBody.AngularVelocity = localFront * speed * MathF.PI * 2;
+		staticBody.ConstantAngularVelocity = localFront * speed * MathF.PI * 2;
 	}
 }
