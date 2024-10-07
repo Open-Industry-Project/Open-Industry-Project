@@ -4,10 +4,35 @@ using System;
 [Tool]
 public partial class Roller : Node3D
 {
-	public float speed = 1.0f;
+	private float _speed = 1.0f;
+	public float speed {
+		get { return _speed; }
+		set { _speed = value; if (running) { OnSimulationStarted(); } }
+	}
 	MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
 	Root Main;
+	bool running = false;
+
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
+
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
+
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
 	public override void _Ready()
 	{
@@ -17,23 +42,22 @@ public partial class Roller : Node3D
 
 	public override void _Process(double delta)
 	{
-
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main == null)
-		{
-			return;
-		}
-
-		if (Main.Start)
+		if (running)
 		{
 			meshInstance.RotateZ(speed * MathF.PI * 2f * (float)delta);
 		}
 	}
 
-	public override void _PhysicsProcess(double delta)
+	void OnSimulationStarted()
 	{
+		running = true;
 		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
 		staticBody.ConstantAngularVelocity = localFront * speed * MathF.PI * 2;
+	}
+
+	void OnSimulationEnded()
+	{
+		running = false;
+		staticBody.ConstantAngularVelocity = Vector3.Zero;
 	}
 }
