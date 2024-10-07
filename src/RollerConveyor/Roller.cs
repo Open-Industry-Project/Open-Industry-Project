@@ -3,7 +3,7 @@ using System;
 
 [Tool]
 public partial class Roller : Node3D
-{	
+{
 	public float speed = 1.0f;
 	MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
@@ -14,7 +14,7 @@ public partial class Roller : Node3D
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
 	}
-	
+
 	public override void _Process(double delta)
 	{
 
