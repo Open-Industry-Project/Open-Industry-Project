@@ -591,7 +591,10 @@ public partial class ConveyorAssembly : Node3D, IComms
 		childTransformUnscaled.Origin *= basisScalePrev.Inverse() * basisScale;
 
 		// Reapply inverse parent scaling to child.
-		child.Transform = xformScaleInverse * childTransformUnscaled;
+		var result = xformScaleInverse * childTransformUnscaled;
+		if (child.Transform != result) {
+			child.Transform = result;
+		}
 	}
 	#endregion Decouple assembly scale from child scale
 }
