@@ -55,7 +55,7 @@ public partial class ConveyorLeg : Node3D
 		nodeScaleZ = Scale.Z;
 
 		Vector3 newScale = new(1, nodeScaleY, nodeScaleZ);
-		
+
 		if(Scale != newScale)
 		{
 			Scale = new Vector3(1, nodeScaleY, nodeScaleZ);
