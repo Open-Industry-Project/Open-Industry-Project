@@ -91,9 +91,15 @@ public partial class ConveyorAssembly : Node3D
 	protected virtual void LockLegStandsGroup() {
 		// Always align LegStands group with Conveyors group.
 		if (conveyors != null) {
-			legStands.Position = new Vector3(legStands.Position.X, legStands.Position.Y, conveyors.Position.Z);
+			Vector3 newPos = new Vector3(legStands.Position.X, legStands.Position.Y, conveyors.Position.Z);
+			if (legStands.Position != newPos) {
+				legStands.Position = newPos;
+			}
 			// Conveyors can't rotate anymore, so this doesn't do much.
-			legStands.Rotation = new Vector3(0f, conveyors.Rotation.Y, 0f);
+			Vector3 newRot = new Vector3(0f, conveyors.Rotation.Y, 0f);
+			if (legStands.Rotation != newRot) {
+				legStands.Rotation = newRot;
+			}
 		}
 	}
 
