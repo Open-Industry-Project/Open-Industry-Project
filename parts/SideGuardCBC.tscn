@@ -54,6 +54,7 @@ skeleton = NodePath("")
 script = ExtResource("1_71hpe")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
+disable_mode = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
 shape = SubResource("ConcavePolygonShape3D_d8vry")
