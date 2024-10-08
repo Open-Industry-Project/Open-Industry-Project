@@ -21,11 +21,17 @@ public partial class ConveyorAssembly : Node3D
 
 	protected virtual void LockConveyorsGroup() {
 		// Lock Z position
-		conveyors.Position = new Vector3(conveyors.Position.X, conveyors.Position.Y, 0f);
+		Vector3 newPos = new Vector3(conveyors.Position.X, conveyors.Position.Y, 0f);
+		if (conveyors.Position != newPos) {
+			conveyors.Position = newPos;
+		}
 		// Lock X and Y rotation
 		if (conveyors.Rotation.X > 0.001f || conveyors.Rotation.X < -0.001f || conveyors.Rotation.Y > 0.001f || conveyors.Rotation.Y < -0.001) {
 			// This seems to mess up scale, but at least that's fixed on the next frame.
-			conveyors.Rotation = new Vector3(0f, 0f, conveyors.Rotation.Z);
+			Vector3 newRot = new Vector3(0f, 0f, conveyors.Rotation.Z);
+			if (conveyors.Rotation != newRot) {
+				conveyors.Rotation = newRot;
+			}
 		}
 	}
 
