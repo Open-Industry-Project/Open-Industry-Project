@@ -110,11 +110,15 @@ public partial class ConveyorAssembly : Node3D
 	}
 
 	protected virtual void ScaleConveyor(Node3D conveyor, float conveyorLength) {
+		Vector3 newScale;
 		if (ConveyorAutomaticLength) {
-			conveyor.Scale = new Vector3(conveyorLength, 1f, this.Scale.Z);
+			newScale = new Vector3(conveyorLength, 1f, this.Scale.Z);
 		} else {
 			// Always scale width.
-			conveyor.Scale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, this.Scale.Z);
+			newScale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, this.Scale.Z);
+		}
+		if (conveyor.Scale != newScale) {
+			conveyor.Scale = newScale;
 		}
 	}
 	#endregion Conveyors / ScaleConveyorLine
