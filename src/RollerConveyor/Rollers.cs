@@ -5,9 +5,9 @@ public partial class Rollers : Node3D
 {
 	[Export]
 	PackedScene rollerScene;
-	
+
 	float rollersDistance = 0.33f;
-		
+
 	RollerConveyor owner;
 
 	int initialForeignRollerCount;
@@ -23,7 +23,7 @@ public partial class Rollers : Node3D
 		int difference = desiredRollerCount - rollerCount;
 		int foreignRollersMissing = initialForeignRollerCount - rollerCount;
 
-		if (difference > 0) 
+		if (difference > 0)
 		{
 			for (int i = 0; i < difference; i++)
 			{
@@ -31,7 +31,7 @@ public partial class Rollers : Node3D
 				SpawnRoller(foreign);
 			}
 		}
-		else if (difference < 0) 
+		else if (difference < 0)
 		{
 			for (int i = 1; i <= -difference; i++)
 			{
@@ -39,7 +39,6 @@ public partial class Rollers : Node3D
 			}
 		}
 	}
-
 
 	public override void _Ready()
 	{
@@ -50,22 +49,22 @@ public partial class Rollers : Node3D
 		FixRollers();
 	}
 
-    public override void _Process(double delta)
-    {
-        if (owner != null)
-        {
-            if (owner.Scale != prevScale)
-            {
+	public override void _Process(double delta)
+	{
+		if (owner != null)
+		{
+			if (owner.Scale != prevScale)
+			{
 				Rescale();
-                prevScale = owner.Scale;
-            }
-        }
-    }
+				prevScale = owner.Scale;
+			}
+		}
+	}
 
 	void Rescale()
 	{
 		Scale = new(1 / owner.Scale.X, 1, 1);
-    }
+	}
 
 	void SpawnRoller(bool foreign = false)
 	{
@@ -78,7 +77,6 @@ public partial class Rollers : Node3D
 		roller.RotationDegrees = new Vector3(roller.RotationDegrees.X, owner.SkewAngle, roller.RotationDegrees.Z);
 		FixRollers();
 	}
-
 
 	void FixRollers()
 	{
