@@ -15,7 +15,7 @@ public partial class ConveyorEnd : Node3D
 	IConveyor owner;
 	Root main;
 
-	Vector3 prevScale;
+	float prevScaleX;
 	
 	public override void _Ready()
 	{
@@ -33,12 +33,13 @@ public partial class ConveyorEnd : Node3D
 
     public override void _Process(double delta)
     {
-        if(Scale != prevScale)
+		if (owner == null) return;
+
+        if (owner.Scale.X != prevScaleX)
 		{
             Scale = new Vector3(1 / owner.Scale.X, 1, 1);
+            prevScaleX = owner.Scale.X;
         }
-
-		prevScale = owner.Scale;
     }
 
     public override void _PhysicsProcess(double delta)
