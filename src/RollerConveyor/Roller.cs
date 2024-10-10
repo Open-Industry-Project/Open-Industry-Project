@@ -15,6 +15,8 @@ public partial class Roller : Node3D
 	StandardMaterial3D material;
 	Root Main;
 	bool running = false;
+	// TODO calculate from collision shape
+	const float radius = 0.12f;
 
 	public override void _EnterTree()
 	{
@@ -54,7 +56,7 @@ public partial class Roller : Node3D
 		{
 			material.Uv1Offset -= new Vector3(Speed * MathF.PI / 2 * (float)delta, 0, 0);
 			Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
-			staticBody.ConstantAngularVelocity = localFront * Speed * MathF.PI * 2;
+			staticBody.ConstantAngularVelocity = -localFront * Speed / radius;
 		}
 	}
 
