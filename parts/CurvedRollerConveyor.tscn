@@ -48,6 +48,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_tqyfq")
 
 [node name="CurvedRollerConveyor" type="Node3D"]
+process_mode = 3
 script = ExtResource("1_3rr8m")
 Speed = -2.0
 metadata/_edit_group_ = true
