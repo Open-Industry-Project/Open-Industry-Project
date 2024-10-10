@@ -5,25 +5,29 @@ public partial class Rollers : Node3D
 {
 	[Export]
 	PackedScene rollerScene;
-	
+
 	float rollersDistance = 0.33f;
-		
+
 	RollerConveyor owner;
 
 	int initialForeignRollerCount;
 
-	Vector3 prevScale;
-
 	public void ChangeScale(float scale)
 	{
-		int roundedScale = Mathf.RoundToInt(scale / rollersDistance) + 1;
+		AddOrRemoveRollers(scale);
+		RescaleInverse(scale);
+	}
+
+	public void AddOrRemoveRollers(float conveyorLength)
+	{
+		int roundedLength = Mathf.RoundToInt(conveyorLength / rollersDistance) + 1;
 		int rollerCount = GetChildCount();
-		int desiredRollerCount = roundedScale - 2;
+		int desiredRollerCount = roundedLength - 2;
 
 		int difference = desiredRollerCount - rollerCount;
 		int foreignRollersMissing = initialForeignRollerCount - rollerCount;
 
-		if (difference > 0) 
+		if (difference > 0)
 		{
 			for (int i = 0; i < difference; i++)
 			{
@@ -31,7 +35,7 @@ public partial class Rollers : Node3D
 				SpawnRoller(foreign);
 			}
 		}
-		else if (difference < 0) 
+		else if (difference < 0)
 		{
 			for (int i = 1; i <= -difference; i++)
 			{
@@ -39,7 +43,6 @@ public partial class Rollers : Node3D
 			}
 		}
 	}
-
 
 	public override void _Ready()
 	{
@@ -50,22 +53,10 @@ public partial class Rollers : Node3D
 		FixRollers();
 	}
 
-    public override void _Process(double delta)
-    {
-        if (owner != null)
-        {
-            if (owner.Scale != prevScale)
-            {
-				Rescale();
-                prevScale = owner.Scale;
-            }
-        }
-    }
-
-	void Rescale()
+	void RescaleInverse(float parentLength)
 	{
-		Scale = new(1 / owner.Scale.X, 1, 1);
-    }
+		Scale = new(1 / parentLength, 1, 1);
+	}
 
 	void SpawnRoller(bool foreign = false)
 	{
@@ -78,7 +69,6 @@ public partial class Rollers : Node3D
 		roller.RotationDegrees = new Vector3(roller.RotationDegrees.X, owner.SkewAngle, roller.RotationDegrees.Z);
 		FixRollers();
 	}
-
 
 	void FixRollers()
 	{

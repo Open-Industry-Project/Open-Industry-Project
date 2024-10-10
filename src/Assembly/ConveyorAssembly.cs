@@ -21,6 +21,7 @@ public partial class ConveyorAssembly : Node3D, IComms
 
 	#region Fields
 	#region Fields / Nodes
+	private Root main;
 	protected Node3D conveyors
 	{
 		get
@@ -481,6 +482,7 @@ public partial class ConveyorAssembly : Node3D, IComms
 	#region _Ready and _PhysicsProcess
 	public override void _Ready()
 	{
+		main = GetTree().EditedSceneRoot as Root;
 		conveyors = GetNode<Node3D>("Conveyors");
 		legStands = GetNodeOrNull<Node3D>("LegStands");
 
@@ -522,8 +524,16 @@ public partial class ConveyorAssembly : Node3D, IComms
 		}
 	}
 
+	bool has_processed_at_least_once = false;
 	public override void _PhysicsProcess(double delta)
 	{
+		// A performance hack: Skip assembly adjustments while the simulation is running.
+		// We do make sure to run at least once though. This covers the situation where
+		// a ConveyorAssembly is created or loaded while the simulation is already running.
+		// Rare, but possible.
+		if (IsSimulationRunning() && has_processed_at_least_once) return;
+		has_processed_at_least_once = true;
+
 		ApplyAssemblyScaleConstraints();
 		PreventAllChildScaling();
 		UpdateConveyors();
@@ -540,6 +550,10 @@ public partial class ConveyorAssembly : Node3D, IComms
 		autoLegStandsEndLegRearPrev = AutoLegStandsEndLegRear;
 		autoLegStandsMarginEndLegsPrev = AutoLegStandsMarginEndLegs;
 		autoLegStandsModelScenePrev = AutoLegStandsModelScene;
+	}
+
+	private bool IsSimulationRunning() {
+		return main != null && main.simulationRunning;
 	}
 
 	protected virtual void ApplyAssemblyScaleConstraints()
@@ -591,7 +605,10 @@ public partial class ConveyorAssembly : Node3D, IComms
 		childTransformUnscaled.Origin *= basisScalePrev.Inverse() * basisScale;
 
 		// Reapply inverse parent scaling to child.
-		child.Transform = xformScaleInverse * childTransformUnscaled;
+		var result = xformScaleInverse * childTransformUnscaled;
+		if (child.Transform != result) {
+			child.Transform = result;
+		}
 	}
 	#endregion Decouple assembly scale from child scale
 }

@@ -55,7 +55,7 @@ public partial class ConveyorLeg : Node3D
 		nodeScaleZ = Scale.Z;
 
 		Vector3 newScale = new(1, nodeScaleY, nodeScaleZ);
-		
+
 		if(Scale != newScale)
 		{
 			Scale = new Vector3(1, nodeScaleY, nodeScaleZ);
@@ -67,7 +67,7 @@ public partial class ConveyorLeg : Node3D
 		if (legsSidesMaterial != null)
 			legsSidesMaterial.SetShaderParameter("Scale", Scale.Y);
 
-		if (legsBars != null)
+		if (legsBars != null && legsBars.ParentScale != Scale.Y)
 			legsBars.ParentScale = Scale.Y;
 
 		foreach (Node3D end in ends.GetChildren())
