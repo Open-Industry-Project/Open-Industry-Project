@@ -65,6 +65,11 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
+	// Based on the model geometry at scale=1
+	const float BASE_INNER_RADIUS = 0.5f;
+	const float BASE_OUTER_RADIUS = 2.5f;
+	const float BASE_CONVEYOR_WIDTH = BASE_OUTER_RADIUS - BASE_INNER_RADIUS;
+
 	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed
 	{
@@ -81,7 +86,7 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	private float LinearSpeed;
 	private float prevScaleX;
 
-	[Export(PropertyHint.None, "suffix:m")]
+	[Export] // See _ValidateProperty for PropertyHint
 	/// <summary>
 	/// Distance from outer edge to measure Speed at.
 	/// </summary>
@@ -132,6 +137,15 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		if (propertyName == PropertyName.updateRate || propertyName == PropertyName.tag)
 		{
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
+		}
+		// Dynamically update maximum as Scale changes.
+		else if (propertyName == PropertyName.ReferenceDistance) {
+			property["hint"] = (int) PropertyHint.Range;
+			property["hint_string"] = $"0,{Scale.X * BASE_CONVEYOR_WIDTH},suffix:m";
+		}
+		else
+		{
+			base._ValidateProperty(property);
 		}
 	}
 
@@ -200,10 +214,6 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	}
 
 	private void RecalculateSpeeds() {
-			// Based on the model geometry at scale=1
-			const float BASE_INNER_RADIUS = 0.5f;
-			const float BASE_OUTER_RADIUS = 2.5f;
-			// FIXME: consider cases where the resulting radius isn't on the conveyor anymore.
 			float referenceRadius = Scale.X * BASE_OUTER_RADIUS - ReferenceDistance;
 			AngularSpeed = referenceRadius == 0f ? 0f : Speed / referenceRadius;
 			LinearSpeed = AngularSpeed * (Scale.X * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2f);
@@ -220,6 +230,7 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	{
 		if (prevScaleX != Scale.X) {
 			RecalculateSpeeds();
+			NotifyPropertyListChanged();
 			prevScaleX = Scale.X;
 		}
 
