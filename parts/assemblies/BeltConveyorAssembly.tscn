@@ -242,8 +242,8 @@ transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("1_au6en")
 UpdateRate = 100
 BeltConveyorBeltColor = Color(1, 1, 1, 1)
-BeltConveyorSpeed = -2.0
-RollerConveyorSpeed = -2.0
+BeltConveyorSpeed = 2.0
+RollerConveyorSpeed = 2.0
 metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
