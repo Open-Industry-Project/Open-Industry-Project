@@ -25,6 +25,39 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	public int UpdateRate { get => updateRate; set => updateRate = value; }
 	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed { get; set; }
+	[Export(PropertyHint.None, "suffix:m")]
+	/// <summary>
+	/// Distance from outer edge to measure Speed at.
+	/// </summary>
+	float ReferenceDistance = 0.5f; // Assumes a 1m wide package.
+
+	// Based on the CurvedRollerConveyor model geometry at scale=1
+	const float CURVE_BASE_INNER_RADIUS = 0.5f;
+	const float CURVE_BASE_OUTER_RADIUS = 2.5f;
+
+	private float AngularSpeedAroundCurve {
+		get {
+			// FIXME: consider cases where the resulting radius isn't on the conveyor anymore.
+			float referenceRadius = Scale.X * CURVE_BASE_OUTER_RADIUS - ReferenceDistance;
+			return referenceRadius == 0f ? 0f : Speed / referenceRadius;
+		}
+	}
+
+	private float RollerAngularSpeed {
+		get {
+			if (Scale.X == 0f) return 0f;
+			// Based on RollerCorner model geometry.
+			const float ROLLER_INNER_END_RADIUS = 0.044587f;
+			const float ROLLER_OUTER_END_RADIUS = 0.12f;
+
+			const float BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS;
+			const float BASE_ROLLER_LENGTH = BASE_CONVEYOR_WIDTH;
+			// FIXME: consider cases where the resulting radius isn't on the conveyor anymore.
+			float referencePointAlongRoller = CURVE_BASE_OUTER_RADIUS - ReferenceDistance / Scale.X;
+			float rollerRadiusAtReferencePoint = ROLLER_INNER_END_RADIUS + referencePointAlongRoller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH;
+			return rollerRadiusAtReferencePoint == 0f ? 0f : Speed / rollerRadiusAtReferencePoint;
+		}
+	}
 
 	enum Scales { Low, Mid, High }
 	Scales currentScale = Scales.Mid;
@@ -102,9 +135,9 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 		SetCurrentScale();
 
-		SetRollersSpeed(rollersLow, Speed);
-		SetRollersSpeed(rollersMid, Speed);
-		SetRollersSpeed(rollersHigh, Speed);
+		SetRollersSpeed(rollersLow, RollerAngularSpeed);
+		SetRollersSpeed(rollersMid, RollerAngularSpeed);
+		SetRollersSpeed(rollersHigh, RollerAngularSpeed);
 	}
 
     public override void _EnterTree()
@@ -160,9 +193,9 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 		if (running)
 		{
-			SetRollersSpeed(rollersLow, Speed);
-			SetRollersSpeed(rollersMid, Speed);
-			SetRollersSpeed(rollersHigh, Speed);
+			SetRollersSpeed(rollersLow, RollerAngularSpeed);
+			SetRollersSpeed(rollersMid, RollerAngularSpeed);
+			SetRollersSpeed(rollersHigh, RollerAngularSpeed);
 
 			if (enableComms && running && readSuccessful)
 			{

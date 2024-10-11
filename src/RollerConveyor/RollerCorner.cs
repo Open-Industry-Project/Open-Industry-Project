@@ -4,7 +4,7 @@ using System;
 [Tool]
 public partial class RollerCorner : Node3D
 {
-	public float speed = 1.0f;
+	private float angularSpeed = 0f;
 
 	MeshInstance3D meshInstance;
 	RigidBody3D rigidBody;
@@ -31,7 +31,7 @@ public partial class RollerCorner : Node3D
 
 		if (Main.Start)
 		{
-			meshInstance.RotateZ(speed * MathF.PI * (float)delta);
+			meshInstance.RotateZ(angularSpeed * (float)delta);
 		}
 	}
 
@@ -41,7 +41,7 @@ public partial class RollerCorner : Node3D
 			Scale = new Vector3(1 / owner.Scale.X, 1, 1);
 
 		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
-		rigidBody.AngularVelocity = localFront * speed * MathF.PI * 4f;
+		rigidBody.AngularVelocity = localFront * angularSpeed;
 
 		rigidBody.Position = Vector3.Zero;
 		rigidBody.Rotation = Vector3.Zero;
@@ -50,7 +50,7 @@ public partial class RollerCorner : Node3D
 
 	public void SetSpeed(float new_speed)
 	{
-		speed = new_speed;
+		angularSpeed = new_speed;
 	}
 
 	public void SetActive(bool active)
