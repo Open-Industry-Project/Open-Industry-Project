@@ -4,6 +4,7 @@ using System;
 [Tool]
 public partial class ConveyorEnd : Node3D
 {
+	public float Speed;
 	double beltPosition = 0.0;
 	bool running = false;
 
@@ -53,10 +54,10 @@ public partial class ConveyorEnd : Node3D
 			if (owner.Main.Start)
 			{
 				Vector3 localFront = -GlobalTransform.Basis.Z.Normalized();
-				beltPosition += owner.Speed * delta;
+				beltPosition += Speed * delta;
 				if (beltPosition >= 1.0)
 					beltPosition = 0.0;
-				staticBody.ConstantAngularVelocity = -localFront * owner.Speed * MathF.PI;
+				staticBody.ConstantAngularVelocity = -localFront * Speed * MathF.PI;
 			}
 			else
 			{
@@ -64,7 +65,7 @@ public partial class ConveyorEnd : Node3D
 				staticBody.ConstantAngularVelocity = Vector3.Zero;
 			}
 
-			((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(-owner.Speed));
+			((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(-Speed));
 		}
 	}
 

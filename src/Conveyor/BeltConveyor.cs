@@ -66,7 +66,21 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 	}
 
 	[Export(PropertyHint.None, "suffix:m/s")]
-	public float Speed { get; set; }
+	public float Speed
+	{
+		get { return _speed; }
+		set
+		{
+			_speed = value;
+			if (conveyorEnd1 != null) {
+				conveyorEnd1.Speed = Speed;
+			}
+			if (conveyorEnd2 != null) {
+				conveyorEnd2.Speed = Speed;
+			}
+		}
+	}
+	private float _speed;
 
 	readonly Guid id = Guid.NewGuid();
 	double scan_interval = 0;
@@ -117,6 +131,9 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd1.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd2.beltMaterial.SetShaderParameter("ColorMix", beltColor);
+
+		conveyorEnd1.Speed = Speed;
+		conveyorEnd2.Speed = Speed;
 	}
 
     public override void _EnterTree()
