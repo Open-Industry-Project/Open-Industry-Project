@@ -67,6 +67,11 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 
 	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed { get; set; }
+	[Export(PropertyHint.None, "suffix:m")]
+	/// <summary>
+	/// Distance from outer edge to measure Speed at.
+	/// </summary>
+	float ReferenceDistance = 0.5f; // Assumes a 1m wide package.
 
 	StaticBody3D sb;
 	MeshInstance3D mesh;
@@ -172,13 +177,22 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 
 		if (running)
 		{
+			// Based on the model geometry at scale=1
+			const float BASE_INNER_RADIUS = 0.5f;
+			const float BASE_OUTER_RADIUS = 2.5f;
+			// FIXME: consider cases where the resulting radius isn't on the conveyor anymore.
+			float referenceRadius = Scale.X * BASE_OUTER_RADIUS - ReferenceDistance;
+			float angularSpeed = referenceRadius == 0f ? 0f : Speed / referenceRadius;
+
 			var localUp = sb.GlobalTransform.Basis.Y.Normalized();
-			var velocity = -localUp * Speed * MathF.PI * 0.25f * (1 / Scale.X);
+			var velocity = -localUp * angularSpeed;
 			sb.ConstantAngularVelocity = velocity;
 
-			beltPosition += Speed * delta;
-			if (Speed != 0)
-				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(Speed));
+			// The speed measured from the center of the belt, for the sake of animating the belt material.
+			float linearSpeed = angularSpeed * (Scale.X * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2f);
+			beltPosition += linearSpeed * delta;
+			if (linearSpeed != 0)
+				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(linearSpeed));
 			if (beltPosition >= 1.0)
 				beltPosition = 0.0;
 
