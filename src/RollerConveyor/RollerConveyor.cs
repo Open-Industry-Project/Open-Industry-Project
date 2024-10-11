@@ -94,32 +94,32 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		SetRollersRotation();
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
 
-            if (Main.simulationRunning)
-            {
-                running = true;
-            }
-        }
-    }
+			if (Main.simulationRunning)
+			{
+				running = true;
+			}
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _Process(double delta)
+	public override void _Process(double delta)
 	{
 		if (Scale.X >= 1.0f)
 			nodeScaleX = Scale.X;
