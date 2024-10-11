@@ -65,7 +65,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-	[Export]
+	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed { get; set; }
 
 	readonly Guid id = Guid.NewGuid();

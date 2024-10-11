@@ -192,12 +192,12 @@ public partial class ConveyorAssembly : Node3D, IComms
 		}
 	}
 
-	[Export]
+	[Export(PropertyHint.None, "suffix:m/s")]
 	public float BeltConveyorSpeed {
 		get
 		{
 			IBeltConveyor conveyor = conveyors?.GetChildOrNull<IBeltConveyor>(0);
-			return conveyor?.Speed ?? -2.0f;
+			return conveyor?.Speed ?? 2.0f;
 		}
 		set
 		{
@@ -216,12 +216,12 @@ public partial class ConveyorAssembly : Node3D, IComms
 	}
 
 	[ExportSubgroup("RollerConveyor", "RollerConveyor")]
-	[Export]
+	[Export(PropertyHint.None, "suffix:m/s")]
 	public float RollerConveyorSpeed {
 		get
 		{
 			IRollerConveyor conveyor = conveyors?.GetChildOrNull<IRollerConveyor>(0);
-			return conveyor?.Speed ?? -2.0f;
+			return conveyor?.Speed ?? 2.0f;
 		}
 		set
 		{
@@ -469,10 +469,10 @@ public partial class ConveyorAssembly : Node3D, IComms
 			return new Color(1, 1, 1, 1);
 		}
 		if (property == PropertyName.BeltConveyorSpeed) {
-			return -2.0f;
+			return 2.0f;
 		}
 		if (property == PropertyName.RollerConveyorSpeed) {
-			return -2.0f;
+			return 2.0f;
 		}
 		return base._PropertyGetRevert(property);
 	}

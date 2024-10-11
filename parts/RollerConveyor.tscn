@@ -50,7 +50,7 @@ shadow_mesh = SubResource("ArrayMesh_rm54m")
 process_mode = 3
 transform = Transform3D(1.02487, 0, 0, 0, 1, -1.50996e-07, 0, 1.50996e-07, 1, 0, 0, 0)
 script = ExtResource("1_vnty6")
-Speed = -2.0
+Speed = 2.0
 metadata/_edit_group_ = true
 
 [node name="ConvRoller" type="MeshInstance3D" parent="."]

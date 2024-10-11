@@ -23,8 +23,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	[Export]
 	private int updateRate = 100;
 	public int UpdateRate { get => updateRate; set => updateRate = value; }
-	[Export]
-	public float Speed { get; set; } = -1.0f;
+	[Export(PropertyHint.None, "suffix:m/s")]
+	public float Speed { get; set; }
 
 	enum Scales { Low, Mid, High }
 	Scales currentScale = Scales.Mid;

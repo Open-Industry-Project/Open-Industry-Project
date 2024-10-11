@@ -65,7 +65,7 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-	[Export]
+	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed { get; set; }
 
 	StaticBody3D sb;

@@ -284,8 +284,8 @@ transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("1_nkn8g")
 UpdateRate = 100
 BeltConveyorBeltColor = Color(1, 1, 1, 1)
-BeltConveyorSpeed = -2.0
-RollerConveyorSpeed = -2.0
+BeltConveyorSpeed = 2.0
+RollerConveyorSpeed = 2.0
 AutoLegStandsModelScene = ExtResource("2_a0feq")
 metadata/_edit_group_ = true
 
