@@ -12,6 +12,7 @@ albedo_color = Color(1, 1, 1, 0)
 material = SubResource("StandardMaterial3D_rm06n")
 
 [node name="Building" type="Node3D"]
+metadata/_edit_lock_ = true
 
 [node name="Floor" type="GridMap" parent="."]
 mesh_library = ExtResource("3_wtaol")
