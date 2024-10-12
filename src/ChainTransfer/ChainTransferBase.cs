@@ -95,7 +95,7 @@ public partial class ChainTransferBase : Node3D
 		if (running)
 		{
 			var localLeft = rb.GlobalTransform.Basis.X.Normalized();
-			var velocity = localLeft * (Speed / (Mathf.Round(owner.Scale.X * chainScale * 0.5f)));
+			var velocity = localLeft * Speed;
 			rb.LinearVelocity = velocity;
 			rb.Position = origin;
 

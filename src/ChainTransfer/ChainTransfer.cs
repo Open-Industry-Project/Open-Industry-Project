@@ -70,7 +70,7 @@ public partial class ChainTransfer : Node3D
 	}
 
 	float speed = 2.0f;
-	[Export] float Speed
+	[Export(PropertyHint.None, "suffix: m/s")] float Speed
 	{
 		get
 		{
