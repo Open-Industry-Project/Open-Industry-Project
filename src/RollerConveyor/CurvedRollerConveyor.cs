@@ -29,7 +29,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	/// <summary>
 	/// Distance from outer edge to measure Speed at.
 	/// </summary>
-	float ReferenceDistance = 0.5f; // Assumes a 1m wide package.
+	public float ReferenceDistance = 0.5f; // Assumes a 1m wide package.
 
 	// Based on the CurvedRollerConveyor model geometry at scale=1
 	const float CURVE_BASE_INNER_RADIUS = 0.5f;
