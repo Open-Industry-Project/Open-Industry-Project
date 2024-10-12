@@ -126,6 +126,9 @@ func _enter_tree() -> void:
 		_create_root_vbox.move_child(_create_root_vbox.get_child(1),2)
 
 	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously",true)
+	
+	if EditorInterface.get_open_scenes().size() == 0:
+		_create_new_simulation()
 
 func _exit_tree() -> void:
 	_center_buttons.visible = true
@@ -168,8 +171,11 @@ func _new_simulation_btn_pressed():
 
 func _create_new_simulation():
 	var script = EditorScript.new()
-	var scene = load("res://parts/Main.tscn").instantiate()
+	var scene : Node3D = load("res://parts/Main.tscn").instantiate()
+	var building : Node3D = load("res://parts/Building.tscn").instantiate()
 	script.add_root_node(scene)
+	get_tree().edited_scene_root.add_child(building)
+	building.owner = scene
 
 func _remove_new_simulation():
 	var script = EditorScript.new()
