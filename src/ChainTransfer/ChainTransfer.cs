@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 public partial class ChainTransfer : Node3D
 {
 	PackedScene chainTransferBaseScene = (PackedScene)ResourceLoader.Load("res://src/ChainTransfer/Base.tscn");
-	
+
 	private bool enableComms;
 	[Export]
 	private bool EnableComms
@@ -24,17 +24,17 @@ public partial class ChainTransfer : Node3D
 	public string popupTag;
 	[Export]
 	private int updateRate = 100;
-	
+
 	readonly Guid speedId = Guid.NewGuid();
 	readonly Guid popupId = Guid.NewGuid();
-	
+
 	double scan_interval = 0;
 	bool readSuccessful = false;
-	
+
 	int chains = 2;
 	[Export] int Chains
 	{
-		get 
+		get
 		{
 			return chains;
 		}
@@ -54,7 +54,7 @@ public partial class ChainTransfer : Node3D
 			FixChains();
 		}
 	}
-	
+
 	float distance = 0.33f;
 	[Export] float Distance
 	{
@@ -68,7 +68,7 @@ public partial class ChainTransfer : Node3D
 			SetChainsDistance(distance);
 		}
 	}
-	
+
 	float speed = 2.0f;
 	[Export] float Speed
 	{
@@ -81,8 +81,8 @@ public partial class ChainTransfer : Node3D
 			speed = value;
 		}
 	}
-	
-	
+
+
 	bool popupChains = false;
 	[Export] bool PopupChains
 	{
@@ -95,13 +95,13 @@ public partial class ChainTransfer : Node3D
 			popupChains = value;
 		}
 	}
-	
+
 	bool running = false;
 
 	Vector3 prevScale;
-	
+
 	public Root Main { get; set; }
-	
+
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
 		string propertyName = property["name"].AsStringName();
@@ -111,47 +111,47 @@ public partial class ChainTransfer : Node3D
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
 		}
 	}
-	
+
 	public override void _Ready()
-	{	
+	{
 		SpawnChains(chains - GetChildCount());
 		SetChainsDistance(distance);
 		SetChainsSpeed(speed);
 		SetChainsPopupChains(popupChains);
 
-        prevScale = Scale;
-        Rescale();
-    }
+		prevScale = Scale;
+		Rescale();
+	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _Process(double delta)
-    {
-        if(Scale != prevScale)
+	public override void _Process(double delta)
+	{
+		if(Scale != prevScale)
 		{
 			Rescale();
-        }
-    }
+		}
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 
 
@@ -160,7 +160,7 @@ public partial class ChainTransfer : Node3D
 			popupChains = false;
 			return;
 		}
-		
+
 		if (running)
 		{
 			SetChainsPopupChains(popupChains);
@@ -180,9 +180,9 @@ public partial class ChainTransfer : Node3D
 
 	void Rescale()
 	{
-        Scale = new Vector3(Scale.X, 1, 1);
-    }
-	
+		Scale = new Vector3(Scale.X, 1, 1);
+	}
+
 	void SetChainsDistance(float distance)
 	{
 		foreach (ChainTransferBase chainBase in GetChildren())
@@ -190,7 +190,7 @@ public partial class ChainTransfer : Node3D
 			chainBase.Position = new Vector3(0, 0, distance * chainBase.GetIndex());
 		}
 	}
-	
+
 	void SetChainsSpeed(float speed)
 	{
 		foreach (ChainTransferBase chainBase in GetChildren())
@@ -198,7 +198,7 @@ public partial class ChainTransfer : Node3D
 			chainBase.Speed = speed;
 		}
 	}
-	
+
 	void SetChainsPopupChains(bool popupChains)
 	{
 		foreach (ChainTransferBase chainBase in GetChildren())
@@ -206,23 +206,23 @@ public partial class ChainTransfer : Node3D
 			chainBase.Active = popupChains;
 		}
 	}
-	
-	void TurnOnChains() 
+
+	void TurnOnChains()
 	{
 		foreach (ChainTransferBase chainBase in GetChildren())
 		{
 			chainBase.TurnOn();
 		}
 	}
-	
-	void TurnOffChains() 
+
+	void TurnOffChains()
 	{
 		foreach (ChainTransferBase chainBase in GetChildren())
 		{
 			chainBase.TurnOff();
 		}
 	}
-	
+
 	void SpawnChains(int count)
 	{
 		if (chains <= 0) return;
@@ -230,12 +230,12 @@ public partial class ChainTransfer : Node3D
 		{
 			ChainTransferBase chainBase = chainTransferBaseScene.Instantiate() as ChainTransferBase;
 			AddChild(chainBase, forceReadableName: true);
-			chainBase.Owner = this; 
+			chainBase.Owner = this;
 			chainBase.Position = new Vector3(0, 0, distance * chainBase.GetIndex());
 			chainBase.Active = popupChains;
 		}
 	}
-	
+
 	void RemoveChains(int count)
 	{
 		for (int i = 0; i < count; i++)
@@ -243,20 +243,20 @@ public partial class ChainTransfer : Node3D
 			GetChild(GetChildCount() - 1 - i).QueueFree();
 		}
 	}
-	
+
 	void FixChains()
 	{
 		int childCount = GetChildCount();
 		int difference = childCount - chains;
-		
+
 		if (difference <= 0) return;
-		
+
 		for (int i = 0; i < difference; i++)
 		{
 			GetChild(GetChildCount() - 1 - i).QueueFree();
 		}
 	}
-	
+
 	async Task ScanTag()
 	{
 		try
@@ -279,22 +279,22 @@ public partial class ChainTransfer : Node3D
 			readSuccessful = false;
 		}
 	}
-	
+
 	void OnSimulationStarted()
-    {
-        running = true;
-        TurnOnChains();
-        if (enableComms)
+	{
+		running = true;
+		TurnOnChains();
+		if (enableComms)
 		{
 			readSuccessful = Main.Connect(speedId, Root.DataType.Float, Name, speedTag) && Main.Connect(popupId, Root.DataType.Bool, Name, popupTag);
 
-        }
+		}
 	}
-	
+
 	void OnSimulationEnded()
 	{
 		this.PopupChains = false;
-		TurnOffChains();		
+		TurnOffChains();
 		running = false;
 	}
 }
