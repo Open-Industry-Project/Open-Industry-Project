@@ -62,8 +62,11 @@ func _process(delta):
 		_run_bar._enable_buttons()
 	else:
 		_run_bar._disable_buttons()
+		
 
 func _enter_tree() -> void:
+	get_tree().root.get_child(0).connect("editor_layout_loaded", _editor_layout_loaded)
+		
 	_menu_bar = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0)
 	_project_popup_menu = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
 	_editor_popup_menu = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0).get_child(3)
@@ -126,9 +129,6 @@ func _enter_tree() -> void:
 		_create_root_vbox.move_child(_create_root_vbox.get_child(1),2)
 
 	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously",true)
-	
-	if EditorInterface.get_open_scenes().size() == 0:
-		_create_new_simulation()
 
 func _exit_tree() -> void:
 	_center_buttons.visible = true
@@ -162,6 +162,11 @@ func _exit_tree() -> void:
 		_custom_help_menu.queue_free()
 
 	_toggle_native_mode(true)
+
+func _editor_layout_loaded():
+	if EditorInterface.get_open_scenes().size() == 0:
+		_create_new_simulation()
+		EditorInterface.mark_scene_as_saved()
 
 func _new_simulation_btn_pressed():
 		get_undo_redo().create_action("Create New Simulation")
