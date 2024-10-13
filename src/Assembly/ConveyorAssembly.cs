@@ -524,15 +524,9 @@ public partial class ConveyorAssembly : Node3D, IComms
 		}
 	}
 
-	bool has_processed_at_least_once = false;
 	public override void _PhysicsProcess(double delta)
 	{
-		// A performance hack: Skip assembly adjustments while the simulation is running.
-		// We do make sure to run at least once though. This covers the situation where
-		// a ConveyorAssembly is created or loaded while the simulation is already running.
-		// Rare, but possible.
-		if (IsSimulationRunning() && has_processed_at_least_once) return;
-		has_processed_at_least_once = true;
+		if (Transform == transformPrev && ConveyorAngle == conveyorAnglePrev) return;
 
 		ApplyAssemblyScaleConstraints();
 		PreventAllChildScaling();
@@ -550,10 +544,6 @@ public partial class ConveyorAssembly : Node3D, IComms
 		autoLegStandsEndLegRearPrev = AutoLegStandsEndLegRear;
 		autoLegStandsMarginEndLegsPrev = AutoLegStandsMarginEndLegs;
 		autoLegStandsModelScenePrev = AutoLegStandsModelScene;
-	}
-
-	private bool IsSimulationRunning() {
-		return main != null && main.simulationRunning;
 	}
 
 	protected virtual void ApplyAssemblyScaleConstraints()
