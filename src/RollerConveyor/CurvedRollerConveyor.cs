@@ -115,6 +115,11 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
         {
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
+
+            if (Main.simulationRunning)
+            {
+                running = true;
+            }
         }
     }
 

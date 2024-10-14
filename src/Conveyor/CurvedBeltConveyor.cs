@@ -139,6 +139,11 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
         {
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
+
+            if (Main.simulationRunning)
+            {
+                running = true;
+            }
         }
     }
 

@@ -102,6 +102,11 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
         {
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
+
+            if (Main.simulationRunning)
+            {
+                running = true;
+            }
         }
     }
 
@@ -161,7 +166,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		{
 			foreach (Roller roller in rollers.GetChildren())
 			{
-				roller.speed = Speed;
+				roller.Speed = Speed;
 			}
 		}
 
