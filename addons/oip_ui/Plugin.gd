@@ -65,7 +65,8 @@ func _process(delta):
 		
 
 func _enter_tree() -> void:
-	get_tree().root.get_child(0).connect("editor_layout_loaded", _editor_layout_loaded)
+	if(EditorInterface.has_method("mark_scene_as_saved")):
+		get_tree().root.get_child(0).connect("editor_layout_loaded", _editor_layout_loaded)
 		
 	_menu_bar = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0)
 	_project_popup_menu = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
@@ -166,7 +167,7 @@ func _exit_tree() -> void:
 func _editor_layout_loaded():
 	if EditorInterface.get_open_scenes().size() == 0:
 		_create_new_simulation()
-		EditorInterface.mark_scene_as_saved()
+		EditorInterface.call("mark_scene_as_saved")
 
 func _new_simulation_btn_pressed():
 		get_undo_redo().create_action("Create New Simulation")
