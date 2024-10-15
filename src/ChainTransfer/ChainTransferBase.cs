@@ -28,7 +28,7 @@ public partial class ChainTransferBase : Node3D
 	float childrenInitialY;
 	float activePos = 0.095f;
 
-	RigidBody3D rb;
+	StaticBody3D sb;
 	Vector3 origin;
 
 	bool running = false;
@@ -74,8 +74,8 @@ public partial class ChainTransferBase : Node3D
 
 		childrenInitialY = container.Position.Y;
 
-		rb = GetNode<RigidBody3D>("Chain/RigidBody3D");
-		origin = rb.Position;
+		sb = GetNode<StaticBody3D>("Chain/StaticBody3D");
+		origin = sb.Position;
 
 		InitMesh(ref chainMesh, "Chain", ref chainMaterial);
 		InitMesh(ref chainEndLMesh, "Chain/ChainL", ref chainEndLMaterial);
@@ -94,13 +94,13 @@ public partial class ChainTransferBase : Node3D
 	{
 		if (running)
 		{
-			var localLeft = rb.GlobalTransform.Basis.X.Normalized();
+			var localLeft = sb.GlobalTransform.Basis.X.Normalized();
 			var velocity = localLeft * Speed;
-			rb.LinearVelocity = velocity;
-			rb.Position = origin;
+			sb.ConstantLinearVelocity = velocity;
+			sb.Position = origin;
 
-			rb.Rotation = Vector3.Zero;
-			rb.Scale = new Vector3(1, 1, 1);
+			sb.Rotation = Vector3.Zero;
+			sb.Scale = new Vector3(1, 1, 1);
 
 			if (chainMaterial != null && owner != null)
 			{
@@ -141,9 +141,9 @@ public partial class ChainTransferBase : Node3D
 		SetChainPosition(chainEndLMaterial, 0);
 		SetChainPosition(chainEndRMaterial, 0);
 
-		rb.Position = Vector3.Zero;
-		rb.Rotation = Vector3.Zero;
-		rb.LinearVelocity = Vector3.Zero;
+		sb.Position = Vector3.Zero;
+		sb.Rotation = Vector3.Zero;
+		sb.ConstantLinearVelocity = Vector3.Zero;
 	}
 
 	// Moves the chain up
@@ -169,7 +169,7 @@ public partial class ChainTransferBase : Node3D
 		if (owner == null) return;
 		foreach (Node3D node in nodesContainer.GetChildren())
 		{
-			if (node is RigidBody3D) continue;
+			if (nodesContainer.Name == "Chain" && node is StaticBody3D) continue;
 			node.Scale = new Vector3(1 / owner.Scale.X, 1, 1);
 		}
 	}
