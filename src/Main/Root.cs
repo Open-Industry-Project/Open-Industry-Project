@@ -484,10 +484,20 @@ public partial class Root : Node3D
 		}
 	}
 
-	public override void _Process(double delta)
-	{		
-		selectedNodes = EditorInterface.Singleton.GetSelection().GetSelectedNodes();
-	}
+    public override void _EnterTree()
+    {
+		EditorInterface.Singleton.GetSelection().SelectionChanged += OnSelectionChanged;
+    }
+
+    public override void _ExitTree()
+    {
+        EditorInterface.Singleton.GetSelection().SelectionChanged -= OnSelectionChanged;
+    }
+
+	public void OnSelectionChanged()
+	{
+        selectedNodes = EditorInterface.Singleton.GetSelection().GetSelectedNodes();
+    }
 	
 	void OnSimulationStarted()
 	{
