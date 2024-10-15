@@ -33,8 +33,9 @@ public partial class ChainTransferBase : Node3D
 
 	bool running = false;
 
-	int chainScale = 32;
-	int chainEndScale = 6;
+	float chainBaseLength = 2.0f; // meters of chain per owner.Scale.X
+	int chainScale = 32;  // number of chain links per owner.Scale.X
+	int chainEndScale = 6;  // number of chain links for ends
 
 	MeshInstance3D chainMesh;
 	MeshInstance3D chainEndLMesh;
@@ -59,9 +60,10 @@ public partial class ChainTransferBase : Node3D
 
 	void SetChainPosition(ShaderMaterial material, double pos)
 	{
-		if (material != null && Speed != 0)
+		if (material != null)
 		{
-			material.SetShaderParameter("ChainPosition", pos * Mathf.Sign(Speed));
+			// ChainPosition is a progress ratio of position to total length.
+			material.SetShaderParameter("ChainPosition", pos);
 		}
 	}
 
@@ -104,14 +106,14 @@ public partial class ChainTransferBase : Node3D
 
 			if (chainMaterial != null && owner != null)
 			{
-				chainPosition += (Mathf.Abs(Speed) / (Mathf.Round(owner.Scale.X * chainScale))) * delta;
-				if (chainPosition > 1.0) {
-					chainPosition = chainPosition - 1.0;
-				}
-				chainEndPosition += (Mathf.Abs(Speed) / chainEndScale) * delta;
-				if (chainEndPosition > 1.0) {
-					chainEndPosition = chainEndPosition - 1.0;
-				}
+				// The shader rounds this, so we will too.
+				int chainLinks = (int) Math.Round(owner.Scale.X * chainScale);
+				double chainMeters = owner.Scale.X * chainBaseLength;
+				double chainLinksPerMeter = chainLinks / chainMeters;
+				chainPosition += Speed / chainMeters * delta;
+				chainPosition = ((chainPosition % 1f) + 1f) % 1f;
+				chainEndPosition += Speed * chainLinksPerMeter / chainEndScale * delta;
+				chainEndPosition = ((chainEndPosition % 1f) + 1f) % 1f;
 				SetChainPosition(chainMaterial, chainPosition);
 				SetChainPosition(chainEndLMaterial, chainEndPosition);
 				SetChainPosition(chainEndRMaterial, chainEndPosition);
