@@ -11,7 +11,8 @@ public partial class Roller : Node3D
 	}
 	MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
-	Root Main;
+	StandardMaterial3D material;
+    Root Main;
 	bool running = false;
 
 	public override void _EnterTree()
@@ -38,6 +39,7 @@ public partial class Roller : Node3D
 	{
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
+		material = meshInstance.Mesh.SurfaceGetMaterial(0) as StandardMaterial3D;
 
         if (Main != null && Main.simulationRunning)
         {
@@ -49,7 +51,7 @@ public partial class Roller : Node3D
 	{
 		if (running)
 		{
-			meshInstance.RotateZ(Speed * MathF.PI * 2f * (float)delta);
+			material.Uv1Offset -= new Vector3(Speed * MathF.PI/4 * (float)delta, 0, 0);
 		}
 	}
 
