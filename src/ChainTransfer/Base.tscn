@@ -325,22 +325,16 @@ transform = Transform3D(-1, 3.49577e-14, 0, -3.49577e-14, -1, 0, 0, 0, 1, -1, -0
 mesh = SubResource("ArrayMesh_xfnok")
 skeleton = NodePath("")
 
-[node name="RigidBody3D" type="RigidBody3D" parent="Chain"]
+[node name="StaticBody3D" type="StaticBody3D" parent="Chain"]
 collision_layer = 4
 collision_mask = 8
 axis_lock_linear_y = true
 axis_lock_angular_x = true
 axis_lock_angular_y = true
 axis_lock_angular_z = true
-mass = 1000.0
 physics_material_override = SubResource("PhysicsMaterial_lgibd")
-gravity_scale = 0.0
-can_sleep = false
-lock_rotation = true
-freeze = true
-continuous_cd = true
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Chain/RigidBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Chain/StaticBody3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.0124416, 0)
 shape = SubResource("BoxShape3D_8d0fv")
 
