@@ -5,17 +5,24 @@ using System;
 public partial class Roller : Node3D
 {
 	private float _speed = 1.0f;
-	public float Speed {
-		get { return _speed; }
-		set { _speed = value; if (running) { OnSimulationStarted(); } }
-	}
-	MeshInstance3D meshInstance;
+    public float Speed
+    {
+        get { return _speed; }
+        set { _speed = value; }
+    }
+
+    public bool flipped = false;
+
+
+    MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
 	StandardMaterial3D material;
     Root Main;
 	bool running = false;
+	float reverse = 0;
+	float direction = 0;
 
-	public override void _EnterTree()
+    public override void _EnterTree()
 	{
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
@@ -24,7 +31,10 @@ public partial class Roller : Node3D
 			Main.SimulationStarted += OnSimulationStarted;
 			Main.SimulationEnded += OnSimulationEnded;
         }
-	}
+
+		RotationDegrees = flipped ? new Vector3(0, 180, 0) : new Vector3(0, 0, 0);
+        direction = flipped ? -1.0f : 1.0f;
+    }
 
 	public override void _ExitTree()
 	{
@@ -37,9 +47,9 @@ public partial class Roller : Node3D
 
 	public override void _Ready()
 	{
-		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
-		material = meshInstance.Mesh.SurfaceGetMaterial(0) as StandardMaterial3D;
+        meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
+        material = meshInstance.Mesh.SurfaceGetMaterial(0) as StandardMaterial3D;
 
         if (Main != null && Main.simulationRunning)
         {
@@ -47,19 +57,20 @@ public partial class Roller : Node3D
         }
     }
 
-	public override void _Process(double delta)
-	{
-		if (running)
-		{
-			material.Uv1Offset -= new Vector3(Speed * MathF.PI/4 * (float)delta, 0, 0);
-		}
-	}
+    public override void _Process(double delta)
+    {
+        if (running)
+        {
+            material.Uv1Offset -= new Vector3(direction * Speed * MathF.PI / 2 * (float)delta, 0, 0);
+            Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
+            staticBody.ConstantAngularVelocity = direction * localFront * Speed * MathF.PI * 2;
+        }
+    }
 
-	void OnSimulationStarted()
+
+    void OnSimulationStarted()
 	{
 		running = true;
-		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
-		staticBody.ConstantAngularVelocity = localFront * Speed * MathF.PI * 2;
 	}
 
 	void OnSimulationEnded()

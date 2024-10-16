@@ -12,14 +12,16 @@ public partial class RollerConveyorEnd : Node3D
 	public override void _Ready()
 	{
 		roller = GetNode<Roller>("Roller");
-	}
-
-    public override void _EnterTree()
-    {
-        owner = Owner as Node3D;
+        roller.flipped = flipped;
     }
 
-    public override void _Process(double delta)
+	public override void _EnterTree()
+	{
+		owner = Owner as Node3D;
+    }
+
+
+	public override void _Process(double delta)
     {
         if (owner != null)
         {
@@ -33,11 +35,8 @@ public partial class RollerConveyorEnd : Node3D
 	
 	public void SetSpeed(float speed)
 	{
-		if (flipped)
-			roller.Speed = -speed;
-		else
-			roller.Speed = speed;
-	}
+		roller.Speed = speed;
+    }
 	
 	public void RotateRoller(Vector3 angle)
 	{
