@@ -25,11 +25,12 @@ public partial class ChainTransferBase : Node3D
 	Node3D bas;
 	Node3D container;
 	Node3D chain;
-	float childrenInitialY;
+	float inactivePos = 0f;
 	float activePos = 0.095f;
 
 	StaticBody3D sb;
-	Vector3 origin;
+	Vector3 sbActivePosition = Vector3.Zero;
+	Vector3 sbInactivePosition = Vector3.Zero;
 
 	bool running = false;
 
@@ -69,15 +70,7 @@ public partial class ChainTransferBase : Node3D
 
 	public override void _Ready()
 	{
-		containerBody = GetNode<StaticBody3D>("ContainerBody");
-		bas = GetNode<Node3D>("Base");
-		container = GetNode<Node3D>("Container");
-		chain = GetNode<Node3D>("Chain");
-
-		childrenInitialY = container.Position.Y;
-
-		sb = GetNode<StaticBody3D>("Chain/StaticBody3D");
-		origin = sb.Position;
+		EnsureValidNodeReferences();
 
 		InitMesh(ref chainMesh, "Chain", ref chainMaterial);
 		InitMesh(ref chainEndLMesh, "Chain/ChainL", ref chainEndLMaterial);
@@ -99,7 +92,7 @@ public partial class ChainTransferBase : Node3D
 			var localLeft = sb.GlobalTransform.Basis.X.Normalized();
 			var velocity = localLeft * Speed;
 			sb.ConstantLinearVelocity = velocity;
-			sb.Position = origin;
+			sb.Position = sbActivePosition;
 
 			sb.Rotation = Vector3.Zero;
 			sb.Scale = new Vector3(1, 1, 1);
@@ -143,7 +136,7 @@ public partial class ChainTransferBase : Node3D
 		SetChainPosition(chainEndLMaterial, 0);
 		SetChainPosition(chainEndRMaterial, 0);
 
-		sb.Position = Vector3.Zero;
+		sb.Position = sbInactivePosition;
 		sb.Rotation = Vector3.Zero;
 		sb.ConstantLinearVelocity = Vector3.Zero;
 	}
@@ -151,19 +144,39 @@ public partial class ChainTransferBase : Node3D
 	// Moves the chain up
 	void Up()
 	{
-		Tween tween = GetTree().CreateTween().SetEase(0).SetParallel(); // Set EaseIn
-		tween.TweenProperty(containerBody, "position", new Vector3(containerBody.Position.X, childrenInitialY + activePos, containerBody.Position.Z), 0.15f);
-		tween.TweenProperty(container, "position", new Vector3(container.Position.X, childrenInitialY + activePos, container.Position.Z), 0.15f);
-		tween.TweenProperty(chain, "position", new Vector3(chain.Position.X, childrenInitialY + activePos, chain.Position.Z), 0.15f);
+		EnsureValidNodeReferences();
+		if (IsInsideTree())
+		{
+			Tween tween = GetTree().CreateTween().SetEase(0).SetParallel(); // Set EaseIn
+			tween.TweenProperty(containerBody, "position", new Vector3(containerBody.Position.X, activePos, containerBody.Position.Z), 0.15f);
+			tween.TweenProperty(container, "position", new Vector3(container.Position.X, activePos, container.Position.Z), 0.15f);
+			tween.TweenProperty(chain, "position", new Vector3(chain.Position.X, activePos, chain.Position.Z), 0.15f);
+		}
+		else
+		{
+			containerBody.Position = new Vector3(containerBody.Position.X, activePos, containerBody.Position.Z);
+			container.Position = new Vector3(container.Position.X, activePos, container.Position.Z);
+			chain.Position = new Vector3(chain.Position.X, activePos, chain.Position.Z);
+		}
 	}
 
 	// Moves the chain down
 	void Down()
 	{
-		Tween tween = GetTree().CreateTween().SetEase(0).SetParallel(); // Set EaseIn
-		tween.TweenProperty(containerBody, "position", new Vector3(containerBody.Position.X, childrenInitialY, containerBody.Position.Z), 0.15f);
-		tween.TweenProperty(container, "position", new Vector3(container.Position.X, childrenInitialY, container.Position.Z), 0.15f);
-		tween.TweenProperty(chain, "position", new Vector3(chain.Position.X, childrenInitialY, chain.Position.Z), 0.15f);
+		EnsureValidNodeReferences();
+		if (IsInsideTree())
+		{
+			Tween tween = GetTree().CreateTween().SetEase(0).SetParallel(); // Set EaseIn
+			tween.TweenProperty(containerBody, "position", new Vector3(containerBody.Position.X, inactivePos, containerBody.Position.Z), 0.15f);
+			tween.TweenProperty(container, "position", new Vector3(container.Position.X, inactivePos, container.Position.Z), 0.15f);
+			tween.TweenProperty(chain, "position", new Vector3(chain.Position.X, inactivePos, chain.Position.Z), 0.15f);
+		}
+		else
+		{
+			containerBody.Position = new Vector3(containerBody.Position.X, inactivePos, containerBody.Position.Z);
+			container.Position = new Vector3(container.Position.X, inactivePos, container.Position.Z);
+			chain.Position = new Vector3(chain.Position.X, inactivePos, chain.Position.Z);
+		}
 	}
 
 	void ScaleChildren(Node3D nodesContainer)
@@ -174,5 +187,15 @@ public partial class ChainTransferBase : Node3D
 			if (nodesContainer.Name == "Chain" && node is StaticBody3D) continue;
 			node.Scale = new Vector3(1 / owner.Scale.X, 1, 1);
 		}
+	}
+
+	private void EnsureValidNodeReferences()
+	{
+		if (sb != null) return;
+		containerBody = GetNode<StaticBody3D>("ContainerBody");
+		bas = GetNode<Node3D>("Base");
+		container = GetNode<Node3D>("Container");
+		chain = GetNode<Node3D>("Chain");
+		sb = GetNode<StaticBody3D>("Chain/StaticBody3D");
 	}
 }
