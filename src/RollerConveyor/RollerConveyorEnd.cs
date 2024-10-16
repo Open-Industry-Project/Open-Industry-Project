@@ -12,7 +12,6 @@ public partial class RollerConveyorEnd : Node3D
 	public override void _Ready()
 	{
 		roller = GetNode<Roller>("Roller");
-        roller.flipped = flipped;
     }
 
 	public override void _EnterTree()
@@ -40,6 +39,6 @@ public partial class RollerConveyorEnd : Node3D
 	
 	public void RotateRoller(Vector3 angle)
 	{
-		roller.RotationDegrees = angle;
+		roller.RotationDegrees = flipped ? angle + new Vector3(0, 180, 0) : angle;
 	}
 }

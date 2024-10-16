@@ -10,17 +10,11 @@ public partial class Roller : Node3D
 		get { return _speed; }
 		set { _speed = value; }
 	}
-
-	public bool flipped = false;
-
-
 	MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
 	StandardMaterial3D material;
 	Root Main;
 	bool running = false;
-	float reverse = 0;
-	float direction = 0;
 
 	public override void _EnterTree()
 	{
@@ -31,9 +25,6 @@ public partial class Roller : Node3D
 			Main.SimulationStarted += OnSimulationStarted;
 			Main.SimulationEnded += OnSimulationEnded;
 		}
-
-		RotationDegrees = flipped ? new Vector3(0, 180, 0) : new Vector3(0, 0, 0);
-		direction = flipped ? -1.0f : 1.0f;
 	}
 
 	public override void _ExitTree()
@@ -61,9 +52,9 @@ public partial class Roller : Node3D
 	{
 		if (running)
 		{
-			material.Uv1Offset -= new Vector3(direction * Speed * MathF.PI / 2 * (float)delta, 0, 0);
+			material.Uv1Offset -= new Vector3(Speed * MathF.PI / 2 * (float)delta, 0, 0);
 			Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
-			staticBody.ConstantAngularVelocity = direction * localFront * Speed * MathF.PI * 2;
+			staticBody.ConstantAngularVelocity = localFront * Speed * MathF.PI * 2;
 		}
 	}
 
