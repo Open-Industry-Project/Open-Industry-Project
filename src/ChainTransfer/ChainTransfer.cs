@@ -233,6 +233,10 @@ public partial class ChainTransfer : Node3D
 			chainBase.Owner = this;
 			chainBase.Position = new Vector3(0, 0, distance * chainBase.GetIndex());
 			chainBase.Active = popupChains;
+			chainBase.Speed = speed;
+			if (running) {
+				chainBase.TurnOn();
+			}
 		}
 	}
 
