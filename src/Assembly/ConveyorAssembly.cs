@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Linq;
 
 [Tool]
 public partial class ConveyorAssembly : Node3D, IComms
@@ -192,12 +193,12 @@ public partial class ConveyorAssembly : Node3D, IComms
 		}
 	}
 
-	[Export]
+	[Export(PropertyHint.None, "suffix:m/s")]
 	public float BeltConveyorSpeed {
 		get
 		{
 			IBeltConveyor conveyor = conveyors?.GetChildOrNull<IBeltConveyor>(0);
-			return conveyor?.Speed ?? -2.0f;
+			return conveyor?.Speed ?? 2.0f;
 		}
 		set
 		{
@@ -214,14 +215,36 @@ public partial class ConveyorAssembly : Node3D, IComms
 			}
 		}
 	}
+	[Export] // See _ValidateProperty for PropertyHint
+	public float BeltConveyorReferenceDistance {
+		get
+		{
+			CurvedBeltConveyor conveyor = conveyors?.GetChildOrNull<CurvedBeltConveyor>(0);
+			return conveyor?.ReferenceDistance ?? 0.5f;
+		}
+		set
+		{
+			if (conveyors == null)
+			{
+				return;
+			}
+			foreach (Node node in conveyors.GetChildren())
+			{
+				if (node is CurvedBeltConveyor conveyor)
+				{
+					conveyor.ReferenceDistance = value;
+				}
+			}
+		}
+	}
 
 	[ExportSubgroup("RollerConveyor", "RollerConveyor")]
-	[Export]
+	[Export(PropertyHint.None, "suffix:m/s")]
 	public float RollerConveyorSpeed {
 		get
 		{
 			IRollerConveyor conveyor = conveyors?.GetChildOrNull<IRollerConveyor>(0);
-			return conveyor?.Speed ?? -2.0f;
+			return conveyor?.Speed ?? 2.0f;
 		}
 		set
 		{
@@ -234,6 +257,28 @@ public partial class ConveyorAssembly : Node3D, IComms
 				if (node is IRollerConveyor conveyor)
 				{
 					conveyor.Speed = value;
+				}
+			}
+		}
+	}
+	[Export] // See _ValidateProperty for PropertyHint
+	public float RollerConveyorReferenceDistance {
+		get
+		{
+			CurvedRollerConveyor conveyor = conveyors?.GetChildOrNull<CurvedRollerConveyor>(0);
+			return conveyor?.ReferenceDistance ?? 0.5f;
+		}
+		set
+		{
+			if (conveyors == null)
+			{
+				return;
+			}
+			foreach (Node node in conveyors.GetChildren())
+			{
+				if (node is CurvedRollerConveyor conveyor)
+				{
+					conveyor.ReferenceDistance = value;
 				}
 			}
 		}
@@ -443,6 +488,42 @@ public partial class ConveyorAssembly : Node3D, IComms
 		else if (propertyName == PropertyName.RollerConveyorSkewAngle) {
 			property["usage"] = (int)(conveyors?.GetChildOrNull<RollerConveyor>(0) != null ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
 		}
+		// Only show if a CurvedBeltConveyor is present.
+		else if (propertyName == PropertyName.BeltConveyorReferenceDistance) {
+			CurvedBeltConveyor curvedBeltConveyor = conveyors?.GetChildOrNull<CurvedBeltConveyor>(0);
+			property["usage"] = (int)(curvedBeltConveyor != null ? PropertyUsageFlags.Default : PropertyUsageFlags.None);
+			// Copy properties info from the existing object.
+			// It changes depending on conveyor width
+			var props = curvedBeltConveyor?.GetPropertyList()?.Where(prop => {
+				prop.TryGetValue("name", out Variant name);
+				return CurvedBeltConveyor.PropertyName.ReferenceDistance.Equals(name.AsStringName());
+			})?.First();
+			if (props != null) {
+				props.TryGetValue("hint", out Variant hint);
+				props.TryGetValue("hint_string", out Variant hintString);
+				property["hint"] = hint;
+				property["hint_string"] = hintString;
+				// TODO figure out a good way to subscribe to further property hint changes.
+			}
+		}
+		// Only show if a CurvedRollerConveyor is present.
+		else if (propertyName == PropertyName.RollerConveyorReferenceDistance) {
+			CurvedRollerConveyor curvedRollerConveyor = conveyors?.GetChildOrNull<CurvedRollerConveyor>(0);
+			property["usage"] = (int)(curvedRollerConveyor != null ? PropertyUsageFlags.Default : PropertyUsageFlags.None);
+			// Copy properties info from the existing object.
+			// It changes depending on conveyor width
+			var props = curvedRollerConveyor?.GetPropertyList()?.Where(prop => {
+				prop.TryGetValue("name", out Variant name);
+				return CurvedRollerConveyor.PropertyName.ReferenceDistance.Equals(name.AsStringName());
+			})?.First();
+			if (props != null) {
+				props.TryGetValue("hint", out Variant hint);
+				props.TryGetValue("hint_string", out Variant hintString);
+				property["hint"] = hint;
+				property["hint_string"] = hintString;
+				// TODO figure out a good way to subscribe to further property hint changes.
+			}
+		}
 		else
 		{
 			base._ValidateProperty(property);
@@ -455,6 +536,8 @@ public partial class ConveyorAssembly : Node3D, IComms
 			|| property == PropertyName.BeltConveyorBeltColor
 			|| property == PropertyName.BeltConveyorSpeed
 			|| property == PropertyName.RollerConveyorSpeed
+			|| property == PropertyName.BeltConveyorReferenceDistance
+			|| property == PropertyName.RollerConveyorReferenceDistance
 			|| base._PropertyCanRevert(property);
 	}
 
@@ -468,11 +551,13 @@ public partial class ConveyorAssembly : Node3D, IComms
 		if (property == PropertyName.BeltConveyorBeltColor) {
 			return new Color(1, 1, 1, 1);
 		}
-		if (property == PropertyName.BeltConveyorSpeed) {
-			return -2.0f;
+		if (property == PropertyName.BeltConveyorSpeed
+			|| property == PropertyName.RollerConveyorSpeed) {
+			return 2.0f;
 		}
-		if (property == PropertyName.RollerConveyorSpeed) {
-			return -2.0f;
+		if (property == PropertyName.BeltConveyorReferenceDistance
+			|| property == PropertyName.RollerConveyorReferenceDistance) {
+			return 0.5f;
 		}
 		return base._PropertyGetRevert(property);
 	}

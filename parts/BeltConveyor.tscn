@@ -108,7 +108,7 @@ shadow_mesh = SubResource("ArrayMesh_5v2fq")
 process_mode = 3
 transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("1_5d505")
-Speed = -2.0
+Speed = 2.0
 metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]

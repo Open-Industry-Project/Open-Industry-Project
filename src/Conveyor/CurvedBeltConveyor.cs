@@ -65,8 +65,41 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-	[Export]
-	public float Speed { get; set; }
+	// Based on the model geometry at scale=1
+	const float BASE_INNER_RADIUS = 0.5f;
+	const float BASE_OUTER_RADIUS = 2.5f;
+	const float BASE_CONVEYOR_WIDTH = BASE_OUTER_RADIUS - BASE_INNER_RADIUS;
+
+	[Export(PropertyHint.None, "suffix:m/s")]
+	public float Speed
+	{
+		get { return _speed; }
+		set
+		{
+			_speed = value;
+			RecalculateSpeeds();
+		}
+	}
+	private float _speed;
+	private float AngularSpeed;
+	// The speed measured from the center of the belt, for the sake of animating the belt material.
+	private float LinearSpeed;
+	private float prevScaleX;
+
+	[Export] // See _ValidateProperty for PropertyHint
+	/// <summary>
+	/// Distance from outer edge to measure Speed at.
+	/// </summary>
+	public float ReferenceDistance
+	{
+		get { return _referenceDistance; }
+		set
+		{
+			_referenceDistance = value;
+			RecalculateSpeeds();
+		}
+	}
+	private float _referenceDistance = 0.5f; // Assumes a 1m wide package.
 
 	StaticBody3D sb;
 	MeshInstance3D mesh;
@@ -105,6 +138,15 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		{
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
 		}
+		// Dynamically update maximum as Scale changes.
+		else if (propertyName == PropertyName.ReferenceDistance) {
+			property["hint"] = (int) PropertyHint.Range;
+			property["hint_string"] = $"0,{Scale.X * BASE_CONVEYOR_WIDTH},suffix:m";
+		}
+		else
+		{
+			base._ValidateProperty(property);
+		}
 	}
 
 	public override void _Ready()
@@ -129,6 +171,11 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd1.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd2.beltMaterial.SetShaderParameter("ColorMix", beltColor);
+
+		conveyorEnd1.Speed = LinearSpeed;
+		conveyorEnd2.Speed = LinearSpeed;
+
+		prevScaleX = Scale.X;
 	}
 
     public override void _EnterTree()
@@ -166,19 +213,38 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
+	private void RecalculateSpeeds() {
+			float referenceRadius = Scale.X * BASE_OUTER_RADIUS - ReferenceDistance;
+			AngularSpeed = referenceRadius == 0f ? 0f : Speed / referenceRadius;
+			LinearSpeed = AngularSpeed * (Scale.X * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2f);
+
+			if (conveyorEnd1 != null) {
+				conveyorEnd1.Speed = LinearSpeed;
+			}
+			if (conveyorEnd2 != null) {
+				conveyorEnd2.Speed = LinearSpeed;
+			}
+	}
+
 	public override void _PhysicsProcess(double delta)
 	{
+		if (prevScaleX != Scale.X) {
+			RecalculateSpeeds();
+			NotifyPropertyListChanged();
+			prevScaleX = Scale.X;
+		}
+
 		if (Main == null) return;
 
 		if (running)
 		{
 			var localUp = sb.GlobalTransform.Basis.Y.Normalized();
-			var velocity = -localUp * Speed * MathF.PI * 0.25f * (1 / Scale.X);
+			var velocity = -localUp * AngularSpeed;
 			sb.ConstantAngularVelocity = velocity;
 
-			beltPosition += Speed * delta;
-			if (Speed != 0)
-				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(Speed));
+			beltPosition += LinearSpeed * delta;
+			if (LinearSpeed != 0)
+				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(LinearSpeed));
 			if (beltPosition >= 1.0)
 				beltPosition = 0.0;
 

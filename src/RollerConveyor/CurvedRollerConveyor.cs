@@ -23,8 +23,39 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	[Export]
 	private int updateRate = 100;
 	public int UpdateRate { get => updateRate; set => updateRate = value; }
-	[Export]
-	public float Speed { get; set; } = -1.0f;
+	[Export(PropertyHint.None, "suffix:m/s")]
+	public float Speed { get; set; }
+	[Export] // See _ValidateProperty for PropertyHint
+	/// <summary>
+	/// Distance from outer edge to measure Speed at.
+	/// </summary>
+	public float ReferenceDistance = 0.5f; // Assumes a 1m wide package.
+
+	// Based on the CurvedRollerConveyor model geometry at scale=1
+	const float CURVE_BASE_INNER_RADIUS = 0.5f;
+	const float CURVE_BASE_OUTER_RADIUS = 2.5f;
+	const float BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS;
+
+	private float AngularSpeedAroundCurve {
+		get {
+			float referenceRadius = Scale.X * CURVE_BASE_OUTER_RADIUS - ReferenceDistance;
+			return referenceRadius == 0f ? 0f : Speed / referenceRadius;
+		}
+	}
+
+	private float RollerAngularSpeed {
+		get {
+			if (Scale.X == 0f) return 0f;
+			// Based on RollerCorner model geometry.
+			const float ROLLER_INNER_END_RADIUS = 0.044587f;
+			const float ROLLER_OUTER_END_RADIUS = 0.12f;
+
+			const float BASE_ROLLER_LENGTH = BASE_CONVEYOR_WIDTH;
+			float referencePointAlongRoller = CURVE_BASE_OUTER_RADIUS - ReferenceDistance / Scale.X;
+			float rollerRadiusAtReferencePoint = ROLLER_INNER_END_RADIUS + referencePointAlongRoller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH;
+			return rollerRadiusAtReferencePoint == 0f ? 0f : Speed / rollerRadiusAtReferencePoint;
+		}
+	}
 
 	enum Scales { Low, Mid, High }
 	Scales currentScale = Scales.Mid;
@@ -78,6 +109,9 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	Node3D ends;
 
 	Root Main;
+
+	private float prevScaleX;
+
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
 		string propertyName = property["name"].AsStringName();
@@ -85,6 +119,16 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		if (propertyName == PropertyName.updateRate || propertyName == PropertyName.tag)
 		{
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
+		}
+		// Dynamically update maximum as Scale changes.
+		else if (propertyName == PropertyName.ReferenceDistance) {
+			property["hint"] = (int) PropertyHint.Range;
+			property["hint_string"] = $"0,{Scale.X * BASE_CONVEYOR_WIDTH},suffix:m";
+			prevScaleX = Scale.X;
+		}
+		else
+		{
+			base._ValidateProperty(property);
 		}
 	}
 	public override void _Ready()
@@ -102,9 +146,9 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 		SetCurrentScale();
 
-		SetRollersSpeed(rollersLow, Speed);
-		SetRollersSpeed(rollersMid, Speed);
-		SetRollersSpeed(rollersHigh, Speed);
+		SetRollersSpeed(rollersLow, RollerAngularSpeed);
+		SetRollersSpeed(rollersMid, RollerAngularSpeed);
+		SetRollersSpeed(rollersHigh, RollerAngularSpeed);
 	}
 
     public override void _EnterTree()
@@ -140,6 +184,11 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
         {
             Scale = new Vector3(Scale.X, 1, Scale.X);
         }
+
+		// ReferenceDistance's PropertyHint depends on Scale.X
+		if (prevScaleX != Scale.X) {
+			NotifyPropertyListChanged();
+		}
     }
 
     public override void _PhysicsProcess(double delta)
@@ -160,9 +209,9 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 		if (running)
 		{
-			SetRollersSpeed(rollersLow, Speed);
-			SetRollersSpeed(rollersMid, Speed);
-			SetRollersSpeed(rollersHigh, Speed);
+			SetRollersSpeed(rollersLow, RollerAngularSpeed);
+			SetRollersSpeed(rollersMid, RollerAngularSpeed);
+			SetRollersSpeed(rollersHigh, RollerAngularSpeed);
 
 			if (enableComms && running && readSuccessful)
 			{
