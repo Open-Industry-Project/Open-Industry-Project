@@ -145,10 +145,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		ends = GetNode<Node3D>("Ends");
 
 		SetCurrentScale();
-
-		SetRollersSpeed(rollersLow, RollerAngularSpeed);
-		SetRollersSpeed(rollersMid, RollerAngularSpeed);
-		SetRollersSpeed(rollersHigh, RollerAngularSpeed);
+		SetAllRollersSpeed();
 	}
 
     public override void _EnterTree()
@@ -209,9 +206,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 		if (running)
 		{
-			SetRollersSpeed(rollersLow, RollerAngularSpeed);
-			SetRollersSpeed(rollersMid, RollerAngularSpeed);
-			SetRollersSpeed(rollersHigh, RollerAngularSpeed);
+			SetAllRollersSpeed();
 
 			if (enableComms && running && readSuccessful)
 			{
@@ -243,7 +238,15 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		}
 	}
 
-	void SetRollersSpeed(Node3D rollers, float speed)
+	private void SetAllRollersSpeed()
+	{
+		float speed = RollerAngularSpeed;
+		SetRollersSpeed(rollersLow, speed);
+		SetRollersSpeed(rollersMid, speed);
+		SetRollersSpeed(rollersHigh, speed);
+	}
+
+	private void SetRollersSpeed(Node3D rollers, float speed)
 	{
 		if (rollers != null)
 		{
