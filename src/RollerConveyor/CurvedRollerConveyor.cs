@@ -51,7 +51,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			const float ROLLER_OUTER_END_RADIUS = 0.12f;
 
 			const float BASE_ROLLER_LENGTH = BASE_CONVEYOR_WIDTH;
-			float referencePointAlongRoller = CURVE_BASE_OUTER_RADIUS - ReferenceDistance / Scale.X;
+			float referencePointAlongRoller = BASE_ROLLER_LENGTH - ReferenceDistance / Scale.X;
 			float rollerRadiusAtReferencePoint = ROLLER_INNER_END_RADIUS + referencePointAlongRoller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH;
 			return rollerRadiusAtReferencePoint == 0f ? 0f : Speed / rollerRadiusAtReferencePoint;
 		}
