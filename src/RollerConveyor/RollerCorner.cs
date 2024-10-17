@@ -8,7 +8,6 @@ public partial class RollerCorner : Node3D
 	private float uvSpeed = 0f;
 
 	MeshInstance3D meshInstance;
-	StandardMaterial3D material;
 	StaticBody3D staticBody;
 	CollisionShape3D collisionShape;
 	CurvedRollerConveyor owner;
@@ -17,7 +16,6 @@ public partial class RollerCorner : Node3D
 	public override void _Ready()
 	{
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
-		material = meshInstance.Mesh.SurfaceGetMaterial(0) as StandardMaterial3D;
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
 		collisionShape = GetNode<CollisionShape3D>("StaticBody3D/CollisionShape3D");
 		owner = Owner as CurvedRollerConveyor;
@@ -30,11 +28,6 @@ public partial class RollerCorner : Node3D
 		if (Main == null)
 		{
 			return;
-		}
-
-		if (Main.simulationRunning)
-		{
-			material.Uv1Offset += new Vector3(uvSpeed * (float)delta, 0, 0);
 		}
 	}
 
@@ -51,5 +44,15 @@ public partial class RollerCorner : Node3D
 	{
 		angularSpeed = new_speed;
 		uvSpeed = angularSpeed / (2.0f * Mathf.Pi);
+	}
+
+	public Material GetMaterial()
+	{
+		return meshInstance.Mesh.SurfaceGetMaterial(0);
+	}
+
+	public void SetOverrideMaterial(Material material)
+	{
+		meshInstance.SetSurfaceOverrideMaterial(0, material);
 	}
 }

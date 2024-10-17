@@ -105,6 +105,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	Node3D rollersLow;
 	Node3D rollersMid;
 	Node3D rollersHigh;
+	StandardMaterial3D rollerMaterial;
 
 	Node3D ends;
 
@@ -141,6 +142,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		rollersLow = GetNode<Node3D>("RollersLow");
 		rollersMid = GetNode<Node3D>("RollersMid");
 		rollersHigh = GetNode<Node3D>("RollersHigh");
+		rollerMaterial = TakeoverRollerMaterial();
 
 		ends = GetNode<Node3D>("Ends");
 
@@ -185,6 +187,14 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		// ReferenceDistance's PropertyHint depends on Scale.X
 		if (prevScaleX != Scale.X) {
 			NotifyPropertyListChanged();
+		}
+
+		if (running)
+		{
+			float uvSpeed = RollerAngularSpeed / (2f*Mathf.Pi);
+			Vector3 uvOffset = rollerMaterial.Uv1Offset;
+			uvOffset.X = (uvOffset.X % 1f + uvSpeed * (float)delta) % 1f;
+			rollerMaterial.Uv1Offset = uvOffset;
 		}
     }
 
@@ -236,6 +246,19 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		{
 			CurrentScale = Scales.High;
 		}
+	}
+
+	private StandardMaterial3D TakeoverRollerMaterial()
+	{
+		StandardMaterial3D dupMaterial = rollersLow.GetChild<RollerCorner>(0).GetMaterial().Duplicate() as StandardMaterial3D;
+        foreach (Node3D rollers in (Span<Node3D>)([rollersLow, rollersMid, rollersHigh]))
+		{
+			foreach(RollerCorner roller in rollers.GetChildren())
+			{
+				roller.SetOverrideMaterial(dupMaterial);
+			}
+		}
+		return dupMaterial;
 	}
 
 	private void SetAllRollersSpeed()
