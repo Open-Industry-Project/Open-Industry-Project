@@ -7,7 +7,7 @@ public partial class RollerCorner : Node3D
 	private float angularSpeed = 0f;
 
 	MeshInstance3D meshInstance;
-	RigidBody3D rigidBody;
+	StaticBody3D staticBody;
 	CollisionShape3D collisionShape;
 	CurvedRollerConveyor owner;
 	Root Main;
@@ -15,8 +15,8 @@ public partial class RollerCorner : Node3D
 	public override void _Ready()
 	{
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
-		rigidBody = GetNode<RigidBody3D>("RigidBody3D");
-		collisionShape = GetNode<CollisionShape3D>("RigidBody3D/CollisionShape3D");
+		staticBody = GetNode<StaticBody3D>("StaticBody3D");
+		collisionShape = GetNode<CollisionShape3D>("StaticBody3D/CollisionShape3D");
 		owner = Owner as CurvedRollerConveyor;
 	}
 
@@ -41,20 +41,11 @@ public partial class RollerCorner : Node3D
 			Scale = new Vector3(1 / owner.Scale.X, 1, 1);
 
 		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
-		rigidBody.AngularVelocity = localFront * angularSpeed;
-
-		rigidBody.Position = Vector3.Zero;
-		rigidBody.Rotation = Vector3.Zero;
-		rigidBody.Scale = new Vector3(1, 1, 1);
+		staticBody.ConstantAngularVelocity = localFront * angularSpeed;
 	}
 
 	public void SetSpeed(float new_speed)
 	{
 		angularSpeed = new_speed;
-	}
-
-	public void SetActive(bool active)
-	{
-		collisionShape.SetDeferred("disabled", !active);
 	}
 }
