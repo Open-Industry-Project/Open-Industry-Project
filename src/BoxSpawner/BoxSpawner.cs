@@ -5,7 +5,21 @@ public partial class BoxSpawner : Node3D
 {
 	[Export]
 	PackedScene scene;
-	[Export]
+    private bool _disable = false;
+    [Export]
+    public bool Disable
+    {
+        get => _disable;
+        set
+        {
+            _disable = value;
+            if (!_disable)
+            {
+                scan_interval = spawnInterval;
+            }
+        }
+    }
+    [Export]
 	public bool SpawnRandomScale = false;
 	[Export]
 	public Vector2 spawnRandomSize = new(0.5f, 1f);
@@ -45,7 +59,7 @@ public partial class BoxSpawner : Node3D
 
     public override void _Process(double delta)
 	{
-		if (Main == null) return;
+		if (Main == null || Disable) return;
 		
 		scan_interval += (float)delta;
 		if (scan_interval > spawnInterval)
