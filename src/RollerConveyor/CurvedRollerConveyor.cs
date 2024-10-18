@@ -51,7 +51,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			const float ROLLER_OUTER_END_RADIUS = 0.12f;
 
 			const float BASE_ROLLER_LENGTH = BASE_CONVEYOR_WIDTH;
-			float referencePointAlongRoller = CURVE_BASE_OUTER_RADIUS - ReferenceDistance / Scale.X;
+			float referencePointAlongRoller = BASE_ROLLER_LENGTH - ReferenceDistance / Scale.X;
 			float rollerRadiusAtReferencePoint = ROLLER_INNER_END_RADIUS + referencePointAlongRoller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH;
 			return rollerRadiusAtReferencePoint == 0f ? 0f : Speed / rollerRadiusAtReferencePoint;
 		}
@@ -105,6 +105,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	Node3D rollersLow;
 	Node3D rollersMid;
 	Node3D rollersHigh;
+	StandardMaterial3D rollerMaterial;
 
 	Node3D ends;
 
@@ -141,14 +142,12 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		rollersLow = GetNode<Node3D>("RollersLow");
 		rollersMid = GetNode<Node3D>("RollersMid");
 		rollersHigh = GetNode<Node3D>("RollersHigh");
+		rollerMaterial = TakeoverRollerMaterial();
 
 		ends = GetNode<Node3D>("Ends");
 
 		SetCurrentScale();
-
-		SetRollersSpeed(rollersLow, RollerAngularSpeed);
-		SetRollersSpeed(rollersMid, RollerAngularSpeed);
-		SetRollersSpeed(rollersHigh, RollerAngularSpeed);
+		SetAllRollersSpeed();
 	}
 
     public override void _EnterTree()
@@ -189,6 +188,14 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		if (prevScaleX != Scale.X) {
 			NotifyPropertyListChanged();
 		}
+
+		if (running)
+		{
+			float uvSpeed = RollerAngularSpeed / (2f*Mathf.Pi);
+			Vector3 uvOffset = rollerMaterial.Uv1Offset;
+			uvOffset.X = (uvOffset.X % 1f + uvSpeed * (float)delta) % 1f;
+			rollerMaterial.Uv1Offset = uvOffset;
+		}
     }
 
     public override void _PhysicsProcess(double delta)
@@ -209,9 +216,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 		if (running)
 		{
-			SetRollersSpeed(rollersLow, RollerAngularSpeed);
-			SetRollersSpeed(rollersMid, RollerAngularSpeed);
-			SetRollersSpeed(rollersHigh, RollerAngularSpeed);
+			SetAllRollersSpeed();
 
 			if (enableComms && running && readSuccessful)
 			{
@@ -243,7 +248,28 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		}
 	}
 
-	void SetRollersSpeed(Node3D rollers, float speed)
+	private StandardMaterial3D TakeoverRollerMaterial()
+	{
+		StandardMaterial3D dupMaterial = rollersLow.GetChild<RollerCorner>(0).GetMaterial().Duplicate() as StandardMaterial3D;
+        foreach (Node3D rollers in (Span<Node3D>)([rollersLow, rollersMid, rollersHigh]))
+		{
+			foreach(RollerCorner roller in rollers.GetChildren())
+			{
+				roller.SetOverrideMaterial(dupMaterial);
+			}
+		}
+		return dupMaterial;
+	}
+
+	private void SetAllRollersSpeed()
+	{
+		float speed = RollerAngularSpeed;
+		SetRollersSpeed(rollersLow, speed);
+		SetRollersSpeed(rollersMid, speed);
+		SetRollersSpeed(rollersHigh, speed);
+	}
+
+	private void SetRollersSpeed(Node3D rollers, float speed)
 	{
 		if (rollers != null)
 		{
