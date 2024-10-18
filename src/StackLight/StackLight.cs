@@ -255,7 +255,8 @@ public partial class StackLight : Node3D
 		{
 			Node3D segment = segmentScene.Instantiate() as Node3D;
 			segmentsContainer.AddChild(segment, forceReadableName: true);
-			segment.Position = new Vector3(0, segmentInitialYPos + (step * segment.GetIndex()), 0);
+            segment.Owner = this;
+            segment.Position = new Vector3(0, segmentInitialYPos + (step * segment.GetIndex()), 0);
 		}
 	}
 
