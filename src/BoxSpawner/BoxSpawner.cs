@@ -30,6 +30,11 @@ public partial class BoxSpawner : Node3D
 
 	Root Main;
 
+    public override void _Ready()
+    {
+        SetProcess(Main.simulationRunning);
+    }
+
     public override void _EnterTree()
     {
         scan_interval = spawnInterval;
@@ -40,7 +45,6 @@ public partial class BoxSpawner : Node3D
         {
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
-            SetProcess(Main.simulationRunning);
         }
     }
 
