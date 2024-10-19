@@ -54,11 +54,38 @@ public partial class Box : Node3D
         }
     }
 
+    public override void _Process(double delta)
+    {
+        if (Main == null) return;
+
+        selected = Main.selectedNodes.Contains(this);
+
+		if (selected)
+		{
+			if (rigidBody.Freeze)
+			{
+				rigidBody.TopLevel = false;
+
+				if (rigidBody.Transform != Transform3D.Identity)
+				{
+					rigidBody.Transform = Transform3D.Identity;
+				}
+			}
+			else
+			{
+				rigidBody.TopLevel = true;
+
+				if (Transform != rigidBody.Transform)
+				{
+					Transform = rigidBody.Transform;
+				}
+			}
+		}
+    }
+
     public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null) return;
-
-		selected = Main.selectedNodes.Contains(this);
 
 		if (selected && Input.IsPhysicalKeyPressed(Key.G) && !Main.paused)
 		{
@@ -72,21 +99,6 @@ public partial class Box : Node3D
 		if (!Input.IsPhysicalKeyPressed(Key.G))
 		{
 			keyHeld = false;
-		}
-
-		if (rigidBody.Freeze)
-		{
-			rigidBody.TopLevel = false;
-			rigidBody.Position = Vector3.Zero;
-			rigidBody.Rotation = Vector3.Zero;
-			rigidBody.Scale = Vector3.One;
-		}
-		else
-		{
-			rigidBody.TopLevel = true;
-			Position = rigidBody.Position;
-			Rotation = rigidBody.Rotation;
-			Scale = rigidBody.Scale;
 		}
 	}
 	

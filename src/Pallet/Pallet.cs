@@ -54,43 +54,55 @@ public partial class Pallet : Node3D
         }
     }
 
-	public override void _PhysicsProcess(double delta)
-	{
-		if (Main == null) return;
+    public override void _Process(double delta)
+    {
+        if (Main == null) return;
 
-		selected = Main.selectedNodes.Contains(this);
+        selected = Main.selectedNodes.Contains(this);
 
-		if (selected && Input.IsPhysicalKeyPressed(Key.G) && !Main.paused)
-		{
-			if (!keyHeld)
-			{
-				keyHeld = true;
-				rigidBody.Freeze = !rigidBody.Freeze;
-			}
-		}
+        if (selected)
+        {
+            if (rigidBody.Freeze)
+            {
+                rigidBody.TopLevel = false;
 
-		if (!Input.IsPhysicalKeyPressed(Key.G))
-		{
-			keyHeld = false;
-		}
+                if (rigidBody.Transform != Transform3D.Identity)
+                {
+                    rigidBody.Transform = Transform3D.Identity;
+                }
+            }
+            else
+            {
+                rigidBody.TopLevel = true;
 
-		if (rigidBody.Freeze)
-		{
-			rigidBody.TopLevel = false;
-			rigidBody.Position = Vector3.Zero;
-			rigidBody.Rotation = Vector3.Zero;
-			rigidBody.Scale = Vector3.One;
-		}
-		else
-		{
-			rigidBody.TopLevel = true;
-			Position = rigidBody.Position;
-			Rotation = rigidBody.Rotation;
-			Scale = rigidBody.Scale;
-		}
-	}
-	
-	void OnSimulationStarted()
+                if (Transform != rigidBody.Transform)
+                {
+                    Transform = rigidBody.Transform;
+                }
+            }
+        }
+    }
+
+    public override void _PhysicsProcess(double delta)
+    {
+        if (Main == null) return;
+
+        if (selected && Input.IsPhysicalKeyPressed(Key.G) && !Main.paused)
+        {
+            if (!keyHeld)
+            {
+                keyHeld = true;
+                rigidBody.Freeze = !rigidBody.Freeze;
+            }
+        }
+
+        if (!Input.IsPhysicalKeyPressed(Key.G))
+        {
+            keyHeld = false;
+        }
+    }
+
+    void OnSimulationStarted()
 	{
 		if (Owner == null) return;
 		
