@@ -5,12 +5,31 @@ public partial class PalletSpawner : Node3D
 {
 	[Export]
 	PackedScene scene;
-	[Export]
+    private bool _disable = false;
+    [Export]
+    public bool Disable
+    {
+        get => _disable;
+        set
+        {
+            _disable = value;
+            if (!_disable)
+            {
+                scan_interval = spawnInterval;
+            }
+        }
+    }
+    [Export]
 	public float spawnInterval = 3f;
 
 	private float scan_interval = 0;
 
 	Root Main;
+
+    public override void _Ready()
+    {
+        SetProcess(Main.simulationRunning);
+    }
 
     public override void _EnterTree()
     {
@@ -22,7 +41,6 @@ public partial class PalletSpawner : Node3D
         {
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
-            SetProcess(Main.simulationRunning);
         }
     }
 
@@ -37,7 +55,7 @@ public partial class PalletSpawner : Node3D
 
     public override void _Process(double delta)
 	{
-		if (Main == null) return;
+		if (Main == null || Disable) return;
 
 		scan_interval += (float)delta;
 		if (scan_interval > spawnInterval)
