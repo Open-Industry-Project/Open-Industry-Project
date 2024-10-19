@@ -166,7 +166,7 @@ public partial class ChainTransferBase : Node3D
 		EnsureValidNodeReferences();
 		if (IsInsideTree())
 		{
-			Tween tween = GetTree().CreateTween().SetEase(0).SetParallel(); // Set EaseIn
+			Tween tween = CreateTween().SetEase(0).SetParallel(); // Set EaseIn
 			tween.TweenProperty(containerBody, "position", new Vector3(containerBody.Position.X, inactivePos, containerBody.Position.Z), 0.15f);
 			tween.TweenProperty(container, "position", new Vector3(container.Position.X, inactivePos, container.Position.Z), 0.15f);
 			tween.TweenProperty(chain, "position", new Vector3(chain.Position.X, inactivePos, chain.Position.Z), 0.15f);
