@@ -100,7 +100,10 @@ public partial class ChainTransfer : Node3D
 
 	Vector3 prevScale;
 
-	public Root Main { get; set; }
+    bool keyHeld = false;
+    bool keyPressed = false;
+
+    public Root Main { get; set; }
 
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
@@ -153,6 +156,33 @@ public partial class ChainTransfer : Node3D
 
 	public override void _PhysicsProcess(double delta)
 	{
+
+        if (Main != null)
+        {
+            if (Main.selectedNodes != null)
+            {
+                bool selected = Main.selectedNodes.Contains(this);
+                if (selected && Input.IsPhysicalKeyPressed(Key.G))
+                {
+                    keyPressed = true;
+                    if (!keyHeld)
+                    {
+                        keyHeld = true;
+						popupChains = !popupChains;
+                    }
+                }
+            }
+        }
+
+        if (!Input.IsPhysicalKeyPressed(Key.G))
+        {
+            keyHeld = false;
+            if (keyPressed)
+            {
+                keyPressed = false;
+            }
+        }
+
         SetChainsPopupChains(popupChains);
         
 		if (running)
