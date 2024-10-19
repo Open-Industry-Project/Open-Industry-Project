@@ -79,12 +79,6 @@ public partial class Diverter : Node3D
 
     public override void _PhysicsProcess(double delta)
 	{
-		if (!running)
-		{
-			FireDivert = false;
-			return;
-		}
-
 		if (Main != null)
 		{
 			if (Main.selectedNodes != null)
@@ -129,7 +123,7 @@ public partial class Diverter : Node3D
 
 		previousFireDivertState = FireDivert;
 
-		if (enableComms && readSuccessful)
+		if (enableComms && readSuccessful && running)
 		{
 			scan_interval += delta;
 			if (scan_interval > (float)updateRate / 1000 && readSuccessful)

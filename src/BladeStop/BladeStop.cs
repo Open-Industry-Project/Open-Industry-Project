@@ -118,58 +118,49 @@ public partial class BladeStop : Node3D
 
     public override void _PhysicsProcess(double delta)
 	{
-		if (!running)
-		{
-			Active = false;
-			return;
-		}
+        if (Main != null)
+        {
+            if (Main.selectedNodes != null)
+            {
+                bool selected = Main.selectedNodes.Contains(this);
+                if (selected && Input.IsPhysicalKeyPressed(Key.G))
+                {
+                    keyPressed = true;
+                    if (!keyHeld)
+                    {
+                        keyHeld = true;
+                        Active = !Active;
+                    }
+                }
+            }
+        }
 
-		if (running)
-		{
-			if (Main != null)
-			{
-				if(Main.selectedNodes != null)
-				{
-					bool selected = Main.selectedNodes.Contains(this);
-					if (selected && Input.IsPhysicalKeyPressed(Key.G))
-					{
-						keyPressed = true;
-						if (!keyHeld)
-						{
-							keyHeld = true;
-							Active = !Active;
-						}
-					}
-				}
-			}
+        if (blade != null && bladeCornerR != null && bladeCornerL != null)
+        {
+            if (active) Up();
+            else Down();
+        }
 
-			if (blade != null && bladeCornerR != null && bladeCornerL != null)
-			{
-				if (active) Up();
-				else Down();
-			}
+        if (!Input.IsPhysicalKeyPressed(Key.G))
+        {
+            keyHeld = false;
+            if (keyPressed)
+            {
+                keyPressed = false;
+            }
+        }
 
-			if (!Input.IsPhysicalKeyPressed(Key.G))
-			{
-				keyHeld = false;
-				if (keyPressed)
-				{
-					keyPressed = false;
-				}
-			}
-			
-			if (EnableComms && readSuccessful)
-			{
-				scan_interval += delta;
-				if (scan_interval > (float)updateRate/1000 && readSuccessful)
-				{
-					scan_interval = 0;
-					Task.Run(ScanTag);
-				}
-			}
-		}
-		
-		Scale = new Vector3(1, 1, Scale.Z);
+        if (EnableComms && readSuccessful && running)
+        {
+            scan_interval += delta;
+            if (scan_interval > (float)updateRate / 1000 && readSuccessful)
+            {
+                scan_interval = 0;
+                Task.Run(ScanTag);
+            }
+        }
+
+        Scale = new Vector3(1, 1, Scale.Z);
 		foreach(Node3D child in corners.GetChildren())
 		{
 			child.Scale = new Vector3(1, 1, 1 / Scale.Z);

@@ -153,17 +153,10 @@ public partial class ChainTransfer : Node3D
 
 	public override void _PhysicsProcess(double delta)
 	{
-
-
-		if(!running)
-		{
-			popupChains = false;
-			return;
-		}
-
+        SetChainsPopupChains(popupChains);
+        
 		if (running)
 		{
-			SetChainsPopupChains(popupChains);
 			SetChainsSpeed(speed);
 
 			if (EnableComms && readSuccessful)
