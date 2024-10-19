@@ -28,7 +28,10 @@ public partial class PalletSpawner : Node3D
 
     public override void _Ready()
     {
-        SetProcess(Main.simulationRunning);
+        if (Main != null)
+        {
+            SetProcess(Main.simulationRunning);
+        }
     }
 
     public override void _EnterTree()
