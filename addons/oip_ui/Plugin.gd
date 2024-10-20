@@ -15,6 +15,9 @@ var _toggle_view: HBoxContainer
 
 const ICON: Texture2D = preload("res://assets/png/OIP-LOGO-RGB_ICON.svg")
 
+# EditorNode
+var _editor_node: Node
+
 # Menu buttons: top-left
 var _menu_bar: MenuBar
 var _project_popup_menu: PopupMenu
@@ -55,39 +58,42 @@ var _godot_version: VBoxContainer
 var _create_root_vbox: VBoxContainer
 var _scene_tabs: TabBar
 
-func _process(delta):
+func _scene_changed():
 	var root = get_tree().edited_scene_root
 
 	if(root != null && root.has_signal("SimulationStarted")):
 		_run_bar._enable_buttons()
 	else:
 		_run_bar._disable_buttons()
-		
 
 func _enter_tree() -> void:
+	_editor_node = get_tree().root.get_child(0)
+	
 	if(EditorInterface.has_method("mark_scene_as_saved")):
-		get_tree().root.get_child(0).connect("editor_layout_loaded", _editor_layout_loaded)
+		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
 		
-	_menu_bar = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0)
-	_project_popup_menu = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
-	_editor_popup_menu = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0).get_child(3)
-	_help_popup_menu = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(0).get_child(4)
+	_editor_node.connect("scene_changed",_scene_changed)
+		
+	_menu_bar = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0)
+	_project_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
+	_editor_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(3)
+	_help_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(4)
 
-	_title_bar = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0)
-	_center_buttons = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(2)
-	_editor_run_bar_container = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(4)
-	_renderer_selection = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(0).get_child(5)
+	_title_bar = _editor_node.get_child(4).get_child(0).get_child(0)
+	_center_buttons = _editor_node.get_child(4).get_child(0).get_child(0).get_child(2)
+	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
+	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
 
-	_separator = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0).get_child(14)
-	_camera_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0).get_child(15)
+	_separator = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0).get_child(14)
+	_camera_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0).get_child(15)
 
-	_debugger_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(1)
-	_audio_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(3)
-	_animation_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(4)
-	_shader_editor_button = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(7)
+	_debugger_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(1)
+	_audio_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(3)
+	_animation_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(4)
+	_shader_editor_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(7)
 
-	_create_root_vbox = get_tree().root.get_child(0).find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
-	_scene_tabs = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
+	_create_root_vbox = _editor_node.find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
+	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
 
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 
