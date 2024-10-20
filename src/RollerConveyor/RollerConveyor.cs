@@ -95,13 +95,17 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		rollers = GetNodeOrNull<Rollers>("Rollers");
 		ends = GetNodeOrNull<Node3D>("Ends");
 
-		SetRollersSpeed();
 		SetRollersRotation();
+
+		if (main != null && main.simulationRunning)
+		{
+            SetRollersSpeed();
+        }
     }
 
 	public override void _EnterTree()
 	{
-        rollerMaterial = (StandardMaterial3D)GD.Load("res://assets/3DModels/Materials/Metall2.tres").Duplicate(true);
+		rollerMaterial ??= (StandardMaterial3D)GD.Load("res://assets/3DModels/Materials/Metall2.tres").Duplicate(true);
         
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
@@ -110,11 +114,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			Main.SimulationStarted += OnSimulationStarted;
 			Main.SimulationEnded += OnSimulationEnded;
 
-			if (Main.simulationRunning)
-			{
-				running = true;
-			}
-		}
+            running = Main.simulationRunning;
+        }
 	}
 
 	public override void _ExitTree()
@@ -176,7 +177,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		{
 			foreach (Roller roller in rollers.GetChildren())
 			{
-				roller.Speed = Speed;
+				roller.SetSpeed(Speed);
 			}
 		}
 

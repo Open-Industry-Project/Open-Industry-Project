@@ -14,9 +14,9 @@ public partial class Rollers : Node3D
 
 	public void ChangeScale(float scale)
 	{
-		AddOrRemoveRollers(scale);
-		RescaleInverse(scale);
-	}
+        AddOrRemoveRollers(scale);
+        RescaleInverse(scale);
+    }
 
 	public void AddOrRemoveRollers(float conveyorLength)
 	{
@@ -62,10 +62,10 @@ public partial class Rollers : Node3D
 	{
 		if (GetParent() == null || owner == null) return;
 		Roller roller = rollerScene.Instantiate() as Roller;
-		AddChild(roller, forceReadableName: true);
+		AddChild(roller);
 		roller.Owner = foreign ? owner : GetTree().GetEditedSceneRoot();
 		roller.Position = new Vector3(rollersDistance * GetChildCount(), 0, 0);
-		roller.Speed = owner.Speed;
+		roller.SetSpeed(owner.Speed);
 		roller.RotationDegrees = new Vector3(roller.RotationDegrees.X, owner.SkewAngle, roller.RotationDegrees.Z);
 		FixRollers();
 	}

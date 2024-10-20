@@ -34,7 +34,7 @@ public partial class RollerConveyorEnd : Node3D
 	
 	public void SetSpeed(float speed)
 	{
-		roller.Speed = speed;
+		roller.SetSpeed(speed);
     }
 	
 	public void RotateRoller(Vector3 angle)
