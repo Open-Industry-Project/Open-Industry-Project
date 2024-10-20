@@ -121,7 +121,6 @@ process_mode = 3
 top_level = true
 script = ExtResource("1_qlesu")
 metadata/_edit_group_ = true
-metadata/Spawned = true
 
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
 process_mode = 3
