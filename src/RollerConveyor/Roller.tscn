@@ -18,7 +18,6 @@ metadata/_edit_group_ = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = ExtResource("1_wf4wt")
-skeleton = NodePath("")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 collision_layer = 2

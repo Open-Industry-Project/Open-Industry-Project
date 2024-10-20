@@ -1,5 +1,4 @@
 using Godot;
-using System;
 
 [Tool]
 public partial class Roller : Node3D
@@ -10,16 +9,14 @@ public partial class Roller : Node3D
 		get { return _speed; }
 		set { _speed = value; }
 	}
-	MeshInstance3D meshInstance;
+    MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
-	StandardMaterial3D material;
 	Root Main;
 	bool running = false;
-	// TODO calculate from collision shape and model
-	const float radius = 0.12f;
-	const float circumference = 2f * MathF.PI * radius;
 
-	public override void _EnterTree()
+    const float radius = 0.12f;
+
+    public override void _EnterTree()
 	{
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
@@ -43,9 +40,17 @@ public partial class Roller : Node3D
 	{
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
-		material = meshInstance.Mesh.SurfaceGetMaterial(0) as StandardMaterial3D;
 
-		if (Main != null && Main.simulationRunning)
+		RollerConveyor rollerConveyor = GetParent().GetParent() as RollerConveyor ?? GetParent().GetParent().GetParent() as RollerConveyor;
+
+        if (rollerConveyor != null)
+		{
+            StandardMaterial3D material = rollerConveyor.rollerMaterial;
+
+            meshInstance.SetSurfaceOverrideMaterial(0, material);
+        }
+
+        if (Main != null && Main.simulationRunning)
 		{
 			OnSimulationStarted();
 		}
@@ -55,8 +60,6 @@ public partial class Roller : Node3D
 	{
 		if (running)
 		{
-			// Factor of four is probably for the four faces of the roller.
-			material.Uv1Offset += new Vector3(4f * Speed / circumference * (float)delta, 0, 0);
 			Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
 			staticBody.ConstantAngularVelocity = -localFront * Speed / radius;
 		}
