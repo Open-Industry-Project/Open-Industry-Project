@@ -188,6 +188,7 @@ func _create_new_simulation():
 	script.add_root_node(scene)
 	get_tree().edited_scene_root.add_child(building)
 	building.owner = scene
+	_run_bar._enable_buttons()
 
 func _remove_new_simulation():
 	var script = EditorScript.new()
