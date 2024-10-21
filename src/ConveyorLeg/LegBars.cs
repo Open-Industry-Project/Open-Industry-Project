@@ -35,8 +35,10 @@ public partial class LegBars : Node3D
 	}
 	
 	ConveyorLeg owner;
-	
-	public override void _Ready()
+
+    Vector3 prevScale;
+
+    public override void _Ready()
 	{
 		owner = Owner as ConveyorLeg;
 		FixBars();
@@ -48,11 +50,15 @@ public partial class LegBars : Node3D
     {
         if (owner != null)
         {
+            if (owner.Scale == prevScale) return;
+            
 			Vector3 newScale = new(1 / owner.Scale.X, 1 / owner.Scale.Y, 1);
 			if(Scale != newScale)
 			{
                 Scale = new Vector3(1 / owner.Scale.X, 1 / owner.Scale.Y, 1);
             }
+
+            prevScale = owner.Scale;
         }
     }
 
