@@ -41,8 +41,6 @@ public partial class ConveyorLeg : Node3D
 
 		legsSidesMesh1 = GetNode<MeshInstance3D>("Sides/LegsSide1");
 		legsSidesMesh2 = GetNode<MeshInstance3D>("Sides/LegsSide2");
-		legsSidesMesh1.Mesh = legsSidesMesh1.Mesh.Duplicate() as Mesh;
-		legsSidesMesh2.Mesh = legsSidesMesh1.Mesh;
 		legsSidesMaterial = legsSidesMesh1.Mesh.SurfaceGetMaterial(0) as ShaderMaterial;
 		legsSidesMesh1.Mesh.SurfaceSetMaterial(0, legsSidesMaterial);
 		legsBars = GetNode<LegBars>("LegsBars");
