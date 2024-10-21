@@ -263,6 +263,7 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("3_k3wlu")]
 transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_4whp8")
+Length = 4.0
 
 [node name="RightSide" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
@@ -270,6 +271,7 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
 [node name="AutoSideGuard1" parent="RightSide" instance=ExtResource("3_k3wlu")]
 transform = Transform3D(-4, 0, -8.74228e-08, 0, 1, 0, 3.49691e-07, 0, -1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_5xd6x")
+Length = 4.0
 
 [node name="LegStands" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
