@@ -44,6 +44,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	float nodeScaleX = 1.0f;
 	float nodeScaleZ = 1.0f;
 	float lastScale = 0.0f;
+	Transform3D xformPrev = Transform3D.Identity;
 
     const float radius = 0.12f;
     const float circumference = 2f * MathF.PI * radius;
@@ -129,23 +130,29 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 	public override void _Process(double delta)
 	{
-		if (Scale.X >= 1.0f)
-			nodeScaleX = Scale.X;
+		if (Transform != xformPrev) {
+			Basis newBasis;
+			// Ensure we're working with positive basis vectors.
+			// Fall back to the previous basis if necessary.
+			if (Scale.X <= 0 || Scale.Y <= 0 || Scale.Z <= 0)
+			{
+				newBasis = xformPrev.Basis;
+			} else {
+				newBasis = Transform.Basis;
+			}
+			newBasis.X = Mathf.Max(1.0f, Mathf.Abs(Scale.X)) * newBasis.X.Normalized();
+			newBasis.Y = newBasis.Y.Normalized();
+			newBasis.Z = Mathf.Max(0.1f, Mathf.Abs(Scale.Z)) * newBasis.Z.Normalized();
+			Transform = new Transform3D(newBasis, Transform.Origin);
+			xformPrev = Transform;
 
-		nodeScaleZ = Scale.Z;
-
-		Vector3 newScale = new(nodeScaleX, 1, nodeScaleZ);
-		if (Scale != newScale)
-		{
-			Scale = new Vector3(nodeScaleX, 1, nodeScaleZ);
+			if (rollers != null && lastScale != Scale.X)
+			{
+				rollers.ChangeScale(Scale.X);
+				lastScale = Scale.X;
+			}
 		}
-
-        if (rollers != null && lastScale != Scale.X)
-        {
-            rollers.ChangeScale(Scale.X);
-            lastScale = Scale.X;
-        }
-    }
+	}
 
 	public override void _PhysicsProcess(double delta)
 	{        
