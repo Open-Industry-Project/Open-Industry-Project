@@ -33,33 +33,63 @@ public partial class SideGuard : MeshInstance3D
 				rEnd.Visible = value;
 		}
 	}
+	float _length = 1f;
+	[Export]
+	float Length {
+		get
+		{
+			return _length;
+		}
+		set
+		{
+			_length = value;
+			if (_length != 0)
+			{
+				if (Scale.X != _length) Scale = new (_length, Scale.Y, Scale.Z);
+				metalMaterial?.SetShaderParameter("Scale", _length);
+				lEnd.Scale = new Vector3(1 / _length, 1, 1);
+				rEnd.Scale = new Vector3(1 / _length, 1, 1);
+			}
+		}
+	}
 
-	MeshInstance3D meshInstance;
-	ShaderMaterial metalMaterial;
+	ShaderMaterial _metalMaterial;
+	ShaderMaterial metalMaterial {
+		get
+		{
+			if (_metalMaterial != null) return _metalMaterial;
+			var meshInstance = this;
+			meshInstance.Mesh = meshInstance.Mesh.Duplicate() as Mesh;
+			_metalMaterial = meshInstance.Mesh.SurfaceGetMaterial(0).Duplicate() as ShaderMaterial;
+			meshInstance.Mesh.SurfaceSetMaterial(0, _metalMaterial);
+			return _metalMaterial;
+		}
+	}
 
-	Node3D lEnd;
-	Node3D rEnd;
+	Node3D _lEnd;
+	Node3D lEnd { get => _lEnd ??= GetNodeOrNull<Node3D>("Ends/SideGuardEndL"); }
+	Node3D _rEnd;
+	Node3D rEnd { get => _rEnd ??= GetNodeOrNull<Node3D>("Ends/SideGuardEndR"); }
+
+	public override void _EnterTree()
+	{
+		Length = Scale.X;
+		SetNotifyLocalTransform(true);
+		base._EnterTree();
+	}
 
 	public override void _Ready()
 	{
-		meshInstance = this;
-		meshInstance.Mesh = meshInstance.Mesh.Duplicate() as Mesh;
-		metalMaterial = meshInstance.Mesh.SurfaceGetMaterial(0).Duplicate() as ShaderMaterial;
-		meshInstance.Mesh.SurfaceSetMaterial(0, metalMaterial);
-
-		lEnd = GetNodeOrNull<Node3D>("Ends/SideGuardEndL");
-		rEnd = GetNodeOrNull<Node3D>("Ends/SideGuardEndR");
-
-		lEnd.Visible = leftEnd;
-		rEnd.Visible = rightEnd;
+		// Make sure material is initialized.
+		_ = metalMaterial;
 	}
 
-	public override void _Process(double delta)
+	public override void _Notification(int what)
 	{
-		if (metalMaterial != null)
-			metalMaterial.SetShaderParameter("Scale", Scale.X);
-
-		lEnd.Scale = new Vector3(1 / Scale.X, 1, 1);
-		rEnd.Scale = new Vector3(1 / Scale.X, 1, 1);
+		if (what == NotificationLocalTransformChanged)
+		{
+			Length = Scale.X;
+		}
+		base._Notification(what);
 	}
 }
