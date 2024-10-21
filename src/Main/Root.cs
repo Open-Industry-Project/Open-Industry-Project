@@ -22,6 +22,11 @@ public partial class Root : Node3D
 	public bool simulationRunning = false;
 
 	private bool _start = false;
+
+	private bool keyHeld = false;
+
+	private bool use = false;
+
 	public bool Start
 	{
 		get
@@ -35,7 +40,6 @@ public partial class Root : Node3D
 			if (_start)
 			{
 				PhysicsServer3D.SetActive(true);
-
 				EmitSignal(SignalName.SimulationStarted);
 				simulationRunning = true;
 			}
@@ -94,7 +98,7 @@ public partial class Root : Node3D
 
     public Session session;
 
-	public enum Protocols
+    public enum Protocols
 	{
 		opc_ua,
 		ab_eip,
@@ -472,20 +476,20 @@ public partial class Root : Node3D
 			i++;
 		}
 	}
-	
-	public override void _Ready()
-	{	
-		if (GetNodeOrNull("/root/SimulationEvents") != null)
-		{
-			var simulationEvents = GetNode("/root/SimulationEvents");
-			simulationEvents.Connect("simulation_started", new Callable(this, nameof(OnSimulationStarted)));
-			simulationEvents.Connect("simulation_set_paused", new Callable(this, nameof(OnSimulationSetPaused)));
-			simulationEvents.Connect("simulation_ended", new Callable(this, nameof(OnSimulationEnded)));
-		}
-	}
+
+    public override void _Ready()
+    {
+        if (GetNodeOrNull("/root/SimulationEvents") != null)
+        {
+            var simulationEvents = GetNode("/root/SimulationEvents");
+            simulationEvents.Connect("simulation_started", new Callable(this, nameof(OnSimulationStarted2)));
+            simulationEvents.Connect("simulation_set_paused", new Callable(this, nameof(OnSimulationSetPaused2)));
+            simulationEvents.Connect("simulation_ended", new Callable(this, nameof(OnSimulationEnded2)));
+        }
+    }
 
     public override void _EnterTree()
-    {
+    {        
 		EditorInterface.Singleton.GetSelection().SelectionChanged += OnSelectionChanged;
     }
 
@@ -497,9 +501,51 @@ public partial class Root : Node3D
 	public void OnSelectionChanged()
 	{
         selectedNodes = EditorInterface.Singleton.GetSelection().GetSelectedNodes();
+		SelectNodes();
     }
 	
-	void OnSimulationStarted()
+	void SelectNodes()
+	{
+        if (selectedNodes.Count > 0)
+        {
+            foreach (var node in selectedNodes)
+            {
+                if (node.HasMethod("Select"))
+                {
+                    node.Call("Select");
+                }
+
+                if (node.HasMethod("Use") && use)
+                {
+                    node.Call("Use");
+                }
+            } 
+        }
+    }
+
+    public override void _Process(double delta)
+    {
+		use = false;
+
+        if (Input.IsPhysicalKeyPressed(Key.G))
+        {
+            if (!keyHeld)
+            {
+				use = true;
+				keyHeld = true;
+            }
+        }
+
+        if (!Input.IsPhysicalKeyPressed(Key.G))
+        {
+            keyHeld = false;
+        }
+
+
+		CallDeferred(MethodName.SelectNodes);
+    }
+
+    void OnSimulationStarted2()
 	{
 		if (Protocol == Protocols.opc_ua && !string.IsNullOrEmpty(EndPoint))
 		{
@@ -517,7 +563,7 @@ public partial class Root : Node3D
 		Start = true;
 	}
 
-	void OnSimulationSetPaused(bool _paused)
+	void OnSimulationSetPaused2(bool _paused)
 	{
 		paused = _paused;
 		
@@ -533,7 +579,7 @@ public partial class Root : Node3D
 		EmitSignal(SignalName.SimulationSetPaused, paused);
 	}
 	
-	void OnSimulationEnded()
+	void OnSimulationEnded2()
 	{
 		Start = false;
 	}

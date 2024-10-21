@@ -6,8 +6,7 @@ public partial class Box : Node3D
 	RigidBody3D rigidBody;
 	Vector3 initialPos;
 	public bool instanced = false;
-	bool selected = false;
-	bool keyHeld = false;
+    private bool _paused = false;
 
 	Root Main;
 	public override void _Ready()
@@ -20,12 +19,7 @@ public partial class Box : Node3D
 
             if (Main.simulationRunning)
             {
-                SetPhysicsProcess(true);
                 instanced = true;
-            }
-            else
-            {
-                SetPhysicsProcess(false);
             }
         }
 	}
@@ -54,53 +48,33 @@ public partial class Box : Node3D
         }
     }
 
-    public override void _Process(double delta)
-    {
-        if (Main == null) return;
+	public void Select()
+	{
+        if (_paused) return;
+        if (rigidBody.Freeze)
+        {
+            rigidBody.TopLevel = false;
 
-        selected = Main.selectedNodes.Contains(this);
+            if (rigidBody.Transform != Transform3D.Identity)
+            {
+                rigidBody.Transform = Transform3D.Identity;
+            }
+        }
+        else
+        {
+            rigidBody.TopLevel = true;
 
-		if (selected)
-		{
-			if (rigidBody.Freeze)
-			{
-				rigidBody.TopLevel = false;
-
-				if (rigidBody.Transform != Transform3D.Identity)
-				{
-					rigidBody.Transform = Transform3D.Identity;
-				}
-			}
-			else
-			{
-				rigidBody.TopLevel = true;
-
-				if (Transform != rigidBody.Transform)
-				{
-					Transform = rigidBody.Transform;
-				}
-			}
-		}
+            if (Transform != rigidBody.Transform)
+            {
+                Transform = rigidBody.Transform;
+            }
+        }
     }
 
-    public override void _PhysicsProcess(double delta)
-	{
-		if (Main == null) return;
-
-		if (selected && Input.IsPhysicalKeyPressed(Key.G) && !Main.paused)
-		{
-			if (!keyHeld)
-			{
-				keyHeld = true;
-				rigidBody.Freeze = !rigidBody.Freeze;
-			}
-		}
-
-		if (!Input.IsPhysicalKeyPressed(Key.G))
-		{
-			keyHeld = false;
-		}
-	}
+    public void Use()
+    {
+		rigidBody.Freeze = !rigidBody.Freeze;
+    }
 	
 	void OnSimulationStarted()
 	{
@@ -109,7 +83,6 @@ public partial class Box : Node3D
 		initialPos = GlobalPosition;
 		rigidBody.TopLevel = true;
 		rigidBody.Freeze = false;
-		SetPhysicsProcess(true);
 	}
 	
 	void OnSimulationEnded()
@@ -123,7 +96,6 @@ public partial class Box : Node3D
 		}
 		else
 		{
-			SetPhysicsProcess(false);
 			rigidBody.TopLevel = false;
 			
 			rigidBody.Position = Vector3.Zero;
@@ -137,9 +109,13 @@ public partial class Box : Node3D
 			Rotation = Vector3.Zero;
 		}
 	}
-	
-	void OnSimulationSetPaused(bool paused)
-	{
-		rigidBody.Freeze = paused;
-	}
+
+    void OnSimulationSetPaused(bool paused)
+    {
+        _paused = paused;
+        rigidBody.TopLevel = true;
+        rigidBody.Freeze = paused;
+        Transform = rigidBody.Transform;
+        rigidBody.TopLevel = !paused;
+    }
 }
