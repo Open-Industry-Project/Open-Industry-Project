@@ -32,6 +32,8 @@ public partial class ConveyorLeg : Node3D
 	LegBars legsBars;
 	Node3D ends;
 
+	Vector3 prevScale;
+
 	public override void _Ready()
 	{
 		grab1 = GetNode<MeshInstance3D>("Ends/LegsTop1/LegsGrab1");
@@ -64,7 +66,9 @@ public partial class ConveyorLeg : Node3D
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (legsSidesMaterial != null)
+		if(Scale == prevScale) return;
+
+        if (legsSidesMaterial != null)
 			legsSidesMaterial.SetShaderParameter("Scale", Scale.Y);
 
 		if (legsBars != null && legsBars.ParentScale != Scale.Y)
@@ -83,5 +87,7 @@ public partial class ConveyorLeg : Node3D
 
 		grab1.Scale = Vector3.One;
 		grab2.Scale = Vector3.One;
-	}
+
+        prevScale = Scale;
+    }
 }
