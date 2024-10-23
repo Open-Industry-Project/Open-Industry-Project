@@ -7,6 +7,9 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 {
 	private bool enableComms;
 
+	[Signal]
+	public delegate void SetSpeedEventHandler(float speed);
+
 	[Export]
 	public bool EnableComms
 	{
@@ -25,6 +28,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	public int UpdateRate { get => updateRate; set => updateRate = value; }
 	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed { get; set; }
+
+	float prevSpeed = 0.0f;
 
 	float skewAngle = 0.0f;
 	[Export]
@@ -97,11 +102,6 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		ends = GetNodeOrNull<Node3D>("Ends");
 
 		SetRollersRotation();
-
-		if (main != null && main.simulationRunning)
-		{
-            SetRollersSpeed();
-        }
     }
 
 	public override void _EnterTree()
@@ -179,22 +179,10 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	}
 
 	void SetRollersSpeed()
-	{        
-		if (rollers != null)
-		{
-			foreach (Roller roller in rollers.GetChildren())
-			{
-				roller.SetSpeed(Speed);
-			}
-		}
+	{
+		if (Speed == prevSpeed) return;
 
-		if (ends != null)
-		{
-			foreach(RollerConveyorEnd end in ends.GetChildren())
-			{
-				end.SetSpeed(Speed);
-			}
-		}
+		EmitSignal(SignalName.SetSpeed, Speed);
 	}
 
 	void SetRollersRotation()

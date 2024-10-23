@@ -1,5 +1,4 @@
 using Godot;
-using System;
 
 [Tool]
 public partial class RollerConveyorEnd : Node3D
@@ -19,7 +18,6 @@ public partial class RollerConveyorEnd : Node3D
 		owner = Owner as Node3D;
     }
 
-
 	public override void _Process(double delta)
     {
         if (owner != null)
@@ -31,12 +29,7 @@ public partial class RollerConveyorEnd : Node3D
             }
         }
     }
-	
-	public void SetSpeed(float speed)
-	{
-		roller.SetSpeed(speed);
-    }
-	
+
 	public void RotateRoller(Vector3 angle)
 	{
 		roller.RotationDegrees = flipped ? angle + new Vector3(0, 180, 0) : angle;

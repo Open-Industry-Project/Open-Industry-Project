@@ -65,7 +65,6 @@ public partial class Rollers : Node3D
 		AddChild(roller);
 		roller.Owner = foreign ? owner : GetTree().GetEditedSceneRoot();
 		roller.Position = new Vector3(rollersDistance * GetChildCount(), 0, 0);
-		roller.SetSpeed(owner.Speed);
 		roller.RotationDegrees = new Vector3(roller.RotationDegrees.X, owner.SkewAngle, roller.RotationDegrees.Z);
 		FixRollers();
 	}
