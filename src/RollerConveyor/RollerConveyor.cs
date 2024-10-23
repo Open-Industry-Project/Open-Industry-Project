@@ -113,7 +113,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	public override void _EnterTree()
 	{
 		rollerMaterial ??= (StandardMaterial3D)GD.Load("res://assets/3DModels/Materials/Metall2.tres").Duplicate(true);
-        
+
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
         if (Main != null)
@@ -163,7 +163,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	}
 
 	public override void _PhysicsProcess(double delta)
-	{        
+	{
 		if (metalMaterial != null)
 			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
 
@@ -171,7 +171,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		if (running)
 		{
             rollerMaterial.Uv1Offset += new Vector3(4f * Speed / circumference * (float)delta, 0, 0);
-            
+
 			SetRollersSpeed();
 
 			if (enableComms && running && readSuccessful)

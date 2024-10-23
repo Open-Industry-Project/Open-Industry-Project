@@ -13,7 +13,7 @@ public partial class RollerConveyorEnd : Node3D
 	public override void _EnterTree()
 	{
 		roller = GetNode<Roller>("Roller");
-    }
+	}
 
 	public void SetLength(float length) {
 		Scale = new(1f / length, 1f, Scale.Z);
@@ -30,7 +30,7 @@ public partial class RollerConveyorEnd : Node3D
 		}
 		// Do we need to do some math here when the roller is at an angle?
 		roller.SetLength(width);
-    }
+	}
 
 	public void RotateRoller(Vector3 angle)
 	{
