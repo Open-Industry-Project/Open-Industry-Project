@@ -48,11 +48,12 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 	float nodeScaleX = 1.0f;
 	float nodeScaleZ = 1.0f;
-	float lastScale = 0.0f;
+	Vector3 lastScale = Vector3.One;
 	Transform3D xformPrev = Transform3D.Identity;
 
     const float radius = 0.12f;
     const float circumference = 2f * MathF.PI * radius;
+	const float baseWidth = 2f;
 
 	Material metalMaterial;
 	Rollers rollers;
@@ -103,6 +104,9 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		rollers = GetNodeOrNull<Rollers>("Rollers");
 		ends = GetNodeOrNull<Node3D>("Ends");
 
+		SetLength(Scale.X);
+		SetWidth(Scale.Z * baseWidth);
+
 		SetRollersRotation();
     }
 
@@ -119,6 +123,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
             running = Main.simulationRunning;
         }
+
+		SetNotifyLocalTransform(true);
 	}
 
 	public override void _ExitTree()
@@ -148,10 +154,10 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			Transform = new Transform3D(newBasis, Transform.Origin);
 			xformPrev = Transform;
 
-			if (rollers != null && lastScale != Scale.X)
+			if (rollers != null && lastScale != Scale)
 			{
-				rollers.ChangeScale(Scale.X);
-				lastScale = Scale.X;
+				rollers.ChangeScale(Scale);
+				lastScale = Scale;
 			}
 		}
 	}
@@ -180,6 +186,15 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		}
 	}
 
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
+		{
+			SetLength(Scale.X);
+			SetWidth(Scale.Z * 2f);
+		}
+	}
+
 	void SetRollersSpeed()
 	{
 		if (Speed == prevSpeed) return;
@@ -191,10 +206,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	{
 		if (rollers != null)
 		{
-			foreach (Roller roller in rollers.GetChildren())
-			{
-				roller.RotationDegrees = new Vector3(0, SkewAngle, 0);
-			}
+			rollers.SetRollerSkewAngle(SkewAngle);
 		}
 
 		if (ends != null)
@@ -203,6 +215,26 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			{
 				end.RotateRoller(new Vector3(end.RotationDegrees.X, SkewAngle, end.RotationDegrees.Z));
 			}
+		}
+	}
+
+	void SetLength(float length)
+	{
+		foreach(RollerConveyorEnd end in ends.GetChildren())
+		{
+			end.SetLength(length);
+		}
+	}
+
+	void SetWidth(float width)
+	{
+		var meshInstance1 = GetNode<Node3D>("ConvRoller/ConvRollerL");
+		var meshInstance2 = GetNode<Node3D>("ConvRoller/ConvRollerR");
+		meshInstance1.Scale = new Vector3(1f, 1f, baseWidth / width);
+		meshInstance2.Scale = new Vector3(1f, 1f, baseWidth / width);
+		foreach(RollerConveyorEnd end in ends.GetChildren())
+		{
+			end.SetWidth(width);
 		}
 	}
 
