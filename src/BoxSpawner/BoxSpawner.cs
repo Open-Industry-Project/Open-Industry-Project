@@ -95,7 +95,12 @@ public partial class BoxSpawner : Node3D
         AddChild(box, forceReadableName:true);
 		box.Owner = Main;
     }
-	
+
+	public void Use()
+	{
+		Disable = !Disable;
+	}
+
 	void OnSimulationStarted()
 	{
 		SetProcess(true);
