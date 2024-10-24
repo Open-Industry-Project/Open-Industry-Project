@@ -12,6 +12,33 @@ public partial class Roller : Node3D
 	const float baseLength = 2f;
 	const float baseCylinderLength = 0.935097f * 2f;
 
+	float speed = 0f;
+	Vector3 globalFront = Vector3.Zero;
+
+	public override void _EnterTree()
+	{
+		SetNotifyTransform(true);
+		UpdatePhysics();
+	}
+
+	public override void _ExitTree()
+	{
+		SetNotifyTransform(false);
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationTransformChanged) {
+			if (!IsInsideTree()) return;
+			Vector3 newGlobalFront = GlobalBasis.Z.Normalized();
+			if (globalFront != newGlobalFront)
+			{
+				globalFront = newGlobalFront;
+				UpdatePhysics();
+			}
+		}
+	}
+
 	private void EnsureNodeReferencesInitialized()
 	{
 		staticBody ??= GetNode<StaticBody3D>("StaticBody3D");
@@ -22,9 +49,15 @@ public partial class Roller : Node3D
 
 	public void SetSpeed(float speed)
 	{
+		this.speed = speed;
+		UpdatePhysics();
+	}
+
+	private void UpdatePhysics()
+	{
+		if (!IsInsideTree()) return;
 		EnsureNodeReferencesInitialized();
-		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
-		staticBody.ConstantAngularVelocity = -localFront * speed / radius;
+		staticBody.ConstantAngularVelocity = -globalFront * speed / radius;
 	}
 
 	public void SetLength(float length)
