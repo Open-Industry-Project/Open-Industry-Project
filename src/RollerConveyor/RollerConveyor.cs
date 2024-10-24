@@ -95,6 +95,11 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		}
 	}
 
+	public RollerConveyor()
+	{
+		SetNotifyLocalTransform(true);
+	}
+
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
 		string propertyName = property["name"].AsStringName();
@@ -107,17 +112,6 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 	public override void _EnterTree()
 	{
-		SetRollerOverrideMaterial((StandardMaterial3D)GD.Load("res://assets/3DModels/Materials/Metall2.tres").Duplicate(true));
-
-		rollers = GetNodeOrNull<Rollers>("Rollers");
-		ends = GetNodeOrNull<Node3D>("Ends");
-
-		SetupRollerContainer(rollers);
-		foreach (RollerConveyorEnd end in ends.GetChildren())
-		{
-			SetupRollerContainer(end);
-		}
-
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
         if (Main != null)
@@ -127,8 +121,6 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
             running = Main.simulationRunning;
         }
-
-		SetNotifyLocalTransform(true);
 	}
 
 	public override void _ExitTree()
@@ -137,11 +129,6 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		{
 			Main.SimulationStarted -= OnSimulationStarted;
 			Main.SimulationEnded -= OnSimulationEnded;
-		}
-		DisconnectRollerContainer(rollers);
-		foreach (RollerConveyorEnd end in ends.GetChildren())
-		{
-			DisconnectRollerContainer(end);
 		}
 	}
 
@@ -191,6 +178,24 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			UpdateScale();
 			UpdateWidth();
 			UpdateLength();
+		}
+		if (what == NotificationSceneInstantiated)
+		{
+			OnSceneInstantiated();
+		}
+	}
+
+	void OnSceneInstantiated()
+	{
+		SetRollerOverrideMaterial((StandardMaterial3D)GD.Load("res://assets/3DModels/Materials/Metall2.tres").Duplicate(true));
+
+		rollers = GetNodeOrNull<Rollers>("Rollers");
+		ends = GetNodeOrNull<Node3D>("Ends");
+
+		SetupRollerContainer(rollers);
+		foreach (RollerConveyorEnd end in ends.GetChildren())
+		{
+			SetupRollerContainer(end);
 		}
 	}
 

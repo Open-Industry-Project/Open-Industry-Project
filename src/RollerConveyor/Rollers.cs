@@ -32,8 +32,9 @@ public partial class Rollers : AbstractRollerContainer
 		{
 			for (int i = 1; i <= -difference; i++)
 			{
-				Roller roller = GetChild<Roller>(GetChildCount() - i);
+				Roller roller = GetChild<Roller>(rollerCount - i);
 				OnRollerRemoved(roller);
+				RemoveChild(roller);
 				roller.QueueFree();
 			}
 		}
@@ -52,7 +53,8 @@ public partial class Rollers : AbstractRollerContainer
 	void SpawnRoller()
 	{
 		Roller roller = rollerScene.Instantiate() as Roller;
-		AddChild(roller);
+		AddChild(roller, true);
+		roller.Owner = this.Owner;
 		roller.Position = new Vector3(rollersDistance * GetChildCount(), 0, 0);
 		OnRollerAdded(roller);
 		FixRollers();
