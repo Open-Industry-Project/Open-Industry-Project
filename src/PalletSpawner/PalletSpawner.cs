@@ -26,17 +26,22 @@ public partial class PalletSpawner : Node3D
 
 	Root Main;
 
-    public override void _Ready()
+	Vector3 _rotation;
+	Vector3 _globalPosition;
+
+	public override void _Ready()
     {
         if (Main != null)
         {
-            SetProcess(Main.simulationRunning);
+            SetPhysicsProcess(Main.simulationRunning);
         }
     }
 
     public override void _EnterTree()
     {
-        scan_interval = spawnInterval;
+		SetNotifyLocalTransform(true);
+
+		scan_interval = spawnInterval;
 
         Main = GetParent().GetTree().EditedSceneRoot as Root;
 
@@ -56,7 +61,7 @@ public partial class PalletSpawner : Node3D
         }
     }
 
-    public override void _Process(double delta)
+    public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null || Disable) return;
 
@@ -72,8 +77,8 @@ public partial class PalletSpawner : Node3D
 	{
 		var pallet = (Pallet)scene.Instantiate();
 
-        pallet.Rotation = Rotation;
-        pallet.Position = GlobalPosition;
+        pallet.Rotation = _rotation;
+        pallet.Position = _globalPosition;
         pallet.instanced = true;
 
         AddChild(pallet, forceReadableName: true);
@@ -82,12 +87,21 @@ public partial class PalletSpawner : Node3D
 
 	void OnSimulationStarted()
 	{
-		SetProcess(true);
+		SetPhysicsProcess(true);
 		scan_interval = spawnInterval;
 	}
 
 	void OnSimulationEnded()
 	{
-		SetProcess(false);
+		SetPhysicsProcess(false);
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
+		{
+			_rotation = Rotation;
+			_globalPosition = GlobalPosition;
+		}
 	}
 }

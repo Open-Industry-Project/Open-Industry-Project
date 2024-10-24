@@ -30,17 +30,23 @@ public partial class BoxSpawner : Node3D
 
 	Root Main;
 
+	Vector3 _rotation;
+	Vector3 _globalPosition;
+	Vector3 _scale;
+
     public override void _Ready()
     {
         if (Main != null)
         {
-            SetProcess(Main.simulationRunning);
+            SetPhysicsProcess(Main.simulationRunning);
         }
     }
 
     public override void _EnterTree()
     {
-        scan_interval = spawnInterval;
+		SetNotifyLocalTransform(true);
+
+		scan_interval = spawnInterval;
 
         Main = GetParent().GetTree().EditedSceneRoot as Root;
 
@@ -49,6 +55,9 @@ public partial class BoxSpawner : Node3D
             Main.SimulationStarted += OnSimulationStarted;
             Main.SimulationEnded += OnSimulationEnded;
         }
+
+		_rotation = Rotation;
+		_globalPosition = GlobalPosition;
     }
 
     public override void _ExitTree()
@@ -60,7 +69,7 @@ public partial class BoxSpawner : Node3D
         }
     }
 
-    public override void _Process(double delta)
+    public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null || Disable) return;
 		
@@ -85,12 +94,12 @@ public partial class BoxSpawner : Node3D
 		}
 		else
 		{
-            box.Scale = Scale;
+			box.Scale = _scale;
         }
 
-        box.Rotation = Rotation;
-        box.Position = GlobalPosition;
-        box.instanced = true;
+		box.Rotation = _rotation;
+		box.Position = _globalPosition;
+		box.instanced = true;
 
         AddChild(box, forceReadableName:true);
 		box.Owner = Main;
@@ -103,12 +112,22 @@ public partial class BoxSpawner : Node3D
 
 	void OnSimulationStarted()
 	{
-		SetProcess(true);
+		SetPhysicsProcess(true);
 		scan_interval = spawnInterval;
 	}
 	
 	void OnSimulationEnded()
 	{
-		SetProcess(false);
+		SetPhysicsProcess(false);
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
+		{
+			_scale = Scale;
+			_rotation = Rotation;
+			_globalPosition = GlobalPosition;
+		}
 	}
 }
