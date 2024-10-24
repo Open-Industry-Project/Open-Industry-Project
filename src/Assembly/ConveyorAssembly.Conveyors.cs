@@ -105,7 +105,6 @@ public partial class ConveyorAssembly : Node3D
 		foreach (Node child in conveyorLine.GetChildren()) {
 			Node3D child3d = child as Node3D;
 			if (IsConveyor(child3d)) {
-				SetEditableInstance(child3d, true);
 				ScaleConveyor(child3d, conveyorLineLength);
 			}
 		}
