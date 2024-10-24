@@ -8,7 +8,17 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	private bool enableComms;
 
 	[Signal]
+	public delegate void WidthChangedEventHandler(float width);
+	[Signal]
+	public delegate void LengthChangedEventHandler(float length);
+	[Signal]
+	public delegate void ScaleChangedEventHandler(Vector3 scale);
+	[Signal]
+	public delegate void RollerSkewAngleChangedEventHandler(float skewAngleDegrees);
+	[Signal]
 	public delegate void SetSpeedEventHandler(float speed);
+	[Signal]
+	public delegate void RollerOverrideMaterialChangedEventHandler(Material material);
 
 	[Export]
 	public bool EnableComms
@@ -27,7 +37,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	private int updateRate = 100;
 	public int UpdateRate { get => updateRate; set => updateRate = value; }
 	[Export(PropertyHint.None, "suffix:m/s")]
-	public float Speed { get; set; }
+	public float Speed { get => _speed; set => SetRollersSpeed(value); }
+	private float _speed = 2.0f;
 
 	float prevSpeed = 0.0f;
 
@@ -41,15 +52,20 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		}
 		set
 		{
+			bool changed = skewAngle != value;
 			skewAngle = value;
-			SetRollersRotation();
+			if (changed) {
+				EmitSignal(SignalName.RollerSkewAngleChanged, skewAngle);
+			}
 		}
 	}
 
 	float nodeScaleX = 1.0f;
 	float nodeScaleZ = 1.0f;
 	Vector3 lastScale = Vector3.One;
-	Transform3D xformPrev = Transform3D.Identity;
+	float lastLength = 1f;
+	float lastWidth = baseWidth;
+	Transform3D previousTransform = Transform3D.Identity;
 
     const float radius = 0.12f;
     const float circumference = 2f * MathF.PI * radius;
@@ -64,13 +80,9 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	bool running = false;
 	bool readSuccessful = false;
 
-	Node3D rollersLow;
-	Node3D rollersMid;
-	Node3D rollersHigh;
-
 	Root main;
 
-	public StandardMaterial3D rollerMaterial;
+	public BaseMaterial3D rollerMaterial;
 	public Root Main
 	{
 		get
@@ -92,27 +104,19 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
 		}
 	}
-	public override void _Ready()
+
+	public override void _EnterTree()
 	{
-		var meshInstance1 = GetNode<MeshInstance3D>("ConvRoller/ConvRollerL");
-		var meshInstance2 = GetNode<MeshInstance3D>("ConvRoller/ConvRollerR");
-		meshInstance1.Mesh = meshInstance1.Mesh.Duplicate() as Mesh;
-		metalMaterial = meshInstance1.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
-		meshInstance1.Mesh.SurfaceSetMaterial(0, metalMaterial);
-		meshInstance2.Mesh.SurfaceSetMaterial(0, metalMaterial);
+		SetRollerOverrideMaterial((StandardMaterial3D)GD.Load("res://assets/3DModels/Materials/Metall2.tres").Duplicate(true));
 
 		rollers = GetNodeOrNull<Rollers>("Rollers");
 		ends = GetNodeOrNull<Node3D>("Ends");
 
-		SetLength(Scale.X);
-		SetWidth(Scale.Z * baseWidth);
-
-		SetRollersRotation();
-    }
-
-	public override void _EnterTree()
-	{
-		rollerMaterial ??= (StandardMaterial3D)GD.Load("res://assets/3DModels/Materials/Metall2.tres").Duplicate(true);
+		SetupRollerContainer(rollers);
+		foreach (RollerConveyorEnd end in ends.GetChildren())
+		{
+			SetupRollerContainer(end);
+		}
 
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
@@ -134,33 +138,22 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			Main.SimulationStarted -= OnSimulationStarted;
 			Main.SimulationEnded -= OnSimulationEnded;
 		}
-	}
-
-	public override void _Process(double delta)
-	{
-		if (Transform != xformPrev) {
-			Basis newBasis;
-			// Ensure we're working with positive basis vectors.
-			// Fall back to the previous basis if necessary.
-			if (Scale.X <= 0 || Scale.Y <= 0 || Scale.Z <= 0)
-			{
-				newBasis = xformPrev.Basis;
-			} else {
-				newBasis = Transform.Basis;
-			}
-			newBasis.X = Mathf.Max(1.0f, Mathf.Abs(Scale.X)) * newBasis.X.Normalized();
-			newBasis.Y = newBasis.Y.Normalized();
-			newBasis.Z = Mathf.Max(0.1f, Mathf.Abs(Scale.Z)) * newBasis.Z.Normalized();
-			Transform = new Transform3D(newBasis, Transform.Origin);
-			xformPrev = Transform;
-
-			if (rollers != null && lastScale != Scale)
-			{
-				rollers.ChangeScale(Scale);
-				lastScale = Scale;
-			}
+		DisconnectRollerContainer(rollers);
+		foreach (RollerConveyorEnd end in ends.GetChildren())
+		{
+			DisconnectRollerContainer(end);
 		}
 	}
+
+	public override void _Ready()
+	{
+		var meshInstance1 = GetNode<MeshInstance3D>("ConvRoller/ConvRollerL");
+		var meshInstance2 = GetNode<MeshInstance3D>("ConvRoller/ConvRollerR");
+		meshInstance1.Mesh = meshInstance1.Mesh.Duplicate() as Mesh;
+		metalMaterial = meshInstance1.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
+		meshInstance1.Mesh.SurfaceSetMaterial(0, metalMaterial);
+		meshInstance2.Mesh.SurfaceSetMaterial(0, metalMaterial);
+    }
 
 	public override void _PhysicsProcess(double delta)
 	{
@@ -171,8 +164,6 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		if (running)
 		{
             rollerMaterial.Uv1Offset += new Vector3(4f * Speed / circumference * (float)delta, 0, 0);
-
-			SetRollersSpeed();
 
 			if (enableComms && running && readSuccessful)
 			{
@@ -190,51 +181,16 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	{
 		if (what == NotificationLocalTransformChanged)
 		{
-			SetLength(Scale.X);
-			SetWidth(Scale.Z * 2f);
-		}
-	}
-
-	void SetRollersSpeed()
-	{
-		if (Speed == prevSpeed) return;
-
-		EmitSignal(SignalName.SetSpeed, Speed);
-	}
-
-	void SetRollersRotation()
-	{
-		if (rollers != null)
-		{
-			rollers.SetRollerSkewAngle(SkewAngle);
-		}
-
-		if (ends != null)
-		{
-			foreach(RollerConveyorEnd end in ends.GetChildren())
+			//bool transformActuallyChanged = ConstrainTransform();
+			//if (!transformActuallyChanged) return;
+			if (!IsTransformValid())
 			{
-				end.RotateRoller(new Vector3(end.RotationDegrees.X, SkewAngle, end.RotationDegrees.Z));
+				CallDeferred(MethodName.ConstrainTransform);
+				return;
 			}
-		}
-	}
-
-	void SetLength(float length)
-	{
-		foreach(RollerConveyorEnd end in ends.GetChildren())
-		{
-			end.SetLength(length);
-		}
-	}
-
-	void SetWidth(float width)
-	{
-		var meshInstance1 = GetNode<Node3D>("ConvRoller/ConvRollerL");
-		var meshInstance2 = GetNode<Node3D>("ConvRoller/ConvRollerR");
-		meshInstance1.Scale = new Vector3(1f, 1f, baseWidth / width);
-		meshInstance2.Scale = new Vector3(1f, 1f, baseWidth / width);
-		foreach(RollerConveyorEnd end in ends.GetChildren())
-		{
-			end.SetWidth(width);
+			UpdateScale();
+			UpdateWidth();
+			UpdateLength();
 		}
 	}
 
@@ -263,5 +219,128 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			GD.PrintErr("Failure to read: " + tag + " in Node: " + Name);
 			readSuccessful = false;
 		}
+	}
+
+	private void SetupRollerContainer(AbstractRollerContainer rollers) {
+		rollers.RollerAdded += OnRollerAdded;
+		rollers.RollerRemoved += OnRollerRemoved;
+
+		RollerSkewAngleChanged += rollers.SetRollerSkewAngle;
+		ScaleChanged += rollers.OnOwnerScaleChanged;
+		WidthChanged += rollers.SetWidth;
+		LengthChanged += rollers.SetLength;
+
+		rollers.SetRollerSkewAngle(skewAngle);
+		rollers.OnOwnerScaleChanged(Scale);
+		rollers.SetWidth(Scale.Z * baseWidth);
+		rollers.SetLength(Scale.X);
+	}
+
+	private void DisconnectRollerContainer(AbstractRollerContainer rollers) {
+		rollers.RollerAdded -= OnRollerAdded;
+		rollers.RollerRemoved -= OnRollerRemoved;
+
+		RollerSkewAngleChanged -= rollers.SetRollerSkewAngle;
+		ScaleChanged -= rollers.OnOwnerScaleChanged;
+		WidthChanged -= rollers.SetWidth;
+		LengthChanged -= rollers.SetLength;
+	}
+
+	private void OnRollerAdded(Roller roller)
+	{
+		SetSpeed += roller.SetSpeed;
+		RollerOverrideMaterialChanged += roller.SetRollerOverrideMaterial;
+
+		roller.SetSpeed(Speed);
+		roller.SetRollerOverrideMaterial(rollerMaterial);
+	}
+
+	private void OnRollerRemoved(Roller roller)
+	{
+		SetSpeed -= roller.SetSpeed;
+		RollerOverrideMaterialChanged -= roller.SetRollerOverrideMaterial;
+	}
+
+	private void ConstrainTransform()
+	{
+		Transform3D currentTransform = Transform;
+		if (currentTransform != previousTransform) {
+			Basis newBasis;
+			// Ensure we're working with positive basis vectors.
+			// Fall back to the previous basis if necessary.
+			( float ScaleX, float ScaleY, float ScaleZ ) = currentTransform.Basis.Scale;
+			if (ScaleX <= 0 || ScaleY <= 0 || ScaleZ <= 0)
+			{
+				newBasis = previousTransform.Basis;
+			} else {
+				newBasis = currentTransform.Basis;
+			}
+			newBasis.X = Mathf.Max(1.0f, Mathf.Abs(ScaleX)) * newBasis.X.Normalized();
+			newBasis.Y = newBasis.Y.Normalized();
+			newBasis.Z = Mathf.Max(0.1f, Mathf.Abs(ScaleZ)) * newBasis.Z.Normalized();
+			Transform = new Transform3D(newBasis, currentTransform.Origin);
+		}
+		previousTransform = Transform;
+	}
+
+	private bool IsTransformValid()
+	{
+		return Scale.X >= 1.0f && Scale.Y == 1.0f && Scale.Z >= 0.1f;
+	}
+
+	private void UpdateScale()
+	{
+		if (lastScale != Scale)
+		{
+			EmitSignal(SignalName.ScaleChanged, Scale);
+			lastScale = Scale;
+		}
+	}
+
+	private void UpdateWidth()
+	{
+		float newWidth = Scale.Z * baseWidth;
+		if (lastWidth != newWidth)
+		{
+			UpdateSidesMeshScale(newWidth);
+			EmitSignal(SignalName.WidthChanged, newWidth);
+			lastWidth = newWidth;
+		}
+	}
+
+	private void UpdateLength()
+	{
+		float newLength = Scale.X;
+		if (lastLength != newLength)
+		{
+			EmitSignal(SignalName.LengthChanged, newLength);
+			lastLength = newLength;
+		}
+	}
+
+	private void SetRollersSpeed(float speed)
+	{
+		if (speed == prevSpeed) return;
+		_speed = speed;
+		EmitSignal(SignalName.SetSpeed, speed);
+	}
+
+	private void SetRollerOverrideMaterial(BaseMaterial3D material)
+	{
+		bool changed = rollerMaterial != material;
+		rollerMaterial = material;
+		if (changed)
+		{
+			EmitSignal(SignalName.RollerOverrideMaterialChanged, rollerMaterial);
+		}
+	}
+
+	private void UpdateSidesMeshScale(float width)
+	{
+		// TODO does this need a unique? Might already be done in the inspector.
+		var meshInstance1 = GetNode<Node3D>("ConvRoller/ConvRollerL");
+		var meshInstance2 = GetNode<Node3D>("ConvRoller/ConvRollerR");
+		meshInstance1.Scale = new Vector3(1f, 1f, baseWidth / width);
+		meshInstance2.Scale = new Vector3(1f, 1f, baseWidth / width);
 	}
 }

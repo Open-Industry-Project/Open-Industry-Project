@@ -1,39 +1,51 @@
 using Godot;
+using System.Collections.Generic;
 
 [Tool]
-public partial class RollerConveyorEnd : Node3D
+public partial class RollerConveyorEnd : AbstractRollerContainer
 {
 	[Export]
-	bool flipped = false;
+	bool flipped { get => _flipped; set {
+		if (_flipped != value) {
+			_flipped = value;
+			EmitSignal(SignalName.RollerRotationChanged, GetRotationFromSkewAngle(_rollerSkewAngleDegrees));
+		}
+	}}
+	bool _flipped = false;
 	Roller roller;
-	Node3D owner;
 
 	const float baseWidth = 2f;
 
 	public override void _EnterTree()
 	{
 		roller = GetNode<Roller>("Roller");
+		WidthChanged += SetEndsSeparation;
+		base._EnterTree();
 	}
 
-	public void SetLength(float length) {
-		Scale = new(1f / length, 1f, Scale.Z);
-	}
-
-	public void SetWidth(float width)
+	public override void _ExitTree()
 	{
-		Scale = new(Scale.X, 1f, baseWidth / width);
+		WidthChanged -= SetEndsSeparation;
+	}
+
+	protected override IEnumerable<Roller> GetRollers()
+	{
+		return [roller];
+	}
+
+	private void SetEndsSeparation(float width)
+	{
 		Node3D end = GetNode<Node3D>("ConveyorRollerEnd");
 		end.Scale = new(1f, 1f, width / baseWidth);
 		foreach (MeshInstance3D endMesh in end.GetChildren())
 		{
 			endMesh.Scale = new(1f, 1f, baseWidth / width);
 		}
-		// Do we need to do some math here when the roller is at an angle?
-		roller.SetLength(width);
 	}
 
-	public void RotateRoller(Vector3 angle)
+	protected override Vector3 GetRotationFromSkewAngle(float angleDegrees)
 	{
-		roller.RotationDegrees = flipped ? angle + new Vector3(0, 180, 0) : angle;
+		Vector3 rot = base.GetRotationFromSkewAngle(angleDegrees);
+		return flipped ? rot + new Vector3(0, 180, 0) : rot;
 	}
 }

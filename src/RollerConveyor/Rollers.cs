@@ -1,60 +1,23 @@
 using Godot;
 
 [Tool]
-public partial class Rollers : Node3D
+public partial class Rollers : AbstractRollerContainer
 {
 	[Export]
 	PackedScene rollerScene;
 
 	float rollersDistance = 0.33f;
-	float _rollerLength = 2f;
-	const float conveyorBaseWidth = 2f;
-	float _rollerSkewAngleDegrees = 0;
-	float _width = 2f;
 
 	RollerConveyor owner;
 
 	int initialForeignRollerCount;
 
-	public void ChangeScale(Vector3 scale)
+	public Rollers()
 	{
-		AddOrRemoveRollers(scale.X);
-		SetWidth(scale.Z * conveyorBaseWidth);
-        RescaleInverse(scale);
-    }
-
-	void SetWidth(float currentWidth)
-	{
-		_width = currentWidth;
-		UpdateRollerLength();
+		LengthChanged += AddOrRemoveRollers;
 	}
 
-	public void SetRollerSkewAngle(float skewAngleDegrees)
-	{
-		_rollerSkewAngleDegrees = skewAngleDegrees;
-		foreach (Roller roller in GetChildren())
-		{
-			roller.RotationDegrees = new Vector3(0, skewAngleDegrees, 0);
-		}
-		UpdateRollerLength();
-	}
-
-	public void UpdateRollerLength()  // TODO extract this up a level so RollerConveyorEnd can use it too.
-	{
-		if (Mathf.Abs(_rollerSkewAngleDegrees % 180f) == 90) return;
-		float newLength = _width / Mathf.Cos(_rollerSkewAngleDegrees * 2f * Mathf.Pi / 360f);
-		bool lengthChanged = newLength != _rollerLength;
-		_rollerLength = newLength;
-		if (lengthChanged)
-		{
-			foreach (Roller roller in GetChildren())
-			{
-				roller.SetLength(_rollerLength);
-			}
-		}
-	}
-
-	public void AddOrRemoveRollers(float conveyorLength)
+	private void AddOrRemoveRollers(float conveyorLength)
 	{
 		int roundedLength = Mathf.RoundToInt(conveyorLength / rollersDistance) + 1;
 		int rollerCount = GetChildCount();
@@ -75,7 +38,9 @@ public partial class Rollers : Node3D
 		{
 			for (int i = 1; i <= -difference; i++)
 			{
-				GetChild<Roller>(GetChildCount() - i).QueueFree();
+				Roller roller = GetChild<Roller>(GetChildCount() - i);
+				OnRollerRemoved(roller);
+				roller.QueueFree();
 			}
 		}
 	}
@@ -83,6 +48,7 @@ public partial class Rollers : Node3D
 	public override void _EnterTree()
 	{
 		owner = GetParent() as RollerConveyor;
+		base._EnterTree();
 	}
 
 	public override void _Ready()
@@ -104,8 +70,7 @@ public partial class Rollers : Node3D
 		AddChild(roller);
 		roller.Owner = foreign ? owner : GetTree().GetEditedSceneRoot();
 		roller.Position = new Vector3(rollersDistance * GetChildCount(), 0, 0);
-		roller.RotationDegrees = new Vector3(roller.RotationDegrees.X, owner.SkewAngle, roller.RotationDegrees.Z);
-		roller.SetLength(_rollerLength);
+		OnRollerAdded(roller);
 		FixRollers();
 	}
 
