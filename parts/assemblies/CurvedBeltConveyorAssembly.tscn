@@ -189,12 +189,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 [node name="ConveyorCorner" parent="Conveyors" instance=ExtResource("3_a54t1")]
 transform = Transform3D(1, 0, -8.74229e-08, 0, 1, 0, 8.74229e-08, 0, 1, 0, 0, 0)
 
-[node name="ConveyorEnd" parent="Conveyors/ConveyorCorner" index="1"]
-transform = Transform3D(-1.94707e-07, -1.50996e-07, -1, 1.50996e-07, -1, 1.50996e-07, -1, -1.50996e-07, 1.94707e-07, -1.5, 0, 0)
-
-[node name="ConveyorEnd2" parent="Conveyors/ConveyorCorner" index="2"]
-transform = Transform3D(1, -1.50996e-07, -2.38419e-07, 1.50996e-07, 1, 1.56219e-07, 2.38419e-07, -1.56219e-07, 1, 0, 0, 1.5)
-
 [node name="LeftSide" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 
@@ -267,6 +261,5 @@ transform = Transform3D(1, 0, 0, 0, 0.666667, 0, 0, 0, 1, 0, 0, -1)
 [node name="LegsBottom2" parent="LegStands/AutoLegsStandRear/Ends" index="3"]
 transform = Transform3D(-1, 0, -1.50996e-07, 0, 0.666667, 0, 1.50996e-07, 0, -1, 0, 0, 1)
 
-[editable path="Conveyors/ConveyorCorner"]
 [editable path="LegStands/AutoLegsStandFront"]
 [editable path="LegStands/AutoLegsStandRear"]
