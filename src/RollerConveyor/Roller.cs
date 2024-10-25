@@ -18,6 +18,7 @@ public partial class Roller : Node3D
 	public override void _EnterTree()
 	{
 		SetNotifyTransform(true);
+		UpdateGlobalFront();
 		UpdatePhysics();
 	}
 
@@ -29,13 +30,22 @@ public partial class Roller : Node3D
 	public override void _Notification(int what)
 	{
 		if (what == NotificationTransformChanged) {
-			if (!IsInsideTree()) return;
-			Vector3 newGlobalFront = GlobalBasis.Z.Normalized();
-			if (globalFront != newGlobalFront)
-			{
-				globalFront = newGlobalFront;
-				UpdatePhysics();
-			}
+			UpdateGlobalFront();
+		}
+	}
+
+	void UpdateGlobalFront()
+	{
+		// GOTCHA: IsInsideTree() is false until `_EnterTree` is called, NOT
+		// when the top-most parent is in the tree. GlobalBasis has the same
+		// behavior. So, it's possible for parents to try to set our speed in
+		// *their* `_EnterTree` without it actually updating our physics well.
+		if (!IsInsideTree()) return;
+		Vector3 newGlobalFront = GlobalBasis.Z.Normalized();
+		if (globalFront != newGlobalFront)
+		{
+			globalFront = newGlobalFront;
+			UpdatePhysics();
 		}
 	}
 
@@ -55,7 +65,6 @@ public partial class Roller : Node3D
 
 	private void UpdatePhysics()
 	{
-		if (!IsInsideTree()) return;
 		EnsureNodeReferencesInitialized();
 		staticBody.ConstantAngularVelocity = -globalFront * speed / radius;
 	}
