@@ -7,7 +7,7 @@ public partial class Roller : Node3D
 	StaticBody3D staticBody;
 	RollerConveyor rollerConveyor;
 
-    const float radius = 0.12f;
+	const float radius = 0.12f;
 	Vector3 localFront;
 
 	public override void _Ready()
@@ -18,21 +18,27 @@ public partial class Roller : Node3D
 
 		rollerConveyor = GetParent().GetParent() as RollerConveyor ?? GetParent().GetParent().GetParent() as RollerConveyor;
 
-        if (rollerConveyor != null)
+		if (rollerConveyor != null)
 		{
-            StandardMaterial3D material = rollerConveyor.rollerMaterial;
+			StandardMaterial3D material = rollerConveyor.rollerMaterial;
 
-            meshInstance.SetSurfaceOverrideMaterial(0, material);
-
-			rollerConveyor.SetSpeed += OnSetSpeed;
+			meshInstance.SetSurfaceOverrideMaterial(0, material);
 
 			OnSetSpeed(rollerConveyor.Speed);
 		}
 	}
 
+	public override void _EnterTree()
+	{
+		if (rollerConveyor != null)
+		{
+			rollerConveyor.SetSpeed += OnSetSpeed;
+		}
+	}
+
 	public override void _ExitTree()
 	{
-		if(rollerConveyor != null)
+		if (rollerConveyor != null)
 		{
 			rollerConveyor.SetSpeed -= OnSetSpeed;
 		}
@@ -42,5 +48,5 @@ public partial class Roller : Node3D
 	{
 		localFront = GlobalTransform.Basis.Z.Normalized();
 		staticBody.ConstantAngularVelocity = -localFront * speed / radius;
-    }
+	}
 }
