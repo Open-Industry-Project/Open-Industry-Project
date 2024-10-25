@@ -77,37 +77,15 @@ public partial class Diverter : Node3D
         }
     }
 
+	public void Use()
+	{
+		FireDivert = true;
+
+        Task.Delay(updateRate * 3).ContinueWith(t => FireDivert = false);
+    }
+
     public override void _PhysicsProcess(double delta)
 	{
-		if (Main != null)
-		{
-			if (Main.selectedNodes != null)
-			{
-				bool selected = Main.selectedNodes.Contains(this);
-
-				if (selected && Input.IsPhysicalKeyPressed(Key.G))
-				{
-					keyPressed = true;
-					FireDivert = true;
-				}
-			}
-		}
-
-		if (!Input.IsPhysicalKeyPressed(Key.G))
-		{
-			keyHeld = false;
-			if (keyPressed)
-			{
-				keyPressed = false;
-				FireDivert = false;
-			}
-
-			if(FireDivert && !enableComms)
-			{
-				Task.Delay(updateRate * 3).ContinueWith(t => FireDivert = false);
-			}
-		}
-
 		if (FireDivert && !previousFireDivertState)
 		{
 			divert = true;

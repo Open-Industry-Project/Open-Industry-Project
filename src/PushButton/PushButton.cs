@@ -66,20 +66,12 @@ public partial class PushButton : Node3D
 		}
 		set
 		{
-
-			if (!running)
-			{
-				return;
-			}
 			pushbutton = value;
 			
 			if (!Toggle && pushbutton)
 			{
-				if (!Input.IsPhysicalKeyPressed(Key.G))
-				{
-					Task.Delay(updateRate * 3).ContinueWith(t => pushbutton = false);
-				}
-				Tween tween = GetTree().CreateTween();
+                Task.Delay(updateRate * 3).ContinueWith(t => pushbutton = false);
+                Tween tween = GetTree().CreateTween();
 				tween.TweenProperty(buttonMesh, "position", new Vector3(0, 0, buttonPressedZPos), 0.035f);
 				tween.TweenInterval(0.2f);
 				tween.TweenProperty(buttonMesh, "position", Vector3.Zero, 0.02f);
@@ -190,48 +182,13 @@ public partial class PushButton : Node3D
         }
     }
 
-    public override void _PhysicsProcess(double delta)
+	public void Use()
 	{
-		if(!running)
-		{
-			Pushbutton = false;
-			return;
-		}
-		if (Main != null)
-		{
-			if(Main.selectedNodes != null)
-			{
-				bool selected = Main.selectedNodes.Contains(this);
+		Pushbutton = !Pushbutton;
+	}
 
-				if (selected && Input.IsPhysicalKeyPressed(Key.G))
-				{
-					keyPressed = true;
-					if (!keyHeld && Toggle)
-					{
-						keyHeld = true;
-						Pushbutton = !Pushbutton;
-					}
-					else if (!Toggle)
-					{
-						Pushbutton = true;
-					}
-				}
-			}
-		}
-		
-		if (!Input.IsPhysicalKeyPressed(Key.G))
-		{
-			keyHeld = false;
-			if (keyPressed)
-			{
-				keyPressed = false;
-				if(!Toggle)
-				{
-					Pushbutton = false;
-				}
-			}
-		}
-		
+    public override void _PhysicsProcess(double delta)
+	{		
 		if (enableComms && readSuccessful)
 		{
 			scan_interval += delta;

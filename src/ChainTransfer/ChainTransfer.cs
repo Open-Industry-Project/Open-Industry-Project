@@ -154,35 +154,13 @@ public partial class ChainTransfer : Node3D
 		}
 	}
 
+	public void Use()
+	{
+		popupChains = !popupChains;
+	}
+
 	public override void _PhysicsProcess(double delta)
 	{
-
-        if (Main != null)
-        {
-            if (Main.selectedNodes != null)
-            {
-                bool selected = Main.selectedNodes.Contains(this);
-                if (selected && Input.IsPhysicalKeyPressed(Key.G))
-                {
-                    keyPressed = true;
-                    if (!keyHeld)
-                    {
-                        keyHeld = true;
-						popupChains = !popupChains;
-                    }
-                }
-            }
-        }
-
-        if (!Input.IsPhysicalKeyPressed(Key.G))
-        {
-            keyHeld = false;
-            if (keyPressed)
-            {
-                keyPressed = false;
-            }
-        }
-
         SetChainsPopupChains(popupChains);
         
 		if (running)

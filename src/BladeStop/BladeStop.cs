@@ -116,38 +116,17 @@ public partial class BladeStop : Node3D
         }
     }
 
+	public void Use()
+	{
+		Active = !Active;
+	}
+
     public override void _PhysicsProcess(double delta)
 	{
-        if (Main != null)
-        {
-            if (Main.selectedNodes != null)
-            {
-                bool selected = Main.selectedNodes.Contains(this);
-                if (selected && Input.IsPhysicalKeyPressed(Key.G))
-                {
-                    keyPressed = true;
-                    if (!keyHeld)
-                    {
-                        keyHeld = true;
-                        Active = !Active;
-                    }
-                }
-            }
-        }
-
         if (blade != null && bladeCornerR != null && bladeCornerL != null)
         {
             if (active) Up();
             else Down();
-        }
-
-        if (!Input.IsPhysicalKeyPressed(Key.G))
-        {
-            keyHeld = false;
-            if (keyPressed)
-            {
-                keyPressed = false;
-            }
         }
 
         if (EnableComms && readSuccessful && running)
