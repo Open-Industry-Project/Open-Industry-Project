@@ -54,7 +54,6 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
     const float radius = 0.12f;
     const float circumference = 2f * MathF.PI * radius;
 
-    MeshInstance3D meshInstance;
 	Material metalMaterial;
 	Rollers rollers;
 	Node3D ends;
@@ -94,10 +93,13 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	}
 	public override void _Ready()
 	{
-		meshInstance = GetNode<MeshInstance3D>("ConvRoller");
-		meshInstance.Mesh = meshInstance.Mesh.Duplicate() as Mesh;
-		metalMaterial = meshInstance.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
-		meshInstance.Mesh.SurfaceSetMaterial(0, metalMaterial);
+		var meshInstance1 = GetNode<MeshInstance3D>("ConvRoller/ConvRollerL");
+		var meshInstance2 = GetNode<MeshInstance3D>("ConvRoller/ConvRollerR");
+		meshInstance1.Mesh = meshInstance1.Mesh.Duplicate() as Mesh;
+		metalMaterial = meshInstance1.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
+		meshInstance1.Mesh.SurfaceSetMaterial(0, metalMaterial);
+		meshInstance2.Mesh.SurfaceSetMaterial(0, metalMaterial);
+
 		rollers = GetNodeOrNull<Rollers>("Rollers");
 		ends = GetNodeOrNull<Node3D>("Ends");
 
