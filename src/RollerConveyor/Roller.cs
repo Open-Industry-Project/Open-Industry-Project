@@ -3,7 +3,6 @@ using Godot;
 [Tool]
 public partial class Roller : Node3D
 {
-	MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
 	RollerConveyor rollerConveyor;
 
@@ -14,13 +13,17 @@ public partial class Roller : Node3D
 	{
 		localFront = GlobalTransform.Basis.Z.Normalized();
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
-		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
+		MeshInstance3D leftEnd = GetNode<MeshInstance3D>("RollerMeshes/RollerEndL");
+		MeshInstance3D rightEnd = GetNode<MeshInstance3D>("RollerMeshes/RollerEndR");
+		MeshInstance3D middle = GetNode<MeshInstance3D>("RollerMeshes/RollerLength");
 
 		if (rollerConveyor != null)
 		{
 			StandardMaterial3D material = rollerConveyor.rollerMaterial;
 
-			meshInstance.SetSurfaceOverrideMaterial(0, material);
+			leftEnd.SetSurfaceOverrideMaterial(0, material);
+			rightEnd.SetSurfaceOverrideMaterial(0, material);
+			middle.SetSurfaceOverrideMaterial(0, material);
 
 			OnSetSpeed(rollerConveyor.Speed);
 		}
