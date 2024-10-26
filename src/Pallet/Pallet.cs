@@ -51,7 +51,7 @@ public partial class Pallet : Node3D
 
     public void Select()
     {
-        if (_paused) return;
+        if (_paused || !Main.simulationRunning) return;
         if (rigidBody.Freeze)
         {
             rigidBody.TopLevel = false;
