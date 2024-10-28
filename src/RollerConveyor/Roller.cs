@@ -16,8 +16,6 @@ public partial class Roller : Node3D
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
 
-		rollerConveyor = GetParent().GetParent() as RollerConveyor ?? GetParent().GetParent().GetParent() as RollerConveyor;
-
 		if (rollerConveyor != null)
 		{
 			StandardMaterial3D material = rollerConveyor.rollerMaterial;
@@ -30,6 +28,8 @@ public partial class Roller : Node3D
 
 	public override void _EnterTree()
 	{
+		rollerConveyor = GetParent().GetParent() as RollerConveyor ?? GetParent().GetParent().GetParent() as RollerConveyor;
+
 		if (rollerConveyor != null)
 		{
 			rollerConveyor.SetSpeed += OnSetSpeed;
