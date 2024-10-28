@@ -6,7 +6,8 @@ public partial class Box : Node3D
 	RigidBody3D rigidBody;
 	Vector3 initialPos;
 	public bool instanced = false;
-	private bool _paused = false;
+	bool _paused = false;
+	bool enable_inital_pos = false;
 
 	Root Main;
 	public override void _Ready()
@@ -15,12 +16,12 @@ public partial class Box : Node3D
 
 		if (Main != null)
 		{
-			rigidBody.Freeze = false;
-
 			if (Main.simulationRunning)
 			{
 				instanced = true;
 			}
+
+			rigidBody.Freeze = !Main.simulationRunning;
 		}
 	}
 
@@ -50,7 +51,7 @@ public partial class Box : Node3D
 
 	public void Select()
 	{
-		if (_paused || !Main.simulationRunning) return;
+		if (_paused || (Main != null && !Main.simulationRunning)) return;
 		if (rigidBody.Freeze)
 		{
 			rigidBody.TopLevel = false;
@@ -83,6 +84,7 @@ public partial class Box : Node3D
 		initialPos = GlobalPosition;
 		rigidBody.TopLevel = true;
 		rigidBody.Freeze = false;
+		enable_inital_pos = true;
 	}
 
 	void OnSimulationEnded()
@@ -105,7 +107,12 @@ public partial class Box : Node3D
 			rigidBody.LinearVelocity = Vector3.Zero;
 			rigidBody.AngularVelocity = Vector3.Zero;
 
-			GlobalPosition = initialPos;
+			//Work around for #83 
+			if (enable_inital_pos)
+			{
+				GlobalPosition = initialPos;
+			}
+
 			Rotation = Vector3.Zero;
 		}
 	}
