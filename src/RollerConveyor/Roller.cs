@@ -16,23 +16,6 @@ public partial class Roller : Node3D
 		UseSharedMaterial();
 	}
 
-	void UseSharedMaterial() {
-		MeshInstance3D leftEnd = GetNode<MeshInstance3D>("RollerMeshes/RollerEndL");
-		MeshInstance3D rightEnd = GetNode<MeshInstance3D>("RollerMeshes/RollerEndR");
-		MeshInstance3D middle = GetNode<MeshInstance3D>("RollerMeshes/RollerLength");
-
-		if (rollerConveyor != null)
-		{
-			StandardMaterial3D material = rollerConveyor.rollerMaterial;
-
-			leftEnd.SetSurfaceOverrideMaterial(0, material);
-			rightEnd.SetSurfaceOverrideMaterial(0, material);
-			middle.SetSurfaceOverrideMaterial(0, material);
-
-			OnSetSpeed(rollerConveyor.Speed);
-		}
-	}
-
 	public override void _EnterTree()
 	{
 		rollerConveyor = GetParent().GetParent() as RollerConveyor ?? GetParent().GetParent().GetParent() as RollerConveyor;
@@ -69,5 +52,23 @@ public partial class Roller : Node3D
 		const float cylinderMargins = baseLength - baseCylinderLength;
 		float newCylinderLength = length - cylinderMargins;
 		cylinder.Scale = new Vector3(1f, 1f, newCylinderLength / baseCylinderLength);
+	}
+
+	void UseSharedMaterial() {
+		MeshInstance3D leftEnd = GetNode<MeshInstance3D>("RollerMeshes/RollerEndL");
+		MeshInstance3D rightEnd = GetNode<MeshInstance3D>("RollerMeshes/RollerEndR");
+		MeshInstance3D middle = GetNode<MeshInstance3D>("RollerMeshes/RollerLength");
+
+		RollerConveyor rollerConveyor = GetParent().GetParent() as RollerConveyor ?? GetParent().GetParent().GetParent() as RollerConveyor;
+
+		if (rollerConveyor != null)
+		{
+			StandardMaterial3D material = rollerConveyor.rollerMaterial;
+
+			leftEnd.SetSurfaceOverrideMaterial(0, material);
+			rightEnd.SetSurfaceOverrideMaterial(0, material);
+			middle.SetSurfaceOverrideMaterial(0, material);
+		}
+
 	}
 }
