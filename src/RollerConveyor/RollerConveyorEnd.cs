@@ -16,10 +16,14 @@ public partial class RollerConveyorEnd : AbstractRollerContainer
 
 	const float baseWidth = 2f;
 
+	public RollerConveyorEnd()
+	{
+		WidthChanged += SetEndsSeparation;
+	}
+
 	public override void _EnterTree()
 	{
 		roller = GetNode<Roller>("Roller");
-		WidthChanged += SetEndsSeparation;
 		base._EnterTree();
 	}
 
