@@ -140,8 +140,17 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	protected override void MoveLegStandToPathPosition(Node3D legStand, float position) {
 		float radius = this.Scale.X * 1.5f;
 		float angle = Mathf.DegToRad(position);
-		legStand.Position = new Vector3(0, legStand.Position.Y, radius).Rotated(Vector3.Up, angle);
-		legStand.Rotation = new Vector3(0f, angle, 0f);
+
+		Vector3 newPosition = new Vector3(0, legStand.Position.Y, radius).Rotated(Vector3.Up, angle);
+		if (legStand.Position != newPosition)
+		{
+			legStand.Position = newPosition;
+		}
+		Vector3 newRotation = new Vector3(0f, angle, 0f);
+		if (legStand.Rotation != newRotation)
+		{
+			legStand.Rotation = newRotation;
+		}
 	}
 	#endregion Leg Stands
 }

@@ -243,8 +243,16 @@ public partial class ConveyorAssembly : Node3D
 	 * @param position The path position to move the leg stand to.
 	 */
 	protected virtual void MoveLegStandToPathPosition(Node3D legStand, float position) {
-		legStand.Position = new Vector3(position, legStand.Position.Y, 0f);
-		legStand.Rotation = new Vector3(0f, 0f, legStand.Rotation.Z);
+		Vector3 newPosition = new Vector3(position, legStand.Position.Y, 0f);
+		if (legStand.Position != newPosition)
+		{
+			legStand.Position = newPosition;
+		}
+		Vector3 newRotation = new Vector3(0f, 0f, legStand.Rotation.Z);
+		if (legStand.Rotation != newRotation)
+		{
+			legStand.Rotation = newRotation;
+		}
 	}
 	#endregion Leg Stands / Basic constraints
 
