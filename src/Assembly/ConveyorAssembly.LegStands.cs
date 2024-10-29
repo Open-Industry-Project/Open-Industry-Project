@@ -198,6 +198,9 @@ public partial class ConveyorAssembly : Node3D
 		if (firstConveyor is CurvedRollerConveyor) {
 			return this.Scale.Z * 1.055f;
 		}
+		if (firstConveyor is RollerConveyor) {
+			return this.Scale.Z + 0.051f;
+		}
 		return this.Scale.Z;
 	}
 
