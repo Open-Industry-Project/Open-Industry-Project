@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Diagnostics;
 
-public partial class ConveyorAssembly : Node3D
+public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region Leg Stands
 	#region Leg Stands / Conveyor coverage extents

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 [Tool]
-public partial class ConveyorAssembly : Node3D, IComms
+public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 {
 	#region Constants
 	#region Constants / Leg Stands
@@ -43,7 +43,7 @@ public partial class ConveyorAssembly : Node3D, IComms
 	private Node3D leftSide;
 	protected Node3D legStands;
 	#endregion Fields / Nodes
-	protected Transform3D transformPrev;
+	private Transform3D transformPrev;
 	private Transform3D conveyorsTransformPrev;
 	private Transform3D legStandsTransformPrev;
 
@@ -619,7 +619,6 @@ public partial class ConveyorAssembly : Node3D, IComms
 		if (IsSimulationRunning() && has_processed_at_least_once) return;
 		has_processed_at_least_once = true;
 
-		ApplyAssemblyScaleConstraints();
 		PreventAllChildScaling();
 		UpdateConveyors();
 		if (conveyorsTransformPrev != conveyors.Transform) {
@@ -639,12 +638,6 @@ public partial class ConveyorAssembly : Node3D, IComms
 
 	private bool IsSimulationRunning() {
 		return main != null && main.simulationRunning;
-	}
-
-	protected virtual void ApplyAssemblyScaleConstraints()
-	{
-		// There are no constraints for this assembly.
-		// This is where one would lock scale components equal to each other or a constant value, for example.
 	}
 	#endregion _Ready and _PhysicsProcess
 

@@ -87,14 +87,15 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	}
 	#endregion Overriding default values and units
 
-	protected override void ApplyAssemblyScaleConstraints() {
+	protected override Transform3D ConstrainTransform(Transform3D transform) {
 		// Lock Z scale to be the same as X scale.
-		(var scaleX, var scaleY, var scaleZ) = this.Transform.Basis.Scale;
+		(var scaleX, var scaleY, var scaleZ) = transform.Basis.Scale;
 		if (scaleX != scaleZ) {
-			Basis rotBasis = this.Transform.Basis.Orthonormalized();
+			Basis rotBasis = transform.Basis.Orthonormalized();
 			rotBasis = new Basis(rotBasis.X * scaleX, rotBasis.Y * scaleY, rotBasis.Z * scaleX);
-			this.Transform = new Transform3D(rotBasis, this.Transform.Origin);
+			return new Transform3D(rotBasis, transform.Origin);
 		}
+		return transform;
 	}
 
 	#region Conveyors and Side Guards

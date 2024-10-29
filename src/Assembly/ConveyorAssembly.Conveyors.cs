@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-public partial class ConveyorAssembly : Node3D
+public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region Conveyors
 	#region Conveyors / Update "Conveyors" node

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 
-public partial class ConveyorAssembly : Node3D
+public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region SideGuards
 	#region SideGuards / Update "LeftSide" and "RightSide" nodes
