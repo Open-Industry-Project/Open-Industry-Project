@@ -136,23 +136,23 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		conveyorEnd2.Speed = Speed;
 	}
 
-    public override void _EnterTree()
-    {	
+	public override void _EnterTree()
+	{
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
 
 			if (Main.simulationRunning)
 			{
 				running = true;
 			}
-        }
-    }
+		}
+	}
 
-    public override void _ExitTree()
+	public override void _ExitTree()
 	{
 		if (Main != null)
 		{
@@ -161,7 +161,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-    public override void _Process(double delta)
+	public override void _Process(double delta)
 	{
 		if (Scale.Y != 1)
 		{

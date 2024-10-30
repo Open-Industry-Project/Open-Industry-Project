@@ -77,7 +77,7 @@ public partial class StackLight : Node3D
 
 			segments = new_value;
 			FixSegments();
-			
+
 			if (segmentsContainer != null)
 			{
 				data.SetSegments(segments);
@@ -187,44 +187,44 @@ public partial class StackLight : Node3D
 
 		prevScale = Scale;
 
-        Rescale();
-    }
+		Rescale();
+	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _Process(double delta)
+	public override void _Process(double delta)
 	{
 		if(Scale != prevScale)
 		{
 			Rescale();
-        }
+		}
 		prevScale = Scale;
 	}
 
 	void Rescale()
 	{
-        Scale = new(Scale.X, Scale.Y, Scale.X);
-        bottomMesh.Scale = new(1, 1 / Scale.Y, 1);
-        midMesh.Scale = new(1, (1 / Scale.Y) * Scale.X, 1);
-    }
+		Scale = new(Scale.X, Scale.Y, Scale.X);
+		bottomMesh.Scale = new(1, 1 / Scale.Y, 1);
+		midMesh.Scale = new(1, (1 / Scale.Y) * Scale.X, 1);
+	}
 
 	void OnSimulationStarted()
 	{
@@ -255,8 +255,8 @@ public partial class StackLight : Node3D
 		{
 			Node3D segment = segmentScene.Instantiate() as Node3D;
 			segmentsContainer.AddChild(segment, forceReadableName: true);
-            segment.Owner = this;
-            segment.Position = new Vector3(0, segmentInitialYPos + (step * segment.GetIndex()), 0);
+			segment.Owner = this;
+			segment.Position = new Vector3(0, segmentInitialYPos + (step * segment.GetIndex()), 0);
 		}
 	}
 
@@ -267,14 +267,14 @@ public partial class StackLight : Node3D
 			segmentsContainer.GetChild(segmentsContainer.GetChildCount() - 1 - i).QueueFree();
 		}
 	}
-	
+
 	void FixSegments()
 	{
 		int childCount = segmentsContainer.GetChildCount();
 		int difference = childCount - segments;
-		
+
 		if (difference <= 0) return;
-		
+
 		for (int i = 0; i < difference; i++)
 		{
 			segmentsContainer.GetChild(segmentsContainer.GetChildCount() - 1 - i).QueueFree();

@@ -150,39 +150,39 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		SetAllRollersSpeed();
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
 
-            if (Main.simulationRunning)
-            {
-                running = true;
-            }
-        }
-    }
+			if (Main.simulationRunning)
+			{
+				running = true;
+			}
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _Process(double delta)
-    {
+	public override void _Process(double delta)
+	{
 
-        Vector3 newScale = new(Scale.X, 1, Scale.X);
-        if (Scale != newScale)
-        {
-            Scale = new Vector3(Scale.X, 1, Scale.X);
-        }
+		Vector3 newScale = new(Scale.X, 1, Scale.X);
+		if (Scale != newScale)
+		{
+			Scale = new Vector3(Scale.X, 1, Scale.X);
+		}
 
 		// ReferenceDistance's PropertyHint depends on Scale.X
 		if (prevScaleX != Scale.X) {
@@ -196,9 +196,9 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			uvOffset.X = (uvOffset.X % 1f + uvSpeed * (float)delta) % 1f;
 			rollerMaterial.Uv1Offset = uvOffset;
 		}
-    }
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		if (Scale.X > 0.5f)
 		{
@@ -251,7 +251,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	private StandardMaterial3D TakeoverRollerMaterial()
 	{
 		StandardMaterial3D dupMaterial = rollersLow.GetChild<RollerCorner>(0).GetMaterial().Duplicate() as StandardMaterial3D;
-        foreach (Node3D rollers in (Span<Node3D>)([rollersLow, rollersMid, rollersHigh]))
+		foreach (Node3D rollers in (Span<Node3D>)([rollersLow, rollersMid, rollersHigh]))
 		{
 			foreach(RollerCorner roller in rollers.GetChildren())
 			{
@@ -282,12 +282,12 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 	void OnSimulationStarted()
 	{
-        running = true;
-        if (enableComms)
-        {
-            readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
-        }
-    }
+		running = true;
+		if (enableComms)
+		{
+			readSuccessful = Main.Connect(id, Root.DataType.Float, Name, tag);
+		}
+	}
 
 	void OnSimulationEnded()
 	{

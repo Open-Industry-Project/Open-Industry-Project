@@ -45,7 +45,7 @@ public partial class DiffuseSensor : Node3D
 				rayMarker.Visible = value;
 		}
 	}
-	
+
 	[Export]
 	Color beamBlockedColor;
 	[Export]
@@ -58,7 +58,7 @@ public partial class DiffuseSensor : Node3D
 	MeshInstance3D rayMesh;
 	CylinderMesh cylinderMesh;
 	StandardMaterial3D rayMaterial;
-	
+
 	Root Main;
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
@@ -88,33 +88,33 @@ public partial class DiffuseSensor : Node3D
 		rayMarker.Visible = showBeam;
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		PhysicsDirectSpaceState3D spaceState = GetWorld3D().DirectSpaceState;
 		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * maxRange);
 		query.CollisionMask = 8;
 		var result = spaceState.IntersectRay(query);
-		
+
 		if (result.Count > 0)
 		{
 			blocked = true;
@@ -146,7 +146,7 @@ public partial class DiffuseSensor : Node3D
 
 		rayMesh.Position = new Vector3(0, 0, cylinderMesh.Height * 0.5f);
 	}
-	
+
 	void OnSimulationStarted()
 	{
 		running = true;
@@ -155,7 +155,7 @@ public partial class DiffuseSensor : Node3D
 			readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
 		}
 	}
-	
+
 	void OnSimulationEnded()
 	{
 		running = false;

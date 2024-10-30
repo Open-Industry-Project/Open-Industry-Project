@@ -67,8 +67,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	float lastWidth = baseWidth;
 	Transform3D previousTransform = Transform3D.Identity;
 
-    const float radius = 0.12f;
-    const float circumference = 2f * MathF.PI * radius;
+	const float radius = 0.12f;
+	const float circumference = 2f * MathF.PI * radius;
 	const float baseWidth = 2f;
 
 	Material metalMaterial;
@@ -114,13 +114,13 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	{
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
+		if (Main != null)
 		{
 			Main.SimulationStarted += OnSimulationStarted;
 			Main.SimulationEnded += OnSimulationEnded;
 
-            running = Main.simulationRunning;
-        }
+			running = Main.simulationRunning;
+		}
 	}
 
 	public override void _ExitTree()
@@ -140,7 +140,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		metalMaterial = meshInstance1.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
 		meshInstance1.Mesh.SurfaceSetMaterial(0, metalMaterial);
 		meshInstance2.Mesh.SurfaceSetMaterial(0, metalMaterial);
-    }
+	}
 
 	public override void _PhysicsProcess(double delta)
 	{
@@ -150,7 +150,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 		if (running)
 		{
-            rollerMaterial.Uv1Offset += new Vector3(4f * Speed / circumference * (float)delta, 0, 0);
+			rollerMaterial.Uv1Offset += new Vector3(4f * Speed / circumference * (float)delta, 0, 0);
 
 			if (enableComms && running && readSuccessful)
 			{

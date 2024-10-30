@@ -66,7 +66,7 @@ public partial class ConveyorLeg : Node3D
 	{
 		if(Scale == prevScale) return;
 
-        if (legsSidesMaterial != null)
+		if (legsSidesMaterial != null)
 			legsSidesMaterial.SetShaderParameter("Scale", Scale.Y);
 
 		if (legsBars != null && legsBars.ParentScale != Scale.Y)
@@ -86,6 +86,6 @@ public partial class ConveyorLeg : Node3D
 		grab1.Scale = Vector3.One;
 		grab2.Scale = Vector3.One;
 
-        prevScale = Scale;
-    }
+		prevScale = Scale;
+	}
 }

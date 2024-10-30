@@ -20,11 +20,11 @@ public partial class BladeStop : Node3D
 	public string tag;
 	[Export]
 	private int updateRate = 100;
-	
+
 	readonly Guid id = Guid.NewGuid();
 	double scan_interval = 0;
 	bool readSuccessful = false;
-	
+
 	bool active = false;
 	[Export] bool Active
 	{
@@ -38,7 +38,7 @@ public partial class BladeStop : Node3D
 		}
 	}
 	float activePos = 0.24f;
-	
+
 	float airPressureHeight = 0.0f;
 	[Export] float AirPressureHeight
 	{
@@ -57,21 +57,21 @@ public partial class BladeStop : Node3D
 			}
 		}
 	}
-	
+
 	StaticBody3D blade;
 	MeshInstance3D airPressureR;
 	MeshInstance3D airPressureL;
 	MeshInstance3D bladeCornerR;
 	MeshInstance3D bladeCornerL;
 	Node3D corners;
-	
+
 	bool keyHeld = false;
 	bool keyPressed = false;
 	bool running = false;
-	
+
 	Root main;
 	public Root Main { get; set; }
-	
+
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
 		string propertyName = property["name"].AsStringName();
@@ -81,7 +81,7 @@ public partial class BladeStop : Node3D
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
 		}
 	}
-	
+
 	public override void _Ready()
 	{
 		blade = GetNode<StaticBody3D>("Blade");
@@ -90,62 +90,62 @@ public partial class BladeStop : Node3D
 		bladeCornerR = GetNode<MeshInstance3D>("Corners/AirPressureR/BladeCornerR");
 		bladeCornerL = GetNode<MeshInstance3D>("Corners/AirPressureL/BladeCornerL");
 		corners = GetNode<Node3D>("Corners");
-		
+
 		blade.Position = new Vector3(blade.Position.X, airPressureHeight, blade.Position.Z);
 		airPressureR.Position = new Vector3(airPressureR.Position.X, airPressureHeight, airPressureR.Position.Z);
 		airPressureL.Position = new Vector3(airPressureL.Position.X, airPressureHeight, airPressureL.Position.Z);
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
 	public void Use()
 	{
 		Active = !Active;
 	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
-        if (blade != null && bladeCornerR != null && bladeCornerL != null)
-        {
-            if (active) Up();
-            else Down();
-        }
+		if (blade != null && bladeCornerR != null && bladeCornerL != null)
+		{
+			if (active) Up();
+			else Down();
+		}
 
-        if (EnableComms && readSuccessful && running)
-        {
-            scan_interval += delta;
-            if (scan_interval > (float)updateRate / 1000 && readSuccessful)
-            {
-                scan_interval = 0;
-                Task.Run(ScanTag);
-            }
-        }
+		if (EnableComms && readSuccessful && running)
+		{
+			scan_interval += delta;
+			if (scan_interval > (float)updateRate / 1000 && readSuccessful)
+			{
+				scan_interval = 0;
+				Task.Run(ScanTag);
+			}
+		}
 
-        Scale = new Vector3(1, 1, Scale.Z);
+		Scale = new Vector3(1, 1, Scale.Z);
 		foreach(Node3D child in corners.GetChildren())
 		{
 			child.Scale = new Vector3(1, 1, 1 / Scale.Z);
 		}
 	}
-	
+
 	void Up()
 	{
 		Tween tween = GetTree().CreateTween().SetEase(0).SetParallel(); // Set EaseIn
@@ -153,7 +153,7 @@ public partial class BladeStop : Node3D
 		tween.TweenProperty(bladeCornerR, "position", new Vector3(bladeCornerR.Position.X, activePos, bladeCornerR.Position.Z), 0.15f);
 		tween.TweenProperty(bladeCornerL, "position", new Vector3(bladeCornerL.Position.X, activePos, bladeCornerL.Position.Z), 0.15f);
 	}
-	
+
 	void Down()
 	{
 		Tween tween = GetTree().CreateTween().SetEase(0).SetParallel(); // Set EaseIn
@@ -161,7 +161,7 @@ public partial class BladeStop : Node3D
 		tween.TweenProperty(bladeCornerR, "position", new Vector3(bladeCornerR.Position.X, 0, bladeCornerR.Position.Z), 0.15f);
 		tween.TweenProperty(bladeCornerL, "position", new Vector3(bladeCornerL.Position.X, 0, bladeCornerL.Position.Z), 0.15f);
 	}
-	
+
 	void OnSimulationStarted()
 	{
 		running = true;
@@ -175,7 +175,7 @@ public partial class BladeStop : Node3D
 	{
 		running = false;
 	}
-	
+
 	async Task ScanTag()
 	{
 		try

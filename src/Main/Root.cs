@@ -66,7 +66,7 @@ public partial class Root : Node3D
 		set
 		{
 			_protocol = value;
-			NotifyPropertyListChanged(); 
+			NotifyPropertyListChanged();
 		}
 	}
 
@@ -93,12 +93,12 @@ public partial class Root : Node3D
 	readonly System.Collections.Generic.Dictionary<Guid, string> opc_tags = new();
 
 	public bool paused = false;
-	
+
 	public Array<Godot.Node> selectedNodes = [];
 
-    public Session session;
+	public Session session;
 
-    public enum Protocols
+	public enum Protocols
 	{
 		opc_ua,
 		ab_eip,
@@ -187,33 +187,33 @@ public partial class Root : Node3D
 				).Result;
 	}
 
-    public bool Connect(Guid guid, DataType dataType, string nodeName, string tagName)
-    {
-        if (Protocol == Protocols.opc_ua)
+	public bool Connect(Guid guid, DataType dataType, string nodeName, string tagName)
+	{
+		if (Protocol == Protocols.opc_ua)
 		{
-            if (string.IsNullOrWhiteSpace(tagName))
-            {
-                GD.PrintErr($"Error connecting tag NULL in node {nodeName}: Empty tag name");
-                return false;
-            }
+			if (string.IsNullOrWhiteSpace(tagName))
+			{
+				GD.PrintErr($"Error connecting tag NULL in node {nodeName}: Empty tag name");
+				return false;
+			}
 
-            if (tagName.Contains("ns=") && tagName.Contains(';') && tagName.Split(';')[1].StartsWith(" s="))
-            {
-                GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: space after namespaceIndex. Format should be: ns=<namespaceIndex>;<identifiertype>=<identifier>");
-                return false;
-            }
+			if (tagName.Contains("ns=") && tagName.Contains(';') && tagName.Split(';')[1].StartsWith(" s="))
+			{
+				GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: space after namespaceIndex. Format should be: ns=<namespaceIndex>;<identifiertype>=<identifier>");
+				return false;
+			}
 
-            try
-            {
-                NodeId.Parse(tagName);
-            }
-            catch (ArgumentException ex)
-            {
-                GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {ex.Message}");
-                return false;
-            }
+			try
+			{
+				NodeId.Parse(tagName);
+			}
+			catch (ArgumentException ex)
+			{
+				GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {ex.Message}");
+				return false;
+			}
 
-            var nodesToRead = new ReadValueIdCollection
+			var nodesToRead = new ReadValueIdCollection
 			{
 				new ReadValueId
 				{
@@ -222,16 +222,16 @@ public partial class Root : Node3D
 				}
 			};
 
-            session.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out _);
+			session.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out _);
 
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {results[0].StatusCode}");
-                return false;
-            }
+			if (StatusCode.IsBad(results[0].StatusCode))
+			{
+				GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {results[0].StatusCode}");
+				return false;
+			}
 
-            opc_tags.Add(guid, tagName);
-        }
+			opc_tags.Add(guid, tagName);
+		}
 		else
 		{
 			if (dataType == DataType.Bool)
@@ -312,7 +312,7 @@ public partial class Root : Node3D
 	private T HandleOpcUaRead<T>(Guid guid)
 	{
 		var value = session.ReadValueAsync(opc_tags[guid]).Result.Value;
-		
+
 		if (value is T typedValue)
 		{
 			return typedValue;
@@ -477,75 +477,75 @@ public partial class Root : Node3D
 		}
 	}
 
-    public override void _Ready()
-    {
-        if (GetNodeOrNull("/root/SimulationEvents") != null)
-        {
-            var simulationEvents = GetNode("/root/SimulationEvents");
-            simulationEvents.Connect("simulation_started", new Callable(this, nameof(OnSimulationStarted2)));
-            simulationEvents.Connect("simulation_set_paused", new Callable(this, nameof(OnSimulationSetPaused2)));
-            simulationEvents.Connect("simulation_ended", new Callable(this, nameof(OnSimulationEnded2)));
-        }
-    }
+	public override void _Ready()
+	{
+		if (GetNodeOrNull("/root/SimulationEvents") != null)
+		{
+			var simulationEvents = GetNode("/root/SimulationEvents");
+			simulationEvents.Connect("simulation_started", new Callable(this, nameof(OnSimulationStarted2)));
+			simulationEvents.Connect("simulation_set_paused", new Callable(this, nameof(OnSimulationSetPaused2)));
+			simulationEvents.Connect("simulation_ended", new Callable(this, nameof(OnSimulationEnded2)));
+		}
+	}
 
-    public override void _EnterTree()
-    {        
+	public override void _EnterTree()
+	{
 		EditorInterface.Singleton.GetSelection().SelectionChanged += OnSelectionChanged;
-    }
+	}
 
-    public override void _ExitTree()
-    {
-        EditorInterface.Singleton.GetSelection().SelectionChanged -= OnSelectionChanged;
-    }
+	public override void _ExitTree()
+	{
+		EditorInterface.Singleton.GetSelection().SelectionChanged -= OnSelectionChanged;
+	}
 
 	public void OnSelectionChanged()
 	{
-        selectedNodes = EditorInterface.Singleton.GetSelection().GetSelectedNodes();
+		selectedNodes = EditorInterface.Singleton.GetSelection().GetSelectedNodes();
 		SelectNodes();
-    }
-	
+	}
+
 	void SelectNodes()
 	{
-        if (selectedNodes.Count > 0)
-        {
-            foreach (var node in selectedNodes)
-            {
-                if (node.HasMethod("Select"))
-                {
-                    node.Call("Select");
-                }
+		if (selectedNodes.Count > 0)
+		{
+			foreach (var node in selectedNodes)
+			{
+				if (node.HasMethod("Select"))
+				{
+					node.Call("Select");
+				}
 
-                if (node.HasMethod("Use") && use)
-                {
-                    node.Call("Use");
-                }
-            } 
-        }
-    }
+				if (node.HasMethod("Use") && use)
+				{
+					node.Call("Use");
+				}
+			}
+		}
+	}
 
-    public override void _Process(double delta)
-    {
+	public override void _Process(double delta)
+	{
 		use = false;
 
-        if (Input.IsPhysicalKeyPressed(Key.G))
-        {
-            if (!keyHeld)
-            {
+		if (Input.IsPhysicalKeyPressed(Key.G))
+		{
+			if (!keyHeld)
+			{
 				use = true;
 				keyHeld = true;
-            }
-        }
+			}
+		}
 
-        if (!Input.IsPhysicalKeyPressed(Key.G))
-        {
-            keyHeld = false;
-        }
+		if (!Input.IsPhysicalKeyPressed(Key.G))
+		{
+			keyHeld = false;
+		}
 
 
 		CallDeferred(MethodName.SelectNodes);
-    }
+	}
 
-    void OnSimulationStarted2()
+	void OnSimulationStarted2()
 	{
 		if (Protocol == Protocols.opc_ua && !string.IsNullOrEmpty(EndPoint))
 		{
@@ -566,7 +566,7 @@ public partial class Root : Node3D
 	void OnSimulationSetPaused2(bool _paused)
 	{
 		paused = _paused;
-		
+
 		if (paused)
 		{
 			ProcessMode = ProcessModeEnum.Disabled;
@@ -575,10 +575,10 @@ public partial class Root : Node3D
 		{
 			ProcessMode = ProcessModeEnum.Inherit;
 		}
-		
+
 		EmitSignal(SignalName.SimulationSetPaused, paused);
 	}
-	
+
 	void OnSimulationEnded2()
 	{
 		Start = false;

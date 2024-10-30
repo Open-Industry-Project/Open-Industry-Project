@@ -100,10 +100,10 @@ public partial class ChainTransfer : Node3D
 
 	Vector3 prevScale;
 
-    bool keyHeld = false;
-    bool keyPressed = false;
+	bool keyHeld = false;
+	bool keyPressed = false;
 
-    public Root Main { get; set; }
+	public Root Main { get; set; }
 
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
@@ -161,8 +161,8 @@ public partial class ChainTransfer : Node3D
 
 	public override void _PhysicsProcess(double delta)
 	{
-        SetChainsPopupChains(popupChains);
-        
+		SetChainsPopupChains(popupChains);
+
 		if (running)
 		{
 			SetChainsSpeed(speed);
