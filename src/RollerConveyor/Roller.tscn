@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://d4bf4if1fpy0t"]
 
 [ext_resource type="Script" path="res://src/RollerConveyor/Roller.cs" id="1_ay1m5"]
-[ext_resource type="ArrayMesh" uid="uid://tqapy4tuykn1" path="res://assets/3DModels/Meshes/ConveyorRollerRoller_Cylinder_001.res" id="1_wf4wt"]
+[ext_resource type="PackedScene" uid="uid://birsu52ho5sdy" path="res://assets/3DModels/ConveyorRollerRollerSplit.glb" id="2_f1goy"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_uhn3w"]
 rough = true
@@ -16,8 +16,7 @@ process_mode = 1
 script = ExtResource("1_ay1m5")
 metadata/_edit_group_ = true
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = ExtResource("1_wf4wt")
+[node name="RollerMeshes" parent="." instance=ExtResource("2_f1goy")]
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 collision_layer = 2
