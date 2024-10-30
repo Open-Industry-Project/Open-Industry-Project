@@ -457,6 +457,28 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private float legStandCoverageMaxPrev;
 	#endregion Fields / Leg stand coverage
 
+	#region Fields / Length, Width, and Height
+	private Vector3 _cachedScale => Scale;
+
+	public float Length
+	{
+		get => Scale.X;
+		set => Scale = new Vector3(value, Scale.Y, Scale.Z);
+	}
+
+	public float Width
+	{
+		get => Scale.Z * 2f;
+		set => Scale = new Vector3(Scale.X, Scale.Y, value / 2f);
+	}
+
+	public float Height
+	{
+		get => Scale.Y * 2f;
+		set => Scale = new Vector3(Scale.X, value / 2f, Scale.Z);
+	}
+	#endregion Fields / Length, Width, and Height
+
 	// This variable is used to store the names of the pre-existing leg stands that can't be owned by the edited scene.
 	private Dictionary <StringName, Node> foreignLegStandsOwners = new();
 
