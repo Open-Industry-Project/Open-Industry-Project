@@ -1,5 +1,13 @@
 import os
 
+# These models are being imported directly as Scenes.
+# (Importing as Scene allows Godot to generate LODs.)
+KEEP = [
+    "ConveyorRollerBaseSplit",
+    "ConveyorRollerEndSplit",
+    "ConveyorRollerRollerSplit",
+]
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 def delete_files(extension):
@@ -7,6 +15,9 @@ def delete_files(extension):
         for file in files:
             if file.endswith(extension):
                 file_path = os.path.join(root, file)
+                if file.removesuffix(extension) in KEEP:
+                    print(f"Skipping {file_path}")
+                    continue
                 print(f"Deleting {file_path}")
                 os.remove(file_path)
 

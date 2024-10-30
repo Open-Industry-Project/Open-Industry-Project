@@ -194,9 +194,12 @@ public partial class ConveyorAssembly : Node3D
 				break;
 			}
 		}
-		// This is a hack to account for the fact that rolling conveyors are slightly wider than belt conveyors.
-		if (firstConveyor is RollerConveyor || firstConveyor is CurvedRollerConveyor) {
+		// This is a hack to account for the fact that CurvedRollerConveyors are slightly wider than other conveyors.
+		if (firstConveyor is CurvedRollerConveyor) {
 			return this.Scale.Z * 1.055f;
+		}
+		if (firstConveyor is RollerConveyor) {
+			return this.Scale.Z + 0.051f;
 		}
 		return this.Scale.Z;
 	}

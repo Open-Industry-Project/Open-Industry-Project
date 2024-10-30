@@ -251,12 +251,6 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
 
 [node name="Conveyor" parent="Conveyors" instance=ExtResource("2_kdap4")]
 
-[node name="ConveyorEnd" parent="Conveyors/Conveyor" index="1"]
-transform = Transform3D(0.25, -1.50996e-07, -1.50996e-07, -3.7749e-08, -1, 1.69622e-07, -3.7749e-08, -1.69622e-07, -1, 0.5, 8.66714e-18, 0)
-
-[node name="ConveyorEnd2" parent="Conveyors/Conveyor" index="2"]
-transform = Transform3D(-0.25, -1.50996e-07, 1.50996e-07, -3.7749e-08, 1, -1.56219e-07, -3.77489e-08, -1.56219e-07, -1, -0.5, 0, 0)
-
 [node name="LeftSide" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
 
@@ -372,7 +366,6 @@ transform = Transform3D(1, 0, 0, 0, 0.618078, 0, 0, 0, 1, 0, 0, -1)
 [node name="LegsBottom2" parent="LegStands/AutoLegsStandRear/Ends" index="3"]
 transform = Transform3D(-1, 0, -1.50996e-07, 0, 0.618078, 0, 1.50996e-07, 0, -1, 0, 0, 1)
 
-[editable path="Conveyors/Conveyor"]
 [editable path="LegStands/AutoLegsStandFront"]
 [editable path="LegStands/AutoLegsStand1"]
 [editable path="LegStands/AutoLegsStandRear"]

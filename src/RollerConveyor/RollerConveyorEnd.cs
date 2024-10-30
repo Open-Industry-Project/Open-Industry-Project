@@ -1,37 +1,55 @@
 using Godot;
+using System.Collections.Generic;
 
 [Tool]
-public partial class RollerConveyorEnd : Node3D
+public partial class RollerConveyorEnd : AbstractRollerContainer
 {
 	[Export]
-	bool flipped = false;
+	bool flipped { get => _flipped; set {
+		if (_flipped != value) {
+			_flipped = value;
+			EmitSignal(SignalName.RollerRotationChanged, GetRotationFromSkewAngle(_rollerSkewAngleDegrees));
+		}
+	}}
+	bool _flipped = false;
 	Roller roller;
-	Node3D owner;
-	
-	public override void _Ready()
+
+	const float baseWidth = 2f;
+
+	public RollerConveyorEnd()
 	{
-		roller = GetNode<Roller>("Roller");
-    }
+		WidthChanged += SetEndsSeparation;
+	}
 
 	public override void _EnterTree()
 	{
-		owner = Owner as Node3D;
-    }
+		roller = GetNode<Roller>("Roller");
+		base._EnterTree();
+	}
 
-	public override void _Process(double delta)
-    {
-        if (owner != null)
-        {
-            Vector3 newScale = new(1 / owner.Scale.X, 1, 1);
-            if (Scale != newScale)
-            {
-                Scale = newScale;
-            }
-        }
-    }
-
-	public void RotateRoller(Vector3 angle)
+	public override void _ExitTree()
 	{
-		roller.RotationDegrees = flipped ? angle + new Vector3(0, 180, 0) : angle;
+		WidthChanged -= SetEndsSeparation;
+	}
+
+	protected override IEnumerable<Roller> GetRollers()
+	{
+		return [roller];
+	}
+
+	private void SetEndsSeparation(float width)
+	{
+		Node3D end = GetNode<Node3D>("ConveyorRollerEnd");
+		end.Scale = new(1f, 1f, width / baseWidth);
+		foreach (MeshInstance3D endMesh in end.GetChildren())
+		{
+			endMesh.Scale = new(1f, 1f, baseWidth / width);
+		}
+	}
+
+	protected override Vector3 GetRotationFromSkewAngle(float angleDegrees)
+	{
+		Vector3 rot = base.GetRotationFromSkewAngle(angleDegrees);
+		return flipped ? rot + new Vector3(0, 180, 0) : rot;
 	}
 }
