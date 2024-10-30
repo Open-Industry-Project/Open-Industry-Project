@@ -56,6 +56,7 @@ public partial class BoxSpawner : Node3D
 			Main.SimulationEnded += OnSimulationEnded;
 		}
 
+		_scale = Scale;
 		_rotation = Rotation;
 		_globalPosition = GlobalPosition;
 	}
