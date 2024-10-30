@@ -178,29 +178,29 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		prevScaleX = Scale.X;
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
 
-            if (Main.simulationRunning)
-            {
-                running = true;
-            }
-        }
-    }
+			if (Main.simulationRunning)
+			{
+				running = true;
+			}
+		}
+	}
 
-    public override void _ExitTree()
+	public override void _ExitTree()
 	{
 		if (Main != null)
 		{
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
 	}
 
 	public override void _Process(double delta)

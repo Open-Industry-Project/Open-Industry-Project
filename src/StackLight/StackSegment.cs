@@ -26,10 +26,10 @@ public partial class StackSegment : Node3D
 	double scan_interval = 0;
 
 	readonly Guid id = Guid.NewGuid();
-	
+
 	Root main;
 	public Root Main { get; set; }
-	
+
 	public string tag = "";
 	StackSegmentData segmentData;
 	[Export]
@@ -49,53 +49,53 @@ public partial class StackSegment : Node3D
 			}
 
 			segmentData = value as StackSegmentData;
-			
+
 			if (material != null && segmentData != null)
 			{
 				SetActive(segmentData.Active);
 				SetSegmentColor(segmentData.SegmentColor);
 			}
-			
+
 			segmentData.TagChanged += SetTag;
 			segmentData.ActiveChanged += SetActive;
 			segmentData.ColorChanged += SetSegmentColor;
 		}
 	}
-	
+
 	MeshInstance3D meshInstance;
 	StandardMaterial3D material;
 	public override void _Ready()
 	{
 		Main = GetParent().GetTree().EditedSceneRoot as Root;
-		
+
 		if (Main != null)
 		{
 			Main.SimulationStarted += OnSimulationStarted;
 			Main.SimulationEnded += OnSimulationEnded;
 		}
-		
+
 		meshInstance = GetNode<MeshInstance3D>("LightMesh");
 		meshInstance.Mesh = meshInstance.Mesh.Duplicate() as Mesh;
-		
+
 		material = meshInstance.Mesh.SurfaceGetMaterial(0).Duplicate() as StandardMaterial3D;
 		meshInstance.Mesh.SurfaceSetMaterial(0, material);
-		
+
 		if (segmentData != null)
 		{
 			segmentData.TagChanged -= SetTag;
 			segmentData.ActiveChanged -= SetActive;
 			segmentData.ColorChanged -= SetSegmentColor;
 		}
-		
+
 		segmentData.enableComms = enableComms;
 		SetActive(segmentData.Active);
 		SetSegmentColor(segmentData.SegmentColor);
-		
+
 		segmentData.TagChanged += SetTag;
 		segmentData.ActiveChanged += SetActive;
 		segmentData.ColorChanged += SetSegmentColor;
 	}
-	
+
 	public override void _PhysicsProcess(double delta)
 	{
 		if (enableComms && running && readSuccessful)
@@ -108,7 +108,7 @@ public partial class StackSegment : Node3D
 			}
 		}
 	}
-	
+
 	async Task ScanTag()
 	{
 		if (segmentData.Tag != string.Empty)
@@ -116,12 +116,12 @@ public partial class StackSegment : Node3D
 			segmentData.Active = await Main.ReadBool(id);
 		}
 	}
-	
+
 	void SetTag(string newValue)
 	{
 		tag = newValue;
 	}
-	
+
 	void SetActive(bool newValue)
 	{
 		if (material == null) return;
@@ -134,7 +134,7 @@ public partial class StackSegment : Node3D
 			material.EmissionEnergyMultiplier = 0.0f;
 		}
 	}
-	
+
 	void SetSegmentColor(Color newValue)
 	{
 		if (material != null)
@@ -143,16 +143,16 @@ public partial class StackSegment : Node3D
 			material.Emission = newValue;
 		}
 	}
-	
+
 	void OnSimulationStarted()
 	{
-        running = true;
-        if (enableComms)
-        {
-            readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
-        }
-    }
-	
+		running = true;
+		if (enableComms)
+		{
+			readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
+		}
+	}
+
 	void OnSimulationEnded()
 	{
 		running = false;

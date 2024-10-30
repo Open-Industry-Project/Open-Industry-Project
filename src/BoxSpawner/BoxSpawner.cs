@@ -5,21 +5,21 @@ public partial class BoxSpawner : Node3D
 {
 	[Export]
 	PackedScene scene;
-    private bool _disable = false;
-    [Export]
-    public bool Disable
-    {
-        get => _disable;
-        set
-        {
-            _disable = value;
-            if (!_disable)
-            {
-                scan_interval = spawnInterval;
-            }
-        }
-    }
-    [Export]
+	private bool _disable = false;
+	[Export]
+	public bool Disable
+	{
+		get => _disable;
+		set
+		{
+			_disable = value;
+			if (!_disable)
+			{
+				scan_interval = spawnInterval;
+			}
+		}
+	}
+	[Export]
 	public bool SpawnRandomScale = false;
 	[Export]
 	public Vector2 spawnRandomSize = new(0.5f, 1f);
@@ -34,45 +34,45 @@ public partial class BoxSpawner : Node3D
 	Vector3 _globalPosition;
 	Vector3 _scale;
 
-    public override void _Ready()
-    {
-        if (Main != null)
-        {
-            SetPhysicsProcess(Main.simulationRunning);
-        }
-    }
+	public override void _Ready()
+	{
+		if (Main != null)
+		{
+			SetPhysicsProcess(Main.simulationRunning);
+		}
+	}
 
-    public override void _EnterTree()
-    {
+	public override void _EnterTree()
+	{
 		SetNotifyLocalTransform(true);
 
 		scan_interval = spawnInterval;
 
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
 
 		_rotation = Rotation;
 		_globalPosition = GlobalPosition;
-    }
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null || Disable) return;
-		
+
 		scan_interval += (float)delta;
 		if (scan_interval > spawnInterval)
 		{
@@ -80,7 +80,7 @@ public partial class BoxSpawner : Node3D
 			SpawnBox();
 		}
 	}
-	
+
 	private void SpawnBox()
 	{
 		var box = (Box)scene.Instantiate();
@@ -95,15 +95,15 @@ public partial class BoxSpawner : Node3D
 		else
 		{
 			box.Scale = _scale;
-        }
+		}
 
 		box.Rotation = _rotation;
 		box.Position = _globalPosition;
 		box.instanced = true;
 
-        AddChild(box, forceReadableName:true);
+		AddChild(box, forceReadableName:true);
 		box.Owner = Main;
-    }
+	}
 
 	public void Use()
 	{
@@ -115,7 +115,7 @@ public partial class BoxSpawner : Node3D
 		SetPhysicsProcess(true);
 		scan_interval = spawnInterval;
 	}
-	
+
 	void OnSimulationEnded()
 	{
 		SetPhysicsProcess(false);

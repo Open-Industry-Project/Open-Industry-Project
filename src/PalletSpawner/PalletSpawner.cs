@@ -5,21 +5,21 @@ public partial class PalletSpawner : Node3D
 {
 	[Export]
 	PackedScene scene;
-    private bool _disable = false;
-    [Export]
-    public bool Disable
-    {
-        get => _disable;
-        set
-        {
-            _disable = value;
-            if (!_disable)
-            {
-                scan_interval = spawnInterval;
-            }
-        }
-    }
-    [Export]
+	private bool _disable = false;
+	[Export]
+	public bool Disable
+	{
+		get => _disable;
+		set
+		{
+			_disable = value;
+			if (!_disable)
+			{
+				scan_interval = spawnInterval;
+			}
+		}
+	}
+	[Export]
 	public float spawnInterval = 3f;
 
 	private float scan_interval = 0;
@@ -30,38 +30,38 @@ public partial class PalletSpawner : Node3D
 	Vector3 _globalPosition;
 
 	public override void _Ready()
-    {
-        if (Main != null)
-        {
-            SetPhysicsProcess(Main.simulationRunning);
-        }
-    }
+	{
+		if (Main != null)
+		{
+			SetPhysicsProcess(Main.simulationRunning);
+		}
+	}
 
-    public override void _EnterTree()
-    {
+	public override void _EnterTree()
+	{
 		SetNotifyLocalTransform(true);
 
 		scan_interval = spawnInterval;
 
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		if (Main == null || Disable) return;
 
@@ -77,13 +77,13 @@ public partial class PalletSpawner : Node3D
 	{
 		var pallet = (Pallet)scene.Instantiate();
 
-        pallet.Rotation = _rotation;
-        pallet.Position = _globalPosition;
-        pallet.instanced = true;
+		pallet.Rotation = _rotation;
+		pallet.Position = _globalPosition;
+		pallet.instanced = true;
 
-        AddChild(pallet, forceReadableName: true);
-        pallet.Owner = Main;
-    }
+		AddChild(pallet, forceReadableName: true);
+		pallet.Owner = Main;
+	}
 
 	void OnSimulationStarted()
 	{

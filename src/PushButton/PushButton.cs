@@ -23,7 +23,7 @@ public partial class PushButton : Node3D
 	[Export] string PushbuttonTag = "";
 	[Export] string LampTag = "";
 	[Export] int updateRate = 100;
-	
+
 	string text = "stop";
 	[Export] String Text
 	{
@@ -34,14 +34,14 @@ public partial class PushButton : Node3D
 		set
 		{
 			text = value;
-			
+
 			if (textMesh != null)
 			{
 				textMesh.Text = text;
 			}
 		}
 	}
-	
+
 	bool toggle = false;
 	[Export] bool Toggle
 	{
@@ -56,22 +56,22 @@ public partial class PushButton : Node3D
 				Pushbutton = false;
 		}
 	}
-	
+
 	bool pushbutton = false;
-	[Export] bool Pushbutton 
+	[Export] bool Pushbutton
 	{
-		get 
+		get
 		{
 			return pushbutton;
 		}
 		set
 		{
 			pushbutton = value;
-			
+
 			if (!Toggle && pushbutton)
 			{
-                Task.Delay(updateRate * 3).ContinueWith(t => pushbutton = false);
-                Tween tween = GetTree().CreateTween();
+				Task.Delay(updateRate * 3).ContinueWith(t => pushbutton = false);
+				Tween tween = GetTree().CreateTween();
 				tween.TweenProperty(buttonMesh, "position", new Vector3(0, 0, buttonPressedZPos), 0.035f);
 				tween.TweenInterval(0.2f);
 				tween.TweenProperty(buttonMesh, "position", Vector3.Zero, 0.02f);
@@ -85,7 +85,7 @@ public partial class PushButton : Node3D
 			}
 		}
 	}
-	
+
 	bool lamp = false;
 	[Export] bool Lamp
 	{
@@ -99,7 +99,7 @@ public partial class PushButton : Node3D
 			SetActive(lamp);
 		}
 	}
-	
+
 	Color buttonColor = new("#e73d30");
 	[Export] Color ButtonColor
 	{
@@ -113,26 +113,26 @@ public partial class PushButton : Node3D
 			SetButtonColor(buttonColor);
 		}
 	}
-	
+
 	MeshInstance3D textMeshInstance;
 	TextMesh textMesh;
-	
+
 	MeshInstance3D buttonMesh;
 	StandardMaterial3D buttonMaterial;
 	float buttonPressedZPos = -0.04f;
 	bool keyHeld = false;
 	bool keyPressed = false;
-	
+
 	bool readSuccessful = false;
 	bool running = false;
 	double scan_interval = 0;
-	
+
 	readonly Guid buttonId = Guid.NewGuid();
 	readonly Guid activeId = Guid.NewGuid();
-	
+
 	Root main;
 	public Root Main { get; set; }
-	
+
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
 		string propertyName = property["name"].AsStringName();
@@ -142,53 +142,53 @@ public partial class PushButton : Node3D
 			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
 		}
 	}
-	
+
 	public override void _Ready()
-	{	
+	{
 		// Assign 3D text
 		textMeshInstance = GetNode<MeshInstance3D>("TextMesh");
 		textMesh = textMeshInstance.Mesh.Duplicate() as TextMesh;
 		textMeshInstance.Mesh = textMesh;
 		textMesh.Text = text;
-		
+
 		// Assign button
 		buttonMesh = GetNode<MeshInstance3D>("Meshes/Button");
 		buttonMesh.Mesh = buttonMesh.Mesh.Duplicate() as Mesh;
 		buttonMaterial = buttonMesh.Mesh.SurfaceGetMaterial(0).Duplicate() as StandardMaterial3D;
 		buttonMesh.Mesh.SurfaceSetMaterial(0, buttonMaterial);
-		
+
 		// Initialize properties' states
 		SetButtonColor(ButtonColor);
 		SetActive(Lamp);
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
 	public void Use()
 	{
 		Pushbutton = !Pushbutton;
 	}
 
-    public override void _PhysicsProcess(double delta)
-	{		
+	public override void _PhysicsProcess(double delta)
+	{
 		if (enableComms && readSuccessful)
 		{
 			scan_interval += delta;
@@ -199,24 +199,24 @@ public partial class PushButton : Node3D
 			}
 		}
 	}
-	
+
 	async Task ScanTag()
 	{
 		if (PushbuttonTag != string.Empty)
 		{
 			await Main.Write(buttonId, Pushbutton);
 		}
-		
+
 		if (LampTag != string.Empty)
 		{
 			Lamp = await Main.ReadBool(activeId);
 		}
 	}
-	
+
 	void SetActive(bool newValue)
 	{
 		if (buttonMaterial == null) return;
-		
+
 		if (newValue)
 		{
 			buttonMaterial.EmissionEnergyMultiplier = 1.0f;
@@ -226,7 +226,7 @@ public partial class PushButton : Node3D
 			buttonMaterial.EmissionEnergyMultiplier = 0.0f;
 		}
 	}
-	
+
 	void SetButtonColor(Color newValue)
 	{
 		if (buttonMaterial != null)
@@ -235,16 +235,16 @@ public partial class PushButton : Node3D
 			buttonMaterial.Emission = newValue;
 		}
 	}
-	
+
 	void OnSimulationStarted()
 	{
-        running = true;
-        if (enableComms)
-        {
-            readSuccessful = Main.Connect(buttonId, Root.DataType.Bool, Name, PushbuttonTag) && Main.Connect(activeId, Root.DataType.Bool, Name, LampTag);
-        }
-    }
-	
+		running = true;
+		if (enableComms)
+		{
+			readSuccessful = Main.Connect(buttonId, Root.DataType.Bool, Name, PushbuttonTag) && Main.Connect(activeId, Root.DataType.Bool, Name, LampTag);
+		}
+	}
+
 	void OnSimulationEnded()
 	{
 		running = false;

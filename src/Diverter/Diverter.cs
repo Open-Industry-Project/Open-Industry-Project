@@ -57,46 +57,46 @@ public partial class Diverter : Node3D
 	{
 		diverterAnimator = GetNode<DiverterAnimator>("DiverterAnimator");
 	}
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
 	public void Use()
 	{
 		FireDivert = true;
 
-        Task.Delay(updateRate * 3).ContinueWith(t => FireDivert = false);
-    }
+		Task.Delay(updateRate * 3).ContinueWith(t => FireDivert = false);
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		if (FireDivert && !previousFireDivertState)
 		{
 			divert = true;
-			cycled = false;  
+			cycled = false;
 		}
 
 		if (divert && !cycled)
 		{
 			diverterAnimator.Fire(divertTime, divertDistance);
 			divert = false;
-			cycled = true;  
+			cycled = true;
 		}
 
 		previousFireDivertState = FireDivert;
@@ -113,12 +113,12 @@ public partial class Diverter : Node3D
 	}
 	void OnSimulationStarted()
 	{
-        running = true;
-        if (enableComms)
-        {
-            readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
-        }
-    }
+		running = true;
+		if (enableComms)
+		{
+			readSuccessful = Main.Connect(id, Root.DataType.Bool, Name, tag);
+		}
+	}
 
 	void OnSimulationEnded()
 	{

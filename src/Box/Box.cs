@@ -2,11 +2,11 @@ using Godot;
 
 [Tool]
 public partial class Box : Node3D
-{	
+{
 	RigidBody3D rigidBody;
 	Vector3 initialPos;
 	public bool instanced = false;
-    private bool _paused = false;
+	private bool _paused = false;
 
 	Root Main;
 	public override void _Ready()
@@ -15,76 +15,76 @@ public partial class Box : Node3D
 
 		if (Main != null)
 		{
-            rigidBody.Freeze = false;
+			rigidBody.Freeze = false;
 
-            if (Main.simulationRunning)
-            {
-                instanced = true;
-            }
-        }
+			if (Main.simulationRunning)
+			{
+				instanced = true;
+			}
+		}
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-            Main.SimulationSetPaused += OnSimulationSetPaused;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+			Main.SimulationSetPaused += OnSimulationSetPaused;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-            Main.SimulationSetPaused -= OnSimulationSetPaused;
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+			Main.SimulationSetPaused -= OnSimulationSetPaused;
 
-            if (instanced) QueueFree();
-        }
-    }
+			if (instanced) QueueFree();
+		}
+	}
 
 	public void Select()
 	{
-        if (_paused || !Main.simulationRunning) return;
-        if (rigidBody.Freeze)
-        {
-            rigidBody.TopLevel = false;
+		if (_paused || !Main.simulationRunning) return;
+		if (rigidBody.Freeze)
+		{
+			rigidBody.TopLevel = false;
 
-            if (rigidBody.Transform != Transform3D.Identity)
-            {
-                rigidBody.Transform = Transform3D.Identity;
-            }
-        }
-        else
-        {
-            rigidBody.TopLevel = true;
+			if (rigidBody.Transform != Transform3D.Identity)
+			{
+				rigidBody.Transform = Transform3D.Identity;
+			}
+		}
+		else
+		{
+			rigidBody.TopLevel = true;
 
-            if (Transform != rigidBody.Transform)
-            {
-                Transform = rigidBody.Transform;
-            }
-        }
-    }
+			if (Transform != rigidBody.Transform)
+			{
+				Transform = rigidBody.Transform;
+			}
+		}
+	}
 
-    public void Use()
-    {
+	public void Use()
+	{
 		rigidBody.Freeze = !rigidBody.Freeze;
-    }
-	
+	}
+
 	void OnSimulationStarted()
 	{
 		if (Main == null) return;
-		
+
 		initialPos = GlobalPosition;
 		rigidBody.TopLevel = true;
 		rigidBody.Freeze = false;
 	}
-	
+
 	void OnSimulationEnded()
 	{
 		if (instanced)
@@ -97,25 +97,25 @@ public partial class Box : Node3D
 		else
 		{
 			rigidBody.TopLevel = false;
-			
+
 			rigidBody.Position = Vector3.Zero;
 			rigidBody.Rotation = Vector3.Zero;
 			rigidBody.Scale = Vector3.One;
-			
+
 			rigidBody.LinearVelocity = Vector3.Zero;
 			rigidBody.AngularVelocity = Vector3.Zero;
-			
+
 			GlobalPosition = initialPos;
 			Rotation = Vector3.Zero;
 		}
 	}
 
-    void OnSimulationSetPaused(bool paused)
-    {
-        _paused = paused;
-        rigidBody.TopLevel = true;
-        rigidBody.Freeze = paused;
-        Transform = rigidBody.Transform;
-        rigidBody.TopLevel = !paused;
-    }
+	void OnSimulationSetPaused(bool paused)
+	{
+		_paused = paused;
+		rigidBody.TopLevel = true;
+		rigidBody.Freeze = paused;
+		Transform = rigidBody.Transform;
+		rigidBody.TopLevel = !paused;
+	}
 }

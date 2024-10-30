@@ -60,7 +60,7 @@ public partial class LaserSensor : Node3D
 	MeshInstance3D rayMesh;
 	CylinderMesh cylinderMesh;
 	StandardMaterial3D rayMaterial;
-	
+
 	Root Main;
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{
@@ -90,32 +90,32 @@ public partial class LaserSensor : Node3D
 		rayMarker.Visible = debugBeam;
 	}
 
-    public override void _EnterTree()
-    {
-        Main = GetParent().GetTree().EditedSceneRoot as Root;
+	public override void _EnterTree()
+	{
+		Main = GetParent().GetTree().EditedSceneRoot as Root;
 
-        if (Main != null)
-        {
-            Main.SimulationStarted += OnSimulationStarted;
-            Main.SimulationEnded += OnSimulationEnded;
-        }
-    }
+		if (Main != null)
+		{
+			Main.SimulationStarted += OnSimulationStarted;
+			Main.SimulationEnded += OnSimulationEnded;
+		}
+	}
 
-    public override void _ExitTree()
-    {
-        if (Main != null)
-        {
-            Main.SimulationStarted -= OnSimulationStarted;
-            Main.SimulationEnded -= OnSimulationEnded;
-        }
-    }
+	public override void _ExitTree()
+	{
+		if (Main != null)
+		{
+			Main.SimulationStarted -= OnSimulationStarted;
+			Main.SimulationEnded -= OnSimulationEnded;
+		}
+	}
 
-    public override void _PhysicsProcess(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		PhysicsDirectSpaceState3D spaceState = GetWorld3D().DirectSpaceState;
 		PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(rayMarker.GlobalPosition, rayMarker.GlobalPosition + GlobalTransform.Basis.Z * maxRange);
 		var result = spaceState.IntersectRay(query);
-		
+
 		if (result.Count > 0)
 		{
 			cylinderMesh.Height = rayMarker.GlobalPosition.DistanceTo((Vector3)result["position"]);

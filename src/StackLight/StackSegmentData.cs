@@ -8,9 +8,9 @@ public partial class StackSegmentData : Resource
 	[Signal] public delegate void TagChangedEventHandler(string value);
 	[Signal] public delegate void ActiveChangedEventHandler(bool value);
 	[Signal] public delegate void ColorChangedEventHandler(Color value);
-	
+
 	public bool enableComms = false;
-	
+
 	string tag = "";
 	[Export] public string Tag
 	{
@@ -24,7 +24,7 @@ public partial class StackSegmentData : Resource
 			EmitSignal(SignalName.TagChanged, tag);
 		}
 	}
-	
+
 	bool active = false;
 	[Export] public bool Active
 	{
@@ -38,7 +38,7 @@ public partial class StackSegmentData : Resource
 			EmitSignal(SignalName.ActiveChanged, active);
 		}
 	}
-	
+
 	Color segmentColor = new(0.0f, 1.0f, 0.0f, 0.5f);
 	[Export] public Color SegmentColor
 	{
