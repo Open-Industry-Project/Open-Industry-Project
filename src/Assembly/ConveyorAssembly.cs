@@ -614,6 +614,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		ScaleXChanged += SetLength;
 		ScaleZChanged += void (value) => SetWidth(value * 2f);
 		ScaleYChanged += void (value) => SetHeight(value * 2f);
+
+		// If necessary, trigger signals to set new values
+		SetTransform(Transform);
 	}
 
 	public override void _Ready()
