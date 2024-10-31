@@ -109,22 +109,28 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			.Where((SideGuardGap gap) => gap != null && (gap.Side == SideGuardGap.SideGuardGapSide.Both
 			|| isRight && gap.Side == SideGuardGap.SideGuardGapSide.Right
 			|| !isRight && gap.Side == SideGuardGap.SideGuardGapSide.Left))
-			.Select(gap => (gap.Position - Mathf.Abs(gap.Width) / 2f, gap.Position + Mathf.Abs(gap.Width) / 2f))
+			.Select(gap =>
+			{
+				float extentFront = gap.Position - Mathf.Abs(gap.Width) / 2f;
+				float extentRear = gap.Position + Mathf.Abs(gap.Width) / 2f;
+				return (extentFront, extentRear);
+			})
 			.OrderBy(gap => gap.Item1)
 			.Aggregate(new List<(float, float)>(), (acc, gap) => {
+				// Merge overlapping gaps.
+				// Gaps are already sorted by leading edge.
 				if (acc.Count == 0) {
 					acc.Add(gap);
 					return acc;
 				}
-				// Merge overlapping gaps.
-				// Gaps are already sorted by leading edge.
-				var last = acc.Last();
-				if (last.Item2 < gap.Item1) {
+				var (extentFront, extentRear) = gap;
+				var (lastExtentFront, lastExtentRear) = acc.Last();
+				if (lastExtentRear < extentFront) {
 					// No overlap.
 					acc.Add(gap);
-				} else if (last.Item2 < gap.Item2) {
+				} else if (lastExtentRear < extentRear) {
 					// Partial overlap.
-					acc[^1] = (last.Item1, gap.Item2);
+					acc[^1] = (lastExtentFront, extentRear);
 				}
 				// Otherwise, full overlap; ignore.
 				return acc;
