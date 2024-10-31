@@ -596,7 +596,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		transformPrev = this.Transform;
 
 		// Apply the ConveyorsAngle property if needed.
-		Basis assemblyScale = Basis.Identity.Scaled(this.Basis.Scale);
+		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
 		if (conveyors != null) {
 			float conveyorsStartingAngle = (assemblyScale * conveyors.Basis).GetEuler().Z;
 			conveyorAnglePrev = conveyorsStartingAngle;

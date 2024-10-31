@@ -43,7 +43,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 * If both happen at the same time, the property wins.
 	 */
 	private void SyncConveyorsAngle() {
-		Basis scale = Basis.Identity.Scaled(this.Basis.Scale);
+		Basis scale = Basis.Identity.Scaled(_cachedScale);
 		Basis scalePrev = Basis.Identity.Scaled(transformPrev.Basis.Scale);
 		if (ConveyorAngle != conveyorAnglePrev) {
 			Basis targetRot = new Basis(new Vector3(0, 0, 1), ConveyorAngle);
@@ -73,11 +73,11 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 */
 	private float GetConveyorLineLength() {
 		if (conveyors == null) {
-			return this.Scale.X;
+			return Length;
 		}
 		if (ConveyorAutomaticLength) {
 			var cos = Mathf.Cos(conveyors.Basis.GetEuler().Z);
-			return this.Scale.X * 1 / (Mathf.Abs(cos) >= 0.01f ? cos : 0.01f);
+			return Length / (Mathf.Abs(cos) >= 0.01f ? cos : 0.01f);
 		}
 		// Add up the length of all conveyors.
 		// Assume all conveyors are aligned end-to-end.
@@ -117,10 +117,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	protected virtual void ScaleConveyor(Node3D conveyor, float conveyorLength) {
 		Vector3 newScale;
 		if (ConveyorAutomaticLength) {
-			newScale = new Vector3(conveyorLength, 1f, this.Scale.Z);
+			newScale = new Vector3(conveyorLength, 1f, Width / 2f);
 		} else {
 			// Always scale width.
-			newScale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, this.Scale.Z);
+			newScale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, Width / 2f);
 		}
 		if (conveyor.Scale != newScale) {
 			conveyor.Scale = newScale;

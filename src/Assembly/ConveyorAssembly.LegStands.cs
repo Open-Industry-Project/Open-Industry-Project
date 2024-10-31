@@ -113,7 +113,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 * This currently shouldn't do anything for curved assemblies.
 	 */
 	private void SyncLegStandsOffsets() {
-		Basis assemblyScale = Basis.Identity.Scaled(this.Basis.Scale);
+		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
 		Basis assemblyScalePrev = Basis.Identity.Scaled(transformPrev.Basis.Scale);
 		Vector3 legStandsScaledPosition = assemblyScale * legStands.Position;
 		Vector3 legStandsScaledPositionPrev = assemblyScalePrev * legStandsTransformPrev.Origin;
@@ -180,7 +180,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 				continue;
 			}
 			SnapToLegStandsPath(legStand);
-			legStand.Scale = new Vector3(1f, legStand.Scale.Y, targetWidth);
+			legStand.Scale = new Vector3(1f, legStand.Scale.Y, targetWidth / 2f);
 		}
 
 	}
@@ -196,12 +196,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		}
 		// This is a hack to account for the fact that CurvedRollerConveyors are slightly wider than other conveyors.
 		if (firstConveyor is CurvedRollerConveyor) {
-			return this.Scale.Z * 1.055f;
+			return Width * 1.055f;
 		}
 		if (firstConveyor is RollerConveyor) {
-			return this.Scale.Z + 0.051f;
+			return Width + 0.051f * 2f;
 		}
-		return this.Scale.Z;
+		return Width;
 	}
 
 	/**

@@ -113,12 +113,12 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 
 	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength) {
 		// ConveyorAutomaticLength and conveyorLength have no effect on curved conveyors.
-		conveyor.Scale = new Vector3(this.Scale.X, 1f, this.Scale.Z);
+		conveyor.Scale = new Vector3(Length, 1f, Width / 2f);
 	}
 
 	protected override void ScaleSideGuard(Node3D guard, float guardLength) {
 		// SideGuardsAutoScale and guardLength have no effect on curved side guards.
-		guard.Scale = new Vector3(this.Scale.X, 1f, this.Scale.Z);
+		guard.Scale = new Vector3(Length / 2f, 1f, Width / 2f);
 	}
 	#endregion Conveyors and Side Guards
 
@@ -139,7 +139,7 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	}
 
 	protected override void MoveLegStandToPathPosition(Node3D legStand, float position) {
-		float radius = this.Scale.X * 1.5f;
+		float radius = Width / 2f * 1.5f;
 		float angle = Mathf.DegToRad(position);
 
 		Vector3 newPosition = new Vector3(0, legStand.Position.Y, radius).Rotated(Vector3.Up, angle);
