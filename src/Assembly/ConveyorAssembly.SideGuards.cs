@@ -39,8 +39,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	protected virtual void LockSidePosition(Node3D side, bool isRight) {
 		// Sides always snap onto the conveyor line
 		side.Transform = conveyors.Transform;
-		var offsetZ = (isRight? 1 : -1) * side.Basis.Z * (Width / 2f - 1f);
-		side.Position += offsetZ;
+		float offsetDistance = Width / 2f - 1f;
+		Vector3 offsetDirection = (isRight ? 1 : -1) * side.Basis.Z;
+		Vector3 offset = offsetDirection * offsetDistance;
+		side.Position += offset;
 	}
 	#endregion SideGuards / Update "LeftSide" and "RightSide" nodes
 

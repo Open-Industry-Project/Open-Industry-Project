@@ -255,8 +255,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 * @param legStand The leg stand to move.
 	 * @param position The path position to move the leg stand to.
 	 */
-	protected virtual void MoveLegStandToPathPosition(Node3D legStand, float position) {
-		Vector3 newPosition = new Vector3(position, legStand.Position.Y, 0f);
+	protected virtual void MoveLegStandToPathPosition(Node3D legStand, float pathPosition) {
+		Vector3 newPosition = new Vector3(pathPosition, legStand.Position.Y, 0f);
 		if (legStand.Position != newPosition)
 		{
 			legStand.Position = newPosition;

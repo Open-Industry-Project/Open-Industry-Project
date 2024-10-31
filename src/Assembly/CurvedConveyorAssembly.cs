@@ -150,11 +150,12 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 		return (float) Math.Round(Mathf.RadToDeg(new Vector3(0, 0, 1).SignedAngleTo(position.Slide(Vector3.Up), Vector3.Up)));
 	}
 
-	protected override void MoveLegStandToPathPosition(Node3D legStand, float position) {
-		float radius = Width / BaseWidth * BaseMiddleRadius;
-		float angle = Mathf.DegToRad(position);
+	protected override void MoveLegStandToPathPosition(Node3D legStand, float pathPosition)
+	{
+		float pathRadius = Width / BaseWidth * BaseMiddleRadius;
+		float angle = Mathf.DegToRad(pathPosition);
 
-		Vector3 newPosition = new Vector3(0, legStand.Position.Y, radius).Rotated(Vector3.Up, angle);
+		Vector3 newPosition = new Vector3(0, legStand.Position.Y, pathRadius).Rotated(Vector3.Up, angle);
 		if (legStand.Position != newPosition)
 		{
 			legStand.Position = newPosition;
