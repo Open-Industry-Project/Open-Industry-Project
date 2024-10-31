@@ -1,5 +1,6 @@
 using Godot;
 
+[Tool]
 public partial class TransformMonitoredNode3D: Node3D
 {
 	[Signal]
