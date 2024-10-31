@@ -34,7 +34,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private Node3D leftSide;
 	protected Node3D legStands;
 	#endregion Fields / Nodes
-	private Transform3D transformPrev;
 	private Transform3D conveyorsTransformPrev;
 	private Transform3D legStandsTransformPrev;
 
@@ -452,6 +451,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private Basis _cachedBasis = Basis.Identity;
 	private Vector3 _cachedScale = Vector3.One;
 
+	private Basis _basisPrev = Basis.Identity;
+	private Vector3 _scalePrev = Vector3.One;
+
 	private float _length;
 	public float Length
 	{
@@ -622,7 +624,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		conveyors = GetNode<Node3D>("Conveyors");
 		legStands = GetNodeOrNull<Node3D>("LegStands");
 
-		transformPrev = this.Transform;
+		_basisPrev = _cachedBasis;
+		_scalePrev = _basisPrev.Scale;
 
 		// Apply the ConveyorsAngle property if needed.
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
@@ -677,7 +680,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 		UpdateLegStandCoverage();
 		UpdateLegStands();
-		transformPrev = this.Transform;
+		_basisPrev = _cachedBasis;
+		_scalePrev = _basisPrev.Scale;
 		conveyorAnglePrev = ConveyorAngle;
 		conveyorsTransformPrev = conveyors.Transform;
 		autoLegStandsIntervalLegsEnabledPrev = AutoLegStandsIntervalLegsEnabled;
@@ -720,8 +724,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		var basisScale = basisRotation.Inverse() * _cachedBasis;
 		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
 
-		var basisRotationPrev = transformPrev.Basis.Orthonormalized();
-		var basisScalePrev = basisRotationPrev.Inverse() * transformPrev.Basis;
+		var basisRotationPrev = _basisPrev.Orthonormalized();
+		var basisScalePrev = basisRotationPrev.Inverse() * _basisPrev;
 		var xformScalePrev = new Transform3D(basisScalePrev, new Vector3(0, 0, 0));
 
 		// The child transform without the effects of the parent's scale.

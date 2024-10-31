@@ -127,7 +127,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 */
 	private void SyncLegStandsOffsets() {
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
-		Basis assemblyScalePrev = Basis.Identity.Scaled(transformPrev.Basis.Scale);
+		Basis assemblyScalePrev = Basis.Identity.Scaled(_scalePrev);
 		Vector3 legStandsScaledPosition = assemblyScale * legStands.Position;
 		Vector3 legStandsScaledPositionPrev = assemblyScalePrev * legStandsTransformPrev.Origin;
 

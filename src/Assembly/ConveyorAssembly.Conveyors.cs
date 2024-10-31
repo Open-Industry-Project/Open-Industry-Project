@@ -47,7 +47,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 */
 	private void SyncConveyorsAngle() {
 		Basis scale = Basis.Identity.Scaled(_cachedScale);
-		Basis scalePrev = Basis.Identity.Scaled(transformPrev.Basis.Scale);
+		Basis scalePrev = Basis.Identity.Scaled(_scalePrev);
 		if (ConveyorAngle != conveyorAnglePrev) {
 			Basis targetRot = new Basis(new Vector3(0, 0, 1), ConveyorAngle);
 			conveyors.Basis = scale.Inverse() * targetRot;
