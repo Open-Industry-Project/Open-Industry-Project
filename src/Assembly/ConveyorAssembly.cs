@@ -458,24 +458,45 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#endregion Fields / Leg stand coverage
 
 	#region Fields / Length, Width, and Height
-	private Vector3 _cachedScale => Scale;
+	private Vector3 _cachedScale;
 
+	private float _length;
 	public float Length
 	{
-		get => Scale.X;
-		set => Scale = new Vector3(value, Scale.Y, Scale.Z);
+		get => _length;
+		set => SetLength(value);
 	}
 
+	public void SetLength(float length)
+	{
+		if (_length == length) return;
+		_length = length;
+	}
+
+	private float _width;
 	public float Width
 	{
-		get => Scale.Z * 2f;
-		set => Scale = new Vector3(Scale.X, Scale.Y, value / 2f);
+		get => _width;
+		set => SetWidth(value);
 	}
 
+	public void SetWidth(float width)
+	{
+		if (_width == width) return;
+		_width = width;
+	}
+
+	private float _height;
 	public float Height
 	{
-		get => Scale.Y * 2f;
-		set => Scale = new Vector3(Scale.X, value / 2f, Scale.Z);
+		get => _height;
+		set => SetHeight(value);
+	}
+
+	public void SetHeight(float height)
+	{
+		if (_height == height) return;
+		_height = height;
 	}
 	#endregion Fields / Length, Width, and Height
 
@@ -586,7 +607,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#endregion Fields / Property method overrides
 	#endregion Fields
 
-	#region _Ready and _PhysicsProcess
+	#region constructor, _Ready, and _PhysicsProcess
+	public ConveyorAssembly()
+	{
+		ScaleChanged += void (value) => _cachedScale = value;
+		ScaleXChanged += SetLength;
+		ScaleZChanged += void (value) => SetWidth(value * 2f);
+		ScaleYChanged += void (value) => SetHeight(value * 2f);
+	}
+
 	public override void _Ready()
 	{
 		main = GetTree().EditedSceneRoot as Root;
@@ -661,7 +690,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private bool IsSimulationRunning() {
 		return main != null && main.simulationRunning;
 	}
-	#endregion _Ready and _PhysicsProcess
+	#endregion constructor, _Ready, and _PhysicsProcess
 
 	#region Decouple assembly scale from child scale
 	private void PreventAllChildScaling() {
