@@ -716,8 +716,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	 * @param child The child node to prevent scaling.
 	 */
 	private void PreventChildScaling(Node3D child) {
-		var basisRotation = this.Transform.Basis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * this.Transform.Basis;
+		var basisRotation = _cachedBasis.Orthonormalized();
+		var basisScale = basisRotation.Inverse() * _cachedBasis;
 		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
 
 		var basisRotationPrev = transformPrev.Basis.Orthonormalized();
