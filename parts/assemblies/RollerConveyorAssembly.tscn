@@ -1,9 +1,10 @@
-[gd_scene load_steps=24 format=4 uid="uid://i8xb8locnhi5"]
+[gd_scene load_steps=25 format=4 uid="uid://i8xb8locnhi5"]
 
 [ext_resource type="Script" path="res://src/Assembly/ConveyorAssembly.cs" id="1_nkn8g"]
 [ext_resource type="PackedScene" uid="uid://rv5ef61beh35" path="res://parts/ConveyorLegRC.tscn" id="2_a0feq"]
 [ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="2_pqgj2"]
 [ext_resource type="PackedScene" uid="uid://dvjrx5crpqs5f" path="res://parts/SideGuard.tscn" id="3_l6sjy"]
+[ext_resource type="Script" path="res://src/Assembly/TransformMonitoredNode3D.cs" id="3_uu1p1"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="7_ns4py"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="8_64v37"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="11_0gvht"]
@@ -249,12 +250,14 @@ metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+script = ExtResource("3_uu1p1")
 
 [node name="RollerConveyor" parent="Conveyors" instance=ExtResource("2_pqgj2")]
 transform = Transform3D(4, 0, 0, 0, 1, -1.50996e-07, 0, 1.50996e-07, 1, 0, 0, 0)
 
 [node name="LeftSide" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+script = ExtResource("3_uu1p1")
 
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("3_l6sjy")]
 transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -263,6 +266,7 @@ Length = 4.0
 
 [node name="RightSide" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+script = ExtResource("3_uu1p1")
 
 [node name="AutoSideGuard1" parent="RightSide" instance=ExtResource("3_l6sjy")]
 transform = Transform3D(-4, 0, -8.74228e-08, 0, 1, 0, 3.49691e-07, 0, -1, 0, 0, 0)
@@ -271,6 +275,7 @@ Length = 4.0
 
 [node name="LegStands" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+script = ExtResource("3_uu1p1")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("2_a0feq")]
 transform = Transform3D(1, 0, 0, 0, 1.618, 0, 0, 0, 1.055, -1.8, 0, 0)
