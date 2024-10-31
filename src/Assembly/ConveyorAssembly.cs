@@ -448,7 +448,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private float legStandCoverageMaxPrev;
 	#endregion Fields / Leg stand coverage
 
-	#region Fields / Length, Width, and Height
+	#region Fields / Length, Width, Height, Basis
+	private Basis _cachedBasis = Basis.Identity;
 	private Vector3 _cachedScale = Vector3.One;
 
 	private float _length;
@@ -489,7 +490,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		if (_height == height) return;
 		_height = height;
 	}
-	#endregion Fields / Length, Width, and Height
+	#endregion Fields / Length, Width, Height, Basis
 
 	// This variable is used to store the names of the pre-existing leg stands that can't be owned by the edited scene.
 	private Dictionary <StringName, Node> foreignLegStandsOwners = new();
@@ -601,6 +602,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#region constructor, _Ready, and _PhysicsProcess
 	public ConveyorAssembly()
 	{
+		BasisChanged += void (value) => _cachedBasis = value;
 		ScaleChanged += void (value) => _cachedScale = value;
 		ScaleXChanged += void (value) => SetLength(value * BaseLength);
 		ScaleZChanged += void (value) => SetWidth(value * BaseWidth);
