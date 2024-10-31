@@ -19,14 +19,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 
 	private void UpdateSide(bool isRight) {
-		Node3D side;
-		if (isRight) {
-			rightSide = IsInstanceValid(rightSide) ? rightSide : GetNodeOrNull<Node3D>("RightSide");
-			side = rightSide;
-		} else {
-			leftSide = IsInstanceValid(leftSide) ? leftSide : GetNodeOrNull<Node3D>("LeftSide");
-			side = leftSide;
-		}
+		Node3D side = isRight ? rightSide : leftSide;
 		if (side == null) {
 			return;
 		}

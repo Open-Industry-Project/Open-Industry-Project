@@ -14,25 +14,14 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#region Fields
 	#region Fields / Nodes
 	private Root main;
-	protected Node3D conveyors
-	{
-		get
-		{
-			if (!IsInstanceValid(_conveyors))
-			{
-				_conveyors = GetNodeOrNull<Node3D>("Conveyors");
-			}
-			return _conveyors;
-		}
-		set
-		{
-			_conveyors = value;
-		}
-	}
+	protected Node3D conveyors => IsInstanceValid(_conveyors) ? _conveyors : _conveyors = GetNodeOrNull<Node3D>("Conveyors");
 	private Node3D _conveyors;
-	private Node3D rightSide;
-	private Node3D leftSide;
-	protected Node3D legStands;
+	private Node3D rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<Node3D>("RightSide");
+	private Node3D _rightSide;
+	private Node3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<Node3D>("LeftSide");
+	private Node3D _leftSide;
+	protected Node3D legStands => IsInstanceValid(_legStands) ? _legStands : _legStands = GetNodeOrNull<Node3D>("LegStands");
+	private Node3D _legStands;
 	#endregion Fields / Nodes
 	private Transform3D conveyorsTransformPrev;
 	private Transform3D legStandsTransformPrev;
@@ -621,8 +610,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	public override void _Ready()
 	{
 		main = GetTree().EditedSceneRoot as Root;
-		conveyors = GetNode<Node3D>("Conveyors");
-		legStands = GetNodeOrNull<Node3D>("LegStands");
 
 		_basisPrev = _cachedBasis;
 		_scalePrev = _basisPrev.Scale;
