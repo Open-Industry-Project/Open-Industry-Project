@@ -9,9 +9,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	private const string AUTO_LEG_STAND_NAME_PREFIX = "AutoLegsStand";
 	private const string AUTO_LEG_STAND_NAME_FRONT = "AutoLegsStandFront";
 	private const string AUTO_LEG_STAND_NAME_REAR = "AutoLegsStandRear";
-       private const int LEG_INDEX_FRONT = -1;
-       private const int LEG_INDEX_REAR = -2;
-       private const int LEG_INDEX_NON_AUTO = -3;
+	private enum LegIndex: int
+	{
+		Front = -1,
+		Rear = -2,
+		NonAuto = -3,
+	}
 	#endregion Leg Stands / Constants
 
 	#region Leg Stands / Conveyor coverage extents
@@ -175,7 +178,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	}
 
 	private bool IsAutoLegStand(Node node) {
-		return GetAutoLegStandIndex(node.Name) != LEG_INDEX_NON_AUTO;
+		return GetAutoLegStandIndex(node.Name) != (int) LegIndex.NonAuto;
 	}
 	#endregion Leg Stands / Update "LegStands" node
 
@@ -281,7 +284,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			}
 			int legStandIndex = GetAutoLegStandIndex(legStand.Name);
 			switch (legStandIndex) {
-				case LEG_INDEX_NON_AUTO:
+				case (int) LegIndex.NonAuto:
 					// Only adjust auto leg stands.
 					break;
 				default:
@@ -295,17 +298,17 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 	private int GetAutoLegStandIndex(StringName name) {
 		if (name.Equals(new StringName(AUTO_LEG_STAND_NAME_FRONT))) {
-			return LEG_INDEX_FRONT;
+			return (int) LegIndex.Front;
 		}
 		if (name.Equals(new StringName(AUTO_LEG_STAND_NAME_REAR))) {
-			return LEG_INDEX_REAR;
+			return (int) LegIndex.Rear;
 		}
 		if (name.ToString().StartsWith(AUTO_LEG_STAND_NAME_PREFIX) &&
 			int.TryParse(name.ToString().AsSpan(AUTO_LEG_STAND_NAME_PREFIX.Length), out int legStandIndex)) {
 			// Names start at 1, but indices start at 0.
 			return legStandIndex - 1;
 		}
-		return LEG_INDEX_NON_AUTO;
+		return (int) LegIndex.NonAuto;
 	}
 
 	/**
@@ -313,13 +316,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 *
 	 * If the index is high, it's possible that the position will be outside the coverage range.
 	 *
-	 * @param index The index of an interval aligned leg stand or LEG_INDEX_FRONT or LEG_INDEX_REAR for fixed legs.
+	 * @param index The index of an interval aligned leg stand or LegIndex.Front or LegIndex.Rear for fixed legs.
 	 */
 	private float GetAutoLegStandPosition(int index) {
-		if (index == LEG_INDEX_FRONT) {
+		if (index == (int) LegIndex.Front) {
 			return legStandCoverageMin;
 		}
-		if (index == LEG_INDEX_REAR) {
+		if (index == (int) LegIndex.Rear) {
 			return legStandCoverageMax;
 		}
 		return GetIntervalLegStandPosition(index);
@@ -365,11 +368,11 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 				continue;
 			}
 			int legStandIndex = GetAutoLegStandIndex(legStand.Name);
-			switch (legStandIndex) {
-				case LEG_INDEX_NON_AUTO:
+			switch ((LegIndex) legStandIndex) {
+				case LegIndex.NonAuto:
 					// Only manage auto leg stands.
 					break;
-				case LEG_INDEX_FRONT:
+				case LegIndex.Front:
 					if (AutoLegStandsEndLegFront) {
 						hasFrontLeg = true;
 					} else {
@@ -377,7 +380,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 						legStand.QueueFree();
 					}
 					break;
-				case LEG_INDEX_REAR:
+				case LegIndex.Rear:
 					if (AutoLegStandsEndLegRear) {
 						hasRearLeg = true;
 					} else {
@@ -403,7 +406,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			return;
 		}
 		if (!hasFrontLeg && AutoLegStandsEndLegFront) {
-			AddLegStandAtIndex(LEG_INDEX_FRONT);
+			AddLegStandAtIndex((int) LegIndex.Front);
 		}
 		for (int i = 0; i < intervalLegStandCount; i++) {
 			if (!legStandsInventory[i]) {
@@ -411,16 +414,16 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			}
 		}
 		if (!hasRearLeg && AutoLegStandsEndLegRear) {
-			AddLegStandAtIndex(LEG_INDEX_REAR);
+			AddLegStandAtIndex((int) LegIndex.Rear);
 		}
 	}
 
 	private ConveyorLeg AddLegStandAtIndex(int index) {
 		float position = GetAutoLegStandPosition(index);
-		StringName name = index switch
+		StringName name = (LegIndex) index switch
 		{
-			LEG_INDEX_FRONT => (StringName)AUTO_LEG_STAND_NAME_FRONT,
-			LEG_INDEX_REAR => (StringName)AUTO_LEG_STAND_NAME_REAR,
+			LegIndex.Front => (StringName)AUTO_LEG_STAND_NAME_FRONT,
+			LegIndex.Rear => (StringName)AUTO_LEG_STAND_NAME_REAR,
 			// Indices start at 0, but names start at 1.
 			_ => (StringName)(AUTO_LEG_STAND_NAME_PREFIX + (index + 1).ToString()),
 		};
@@ -428,9 +431,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		MoveLegStandToPathPosition(legStand, position);
 
 		// It probably doesn't matter, but let's try to keep leg stands in order.
-		int trueIndex = index switch {
-			LEG_INDEX_FRONT => 0,
-			LEG_INDEX_REAR => -1,
+		int trueIndex = (LegIndex) index switch {
+			LegIndex.Front => 0,
+			LegIndex.Rear => -1,
 			_ => AutoLegStandsEndLegFront ? index + 1 : index,
 		};
 		if (trueIndex < legStands.GetChildCount()) {
