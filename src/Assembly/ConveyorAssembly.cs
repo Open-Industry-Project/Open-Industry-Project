@@ -5,21 +5,6 @@ using System.Linq;
 [Tool]
 public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 {
-	#region Constants
-	#region Constants / Leg Stands
-	private const string AUTO_LEG_STAND_NAME_PREFIX = "AutoLegsStand";
-	private const string AUTO_LEG_STAND_NAME_FRONT = "AutoLegsStandFront";
-	private const string AUTO_LEG_STAND_NAME_REAR = "AutoLegsStandRear";
-	private const int LEG_INDEX_FRONT = -1;
-	private const int LEG_INDEX_REAR = -2;
-	private const int LEG_INDEX_NON_AUTO = -3;
-	#endregion Constants / Leg Stands
-
-	#region Constants / Side Guards
-	private const string AUTO_SIDE_GUARD_NAME_PREFIX = "AutoSideGuard";
-	#endregion Constants / Side Guards
-	#endregion Constants
-
 	#region Fields
 	#region Fields / Nodes
 	private Root main;

@@ -6,6 +6,10 @@ using Godot;
 public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region SideGuards
+	#region SideGuards / Constants
+	private const string AUTO_SIDE_GUARD_NAME_PREFIX = "AutoSideGuard";
+	#endregion SideGuards / Constants
+
 	#region SideGuards / Update "LeftSide" and "RightSide" nodes
 	private void UpdateSides()
 	{

@@ -5,6 +5,15 @@ using System.Diagnostics;
 public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region Leg Stands
+	#region Leg Stands / Constants
+	private const string AUTO_LEG_STAND_NAME_PREFIX = "AutoLegsStand";
+	private const string AUTO_LEG_STAND_NAME_FRONT = "AutoLegsStandFront";
+	private const string AUTO_LEG_STAND_NAME_REAR = "AutoLegsStandRear";
+       private const int LEG_INDEX_FRONT = -1;
+       private const int LEG_INDEX_REAR = -2;
+       private const int LEG_INDEX_NON_AUTO = -3;
+	#endregion Leg Stands / Constants
+
 	#region Leg Stands / Conveyor coverage extents
 	private void UpdateLegStandCoverage() {
 		(legStandCoverageMinPrev, legStandCoverageMaxPrev) = (legStandCoverageMin, legStandCoverageMax);
