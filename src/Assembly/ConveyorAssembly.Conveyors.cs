@@ -5,6 +5,9 @@ using System.Collections.Generic;
 public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region Conveyors
+	protected virtual float ConveyorBaseLength => 1f;
+	protected virtual float ConveyorBaseWidth => 2f;
+
 	#region Conveyors / Update "Conveyors" node
 	private void UpdateConveyors()
 	{
@@ -117,10 +120,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	protected virtual void ScaleConveyor(Node3D conveyor, float conveyorLength) {
 		Vector3 newScale;
 		if (ConveyorAutomaticLength) {
-			newScale = new Vector3(conveyorLength, 1f, Width / 2f);
+			newScale = new Vector3(conveyorLength / ConveyorBaseLength, 1f, Width / ConveyorBaseWidth);
 		} else {
 			// Always scale width.
-			newScale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, Width / 2f);
+			newScale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, Width / ConveyorBaseWidth);
 		}
 		if (conveyor.Scale != newScale) {
 			conveyor.Scale = newScale;

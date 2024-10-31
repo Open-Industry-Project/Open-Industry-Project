@@ -6,6 +6,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region Leg Stands
 	#region Leg Stands / Constants
+	private const float LegStandsBaseWidth = 2f;
 	private const string AUTO_LEG_STAND_NAME_PREFIX = "AutoLegsStand";
 	private const string AUTO_LEG_STAND_NAME_FRONT = "AutoLegsStandFront";
 	private const string AUTO_LEG_STAND_NAME_REAR = "AutoLegsStandRear";
@@ -192,7 +193,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 				continue;
 			}
 			SnapToLegStandsPath(legStand);
-			legStand.Scale = new Vector3(1f, legStand.Scale.Y, targetWidth / 2f);
+			legStand.Scale = new Vector3(1f, legStand.Scale.Y, targetWidth / LegStandsBaseWidth);
 		}
 
 	}

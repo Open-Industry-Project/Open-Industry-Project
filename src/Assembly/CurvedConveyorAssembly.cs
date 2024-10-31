@@ -4,6 +4,16 @@ using System;
 [Tool]
 public partial class CurvedConveyorAssembly : ConveyorAssembly
 {
+	#region Constants
+	float BaseOuterRadius => 2.0f;
+	float BaseInnerRadius => 0.5f;
+	float BaseMiddleRadius => BaseOuterRadius - BaseInnerRadius;
+	protected override float BaseLength => 2.0f;
+	protected override float BaseWidth => 2.0f;
+	protected override float ConveyorBaseLength => 2f;
+	protected override float ConveyorBaseWidth => 2f;
+	#endregion Constants
+
 	#region Overriding default values and units
 	public CurvedConveyorAssembly() {
 		GD.Load<PackedScene>("res://parts/ConveyorLegCBC.tscn");
@@ -113,12 +123,14 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 
 	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength) {
 		// ConveyorAutomaticLength and conveyorLength have no effect on curved conveyors.
-		conveyor.Scale = new Vector3(Length, 1f, Width / 2f);
+		conveyor.Scale = new Vector3(Length / ConveyorBaseLength, 1f, Width / ConveyorBaseWidth);
 	}
 
 	protected override void ScaleSideGuard(Node3D guard, float guardLength) {
 		// SideGuardsAutoScale and guardLength have no effect on curved side guards.
-		guard.Scale = new Vector3(Length / 2f, 1f, Width / 2f);
+		float curvedSideGuardBaseLength = BaseLength;
+		float curvedSideGuardBaseWidth = BaseWidth;
+		guard.Scale = new Vector3(Length / curvedSideGuardBaseLength, 1f, Width / curvedSideGuardBaseWidth);
 	}
 	#endregion Conveyors and Side Guards
 
@@ -139,7 +151,7 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	}
 
 	protected override void MoveLegStandToPathPosition(Node3D legStand, float position) {
-		float radius = Width / 2f * 1.5f;
+		float radius = Width / BaseWidth * BaseMiddleRadius;
 		float angle = Mathf.DegToRad(position);
 
 		Vector3 newPosition = new Vector3(0, legStand.Position.Y, radius).Rotated(Vector3.Up, angle);

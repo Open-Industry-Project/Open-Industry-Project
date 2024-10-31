@@ -5,6 +5,12 @@ using System.Linq;
 [Tool]
 public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 {
+	#region Constants
+	protected virtual float BaseLength => 1f;
+	protected virtual float BaseWidth => 2f;
+	protected virtual float BaseHeight => 2f;
+	#endregion Constants
+
 	#region Fields
 	#region Fields / Nodes
 	private Root main;
@@ -445,7 +451,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#region Fields / Length, Width, and Height
 	private Vector3 _cachedScale = Vector3.One;
 
-	private float _length = 1f;
+	private float _length;
 	public float Length
 	{
 		get => _length;
@@ -458,7 +464,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		_length = length;
 	}
 
-	private float _width = 2f;
+	private float _width;
 	public float Width
 	{
 		get => _width;
@@ -471,7 +477,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		_width = width;
 	}
 
-	private float _height = 2f;
+	private float _height;
 	public float Height
 	{
 		get => _height;
@@ -596,10 +602,14 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	public ConveyorAssembly()
 	{
 		ScaleChanged += void (value) => _cachedScale = value;
-		ScaleXChanged += SetLength;
-		ScaleZChanged += void (value) => SetWidth(value * 2f);
-		ScaleYChanged += void (value) => SetHeight(value * 2f);
+		ScaleXChanged += void (value) => SetLength(value * BaseLength);
+		ScaleZChanged += void (value) => SetWidth(value * BaseWidth);
+		ScaleYChanged += void (value) => SetHeight(value * BaseHeight);
 
+		// Initialize with default values
+		Length = BaseLength;
+		Width = BaseWidth;
+		Height = BaseHeight;
 		// If necessary, trigger signals to set new values
 		SetTransform(Transform);
 	}
