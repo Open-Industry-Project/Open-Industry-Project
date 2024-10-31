@@ -458,9 +458,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#endregion Fields / Leg stand coverage
 
 	#region Fields / Length, Width, and Height
-	private Vector3 _cachedScale;
+	private Vector3 _cachedScale = Vector3.One;
 
-	private float _length;
+	private float _length = 1f;
 	public float Length
 	{
 		get => _length;
@@ -473,7 +473,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		_length = length;
 	}
 
-	private float _width;
+	private float _width = 2f;
 	public float Width
 	{
 		get => _width;
@@ -486,7 +486,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		_width = width;
 	}
 
-	private float _height;
+	private float _height = 2f;
 	public float Height
 	{
 		get => _height;
