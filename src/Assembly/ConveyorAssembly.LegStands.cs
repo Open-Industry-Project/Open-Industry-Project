@@ -98,14 +98,19 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 		SnapAllLegStandsToPath();
 
+		bool legStandsCoverageChanged = legStandCoverageMin != legStandCoverageMinPrev
+		                                || legStandCoverageMax != legStandCoverageMaxPrev;
+
 		var autoLegStandsUpdateIsNeeded = AutoLegStandsIntervalLegsEnabled != autoLegStandsIntervalLegsEnabledPrev
 			|| AutoLegStandsIntervalLegsInterval != autoLegStandsIntervalLegsIntervalPrev
 			|| AutoLegStandsEndLegFront != autoLegStandsEndLegFrontPrev
 			|| AutoLegStandsEndLegRear != autoLegStandsEndLegRearPrev
 			|| AutoLegStandsMarginEndLegs != autoLegStandsMarginEndLegsPrev
 			|| AutoLegStandsModelScene != autoLegStandsModelScenePrev
-			|| legStandCoverageMin != legStandCoverageMinPrev
-			|| legStandCoverageMax != legStandCoverageMaxPrev;
+			|| legStandsCoverageChanged;
+
+		int numberOfLegStandsAdjusted = 0;
+		bool didAddOrRemove = false;
 		if (autoLegStandsUpdateIsNeeded) {
 			//GD.Print("Updating leg stands. Reason: ", AutoLegStandsIntervalLegsEnabled != autoLegStandsIntervalLegsEnabledPrev
 			//, AutoLegStandsIntervalLegsInterval != autoLegStandsIntervalLegsIntervalPrev
@@ -115,10 +120,18 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			//, AutoLegStandsModelScene != autoLegStandsModelScenePrev
 			//, legStandCoverageMin != legStandCoverageMinPrev
 			//, legStandCoverageMax != legStandCoverageMaxPrev);
-			AdjustAutoLegStandPositions();
-			CreateAndRemoveAutoLegStands();
+			numberOfLegStandsAdjusted = AdjustAutoLegStandPositions();
+			didAddOrRemove = CreateAndRemoveAutoLegStands();
 		}
-		UpdateLegStandsHeightAndVisibility();
+
+		// Dependencies
+		bool legStandsChildrenChanged = numberOfLegStandsAdjusted != 0 || didAddOrRemove;
+		bool conveyorsTransformChanged = _cachedConveyorsTransform != conveyorsTransformPrev;
+		bool legStandsBasisChanged = _cachedLegStandsBasis != legStandsTransformPrev.Basis;
+		if (legStandsChildrenChanged || conveyorsTransformChanged || legStandsBasisChanged || legStandsCoverageChanged)
+		{
+			UpdateLegStandsHeightAndVisibility();
+		}
 	}
 
 	protected virtual void LockLegStandsGroup() {
@@ -275,17 +288,22 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 * @param legStand The leg stand to move.
 	 * @param position The path position to move the leg stand to.
 	 */
-	protected virtual void MoveLegStandToPathPosition(Node3D legStand, float pathPosition) {
+	protected virtual bool MoveLegStandToPathPosition(Node3D legStand, float pathPosition)
+	{
+		bool changed = false;
 		Vector3 newPosition = new Vector3(pathPosition, legStand.Position.Y, 0f);
 		if (legStand.Position != newPosition)
 		{
 			legStand.Position = newPosition;
+			changed = true;
 		}
 		Vector3 newRotation = new Vector3(0f, 0f, legStand.Rotation.Z);
 		if (legStand.Rotation != newRotation)
 		{
 			legStand.Rotation = newRotation;
+			changed = true;
 		}
+		return changed;
 	}
 	#endregion Leg Stands / Basic constraints
 
@@ -293,12 +311,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	/**
 	 * Adjust the positions of all auto-instanced leg stands to match changed settings or coverage.
 	 */
-	private void AdjustAutoLegStandPositions() {
+	private int AdjustAutoLegStandPositions() {
 		// Don't allow tiny or negative intervals.
 		AutoLegStandsIntervalLegsInterval = Mathf.Max(0.5f, AutoLegStandsIntervalLegsInterval);
 		if (AutoLegStandsIntervalLegsInterval == autoLegStandsIntervalLegsIntervalPrev && legStandCoverageMax == legStandCoverageMaxPrev && legStandCoverageMin == legStandCoverageMinPrev) {
-			return;
+			return 0;
 		}
+		var changeCount = 0;
 		foreach (Node child in legStands.GetChildren()) {
 			if (child is not ConveyorLeg legStand) {
 				continue;
@@ -310,11 +329,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 					break;
 				default:
 					// Update leg stand position to the new interval.
-					MoveLegStandToPathPosition(legStand, GetAutoLegStandPosition(legStandIndex));
+					if (MoveLegStandToPathPosition(legStand, GetAutoLegStandPosition(legStandIndex)))
+					{
+						changeCount++;
+					}
 					break;
 			}
 		}
 		autoLegStandsIntervalLegsIntervalPrev = AutoLegStandsIntervalLegsInterval;
+		return changeCount;
 	}
 
 	private int GetAutoLegStandIndex(StringName name) {
@@ -364,7 +387,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		return firstPosition + index * AutoLegStandsIntervalLegsInterval;
 	}
 
-	private void CreateAndRemoveAutoLegStands() {
+	private bool CreateAndRemoveAutoLegStands()
+	{
+		bool changed = false;
 		// Don't allow negative margins.
 		AutoLegStandsMarginEndLegs = Mathf.Max(0f, AutoLegStandsMarginEndLegs);
 		// Enforce a margin from fixed front and rear legs if they exist.
@@ -418,25 +443,30 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 					// Delete leg stands that are outside the new interval.
 					legStands.RemoveChild(legStand);
 					legStand.QueueFree();
+					changed = true;
 					break;
 			}
 		}
 
 		// Create the missing leg stands.
 		if (AutoLegStandsModelScene == null) {
-			return;
+			return changed;
 		}
 		if (!hasFrontLeg && AutoLegStandsEndLegFront) {
 			AddLegStandAtIndex((int) LegIndex.Front);
+			changed = true;
 		}
 		for (int i = 0; i < intervalLegStandCount; i++) {
 			if (!legStandsInventory[i]) {
 				AddLegStandAtIndex(i);
+				changed = true;
 			}
 		}
 		if (!hasRearLeg && AutoLegStandsEndLegRear) {
 			AddLegStandAtIndex((int) LegIndex.Rear);
+			changed = true;
 		}
+		return changed;
 	}
 
 	private ConveyorLeg AddLegStandAtIndex(int index) {
@@ -482,6 +512,21 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	#region Leg Stands / Auto-height and visibility
 	private void UpdateLegStandsHeightAndVisibility() {
 		// Extend LegStands to Conveyor line.
+
+		// Dependencies:
+		// - AutoLegStandsModelGrabsOffset (calls us by setter)
+		// - conveyors.Transform
+		// - legStands.Basis (we can ignore the global part most of the time)
+		// - legStandCoverageMin
+		// - legStandCoverageMax
+		// - children of legStands
+		//   - (Additions)
+		//   - Transform
+		// Effects:
+		// - children of legStands
+		//   - Scale
+		//   - Visible
+		//   - GrabsRotation
 		if (conveyors == null)
 		{
 			return;
@@ -495,24 +540,29 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			if (legStand == null) {
 				continue;
 			}
-			// Persist legStand changes into the Assembly's PackedScene.
-			// Fixes ugly previews in the editor.
-			SetEditableInstance(legStand, true);
-			// Raycast from the minimum-height tip of the leg stand to the conveyor plane.
-			Vector3? intersection = conveyorPlane.IntersectsRay(legStand.Position + legStand.Basis.Y.Normalized(), legStand.Basis.Y.Normalized());
-			if (intersection == null) {
-				legStand.Visible = false;
-				// Set scale to minimum height.
-				legStand.Scale = new Vector3(1f, 1f, legStand.Scale.Z);
-				continue;
-			}
-			float legHeight = intersection.Value.DistanceTo(legStand.Position);
-			legStand.Scale = new Vector3(1f, legHeight, legStand.Scale.Z);
-			legStand.GrabsRotation = Mathf.RadToDeg(Vector3.Up.SignedAngleTo(conveyorPlaneGlobalNormal.Slide(legStand.GlobalBasis.Z), legStand.GlobalBasis.Z));
-			// Only show leg stands that touch a conveyor.
-			float tipPosition = GetPositionOnLegStandsPath(legStand.Position + legStand.Basis.Y);
-			legStand.Visible = legStandCoverageMin <= tipPosition && tipPosition <= legStandCoverageMax;
+			UpdateIndividiualLegStandHeightAndVisibility(legStand, conveyorPlane, conveyorPlaneGlobalNormal);
 		}
+	}
+
+	void UpdateIndividiualLegStandHeightAndVisibility(ConveyorLeg legStand, Plane conveyorPlane, Vector3 conveyorPlaneGlobalNormal)
+	{
+		// Persist legStand changes into the Assembly's PackedScene.
+		// Fixes ugly previews in the editor.
+		SetEditableInstance(legStand, true);
+		// Raycast from the minimum-height tip of the leg stand to the conveyor plane.
+		Vector3? intersection = conveyorPlane.IntersectsRay(legStand.Position + legStand.Basis.Y.Normalized(), legStand.Basis.Y.Normalized());
+		if (intersection == null) {
+			legStand.Visible = false;
+			// Set scale to minimum height.
+			legStand.Scale = new Vector3(1f, 1f, legStand.Scale.Z);
+			return;
+		}
+		float legHeight = intersection.Value.DistanceTo(legStand.Position);
+		legStand.Scale = new Vector3(1f, legHeight, legStand.Scale.Z);
+		legStand.GrabsRotation = Mathf.RadToDeg(Vector3.Up.SignedAngleTo(conveyorPlaneGlobalNormal.Slide(legStand.GlobalBasis.Z), legStand.GlobalBasis.Z));
+		// Only show leg stands that touch a conveyor.
+		float tipPosition = GetPositionOnLegStandsPath(legStand.Position + legStand.Basis.Y);
+		legStand.Visible = legStandCoverageMin <= tipPosition && tipPosition <= legStandCoverageMax;
 	}
 	#endregion Leg Stands / Auto-height and visibility
 	#endregion Leg Stands

@@ -450,7 +450,18 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[ExportSubgroup("Leg Model", "AutoLegStandsModel")]
 	[Export(PropertyHint.None, "suffix:m")]
-	public float AutoLegStandsModelGrabsOffset = 0.382f;
+	public float AutoLegStandsModelGrabsOffset {
+		get => _autoLegStandsModelGrabsOffset;
+		set
+		{
+			_autoLegStandsModelGrabsOffset = value;
+			if (IsInstanceValid(legStands))
+			{
+				UpdateLegStandsHeightAndVisibility();
+			}
+		}
+	}
+	private float _autoLegStandsModelGrabsOffset = 0.382f;
 
 	[Export]
 	public PackedScene AutoLegStandsModelScene = GD.Load<PackedScene>("res://parts/ConveyorLegBC.tscn");
