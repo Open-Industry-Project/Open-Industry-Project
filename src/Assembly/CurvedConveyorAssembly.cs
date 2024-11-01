@@ -112,13 +112,13 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	protected override void LockConveyorsGroup() {
 		// Just don't let it move at all, except Y axis translation.;
 		conveyors.Rotation = new Vector3(0, 0, 0);
-		conveyors.Position = new Vector3(0, conveyors.Position.Y, 0);
+		conveyors.Position = new Vector3(0, _cachedConveyorsPosition.Y, 0);
 	}
 
 	protected override void LockSidePosition(Node3D side, bool isRight) {
 		// Sides always snap onto the conveyor line
 		// Just snap both sides to the center without any offset.
-		side.Transform = conveyors.Transform;
+		side.Transform = _cachedConveyorsTransform;
 	}
 
 	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength) {

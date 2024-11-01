@@ -34,7 +34,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			Node3D conveyor = child as Node3D;
 			if (IsConveyor(conveyor)) {
 				// Conveyor's Transform in the legStands space.
-				Transform3D localConveyorTransform = legStands.Transform.AffineInverse() * conveyors.Transform * conveyor.Transform;
+				Transform3D localConveyorTransform = legStands.Transform.AffineInverse() * _cachedConveyorsTransform * conveyor.Transform;
 
 				// Extent and offset positions in unscaled conveyor space
 				Vector3 conveyorExtentFront = new Vector3(-Mathf.Abs(localConveyorTransform.Basis.Scale.X * 0.5f), 0f, 0f);
@@ -104,12 +104,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	protected virtual void LockLegStandsGroup() {
 		// Always align LegStands group with Conveyors group.
 		if (conveyors != null) {
-			Vector3 newPos = new Vector3(legStands.Position.X, legStands.Position.Y, conveyors.Position.Z);
+			Vector3 newPos = new Vector3(legStands.Position.X, legStands.Position.Y, _cachedConveyorsPosition.Z);
 			if (legStands.Position != newPos) {
 				legStands.Position = newPos;
 			}
 			// Conveyors can't rotate anymore, so this doesn't do much.
-			Vector3 newRot = new Vector3(0f, conveyors.Rotation.Y, 0f);
+			Vector3 newRot = new Vector3(0f, _cachedConveyorsRotation.Y, 0f);
 			if (legStands.Rotation != newRot) {
 				legStands.Rotation = newRot;
 			}
@@ -467,7 +467,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			return;
 		}
 		// Plane transformed from conveyors space into legStands space.
-		Plane conveyorPlane = new Plane(Vector3.Up, new Vector3(0f, -AutoLegStandsModelGrabsOffset, 0f)) * conveyors.Transform.AffineInverse() * legStands.Transform;
+		Plane conveyorPlane = new Plane(Vector3.Up, new Vector3(0f, -AutoLegStandsModelGrabsOffset, 0f)) * _cachedConveyorsTransform.AffineInverse() * legStands.Transform;
 		Vector3 conveyorPlaneGlobalNormal = conveyorPlane.Normal * legStands.GlobalBasis.Inverse();
 
 		foreach (Node child in legStands.GetChildren()) {

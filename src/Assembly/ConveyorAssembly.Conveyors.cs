@@ -8,6 +8,26 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	protected virtual float ConveyorBaseLength => 1f;
 	protected virtual float ConveyorBaseWidth => 2f;
 
+	// Cached Transform properties
+	protected Transform3D _cachedConveyorsTransform = Transform3D.Identity;
+	protected Vector3 _cachedConveyorsPosition = Vector3.Zero;
+	private Basis _cachedConveyorsBasis = Basis.Identity;
+	private Vector3 _cachedConveyorsRotation = Vector3.Zero;
+
+	// This will become the constructor once this file is converted into its own class.
+	private void SetupConveyors()
+	{
+		conveyors.TransformChanged += void (value) => _cachedConveyorsTransform = value;
+		conveyors.PositionChanged += void (value) => _cachedConveyorsPosition = value;
+		conveyors.BasisChanged += void (value) =>
+		{
+			_cachedConveyorsBasis = value;
+			_cachedConveyorsRotation = _cachedConveyorsBasis.GetEuler();
+		};
+		// Ensure cached values are up to date
+		conveyors.SetTransform(conveyors.Transform);
+	}
+
 	#region Conveyors / Update "Conveyors" node
 	private void UpdateConveyors()
 	{
@@ -24,15 +44,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 	protected virtual void LockConveyorsGroup() {
 		// Lock Z position
-		Vector3 newPos = new Vector3(conveyors.Position.X, conveyors.Position.Y, 0f);
-		if (conveyors.Position != newPos) {
+		Vector3 newPos = new Vector3(_cachedConveyorsPosition.X, _cachedConveyorsPosition.Y, 0f);
+		if (_cachedConveyorsPosition != newPos) {
 			conveyors.Position = newPos;
 		}
 		// Lock X and Y rotation
-		if (conveyors.Rotation.X > 0.001f || conveyors.Rotation.X < -0.001f || conveyors.Rotation.Y > 0.001f || conveyors.Rotation.Y < -0.001) {
+		if (_cachedConveyorsRotation.X > 0.001f || _cachedConveyorsRotation.X < -0.001f || _cachedConveyorsRotation.Y > 0.001f || _cachedConveyorsRotation.Y < -0.001) {
 			// This seems to mess up scale, but at least that's fixed on the next frame.
-			Vector3 newRot = new Vector3(0f, 0f, conveyors.Rotation.Z);
-			if (conveyors.Rotation != newRot) {
+			Vector3 newRot = new Vector3(0f, 0f, _cachedConveyorsRotation.Z);
+			if (_cachedConveyorsRotation != newRot) {
 				conveyors.Rotation = newRot;
 			}
 		}
@@ -52,11 +72,11 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			Basis targetRot = new Basis(new Vector3(0, 0, 1), ConveyorAngle);
 			conveyors.Basis = scale.Inverse() * targetRot;
 		} else {
-			float angle = (scale * conveyors.Basis).GetEuler().Z;
+			float angle = (scale * _cachedConveyorsBasis).GetEuler().Z;
 			float anglePrev = (scalePrev * conveyorsTransformPrev.Basis).GetEuler().Z;
 			double angleDelta = Mathf.Abs(angle - anglePrev) % (2 * Math.PI);
 			if (angleDelta > Math.PI / 360.0) {
-				this.ConveyorAngle = (scale * conveyors.Basis).GetEuler().Z;
+				this.ConveyorAngle = (scale * _cachedConveyorsBasis).GetEuler().Z;
 				NotifyPropertyListChanged();
 			}
 		};
@@ -79,7 +99,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			return Length;
 		}
 		if (ConveyorAutomaticLength) {
-			var cos = Mathf.Cos(conveyors.Basis.GetEuler().Z);
+			var cos = Mathf.Cos(_cachedConveyorsRotation.Z);
 			return Length / (Mathf.Abs(cos) >= 0.01f ? cos : 0.01f);
 		}
 		// Add up the length of all conveyors.

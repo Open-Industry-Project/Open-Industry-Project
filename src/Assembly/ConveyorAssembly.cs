@@ -14,14 +14,28 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#region Fields
 	#region Fields / Nodes
 	private Root main;
-	protected Node3D conveyors => IsInstanceValid(_conveyors) ? _conveyors : _conveyors = GetNodeOrNull<Node3D>("Conveyors");
-	private Node3D _conveyors;
-	private Node3D rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<Node3D>("RightSide");
-	private Node3D _rightSide;
-	private Node3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<Node3D>("LeftSide");
-	private Node3D _leftSide;
-	protected Node3D legStands => IsInstanceValid(_legStands) ? _legStands : _legStands = GetNodeOrNull<Node3D>("LegStands");
-	private Node3D _legStands;
+	protected TransformMonitoredNode3D conveyors
+	{
+		get
+		{
+			if (!IsInstanceValid(_conveyors))
+			{
+				_conveyors = GetNodeOrNull<TransformMonitoredNode3D>("Conveyors");
+				if (IsInstanceValid(_conveyors))
+				{
+					SetupConveyors();
+				}
+			}
+			return _conveyors;
+		}
+	}
+	private TransformMonitoredNode3D _conveyors;
+	private TransformMonitoredNode3D rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<TransformMonitoredNode3D>("RightSide");
+	private TransformMonitoredNode3D _rightSide;
+	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
+	private TransformMonitoredNode3D _leftSide;
+	protected TransformMonitoredNode3D legStands => IsInstanceValid(_legStands) ? _legStands : _legStands = GetNodeOrNull<TransformMonitoredNode3D>("LegStands");
+	private TransformMonitoredNode3D _legStands;
 	#endregion Fields / Nodes
 	private Transform3D conveyorsTransformPrev;
 	private Transform3D legStandsTransformPrev;
@@ -617,12 +631,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		// Apply the ConveyorsAngle property if needed.
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
 		if (conveyors != null) {
-			float conveyorsStartingAngle = (assemblyScale * conveyors.Basis).GetEuler().Z;
+			float conveyorsStartingAngle = (assemblyScale * _cachedConveyorsBasis).GetEuler().Z;
 			conveyorAnglePrev = conveyorsStartingAngle;
-			conveyorsTransformPrev = conveyors.Transform;
+			conveyorsTransformPrev = _cachedConveyorsTransform;
 			SyncConveyorsAngle();
 			conveyorAnglePrev = ConveyorAngle;
-			conveyorsTransformPrev = conveyors.Transform;
+			conveyorsTransformPrev = _cachedConveyorsTransform;
 		}
 
 		// Apply the AutoLegStandsFloorOffset and AutoLegStandsIntervalLegsOffset properties if needed.
@@ -662,7 +676,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 		PreventAllChildScaling();
 		UpdateConveyors();
-		if (conveyorsTransformPrev != conveyors.Transform) {
+		if (conveyorsTransformPrev != _cachedConveyorsTransform) {
 			UpdateSides();
 		}
 		UpdateLegStandCoverage();
@@ -670,7 +684,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		_basisPrev = _cachedBasis;
 		_scalePrev = _basisPrev.Scale;
 		conveyorAnglePrev = ConveyorAngle;
-		conveyorsTransformPrev = conveyors.Transform;
+		conveyorsTransformPrev = _cachedConveyorsTransform;
 		autoLegStandsIntervalLegsEnabledPrev = AutoLegStandsIntervalLegsEnabled;
 		autoLegStandsEndLegFrontPrev = AutoLegStandsEndLegFront;
 		autoLegStandsEndLegRearPrev = AutoLegStandsEndLegRear;
