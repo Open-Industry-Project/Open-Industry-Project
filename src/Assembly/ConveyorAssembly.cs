@@ -34,7 +34,21 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private TransformMonitoredNode3D _rightSide;
 	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
 	private TransformMonitoredNode3D _leftSide;
-	protected TransformMonitoredNode3D legStands => IsInstanceValid(_legStands) ? _legStands : _legStands = GetNodeOrNull<TransformMonitoredNode3D>("LegStands");
+	protected TransformMonitoredNode3D legStands
+	{
+		get
+		{
+			if (!IsInstanceValid(_legStands))
+			{
+				_legStands = GetNodeOrNull<TransformMonitoredNode3D>("LegStands");
+				if (IsInstanceValid(_legStands))
+				{
+					SetupLegStands();
+				}
+			}
+			return _legStands;
+		}
+	}
 	private TransformMonitoredNode3D _legStands;
 	#endregion Fields / Nodes
 	private Transform3D conveyorsTransformPrev;
@@ -641,10 +655,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 		// Apply the AutoLegStandsFloorOffset and AutoLegStandsIntervalLegsOffset properties if needed.
 		if (legStands != null) {
-			Vector3 legStandsStartingOffset = assemblyScale * legStands.Position;
+			Vector3 legStandsStartingOffset = assemblyScale * _cachedLegStandsPosition;
 			autoLegStandsFloorOffsetPrev = legStandsStartingOffset.Y;
 			autoLegStandsIntervalLegsOffsetPrev = legStandsStartingOffset.X;
-			legStandsTransformPrev = legStands.Transform;
+			legStandsTransformPrev = _cachedLegStandsTransform;
 			SyncLegStandsOffsets();
 		}
 

@@ -143,7 +143,7 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 		// We should probably let this rotate around the Y axis, but that would require accounting for legStands rotation in GetLegStandsCoverage().
 		// For now, we won't let it move at all except Y axis translation.
 		legStands.Rotation = new Vector3(0, 0, 0);
-		legStands.Position = new Vector3(0, legStands.Position.Y, 0);
+		legStands.Position = new Vector3(0, _cachedLegStandsPosition.Y, 0);
 	}
 
 	protected override float GetPositionOnLegStandsPath(Vector3 position) {

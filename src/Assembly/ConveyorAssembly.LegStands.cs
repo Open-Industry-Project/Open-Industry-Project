@@ -18,6 +18,26 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	}
 	#endregion Leg Stands / Constants
 
+	// Cached Transform properties
+	private Transform3D _cachedLegStandsTransform = Transform3D.Identity;
+	protected Vector3 _cachedLegStandsPosition = Vector3.Zero;
+	private Basis _cachedLegStandsBasis = Basis.Identity;
+	private Vector3 _cachedLegStandsRotation = Vector3.Zero;
+
+	// This will become the constructor once this file is converted into its own class.
+	private void SetupLegStands()
+	{
+		legStands.TransformChanged += void (value) => _cachedLegStandsTransform = value;
+		legStands.PositionChanged += void (value) => _cachedLegStandsPosition = value;
+		legStands.BasisChanged += void (value) =>
+		{
+			_cachedLegStandsBasis = value;
+			_cachedLegStandsRotation = _cachedLegStandsBasis.GetEuler();
+		};
+		// Ensure cached values are up to date
+		legStands.SetTransform(legStands.Transform);
+	}
+
 	#region Leg Stands / Conveyor coverage extents
 	private void UpdateLegStandCoverage() {
 		(legStandCoverageMinPrev, legStandCoverageMaxPrev) = (legStandCoverageMin, legStandCoverageMax);
@@ -34,7 +54,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			Node3D conveyor = child as Node3D;
 			if (IsConveyor(conveyor)) {
 				// Conveyor's Transform in the legStands space.
-				Transform3D localConveyorTransform = legStands.Transform.AffineInverse() * _cachedConveyorsTransform * conveyor.Transform;
+				Transform3D localConveyorTransform = _cachedLegStandsTransform.AffineInverse() * _cachedConveyorsTransform * conveyor.Transform;
 
 				// Extent and offset positions in unscaled conveyor space
 				Vector3 conveyorExtentFront = new Vector3(-Mathf.Abs(localConveyorTransform.Basis.Scale.X * 0.5f), 0f, 0f);
@@ -104,13 +124,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	protected virtual void LockLegStandsGroup() {
 		// Always align LegStands group with Conveyors group.
 		if (conveyors != null) {
-			Vector3 newPos = new Vector3(legStands.Position.X, legStands.Position.Y, _cachedConveyorsPosition.Z);
-			if (legStands.Position != newPos) {
+			Vector3 newPos = new Vector3(_cachedLegStandsPosition.X, _cachedLegStandsPosition.Y, _cachedConveyorsPosition.Z);
+			if (_cachedLegStandsPosition != newPos) {
 				legStands.Position = newPos;
 			}
 			// Conveyors can't rotate anymore, so this doesn't do much.
 			Vector3 newRot = new Vector3(0f, _cachedConveyorsRotation.Y, 0f);
-			if (legStands.Rotation != newRot) {
+			if (_cachedLegStandsRotation != newRot) {
 				legStands.Rotation = newRot;
 			}
 		}
@@ -128,7 +148,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	private void SyncLegStandsOffsets() {
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
 		Basis assemblyScalePrev = Basis.Identity.Scaled(_scalePrev);
-		Vector3 legStandsScaledPosition = assemblyScale * legStands.Position;
+		Vector3 legStandsScaledPosition = assemblyScale * _cachedLegStandsPosition;
 		Vector3 legStandsScaledPositionPrev = assemblyScalePrev * legStandsTransformPrev.Origin;
 
 		// Sync properties to leg stands position if changed.
@@ -136,7 +156,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		float newPosY = AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev ? AutoLegStandsFloorOffset : legStandsScaledPosition.Y;
 		if (AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev || AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev) {
 			Vector3 targetPosition = new Vector3(newPosX, newPosY, legStandsScaledPosition.Z);
-			legStands.Position = assemblyScale.Inverse() * targetPosition;
+			_cachedLegStandsPosition = assemblyScale.Inverse() * targetPosition;
 		}
 
 		// Sync X offset to property if needed.
@@ -163,7 +183,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		}
 		autoLegStandsFloorOffsetPrev = AutoLegStandsFloorOffset;
 
-		legStandsTransformPrev = legStands.Transform;
+		legStandsTransformPrev = _cachedLegStandsTransform;
 	}
 
 	private void DeleteAllAutoLegStands() {
@@ -467,7 +487,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			return;
 		}
 		// Plane transformed from conveyors space into legStands space.
-		Plane conveyorPlane = new Plane(Vector3.Up, new Vector3(0f, -AutoLegStandsModelGrabsOffset, 0f)) * _cachedConveyorsTransform.AffineInverse() * legStands.Transform;
+		Plane conveyorPlane = new Plane(Vector3.Up, new Vector3(0f, -AutoLegStandsModelGrabsOffset, 0f)) * _cachedConveyorsTransform.AffineInverse() * _cachedLegStandsTransform;
 		Vector3 conveyorPlaneGlobalNormal = conveyorPlane.Normal * legStands.GlobalBasis.Inverse();
 
 		foreach (Node child in legStands.GetChildren()) {
