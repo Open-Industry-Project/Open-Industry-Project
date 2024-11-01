@@ -58,6 +58,9 @@ var _godot_version: VBoxContainer
 var _create_root_vbox: VBoxContainer
 var _scene_tabs: TabBar
 
+# Perspective Menu 
+var _perspective_menu: MenuButton
+
 func _scene_changed():
 	var root = get_tree().edited_scene_root
 
@@ -94,11 +97,12 @@ func _enter_tree() -> void:
 
 	_create_root_vbox = _editor_node.find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
 	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
-
+	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0)
+	
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
-
+	
 	if(!FileAccess.file_exists("res://addons/oip_ui/build.txt")):
 		var file = FileAccess.open("res://addons/oip_ui/build.txt",FileAccess.WRITE)
 		file.store_string("This file was automatically generated. Do not delete")
@@ -136,6 +140,22 @@ func _enter_tree() -> void:
 		_create_root_vbox.move_child(_create_root_vbox.get_child(1),2)
 
 	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously",true)
+	
+	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
+
+func _on_id_pressed(id: int) -> void:
+	var building = get_tree().edited_scene_root.get_node("Building")
+	
+	if (building == null): return
+	
+	var index = _perspective_menu.get_popup().get_item_index(10)
+	
+	var roof = building.get_child(2) as GridMap
+	
+	if(id == 0 && !_perspective_menu.get_popup().is_item_checked(index)):
+		roof.visible = false
+	elif(_perspective_menu.get_popup().is_item_checked(index) || (id > 0 && id < 8)):
+		roof.visible = true
 
 func _exit_tree() -> void:
 	_center_buttons.visible = true
