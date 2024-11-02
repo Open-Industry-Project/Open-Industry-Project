@@ -43,10 +43,6 @@ var _renderer_selection: HBoxContainer
 
 var _empty_margin: Control = Control.new()
 
-# 3D Editor view
-var _separator: VSeparator
-var _camera_button: Button
-
 # Bottom dock
 var _debugger_button: Button
 var _audio_button: Button
@@ -86,9 +82,6 @@ func _enter_tree() -> void:
 	_center_buttons = _editor_node.get_child(4).get_child(0).get_child(0).get_child(2)
 	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
 	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
-
-	_separator = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0).get_child(14)
-	_camera_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0).get_child(15)
 
 	_debugger_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(1)
 	_audio_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(3)
@@ -144,18 +137,19 @@ func _enter_tree() -> void:
 	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
 
 func _on_id_pressed(id: int) -> void:
+	if get_tree().edited_scene_root == null:
+		return
+	
 	var building = get_tree().edited_scene_root.get_node("Building")
-	
-	if (building == null): return
-	
-	var index = _perspective_menu.get_popup().get_item_index(10)
+	if building == null:
+		return
 	
 	var roof = building.get_child(2) as GridMap
+	var index = _perspective_menu.get_popup().get_item_index(10)
+	var is_perspective_checked = _perspective_menu.get_popup().is_item_checked(index)
 	
-	if(id == 0 && !_perspective_menu.get_popup().is_item_checked(index)):
-		roof.visible = false
-	elif(_perspective_menu.get_popup().is_item_checked(index) || (id > 0 && id < 8)):
-		roof.visible = true
+	roof.visible = is_perspective_checked || (id > 0 && id < 8)
+
 
 func _exit_tree() -> void:
 	_center_buttons.visible = true
@@ -244,9 +238,6 @@ func _toggle_native_mode(native_mode: bool) -> void:
 
 	_set_original_popup_menu(native_mode, _project_popup_menu, _custom_project_menu, "Project")
 	_set_original_popup_menu(native_mode, _help_popup_menu, _custom_help_menu, "Help")
-
-	_separator.visible = native_mode
-	_camera_button.visible = native_mode
 
 	_empty_margin.visible = !native_mode
 
