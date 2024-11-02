@@ -140,7 +140,7 @@ func _on_id_pressed(id: int) -> void:
 	if get_tree().edited_scene_root == null:
 		return
 	
-	var building = get_tree().edited_scene_root.get_node("Building")
+	var building = get_tree().edited_scene_root.get_node_or_null("Building")
 	if building == null:
 		return
 	
