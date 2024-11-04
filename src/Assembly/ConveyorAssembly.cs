@@ -1,5 +1,4 @@
 using Godot;
-using System.Collections.Generic;
 using System.Linq;
 
 [Tool]
@@ -34,25 +33,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private TransformMonitoredNode3D _rightSide;
 	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
 	private TransformMonitoredNode3D _leftSide;
-	protected TransformMonitoredNode3D legStands
-	{
-		get
-		{
-			if (!IsInstanceValid(_legStands))
-			{
-				_legStands = GetNodeOrNull<TransformMonitoredNode3D>("LegStands");
-				if (IsInstanceValid(_legStands))
-				{
-					SetupLegStands();
-				}
-			}
-			return _legStands;
-		}
-	}
-	private TransformMonitoredNode3D _legStands;
+	private ConveyorAssemblyLegStands legStands => IsInstanceValid(_legStands) ? _legStands : _legStands = GetNodeOrNull<ConveyorAssemblyLegStands>("LegStands");
+	private ConveyorAssemblyLegStands _legStands;
 	#endregion Fields / Nodes
 	private Transform3D conveyorsTransformPrev;
-	private Transform3D legStandsTransformPrev;
 
 	#region Fields / Exported properties
 	[ExportGroup("Conveyor", "Conveyor")]
@@ -417,36 +401,28 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	[ExportGroup("Leg Stands", "AutoLegStands")]
 	[Export(PropertyHint.None, "suffix:m")]
 	public float AutoLegStandsFloorOffset = 0f;
-	public float autoLegStandsFloorOffsetPrev;
 
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
 	[Export]
 	public bool AutoLegStandsIntervalLegsEnabled { get; set; } = true;
-	private bool autoLegStandsIntervalLegsEnabledPrev = false;
 
 	[Export(PropertyHint.Range, "0.5,10,or_greater,suffix:m")]
 	public float AutoLegStandsIntervalLegsInterval { get; set; } = 2f;
-	private float autoLegStandsIntervalLegsIntervalPrev;
 
 	[Export(PropertyHint.Range, "-5,5,or_less,or_greater,suffix:m")]
 	public float AutoLegStandsIntervalLegsOffset { get; set; } = 0f;
 
-	private float autoLegStandsIntervalLegsOffsetPrev;
-
 	[ExportSubgroup("End Legs", "AutoLegStandsEndLeg")]
 	[Export]
 	public bool AutoLegStandsEndLegFront = true;
-	private bool autoLegStandsEndLegFrontPrev = false;
 	[Export]
 	public bool AutoLegStandsEndLegRear = true;
-	private bool autoLegStandsEndLegRearPrev = false;
 
 	[ExportSubgroup("Placement Margins", "AutoLegStandsMargin")]
 	[Export(PropertyHint.Range, "0,1,or_less,or_greater,suffix:m")]
 	public float AutoLegStandsMarginEnds = 0.2f;
 	[Export(PropertyHint.Range, "0.5,5,or_greater,suffix:m")]
 	public float AutoLegStandsMarginEndLegs = 0.5f;
-	private float autoLegStandsMarginEndLegsPrev = 0.5f;
 
 	[ExportSubgroup("Leg Model", "AutoLegStandsModel")]
 	[Export(PropertyHint.None, "suffix:m")]
@@ -457,7 +433,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			_autoLegStandsModelGrabsOffset = value;
 			if (IsInstanceValid(legStands))
 			{
-				UpdateLegStandsHeightAndVisibility();
+				legStands.UpdateLegStandsHeightAndVisibility();
 			}
 		}
 	}
@@ -465,15 +441,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[Export]
 	public PackedScene AutoLegStandsModelScene = GD.Load<PackedScene>("res://parts/ConveyorLegBC.tscn");
-	private PackedScene autoLegStandsModelScenePrev;
 	#endregion Fields / Exported properties
-
-	#region Fields / Leg stand coverage
-	private float legStandCoverageMin;
-	private float legStandCoverageMax;
-	private float legStandCoverageMinPrev;
-	private float legStandCoverageMaxPrev;
-	#endregion Fields / Leg stand coverage
 
 	#region Fields / Length, Width, Height, Basis
 	private Basis _cachedBasis = Basis.Identity;
@@ -521,9 +489,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		_height = height;
 	}
 	#endregion Fields / Length, Width, Height, Basis
-
-	// This variable is used to store the names of the pre-existing leg stands that can't be owned by the edited scene.
-	private Dictionary <StringName, Node> foreignLegStandsOwners = new();
 
 	#region Fields / Property method overrides
 	public override void _ValidateProperty(Godot.Collections.Dictionary property) {
@@ -664,29 +629,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			conveyorsTransformPrev = _cachedConveyorsTransform;
 		}
 
-		// Apply the AutoLegStandsFloorOffset and AutoLegStandsIntervalLegsOffset properties if needed.
-		if (legStands != null) {
-			Vector3 legStandsStartingOffset = assemblyScale * _cachedLegStandsPosition;
-			autoLegStandsFloorOffsetPrev = legStandsStartingOffset.Y;
-			autoLegStandsIntervalLegsOffsetPrev = legStandsStartingOffset.X;
-			legStandsTransformPrev = _cachedLegStandsTransform;
-			SyncLegStandsOffsets();
-		}
-
 		UpdateSides();
-
-		autoLegStandsIntervalLegsIntervalPrev = AutoLegStandsIntervalLegsInterval;
-		autoLegStandsModelScenePrev = AutoLegStandsModelScene;
-		UpdateLegStandCoverage();
-
-		if (legStands != null) {
-			Node editedScene = GetTree().GetEditedSceneRoot();
-			foreach (Node legStand in legStands.GetChildren()) {
-				if (legStand.Owner != editedScene) {
-					foreignLegStandsOwners[legStand.Name] = legStand.Owner;
-				}
-			}
-		}
 	}
 
 	bool has_processed_at_least_once = false;
@@ -704,17 +647,11 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		if (conveyorsTransformPrev != _cachedConveyorsTransform) {
 			UpdateSides();
 		}
-		UpdateLegStandCoverage();
-		UpdateLegStands();
+
 		_basisPrev = _cachedBasis;
 		_scalePrev = _basisPrev.Scale;
 		conveyorAnglePrev = ConveyorAngle;
 		conveyorsTransformPrev = _cachedConveyorsTransform;
-		autoLegStandsIntervalLegsEnabledPrev = AutoLegStandsIntervalLegsEnabled;
-		autoLegStandsEndLegFrontPrev = AutoLegStandsEndLegFront;
-		autoLegStandsEndLegRearPrev = AutoLegStandsEndLegRear;
-		autoLegStandsMarginEndLegsPrev = AutoLegStandsMarginEndLegs;
-		autoLegStandsModelScenePrev = AutoLegStandsModelScene;
 	}
 
 	private bool IsSimulationRunning() {

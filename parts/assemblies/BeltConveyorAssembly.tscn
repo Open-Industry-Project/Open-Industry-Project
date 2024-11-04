@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=4 uid="uid://bqlkj4ar8q1ws"]
+[gd_scene load_steps=26 format=4 uid="uid://bqlkj4ar8q1ws"]
 
 [ext_resource type="Script" path="res://src/Assembly/ConveyorAssembly.cs" id="1_au6en"]
 [ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="2_kdap4"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dvjrx5crpqs5f" path="res://parts/SideGuard.tscn" id="3_k3wlu"]
 [ext_resource type="PackedScene" uid="uid://cr8u3bta0skiy" path="res://parts/ConveyorLegBC.tscn" id="4_aq24s"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="6_0biw3"]
+[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyLegStands.cs" id="6_bki8d"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="9_sct53"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="12_jgtyw"]
 
@@ -273,7 +274,7 @@ Length = 4.0
 
 [node name="LegStands" type="Node3D" parent="."]
 transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-script = ExtResource("2_l2uq1")
+script = ExtResource("6_bki8d")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("4_aq24s")]
 transform = Transform3D(1, 0, 0, 0, 1.61792, 0, 0, 0, 1, -1.8, 0, 0)

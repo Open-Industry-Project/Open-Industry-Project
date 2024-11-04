@@ -1,9 +1,22 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
-public partial class ConveyorAssembly : TransformMonitoredNode3D
+[Tool]
+public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
 {
+	// Workarounds for renaming class
+	private ConveyorAssembly assembly => GetParentOrNull<ConveyorAssembly>();
+	private Node3D conveyors => assembly?.GetNodeOrNull<Node3D>("Conveyors");
+	// TODO actually cache
+	private Transform3D _cachedConveyorsTransform => conveyors?.Transform ?? Transform3D.Identity;
+	private Vector3 _cachedConveyorsPosition => conveyors?.Position ?? Vector3.Zero;
+	private Basis _cachedConveyorsBasis => conveyors?.Basis ?? Basis.Identity;
+	private Vector3 _cachedConveyorsRotation => conveyors?.Rotation ?? Vector3.Zero;
+	private Vector3 _cachedAssemblyScale => assembly?.Scale ?? Vector3.One;
+	private Vector3 _assemblyScalePrev => assembly?.Scale ?? Vector3.One;
+
 	#region Leg Stands
 	#region Leg Stands / Constants
 	private const float LegStandsBaseWidth = 2f;
@@ -24,19 +37,77 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	private Basis _cachedLegStandsBasis = Basis.Identity;
 	private Vector3 _cachedLegStandsRotation = Vector3.Zero;
 
-	// This will become the constructor once this file is converted into its own class.
-	private void SetupLegStands()
+	// Configuration change detection fields
+	private Transform3D conveyorsTransformPrev;
+	private Transform3D legStandsTransformPrev;
+	private float conveyorAnglePrev = 0f;
+	private float autoLegStandsFloorOffsetPrev;
+	private bool autoLegStandsIntervalLegsEnabledPrev = false;
+	private float autoLegStandsIntervalLegsIntervalPrev;
+	private float autoLegStandsIntervalLegsOffsetPrev;
+	private bool autoLegStandsEndLegFrontPrev = false;
+	private bool autoLegStandsEndLegRearPrev = false;
+	private float autoLegStandsMarginEndLegsPrev = 0.5f;
+	private PackedScene autoLegStandsModelScenePrev;
+
+	public ConveyorAssemblyLegStands()
 	{
-		legStands.TransformChanged += void (value) => _cachedLegStandsTransform = value;
-		legStands.PositionChanged += void (value) => _cachedLegStandsPosition = value;
-		legStands.BasisChanged += void (value) =>
+		TransformChanged += void (value) => _cachedLegStandsTransform = value;
+		PositionChanged += void (value) => _cachedLegStandsPosition = value;
+		BasisChanged += void (value) =>
 		{
 			_cachedLegStandsBasis = value;
 			_cachedLegStandsRotation = _cachedLegStandsBasis.GetEuler();
 		};
 		// Ensure cached values are up to date
-		legStands.SetTransform(legStands.Transform);
+		SetTransform(Transform);
 	}
+
+	public override void _Ready()
+	{
+		// Apply the AutoLegStandsFloorOffset and AutoLegStandsIntervalLegsOffset properties if needed.
+		Basis assemblyScale = Basis.Identity.Scaled(_cachedAssemblyScale);
+		Vector3 legStandsStartingOffset = assemblyScale * _cachedLegStandsPosition;
+		autoLegStandsFloorOffsetPrev = legStandsStartingOffset.Y;
+		autoLegStandsIntervalLegsOffsetPrev = legStandsStartingOffset.X;
+		legStandsTransformPrev = _cachedLegStandsTransform;
+		SyncLegStandsOffsets();
+
+		autoLegStandsIntervalLegsIntervalPrev = assembly.AutoLegStandsIntervalLegsInterval;
+		autoLegStandsModelScenePrev = assembly.AutoLegStandsModelScene;
+		UpdateLegStandCoverage();
+
+		Node editedScene = GetTree().GetEditedSceneRoot();
+		foreach (Node legStand in GetChildren())
+		{
+			if (legStand.Owner != editedScene)
+			{
+				foreignLegStandsOwners[legStand.Name] = legStand.Owner;
+			}
+		}
+	}
+
+	public override void _PhysicsProcess(double delta)
+	{
+		UpdateLegStandCoverage();
+		UpdateLegStands();
+		conveyorsTransformPrev = _cachedConveyorsTransform;
+		autoLegStandsIntervalLegsEnabledPrev = assembly.AutoLegStandsIntervalLegsEnabled;
+		autoLegStandsEndLegFrontPrev = assembly.AutoLegStandsEndLegFront;
+		autoLegStandsEndLegRearPrev = assembly.AutoLegStandsEndLegRear;
+		autoLegStandsMarginEndLegsPrev = assembly.AutoLegStandsMarginEndLegs;
+		autoLegStandsModelScenePrev = assembly.AutoLegStandsModelScene;
+	}
+
+	#region Fields / Leg stand coverage
+	private float legStandCoverageMin;
+	private float legStandCoverageMax;
+	private float legStandCoverageMinPrev;
+	private float legStandCoverageMaxPrev;
+	#endregion Fields / Leg stand coverage
+
+	// This variable is used to store the names of the pre-existing leg stands that can't be owned by the edited scene.
+	private Dictionary <StringName, Node> foreignLegStandsOwners = new();
 
 	#region Leg Stands / Conveyor coverage extents
 	private void UpdateLegStandCoverage() {
@@ -45,14 +116,14 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	}
 
 	protected virtual (float, float) GetLegStandCoverage() {
-		if (legStands == null || conveyors == null) {
+		if (conveyors == null) {
 			return (0f, 0f);
 		}
 		float min = float.MaxValue;
 		float max = float.MinValue;
 		foreach (Node child in conveyors.GetChildren()) {
 			Node3D conveyor = child as Node3D;
-			if (IsConveyor(conveyor)) {
+			if (ConveyorAssembly.IsConveyor(conveyor)) {
 				// Conveyor's Transform in the legStands space.
 				Transform3D localConveyorTransform = _cachedLegStandsTransform.AffineInverse() * _cachedConveyorsTransform * conveyor.Transform;
 
@@ -60,12 +131,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 				Vector3 conveyorExtentFront = new Vector3(-Mathf.Abs(localConveyorTransform.Basis.Scale.X * 0.5f), 0f, 0f);
 				Vector3 conveyorExtentRear = new Vector3(Mathf.Abs(localConveyorTransform.Basis.Scale.X * 0.5f), 0f, 0f);
 
-				Vector3 marginOffsetFront = new Vector3(AutoLegStandsMarginEnds, 0f, 0f);
-				Vector3 marginOffsetRear = new Vector3(-AutoLegStandsMarginEnds, 0f, 0f);
+				Vector3 marginOffsetFront = new Vector3(assembly.AutoLegStandsMarginEnds, 0f, 0f);
+				Vector3 marginOffsetRear = new Vector3(-assembly.AutoLegStandsMarginEnds, 0f, 0f);
 
 				// The tip of the leg stand has a rotating grab model that isn't counted towards its height.
 				// Because the grab will rotate towards the conveyor, we account for its reach here.
-				Vector3 grabOffset = new Vector3(0f, -AutoLegStandsModelGrabsOffset, 0f);
+				Vector3 grabOffset = new Vector3(0f, -assembly.AutoLegStandsModelGrabsOffset, 0f);
 
 				// Final grab points in legStands space
 				Vector3 legGrabPointFront = localConveyorTransform.Orthonormalized() * (conveyorExtentFront + marginOffsetFront + grabOffset);
@@ -83,16 +154,11 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	#region Leg Stands / Update "LegStands" node
 	private void UpdateLegStands()
 	{
-		if (legStands == null)
-		{
-			return;
-		}
-
 		LockLegStandsGroup();
 		SyncLegStandsOffsets();
 
 		// If the leg stand scene changes, we need to regenerate everything.
-		if (AutoLegStandsModelScene != autoLegStandsModelScenePrev) {
+		if (assembly.AutoLegStandsModelScene != autoLegStandsModelScenePrev) {
 			DeleteAllAutoLegStands();
 		}
 
@@ -101,12 +167,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		bool legStandsCoverageChanged = legStandCoverageMin != legStandCoverageMinPrev
 		                                || legStandCoverageMax != legStandCoverageMaxPrev;
 
-		var autoLegStandsUpdateIsNeeded = AutoLegStandsIntervalLegsEnabled != autoLegStandsIntervalLegsEnabledPrev
-			|| AutoLegStandsIntervalLegsInterval != autoLegStandsIntervalLegsIntervalPrev
-			|| AutoLegStandsEndLegFront != autoLegStandsEndLegFrontPrev
-			|| AutoLegStandsEndLegRear != autoLegStandsEndLegRearPrev
-			|| AutoLegStandsMarginEndLegs != autoLegStandsMarginEndLegsPrev
-			|| AutoLegStandsModelScene != autoLegStandsModelScenePrev
+		var autoLegStandsUpdateIsNeeded = assembly.AutoLegStandsIntervalLegsEnabled != autoLegStandsIntervalLegsEnabledPrev
+			|| assembly.AutoLegStandsIntervalLegsInterval != autoLegStandsIntervalLegsIntervalPrev
+			|| assembly.AutoLegStandsEndLegFront != autoLegStandsEndLegFrontPrev
+			|| assembly.AutoLegStandsEndLegRear != autoLegStandsEndLegRearPrev
+			|| assembly.AutoLegStandsMarginEndLegs != autoLegStandsMarginEndLegsPrev
+			|| assembly.AutoLegStandsModelScene != autoLegStandsModelScenePrev
 			|| legStandsCoverageChanged;
 
 		int numberOfLegStandsAdjusted = 0;
@@ -139,18 +205,19 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		if (conveyors != null) {
 			Vector3 newPos = new Vector3(_cachedLegStandsPosition.X, _cachedLegStandsPosition.Y, _cachedConveyorsPosition.Z);
 			if (_cachedLegStandsPosition != newPos) {
-				legStands.Position = newPos;
+				Position = newPos;
 			}
 			// Conveyors can't rotate anymore, so this doesn't do much.
 			Vector3 newRot = new Vector3(0f, _cachedConveyorsRotation.Y, 0f);
 			if (_cachedLegStandsRotation != newRot) {
-				legStands.Rotation = newRot;
+				Rotation = newRot;
 			}
 		}
 	}
 
 	/**
-	 * Synchronize the offset of the leg stands with the assembly's AutoLegStandsIntervalLegsOffset property.
+	 * Synchronize the X position of the leg stands with the assembly's AutoLegStandsIntervalLegsOffset property.
+	 * Synchronize the Y position of the leg stands with the assembly's AutoLegStandsFloorOffset property.
 	 *
 	 * If the property changes, the leg stands are moved to match.
 	 * If the leg stands are moved manually, the property is updated.
@@ -159,53 +226,50 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 * This currently shouldn't do anything for curved assemblies.
 	 */
 	private void SyncLegStandsOffsets() {
-		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
-		Basis assemblyScalePrev = Basis.Identity.Scaled(_scalePrev);
+		Basis assemblyScale = Basis.Identity.Scaled(_cachedAssemblyScale);
+		Basis assemblyScalePrev = Basis.Identity.Scaled(_assemblyScalePrev);
 		Vector3 legStandsScaledPosition = assemblyScale * _cachedLegStandsPosition;
 		Vector3 legStandsScaledPositionPrev = assemblyScalePrev * legStandsTransformPrev.Origin;
 
 		// Sync properties to leg stands position if changed.
-		float newPosX = AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev ? AutoLegStandsIntervalLegsOffset : legStandsScaledPosition.X;
-		float newPosY = AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev ? AutoLegStandsFloorOffset : legStandsScaledPosition.Y;
-		if (AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev || AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev) {
+		float newPosX = assembly.AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev ? assembly.AutoLegStandsIntervalLegsOffset : legStandsScaledPosition.X;
+		float newPosY = assembly.AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev ? assembly.AutoLegStandsFloorOffset : legStandsScaledPosition.Y;
+		if (assembly.AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev || assembly.AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev) {
 			Vector3 targetPosition = new Vector3(newPosX, newPosY, legStandsScaledPosition.Z);
-			_cachedLegStandsPosition = assemblyScale.Inverse() * targetPosition;
+			Position = assemblyScale.Inverse() * targetPosition;
 		}
 
 		// Sync X offset to property if needed.
-		if (AutoLegStandsIntervalLegsOffset == autoLegStandsIntervalLegsOffsetPrev) {
+		if (assembly.AutoLegStandsIntervalLegsOffset == autoLegStandsIntervalLegsOffsetPrev) {
 			float offset = legStandsScaledPosition.X;
 			float offsetPrev = legStandsScaledPositionPrev.X;
 			float offsetDelta = Mathf.Abs(offset - offsetPrev);
 			if (offsetDelta > 0.01f) {
-				this.AutoLegStandsIntervalLegsOffset = offset;
+				assembly.AutoLegStandsIntervalLegsOffset = offset;
 				NotifyPropertyListChanged();
 			}
 		}
-		autoLegStandsIntervalLegsOffsetPrev = AutoLegStandsIntervalLegsOffset;
+		autoLegStandsIntervalLegsOffsetPrev = assembly.AutoLegStandsIntervalLegsOffset;
 
 		// Sync Y offset to property if needed.
-		if (AutoLegStandsFloorOffset == autoLegStandsFloorOffsetPrev) {
+		if (assembly.AutoLegStandsFloorOffset == autoLegStandsFloorOffsetPrev) {
 			float offset = legStandsScaledPosition.Y;
 			float offsetPrev = legStandsScaledPositionPrev.Y;
 			float offsetDelta = Mathf.Abs(offset - offsetPrev);
 			if (offsetDelta > 0.01f) {
-				this.AutoLegStandsFloorOffset = offset;
+				assembly.AutoLegStandsFloorOffset = offset;
 				NotifyPropertyListChanged();
 			}
 		}
-		autoLegStandsFloorOffsetPrev = AutoLegStandsFloorOffset;
+		autoLegStandsFloorOffsetPrev = assembly.AutoLegStandsFloorOffset;
 
 		legStandsTransformPrev = _cachedLegStandsTransform;
 	}
 
 	private void DeleteAllAutoLegStands() {
-		if (legStands == null) {
-			return;
-		}
-		foreach (Node child in legStands.GetChildren()) {
+		foreach (Node child in GetChildren()) {
 			if (IsAutoLegStand(child)) {
-				legStands.RemoveChild(child);
+				RemoveChild(child);
 				child.QueueFree();
 			}
 		}
@@ -220,7 +284,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	private void SnapAllLegStandsToPath() {
 		// Force legStand alignment with LegStands group.
 		float targetWidth = GetLegStandTargetWidth();
-		foreach (Node child in legStands.GetChildren()) {
+		foreach (Node child in GetChildren()) {
 			ConveyorLeg legStand = child as ConveyorLeg;
 			if (legStand == null) {
 				continue;
@@ -235,19 +299,19 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		Node3D firstConveyor = null;
 		foreach (Node child in conveyors.GetChildren()) {
 			Node3D conveyor = child as Node3D;
-			if (IsConveyor(conveyor)) {
+			if (ConveyorAssembly.IsConveyor(conveyor)) {
 				firstConveyor = conveyor;
 				break;
 			}
 		}
 		// This is a hack to account for the fact that CurvedRollerConveyors are slightly wider than other conveyors.
 		if (firstConveyor is CurvedRollerConveyor) {
-			return Width * 1.055f;
+			return assembly.Width * 1.055f;
 		}
 		if (firstConveyor is RollerConveyor) {
-			return Width + 0.051f * 2f;
+			return assembly.Width + 0.051f * 2f;
 		}
-		return Width;
+		return assembly.Width;
 	}
 
 	/**
@@ -313,12 +377,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 */
 	private int AdjustAutoLegStandPositions() {
 		// Don't allow tiny or negative intervals.
-		AutoLegStandsIntervalLegsInterval = Mathf.Max(0.5f, AutoLegStandsIntervalLegsInterval);
-		if (AutoLegStandsIntervalLegsInterval == autoLegStandsIntervalLegsIntervalPrev && legStandCoverageMax == legStandCoverageMaxPrev && legStandCoverageMin == legStandCoverageMinPrev) {
+		assembly.AutoLegStandsIntervalLegsInterval = Mathf.Max(0.5f, assembly.AutoLegStandsIntervalLegsInterval);
+		if (assembly.AutoLegStandsIntervalLegsInterval == autoLegStandsIntervalLegsIntervalPrev && legStandCoverageMax == legStandCoverageMaxPrev && legStandCoverageMin == legStandCoverageMinPrev) {
 			return 0;
 		}
 		var changeCount = 0;
-		foreach (Node child in legStands.GetChildren()) {
+		foreach (Node child in GetChildren()) {
 			if (child is not ConveyorLeg legStand) {
 				continue;
 			}
@@ -336,7 +400,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 					break;
 			}
 		}
-		autoLegStandsIntervalLegsIntervalPrev = AutoLegStandsIntervalLegsInterval;
+		autoLegStandsIntervalLegsIntervalPrev = assembly.AutoLegStandsIntervalLegsInterval;
 		return changeCount;
 	}
 
@@ -382,34 +446,34 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 */
 	private float GetIntervalLegStandPosition(int index) {
 		Debug.Assert(index >= 0);
-		float frontMargin = AutoLegStandsEndLegFront ? AutoLegStandsMarginEndLegs : 0f;
-		float firstPosition = (float) Math.Ceiling((legStandCoverageMin + frontMargin) / AutoLegStandsIntervalLegsInterval) * AutoLegStandsIntervalLegsInterval;
-		return firstPosition + index * AutoLegStandsIntervalLegsInterval;
+		float frontMargin = assembly.AutoLegStandsEndLegFront ? assembly.AutoLegStandsMarginEndLegs : 0f;
+		float firstPosition = (float) Math.Ceiling((legStandCoverageMin + frontMargin) / assembly.AutoLegStandsIntervalLegsInterval) * assembly.AutoLegStandsIntervalLegsInterval;
+		return firstPosition + index * assembly.AutoLegStandsIntervalLegsInterval;
 	}
 
 	private bool CreateAndRemoveAutoLegStands()
 	{
 		bool changed = false;
 		// Don't allow negative margins.
-		AutoLegStandsMarginEndLegs = Mathf.Max(0f, AutoLegStandsMarginEndLegs);
+		assembly.AutoLegStandsMarginEndLegs = Mathf.Max(0f, assembly.AutoLegStandsMarginEndLegs);
 		// Enforce a margin from fixed front and rear legs if they exist.
 		float firstPosition = GetIntervalLegStandPosition(0);
-		float rearMargin = AutoLegStandsEndLegRear ? AutoLegStandsMarginEndLegs : 0f;
-		float lastPosition = (float) Math.Floor((legStandCoverageMax - rearMargin) / AutoLegStandsIntervalLegsInterval) * AutoLegStandsIntervalLegsInterval;
+		float rearMargin = assembly.AutoLegStandsEndLegRear ? assembly.AutoLegStandsMarginEndLegs : 0f;
+		float lastPosition = (float) Math.Floor((legStandCoverageMax - rearMargin) / assembly.AutoLegStandsIntervalLegsInterval) * assembly.AutoLegStandsIntervalLegsInterval;
 		int intervalLegStandCount;
-		if (!AutoLegStandsIntervalLegsEnabled) {
+		if (!assembly.AutoLegStandsIntervalLegsEnabled) {
 			intervalLegStandCount = 0;
 		} else if (firstPosition > lastPosition) {
 			// Invalid range implies zero interval-aligned leg stands are needed.
 			intervalLegStandCount = 0;
 		} else {
-			intervalLegStandCount = (int) ((lastPosition - firstPosition) / AutoLegStandsIntervalLegsInterval) + 1;
+			intervalLegStandCount = (int) ((lastPosition - firstPosition) / assembly.AutoLegStandsIntervalLegsInterval) + 1;
 		}
 		// Inventory our existing leg stands and delete the ones we don't need.
 		bool hasFrontLeg = false;
 		bool hasRearLeg = false;
 		bool[] legStandsInventory = new bool[intervalLegStandCount];
-		foreach (Node child in legStands.GetChildren()) {
+		foreach (Node child in GetChildren()) {
 			if (child is not ConveyorLeg legStand) {
 				continue;
 			}
@@ -419,29 +483,29 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 					// Only manage auto leg stands.
 					break;
 				case LegIndex.Front:
-					if (AutoLegStandsEndLegFront) {
+					if (assembly.AutoLegStandsEndLegFront) {
 						hasFrontLeg = true;
 					} else {
-						legStands.RemoveChild(legStand);
+						RemoveChild(legStand);
 						legStand.QueueFree();
 					}
 					break;
 				case LegIndex.Rear:
-					if (AutoLegStandsEndLegRear) {
+					if (assembly.AutoLegStandsEndLegRear) {
 						hasRearLeg = true;
 					} else {
-						legStands.RemoveChild(legStand);
+						RemoveChild(legStand);
 						legStand.QueueFree();
 					}
 					break;
 				default:
 					// Mark existing leg stands that are in the new interval.
-					if (legStandIndex < intervalLegStandCount && AutoLegStandsIntervalLegsEnabled) {
+					if (legStandIndex < intervalLegStandCount && assembly.AutoLegStandsIntervalLegsEnabled) {
 						legStandsInventory[legStandIndex] = true;
 						break;
 					}
 					// Delete leg stands that are outside the new interval.
-					legStands.RemoveChild(legStand);
+					RemoveChild(legStand);
 					legStand.QueueFree();
 					changed = true;
 					break;
@@ -449,10 +513,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		}
 
 		// Create the missing leg stands.
-		if (AutoLegStandsModelScene == null) {
+		if (assembly.AutoLegStandsModelScene == null) {
 			return changed;
 		}
-		if (!hasFrontLeg && AutoLegStandsEndLegFront) {
+		if (!hasFrontLeg && assembly.AutoLegStandsEndLegFront) {
 			AddLegStandAtIndex((int) LegIndex.Front);
 			changed = true;
 		}
@@ -462,7 +526,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 				changed = true;
 			}
 		}
-		if (!hasRearLeg && AutoLegStandsEndLegRear) {
+		if (!hasRearLeg && assembly.AutoLegStandsEndLegRear) {
 			AddLegStandAtIndex((int) LegIndex.Rear);
 			changed = true;
 		}
@@ -485,22 +549,22 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		int trueIndex = (LegIndex) index switch {
 			LegIndex.Front => 0,
 			LegIndex.Rear => -1,
-			_ => AutoLegStandsEndLegFront ? index + 1 : index,
+			_ => assembly.AutoLegStandsEndLegFront ? index + 1 : index,
 		};
-		if (trueIndex < legStands.GetChildCount()) {
-			legStands.MoveChild(legStand, trueIndex);
+		if (trueIndex < GetChildCount()) {
+			MoveChild(legStand, trueIndex);
 		}
 		return legStand;
 	}
 
 	private Node AddOrGetLegStandInstance(StringName name) {
-		Node legStand = legStands.GetNodeOrNull<Node>(new NodePath(name));
+		Node legStand = GetNodeOrNull<Node>(new NodePath(name));
 		if (legStand != null) {
 			return legStand;
 		}
-		legStand = AutoLegStandsModelScene.Instantiate();
+		legStand = assembly.AutoLegStandsModelScene.Instantiate();
 		legStand.Name = name;
-		legStands.AddChild(legStand);
+		AddChild(legStand);
 		// If the leg stand used to exist, restore its original owner.
 		legStand.Owner = foreignLegStandsOwners.TryGetValue(name, out Node originalOwner)
 			? originalOwner
@@ -510,7 +574,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	#endregion Leg Stands / Managing auto-instanced leg stands
 
 	#region Leg Stands / Auto-height and visibility
-	private void UpdateLegStandsHeightAndVisibility() {
+	internal void UpdateLegStandsHeightAndVisibility() {
 		// Extend LegStands to Conveyor line.
 
 		// Dependencies:
@@ -532,10 +596,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			return;
 		}
 		// Plane transformed from conveyors space into legStands space.
-		Plane conveyorPlane = new Plane(Vector3.Up, new Vector3(0f, -AutoLegStandsModelGrabsOffset, 0f)) * _cachedConveyorsTransform.AffineInverse() * _cachedLegStandsTransform;
-		Vector3 conveyorPlaneGlobalNormal = conveyorPlane.Normal * legStands.GlobalBasis.Inverse();
+		Plane conveyorPlane = new Plane(Vector3.Up, new Vector3(0f, -assembly.AutoLegStandsModelGrabsOffset, 0f)) * _cachedConveyorsTransform.AffineInverse() * _cachedLegStandsTransform;
+		Vector3 conveyorPlaneGlobalNormal = conveyorPlane.Normal * GlobalBasis.Inverse();
 
-		foreach (Node child in legStands.GetChildren()) {
+		foreach (Node child in GetChildren()) {
 			ConveyorLeg legStand = child as ConveyorLeg;
 			if (legStand == null) {
 				continue;
