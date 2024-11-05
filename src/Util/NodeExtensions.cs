@@ -8,8 +8,15 @@ public static class NodeExtensions
 		return GodotObject.IsInstanceValid(target) ? target : null;
 	}
 
+	public static void CacheValidNodeOrNull<T>(this Node node, NodePath path, ref T cachedReference) where T : Node
+	{
+		if (GodotObject.IsInstanceValid(cachedReference)) return;
+		cachedReference = node.GetValidNodeOrNull<T>(path);
+	}
+
 	public static T GetCachedValidNodeOrNull<T>(this Node node, NodePath path, ref T cachedReference) where T : Node
 	{
-		return GodotObject.IsInstanceValid(cachedReference) ? cachedReference : GodotObject.IsInstanceValid(cachedReference = node.GetNodeOrNull<T>(path)) ? cachedReference : null;
+		CacheValidNodeOrNull(node, path, ref cachedReference);
+		return cachedReference;
 	}
 }
