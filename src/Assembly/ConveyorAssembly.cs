@@ -33,7 +33,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private TransformMonitoredNode3D _rightSide;
 	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
 	private TransformMonitoredNode3D _leftSide;
-	private ConveyorAssemblyLegStands legStands => IsInstanceValid(_legStands) ? _legStands : IsInstanceValid(_legStands = GetNodeOrNull<ConveyorAssemblyLegStands>("LegStands")) ? _legStands : null;
+	private ConveyorAssemblyLegStands legStands => this.GetCachedValidNodeOrNull("LegStands", ref _legStands);
 	private ConveyorAssemblyLegStands _legStands;
 	#endregion Fields / Nodes
 	private Transform3D conveyorsTransformPrev;
