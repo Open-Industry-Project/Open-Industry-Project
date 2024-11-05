@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 
 [Tool]
-public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
+public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 {
 	// Workarounds for renaming class
 	private ConveyorAssembly assembly => GetParentOrNull<ConveyorAssembly>();

@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://src/Assembly/CurvedConveyorAssembly.cs" id="1_qvlhq"]
 [ext_resource type="PackedScene" uid="uid://somtwmiih8bb" path="res://parts/ConveyorLegCRC.tscn" id="2_p1nhg"]
 [ext_resource type="PackedScene" uid="uid://c3cdcxifx4eej" path="res://parts/CurvedRollerConveyor.tscn" id="3_l832a"]
-[ext_resource type="Script" path="res://src/Assembly/TransformMonitoredNode3D.cs" id="4_0yc54"]
+[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyChild.cs" id="4_0yc54"]
 [ext_resource type="PackedScene" uid="uid://c4xqkx88xf1dy" path="res://parts/CRCSideGuard.tscn" id="4_hvqu8"]
 [ext_resource type="Shader" uid="uid://b4wwduhuvem3q" path="res://assets/3DModels/Shaders/SideGuardShaderCBC.tres" id="6_oqa7e"]
 [ext_resource type="Script" path="res://src/Assembly/CurvedConveyorAssemblyLegStands.cs" id="7_vrbyf"]
