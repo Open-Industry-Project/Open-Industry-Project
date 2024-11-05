@@ -33,7 +33,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private TransformMonitoredNode3D _rightSide;
 	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
 	private TransformMonitoredNode3D _leftSide;
-	private ConveyorAssemblyLegStands legStands => IsInstanceValid(_legStands) ? _legStands : _legStands = GetNodeOrNull<ConveyorAssemblyLegStands>("LegStands");
+	private ConveyorAssemblyLegStands legStands => IsInstanceValid(_legStands) ? _legStands : IsInstanceValid(_legStands = GetNodeOrNull<ConveyorAssemblyLegStands>("LegStands")) ? _legStands : null;
 	private ConveyorAssemblyLegStands _legStands;
 	#endregion Fields / Nodes
 	private Transform3D conveyorsTransformPrev;
@@ -427,7 +427,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		{
 			if (_autoLegStandsMarginEnds == value) return;
 			_autoLegStandsMarginEnds = value;
-			if (IsInstanceValid(legStands)) legStands.UpdateLegStandCoverage();
+			legStands?.UpdateLegStandCoverage();
 		}
 	}
 	private float _autoLegStandsMarginEnds = 0.2f;
@@ -442,11 +442,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		{
 			if (_autoLegStandsModelGrabsOffset == value) return;
 			_autoLegStandsModelGrabsOffset = value;
-			if (IsInstanceValid(legStands))
-			{
-				legStands.UpdateLegStandsHeightAndVisibility();
-				legStands.UpdateLegStandCoverage();
-			}
+			legStands?.UpdateLegStandsHeightAndVisibility();
+			legStands?.UpdateLegStandCoverage();
 		}
 	}
 	private float _autoLegStandsModelGrabsOffset = 0.382f;

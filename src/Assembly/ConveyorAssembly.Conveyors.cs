@@ -55,7 +55,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		if (conveyorScaleNeedsUpdate)
 		{
 			ScaleConveyorLine(conveyors, conveyorLineLength, conveyorLineWidth);
-			if (IsInstanceValid(legStands)) legStands.UpdateLegStandCoverage();
+			legStands?.UpdateLegStandCoverage();
 		}
 
 	}
