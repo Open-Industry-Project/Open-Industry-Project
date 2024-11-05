@@ -171,7 +171,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	#region Leg Stands / Update "LegStands" node
 	protected override Transform3D ConstrainTransform(Transform3D transform)
 	{
-		return LockLegStandsGroup(transform);
+		return LockLegStandsGroup(base.ConstrainTransform(transform));
 	}
 
 	private void UpdateLegStands()
