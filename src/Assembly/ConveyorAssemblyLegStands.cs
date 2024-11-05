@@ -50,7 +50,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	// Configuration change detection fields
 	private Transform3D conveyorsTransformPrev;
-	private Transform3D legStandsTransformPrev;
+	private Basis legStandsBasisPrev;
 	private float conveyorAnglePrev = 0f;
 	private float autoLegStandsFloorOffsetPrev;
 	private bool autoLegStandsIntervalLegsEnabledPrev = false;
@@ -83,7 +83,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		Vector3 legStandsStartingOffset = assemblyScale * _cachedLegStandsPosition;
 		autoLegStandsFloorOffsetPrev = legStandsStartingOffset.Y;
 		autoLegStandsIntervalLegsOffsetPrev = legStandsStartingOffset.X;
-		legStandsTransformPrev = _cachedLegStandsTransform;
 		SyncLegStandsOffsets();
 
 		autoLegStandsIntervalLegsIntervalPrev = assembly.AutoLegStandsIntervalLegsInterval;
@@ -210,7 +209,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		// Dependencies
 		bool legStandsChildrenChanged = numberOfLegStandsAdjusted != 0 || didAddOrRemove;
 		bool conveyorsTransformChanged = _cachedConveyorsTransform != conveyorsTransformPrev;
-		bool legStandsBasisChanged = _cachedLegStandsBasis != legStandsTransformPrev.Basis;
+		bool legStandsBasisChanged = _cachedLegStandsBasis != legStandsBasisPrev;
 		if (legStandsChildrenChanged || conveyorsTransformChanged || legStandsBasisChanged || legStandsCoverageChanged)
 		{
 			UpdateLegStandsHeightAndVisibility();
@@ -218,6 +217,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 		// Record external state to detect any changes next run.
 		conveyorsTransformPrev = _cachedConveyorsTransform;
+		legStandsBasisPrev = _cachedLegStandsBasis;
 		autoLegStandsIntervalLegsEnabledPrev = assembly.AutoLegStandsIntervalLegsEnabled;
 		autoLegStandsEndLegFrontPrev = assembly.AutoLegStandsEndLegFront;
 		autoLegStandsEndLegRearPrev = assembly.AutoLegStandsEndLegRear;
@@ -278,8 +278,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 			assembly.AutoLegStandsFloorOffset = offset;
 		}
 		autoLegStandsFloorOffsetPrev = assembly.AutoLegStandsFloorOffset;
-
-		legStandsTransformPrev = _cachedLegStandsTransform;
 	}
 
 	private void DeleteAllAutoLegStands() {
