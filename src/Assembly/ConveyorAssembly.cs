@@ -618,6 +618,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		Height = BaseHeight;
 		// If necessary, trigger signals to set new values
 		SetTransform(Transform);
+
+		TransformChanged += void (_) => PreventAllChildScaling();
 	}
 
 	public override void _Ready()
@@ -639,6 +641,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 
 		UpdateSides();
+
+		PreventAllChildScaling();
 	}
 
 	bool has_processed_at_least_once = false;
@@ -651,7 +655,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		if (IsSimulationRunning() && has_processed_at_least_once) return;
 		has_processed_at_least_once = true;
 
-		PreventAllChildScaling();
 		UpdateConveyors();
 		if (conveyorsTransformPrev != _cachedConveyorsTransform) {
 			UpdateSides();
