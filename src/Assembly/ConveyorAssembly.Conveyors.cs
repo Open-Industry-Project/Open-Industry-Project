@@ -14,6 +14,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	private Basis _cachedConveyorsBasis = Basis.Identity;
 	private Vector3 _cachedConveyorsRotation = Vector3.Zero;
 
+	private float conveyorLineLength = 0f;
+	private float conveyorLineWidth = 0f;
+
 	// This will become the constructor once this file is converted into its own class.
 	private void SetupConveyors()
 	{
@@ -38,9 +41,23 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 		LockConveyorsGroup();
 		SyncConveyorsAngle();
-		var conveyorLineLength = GetConveyorLineLength();
-		var conveyorLineWidth = GetConveyorLineWidth();
-		ScaleConveyorLine(conveyors, conveyorLineLength, conveyorLineWidth);
+
+		float conveyorLineLengthPrev = conveyorLineLength;
+		conveyorLineLength = GetConveyorLineLength();
+		bool conveyorLineLengthChanged = conveyorLineLengthPrev != conveyorLineLength;
+
+		float conveyorLineWidthPrev = conveyorLineWidth;
+		conveyorLineWidth = GetConveyorLineWidth();
+		bool conveyorLineWidthChanged = conveyorLineWidthPrev != conveyorLineWidth;
+
+		// Assume no children added or removed, which we would also need to account for.
+		bool conveyorScaleNeedsUpdate = conveyorLineLengthChanged || conveyorLineWidthChanged;
+		if (conveyorScaleNeedsUpdate)
+		{
+			ScaleConveyorLine(conveyors, conveyorLineLength, conveyorLineWidth);
+			if (IsInstanceValid(legStands)) legStands.UpdateLegStandCoverage();
+		}
+
 	}
 
 	protected virtual void LockConveyorsGroup() {

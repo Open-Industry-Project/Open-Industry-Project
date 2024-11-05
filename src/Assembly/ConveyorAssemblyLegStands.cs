@@ -8,7 +8,21 @@ public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
 {
 	// Workarounds for renaming class
 	private ConveyorAssembly assembly => GetParentOrNull<ConveyorAssembly>();
-	private Node3D conveyors => assembly?.GetNodeOrNull<Node3D>("Conveyors");
+	private TransformMonitoredNode3D conveyors
+	{
+		get
+		{
+			if (IsInstanceValid(_conveyors)) return _conveyors;
+			_conveyors = assembly?.GetNodeOrNull<TransformMonitoredNode3D>("Conveyors");
+			if (IsInstanceValid(_conveyors))
+			{
+				_conveyors.TransformChanged += void (_) => UpdateLegStandCoverage();
+				UpdateLegStandCoverage();
+			}
+			return _conveyors;
+		}
+	}
+	private TransformMonitoredNode3D _conveyors;
 	// TODO actually cache
 	private Transform3D _cachedConveyorsTransform => conveyors?.Transform ?? Transform3D.Identity;
 	private Vector3 _cachedConveyorsPosition => conveyors?.Position ?? Vector3.Zero;
@@ -61,6 +75,8 @@ public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
 		};
 		// Ensure cached values are up to date
 		SetTransform(Transform);
+
+		TransformChanged += void (_) => UpdateLegStandCoverage();
 	}
 
 	public override void _Ready()
@@ -75,7 +91,6 @@ public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
 
 		autoLegStandsIntervalLegsIntervalPrev = assembly.AutoLegStandsIntervalLegsInterval;
 		autoLegStandsModelScenePrev = assembly.AutoLegStandsModelScene;
-		UpdateLegStandCoverage();
 
 		Node editedScene = GetTree().GetEditedSceneRoot();
 		foreach (Node legStand in GetChildren())
@@ -89,14 +104,7 @@ public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
 
 	public override void _PhysicsProcess(double delta)
 	{
-		UpdateLegStandCoverage();
 		UpdateLegStands();
-		conveyorsTransformPrev = _cachedConveyorsTransform;
-		autoLegStandsIntervalLegsEnabledPrev = assembly.AutoLegStandsIntervalLegsEnabled;
-		autoLegStandsEndLegFrontPrev = assembly.AutoLegStandsEndLegFront;
-		autoLegStandsEndLegRearPrev = assembly.AutoLegStandsEndLegRear;
-		autoLegStandsMarginEndLegsPrev = assembly.AutoLegStandsMarginEndLegs;
-		autoLegStandsModelScenePrev = assembly.AutoLegStandsModelScene;
 	}
 
 	#region Fields / Leg stand coverage
@@ -110,8 +118,16 @@ public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
 	private Dictionary <StringName, Node> foreignLegStandsOwners = new();
 
 	#region Leg Stands / Conveyor coverage extents
-	private void UpdateLegStandCoverage() {
-		(legStandCoverageMinPrev, legStandCoverageMaxPrev) = (legStandCoverageMin, legStandCoverageMax);
+	public void UpdateLegStandCoverage() {
+		// Should be called whenever any dependencies change:
+		// - Conveyors reference ceases to be null
+		// - Our local transform changes
+		// - Conveyors local transform changes
+		// - Conveyors children changes (assume this doesn't happen)
+		// - Conveyors children's transforms change (assume only changes based on conveyorLineLength)
+		// - Relevant auto leg stands config properties change:
+		//   - AutoLegStandsMarginEnds
+		//   - AutoLegStandsModelGrabsOffset
 		(legStandCoverageMin, legStandCoverageMax) = GetLegStandCoverage();
 	}
 
@@ -198,6 +214,15 @@ public partial class ConveyorAssemblyLegStands : TransformMonitoredNode3D
 		{
 			UpdateLegStandsHeightAndVisibility();
 		}
+
+		// Record external state to detect any changes next run.
+		conveyorsTransformPrev = _cachedConveyorsTransform;
+		autoLegStandsIntervalLegsEnabledPrev = assembly.AutoLegStandsIntervalLegsEnabled;
+		autoLegStandsEndLegFrontPrev = assembly.AutoLegStandsEndLegFront;
+		autoLegStandsEndLegRearPrev = assembly.AutoLegStandsEndLegRear;
+		autoLegStandsMarginEndLegsPrev = assembly.AutoLegStandsMarginEndLegs;
+		autoLegStandsModelScenePrev = assembly.AutoLegStandsModelScene;
+		(legStandCoverageMinPrev, legStandCoverageMaxPrev) = (legStandCoverageMin, legStandCoverageMax);
 	}
 
 	protected virtual void LockLegStandsGroup() {

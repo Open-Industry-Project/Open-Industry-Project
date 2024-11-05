@@ -420,7 +420,17 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[ExportSubgroup("Placement Margins", "AutoLegStandsMargin")]
 	[Export(PropertyHint.Range, "0,1,or_less,or_greater,suffix:m")]
-	public float AutoLegStandsMarginEnds = 0.2f;
+	public float AutoLegStandsMarginEnds
+	{
+		get => _autoLegStandsMarginEnds;
+		set
+		{
+			if (_autoLegStandsMarginEnds == value) return;
+			_autoLegStandsMarginEnds = value;
+			if (IsInstanceValid(legStands)) legStands.UpdateLegStandCoverage();
+		}
+	}
+	private float _autoLegStandsMarginEnds = 0.2f;
 	[Export(PropertyHint.Range, "0.5,5,or_greater,suffix:m")]
 	public float AutoLegStandsMarginEndLegs = 0.5f;
 
@@ -430,10 +440,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		get => _autoLegStandsModelGrabsOffset;
 		set
 		{
+			if (_autoLegStandsModelGrabsOffset == value) return;
 			_autoLegStandsModelGrabsOffset = value;
 			if (IsInstanceValid(legStands))
 			{
 				legStands.UpdateLegStandsHeightAndVisibility();
+				legStands.UpdateLegStandCoverage();
 			}
 		}
 	}
