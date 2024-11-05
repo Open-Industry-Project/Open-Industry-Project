@@ -26,9 +26,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	private TransformMonitoredNode3D _conveyors;
 	// TODO actually cache
 	private Transform3D _cachedConveyorsTransform => conveyors?.Transform ?? Transform3D.Identity;
-	private Vector3 _cachedConveyorsPosition => conveyors?.Position ?? Vector3.Zero;
-	private Basis _cachedConveyorsBasis => conveyors?.Basis ?? Basis.Identity;
-	private Vector3 _cachedConveyorsRotation => conveyors?.Rotation ?? Vector3.Zero;
 	private Vector3 _cachedAssemblyScale => assembly?.Scale ?? Vector3.One;
 
 	#region Leg Stands
