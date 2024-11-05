@@ -123,8 +123,9 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 		side.Transform = _cachedConveyorsTransform;
 	}
 
-	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength) {
-		// ConveyorAutomaticLength and conveyorLength have no effect on curved conveyors.
+	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength, float conveyorWidth) {
+		// ConveyorAutomaticLength, conveyorLength, and conveyorWidth have no effect on curved conveyors.
+		// TODO delete this override
 		conveyor.Scale = new Vector3(Length / ConveyorBaseLength, 1f, Width / ConveyorBaseWidth);
 	}
 

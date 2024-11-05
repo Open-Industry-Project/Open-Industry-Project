@@ -39,7 +39,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		LockConveyorsGroup();
 		SyncConveyorsAngle();
 		var conveyorLineLength = GetConveyorLineLength();
-		ScaleConveyorLine(conveyors, conveyorLineLength);
+		var conveyorLineWidth = GetConveyorLineWidth();
+		ScaleConveyorLine(conveyors, conveyorLineLength, conveyorLineWidth);
 	}
 
 	protected virtual void LockConveyorsGroup() {
@@ -94,6 +95,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	 *
 	 * @return The length of the conveyor line along its x-axis.
 	 */
+	// TODO override in CurvedConveyorAssembly
 	private float GetConveyorLineLength() {
 		if (conveyors == null) {
 			return Length;
@@ -115,20 +117,25 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		return sum;
 	}
 
+	private float GetConveyorLineWidth() {
+		return Width;
+	}
+
 	/**
 	 * Scale all conveyor children of a given node.
 	 *
 	 * This would be a great place to implement proportional scaling and positioning of the conveyors,
-	 * but currently, we just scale every conveyor to the length of the whole line and leave its position alone.
+	 * but currently, we just scale every conveyor to the length and width of the whole line and leave its position alone.
 	 *
 	 * @param conveyorLine The parent of the conveyors.
 	 * @param conveyorLineLength The length of the conveyor line to scale to. Ignored if ConveyorAutomaticLength is false.
+	 * @param conveyorLineWidth The width of the conveyor line to scale to.
 	 */
-	private void ScaleConveyorLine(Node3D conveyorLine, float conveyorLineLength) {
+	private void ScaleConveyorLine(Node3D conveyorLine, float conveyorLineLength, float conveyorLineWidth) {
 		foreach (Node child in conveyorLine.GetChildren()) {
 			Node3D child3d = child as Node3D;
 			if (IsConveyor(child3d)) {
-				ScaleConveyor(child3d, conveyorLineLength);
+				ScaleConveyor(child3d, conveyorLineLength, conveyorLineWidth);
 			}
 		}
 	}
@@ -137,13 +144,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		return node as IConveyor != null || node as IBeltConveyor != null || node as IRollerConveyor != null;
 	}
 
-	protected virtual void ScaleConveyor(Node3D conveyor, float conveyorLength) {
+	protected virtual void ScaleConveyor(Node3D conveyor, float conveyorLength, float conveyorWidth) {
 		Vector3 newScale;
 		if (ConveyorAutomaticLength) {
-			newScale = new Vector3(conveyorLength / ConveyorBaseLength, 1f, Width / ConveyorBaseWidth);
+			newScale = new Vector3(conveyorLength / ConveyorBaseLength, 1f, conveyorWidth / ConveyorBaseWidth);
 		} else {
 			// Always scale width.
-			newScale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, Width / ConveyorBaseWidth);
+			newScale = new Vector3(conveyor.Scale.X, conveyor.Scale.Y, conveyorWidth / ConveyorBaseWidth);
 		}
 		if (conveyor.Scale != newScale) {
 			conveyor.Scale = newScale;
