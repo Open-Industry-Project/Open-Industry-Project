@@ -619,6 +619,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		// If necessary, trigger signals to set new values
 		SetTransform(Transform);
 
+		_basisPrev = _cachedBasis;
 		TransformChanged += void (_) => PreventAllChildScaling();
 	}
 
@@ -626,8 +627,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	{
 		main = GetTree().EditedSceneRoot as Root;
 
-		_basisPrev = _cachedBasis;
-		_scalePrev = _basisPrev.Scale;
+		_scalePrev = _cachedScale;
 
 		// Apply the ConveyorsAngle property if needed.
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
@@ -660,8 +660,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			UpdateSides();
 		}
 
-		_basisPrev = _cachedBasis;
-		_scalePrev = _basisPrev.Scale;
+		_scalePrev = _cachedBasis.Scale;
 		conveyorAnglePrev = ConveyorAngle;
 		conveyorsTransformPrev = _cachedConveyorsTransform;
 	}
@@ -673,12 +672,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	#region Decouple assembly scale from child scale
 	private void PreventAllChildScaling() {
-		foreach (Node3D child in GetChildren()) {
-			Node3D child3D = child as Node3D;
-			if (child3D != null) {
+		foreach (Node child in GetChildren()) {
+			if (child is ConveyorAssemblyChild assemblyChild) {
+				assemblyChild.Transform = assemblyChild.PreventScaling();
+			}
+			if (child is Node3D child3D) {
 				PreventChildScaling(child3D);
 			}
 		}
+		_basisPrev = Basis;
 	}
 
 	/**
@@ -695,19 +697,19 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	 * @param child The child node to prevent scaling.
 	 */
 	private void PreventChildScaling(Node3D child) {
-		Transform3D result = PreventChildScaling(child.Transform);
+		Transform3D result = PreventChildScaling(child.Transform, _basisPrev);
 		if (child.Transform != result) {
 			child.Transform = result;
 		}
 	}
 
-	private Transform3D PreventChildScaling(Transform3D childTransform) {
+	internal Transform3D PreventChildScaling(Transform3D childTransform, Basis basisPrev) {
 		var basisRotation = _cachedBasis.Orthonormalized();
 		var basisScale = basisRotation.Inverse() * _cachedBasis;
 		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
 
-		var basisRotationPrev = _basisPrev.Orthonormalized();
-		var basisScalePrev = basisRotationPrev.Inverse() * _basisPrev;
+		var basisRotationPrev = basisPrev.Orthonormalized();
+		var basisScalePrev = basisRotationPrev.Inverse() * basisPrev;
 		var xformScalePrev = new Transform3D(basisScalePrev, new Vector3(0, 0, 0));
 
 		// The child transform without the effects of the parent's scale.
