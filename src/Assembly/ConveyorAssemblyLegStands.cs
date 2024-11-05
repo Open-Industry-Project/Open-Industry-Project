@@ -16,6 +16,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 			_conveyors = assembly?.GetNodeOrNull<TransformMonitoredNode3D>("Conveyors");
 			if (IsInstanceValid(_conveyors))
 			{
+				_conveyors.TransformChanged += void (_) => LockLegStandsGroup();
 				_conveyors.TransformChanged += void (_) => UpdateLegStandCoverage();
 				UpdateLegStandCoverage();
 			}
@@ -168,9 +169,13 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	#endregion Leg Stands / Conveyor coverage extents
 
 	#region Leg Stands / Update "LegStands" node
+	protected override Transform3D ConstrainTransform(Transform3D transform)
+	{
+		return LockLegStandsGroup(transform);
+	}
+
 	private void UpdateLegStands()
 	{
-		LockLegStandsGroup();
 		SyncLegStandsOffsets();
 
 		// If the leg stand scene changes, we need to regenerate everything.
