@@ -30,7 +30,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	private Basis _cachedConveyorsBasis => conveyors?.Basis ?? Basis.Identity;
 	private Vector3 _cachedConveyorsRotation => conveyors?.Rotation ?? Vector3.Zero;
 	private Vector3 _cachedAssemblyScale => assembly?.Scale ?? Vector3.One;
-	private Vector3 _assemblyScalePrev => assembly?.Scale ?? Vector3.One;
 
 	#region Leg Stands
 	#region Leg Stands / Constants
@@ -259,9 +258,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	 */
 	private void SyncLegStandsOffsets() {
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedAssemblyScale);
-		Basis assemblyScalePrev = Basis.Identity.Scaled(_assemblyScalePrev);
 		Vector3 legStandsScaledPosition = assemblyScale * _cachedLegStandsPosition;
-		Vector3 legStandsScaledPositionPrev = assemblyScalePrev * legStandsTransformPrev.Origin;
 
 		// Sync properties to leg stands position if changed.
 		float newPosX = assembly.AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev ? assembly.AutoLegStandsIntervalLegsOffset : legStandsScaledPosition.X;
@@ -274,24 +271,14 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		// Sync X offset to property if needed.
 		if (assembly.AutoLegStandsIntervalLegsOffset == autoLegStandsIntervalLegsOffsetPrev) {
 			float offset = legStandsScaledPosition.X;
-			float offsetPrev = legStandsScaledPositionPrev.X;
-			float offsetDelta = Mathf.Abs(offset - offsetPrev);
-			if (offsetDelta > 0.01f) {
-				assembly.AutoLegStandsIntervalLegsOffset = offset;
-				NotifyPropertyListChanged();
-			}
+			assembly.AutoLegStandsIntervalLegsOffset = offset;
 		}
 		autoLegStandsIntervalLegsOffsetPrev = assembly.AutoLegStandsIntervalLegsOffset;
 
 		// Sync Y offset to property if needed.
 		if (assembly.AutoLegStandsFloorOffset == autoLegStandsFloorOffsetPrev) {
 			float offset = legStandsScaledPosition.Y;
-			float offsetPrev = legStandsScaledPositionPrev.Y;
-			float offsetDelta = Mathf.Abs(offset - offsetPrev);
-			if (offsetDelta > 0.01f) {
-				assembly.AutoLegStandsFloorOffset = offset;
-				NotifyPropertyListChanged();
-			}
+			assembly.AutoLegStandsFloorOffset = offset;
 		}
 		autoLegStandsFloorOffsetPrev = assembly.AutoLegStandsFloorOffset;
 
