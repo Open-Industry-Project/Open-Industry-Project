@@ -11,11 +11,13 @@ public partial class CurvedConveyorAssemblyLegStands : ConveyorAssemblyLegStands
 		// Assume that conveyors and legStands have the same rotation.
 		return (-90f + assembly.AutoLegStandsMarginEnds, 0f - assembly.AutoLegStandsMarginEnds);
 	}
-	protected override void LockLegStandsGroup() {
+	protected override Transform3D LockLegStandsGroup(Transform3D transform) {
 		// We should probably let this rotate around the Y axis, but that would require accounting for legStands rotation in GetLegStandsCoverage().
 		// For now, we won't let it move at all except Y axis translation.
-		this.Rotation = new Vector3(0, 0, 0);
-		this.Position = new Vector3(0, _cachedLegStandsPosition.Y, 0);
+		var scale = transform.Basis.Scale;
+		var rotation = new Vector3(0, 0, 0);
+		var position = new Vector3(0, transform.Origin.Y, 0);
+		return new Transform3D(Basis.FromEuler(rotation).Scaled(scale), position);
 	}
 
 	protected override float GetPositionOnLegStandsPath(Vector3 position) {

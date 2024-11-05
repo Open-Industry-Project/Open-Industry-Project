@@ -225,19 +225,28 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		(legStandCoverageMinPrev, legStandCoverageMaxPrev) = (legStandCoverageMin, legStandCoverageMax);
 	}
 
-	protected virtual void LockLegStandsGroup() {
+	private void LockLegStandsGroup() {
+		var newTransform = LockLegStandsGroup(Transform);
+		if (Transform == newTransform) return;
+		Transform = newTransform;
+	}
+
+	protected virtual Transform3D LockLegStandsGroup(Transform3D transform) {
 		// Always align LegStands group with Conveyors group.
+		Transform3D newTransform = transform;
 		if (conveyors != null) {
-			Vector3 newPos = new Vector3(_cachedLegStandsPosition.X, _cachedLegStandsPosition.Y, _cachedConveyorsPosition.Z);
+			Vector3 newPos = new Vector3(transform.Origin.X, transform.Origin.Y, _cachedConveyorsPosition.Z);
 			if (_cachedLegStandsPosition != newPos) {
-				Position = newPos;
+				newTransform.Origin = newPos;
 			}
 			// Conveyors can't rotate anymore, so this doesn't do much.
 			Vector3 newRot = new Vector3(0f, _cachedConveyorsRotation.Y, 0f);
 			if (_cachedLegStandsRotation != newRot) {
-				Rotation = newRot;
+				var scale = newTransform.Basis.Scale;
+				newTransform.Basis = Basis.FromEuler(newRot).Scaled(scale);
 			}
 		}
+		return newTransform;
 	}
 
 	/**
