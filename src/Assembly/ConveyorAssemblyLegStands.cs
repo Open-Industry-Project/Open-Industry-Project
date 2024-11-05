@@ -233,20 +233,13 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	protected virtual Transform3D LockLegStandsGroup(Transform3D transform) {
 		// Always align LegStands group with Conveyors group.
-		Transform3D newTransform = transform;
-		if (conveyors != null) {
-			Vector3 newPos = new Vector3(transform.Origin.X, transform.Origin.Y, _cachedConveyorsPosition.Z);
-			if (_cachedLegStandsPosition != newPos) {
-				newTransform.Origin = newPos;
-			}
-			// Conveyors can't rotate anymore, so this doesn't do much.
-			Vector3 newRot = new Vector3(0f, _cachedConveyorsRotation.Y, 0f);
-			if (_cachedLegStandsRotation != newRot) {
-				var scale = newTransform.Basis.Scale;
-				newTransform.Basis = Basis.FromEuler(newRot).Scaled(scale);
-			}
-		}
-		return newTransform;
+		if (conveyors == null) return transform;
+		var position = new Vector3(transform.Origin.X, transform.Origin.Y, _cachedConveyorsPosition.Z);
+		// Conveyors can't rotate anymore, so this doesn't do much.
+		var rotation = new Vector3(0f, _cachedConveyorsRotation.Y, 0f);
+		var scale = transform.Basis.Scale;
+		var basis = Basis.FromEuler(rotation).Scaled(scale);
+		return new Transform3D(basis, position);
 	}
 
 	/**
