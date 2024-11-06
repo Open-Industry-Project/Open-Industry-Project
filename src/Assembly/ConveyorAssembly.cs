@@ -400,7 +400,16 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[ExportGroup("Leg Stands", "AutoLegStands")]
 	[Export(PropertyHint.None, "suffix:m")]
-	public float AutoLegStandsFloorOffset = 0f;
+	public float AutoLegStandsFloorOffset {
+		get => _autoLegStandsFloorOffset;
+		set
+		{
+			if (_autoLegStandsFloorOffset == value) return;
+			_autoLegStandsFloorOffset = value;
+			legStands?.SyncLegStandsOffsets();
+		}
+	}
+	private float _autoLegStandsFloorOffset = 0f;
 
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
 	[Export]
@@ -410,7 +419,16 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	public float AutoLegStandsIntervalLegsInterval { get; set; } = 2f;
 
 	[Export(PropertyHint.Range, "-5,5,or_less,or_greater,suffix:m")]
-	public float AutoLegStandsIntervalLegsOffset { get; set; } = 0f;
+	public float AutoLegStandsIntervalLegsOffset {
+		get => _autoLegStandsIntervalLegsOffset;
+		set
+		{
+			if (_autoLegStandsIntervalLegsOffset == value) return;
+			_autoLegStandsIntervalLegsOffset = value;
+			legStands?.SyncLegStandsOffsets();
+		}
+	}
+	private float _autoLegStandsIntervalLegsOffset = 0f;
 
 	[ExportSubgroup("End Legs", "AutoLegStandsEndLeg")]
 	[Export]

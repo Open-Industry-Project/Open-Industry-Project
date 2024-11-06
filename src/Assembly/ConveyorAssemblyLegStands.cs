@@ -74,6 +74,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		SetTransform(Transform);
 
 		TransformChanged += void (_) => UpdateLegStandCoverage();
+		PositionChanged += void (_) => SyncLegStandsOffsets();
 	}
 
 	public override void _Ready()
@@ -171,8 +172,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	private void UpdateLegStands()
 	{
-		SyncLegStandsOffsets();
-
 		// If the leg stand scene changes, we need to regenerate everything.
 		if (assembly.AutoLegStandsModelScene != autoLegStandsModelScenePrev) {
 			DeleteAllAutoLegStands();
@@ -269,7 +268,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	 *
 	 * This currently shouldn't do anything for curved assemblies.
 	 */
-	private void SyncLegStandsOffsets() {
+	internal void SyncLegStandsOffsets() {
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedAssemblyScale);
 		Vector3 legStandsScaledPosition = assemblyScale * _cachedLegStandsPosition;
 
