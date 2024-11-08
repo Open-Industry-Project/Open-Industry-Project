@@ -180,6 +180,16 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 		SnapAllLegStandsToPath();
 
+		bool debugInvariants = true;
+		float legStandCoverageMinValueForAssertion = 0;
+		float legStandCoverageMaxValueForAssertion = 0;
+		if (debugInvariants)
+		{
+			// debug: Prepare to assert that legStandCoverage has not changed in this code block
+			legStandCoverageMinValueForAssertion = legStandCoverageMin;
+			legStandCoverageMaxValueForAssertion = legStandCoverageMax;
+		}
+
 		bool legStandsCoverageChanged = legStandCoverageMin != legStandCoverageMinPrev
 		                                || legStandCoverageMax != legStandCoverageMaxPrev;
 
@@ -224,6 +234,12 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		autoLegStandsMarginEndLegsPrev = assembly.AutoLegStandsMarginEndLegs;
 		autoLegStandsModelScenePrev = assembly.AutoLegStandsModelScene;
 		(legStandCoverageMinPrev, legStandCoverageMaxPrev) = (legStandCoverageMin, legStandCoverageMax);
+
+		if (debugInvariants)
+		{
+			System.Diagnostics.Debug.Assert(legStandCoverageMin == legStandCoverageMinValueForAssertion, "Unexpected change detected: legStandCoverateMin");
+			System.Diagnostics.Debug.Assert(legStandCoverageMax == legStandCoverageMaxValueForAssertion, "Unexpected change detected: legStandCoverateMax");
+		}
 	}
 
 	private void LockLegStandsGroup() {
