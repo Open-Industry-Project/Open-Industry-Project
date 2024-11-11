@@ -24,6 +24,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			return;
 		}
 		if (conveyors != null) {
+			// TODO: Connect to conveyors.TransformChanged and remove from here.
 			LockSidePosition(side, isRight);
 		}
 		UpdateAutoSideGuards(side, isRight);
