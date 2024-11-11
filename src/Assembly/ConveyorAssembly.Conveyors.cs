@@ -29,6 +29,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		};
 		// Ensure cached values are up to date
 		conveyors.SetTransform(conveyors.Transform);
+
+		conveyors.TransformChanged += void (_) => UpdateSides();
 	}
 
 	#region Conveyors / Update "Conveyors" node

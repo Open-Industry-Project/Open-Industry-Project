@@ -656,9 +656,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		has_processed_at_least_once = true;
 
 		UpdateConveyors();
-		if (conveyorsTransformPrev != _cachedConveyorsTransform) {
-			UpdateSides();
-		}
 
 		_scalePrev = _cachedBasis.Scale;
 		conveyorAnglePrev = ConveyorAngle;
