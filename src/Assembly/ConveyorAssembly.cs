@@ -701,26 +701,38 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	}
 
 	internal Transform3D PreventChildScaling(Transform3D childTransform, Basis basisPrev) {
-		var basisRotation = Basis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * Basis;
-		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
-
-		var basisRotationPrev = basisPrev.Orthonormalized();
-		var basisScalePrev = basisRotationPrev.Inverse() * basisPrev;
-		var xformScalePrev = new Transform3D(basisScalePrev, new Vector3(0, 0, 0));
-
 		// The child transform without the effects of the parent's scale.
-		var childTransformUnscaled = xformScalePrev * childTransform;
+		var apparentChildTransform = UnapplyInverseScaling(basisPrev, childTransform);
 
 		// Remove any remaining scale. This effectively locks child's scale to (1, 1, 1).
-		childTransformUnscaled.Basis = childTransformUnscaled.Basis.Orthonormalized();
-
-		// Adjust child's position with changes in the parent's scale.
-		childTransformUnscaled.Origin *= basisScalePrev.Inverse() * basisScale;
+		apparentChildTransform.Basis = apparentChildTransform.Basis.Orthonormalized();
 
 		// Reapply inverse parent scaling to child.
-		var result = xformScaleInverse * childTransformUnscaled;
-		return result;
+		var newChildTransform = ApplyInverseScaling(Basis, apparentChildTransform);
+		return newChildTransform;
+	}
+
+	private static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
+	{
+		var basisRotation = parentBasis.Orthonormalized();
+		var basisScale = basisRotation.Inverse() * parentBasis;
+		var xformScale = new Transform3D(basisScale, new Vector3(0, 0, 0));
+
+		var apparentChildTransform = xformScale * childTransform;
+		apparentChildTransform.Origin *= basisScale.Inverse();
+		return apparentChildTransform;
+	}
+
+	private static Transform3D ApplyInverseScaling(Basis parentBasis, Transform3D apparentChildTransform)
+	{
+		var basisRotation = parentBasis.Orthonormalized();
+		var basisScale = basisRotation.Inverse() * parentBasis;
+		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
+
+		var childTransform = apparentChildTransform;
+		childTransform.Origin *= basisScale;
+		childTransform = xformScaleInverse * childTransform;
+		return childTransform;
 	}
 	#endregion Decouple assembly scale from child scale
 }
