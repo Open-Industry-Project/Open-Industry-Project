@@ -28,7 +28,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			_cachedConveyorsRotation = _cachedConveyorsBasis.GetEuler();
 		};
 		// Ensure cached values are up to date
-		conveyors.SetTransform(conveyors.Transform);
+		//conveyors.SetTransform(conveyors.Transform);
+		// The above commented line doesn't work, but should work once this is turned into a constructor.
+		// The problem is OnTransformSet skips emitting all the on-change signals because it determines there is no change.
+		// In a constructor, we would be guaranteed to be the the first caller of OnTransformSet.
+		// In the meantime, set cache fields manually as a workaround.
+		_cachedConveyorsTransform = conveyors.Transform;
+		_cachedConveyorsPosition = _cachedConveyorsTransform.Origin;
+		_cachedConveyorsBasis = _cachedConveyorsTransform.Basis;
+		_cachedConveyorsRotation = _cachedConveyorsBasis.GetEuler();
 
 		conveyors.TransformChanged += void (_) => UpdateSides();
 	}
