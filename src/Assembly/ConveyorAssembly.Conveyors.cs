@@ -65,7 +65,12 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		if (conveyorScaleNeedsUpdate)
 		{
 			ScaleConveyorLine(conveyors, conveyorLineLength, conveyorLineWidth);
+
+			// While we're here, let's update the things that depend on conveyors's children's Transforms.
+			// UpdateLegStandCoverage depends on the extents of conveyor's children.
 			legStands?.UpdateLegStandCoverage();
+			// UpdateSide depends on conveyorLineLength, though it actually measures it from first conveyor child's Scale.X.
+			UpdateSides();
 		}
 
 	}
