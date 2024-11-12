@@ -272,23 +272,27 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedAssemblyScale);
 		Vector3 legStandsScaledPosition = assemblyScale * _cachedLegStandsPosition;
 
+		bool xConfigChanged = assembly.AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev;
+		bool yConfigChanged = assembly.AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev;
+
 		// Sync properties to leg stands position if changed.
-		float newPosX = assembly.AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev ? assembly.AutoLegStandsIntervalLegsOffset : legStandsScaledPosition.X;
-		float newPosY = assembly.AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev ? assembly.AutoLegStandsFloorOffset : legStandsScaledPosition.Y;
-		if (assembly.AutoLegStandsIntervalLegsOffset != autoLegStandsIntervalLegsOffsetPrev || assembly.AutoLegStandsFloorOffset != autoLegStandsFloorOffsetPrev) {
+		float newPosX = xConfigChanged ? assembly.AutoLegStandsIntervalLegsOffset : legStandsScaledPosition.X;
+		float newPosY = yConfigChanged ? assembly.AutoLegStandsFloorOffset : legStandsScaledPosition.Y;
+
+		if (xConfigChanged || yConfigChanged) {
 			Vector3 targetPosition = new Vector3(newPosX, newPosY, legStandsScaledPosition.Z);
 			Position = assemblyScale.Inverse() * targetPosition;
 		}
 
 		// Sync X offset to property if needed.
-		if (assembly.AutoLegStandsIntervalLegsOffset == autoLegStandsIntervalLegsOffsetPrev) {
+		if (!xConfigChanged) {
 			float offset = legStandsScaledPosition.X;
 			assembly.AutoLegStandsIntervalLegsOffset = offset;
 		}
 		autoLegStandsIntervalLegsOffsetPrev = assembly.AutoLegStandsIntervalLegsOffset;
 
 		// Sync Y offset to property if needed.
-		if (assembly.AutoLegStandsFloorOffset == autoLegStandsFloorOffsetPrev) {
+		if (!yConfigChanged) {
 			float offset = legStandsScaledPosition.Y;
 			assembly.AutoLegStandsFloorOffset = offset;
 		}
