@@ -50,7 +50,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	// Configuration change detection fields
 	private Transform3D conveyorsTransformPrev;
-	private Basis legStandsBasisPrev;
+	private Transform3D legStandsTransformPrev;
 	private float conveyorAnglePrev = 0f;
 	private float autoLegStandsFloorOffsetPrev;
 	private bool autoLegStandsIntervalLegsEnabledPrev = false;
@@ -217,16 +217,19 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 		// Dependencies
 		bool legStandsChildrenChanged = numberOfLegStandsAdjusted != 0 || didAddOrRemove;
+		// Actually, it's the relative transform of LegStands and Conveyors that we need to monitor,
+		// specifically the conveyorPlane in UpdateLegStandsHeightAndVisibility,
+		// but the individual Transforms are good enough for now, though overkill.
 		bool conveyorsTransformChanged = _cachedConveyorsTransform != conveyorsTransformPrev;
-		bool legStandsBasisChanged = _cachedLegStandsBasis != legStandsBasisPrev;
-		if (legStandsChildrenChanged || conveyorsTransformChanged || legStandsBasisChanged || legStandsCoverageChanged)
+		bool legStandsTransformChanged = _cachedLegStandsTransform != legStandsTransformPrev;
+		if (legStandsChildrenChanged || conveyorsTransformChanged || legStandsTransformChanged || legStandsCoverageChanged)
 		{
 			UpdateLegStandsHeightAndVisibility();
 		}
 
 		// Record external state to detect any changes next run.
 		conveyorsTransformPrev = _cachedConveyorsTransform;
-		legStandsBasisPrev = _cachedLegStandsBasis;
+		legStandsTransformPrev = _cachedLegStandsTransform;
 		autoLegStandsIntervalLegsEnabledPrev = assembly.AutoLegStandsIntervalLegsEnabled;
 		autoLegStandsEndLegFrontPrev = assembly.AutoLegStandsEndLegFront;
 		autoLegStandsEndLegRearPrev = assembly.AutoLegStandsEndLegRear;
