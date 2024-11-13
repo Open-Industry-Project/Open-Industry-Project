@@ -12,7 +12,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	#region Fields
 	#region Fields / Nodes
-	private Root main;
 	protected TransformMonitoredNode3D conveyors
 	{
 		get
@@ -643,8 +642,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	public override void _Ready()
 	{
-		main = GetTree().EditedSceneRoot as Root;
-
 		_scalePrev = _cachedScale;
 
 		// Apply the ConveyorsAngle property if needed.
@@ -663,25 +660,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		PreventAllChildScaling();
 	}
 
-	bool has_processed_at_least_once = false;
 	public override void _PhysicsProcess(double delta)
 	{
-		// A performance hack: Skip assembly adjustments while the simulation is running.
-		// We do make sure to run at least once though. This covers the situation where
-		// a ConveyorAssembly is created or loaded while the simulation is already running.
-		// Rare, but possible.
-		if (IsSimulationRunning() && has_processed_at_least_once) return;
-		has_processed_at_least_once = true;
-
 		UpdateConveyors();
 
 		_scalePrev = _cachedBasis.Scale;
 		conveyorAnglePrev = ConveyorAngle;
 		conveyorsTransformPrev = _cachedConveyorsTransform;
-	}
-
-	private bool IsSimulationRunning() {
-		return main != null && main.simulationRunning;
 	}
 	#endregion constructor, _Ready, and _PhysicsProcess
 
