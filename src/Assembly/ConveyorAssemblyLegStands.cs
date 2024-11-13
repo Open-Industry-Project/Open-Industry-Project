@@ -177,7 +177,14 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 			DeleteAllAutoLegStands();
 		}
 
-		SnapAllLegStandsToPath();
+		// Only bother repositioning leg stands if the user could manually edit them.
+		// All the leg stands that we generated should already be in the right spots.
+		var editedRoot = GetTree().EditedSceneRoot;
+		bool legStandsIsEditable = editedRoot != null && (editedRoot == Owner || editedRoot.IsEditableInstance(Owner));
+		if (legStandsIsEditable)
+		{
+			SnapAllLegStandsToPath();
+		}
 
 		bool debugInvariants = true;
 		float legStandCoverageMinValueForAssertion = 0;
