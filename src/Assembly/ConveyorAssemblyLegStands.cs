@@ -102,6 +102,12 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	public override void _PhysicsProcess(double delta)
 	{
 		UpdateLegStands();
+		SetNeedsUpdate(false);
+	}
+
+	internal void SetNeedsUpdate(bool value)
+	{
+		SetPhysicsProcess(value);
 	}
 
 	#region Fields / Leg stand coverage

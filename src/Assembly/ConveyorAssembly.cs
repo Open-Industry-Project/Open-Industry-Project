@@ -1,5 +1,6 @@
 using Godot;
 using System.Linq;
+using System.Collections.Generic;
 
 [Tool]
 public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
@@ -403,8 +404,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		get => _autoLegStandsFloorOffset;
 		set
 		{
-			if (_autoLegStandsFloorOffset == value) return;
-			_autoLegStandsFloorOffset = value;
+			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsFloorOffset)) return;
 			legStands?.SyncLegStandsOffsets();
 		}
 	}
@@ -412,18 +412,25 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
 	[Export]
-	public bool AutoLegStandsIntervalLegsEnabled { get; set; } = true;
+	public bool AutoLegStandsIntervalLegsEnabled {
+		get => _autoLegStandsIntervalLegsEnabled;
+		set => SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsIntervalLegsEnabled);
+	}
+	bool _autoLegStandsIntervalLegsEnabled = true;
 
 	[Export(PropertyHint.Range, "0.5,10,or_greater,suffix:m")]
-	public float AutoLegStandsIntervalLegsInterval { get; set; } = 2f;
+	public float AutoLegStandsIntervalLegsInterval {
+		get => _autoLegStandsIntervalLegsInterval;
+		set => SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsIntervalLegsInterval);
+	}
+	private float _autoLegStandsIntervalLegsInterval = 2f;
 
 	[Export(PropertyHint.Range, "-5,5,or_less,or_greater,suffix:m")]
 	public float AutoLegStandsIntervalLegsOffset {
 		get => _autoLegStandsIntervalLegsOffset;
 		set
 		{
-			if (_autoLegStandsIntervalLegsOffset == value) return;
-			_autoLegStandsIntervalLegsOffset = value;
+			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsIntervalLegsOffset))return;
 			legStands?.SyncLegStandsOffsets();
 		}
 	}
@@ -431,9 +438,17 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[ExportSubgroup("End Legs", "AutoLegStandsEndLeg")]
 	[Export]
-	public bool AutoLegStandsEndLegFront = true;
+	public bool AutoLegStandsEndLegFront {
+		get => _autoLegStandsEndLegFront;
+		set => SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsEndLegFront);
+	}
+	private bool _autoLegStandsEndLegFront = true;
 	[Export]
-	public bool AutoLegStandsEndLegRear = true;
+	public bool AutoLegStandsEndLegRear {
+		get => _autoLegStandsEndLegRear;
+		set => SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsEndLegRear);
+	}
+	private bool _autoLegStandsEndLegRear = true;
 
 	[ExportSubgroup("Placement Margins", "AutoLegStandsMargin")]
 	[Export(PropertyHint.Range, "0,1,or_less,or_greater,suffix:m")]
@@ -442,14 +457,17 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		get => _autoLegStandsMarginEnds;
 		set
 		{
-			if (_autoLegStandsMarginEnds == value) return;
-			_autoLegStandsMarginEnds = value;
+			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsMarginEnds)) return;
 			legStands?.UpdateLegStandCoverage();
 		}
 	}
 	private float _autoLegStandsMarginEnds = 0.2f;
 	[Export(PropertyHint.Range, "0.5,5,or_greater,suffix:m")]
-	public float AutoLegStandsMarginEndLegs = 0.5f;
+	public float AutoLegStandsMarginEndLegs {
+		get => _autoLegStandsMarginEndLegs;
+		set => SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsMarginEndLegs);
+	}
+	private float _autoLegStandsMarginEndLegs = 0.5f;
 
 	[ExportSubgroup("Leg Model", "AutoLegStandsModel")]
 	[Export(PropertyHint.None, "suffix:m")]
@@ -457,8 +475,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		get => _autoLegStandsModelGrabsOffset;
 		set
 		{
-			if (_autoLegStandsModelGrabsOffset == value) return;
-			_autoLegStandsModelGrabsOffset = value;
+			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsModelGrabsOffset)) return;
 			legStands?.UpdateLegStandsHeightAndVisibility();
 			legStands?.UpdateLegStandCoverage();
 		}
@@ -466,7 +483,11 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private float _autoLegStandsModelGrabsOffset = 0.382f;
 
 	[Export]
-	public PackedScene AutoLegStandsModelScene = GD.Load<PackedScene>("res://parts/ConveyorLegBC.tscn");
+	public PackedScene AutoLegStandsModelScene {
+		get => _autoLegStandsModelScene;
+		set => SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsModelScene);
+	}
+	private PackedScene _autoLegStandsModelScene = GD.Load<PackedScene>("res://parts/ConveyorLegBC.tscn");
 	#endregion Fields / Exported properties
 
 	#region Fields / Length, Width, Height, Basis
@@ -738,4 +759,18 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		return childTransform;
 	}
 	#endregion Decouple assembly scale from child scale
+
+
+
+
+	private bool SetLegStandsNeedsUpdateIfChanged<T>(T newVal, ref T cachedVal)
+	{
+		bool changed = !EqualityComparer<T>.Default.Equals(newVal, cachedVal);
+		if (changed)
+		{
+			cachedVal = newVal;
+			legStands?.SetNeedsUpdate(true);
+		}
+		return changed;
+	}
 }
