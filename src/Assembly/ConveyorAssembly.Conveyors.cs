@@ -75,20 +75,25 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 	}
 
-	protected virtual void LockConveyorsGroup() {
+	private void LockConveyorsGroup() {
+		var newTransform = LockConveyorsGroup(conveyors.Transform);
+		if (newTransform == conveyors.Transform) return;
+		conveyors.Transform = newTransform;
+	}
+
+	protected virtual Transform3D LockConveyorsGroup(Transform3D transform) {
 		// Lock Z position
-		Vector3 newPos = new Vector3(_cachedConveyorsPosition.X, _cachedConveyorsPosition.Y, 0f);
-		if (_cachedConveyorsPosition != newPos) {
-			conveyors.Position = newPos;
-		}
+		Vector3 newPos = new Vector3(transform.Origin.X, transform.Origin.Y, 0f);
+		transform.Origin = newPos;
 		// Lock X and Y rotation
-		if (_cachedConveyorsRotation.X > 0.001f || _cachedConveyorsRotation.X < -0.001f || _cachedConveyorsRotation.Y > 0.001f || _cachedConveyorsRotation.Y < -0.001) {
-			// This seems to mess up scale, but at least that's fixed on the next frame.
-			Vector3 newRot = new Vector3(0f, 0f, _cachedConveyorsRotation.Z);
-			if (_cachedConveyorsRotation != newRot) {
-				conveyors.Rotation = newRot;
-			}
+		var (eulerX, eulerY, eulerZ) = transform.Basis.GetEuler();
+		if (eulerX != 0 || eulerY != 0) {
+			Vector3 newRot = new Vector3(0f, 0f, eulerZ);
+			var scale = transform.Basis.Scale;
+			var basis = Basis.FromEuler(newRot).Scaled(scale);
+			transform = new Transform3D(basis, newPos);
 		}
+		return transform;
 	}
 
 	/**
