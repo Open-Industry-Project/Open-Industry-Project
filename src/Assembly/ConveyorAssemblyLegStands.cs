@@ -51,6 +51,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	// Configuration change detection fields
 	private Transform3D conveyorsTransformPrev;
 	private Transform3D legStandsTransformPrev;
+	private float targetWidthPrev = LegStandsBaseWidth;
 	private float conveyorAnglePrev = 0f;
 	private float autoLegStandsFloorOffsetPrev;
 	private bool autoLegStandsIntervalLegsEnabledPrev = false;
@@ -79,6 +80,9 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	public override void _Ready()
 	{
+		assembly.ScaleChanged += void (_) => SetNeedsUpdate(true);
+		conveyors.BasisChanged += void (_) => SetNeedsUpdate(true);
+
 		// Apply the AutoLegStandsFloorOffset and AutoLegStandsIntervalLegsOffset properties if needed.
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedAssemblyScale);
 		Vector3 legStandsStartingOffset = assemblyScale * _cachedLegStandsPosition;
@@ -190,6 +194,12 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		if (legStandsIsEditable)
 		{
 			SnapAllLegStandsToPath();
+		}
+		float targetWidthNew = GetLegStandTargetWidth();
+		bool targetWidthChanged = targetWidthPrev != targetWidthNew;
+		targetWidthPrev = targetWidthNew;
+		if (legStandsIsEditable || targetWidthChanged)
+		{
 			UpdateAllLegStandsWidth();
 		}
 
