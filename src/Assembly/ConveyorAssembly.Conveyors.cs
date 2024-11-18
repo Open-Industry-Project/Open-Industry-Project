@@ -49,7 +49,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			return;
 		}
 
-		LockConveyorsGroup();
 		SyncConveyorsAngle();
 
 		float conveyorLineLengthPrev = conveyorLineLength;
@@ -81,7 +80,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		conveyors.Transform = newTransform;
 	}
 
-	protected virtual Transform3D LockConveyorsGroup(Transform3D transform) {
+	internal virtual Transform3D LockConveyorsGroup(Transform3D transform) {
 		// Lock Z position
 		Vector3 newPos = new Vector3(transform.Origin.X, transform.Origin.Y, 0f);
 		transform.Origin = newPos;
@@ -89,8 +88,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		var (eulerX, eulerY, eulerZ) = transform.Basis.GetEuler();
 		if (eulerX != 0 || eulerY != 0) {
 			Vector3 newRot = new Vector3(0f, 0f, eulerZ);
-			var scale = transform.Basis.Scale;
-			var basis = Basis.FromEuler(newRot).Scaled(scale);
+			var basis = Basis.FromEuler(newRot);
 			transform = new Transform3D(basis, newPos);
 		}
 		return transform;

@@ -111,7 +111,7 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	}
 
 	#region Conveyors and Side Guards
-	protected override Transform3D LockConveyorsGroup(Transform3D transform) {
+	internal override Transform3D LockConveyorsGroup(Transform3D transform) {
 		// Just don't let it move at all, except Y axis translation.;
 		var scale = transform.Basis.Scale;
 		var position = new Vector3(0, transform.Origin.Y, 0);
