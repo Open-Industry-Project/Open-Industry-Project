@@ -1,9 +1,10 @@
-[gd_scene load_steps=21 format=4 uid="uid://dvpvhht5hn7ww"]
+[gd_scene load_steps=22 format=4 uid="uid://dvpvhht5hn7ww"]
 
 [ext_resource type="Script" path="res://src/Assembly/CurvedConveyorAssembly.cs" id="1_tp652"]
 [ext_resource type="PackedScene" uid="uid://b2hnylsj67c5m" path="res://parts/ConveyorLegCBC.tscn" id="2_0xmjf"]
 [ext_resource type="PackedScene" uid="uid://6vu4cx2v1ltg" path="res://parts/CurvedBeltConveyor.tscn" id="3_a54t1"]
 [ext_resource type="PackedScene" uid="uid://b567tts2001h8" path="res://parts/SideGuardCBC.tscn" id="4_3p6hp"]
+[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyConveyors.cs" id="4_053qp"]
 [ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyChild.cs" id="4_hnkat"]
 [ext_resource type="Script" path="res://src/Assembly/CurvedConveyorAssemblyLegStands.cs" id="7_6obdt"]
 [ext_resource type="Shader" uid="uid://b4wwduhuvem3q" path="res://assets/3DModels/Shaders/SideGuardShaderCBC.tres" id="7_tjaqc"]
@@ -187,7 +188,7 @@ metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-script = ExtResource("4_hnkat")
+script = ExtResource("4_053qp")
 
 [node name="ConveyorCorner" parent="Conveyors" instance=ExtResource("3_a54t1")]
 transform = Transform3D(1, 0, -8.74229e-08, 0, 1, 0, 8.74229e-08, 0, 1, 0, 0, 0)
