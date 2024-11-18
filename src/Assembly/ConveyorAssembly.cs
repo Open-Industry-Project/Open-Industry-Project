@@ -724,7 +724,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 	}
 
-	internal Transform3D PreventChildScaling(Transform3D childTransform, Basis basisPrev) {
+	private Transform3D PreventChildScaling(Transform3D childTransform, Basis basisPrev) {
 		// The child transform without the effects of the parent's scale.
 		var apparentChildTransform = UnapplyInverseScaling(basisPrev, childTransform);
 
@@ -736,7 +736,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		return newChildTransform;
 	}
 
-	private static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
+	internal static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
 	{
 		var basisRotation = parentBasis.Orthonormalized();
 		var basisScale = basisRotation.Inverse() * parentBasis;
@@ -747,7 +747,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		return apparentChildTransform;
 	}
 
-	private static Transform3D ApplyInverseScaling(Basis parentBasis, Transform3D apparentChildTransform)
+	internal static Transform3D ApplyInverseScaling(Basis parentBasis, Transform3D apparentChildTransform)
 	{
 		var basisRotation = parentBasis.Orthonormalized();
 		var basisScale = basisRotation.Inverse() * parentBasis;
