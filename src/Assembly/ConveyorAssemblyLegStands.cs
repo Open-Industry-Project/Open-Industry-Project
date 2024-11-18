@@ -190,6 +190,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		if (legStandsIsEditable)
 		{
 			SnapAllLegStandsToPath();
+			UpdateAllLegStandsWidth();
 		}
 
 		bool debugInvariants = true;
@@ -332,16 +333,24 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	#region Leg Stands / Basic constraints
 	private void SnapAllLegStandsToPath() {
 		// Force legStand alignment with LegStands group.
-		float targetWidth = GetLegStandTargetWidth();
 		foreach (Node child in GetChildren()) {
 			ConveyorLeg legStand = child as ConveyorLeg;
 			if (legStand == null) {
 				continue;
 			}
 			SnapToLegStandsPath(legStand);
+		}
+	}
+
+	private void UpdateAllLegStandsWidth() {
+		float targetWidth = GetLegStandTargetWidth();
+		foreach (Node child in GetChildren()) {
+			ConveyorLeg legStand = child as ConveyorLeg;
+			if (legStand == null) {
+				continue;
+			}
 			legStand.Scale = new Vector3(1f, legStand.Scale.Y, targetWidth / LegStandsBaseWidth);
 		}
-
 	}
 
 	private float GetLegStandTargetWidth() {
