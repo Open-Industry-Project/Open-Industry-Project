@@ -74,7 +74,10 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 			_cachedLegStandsRotation = _cachedLegStandsBasis.GetEuler();
 		};
 		// Ensure cached values are up to date
-		SetTransform(Transform);
+		_cachedLegStandsTransform = Transform;
+		_cachedLegStandsPosition = _cachedLegStandsTransform.Origin;
+		_cachedLegStandsBasis = _cachedLegStandsTransform.Basis;
+		_cachedLegStandsRotation = _cachedLegStandsBasis.GetEuler();
 
 		TransformChanged += void (_) => UpdateLegStandCoverage();
 		PositionChanged += void (_) => SyncLegStandsOffsets();
