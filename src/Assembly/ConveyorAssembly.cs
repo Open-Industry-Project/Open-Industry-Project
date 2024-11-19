@@ -678,13 +678,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	public override void _Ready()
 	{
 		UpdateSides();
-
 		PreventAllChildScaling();
-	}
-
-	public override void _PhysicsProcess(double delta)
-	{
-		UpdateConveyors();
 	}
 	#endregion constructor, _Ready, and _PhysicsProcess
 

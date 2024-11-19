@@ -5,6 +5,12 @@ public partial class ConveyorAssemblyConveyors : ConveyorAssemblyChild
 {
 	private ConveyorAssembly assembly => GetParentOrNull<ConveyorAssembly>();
 
+	public override void _PhysicsProcess(double delta)
+	{
+		if (assembly == null) return;
+		assembly.UpdateConveyors();
+	}
+
 	protected override Transform3D ConstrainApparentTransform(Transform3D transform)
 	{
 		return base.ConstrainApparentTransform(assembly.LockConveyorsGroup(transform));

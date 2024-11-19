@@ -44,13 +44,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	}
 
 	#region Conveyors / Update "Conveyors" node
-	private void UpdateConveyors()
+	internal void UpdateConveyors()
 	{
-		if (conveyors == null)
-		{
-			return;
-		}
-
 		float conveyorLineLengthPrev = conveyorLineLength;
 		conveyorLineLength = GetConveyorLineLength();
 		bool conveyorLineLengthChanged = conveyorLineLengthPrev != conveyorLineLength;
