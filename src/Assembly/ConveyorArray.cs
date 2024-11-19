@@ -1,25 +1,32 @@
+using System.Collections.Generic;
 using Godot;
 
 [Tool]
 public partial class ConveyorArray : Node3D
 {
 	[Export(PropertyHint.None, "suffix:m")]
-	public float Width = 2f;
+	public float Width { get => _width; set => SetProcessIfChanged(ref _width, value); }
+	private float _width = 2f;
 
 	[Export(PropertyHint.None, "suffix:m")]
-	public float Length = 4f;
+	public float Length { get => _length; set => SetProcessIfChanged(ref _length, value); }
+	private float _length = 4f;
 
 	[Export(PropertyHint.Range, "-70,70,1,radians_as_degrees")]
-	public float AngleDownstream = 0f;
+	public float AngleDownstream { get => _angleDownstream; set => SetProcessIfChanged(ref _angleDownstream, value); }
+	private float _angleDownstream = 0f;
 
 	[Export(PropertyHint.Range, "-70,70,1,radians_as_degrees")]
-	public float AngleUpstream = 0f;
+	public float AngleUpstream { get => _angleUpstream; set => SetProcessIfChanged(ref _angleUpstream, value); }
+	private float _angleUpstream = 0f;
 
 	[Export(PropertyHint.Range, "1,20,1")]
-	public int ConveyorCount = 4;
+	public int ConveyorCount { get => _conveyorCount; set => SetProcessIfChanged(ref _conveyorCount, value); }
+	private int _conveyorCount = 4;
 
 	[Export]
-	public PackedScene ConveyorScene = GD.Load<PackedScene>("res://parts/BeltConveyor.tscn");
+	public PackedScene ConveyorScene { get => _conveyorScene; set => SetProcessIfChanged(ref _conveyorScene, value); }
+	private PackedScene _conveyorScene = GD.Load<PackedScene>("res://parts/BeltConveyor.tscn");
 
 	const float ConveyorSceneBaseLength = 1f;
 	const float ConveyorSceneBaseWidth = 2f;
@@ -27,6 +34,7 @@ public partial class ConveyorArray : Node3D
 	public override void _Process(double delta)
 	{
 		UpdateConveyors();
+		SetProcess(false);
 	}
 
 	private void UpdateConveyors()
@@ -83,5 +91,12 @@ public partial class ConveyorArray : Node3D
 		var scale = new Vector3(length / ConveyorSceneBaseLength, 1, width / ConveyorSceneBaseWidth);
 		var transform = new Transform3D(Basis.Identity.Scaled(scale), position);
 		return transform;
+	}
+
+	private void SetProcessIfChanged<T>(ref T cachedVal, T newVal)
+	{
+		bool changed = !EqualityComparer<T>.Default.Equals(newVal, cachedVal);
+		cachedVal = newVal;
+		if (changed) SetProcess(true);
 	}
 }
