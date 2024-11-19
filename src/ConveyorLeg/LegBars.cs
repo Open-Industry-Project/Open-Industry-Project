@@ -73,7 +73,9 @@ public partial class LegBars : Node3D
 
 	void RemoveBar()
 	{
-		GetChild(GetChildCount() - 1).QueueFree();
+		var child = GetChild(GetChildCount() - 1);
+		child.QueueFree();
+		RemoveChild(child);
 	}
 
 	void FixBars()
