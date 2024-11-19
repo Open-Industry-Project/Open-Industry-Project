@@ -39,6 +39,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		_cachedConveyorsRotation = _cachedConveyorsBasis.GetEuler();
 
 		conveyors.TransformChanged += void (_) => UpdateSides();
+
+		ConveyorAngle = _conveyorAngle;
 	}
 
 	#region Conveyors / Update "Conveyors" node
@@ -48,8 +50,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		{
 			return;
 		}
-
-		SyncConveyorsAngle();
 
 		float conveyorLineLengthPrev = conveyorLineLength;
 		conveyorLineLength = GetConveyorLineLength();
@@ -92,30 +92,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 			transform = new Transform3D(basis, newPos);
 		}
 		return transform;
-	}
-
-	/**
-	 * Synchronize the angle of the conveyors with the assembly's ConveyorAngle property.
-	 *
-	 * If the property changes, the conveyors are rotated to match.
-	 * If the conveyors are rotated manually, the property is updated.
-	 * If both happen at the same time, the property wins.
-	 */
-	private void SyncConveyorsAngle() {
-		Basis scale = Basis.Identity.Scaled(_cachedScale);
-		Basis scalePrev = Basis.Identity.Scaled(_scalePrev);
-		if (ConveyorAngle != conveyorAnglePrev) {
-			Basis targetRot = new Basis(new Vector3(0, 0, 1), ConveyorAngle);
-			conveyors.Basis = scale.Inverse() * targetRot;
-		} else {
-			float angle = (scale * _cachedConveyorsBasis).GetEuler().Z;
-			float anglePrev = (scalePrev * conveyorsTransformPrev.Basis).GetEuler().Z;
-			double angleDelta = Mathf.Abs(angle - anglePrev) % (2 * Math.PI);
-			if (angleDelta > Math.PI / 360.0) {
-				this.ConveyorAngle = (scale * _cachedConveyorsBasis).GetEuler().Z;
-				NotifyPropertyListChanged();
-			}
-		};
 	}
 	#endregion Conveyors / Update "Conveyors" node
 

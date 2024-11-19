@@ -9,4 +9,12 @@ public partial class ConveyorAssemblyConveyors : ConveyorAssemblyChild
 	{
 		return base.ConstrainApparentTransform(assembly.LockConveyorsGroup(transform));
 	}
+
+	public void SetAngle(float angle)
+	{
+		PreventScaling();
+		Basis scale = Basis.Identity.Scaled(assembly.Scale);
+		Basis targetRot = new Basis(new Vector3(0, 0, 1), angle);
+		this.Basis = scale.Inverse() * targetRot;
+	}
 }

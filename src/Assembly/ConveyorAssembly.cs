@@ -13,13 +13,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	#region Fields
 	#region Fields / Nodes
-	protected TransformMonitoredNode3D conveyors
+	protected ConveyorAssemblyConveyors conveyors
 	{
 		get
 		{
 			if (!IsInstanceValid(_conveyors))
 			{
-				_conveyors = GetNodeOrNull<TransformMonitoredNode3D>("Conveyors");
+				_conveyors = GetNodeOrNull<ConveyorAssemblyConveyors>("Conveyors");
 				if (IsInstanceValid(_conveyors))
 				{
 					SetupConveyors();
@@ -28,7 +28,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			return _conveyors;
 		}
 	}
-	private TransformMonitoredNode3D _conveyors;
+	private ConveyorAssemblyConveyors _conveyors;
 	private TransformMonitoredNode3D rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<TransformMonitoredNode3D>("RightSide");
 	private TransformMonitoredNode3D _rightSide;
 	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
@@ -41,8 +41,22 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	#region Fields / Exported properties
 	[ExportGroup("Conveyor", "Conveyor")]
 	[Export(PropertyHint.None, "radians_as_degrees")]
-	public float ConveyorAngle { get; set; } = 0f;
-	private float conveyorAnglePrev = 0f;
+	public float ConveyorAngle
+	{
+		get
+		{
+			Basis scale = Basis.Identity.Scaled(Scale);
+			float angle = (scale * conveyors.Basis).GetEuler().Z;
+			return angle;
+		}
+		set
+		{
+			_conveyorAngle = value;
+			if (!IsInstanceValid(conveyors)) return;
+			conveyors.SetAngle(value);
+		}
+	}
+	private float _conveyorAngle = 0f;
 
 	[Export]
 	public bool ConveyorAutomaticLength { get; set; } = true;
@@ -663,19 +677,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	public override void _Ready()
 	{
-		_scalePrev = _cachedScale;
-
-		// Apply the ConveyorsAngle property if needed.
-		Basis assemblyScale = Basis.Identity.Scaled(_cachedScale);
-		if (conveyors != null) {
-			float conveyorsStartingAngle = (assemblyScale * _cachedConveyorsBasis).GetEuler().Z;
-			conveyorAnglePrev = conveyorsStartingAngle;
-			conveyorsTransformPrev = _cachedConveyorsTransform;
-			SyncConveyorsAngle();
-			conveyorAnglePrev = ConveyorAngle;
-			conveyorsTransformPrev = _cachedConveyorsTransform;
-		}
-
 		UpdateSides();
 
 		PreventAllChildScaling();
@@ -684,10 +685,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	public override void _PhysicsProcess(double delta)
 	{
 		UpdateConveyors();
-
-		_scalePrev = _cachedBasis.Scale;
-		conveyorAnglePrev = ConveyorAngle;
-		conveyorsTransformPrev = _cachedConveyorsTransform;
 	}
 	#endregion constructor, _Ready, and _PhysicsProcess
 
