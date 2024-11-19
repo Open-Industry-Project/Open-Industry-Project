@@ -38,6 +38,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		_cachedConveyorsBasis = _cachedConveyorsTransform.Basis;
 		_cachedConveyorsRotation = _cachedConveyorsBasis.GetEuler();
 
+		BasisChanged += void (_) => conveyors.SetNeedsUpdate(true);
+		conveyors.BasisChanged += void (_) => conveyors.SetNeedsUpdate(true);
 		conveyors.TransformChanged += void (_) => UpdateSides();
 
 		ConveyorAngle = _conveyorAngle;

@@ -59,7 +59,17 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private float _conveyorAngle = 0f;
 
 	[Export]
-	public bool ConveyorAutomaticLength { get; set; } = true;
+	public bool ConveyorAutomaticLength
+	{
+		get => _conveyorAutomaticLength;
+		set
+		{
+			if (value == _conveyorAutomaticLength) return;
+			_conveyorAutomaticLength = value;
+			conveyors?.SetNeedsUpdate(true);
+		}
+	}
+	private bool _conveyorAutomaticLength = true;
 
 	// This rest of this section is for properties proxied to the conveyor parts.
 	[ExportSubgroup("Comms")]
