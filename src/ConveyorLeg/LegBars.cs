@@ -31,6 +31,7 @@ public partial class LegBars : Node3D
 			}
 
 			parentScale = value;
+			SetProcess(true);
 		}
 	}
 
@@ -60,6 +61,7 @@ public partial class LegBars : Node3D
 
 			prevScale = ParentScale;
 		}
+		SetProcess(false);
 	}
 
 	void SpawnBar()
