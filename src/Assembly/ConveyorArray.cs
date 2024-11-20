@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Godot;
 
 [Tool]
-public partial class ConveyorArray : Node3D
+public partial class ConveyorArray : Node3D, IComms
 {
 	[Export(PropertyHint.None, "suffix:m")]
 	public float Width { get => _width; set => SetProcessIfChanged(ref _width, value); }
@@ -37,6 +37,22 @@ public partial class ConveyorArray : Node3D
 	}
 	private PackedScene _conveyorScene = GD.Load<PackedScene>("res://parts/BeltConveyor.tscn");
 
+	[Export]
+	public bool EnableComms { get => _enableComms; set
+		{
+			if (SetProcessIfChanged(ref _enableComms, value)) NotifyPropertyListChanged();
+		}
+	}
+	private bool _enableComms = false;
+
+	[Export]
+	public string Tag { get => _tag; set => SetProcessIfChanged(ref _tag, value); }
+	private string _tag;
+
+	[Export]
+	public int UpdateRate { get => _updateRate; set => SetProcessIfChanged(ref _updateRate, value); }
+	private int _updateRate = 100;
+
 	const float ConveyorSceneBaseLength = 1f;
 	const float ConveyorSceneBaseWidth = 2f;
 
@@ -44,6 +60,16 @@ public partial class ConveyorArray : Node3D
 	{
 		UpdateConveyors();
 		SetProcess(false);
+	}
+
+	public override void _ValidateProperty(Godot.Collections.Dictionary property)
+	{
+		string propertyName = property["name"].AsStringName();
+
+		if (propertyName == PropertyName.UpdateRate || propertyName == PropertyName.Tag)
+		{
+			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
+		}
 	}
 
 	private void UpdateConveyors()
@@ -83,7 +109,15 @@ public partial class ConveyorArray : Node3D
 
 	private void UpdateConveyor(int index)
 	{
-		GetChild<Node3D>(index).Transform = GetNewTransformForConveyor(index);
+		Node3D child3d = GetChild<Node3D>(index);
+		child3d.Transform = GetNewTransformForConveyor(index);
+
+		if (child3d is IComms comms)
+		{
+			comms.EnableComms = EnableComms;
+			comms.Tag = Tag;
+			comms.UpdateRate = UpdateRate;
+		}
 	}
 
 	private Transform3D GetNewTransformForConveyor(int index)
