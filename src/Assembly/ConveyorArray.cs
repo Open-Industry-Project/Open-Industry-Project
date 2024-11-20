@@ -24,6 +24,10 @@ public partial class ConveyorArray : Node3D, IComms
 	public int ConveyorCount { get => _conveyorCount; set => SetProcessIfChanged(ref _conveyorCount, value); }
 	private int _conveyorCount = 4;
 
+	[Export(PropertyHint.None, "suffix:m/s")]
+	public float Speed { get => _speed; set => SetProcessIfChanged(ref _speed, value); }
+	private float _speed = 2f;
+
 	[Export]
 	public PackedScene ConveyorScene
 	{
@@ -117,6 +121,10 @@ public partial class ConveyorArray : Node3D, IComms
 			comms.EnableComms = EnableComms;
 			comms.Tag = Tag;
 			comms.UpdateRate = UpdateRate;
+		}
+		if (child3d is IConveyor conveyor)
+		{
+			conveyor.Speed = Speed;
 		}
 	}
 
