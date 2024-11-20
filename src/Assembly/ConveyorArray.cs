@@ -25,7 +25,16 @@ public partial class ConveyorArray : Node3D
 	private int _conveyorCount = 4;
 
 	[Export]
-	public PackedScene ConveyorScene { get => _conveyorScene; set => SetProcessIfChanged(ref _conveyorScene, value); }
+	public PackedScene ConveyorScene
+	{
+		get => _conveyorScene;
+		set
+		{
+			if (!SetProcessIfChanged(ref _conveyorScene, value)) return;
+			// Recreate all conveyors.
+			AddOrRemoveConveyors(0);
+		}
+	}
 	private PackedScene _conveyorScene = GD.Load<PackedScene>("res://parts/BeltConveyor.tscn");
 
 	const float ConveyorSceneBaseLength = 1f;
@@ -93,10 +102,11 @@ public partial class ConveyorArray : Node3D
 		return transform;
 	}
 
-	private void SetProcessIfChanged<T>(ref T cachedVal, T newVal)
+	private bool SetProcessIfChanged<T>(ref T cachedVal, T newVal)
 	{
 		bool changed = !EqualityComparer<T>.Default.Equals(newVal, cachedVal);
 		cachedVal = newVal;
 		if (changed) SetProcess(true);
+		return changed;
 	}
 }
