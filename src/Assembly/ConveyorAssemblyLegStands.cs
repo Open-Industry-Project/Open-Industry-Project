@@ -360,14 +360,19 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	}
 
 	private void UpdateAllLegStandsWidth() {
-		float targetWidth = GetLegStandTargetWidth();
 		foreach (Node child in GetChildren()) {
 			ConveyorLeg legStand = child as ConveyorLeg;
 			if (legStand == null) {
 				continue;
 			}
-			legStand.Scale = new Vector3(1f, legStand.Scale.Y, targetWidth / LegStandsBaseWidth);
+			UpdateLegStandWidth(legStand);
 		}
+	}
+
+	private void UpdateLegStandWidth(Node3D legStand)
+	{
+		float targetWidth = GetLegStandTargetWidth();
+		legStand.Scale = new Vector3(1f, legStand.Scale.Y, targetWidth / LegStandsBaseWidth);
 	}
 
 	private float GetLegStandTargetWidth() {
