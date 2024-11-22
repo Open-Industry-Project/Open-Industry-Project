@@ -624,6 +624,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		};
 		ConveyorLeg legStand = AddOrGetLegStandInstance(name) as ConveyorLeg;
 		MoveLegStandToPathPosition(legStand, position);
+		UpdateLegStandWidth(legStand);
 
 		// It probably doesn't matter, but let's try to keep leg stands in order.
 		int trueIndex = (LegIndex) index switch {
