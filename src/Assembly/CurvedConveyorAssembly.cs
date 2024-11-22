@@ -4,6 +4,18 @@ using System;
 [Tool]
 public partial class CurvedConveyorAssembly : ConveyorAssembly
 {
+	#region Constants
+	float BaseOuterRadius => 2.0f;
+	float BaseInnerRadius => 0.5f;
+	float BaseMiddleRadius => BaseOuterRadius - BaseInnerRadius;
+	protected override float BaseLength => 2.0f;
+	protected override float BaseWidth => 2.0f;
+	protected override float ConveyorBaseLength => 2f;
+	protected override float ConveyorBaseWidth => 2f;
+	#endregion Constants
+
+	public float MiddleRadius => Width / BaseWidth * BaseMiddleRadius;
+
 	#region Overriding default values and units
 	public CurvedConveyorAssembly() {
 		GD.Load<PackedScene>("res://parts/ConveyorLegCBC.tscn");
@@ -87,61 +99,42 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	}
 	#endregion Overriding default values and units
 
-	protected override void ApplyAssemblyScaleConstraints() {
+	protected override Transform3D ConstrainTransform(Transform3D transform) {
 		// Lock Z scale to be the same as X scale.
-		(var scaleX, var scaleY, var scaleZ) = this.Transform.Basis.Scale;
+		(var scaleX, var scaleY, var scaleZ) = transform.Basis.Scale;
 		if (scaleX != scaleZ) {
-			Basis rotBasis = this.Transform.Basis.Orthonormalized();
+			Basis rotBasis = transform.Basis.Orthonormalized();
 			rotBasis = new Basis(rotBasis.X * scaleX, rotBasis.Y * scaleY, rotBasis.Z * scaleX);
-			this.Transform = new Transform3D(rotBasis, this.Transform.Origin);
+			return new Transform3D(rotBasis, transform.Origin);
 		}
+		return transform;
 	}
 
 	#region Conveyors and Side Guards
-	protected override void LockConveyorsGroup() {
+	internal override Transform3D LockConveyorsGroup(Transform3D transform) {
 		// Just don't let it move at all, except Y axis translation.;
-		conveyors.Rotation = new Vector3(0, 0, 0);
-		conveyors.Position = new Vector3(0, conveyors.Position.Y, 0);
+		var scale = transform.Basis.Scale;
+		var position = new Vector3(0, transform.Origin.Y, 0);
+		return new Transform3D(Basis.Identity.Scaled(scale), position);
 	}
 
 	protected override void LockSidePosition(Node3D side, bool isRight) {
 		// Sides always snap onto the conveyor line
 		// Just snap both sides to the center without any offset.
-		side.Transform = conveyors.Transform;
+		side.Transform = _cachedConveyorsTransform;
 	}
 
-	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength) {
-		// ConveyorAutomaticLength and conveyorLength have no effect on curved conveyors.
-		conveyor.Scale = new Vector3(this.Scale.X, 1f, this.Scale.Z);
+	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength, float conveyorWidth) {
+		// ConveyorAutomaticLength, conveyorLength, and conveyorWidth have no effect on curved conveyors.
+		// TODO delete this override
+		conveyor.Scale = new Vector3(Length / ConveyorBaseLength, 1f, Width / ConveyorBaseWidth);
 	}
 
 	protected override void ScaleSideGuard(Node3D guard, float guardLength) {
 		// SideGuardsAutoScale and guardLength have no effect on curved side guards.
-		guard.Scale = new Vector3(this.Scale.X, 1f, this.Scale.Z);
+		float curvedSideGuardBaseLength = BaseLength;
+		float curvedSideGuardBaseWidth = BaseWidth;
+		guard.Scale = new Vector3(Length / curvedSideGuardBaseLength, 1f, Width / curvedSideGuardBaseWidth);
 	}
 	#endregion Conveyors and Side Guards
-
-	#region Leg Stands
-	protected override (float, float) GetLegStandCoverage() {
-		// Assume that conveyors and legStands have the same rotation.
-		return (-90f + AutoLegStandsMarginEnds, 0f - AutoLegStandsMarginEnds);
-	}
-	protected override void LockLegStandsGroup() {
-		// We should probably let this rotate around the Y axis, but that would require accounting for legStands rotation in GetLegStandsCoverage().
-		// For now, we won't let it move at all except Y axis translation.
-		legStands.Rotation = new Vector3(0, 0, 0);
-		legStands.Position = new Vector3(0, legStands.Position.Y, 0);
-	}
-
-	protected override float GetPositionOnLegStandsPath(Vector3 position) {
-		return (float) Math.Round(Mathf.RadToDeg(new Vector3(0, 0, 1).SignedAngleTo(position.Slide(Vector3.Up), Vector3.Up)));
-	}
-
-	protected override void MoveLegStandToPathPosition(Node3D legStand, float position) {
-		float radius = this.Scale.X * 1.5f;
-		float angle = Mathf.DegToRad(position);
-		legStand.Position = new Vector3(0, legStand.Position.Y, radius).Rotated(Vector3.Up, angle);
-		legStand.Rotation = new Vector3(0f, angle, 0f);
-	}
-	#endregion Leg Stands
 }

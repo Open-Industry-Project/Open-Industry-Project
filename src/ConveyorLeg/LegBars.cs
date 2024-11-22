@@ -8,9 +8,9 @@ public partial class LegBars : Node3D
 	PackedScene legsBarScene;
 
 	float barsDistance = 1.0f;
-	float parentScale = 1.0f;
+	Vector3 parentScale = Vector3.One;
 	[Export]
-	public float ParentScale
+	public Vector3 ParentScale
 	{
 		get
 		{
@@ -18,7 +18,7 @@ public partial class LegBars : Node3D
 		}
 		set
 		{
-			int roundedScale = Mathf.FloorToInt(value) + 1;
+			int roundedScale = Mathf.FloorToInt(value.Y) + 1;
 			int barsCount = GetChildCount();
 
 			for (; roundedScale - 1 > barsCount && roundedScale != 0; barsCount++)
@@ -31,6 +31,7 @@ public partial class LegBars : Node3D
 			}
 
 			parentScale = value;
+			SetProcess(true);
 		}
 	}
 
@@ -50,16 +51,17 @@ public partial class LegBars : Node3D
 	{
 		if (owner != null)
 		{
-			if (owner.Scale == prevScale) return;
+			if (ParentScale == prevScale) return;
 
-			Vector3 newScale = new(1 / owner.Scale.X, 1 / owner.Scale.Y, 1);
+			Vector3 newScale = new(1 / ParentScale.X, 1 / ParentScale.Y, 1);
 			if(Scale != newScale)
 			{
-				Scale = new Vector3(1 / owner.Scale.X, 1 / owner.Scale.Y, 1);
+				Scale = new Vector3(1 / ParentScale.X, 1 / ParentScale.Y, 1);
 			}
 
-			prevScale = owner.Scale;
+			prevScale = ParentScale;
 		}
+		SetProcess(false);
 	}
 
 	void SpawnBar()
@@ -73,7 +75,9 @@ public partial class LegBars : Node3D
 
 	void RemoveBar()
 	{
-		GetChild(GetChildCount() - 1).QueueFree();
+		var child = GetChild(GetChildCount() - 1);
+		child.QueueFree();
+		RemoveChild(child);
 	}
 
 	void FixBars()

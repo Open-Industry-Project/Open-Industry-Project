@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 
-public partial class ConveyorAssembly : Node3D
+public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region SideGuards
+	#region SideGuards / Constants
+	private const string AUTO_SIDE_GUARD_NAME_PREFIX = "AutoSideGuard";
+	#endregion SideGuards / Constants
+
 	#region SideGuards / Update "LeftSide" and "RightSide" nodes
 	private void UpdateSides()
 	{
@@ -15,18 +19,12 @@ public partial class ConveyorAssembly : Node3D
 
 
 	private void UpdateSide(bool isRight) {
-		Node3D side;
-		if (isRight) {
-			rightSide = IsInstanceValid(rightSide) ? rightSide : GetNodeOrNull<Node3D>("RightSide");
-			side = rightSide;
-		} else {
-			leftSide = IsInstanceValid(leftSide) ? leftSide : GetNodeOrNull<Node3D>("LeftSide");
-			side = leftSide;
-		}
+		Node3D side = isRight ? rightSide : leftSide;
 		if (side == null) {
 			return;
 		}
 		if (conveyors != null) {
+			// TODO: Connect to conveyors.TransformChanged and remove from here.
 			LockSidePosition(side, isRight);
 		}
 		UpdateAutoSideGuards(side, isRight);
@@ -34,9 +32,11 @@ public partial class ConveyorAssembly : Node3D
 
 	protected virtual void LockSidePosition(Node3D side, bool isRight) {
 		// Sides always snap onto the conveyor line
-		side.Transform = conveyors.Transform;
-		var offsetZ = (isRight? 1 : -1) * side.Basis.Z * (this.Scale.Z - 1f);
-		side.Position += offsetZ;
+		side.Transform = _cachedConveyorsTransform;
+		float offsetDistance = Width / 2f - 1f;
+		Vector3 offsetDirection = (isRight ? 1 : -1) * side.Basis.Z;
+		Vector3 offset = offsetDirection * offsetDistance;
+		side.Position += offset;
 	}
 	#endregion SideGuards / Update "LeftSide" and "RightSide" nodes
 
@@ -105,22 +105,28 @@ public partial class ConveyorAssembly : Node3D
 			.Where((SideGuardGap gap) => gap != null && (gap.Side == SideGuardGap.SideGuardGapSide.Both
 			|| isRight && gap.Side == SideGuardGap.SideGuardGapSide.Right
 			|| !isRight && gap.Side == SideGuardGap.SideGuardGapSide.Left))
-			.Select(gap => (gap.Position - Mathf.Abs(gap.Width) / 2f, gap.Position + Mathf.Abs(gap.Width) / 2f))
+			.Select(gap =>
+			{
+				float extentFront = gap.Position - Mathf.Abs(gap.Width) / 2f;
+				float extentRear = gap.Position + Mathf.Abs(gap.Width) / 2f;
+				return (extentFront, extentRear);
+			})
 			.OrderBy(gap => gap.Item1)
 			.Aggregate(new List<(float, float)>(), (acc, gap) => {
+				// Merge overlapping gaps.
+				// Gaps are already sorted by leading edge.
 				if (acc.Count == 0) {
 					acc.Add(gap);
 					return acc;
 				}
-				// Merge overlapping gaps.
-				// Gaps are already sorted by leading edge.
-				var last = acc.Last();
-				if (last.Item2 < gap.Item1) {
+				var (extentFront, extentRear) = gap;
+				var (lastExtentFront, lastExtentRear) = acc.Last();
+				if (lastExtentRear < extentFront) {
 					// No overlap.
 					acc.Add(gap);
-				} else if (last.Item2 < gap.Item2) {
+				} else if (lastExtentRear < extentRear) {
 					// Partial overlap.
-					acc[^1] = (last.Item1, gap.Item2);
+					acc[^1] = (lastExtentFront, extentRear);
 				}
 				// Otherwise, full overlap; ignore.
 				return acc;

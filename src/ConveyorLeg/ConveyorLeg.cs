@@ -15,6 +15,7 @@ public partial class ConveyorLeg : Node3D
 		set
 		{
 			grabsRotation = value;
+			SetPhysicsProcess(true);
 		}
 	}
 
@@ -45,6 +46,8 @@ public partial class ConveyorLeg : Node3D
 		legsSidesMesh1.Mesh.SurfaceSetMaterial(0, legsSidesMaterial);
 		legsBars = GetNode<LegBars>("LegsBars");
 		ends = GetNode<Node3D>("Ends");
+
+		SetNotifyLocalTransform(true);
 	}
 
 	public override void _Process(double delta)
@@ -60,6 +63,7 @@ public partial class ConveyorLeg : Node3D
 		{
 			Scale = new Vector3(1, nodeScaleY, nodeScaleZ);
 		}
+		SetProcess(false);
 	}
 
 	public override void _PhysicsProcess(double delta)
@@ -69,8 +73,8 @@ public partial class ConveyorLeg : Node3D
 		if (legsSidesMaterial != null)
 			legsSidesMaterial.SetShaderParameter("Scale", Scale.Y);
 
-		if (legsBars != null && legsBars.ParentScale != Scale.Y)
-			legsBars.ParentScale = Scale.Y;
+		if (legsBars != null && legsBars.ParentScale != Scale)
+			legsBars.ParentScale = Scale;
 
 		foreach (Node3D end in ends.GetChildren())
 		{
@@ -87,5 +91,15 @@ public partial class ConveyorLeg : Node3D
 		grab2.Scale = Vector3.One;
 
 		prevScale = Scale;
+		SetPhysicsProcess(false);
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
+		{
+			SetProcess(true);
+			SetPhysicsProcess(true);
+		}
 	}
 }
