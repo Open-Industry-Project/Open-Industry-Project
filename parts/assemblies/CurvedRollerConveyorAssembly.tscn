@@ -1,10 +1,13 @@
-[gd_scene load_steps=19 format=4 uid="uid://bdeaerf4lvemx"]
+[gd_scene load_steps=22 format=4 uid="uid://bdeaerf4lvemx"]
 
 [ext_resource type="Script" path="res://src/Assembly/CurvedConveyorAssembly.cs" id="1_qvlhq"]
 [ext_resource type="PackedScene" uid="uid://somtwmiih8bb" path="res://parts/ConveyorLegCRC.tscn" id="2_p1nhg"]
 [ext_resource type="PackedScene" uid="uid://c3cdcxifx4eej" path="res://parts/CurvedRollerConveyor.tscn" id="3_l832a"]
+[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyChild.cs" id="4_0yc54"]
 [ext_resource type="PackedScene" uid="uid://c4xqkx88xf1dy" path="res://parts/CRCSideGuard.tscn" id="4_hvqu8"]
+[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyConveyors.cs" id="4_lkxdi"]
 [ext_resource type="Shader" uid="uid://b4wwduhuvem3q" path="res://assets/3DModels/Shaders/SideGuardShaderCBC.tres" id="6_oqa7e"]
+[ext_resource type="Script" path="res://src/Assembly/CurvedConveyorAssemblyLegStands.cs" id="7_vrbyf"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="8_k0egk"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="11_vdin8"]
 
@@ -185,16 +188,19 @@ metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
+script = ExtResource("4_lkxdi")
 
 [node name="CurvedRollerConveyor" parent="Conveyors" instance=ExtResource("3_l832a")]
 
 [node name="LeftSide" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
+script = ExtResource("4_0yc54")
 
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("4_hvqu8")]
 mesh = SubResource("ArrayMesh_5ou2u")
 
 [node name="LegStands" type="Node3D" parent="."]
+script = ExtResource("7_vrbyf")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("2_p1nhg")]
 transform = Transform3D(-4.37114e-08, 0, -1.055, 0, 1.49992, 0, 1, 0, -4.61155e-08, -1.5, 0, -1.31134e-07)
