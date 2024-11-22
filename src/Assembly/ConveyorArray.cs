@@ -87,11 +87,11 @@ public partial class ConveyorArray : Node3D, IComms
 
 	private void AddOrRemoveConveyors(int conveyorCount)
 	{
-		while (GetChildCount() > conveyorCount && GetChildCount() > 0)
+		while (GetChildCount(includeInternal: true) - GetChildCount() > conveyorCount && GetChildCount(includeInternal: true) - GetChildCount() > 0)
 		{
 			RemoveLastChild();
 		}
-		while (GetChildCount() < conveyorCount)
+		while (GetChildCount(includeInternal: true) - GetChildCount() < conveyorCount)
 		{
 			SpawnConveyor();
 		}
@@ -99,7 +99,7 @@ public partial class ConveyorArray : Node3D, IComms
 
 	private void RemoveLastChild()
 	{
-		var child = GetChild(GetChildCount() - 1);
+		var child = GetChild(GetChildCount(includeInternal: true) - 1, includeInternal: true);
 		RemoveChild(child);
 		child.QueueFree();
 	}
@@ -107,13 +107,13 @@ public partial class ConveyorArray : Node3D, IComms
 	private void SpawnConveyor()
 	{
 		Node3D conveyor = ConveyorScene.Instantiate() as Node3D;
-		AddChild(conveyor, false);
+		AddChild(conveyor, false, InternalMode.Back);
 		conveyor.Owner = this;
 	}
 
 	private void UpdateConveyor(int index)
 	{
-		Node3D child3d = GetChild<Node3D>(index);
+		Node3D child3d = GetChild<Node3D>(index + GetChildCount(), includeInternal: true);
 		child3d.Transform = GetNewTransformForConveyor(index);
 
 		if (child3d is IComms comms)
