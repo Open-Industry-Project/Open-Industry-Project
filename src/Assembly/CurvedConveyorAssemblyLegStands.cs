@@ -6,6 +6,12 @@ public partial class CurvedConveyorAssemblyLegStands : ConveyorAssemblyLegStands
 {
 	private CurvedConveyorAssembly assembly => GetParentOrNull<CurvedConveyorAssembly>();
 
+	public override void _Ready()
+	{
+		base._Ready();
+		assembly.ScaleXChanged += void (_) => legStandsPathChanged = true;
+	}
+
 	#region Leg Stands
 	protected override (float, float) GetLegStandCoverage() {
 		// Assume that conveyors and legStands have the same rotation.

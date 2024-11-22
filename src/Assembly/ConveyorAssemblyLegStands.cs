@@ -62,6 +62,8 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	private float autoLegStandsMarginEndLegsPrev = 0.5f;
 	private PackedScene autoLegStandsModelScenePrev;
 
+	protected bool legStandsPathChanged = true;
+
 	public ConveyorAssemblyLegStands()
 	{
 		TransformChanged += void (value) => _cachedLegStandsTransform = value;
@@ -191,10 +193,12 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		// All the leg stands that we generated should already be in the right spots.
 		var editedRoot = GetTree().EditedSceneRoot;
 		bool legStandsIsEditable = editedRoot != null && (editedRoot == Owner || editedRoot.IsEditableInstance(Owner));
-		if (legStandsIsEditable)
+		if (legStandsIsEditable || legStandsPathChanged)
 		{
 			SnapAllLegStandsToPath();
 		}
+		legStandsPathChanged = false;
+
 		float targetWidthNew = GetLegStandTargetWidth();
 		bool targetWidthChanged = targetWidthPrev != targetWidthNew;
 		targetWidthPrev = targetWidthNew;
