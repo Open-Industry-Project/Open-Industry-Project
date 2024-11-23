@@ -3,7 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 
 [Tool]
-public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
+public partial class ConveyorAssembly : TransformMonitoredNode3D, IConveyor
 {
 	#region Constants
 	protected virtual float BaseLength => 1f;
@@ -70,6 +70,14 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 	}
 	private bool _conveyorAutomaticLength = true;
+
+
+	public float Speed { get => BeltConveyorSpeed; set
+		{
+			BeltConveyorSpeed = value;
+			RollerConveyorSpeed = value;
+		}
+	}
 
 	// This rest of this section is for properties proxied to the conveyor parts.
 	[ExportSubgroup("Comms")]
