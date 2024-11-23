@@ -149,7 +149,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	}
 
 	internal static bool IsConveyor(Node node) {
-		return node as IConveyor != null || node as IBeltConveyor != null || node as IRollerConveyor != null;
+		return node as IConveyor != null;
 	}
 
 	protected virtual void ScaleConveyor(Node3D conveyor, float conveyorLength, float conveyorWidth) {
