@@ -100,19 +100,19 @@ public partial class TransformMonitoredNode3D: Node3D
 		bool positionYChanged = transform.Origin.Y != _positionPrev.Y;
 		bool positionZChanged = transform.Origin.Z != _positionPrev.Z;
 		_positionPrev = transform.Origin;
-		OnTransformChanged(transform);
-		if (basisChanged) OnBasisChanged(transform.Basis);
-		if (basisXChanged) OnBasisXChanged(transform.Basis.X);
-		if (basisYChanged) OnBasisYChanged(transform.Basis.Y);
-		if (basisZChanged) OnBasisZChanged(transform.Basis.Z);
-		if (scaleChanged) OnScaleChanged(transform.Basis.Scale);
-		if (scaleXChanged) OnScaleXChanged(transform.Basis.Scale.X);
-		if (scaleYChanged) OnScaleYChanged(transform.Basis.Scale.Y);
-		if (scaleZChanged) OnScaleZChanged(transform.Basis.Scale.Z);
-		if (positionChanged) OnPositionChanged(transform.Origin);
-		if (positionXChanged) OnPositionXChanged(transform.Origin.X);
-		if (positionYChanged) OnPositionYChanged(transform.Origin.Y);
-		if (positionZChanged) OnPositionZChanged(transform.Origin.Z);
+		EmitSignalTransformChanged(transform);
+		if (basisChanged) EmitSignalBasisChanged(transform.Basis);
+		if (basisXChanged) EmitSignalBasisXChanged(transform.Basis.X);
+		if (basisYChanged) EmitSignalBasisYChanged(transform.Basis.Y);
+		if (basisZChanged) EmitSignalBasisZChanged(transform.Basis.Z);
+		if (scaleChanged) EmitSignalScaleChanged(transform.Basis.Scale);
+		if (scaleXChanged) EmitSignalScaleXChanged(transform.Basis.Scale.X);
+		if (scaleYChanged) EmitSignalScaleYChanged(transform.Basis.Scale.Y);
+		if (scaleZChanged) EmitSignalScaleZChanged(transform.Basis.Scale.Z);
+		if (positionChanged) EmitSignalPositionChanged(transform.Origin);
+		if (positionXChanged) EmitSignalPositionXChanged(transform.Origin.X);
+		if (positionYChanged) EmitSignalPositionYChanged(transform.Origin.Y);
+		if (positionZChanged) EmitSignalPositionZChanged(transform.Origin.Z);
 	}
 
 	protected virtual Transform3D ConstrainTransform(Transform3D transform)

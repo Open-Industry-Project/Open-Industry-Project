@@ -482,9 +482,9 @@ public partial class Root : Node3D
 		if (GetNodeOrNull("/root/SimulationEvents") != null)
 		{
 			var simulationEvents = GetNode("/root/SimulationEvents");
-			simulationEvents.Connect("simulation_started", new Callable(this, nameof(OnSimulationStarted2)));
-			simulationEvents.Connect("simulation_set_paused", new Callable(this, nameof(OnSimulationSetPaused2)));
-			simulationEvents.Connect("simulation_ended", new Callable(this, nameof(OnSimulationEnded2)));
+			simulationEvents.Connect("simulation_started", new Callable(this, nameof(OnSimulationStarted)));
+			simulationEvents.Connect("simulation_set_paused", new Callable(this, nameof(OnSimulationSetPaused)));
+			simulationEvents.Connect("simulation_ended", new Callable(this, nameof(OnSimulationEnded)));
 		}
 	}
 
@@ -545,7 +545,7 @@ public partial class Root : Node3D
 		CallDeferred(MethodName.SelectNodes);
 	}
 
-	void OnSimulationStarted2()
+	void OnSimulationStarted()
 	{
 		if (Protocol == Protocols.opc_ua && !string.IsNullOrEmpty(EndPoint))
 		{
@@ -563,7 +563,7 @@ public partial class Root : Node3D
 		Start = true;
 	}
 
-	void OnSimulationSetPaused2(bool _paused)
+	void OnSimulationSetPaused(bool _paused)
 	{
 		paused = _paused;
 
@@ -579,7 +579,7 @@ public partial class Root : Node3D
 		EmitSignal(SignalName.SimulationSetPaused, paused);
 	}
 
-	void OnSimulationEnded2()
+	void OnSimulationEnded()
 	{
 		Start = false;
 	}

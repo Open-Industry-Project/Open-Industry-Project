@@ -33,7 +33,7 @@ public abstract partial class AbstractRollerContainer : Node3D
 	{
 		foreach (Roller roller in GetRollers())
 		{
-			OnRollerAdded(roller);
+			EmitSignalRollerAdded(roller);
 		}
 	}
 
@@ -41,7 +41,7 @@ public abstract partial class AbstractRollerContainer : Node3D
 	{
 		foreach (Roller roller in GetRollers())
 		{
-			OnRollerRemoved(roller);
+			EmitSignalRollerRemoved(roller);
 		}
 	}
 

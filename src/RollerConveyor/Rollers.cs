@@ -22,7 +22,7 @@ public partial class Rollers : AbstractRollerContainer
 			// subscribe the original ones. To ensure that each Roller is
 			// only subscribed once, we're going to unsubscribe them all,
 			// then let the base class resubscribe them all.
-			OnRollerRemoved(roller);
+			EmitSignalRollerRemoved(roller);
 		}
 		base._EnterTree();
 	}
@@ -47,7 +47,7 @@ public partial class Rollers : AbstractRollerContainer
 			for (int i = 1; i <= -difference; i++)
 			{
 				Roller roller = GetChild<Roller>(rollerCount - i);
-				OnRollerRemoved(roller);
+				EmitSignalRollerRemoved(roller);
 				RemoveChild(roller);
 				roller.QueueFree();
 			}
@@ -70,7 +70,7 @@ public partial class Rollers : AbstractRollerContainer
 		AddChild(roller, true);
 		roller.Owner = this.Owner;
 		roller.Position = new Vector3(rollersDistance * GetChildCount(), 0, 0);
-		OnRollerAdded(roller);
+		EmitSignalRollerAdded(roller);
 		FixRollers();
 	}
 
