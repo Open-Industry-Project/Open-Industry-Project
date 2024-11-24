@@ -15,6 +15,8 @@ var _toggle_view: HBoxContainer
 
 const ICON: Texture2D = preload("res://assets/png/OIP-LOGO-RGB_ICON.svg")
 
+var _layout_loaded : bool = false
+
 # EditorNode
 var _editor_node: Node
 
@@ -58,6 +60,9 @@ var _scene_tabs: TabBar
 var _perspective_menu: MenuButton
 
 func _scene_changed():
+	if(!_layout_loaded):
+		return
+	
 	var root = get_tree().edited_scene_root
 
 	if(root != null && root.has_signal("SimulationStarted")):
@@ -72,69 +77,11 @@ func _enter_tree() -> void:
 		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
 		
 	_editor_node.connect("scene_changed",_scene_changed)
-		
-	_menu_bar = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0)
-	_project_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
-	_editor_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(3)
-	_help_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(4)
-
-	_title_bar = _editor_node.get_child(4).get_child(0).get_child(0)
-	_center_buttons = _editor_node.get_child(4).get_child(0).get_child(0).get_child(2)
-	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
-	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
-
-	_debugger_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(1)
-	_audio_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(3)
-	_animation_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(4)
-	_shader_editor_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(15).get_child(0).get_child(7)
-
-	_create_root_vbox = _editor_node.find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
-	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
-	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0)
-	
-	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
-
-	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
 	
 	if(!FileAccess.file_exists("res://addons/oip_ui/build.txt")):
 		var file = FileAccess.open("res://addons/oip_ui/build.txt",FileAccess.WRITE)
 		file.store_string("This file was automatically generated. Do not delete")
 		BuildProject.build()
-
-	_toggle_native_mode(false)
-
-	_run_bar = RUN_BAR.instantiate()
-	_title_bar.add_child(_run_bar)
-	_title_bar.move_child(_run_bar, 2)
-
-	_title_bar.add_child(_empty_margin)
-	_title_bar.move_child(_empty_margin, 4)
-
-	_toggle_view = TOGGLE_VIEW.instantiate()
-	_title_bar.add_child(_toggle_view)
-
-	_empty_margin.custom_minimum_size = Vector2(165, 0)
-
-	_editor_popup_menu.add_separator()
-	_editor_popup_menu.add_check_item("Toggle Godot Native UI")
-	_item_id_editor_toggle_native_ui = _editor_popup_menu.get_item_id(_editor_popup_menu.item_count - 1)
-	_editor_popup_menu.id_pressed.connect(_on_editor_popup_id_pressed)
-
-	_custom_project_menu.id_pressed.connect(_on_custom_project_menu_id_pressed)
-	_custom_help_menu.id_pressed.connect(_on_custom_help_menu_id_pressed)
-
-	if(EditorInterface.has_method("set_simulation_started")):
-		var button = Button.new()
-		button.text = "New Simulation"
-		button.icon = ICON
-		button.pressed.connect(self._new_simulation_btn_pressed)
-		_create_root_vbox.add_child(button)
-		_create_root_vbox.move_child(button,0)
-		_create_root_vbox.move_child(_create_root_vbox.get_child(1),2)
-
-	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously",true)
-	
-	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
 
 func _on_id_pressed(id: int) -> void:
 	if get_tree().edited_scene_root == null:
@@ -185,9 +132,75 @@ func _exit_tree() -> void:
 	_toggle_native_mode(true)
 
 func _editor_layout_loaded():
+	_layout_loaded = true
+	
 	if EditorInterface.get_open_scenes().size() == 0:
 		_create_new_simulation()
 		EditorInterface.call("mark_scene_as_saved")
+		
+	_menu_bar = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0)
+	_project_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
+	_editor_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(3)
+	_help_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(4)
+
+	_title_bar = _editor_node.get_child(4).get_child(0).get_child(0)
+	_center_buttons = _editor_node.get_child(4).get_child(0).get_child(0).get_child(2)
+	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
+	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
+
+	_debugger_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(1)
+	_audio_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(3)
+	_animation_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(4)
+	_shader_editor_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(7)
+
+	_create_root_vbox = _editor_node.find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
+	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
+	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0)
+	
+	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
+	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
+	
+	_toggle_native_mode(false)
+
+	_run_bar = RUN_BAR.instantiate()
+	_title_bar.add_child(_run_bar)
+	_title_bar.move_child(_run_bar, 2)
+
+	_title_bar.add_child(_empty_margin)
+	_title_bar.move_child(_empty_margin, 4)
+
+	_toggle_view = TOGGLE_VIEW.instantiate()
+	_title_bar.add_child(_toggle_view)
+
+	_empty_margin.custom_minimum_size = Vector2(165, 0)
+
+	_editor_popup_menu.add_separator()
+	_editor_popup_menu.add_check_item("Toggle Godot Native UI")
+	_item_id_editor_toggle_native_ui = _editor_popup_menu.get_item_id(_editor_popup_menu.item_count - 1)
+	_editor_popup_menu.id_pressed.connect(_on_editor_popup_id_pressed)
+
+	_custom_project_menu.id_pressed.connect(_on_custom_project_menu_id_pressed)
+	_custom_help_menu.id_pressed.connect(_on_custom_help_menu_id_pressed)
+
+	if(EditorInterface.has_method("set_simulation_started")):
+		var button = Button.new()
+		button.text = "New Simulation"
+		button.icon = ICON
+		button.pressed.connect(self._new_simulation_btn_pressed)
+		_create_root_vbox.add_child(button)
+		_create_root_vbox.move_child(button,0)
+		_create_root_vbox.move_child(_create_root_vbox.get_child(1),2)
+
+	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously",true)
+	
+	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
+	
+	var root = get_tree().edited_scene_root
+	
+	if(root != null && root.has_signal("SimulationStarted")):
+		_run_bar._enable_buttons()
+	else:
+		_run_bar._disable_buttons()
 
 func _new_simulation_btn_pressed():
 		get_undo_redo().create_action("Create New Simulation")
@@ -202,7 +215,8 @@ func _create_new_simulation():
 	script.add_root_node(scene)
 	get_tree().edited_scene_root.add_child(building)
 	building.owner = scene
-	_run_bar._enable_buttons()
+	if(_run_bar != null):
+		_run_bar._enable_buttons()
 
 func _remove_new_simulation():
 	var script = EditorScript.new()
