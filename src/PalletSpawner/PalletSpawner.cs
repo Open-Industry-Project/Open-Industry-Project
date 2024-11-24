@@ -27,7 +27,7 @@ public partial class PalletSpawner : Node3D
 	Root Main;
 
 	Vector3 _rotation;
-	Vector3 _globalPosition;
+	Vector3 _position;
 
 	public override void _Ready()
 	{
@@ -50,6 +50,9 @@ public partial class PalletSpawner : Node3D
 			Main.SimulationStarted += OnSimulationStarted;
 			Main.SimulationEnded += OnSimulationEnded;
 		}
+
+		_rotation = GlobalRotation;
+		_position = GlobalPosition;
 	}
 
 	public override void _ExitTree()
@@ -78,7 +81,7 @@ public partial class PalletSpawner : Node3D
 		var pallet = (Pallet)scene.Instantiate();
 
 		pallet.Rotation = _rotation;
-		pallet.Position = _globalPosition;
+		pallet.Position = _position;
 		pallet.instanced = true;
 
 		AddChild(pallet, forceReadableName: true);
@@ -100,8 +103,8 @@ public partial class PalletSpawner : Node3D
 	{
 		if (what == NotificationLocalTransformChanged)
 		{
-			_rotation = Rotation;
-			_globalPosition = GlobalPosition;
+			_rotation = GlobalRotation;
+			_position = GlobalPosition;
 		}
 	}
 }

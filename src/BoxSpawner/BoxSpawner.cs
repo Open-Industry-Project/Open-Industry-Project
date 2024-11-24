@@ -31,7 +31,7 @@ public partial class BoxSpawner : Node3D
 	Root Main;
 
 	Vector3 _rotation;
-	Vector3 _globalPosition;
+	Vector3 _position;
 	Vector3 _scale;
 
 	public override void _Ready()
@@ -57,8 +57,8 @@ public partial class BoxSpawner : Node3D
 		}
 
 		_scale = Scale;
-		_rotation = Rotation;
-		_globalPosition = GlobalPosition;
+		_rotation = GlobalRotation;
+		_position = GlobalPosition;
 	}
 
 	public override void _ExitTree()
@@ -99,7 +99,7 @@ public partial class BoxSpawner : Node3D
 		}
 
 		box.Rotation = _rotation;
-		box.Position = _globalPosition;
+		box.Position = _position;
 		box.instanced = true;
 
 		AddChild(box, forceReadableName:true);
@@ -127,8 +127,8 @@ public partial class BoxSpawner : Node3D
 		if (what == NotificationLocalTransformChanged)
 		{
 			_scale = Scale;
-			_rotation = Rotation;
-			_globalPosition = GlobalPosition;
+			_rotation = GlobalRotation;
+			_position = GlobalPosition;
 		}
 	}
 }
