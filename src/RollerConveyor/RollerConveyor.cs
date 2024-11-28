@@ -150,7 +150,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 		if (running)
 		{
-			rollerMaterial.Uv1Offset += new Vector3(4f * Speed / circumference * (float)delta, 0, 0);
+			if (!Main.simulationPaused)
+				rollerMaterial.Uv1Offset += new Vector3(4f * Speed / circumference * (float)delta, 0, 0);
 
 			if (enableComms && running && readSuccessful)
 			{

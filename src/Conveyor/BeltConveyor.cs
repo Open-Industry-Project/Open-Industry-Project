@@ -179,8 +179,8 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 			var velocity = localLeft * Speed;
 			sb.ConstantLinearVelocity = velocity;
 
-			beltPosition += Speed * delta;
-
+			if (!Main.simulationPaused)
+				beltPosition += Speed * delta;
 			if (Speed != 0)
 				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(Speed));
 			if (beltPosition >= 1.0)

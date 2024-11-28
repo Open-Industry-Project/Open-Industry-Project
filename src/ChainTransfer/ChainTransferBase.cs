@@ -103,7 +103,8 @@ public partial class ChainTransferBase : Node3D
 				int chainLinks = (int) Math.Round(owner.Scale.X * chainScale);
 				double chainMeters = owner.Scale.X * chainBaseLength;
 				double chainLinksPerMeter = chainLinks / chainMeters;
-				chainPosition += Speed / chainMeters * delta;
+				if(!owner.Main.simulationPaused)
+					chainPosition += Speed / chainMeters * delta;
 				chainPosition = ((chainPosition % 1f) + 1f) % 1f;
 				chainEndPosition += Speed * chainLinksPerMeter / chainEndScale * delta;
 				chainEndPosition = ((chainEndPosition % 1f) + 1f) % 1f;

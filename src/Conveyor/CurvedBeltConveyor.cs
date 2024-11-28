@@ -242,7 +242,8 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 			var velocity = -localUp * AngularSpeed;
 			sb.ConstantAngularVelocity = velocity;
 
-			beltPosition += LinearSpeed * delta;
+			if(!Main.simulationPaused)
+				beltPosition += LinearSpeed * delta;
 			if (LinearSpeed != 0)
 				((ShaderMaterial)beltMaterial).SetShaderParameter("BeltPosition", beltPosition * Mathf.Sign(LinearSpeed));
 			if (beltPosition >= 1.0)

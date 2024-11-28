@@ -21,6 +21,8 @@ public partial class Root : Node3D
 
 	public bool simulationRunning = false;
 
+	public bool simulationPaused = false;
+
 	private bool _start = false;
 
 	private bool keyHeld = false;
@@ -91,8 +93,6 @@ public partial class Root : Node3D
 	readonly System.Collections.Generic.Dictionary<Guid, Tag<BoolPlcMapper, bool>> bool_tags = new();
 	readonly System.Collections.Generic.Dictionary<Guid, Tag<DintPlcMapper, int>> int_tags = new();
 	readonly System.Collections.Generic.Dictionary<Guid, string> opc_tags = new();
-
-	public bool paused = false;
 
 	public Array<Godot.Node> selectedNodes = [];
 
@@ -565,9 +565,9 @@ public partial class Root : Node3D
 
 	void OnSimulationSetPaused(bool _paused)
 	{
-		paused = _paused;
+		simulationPaused = _paused;
 
-		if (paused)
+		if (simulationPaused)
 		{
 			ProcessMode = ProcessModeEnum.Disabled;
 		}
@@ -576,7 +576,7 @@ public partial class Root : Node3D
 			ProcessMode = ProcessModeEnum.Inherit;
 		}
 
-		EmitSignal(SignalName.SimulationSetPaused, paused);
+		EmitSignal(SignalName.SimulationSetPaused, simulationPaused);
 	}
 
 	void OnSimulationEnded()

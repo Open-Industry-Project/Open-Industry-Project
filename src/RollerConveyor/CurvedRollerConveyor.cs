@@ -193,7 +193,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		{
 			float uvSpeed = RollerAngularSpeed / (2f*Mathf.Pi);
 			Vector3 uvOffset = rollerMaterial.Uv1Offset;
-			uvOffset.X = (uvOffset.X % 1f + uvSpeed * (float)delta) % 1f;
+			if(!Main.simulationPaused)
+				uvOffset.X = (uvOffset.X % 1f + uvSpeed * (float)delta) % 1f;
 			rollerMaterial.Uv1Offset = uvOffset;
 		}
 	}
