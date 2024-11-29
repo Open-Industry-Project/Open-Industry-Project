@@ -1,8 +1,8 @@
 # OpenIndustryProject
 
-Free and Open-source warehouse/manufacturing simulator made with [Godot](https://github.com/godotengine), [JoltPhysics](https://github.com/jrouwe/JoltPhysics), [OPC UA .NET](https://github.com/OPCFoundation/UA-.NETStandard), and [libplctag](https://github.com/libplctag/libplctag). 
+Free and Open-source warehouse/manufacturing development framework and simulator made with [JoltPhysics](https://github.com/jrouwe/JoltPhysics), [OPC UA .NET](https://github.com/OPCFoundation/UA-.NETStandard), [libplctag](https://github.com/libplctag/libplctag), and with/for [Godot](https://github.com/godotengine),  
 
-The goal is to provide an open platform for developers to contribute to the creation of virtual industrial equipment/devices and for people to be able to test their ideas or simply educate themselves while using standard industrial platforms.
+The goal is to provide an open framework to create software and simulations using industrial equipment/devices and for people to be able to test their ideas or simply educate themselves while using standard industrial platforms.
 
 Scroll down to the **Getting Started** section for information on how to work with this project. 
 
@@ -15,9 +15,6 @@ Supported Communication Protocols:
 - Modbus TCP via libplctag
 
 ## Demo
-
-This demo is located at: [Demos](https://github.com/Open-Industry-Project/Demos)
-
 
 https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/e78c3b0a-bb8e-411a-aa17-b2b6534868a4
 
@@ -40,15 +37,11 @@ https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/
 
 **.NET SDK is required for this project for the compilation of C# code**
 
-It is **highly** recommended to download the latest package here: https://github.com/Open-Industry-Project/Open-Industry-Project/releases
+It is recommended to download the latest package here: https://github.com/Open-Industry-Project/Open-Industry-Project/releases
 
 It comes with a fork that contains functions and features that are not avaliable in regular Godot.
 
 The contents of this repo are parts of a regular Godot project. You can open this project via the project manager, just like any other Godot project.
-
-This project is meant to be entirely contained with in the editor. At the moment there is no reason to "run" this project as if it were a game like you normally would for development done in Godot. 
-
-The editor viewport(s) are where all simulations will take place.
 
 Use the Project Manager to create a new project.
 
