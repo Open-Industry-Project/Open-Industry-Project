@@ -541,8 +541,7 @@ public partial class Root : Node3D
 			keyHeld = false;
 		}
 
-
-		CallDeferred(MethodName.SelectNodes);
+		SelectNodes();
 	}
 
 	void OnSimulationStarted()
