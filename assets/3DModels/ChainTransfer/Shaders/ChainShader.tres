@@ -51,7 +51,7 @@ code = "shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_schlick_ggx;
 
 uniform float Scale;
-uniform float ChainPosition : hint_range(0, 1);
+uniform float ChainPosition : hint_range(0.0, 1.0);
 uniform bool Invert;
 uniform sampler2D tex_frg_5 : source_color;
 
