@@ -148,10 +148,14 @@ func _editor_layout_loaded():
 	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
 	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
 
-	_debugger_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(1)
-	_audio_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(3)
-	_animation_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(4)
-	_shader_editor_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(7)
+	var add_index: int = 0
+	if(_editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17).get_child(0).get_child(1) is not Button):
+		add_index = 1
+			
+	_debugger_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17 + add_index).get_child(0).get_child(1 + add_index)
+	_audio_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17 + add_index).get_child(0).get_child(3 + add_index)
+	_animation_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17 + add_index).get_child(0).get_child(4 + add_index)
+	_shader_editor_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(17 + add_index).get_child(0).get_child(7 + add_index)
 
 	_create_root_vbox = _editor_node.find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
 	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
