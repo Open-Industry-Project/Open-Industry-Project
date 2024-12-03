@@ -4,7 +4,6 @@
 
 [resource]
 resource_name = "SideGuards_metal"
-cull_mode = 2
 albedo_texture = ExtResource("1_rmnfh")
 metallic = 0.940909
 roughness = 0.5

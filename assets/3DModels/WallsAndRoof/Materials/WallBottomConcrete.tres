@@ -4,6 +4,5 @@
 
 [resource]
 resource_name = "WallBottomConcrete"
-cull_mode = 2
 albedo_texture = ExtResource("1_aijv1")
 roughness = 0.5

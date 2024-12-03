@@ -4,6 +4,5 @@
 
 [resource]
 resource_name = "WallCornerRConcrete"
-cull_mode = 2
 albedo_texture = ExtResource("1_vjnjr")
 roughness = 0.5

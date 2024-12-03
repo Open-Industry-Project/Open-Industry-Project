@@ -4,6 +4,5 @@
 
 [resource]
 resource_name = "WallCornerRMetal"
-cull_mode = 2
 albedo_texture = ExtResource("1_no0st")
 roughness = 0.5

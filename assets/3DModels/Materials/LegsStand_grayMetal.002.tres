@@ -4,7 +4,6 @@
 
 [resource]
 resource_name = "LegsStand_grayMetal.002"
-cull_mode = 2
 albedo_texture = ExtResource("1_qiag4")
 metallic = 0.940909
 roughness = 0.5

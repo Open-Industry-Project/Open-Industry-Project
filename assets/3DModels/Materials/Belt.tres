@@ -4,6 +4,5 @@
 
 [resource]
 resource_name = "Belt"
-cull_mode = 2
 albedo_texture = ExtResource("1_8c82x")
 roughness = 0.5

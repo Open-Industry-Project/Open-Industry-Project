@@ -5,13 +5,11 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hxi4w"]
 resource_name = "Main"
-cull_mode = 2
 albedo_texture = ExtResource("1_ypbb1")
 roughness = 0.5
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_m1xpk"]
 resource_name = "Side"
-cull_mode = 2
 albedo_texture = ExtResource("2_o1mlf")
 roughness = 0.5
 

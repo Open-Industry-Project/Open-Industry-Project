@@ -13,7 +13,6 @@ friction = 0.5
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ekrlf"]
 resource_name = "Material.001"
 transparency = 4
-cull_mode = 2
 vertex_color_use_as_albedo = true
 albedo_texture = ExtResource("2_bpads")
 metallic_texture = ExtResource("3_rqr71")
@@ -25,14 +24,12 @@ normal_texture = ExtResource("4_y5qrc")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r4011"]
 resource_name = "Material.002"
-cull_mode = 2
 vertex_color_use_as_albedo = true
 albedo_color = Color(0.153326, 0.153326, 0.153326, 1)
 roughness = 0.5
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qn5eo"]
 resource_name = "Material.003"
-cull_mode = 2
 vertex_color_use_as_albedo = true
 albedo_color = Color(0.466659, 0.438254, 0.38347, 1)
 albedo_texture = ExtResource("3_rqr71")

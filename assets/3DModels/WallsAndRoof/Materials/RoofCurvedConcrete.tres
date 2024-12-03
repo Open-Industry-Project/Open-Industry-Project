@@ -4,6 +4,5 @@
 
 [resource]
 resource_name = "RoofCurvedConcrete"
-cull_mode = 2
 albedo_texture = ExtResource("1_w1jfc")
 roughness = 0.5
