@@ -2,7 +2,6 @@
 
 [resource]
 resource_name = "LampRed"
-cull_mode = 2
 albedo_color = Color(0.576515, 0.372541, 0.368615, 1)
 roughness = 0.654
 emission_enabled = true

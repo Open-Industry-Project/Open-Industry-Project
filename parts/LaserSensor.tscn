@@ -4,7 +4,6 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_306xm"]
 resource_name = "color"
-cull_mode = 2
 albedo_color = Color(0.538065, 0.538065, 0.538065, 1)
 metallic = 1.0
 roughness = 0.929289
@@ -45,7 +44,6 @@ shadow_mesh = SubResource("ArrayMesh_byvl2")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_miqi2"]
 resource_name = "color-2"
-cull_mode = 2
 albedo_color = Color(1, 0.736647, 0, 1)
 metallic = 1.0
 roughness = 0.929289
@@ -86,7 +84,6 @@ shadow_mesh = SubResource("ArrayMesh_6vmck")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hw8my"]
 resource_name = "color-3"
-cull_mode = 2
 albedo_color = Color(0, 0, 0, 1)
 metallic = 1.0
 roughness = 0.929289
@@ -127,7 +124,6 @@ shadow_mesh = SubResource("ArrayMesh_q4rax")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6d0fk"]
 resource_name = "color-4"
-cull_mode = 2
 albedo_color = Color(0.902393, 0.91608, 0.970104, 1)
 metallic = 1.0
 roughness = 0.929289
@@ -168,7 +164,6 @@ shadow_mesh = SubResource("ArrayMesh_10ax3")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xe6td"]
 resource_name = "color-5"
-cull_mode = 2
 albedo_color = Color(1, 1, 0, 1)
 metallic = 1.0
 roughness = 0.929289
@@ -207,7 +202,6 @@ shadow_mesh = SubResource("ArrayMesh_t6awi")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pa6te"]
 resource_name = "color-6"
-cull_mode = 2
 albedo_color = Color(0.736647, 0.736647, 0.736647, 1)
 metallic = 1.0
 roughness = 0.929289
@@ -248,7 +242,6 @@ shadow_mesh = SubResource("ArrayMesh_goypc")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h27u3"]
 resource_name = "color-7"
-cull_mode = 2
 albedo_color = Color(0.882352, 0.882352, 0.882352, 1)
 metallic = 1.0
 roughness = 0.929289
@@ -289,7 +282,6 @@ shadow_mesh = SubResource("ArrayMesh_bfoly")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sl0sn"]
 resource_name = "color-8"
-cull_mode = 2
 albedo_color = Color(0.736647, 0.736647, 0.929502, 1)
 metallic = 1.0
 roughness = 0.929289

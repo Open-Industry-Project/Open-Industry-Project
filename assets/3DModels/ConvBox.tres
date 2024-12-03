@@ -5,19 +5,16 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fbtit"]
 resource_name = "BeltTopDown"
-cull_mode = 2
 albedo_texture = ExtResource("1_wuw18")
 roughness = 0.4
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ycl38"]
 resource_name = "BeltSide"
-cull_mode = 2
 albedo_texture = ExtResource("2_tv6wb")
 roughness = 0.5
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_u7seg"]
 resource_name = "BeltSide2"
-cull_mode = 2
 albedo_texture = ExtResource("2_tv6wb")
 roughness = 0.5
 

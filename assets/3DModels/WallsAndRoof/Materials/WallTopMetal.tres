@@ -4,6 +4,5 @@
 
 [resource]
 resource_name = "WallTopMetal"
-cull_mode = 2
 albedo_texture = ExtResource("1_g4d32")
 roughness = 0.5

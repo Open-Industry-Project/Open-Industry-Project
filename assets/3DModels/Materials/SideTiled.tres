@@ -4,7 +4,6 @@
 
 [resource]
 resource_name = "SideTiled"
-cull_mode = 2
 albedo_color = Color(0.337255, 0.654902, 0.784314, 1)
 albedo_texture = ExtResource("1_y83ch")
 metallic = 1.0

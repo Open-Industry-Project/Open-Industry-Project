@@ -10,7 +10,6 @@ size = Vector3(2.4, 0.243, 2.18)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_adrf5"]
 resource_name = "Mat"
-cull_mode = 2
 albedo_texture = ExtResource("2_u7a1e")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_6uvh1"]

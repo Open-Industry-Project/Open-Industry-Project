@@ -4,6 +4,5 @@
 
 [resource]
 resource_name = "RoofCurvedMetal"
-cull_mode = 2
 albedo_texture = ExtResource("1_8327v")
 roughness = 0.5

@@ -11,7 +11,6 @@
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mm4u3"]
 resource_local_to_scene = true
 resource_name = "PushButton"
-cull_mode = 2
 albedo_color = Color(0.905882, 0.239216, 0.188235, 1)
 roughness = 0.5
 emission_enabled = true
