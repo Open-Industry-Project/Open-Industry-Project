@@ -108,7 +108,7 @@ public partial class ConveyorArray : Node3D, IComms
 	{
 		Node3D conveyor = ConveyorScene.Instantiate() as Node3D;
 		AddChild(conveyor, false, InternalMode.Back);
-		conveyor.Owner = this;
+		conveyor.Owner = null;
 	}
 
 	private void UpdateConveyor(int index)
