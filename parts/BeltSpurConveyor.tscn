@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://dd3civx5yylxh"]
+
+[ext_resource type="Script" uid="uid://c14ufxyxb34f8" path="res://src/Assembly/ConveyorArray.cs" id="1_ghsei"]
+
+[node name="BeltSpurConveyor" type="Node3D"]
+script = ExtResource("1_ghsei")
+Length = 2.0
+AngleDownstream = -0.523599
