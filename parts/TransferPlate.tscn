@@ -10,7 +10,7 @@ material = SubResource("StandardMaterial3D_61vnj")
 size = Vector3(0.3, 0.1, 2)
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_61vnj"]
-friction = 0.2
+friction = 0.0
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_61vnj"]
 size = Vector3(0.299924, 0.00975708, 1)
