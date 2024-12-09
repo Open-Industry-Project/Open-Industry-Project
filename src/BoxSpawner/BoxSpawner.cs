@@ -22,7 +22,9 @@ public partial class BoxSpawner : Node3D
 	[Export]
 	public bool SpawnRandomScale = false;
 	[Export]
-	public Vector2 spawnRandomSize = new(0.5f, 1f);
+	public Vector3 spawnRandomSizeMin = new(0.5f, 0.5f, 0.5f);
+	[Export]
+	public Vector3 spawnRandomSizeMax = new(1f, 1f, 1f);
 	[Export]
 	public float spawnInterval = 1f;
 
@@ -88,9 +90,9 @@ public partial class BoxSpawner : Node3D
 
 		if (SpawnRandomScale)
 		{
-			var x = (float)GD.RandRange(spawnRandomSize.X, spawnRandomSize.Y);
-			var y = (float)GD.RandRange(spawnRandomSize.X, spawnRandomSize.Y);
-			var z = (float)GD.RandRange(spawnRandomSize.X, spawnRandomSize.Y);
+			var x = (float)GD.RandRange(spawnRandomSizeMin.X, spawnRandomSizeMax.X);
+			var y = (float)GD.RandRange(spawnRandomSizeMin.Y, spawnRandomSizeMax.Y);
+			var z = (float)GD.RandRange(spawnRandomSizeMin.Z, spawnRandomSizeMax.Z);
 			box.Scale = new Vector3(x, y, z);
 		}
 		else
