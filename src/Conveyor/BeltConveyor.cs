@@ -82,6 +82,18 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 	}
 	private float _speed;
 
+	[Export]
+	public PhysicsMaterial BeltPhysicsMaterial
+	{
+		get => GetNode<StaticBody3D>("StaticBody3D")?.PhysicsMaterialOverride;
+		set
+		{
+			GetNode<StaticBody3D>("StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNode<StaticBody3D>("ConveyorEnd/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNode<StaticBody3D>("ConveyorEnd2/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+		}
+	}
+
 	readonly Guid id = Guid.NewGuid();
 	double scan_interval = 0;
 	bool readSuccessful = false;
@@ -134,6 +146,9 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 
 		conveyorEnd1.Speed = Speed;
 		conveyorEnd2.Speed = Speed;
+
+		conveyorEnd1.GetNode<StaticBody3D>("StaticBody3D").PhysicsMaterialOverride = sb.PhysicsMaterialOverride;
+		conveyorEnd2.GetNode<StaticBody3D>("StaticBody3D").PhysicsMaterialOverride = sb.PhysicsMaterialOverride;
 	}
 
 	public override void _EnterTree()
