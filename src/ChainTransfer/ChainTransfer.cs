@@ -56,7 +56,7 @@ public partial class ChainTransfer : Node3D
 	}
 
 	float distance = 0.33f;
-	[Export] float Distance
+	[Export(PropertyHint.Range, "0.25,1,or_less,or_greater,suffix: m")] float Distance
 	{
 		get
 		{
@@ -64,7 +64,7 @@ public partial class ChainTransfer : Node3D
 		}
 		set
 		{
-			distance = Mathf.Clamp(value, 0.25f, 5.0f);
+			distance = Mathf.Clamp(value, 0.03f, 5.0f);
 			SetChainsDistance(distance);
 		}
 	}
