@@ -253,6 +253,29 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 	}
 
+	[Export]
+	public PhysicsMaterial BeltConveyorBeltPhysicsMaterial {
+		get
+		{
+			IBeltConveyor conveyor = conveyors?.GetChildOrNull<IBeltConveyor>(0);
+			return conveyor?.BeltPhysicsMaterial;
+		}
+		set
+		{
+			if (conveyors == null)
+			{
+				return;
+			}
+			foreach (Node node in conveyors.GetChildren())
+			{
+				if (node is IBeltConveyor conveyor)
+				{
+					conveyor.BeltPhysicsMaterial = value;
+				}
+			}
+		}
+	}
+
 	[ExportSubgroup("RollerConveyor", "RollerConveyor")]
 	[Export(PropertyHint.None, "suffix:m/s")]
 	public float RollerConveyorSpeed {
@@ -578,7 +601,8 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		// Only show if a IBeltConveyor is present.
 		else if (propertyName == PropertyName.BeltConveyorBeltColor
 			|| propertyName == PropertyName.BeltConveyorBeltTexture
-			|| propertyName == PropertyName.BeltConveyorSpeed) {
+			|| propertyName == PropertyName.BeltConveyorSpeed
+			|| propertyName == PropertyName.BeltConveyorBeltPhysicsMaterial) {
 			property["usage"] = (int)(conveyors?.GetChildOrNull<IBeltConveyor>(0) != null ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
 		}
 		// Only show if a IRollerConveyor is present.
