@@ -101,6 +101,18 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	}
 	private float _referenceDistance = 0.5f; // Assumes a 1m wide package.
 
+	[Export]
+	public PhysicsMaterial BeltPhysicsMaterial
+	{
+		get => GetNode<StaticBody3D>("StaticBody3D")?.PhysicsMaterialOverride;
+		set
+		{
+			GetNode<StaticBody3D>("StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNode<StaticBody3D>("ConveyorEnd/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNode<StaticBody3D>("ConveyorEnd2/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+		}
+	}
+
 	StaticBody3D sb;
 	MeshInstance3D mesh;
 	Material beltMaterial;
@@ -174,6 +186,9 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 
 		conveyorEnd1.Speed = LinearSpeed;
 		conveyorEnd2.Speed = LinearSpeed;
+
+		conveyorEnd1.GetNode<StaticBody3D>("StaticBody3D").PhysicsMaterialOverride = sb.PhysicsMaterialOverride;
+		conveyorEnd2.GetNode<StaticBody3D>("StaticBody3D").PhysicsMaterialOverride = sb.PhysicsMaterialOverride;
 
 		prevScaleX = Scale.X;
 	}
