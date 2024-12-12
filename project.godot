@@ -51,9 +51,9 @@ import/fbx/enabled=false
 
 [physics]
 
-3d/physics_engine="JoltPhysics3D"
-jolt_3d/collisions/use_shape_margins=false
-jolt_3d/solver/velocity_iterations=100
-jolt_3d/solver/position_iterations=20
-jolt_3d/solver/contact_speculative_distance=0.0
-jolt_3d/solver/contact_allowed_penetration=0.0
+3d/physics_engine="Jolt Physics"
+jolt_physics_3d/simulation/velocity_steps=15
+jolt_physics_3d/simulation/position_steps=20
+jolt_physics_3d/simulation/penetration_slop=0.0
+jolt_physics_3d/simulation/speculative_contact_distance=0.0
+jolt_physics_3d/collisions/collision_margin_fraction=0.0
