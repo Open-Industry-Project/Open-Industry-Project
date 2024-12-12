@@ -1,6 +1,6 @@
-<Project Sdk="Godot.NET.Sdk/4.3.0">
+<Project Sdk="Godot.NET.Sdk/4.4.0-dev">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net7.0</TargetFramework>
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'ios' ">net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
@@ -13,12 +13,12 @@
     <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="1.5.374.124" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Update="Godot.SourceGenerators" Version="4.4.0-dev.3" />
+    <PackageReference Update="Godot.SourceGenerators" Version="4.4.0-dev.5" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Update="GodotSharp" Version="4.4.0-dev.3" />
+    <PackageReference Update="GodotSharp" Version="4.4.0-dev.5" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Update="GodotSharpEditor" Version="4.4.0-dev.3" />
+    <PackageReference Update="GodotSharpEditor" Version="4.4.0-dev.5" />
   </ItemGroup>
 </Project>
