@@ -67,9 +67,9 @@ public partial class SideGuard : MeshInstance3D
 	}
 
 	Node3D _lEnd;
-	Node3D lEnd { get => _lEnd ??= GetNodeOrNull<Node3D>("Ends/SideGuardEndL"); }
+	Node3D lEnd { get => this.GetCachedValidNodeOrNull("Ends/SideGuardEndL", ref _lEnd); }
 	Node3D _rEnd;
-	Node3D rEnd { get => _rEnd ??= GetNodeOrNull<Node3D>("Ends/SideGuardEndR"); }
+	Node3D rEnd { get => this.GetCachedValidNodeOrNull("Ends/SideGuardEndR", ref _rEnd); }
 
 	public override void _EnterTree()
 	{
