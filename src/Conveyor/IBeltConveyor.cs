@@ -10,4 +10,5 @@ public interface IBeltConveyor: IConveyor, IComms
 
 	Color BeltColor { get; set; }
 	ConvTexture BeltTexture { get; set; }
+	PhysicsMaterial BeltPhysicsMaterial { get; set; }
 }
