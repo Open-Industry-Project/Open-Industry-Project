@@ -281,13 +281,16 @@ shadow_mesh = SubResource("ArrayMesh_i5p73")
 friction = 0.5
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_bhx60"]
+height = 1.0
 radius = 0.25
 
 [node name="ConveyorEnd" type="Node3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
 script = ExtResource("1_v7tt2")
 metadata/_edit_group_ = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
 mesh = SubResource("ArrayMesh_2444l")
 skeleton = NodePath("../StaticBody3D")
 
