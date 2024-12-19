@@ -1,6 +1,6 @@
 [gd_scene load_steps=11 format=4 uid="uid://6vu4cx2v1ltg"]
 
-[ext_resource type="Script" path="res://src/Conveyor/CurvedBeltConveyor.cs" id="1_gu517"]
+[ext_resource type="Script" uid="uid://cfd7teka36k5m" path="res://src/Conveyor/CurvedBeltConveyor.cs" id="1_gu517"]
 [ext_resource type="Shader" uid="uid://dxne1xcfurkp2" path="res://assets/3DModels/Shaders/MetalShaderCorner.tres" id="2_ksn45"]
 [ext_resource type="Shader" uid="uid://bejqoybamob1y" path="res://assets/3DModels/Shaders/BeltShader.tres" id="2_lr6k1"]
 [ext_resource type="PackedScene" uid="uid://byog2n752js4y" path="res://src/Conveyor/ConveyorEnd.tscn" id="4_b1am8"]

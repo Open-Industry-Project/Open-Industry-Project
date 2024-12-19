@@ -1,8 +1,8 @@
 [gd_scene load_steps=6 format=3 uid="uid://dg47c07xr4ksu"]
 
-[ext_resource type="Script" path="res://src/RollerConveyor/RollerConveyor.cs" id="1_vnty6"]
+[ext_resource type="Script" uid="uid://cjar5flvdxckx" path="res://src/RollerConveyor/RollerConveyor.cs" id="1_vnty6"]
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]
-[ext_resource type="Script" path="res://src/RollerConveyor/Rollers.cs" id="3_peu56"]
+[ext_resource type="Script" uid="uid://bpcr6nds6gjiu" path="res://src/RollerConveyor/Rollers.cs" id="3_peu56"]
 [ext_resource type="PackedScene" uid="uid://b6dc0ajcxde1s" path="res://assets/3DModels/ConveyorRollerBaseSplit.glb" id="3_sau1a"]
 [ext_resource type="PackedScene" uid="uid://bmpev1pqmbmhb" path="res://src/RollerConveyor/RollerConveyorEnd.tscn" id="6_fn5jx"]
 

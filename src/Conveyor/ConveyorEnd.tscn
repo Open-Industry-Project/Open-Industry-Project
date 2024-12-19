@@ -1,6 +1,6 @@
 [gd_scene load_steps=29 format=4 uid="uid://byog2n752js4y"]
 
-[ext_resource type="Script" path="res://src/Conveyor/ConveyorEnd.cs" id="1_v7tt2"]
+[ext_resource type="Script" uid="uid://dxgnrrc03cnum" path="res://src/Conveyor/ConveyorEnd.cs" id="1_v7tt2"]
 [ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="2_6dxkv"]
 [ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="3_3ynyp"]
 [ext_resource type="Material" uid="uid://00bmdgt6cfmg" path="res://assets/3DModels/Materials/MetalMaterial.tres" id="3_ypirl"]

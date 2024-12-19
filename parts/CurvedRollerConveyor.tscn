@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=4 uid="uid://c3cdcxifx4eej"]
 
-[ext_resource type="Script" path="res://src/RollerConveyor/CurvedRollerConveyor.cs" id="1_3rr8m"]
+[ext_resource type="Script" uid="uid://bvdya0va563vu" path="res://src/RollerConveyor/CurvedRollerConveyor.cs" id="1_3rr8m"]
 [ext_resource type="Shader" uid="uid://d0c82kmt01y6x" path="res://assets/3DModels/Shaders/MetalShaderRoller.tres" id="2_rk0si"]
 [ext_resource type="ArrayMesh" uid="uid://coiskou3emyq8" path="res://assets/3DModels/Meshes/ConveyorRollerEnd_Cube_006.res" id="3_o3bxo"]
 [ext_resource type="PackedScene" uid="uid://bb40krgmbtuw4" path="res://src/RollerConveyor/RollerCorner.tscn" id="3_s4o52"]
