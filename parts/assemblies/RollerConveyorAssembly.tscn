@@ -1,13 +1,13 @@
 [gd_scene load_steps=27 format=4 uid="uid://i8xb8locnhi5"]
 
-[ext_resource type="Script" path="res://src/Assembly/ConveyorAssembly.cs" id="1_nkn8g"]
+[ext_resource type="Script" uid="uid://ch5tirwq17xfg" path="res://src/Assembly/ConveyorAssembly.cs" id="1_nkn8g"]
 [ext_resource type="PackedScene" uid="uid://rv5ef61beh35" path="res://parts/ConveyorLegRC.tscn" id="2_a0feq"]
 [ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="2_pqgj2"]
 [ext_resource type="PackedScene" uid="uid://dvjrx5crpqs5f" path="res://parts/SideGuard.tscn" id="3_l6sjy"]
-[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyConveyors.cs" id="3_n3k02"]
-[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyChild.cs" id="3_uu1p1"]
+[ext_resource type="Script" uid="uid://brdkb2emm1p7w" path="res://src/Assembly/ConveyorAssemblyConveyors.cs" id="3_n3k02"]
+[ext_resource type="Script" uid="uid://dc78nmgxy1kgu" path="res://src/Assembly/ConveyorAssemblyChild.cs" id="3_uu1p1"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="7_ns4py"]
-[ext_resource type="Script" path="res://src/Assembly/ConveyorAssemblyLegStands.cs" id="7_y435x"]
+[ext_resource type="Script" uid="uid://dkjkjo2qfyjoj" path="res://src/Assembly/ConveyorAssemblyLegStands.cs" id="7_y435x"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="8_64v37"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="11_0gvht"]
 
