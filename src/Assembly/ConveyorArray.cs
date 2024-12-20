@@ -58,7 +58,7 @@ public partial class ConveyorArray : Node3D, IComms
 	private int _updateRate = 100;
 
 	const float ConveyorSceneBaseLength = 1f;
-	const float ConveyorSceneBaseWidth = 2f;
+	const float ConveyorSceneBaseWidth = 1f;
 
 	public override void _Ready()
 	{
