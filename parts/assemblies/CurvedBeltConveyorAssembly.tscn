@@ -172,6 +172,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_xr7le")
 
 [node name="CurvedBeltConveyorAssembly" type="Node3D"]
+transform = Transform3D(2, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
 script = ExtResource("1_tp652")
 UpdateRate = 100
 BeltConveyorBeltColor = Color(1, 1, 1, 1)
@@ -187,20 +188,21 @@ AutoLegStandsModelScene = ExtResource("2_0xmjf")
 metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 2, 0)
 script = ExtResource("4_053qp")
 
 [node name="ConveyorCorner" parent="Conveyors" instance=ExtResource("3_a54t1")]
-transform = Transform3D(1, 0, -8.74229e-08, 0, 1, 0, 8.74229e-08, 0, 1, 0, 0, 0)
+transform = Transform3D(2, 0, -8.74229e-08, 0, 1, 0, 8.74229e-08, 0, 2, 0, 0, 0)
 
 [node name="LeftSide" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 2, 0)
 script = ExtResource("4_hnkat")
 
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("4_3p6hp")]
 mesh = SubResource("ArrayMesh_gg8bi")
 
 [node name="LegStands" type="Node3D" parent="."]
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
 script = ExtResource("7_6obdt")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("2_0xmjf")]

@@ -241,7 +241,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ukrly")
 
 [node name="BeltConveyorAssembly" type="Node3D"]
-transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
 script = ExtResource("1_au6en")
 UpdateRate = 100
 BeltConveyorBeltColor = Color(1, 1, 1, 1)
@@ -250,13 +250,13 @@ RollerConveyorSpeed = 2.0
 metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
-transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
+transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 1.99992, 0)
 script = ExtResource("2_1jum7")
 
 [node name="Conveyor" parent="Conveyors" instance=ExtResource("2_kdap4")]
 
 [node name="LeftSide" type="Node3D" parent="."]
-transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
+transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 1.99992, 0)
 script = ExtResource("2_l2uq1")
 
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("3_k3wlu")]
@@ -265,7 +265,7 @@ mesh = SubResource("ArrayMesh_4whp8")
 Length = 4.0
 
 [node name="RightSide" type="Node3D" parent="."]
-transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.99992, 0)
+transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 1.99992, 0)
 script = ExtResource("2_l2uq1")
 
 [node name="AutoSideGuard1" parent="RightSide" instance=ExtResource("3_k3wlu")]
@@ -274,7 +274,7 @@ mesh = SubResource("ArrayMesh_5xd6x")
 Length = 4.0
 
 [node name="LegStands" type="Node3D" parent="."]
-transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
 script = ExtResource("6_bki8d")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("4_aq24s")]
