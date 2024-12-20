@@ -13,18 +13,9 @@ public partial class Rollers : AbstractRollerContainer
 		LengthChanged += AddOrRemoveRollers;
 	}
 
-	public override void _EnterTree()
+	public new void OnSceneInstantiated()
 	{
-		foreach (Roller roller in GetRollers())
-		{
-			// If LengthChanged has already been fired, then we've already
-			// added and subscribed some Rollers, but we still need to
-			// subscribe the original ones. To ensure that each Roller is
-			// only subscribed once, we're going to unsubscribe them all,
-			// then let the base class resubscribe them all.
-			EmitSignalRollerRemoved(roller);
-		}
-		base._EnterTree();
+		base.OnSceneInstantiated();
 	}
 
 	private void AddOrRemoveRollers(float conveyorLength)

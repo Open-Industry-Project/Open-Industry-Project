@@ -64,12 +64,13 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	float nodeScaleZ = 1.0f;
 	Vector3 lastScale = Vector3.One;
 	float lastLength = 1f;
-	float lastWidth = baseWidth;
+	float lastWidth = float.NaN;
 	Transform3D previousTransform = Transform3D.Identity;
 
 	const float radius = 0.12f;
 	const float circumference = 2f * MathF.PI * radius;
-	const float baseWidth = 2f;
+	const float baseWidth = 1f;
+	const float frameBaseWidth = 2f;
 
 	Material metalMaterial;
 	Rollers rollers;
@@ -193,11 +194,18 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		rollers = GetNodeOrNull<Rollers>("Rollers");
 		ends = GetNodeOrNull<Node3D>("Ends");
 
+		// Rollers isn't an instance, so it can't receive NotificationSceneInstantiated.
+		// We'll let it piggyback on our notification instead.
+		rollers.OnSceneInstantiated();
+
 		SetupRollerContainer(rollers);
 		foreach (RollerConveyorEnd end in ends.GetChildren())
 		{
 			SetupRollerContainer(end);
 		}
+		UpdateScale();
+		UpdateWidth();
+		UpdateLength();
 	}
 
 	void OnSimulationStarted()
@@ -346,7 +354,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		// TODO does this need a unique? Might already be done in the inspector.
 		var meshInstance1 = GetNode<Node3D>("ConvRoller/ConvRollerL");
 		var meshInstance2 = GetNode<Node3D>("ConvRoller/ConvRollerR");
-		meshInstance1.Scale = new Vector3(1f, 1f, baseWidth / width);
-		meshInstance2.Scale = new Vector3(1f, 1f, baseWidth / width);
+		meshInstance1.Scale = new Vector3(1f, 1f, frameBaseWidth * baseWidth / width);
+		meshInstance2.Scale = new Vector3(1f, 1f, frameBaseWidth * baseWidth / width);
 	}
 }
