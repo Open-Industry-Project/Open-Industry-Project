@@ -32,8 +32,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	public float ReferenceDistance = 0.5f; // Assumes a 1m wide package.
 
 	// Based on the CurvedRollerConveyor model geometry at scale=1
-	const float CURVE_BASE_INNER_RADIUS = 0.5f;
-	const float CURVE_BASE_OUTER_RADIUS = 2.5f;
+	const float CURVE_BASE_INNER_RADIUS = 0.25f;
+	const float CURVE_BASE_OUTER_RADIUS = 1.25f;
 	const float BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS;
 	// Based on the RollerCorner model geometry at scale=1
 	const float BASE_ROLLER_LENGTH = 2f;
@@ -227,10 +227,10 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			NotifyPropertyListChanged();
 		}
 
-		if (Scale.X > 0.5f)
+		if (Scale.X > 1f)
 		{
 			if (metalMaterial != null && Speed != 0)
-				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
+				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X / 2f);
 		}
 
 		if (ends != null)
@@ -263,11 +263,11 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 	void SetCurrentScale()
 	{
-		if (Scale.X < 0.8f)
+		if (Scale.X < 1.6f)
 		{
 			CurrentScale = Scales.Low;
 		}
-		else if(Scale.X >= 0.8f && Scale.X < 1.6f)
+		else if(Scale.X >= 1.6f && Scale.X < 3.2f)
 		{
 			CurrentScale = Scales.Mid;
 		}
