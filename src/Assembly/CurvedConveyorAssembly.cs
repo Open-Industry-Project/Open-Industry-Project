@@ -5,13 +5,13 @@ using System;
 public partial class CurvedConveyorAssembly : ConveyorAssembly
 {
 	#region Constants
-	float BaseOuterRadius => 2.0f;
-	float BaseInnerRadius => 0.5f;
+	float BaseOuterRadius => 1.0f;
+	float BaseInnerRadius => 0.25f;
 	float BaseMiddleRadius => BaseOuterRadius - BaseInnerRadius;
-	protected override float BaseLength => 2.0f;
-	protected override float BaseWidth => 2.0f;
-	protected override float ConveyorBaseLength => 2f;
-	protected override float ConveyorBaseWidth => 2f;
+	protected override float BaseLength => 1.0f;
+	protected override float BaseWidth => 1.0f;
+	protected override float ConveyorBaseLength => 1f;
+	protected override float ConveyorBaseWidth => 1f;
 	#endregion Constants
 
 	public float MiddleRadius => Width / BaseWidth * BaseMiddleRadius;
@@ -132,8 +132,8 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 
 	protected override void ScaleSideGuard(Node3D guard, float guardLength) {
 		// SideGuardsAutoScale and guardLength have no effect on curved side guards.
-		float curvedSideGuardBaseLength = BaseLength;
-		float curvedSideGuardBaseWidth = BaseWidth;
+		float curvedSideGuardBaseLength = 2f;
+		float curvedSideGuardBaseWidth = 2f;
 		guard.Scale = new Vector3(Length / curvedSideGuardBaseLength, 1f, Width / curvedSideGuardBaseWidth);
 	}
 	#endregion Conveyors and Side Guards

@@ -6,7 +6,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 {
 	#region Conveyors
 	protected virtual float ConveyorBaseLength => 1f;
-	protected virtual float ConveyorBaseWidth => 2f;
+	protected virtual float ConveyorBaseWidth => 1f;
 
 	// Cached Transform properties
 	protected Transform3D _cachedConveyorsTransform = Transform3D.Identity;

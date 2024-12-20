@@ -7,7 +7,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 {
 	#region Constants
 	protected virtual float BaseLength => 1f;
-	protected virtual float BaseWidth => 2f;
+	protected virtual float BaseWidth => 1f;
 	protected virtual float BaseHeight => 2f;
 	#endregion Constants
 
