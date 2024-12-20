@@ -35,6 +35,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	const float CURVE_BASE_INNER_RADIUS = 0.5f;
 	const float CURVE_BASE_OUTER_RADIUS = 2.5f;
 	const float BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS;
+	// Based on the RollerCorner model geometry at scale=1
+	const float BASE_ROLLER_LENGTH = 2f;
 
 	private float AngularSpeedAroundCurve {
 		get {
@@ -132,6 +134,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			base._ValidateProperty(property);
 		}
 	}
+
 	public override void _Ready()
 	{
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
@@ -146,8 +149,9 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 		ends = GetNode<Node3D>("Ends");
 
-		SetCurrentScale();
+		OnScaleChanged();
 		SetAllRollersSpeed();
+		SetNotifyLocalTransform(true);
 	}
 
 	public override void _EnterTree()
@@ -177,18 +181,6 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 	public override void _Process(double delta)
 	{
-
-		Vector3 newScale = new(Scale.X, 1, Scale.X);
-		if (Scale != newScale)
-		{
-			Scale = new Vector3(Scale.X, 1, Scale.X);
-		}
-
-		// ReferenceDistance's PropertyHint depends on Scale.X
-		if (prevScaleX != Scale.X) {
-			NotifyPropertyListChanged();
-		}
-
 		if (running)
 		{
 			float uvSpeed = RollerAngularSpeed / (2f*Mathf.Pi);
@@ -201,20 +193,6 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (Scale.X > 0.5f)
-		{
-			if (metalMaterial != null && Speed != 0)
-				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
-		}
-
-		if (ends != null)
-		{
-			foreach(MeshInstance3D end in ends.GetChildren())
-			{
-				end.Scale = new Vector3(1 / Scale.X, 1, 1);
-			}
-		}
-
 		if (running)
 		{
 			SetAllRollersSpeed();
@@ -229,8 +207,58 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 				}
 			}
 		}
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
+		{
+			OnScaleChanged();
+		}
+		base._Notification(what);
+	}
+
+	void OnScaleChanged()
+	{
+		ConstrainScale();
+
+		// ReferenceDistance's PropertyHint depends on Scale.X
+		if (prevScaleX != Scale.X) {
+			NotifyPropertyListChanged();
+		}
+
+		if (Scale.X > 0.5f)
+		{
+			if (metalMaterial != null && Speed != 0)
+				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
+		}
+
+		if (ends != null)
+		{
+			foreach(MeshInstance3D end in ends.GetChildren())
+			{
+				end.Scale = new Vector3(1 / Scale.X, 1, 1);
+			}
+		}
+
+		foreach (Node3D rollers in (Span<Node3D>)([rollersLow, rollersMid, rollersHigh]))
+		{
+			foreach (RollerCorner roller in rollers.GetChildren())
+			{
+				roller.Scale = new Vector3(BASE_ROLLER_LENGTH / BASE_CONVEYOR_WIDTH / Scale.X, 1, 1);
+			}
+		}
 
 		SetCurrentScale();
+	}
+
+	void ConstrainScale()
+	{
+		Vector3 newScale = new(Scale.X, 1, Scale.X);
+		if (Scale != newScale)
+		{
+			Scale = new Vector3(Scale.X, 1, Scale.X);
+		}
 	}
 
 	void SetCurrentScale()

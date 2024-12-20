@@ -10,7 +10,6 @@ public partial class RollerCorner : Node3D
 	MeshInstance3D meshInstance;
 	StaticBody3D staticBody;
 	CollisionShape3D collisionShape;
-	CurvedRollerConveyor owner;
 	Root Main;
 
 	public override void _Ready()
@@ -18,7 +17,6 @@ public partial class RollerCorner : Node3D
 		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
 		staticBody = GetNode<StaticBody3D>("StaticBody3D");
 		collisionShape = GetNode<CollisionShape3D>("StaticBody3D/CollisionShape3D");
-		owner = Owner as CurvedRollerConveyor;
 	}
 
 	public override void _Process(double delta)
@@ -33,9 +31,6 @@ public partial class RollerCorner : Node3D
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (owner != null)
-			Scale = new Vector3(1 / owner.Scale.X, 1, 1);
-
 		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
 		staticBody.ConstantAngularVelocity = localFront * angularSpeed;
 	}
