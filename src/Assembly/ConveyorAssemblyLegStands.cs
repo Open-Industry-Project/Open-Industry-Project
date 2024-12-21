@@ -661,7 +661,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		// Dependencies:
 		// - AutoLegStandsModelGrabsOffset (calls us by setter)
 		// - conveyors.Transform
-		// - legStands.Basis (we can ignore the global part most of the time)
+		// - legStands.Basis
 		// - legStandCoverageMin
 		// - legStandCoverageMax
 		// - children of legStands
@@ -678,18 +678,17 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		}
 		// Plane transformed from conveyors space into legStands space.
 		Plane conveyorPlane = new Plane(Vector3.Up, new Vector3(0f, -assembly.AutoLegStandsModelGrabsOffset, 0f)) * _cachedConveyorsTransform.AffineInverse() * _cachedLegStandsTransform;
-		Vector3 conveyorPlaneGlobalNormal = conveyorPlane.Normal * GlobalBasis.Inverse();
 
 		foreach (Node child in GetChildren()) {
 			ConveyorLeg legStand = child as ConveyorLeg;
 			if (legStand == null) {
 				continue;
 			}
-			UpdateIndividiualLegStandHeightAndVisibility(legStand, conveyorPlane, conveyorPlaneGlobalNormal);
+			UpdateIndividiualLegStandHeightAndVisibility(legStand, conveyorPlane);
 		}
 	}
 
-	void UpdateIndividiualLegStandHeightAndVisibility(ConveyorLeg legStand, Plane conveyorPlane, Vector3 conveyorPlaneGlobalNormal)
+	void UpdateIndividiualLegStandHeightAndVisibility(ConveyorLeg legStand, Plane conveyorPlane)
 	{
 		// Persist legStand changes into the Assembly's PackedScene.
 		// Fixes ugly previews in the editor.
@@ -704,7 +703,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		}
 		float legHeight = intersection.Value.DistanceTo(legStand.Position);
 		legStand.Scale = new Vector3(1f, legHeight, legStand.Scale.Z);
-		legStand.GrabsRotation = Mathf.RadToDeg(Vector3.Up.SignedAngleTo(conveyorPlaneGlobalNormal.Slide(legStand.GlobalBasis.Z), legStand.GlobalBasis.Z));
+		legStand.GrabsRotation = Mathf.RadToDeg(legStand.Basis.Y.SignedAngleTo(conveyorPlane.Normal.Slide(legStand.Basis.Z), legStand.Basis.Z));
 		// Only show leg stands that touch a conveyor.
 		float tipPosition = GetPositionOnLegStandsPath(legStand.Position + legStand.Basis.Y);
 		legStand.Visible = legStandCoverageMin <= tipPosition && tipPosition <= legStandCoverageMax;
