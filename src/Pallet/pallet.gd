@@ -45,7 +45,7 @@ func use() -> void:
 	rigid_body.freeze = not rigid_body.freeze
 
 func _on_simulation_started() -> void:
-	if not is_inside_tree():
+	if(enable_inital_transform):
 		return
 		
 	initial_transform = global_transform
@@ -65,6 +65,7 @@ func _on_simulation_ended() -> void:
 		# Work around for #83
 		if enable_inital_transform:
 			global_transform = initial_transform
+			enable_inital_transform = false
 
 func _on_simulation_set_paused(paused: bool) -> void:
 	_paused = paused
