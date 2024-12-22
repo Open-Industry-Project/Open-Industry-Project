@@ -22,22 +22,16 @@ var scan_interval: float = 0.0
 func _enter_tree() -> void:
 	set_notify_local_transform(true)
 	scan_interval = spawn_interval
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
-
+	
 func _ready() -> void:
-	set_physics_process(SimulationEvents.simulation_running)
-
-func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	SimulationEvents.simulation_started.connect(_on_simulation_started)
 
 func _physics_process(delta: float) -> void:
-	if disable:
+	if disable || not SimulationEvents.simulation_running:
 		return
 		
 	scan_interval += delta
-	if scan_interval > spawn_interval:
+	if scan_interval >= spawn_interval:
 		scan_interval = 0
 		_spawn_box()
 
@@ -59,12 +53,8 @@ func _spawn_box() -> void:
 	add_child(box,true)
 	box.owner = get_tree().edited_scene_root
 
-func Use() -> void:
+func use() -> void:
 	disable = !disable
 
 func _on_simulation_started() -> void:
-	set_physics_process(true)
 	scan_interval = spawn_interval
-
-func _on_simulation_ended() -> void:
-	set_physics_process(false)

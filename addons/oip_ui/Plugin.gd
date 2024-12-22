@@ -59,40 +59,44 @@ var _shader_editor_button: Button
 var _create_root_vbox: VBoxContainer
 var _scene_tabs: TabBar
 
-# Perspective Menu 
+# Perspective Menu
 var _perspective_menu: MenuButton
+
+func _scene_changed(root : Node):
+	if(!_layout_loaded):
+		return
+
+	if(root != null):
+		_run_bar._enable_buttons()
+	else:
+		_run_bar._disable_buttons()
+
+	if(root == null):
+		return
+
+	_run_bar.stop_simulation()
+		
 
 func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
-		
+
 	if(EditorInterface.has_method("mark_scene_as_saved")):
 		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
-	
+
 func _on_id_pressed(id: int) -> void:
 	if get_tree().edited_scene_root == null:
 		return
-	
+
 	var building = get_tree().edited_scene_root.get_node_or_null("Building")
 	if building == null:
 		return
-	
+
 	var roof = building.get_child(2) as GridMap
 	var index = _perspective_menu.get_popup().get_item_index(10)
 	var is_perspective_checked = _perspective_menu.get_popup().is_item_checked(index)
-	
+
 	roof.visible = is_perspective_checked || (id > 0 && id < 8)
 
-func _editor_scene_tabs_updated() -> void:
-	if(!_layout_loaded):
-		return
-	
-	var root = get_tree().edited_scene_root
-	
-	#if(root != null && root.has_signal("SimulationStarted")):
-		#_run_bar._enable_buttons()
-	#else:
-		#_run_bar._disable_buttons()
-	
 func _exit_tree() -> void:
 	_center_buttons.visible = true
 
@@ -126,13 +130,9 @@ func _exit_tree() -> void:
 
 	_toggle_native_mode(true)
 
-func _editor_layout_loaded():	
+func _editor_layout_loaded():
 	_layout_loaded = true
-	
-	if EditorInterface.get_open_scenes().size() == 0:
-		_create_new_simulation()
-		EditorInterface.call("mark_scene_as_saved")
-		
+
 	_menu_bar = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0)
 	_project_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
 	_editor_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(3)
@@ -146,7 +146,7 @@ func _editor_layout_loaded():
 	var add_index: int = 0
 	if(_editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(18).get_child(0) is not Button):
 		add_index = 1
-	
+
 	_debugger_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(18 + add_index).get_child(1).get_child(0).get_child(1 + add_index)
 	_audio_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(18 + add_index).get_child(1).get_child(0).get_child(3 + add_index)
 	_animation_button = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(18 + add_index).get_child(1).get_child(0).get_child(4 + add_index)
@@ -155,10 +155,10 @@ func _editor_layout_loaded():
 	_create_root_vbox = _editor_node.find_children("Scene","SceneTreeDock",true,false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
 	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
 	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0)
-	
+
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
-	
+
 	_editor_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
 	_toggle_native_mode(false)
 
@@ -191,19 +191,17 @@ func _editor_layout_loaded():
 		_create_root_vbox.move_child(_create_root_vbox.get_child(1),2)
 
 	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously",true)
-	
+
 	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
-	
-	_editor_scene_tabs.connect("tabs_updated",_editor_scene_tabs_updated)
-	
+	scene_changed.connect(_scene_changed)
+
 	var root = get_tree().edited_scene_root
-	
+
 	_run_bar._enable_buttons()
-	
-	#if(root != null && root.has_signal("SimulationStarted")):
-		#_run_bar._enable_buttons()
-	#else:
-		#_run_bar._disable_buttons()
+
+	if EditorInterface.get_open_scenes().size() == 0:
+		_create_new_simulation()
+		EditorInterface.call("mark_scene_as_saved")
 
 func _new_simulation_btn_pressed():
 		get_undo_redo().create_action("Create New Simulation")
