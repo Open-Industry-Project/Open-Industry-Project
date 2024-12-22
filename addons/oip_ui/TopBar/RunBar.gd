@@ -9,6 +9,22 @@ var play = false
 var pause = true
 var stop = true
 
+func _start() -> void:
+	pause_button.button_pressed = false
+	play = false
+	SimulationEvents.simulation_set_paused.emit(false)
+	SimulationEvents.simulation_started.emit()
+	if(EditorInterface.has_method("set_simulation_started")):
+		EditorInterface.call("set_simulation_started",true)
+
+func _stop() -> void:
+	pause_button.button_pressed = false
+	pause = false
+	SimulationEvents.simulation_set_paused.emit(false)
+	SimulationEvents.simulation_ended.emit()
+	if(EditorInterface.has_method("set_simulation_started")):
+		EditorInterface.call("set_simulation_started",false)
+
 func _disable_buttons() -> void:
 	PhysicsServer3D.set_active(false)
 	play_button.disabled = true
@@ -44,21 +60,14 @@ func _ready() -> void:
 	)
 	
 	play_button.pressed.connect(func () -> void:
-		pause_button.button_pressed = false
-		play = false
-		SimulationEvents.simulation_set_paused.emit(false)
-		SimulationEvents.simulation_started.emit()
-		if(EditorInterface.has_method("set_simulation_started")):
-			EditorInterface.call("set_simulation_started",true)
+		_start()
+		SimulationEvents.scene_dict[get_tree().edited_scene_root] = 1
 	)
 	pause_button.toggled.connect(func (pressed: bool) -> void:
 		SimulationEvents.simulation_set_paused.emit(pressed)
+		SimulationEvents.scene_dict[get_tree().edited_scene_root] = 2
 	)
 	stop_button.pressed.connect(func () -> void:
-		pause_button.button_pressed = false
-		pause = false
-		SimulationEvents.simulation_set_paused.emit(false)
-		SimulationEvents.simulation_ended.emit()
-		if(EditorInterface.has_method("set_simulation_started")):
-			EditorInterface.call("set_simulation_started",false)
+		_stop()		
+		SimulationEvents.scene_dict[get_tree().edited_scene_root] = 0
 	)

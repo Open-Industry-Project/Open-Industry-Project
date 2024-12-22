@@ -59,16 +59,27 @@ var _scene_tabs: TabBar
 # Perspective Menu 
 var _perspective_menu: MenuButton
 
-func _scene_changed():
+func _scene_changed():	
 	if(!_layout_loaded):
 		return
 	
 	var root = get_tree().edited_scene_root
-
-	if(root != null && root.has_signal("SimulationStarted")):
+	
+	if(root != null):
 		_run_bar._enable_buttons()
 	else:
 		_run_bar._disable_buttons()
+		
+	if(root == null):
+		return
+		
+	if(root != null && !SimulationEvents.scene_dict.has(root)):
+		SimulationEvents.scene_dict[root] = 0
+
+	if(SimulationEvents.scene_dict[root] == 1):
+		_run_bar._start()
+	elif(SimulationEvents.scene_dict[root] == 0):
+		_run_bar._stop()
 
 func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
@@ -133,10 +144,6 @@ func _exit_tree() -> void:
 
 func _editor_layout_loaded():
 	_layout_loaded = true
-	
-	if EditorInterface.get_open_scenes().size() == 0:
-		_create_new_simulation()
-		EditorInterface.call("mark_scene_as_saved")
 		
 	_menu_bar = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0)
 	_project_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
@@ -206,6 +213,12 @@ func _editor_layout_loaded():
 	else:
 		_run_bar._disable_buttons()
 
+	if EditorInterface.get_open_scenes().size() == 0:
+		_create_new_simulation()
+		EditorInterface.call("mark_scene_as_saved")
+	
+	SimulationEvents.scene_dict[get_tree().edited_scene_root] = 0
+	
 func _new_simulation_btn_pressed():
 		get_undo_redo().create_action("Create New Simulation")
 		get_undo_redo().add_do_method(self,"_create_new_simulation")
@@ -221,6 +234,8 @@ func _create_new_simulation():
 	building.owner = scene
 	if(_run_bar != null):
 		_run_bar._enable_buttons()
+	
+	_run_bar._stop()
 
 func _remove_new_simulation():
 	var script = EditorScript.new()

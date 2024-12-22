@@ -5,6 +5,7 @@ signal simulation_started
 signal simulation_set_paused(paused)
 signal simulation_ended
 
+var scene_dict = {}
 
 func _ready() -> void:
 	if is_instance_valid(owner):
