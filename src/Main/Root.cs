@@ -41,13 +41,11 @@ public partial class Root : Node3D
 
 			if (_start)
 			{
-				PhysicsServer3D.SetActive(true);
 				EmitSignal(SignalName.SimulationStarted);
 				simulationRunning = true;
 			}
 			else
 			{
-				PhysicsServer3D.SetActive(false);
 				bool_tags.Clear();
 				int_tags.Clear();
 				float_tags.Clear();
