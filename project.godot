@@ -8,10 +8,6 @@
 
 config_version=5
 
-[addons]
-
-scene_library/cache/path="res://addons/scene-library/thumb_cache/"
-
 [application]
 
 config/name="Open Industry Project"
@@ -56,4 +52,5 @@ jolt_physics_3d/simulation/velocity_steps=15
 jolt_physics_3d/simulation/position_steps=20
 jolt_physics_3d/simulation/penetration_slop=0.0
 jolt_physics_3d/simulation/speculative_contact_distance=0.0
+jolt_physics_3d/simulation/continuous_cd_movement_threshold=0.25
 jolt_physics_3d/collisions/collision_margin_fraction=0.0
