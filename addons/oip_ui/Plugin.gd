@@ -50,7 +50,6 @@ var _debugger_button: Button
 var _audio_button: Button
 var _animation_button: Button
 var _shader_editor_button: Button
-var _godot_version: VBoxContainer
 
 # Create Root Node
 var _create_root_vbox: VBoxContainer
