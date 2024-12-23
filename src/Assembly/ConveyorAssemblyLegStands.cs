@@ -51,7 +51,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	// Configuration change detection fields
 	private Transform3D conveyorsTransformPrev;
 	private Transform3D legStandsTransformPrev;
-	private float targetWidthPrev = LegStandsBaseWidth;
+	private float targetWidthPrev = float.NaN;
 	private float conveyorAnglePrev = 0f;
 	private float autoLegStandsFloorOffsetPrev;
 	private bool autoLegStandsIntervalLegsEnabledPrev = false;
