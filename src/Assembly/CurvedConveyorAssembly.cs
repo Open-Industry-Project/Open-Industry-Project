@@ -89,7 +89,7 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 		}
 		// This is a hack to override the default value of AutoLegStandsModelGrabsOffset.
 		if (property == PropertyName.AutoLegStandsModelGrabsOffset) {
-			return 0.5f;
+			return 0.75f;
 		}
 		// This is a hack to override the default value of AutoLegStandsModelScene.
 		if (property == PropertyName.AutoLegStandsModelScene) {

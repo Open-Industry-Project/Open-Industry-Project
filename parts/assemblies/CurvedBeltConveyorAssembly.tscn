@@ -63,7 +63,7 @@ AutoLegStandsIntervalLegsEnabled = false
 AutoLegStandsIntervalLegsInterval = 45.0
 AutoLegStandsMarginEnds = 0.0
 AutoLegStandsMarginEndLegs = 0.0
-AutoLegStandsModelGrabsOffset = 0.5
+AutoLegStandsModelGrabsOffset = 0.75
 AutoLegStandsModelScene = ExtResource("2_0xmjf")
 metadata/_edit_group_ = true
 
@@ -79,15 +79,15 @@ transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 2, 0)
 script = ExtResource("4_hnkat")
 
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("4_3p6hp")]
+transform = Transform3D(0.762, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, -0.25, 0)
 mesh = SubResource("ArrayMesh_gg8bi")
-transform = Transform3D(0.762, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
 
 [node name="LegStands" type="Node3D" parent="."]
 transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 0, 0)
 script = ExtResource("7_6obdt")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("2_0xmjf")]
-transform = Transform3D(-4.37114e-08, 0, -0.762, 0, 1.5, 0, 1, 0, -3.33081e-08, -1.143, 0, -4.99621e-08)
+transform = Transform3D(-4.37114e-08, 0, -0.762, 0, 1.25, 0, 1, 0, -3.33081e-08, -1.143, 0, -4.99621e-08)
 
 [node name="AutoLegsStandRear" parent="LegStands" instance=ExtResource("2_0xmjf")]
-transform = Transform3D(1, 0, 0, 0, 1.5, 0, 0, 0, 0.762, 0, 0, 1.143)
+transform = Transform3D(1, 0, 0, 0, 1.25, 0, 0, 0, 0.762, 0, 0, 1.143)

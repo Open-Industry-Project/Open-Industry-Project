@@ -527,7 +527,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			legStands?.UpdateLegStandCoverage();
 		}
 	}
-	private float _autoLegStandsModelGrabsOffset = 0.382f;
+	private float _autoLegStandsModelGrabsOffset = 0.632f;
 
 	[Export]
 	public PackedScene AutoLegStandsModelScene {

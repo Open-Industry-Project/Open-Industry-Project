@@ -95,7 +95,7 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 1.99992, 0.15616
 script = ExtResource("2_l2uq1")
 
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("3_k3wlu")]
-transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 mesh = SubResource("ArrayMesh_4whp8")
 Length = 4.0
 
@@ -104,7 +104,7 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 1.99992, -0.1561
 script = ExtResource("2_l2uq1")
 
 [node name="AutoSideGuard1" parent="RightSide" instance=ExtResource("3_k3wlu")]
-transform = Transform3D(-4, 0, -8.74228e-08, 0, 1, 0, 3.49691e-07, 0, -1, 0, 0, 0)
+transform = Transform3D(-4, 0, -8.74228e-08, 0, 1, 0, 3.49691e-07, 0, -1, 0, -0.25, 0)
 mesh = SubResource("ArrayMesh_5xd6x")
 Length = 4.0
 
@@ -113,10 +113,10 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 0, 0)
 script = ExtResource("6_bki8d")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("4_aq24s")]
-transform = Transform3D(1, 0, 0, 0, 1.61792, 0, 0, 0, 0.762, -1.8, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1.36792, 0, 0, 0, 0.762, -1.8, 0, 0)
 
 [node name="AutoLegsStand1" parent="LegStands" instance=ExtResource("4_aq24s")]
-transform = Transform3D(1, 0, 0, 0, 1.61792, 0, 0, 0, 0.762, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1.36792, 0, 0, 0, 0.762, 0, 0, 0)
 
 [node name="AutoLegsStandRear" parent="LegStands" instance=ExtResource("4_aq24s")]
-transform = Transform3D(1, 0, 0, 0, 1.61792, 0, 0, 0, 0.762, 1.8, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1.36792, 0, 0, 0, 0.762, 1.8, 0, 0)
