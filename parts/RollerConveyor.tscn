@@ -13,10 +13,10 @@ script = ExtResource("1_vnty6")
 metadata/_edit_group_ = true
 
 [node name="ConvRoller" parent="." instance=ExtResource("3_sau1a")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
 
 [node name="Rollers" type="Node3D" parent="."]
-transform = Transform3D(0.97561, 0, 0, 0, 1, -9.32474e-15, 0, 1.42109e-14, 0.656168, -0.5, 0.17, 3.55271e-15)
+transform = Transform3D(0.97561, 0, 0, 0, 1, -9.32474e-15, 0, 1.42109e-14, 0.656168, -0.5, -0.08, 0)
 script = ExtResource("3_peu56")
 rollerScene = ExtResource("2_v7a13")
 
@@ -27,7 +27,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0, 0)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.66, 0, 0)
 
 [node name="Ends" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 1.42109e-14, 0, -1.42109e-14, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 1.42109e-14, 0, -1.42109e-14, 1, 0, -0.25, 0)
 
 [node name="RollerConveyorEnd" parent="Ends" instance=ExtResource("6_fn5jx")]
 transform = Transform3D(0.97561, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0.5, 0, 0)

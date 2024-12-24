@@ -91,6 +91,7 @@ Speed = 2.0
 metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 collision_layer = 4
 collision_mask = 8
 axis_lock_linear_x = true
@@ -109,7 +110,7 @@ skeleton = NodePath("../..")
 shape = SubResource("ConcavePolygonShape3D_aja0w")
 
 [node name="ConveyorEnd" parent="." instance=ExtResource("4_b1am8")]
-transform = Transform3D(-1.27761e-07, -1.50996e-07, -1, 9.90786e-08, -1, 1.50996e-07, -0.656168, -1.50996e-07, 1.94707e-07, -0.75, 0, 0)
+transform = Transform3D(-1.27761e-07, -1.50996e-07, -1, 9.90786e-08, -1, 1.50996e-07, -0.656168, -1.50996e-07, 1.94707e-07, -0.75, -0.25, 0)
 
 [node name="ConveyorEnd2" parent="." instance=ExtResource("4_b1am8")]
-transform = Transform3D(0.656168, -1.50996e-07, -2.3842e-07, 9.90787e-08, 1, 1.56219e-07, 1.56444e-07, -1.56219e-07, 1, 0, 0, 0.75)
+transform = Transform3D(0.656168, -1.50996e-07, -2.38421e-07, 9.90787e-08, 1, 1.56219e-07, 1.56444e-07, -1.56219e-07, 1, 0, -0.25, 0.75)
