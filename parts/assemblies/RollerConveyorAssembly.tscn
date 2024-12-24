@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=4 uid="uid://i8xb8locnhi5"]
+[gd_scene load_steps=14 format=4 uid="uid://i8xb8locnhi5"]
 
 [ext_resource type="Script" uid="uid://ch5tirwq17xfg" path="res://src/Assembly/ConveyorAssembly.cs" id="1_nkn8g"]
 [ext_resource type="PackedScene" uid="uid://rv5ef61beh35" path="res://parts/ConveyorLegRC.tscn" id="2_a0feq"]
@@ -8,8 +8,6 @@
 [ext_resource type="Script" uid="uid://dc78nmgxy1kgu" path="res://src/Assembly/ConveyorAssemblyChild.cs" id="3_uu1p1"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="7_ns4py"]
 [ext_resource type="Script" uid="uid://dkjkjo2qfyjoj" path="res://src/Assembly/ConveyorAssemblyLegStands.cs" id="7_y435x"]
-[ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="8_64v37"]
-[ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="11_0gvht"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ntc76"]
 render_priority = 0
@@ -77,169 +75,6 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_gn6s2")
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_lqk25"]
-_surfaces = [{
-"aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
-"format": 34896613377,
-"index_count": 48,
-"index_data": PackedByteArray("DAAAAAEADAAIAAAADgAEAAUADgAKAAQADwAGAAcADwALAAYABwAJAA8ABwADAAkAAQAKAAwAAQAEAAoAAwANAAkAAwACAA0ABQALAA4ABQAGAAsAAgAIAA0AAgAAAAgA"),
-"name": "LegsStand_grayMetal",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 16,
-"vertex_data": PackedByteArray("AAAAAOwLAACDCwAAAAAAAAAAAAAS9AAAgwsAAP//AAB79AAAAAAAAP//AADsCwAA//8AABL0AAB79AAA//8AAAAA///sCwAAjgv///7/AABw9P//AAAAAP////8S9AAAjgv//wAAAAAAAP//EvQAAP/////sCwAAcPT///7/AAA=")
-}]
-blend_shape_mode = 0
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_gy4rl"]
-resource_name = "LegsSide_Side"
-_surfaces = [{
-"aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
-"attribute_data": PackedByteArray("JS+P+plL1v8lL4/6mUvW/6Etj/ooSdb/oS2P+ihJ1v/hQI/6z2jW/+FAj/rPaNb/ZUKP+j9r1v9lQo/6P2vW/yUVj/o/Itb/JRWP+j8i1v+gE4/6zh/W/6ATj/rOH9b/5AGP+pkC1f/kAY/6mQLV/+Faj/opktb/YACP+igA1f8lL5wvmUuuGSUvnC+ZS64ZZUKcL0Fr+RdlQpwvQWv5FyUVnC9CIvkXJRWcL0Ii+RfkAZwvmgKuGeQBnC+aAq4ZoS2cLyhJ+RehLZwvKEn5F+FAnC/PaK4Z4UCcL89orhmgE5wv0B+uGaATnC/QH64Z4VqcLyeS+RdgAJwvKAD5Fw=="),
-"format": 34896613431,
-"index_count": 48,
-"index_data": PackedByteArray("GAABAAIAGAARAAEAHAAJAAoAHAAVAAkAHwAMAA8AHwAWAAwADgATAB4ADgAHABMAAwAUABkAAwAIABQABgAbABIABgAFABsACwAXAB0ACwANABcABAAQABoABAAAABAA"),
-"material": ExtResource("8_64v37"),
-"name": "LegsStand_grayMetal",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 32,
-"vertex_data": PackedByteArray("AAAAAOwL/78AAAAA7AsK5YMLAAAAAArlgwsAAAAA//8AAAAAEvT/vwAAAAAS9PSagwsAAP//9JqDCwAA////f3v0AAAAAP//e/QAAAAACuX//wAA7AsK5f//AADsC/+///8AABL09Jr//wAAEvT/v3v0AAD///9/e/QAAP//9JoAAP//7Av/vwAA///sCwrljgv///7/9JqOC////v//f3D0//8AAP//cPT//wAACuX/////EvT0mv////8S9P+/jgv//wAACuWOC///AAD//wAA//8S9P+/AAD//xL09Jr/////7AsK5f/////sC/+/cPT///7//39w9P///v/0mv9/////f////3////9/////f/7//3////9/////f////3////9/AAD/fwAA/38AAP9/AAD/fwAA/3////9/AAD/f/7//3/+/wCA/v//f////3/+//9/AAD/fwAA/38AAP9//v//f/7//3/+/wCA/v//fwAA/38AAP9/////fwAA")
-}]
-blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_lqk25")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_cihu3"]
-render_priority = 0
-shader = ExtResource("11_0gvht")
-shader_parameter/Scale = 1.055
-shader_parameter/Color = Color(0.733333, 0.733333, 0.733333, 1)
-shader_parameter/Metallic = 0.94
-shader_parameter/Roughness = 0.5
-shader_parameter/Specular = 0.5
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_xr7le"]
-_surfaces = [{
-"aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
-"format": 34896613377,
-"index_count": 48,
-"index_data": PackedByteArray("BQAOAA0ABQAGAA4ABwAKAA8ABwACAAoACgADAAsACgACAAMADAAFAA0ADAAEAAUABgAPAA4ABgAHAA8AAQAMAAkAAQAEAAwACAADAAAACAALAAMAAAAJAAgAAAABAAkA"),
-"name": "LegsStand_grayMetal.003",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 16,
-"vertex_data": PackedByteArray("AACtJ/7/AACtJwAA/v8AAK0n///+/wAAAABR2P7/AABR2AAA/v8AAP//rSf+/wAA//9R2P7/AABR2P///v8AAAAArScAAAAArScAAAAAAACtJ///AAAAAAAAUdgAAAAAUdgAAAAAAAD//60nAAAAAP//UdgAAAAAUdj//wAAAAA=")
-}]
-blend_shape_mode = 0
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_bjrhf"]
-resource_name = "LegsBar_Bar"
-_surfaces = [{
-"aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
-"attribute_data": PackedByteArray("5oweBMQPIZfmjB4EhXY68AiRHgR1eTrwCJEeBHV5OvCpfR4EdXk68Kl9HgR1eTrwyoEeBMQPN43KgR4EhXY68K+fHgSJhjrwolseBImGOvDEXx4EeYk68MRfHgTEDyGX4GoeBHmJOvDgah4ExA83jQFvHgSJhjrwAW8eBImGOvDmjJ7/OvAhl+aMnv+FdsQPCJGe/3V5xA8IkZ7/dXnED6l9nv91ecQPqX2e/3V5xA/KgZ7/OvA3jcqBnv+FdsQPr5+e/4mGxA+iW57/iYbED8Rfnv95icQPxF+e/zrwIZfgap7/eYnED+Bqnv868DeNAW+e/4mGxA8Bb57/iYbEDw=="),
-"format": 34896613431,
-"index_count": 48,
-"index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_cihu3"),
-"name": "LegsStand_grayMetal.003",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 32,
-"vertex_data": PackedByteArray("AACtJ/7/VNUAAK0n/v8kxK0nAAD+/yTErScAAP7//7+tJ////v957a0n///+////AABR2P7/VNUAAFHY/v957VHYAAD+//+/UdgAAP7/JMT//60n/v8kxP//rSf+/1TV//9R2P7/ee3//1HY/v9U1VHY///+////Udj///7/ee0AAK0nAABU1QAArScAACTErScAAAAAJMStJwAAAAD/v60n//8AAHntrSf//wAA//8AAFHYAABU1QAAUdgAAHntUdgAAAAA/79R2AAAAAAkxP//rScAACTE//+tJwAAVNX//1HYAAB57f//UdgAAFTVUdj//wAA//9R2P//AAB57VRVqqp2M7qZdjO6mQAA/3+Ubcm2/3//v1RVqqqUbcm2AAD/f7sZiUy7GYlMqiqqKso2axKqKqoq/3//v8o2axJUVaqqdjO6mXYzupkAAP9/lG3Jtv9//79UVaqqlG3JtgAA/3+7GYlMuxmJTKoqqirKNmsSqiqqKv9//7/KNmsS")
-}]
-blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_xr7le")
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_tsqag"]
-resource_name = "LegsSide_Side"
-_surfaces = [{
-"aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
-"attribute_data": PackedByteArray("JS+P+plL1v8lL4/6mUvW/6Etj/ooSdb/oS2P+ihJ1v/hQI/6z2jW/+FAj/rPaNb/ZUKP+j9r1v9lQo/6P2vW/yUVj/o/Itb/JRWP+j8i1v+gE4/6zh/W/6ATj/rOH9b/5AGP+pkC1f/kAY/6mQLV/+Faj/opktb/YACP+igA1f8lL5wvmUuuGSUvnC+ZS64ZZUKcL0Fr+RdlQpwvQWv5FyUVnC9CIvkXJRWcL0Ii+RfkAZwvmgKuGeQBnC+aAq4ZoS2cLyhJ+RehLZwvKEn5F+FAnC/PaK4Z4UCcL89orhmgE5wv0B+uGaATnC/QH64Z4VqcLyeS+RdgAJwvKAD5Fw=="),
-"format": 34896613431,
-"index_count": 48,
-"index_data": PackedByteArray("GAABAAIAGAARAAEAHAAJAAoAHAAVAAkAHwAMAA8AHwAWAAwADgATAB4ADgAHABMAAwAUABkAAwAIABQABgAbABIABgAFABsACwAXAB0ACwANABcABAAQABoABAAAABAA"),
-"material": ExtResource("8_64v37"),
-"name": "LegsStand_grayMetal",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 32,
-"vertex_data": PackedByteArray("AAAAAOwL/78AAAAA7AsK5YMLAAAAAArlgwsAAAAA//8AAAAAEvT/vwAAAAAS9PSagwsAAP//9JqDCwAA////f3v0AAAAAP//e/QAAAAACuX//wAA7AsK5f//AADsC/+///8AABL09Jr//wAAEvT/v3v0AAD///9/e/QAAP//9JoAAP//7Av/vwAA///sCwrljgv///7/9JqOC////v//f3D0//8AAP//cPT//wAACuX/////EvT0mv////8S9P+/jgv//wAACuWOC///AAD//wAA//8S9P+/AAD//xL09Jr/////7AsK5f/////sC/+/cPT///7//39w9P///v/0mv9/////f////3////9/////f/7//3////9/////f////3////9/AAD/fwAA/38AAP9/AAD/fwAA/3////9/AAD/f/7//3/+/wCA/v//f////3/+//9/AAD/fwAA/38AAP9//v//f/7//3/+/wCA/v//fwAA/38AAP9/////fwAA")
-}]
-blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_lqk25")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_707ot"]
-render_priority = 0
-shader = ExtResource("11_0gvht")
-shader_parameter/Scale = 1.0
-shader_parameter/Color = Color(0.733333, 0.733333, 0.733333, 1)
-shader_parameter/Metallic = 0.94
-shader_parameter/Roughness = 0.5
-shader_parameter/Specular = 0.5
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_gpeka"]
-resource_name = "LegsBar_Bar"
-_surfaces = [{
-"aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
-"attribute_data": PackedByteArray("5oweBMQPIZfmjB4EhXY68AiRHgR1eTrwCJEeBHV5OvCpfR4EdXk68Kl9HgR1eTrwyoEeBMQPN43KgR4EhXY68K+fHgSJhjrwolseBImGOvDEXx4EeYk68MRfHgTEDyGX4GoeBHmJOvDgah4ExA83jQFvHgSJhjrwAW8eBImGOvDmjJ7/OvAhl+aMnv+FdsQPCJGe/3V5xA8IkZ7/dXnED6l9nv91ecQPqX2e/3V5xA/KgZ7/OvA3jcqBnv+FdsQPr5+e/4mGxA+iW57/iYbED8Rfnv95icQPxF+e/zrwIZfgap7/eYnED+Bqnv868DeNAW+e/4mGxA8Bb57/iYbEDw=="),
-"format": 34896613431,
-"index_count": 48,
-"index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_707ot"),
-"name": "LegsStand_grayMetal.003",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 32,
-"vertex_data": PackedByteArray("AACtJ/7/VNUAAK0n/v8kxK0nAAD+/yTErScAAP7//7+tJ////v957a0n///+////AABR2P7/VNUAAFHY/v957VHYAAD+//+/UdgAAP7/JMT//60n/v8kxP//rSf+/1TV//9R2P7/ee3//1HY/v9U1VHY///+////Udj///7/ee0AAK0nAABU1QAArScAACTErScAAAAAJMStJwAAAAD/v60n//8AAHntrSf//wAA//8AAFHYAABU1QAAUdgAAHntUdgAAAAA/79R2AAAAAAkxP//rScAACTE//+tJwAAVNX//1HYAAB57f//UdgAAFTVUdj//wAA//9R2P//AAB57VRVqqp2M7qZdjO6mQAA/3+Ubcm2/3//v1RVqqqUbcm2AAD/f7sZiUy7GYlMqiqqKso2axKqKqoq/3//v8o2axJUVaqqdjO6mXYzupkAAP9/lG3Jtv9//79UVaqqlG3JtgAA/3+7GYlMuxmJTKoqqirKNmsSqiqqKv9//7/KNmsS")
-}]
-blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_xr7le")
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_55k30"]
-resource_name = "LegsSide_Side"
-_surfaces = [{
-"aabb": AABB(-0.098681, 0, -0.00262297, 0.197362, 1, 0.148674),
-"attribute_data": PackedByteArray("JS+P+plL1v8lL4/6mUvW/6Etj/ooSdb/oS2P+ihJ1v/hQI/6z2jW/+FAj/rPaNb/ZUKP+j9r1v9lQo/6P2vW/yUVj/o/Itb/JRWP+j8i1v+gE4/6zh/W/6ATj/rOH9b/5AGP+pkC1f/kAY/6mQLV/+Faj/opktb/YACP+igA1f8lL5wvmUuuGSUvnC+ZS64ZZUKcL0Fr+RdlQpwvQWv5FyUVnC9CIvkXJRWcL0Ii+RfkAZwvmgKuGeQBnC+aAq4ZoS2cLyhJ+RehLZwvKEn5F+FAnC/PaK4Z4UCcL89orhmgE5wv0B+uGaATnC/QH64Z4VqcLyeS+RdgAJwvKAD5Fw=="),
-"format": 34896613431,
-"index_count": 48,
-"index_data": PackedByteArray("GAABAAIAGAARAAEAHAAJAAoAHAAVAAkAHwAMAA8AHwAWAAwADgATAB4ADgAHABMAAwAUABkAAwAIABQABgAbABIABgAFABsACwAXAB0ACwANABcABAAQABoABAAAABAA"),
-"material": ExtResource("8_64v37"),
-"name": "LegsStand_grayMetal",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 32,
-"vertex_data": PackedByteArray("AAAAAOwL/78AAAAA7AsK5YMLAAAAAArlgwsAAAAA//8AAAAAEvT/vwAAAAAS9PSagwsAAP//9JqDCwAA////f3v0AAAAAP//e/QAAAAACuX//wAA7AsK5f//AADsC/+///8AABL09Jr//wAAEvT/v3v0AAD///9/e/QAAP//9JoAAP//7Av/vwAA///sCwrljgv///7/9JqOC////v//f3D0//8AAP//cPT//wAACuX/////EvT0mv////8S9P+/jgv//wAACuWOC///AAD//wAA//8S9P+/AAD//xL09Jr/////7AsK5f/////sC/+/cPT///7//39w9P///v/0mv9/////f////3////9/////f/7//3////9/////f////3////9/AAD/fwAA/38AAP9/AAD/fwAA/3////9/AAD/f/7//3/+/wCA/v//f////3/+//9/AAD/fwAA/38AAP9//v//f/7//3/+/wCA/v//fwAA/38AAP9/////fwAA")
-}]
-blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_lqk25")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_cdkd4"]
-render_priority = 0
-shader = ExtResource("11_0gvht")
-shader_parameter/Scale = 1.055
-shader_parameter/Color = Color(0.733333, 0.733333, 0.733333, 1)
-shader_parameter/Metallic = 0.94
-shader_parameter/Roughness = 0.5
-shader_parameter/Specular = 0.5
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_7tlwu"]
-resource_name = "LegsBar_Bar"
-_surfaces = [{
-"aabb": AABB(-0.0740462, -0.0561336, -1, 0.148092, 0.112267, 2.00001),
-"attribute_data": PackedByteArray("5oweBMQPIZfmjB4EhXY68AiRHgR1eTrwCJEeBHV5OvCpfR4EdXk68Kl9HgR1eTrwyoEeBMQPN43KgR4EhXY68K+fHgSJhjrwolseBImGOvDEXx4EeYk68MRfHgTEDyGX4GoeBHmJOvDgah4ExA83jQFvHgSJhjrwAW8eBImGOvDmjJ7/OvAhl+aMnv+FdsQPCJGe/3V5xA8IkZ7/dXnED6l9nv91ecQPqX2e/3V5xA/KgZ7/OvA3jcqBnv+FdsQPr5+e/4mGxA+iW57/iYbED8Rfnv95icQPxF+e/zrwIZfgap7/eYnED+Bqnv868DeNAW+e/4mGxA8Bb57/iYbEDw=="),
-"format": 34896613431,
-"index_count": 48,
-"index_data": PackedByteArray("CwAdABsACwANAB0ADgAVAB4ADgAFABUAFAAHABcAFAAEAAcAGQAKABoAGQAJAAoADAAfABwADAAPAB8AAwAYABMAAwAIABgAEAAGAAAAEAAWAAYAAQASABEAAQACABIA"),
-"material": SubResource("ShaderMaterial_cdkd4"),
-"name": "LegsStand_grayMetal.003",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 32,
-"vertex_data": PackedByteArray("AACtJ/7/VNUAAK0n/v8kxK0nAAD+/yTErScAAP7//7+tJ////v957a0n///+////AABR2P7/VNUAAFHY/v957VHYAAD+//+/UdgAAP7/JMT//60n/v8kxP//rSf+/1TV//9R2P7/ee3//1HY/v9U1VHY///+////Udj///7/ee0AAK0nAABU1QAArScAACTErScAAAAAJMStJwAAAAD/v60n//8AAHntrSf//wAA//8AAFHYAABU1QAAUdgAAHntUdgAAAAA/79R2AAAAAAkxP//rScAACTE//+tJwAAVNX//1HYAAB57f//UdgAAFTVUdj//wAA//9R2P//AAB57VRVqqp2M7qZdjO6mQAA/3+Ubcm2/3//v1RVqqqUbcm2AAD/f7sZiUy7GYlMqiqqKso2axKqKqoq/3//v8o2axJUVaqqdjO6mXYzupkAAP9/lG3Jtv9//79UVaqqlG3JtgAA/3+7GYlMuxmJTKoqqirKNmsSqiqqKv9//7/KNmsS")
-}]
-blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_xr7le")
-
 [node name="RollerConveyorAssembly" type="Node3D"]
 transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_nkn8g")
@@ -280,104 +115,10 @@ transform = Transform3D(0.25, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 0, 0)
 script = ExtResource("7_y435x")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("2_a0feq")]
-transform = Transform3D(1, 0, 0, 0, 1.618, 0, 0, 0, 1.055, -1.8, 0, 0)
-
-[node name="LegsSide1" parent="LegStands/AutoLegsStandFront/Sides" index="0"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.947867, 0, 0, -1)
-mesh = SubResource("ArrayMesh_gy4rl")
-
-[node name="LegsSide2" parent="LegStands/AutoLegsStandFront/Sides" index="1"]
-transform = Transform3D(-1, 0, 1.43124e-07, 0, 1, 0, -1.50996e-07, 0, -0.947867, 0, 0, 1)
-mesh = SubResource("ArrayMesh_gy4rl")
-
-[node name="LegsBars" parent="LegStands/AutoLegsStandFront" index="1"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 1, 0, 0, 0)
-ParentScale = 1.618
-
-[node name="LegsBar" parent="LegStands/AutoLegsStandFront/LegsBars" index="0"]
-mesh = SubResource("ArrayMesh_bjrhf")
-
-[node name="LegsTop1" parent="LegStands/AutoLegsStandFront/Ends" index="0"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 0.947867, 0, 1, -1)
-
-[node name="LegsTop2" parent="LegStands/AutoLegsStandFront/Ends" index="1"]
-transform = Transform3D(-1, 0, -1.43124e-07, 0, 0.618047, 0, 1.50996e-07, 0, -0.947867, 0, 1, 1)
-
-[node name="LegsGrab2" parent="LegStands/AutoLegsStandFront/Ends/LegsTop2" index="0"]
-transform = Transform3D(1, 0, -7.18778e-08, 0, 1, 0, 7.18778e-08, 0, 1, 0, 0, 0)
-
-[node name="LegsBottom1" parent="LegStands/AutoLegsStandFront/Ends" index="2"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 0.947867, 0, 0, -1)
-
-[node name="LegsBottom2" parent="LegStands/AutoLegsStandFront/Ends" index="3"]
-transform = Transform3D(-1, 0, -1.43124e-07, 0, 0.618047, 0, 1.50996e-07, 0, -0.947867, 0, 0, 1)
+transform = Transform3D(1, 0, 0, 0, 1.618, 0, 0, 0, 0.813, -1.8, 0, 0)
 
 [node name="AutoLegsStand1" parent="LegStands" instance=ExtResource("2_a0feq")]
-transform = Transform3D(1, 0, 0, 0, 1.618, 0, 0, 0, 1.055, 0, 0, 0)
-
-[node name="LegsSide1" parent="LegStands/AutoLegsStand1/Sides" index="0"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.947867, 0, 0, -1)
-mesh = SubResource("ArrayMesh_tsqag")
-
-[node name="LegsSide2" parent="LegStands/AutoLegsStand1/Sides" index="1"]
-transform = Transform3D(-1, 0, 1.43124e-07, 0, 1, 0, -1.50996e-07, 0, -0.947867, 0, 0, 1)
-mesh = SubResource("ArrayMesh_tsqag")
-
-[node name="LegsBars" parent="LegStands/AutoLegsStand1" index="1"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 1, 0, 0, 0)
-ParentScale = 1.618
-
-[node name="LegsBar" parent="LegStands/AutoLegsStand1/LegsBars" index="0"]
-mesh = SubResource("ArrayMesh_gpeka")
-
-[node name="LegsTop1" parent="LegStands/AutoLegsStand1/Ends" index="0"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 0.947867, 0, 1, -1)
-
-[node name="LegsTop2" parent="LegStands/AutoLegsStand1/Ends" index="1"]
-transform = Transform3D(-1, 0, -1.43124e-07, 0, 0.618047, 0, 1.50996e-07, 0, -0.947867, 0, 1, 1)
-
-[node name="LegsGrab2" parent="LegStands/AutoLegsStand1/Ends/LegsTop2" index="0"]
-transform = Transform3D(1, 0, -7.18778e-08, 0, 1, 0, 7.18778e-08, 0, 1, 0, 0, 0)
-
-[node name="LegsBottom1" parent="LegStands/AutoLegsStand1/Ends" index="2"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 0.947867, 0, 0, -1)
-
-[node name="LegsBottom2" parent="LegStands/AutoLegsStand1/Ends" index="3"]
-transform = Transform3D(-1, 0, -1.43124e-07, 0, 0.618047, 0, 1.50996e-07, 0, -0.947867, 0, 0, 1)
+transform = Transform3D(1, 0, 0, 0, 1.618, 0, 0, 0, 0.813, 0, 0, 0)
 
 [node name="AutoLegsStandRear" parent="LegStands" instance=ExtResource("2_a0feq")]
-transform = Transform3D(1, 0, 0, 0, 1.618, 0, 0, 0, 1.055, 1.8, 0, 0)
-
-[node name="LegsSide1" parent="LegStands/AutoLegsStandRear/Sides" index="0"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.947867, 0, 0, -1)
-mesh = SubResource("ArrayMesh_55k30")
-
-[node name="LegsSide2" parent="LegStands/AutoLegsStandRear/Sides" index="1"]
-transform = Transform3D(-1, 0, 1.43124e-07, 0, 1, 0, -1.50996e-07, 0, -0.947867, 0, 0, 1)
-mesh = SubResource("ArrayMesh_55k30")
-
-[node name="LegsBars" parent="LegStands/AutoLegsStandRear" index="1"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 1, 0, 0, 0)
-ParentScale = 1.618
-
-[node name="LegsBar" parent="LegStands/AutoLegsStandRear/LegsBars" index="0"]
-mesh = SubResource("ArrayMesh_7tlwu")
-
-[node name="LegsTop1" parent="LegStands/AutoLegsStandRear/Ends" index="0"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 0.947867, 0, 1, -1)
-
-[node name="LegsTop2" parent="LegStands/AutoLegsStandRear/Ends" index="1"]
-transform = Transform3D(-1, 0, -1.43124e-07, 0, 0.618047, 0, 1.50996e-07, 0, -0.947867, 0, 1, 1)
-
-[node name="LegsGrab2" parent="LegStands/AutoLegsStandRear/Ends/LegsTop2" index="0"]
-transform = Transform3D(1, 0, -7.18778e-08, 0, 1, 0, 7.18778e-08, 0, 1, 0, 0, 0)
-
-[node name="LegsBottom1" parent="LegStands/AutoLegsStandRear/Ends" index="2"]
-transform = Transform3D(1, 0, 0, 0, 0.618047, 0, 0, 0, 0.947867, 0, 0, -1)
-
-[node name="LegsBottom2" parent="LegStands/AutoLegsStandRear/Ends" index="3"]
-transform = Transform3D(-1, 0, -1.43124e-07, 0, 0.618047, 0, 1.50996e-07, 0, -0.947867, 0, 0, 1)
-
-[editable path="LegStands/AutoLegsStandFront"]
-[editable path="LegStands/AutoLegsStand1"]
-[editable path="LegStands/AutoLegsStandRear"]
+transform = Transform3D(1, 0, 0, 0, 1.618, 0, 0, 0, 0.813, 1.8, 0, 0)
