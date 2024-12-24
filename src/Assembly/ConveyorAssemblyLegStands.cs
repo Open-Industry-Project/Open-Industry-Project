@@ -690,9 +690,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	void UpdateIndividiualLegStandHeightAndVisibility(ConveyorLeg legStand, Plane conveyorPlane)
 	{
-		// Persist legStand changes into the Assembly's PackedScene.
-		// Fixes ugly previews in the editor.
-		SetEditableInstance(legStand, true);
 		// Raycast from the minimum-height tip of the leg stand to the conveyor plane.
 		Vector3? intersection = conveyorPlane.IntersectsRay(legStand.Position + legStand.Basis.Y.Normalized(), legStand.Basis.Y.Normalized());
 		if (intersection == null) {
