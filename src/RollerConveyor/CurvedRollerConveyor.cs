@@ -75,19 +75,19 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 				switch (currentScale)
 				{
 					case Scales.Low:
-						rollersLow.Visible = true;
-						rollersMid.Visible = false;
-						rollersHigh.Visible = false;
+						rollersLow?.SetVisible(true);
+						rollersMid?.SetVisible(false);
+						rollersHigh?.SetVisible(false);
 						break;
 					case Scales.Mid:
-						rollersLow.Visible = false;
-						rollersMid.Visible = true;
-						rollersHigh.Visible = false;
+						rollersLow?.SetVisible(false);
+						rollersMid?.SetVisible(true);
+						rollersHigh?.SetVisible(false);
 						break;
 					case Scales.High:
-						rollersLow.Visible = false;
-						rollersMid.Visible = true;
-						rollersHigh.Visible = true;
+						rollersLow?.SetVisible(false);
+						rollersMid?.SetVisible(true);
+						rollersHigh?.SetVisible(true);
 						break;
 				}
 			}
