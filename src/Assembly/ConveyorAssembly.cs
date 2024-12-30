@@ -751,42 +751,16 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	private Transform3D PreventChildScaling(Transform3D childTransform, Basis basisPrev) {
 		// The child transform without the effects of the parent's scale.
-		var apparentChildTransform = UnapplyInverseScaling(basisPrev, childTransform);
+		var apparentChildTransform = ConveyorAssemblyChild.UnapplyInverseScaling(basisPrev, childTransform);
 
 		// Remove any remaining scale. This effectively locks child's scale to (1, 1, 1).
 		apparentChildTransform.Basis = apparentChildTransform.Basis.Orthonormalized();
 
 		// Reapply inverse parent scaling to child.
-		var newChildTransform = ApplyInverseScaling(Basis, apparentChildTransform);
+		var newChildTransform = ConveyorAssemblyChild.ApplyInverseScaling(Basis, apparentChildTransform);
 		return newChildTransform;
 	}
-
-	internal static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
-	{
-		var basisRotation = parentBasis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * parentBasis;
-		var xformScale = new Transform3D(basisScale, new Vector3(0, 0, 0));
-
-		var apparentChildTransform = xformScale * childTransform;
-		apparentChildTransform.Origin *= basisScale.Inverse();
-		return apparentChildTransform;
-	}
-
-	internal static Transform3D ApplyInverseScaling(Basis parentBasis, Transform3D apparentChildTransform)
-	{
-		var basisRotation = parentBasis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * parentBasis;
-		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
-
-		var childTransform = apparentChildTransform;
-		childTransform.Origin *= basisScale;
-		childTransform = xformScaleInverse * childTransform;
-		return childTransform;
-	}
 	#endregion Decouple assembly scale from child scale
-
-
-
 
 	private bool SetLegStandsNeedsUpdateIfChanged<T>(T newVal, ref T cachedVal)
 	{
