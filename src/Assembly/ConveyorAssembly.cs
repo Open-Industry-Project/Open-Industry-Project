@@ -642,6 +642,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			|| property == PropertyName.RollerConveyorSpeed
 			|| property == PropertyName.BeltConveyorReferenceDistance
 			|| property == PropertyName.RollerConveyorReferenceDistance
+			|| property == PropertyName.AutoLegStandsFloorOffset
 			|| base._PropertyCanRevert(property);
 	}
 
@@ -662,6 +663,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		if (property == PropertyName.BeltConveyorReferenceDistance
 			|| property == PropertyName.RollerConveyorReferenceDistance) {
 			return 0.5f;
+		}
+		if (property == PropertyName.AutoLegStandsFloorOffset)
+		{
+			return -2.0f;
 		}
 		return base._PropertyGetRevert(property);
 	}
