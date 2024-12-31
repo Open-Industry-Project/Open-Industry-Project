@@ -111,17 +111,16 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	}
 
 	#region Conveyors and Side Guards
-	internal override Transform3D LockConveyorsGroup(Transform3D transform) {
-		// Just don't let it move at all, except Y axis translation.;
-		var scale = transform.Basis.Scale;
-		var position = new Vector3(0, transform.Origin.Y, 0);
-		return new Transform3D(Basis.Identity.Scaled(scale), position);
+	internal override Transform3D LockConveyorsGroup(Transform3D apparentTransform) {
+		// Just don't let it move at all, except Y axis translation.
+		var position = new Vector3(0, apparentTransform.Origin.Y, 0);
+		return new Transform3D(Basis.Identity, position);
 	}
 
-	protected override void LockSidePosition(Node3D side, bool isRight) {
+	protected override void LockSidePosition(ConveyorAssemblyChild side, bool isRight) {
 		// Sides always snap onto the conveyor line
 		// Just snap both sides to the center without any offset.
-		side.Transform = _cachedConveyorsTransform;
+		side.ApparentTransform = conveyors.ApparentTransform;
 	}
 
 	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength, float conveyorWidth) {

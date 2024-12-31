@@ -4,34 +4,50 @@ using Godot;
 public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 {
 	private ConveyorAssembly assembly => GetParentOrNull<ConveyorAssembly>();
-	private Basis assemblyBasisAtLastRescale = Basis.Identity;
+	public Transform3D ApparentTransform
+	{
+		get => apparentTransform;
+		set
+		{
+			apparentTransform = ConstrainApparentTransform(value);
+			ApplyApparentTransform();
+		}
+	}
+	private Transform3D apparentTransform = Transform3D.Identity;
+
+	public ConveyorAssemblyChild()
+	{
+		// A reasonable default.
+		apparentTransform = Transform;
+		if (GetParentOrNull<Node3D>() is Node3D parent)
+		{
+			apparentTransform = UnapplyInverseScaling(parent.Basis, Transform);
+		}
+	}
 
 	protected override Transform3D ConstrainTransform(Transform3D transform)
 	{
-		return PreventScaling(transform, assembly);
+		// Note: This method must set apparentTransform if overridden.
+		// This is how 3D gizmos update the ApparentTransform.
+		apparentTransform = ConstrainApparentTransform(UnapplyInverseScaling(assembly.Basis, transform));
+		return ApplyInverseScaling(assembly.Basis, apparentTransform);
 	}
 
 	protected virtual Transform3D ConstrainApparentTransform(Transform3D transform)
 	{
-		var basis = transform.Basis.Orthonormalized();
-		return new Transform3D(basis, transform.Origin);
+		return transform;
 	}
 
-	internal Transform3D PreventScaling()
+	public void OnAssemblyTransformChanged()
 	{
-		return PreventScaling(Transform, assembly.Basis);
+		ApplyApparentTransform();
 	}
 
-	private Transform3D PreventScaling(Transform3D transform, Basis parentBasis)
+	private void ApplyApparentTransform()
 	{
-		if (!IsInstanceValid(assembly)) return ConstrainApparentTransform(transform);
-		var apparentTransform = UnapplyInverseScaling(assemblyBasisAtLastRescale, transform);
-		apparentTransform = ConstrainApparentTransform(apparentTransform);
-		assemblyBasisAtLastRescale = parentBasis;
-		var result = ApplyInverseScaling(assemblyBasisAtLastRescale, apparentTransform);
-		return result;
+		Transform3D newTransform = ApplyInverseScaling(assembly.Basis, apparentTransform);
+		Transform = newTransform;
 	}
-}
 
 	internal static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
 	{
@@ -40,7 +56,6 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 		var xformScale = new Transform3D(basisScale, new Vector3(0, 0, 0));
 
 		var apparentChildTransform = xformScale * childTransform;
-		apparentChildTransform.Origin *= basisScale.Inverse();
 		return apparentChildTransform;
 	}
 
@@ -51,7 +66,6 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
 
 		var childTransform = apparentChildTransform;
-		childTransform.Origin *= basisScale;
 		childTransform = xformScaleInverse * childTransform;
 		return childTransform;
 	}

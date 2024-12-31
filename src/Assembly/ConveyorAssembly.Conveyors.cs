@@ -41,8 +41,6 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		BasisChanged += void (_) => conveyors.SetNeedsUpdate(true);
 		conveyors.BasisChanged += void (_) => conveyors.SetNeedsUpdate(true);
 		conveyors.TransformChanged += void (_) => UpdateSides();
-
-		ConveyorAngle = _conveyorAngle;
 	}
 
 	#region Conveyors / Update "Conveyors" node
@@ -71,24 +69,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 	}
 
-	private void LockConveyorsGroup() {
-		var newTransform = LockConveyorsGroup(conveyors.Transform);
-		if (newTransform == conveyors.Transform) return;
-		conveyors.Transform = newTransform;
-	}
-
-	internal virtual Transform3D LockConveyorsGroup(Transform3D transform) {
+	internal virtual Transform3D LockConveyorsGroup(Transform3D apparentTransform) {
 		// Lock Z position
-		Vector3 newPos = new Vector3(transform.Origin.X, transform.Origin.Y, 0f);
-		transform.Origin = newPos;
+		apparentTransform.Origin.Z = 0f;
 		// Lock X and Y rotation
-		var (eulerX, eulerY, eulerZ) = transform.Basis.GetEuler();
-		if (eulerX != 0 || eulerY != 0) {
-			Vector3 newRot = new Vector3(0f, 0f, eulerZ);
-			var basis = Basis.FromEuler(newRot);
-			transform = new Transform3D(basis, newPos);
-		}
-		return transform;
+		float eulerZ = apparentTransform.Basis.GetEuler().Z;
+		Vector3 newRot = new Vector3(0f, 0f, eulerZ);
+		// Lock Scale to 1, 1, 1
+		apparentTransform.Basis = Basis.FromEuler(newRot);
+		return apparentTransform;
 	}
 	#endregion Conveyors / Update "Conveyors" node
 

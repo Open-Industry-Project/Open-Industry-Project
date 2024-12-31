@@ -29,10 +29,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 	}
 	private ConveyorAssemblyConveyors _conveyors;
-	private TransformMonitoredNode3D rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<TransformMonitoredNode3D>("RightSide");
-	private TransformMonitoredNode3D _rightSide;
-	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
-	private TransformMonitoredNode3D _leftSide;
+	private ConveyorAssemblyChild rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<ConveyorAssemblyChild>("RightSide");
+	private ConveyorAssemblyChild _rightSide;
+	private ConveyorAssemblyChild leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<ConveyorAssemblyChild>("LeftSide");
+	private ConveyorAssemblyChild _leftSide;
 	private ConveyorAssemblyLegStands legStands => this.GetCachedValidNodeOrNull("LegStands", ref _legStands);
 	private ConveyorAssemblyLegStands _legStands;
 	#endregion Fields / Nodes
@@ -43,20 +43,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	[Export(PropertyHint.None, "radians_as_degrees")]
 	public float ConveyorAngle
 	{
-		get
-		{
-			Basis scale = Basis.Identity.Scaled(Scale);
-			float angle = (scale * conveyors.Basis).GetEuler().Z;
-			return angle;
-		}
-		set
-		{
-			_conveyorAngle = value;
-			if (!IsInstanceValid(conveyors)) return;
-			conveyors.SetAngle(value);
-		}
+		get => conveyors?.GetAngle() ?? 0;
+		set => conveyors?.SetAngle(value);
 	}
-	private float _conveyorAngle = 0f;
 
 	[Export]
 	public bool ConveyorAutomaticLength
@@ -448,14 +437,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	[ExportGroup("Leg Stands", "AutoLegStands")]
 	[Export(PropertyHint.None, "suffix:m")]
 	public float AutoLegStandsFloorOffset {
-		get => _autoLegStandsFloorOffset;
-		set
-		{
-			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsFloorOffset)) return;
-			legStands?.SyncLegStandsOffsets();
-		}
+		get => legStands?.GetFloorOffset() ?? 0;
+		set => legStands?.SetFloorOffset(value);
 	}
-	private float _autoLegStandsFloorOffset = 0f;
 
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
 	[Export]
@@ -474,14 +458,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[Export(PropertyHint.Range, "-5,5,or_less,or_greater,suffix:m")]
 	public float AutoLegStandsIntervalLegsOffset {
-		get => _autoLegStandsIntervalLegsOffset;
-		set
-		{
-			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsIntervalLegsOffset))return;
-			legStands?.SyncLegStandsOffsets();
-		}
+		get => legStands?.GetIntervalLegsOffset() ?? 0;
+		set => legStands?.SetIntervalLegsOffset(value);
 	}
-	private float _autoLegStandsIntervalLegsOffset = 0f;
 
 	[ExportSubgroup("End Legs", "AutoLegStandsEndLeg")]
 	[Export]
@@ -720,7 +699,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private void PreventAllChildScaling() {
 		foreach (Node child in GetChildren()) {
 			if (child is ConveyorAssemblyChild assemblyChild) {
-				assemblyChild.Transform = assemblyChild.PreventScaling();
+				assemblyChild.OnAssemblyTransformChanged();
 			}
 			if (child is Node3D child3D) {
 				PreventChildScaling(child3D);
