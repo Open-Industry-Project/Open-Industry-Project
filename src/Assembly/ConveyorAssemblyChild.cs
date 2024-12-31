@@ -38,7 +38,7 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 		return transform;
 	}
 
-	public void OnAssemblyTransformChanged()
+	public virtual void OnAssemblyTransformChanged()
 	{
 		ApplyApparentTransform();
 	}

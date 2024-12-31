@@ -49,6 +49,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	private Vector3 _cachedLegStandsRotation = Vector3.Zero;
 
 	// Configuration change detection fields
+	private Transform3D assemblyTransformPrev;
 	private Transform3D conveyorsTransformPrev;
 	private Transform3D legStandsTransformPrev;
 	private float targetWidthPrev = float.NaN;
@@ -133,6 +134,16 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		}
 	}
 
+	public override void _Notification(int what)
+	{
+		if (what == NotificationParented)
+		{
+			// Can't use `assembly` because that property will return null if the node doesn't have its script attached yet.
+			assemblyTransformPrev = GetParentOrNull<Node3D>().Transform;
+		}
+		base._Notification(what);
+	}
+
 	public override void _PhysicsProcess(double delta)
 	{
 		UpdateLegStands();
@@ -212,6 +223,15 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	#endregion Leg Stands / Conveyor coverage extents
 
 	#region Leg Stands / Update "LegStands" node
+	public override void OnAssemblyTransformChanged()
+	{
+		Vector3 assemblyTranslation = assembly.Transform.Origin - assemblyTransformPrev.Origin;
+		assemblyTransformPrev = assembly.Transform;
+		var newTransform = ApparentTransform;
+		newTransform.Origin.Y -= assemblyTranslation.Y;
+		ApparentTransform = newTransform;
+	}
+
 	protected override Transform3D ConstrainApparentTransform(Transform3D apparentTransform)
 	{
 		return LockLegStandsGroup(apparentTransform);
