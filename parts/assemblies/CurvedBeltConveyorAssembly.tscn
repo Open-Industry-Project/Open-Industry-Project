@@ -68,14 +68,14 @@ AutoLegStandsModelScene = ExtResource("2_0xmjf")
 metadata/_edit_group_ = true
 
 [node name="Conveyors" type="Node3D" parent="."]
-transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 2, 0)
+transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 0, 0)
 script = ExtResource("4_053qp")
 
 [node name="ConveyorCorner" parent="Conveyors" instance=ExtResource("3_a54t1")]
 transform = Transform3D(1.524, 0, -6.66163e-08, 0, 1, 0, 6.66163e-08, 0, 1.524, 0, 0, 0)
 
 [node name="LeftSide" type="Node3D" parent="."]
-transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 2, 0)
+transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 0, 0)
 script = ExtResource("4_hnkat")
 
 [node name="AutoSideGuard1" parent="LeftSide" instance=ExtResource("4_3p6hp")]
@@ -83,7 +83,7 @@ transform = Transform3D(0.762, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, -0.25, 0)
 mesh = SubResource("ArrayMesh_gg8bi")
 
 [node name="LegStands" type="Node3D" parent="."]
-transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, 0, 0)
+transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, -2, 0)
 script = ExtResource("7_6obdt")
 
 [node name="AutoLegsStandFront" parent="LegStands" instance=ExtResource("2_0xmjf")]
