@@ -53,10 +53,8 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	private Transform3D legStandsTransformPrev;
 	private float targetWidthPrev = float.NaN;
 	private float conveyorAnglePrev = 0f;
-	private float autoLegStandsFloorOffsetPrev;
 	private bool autoLegStandsIntervalLegsEnabledPrev = false;
 	private float autoLegStandsIntervalLegsIntervalPrev;
-	private float autoLegStandsIntervalLegsOffsetPrev;
 	private bool autoLegStandsEndLegFrontPrev = false;
 	private bool autoLegStandsEndLegRearPrev = false;
 	private float autoLegStandsMarginEndLegsPrev = 0.5f;
@@ -109,6 +107,8 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		_cachedLegStandsRotation = _cachedLegStandsBasis.GetEuler();
 
 		TransformChanged += void (_) => UpdateLegStandCoverage();
+		// For UpdateLegStandsHeightAndVisibility
+		TransformChanged += void (_) => SetNeedsUpdate(true);
 	}
 
 	public override void _Ready()
@@ -119,9 +119,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		// Apply the AutoLegStandsFloorOffset and AutoLegStandsIntervalLegsOffset properties if needed.
 		Basis assemblyScale = Basis.Identity.Scaled(_cachedAssemblyScale);
 		Vector3 legStandsStartingOffset = assemblyScale * _cachedLegStandsPosition;
-		autoLegStandsFloorOffsetPrev = legStandsStartingOffset.Y;
-		autoLegStandsIntervalLegsOffsetPrev = legStandsStartingOffset.X;
-		SyncLegStandsOffsets();
 
 		autoLegStandsIntervalLegsIntervalPrev = assembly.AutoLegStandsIntervalLegsInterval;
 		autoLegStandsModelScenePrev = assembly.AutoLegStandsModelScene;
@@ -152,6 +149,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	private float legStandCoverageMax;
 	private float legStandCoverageMinPrev;
 	private float legStandCoverageMaxPrev;
+	private bool legStandsCoverageChanged = false;
 	#endregion Fields / Leg stand coverage
 
 	// This variable is used to store the names of the pre-existing leg stands that can't be owned by the edited scene.
@@ -169,6 +167,12 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		//   - AutoLegStandsMarginEnds
 		//   - AutoLegStandsModelGrabsOffset
 		(legStandCoverageMin, legStandCoverageMax) = GetLegStandCoverage();
+		legStandsCoverageChanged = legStandCoverageMin != legStandCoverageMinPrev
+								|| legStandCoverageMax != legStandCoverageMaxPrev;
+		if (legStandsCoverageChanged)
+		{
+			SetNeedsUpdate(true);
+		}
 	}
 
 	protected virtual (float, float) GetLegStandCoverage() {
@@ -247,9 +251,6 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 			legStandCoverageMinValueForAssertion = legStandCoverageMin;
 			legStandCoverageMaxValueForAssertion = legStandCoverageMax;
 		}
-
-		bool legStandsCoverageChanged = legStandCoverageMin != legStandCoverageMinPrev
-		                                || legStandCoverageMax != legStandCoverageMaxPrev;
 
 		var autoLegStandsUpdateIsNeeded = assembly.AutoLegStandsIntervalLegsEnabled != autoLegStandsIntervalLegsEnabledPrev
 			|| assembly.AutoLegStandsIntervalLegsInterval != autoLegStandsIntervalLegsIntervalPrev
