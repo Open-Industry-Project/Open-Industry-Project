@@ -11,4 +11,5 @@ size = Vector3(4, 0.01, 4)
 collision_mask = 8
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ConcreteTile/StaticBody3D" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.005, 0)
 shape = SubResource("BoxShape3D_omryb")
