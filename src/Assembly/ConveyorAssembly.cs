@@ -565,7 +565,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	#region Fields / Property method overrides
 	public override void _ValidateProperty(Godot.Collections.Dictionary property) {
-		string propertyName = property["name"].AsStringName();
+		StringName propertyName = property["name"].AsStringName();
 
 		// Hide this property as it's only useful for CurvedConveyorAssembly; it clutters the UI otherwise.
 		if (propertyName == PropertyName.SideGuardsBothSides) {
