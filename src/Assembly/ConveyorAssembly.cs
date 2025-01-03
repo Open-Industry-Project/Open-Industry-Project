@@ -438,8 +438,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	[Export(PropertyHint.None, "suffix:m")]
 	public float AutoLegStandsFloorOffset {
 		get => legStands?.GetFloorOffset() ?? 0;
-		set => legStands?.SetFloorOffset(value);
+		set
+		{
+			_autoLegStandsFloorOffset = value;
+			legStands?.SetFloorOffset(value);
+		}
 	}
+	float _autoLegStandsFloorOffset = float.NaN;
 
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
 	[Export]
@@ -697,6 +702,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	{
 		UpdateSides();
 		PreventAllChildScaling();
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationSceneInstantiated && !float.IsNaN(_autoLegStandsFloorOffset))
+		{
+			legStands?.SetFloorOffset(_autoLegStandsFloorOffset);
+		}
+		base._Notification(what);
 	}
 	#endregion constructor, _Ready, and _PhysicsProcess
 

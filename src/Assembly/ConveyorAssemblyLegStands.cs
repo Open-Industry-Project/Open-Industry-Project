@@ -227,6 +227,13 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	{
 		Vector3 assemblyTranslation = assembly.Transform.Origin - assemblyTransformPrev.Origin;
 		assemblyTransformPrev = assembly.Transform;
+
+		// Disable dynamically adjusting the FloorOffset when the assembly is outside the tree.
+		// This covers the case when the assembly is being initialized for the first time.
+		// The user wants to drop the assembly at a location with its default height.
+		// This is different from placing the assembly at the world origin and dragging it there.
+		if (!IsInsideTree()) return;
+
 		var newTransform = ApparentTransform;
 		newTransform.Origin.Y -= assemblyTranslation.Y;
 		ApparentTransform = newTransform;
