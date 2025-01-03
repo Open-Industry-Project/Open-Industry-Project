@@ -62,6 +62,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	private PackedScene autoLegStandsModelScenePrev;
 
 	public float FloorOffset { get => GetFloorOffset(); set => SetFloorOffset(value); }
+	public bool FloorOffsetLock { get; set; } = false;
 	public float IntervalLegsOffset { get => GetIntervalLegsOffset(); set => SetIntervalLegsOffset(value); }
 
 	public float GetFloorOffset()
@@ -75,6 +76,11 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		newApparentTransform.Origin.Y = value;
 		ApparentTransform = newApparentTransform;
 		SetNeedsUpdate(true);
+	}
+
+	public void SetFloorOffsetLock(bool value)
+	{
+		FloorOffsetLock = value;
 	}
 
 	public float GetIntervalLegsOffset()
@@ -232,7 +238,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		// This covers the case when the assembly is being initialized for the first time.
 		// The user wants to drop the assembly at a location with its default height.
 		// This is different from placing the assembly at the world origin and dragging it there.
-		if (!IsInsideTree()) return;
+		if (!IsInsideTree() || FloorOffsetLock) return;
 
 		var newTransform = ApparentTransform;
 		newTransform.Origin.Y -= assemblyTranslation.Y;

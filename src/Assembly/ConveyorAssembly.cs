@@ -446,6 +446,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	}
 	float _autoLegStandsFloorOffset = float.NaN;
 
+	[Export]
+	public bool AutoLegStandsFloorOffsetLock
+	{
+		get => legStands?.FloorOffsetLock ?? false;
+		set => legStands?.SetFloorOffsetLock(value);
+	}
+
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
 	[Export]
 	public bool AutoLegStandsIntervalLegsEnabled {
