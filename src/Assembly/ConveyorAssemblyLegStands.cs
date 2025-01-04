@@ -63,18 +63,26 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	public float FloorOffset { get => GetFloorOffset(); set => SetFloorOffset(value); }
 	public bool FloorOffsetLock { get; set; } = false;
+	public float FloorAngle { get => GetFloorAngle(); set => SetFloorAngle(value); }
+	private float floorAngle = 0f;
 	public float IntervalLegsOffset { get => GetIntervalLegsOffset(); set => SetIntervalLegsOffset(value); }
 
 	public float GetFloorOffset()
 	{
-		return ApparentTransform.Origin.Y;
+		var basisY = GetFloorNormal();
+		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(basisY));
+		return sign * ApparentTransform.Origin.Project(basisY).Length();
 	}
 
 	public void SetFloorOffset(float value)
 	{
-		var newApparentTransform = ApparentTransform;
-		newApparentTransform.Origin.Y = value;
-		ApparentTransform = newApparentTransform;
+		var floorOffset = value;
+		var intervalOffset = GetIntervalLegsOffset();
+		var basisY = GetFloorNormal();
+		var basisZ = ApparentTransform.Basis.Z.Normalized();
+		var basisX = basisY.Cross(basisZ).Normalized();
+		var origin = basisX * intervalOffset + basisY * floorOffset + basisZ * ApparentTransform.Origin.Dot(basisZ);
+		ApparentTransform = new Transform3D(basisX, basisY, basisZ, origin);
 		SetNeedsUpdate(true);
 	}
 
@@ -83,16 +91,51 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		FloorOffsetLock = value;
 	}
 
+	public float GetFloorAngle()
+	{
+		return floorAngle;
+	}
+
+	public void SetFloorAngle(float value)
+	{
+		floorAngle = value;
+		ApplyFloorAngle();
+	}
+
+	private void ApplyFloorAngle()
+	{
+		var floorOffset = GetFloorOffset();
+		var intervalOffset = GetIntervalLegsOffset();
+		var basisY = GetFloorNormal();
+		var basisZ = ApparentTransform.Basis.Z.Normalized();
+		var basisX = basisY.Cross(basisZ).Normalized();
+		var origin = basisX * intervalOffset + basisY * floorOffset + basisZ * ApparentTransform.Origin.Dot(basisZ);
+		ApparentTransform = new Transform3D(basisX, basisY, basisZ, origin);
+		UpdateLegStandCoverage();
+	}
+
+	public Vector3 GetFloorNormal()
+	{
+		var normal = Vector3.Up.Rotated(ApparentTransform.Basis.Z.Normalized(), floorAngle);
+		return normal;
+	}
+
 	public float GetIntervalLegsOffset()
 	{
-		return ApparentTransform.Origin.X;
+		var basisX = ApparentTransform.Basis.X;
+		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(basisX));
+		return sign * ApparentTransform.Origin.Project(basisX).Length();
 	}
 
 	public void SetIntervalLegsOffset(float value)
 	{
-		var newApparentTransform = ApparentTransform;
-		newApparentTransform.Origin.X = value;
-		ApparentTransform = newApparentTransform;
+		var floorOffset = GetFloorOffset();
+		var intervalOffset = value;
+		var basisY = GetFloorNormal();
+		var basisZ = ApparentTransform.Basis.Z.Normalized();
+		var basisX = basisY.Cross(basisZ).Normalized();
+		var origin = basisX * intervalOffset + basisY * floorOffset + basisZ * ApparentTransform.Origin.Dot(basisZ);
+		ApparentTransform = new Transform3D(basisX, basisY, basisZ, origin);
 		UpdateLegStandCoverage();
 	}
 
@@ -241,7 +284,8 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		if (!IsInsideTree() || FloorOffsetLock) return;
 
 		var newTransform = ApparentTransform;
-		newTransform.Origin.Y -= assemblyTranslation.Y;
+		Vector3 deltaOffset = assemblyTranslation.Project(newTransform.Basis.Y.Normalized());
+		newTransform.Origin -= deltaOffset;
 		ApparentTransform = newTransform;
 	}
 
@@ -344,14 +388,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	}
 
 	protected virtual Transform3D LockLegStandsGroup(Transform3D apparentTransform) {
-		// Always align LegStands group with Conveyors group.
-		if (conveyors == null) return apparentTransform;
-		var position = new Vector3(apparentTransform.Origin.X, apparentTransform.Origin.Y, conveyors.ApparentTransform.Origin.Z);
-		// Conveyors can't rotate anymore, so this doesn't do much.
-		var rotation = new Vector3(0f, conveyors.ApparentTransform.Basis.GetEuler().Y, 0f);
-		// Lock Scale to 1, 1, 1
-		var basis = Basis.FromEuler(rotation);
-		return new Transform3D(basis, position);
+		return apparentTransform;
 	}
 
 	private void DeleteAllAutoLegStands() {

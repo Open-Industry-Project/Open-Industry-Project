@@ -20,9 +20,8 @@ public partial class CurvedConveyorAssemblyLegStands : ConveyorAssemblyLegStands
 	protected override Transform3D LockLegStandsGroup(Transform3D apparentTransform) {
 		// We should probably let this rotate around the Y axis, but that would require accounting for legStands rotation in GetLegStandsCoverage().
 		// For now, we won't let it move at all except Y axis translation.
-		var rotation = new Vector3(0, 0, 0);
-		var position = new Vector3(0, apparentTransform.Origin.Y, 0);
-		return new Transform3D(Basis.FromEuler(rotation), position);
+		apparentTransform.Origin = new Vector3(0, apparentTransform.Origin.Y, 0);
+		return apparentTransform;
 	}
 
 	protected override float GetPositionOnLegStandsPath(Vector3 position) {

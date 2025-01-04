@@ -435,6 +435,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private PackedScene _sideGuardsModelScene = GD.Load<PackedScene>("res://parts/SideGuard.tscn");
 
 	[ExportGroup("Leg Stands", "AutoLegStands")]
+	[ExportSubgroup("Floor", "AutoLegStandsFloor")]
 	[Export(PropertyHint.None, "suffix:m")]
 	public float AutoLegStandsFloorOffset {
 		get => legStands?.GetFloorOffset() ?? 0;
@@ -451,6 +452,14 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	{
 		get => legStands?.FloorOffsetLock ?? false;
 		set => legStands?.SetFloorOffsetLock(value);
+	}
+
+	[Export(PropertyHint.None, "radians_as_degrees")]
+	public float AutoLegStandsFloorAngle
+	{
+		// Angle is in parent's space.
+		get => legStands?.GetFloorAngle() ?? 0f;
+		set => legStands?.SetFloorAngle(value);
 	}
 
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
