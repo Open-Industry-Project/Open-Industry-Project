@@ -51,8 +51,8 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 
 	internal static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
 	{
-		var basisRotation = parentBasis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * parentBasis;
+		// Parent's skew is not removed if there is any.
+		var basisScale = Basis.Identity.Scaled(parentBasis.Scale);
 		var xformScale = new Transform3D(basisScale, new Vector3(0, 0, 0));
 
 		var apparentChildTransform = xformScale * childTransform;
@@ -61,8 +61,7 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 
 	internal static Transform3D ApplyInverseScaling(Basis parentBasis, Transform3D apparentChildTransform)
 	{
-		var basisRotation = parentBasis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * parentBasis;
+		var basisScale = Basis.Identity.Scaled(parentBasis.Scale);
 		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
 
 		var childTransform = apparentChildTransform;
