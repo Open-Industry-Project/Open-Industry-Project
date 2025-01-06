@@ -69,9 +69,9 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	public float GetFloorOffset()
 	{
-		var basisY = GetFloorNormal();
-		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(basisY));
-		return sign * ApparentTransform.Origin.Project(basisY).Length();
+		var normalY = ApparentTransform.Basis.Y.Normalized();
+		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(normalY));
+		return sign * ApparentTransform.Origin.Project(normalY).Length();
 	}
 
 	public void SetFloorOffset(float value)
@@ -99,14 +99,14 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	public void SetFloorAngle(float value)
 	{
 		floorAngle = value;
-		ApplyFloorAngle();
+		SetLocalFloorPlane(new Plane(GetFloorNormal(), GetFloorOffset()));
 	}
 
-	private void ApplyFloorAngle()
+	private void SetLocalFloorPlane(Plane localFloorPlane)
 	{
-		var floorOffset = GetFloorOffset();
+		var floorOffset = localFloorPlane.D;
 		var intervalOffset = GetIntervalLegsOffset();
-		var basisY = GetFloorNormal();
+		var basisY = localFloorPlane.Normal;
 		var basisZ = ApparentTransform.Basis.Z.Normalized();
 		var basisX = basisY.Cross(basisZ).Normalized();
 		var origin = basisX * intervalOffset + basisY * floorOffset + basisZ * ApparentTransform.Origin.Dot(basisZ);
@@ -274,8 +274,16 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	#region Leg Stands / Update "LegStands" node
 	public override void OnAssemblyTransformChanged()
 	{
-		Vector3 assemblyTranslation = assembly.Transform.Origin - assemblyTransformPrev.Origin;
+		Transform3D assemblyTransformDeltaLocal = UnapplyInverseScaling(assembly.Basis, assembly.Transform.AffineInverse() * assemblyTransformPrev);
+
+		// Update either FloorNormal or FloorOffset, not both at once.
+		// Assume either assembly.Rotation or assembly.Position has changed, but not both.
+		bool rotationChanged = assembly.Basis != assemblyTransformPrev.Basis;
+		bool positionChanged = assembly.Position != assemblyTransformPrev.Origin;
 		assemblyTransformPrev = assembly.Transform;
+		// Just don't touch anything if both changed.
+		// This shouldn't happen typically anyway.
+		if (rotationChanged && positionChanged) return;
 
 		// Disable dynamically adjusting the FloorOffset when the assembly is outside the tree.
 		// This covers the case when the assembly is being initialized for the first time.
@@ -283,10 +291,17 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		// This is different from placing the assembly at the world origin and dragging it there.
 		if (!IsInsideTree() || FloorOffsetLock) return;
 
-		var newTransform = ApparentTransform;
-		Vector3 deltaOffset = assemblyTranslation.Project(newTransform.Basis.Y.Normalized());
-		newTransform.Origin -= deltaOffset;
-		ApparentTransform = newTransform;
+		float oldOffset = GetFloorOffset();
+		float newOffset = oldOffset;
+		if (positionChanged && !rotationChanged)
+		{
+			Vector3 assemblyTranslationDeltaLocal = -assemblyTransformDeltaLocal.Origin;
+			float deltaOffset = assemblyTranslationDeltaLocal.Dot(ApparentTransform.Basis.Y.Normalized());
+			newOffset = oldOffset + deltaOffset;
+		}
+
+		SetLocalFloorPlane(new Plane(GetFloorNormal(), newOffset));
+		SetNeedsUpdate(true);
 	}
 
 	protected override Transform3D ConstrainApparentTransform(Transform3D apparentTransform)
