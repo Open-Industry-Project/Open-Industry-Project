@@ -80,7 +80,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		var normalY = GetFloorNormal();
 		var normalZ = ApparentTransform.Basis.Z.Normalized();
 		var normalX = normalY.Cross(normalZ).Normalized();
-		var origin = normalX * intervalOffset + normalY * floorOffset + normalZ * ApparentTransform.Origin.Dot(normalZ);
+		var origin = normalX * intervalOffset + normalY * floorOffset;
 		ApparentTransform = new Transform3D(normalX, normalY, normalZ, origin);
 		SetNeedsUpdate(true);
 	}
@@ -108,7 +108,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		var normalY = localFloorPlane.Normal;
 		var normalZ = ApparentTransform.Basis.Z.Normalized();
 		var normalX = normalY.Cross(normalZ).Normalized();
-		var origin = normalX * intervalOffset + normalY * floorOffset + normalZ * ApparentTransform.Origin.Dot(normalZ);
+		var origin = normalX * intervalOffset + normalY * floorOffset;
 		ApparentTransform = new Transform3D(normalX, normalY, normalZ, origin);
 		UpdateLegStandCoverage();
 	}
@@ -132,7 +132,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		var normalY = GetFloorNormal();
 		var normalZ = ApparentTransform.Basis.Z.Normalized();
 		var normalX = normalY.Cross(normalZ).Normalized();
-		var origin = normalX * intervalOffset + normalY * floorOffset + normalZ * ApparentTransform.Origin.Dot(normalZ);
+		var origin = normalX * intervalOffset + normalY * floorOffset;
 		ApparentTransform = new Transform3D(normalX, normalY, normalZ, origin);
 		UpdateLegStandCoverage();
 	}
