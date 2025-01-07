@@ -488,12 +488,16 @@ public partial class Root : Node3D
 
 	public override void _EnterTree()
 	{
-		EditorInterface.Singleton.GetSelection().SelectionChanged += OnSelectionChanged;
+		EditorInterface.Singleton.GetSelection().Connect(EditorSelection.SignalName.SelectionChanged, new Callable(this, MethodName.OnSelectionChanged));
 	}
 
 	public override void _ExitTree()
 	{
-		EditorInterface.Singleton.GetSelection().SelectionChanged -= OnSelectionChanged;
+		var selection = EditorInterface.Singleton.GetSelection();
+		var signalName = EditorSelection.SignalName.SelectionChanged;
+		var callable = new Callable(this, MethodName.OnSelectionChanged);
+		if (!selection.IsConnected(signalName, callable)) return;
+		selection.Disconnect(signalName, callable);
 	}
 
 	public void OnSelectionChanged()
