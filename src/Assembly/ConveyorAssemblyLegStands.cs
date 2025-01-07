@@ -70,8 +70,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	public float GetFloorOffset()
 	{
 		var normalY = ApparentTransform.Basis.Y.Normalized();
-		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(normalY));
-		return sign * ApparentTransform.Origin.Project(normalY).Length();
+		return ApparentTransform.Origin.Dot(normalY);
 	}
 
 	public void SetFloorOffset(float value)
@@ -123,8 +122,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	public float GetIntervalLegsOffset()
 	{
 		var normalX = ApparentTransform.Basis.X.Normalized();
-		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(normalX));
-		return sign * ApparentTransform.Origin.Project(normalX).Length();
+		return ApparentTransform.Origin.Dot(normalX);
 	}
 
 	public void SetIntervalLegsOffset(float value)
