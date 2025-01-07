@@ -277,12 +277,12 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 		// Update either FloorNormal or FloorOffset, not both at once.
 		// Assume either assembly.Rotation or assembly.Position has changed, but not both.
-		bool rotationChanged = assembly.Basis != assemblyTransformPrev.Basis;
+		bool rotationOrScaleChanged = assembly.Basis != assemblyTransformPrev.Basis;
 		bool positionChanged = assembly.Position != assemblyTransformPrev.Origin;
 		assemblyTransformPrev = assembly.Transform;
 		// Just don't touch anything if both changed.
 		// This shouldn't happen typically anyway.
-		if (rotationChanged && positionChanged) return;
+		if (rotationOrScaleChanged && positionChanged) return;
 
 		// Disable dynamically adjusting the FloorOffset when the assembly is outside the tree.
 		// This covers the case when the assembly is being initialized for the first time.
@@ -292,7 +292,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 		float oldOffset = GetFloorOffset();
 		float newOffset = oldOffset;
-		if (positionChanged && !rotationChanged)
+		if (positionChanged && !rotationOrScaleChanged)
 		{
 			Vector3 assemblyTranslationDeltaLocal = assemblyTransformDeltaLocal.Origin;
 			float deltaOffset = assemblyTranslationDeltaLocal.Dot(ApparentTransform.Basis.Y.Normalized());
