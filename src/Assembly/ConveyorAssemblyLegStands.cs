@@ -115,8 +115,9 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	public Vector3 GetFloorNormal()
 	{
-		var normal = Vector3.Up.Rotated(ApparentTransform.Basis.Z.Normalized(), floorAngle);
-		return normal;
+		var normalExternal = Vector3.Up.Rotated(assembly.Transform.Basis.Z.Normalized(), floorAngle);
+		var normalLocal = UnapplyInverseScaling(assembly.Basis, assembly.Transform.Basis.Inverse() * normalExternal);
+		return normalLocal.Normalized();
 	}
 
 	public float GetIntervalLegsOffset()
