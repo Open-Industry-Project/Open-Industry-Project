@@ -122,9 +122,9 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 
 	public float GetIntervalLegsOffset()
 	{
-		var basisX = ApparentTransform.Basis.X;
-		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(basisX));
-		return sign * ApparentTransform.Origin.Project(basisX).Length();
+		var normalX = ApparentTransform.Basis.X.Normalized();
+		var sign = Mathf.Sign(ApparentTransform.Origin.Dot(normalX));
+		return sign * ApparentTransform.Origin.Project(normalX).Length();
 	}
 
 	public void SetIntervalLegsOffset(float value)
