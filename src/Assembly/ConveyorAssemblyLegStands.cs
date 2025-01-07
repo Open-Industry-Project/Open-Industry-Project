@@ -77,11 +77,11 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	{
 		var floorOffset = value;
 		var intervalOffset = GetIntervalLegsOffset();
-		var basisY = GetFloorNormal();
-		var basisZ = ApparentTransform.Basis.Z.Normalized();
-		var basisX = basisY.Cross(basisZ).Normalized();
-		var origin = basisX * intervalOffset + basisY * floorOffset + basisZ * ApparentTransform.Origin.Dot(basisZ);
-		ApparentTransform = new Transform3D(basisX, basisY, basisZ, origin);
+		var normalY = GetFloorNormal();
+		var normalZ = ApparentTransform.Basis.Z.Normalized();
+		var normalX = normalY.Cross(normalZ).Normalized();
+		var origin = normalX * intervalOffset + normalY * floorOffset + normalZ * ApparentTransform.Origin.Dot(normalZ);
+		ApparentTransform = new Transform3D(normalX, normalY, normalZ, origin);
 		SetNeedsUpdate(true);
 	}
 
@@ -105,11 +105,11 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	{
 		var floorOffset = localFloorPlane.D;
 		var intervalOffset = GetIntervalLegsOffset();
-		var basisY = localFloorPlane.Normal;
-		var basisZ = ApparentTransform.Basis.Z.Normalized();
-		var basisX = basisY.Cross(basisZ).Normalized();
-		var origin = basisX * intervalOffset + basisY * floorOffset + basisZ * ApparentTransform.Origin.Dot(basisZ);
-		ApparentTransform = new Transform3D(basisX, basisY, basisZ, origin);
+		var normalY = localFloorPlane.Normal;
+		var normalZ = ApparentTransform.Basis.Z.Normalized();
+		var normalX = normalY.Cross(normalZ).Normalized();
+		var origin = normalX * intervalOffset + normalY * floorOffset + normalZ * ApparentTransform.Origin.Dot(normalZ);
+		ApparentTransform = new Transform3D(normalX, normalY, normalZ, origin);
 		UpdateLegStandCoverage();
 	}
 
@@ -129,11 +129,11 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	{
 		var floorOffset = GetFloorOffset();
 		var intervalOffset = value;
-		var basisY = GetFloorNormal();
-		var basisZ = ApparentTransform.Basis.Z.Normalized();
-		var basisX = basisY.Cross(basisZ).Normalized();
-		var origin = basisX * intervalOffset + basisY * floorOffset + basisZ * ApparentTransform.Origin.Dot(basisZ);
-		ApparentTransform = new Transform3D(basisX, basisY, basisZ, origin);
+		var normalY = GetFloorNormal();
+		var normalZ = ApparentTransform.Basis.Z.Normalized();
+		var normalX = normalY.Cross(normalZ).Normalized();
+		var origin = normalX * intervalOffset + normalY * floorOffset + normalZ * ApparentTransform.Origin.Dot(normalZ);
+		ApparentTransform = new Transform3D(normalX, normalY, normalZ, origin);
 		UpdateLegStandCoverage();
 	}
 
