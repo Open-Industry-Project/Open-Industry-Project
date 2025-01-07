@@ -735,8 +735,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		foreach (Node child in GetChildren()) {
 			if (child is ConveyorAssemblyChild assemblyChild) {
 				assemblyChild.OnAssemblyTransformChanged();
-			}
-			if (child is Node3D child3D) {
+			} else if (child is Node3D child3D) {
 				PreventChildScaling(child3D);
 			}
 		}
