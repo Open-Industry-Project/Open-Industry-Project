@@ -68,4 +68,14 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 		childTransform = xformScaleInverse * childTransform;
 		return childTransform;
 	}
+
+	internal static Vector3 UnapplyInverseScaling(Basis parentBasis, Vector3 childPosition)
+	{
+		return parentBasis.Scale * childPosition;
+	}
+
+	internal static Vector3 ApplyInverseScaling(Basis parentBasis, Vector3 apparentChildPosition)
+	{
+		return parentBasis.Scale.Inverse() * apparentChildPosition;
+	}
 }
