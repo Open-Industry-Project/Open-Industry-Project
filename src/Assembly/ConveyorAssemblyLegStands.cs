@@ -293,7 +293,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 		float newOffset = oldOffset;
 		if (positionChanged && !rotationChanged)
 		{
-			Vector3 assemblyTranslationDeltaLocal = -assemblyTransformDeltaLocal.Origin;
+			Vector3 assemblyTranslationDeltaLocal = assemblyTransformDeltaLocal.Origin;
 			float deltaOffset = assemblyTranslationDeltaLocal.Dot(ApparentTransform.Basis.Y.Normalized());
 			newOffset = oldOffset + deltaOffset;
 		}
