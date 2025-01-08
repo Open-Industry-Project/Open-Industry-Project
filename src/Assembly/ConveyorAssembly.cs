@@ -62,8 +62,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 	}
 
+	// Deprecated: No longer has any practical purpose.
 	[Export]
-	public bool ConveyorAutomaticLength
+	private bool ConveyorAutomaticLength
 	{
 		get => _conveyorAutomaticLength;
 		set
@@ -71,6 +72,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			if (value == _conveyorAutomaticLength) return;
 			_conveyorAutomaticLength = value;
 			conveyors?.SetNeedsUpdate(true);
+			NotifyPropertyListChanged();
 		}
 	}
 	private bool _conveyorAutomaticLength = true;
@@ -662,6 +664,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 				property["hint"] = hint;
 				property["hint_string"] = hintString;
 				// TODO figure out a good way to subscribe to further property hint changes.
+			}
+		}
+		else if (propertyName == PropertyName.ConveyorAutomaticLength)
+		{
+			// Hide deprecated property.
+			// If changed, show it anyway to allow users to restore its default value.
+			if (ConveyorAutomaticLength)
+			{
+				property["usage"] = (int)PropertyUsageFlags.NoEditor;
 			}
 		}
 		else
