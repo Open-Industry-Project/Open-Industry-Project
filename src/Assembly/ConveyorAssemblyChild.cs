@@ -21,7 +21,7 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 		apparentTransform = Transform;
 		if (GetParentOrNull<Node3D>() is Node3D parent)
 		{
-			apparentTransform = UnapplyInverseScaling(parent.Basis, Transform);
+			apparentTransform = LocalToApparent(parent.Basis, Transform);
 		}
 	}
 
@@ -29,8 +29,8 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 	{
 		// Note: This method must set apparentTransform if overridden.
 		// This is how 3D gizmos update the ApparentTransform.
-		apparentTransform = ConstrainApparentTransform(UnapplyInverseScaling(assembly.Basis, transform));
-		return ApplyInverseScaling(assembly.Basis, apparentTransform);
+		apparentTransform = ConstrainApparentTransform(LocalToApparent(assembly.Basis, transform));
+		return ApparentToLocal(assembly.Basis, apparentTransform);
 	}
 
 	protected virtual Transform3D ConstrainApparentTransform(Transform3D transform)
@@ -45,11 +45,11 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 
 	private void ApplyApparentTransform()
 	{
-		Transform3D newTransform = ApplyInverseScaling(assembly.Basis, apparentTransform);
+		Transform3D newTransform = ApparentToLocal(assembly.Basis, apparentTransform);
 		Transform = newTransform;
 	}
 
-	internal static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
+	internal static Transform3D LocalToApparent(Basis parentBasis, Transform3D childTransform)
 	{
 		// Parent's skew is not removed if there is any.
 		var basisScale = Basis.Identity.Scaled(parentBasis.Scale);
@@ -59,7 +59,7 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 		return apparentChildTransform;
 	}
 
-	internal static Transform3D ApplyInverseScaling(Basis parentBasis, Transform3D apparentChildTransform)
+	internal static Transform3D ApparentToLocal(Basis parentBasis, Transform3D apparentChildTransform)
 	{
 		var basisScale = Basis.Identity.Scaled(parentBasis.Scale);
 		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
@@ -69,12 +69,12 @@ public partial class ConveyorAssemblyChild : TransformMonitoredNode3D
 		return childTransform;
 	}
 
-	internal static Vector3 UnapplyInverseScaling(Basis parentBasis, Vector3 childPosition)
+	internal static Vector3 LocalToApparent(Basis parentBasis, Vector3 childPosition)
 	{
 		return parentBasis.Scale * childPosition;
 	}
 
-	internal static Vector3 ApplyInverseScaling(Basis parentBasis, Vector3 apparentChildPosition)
+	internal static Vector3 ApparentToLocal(Basis parentBasis, Vector3 apparentChildPosition)
 	{
 		return parentBasis.Scale.Inverse() * apparentChildPosition;
 	}

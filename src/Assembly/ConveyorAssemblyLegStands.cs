@@ -116,7 +116,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	public Vector3 GetFloorNormal()
 	{
 		var normalExternal = Vector3.Up.Rotated(assembly.Transform.Basis.Z.Normalized(), floorAngle);
-		var normalLocal = UnapplyInverseScaling(assembly.Basis, assembly.Transform.Basis.Inverse() * normalExternal);
+		var normalLocal = LocalToApparent(assembly.Basis, assembly.Transform.Basis.Inverse() * normalExternal);
 		return normalLocal.Normalized();
 	}
 
@@ -273,7 +273,7 @@ public partial class ConveyorAssemblyLegStands : ConveyorAssemblyChild
 	#region Leg Stands / Update "LegStands" node
 	public override void OnAssemblyTransformChanged()
 	{
-		Transform3D assemblyTransformDeltaLocal = UnapplyInverseScaling(assembly.Basis, assembly.Transform.AffineInverse() * assemblyTransformPrev);
+		Transform3D assemblyTransformDeltaLocal = LocalToApparent(assembly.Basis, assembly.Transform.AffineInverse() * assemblyTransformPrev);
 
 		// Update either FloorNormal or FloorOffset, not both at once.
 		// Assume either assembly.Rotation or assembly.Position has changed, but not both.

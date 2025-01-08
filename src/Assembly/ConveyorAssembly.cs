@@ -764,13 +764,13 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	private Transform3D PreventChildScaling(Transform3D childTransform, Basis basisPrev) {
 		// The child transform without the effects of the parent's scale.
-		var apparentChildTransform = ConveyorAssemblyChild.UnapplyInverseScaling(basisPrev, childTransform);
+		var apparentChildTransform = ConveyorAssemblyChild.LocalToApparent(basisPrev, childTransform);
 
 		// Remove any remaining scale. This effectively locks child's scale to (1, 1, 1).
 		apparentChildTransform.Basis = apparentChildTransform.Basis.Orthonormalized();
 
 		// Reapply inverse parent scaling to child.
-		var newChildTransform = ConveyorAssemblyChild.ApplyInverseScaling(Basis, apparentChildTransform);
+		var newChildTransform = ConveyorAssemblyChild.ApparentToLocal(Basis, apparentChildTransform);
 		return newChildTransform;
 	}
 	#endregion Decouple assembly scale from child scale
