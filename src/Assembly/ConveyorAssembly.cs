@@ -40,11 +40,26 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	#region Fields / Exported properties
 	[ExportGroup("Conveyor", "Conveyor")]
-	[Export(PropertyHint.None, "radians_as_degrees")]
-	public float ConveyorAngle
+	// Property is deprecated.
+	private float ConveyorAngle
 	{
-		get => conveyors?.GetAngle() ?? 0;
-		set => conveyors?.SetAngle(value);
+		get
+		{
+			return conveyors?.GetAngle() ?? 0;
+		}
+		set
+		{
+			// Transfer the value to assembly rotation then zero out this property.
+			// This is only expected to be called when instantiating old scenes.
+			// It's not idepotent anymore, so don't use it yourself!
+			conveyors?.SetAngle(0);
+			if (value == 0) return;
+			Vector3 rotation = Transform.Basis.Orthonormalized().GetEuler(EulerOrder.Yzx);
+			Vector3 scale = Transform.Basis.Scale;
+			Vector3 newRot = new Vector3(rotation.X, rotation.Y, rotation.Z + value);
+			Basis newBasis = Basis.FromEuler(newRot, EulerOrder.Yzx).Transposed().Scaled(scale).Transposed();
+			Transform = new Transform3D(newBasis, Transform.Origin);
+		}
 	}
 
 	[Export]
