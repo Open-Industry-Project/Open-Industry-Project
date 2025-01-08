@@ -785,4 +785,17 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 		return changed;
 	}
+
+	protected override Transform3D ConstrainTransform(Transform3D transform)
+	{
+		Vector3 rotation = transform.Basis.Orthonormalized().GetEuler(EulerOrder.Yzx);
+		if (Mathf.IsZeroApprox(rotation.X))
+		{
+			return transform;
+		}
+		Vector3 scale = transform.Basis.Scale;
+		Vector3 newRot = new Vector3(0f, rotation.Y, rotation.Z);
+		Basis newBasis = Basis.FromEuler(newRot, EulerOrder.Yzx).Transposed().Scaled(scale).Transposed();
+		return new Transform3D(newBasis, transform.Origin);
+	}
 }
