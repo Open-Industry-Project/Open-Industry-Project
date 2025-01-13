@@ -373,6 +373,11 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		newPoints[3] = new Vector3(endSize, -innerY, innerRadius);
 		for (int i = 0; i <= arcSplits; i++)
 		{
+			// Skip all the angles that we're going to throw away.
+			// We end up reusing the first arc shape for all of the others, so we only need to calculate its points.
+			// We also need the first and last angle's points for the end caps' shapes.
+			if (1 < i && i < arcSplits) continue;
+
 			// Radial edge loops
 			float angle = splitAngle * i;
 			float innerZ = Mathf.Cos(angle) * innerRadius;
@@ -391,10 +396,12 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		newPoints[pointCount - 1] = new Vector3(-innerRadius, -innerY, -endSize);
 
 		// Update shapes
-		foreach ((ConvexPolygonShape3D shape, int idx) in simpleConveyorShapes.Take(arcSplits + 2).Select((item, index) => (item, index)))
-		{
-			Vector3[] newShapePoints = newPoints[(idx * 4)..((idx + 2) * 4)];
-			shape.Points = newShapePoints;
-		}
+		// arcSegmentShape is reused for all 20 arc segments.
+		ConvexPolygonShape3D end1Shape = GetNode<CollisionShape3D>("SimpleConveyorShape/CollisionShape3DEnd1").Shape as ConvexPolygonShape3D;
+		ConvexPolygonShape3D arcSegmentShape = GetNode<CollisionShape3D>("SimpleConveyorShape/CollisionShape3D1").Shape as ConvexPolygonShape3D;
+		ConvexPolygonShape3D end2Shape = GetNode<CollisionShape3D>("SimpleConveyorShape/CollisionShape3DEnd2").Shape as ConvexPolygonShape3D;
+		end1Shape.Points = newPoints[0..8];
+		arcSegmentShape.Points = newPoints[4..12];
+		end2Shape.Points = newPoints[^8..^0];
 	}
 }
