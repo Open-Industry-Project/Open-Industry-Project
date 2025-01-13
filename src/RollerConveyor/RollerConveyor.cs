@@ -180,6 +180,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 			UpdateScale();
 			UpdateWidth();
 			UpdateLength();
+			UpdateSize();
 		}
 		if (what == NotificationSceneInstantiated)
 		{
@@ -308,6 +309,9 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		{
 			EmitSignal(SignalName.ScaleChanged, Scale);
 			lastScale = Scale;
+
+			Node3D simpleConveyorShapeBody = GetNode<Node3D>("SimpleConveyorShape");
+			simpleConveyorShapeBody.Scale = Scale.Inverse();
 		}
 	}
 
@@ -324,12 +328,21 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 	private void UpdateLength()
 	{
+		// Note: This length measurement doesn't include the extra 0.5m from Ends.
 		float newLength = Scale.X;
 		if (lastLength != newLength)
 		{
 			EmitSignal(SignalName.LengthChanged, newLength);
 			lastLength = newLength;
 		}
+	}
+
+	private void UpdateSize()
+	{
+		// Note: This length measurement includes the extra 0.5m from Ends.
+		CollisionShape3D simpleConveyorShapeNode = GetNode<CollisionShape3D>("SimpleConveyorShape/CollisionShape3D");
+		BoxShape3D simpleConveyorShape = simpleConveyorShapeNode.Shape as BoxShape3D;
+		simpleConveyorShape.Size = GetSize();
 	}
 
 	private void SetRollersSpeed(float speed)
@@ -356,5 +369,19 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		var meshInstance2 = GetNode<Node3D>("ConvRoller/ConvRollerR");
 		meshInstance1.Scale = new Vector3(1f, 1f, frameBaseWidth * baseWidth / width);
 		meshInstance2.Scale = new Vector3(1f, 1f, frameBaseWidth * baseWidth / width);
+	}
+
+	public Vector3 GetSize()
+	{
+		var length = Scale.X + 0.5f;
+		var width = Scale.Z;
+		var height = 0.24f;
+		return new Vector3(length, height, width);
+	}
+
+	public void SetSize(Vector3 value)
+	{
+		Scale = new Vector3(value.X - 0.5f, 1f, value.Z);
+		// NotificationLocalTransformChanged takes care of the rest.
 	}
 }
