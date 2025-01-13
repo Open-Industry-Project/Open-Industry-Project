@@ -1,5 +1,7 @@
 using Godot;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 [Tool]
@@ -351,7 +353,7 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		Node3D simpleConveyorShapeBody = GetNode<Node3D>("SimpleConveyorShape");
 		simpleConveyorShapeBody.Scale = Scale.Inverse();
 
-		ConvexPolygonShape3D simpleConveyorShape = simpleConveyorShapeBody.GetNode<CollisionShape3D>("CollisionShape3D").Shape as ConvexPolygonShape3D;
+		IEnumerable<ConvexPolygonShape3D> simpleConveyorShapes = simpleConveyorShapeBody.GetChildren().OfType<CollisionShape3D>().Select(x => x.Shape as ConvexPolygonShape3D);
 
 		float innerRadius = GetCurveInnerRadius();
 		float outerRadius = GetCurveOuterRadius();
@@ -388,6 +390,11 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		newPoints[pointCount - 2] = new Vector3(-outerRadius, -outerY, -endSize);
 		newPoints[pointCount - 1] = new Vector3(-innerRadius, -innerY, -endSize);
 
-		simpleConveyorShape.Points = newPoints;
+		// Update shapes
+		foreach ((ConvexPolygonShape3D shape, int idx) in simpleConveyorShapes.Take(arcSplits + 2).Select((item, index) => (item, index)))
+		{
+			Vector3[] newShapePoints = newPoints[(idx * 4)..((idx + 2) * 4)];
+			shape.Points = newShapePoints;
+		}
 	}
 }
