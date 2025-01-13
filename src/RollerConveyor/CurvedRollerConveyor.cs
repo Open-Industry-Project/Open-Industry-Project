@@ -37,6 +37,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	const float BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS;
 	// Based on the RollerCorner model geometry at scale=1
 	const float BASE_ROLLER_LENGTH = 2f;
+	const float ROLLER_INNER_END_RADIUS = 0.044587f;
+	const float ROLLER_OUTER_END_RADIUS = 0.12f;
 
 	private float AngularSpeedAroundCurve {
 		get {
@@ -48,10 +50,6 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	private float RollerAngularSpeed {
 		get {
 			if (Scale.X == 0f) return 0f;
-			// Based on RollerCorner model geometry.
-			const float ROLLER_INNER_END_RADIUS = 0.044587f;
-			const float ROLLER_OUTER_END_RADIUS = 0.12f;
-
 			const float BASE_ROLLER_LENGTH = BASE_CONVEYOR_WIDTH;
 			float referencePointAlongRoller = BASE_ROLLER_LENGTH - ReferenceDistance / Scale.X;
 			float rollerRadiusAtReferencePoint = ROLLER_INNER_END_RADIUS + referencePointAlongRoller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH;
@@ -249,6 +247,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			}
 		}
 
+		RegenerateSimpleConveyorShape();
+
 		SetCurrentScale();
 	}
 
@@ -334,5 +334,60 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			GD.PrintErr("Failure to read: " + tag + " in Node: " + Name);
 			readSuccessful = false;
 		}
+	}
+
+	public float GetCurveInnerRadius()
+	{
+		return CURVE_BASE_INNER_RADIUS * Scale.X;
+	}
+
+	public float GetCurveOuterRadius()
+	{
+		return CURVE_BASE_OUTER_RADIUS * Scale.X;
+	}
+
+	void RegenerateSimpleConveyorShape()
+	{
+		Node3D simpleConveyorShapeBody = GetNode<Node3D>("SimpleConveyorShape");
+		simpleConveyorShapeBody.Scale = Scale.Inverse();
+
+		ConvexPolygonShape3D simpleConveyorShape = simpleConveyorShapeBody.GetNode<CollisionShape3D>("CollisionShape3D").Shape as ConvexPolygonShape3D;
+
+		float innerRadius = GetCurveInnerRadius();
+		float outerRadius = GetCurveOuterRadius();
+		const float endSize = 0.125f;
+		const float innerY = ROLLER_INNER_END_RADIUS;
+		const float outerY = ROLLER_OUTER_END_RADIUS;
+
+		const float arcAngle = Mathf.Pi / 2f;
+		const int arcSplits = 20;
+		const float splitAngle = arcAngle / arcSplits;
+		const int pointCount = (arcSplits + 3) * 4;
+		Vector3[] newPoints = new Vector3[pointCount];
+		// First endcap
+		newPoints[0] = new Vector3(endSize, innerY, innerRadius);
+		newPoints[1] = new Vector3(endSize, outerY, outerRadius);
+		newPoints[2] = new Vector3(endSize, -outerY, outerRadius);
+		newPoints[3] = new Vector3(endSize, -innerY, innerRadius);
+		for (int i = 0; i <= arcSplits; i++)
+		{
+			// Radial edge loops
+			float angle = splitAngle * i;
+			float innerZ = Mathf.Cos(angle) * innerRadius;
+			float innerX = -Mathf.Sin(angle) * innerRadius;
+			float outerZ = Mathf.Cos(angle) * outerRadius;
+			float outerX = -Mathf.Sin(angle) * outerRadius;
+			newPoints[(i+1)*4+0] = new Vector3(innerX, innerY, innerZ);
+			newPoints[(i+1)*4+1] = new Vector3(outerX, outerY, outerZ);
+			newPoints[(i+1)*4+2] = new Vector3(outerX, -outerY, outerZ);
+			newPoints[(i+1)*4+3] = new Vector3(innerX, -innerY, innerZ);
+		}
+		// Second endcap
+		newPoints[pointCount - 4] = new Vector3(-innerRadius, innerY, -endSize);
+		newPoints[pointCount - 3] = new Vector3(-outerRadius, outerY, -endSize);
+		newPoints[pointCount - 2] = new Vector3(-outerRadius, -outerY, -endSize);
+		newPoints[pointCount - 1] = new Vector3(-innerRadius, -innerY, -endSize);
+
+		simpleConveyorShape.Points = newPoints;
 	}
 }
