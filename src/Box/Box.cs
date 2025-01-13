@@ -17,12 +17,13 @@ public partial class Box : Node3D
 
 		if (Main != null)
 		{
+			rigidBody.Freeze = !Main.simulationRunning;
+
 			if (Main.simulationRunning)
 			{
 				instanced = true;
+				rigidBody.LinearVelocity = InitialLinearVelocity;
 			}
-
-			rigidBody.Freeze = !Main.simulationRunning;
 		}
 	}
 
