@@ -5,6 +5,10 @@ using System.Threading.Tasks;
 [Tool]
 public partial class ChainTransfer : Node3D
 {
+	const float BASE_LENGTH = 2.0f;
+
+	ChainTransferBases ChainTransferBases => GetNode<ChainTransferBases>("ChainBases");
+
 	PackedScene chainTransferBaseScene = (PackedScene)ResourceLoader.Load("res://src/ChainTransfer/Base.tscn");
 
 	private bool enableComms;
@@ -51,7 +55,8 @@ public partial class ChainTransfer : Node3D
 			}
 
 			chains = new_value;
-			FixChains();
+			FixChains(chains);
+			UpdateSimpleShape();
 		}
 	}
 
@@ -115,6 +120,23 @@ public partial class ChainTransfer : Node3D
 		}
 	}
 
+	public ChainTransfer()
+	{
+		SetNotifyLocalTransform(true);
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
+		{
+			if(Scale != prevScale)
+			{
+				Rescale();
+			}
+		}
+		base._Notification(what);
+	}
+
 	public override void _Ready()
 	{
 		SpawnChains(chains - GetChildCount());
@@ -122,7 +144,6 @@ public partial class ChainTransfer : Node3D
 		SetChainsSpeed(speed);
 		SetChainsPopupChains(popupChains);
 
-		prevScale = Scale;
 		Rescale();
 	}
 
@@ -143,14 +164,6 @@ public partial class ChainTransfer : Node3D
 		{
 			Main.SimulationStarted -= OnSimulationStarted;
 			Main.SimulationEnded -= OnSimulationEnded;
-		}
-	}
-
-	public override void _Process(double delta)
-	{
-		if(Scale != prevScale)
-		{
-			Rescale();
 		}
 	}
 
@@ -181,47 +194,34 @@ public partial class ChainTransfer : Node3D
 
 	void Rescale()
 	{
-		Scale = new Vector3(Scale.X, 1, 1);
+		prevScale = new Vector3(Scale.X, 1, 1);
+		Scale = prevScale;
+		UpdateSimpleShape();
 	}
 
 	void SetChainsDistance(float distance)
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.Position = new Vector3(0, 0, distance * chainBase.GetIndex());
-		}
+		ChainTransferBases.SetChainsDistance(distance);
 	}
 
 	void SetChainsSpeed(float speed)
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.Speed = speed;
-		}
+		ChainTransferBases.SetChainsSpeed(speed);
 	}
 
 	void SetChainsPopupChains(bool popupChains)
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.Active = popupChains;
-		}
+		ChainTransferBases.SetChainsPopupChains(popupChains);
 	}
 
 	void TurnOnChains()
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.TurnOn();
-		}
+		ChainTransferBases.TurnOnChains();
 	}
 
 	void TurnOffChains()
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.TurnOff();
-		}
+		ChainTransferBases.TurnOffChains();
 	}
 
 	void SpawnChains(int count)
@@ -230,7 +230,7 @@ public partial class ChainTransfer : Node3D
 		for (int i = 0; i < count; i++)
 		{
 			ChainTransferBase chainBase = chainTransferBaseScene.Instantiate() as ChainTransferBase;
-			AddChild(chainBase, forceReadableName: true);
+			ChainTransferBases.AddChild(chainBase, forceReadableName: true);
 			chainBase.Owner = this;
 			chainBase.Position = new Vector3(0, 0, distance * chainBase.GetIndex());
 			chainBase.Active = popupChains;
@@ -243,23 +243,12 @@ public partial class ChainTransfer : Node3D
 
 	void RemoveChains(int count)
 	{
-		for (int i = 0; i < count; i++)
-		{
-			GetChild(GetChildCount() - 1 - i).QueueFree();
-		}
+		ChainTransferBases.RemoveChains(count);
 	}
 
-	void FixChains()
+	void FixChains(int chains)
 	{
-		int childCount = GetChildCount();
-		int difference = childCount - chains;
-
-		if (difference <= 0) return;
-
-		for (int i = 0; i < difference; i++)
-		{
-			GetChild(GetChildCount() - 1 - i).QueueFree();
-		}
+		ChainTransferBases.FixChains(chains);
 	}
 
 	async Task ScanTag()
@@ -301,5 +290,15 @@ public partial class ChainTransfer : Node3D
 		this.PopupChains = false;
 		TurnOffChains();
 		running = false;
+	}
+
+	void UpdateSimpleShape()
+	{
+		Node3D simpleConveyorShapeBody = GetNode<Node3D>("SimpleConveyorShape");
+		simpleConveyorShapeBody.Scale = Scale.Inverse();
+		CollisionShape3D simpleConveyorShapeNode = simpleConveyorShapeBody.GetNode<CollisionShape3D>("CollisionShape3D");
+		simpleConveyorShapeNode.Position = new Vector3(0, -0.094f, (Chains - 1) * Distance / 2f);
+		BoxShape3D simpleConveyorShape = simpleConveyorShapeNode.Shape as BoxShape3D;
+		simpleConveyorShape.Size = new Vector3(Scale.X * BASE_LENGTH + 0.25f, 0.2f, (Chains - 1) * Distance + 0.042f * 2f);
 	}
 }

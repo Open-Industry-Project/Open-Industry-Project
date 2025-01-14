@@ -1,5 +1,7 @@
 using Godot;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 [Tool]
@@ -37,6 +39,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	const float BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS;
 	// Based on the RollerCorner model geometry at scale=1
 	const float BASE_ROLLER_LENGTH = 2f;
+	const float ROLLER_INNER_END_RADIUS = 0.044587f;
+	const float ROLLER_OUTER_END_RADIUS = 0.12f;
 
 	private float AngularSpeedAroundCurve {
 		get {
@@ -48,10 +52,6 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	private float RollerAngularSpeed {
 		get {
 			if (Scale.X == 0f) return 0f;
-			// Based on RollerCorner model geometry.
-			const float ROLLER_INNER_END_RADIUS = 0.044587f;
-			const float ROLLER_OUTER_END_RADIUS = 0.12f;
-
 			const float BASE_ROLLER_LENGTH = BASE_CONVEYOR_WIDTH;
 			float referencePointAlongRoller = BASE_ROLLER_LENGTH - ReferenceDistance / Scale.X;
 			float rollerRadiusAtReferencePoint = ROLLER_INNER_END_RADIUS + referencePointAlongRoller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH;
@@ -249,6 +249,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			}
 		}
 
+		RegenerateSimpleConveyorShape();
+
 		SetCurrentScale();
 	}
 
@@ -334,5 +336,72 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 			GD.PrintErr("Failure to read: " + tag + " in Node: " + Name);
 			readSuccessful = false;
 		}
+	}
+
+	public float GetCurveInnerRadius()
+	{
+		return CURVE_BASE_INNER_RADIUS * Scale.X;
+	}
+
+	public float GetCurveOuterRadius()
+	{
+		return CURVE_BASE_OUTER_RADIUS * Scale.X;
+	}
+
+	void RegenerateSimpleConveyorShape()
+	{
+		Node3D simpleConveyorShapeBody = GetNode<Node3D>("SimpleConveyorShape");
+		simpleConveyorShapeBody.Scale = Scale.Inverse();
+
+		IEnumerable<ConvexPolygonShape3D> simpleConveyorShapes = simpleConveyorShapeBody.GetChildren().OfType<CollisionShape3D>().Select(x => x.Shape as ConvexPolygonShape3D);
+
+		float innerRadius = GetCurveInnerRadius();
+		float outerRadius = GetCurveOuterRadius();
+		const float endSize = 0.125f;
+		const float innerY = ROLLER_INNER_END_RADIUS;
+		const float outerY = ROLLER_OUTER_END_RADIUS;
+
+		const float arcAngle = Mathf.Pi / 2f;
+		const int arcSplits = 20;
+		const float splitAngle = arcAngle / arcSplits;
+		const int pointCount = (arcSplits + 3) * 4;
+		Vector3[] newPoints = new Vector3[pointCount];
+		// First endcap
+		newPoints[0] = new Vector3(endSize, innerY, innerRadius);
+		newPoints[1] = new Vector3(endSize, outerY, outerRadius);
+		newPoints[2] = new Vector3(endSize, -outerY, outerRadius);
+		newPoints[3] = new Vector3(endSize, -innerY, innerRadius);
+		for (int i = 0; i <= arcSplits; i++)
+		{
+			// Skip all the angles that we're going to throw away.
+			// We end up reusing the first arc shape for all of the others, so we only need to calculate its points.
+			// We also need the first and last angle's points for the end caps' shapes.
+			if (1 < i && i < arcSplits) continue;
+
+			// Radial edge loops
+			float angle = splitAngle * i;
+			float innerZ = Mathf.Cos(angle) * innerRadius;
+			float innerX = -Mathf.Sin(angle) * innerRadius;
+			float outerZ = Mathf.Cos(angle) * outerRadius;
+			float outerX = -Mathf.Sin(angle) * outerRadius;
+			newPoints[(i+1)*4+0] = new Vector3(innerX, innerY, innerZ);
+			newPoints[(i+1)*4+1] = new Vector3(outerX, outerY, outerZ);
+			newPoints[(i+1)*4+2] = new Vector3(outerX, -outerY, outerZ);
+			newPoints[(i+1)*4+3] = new Vector3(innerX, -innerY, innerZ);
+		}
+		// Second endcap
+		newPoints[pointCount - 4] = new Vector3(-innerRadius, innerY, -endSize);
+		newPoints[pointCount - 3] = new Vector3(-outerRadius, outerY, -endSize);
+		newPoints[pointCount - 2] = new Vector3(-outerRadius, -outerY, -endSize);
+		newPoints[pointCount - 1] = new Vector3(-innerRadius, -innerY, -endSize);
+
+		// Update shapes
+		// arcSegmentShape is reused for all 20 arc segments.
+		ConvexPolygonShape3D end1Shape = GetNode<CollisionShape3D>("SimpleConveyorShape/CollisionShape3DEnd1").Shape as ConvexPolygonShape3D;
+		ConvexPolygonShape3D arcSegmentShape = GetNode<CollisionShape3D>("SimpleConveyorShape/CollisionShape3D1").Shape as ConvexPolygonShape3D;
+		ConvexPolygonShape3D end2Shape = GetNode<CollisionShape3D>("SimpleConveyorShape/CollisionShape3DEnd2").Shape as ConvexPolygonShape3D;
+		end1Shape.Points = newPoints[0..8];
+		arcSegmentShape.Points = newPoints[4..12];
+		end2Shape.Points = newPoints[^8..^0];
 	}
 }

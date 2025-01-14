@@ -82,7 +82,7 @@ public partial class ChainTransferBase : Node3D
 		SetChainPosition(chainEndLMaterial, 0);
 		SetChainPosition(chainEndRMaterial, 0);
 
-		owner = GetParent() as ChainTransfer;
+		owner = GetParent().GetParent() as ChainTransfer;
 	}
 
 	public override void _PhysicsProcess(double delta)

@@ -48,6 +48,7 @@ import/fbx/enabled=false
 3d_physics/layer_2="Dynamic"
 3d_physics/layer_3="Belt"
 3d_physics/layer_4="Box"
+3d_physics/layer_5="SimpleConveyorShape"
 
 [physics]
 
