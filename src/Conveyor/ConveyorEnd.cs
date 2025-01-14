@@ -53,12 +53,13 @@ public partial class ConveyorEnd : Node3D
 
 			if (owner.Main.Start)
 			{
-				Vector3 localFront = -GlobalTransform.Basis.Z.Normalized();
+				Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
 				if (!owner.Main.simulationPaused)
 					beltPosition += Speed * delta;
 				if (beltPosition >= 1.0)
 					beltPosition = 0.0;
-				staticBody.ConstantAngularVelocity = -localFront * Speed * MathF.PI;
+				const float radius = 0.25f;
+				staticBody.ConstantAngularVelocity = localFront * Speed / radius;
 			}
 			else
 			{
