@@ -195,18 +195,17 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		rollers = GetNodeOrNull<Rollers>("Rollers");
 		ends = GetNodeOrNull<Node3D>("Ends");
 
-		// Rollers isn't an instance, so it can't receive NotificationSceneInstantiated.
-		// We'll let it piggyback on our notification instead.
-		rollers.OnSceneInstantiated();
-
 		SetupRollerContainer(rollers);
 		foreach (RollerConveyorEnd end in ends.GetChildren())
 		{
 			SetupRollerContainer(end);
 		}
+
+		// In case transform was changed before scene was instantiated somehow.
 		UpdateScale();
 		UpdateWidth();
 		UpdateLength();
+		UpdateSize();
 	}
 
 	void OnSimulationStarted()
@@ -244,6 +243,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		ScaleChanged += rollers.OnOwnerScaleChanged;
 		WidthChanged += rollers.SetWidth;
 		LengthChanged += rollers.SetLength;
+
+		rollers.SetupExistingRollers();
 
 		rollers.SetRollerSkewAngle(skewAngle);
 		rollers.OnOwnerScaleChanged(Scale);

@@ -13,11 +13,6 @@ public partial class Rollers : AbstractRollerContainer
 		LengthChanged += AddOrRemoveRollers;
 	}
 
-	public new void OnSceneInstantiated()
-	{
-		base.OnSceneInstantiated();
-	}
-
 	private void AddOrRemoveRollers(float conveyorLength)
 	{
 		int roundedLength = Mathf.RoundToInt(conveyorLength / rollersDistance) + 1;
