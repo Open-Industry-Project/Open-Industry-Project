@@ -21,10 +21,10 @@ public partial class RollerConveyorEnd : AbstractRollerContainer
 		WidthChanged += SetEndsSeparation;
 	}
 
-	protected override void OnSceneInstantiated()
+	internal override void SetupExistingRollers()
 	{
 		roller = GetNode<Roller>("Roller");
-		base.OnSceneInstantiated();
+		base.SetupExistingRollers();
 	}
 
 	~RollerConveyorEnd()
