@@ -1,10 +1,14 @@
-[gd_scene load_steps=6 format=3 uid="uid://dg47c07xr4ksu"]
+[gd_scene load_steps=7 format=3 uid="uid://dg47c07xr4ksu"]
 
 [ext_resource type="Script" uid="uid://cjar5flvdxckx" path="res://src/RollerConveyor/RollerConveyor.cs" id="1_vnty6"]
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]
 [ext_resource type="Script" uid="uid://bpcr6nds6gjiu" path="res://src/RollerConveyor/Rollers.cs" id="3_peu56"]
 [ext_resource type="PackedScene" uid="uid://b6dc0ajcxde1s" path="res://assets/3DModels/ConveyorRollerBaseSplit.glb" id="3_sau1a"]
 [ext_resource type="PackedScene" uid="uid://bmpev1pqmbmhb" path="res://src/RollerConveyor/RollerConveyorEnd.tscn" id="6_fn5jx"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_vc5t3"]
+resource_local_to_scene = true
+size = Vector3(1.525, 0.24, 1.524)
 
 [node name="RollerConveyor" type="Node3D"]
 process_mode = 3
@@ -35,3 +39,13 @@ transform = Transform3D(0.97561, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0.5, 0, 0)
 [node name="RollerConveyorEnd2" parent="Ends" instance=ExtResource("6_fn5jx")]
 transform = Transform3D(-0.97561, 6.47981e-14, 9.90786e-08, -2.5757e-14, 1, -3.96315e-07, -1.47313e-07, -6.03984e-07, -0.656168, -0.5, 0, 0)
 flipped = true
+
+[node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
+transform = Transform3D(0.97561, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, -0.08, 0)
+collision_layer = 16
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SimpleConveyorShape"]
+transform = Transform3D(0.999999, 0, 0, 0, 0.999981, -4.26334e-14, 0, 4.26326e-14, 1, 0, 0, 0)
+shape = SubResource("BoxShape3D_vc5t3")
+debug_color = Color(0, 0.6, 0.7, 0.42)
