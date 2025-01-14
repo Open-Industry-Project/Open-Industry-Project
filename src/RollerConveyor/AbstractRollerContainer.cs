@@ -29,16 +29,7 @@ public abstract partial class AbstractRollerContainer : Node3D
 		RollerRemoved += HandleRollerRemoved;
 	}
 
-	public override void _Notification(int what)
-	{
-		if (what == NotificationSceneInstantiated)
-		{
-			OnSceneInstantiated();
-		}
-		base._Notification(what);
-	}
-
-	protected virtual void OnSceneInstantiated()
+	internal virtual void SetupExistingRollers()
 	{
 		foreach (Roller roller in GetRollers())
 		{
