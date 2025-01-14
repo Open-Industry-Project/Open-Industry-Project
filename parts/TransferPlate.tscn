@@ -16,6 +16,7 @@ friction = 0.0
 size = Vector3(0.3, 0.01, 1)
 
 [node name="TransferPlate" type="Node3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(-1, 8.74228e-08, 0, -8.74228e-08, -1, 0, 0, 0, 1, 0, 0.18, 0)
