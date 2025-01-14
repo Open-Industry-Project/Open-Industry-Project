@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=4 uid="uid://c3cdcxifx4eej"]
 
-[ext_resource type="Script" path="res://src/RollerConveyor/CurvedRollerConveyor.cs" id="1_3rr8m"]
+[ext_resource type="Script" uid="uid://bvdya0va563vu" path="res://src/RollerConveyor/CurvedRollerConveyor.cs" id="1_3rr8m"]
 [ext_resource type="Shader" uid="uid://d0c82kmt01y6x" path="res://assets/3DModels/Shaders/MetalShaderRoller.tres" id="2_rk0si"]
 [ext_resource type="ArrayMesh" uid="uid://coiskou3emyq8" path="res://assets/3DModels/Meshes/ConveyorRollerEnd_Cube_006.res" id="3_o3bxo"]
 [ext_resource type="PackedScene" uid="uid://bb40krgmbtuw4" path="res://src/RollerConveyor/RollerCorner.tscn" id="3_s4o52"]
@@ -10,7 +10,7 @@ render_priority = 0
 shader = ExtResource("2_rk0si")
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
-shader_parameter/Scale = 1.0
+shader_parameter/Scale = 0.762
 shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_tqyfq"]
@@ -49,103 +49,108 @@ shadow_mesh = SubResource("ArrayMesh_tqyfq")
 
 [node name="CurvedRollerConveyor" type="Node3D"]
 process_mode = 3
+transform = Transform3D(1.524, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_3rr8m")
 Speed = 2.0
 metadata/_edit_group_ = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
 mesh = SubResource("ArrayMesh_rfkpx")
 skeleton = NodePath("")
 
 [node name="RollersLow" type="Node3D" parent="."]
-visible = false
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
 
 [node name="RollerCorner" parent="RollersLow" instance=ExtResource("3_s4o52")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 1.5)
+transform = Transform3D(1.31234, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 1.5)
 
 [node name="RollerCorner2" parent="RollersLow" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.92388, 0, -0.382683, 0, 1, 0, 0.382683, 0, 0.92388, -0.574025, 0.17, 1.38582)
+transform = Transform3D(1.21244, 0, -0.382683, 0, 1, 0, 0.502209, 0, 0.92388, -0.574025, 0.17, 1.38582)
 
 [node name="RollerCorner3" parent="RollersLow" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -1.06066, 0.17, 1.06066)
+transform = Transform3D(0.927962, 0, -0.707107, 0, 1, 0, 0.927962, 0, 0.707107, -1.06066, 0.17, 1.06066)
 
 [node name="RollerCorner4" parent="RollersLow" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.382683, 0, -0.92388, 0, 1, 0, 0.92388, 0, 0.382683, -1.38582, 0.17, 0.574025)
+transform = Transform3D(0.502209, 0, -0.92388, 0, 1, 0, 1.21244, 0, 0.382683, -1.38582, 0.17, 0.574025)
 
 [node name="RollerCorner5" parent="RollersLow" instance=ExtResource("3_s4o52")]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -1.5, 0.17, -6.55671e-08)
+transform = Transform3D(-5.7364e-08, 0, -1, 0, 1, 0, 1.31234, 0, -4.37114e-08, -1.5, 0.17, -6.55671e-08)
 
 [node name="RollersMid" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.08, 0)
+visible = false
 
 [node name="RollerCorner" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.5)
+transform = Transform3D(1.31234, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.5)
 
 [node name="RollerCorner2" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.984808, 0, -0.173648, 0, 1, 0, 0.173648, 0, 0.984808, -0.260472, 0, 1.47721)
+transform = Transform3D(1.2924, 0, -0.173648, 0, 1, 0, 0.227884, 0, 0.984808, -0.260472, 0, 1.47721)
 
 [node name="RollerCorner3" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.939693, 0, -0.34202, 0, 1, 0, 0.34202, 0, 0.939693, -0.51303, 0, 1.40954)
+transform = Transform3D(1.23319, 0, -0.34202, 0, 1, 0, 0.448845, 0, 0.939693, -0.51303, 0, 1.40954)
 
 [node name="RollerCorner4" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, -0.75, 0, 1.29904)
+transform = Transform3D(1.13652, 0, -0.5, 0, 1, 0, 0.656168, 0, 0.866025, -0.75, 0, 1.29904)
 
 [node name="RollerCorner5" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.766044, 0, -0.642788, 0, 1, 0, 0.642788, 0, 0.766044, -0.964181, 0, 1.14907)
+transform = Transform3D(1.00531, 0, -0.642788, 0, 1, 0, 0.843554, 0, 0.766044, -0.964181, 0, 1.14907)
 
 [node name="RollerCorner6" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.642788, 0, -0.766044, 0, 1, 0, 0.766044, 0, 0.642788, -1.14907, 0, 0.964181)
+transform = Transform3D(0.843554, 0, -0.766044, 0, 1, 0, 1.00531, 0, 0.642788, -1.14907, 0, 0.964181)
 
 [node name="RollerCorner7" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, 0.5, -1.29904, 0, 0.75)
+transform = Transform3D(0.656168, 0, -0.866025, 0, 1, 0, 1.13652, 0, 0.5, -1.29904, 0, 0.75)
 
 [node name="RollerCorner8" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.34202, 0, -0.939693, 0, 1, 0, 0.939693, 0, 0.34202, -1.40954, 0, 0.51303)
+transform = Transform3D(0.448845, 0, -0.939693, 0, 1, 0, 1.23319, 0, 0.34202, -1.40954, 0, 0.51303)
 
 [node name="RollerCorner9" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.173648, 0, -0.984808, 0, 1, 0, 0.984808, 0, 0.173648, -1.47721, 0, 0.260472)
+transform = Transform3D(0.227885, 0, -0.984808, 0, 1, 0, 1.2924, 0, 0.173648, -1.47721, 0, 0.260472)
 
 [node name="RollerCorner10" parent="RollersMid" instance=ExtResource("3_s4o52")]
-transform = Transform3D(7.54979e-08, 0, -1, 0, 1, 0, 1, 0, 7.54979e-08, -1.5, 0, 4.47035e-08)
+transform = Transform3D(9.90786e-08, 0, -1, 0, 1, 0, 1.31234, 0, 7.54979e-08, -1.5, 0, 4.47035e-08)
 
 [node name="RollersHigh" type="Node3D" parent="."]
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
 visible = false
 
 [node name="RollerCorner" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.996195, 0, -0.0871557, 0, 1, 0, 0.0871557, 0, 0.996195, -0.130734, 0.17, 1.49429)
+transform = Transform3D(1.30734, 0, -0.0871557, 0, 1, 0, 0.114378, 0, 0.996195, -0.130734, 0.17, 1.49429)
 
 [node name="RollerCorner2" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.965926, -0.388229, 0.17, 1.44889)
+transform = Transform3D(1.26762, 0, -0.258819, 0, 1, 0, 0.339657, 0, 0.965926, -0.388229, 0.17, 1.44889)
 
 [node name="RollerCorner3" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.906308, 0, -0.422618, 0, 1, 0, 0.422618, 0, 0.906308, -0.633927, 0.17, 1.35946)
+transform = Transform3D(1.18938, 0, -0.422618, 0, 1, 0, 0.554617, 0, 0.906308, -0.633927, 0.17, 1.35946)
 
 [node name="RollerCorner4" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.819152, 0, -0.573576, 0, 1, 0, 0.573576, 0, 0.819152, -0.860365, 0.17, 1.22873)
+transform = Transform3D(1.075, 0, -0.573576, 0, 1, 0, 0.752725, 0, 0.819152, -0.860365, 0.17, 1.22873)
 
 [node name="RollerCorner5" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -1.06066, 0.17, 1.06066)
+transform = Transform3D(0.927962, 0, -0.707107, 0, 1, 0, 0.927962, 0, 0.707107, -1.06066, 0.17, 1.06066)
 
 [node name="RollerCorner6" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.573577, 0, -0.819152, 0, 1, 0, 0.819152, 0, 0.573577, -1.22873, 0.17, 0.860365)
+transform = Transform3D(0.752725, 0, -0.819152, 0, 1, 0, 1.075, 0, 0.573577, -1.22873, 0.17, 0.860365)
 
 [node name="RollerCorner7" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.422618, 0, -0.906308, 0, 1, 0, 0.906308, 0, 0.422618, -1.35946, 0.17, 0.633927)
+transform = Transform3D(0.554617, 0, -0.906308, 0, 1, 0, 1.18938, 0, 0.422618, -1.35946, 0.17, 0.633927)
 
 [node name="RollerCorner8" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, -1.44889, 0.17, 0.388229)
+transform = Transform3D(0.339657, 0, -0.965926, 0, 1, 0, 1.26762, 0, 0.258819, -1.44889, 0.17, 0.388229)
 
 [node name="RollerCorner9" parent="RollersHigh" instance=ExtResource("3_s4o52")]
-transform = Transform3D(0.0871558, 0, -0.996195, 0, 1, 0, 0.996195, 0, 0.0871558, -1.49429, 0.17, 0.130734)
+transform = Transform3D(0.114378, 0, -0.996195, 0, 1, 0, 1.30734, 0, 0.0871558, -1.49429, 0.17, 0.130734)
 
 [node name="Ends" type="Node3D" parent="."]
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
 
 [node name="ConvRollerEnd" type="MeshInstance3D" parent="Ends"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.5)
+transform = Transform3D(0.656168, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.5)
 mesh = ExtResource("3_o3bxo")
 skeleton = NodePath("")
 
 [node name="ConvRollerEnd2" type="MeshInstance3D" parent="Ends"]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -1.5, 0, 0)
+transform = Transform3D(-2.8682e-08, 0, 1, 0, 1, 0, -0.656168, 0, -4.37114e-08, -1.5, 0, 0)
 mesh = ExtResource("3_o3bxo")
 skeleton = NodePath("")

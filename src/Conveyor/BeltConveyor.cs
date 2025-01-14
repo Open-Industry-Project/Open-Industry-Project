@@ -85,12 +85,12 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 	[Export]
 	public PhysicsMaterial BeltPhysicsMaterial
 	{
-		get => GetNode<StaticBody3D>("StaticBody3D")?.PhysicsMaterialOverride;
+		get => GetNodeOrNull<StaticBody3D>("StaticBody3D")?.PhysicsMaterialOverride;
 		set
 		{
-			GetNode<StaticBody3D>("StaticBody3D")?.SetPhysicsMaterialOverride(value);
-			GetNode<StaticBody3D>("ConveyorEnd/StaticBody3D")?.SetPhysicsMaterialOverride(value);
-			GetNode<StaticBody3D>("ConveyorEnd2/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNodeOrNull<StaticBody3D>("StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNodeOrNull<StaticBody3D>("ConveyorEnd/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNodeOrNull<StaticBody3D>("ConveyorEnd2/StaticBody3D")?.SetPhysicsMaterialOverride(value);
 		}
 	}
 

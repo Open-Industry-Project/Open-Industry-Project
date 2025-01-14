@@ -29,19 +29,26 @@ public abstract partial class AbstractRollerContainer : Node3D
 		RollerRemoved += HandleRollerRemoved;
 	}
 
-	public override void _EnterTree()
+	public override void _Notification(int what)
 	{
-		foreach (Roller roller in GetRollers())
+		if (what == NotificationSceneInstantiated)
 		{
-			EmitSignalRollerAdded(roller);
+			OnSceneInstantiated();
 		}
+		base._Notification(what);
 	}
 
-	public override void _ExitTree()
+	protected virtual void OnSceneInstantiated()
 	{
 		foreach (Roller roller in GetRollers())
 		{
+			// If LengthChanged has already been fired, then we've already
+			// added and subscribed some Rollers, but we still need to
+			// subscribe the original ones. To ensure that each Roller is
+			// only subscribed once, we're going to unsubscribe them all,
+			// then then subscribe them.
 			EmitSignalRollerRemoved(roller);
+			EmitSignalRollerAdded(roller);
 		}
 	}
 

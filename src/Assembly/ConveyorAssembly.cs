@@ -7,7 +7,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 {
 	#region Constants
 	protected virtual float BaseLength => 1f;
-	protected virtual float BaseWidth => 2f;
+	protected virtual float BaseWidth => 1f;
 	protected virtual float BaseHeight => 2f;
 	#endregion Constants
 
@@ -29,10 +29,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		}
 	}
 	private ConveyorAssemblyConveyors _conveyors;
-	private TransformMonitoredNode3D rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<TransformMonitoredNode3D>("RightSide");
-	private TransformMonitoredNode3D _rightSide;
-	private TransformMonitoredNode3D leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<TransformMonitoredNode3D>("LeftSide");
-	private TransformMonitoredNode3D _leftSide;
+	private ConveyorAssemblyChild rightSide => IsInstanceValid(_rightSide) ? _rightSide : _rightSide = GetNodeOrNull<ConveyorAssemblyChild>("RightSide");
+	private ConveyorAssemblyChild _rightSide;
+	private ConveyorAssemblyChild leftSide => IsInstanceValid(_leftSide) ? _leftSide : _leftSide = GetNodeOrNull<ConveyorAssemblyChild>("LeftSide");
+	private ConveyorAssemblyChild _leftSide;
 	private ConveyorAssemblyLegStands legStands => this.GetCachedValidNodeOrNull("LegStands", ref _legStands);
 	private ConveyorAssemblyLegStands _legStands;
 	#endregion Fields / Nodes
@@ -40,26 +40,31 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	#region Fields / Exported properties
 	[ExportGroup("Conveyor", "Conveyor")]
-	[Export(PropertyHint.None, "radians_as_degrees")]
-	public float ConveyorAngle
+	// Property is deprecated.
+	private float ConveyorAngle
 	{
 		get
 		{
-			Basis scale = Basis.Identity.Scaled(Scale);
-			float angle = (scale * conveyors.Basis).GetEuler().Z;
-			return angle;
+			return conveyors?.GetAngle() ?? 0;
 		}
 		set
 		{
-			_conveyorAngle = value;
-			if (!IsInstanceValid(conveyors)) return;
-			conveyors.SetAngle(value);
+			// Transfer the value to assembly rotation then zero out this property.
+			// This is only expected to be called when instantiating old scenes.
+			// It's not idepotent anymore, so don't use it yourself!
+			conveyors?.SetAngle(0);
+			if (value == 0) return;
+			Vector3 rotation = Transform.Basis.Orthonormalized().GetEuler(EulerOrder.Yzx);
+			Vector3 scale = Transform.Basis.Scale;
+			Vector3 newRot = new Vector3(rotation.X, rotation.Y, rotation.Z + value);
+			Basis newBasis = Basis.FromEuler(newRot, EulerOrder.Yzx).Transposed().Scaled(scale).Transposed();
+			Transform = new Transform3D(newBasis, Transform.Origin);
 		}
 	}
-	private float _conveyorAngle = 0f;
 
+	// Deprecated: No longer has any practical purpose.
 	[Export]
-	public bool ConveyorAutomaticLength
+	private bool ConveyorAutomaticLength
 	{
 		get => _conveyorAutomaticLength;
 		set
@@ -67,6 +72,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			if (value == _conveyorAutomaticLength) return;
 			_conveyorAutomaticLength = value;
 			conveyors?.SetNeedsUpdate(true);
+			NotifyPropertyListChanged();
 		}
 	}
 	private bool _conveyorAutomaticLength = true;
@@ -446,16 +452,32 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 	private PackedScene _sideGuardsModelScene = GD.Load<PackedScene>("res://parts/SideGuard.tscn");
 
 	[ExportGroup("Leg Stands", "AutoLegStands")]
+	[ExportSubgroup("Floor", "AutoLegStandsFloor")]
 	[Export(PropertyHint.None, "suffix:m")]
 	public float AutoLegStandsFloorOffset {
-		get => _autoLegStandsFloorOffset;
+		get => legStands?.GetFloorOffset() ?? 0;
 		set
 		{
-			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsFloorOffset)) return;
-			legStands?.SyncLegStandsOffsets();
+			_autoLegStandsFloorOffset = value;
+			legStands?.SetFloorOffset(value);
 		}
 	}
-	private float _autoLegStandsFloorOffset = 0f;
+	float _autoLegStandsFloorOffset = float.NaN;
+
+	[Export]
+	public bool AutoLegStandsFloorOffsetLock
+	{
+		get => legStands?.FloorOffsetLock ?? false;
+		set => legStands?.SetFloorOffsetLock(value);
+	}
+
+	[Export(PropertyHint.None, "radians_as_degrees")]
+	public float AutoLegStandsFloorAngle
+	{
+		// Angle is in parent's space.
+		get => legStands?.GetFloorAngle() ?? 0f;
+		set => legStands?.SetFloorAngle(value);
+	}
 
 	[ExportSubgroup("Interval Legs", "AutoLegStandsIntervalLegs")]
 	[Export]
@@ -474,14 +496,9 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	[Export(PropertyHint.Range, "-5,5,or_less,or_greater,suffix:m")]
 	public float AutoLegStandsIntervalLegsOffset {
-		get => _autoLegStandsIntervalLegsOffset;
-		set
-		{
-			if (!SetLegStandsNeedsUpdateIfChanged(value, ref _autoLegStandsIntervalLegsOffset))return;
-			legStands?.SyncLegStandsOffsets();
-		}
+		get => legStands?.GetIntervalLegsOffset() ?? 0;
+		set => legStands?.SetIntervalLegsOffset(value);
 	}
-	private float _autoLegStandsIntervalLegsOffset = 0f;
 
 	[ExportSubgroup("End Legs", "AutoLegStandsEndLeg")]
 	[Export]
@@ -527,7 +544,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			legStands?.UpdateLegStandCoverage();
 		}
 	}
-	private float _autoLegStandsModelGrabsOffset = 0.382f;
+	private float _autoLegStandsModelGrabsOffset = 0.632f;
 
 	[Export]
 	public PackedScene AutoLegStandsModelScene {
@@ -586,7 +603,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	#region Fields / Property method overrides
 	public override void _ValidateProperty(Godot.Collections.Dictionary property) {
-		string propertyName = property["name"].AsStringName();
+		StringName propertyName = property["name"].AsStringName();
 
 		// Hide this property as it's only useful for CurvedConveyorAssembly; it clutters the UI otherwise.
 		if (propertyName == PropertyName.SideGuardsBothSides) {
@@ -649,6 +666,15 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 				// TODO figure out a good way to subscribe to further property hint changes.
 			}
 		}
+		else if (propertyName == PropertyName.ConveyorAutomaticLength)
+		{
+			// Hide deprecated property.
+			// If changed, show it anyway to allow users to restore its default value.
+			if (ConveyorAutomaticLength)
+			{
+				property["usage"] = (int)PropertyUsageFlags.NoEditor;
+			}
+		}
 		else
 		{
 			base._ValidateProperty(property);
@@ -663,6 +689,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			|| property == PropertyName.RollerConveyorSpeed
 			|| property == PropertyName.BeltConveyorReferenceDistance
 			|| property == PropertyName.RollerConveyorReferenceDistance
+			|| property == PropertyName.AutoLegStandsFloorOffset
 			|| base._PropertyCanRevert(property);
 	}
 
@@ -683,6 +710,10 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		if (property == PropertyName.BeltConveyorReferenceDistance
 			|| property == PropertyName.RollerConveyorReferenceDistance) {
 			return 0.5f;
+		}
+		if (property == PropertyName.AutoLegStandsFloorOffset)
+		{
+			return -2.0f;
 		}
 		return base._PropertyGetRevert(property);
 	}
@@ -714,15 +745,23 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 		UpdateSides();
 		PreventAllChildScaling();
 	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationSceneInstantiated && !float.IsNaN(_autoLegStandsFloorOffset))
+		{
+			legStands?.SetFloorOffset(_autoLegStandsFloorOffset);
+		}
+		base._Notification(what);
+	}
 	#endregion constructor, _Ready, and _PhysicsProcess
 
 	#region Decouple assembly scale from child scale
 	private void PreventAllChildScaling() {
 		foreach (Node child in GetChildren()) {
 			if (child is ConveyorAssemblyChild assemblyChild) {
-				assemblyChild.Transform = assemblyChild.PreventScaling();
-			}
-			if (child is Node3D child3D) {
+				assemblyChild.OnAssemblyTransformChanged();
+			} else if (child is Node3D child3D) {
 				PreventChildScaling(child3D);
 			}
 		}
@@ -751,42 +790,16 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 
 	private Transform3D PreventChildScaling(Transform3D childTransform, Basis basisPrev) {
 		// The child transform without the effects of the parent's scale.
-		var apparentChildTransform = UnapplyInverseScaling(basisPrev, childTransform);
+		var apparentChildTransform = ConveyorAssemblyChild.LocalToApparent(basisPrev, childTransform);
 
 		// Remove any remaining scale. This effectively locks child's scale to (1, 1, 1).
 		apparentChildTransform.Basis = apparentChildTransform.Basis.Orthonormalized();
 
 		// Reapply inverse parent scaling to child.
-		var newChildTransform = ApplyInverseScaling(Basis, apparentChildTransform);
+		var newChildTransform = ConveyorAssemblyChild.ApparentToLocal(Basis, apparentChildTransform);
 		return newChildTransform;
 	}
-
-	internal static Transform3D UnapplyInverseScaling(Basis parentBasis, Transform3D childTransform)
-	{
-		var basisRotation = parentBasis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * parentBasis;
-		var xformScale = new Transform3D(basisScale, new Vector3(0, 0, 0));
-
-		var apparentChildTransform = xformScale * childTransform;
-		apparentChildTransform.Origin *= basisScale.Inverse();
-		return apparentChildTransform;
-	}
-
-	internal static Transform3D ApplyInverseScaling(Basis parentBasis, Transform3D apparentChildTransform)
-	{
-		var basisRotation = parentBasis.Orthonormalized();
-		var basisScale = basisRotation.Inverse() * parentBasis;
-		var xformScaleInverse = new Transform3D(basisScale, new Vector3(0, 0, 0)).AffineInverse();
-
-		var childTransform = apparentChildTransform;
-		childTransform.Origin *= basisScale;
-		childTransform = xformScaleInverse * childTransform;
-		return childTransform;
-	}
 	#endregion Decouple assembly scale from child scale
-
-
-
 
 	private bool SetLegStandsNeedsUpdateIfChanged<T>(T newVal, ref T cachedVal)
 	{
@@ -797,5 +810,18 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IComms
 			legStands?.SetNeedsUpdate(true);
 		}
 		return changed;
+	}
+
+	protected override Transform3D ConstrainTransform(Transform3D transform)
+	{
+		Vector3 rotation = transform.Basis.Orthonormalized().GetEuler(EulerOrder.Yzx);
+		if (Mathf.IsZeroApprox(rotation.X))
+		{
+			return transform;
+		}
+		Vector3 scale = transform.Basis.Scale;
+		Vector3 newRot = new Vector3(0f, rotation.Y, rotation.Z);
+		Basis newBasis = Basis.FromEuler(newRot, EulerOrder.Yzx).Transposed().Scaled(scale).Transposed();
+		return new Transform3D(newBasis, transform.Origin);
 	}
 }

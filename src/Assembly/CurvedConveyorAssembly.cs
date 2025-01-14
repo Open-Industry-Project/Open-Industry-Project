@@ -5,13 +5,13 @@ using System;
 public partial class CurvedConveyorAssembly : ConveyorAssembly
 {
 	#region Constants
-	float BaseOuterRadius => 2.0f;
-	float BaseInnerRadius => 0.5f;
+	float BaseOuterRadius => 1.0f;
+	float BaseInnerRadius => 0.25f;
 	float BaseMiddleRadius => BaseOuterRadius - BaseInnerRadius;
-	protected override float BaseLength => 2.0f;
-	protected override float BaseWidth => 2.0f;
-	protected override float ConveyorBaseLength => 2f;
-	protected override float ConveyorBaseWidth => 2f;
+	protected override float BaseLength => 1.0f;
+	protected override float BaseWidth => 1.0f;
+	protected override float ConveyorBaseLength => 1f;
+	protected override float ConveyorBaseWidth => 1f;
 	#endregion Constants
 
 	public float MiddleRadius => Width / BaseWidth * BaseMiddleRadius;
@@ -89,7 +89,7 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 		}
 		// This is a hack to override the default value of AutoLegStandsModelGrabsOffset.
 		if (property == PropertyName.AutoLegStandsModelGrabsOffset) {
-			return 0.5f;
+			return 0.75f;
 		}
 		// This is a hack to override the default value of AutoLegStandsModelScene.
 		if (property == PropertyName.AutoLegStandsModelScene) {
@@ -111,17 +111,16 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 	}
 
 	#region Conveyors and Side Guards
-	internal override Transform3D LockConveyorsGroup(Transform3D transform) {
-		// Just don't let it move at all, except Y axis translation.;
-		var scale = transform.Basis.Scale;
-		var position = new Vector3(0, transform.Origin.Y, 0);
-		return new Transform3D(Basis.Identity.Scaled(scale), position);
+	internal override Transform3D LockConveyorsGroup(Transform3D apparentTransform) {
+		// Just don't let it move at all, except Y axis translation.
+		var position = new Vector3(0, apparentTransform.Origin.Y, 0);
+		return new Transform3D(Basis.Identity, position);
 	}
 
-	protected override void LockSidePosition(Node3D side, bool isRight) {
+	protected override void LockSidePosition(ConveyorAssemblyChild side, bool isRight) {
 		// Sides always snap onto the conveyor line
 		// Just snap both sides to the center without any offset.
-		side.Transform = _cachedConveyorsTransform;
+		side.ApparentTransform = conveyors.ApparentTransform;
 	}
 
 	protected override void ScaleConveyor(Node3D conveyor, float conveyorLength, float conveyorWidth) {
@@ -132,8 +131,8 @@ public partial class CurvedConveyorAssembly : ConveyorAssembly
 
 	protected override void ScaleSideGuard(Node3D guard, float guardLength) {
 		// SideGuardsAutoScale and guardLength have no effect on curved side guards.
-		float curvedSideGuardBaseLength = BaseLength;
-		float curvedSideGuardBaseWidth = BaseWidth;
+		float curvedSideGuardBaseLength = 2f;
+		float curvedSideGuardBaseWidth = 2f;
 		guard.Scale = new Vector3(Length / curvedSideGuardBaseLength, 1f, Width / curvedSideGuardBaseWidth);
 	}
 	#endregion Conveyors and Side Guards

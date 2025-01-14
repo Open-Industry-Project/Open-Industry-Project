@@ -66,8 +66,8 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	}
 
 	// Based on the model geometry at scale=1
-	const float BASE_INNER_RADIUS = 0.5f;
-	const float BASE_OUTER_RADIUS = 2.5f;
+	const float BASE_INNER_RADIUS = 0.25f;
+	const float BASE_OUTER_RADIUS = 1.25f;
 	const float BASE_CONVEYOR_WIDTH = BASE_OUTER_RADIUS - BASE_INNER_RADIUS;
 
 	[Export(PropertyHint.None, "suffix:m/s")]
@@ -104,12 +104,12 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	[Export]
 	public PhysicsMaterial BeltPhysicsMaterial
 	{
-		get => GetNode<StaticBody3D>("StaticBody3D")?.PhysicsMaterialOverride;
+		get => GetNodeOrNull<StaticBody3D>("StaticBody3D")?.PhysicsMaterialOverride;
 		set
 		{
-			GetNode<StaticBody3D>("StaticBody3D")?.SetPhysicsMaterialOverride(value);
-			GetNode<StaticBody3D>("ConveyorEnd/StaticBody3D")?.SetPhysicsMaterialOverride(value);
-			GetNode<StaticBody3D>("ConveyorEnd2/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNodeOrNull<StaticBody3D>("StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNodeOrNull<StaticBody3D>("ConveyorEnd/StaticBody3D")?.SetPhysicsMaterialOverride(value);
+			GetNodeOrNull<StaticBody3D>("ConveyorEnd2/StaticBody3D")?.SetPhysicsMaterialOverride(value);
 		}
 	}
 
@@ -275,13 +275,13 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 			}
 		}
 
-		if (Scale.X > 0.5f)
+		if (Scale.X > 1f)
 		{
 			if (beltMaterial != null && Speed != 0)
-				((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Scale.X * Mathf.Sign(Speed));
+				((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Scale.X / 2f * Mathf.Sign(Speed));
 
 			if (metalMaterial != null && Speed != 0)
-				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
+				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X / 2f);
 		}
 	}
 

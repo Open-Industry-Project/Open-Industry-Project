@@ -8,6 +8,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 	#region SideGuards
 	#region SideGuards / Constants
 	private const string AUTO_SIDE_GUARD_NAME_PREFIX = "AutoSideGuard";
+	private const float AUTO_SIDE_GUARD_VERTICAL_OFFSET = -0.25f;
 	#endregion SideGuards / Constants
 
 	#region SideGuards / Update "LeftSide" and "RightSide" nodes
@@ -19,7 +20,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 
 
 	private void UpdateSide(bool isRight) {
-		Node3D side = isRight ? rightSide : leftSide;
+		ConveyorAssemblyChild side = isRight ? rightSide : leftSide;
 		if (side == null) {
 			return;
 		}
@@ -30,13 +31,14 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 		UpdateAutoSideGuards(side, isRight);
 	}
 
-	protected virtual void LockSidePosition(Node3D side, bool isRight) {
+	protected virtual void LockSidePosition(ConveyorAssemblyChild side, bool isRight) {
 		// Sides always snap onto the conveyor line
-		side.Transform = _cachedConveyorsTransform;
+		var newApparentTransform = conveyors.ApparentTransform;
 		float offsetDistance = Width / 2f - 1f;
-		Vector3 offsetDirection = (isRight ? 1 : -1) * side.Basis.Z;
+		Vector3 offsetDirection = (isRight ? 1 : -1) * newApparentTransform.Basis.Z;
 		Vector3 offset = offsetDirection * offsetDistance;
-		side.Position += offset;
+		newApparentTransform.Origin += offset;
+		side.ApparentTransform = newApparentTransform;
 	}
 	#endregion SideGuards / Update "LeftSide" and "RightSide" nodes
 
@@ -228,7 +230,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D
 				SetGuardOwner(guard);
 			}
 			// Position and scale the guard.
-			guard.Position = new Vector3((extentFront + extentRear) / 2f, 0, 0);
+			guard.Position = new Vector3((extentFront + extentRear) / 2f, AUTO_SIDE_GUARD_VERTICAL_OFFSET, 0);
 			guard.RotationDegrees = new Vector3(0, isRight ? 180 : 0, 0);
 			ScaleSideGuard(guard, extentRear - extentFront);
 		}
