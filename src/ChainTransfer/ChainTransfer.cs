@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 [Tool]
 public partial class ChainTransfer : Node3D
 {
+	const float BASE_LENGTH = 2.0f;
+
 	ChainTransferBases ChainTransferBases => GetNode<ChainTransferBases>("ChainBases");
 
 	PackedScene chainTransferBaseScene = (PackedScene)ResourceLoader.Load("res://src/ChainTransfer/Base.tscn");
@@ -54,6 +56,7 @@ public partial class ChainTransfer : Node3D
 
 			chains = new_value;
 			FixChains(chains);
+			UpdateSimpleShape();
 		}
 	}
 
@@ -117,6 +120,23 @@ public partial class ChainTransfer : Node3D
 		}
 	}
 
+	public ChainTransfer()
+	{
+		SetNotifyLocalTransform(true);
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
+		{
+			if(Scale != prevScale)
+			{
+				Rescale();
+			}
+		}
+		base._Notification(what);
+	}
+
 	public override void _Ready()
 	{
 		SpawnChains(chains - GetChildCount());
@@ -124,7 +144,6 @@ public partial class ChainTransfer : Node3D
 		SetChainsSpeed(speed);
 		SetChainsPopupChains(popupChains);
 
-		prevScale = Scale;
 		Rescale();
 	}
 
@@ -145,14 +164,6 @@ public partial class ChainTransfer : Node3D
 		{
 			Main.SimulationStarted -= OnSimulationStarted;
 			Main.SimulationEnded -= OnSimulationEnded;
-		}
-	}
-
-	public override void _Process(double delta)
-	{
-		if(Scale != prevScale)
-		{
-			Rescale();
 		}
 	}
 
@@ -183,7 +194,9 @@ public partial class ChainTransfer : Node3D
 
 	void Rescale()
 	{
-		Scale = new Vector3(Scale.X, 1, 1);
+		prevScale = new Vector3(Scale.X, 1, 1);
+		Scale = prevScale;
+		UpdateSimpleShape();
 	}
 
 	void SetChainsDistance(float distance)
@@ -277,5 +290,15 @@ public partial class ChainTransfer : Node3D
 		this.PopupChains = false;
 		TurnOffChains();
 		running = false;
+	}
+
+	void UpdateSimpleShape()
+	{
+		Node3D simpleConveyorShapeBody = GetNode<Node3D>("SimpleConveyorShape");
+		simpleConveyorShapeBody.Scale = Scale.Inverse();
+		CollisionShape3D simpleConveyorShapeNode = simpleConveyorShapeBody.GetNode<CollisionShape3D>("CollisionShape3D");
+		simpleConveyorShapeNode.Position = new Vector3(0, -0.094f, (Chains - 1) * Distance / 2f);
+		BoxShape3D simpleConveyorShape = simpleConveyorShapeNode.Shape as BoxShape3D;
+		simpleConveyorShape.Size = new Vector3(Scale.X * BASE_LENGTH + 0.25f, 0.2f, (Chains - 1) * Distance + 0.042f * 2f);
 	}
 }
