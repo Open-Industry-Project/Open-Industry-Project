@@ -13,7 +13,7 @@ public partial class ConveyorEnd : Node3D
 	public ShaderMaterial beltMaterial;
 	Shader beltShader;
 
-	IConveyor owner;
+	BeltConveyor owner;
 	Root main;
 
 	float prevScaleX;
@@ -29,7 +29,8 @@ public partial class ConveyorEnd : Node3D
 		beltShader = beltMaterial.Shader.Duplicate() as Shader;
 		beltMaterial.Shader = beltShader;
 
-		owner = Owner as IConveyor;
+		owner = Owner as BeltConveyor;
+		main = GetTree().EditedSceneRoot as Root;
 	}
 
 	public override void _Process(double delta)
@@ -49,9 +50,9 @@ public partial class ConveyorEnd : Node3D
 		{
 			RemakeMesh(owner);
 
-			if (owner.Main == null) return;
+			if (main == null) return;
 
-			if (owner.Main.Start)
+			if (main.Start)
 			{
 				Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
 				if (!owner.Main.simulationPaused)

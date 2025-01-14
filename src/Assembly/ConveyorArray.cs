@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Godot;
 
 [Tool]
-public partial class ConveyorArray : Node3D, IComms
+public partial class ConveyorArray : Node3D, IConveyor
 {
 	[Export(PropertyHint.None, "suffix:m")]
 	public float Width { get => _width; set => SetProcessIfChanged(ref _width, value); }

@@ -1,4 +1,3 @@
-public interface IRollerConveyor: IComms
+public interface IRollerConveyor: IConveyor
 {
-	float Speed { get; set; }
 }

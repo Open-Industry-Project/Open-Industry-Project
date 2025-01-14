@@ -1,10 +1,8 @@
 using Godot;
 using System;
 
-public interface IConveyor
+public interface IConveyor : IComms
 {
 	public float Speed { get; set; }
-	public Root Main { get; set; }
-	public Transform3D GlobalTransform { get; set; }
-	public Vector3 Scale { get; set; }
+	public Node3D AsNode3D() { return this as Node3D; }
 }
