@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 [Tool]
 public partial class ChainTransfer : Node3D
 {
+	ChainTransferBases ChainTransferBases => GetNode<ChainTransferBases>("ChainBases");
+
 	PackedScene chainTransferBaseScene = (PackedScene)ResourceLoader.Load("res://src/ChainTransfer/Base.tscn");
 
 	private bool enableComms;
@@ -51,7 +53,7 @@ public partial class ChainTransfer : Node3D
 			}
 
 			chains = new_value;
-			FixChains();
+			FixChains(chains);
 		}
 	}
 
@@ -186,42 +188,27 @@ public partial class ChainTransfer : Node3D
 
 	void SetChainsDistance(float distance)
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.Position = new Vector3(0, 0, distance * chainBase.GetIndex());
-		}
+		ChainTransferBases.SetChainsDistance(distance);
 	}
 
 	void SetChainsSpeed(float speed)
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.Speed = speed;
-		}
+		ChainTransferBases.SetChainsSpeed(speed);
 	}
 
 	void SetChainsPopupChains(bool popupChains)
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.Active = popupChains;
-		}
+		ChainTransferBases.SetChainsPopupChains(popupChains);
 	}
 
 	void TurnOnChains()
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.TurnOn();
-		}
+		ChainTransferBases.TurnOnChains();
 	}
 
 	void TurnOffChains()
 	{
-		foreach (ChainTransferBase chainBase in GetChildren())
-		{
-			chainBase.TurnOff();
-		}
+		ChainTransferBases.TurnOffChains();
 	}
 
 	void SpawnChains(int count)
@@ -230,7 +217,7 @@ public partial class ChainTransfer : Node3D
 		for (int i = 0; i < count; i++)
 		{
 			ChainTransferBase chainBase = chainTransferBaseScene.Instantiate() as ChainTransferBase;
-			AddChild(chainBase, forceReadableName: true);
+			ChainTransferBases.AddChild(chainBase, forceReadableName: true);
 			chainBase.Owner = this;
 			chainBase.Position = new Vector3(0, 0, distance * chainBase.GetIndex());
 			chainBase.Active = popupChains;
@@ -243,23 +230,12 @@ public partial class ChainTransfer : Node3D
 
 	void RemoveChains(int count)
 	{
-		for (int i = 0; i < count; i++)
-		{
-			GetChild(GetChildCount() - 1 - i).QueueFree();
-		}
+		ChainTransferBases.RemoveChains(count);
 	}
 
-	void FixChains()
+	void FixChains(int chains)
 	{
-		int childCount = GetChildCount();
-		int difference = childCount - chains;
-
-		if (difference <= 0) return;
-
-		for (int i = 0; i < difference; i++)
-		{
-			GetChild(GetChildCount() - 1 - i).QueueFree();
-		}
+		ChainTransferBases.FixChains(chains);
 	}
 
 	async Task ScanTag()
