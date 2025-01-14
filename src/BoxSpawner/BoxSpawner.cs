@@ -26,6 +26,8 @@ public partial class BoxSpawner : Node3D
 	[Export]
 	public Vector3 spawnRandomSizeMax = new(1f, 1f, 1f);
 	[Export]
+	public Vector3 SpawnInitialLinearVeclocity = new(0, 0, 0);
+	[Export]
 	public float spawnInterval = 1f;
 
 	private float scan_interval = 0;
@@ -102,6 +104,7 @@ public partial class BoxSpawner : Node3D
 
 		box.Rotation = _rotation;
 		box.Position = _position;
+		box.InitialLinearVelocity = SpawnInitialLinearVeclocity;
 		box.instanced = true;
 
 		AddChild(box, forceReadableName:true);

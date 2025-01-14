@@ -3,6 +3,7 @@ using Godot;
 [Tool]
 public partial class Box : Node3D
 {
+	[Export] public Vector3 InitialLinearVelocity = Vector3.Zero;
 	RigidBody3D rigidBody;
 	Transform3D initialTransform;
 	public bool instanced = false;
@@ -16,12 +17,13 @@ public partial class Box : Node3D
 
 		if (Main != null)
 		{
+			rigidBody.Freeze = !Main.simulationRunning;
+
 			if (Main.simulationRunning)
 			{
 				instanced = true;
+				rigidBody.LinearVelocity = InitialLinearVelocity;
 			}
-
-			rigidBody.Freeze = !Main.simulationRunning;
 		}
 	}
 
@@ -82,6 +84,7 @@ public partial class Box : Node3D
 		if (Main == null) return;
 
 		initialTransform = GlobalTransform;
+		rigidBody.LinearVelocity = InitialLinearVelocity;
 		rigidBody.TopLevel = true;
 		rigidBody.Freeze = false;
 		enable_inital_transform = true;
