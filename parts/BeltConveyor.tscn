@@ -105,7 +105,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_5v2fq")
 
 [node name="Conveyor" type="Node3D"]
-process_mode = 3
+process_mode = 1
 transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_5d505")
 Speed = 2.0
