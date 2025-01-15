@@ -179,6 +179,8 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		conveyorEnd1.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd2.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 
+		RecalculateSpeeds();
+
 		conveyorEnd1.Speed = LinearSpeed;
 		conveyorEnd2.Speed = LinearSpeed;
 

@@ -22,7 +22,7 @@ render_priority = 0
 shader = ExtResource("2_lr6k1")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
 shader_parameter/BlackTextureOn = true
-shader_parameter/Scale = -1.0
+shader_parameter/Scale = 1.0
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
 
