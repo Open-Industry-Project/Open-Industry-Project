@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://c14ufxyxb34f8" path="res://src/Assembly/ConveyorArray.cs" id="1_ghsei"]
 
 [node name="BeltSpurConveyor" type="Node3D"]
+process_mode = 3
 script = ExtResource("1_ghsei")
 Width = 1.524
 Length = 2.0
