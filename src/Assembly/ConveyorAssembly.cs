@@ -202,7 +202,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IConveyor
 			Node conveyor = conveyors?.GetChildOrNull<Node>(0);
 			if (IsConveyor(conveyor))
 			{
-				return (conveyor as BeltConveyor)?.BeltTexture ?? IBeltConveyor.ConvTexture.Standard;
+				return (conveyor as IBeltConveyor)?.BeltTexture ?? IBeltConveyor.ConvTexture.Standard;
 			}
 			return IBeltConveyor.ConvTexture.Standard;
 		}
