@@ -407,7 +407,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IConveyor
 					// Shouldn't be possible since all nulls should have been replaced by instances.
 					continue;
 				}
-				gap.Changed -= UpdateSides;
+				gap.Disconnect(Resource.SignalName.Changed, new Callable(this, MethodName.UpdateSides));
 			}
 
 			// Workaround for faulty duplicate behavior in the editor.
@@ -436,7 +436,7 @@ public partial class ConveyorAssembly : TransformMonitoredNode3D, IConveyor
 			foreach (SideGuardGap gap in _sideGuardsGaps)
 			{
 				// null gaps shouldn't be possible since we just replaced them above.
-				gap.Changed += UpdateSides;
+				gap.Connect(Resource.SignalName.Changed, new Callable(this, MethodName.UpdateSides));
 			}
 
 			// Update side guards to account for added or removed gaps.
