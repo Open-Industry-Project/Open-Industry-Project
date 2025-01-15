@@ -56,12 +56,9 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		set
 		{
 			beltTexture = value;
-			if (beltMaterial != null)
-				((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
-			if (conveyorEnd1 != null)
-				((ShaderMaterial)conveyorEnd1.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
-			if (conveyorEnd2 != null)
-				((ShaderMaterial)conveyorEnd2.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+			((ShaderMaterial)beltMaterial)?.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+			((ShaderMaterial)conveyorEnd1?.beltMaterial)?.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+			((ShaderMaterial)conveyorEnd2?.beltMaterial)?.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 		}
 	}
 
@@ -78,6 +75,7 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		{
 			_speed = value;
 			RecalculateSpeeds();
+			UpdateBeltMaterialScale();
 		}
 	}
 	private float _speed;
@@ -126,8 +124,8 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 	double scan_interval = 0;
 	bool readSuccessful = false;
 
-	ConveyorEnd conveyorEnd1;
-	ConveyorEnd conveyorEnd2;
+	ConveyorEnd conveyorEnd1 => GetNodeOrNull<ConveyorEnd>("ConveyorEnd");
+	ConveyorEnd conveyorEnd2 => GetNodeOrNull<ConveyorEnd>("ConveyorEnd2");
 
 	Root main;
 	public Root Main
@@ -171,9 +169,6 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		mesh.Mesh.SurfaceSetMaterial(0, metalMaterial);
 		mesh.Mesh.SurfaceSetMaterial(1, beltMaterial);
 
-		conveyorEnd1 = GetNode<ConveyorEnd>("ConveyorEnd");
-		conveyorEnd2 = GetNode<ConveyorEnd>("ConveyorEnd2");
-
 		origin = sb.Position;
 
 		((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
@@ -183,6 +178,8 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd1.beltMaterial.SetShaderParameter("ColorMix", beltColor);
 		conveyorEnd2.beltMaterial.SetShaderParameter("ColorMix", beltColor);
+
+		RecalculateSpeeds();
 
 		conveyorEnd1.Speed = LinearSpeed;
 		conveyorEnd2.Speed = LinearSpeed;
@@ -218,13 +215,36 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-	public override void _Process(double delta)
+	public CurvedBeltConveyor()
 	{
+		SetNotifyLocalTransform(true);
+	}
 
-		Vector3 newScale = new(Scale.X, 1, Scale.X);
-		if(Scale != newScale)
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
 		{
+			SetNotifyLocalTransform(false);
 			Scale = new Vector3(Scale.X, 1, Scale.X);
+			SetNotifyLocalTransform(true);
+			OnScaleChanged();
+		}
+		base._Notification(what);
+	}
+
+	private void OnScaleChanged()
+	{
+		if (prevScaleX != Scale.X) {
+			RecalculateSpeeds();
+			NotifyPropertyListChanged();
+			if (Scale.X > 1f)
+			{
+				UpdateBeltMaterialScale();
+				UpdateMetalMaterialScale();
+			}
+			conveyorEnd1.OnOwnerScaleChanged(Scale);
+			conveyorEnd2.OnOwnerScaleChanged(Scale);
+			prevScaleX = Scale.X;
 		}
 	}
 
@@ -243,12 +263,6 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (prevScaleX != Scale.X) {
-			RecalculateSpeeds();
-			NotifyPropertyListChanged();
-			prevScaleX = Scale.X;
-		}
-
 		if (Main == null) return;
 
 		if (running)
@@ -274,14 +288,21 @@ public partial class CurvedBeltConveyor : Node3D, IBeltConveyor
 				}
 			}
 		}
+	}
 
-		if (Scale.X > 1f)
+	void UpdateBeltMaterialScale()
+	{
+		if (beltMaterial != null && Speed != 0)
 		{
-			if (beltMaterial != null && Speed != 0)
-				((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Scale.X / 2f * Mathf.Sign(Speed));
+			((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Scale.X / 2f * Mathf.Sign(Speed));
+		}
+	}
 
-			if (metalMaterial != null && Speed != 0)
-				((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X / 2f);
+	void UpdateMetalMaterialScale()
+	{
+		if (metalMaterial != null)
+		{
+			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X / 2f);
 		}
 	}
 

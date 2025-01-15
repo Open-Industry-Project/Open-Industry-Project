@@ -141,14 +141,11 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		metalMaterial = meshInstance1.Mesh.SurfaceGetMaterial(0).Duplicate() as Material;
 		meshInstance1.Mesh.SurfaceSetMaterial(0, metalMaterial);
 		meshInstance2.Mesh.SurfaceSetMaterial(0, metalMaterial);
+		UpdateMetalMaterialScale();
 	}
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (metalMaterial != null)
-			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
-
-
 		if (running)
 		{
 			if (!Main.simulationPaused)
@@ -313,6 +310,8 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 
 			Node3D simpleConveyorShapeBody = GetNode<Node3D>("SimpleConveyorShape");
 			simpleConveyorShapeBody.Scale = Scale.Inverse();
+
+			UpdateMetalMaterialScale();
 		}
 	}
 
@@ -384,5 +383,10 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 	{
 		Scale = new Vector3(value.X - 0.5f, 1f, value.Z);
 		// NotificationLocalTransformChanged takes care of the rest.
+	}
+
+	private void UpdateMetalMaterialScale()
+	{
+		((ShaderMaterial)metalMaterial)?.SetShaderParameter("Scale", Scale.X);
 	}
 }

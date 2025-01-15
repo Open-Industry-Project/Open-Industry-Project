@@ -39,9 +39,9 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 			if (beltMaterial != null)
 				((ShaderMaterial)beltMaterial).SetShaderParameter("ColorMix", beltColor);
 			if (conveyorEnd1 != null)
-				((ShaderMaterial)conveyorEnd1.beltMaterial).SetShaderParameter("ColorMix", beltColor);
+				((ShaderMaterial)conveyorEnd1.beltMaterial)?.SetShaderParameter("ColorMix", beltColor);
 			if (conveyorEnd2 != null)
-				((ShaderMaterial)conveyorEnd2.beltMaterial).SetShaderParameter("ColorMix", beltColor);
+				((ShaderMaterial)conveyorEnd2.beltMaterial)?.SetShaderParameter("ColorMix", beltColor);
 		}
 	}
 
@@ -56,12 +56,9 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		set
 		{
 			beltTexture = value;
-			if (beltMaterial != null)
-				((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
-			if (conveyorEnd1 != null)
-				((ShaderMaterial)conveyorEnd1.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
-			if (conveyorEnd2 != null)
-				((ShaderMaterial)conveyorEnd2.beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+			((ShaderMaterial)beltMaterial)?.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+			((ShaderMaterial)conveyorEnd1?.beltMaterial)?.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
+			((ShaderMaterial)conveyorEnd2?.beltMaterial)?.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 		}
 	}
 
@@ -78,6 +75,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 			if (conveyorEnd2 != null) {
 				conveyorEnd2.Speed = Speed;
 			}
+			UpdateBeltMaterialScale();
 		}
 	}
 	private float _speed;
@@ -107,8 +105,8 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 	public double beltPosition = 0.0;
 	Vector3 boxSize;
 
-	ConveyorEnd conveyorEnd1;
-	ConveyorEnd conveyorEnd2;
+	ConveyorEnd conveyorEnd1 => GetNodeOrNull<ConveyorEnd>("ConveyorEnd");
+	ConveyorEnd conveyorEnd2 => GetNodeOrNull<ConveyorEnd>("ConveyorEnd2");
 
 	public Root Main { get; set; }
 
@@ -132,9 +130,6 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		mesh.Mesh.SurfaceSetMaterial(0, beltMaterial);
 		mesh.Mesh.SurfaceSetMaterial(1, metalMaterial);
 		mesh.Mesh.SurfaceSetMaterial(2, metalMaterial);
-
-		conveyorEnd1 = GetNode<ConveyorEnd>("ConveyorEnd");
-		conveyorEnd2 = GetNode<ConveyorEnd>("ConveyorEnd2");
 
 		((ShaderMaterial)beltMaterial).SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
 		conveyorEnd1.beltMaterial.SetShaderParameter("BlackTextureOn", beltTexture == IBeltConveyor.ConvTexture.Standard);
@@ -176,12 +171,31 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-	public override void _Process(double delta)
+	public BeltConveyor()
 	{
-		if (Scale.Y != 1)
+		SetNotifyLocalTransform(true);
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationLocalTransformChanged)
 		{
-			Scale = new Vector3(Scale.X, 1, Scale.Z);
+			if (Scale.Y != 1)
+			{
+				Scale = new Vector3(Scale.X, 1, Scale.Z);
+				return;
+			}
+			OnScaleChanged();
 		}
+		base._Notification(what);
+	}
+
+	private void OnScaleChanged()
+	{
+		UpdateBeltMaterialScale();
+		UpdateMetalMaterialScale();
+		conveyorEnd1.OnOwnerScaleChanged(Scale);
+		conveyorEnd2.OnOwnerScaleChanged(Scale);
 	}
 
 	public override void _PhysicsProcess(double delta)
@@ -211,12 +225,22 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 				}
 			}
 		}
+	}
 
+	void UpdateBeltMaterialScale()
+	{
 		if (beltMaterial != null && Speed != 0)
+		{
 			((ShaderMaterial)beltMaterial).SetShaderParameter("Scale", Scale.X * Mathf.Sign(Speed));
+		}
+	}
 
-		if (metalMaterial != null && Speed != 0)
+	void UpdateMetalMaterialScale()
+	{
+		if (metalMaterial != null)
+		{
 			((ShaderMaterial)metalMaterial).SetShaderParameter("Scale", Scale.X);
+		}
 	}
 
 	void OnSimulationStarted()

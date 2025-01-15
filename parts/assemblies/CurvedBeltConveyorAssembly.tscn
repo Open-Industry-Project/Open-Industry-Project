@@ -52,6 +52,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_golsq")
 
 [node name="CurvedBeltConveyorAssembly" type="Node3D"]
+process_mode = 3
 transform = Transform3D(1.524, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_tp652")
 UpdateRate = 100

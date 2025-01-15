@@ -26,12 +26,14 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	private int updateRate = 100;
 	public int UpdateRate { get => updateRate; set => updateRate = value; }
 	[Export(PropertyHint.None, "suffix:m/s")]
-	public float Speed { get; set; }
+	public float Speed { get => speed; set { speed = value; SetAllRollersSpeed(); } }
+	private float speed;
 	[Export] // See _ValidateProperty for PropertyHint
 	/// <summary>
 	/// Distance from outer edge to measure Speed at.
 	/// </summary>
-	public float ReferenceDistance = 0.5f; // Assumes a 1m wide package.
+	public float ReferenceDistance { get => referenceDistance; set { referenceDistance = value; SetAllRollersSpeed(); } }
+	private float referenceDistance = 0.5f; // Assumes a 1m wide package.
 
 	// Based on the CurvedRollerConveyor model geometry at scale=1
 	const float CURVE_BASE_INNER_RADIUS = 0.25f;
@@ -195,8 +197,6 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 	{
 		if (running)
 		{
-			SetAllRollersSpeed();
-
 			if (enableComms && running && readSuccessful)
 			{
 				scan_interval += delta;
@@ -252,6 +252,8 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 		RegenerateSimpleConveyorShape();
 
 		SetCurrentScale();
+
+		SetAllRollersSpeed();
 	}
 
 	void ConstrainScale()
