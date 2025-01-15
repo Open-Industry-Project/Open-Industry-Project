@@ -7,30 +7,37 @@ public partial class RollerCorner : Node3D
 	private float angularSpeed = 0f;
 	private float uvSpeed = 0f;
 
-	MeshInstance3D meshInstance;
-	StaticBody3D staticBody;
-	CollisionShape3D collisionShape;
-	Root Main;
+	MeshInstance3D meshInstance => GetNode<MeshInstance3D>("MeshInstance3D");
+	StaticBody3D staticBody => GetNode<StaticBody3D>("StaticBody3D");
+	CollisionShape3D collisionShape => GetNode<CollisionShape3D>("StaticBody3D/CollisionShape3D");
 
-	public override void _Ready()
+	private Basis prevGlobalBasis = Basis.Identity;
+
+	public RollerCorner()
 	{
-		meshInstance = GetNode<MeshInstance3D>("MeshInstance3D");
-		staticBody = GetNode<StaticBody3D>("StaticBody3D");
-		collisionShape = GetNode<CollisionShape3D>("StaticBody3D/CollisionShape3D");
+		SetNotifyTransform(true);
 	}
 
-	public override void _Process(double delta)
+	public override void _Notification(int what)
 	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main == null)
+		if (what == NotificationTransformChanged && IsInsideTree())
 		{
-			return;
+			if (prevGlobalBasis == GlobalBasis) return;
+			prevGlobalBasis = GlobalBasis;
+			TryUpdateSpeed();
 		}
+		base._Notification(what);
 	}
 
-	public override void _PhysicsProcess(double delta)
+	public override void _EnterTree()
 	{
+		CallDeferred(MethodName.TryUpdateSpeed);
+		base._EnterTree();
+	}
+
+	private void TryUpdateSpeed()
+	{
+		if (!IsInsideTree()) return;
 		Vector3 localFront = GlobalTransform.Basis.Z.Normalized();
 		staticBody.ConstantAngularVelocity = localFront * angularSpeed;
 	}
@@ -39,6 +46,7 @@ public partial class RollerCorner : Node3D
 	{
 		angularSpeed = new_speed;
 		uvSpeed = angularSpeed / (2.0f * Mathf.Pi);
+		TryUpdateSpeed();
 	}
 
 	public Material GetMaterial()
