@@ -60,7 +60,7 @@ resource_local_to_scene = true
 points = PackedVector3Array(-0.381, 0.044587, -1.6654e-08, -1.905, 0.12, -8.32702e-08, -1.905, -0.12, -8.32702e-08, -0.381, -0.044587, -1.6654e-08, -0.381, 0.044587, -0.125, -1.905, 0.12, -0.125, -1.905, -0.12, -0.125, -0.381, -0.044587, -0.125)
 
 [node name="CurvedRollerConveyor" type="Node3D"]
-process_mode = 3
+process_mode = 1
 transform = Transform3D(1.524, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_3rr8m")
 Speed = 2.0
