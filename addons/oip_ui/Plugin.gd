@@ -36,7 +36,7 @@ const ID_RELOAD_CURRENT_PROJECT = 23
 const ID_QUIT_TO_PROJECT_LIST = 24
 const NATIVE_PROJECT_MENU_ITEM_IDS = [ID_PROJECT_SETTINGS, ID_PACK_PROJECT_AS_ZIP, ID_OPEN_USER_DATA_FOLDER, ID_RELOAD_CURRENT_PROJECT, ID_QUIT_TO_PROJECT_LIST]
 # This ID must match the ID for the "Search Help..." item in the native Help menu (_help_popup_menu).
-const ID_SEARCH_HELP = 65
+const ID_SEARCH_HELP = 43
 
 # Top bar content
 var _title_bar: Node
