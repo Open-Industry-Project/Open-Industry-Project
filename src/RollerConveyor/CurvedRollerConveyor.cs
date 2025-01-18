@@ -267,11 +267,11 @@ public partial class CurvedRollerConveyor : Node3D, IRollerConveyor
 
 	void SetCurrentScale()
 	{
-		if (Scale.X < 1.6f)
+		if (Scale.X < 1.5f)
 		{
 			CurrentScale = Scales.Low;
 		}
-		else if(Scale.X >= 1.6f && Scale.X < 3.2f)
+		else if(Scale.X >= 1.5f && Scale.X < 3.2f)
 		{
 			CurrentScale = Scales.Mid;
 		}
