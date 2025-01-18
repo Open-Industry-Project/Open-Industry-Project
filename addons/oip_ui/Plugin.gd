@@ -27,7 +27,7 @@ var _editor_popup_menu: PopupMenu
 var _help_popup_menu: PopupMenu
 
 # Menu item IDs
-var _item_id_editor_toggle_native_ui: int
+const ID_TOGGLE_NATIVE_UI = 1234
 # The IDs here must match those in _project_popup_menu and CustomProject.tscn.
 const ID_PROJECT_SETTINGS = 17
 const ID_PACK_PROJECT_AS_ZIP = 20
@@ -110,7 +110,7 @@ func _exit_tree() -> void:
 	if _empty_margin:
 		_empty_margin.queue_free()
 
-	var item_index = _editor_popup_menu.get_item_index(_item_id_editor_toggle_native_ui)
+	var item_index = _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
 	_editor_popup_menu.remove_item(item_index)
 	_editor_popup_menu.remove_item(item_index - 1)
 
@@ -180,8 +180,7 @@ func _editor_layout_loaded():
 	_empty_margin.custom_minimum_size = Vector2(165, 0)
 
 	_editor_popup_menu.add_separator()
-	_editor_popup_menu.add_check_item("Toggle Godot Native UI")
-	_item_id_editor_toggle_native_ui = _editor_popup_menu.get_item_id(_editor_popup_menu.item_count - 1)
+	_editor_popup_menu.add_check_item("Toggle Godot Native UI",ID_TOGGLE_NATIVE_UI)
 	_editor_popup_menu.id_pressed.connect(_on_editor_popup_id_pressed)
 
 	_custom_project_menu.id_pressed.connect(_on_custom_project_menu_id_pressed)
@@ -282,9 +281,10 @@ func _set_original_popup_menu(value: bool, original: PopupMenu, custom: PopupMen
 
 
 func _on_editor_popup_id_pressed(id: int) -> void:
-	if id == _item_id_editor_toggle_native_ui:
-		_editor_popup_menu.set_item_checked(id, !_editor_popup_menu.is_item_checked(id))
-		_toggle_native_mode(_editor_popup_menu.is_item_checked(id))
+	if id == ID_TOGGLE_NATIVE_UI:
+		var index = _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
+		_editor_popup_menu.set_item_checked(index, !_editor_popup_menu.is_item_checked(index))
+		_toggle_native_mode(_editor_popup_menu.is_item_checked(index))
 
 
 func _on_custom_project_menu_id_pressed(id: int) -> void:
