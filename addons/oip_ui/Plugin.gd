@@ -17,8 +17,11 @@ const ICON: Texture2D = preload("res://assets/png/OIP-LOGO-RGB_ICON.svg")
 
 var _layout_loaded : bool = false
 
-# EditorNode
+# Editor Node
 var _editor_node: Node
+
+# Editor Scene Tabs
+var _editor_scene_tabs: Node
 
 # Menu buttons: top-left
 var _menu_bar: MenuBar
@@ -59,24 +62,11 @@ var _scene_tabs: TabBar
 # Perspective Menu 
 var _perspective_menu: MenuButton
 
-func _scene_changed():
-	if(!_layout_loaded):
-		return
-	
-	var root = get_tree().edited_scene_root
-
-	if(root != null && root.has_signal("SimulationStarted")):
-		_run_bar._enable_buttons()
-	else:
-		_run_bar._disable_buttons()
-
 func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
 	
 	if(EditorInterface.has_method("mark_scene_as_saved")):
 		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
-		
-	_editor_node.connect("scene_changed",_scene_changed)
 	
 	if(!FileAccess.file_exists("res://addons/oip_ui/build.txt")):
 		var file = FileAccess.open("res://addons/oip_ui/build.txt",FileAccess.WRITE)
@@ -97,7 +87,17 @@ func _on_id_pressed(id: int) -> void:
 	
 	roof.visible = is_perspective_checked || (id > 0 && id < 8)
 
-
+func _editor_scene_tabs_updated() -> void:
+	if(!_layout_loaded):
+		return
+	
+	var root = get_tree().edited_scene_root
+	
+	if(root != null && root.has_signal("SimulationStarted")):
+		_run_bar._enable_buttons()
+	else:
+		_run_bar._disable_buttons()
+	
 func _exit_tree() -> void:
 	_center_buttons.visible = true
 
@@ -164,6 +164,7 @@ func _editor_layout_loaded():
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
 	
+	_editor_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
 	_toggle_native_mode(false)
 
 	_run_bar = RUN_BAR.instantiate()
@@ -197,6 +198,8 @@ func _editor_layout_loaded():
 	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously",true)
 	
 	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
+	
+	_editor_scene_tabs.connect("tabs_updated",_editor_scene_tabs_updated)
 	
 	var root = get_tree().edited_scene_root
 	
