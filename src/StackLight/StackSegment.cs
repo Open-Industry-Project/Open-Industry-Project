@@ -104,12 +104,12 @@ public partial class StackSegment : Node3D
 			if (scan_interval > (float)updateRate / 1000 && readSuccessful)
 			{
 				scan_interval = 0;
-				Task.Run(ScanTag);
+				Callable.From(ScanTag).CallDeferred();
 			}
 		}
 	}
 
-	async Task ScanTag()
+	async void ScanTag()
 	{
 		if (segmentData.Tag != string.Empty)
 		{

@@ -136,7 +136,7 @@ public partial class LaserSensor : Node3D
 			if (scan_interval > (float)updateRate / 1000 && readSuccessful)
 			{
 				scan_interval = 0;
-				Task.Run(ScanTag);
+				Callable.From(ScanTag).CallDeferred();
 			}
 		}
 	}
@@ -158,7 +158,7 @@ public partial class LaserSensor : Node3D
 		rayMesh.Position = new Vector3(0, 0, cylinderMesh.Height * 0.5f);
 	}
 
-	async Task ScanTag()
+	async void ScanTag()
 	{
 		try
 		{

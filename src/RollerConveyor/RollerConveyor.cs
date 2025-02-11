@@ -157,7 +157,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 				if (scan_interval > (float)updateRate / 1000 && readSuccessful)
 				{
 					scan_interval = 0;
-					Task.Run(ScanTag);
+					Callable.From(ScanTag).CallDeferred();
 				}
 			}
 		}
@@ -219,7 +219,7 @@ public partial class RollerConveyor : Node3D, IRollerConveyor
 		running = false;
 	}
 
-	async Task ScanTag()
+	async void ScanTag()
 	{
 		try
 		{

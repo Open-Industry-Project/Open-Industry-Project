@@ -107,7 +107,7 @@ public partial class Diverter : Node3D
 			if (scan_interval > (float)updateRate / 1000 && readSuccessful)
 			{
 				scan_interval = 0;
-				Task.Run(ScanTag);
+				Callable.From(ScanTag).CallDeferred();
 			}
 		}
 	}
@@ -126,7 +126,7 @@ public partial class Diverter : Node3D
 		diverterAnimator.Disable();
 	}
 
-	async Task ScanTag()
+	async void ScanTag()
 	{
 		try
 		{
