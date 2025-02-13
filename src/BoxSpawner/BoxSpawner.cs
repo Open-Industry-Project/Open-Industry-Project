@@ -12,6 +12,7 @@ public partial class BoxSpawner : Node3D
 		get => _disable;
 		set
 		{
+			if(value == _disable) return;
 			_disable = value;
 			if (!_disable)
 			{
