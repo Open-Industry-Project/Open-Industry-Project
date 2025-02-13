@@ -189,7 +189,7 @@ public partial class PushButton : Node3D
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (enableComms && readSuccessful)
+		if (enableComms && running && readSuccessful)
 		{
 			scan_interval += delta;
 			if (scan_interval > (float)updateRate / 1000 && readSuccessful)
