@@ -22,3 +22,5 @@ export_presets.cfg
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
+*.old
+*.old.*
