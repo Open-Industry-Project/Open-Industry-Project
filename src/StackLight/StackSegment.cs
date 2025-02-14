@@ -111,10 +111,7 @@ public partial class StackSegment : Node3D
 
 	async void ScanTag()
 	{
-		if (segmentData.Tag != string.Empty)
-		{
-			segmentData.Active = await Main.ReadBool(id);
-		}
+		segmentData.Active = await Main.ReadBool(id);
 	}
 
 	void SetTag(string newValue)
