@@ -202,12 +202,12 @@ public partial class PushButton : Node3D
 
 	async void ScanTag()
 	{
-		if (PushbuttonTag != string.Empty)
+		if (PushbuttonTag != "-")
 		{
 			await Main.Write(buttonId, Pushbutton);
 		}
 
-		if (LampTag != string.Empty)
+		if (LampTag != "-")
 		{
 			Lamp = await Main.ReadBool(activeId);
 		}
