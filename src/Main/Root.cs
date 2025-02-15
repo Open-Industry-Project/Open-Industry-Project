@@ -559,6 +559,21 @@ public partial class Root : Node3D
 			simulationEvents.Connect("simulation_started", new Callable(this, nameof(OnSimulationStarted)));
 			simulationEvents.Connect("simulation_set_paused", new Callable(this, nameof(OnSimulationSetPaused)));
 			simulationEvents.Connect("simulation_ended", new Callable(this, nameof(OnSimulationEnded)));
+			simulationEvents.Connect("use", new Callable(this, nameof(Use)));
+		}
+	}
+
+	void Use()
+	{
+		if (selectedNodes.Count > 0)
+		{
+			foreach (var node in selectedNodes)
+			{
+				if (node.HasMethod("Use"))
+				{
+					node.Call("Use");
+				}
+			}
 		}
 	}
 
@@ -592,33 +607,12 @@ public partial class Root : Node3D
 				{
 					node.Call("Select");
 				}
-
-				if (node.HasMethod("Use") && use)
-				{
-					node.Call("Use");
-				}
 			}
 		}
 	}
 
 	public override void _Process(double delta)
 	{
-		use = false;
-
-		if (Input.IsPhysicalKeyPressed(Key.G))
-		{
-			if (!keyHeld)
-			{
-				use = true;
-				keyHeld = true;
-			}
-		}
-
-		if (!Input.IsPhysicalKeyPressed(Key.G))
-		{
-			keyHeld = false;
-		}
-
 		SelectNodes();
 	}
 
