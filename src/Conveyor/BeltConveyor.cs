@@ -68,6 +68,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		get { return _speed; }
 		set
 		{
+			if (value == _speed) return;
 			_speed = value;
 			if (conveyorEnd1 != null) {
 				conveyorEnd1.Speed = Speed;
@@ -76,6 +77,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 				conveyorEnd2.Speed = Speed;
 			}
 			UpdateBeltMaterialScale();
+			Callable.From(ScanTag).CallDeferred();
 		}
 	}
 	private float _speed;
@@ -154,6 +156,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		{
 			Main.SimulationStarted += OnSimulationStarted;
 			Main.SimulationEnded += OnSimulationEnded;
+			Main.ValueChanged += OnValueChanged;
 
 			if (Main.simulationRunning)
 			{
@@ -215,7 +218,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 			if (beltPosition >= 1.0)
 				beltPosition = 0.0;
 
-			if (EnableComms && readSuccessful)
+			if (EnableComms && Main.Protocol != Root.Protocols.opc_ua && running && readSuccessful)
 			{
 				scan_interval += delta;
 				if (scan_interval > (float)updateRate/1000 && readSuccessful)
@@ -266,6 +269,11 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 			child.Position = Vector3.Zero;
 			child.Rotation = Vector3.Zero;
 		}
+	}
+
+	void OnValueChanged(string tag, Godot.Variant value)
+	{
+		Speed = (float)value;
 	}
 
 	async void ScanTag()

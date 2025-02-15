@@ -19,6 +19,9 @@ public partial class Root : Node3D
 	[Signal]
 	public delegate void SimulationEndedEventHandler();
 
+	[Signal]
+	public delegate void ValueChangedEventHandler(string tag, Godot.Variant value);
+
 	public bool simulationRunning = false;
 
 	public bool simulationPaused = false;
@@ -60,7 +63,7 @@ public partial class Root : Node3D
 	private Protocols _protocol;
 
 	[Export]
-	private Protocols Protocol
+	public Protocols Protocol
 	{
 		get => _protocol;
 		set
@@ -95,6 +98,10 @@ public partial class Root : Node3D
 	public Array<Godot.Node> selectedNodes = [];
 
 	public Session session;
+
+	Subscription subscription;
+
+	EditorSettings editorSettings = new();
 
 	public enum Protocols
 	{
@@ -183,15 +190,70 @@ public partial class Root : Node3D
 					new UserIdentity(),
 					preferredLocales
 				).Result;
+
+		subscription = new Subscription(session.DefaultSubscription)
+		{
+			DisplayName = "OIP",
+			PublishingEnabled = true,
+			PublishingInterval = 100
+		};
+
+		session.AddSubscription(subscription);
+
+		subscription.Create();
+
+	}
+
+	public virtual void MonitoredItemHandler(MonitoredItem item, MonitoredItemNotificationEventArgs args)
+	{
+		try
+		{
+			var value = item.DequeueValues()[0].Value;
+
+			GD.Print(value);
+
+			Godot.Variant variantValue = false;
+
+			if (value is float f)
+			{
+				variantValue = Godot.Variant.From(f);
+			}
+			else if (value is int i)
+			{
+				variantValue = Godot.Variant.From(i);
+			}
+			else if (value is bool b)
+			{
+				variantValue = Godot.Variant.From(b);
+			}
+			else if (value is double d)
+			{
+				variantValue = Godot.Variant.From(d);
+			}
+
+
+			CallDeferred("emit_signal", SignalName.ValueChanged, item.StartNodeId.ToString(), variantValue);
+
+			GD.Print(item.StartNodeId.ToString(), " ", variantValue);
+		}
+		catch (Exception ex)
+		{
+			GD.Print(ex.ToString());
+		}
 	}
 
 	public bool Connect(Guid guid, DataType dataType, string nodeName, string tagName)
 	{
 		if (Protocol == Protocols.opc_ua)
 		{
+			if(tagName == "-")
+			{
+				return true;
+
+			}
 			if (string.IsNullOrWhiteSpace(tagName))
 			{
-				GD.PrintErr($"Error connecting tag NULL in node {nodeName}: Empty tag name");
+				GD.PrintErr($"Error connecting tag NULL in node {nodeName}: Empty tag name. If unused type '-' in the field.");
 				return false;
 			}
 
@@ -227,6 +289,20 @@ public partial class Root : Node3D
 				GD.PrintErr($"Error connecting tag {tagName} in node {nodeName}: {results[0].StatusCode}");
 				return false;
 			}
+
+			MonitoredItem item = new()
+			{
+				StartNodeId = tagName,
+				AttributeId = Attributes.Value,
+				QueueSize = 0,
+				MonitoringMode = MonitoringMode.Reporting,
+				SamplingInterval = 100
+			};
+
+			item.Notification += this.MonitoredItemHandler;
+
+			subscription.AddItem(item);
+			subscription.ApplyChanges();
 
 			opc_tags.Add(guid, tagName);
 		}
@@ -554,6 +630,7 @@ public partial class Root : Node3D
 			{
 				session.Close();
 				session = null;
+				subscription.RemoveItems(subscription.MonitoredItems);
 			}
 			if (session == null)
 			{
