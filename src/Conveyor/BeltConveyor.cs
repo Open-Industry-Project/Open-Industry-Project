@@ -62,6 +62,8 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
+	bool first_read = true;
+
 	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed
 	{
@@ -69,15 +71,31 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		set
 		{
 			if (value == _speed) return;
+
 			_speed = value;
-			if (conveyorEnd1 != null) {
+
+			if (Main == null || !Main.simulationRunning || !EnableComms)
+			{
+				return;
+			}
+
+			if (first_read)
+			{
+				first_read = false;
+				return;
+			}
+
+			if (conveyorEnd1 != null)
+			{
 				conveyorEnd1.Speed = Speed;
 			}
-			if (conveyorEnd2 != null) {
+			if (conveyorEnd2 != null)
+			{
 				conveyorEnd2.Speed = Speed;
 			}
 			UpdateBeltMaterialScale();
-			Callable.From(ScanTag).CallDeferred();
+			Callable.From(WriteTag).CallDeferred();
+
 		}
 	}
 	private float _speed;
@@ -221,10 +239,10 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 			if (EnableComms && Main.Protocol != Root.Protocols.opc_ua && running && readSuccessful)
 			{
 				scan_interval += delta;
-				if (scan_interval > (float)updateRate/1000 && readSuccessful)
+				if (scan_interval > (float)updateRate / 1000 && readSuccessful)
 				{
 					scan_interval = 0;
-					Callable.From(ScanTag).CallDeferred();
+					Callable.From(ReadTag).CallDeferred();
 				}
 			}
 		}
@@ -276,7 +294,7 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		Speed = (float)value;
 	}
 
-	async void ScanTag()
+	async void ReadTag()
 	{
 		try
 		{
@@ -286,6 +304,18 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		{
 			GD.PrintErr("Failure to read: " + tag + " in Node: " + Name);
 			readSuccessful = false;
+		}
+	}
+
+	async void WriteTag()
+	{
+		try
+		{
+			await Main.Write(id, Speed);
+		}
+		catch
+		{
+			GD.PrintErr("Failure to write: " + tag + " in Node: " + Name);
 		}
 	}
 }
