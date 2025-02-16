@@ -210,8 +210,6 @@ public partial class Root : Node3D
 		{
 			var value = item.DequeueValues()[0].Value;
 
-			GD.Print(value);
-
 			Godot.Variant variantValue = false;
 
 			if (value is float f)
@@ -233,8 +231,6 @@ public partial class Root : Node3D
 
 
 			CallDeferred("emit_signal", SignalName.ValueChanged, item.StartNodeId.ToString(), variantValue);
-
-			GD.Print(item.StartNodeId.ToString(), " ", variantValue);
 		}
 		catch (Exception ex)
 		{
@@ -487,6 +483,30 @@ public partial class Root : Node3D
 		{
 			int_tags[guid].Value = value;
 			await int_tags[guid].WriteAsync();
+		}
+	}
+
+	public async Task Write<T>(Guid guid, T value)
+	{
+		if (Protocol == Protocols.opc_ua)
+		{
+			RequestHeader requestHeader = new();
+
+			WriteValueCollection writeValues = new();
+
+			WriteValue writeValue = new()
+			{
+				NodeId = new NodeId(opc_tags[guid]),
+				AttributeId = Attributes.Value,
+				Value = new DataValue
+				{
+					Value = value
+				}
+			};
+
+			writeValues.Add(writeValue);
+
+			await session.WriteAsync(requestHeader, writeValues, new System.Threading.CancellationToken());
 		}
 	}
 
