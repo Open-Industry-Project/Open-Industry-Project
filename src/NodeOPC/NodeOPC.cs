@@ -103,6 +103,10 @@ public partial class NodeOPC : Node
 
 	void OnValueChanged(string tag, Godot.Variant value)
 	{
+		if(tag != this.tag)
+		{
+			return;
+		}
 
 		if (value_was_set)
 		{
