@@ -642,9 +642,13 @@ public partial class Root : Node3D
 		{
 			if(session != null && session.Endpoint.EndpointUrl.TrimEnd('/') != EndPoint.TrimEnd('/'))
 			{
+				foreach (var item in subscription.MonitoredItems)
+				{
+					item.Notification -= MonitoredItemHandler;
+				}
+				subscription.RemoveItems(subscription.MonitoredItems);
 				session.Close();
 				session = null;
-				subscription.RemoveItems(subscription.MonitoredItems);
 			}
 			if (session == null)
 			{

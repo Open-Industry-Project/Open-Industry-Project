@@ -10,9 +10,7 @@ public partial class NodeOPC : Node
 
 	public Root Main { get; set; }
 
-	bool value_was_set = false;
-
-	bool first_read = true;
+	bool updating = false;
 
 	public enum Datatype
 	{
@@ -53,20 +51,14 @@ public partial class NodeOPC : Node
 		get { return _value; }
 		set
 		{
+			if ((object)value == (object)_value) return;
+
 			_value = value;
 
-			if (Main == null || !Main.simulationRunning)
+			if (!Main.simulationRunning)
 			{
 				return;
 			}
-
-			if (first_read)
-			{
-				first_read = false;
-				return;
-			}
-
-			value_was_set = true;
 
 			switch (_dataType)
 			{
@@ -82,7 +74,7 @@ public partial class NodeOPC : Node
 				case Datatype.Int:
 					WriteTag((int)value);
 					break;
-			}	
+			}
 		}
 	}
 
@@ -103,16 +95,9 @@ public partial class NodeOPC : Node
 
 	void OnValueChanged(string tag, Godot.Variant value)
 	{
-		if(tag != this.tag)
-		{
-			return;
-		}
+		if (tag != this.tag) return;
 
-		if (value_was_set)
-		{
-			value_was_set = false;
-			return;
-		}
+		if ((object)value == (object)_value) return;
 
 		Godot.Variant variantValue = false;
 

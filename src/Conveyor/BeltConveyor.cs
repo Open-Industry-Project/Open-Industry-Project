@@ -1,6 +1,5 @@
 using Godot;
 using System;
-using System.Threading.Tasks;
 
 [Tool]
 public partial class BeltConveyor : Node3D, IBeltConveyor
@@ -62,8 +61,6 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 		}
 	}
 
-	bool first_read = true;
-
 	[Export(PropertyHint.None, "suffix:m/s")]
 	public float Speed
 	{
@@ -76,12 +73,6 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 
 			if (Main == null || !Main.simulationRunning || !EnableComms)
 			{
-				return;
-			}
-
-			if (first_read)
-			{
-				first_read = false;
 				return;
 			}
 
@@ -291,6 +282,10 @@ public partial class BeltConveyor : Node3D, IBeltConveyor
 
 	void OnValueChanged(string tag, Godot.Variant value)
 	{
+		if (tag != this.tag) return;
+
+		if ((float)value == Speed) return;
+
 		Speed = (float)value;
 	}
 
