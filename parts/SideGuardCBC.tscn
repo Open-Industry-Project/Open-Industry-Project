@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=4 uid="uid://b567tts2001h8"]
 
-[ext_resource type="Script" path="res://src/SideGuards/SideGuardCBC.cs" id="1_71hpe"]
+[ext_resource type="Script" uid="uid://de67vxjb64s06" path="res://src/SideGuards/SideGuardCBC.cs" id="1_71hpe"]
 [ext_resource type="Shader" uid="uid://b4wwduhuvem3q" path="res://assets/3DModels/Shaders/SideGuardShaderCBC.tres" id="2_e0b8o"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_1ihcw"]

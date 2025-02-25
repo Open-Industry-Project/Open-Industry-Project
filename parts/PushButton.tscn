@@ -1,7 +1,7 @@
 [gd_scene load_steps=13 format=4 uid="uid://gddgyvex6gdj"]
 
 [ext_resource type="ArrayMesh" uid="uid://cigybp2vspbf8" path="res://assets/3DModels/PushButton/Meshes/PushButton_Plane_001.res" id="1_7mqik"]
-[ext_resource type="Script" path="res://src/PushButton/PushButton.cs" id="1_irpyy"]
+[ext_resource type="Script" uid="uid://b0ov6bd2t826o" path="res://src/PushButton/PushButton.cs" id="1_irpyy"]
 [ext_resource type="ArrayMesh" uid="uid://c4o3e6awfw1xl" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cylinder_001.res" id="2_to26t"]
 [ext_resource type="ArrayMesh" uid="uid://b8k40pd76n6jk" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cylinder_002.res" id="3_s7xbp"]
 [ext_resource type="ArrayMesh" uid="uid://dfpgiblbqpeyb" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cylinder_003.res" id="4_uhq27"]

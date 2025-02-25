@@ -1,6 +1,6 @@
 [gd_scene load_steps=16 format=4 uid="uid://kdpe7o4ec1fa"]
 
-[ext_resource type="Script" path="res://src/DiffuseSensor/DiffuseSensor.cs" id="1_1namx"]
+[ext_resource type="Script" uid="uid://c15a4m7mtqchd" path="res://src/DiffuseSensor/DiffuseSensor.cs" id="1_1namx"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fy1ij"]
 resource_name = "color"

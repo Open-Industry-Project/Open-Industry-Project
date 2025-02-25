@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=4 uid="uid://dvpvhht5hn7ww"]
+[gd_scene load_steps=12 format=4 uid="uid://dvpvhht5hn7ww"]
 
 [ext_resource type="Script" uid="uid://duvoflnrp8tsu" path="res://src/Assembly/CurvedConveyorAssembly.cs" id="1_tp652"]
 [ext_resource type="PackedScene" uid="uid://b2hnylsj67c5m" path="res://parts/ConveyorLegCBC.tscn" id="2_0xmjf"]

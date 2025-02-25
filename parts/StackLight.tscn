@@ -1,12 +1,12 @@
 [gd_scene load_steps=11 format=3 uid="uid://drle8i15nwr68"]
 
-[ext_resource type="Script" path="res://src/StackLight/StackLightData.cs" id="2_cfk1k"]
-[ext_resource type="Script" path="res://src/StackLight/StackSegmentData.cs" id="3_0fbgy"]
+[ext_resource type="Script" uid="uid://dx8v5hl6an8sp" path="res://src/StackLight/StackLightData.cs" id="2_cfk1k"]
+[ext_resource type="Script" uid="uid://dsvfh73lv8kpq" path="res://src/StackLight/StackSegmentData.cs" id="3_0fbgy"]
 [ext_resource type="ArrayMesh" uid="uid://cxswic5dtpchm" path="res://assets/3DModels/StackLight/Meshes/StackBottom_StackBottom.res" id="4_31tda"]
 [ext_resource type="ArrayMesh" uid="uid://ddhxidtun1ygr" path="res://assets/3DModels/StackLight/Meshes/StackStem_StackStem.res" id="5_rxxuc"]
 [ext_resource type="ArrayMesh" uid="uid://bvfsnircubh7j" path="res://assets/3DModels/StackLight/Meshes/StackMid_StackMid.res" id="6_tq4eb"]
 [ext_resource type="PackedScene" uid="uid://dlm5s307lqs6b" path="res://src/StackLight/StackSegment.tscn" id="7_u0n62"]
-[ext_resource type="Script" path="res://src/StackLight/StackLight.cs" id="8_wf0ly"]
+[ext_resource type="Script" uid="uid://dyye3xu623fcm" path="res://src/StackLight/StackLight.cs" id="8_wf0ly"]
 [ext_resource type="ArrayMesh" uid="uid://b6ko36gue766v" path="res://assets/3DModels/StackLight/Meshes/StackTop_StackTop.res" id="9_hoqsd"]
 
 [sub_resource type="Resource" id="Resource_j24pq"]

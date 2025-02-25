@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="StackSegmentData" load_steps=2 format=3 uid="uid://ff1xcf7jap8r"]
 
-[ext_resource type="Script" path="res://src/StackLight/StackSegmentData.cs" id="1_45le6"]
+[ext_resource type="Script" uid="uid://dsvfh73lv8kpq" path="res://src/StackLight/StackSegmentData.cs" id="1_45le6"]
 
 [resource]
 resource_local_to_scene = true
