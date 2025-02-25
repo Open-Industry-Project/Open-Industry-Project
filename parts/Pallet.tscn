@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=4 uid="uid://ccnjj66g0dynu"]
 
-[ext_resource type="Script" path="res://src/Pallet/Pallet.cs" id="1_3gyy2"]
+[ext_resource type="Script" uid="uid://cqre1e16tu0g5" path="res://src/Pallet/Pallet.cs" id="1_3gyy2"]
 [ext_resource type="Texture2D" uid="uid://b77uw0t6btlrk" path="res://assets/3DModels/Textures/Pallet_Mat_Base_Color.png" id="2_u7a1e"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_vb87h"]

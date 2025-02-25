@@ -1,7 +1,7 @@
 [gd_scene load_steps=8 format=4 uid="uid://dlm5s307lqs6b"]
 
-[ext_resource type="Script" path="res://src/StackLight/StackSegment.cs" id="1_wb214"]
-[ext_resource type="Script" path="res://src/StackLight/StackSegmentData.cs" id="2_kadfy"]
+[ext_resource type="Script" uid="uid://dw6pb0pu1b07b" path="res://src/StackLight/StackSegment.cs" id="1_wb214"]
+[ext_resource type="Script" uid="uid://dsvfh73lv8kpq" path="res://src/StackLight/StackSegmentData.cs" id="2_kadfy"]
 [ext_resource type="ArrayMesh" uid="uid://c3fha40hp314n" path="res://assets/3DModels/StackLight/Meshes/StackCap_StackMid_002.res" id="3_6nxrd"]
 
 [sub_resource type="Resource" id="Resource_6iwrr"]

@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=4 uid="uid://bqlkj4ar8q1ws"]
+[gd_scene load_steps=14 format=4 uid="uid://bqlkj4ar8q1ws"]
 
 [ext_resource type="Script" uid="uid://ch5tirwq17xfg" path="res://src/Assembly/ConveyorAssembly.cs" id="1_au6en"]
 [ext_resource type="Script" uid="uid://brdkb2emm1p7w" path="res://src/Assembly/ConveyorAssemblyConveyors.cs" id="2_1jum7"]

@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://5pjmdoyiub35"]
 
-[ext_resource type="Script" path="res://src/Diverter/Diverter.cs" id="1_jeh66"]
+[ext_resource type="Script" uid="uid://bi8aqksq7lr80" path="res://src/Diverter/Diverter.cs" id="1_jeh66"]
 [ext_resource type="PackedScene" uid="uid://bocnm2385urew" path="res://src/Diverter/DiverterAnimator.tscn" id="2_diryc"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_n8u7v"]

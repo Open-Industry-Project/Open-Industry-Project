@@ -1,6 +1,6 @@
 [gd_scene load_steps=9 format=4 uid="uid://dvjrx5crpqs5f"]
 
-[ext_resource type="Script" path="res://src/SideGuards/SideGuard.cs" id="1_ut3rj"]
+[ext_resource type="Script" uid="uid://biuqo3br43214" path="res://src/SideGuards/SideGuard.cs" id="1_ut3rj"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="2_ydsd4"]
 [ext_resource type="PackedScene" uid="uid://vrqch763taww" path="res://src/SideGuards/SideGuardEndL.tscn" id="3_e6wdq"]
 [ext_resource type="PackedScene" uid="uid://dklutu2avwg7t" path="res://src/SideGuards/SideGuardEndR.tscn" id="4_e8bpb"]

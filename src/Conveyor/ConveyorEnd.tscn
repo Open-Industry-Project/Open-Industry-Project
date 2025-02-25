@@ -75,7 +75,7 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_s
 uniform vec4 ColorMix : source_color;
 uniform bool BlackTextureOn = true;
 uniform float Scale;
-uniform float BeltPosition : hint_range(0, 1);
+uniform float BeltPosition : hint_range(0.0, 1.0);
 uniform bool Invert;
 uniform sampler2D tex_frg_5 : source_color;
 uniform sampler2D tex_frg_32 : source_color;

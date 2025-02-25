@@ -1,6 +1,6 @@
 [gd_scene load_steps=28 format=4 uid="uid://nsio1mg8ru3w"]
 
-[ext_resource type="Script" path="res://src/LaserSensor/LaserSensor.cs" id="1_ufgoq"]
+[ext_resource type="Script" uid="uid://dfc1hsysb73p6" path="res://src/LaserSensor/LaserSensor.cs" id="1_ufgoq"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_306xm"]
 resource_name = "color"
