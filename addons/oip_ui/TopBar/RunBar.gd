@@ -5,6 +5,8 @@ extends PanelContainer
 @onready var pause_button: Button = $HBoxContainer/Pause
 @onready var stop_button: Button = $HBoxContainer/Stop
 
+var clear_output_btn : Button
+
 var play = false
 var pause = true
 var stop = true
@@ -22,6 +24,8 @@ func _enable_buttons() -> void:
 	stop_button.disabled = stop
 
 func _ready() -> void:
+	clear_output_btn = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(2).get_child(0).get_child(0)
+	
 	get_tree().paused = false
 	
 	SimulationEvents.simulation_started.connect(func () -> void:
@@ -48,6 +52,10 @@ func _ready() -> void:
 		play = false
 		SimulationEvents.simulation_set_paused.emit(false)
 		SimulationEvents.simulation_started.emit()
+		
+		if(ProjectSettings.get_setting("addons/Open Industry Project/Output/Clear on Simulation Start")):
+			clear_output_btn.pressed.emit()
+		
 		if(EditorInterface.has_method("set_simulation_started")):
 			EditorInterface.call("set_simulation_started",true)
 	)
