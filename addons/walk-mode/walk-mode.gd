@@ -26,6 +26,8 @@ func _enter_tree() -> void:
 func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):	
 	var root := EditorInterface.get_edited_scene_root() as Node3D
 	
+	var key = event as InputEventKey
+	
 	if(!root):
 		return
 		
@@ -33,7 +35,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	var node3d_viewport := _camera.get_viewport()
 	
 	var editor_settings := EditorInterface.get_editor_settings()
-	if editor_settings.is_shortcut("Open Industry Project/Spawn Character", event) and event.is_pressed():	
+	if event.is_pressed() and (editor_settings.is_shortcut("Open Industry Project/Spawn Character", event) || (key != null && key.keycode == KEY_ESCAPE)):	
 		var editor_ui = node3d_viewport.get_parent().get_parent().get_child(1)
 		rotation_gizmo = editor_ui.get_child(8).get_child(0)
 		menu = editor_ui.get_child(0).get_child(0)
@@ -56,7 +58,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 				right_navigation_gizmo.visible = true
 				left_navigation_gizmo.visible = true
 			menu.visible = true
-		else:
+		elif(key != null && key.keycode != KEY_ESCAPE):
 			canvas_viewport.gui_disable_input = false
 			InputMap.load_from_project_settings()
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
