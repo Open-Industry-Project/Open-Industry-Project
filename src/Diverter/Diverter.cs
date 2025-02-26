@@ -25,9 +25,9 @@ public partial class Diverter : Node3D
 	[Export]
 	private int updateRate = 100;
 	[Export]
-	float divertTime = 0.5f;
+	float divertTime = 0.3f;
 	[Export]
-	float divertDistance = 1.0f;
+	float divertDistance = 1.5f;
 
 	bool FireDivert = false;
 
