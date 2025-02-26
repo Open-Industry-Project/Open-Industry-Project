@@ -7,6 +7,9 @@ public partial class Diverter : Node3D
 {
 	private bool enableComms;
 
+	[ExportToolButton("Divert")]
+	public Callable DivertButton => Callable.From(Divert);
+
 	[Export]
 	private bool EnableComms
 	{
@@ -22,14 +25,11 @@ public partial class Diverter : Node3D
 	[Export]
 	private int updateRate = 100;
 	[Export]
-	bool FireDivert = false;
-	[Export]
 	float divertTime = 0.5f;
 	[Export]
 	float divertDistance = 1.0f;
 
-	bool keyHeld = false;
-	bool keyPressed = false;
+	bool FireDivert = false;
 
 	bool readSuccessful = false;
 	bool running = false;
@@ -78,6 +78,11 @@ public partial class Diverter : Node3D
 	}
 
 	public void Use()
+	{
+		Divert();
+	}
+
+	public void Divert()
 	{
 		FireDivert = true;
 
