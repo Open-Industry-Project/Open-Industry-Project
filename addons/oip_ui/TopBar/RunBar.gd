@@ -24,7 +24,9 @@ func _enable_buttons() -> void:
 	stop_button.disabled = stop
 
 func _ready() -> void:
-	ProjectSettings.set_setting("addons/Open Industry Project/Output/Clear on Simulation Start", false)
+	if not ProjectSettings.get_setting("addons/Open Industry Project/Output/Clear on Simulation Start"):
+		ProjectSettings.set_setting("addons/Open Industry Project/Output/Clear on Simulation Start", false)
+		
 	ProjectSettings.set_as_basic("addons/Open Industry Project/Output/Clear on Simulation Start",true)
 	
 	clear_output_btn = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(2).get_child(0).get_child(0)
