@@ -64,9 +64,7 @@ var _perspective_menu: MenuButton
 
 func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
-	
-	ProjectSettings.set_setting("addons/Open Industry Project/Output/Clear on Simulation Start", false)
-	
+		
 	if(EditorInterface.has_method("mark_scene_as_saved")):
 		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
 	

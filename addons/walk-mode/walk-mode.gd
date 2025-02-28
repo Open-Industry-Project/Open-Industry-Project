@@ -21,6 +21,8 @@ func _enter_tree() -> void:
 		editor_settings.add_shortcut("Open Industry Project/Spawn Character", spawn_shortcut)
 		
 	ProjectSettings.set_setting("addons/walk_mode/character/path", "res://addons/fpc/character.tscn")
+	ProjectSettings.set_as_basic("addons/walk_mode/character/path",true)
+	
 	set_input_event_forwarding_always_enabled() 
 	
 func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):	
