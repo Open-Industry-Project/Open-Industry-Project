@@ -20,7 +20,9 @@ func _enter_tree() -> void:
 		spawn_shortcut.events.append(key_stroke)
 		editor_settings.add_shortcut("Open Industry Project/Spawn Character", spawn_shortcut)
 		
-	ProjectSettings.set_setting("addons/walk_mode/character/path", "res://addons/fpc/character.tscn")
+	if not ProjectSettings.get_setting("addons/walk_mode/character/path"):
+		ProjectSettings.set_setting("addons/walk_mode/character/path", "res://addons/fpc/character.tscn")
+		
 	ProjectSettings.set_as_basic("addons/walk_mode/character/path",true)
 	
 	set_input_event_forwarding_always_enabled() 
