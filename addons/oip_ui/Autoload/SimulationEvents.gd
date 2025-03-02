@@ -9,7 +9,10 @@ signal use
 func _input(event: InputEvent) -> void:
 	var editor_settings := EditorInterface.get_editor_settings()
 	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed():
-		emit_signal("use")
+		var selection = EditorInterface.get_selection()
+		for node in selection.get_selected_nodes():
+			if(node.has_method("Use")):
+				node.call("Use")
 
 func _enter_tree() -> void:
 	var editor_settings := EditorInterface.get_editor_settings()
