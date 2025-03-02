@@ -87,9 +87,6 @@ public partial class Root : Node3D
 
 	private string EndPoint { get; set; }
 
-	readonly List<Vector3> positions = new();
-	readonly List<Vector3> rotations = new();
-
 	readonly System.Collections.Generic.Dictionary<Guid, Tag<RealPlcMapper, float>> float_tags = new();
 	readonly System.Collections.Generic.Dictionary<Guid, Tag<BoolPlcMapper, bool>> bool_tags = new();
 	readonly System.Collections.Generic.Dictionary<Guid, Tag<DintPlcMapper, int>> int_tags = new();
@@ -549,26 +546,6 @@ public partial class Root : Node3D
 	private static void PrintError(string error)
 	{
 		GD.PrintErr(error);
-	}
-
-	private void SavePositions()
-	{
-		foreach (Node3D node in GetChildren())
-		{
-			positions.Add(node.Position);
-			rotations.Add(node.Rotation);
-		}
-	}
-
-	private void ResetPositions()
-	{
-		int i = 0;
-		foreach (Node3D node in GetChildren())
-		{
-			node.Position = positions[i];
-			node.Rotation = rotations[i];
-			i++;
-		}
 	}
 
 	public override void _Ready()
