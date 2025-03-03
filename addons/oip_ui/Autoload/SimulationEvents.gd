@@ -5,6 +5,7 @@ signal simulation_started
 signal simulation_set_paused(paused)
 signal simulation_ended
 signal use
+var simulation_running = false
 
 func _input(event: InputEvent) -> void:
 	var editor_settings := EditorInterface.get_editor_settings()
@@ -15,6 +16,9 @@ func _input(event: InputEvent) -> void:
 				node.call("Use")
 
 func _enter_tree() -> void:
+	if not Engine.is_editor_hint():
+		return
+	
 	var editor_settings := EditorInterface.get_editor_settings()
 	
 	if not editor_settings.get_shortcut("Open Industry Project/Use"):
