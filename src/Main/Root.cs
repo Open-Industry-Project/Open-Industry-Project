@@ -28,10 +28,6 @@ public partial class Root : Node3D
 
 	private bool _start = false;
 
-	private bool keyHeld = false;
-
-	private bool use = false;
-
 	public bool Start
 	{
 		get
@@ -561,6 +557,10 @@ public partial class Root : Node3D
 
 	public override void _EnterTree()
 	{
+		if (!Engine.IsEditorHint()){
+			return;
+		}
+
 		EditorInterface.Singleton.GetSelection().Connect(EditorSelection.SignalName.SelectionChanged, new Callable(this, MethodName.OnSelectionChanged));
 	}
 

@@ -50,9 +50,9 @@ public partial class Despawner : Node3D
 				foreach (var body in area.GetOverlappingBodies())
 				{
 					var owner = body.GetParent();
-					if (owner is Box box && box.instanced)
+					if (owner.HasMethod("Select") && (bool)owner.Get("instanced") == true)
 					{
-						box.QueueFree();
+						owner.QueueFree();
 					}
 				}
 			}

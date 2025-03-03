@@ -89,7 +89,7 @@ public partial class BoxSpawner : Node3D
 
 	private void SpawnBox()
 	{
-		var box = (Box)scene.Instantiate();
+		var box = (Node3D)scene.Instantiate();
 
 		if (SpawnRandomScale)
 		{
@@ -105,8 +105,8 @@ public partial class BoxSpawner : Node3D
 
 		box.Rotation = _rotation;
 		box.Position = _position;
-		box.InitialLinearVelocity = SpawnInitialLinearVeclocity;
-		box.instanced = true;
+		box.Set("InitialLinearVelocity", SpawnInitialLinearVeclocity);
+		box.Set("instanced",true);
 
 		AddChild(box, forceReadableName:true);
 		box.Owner = Main;

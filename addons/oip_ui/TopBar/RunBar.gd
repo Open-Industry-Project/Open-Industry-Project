@@ -34,6 +34,7 @@ func _ready() -> void:
 	get_tree().paused = false
 	
 	SimulationEvents.simulation_started.connect(func () -> void:
+		SimulationEvents.simulation_running = true
 		PhysicsServer3D.set_active(true)
 		play_button.disabled = true
 		pause_button.disabled = false
@@ -43,6 +44,7 @@ func _ready() -> void:
 		stop = false
 	)
 	SimulationEvents.simulation_ended.connect(func () -> void:
+		SimulationEvents.simulation_running = false
 		PhysicsServer3D.set_active(false)
 		play_button.disabled = false
 		pause_button.disabled = true
