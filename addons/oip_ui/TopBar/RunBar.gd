@@ -55,6 +55,7 @@ func _ready() -> void:
 	)
 	
 	play_button.pressed.connect(func () -> void:
+		PhysicsServer3D.set_active(true)
 		pause_button.button_pressed = false
 		play = false
 		SimulationEvents.simulation_set_paused.emit(false)
@@ -70,6 +71,7 @@ func _ready() -> void:
 		SimulationEvents.simulation_set_paused.emit(pressed)
 	)
 	stop_button.pressed.connect(func () -> void:
+		PhysicsServer3D.set_active(false)
 		pause_button.button_pressed = false
 		pause = false
 		SimulationEvents.simulation_set_paused.emit(false)

@@ -93,10 +93,10 @@ func _editor_scene_tabs_updated() -> void:
 	
 	var root = get_tree().edited_scene_root
 	
-	if(root != null && root.has_signal("SimulationStarted")):
-		_run_bar._enable_buttons()
-	else:
-		_run_bar._disable_buttons()
+	#if(root != null && root.has_signal("SimulationStarted")):
+		#_run_bar._enable_buttons()
+	#else:
+		#_run_bar._disable_buttons()
 	
 func _exit_tree() -> void:
 	_center_buttons.visible = true
@@ -131,7 +131,7 @@ func _exit_tree() -> void:
 
 	_toggle_native_mode(true)
 
-func _editor_layout_loaded():
+func _editor_layout_loaded():	
 	_layout_loaded = true
 	
 	if EditorInterface.get_open_scenes().size() == 0:
@@ -203,10 +203,12 @@ func _editor_layout_loaded():
 	
 	var root = get_tree().edited_scene_root
 	
-	if(root != null && root.has_signal("SimulationStarted")):
-		_run_bar._enable_buttons()
-	else:
-		_run_bar._disable_buttons()
+	_run_bar._enable_buttons()
+	
+	#if(root != null && root.has_signal("SimulationStarted")):
+		#_run_bar._enable_buttons()
+	#else:
+		#_run_bar._disable_buttons()
 
 func _new_simulation_btn_pressed():
 		get_undo_redo().create_action("Create New Simulation")
@@ -216,7 +218,7 @@ func _new_simulation_btn_pressed():
 
 func _create_new_simulation():
 	var script = EditorScript.new()
-	var scene : Node3D = load("res://parts/Main.tscn").instantiate()
+	var scene = Node3D.new()
 	var building : Node3D = load("res://parts/Building.tscn").instantiate()
 	script.add_root_node(scene)
 	get_tree().edited_scene_root.add_child(building)
