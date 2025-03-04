@@ -1,6 +1,6 @@
 [gd_scene load_steps=16 format=4 uid="uid://kdpe7o4ec1fa"]
 
-[ext_resource type="Script" uid="uid://c15a4m7mtqchd" path="res://src/DiffuseSensor/DiffuseSensor.cs" id="1_1namx"]
+[ext_resource type="Script" uid="uid://k4n13po1k8gj" path="res://src/DiffuseSensor/diffuse_sensor.gd" id="1_vtdj1"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fy1ij"]
 resource_name = "color"
@@ -162,23 +162,22 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_0umne")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jxp2v"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vtdj1"]
 shading_mode = 0
 albedo_color = Color(0, 1, 0, 1)
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_ov2tl"]
-material = SubResource("StandardMaterial3D_jxp2v")
+[sub_resource type="CylinderMesh" id="CylinderMesh_7x1p7"]
+material = SubResource("StandardMaterial3D_vtdj1")
 top_radius = 0.003
 bottom_radius = 0.003
-height = 10.0
+height = 6.0
 radial_segments = 4
 
 [node name="DiffuseSensor" type="Node3D"]
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 0, 0, 0)
-script = ExtResource("1_1namx")
-ShowBeam = false
-beamBlockedColor = Color(1, 0, 0, 1)
-beamScanColor = Color(0, 1, 0, 1)
+script = ExtResource("1_vtdj1")
+beam_blocked_color = Color(1, 0, 0, 1)
+beam_scan_color = Color(0, 1, 0, 1)
 metadata/_edit_group_ = true
 
 [node name="Photoeye" type="Node3D" parent="."]
@@ -210,7 +209,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
 visible = false
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 5)
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 3)
 cast_shadow = 0
 gi_mode = 0
-mesh = SubResource("CylinderMesh_ov2tl")
+mesh = SubResource("CylinderMesh_7x1p7")
