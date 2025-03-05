@@ -1,6 +1,6 @@
 [gd_scene load_steps=11 format=4 uid="uid://co2mqmdwpn57w"]
 
-[ext_resource type="Script" uid="uid://bth2u0d1nemn8" path="res://src/BoxSpawner/BoxSpawner.cs" id="1_fwalv"]
+[ext_resource type="Script" uid="uid://bn65m4b5yne4r" path="res://src/BoxSpawner/box_spawner.gd" id="1_hb8rk"]
 [ext_resource type="PackedScene" uid="uid://bq16fe5njnr2i" path="res://parts/Box.tscn" id="2_2xggy"]
 [ext_resource type="Texture2D" uid="uid://jf0rgqy7atfe" path="res://src/Box/Box_Cardboard box 24.png" id="2_4vevq"]
 [ext_resource type="Texture2D" uid="uid://csdxeq0v42ln0" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_roughness.png" id="3_erpmv"]
@@ -110,10 +110,9 @@ shadow_mesh = SubResource("ArrayMesh_e42t8")
 
 [node name="BoxSpawner" type="Node3D"]
 transform = Transform3D(1, 2.30012e-09, -9.31322e-10, -2.30012e-09, 1, 8.84756e-09, 9.31322e-10, -8.84756e-09, 1, 0, 0, 0)
-script = ExtResource("1_fwalv")
+script = ExtResource("1_hb8rk")
 scene = ExtResource("2_2xggy")
-SpawnRandomScale = true
-spawnInterval = 3.0
+spawn_interval = 3.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
