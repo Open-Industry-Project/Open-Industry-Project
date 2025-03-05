@@ -219,6 +219,7 @@ func _new_simulation_btn_pressed():
 func _create_new_simulation():
 	var script = EditorScript.new()
 	var scene = Node3D.new()
+	scene.name = "Simulation"
 	var building : Node3D = load("res://parts/Building.tscn").instantiate()
 	script.add_root_node(scene)
 	get_tree().edited_scene_root.add_child(building)
