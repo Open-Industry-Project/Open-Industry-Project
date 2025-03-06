@@ -68,6 +68,7 @@ func _ready() -> void:
 			EditorInterface.call("set_simulation_started",true)
 	)
 	pause_button.toggled.connect(func (pressed: bool) -> void:
+		SimulationEvents.simulation_paused = !SimulationEvents.simulation_paused
 		SimulationEvents.simulation_set_paused.emit(pressed)
 	)
 	stop_button.pressed.connect(func () -> void:
