@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=4 uid="uid://rqr8ymsl2cph"]
 
-[ext_resource type="Script" uid="uid://by4vehk3vajj2" path="res://src/PalletSpawner/PalletSpawner.cs" id="1_by57j"]
+[ext_resource type="Script" uid="uid://cnvwx0n8igwtt" path="res://src/PalletSpawner/pallet_spawner.gd" id="1_kwg42"]
 [ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://parts/Pallet.tscn" id="2_g1ntt"]
 [ext_resource type="Texture2D" uid="uid://b77uw0t6btlrk" path="res://assets/3DModels/Textures/Pallet_Mat_Base_Color.png" id="2_j7tet"]
 
@@ -41,8 +41,9 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_6uvh1")
 
 [node name="PalletSpawner" type="Node3D"]
-script = ExtResource("1_by57j")
+script = ExtResource("1_kwg42")
 scene = ExtResource("2_g1ntt")
+spawn_interval = 3.0
 
 [node name="Wood_Pallet" type="MeshInstance3D" parent="."]
 transparency = 0.7
