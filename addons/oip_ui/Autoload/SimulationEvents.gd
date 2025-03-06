@@ -6,6 +6,7 @@ signal simulation_set_paused(paused)
 signal simulation_ended
 signal use
 var simulation_running = false
+var simulation_paused = false
 var selected_nodes : Array[Node]
 
 func _on_selection_changed() -> void:

@@ -1,74 +1,74 @@
 [gd_scene load_steps=29 format=4 uid="uid://byog2n752js4y"]
 
-[ext_resource type="Script" uid="uid://dxgnrrc03cnum" path="res://src/Conveyor/ConveyorEnd.cs" id="1_v7tt2"]
+[ext_resource type="Script" uid="uid://br24cppp65ba3" path="res://src/Conveyor/conveyor_end.gd" id="1_crir7"]
 [ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="2_6dxkv"]
 [ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="3_3ynyp"]
 [ext_resource type="Material" uid="uid://00bmdgt6cfmg" path="res://assets/3DModels/Materials/MetalMaterial.tres" id="3_ypirl"]
 
-[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_8vpnx"]
+[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_fbs2d"]
 default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]
 op_type = 0
 
-[sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_ji1je"]
+[sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_n0owj"]
 function = 1
 
-[sub_resource type="VisualShaderNodeFloatFunc" id="VisualShaderNodeFloatFunc_72b2m"]
+[sub_resource type="VisualShaderNodeFloatFunc" id="VisualShaderNodeFloatFunc_g8ku5"]
 function = 15
 
-[sub_resource type="VisualShaderNodeBooleanParameter" id="VisualShaderNodeBooleanParameter_2bwvo"]
+[sub_resource type="VisualShaderNodeBooleanParameter" id="VisualShaderNodeBooleanParameter_2h2g3"]
 parameter_name = "Invert"
 
-[sub_resource type="VisualShaderNodeSwitch" id="VisualShaderNodeSwitch_3hb85"]
+[sub_resource type="VisualShaderNodeSwitch" id="VisualShaderNodeSwitch_22bnh"]
 default_input_values = [0, false, 1, -1.0, 2, 1.0]
 
-[sub_resource type="VisualShaderNodeFloatParameter" id="VisualShaderNodeFloatParameter_lm7sd"]
+[sub_resource type="VisualShaderNodeFloatParameter" id="VisualShaderNodeFloatParameter_kj3yh"]
 parameter_name = "Scale"
 
-[sub_resource type="VisualShaderNodeFloatOp" id="VisualShaderNodeFloatOp_kb2fx"]
+[sub_resource type="VisualShaderNodeFloatOp" id="VisualShaderNodeFloatOp_36rcc"]
 operator = 2
 
-[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_rxxsm"]
+[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_tays4"]
 default_input_values = [0, 1.0, 1, 0.0, 2, 0.0]
 op_type = 0
 
-[sub_resource type="VisualShaderNodeFloatOp" id="VisualShaderNodeFloatOp_tdaok"]
+[sub_resource type="VisualShaderNodeFloatOp" id="VisualShaderNodeFloatOp_6wgjj"]
 default_input_values = [0, 1.0, 1, 0.0]
 operator = 3
 
-[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_w8dj0"]
+[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_difc1"]
 default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]
 op_type = 0
 
-[sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_1knck"]
+[sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_y2xp6"]
 
-[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_jkpwh"]
+[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_lnyy2"]
 texture = ExtResource("2_6dxkv")
 texture_type = 1
 
-[sub_resource type="VisualShaderNodeSwitch" id="VisualShaderNodeSwitch_5s841"]
+[sub_resource type="VisualShaderNodeSwitch" id="VisualShaderNodeSwitch_kp7nu"]
 default_input_values = [0, true, 1, Vector3(1, 1, 1), 2, Vector3(0, 0, 0)]
 op_type = 4
 
-[sub_resource type="VisualShaderNodeBooleanParameter" id="VisualShaderNodeBooleanParameter_iltoi"]
+[sub_resource type="VisualShaderNodeBooleanParameter" id="VisualShaderNodeBooleanParameter_e014d"]
 parameter_name = "BlackTextureOn"
 default_value_enabled = true
 default_value = true
 
-[sub_resource type="VisualShaderNodeColorParameter" id="VisualShaderNodeColorParameter_kolo1"]
+[sub_resource type="VisualShaderNodeColorParameter" id="VisualShaderNodeColorParameter_13ptr"]
 parameter_name = "ColorMix"
 
-[sub_resource type="VisualShaderNodeVectorOp" id="VisualShaderNodeVectorOp_v1e6h"]
+[sub_resource type="VisualShaderNodeVectorOp" id="VisualShaderNodeVectorOp_6ixvs"]
 operator = 2
 
-[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_btxy2"]
+[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_1puaf"]
 texture = ExtResource("3_3ynyp")
 texture_type = 1
 
-[sub_resource type="VisualShaderNodeFloatParameter" id="VisualShaderNodeFloatParameter_vnuw8"]
+[sub_resource type="VisualShaderNodeFloatParameter" id="VisualShaderNodeFloatParameter_jcqhx"]
 parameter_name = "BeltPosition"
 hint = 1
 
-[sub_resource type="VisualShader" id="VisualShader_q28ce"]
+[sub_resource type="VisualShader" id="VisualShader_uqw5q"]
 code = "shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_schlick_ggx;
 
@@ -172,47 +172,47 @@ void fragment() {
 "
 graph_offset = Vector2(541.202, -40.1259)
 nodes/fragment/0/position = Vector2(1040, 120)
-nodes/fragment/3/node = SubResource("VisualShaderNodeUVFunc_1knck")
+nodes/fragment/3/node = SubResource("VisualShaderNodeUVFunc_y2xp6")
 nodes/fragment/3/position = Vector2(-360, 100)
-nodes/fragment/5/node = SubResource("VisualShaderNodeTexture_btxy2")
+nodes/fragment/5/node = SubResource("VisualShaderNodeTexture_1puaf")
 nodes/fragment/5/position = Vector2(280, 180)
-nodes/fragment/8/node = SubResource("VisualShaderNodeFloatParameter_vnuw8")
+nodes/fragment/8/node = SubResource("VisualShaderNodeFloatParameter_jcqhx")
 nodes/fragment/8/position = Vector2(-1480, -140)
-nodes/fragment/11/node = SubResource("VisualShaderNodeVectorCompose_8vpnx")
+nodes/fragment/11/node = SubResource("VisualShaderNodeVectorCompose_fbs2d")
 nodes/fragment/11/position = Vector2(-780, 460)
-nodes/fragment/13/node = SubResource("VisualShaderNodeUVFunc_ji1je")
+nodes/fragment/13/node = SubResource("VisualShaderNodeUVFunc_n0owj")
 nodes/fragment/13/position = Vector2(-100, 140)
-nodes/fragment/14/node = SubResource("VisualShaderNodeFloatFunc_72b2m")
+nodes/fragment/14/node = SubResource("VisualShaderNodeFloatFunc_g8ku5")
 nodes/fragment/14/position = Vector2(-1200, 360)
-nodes/fragment/15/node = SubResource("VisualShaderNodeBooleanParameter_2bwvo")
+nodes/fragment/15/node = SubResource("VisualShaderNodeBooleanParameter_2h2g3")
 nodes/fragment/15/position = Vector2(-1500, 140)
-nodes/fragment/16/node = SubResource("VisualShaderNodeSwitch_3hb85")
+nodes/fragment/16/node = SubResource("VisualShaderNodeSwitch_22bnh")
 nodes/fragment/16/position = Vector2(-1180, 100)
-nodes/fragment/19/node = SubResource("VisualShaderNodeFloatParameter_lm7sd")
+nodes/fragment/19/node = SubResource("VisualShaderNodeFloatParameter_kj3yh")
 nodes/fragment/19/position = Vector2(-1520, 340)
-nodes/fragment/25/node = SubResource("VisualShaderNodeFloatOp_kb2fx")
+nodes/fragment/25/node = SubResource("VisualShaderNodeFloatOp_36rcc")
 nodes/fragment/25/position = Vector2(-920, 60)
-nodes/fragment/27/node = SubResource("VisualShaderNodeVectorCompose_rxxsm")
+nodes/fragment/27/node = SubResource("VisualShaderNodeVectorCompose_tays4")
 nodes/fragment/27/position = Vector2(-640, 80)
-nodes/fragment/28/node = SubResource("VisualShaderNodeFloatOp_tdaok")
+nodes/fragment/28/node = SubResource("VisualShaderNodeFloatOp_6wgjj")
 nodes/fragment/28/position = Vector2(-900, 280)
-nodes/fragment/29/node = SubResource("VisualShaderNodeVectorCompose_w8dj0")
+nodes/fragment/29/node = SubResource("VisualShaderNodeVectorCompose_difc1")
 nodes/fragment/29/position = Vector2(-640, 240)
-nodes/fragment/32/node = SubResource("VisualShaderNodeTexture_jkpwh")
+nodes/fragment/32/node = SubResource("VisualShaderNodeTexture_lnyy2")
 nodes/fragment/32/position = Vector2(280, 480)
-nodes/fragment/33/node = SubResource("VisualShaderNodeSwitch_5s841")
+nodes/fragment/33/node = SubResource("VisualShaderNodeSwitch_kp7nu")
 nodes/fragment/33/position = Vector2(560, 160)
-nodes/fragment/34/node = SubResource("VisualShaderNodeBooleanParameter_iltoi")
+nodes/fragment/34/node = SubResource("VisualShaderNodeBooleanParameter_e014d")
 nodes/fragment/34/position = Vector2(180, 0)
-nodes/fragment/35/node = SubResource("VisualShaderNodeColorParameter_kolo1")
+nodes/fragment/35/node = SubResource("VisualShaderNodeColorParameter_13ptr")
 nodes/fragment/35/position = Vector2(500, -140)
-nodes/fragment/36/node = SubResource("VisualShaderNodeVectorOp_v1e6h")
+nodes/fragment/36/node = SubResource("VisualShaderNodeVectorOp_6ixvs")
 nodes/fragment/36/position = Vector2(820, -20)
 nodes/fragment/connections = PackedInt32Array(3, 0, 13, 0, 13, 0, 5, 0, 15, 0, 16, 0, 19, 0, 14, 0, 14, 0, 11, 1, 11, 0, 13, 1, 8, 0, 25, 0, 16, 0, 25, 1, 27, 0, 3, 2, 25, 0, 27, 1, 14, 0, 28, 1, 28, 0, 29, 1, 29, 0, 3, 1, 13, 0, 32, 0, 32, 0, 33, 2, 5, 0, 33, 1, 34, 0, 33, 0, 35, 0, 36, 0, 33, 0, 36, 1, 36, 0, 0, 0)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_mor0c"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dnkcv"]
 render_priority = 0
-shader = SubResource("VisualShader_q28ce")
+shader = SubResource("VisualShader_uqw5q")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
 shader_parameter/BlackTextureOn = true
 shader_parameter/Scale = 1.0
@@ -245,7 +245,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_2444l"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_bcffs"]
 resource_name = "ConvEnd_Cube_003"
 _surfaces = [{
 "aabb": AABB(-1.36618e-08, -0.25, -1, 0.25, 0.50001, 2),
@@ -254,7 +254,7 @@ _surfaces = [{
 "index_count": 288,
 "index_data": PackedByteArray("AQAHAAMAAQAFAAcABQAJAAcABQA3AAkANwANAAkANwALAA0ACwAPAA0ACwA7AA8AOwARAA8AOwA5ABEAOQATABEAOQBBABMAQQAXABMAQQAVABcAFQAZABcAFQA/ABkAPwAbABkAPwA9ABsAPQAfABsAPQAdAB8AHQAjAB8AHQAhACMAIQAnACMAIQAlACcAJQArACcAJQApACsAKQAvACsAKQAtAC8ALQAxAC8ALQBDADEAQwA1ADEAQwAzADUAMABTAC4AMABUAFMAFgBLABIAFgBMAEsALgBSACoALgBTAFIAEgBKABAAEgBLAEoAKgBRACYAKgBSAFEAEABJAA4AEABKAEkAJgBQACIAJgBRAFAADgBIAAwADgBJAEgAIgBPAB4AIgBQAE8ADABHAAgADABIAEcAHgBOABoAHgBPAE4ACABGAAYACABHAEYAGgBNABgAGgBOAE0ANABUADAANABEAFQABgBFAAIABgBGAEUAGABMABYAGABNAEwAMgBXAFUAMgBCAFcAFABdAF4AFABAAF0ALABkAGUALAAoAGQAQABcAF0AQAA4AFwACgBZAFoACgA2AFkAKABjAGQAKAAkAGMANgBYAFkANgAEAFgAOABbAFwAOAA6AFsAJABiAGMAJAAgAGIAOgBaAFsAOgAKAFoAIABhAGIAIAAcAGEAHABgAGEAHAA8AGAAPABfAGAAPAA+AF8ABABWAFgABAAAAFYAPgBeAF8APgAUAF4AQgBlAFcAQgAsAGUA"),
 "lods": [0.0355565, PackedByteArray("AQAHAAMAAQALAAcACwARAAcACwA5ABEAOQAbABEAOQA9ABsAPQArABsAPQAtACsALQA1ACsALQAzADUAKgBUAFMAKgBTAFIANABEAFQANABUACoAKgBSAFEAKgBRAFAAKgBQAE8AKgBPABoAGgBPAE4AGgBOAE0AGgBNAEwAGgBMAEsAGgBLABAAEABLAEoAEABKAEkAEABJAEgAEABIAEcAEABHAAYABgBHAEYABgBGAEUABgBFAAIAMgBXAFUAMgAsAFcALABlAFcALABkAGUALABjAGQALAA8AGMAPABiAGMAPABhAGIAPABgAGEAPABfAGAAPABeAF8APAA4AF4AOABdAF4AOABcAF0AOABbAFwAOABaAFsAOAAKAFoACgBZAFoACgBYAFkACgBWAFgACgAAAFYA")],
-"material": SubResource("ShaderMaterial_mor0c"),
+"material": SubResource("ShaderMaterial_dnkcv"),
 "name": "Main",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -286,12 +286,12 @@ radius = 0.25
 
 [node name="ConveyorEnd" type="Node3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
-script = ExtResource("1_v7tt2")
+script = ExtResource("1_crir7")
 metadata/_edit_group_ = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
-mesh = SubResource("ArrayMesh_2444l")
+mesh = SubResource("ArrayMesh_bcffs")
 skeleton = NodePath("../StaticBody3D")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
