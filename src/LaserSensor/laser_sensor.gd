@@ -15,10 +15,10 @@ var ray_material: StandardMaterial3D
 	
 @export var beam_blocked_color: Color = Color.RED
 @export var beam_scan_color: Color = Color.GREEN
-@export var blocked: bool = false
+@export var distance: float = 0.0
 
 func _validate_property(property: Dictionary):
-	if property.name == "blocked":
+	if property.name == "distance":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 
 func _ready() -> void:
@@ -45,18 +45,18 @@ func _physics_process(delta: float) -> void:
 	var result = space_state.intersect_ray(query)
 	
 	if result.size() > 0:
-		blocked = true
 		var result_distance = ray_marker.global_transform.origin.distance_to(result["position"])
 		if cylinder_mesh.height != result_distance:
-				cylinder_mesh.height = result_distance
+			cylinder_mesh.height = result_distance		
 		if ray_material.albedo_color != beam_blocked_color:
-				ray_material.albedo_color = beam_blocked_color
+			ray_material.albedo_color = beam_blocked_color
 	else:
-		blocked = false
 		if cylinder_mesh.height != max_range:
-				cylinder_mesh.height = max_range
+			cylinder_mesh.height = max_range
 		if ray_material.albedo_color != beam_scan_color:
-				ray_material.albedo_color = beam_scan_color
+			ray_material.albedo_color = beam_scan_color
+				
+	distance = cylinder_mesh.height
 	
 	ray_mesh.position = Vector3(0, 0, cylinder_mesh.height * 0.5)
 

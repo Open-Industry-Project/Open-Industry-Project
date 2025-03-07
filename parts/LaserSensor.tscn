@@ -1,6 +1,6 @@
 [gd_scene load_steps=28 format=4 uid="uid://nsio1mg8ru3w"]
 
-[ext_resource type="Script" uid="uid://dfc1hsysb73p6" path="res://src/LaserSensor/LaserSensor.cs" id="1_ufgoq"]
+[ext_resource type="Script" uid="uid://d3jg66l8vh42f" path="res://src/LaserSensor/laser_sensor.gd" id="1_27ueu"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_306xm"]
 resource_name = "color"
@@ -318,22 +318,19 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ssju6")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nd7f3"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_27ueu"]
 shading_mode = 0
 albedo_color = Color(0, 1, 0, 1)
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_w3xtk"]
-material = SubResource("StandardMaterial3D_nd7f3")
+[sub_resource type="CylinderMesh" id="CylinderMesh_py1qu"]
+material = SubResource("StandardMaterial3D_27ueu")
 top_radius = 0.003
 bottom_radius = 0.003
-height = 10.0
+height = 6.0
 
 [node name="LaserSensor" type="Node3D"]
-script = ExtResource("1_ufgoq")
-ShowBeam = false
-beamBlockedColor = Color(1, 0, 0, 1)
-beamScanColor = Color(0, 1, 0, 1)
-distance = 10.0
+script = ExtResource("1_27ueu")
+show_beam = true
 metadata/_edit_group_ = true
 
 [node name="LaserSensor" type="Node3D" parent="."]
@@ -378,13 +375,8 @@ mesh = SubResource("ArrayMesh_ol5se")
 skeleton = NodePath("")
 
 [node name="RayMarker" type="Marker3D" parent="."]
-visible = false
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 5)
-mesh = SubResource("CylinderMesh_w3xtk")
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 3)
+mesh = SubResource("CylinderMesh_py1qu")
 skeleton = NodePath("../..")
-
-[node name="ScanTimer" type="Timer" parent="."]
-process_mode = 3
-wait_time = 0.25
