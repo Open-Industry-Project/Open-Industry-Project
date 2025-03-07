@@ -68,11 +68,6 @@ func _enter_tree() -> void:
 	if(EditorInterface.has_method("mark_scene_as_saved")):
 		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
 	
-	if(!FileAccess.file_exists("res://addons/oip_ui/build.txt")):
-		var file = FileAccess.open("res://addons/oip_ui/build.txt",FileAccess.WRITE)
-		file.store_string("This file was automatically generated. Do not delete")
-		BuildProject.build()
-
 func _on_id_pressed(id: int) -> void:
 	if get_tree().edited_scene_root == null:
 		return
