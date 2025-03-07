@@ -31,11 +31,9 @@ func _ready() -> void:
 	ray_marker.visible = show_beam
 
 func _enter_tree() -> void:
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 
 func _physics_process(delta: float) -> void:
@@ -61,10 +59,6 @@ func _physics_process(delta: float) -> void:
 				ray_material.albedo_color = beam_scan_color
 	
 	ray_mesh.position = Vector3(0, 0, cylinder_mesh.height * 0.5)
-
-func _on_simulation_started() -> void:
-	# Nothing??
-	pass
 
 func _on_simulation_ended() -> void:
 	cylinder_mesh.height = max_range

@@ -1,15 +1,8 @@
-[gd_scene load_steps=8 format=4 uid="uid://dlm5s307lqs6b"]
+[gd_scene load_steps=7 format=4 uid="uid://dlm5s307lqs6b"]
 
-[ext_resource type="Script" uid="uid://dw6pb0pu1b07b" path="res://src/StackLight/StackSegment.cs" id="1_wb214"]
-[ext_resource type="Script" uid="uid://dsvfh73lv8kpq" path="res://src/StackLight/StackSegmentData.cs" id="2_kadfy"]
+[ext_resource type="Script" uid="uid://drqduoo67opbr" path="res://src/StackLight/stack_segment.gd" id="1_3k4vh"]
+[ext_resource type="Resource" uid="uid://ff1xcf7jap8r" path="res://src/StackLight/StackSegmentData.tres" id="2_h5qyy"]
 [ext_resource type="ArrayMesh" uid="uid://c3fha40hp314n" path="res://assets/3DModels/StackLight/Meshes/StackCap_StackMid_002.res" id="3_6nxrd"]
-
-[sub_resource type="Resource" id="Resource_6iwrr"]
-resource_local_to_scene = true
-script = ExtResource("2_kadfy")
-Tag = ""
-Active = false
-SegmentColor = Color(0, 1, 0, 0.5)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ps278"]
 resource_local_to_scene = true
@@ -55,8 +48,8 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_7r4ed")
 
 [node name="StackSegment" type="Node3D"]
-script = ExtResource("1_wb214")
-SegmentData = SubResource("Resource_6iwrr")
+script = ExtResource("1_3k4vh")
+segment_data = ExtResource("2_h5qyy")
 
 [node name="LightMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.017, 0)
