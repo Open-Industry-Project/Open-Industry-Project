@@ -1,6 +1,6 @@
 [gd_scene load_steps=17 format=4 uid="uid://bocnm2385urew"]
 
-[ext_resource type="Script" uid="uid://dnxgd8ql4a5la" path="res://src/Diverter/DiverterAnimator.cs" id="2_22iwn"]
+[ext_resource type="Script" uid="uid://dtgqdb65nle3j" path="res://src/Diverter/diverter_animator.gd" id="1_lkgtf"]
 [ext_resource type="Material" uid="uid://cqwil2ylhbom7" path="res://assets/3DModels/Materials/Plastic2.tres" id="2_dedar"]
 [ext_resource type="ArrayMesh" uid="uid://q0oilec07t0d" path="res://assets/3DModels/Meshes/Diverter_Cube_003.res" id="3_rr5e7"]
 [ext_resource type="Material" uid="uid://ibm26sepn7l1" path="res://assets/3DModels/Materials/Plastic1.tres" id="3_v51v8"]
@@ -234,7 +234,7 @@ bounce = 1.0
 size = Vector3(0.467773, 0.395508, 2.08258)
 
 [node name="DiverterAnimator" type="Node3D"]
-script = ExtResource("2_22iwn")
+script = ExtResource("1_lkgtf")
 
 [node name="Pusher" type="MeshInstance3D" parent="."]
 mesh = SubResource("ArrayMesh_0qbfj")
