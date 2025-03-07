@@ -1,10 +1,9 @@
 [gd_resource type="Resource" script_class="StackSegmentData" load_steps=2 format=3 uid="uid://ff1xcf7jap8r"]
 
-[ext_resource type="Script" uid="uid://dsvfh73lv8kpq" path="res://src/StackLight/StackSegmentData.cs" id="1_45le6"]
+[ext_resource type="Script" uid="uid://buet0tp11gjdl" path="res://src/StackLight/stack_segment_data.gd" id="1_1p7i5"]
 
 [resource]
 resource_local_to_scene = true
-script = ExtResource("1_45le6")
-Tag = ""
-Active = false
-SegmentColor = Color(0, 1, 0, 0.5)
+script = ExtResource("1_1p7i5")
+active = false
+segment_color = Color(0, 1, 0, 0.5)

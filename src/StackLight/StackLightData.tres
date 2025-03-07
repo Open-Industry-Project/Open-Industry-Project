@@ -1,8 +1,8 @@
 [gd_resource type="Resource" script_class="StackLightData" load_steps=2 format=3 uid="uid://d12ws8w1surr1"]
 
-[ext_resource type="Script" uid="uid://dx8v5hl6an8sp" path="res://src/StackLight/StackLightData.cs" id="1_5fyth"]
+[ext_resource type="Script" uid="uid://bl7o7avq4pi78" path="res://stack_light_data.gd" id="1_rghtc"]
 
 [resource]
 resource_local_to_scene = true
-script = ExtResource("1_5fyth")
-segmentDatas = []
+script = ExtResource("1_rghtc")
+segment_datas = []

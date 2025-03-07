@@ -1,34 +1,31 @@
 [gd_scene load_steps=11 format=3 uid="uid://drle8i15nwr68"]
 
-[ext_resource type="Script" uid="uid://dx8v5hl6an8sp" path="res://src/StackLight/StackLightData.cs" id="2_cfk1k"]
-[ext_resource type="Script" uid="uid://dsvfh73lv8kpq" path="res://src/StackLight/StackSegmentData.cs" id="3_0fbgy"]
+[ext_resource type="Script" uid="uid://btas2578kr5b7" path="res://parts/stack_light.gd" id="1_vxp13"]
+[ext_resource type="Script" uid="uid://bl7o7avq4pi78" path="res://src/StackLight/stack_light_data.gd" id="2_v0hgu"]
 [ext_resource type="ArrayMesh" uid="uid://cxswic5dtpchm" path="res://assets/3DModels/StackLight/Meshes/StackBottom_StackBottom.res" id="4_31tda"]
 [ext_resource type="ArrayMesh" uid="uid://ddhxidtun1ygr" path="res://assets/3DModels/StackLight/Meshes/StackStem_StackStem.res" id="5_rxxuc"]
 [ext_resource type="ArrayMesh" uid="uid://bvfsnircubh7j" path="res://assets/3DModels/StackLight/Meshes/StackMid_StackMid.res" id="6_tq4eb"]
+[ext_resource type="Script" uid="uid://buet0tp11gjdl" path="res://src/StackLight/stack_segment_data.gd" id="6_vxp13"]
 [ext_resource type="PackedScene" uid="uid://dlm5s307lqs6b" path="res://src/StackLight/StackSegment.tscn" id="7_u0n62"]
-[ext_resource type="Script" uid="uid://dyye3xu623fcm" path="res://src/StackLight/StackLight.cs" id="8_wf0ly"]
 [ext_resource type="ArrayMesh" uid="uid://b6ko36gue766v" path="res://assets/3DModels/StackLight/Meshes/StackTop_StackTop.res" id="9_hoqsd"]
 
-[sub_resource type="Resource" id="Resource_j24pq"]
+[sub_resource type="Resource" id="Resource_v0hgu"]
 resource_local_to_scene = true
-script = ExtResource("3_0fbgy")
-Tag = ""
-Active = false
-SegmentColor = Color(0, 1, 0, 0.5)
+script = ExtResource("6_vxp13")
+active = false
+segment_color = Color(0, 1, 0, 0.5)
 
-[sub_resource type="Resource" id="Resource_5ese3"]
+[sub_resource type="Resource" id="Resource_oqsfm"]
 resource_local_to_scene = true
-script = ExtResource("2_cfk1k")
-segmentDatas = [SubResource("Resource_j24pq")]
+script = ExtResource("2_v0hgu")
+segment_datas = [SubResource("Resource_v0hgu")]
 
 [node name="StackLight" type="Node3D"]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
-script = ExtResource("8_wf0ly")
-EnableComms = false
-UpdateRate = 100
+script = ExtResource("1_vxp13")
 Segments = 1
-data = SubResource("Resource_5ese3")
-"Light 1" = SubResource("Resource_j24pq")
+data = SubResource("Resource_oqsfm")
+"Light 1" = SubResource("Resource_v0hgu")
 metadata/_edit_group_ = true
 
 [node name="Bottom" type="MeshInstance3D" parent="."]
@@ -46,7 +43,7 @@ mesh = ExtResource("6_tq4eb")
 
 [node name="StackSegment" parent="Mid/Segments" instance=ExtResource("7_u0n62")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0385172, 0)
-SegmentData = SubResource("Resource_j24pq")
+segment_data = SubResource("Resource_v0hgu")
 
 [node name="Top" type="MeshInstance3D" parent="Mid"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.087, 0)
