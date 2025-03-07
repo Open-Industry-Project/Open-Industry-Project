@@ -5,14 +5,9 @@ extends HBoxContainer
 @export var texture_script: Texture
 
 @onready var _screen_button: Button = $ScreenButton
-@onready var _build_button: Button = $BuildButton
 
 func _ready() -> void:
 	_screen_button.pressed.connect(self._screen_button_pressed)
-	_build_button.pressed.connect(self._build_button_pressed)
-	
-func _build_button_pressed():
-	BuildProject.build()
 
 func _screen_button_pressed():
 	var window = _get_visible_window()
