@@ -70,6 +70,10 @@ func _ready() -> void:
 	pause_button.toggled.connect(func (pressed: bool) -> void:
 		SimulationEvents.simulation_paused = !SimulationEvents.simulation_paused
 		SimulationEvents.simulation_set_paused.emit(pressed)
+		if SimulationEvents.simulation_paused:
+			get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_DISABLED
+		else:
+			get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_INHERIT
 	)
 	stop_button.pressed.connect(func () -> void:
 		PhysicsServer3D.set_active(false)
