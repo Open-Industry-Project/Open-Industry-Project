@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://cqufgm7ocho1i"]
 
-[ext_resource type="Script" uid="uid://b52v8p38x8ubj" path="res://src/ChainTransfer/ChainTransfer.cs" id="1_u5lod"]
-[ext_resource type="Script" uid="uid://cq603x3vnxpy7" path="res://src/ChainTransfer/ChainTransferBases.cs" id="2_dolaf"]
+[ext_resource type="Script" uid="uid://durpw164djiny" path="res://parts/chain_transfer.gd" id="1_dolaf"]
+[ext_resource type="Script" uid="uid://cpomm3myorbih" path="res://parts/chain_bases.gd" id="2_dolaf"]
 [ext_resource type="PackedScene" uid="uid://ctc4i4ft2nrh2" path="res://src/ChainTransfer/Base.tscn" id="2_ftoaw"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_og5kt"]
@@ -11,16 +11,19 @@ size = Vector3(1.9, 0.2, 0.414)
 [node name="ChainTransfer" type="Node3D"]
 process_mode = 3
 transform = Transform3D(-3.60619e-08, 0, 1, 0, 1, 0, -0.825, 0, -4.37114e-08, 0, 0, 0)
-script = ExtResource("1_u5lod")
+script = ExtResource("1_dolaf")
+popup_chains = true
 metadata/_edit_group_ = true
 
 [node name="ChainBases" type="Node3D" parent="."]
 script = ExtResource("2_dolaf")
 
 [node name="Base" parent="ChainBases" instance=ExtResource("2_ftoaw")]
+active = true
 
 [node name="Base2" parent="ChainBases" instance=ExtResource("2_ftoaw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.33)
+active = true
 
 [node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
 transform = Transform3D(1.21212, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)

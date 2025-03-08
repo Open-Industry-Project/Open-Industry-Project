@@ -1,7 +1,7 @@
 [gd_scene load_steps=32 format=4 uid="uid://ctc4i4ft2nrh2"]
 
 [ext_resource type="ArrayMesh" uid="uid://cns1trh48ihf8" path="res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Base.res" id="1_co4kh"]
-[ext_resource type="Script" uid="uid://d4kyvbf5v0vbx" path="res://src/ChainTransfer/ChainTransferBase.cs" id="2_wuo66"]
+[ext_resource type="Script" uid="uid://cccc713tuifj" path="res://src/ChainTransfer/base.gd" id="1_pc63s"]
 [ext_resource type="ArrayMesh" uid="uid://bdy7qdo371lm4" path="res://assets/3DModels/ChainTransfer/Meshes/ChainTransfer_Container.res" id="3_1fnbt"]
 [ext_resource type="Material" uid="uid://bvskc22l8dm2q" path="res://assets/3DModels/ChainTransfer/Materials/Base.tres" id="3_kjnm8"]
 [ext_resource type="Shader" uid="uid://d10y8mbk5y7mn" path="res://assets/3DModels/ChainTransfer/Shaders/ChainShader.tres" id="4_w1qnk"]
@@ -288,7 +288,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_4mag5")
 
 [node name="ChainTransferBase" type="Node3D"]
-script = ExtResource("2_wuo66")
+script = ExtResource("1_pc63s")
 
 [node name="ContainerBody" type="StaticBody3D" parent="."]
 collision_mask = 8
