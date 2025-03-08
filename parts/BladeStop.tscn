@@ -1,6 +1,6 @@
 [gd_scene load_steps=15 format=3 uid="uid://c1mup2vown0ak"]
 
-[ext_resource type="Script" uid="uid://c2jnmjiidyw4c" path="res://src/BladeStop/BladeStop.cs" id="1_rnn1m"]
+[ext_resource type="Script" uid="uid://ck2rh8e3xxtj0" path="res://src/BladeStop/blade_stop.gd" id="1_tokfa"]
 [ext_resource type="PhysicsMaterial" uid="uid://vthdgr7hg05m" path="res://src/BladeStop/BladePhysicMaterial.tres" id="2_ctgt5"]
 [ext_resource type="ArrayMesh" uid="uid://c8r03lnljj332" path="res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_001.res" id="2_idi6q"]
 [ext_resource type="ArrayMesh" uid="uid://vn3vw4oquy0h" path="res://assets/3DModels/BladeStop/Meshes/BladeStop_Cube_003.res" id="2_lenbf"]
@@ -24,7 +24,9 @@ size = Vector3(0.05, 0.25, 0.114)
 size = Vector3(0.20314, 0.911072, 0.198853)
 
 [node name="BladeStop" type="Node3D"]
-script = ExtResource("1_rnn1m")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.448, 0, 0, 0)
+script = ExtResource("1_tokfa")
+metadata/_edit_group_ = true
 
 [node name="Blade" type="StaticBody3D" parent="."]
 
@@ -50,7 +52,7 @@ skeleton = NodePath("")
 [node name="Corners" type="Node3D" parent="."]
 
 [node name="AirPressureR" type="MeshInstance3D" parent="Corners"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, -1)
 mesh = ExtResource("6_y8bb3")
 skeleton = NodePath("")
 
@@ -66,7 +68,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.104848, 0.123261, -0.056549
 shape = SubResource("BoxShape3D_objeq")
 
 [node name="AirPressureL" type="MeshInstance3D" parent="Corners"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, 1)
 mesh = ExtResource("4_tinri")
 skeleton = NodePath("")
 
@@ -81,7 +83,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.105, 0.122836, 0.057)
 shape = SubResource("BoxShape3D_objeq")
 
 [node name="BaseCornerR" type="MeshInstance3D" parent="Corners"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, -1)
 mesh = ExtResource("2_idi6q")
 skeleton = NodePath("")
 
@@ -92,7 +94,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.300896, -0.20142, -0.099182
 shape = SubResource("BoxShape3D_pbd6i")
 
 [node name="BaseCornerL" type="MeshInstance3D" parent="Corners"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, 1)
 mesh = ExtResource("9_vmhlq")
 skeleton = NodePath("")
 
