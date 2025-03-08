@@ -29,7 +29,7 @@ func _exit_tree() -> void:
 	if instanced:
 		queue_free()
 
-func Select() -> void:
+func select() -> void:
 	if _paused or not SimulationEvents.simulation_running:
 		return
 	if rigid_body.freeze:
@@ -41,7 +41,7 @@ func Select() -> void:
 		if transform != rigid_body.transform:
 			transform = rigid_body.transform
 
-func Use() -> void:
+func use() -> void:
 	rigid_body.freeze = not rigid_body.freeze
 
 func _on_simulation_started() -> void:

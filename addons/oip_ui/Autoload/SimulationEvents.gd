@@ -19,8 +19,8 @@ func _select_nodes() -> void:
 			if(!node):
 				return
 				
-			if node.has_method("Select"):
-				node.call("Select")
+			if node.has_method("select"):
+				node.call("select")
 			
 	
 func _process(delta: float) -> void:
@@ -31,8 +31,8 @@ func _input(event: InputEvent) -> void:
 	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed():
 		var selection = EditorInterface.get_selection()
 		for node : Node in selection.get_selected_nodes():
-			if(node.has_method("Use")):
-				node.call("Use")
+			if(node.has_method("use")):
+				node.call("use")
 
 func _enter_tree() -> void:
 	if not Engine.is_editor_hint():
