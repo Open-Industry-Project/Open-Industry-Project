@@ -11,30 +11,6 @@ public partial class ChainTransfer : Node3D
 
 	PackedScene chainTransferBaseScene = (PackedScene)ResourceLoader.Load("res://src/ChainTransfer/Base.tscn");
 
-	private bool enableComms;
-	[Export]
-	private bool EnableComms
-	{
-		get => enableComms;
-		set
-		{
-			enableComms = value;
-			NotifyPropertyListChanged();
-		}
-	}
-	[Export]
-	public string speedTag;
-	[Export]
-	public string popupTag;
-	[Export]
-	private int updateRate = 100;
-
-	readonly Guid speedId = Guid.NewGuid();
-	readonly Guid popupId = Guid.NewGuid();
-
-	double scan_interval = 0;
-	bool readSuccessful = false;
-
 	int chains = 2;
 	[Export] int Chains
 	{
@@ -101,24 +77,7 @@ public partial class ChainTransfer : Node3D
 		}
 	}
 
-	bool running = false;
-
 	Vector3 prevScale;
-
-	bool keyHeld = false;
-	bool keyPressed = false;
-
-	public Root Main { get; set; }
-
-	public override void _ValidateProperty(Godot.Collections.Dictionary property)
-	{
-		string propertyName = property["name"].AsStringName();
-
-		if (propertyName == PropertyName.updateRate || propertyName == PropertyName.speedTag || propertyName == PropertyName.popupTag)
-		{
-			property["usage"] = (int)(EnableComms ? PropertyUsageFlags.Default : PropertyUsageFlags.NoEditor);
-		}
-	}
 
 	public ChainTransfer()
 	{
@@ -149,22 +108,14 @@ public partial class ChainTransfer : Node3D
 
 	public override void _EnterTree()
 	{
-		Main = GetParent().GetTree().EditedSceneRoot as Root;
-
-		if (Main != null)
-		{
-			Main.SimulationStarted += OnSimulationStarted;
-			Main.SimulationEnded += OnSimulationEnded;
-		}
+		Main.SimulationStarted += OnSimulationStarted;
+		Main.SimulationEnded += OnSimulationEnded;
 	}
 
 	public override void _ExitTree()
 	{
-		if (Main != null)
-		{
-			Main.SimulationStarted -= OnSimulationStarted;
-			Main.SimulationEnded -= OnSimulationEnded;
-		}
+		Main.SimulationStarted -= OnSimulationStarted;
+		Main.SimulationEnded -= OnSimulationEnded;
 	}
 
 	public void Use()
@@ -179,16 +130,6 @@ public partial class ChainTransfer : Node3D
 		if (running)
 		{
 			SetChainsSpeed(speed);
-
-			if (EnableComms && readSuccessful)
-			{
-				scan_interval += delta;
-				if (scan_interval > (float)updateRate/1000 && readSuccessful)
-				{
-					scan_interval = 0;
-					Callable.From(ScanTag).CallDeferred();
-				}
-			}
 		}
 	}
 
@@ -251,45 +192,16 @@ public partial class ChainTransfer : Node3D
 		ChainTransferBases.FixChains(chains);
 	}
 
-	async void ScanTag()
-	{
-		try
-		{
-			Speed = await Main.ReadFloat(speedId);
-		}
-		catch
-		{
-			GD.PrintErr("Failure to read: " + speedTag + " in Node: " + Name);
-			readSuccessful = false;
-		}
-
-		try
-		{
-			PopupChains = await Main.ReadBool(popupId);
-		}
-		catch
-		{
-			GD.PrintErr("Failure to write: " + popupTag + " in Node: " + Name);
-			readSuccessful = false;
-		}
-	}
 
 	void OnSimulationStarted()
 	{
-		running = true;
 		TurnOnChains();
-		if (enableComms)
-		{
-			readSuccessful = Main.Connect(speedId, Root.DataType.Float, Name, speedTag) && Main.Connect(popupId, Root.DataType.Bool, Name, popupTag);
-
-		}
 	}
 
 	void OnSimulationEnded()
 	{
 		this.PopupChains = false;
 		TurnOffChains();
-		running = false;
 	}
 
 	void UpdateSimpleShape()

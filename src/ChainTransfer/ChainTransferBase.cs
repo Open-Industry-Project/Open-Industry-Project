@@ -22,7 +22,7 @@ public partial class ChainTransferBase : Node3D
 	public float Speed { get; set; }
 
 	StaticBody3D containerBody;
-	Node3D bas;
+	Node3D chainBase;
 	Node3D container;
 	Node3D chain;
 	float inactivePos = 0f;
@@ -117,7 +117,7 @@ public partial class ChainTransferBase : Node3D
 		if (chainMaterial != null && owner != null)
 			chainMaterial.SetShaderParameter("Scale", owner.Scale.X * chainScale);
 
-		ScaleChildren(bas);
+		ScaleChildren(chainBase);
 		ScaleChildren(container);
 		ScaleChildren(chain);
 	}
@@ -194,7 +194,7 @@ public partial class ChainTransferBase : Node3D
 	{
 		if (sb != null) return;
 		containerBody = GetNode<StaticBody3D>("ContainerBody");
-		bas = GetNode<Node3D>("Base");
+		chainBase = GetNode<Node3D>("Base");
 		container = GetNode<Node3D>("Container");
 		chain = GetNode<Node3D>("Chain");
 		sb = GetNode<StaticBody3D>("Chain/StaticBody3D");
