@@ -330,7 +330,6 @@ height = 6.0
 
 [node name="LaserSensor" type="Node3D"]
 script = ExtResource("1_27ueu")
-show_beam = true
 metadata/_edit_group_ = true
 
 [node name="LaserSensor" type="Node3D" parent="."]
@@ -375,6 +374,7 @@ mesh = SubResource("ArrayMesh_ol5se")
 skeleton = NodePath("")
 
 [node name="RayMarker" type="Marker3D" parent="."]
+visible = false
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 3)
