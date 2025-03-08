@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://d4bf4if1fpy0t"]
 
-[ext_resource type="Script" uid="uid://orr8ghotdh1g" path="res://src/RollerConveyor/Roller.cs" id="1_ay1m5"]
+[ext_resource type="Script" uid="uid://c6dsc2uur2xbh" path="res://src/RollerConveyor/roller.gd" id="1_f1goy"]
 [ext_resource type="PackedScene" uid="uid://birsu52ho5sdy" path="res://assets/3DModels/ConveyorRollerRollerSplit.glb" id="2_f1goy"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_uhn3w"]
@@ -13,7 +13,7 @@ radius = 0.12
 
 [node name="Roller" type="Node3D"]
 process_mode = 1
-script = ExtResource("1_ay1m5")
+script = ExtResource("1_f1goy")
 metadata/_edit_group_ = true
 
 [node name="RollerMeshes" parent="." instance=ExtResource("2_f1goy")]
