@@ -35,7 +35,7 @@ func use() -> void:
 
 func divert() -> void:
 	fire_divert = true
-	await get_tree().create_timer(300 / 1000.0).timeout
+	await get_tree().create_timer(0.3).timeout
 	fire_divert = false
 
 func _physics_process(delta: float) -> void:

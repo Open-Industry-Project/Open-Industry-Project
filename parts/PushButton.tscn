@@ -1,20 +1,20 @@
 [gd_scene load_steps=13 format=4 uid="uid://gddgyvex6gdj"]
 
 [ext_resource type="ArrayMesh" uid="uid://cigybp2vspbf8" path="res://assets/3DModels/PushButton/Meshes/PushButton_Plane_001.res" id="1_7mqik"]
-[ext_resource type="Script" uid="uid://b0ov6bd2t826o" path="res://src/PushButton/PushButton.cs" id="1_irpyy"]
+[ext_resource type="Script" uid="uid://du1fxhc85e8jp" path="res://src/PushButton/push_button.gd" id="1_kcxih"]
 [ext_resource type="ArrayMesh" uid="uid://c4o3e6awfw1xl" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cylinder_001.res" id="2_to26t"]
 [ext_resource type="ArrayMesh" uid="uid://b8k40pd76n6jk" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cylinder_002.res" id="3_s7xbp"]
 [ext_resource type="ArrayMesh" uid="uid://dfpgiblbqpeyb" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cylinder_003.res" id="4_uhq27"]
 [ext_resource type="ArrayMesh" uid="uid://w55vqho1di31" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cylinder_004.res" id="5_itv40"]
 [ext_resource type="ArrayMesh" uid="uid://dg21rq5gvgvh6" path="res://assets/3DModels/PushButton/Meshes/PushButton_Cube_002.res" id="7_75p7m"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mm4u3"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kcxih"]
 resource_local_to_scene = true
 resource_name = "PushButton"
-albedo_color = Color(0.905882, 0.239216, 0.188235, 1)
+albedo_color = Color(1, 0, 0, 1)
 roughness = 0.5
 emission_enabled = true
-emission = Color(0.905882, 0.239216, 0.188235, 1)
+emission = Color(1, 0, 0, 1)
 emission_energy_multiplier = 0.0
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_raix2"]
@@ -32,7 +32,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_prykn"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_wmlno"]
 resource_local_to_scene = true
 resource_name = "PushButton_Cylinder"
 _surfaces = [{
@@ -42,7 +42,7 @@ _surfaces = [{
 "index_count": 384,
 "index_data": PackedByteArray("AQAiAA0AAQALACIAKgAwAIIAKgAMADAADgBfADoADgAjAF8ACwAOACIACwACAA4AAgAjAA4AAgAPACMAYAAeACgAYAA9AB4AEABjAEEAEAAkAGMADwAQACMADwADABAAAwAkABAAAwARACQAPAAsAB4APABlACwAEgBrAEUAEgAlAGsAEQASACQAEQAEABIABAAlABIABAATACUALABJACEALABsAEkAFABxAEoAFAAmAHEAEwAUACUAEwAFABQABQAmABQABQAVACYAIAB1AC0AIABIAHUAFgB3AE4AFgAnAHcAFQAWACYAFQAGABYABgAnABYABgAXACcAHwB7AFEAHwAtAHsAGAB8AFIAGAApAHwAFwAYACcAFwAHABgAIgA7AFoAIgAOADsADQBbADEADQAiAFsAKAAKAB0AKAAeAAoAIwBBAF8AIwAQAEEABwApABgABwAZACkAKwBRAIEAKwAfAFEAGgCCAFYAGgAqAIIAGQAaACkAGQAIABoACAAqABoACAAbACoAMgArAIUAMgAcACsAGwAMACoAGwAAAAwANgAoAFwANgBgACgAKQBWAH0AKQAaAFYAhQCBAFUAhQArAIEAHAAfACsAHAAJAB8AZABtACwAZABCAG0AHgAhAAoAHgAsACEAJQBKAGoAJQAUAEoAJABFAGMAJAASAEUACQAtAB8ACQAgAC0AJwBSAHYAJwAYAFIAJgBOAHAAJgAWAE4ALQBNAHsALQB1AE0AOQBdAFgAOQA3AF0AWQA1AC8AWQBdADUAQABhAF4AQAA/AGEAXgA3ADgAXgBhADcARABmAGIARABDAGYAYgA+AEAAYgBnAD4ASwBuAGgASwBHAG4AaQBDAEQAaQBvAEMATwB0AHIATwBMAHQAcwBGAEsAcwB0AEYAUwB6AHgAUwBQAHoAeQBMAE8AeQB6AEwAVwCAAH8AVwBUAIAAfgBQAFMAfgCAAFAALgCEAIMALgA0AIQAgwBUAFcAgwCEAFQAXAAdADMAXAAoAB0A"),
 "lods": [0.0159138, PackedByteArray("AQALAA0ACwCwAA0ACwACALAAAgAPALAADwADALAAAwARALAADQCwALYADQC2ALQAsAC4ALYAsAC6ALgAEQAlALAAEQAEACUAsQAlALoABAATACUAEwBKACUAEwAFAEoABQAVAEoAJQBKAL8AJQC/ALoASgAVAMEAFQAGAMEABgAXAMEAwQAXAMQAFwAHAMQABwAZAMQAxADFAMEAxAAZAMYAGQAIAMYAxAC9AMUACADIAMYACAAbAMgAxgDHAL0AGwAMAMgAGwAAAAwAyAAMALIAxgC+AMcAswC+AMgAswAyAL4AvgArAMcAMgArAL4AKwC9AMcAMgAcACsAKwAtAL0AHAAtACsAHAAJAC0ALQDFAL0ACQAgAC0ALQDDAMUAIADDAC0AwgDFAMMAIABGAMMAwgDDAEYAwgBGALwAvAC7AMAAwAC7ACEAvADAAL8APADAACEAvwDAALkAPAC5AMAAvwC5ALoAugC5AEAAQAC5ADwAQAA8ALcAPAAhAAoAtwA8ALUAtQA8AAoAtQAKAB0AtQAdADMALwC1ADMAtgC1AC8AfABQAHYAggBUAHwA"), 0.0171201, PackedByteArray("AQALAKUACwCiAKUApQCiAKYAogCnAKYACwACAA8AAwARAA8AEQAEAA8AowCoAKcAowAEAKgABACtAKgABACrAK0AEwCrAAQAEwAFAKsABQAVAKsAFQAGAKsABgAXAKsAqwAXAHYAFwAHAHYABwAZAHYAdgAZAHwAGQAIAHwACACkAHwACAAbAKQAGwAAAKQArABCAK0ArACqAEIAQgCqACEAPABCACEAPAAhADMANgA8ADMALwA2ADMArACuAKkAIACpAK4AIACuAK8AMgAgAK8ALgAyAK8A"), 0.076356, PackedByteArray("hwCPAJ8AkACSAKAAkQCIAJMAlQCKAJMAiQCVAJMAEwBKAAQAEwAFAEoAlAAEAKEABABKAKEABQAVAEoAFQAGAEoABgCWAEoASgCWAJ4AjQCbAJYAiwCYAJcAmACMAJcAjgCZAJwAmgCGAJ0A")],
-"material": SubResource("StandardMaterial3D_mm4u3"),
+"material": SubResource("StandardMaterial3D_kcxih"),
 "name": "PushButton",
 "primitive": 3,
 "uv_scale": Vector4(2, 1, 0, 0),
@@ -55,17 +55,18 @@ shadow_mesh = SubResource("ArrayMesh_raix2")
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yo721"]
 albedo_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
 
-[sub_resource type="TextMesh" id="TextMesh_m738g"]
+[sub_resource type="TextMesh" id="TextMesh_hc61d"]
 resource_local_to_scene = true
 material = SubResource("StandardMaterial3D_yo721")
-text = "STOP"
+text = "stop"
 font_size = 3
 uppercase = true
 depth = 0.004
 
 [node name="PushButton" type="Node3D"]
-script = ExtResource("1_irpyy")
-Text = "STOP"
+script = ExtResource("1_kcxih")
+text = "stop"
+metadata/_edit_group_ = true
 
 [node name="Meshes" type="Node3D" parent="."]
 
@@ -96,7 +97,7 @@ mesh = ExtResource("5_itv40")
 skeleton = NodePath("")
 
 [node name="Button" type="MeshInstance3D" parent="Meshes"]
-mesh = SubResource("ArrayMesh_prykn")
+mesh = SubResource("ArrayMesh_wmlno")
 skeleton = NodePath("")
 
 [node name="PushButton" type="MeshInstance3D" parent="Meshes"]
@@ -105,4 +106,4 @@ skeleton = NodePath("")
 
 [node name="TextMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.145237, 0.228853)
-mesh = SubResource("TextMesh_m738g")
+mesh = SubResource("TextMesh_hc61d")
