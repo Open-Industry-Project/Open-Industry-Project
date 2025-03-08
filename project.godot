@@ -23,7 +23,6 @@ boot_splash/image="res://assets/png/splash.png"
 [autoload]
 
 SimulationEvents="*res://addons/oip_ui/Autoload/SimulationEvents.gd"
-BuildProject="*res://addons/oip_ui/Autoload/BuildProject.gd"
 
 [debug]
 
