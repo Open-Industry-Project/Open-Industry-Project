@@ -1,8 +1,8 @@
 [gd_scene load_steps=14 format=4 uid="uid://cr8u3bta0skiy"]
 
-[ext_resource type="Script" uid="uid://67vowlelar02" path="res://parts/conveyor_leg.gd" id="1_p257i"]
+[ext_resource type="Script" uid="uid://67vowlelar02" path="res://src/ConveyorLeg/conveyor_leg.gd" id="1_p257i"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="2_ggjff"]
-[ext_resource type="Script" uid="uid://c5s7a6txla6w" path="res://parts/legs_bars.gd" id="3_4d0x6"]
+[ext_resource type="Script" uid="uid://c5s7a6txla6w" path="res://src/ConveyorLeg/legs_bars.gd" id="3_4d0x6"]
 [ext_resource type="ArrayMesh" uid="uid://dtrn761bti77o" path="res://assets/3DModels/Meshes/LegsBottom_Bottom.res" id="4_5hnfi"]
 [ext_resource type="PackedScene" uid="uid://di0tdk31gf2cj" path="res://src/ConveyorLeg/LegBar.tscn" id="4_kogpx"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="5_vjkus"]

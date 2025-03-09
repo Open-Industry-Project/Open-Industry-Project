@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://cqufgm7ocho1i"]
 
-[ext_resource type="Script" uid="uid://durpw164djiny" path="res://parts/chain_transfer.gd" id="1_dolaf"]
-[ext_resource type="Script" uid="uid://cpomm3myorbih" path="res://parts/chain_bases.gd" id="2_dolaf"]
+[ext_resource type="Script" uid="uid://durpw164djiny" path="res://src/ChainTransfer/chain_transfer.gd" id="1_dolaf"]
+[ext_resource type="Script" uid="uid://cpomm3myorbih" path="res://src/ChainTransfer/chain_bases.gd" id="2_dolaf"]
 [ext_resource type="PackedScene" uid="uid://ctc4i4ft2nrh2" path="res://src/ChainTransfer/Base.tscn" id="2_ftoaw"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_og5kt"]
