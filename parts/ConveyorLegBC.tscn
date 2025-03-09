@@ -1,8 +1,8 @@
 [gd_scene load_steps=14 format=4 uid="uid://cr8u3bta0skiy"]
 
-[ext_resource type="Script" uid="uid://bx2gi8spo3g7j" path="res://src/ConveyorLeg/ConveyorLeg.cs" id="1_24p2s"]
+[ext_resource type="Script" uid="uid://67vowlelar02" path="res://parts/conveyor_leg.gd" id="1_p257i"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="2_ggjff"]
-[ext_resource type="Script" uid="uid://cjbo18dp6ntpb" path="res://src/ConveyorLeg/LegBars.cs" id="3_f8hod"]
+[ext_resource type="Script" uid="uid://c5s7a6txla6w" path="res://parts/legs_bars.gd" id="3_4d0x6"]
 [ext_resource type="ArrayMesh" uid="uid://dtrn761bti77o" path="res://assets/3DModels/Meshes/LegsBottom_Bottom.res" id="4_5hnfi"]
 [ext_resource type="PackedScene" uid="uid://di0tdk31gf2cj" path="res://src/ConveyorLeg/LegBar.tscn" id="4_kogpx"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="5_vjkus"]
@@ -83,7 +83,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_xr7le")
 
 [node name="LegsStandBC" type="Node3D"]
-script = ExtResource("1_24p2s")
+script = ExtResource("1_p257i")
 metadata/_edit_group_ = true
 
 [node name="Sides" type="Node3D" parent="."]
@@ -99,8 +99,8 @@ mesh = SubResource("ArrayMesh_5dlna")
 skeleton = NodePath("")
 
 [node name="LegsBars" type="Node3D" parent="."]
-script = ExtResource("3_f8hod")
-legsBarScene = ExtResource("4_kogpx")
+script = ExtResource("3_4d0x6")
+legs_bar_scene = ExtResource("4_kogpx")
 
 [node name="LegsBar" parent="LegsBars" instance=ExtResource("4_kogpx")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
