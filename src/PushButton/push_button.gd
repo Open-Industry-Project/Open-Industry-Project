@@ -2,6 +2,15 @@
 extends Node3D
 class_name PushButton
 
+@export var enable_comms := true
+@export var pushbutton_tag_group_name := "TagGroup0"
+@export var pushbutton_tag_name := ""
+@export var lamp_tag_group_name := "TagGroup0"
+@export var lamp_tag_name := ""
+
+var register_pushbutton_tag_ok := false
+var register_lamp_tag_ok := false
+
 @export var text: String = "Stop":
 	set(value):
 		text = value
@@ -17,6 +26,9 @@ class_name PushButton
 
 @export var pushbutton: bool = false:
 	set(value):
+		if register_pushbutton_tag_ok and value != pushbutton:
+			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, value)
+		
 		pushbutton = value
 		if not toggle and pushbutton:
 			reset_pushbutton()
@@ -69,6 +81,24 @@ func _ready() -> void:
 	_button_mesh.mesh = _button_mesh.mesh.duplicate()
 	_button_material = _button_mesh.mesh.surface_get_material(0).duplicate() as StandardMaterial3D
 	_button_mesh.mesh.surface_set_material(0, _button_material)
+
+func _enter_tree() -> void:
+	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	OIPComms.tag_group_polled.connect(_tag_group_polled)
+
+func _exit_tree() -> void:
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+
+func _on_simulation_started() -> void:
+	if enable_comms:
+		register_pushbutton_tag_ok = OIPComms.register_tag(pushbutton_tag_group_name, pushbutton_tag_name, 1)
+		register_lamp_tag_ok = OIPComms.register_tag(lamp_tag_group_name, lamp_tag_name, 1)
+
+func _tag_group_polled(_tag_group_name: String) -> void:
+	if not enable_comms: return
+	if _tag_group_name == lamp_tag_group_name:
+		lamp = OIPComms.read_bit(lamp_tag_group_name, lamp_tag_name)
 
 func use() -> void:
 	pushbutton = not pushbutton
