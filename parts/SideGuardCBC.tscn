@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=4 uid="uid://b567tts2001h8"]
 
-[ext_resource type="Script" uid="uid://de67vxjb64s06" path="res://src/SideGuards/SideGuardCBC.cs" id="1_71hpe"]
 [ext_resource type="Shader" uid="uid://b4wwduhuvem3q" path="res://assets/3DModels/Shaders/SideGuardShaderCBC.tres" id="2_e0b8o"]
+[ext_resource type="Script" uid="uid://c1eeo0688a1j5" path="res://parts/curved_side_guards.gd" id="2_fiy5a"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_1ihcw"]
 render_priority = 0
@@ -51,7 +51,7 @@ data = PackedVector3Array(-2.58, 0.2, 0.0012, -2.5667, 0.0728, 0.2634, -2.58, 0.
 [node name="SideGuardCBC" type="MeshInstance3D"]
 mesh = SubResource("ArrayMesh_cos4w")
 skeleton = NodePath("")
-script = ExtResource("1_71hpe")
+script = ExtResource("2_fiy5a")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 disable_mode = 1
