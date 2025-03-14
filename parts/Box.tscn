@@ -34,7 +34,7 @@ albedo_color = Color(0.466659, 0.438254, 0.38347, 1)
 albedo_texture = ExtResource("3_rqr71")
 roughness = 0.5
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_e42t8"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_jl6cr"]
 _surfaces = [{
 "aabb": AABB(-1, -1, -1, 2, 2, 2),
 "format": 34359742465,
@@ -69,7 +69,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_odklf"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_edno1"]
 resource_name = "Box_Cube_001"
 _surfaces = [{
 "aabb": AABB(-1, -1, -1, 2, 2, 2),
@@ -110,7 +110,7 @@ _surfaces = [{
 "vertex_data": PackedByteArray("d6l5v4bWdD+MfRM9sqh7v2nZcT+MfRM9s7F5P4bWdD+MfRM97bB7P2nZcT+MfRM9s7F5P4bWdD+QFr887bB7P2nZcT+QFr88d6l5v4bWdD+AFr88sqh7v2nZcT+AFr88d6l5v4bWdD8qyDM+sqh7v2nZcT8qyDM+s7F5P4bWdD8qyDM+7bB7P2nZcT8qyDM+s7F5P4bWdD8Eugu+7bB7P2nZcT8Eugu+d6l5v4bWdD8Gugu+sqh7v2nZcT8Gugu+ljGVsf9//7/WNNW0/3//vyXO2bH/////ZMuatP////8lztmx/////2TLmrT/////ljGVsf9//7/WNNW0/3//v3kuOK5MgOm/NTf9tj6A579D0I+v4f/l/6LJNLbe/+j/dNC0rx0AGIDEyV+2HwAUgDAua664fxPABDc5t8N/FcA=")
 }]
 blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_e42t8")
+shadow_mesh = SubResource("ArrayMesh_jl6cr")
 
 [node name="Box" type="Node3D"]
 top_level = true
@@ -131,5 +131,5 @@ shape = SubResource("BoxShape3D_h4we7")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D"]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
-mesh = SubResource("ArrayMesh_odklf")
+mesh = SubResource("ArrayMesh_edno1")
 skeleton = NodePath("")
