@@ -1,9 +1,10 @@
-[gd_scene load_steps=11 format=4 uid="uid://c3cdcxifx4eej"]
+[gd_scene load_steps=12 format=4 uid="uid://c3cdcxifx4eej"]
 
 [ext_resource type="Script" uid="uid://bvdya0va563vu" path="res://src/RollerConveyor/CurvedRollerConveyor.cs" id="1_3rr8m"]
 [ext_resource type="Shader" uid="uid://d0c82kmt01y6x" path="res://assets/3DModels/Shaders/MetalShaderRoller.tres" id="2_rk0si"]
 [ext_resource type="ArrayMesh" uid="uid://coiskou3emyq8" path="res://assets/3DModels/Meshes/ConveyorRollerEnd_Cube_006.res" id="3_o3bxo"]
 [ext_resource type="PackedScene" uid="uid://bb40krgmbtuw4" path="res://src/RollerConveyor/RollerCorner.tscn" id="3_s4o52"]
+[ext_resource type="Script" uid="uid://cta5y3s3mhsny" path="res://src/RollerConveyor/roller_corner.gd" id="4_wbi3o"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_tlh51"]
 render_priority = 0
@@ -77,51 +78,66 @@ visible = false
 
 [node name="RollerCorner" parent="RollersLow" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.31234, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 1.5)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner2" parent="RollersLow" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.21244, 0, -0.382683, 0, 1, 0, 0.502209, 0, 0.92388, -0.574025, 0.17, 1.38582)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner3" parent="RollersLow" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.927962, 0, -0.707107, 0, 1, 0, 0.927962, 0, 0.707107, -1.06066, 0.17, 1.06066)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner4" parent="RollersLow" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.502209, 0, -0.92388, 0, 1, 0, 1.21244, 0, 0.382683, -1.38582, 0.17, 0.574025)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner5" parent="RollersLow" instance=ExtResource("3_s4o52")]
 transform = Transform3D(-5.7364e-08, 0, -1, 0, 1, 0, 1.31234, 0, -4.37114e-08, -1.5, 0.17, -6.55671e-08)
+script = ExtResource("4_wbi3o")
 
 [node name="RollersMid" type="Node3D" parent="."]
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.08, 0)
 
 [node name="RollerCorner" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.31234, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.5)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner2" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.2924, 0, -0.173647, 0, 1, 0, 0.227884, 0, 0.984808, -0.260472, 0, 1.47721)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner3" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.23319, 0, -0.342021, 0, 1, 0, 0.448846, 0, 0.939692, -0.51303, 0, 1.40954)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner4" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.13652, 0, -0.499999, 0, 1, 0, 0.656166, 0, 0.866026, -0.75, 0, 1.29904)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner5" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.00531, 0, -0.642787, 0, 1, 0, 0.843553, 0, 0.766045, -0.964181, 0, 1.14907)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner6" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.843553, 0, -0.766045, 0, 1, 0, 1.00531, 0, 0.642787, -1.14907, 0, 0.964181)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner7" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.656166, 0, -0.866026, 0, 1, 0, 1.13652, 0, 0.499999, -1.29904, 0, 0.75)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner8" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.448846, 0, -0.939692, 0, 1, 0, 1.23319, 0, 0.34202, -1.40954, 0, 0.51303)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner9" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.227885, 0, -0.984808, 0, 1, 0, 1.2924, 0, 0.173648, -1.47721, 0, 0.260472)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner10" parent="RollersMid" instance=ExtResource("3_s4o52")]
 transform = Transform3D(9.90786e-08, 0, -1, 0, 1, 0, 1.31234, 0, 7.54979e-08, -1.5, 0, 4.47035e-08)
+script = ExtResource("4_wbi3o")
 
 [node name="RollersHigh" type="Node3D" parent="."]
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
@@ -129,30 +145,39 @@ visible = false
 
 [node name="RollerCorner" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.30734, 0, -0.0871562, 0, 1, 0, 0.114378, 0, 0.996195, -0.130734, 0.17, 1.49429)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner2" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.26762, 0, -0.258819, 0, 1, 0, 0.339657, 0, 0.965926, -0.388229, 0.17, 1.44889)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner3" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.18938, 0, -0.422618, 0, 1, 0, 0.554617, 0, 0.906308, -0.633927, 0.17, 1.35946)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner4" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(1.075, 0, -0.573577, 0, 1, 0, 0.752726, 0, 0.819151, -0.860365, 0.17, 1.22873)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner5" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.927962, 0, -0.707107, 0, 1, 0, 0.927962, 0, 0.707107, -1.06066, 0.17, 1.06066)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner6" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.752726, 0, -0.819151, 0, 1, 0, 1.075, 0, 0.573577, -1.22873, 0.17, 0.860365)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner7" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.554617, 0, -0.906308, 0, 1, 0, 1.18938, 0, 0.422618, -1.35946, 0.17, 0.633927)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner8" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.339657, 0, -0.965926, 0, 1, 0, 1.26762, 0, 0.258818, -1.44889, 0.17, 0.388229)
+script = ExtResource("4_wbi3o")
 
 [node name="RollerCorner9" parent="RollersHigh" instance=ExtResource("3_s4o52")]
 transform = Transform3D(0.114378, 0, -0.996195, 0, 1, 0, 1.30734, 0, 0.0871562, -1.49429, 0.17, 0.130734)
+script = ExtResource("4_wbi3o")
 
 [node name="Ends" type="Node3D" parent="."]
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
