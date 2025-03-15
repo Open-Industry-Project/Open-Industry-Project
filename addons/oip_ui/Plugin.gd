@@ -32,11 +32,11 @@ var _help_popup_menu: PopupMenu
 # Menu item IDs
 const ID_TOGGLE_NATIVE_UI = 1234
 # The IDs here must match those in _project_popup_menu and CustomProject.tscn.
-const ID_PROJECT_SETTINGS = 17
-const ID_PACK_PROJECT_AS_ZIP = 20
-const ID_OPEN_USER_DATA_FOLDER = 22
-const ID_RELOAD_CURRENT_PROJECT = 23
-const ID_QUIT_TO_PROJECT_LIST = 24
+const ID_PROJECT_SETTINGS = 18
+const ID_PACK_PROJECT_AS_ZIP = 21
+const ID_OPEN_USER_DATA_FOLDER = 23
+const ID_RELOAD_CURRENT_PROJECT = 24
+const ID_QUIT_TO_PROJECT_LIST = 25
 const NATIVE_PROJECT_MENU_ITEM_IDS = [ID_PROJECT_SETTINGS, ID_PACK_PROJECT_AS_ZIP, ID_OPEN_USER_DATA_FOLDER, ID_RELOAD_CURRENT_PROJECT, ID_QUIT_TO_PROJECT_LIST]
 # This ID must match the ID for the "Search Help..." item in the native Help menu (_help_popup_menu).
 const ID_SEARCH_HELP = 43
