@@ -22,7 +22,7 @@ var loading_complete := false
 
 func _ready() -> void:
 	_load()
-	update_protocol(protocol.selected)
+	update_protocol(protocol.selected, true)
 
 func save() -> void:
 	save_data["name"] = _name.text
@@ -62,23 +62,28 @@ func _on_Path_text_changed(_new_text: String) -> void:
 	
 	_on_text_changed(_new_text)
 	
-func update_protocol(_index: int) -> void:
+func update_protocol(_index: int, from_ready := false) -> void:
 	if _index == 2:
 		cpu.hide()
 		cpu_label.hide()
 		path_label.text = "Namespace"
 		gateway_label.text = "Endpoint"
-		gateway.text = "opc.tcp://localhost:4840"
 		
-		if protocol.text == "opc_ua" and not path.text.is_valid_int():
-			path.text = "1"
+		# don't overwrite from ready
+		if not from_ready:
+			gateway.text = "opc.tcp://localhost:4840"
+			if protocol.text == "opc_ua" and not path.text.is_valid_int():
+				path.text = "1"
 	else:
 		cpu.show()
 		cpu_label.show()
 		path_label.text = "Path"
 		gateway_label.text = "Gateway"
-		gateway.text = "localhost"
-		path.text = "1,0"
+		
+		# don't overwrite from ready
+		if not from_ready:
+			gateway.text = "localhost"
+			path.text = "1,0"
 
 func _on_item_selected(_index: int) -> void:
 	update_protocol(_index)
