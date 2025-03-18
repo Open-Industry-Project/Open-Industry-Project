@@ -68,14 +68,17 @@ func update_protocol(_index: int) -> void:
 		cpu_label.hide()
 		path_label.text = "Namespace"
 		gateway_label.text = "Endpoint"
+		gateway.text = "opc.tcp://localhost:4840"
 		
 		if protocol.text == "opc_ua" and not path.text.is_valid_int():
-			path.text = ""
+			path.text = "1"
 	else:
 		cpu.show()
 		cpu_label.show()
 		path_label.text = "Path"
 		gateway_label.text = "Gateway"
+		gateway.text = "localhost"
+		path.text = "1,0"
 
 func _on_item_selected(_index: int) -> void:
 	update_protocol(_index)
