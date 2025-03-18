@@ -57,7 +57,6 @@ offset_top = 4.0
 offset_right = 547.0
 offset_bottom = 29.0
 max_value = 1e+06
-step = 100.0
 rounded = true
 
 [node name="ProtocolLabel" type="Label" parent="Panel"]
@@ -157,7 +156,7 @@ text = "Delete"
 [connection signal="text_changed" from="Panel/Name" to="." method="_on_text_changed"]
 [connection signal="value_changed" from="Panel/PollingRate" to="." method="_on_value_changed"]
 [connection signal="item_selected" from="Panel/Protocol" to="." method="_on_item_selected"]
-[connection signal="text_changed" from="Panel/Gateway" to="." method="_on_text_changed"]
+[connection signal="text_changed" from="Panel/Gateway" to="." method="_on_Gateway_text_changed"]
 [connection signal="text_changed" from="Panel/Path" to="." method="_on_text_changed"]
 [connection signal="item_selected" from="Panel/CPU" to="." method="_on_item_selected"]
 [connection signal="pressed" from="Panel/Delete" to="." method="_on_Delete_pressed"]

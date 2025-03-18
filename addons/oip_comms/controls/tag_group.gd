@@ -50,6 +50,14 @@ func _on_text_changed(_new_text: String) -> void:
 		save()
 		tag_group_save.emit(self)
 
+func _on_Gateway_text_changed(_new_text: String) -> void:
+	if _new_text.to_lower() == "localhost":
+		gateway.text = "127.0.0.1"
+	
+	if loading_complete:
+		save()
+		tag_group_save.emit(self)
+
 func update_protocol(_index: int) -> void:
 	if _index == 2:
 		cpu.hide()
