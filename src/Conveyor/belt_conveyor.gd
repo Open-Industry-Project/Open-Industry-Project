@@ -47,10 +47,11 @@ signal speed_changed
 			ce2.Speed = Speed
 		UpdateBeltMaterialScale()
 		
-		if register_speed_tag_ok:
+		# dont write until the group is initialized
+		if register_speed_tag_ok and speed_tag_group_init:
 			OIPComms.write_float32(speed_tag_group_name, speed_tag_name, value)
 		
-		if register_running_tag_ok:
+		if register_running_tag_ok and running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value > 0.0)
 
 @export var BeltPhysicsMaterial : PhysicsMaterial:
@@ -81,6 +82,9 @@ var Main
 
 var register_speed_tag_ok := false
 var register_running_tag_ok := false
+var speed_tag_group_init := false
+var running_tag_group_init := false
+
 @export var enable_comms := true
 @export var speed_tag_group_name := "TagGroup0"
 @export var speed_tag_name := ""
@@ -139,11 +143,13 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
 func _notification(what: int) -> void:
@@ -197,7 +203,14 @@ func _on_simulation_ended() -> void:
 			child.position = Vector3.ZERO
 			child.rotation = Vector3.ZERO
 
+func _tag_group_initialized(_tag_group_name: String) -> void:
+	if _tag_group_name == speed_tag_group_name:
+		speed_tag_group_init = true
+	if _tag_group_name == running_tag_group_name:
+		running_tag_group_init = true
+
 func _tag_group_polled(_tag_group_name: String) -> void:
 	if not enable_comms: return
-	if _tag_group_name == speed_tag_group_name:
+	
+	if _tag_group_name == speed_tag_group_name and speed_tag_group_init:
 		Speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)

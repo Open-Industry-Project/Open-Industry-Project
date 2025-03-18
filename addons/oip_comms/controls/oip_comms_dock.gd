@@ -116,7 +116,7 @@ func _on_AddTagGroup_pressed() -> void:
 	var _name := "TagGroup" + str(len(tag_groups_data))
 	tag_groups_data.push_back({
 		"name": _name, "polling_rate": "500", "protocol": "ab_eip",
-		"gateway": "localhost", "path": "", "cpu": "ControlLogix"
+		"gateway": "localhost", "path": "1,0", "cpu": "ControlLogix"
 	})
 	load_tag_groups_ui()
 

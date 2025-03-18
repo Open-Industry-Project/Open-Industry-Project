@@ -6,11 +6,11 @@ var ray_mesh: MeshInstance3D
 var cylinder_mesh: CylinderMesh
 var ray_material: StandardMaterial3D
 
+var register_tag_ok := false
+var tag_group_init := false
 @export var enable_comms := true
 @export var tag_group_name := "TagGroup0"
 @export var tag_name := ""
-
-var register_tag_ok := false
 
 @export var max_range: float = 6.0
 @export var show_beam: bool :
@@ -23,7 +23,7 @@ var register_tag_ok := false
 @export var beam_scan_color: Color = Color.GREEN
 @export var blocked: bool = false:
 	set(value):
-		if register_tag_ok and value != blocked:
+		if register_tag_ok and tag_group_init and value != blocked:
 			OIPComms.write_bit(tag_group_name, tag_name, value)
 
 		blocked = value
@@ -44,10 +44,13 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+
 
 func _physics_process(delta: float) -> void:
 	var space_state = get_world_3d().direct_space_state
@@ -81,3 +84,9 @@ func _on_simulation_ended() -> void:
 	cylinder_mesh.height = max_range
 	ray_material.albedo_color = beam_scan_color
 	ray_mesh.position = Vector3(0, 0, cylinder_mesh.height * 0.5)
+
+func _tag_group_initialized(_tag_group_name: String) -> void:
+	if _tag_group_name == tag_group_name:
+		tag_group_init = true
+		if register_tag_ok:
+			OIPComms.write_bit(tag_group_name, tag_name, blocked)
