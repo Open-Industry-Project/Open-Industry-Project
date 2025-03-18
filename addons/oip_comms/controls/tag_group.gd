@@ -51,8 +51,9 @@ func _on_text_changed(_new_text: String) -> void:
 		tag_group_save.emit(self)
 
 func _on_Gateway_text_changed(_new_text: String) -> void:
-	if _new_text.to_lower() == "localhost":
-		gateway.text = "127.0.0.1"
+	# this is wrong, and now handled on the GDextension side
+	#if _new_text.to_lower() == "localhost":
+	#	gateway.text = "127.0.0.1"
 	
 	if loading_complete:
 		save()
