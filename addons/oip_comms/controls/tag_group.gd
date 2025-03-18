@@ -54,17 +54,23 @@ func _on_Gateway_text_changed(_new_text: String) -> void:
 	# this is wrong, and now handled on the GDextension side
 	#if _new_text.to_lower() == "localhost":
 	#	gateway.text = "127.0.0.1"
-	
-	if loading_complete:
-		save()
-		tag_group_save.emit(self)
+	_on_text_changed(_new_text)
 
+func _on_Path_text_changed(_new_text: String) -> void:
+	if protocol.text == "opc_ua" and not _new_text.is_valid_int():
+		path.text = ""
+	
+	_on_text_changed(_new_text)
+	
 func update_protocol(_index: int) -> void:
 	if _index == 2:
 		cpu.hide()
 		cpu_label.hide()
 		path_label.text = "Namespace"
 		gateway_label.text = "Endpoint"
+		
+		if protocol.text == "opc_ua" and not path.text.is_valid_int():
+			path.text = ""
 	else:
 		cpu.show()
 		cpu_label.show()
