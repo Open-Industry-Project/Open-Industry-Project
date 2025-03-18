@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://oyj4qucb6tme"]
+[gd_scene load_steps=14 format=3 uid="uid://oyj4qucb6tme"]
 
 [ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="1_t6gs0"]
 [ext_resource type="PackedScene" uid="uid://bq16fe5njnr2i" path="res://parts/Box.tscn" id="2_lfd1m"]
@@ -10,8 +10,9 @@
 [ext_resource type="Script" uid="uid://crgyex8mqo1n0" path="res://opcua_test.gd" id="8_qdflh"]
 [ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="9_crdol"]
 [ext_resource type="PackedScene" uid="uid://gddgyvex6gdj" path="res://parts/PushButton.tscn" id="10_w5m0l"]
+[ext_resource type="Script" uid="uid://d1v0lx50uyj3h" path="res://get_tag_groups.gd" id="11_liksr"]
 
-[sub_resource type="Resource" id="Resource_w5m0l"]
+[sub_resource type="Resource" id="Resource_liksr"]
 resource_local_to_scene = true
 script = ExtResource("6_qdflh")
 tag_group_name = "TagGroup0"
@@ -19,10 +20,10 @@ tag_name = "TEST_OUTPUT"
 active = true
 segment_color = Color(0, 1, 0, 0.5)
 
-[sub_resource type="Resource" id="Resource_liksr"]
+[sub_resource type="Resource" id="Resource_lsr5j"]
 resource_local_to_scene = true
 script = ExtResource("5_vtp77")
-segment_datas = [SubResource("Resource_w5m0l")]
+segment_datas = [SubResource("Resource_liksr")]
 
 [node name="Simulation" type="Node3D"]
 
@@ -39,8 +40,8 @@ show_beam = true
 
 [node name="StackLight" parent="." instance=ExtResource("4_mpm82")]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, -7.90734, -0.62356, 0.682184)
-data = SubResource("Resource_liksr")
-"Light 1" = SubResource("Resource_w5m0l")
+data = SubResource("Resource_lsr5j")
+"Light 1" = SubResource("Resource_liksr")
 
 [node name="TestDint_32BitSigned" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.605804, 0)
@@ -64,3 +65,6 @@ running_tag_name = "[TEST]TEST_INPUT"
 pushbutton_tag_name = "TestDINTArray[0].0"
 lamp_tag_name = "TestDINTArray[0].1"
 toggle = true
+
+[node name="GetTagGroups" type="Node3D" parent="."]
+script = ExtResource("11_liksr")
