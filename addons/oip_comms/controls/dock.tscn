@@ -4,48 +4,49 @@
 
 [node name="Dock" type="Control"]
 custom_minimum_size = Vector2(467, 300)
+layout_direction = 3
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 3.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_ac54y")
+metadata/_edit_horizontal_guides_ = [21.0]
 
-[node name="EnableComms" type="CheckBox" parent="."]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -314.0
-offset_top = 8.0
-offset_right = -200.0
-offset_bottom = 33.0
-grow_horizontal = 0
-button_pressed = true
-text = "Enable Comms"
+[node name="HFlowContainer2" type="HFlowContainer" parent="."]
+layout_direction = 3
+layout_mode = 2
+offset_left = 1.0
+offset_top = -3.0
+offset_right = 1043.0
+offset_bottom = 22.0
 
-[node name="EnableLogging" type="CheckBox" parent="."]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -188.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = 33.0
-grow_horizontal = 0
+[node name="EnableLogging" type="CheckBox" parent="HFlowContainer2"]
+layout_direction = 2
+layout_mode = 2
 text = "Enable Logging to Console"
 
-[node name="AddTagGroup" type="Button" parent="."]
+[node name="EnableComms" type="CheckBox" parent="HFlowContainer2"]
+layout_direction = 2
+layout_mode = 2
+text = "Enable Comms"
+
+[node name="HFlowContainer" type="HFlowContainer" parent="."]
+layout_direction = 2
 layout_mode = 0
-offset_left = 9.0
-offset_top = 6.0
-offset_right = 133.0
-offset_bottom = 31.0
+offset_left = 5.0
+offset_top = -2.0
+offset_right = 351.0
+offset_bottom = 24.0
+
+[node name="AddTagGroup" type="Button" parent="HFlowContainer"]
+layout_mode = 2
 text = "Add Tag Group"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_direction = 2
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -59,6 +60,6 @@ grow_vertical = 2
 layout_mode = 2
 size_flags_horizontal = 3
 
-[connection signal="toggled" from="EnableComms" to="." method="_on_EnableComms_toggled"]
-[connection signal="toggled" from="EnableLogging" to="." method="_on_EnableLogging_toggled"]
-[connection signal="pressed" from="AddTagGroup" to="." method="_on_AddTagGroup_pressed"]
+[connection signal="toggled" from="HFlowContainer2/EnableLogging" to="." method="_on_EnableLogging_toggled"]
+[connection signal="toggled" from="HFlowContainer2/EnableComms" to="." method="_on_EnableComms_toggled"]
+[connection signal="pressed" from="HFlowContainer/AddTagGroup" to="." method="_on_AddTagGroup_pressed"]
