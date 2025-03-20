@@ -16,7 +16,7 @@ walk_mode/character/path="res://addons/fpc/character.tscn"
 [application]
 
 config/name="Open Industry Project"
-config/features=PackedStringArray("4.4", "C#", "Forward Plus")
+config/features=PackedStringArray("4.5", "Forward Plus")
 boot_splash/fullsize=false
 boot_splash/image="res://assets/png/splash.png"
 
