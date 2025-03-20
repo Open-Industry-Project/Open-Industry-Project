@@ -13,7 +13,7 @@ const TAG_GROUPS_FILE := "res://addons/oip_comms/save_data/tag_groups.json"
 const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
 
 @onready var v_box_container: VBoxContainer = $ScrollContainer/VBoxContainer
-@onready var enable_comms: CheckBox = $EnableComms
+@onready var enable_comms: CheckBox = $HFlowContainer2/EnableComms
 
 var tag_groups_data: Array = []
 var last_tag_groups_data: Array = []

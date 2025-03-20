@@ -7,15 +7,15 @@ signal tag_group_save(t: _OIPCommsTagGroup)
 
 var save_data := {}
 
-@onready var _name: LineEdit = $Panel/Name
-@onready var polling_rate: SpinBox = $Panel/PollingRate
-@onready var protocol: OptionButton = $Panel/Protocol
-@onready var gateway: LineEdit = $Panel/Gateway
-@onready var path: LineEdit = $Panel/Path
-@onready var cpu: OptionButton = $Panel/CPU
-@onready var cpu_label: Label = $Panel/CPULabel
-@onready var path_label: Label = $Panel/PathLabel
-@onready var gateway_label: Label = $Panel/GatewayLabel
+@onready var _name: LineEdit = $Name
+@onready var polling_rate: SpinBox = $PollingRate
+@onready var protocol: OptionButton = $Protocol
+@onready var gateway: LineEdit = $Gateway
+@onready var path: LineEdit = $Path
+@onready var cpu: OptionButton = $CPU
+@onready var cpu_label: Label = $CPULabel
+@onready var path_label: Label = $PathLabel
+@onready var gateway_label: Label = $GatewayLabel
 
 
 var loading_complete := false
