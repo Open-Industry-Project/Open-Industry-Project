@@ -121,6 +121,7 @@ func _on_AddTagGroup_pressed() -> void:
 	load_tag_groups_ui()
 
 func register_tag_groups() -> void:
+	OIPComms.clear_tag_groups()
 	for tag_group_data: Dictionary in tag_groups_data:
 		var n: String = tag_group_data.name
 		var pr: String = tag_group_data.polling_rate
