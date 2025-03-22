@@ -12,6 +12,7 @@ config_version=5
 
 scene_library/cache/path="res://addons/scene-library/thumb_cache/"
 walk_mode/character/path="res://addons/fpc/character.tscn"
+"Open Industry Project/Output/Clear on Simulation Start"=false
 
 [application]
 
@@ -27,10 +28,6 @@ SimulationEvents="*res://addons/oip_ui/Autoload/SimulationEvents.gd"
 [debug]
 
 gdscript/warnings/exclude_addons=false
-
-[dotnet]
-
-project/assembly_name="OpenIndustryProject"
 
 [editor]
 
