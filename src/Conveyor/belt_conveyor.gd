@@ -6,6 +6,8 @@ enum ConvTexture {
 	ALTERNATE
 }
 
+signal speed_changed
+
 @export var BeltColor : Color = Color(1, 1, 1, 1):
 	set(value):
 		BeltColor = value
@@ -36,6 +38,7 @@ enum ConvTexture {
 		if value == Speed:
 			return
 		Speed = value
+		speed_changed.emit()
 		var ce1 = get_conveyor_end1()
 		var ce2 = get_conveyor_end2()
 		if ce1:

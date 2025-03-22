@@ -17,7 +17,15 @@ extends Node3D
 @export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
 @export var spawn_interval: float = 1.0
 
+@export var conveyor : Node3D = null:
+	set(value):
+		conveyor = value
+		if not value:
+			_conveyor_stopped = false
+
+
 var scan_interval: float = 0.0
+var _conveyor_stopped: bool = false
 
 func _enter_tree() -> void:
 	set_notify_local_transform(true)
@@ -25,9 +33,10 @@ func _enter_tree() -> void:
 	
 func _ready() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 
 func _physics_process(delta: float) -> void:
-	if disable || not SimulationEvents.simulation_running:
+	if disable || _conveyor_stopped || not SimulationEvents.simulation_running:
 		return
 		
 	scan_interval += delta
@@ -36,6 +45,7 @@ func _physics_process(delta: float) -> void:
 		_spawn_box()
 
 func _spawn_box() -> void:
+	
 	var box = scene.instantiate() as Box
 
 	if spawn_random_scale:
@@ -52,9 +62,22 @@ func _spawn_box() -> void:
 	box.instanced = true
 	add_child(box,true)
 	box.owner = get_tree().edited_scene_root
+	
+func _conveyor_speed_changed() -> void:
+	_conveyor_stopped = conveyor.Speed == 0
 
 func use() -> void:
 	disable = !disable
 
 func _on_simulation_started() -> void:
+	if conveyor:
+		if conveyor.has_signal("speed_changed"):
+			_conveyor_stopped = conveyor.Speed == 0
+			conveyor.connect("speed_changed", _conveyor_speed_changed)
+		else:
+			push_error("Conveyor in " + name + " is not of type Conveyor")
 	scan_interval = spawn_interval
+
+func _on_simulation_ended() -> void:
+	if conveyor && conveyor.is_connected("speed_changed",_conveyor_speed_changed):
+		conveyor.disconnect("speed_changed", _conveyor_speed_changed)
