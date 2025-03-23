@@ -8,10 +8,16 @@ var ray_material: StandardMaterial3D
 
 var register_tag_ok := false
 var tag_group_init := false
-@export var enable_comms := true
-@export var tag_group_name := "TagGroup0"
-@export var tag_name := ""
+var tag_group_original: String
 
+@export var enable_comms := true
+@export var tag_group_name: String
+@export_custom(0,"tag_group_enum") var tag_groups:
+	set(value):
+		tag_group_name = value
+		tag_groups = value
+			
+@export var tag_name := ""	
 @export var max_range: float = 6.0
 @export var show_beam: bool :
 	set(value): 
@@ -31,6 +37,19 @@ var tag_group_init := false
 func _validate_property(property: Dictionary):
 	if property.name == "blocked":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
+	elif property.name == "tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+
+func _property_can_revert(property: StringName) -> bool:
+	return property == "tag_groups"
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property == "tag_groups":
+		return tag_group_original
+	else: 
+		return
 
 func _ready() -> void:
 	ray_marker = $RayMarker
@@ -42,6 +61,12 @@ func _ready() -> void:
 	ray_marker.visible = show_beam
 
 func _enter_tree() -> void:
+	tag_group_original = tag_group_name
+	if(tag_group_name.is_empty()):
+		tag_group_name = OIPComms.get_tag_groups()[0]
+
+	tag_groups = tag_group_name
+
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
