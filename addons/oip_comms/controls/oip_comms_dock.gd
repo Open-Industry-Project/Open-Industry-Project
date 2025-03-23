@@ -139,6 +139,7 @@ func register_tag_groups() -> void:
 		var p: String = tag_group_data.path
 		var c: String = tag_group_data.cpu
 		OIPComms.register_tag_group(n, int(pr), pt, g, p, c)
+	OIPComms.tag_groups_registered.emit()
 
 func _on_EnableComms_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_comms(toggled_on)
