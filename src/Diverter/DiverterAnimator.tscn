@@ -11,7 +11,7 @@
 [ext_resource type="Material" uid="uid://ddf4elviahmx8" path="res://assets/3DModels/Materials/Text.tres" id="6_adhrp"]
 [ext_resource type="Material" uid="uid://bubwx8yrh21n3" path="res://assets/3DModels/Materials/Metall1.tres" id="7_5ermq"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gqkuy"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lkgtf"]
 resource_name = "LampRed"
 albedo_color = Color(0.576515, 0.372541, 0.368615, 1)
 roughness = 0.654
@@ -19,7 +19,7 @@ emission_enabled = true
 emission = Color(0.74902, 0.0509804, 0.0509804, 1)
 emission_energy_multiplier = 0.0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_77ore"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_35xdy"]
 resource_name = "LampGreen"
 albedo_color = Color(0.427485, 0.596067, 0.423515, 1)
 roughness = 0.612
@@ -118,7 +118,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_0qbfj"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_8aygj"]
 resource_name = "Diverter_Cube_001"
 _surfaces = [{
 "aabb": AABB(-0.27, 0.00035702, -1.03098, 0.54, 0.815323, 2.05098),
@@ -166,7 +166,7 @@ _surfaces = [{
 "index_count": 180,
 "index_data": PackedByteArray("RgADACMARgAYAAMALwAOADUALwAKAA4ANQARADsANQAOABEAOwAVAEAAOwARABUAPwAYAEUAPwAVABgAKgAKADAAKgAHAAoACQAsAAsACQAnACwABQAnAAkABQAcACcADAAyAA8ADAAtADIADwA4ABMADwAzADgAEgA8ABYAEgA3ADwAFgBBABoAFgA8AEEAQgACABsAQgAlAAIAKwAAAAcAKwAgAAAAGAAAAAMAAAAKAAcACgARAA4AEQAYABUAGAAKAAAACgAYABEACAABAAQAAQAXABkAFwAQABQAEAAIAA0ACAAXAAEAFwAIABAAHwADAAAAHwAjAAMAJgAhAB0AJgAiACEAHAApACcAHAAeACkAJwAuACwAJwAoAC4ALQA0ADIALQAxADQAMwA6ADgAMwA2ADoANwA9ADwANwA5AD0APABDAEEAPAA+AEMAQgAkACUAQgBEACQAJgAGAAIAJgAdAAYA"),
 "lods": [0.00555185, PackedByteArray("NQAvADsAOwAvAEUAOwBFAD8AKgBFAC8AKgAfAEUAHwAjAEUACQAsAAsACQAnACwAJwAuACwAJwAoAC4ABQAnAAkABQAcACcAHAApACcAHAAeACkADAAyAA8ADAAtADIALQA0ADIALQAxADQADwAyADgADwA4ABMAMgA6ADgAMgA2ADoAEgA8ABYAEgA3ADwANwA9ADwANwA5AD0AFgA8AEEAFgBBABoAPABDAEEAPAA+AEMAQgACABsAQgBEACQAQgAkACUAQgAlAAIAJQAGAAIAJQAdAAYAJQAhAB0AJQAiACEACAABAAQACAAXAAEAAQAXABkAFwAIABAAEAAIAA0AFwAQABQA")],
-"material": SubResource("StandardMaterial3D_gqkuy"),
+"material": SubResource("StandardMaterial3D_lkgtf"),
 "name": "LampRed",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -179,7 +179,7 @@ _surfaces = [{
 "index_count": 180,
 "index_data": PackedByteArray("RgADACMARgAYAAMALwAOADUALwAKAA4ANQARADsANQAOABEAOwAVAEAAOwARABUAPwAYAEUAPwAVABgAKgAKADAAKgAHAAoACQAsAAsACQAnACwABQAnAAkABQAcACcADAAyAA8ADAAtADIADwA4ABMADwAzADgAEgA8ABYAEgA3ADwAFgBBABoAFgA8AEEAQgACABsAQgAlAAIAKwAAAAcAKwAgAAAAGAAAAAMAAAAKAAcACgARAA4AEQAYABUAGAAKAAAACgAYABEACAABAAQAAQAXABkAFwAQABQAEAAIAA0ACAAXAAEAFwAIABAAHwADAAAAHwAjAAMAJgAhAB0AJgAiACEAHAApACcAHAAeACkAJwAuACwAJwAoAC4ALQA0ADIALQAxADQAMwA6ADgAMwA2ADoANwA9ADwANwA5AD0APABDAEEAPAA+AEMAQgAkACUAQgBEACQAJgAGAAIAJgAdAAYA"),
 "lods": [0.00555186, PackedByteArray("NQAvADsAOwAvAEUAOwBFAD8AKgBFAC8AKgAfAEUAHwAjAEUACQAsAAsACQAnACwAJwAuACwAJwAoAC4ABQAnAAkABQAcACcAHAApACcAHAAeACkADAAyAA8ADAAtADIALQA0ADIALQAxADQADwAyADgADwA4ABMAMgA6ADgAMgA2ADoAEgA8ABYAEgA3ADwANwA9ADwANwA5AD0AFgA8AEEAFgBBABoAPABDAEEAPAA+AEMAQgACABsAQgBEACQAQgAkACUAQgAlAAIAJQAGAAIAJQAdAAYAJQAhAB0AJQAiACEACAABAAQACAAXAAEAAQAXABkAFwAIABAAEAAIAA0AFwAQABQA")],
-"material": SubResource("StandardMaterial3D_77ore"),
+"material": SubResource("StandardMaterial3D_35xdy"),
 "name": "LampGreen",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -228,7 +228,6 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ohjvn")
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_j5w02"]
-bounce = 1.0
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_snq0a"]
 size = Vector3(0.467773, 0.395508, 2.08258)
@@ -237,7 +236,7 @@ size = Vector3(0.467773, 0.395508, 2.08258)
 script = ExtResource("1_lkgtf")
 
 [node name="Pusher" type="MeshInstance3D" parent="."]
-mesh = SubResource("ArrayMesh_0qbfj")
+mesh = SubResource("ArrayMesh_8aygj")
 skeleton = NodePath("")
 
 [node name="part1" type="MeshInstance3D" parent="Pusher"]
@@ -259,7 +258,7 @@ axis_lock_linear_y = true
 axis_lock_angular_x = true
 axis_lock_angular_y = true
 axis_lock_angular_z = true
-mass = 1000.0
+mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_j5w02")
 lock_rotation = true
 freeze = true

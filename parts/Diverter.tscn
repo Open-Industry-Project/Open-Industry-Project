@@ -8,6 +8,8 @@ size = Vector3(0.722412, 1.19974, 2.12695)
 
 [node name="Diverter" type="Node3D"]
 script = ExtResource("1_8wula")
+divert_time = 0.25
+divert_distance = 0.75
 metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]

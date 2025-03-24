@@ -67,11 +67,13 @@ func return_phase() -> void:
 	set_lamp_light(LightColor.Red, true)
 
 func finish() -> void:
+	part_end.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	set_lamp_light(LightColor.Red, false)
 	firing = false
 
 func Fire(time: float, distance: float) -> void:
 	if not firing:
+		part_end.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 		firing = true
 		push(time, distance)
 
