@@ -118,6 +118,9 @@ func _ready() -> void:
 		var sb2 = ce2.get_node("StaticBody3D") as StaticBody3D
 		if sb2:
 			sb2.physics_material_override = sb.physics_material_override
+			
+	UpdateBeltMaterialScale()
+	UpdateMetalMaterialScale()
 
 func _enter_tree() -> void:
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)

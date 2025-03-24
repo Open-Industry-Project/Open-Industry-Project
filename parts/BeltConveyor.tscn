@@ -25,7 +25,7 @@ render_priority = 0
 shader = ExtResource("3_ceo50")
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
-shader_parameter/Scale = 1.0
+shader_parameter/Scale = 4.0
 shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_5v2fq"]
