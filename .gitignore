@@ -1,26 +1,16 @@
-.vs/
 .godot/
-addons/godot-jolt/windows/~godot-jolt_windows-x64_editor.dll
-addons/zylann.editor_debugger
-build.txt
-uid_cache.bin
-*.old *.old.*
 
 # Godot-specific ignores
+.import/
 export.cfg
-export_presets.cfg
+export_credentials.cfg
 
 # Imported translations (automatically generated from CSV files)
 *.translation
 
-# User-specific files
-*.rsuser
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
+#Addons
+addons/oip_comms/bin/windows/~libOIP-COMMS.windows.template_debug.x86_64.dll
+addons/zylann.editor_debugger
 
-# User-specific files (MonoDevelop/Xamarin Studio)
-*.userprefs
-*.old
-*.old.*
+#Other
+.vs/
