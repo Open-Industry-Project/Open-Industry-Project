@@ -2,15 +2,16 @@
 class_name Box extends Node3D
 
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
+
 @export var color : Color = Color.WHITE:
 	set(value):
+		color = value
 		if(mesh_instance_3d):
 			var mat : StandardMaterial3D
 			mesh_instance_3d.mesh = mesh_instance_3d.mesh.duplicate()
 			mat = mesh_instance_3d.mesh.surface_get_material(0).duplicate()
-			mat.albedo_color = value
+			mat.albedo_color = color
 			mesh_instance_3d.mesh.surface_set_material(0,mat)
-			color = value
 		
 
 @onready var rigid_body_3d: RigidBody3D = $RigidBody3D
@@ -28,6 +29,8 @@ func _enter_tree() -> void:
 	get_tree().current_scene
 
 func _ready() -> void:
+	if color != Color.WHITE:
+		set("color",color)
 	rigid_body_3d.freeze = not SimulationEvents.simulation_running
 	if SimulationEvents.simulation_running:
 		instanced = true
