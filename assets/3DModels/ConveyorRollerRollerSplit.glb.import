@@ -36,11 +36,13 @@ _subresources={
 "materials": {
 "Belt": {
 "use_external/enabled": true,
-"use_external/path": "res://assets/3DModels/Materials/Metall2.tres"
+"use_external/fallback_path": "res://assets/3DModels/Materials/Metall2.tres",
+"use_external/path": "uid://csjuri74chooy"
 },
 "BeltSide": {
 "use_external/enabled": true,
-"use_external/path": "res://assets/3DModels/Materials/Metall1.tres"
+"use_external/fallback_path": "res://assets/3DModels/Materials/Metall1.tres",
+"use_external/path": "uid://bubwx8yrh21n3"
 }
 }
 }
