@@ -1,14 +1,14 @@
 @tool
 extends Node3D
 
-var ray_marker: Marker3D
-var ray_mesh: MeshInstance3D
-var cylinder_mesh: CylinderMesh
-var ray_material: StandardMaterial3D
-
 var register_tag_ok := false
 var tag_group_init := false
 var tag_group_original: String
+
+var mesh : ImmediateMesh
+var beam_mat : StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
+var instance
+var scenario
 
 @export var enable_comms := true
 @export var tag_group_name: String
@@ -18,13 +18,18 @@ var tag_group_original: String
 		tag_groups = value
 
 @export var tag_name := ""
-@export var max_range: float = 6.0
+@export var max_range: float = 6.0:
+	set(value):
+		value = clamp(value,0,100)
+		max_range = value
 
-@export var show_beam: bool :
+
+@export var show_beam: bool = false:
 	set(value):
 		show_beam = value
-		if(ray_marker):
-			ray_marker.visible = value;
+		if instance: 
+			RenderingServer.instance_set_visible(instance,show_beam)
+
 @export var blocked: bool = false:
 	set(value):
 		if register_tag_ok and tag_group_init and value != blocked:
@@ -49,16 +54,15 @@ func _property_get_revert(property: StringName) -> Variant:
 	else:
 		return
 
-func _ready() -> void:
-	ray_marker = $RayMarker
-	ray_mesh = $RayMarker/MeshInstance3D
-	cylinder_mesh = ray_mesh.mesh.duplicate() as CylinderMesh
-	ray_mesh.mesh = cylinder_mesh
-	ray_material = cylinder_mesh.material.duplicate() as StandardMaterial3D
-	cylinder_mesh.material = ray_material
-	ray_marker.visible = show_beam
-
 func _enter_tree() -> void:
+	instance = RenderingServer.instance_create()
+	scenario = get_world_3d().scenario
+	mesh = ImmediateMesh.new()
+	
+	RenderingServer.instance_set_scenario(instance, scenario)
+	RenderingServer.instance_set_base(instance, mesh)
+	RenderingServer.instance_set_visible(instance,show_beam)
+	
 	tag_group_original = tag_group_name
 	if(tag_group_name.is_empty()):
 		tag_group_name = OIPComms.get_tag_groups()[0]
@@ -66,46 +70,48 @@ func _enter_tree() -> void:
 	tag_groups = tag_group_name
 
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 
 func _exit_tree() -> void:
+	RenderingServer.free_rid(instance)
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 
-
 func _physics_process(delta: float) -> void:
-	var space_state = get_world_3d().direct_space_state
-	var start_pos = ray_marker.global_transform.origin
+	var start_pos = global_transform.translated_local(Vector3(0, 0.25, 0.42)).origin
 	var end_pos = start_pos + global_transform.basis.z * max_range
-	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos)
-	query.collision_mask = 8
+
+	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos, 8)
+	var space_state = get_world_3d().direct_space_state
 	var result = space_state.intersect_ray(query)
+	var result_distance = max_range
 
 	if result.size() > 0:
+		result_distance = start_pos.distance_to(result["position"])
 		blocked = true
-		var result_distance = ray_marker.global_transform.origin.distance_to(result["position"])
-		if cylinder_mesh.height != result_distance:
-				cylinder_mesh.height = result_distance
-		if ray_material.albedo_color != Color.RED:
-				ray_material.albedo_color = Color.RED
+		beam_mat.albedo_color = Color.RED
 	else:
 		blocked = false
-		if cylinder_mesh.height != max_range:
-				cylinder_mesh.height = max_range
-		if ray_material.albedo_color != Color.GREEN:
-				ray_material.albedo_color = Color.GREEN
+		beam_mat.albedo_color = Color.GREEN
 
-	ray_mesh.position = Vector3(0, 0, cylinder_mesh.height * 0.5)
+	if show_beam:
+		mesh.clear_surfaces()
+		mesh.surface_begin(Mesh.PRIMITIVE_LINES, beam_mat)
+		mesh.surface_add_vertex(start_pos)
+		
+		if blocked:
+			mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
+		else:
+			mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
+		
+		mesh.surface_end()
 
+func use():
+	show_beam = !show_beam
+	
 func _on_simulation_started() -> void:
 	if enable_comms:
 		register_tag_ok = OIPComms.register_tag(tag_group_name, tag_name, 1)
-
-func _on_simulation_ended() -> void:
-	cylinder_mesh.height = max_range
-	ray_mesh.position = Vector3(0, 0, cylinder_mesh.height * 0.5)
 
 func _tag_group_initialized(_tag_group_name: String) -> void:
 	if _tag_group_name == tag_group_name:
