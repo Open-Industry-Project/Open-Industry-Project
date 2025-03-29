@@ -36,7 +36,8 @@ _subresources={
 "materials": {
 "BeltTopDown.001": {
 "use_external/enabled": true,
-"use_external/path": "res://assets/3DModels/Materials/MetalMaterial.tres"
+"use_external/fallback_path": "res://assets/3DModels/Materials/MetalMaterial.tres",
+"use_external/path": "uid://00bmdgt6cfmg"
 }
 }
 }
