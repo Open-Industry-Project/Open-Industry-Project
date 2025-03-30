@@ -1,4 +1,5 @@
 @tool
+class_name DiffuseSensor
 extends Node3D
 
 var register_tag_ok := false
@@ -10,21 +11,12 @@ var beam_mat : StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
 var instance
 var scenario
 
-@export var enable_comms := true
-@export var tag_group_name: String
-@export_custom(0,"tag_group_enum") var tag_groups:
-	set(value):
-		tag_group_name = value
-		tag_groups = value
-
-@export var tag_name := ""
 @export var max_range: float = 6.0:
 	set(value):
 		value = clamp(value,0,100)
 		max_range = value
 
-
-@export var show_beam: bool = false:
+@export var show_beam: bool = true:
 	set(value):
 		show_beam = value
 		if instance: 
@@ -34,8 +26,18 @@ var scenario
 	set(value):
 		if register_tag_ok and tag_group_init and value != blocked:
 			OIPComms.write_bit(tag_group_name, tag_name, value)
-
 		blocked = value
+
+@export_category("Communications")
+
+@export var enable_comms := false
+@export var tag_group_name: String
+@export_custom(0,"tag_group_enum") var tag_groups:
+	set(value):
+		tag_group_name = value
+		tag_groups = value
+
+@export var tag_name := ""
 
 func _validate_property(property: Dictionary):
 	if property.name == "blocked":
