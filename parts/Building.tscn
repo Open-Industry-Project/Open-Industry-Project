@@ -1,8 +1,10 @@
-[gd_scene load_steps=6 format=3 uid="uid://dyhvoundu2kqc"]
+[gd_scene load_steps=7 format=3 uid="uid://dyhvoundu2kqc"]
 
 [ext_resource type="MeshLibrary" uid="uid://qe567y4r5nfd" path="res://assets/MeshLibs/Floor.meshlib" id="3_wtaol"]
 [ext_resource type="MeshLibrary" uid="uid://ts85f4i6j21q" path="res://assets/MeshLibs/Walls.meshlib" id="4_pxyuu"]
 [ext_resource type="MeshLibrary" uid="uid://ywavdt3n2yvt" path="res://assets/MeshLibs/Roof.meshlib" id="5_tibu8"]
+
+[sub_resource type="Environment" id="Environment_ijpc5"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rm06n"]
 transparency = 1
@@ -14,6 +16,9 @@ material = SubResource("StandardMaterial3D_rm06n")
 [node name="Building" type="Node3D"]
 metadata/_edit_lock_ = true
 metadata/_edit_group_ = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_ijpc5")
 
 [node name="Floor" type="GridMap" parent="."]
 mesh_library = ExtResource("3_wtaol")
