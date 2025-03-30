@@ -1,0 +1,65 @@
+[gd_scene load_steps=2 format=3 uid="uid://csekr7nhdlmu0"]
+
+[ext_resource type="Script" uid="uid://gat6xfeiidsw" path="res://addons/oip_comms/controls/oip_comms_dock.gd" id="1_ac54y"]
+
+[node name="Dock" type="Control"]
+custom_minimum_size = Vector2(467, 300)
+layout_direction = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 3.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ac54y")
+metadata/_edit_horizontal_guides_ = [21.0]
+
+[node name="HFlowContainer2" type="HFlowContainer" parent="."]
+layout_direction = 3
+layout_mode = 2
+offset_left = 1.0
+offset_top = -3.0
+offset_right = 1043.0
+offset_bottom = 22.0
+
+[node name="EnableLogging" type="CheckBox" parent="HFlowContainer2"]
+layout_direction = 2
+layout_mode = 2
+text = "Enable Logging to Console"
+
+[node name="EnableComms" type="CheckBox" parent="HFlowContainer2"]
+layout_direction = 2
+layout_mode = 2
+text = "Enable Comms"
+
+[node name="HFlowContainer" type="HFlowContainer" parent="."]
+layout_direction = 2
+layout_mode = 0
+offset_left = 5.0
+offset_top = -2.0
+offset_right = 351.0
+offset_bottom = 24.0
+
+[node name="AddTagGroup" type="Button" parent="HFlowContainer"]
+layout_mode = 2
+text = "Add Tag Group"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_direction = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 43.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[connection signal="toggled" from="HFlowContainer2/EnableLogging" to="." method="_on_EnableLogging_toggled"]
+[connection signal="toggled" from="HFlowContainer2/EnableComms" to="." method="_on_EnableComms_toggled"]
+[connection signal="pressed" from="HFlowContainer/AddTagGroup" to="." method="_on_AddTagGroup_pressed"]
