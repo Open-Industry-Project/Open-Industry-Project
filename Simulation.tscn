@@ -1,0 +1,70 @@
+[gd_scene load_steps=14 format=3 uid="uid://oyj4qucb6tme"]
+
+[ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="1_t6gs0"]
+[ext_resource type="PackedScene" uid="uid://bq16fe5njnr2i" path="res://parts/Box.tscn" id="2_lfd1m"]
+[ext_resource type="PackedScene" uid="uid://kdpe7o4ec1fa" path="res://parts/DiffuseSensor.tscn" id="3_uobxk"]
+[ext_resource type="PackedScene" uid="uid://drle8i15nwr68" path="res://parts/StackLight.tscn" id="4_mpm82"]
+[ext_resource type="Script" uid="uid://bl7o7avq4pi78" path="res://src/StackLight/stack_light_data.gd" id="5_vtp77"]
+[ext_resource type="Script" uid="uid://buet0tp11gjdl" path="res://src/StackLight/stack_segment_data.gd" id="6_qdflh"]
+[ext_resource type="Script" uid="uid://b861vl8gbbqmh" path="res://testing/test_dint_32_bit_signed.gd" id="7_vtp77"]
+[ext_resource type="Script" uid="uid://crgyex8mqo1n0" path="res://opcua_test.gd" id="8_qdflh"]
+[ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="9_crdol"]
+[ext_resource type="PackedScene" uid="uid://gddgyvex6gdj" path="res://parts/PushButton.tscn" id="10_w5m0l"]
+[ext_resource type="Script" uid="uid://d1v0lx50uyj3h" path="res://get_tag_groups.gd" id="11_liksr"]
+
+[sub_resource type="Resource" id="Resource_liksr"]
+resource_local_to_scene = true
+script = ExtResource("6_qdflh")
+tag_group_name = "TagGroup0"
+tag_name = "TEST_OUTPUT"
+active = false
+segment_color = Color(0, 1, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_lsr5j"]
+resource_local_to_scene = true
+script = ExtResource("5_vtp77")
+segment_datas = [SubResource("Resource_liksr")]
+
+[node name="Simulation" type="Node3D"]
+
+[node name="Building" parent="." instance=ExtResource("1_t6gs0")]
+
+[node name="Box" parent="." instance=ExtResource("2_lfd1m")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.863163, -1.5, -1.07682)
+
+[node name="DiffuseSensor" parent="." instance=ExtResource("3_uobxk")]
+transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, -0.86246, -1.788, -4.09003)
+tag_group_name = "TagGroup1"
+tag_name = "[TEST]TEST_INPUT"
+show_beam = true
+
+[node name="StackLight" parent="." instance=ExtResource("4_mpm82")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, -0.702829, -0.62356, -2.89605)
+data = SubResource("Resource_lsr5j")
+"Light 1" = SubResource("Resource_liksr")
+
+[node name="TestDint_32BitSigned" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.605804, 0)
+text = "52"
+script = ExtResource("7_vtp77")
+tag_group_name = "TagGroup1"
+tag_name = "[TEST]TEST_DINT"
+
+[node name="OPCUATest" type="Node3D" parent="."]
+script = ExtResource("8_qdflh")
+
+[node name="Conveyor" parent="." instance=ExtResource("9_crdol")]
+transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1.524, -7.72372, -0.840113, 2.06157)
+Speed = 0.8
+speed_tag_group_name = "TagGroup1"
+speed_tag_name = "[TEST]TEST_SPEED_INOUT"
+running_tag_group_name = "TagGroup1"
+running_tag_name = "[TEST]TestDINTArray[0].2"
+
+[node name="PushButton" parent="." instance=ExtResource("10_w5m0l")]
+pushbutton_tag_name = "TestDINTArray[0].0"
+lamp_tag_name = "TestDINTArray[0].1"
+toggle = true
+
+[node name="GetTagGroups" type="Node3D" parent="."]
+script = ExtResource("11_liksr")

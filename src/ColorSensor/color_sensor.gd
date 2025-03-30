@@ -16,24 +16,32 @@ var tag_group_original: String
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-
-@export var tag_name := ""
+			
+@export var tag_name := ""	
 @export var max_range: float = 6.0
-
 @export var show_beam: bool :
-	set(value):
+	set(value): 
 		show_beam = value
 		if(ray_marker):
 			ray_marker.visible = value;
-@export var blocked: bool = false:
-	set(value):
-		if register_tag_ok and tag_group_init and value != blocked:
-			OIPComms.write_bit(tag_group_name, tag_name, value)
+	
+@export var color : Color = Color.BLACK
+		
+@export var color_map : Dictionary[Color,int] = {
+	Color.RED:1, 
+	Color.GREEN:2, 
+	Color.BLUE:3
+}
 
-		blocked = value
+@export var color_value : int = 0:
+	set(value):
+		if register_tag_ok and tag_group_init and value != color_value:
+			OIPComms.write_int32(tag_group_name, tag_name, value)
+
+		color_value = value
 
 func _validate_property(property: Dictionary):
-	if property.name == "blocked":
+	if property.name == "color_value":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 	elif property.name == "tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
@@ -46,7 +54,7 @@ func _property_can_revert(property: StringName) -> bool:
 func _property_get_revert(property: StringName) -> Variant:
 	if property == "tag_groups":
 		return tag_group_original
-	else:
+	else: 
 		return
 
 func _ready() -> void:
@@ -82,21 +90,26 @@ func _physics_process(delta: float) -> void:
 	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos)
 	query.collision_mask = 8
 	var result = space_state.intersect_ray(query)
-
+	
 	if result.size() > 0:
-		blocked = true
+		var collider : CollisionObject3D = result["collider"]
+		var mesh_instance : MeshInstance3D = collider.get_node("MeshInstance3D")
+		var material : StandardMaterial3D = mesh_instance.mesh.surface_get_material(0)
+		color = material.albedo_color
+		color_value = color_map.get(color,0)
 		var result_distance = ray_marker.global_transform.origin.distance_to(result["position"])
 		if cylinder_mesh.height != result_distance:
 				cylinder_mesh.height = result_distance
 		if ray_material.albedo_color != Color.RED:
 				ray_material.albedo_color = Color.RED
 	else:
-		blocked = false
+		color = Color.TRANSPARENT
+		color_value = 0
 		if cylinder_mesh.height != max_range:
 				cylinder_mesh.height = max_range
 		if ray_material.albedo_color != Color.GREEN:
 				ray_material.albedo_color = Color.GREEN
-
+	
 	ray_mesh.position = Vector3(0, 0, cylinder_mesh.height * 0.5)
 
 func _on_simulation_started() -> void:
@@ -111,4 +124,4 @@ func _tag_group_initialized(_tag_group_name: String) -> void:
 	if _tag_group_name == tag_group_name:
 		tag_group_init = true
 		if register_tag_ok:
-			OIPComms.write_bit(tag_group_name, tag_name, blocked)
+			OIPComms.write_int32(tag_group_name, tag_name, color_value)
