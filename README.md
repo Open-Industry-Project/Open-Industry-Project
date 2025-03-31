@@ -73,11 +73,11 @@ Configure the communication to PLCs or an OPC UA server via the "Comms" panel on
 
 The simulator will not communicate with any device until the "Enable Comms" checkbox is checked. Each tag group is associated with one PLC or or one OPC UA client. Multiple PLCs or OPC UA clients are supported. It is possible to set up multiple tag groups to connect to a single PLC, however, this is not recommended since the internal libraries (libplctag or open62541) are likely expecting a single endpoint device to be one connection.
 
-The Polling Rate indicates how often OIPComms will read all the tags which are a part of that tag group. Note that the simulation does not read directly from the devices, it reads from a thread-safe data buffer that holds the value retained from the last poll. Writing values from the simualtion occurs as soon as possible, and is also thread-safe.
+The "Polling Rate" indicates how often OIPComms will read all the tags which are a part of that tag group. Note that the simulation does not read directly from the devices, it reads from a thread-safe data buffer that holds the value retained from the last poll. Writing values from the simualtion occurs as soon as possible, and is also thread-safe.
 
 In the event that a write operation is queued by the simulation and a poll is half-way through completing (for example 100 out of 200 tags in the group have been read), the write operation will not complete until the poll completes.
 
-The Gateway is the IP address of the target controller, and the path is the typically the rack/slot location of the PLC. The CPU dropdown contains the following options:
+The "Gateway" is the IP address of the target controller, and the path is the typically the rack/slot location of the PLC. The "CPU" dropdown contains the following options:
 
 ![image](https://github.com/user-attachments/assets/c376d234-548f-41de-bada-fe27f6d00bd5)
 
@@ -90,7 +90,7 @@ When changing the Protocol  to `opc_ua`, the options change to reflect the conne
 
 ![image](https://github.com/user-attachments/assets/381969f0-d8e4-4033-93e4-88dc77920f69)
 
-The Endpoint is the OPC UA protocol address which includes the IP address and port of the server. The Namespace is typically "1" unless otherwise specified by the OPC UA server.
+The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server. The "Namespace" is typically 1 unless otherwise specified by the OPC UA server.
 
 The communication API ([OIPComms](https://github.com/bikemurt/OIP_gdext/)) is contained within a separate GDextension plugin. Instructions to build and update it are located in its own repository.
 
