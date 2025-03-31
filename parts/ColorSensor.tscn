@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=4 uid="uid://x7ajd6h1vd07"]
+[gd_scene load_steps=14 format=4 uid="uid://x7ajd6h1vd07"]
 
 [ext_resource type="Script" uid="uid://d16jj3qspvfrh" path="res://src/ColorSensor/color_sensor.gd" id="1_dr6em"]
 
@@ -162,22 +162,10 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_0umne")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dr6em"]
-shading_mode = 0
-albedo_color = Color(0, 1, 0, 1)
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_pllj2"]
-material = SubResource("StandardMaterial3D_dr6em")
-top_radius = 0.003
-bottom_radius = 0.003
-height = 6.0
-radial_segments = 4
-
 [node name="ColorSensor" type="Node3D"]
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 0, 0, 0)
 script = ExtResource("1_dr6em")
 tag_group_name = "TagGroup0"
-color = Color(1, 1, 1, 0)
 metadata/_edit_group_ = true
 
 [node name="Photoeye" type="Node3D" parent="."]
@@ -203,13 +191,3 @@ skeleton = NodePath("")
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_ie336")
 skeleton = NodePath("")
-
-[node name="RayMarker" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
-visible = false
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="RayMarker"]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 3)
-cast_shadow = 0
-gi_mode = 0
-mesh = SubResource("CylinderMesh_pllj2")
