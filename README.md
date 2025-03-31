@@ -1,6 +1,6 @@
 # OpenIndustryProject
 
-Free and Open-source warehouse/manufacturing development framework and simulator made with [JoltPhysics](https://github.com/jrouwe/JoltPhysics), [open62541]([https://github.com/OPCFoundation/UA-.NETStandard](https://github.com/open62541/open62541), [libplctag](https://github.com/libplctag/libplctag), and with/for [Godot](https://github.com/godotengine),  
+Free and Open-source warehouse/manufacturing development framework and simulator made with [JoltPhysics](https://github.com/jrouwe/JoltPhysics), [open62541](https://github.com/open62541/open62541), [libplctag](https://github.com/libplctag/libplctag), and with/for [Godot](https://github.com/godotengine),  
 
 The goal is to provide an open framework to create software and simulations using industrial equipment/devices and for people to be able to test their ideas or simply educate themselves while using standard industrial platforms.
 
