@@ -63,7 +63,7 @@ https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/
 
 Most parts have properties that can be setup to communicate to a PLC or OPC Server (see [communications below](#communications)). In this example Ignition was used as an OPC server to write to the conveyor tag.
 
-https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/c14ec7ba-a0ed-4163-850a-4f75f8ec5579
+https://github.com/user-attachments/assets/6d72a15b-b1ff-4402-b7d5-1f1a3fbeb085
 
 ## Communications
 
@@ -71,9 +71,11 @@ Configure the communication to PLCs or an OPC UA server via the "Comms" panel on
 
 ![image](https://github.com/user-attachments/assets/1582640d-fd9c-48e2-9c72-4f5c03e1cb3a)
 
-The simulator will not communicate with any device until the "Enable Comms" checkbox is checked. Each tag group is associated with one PLC or or one OPC UA client. Multiple PLCs or OPC UA clients are supported. It is possible to set up multiple tag groups to connect to a single PLC, however, this is not recommended since the internal libraries (libplctag or open62541) are likely expecting a single endpoint device to be one connection.
+The simulator will not communicate with any device until the "Enable Comms" checkbox is checked.
 
-The "Polling Rate" indicates how often OIPComms will read all the tags which are a part of that tag group. Note that the simulation does not read directly from the devices, it reads from a thread-safe data buffer that holds the value retained from the last poll. Writing values from the simualtion occurs as soon as possible, and is also thread-safe.
+Tag Groups are a logical way to organize sets of tags. Each Tag Group is associated with one PLC or or one OPC UA client. When connecting to multiple PLCs or OPC UA endpoints, create a separate tag group for each one.
+
+The "Polling Rate" indicates how often OIPComms will read all the tags which are a part of that tag group. The simulation does not read directly from the devices, it reads from a thread-safe data buffer that holds the value retained from the last poll. Writing values from the simualtion occurs as soon as possible, and is also thread-safe.
 
 In the event that a write operation is queued by the simulation and a poll is half-way through completing (for example 100 out of 200 tags in the group have been read), the write operation will not complete until the poll completes.
 
@@ -91,6 +93,10 @@ When changing the Protocol  to `opc_ua`, the options change to reflect the conne
 ![image](https://github.com/user-attachments/assets/381969f0-d8e4-4033-93e4-88dc77920f69)
 
 The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server. The "Namespace" is typically 1 unless otherwise specified by the OPC UA server.
+
+Devices typically have these settings: Enable Comms, Tag Group and Tag Name (Diffuse Sensor shown).
+
+![image](https://github.com/user-attachments/assets/3475dffd-5ba8-4f55-8797-3758e3e5994c)
 
 The communication API ([OIPComms](https://github.com/bikemurt/OIP_gdext/)) is contained within a separate GDextension plugin. Instructions to build and update it are located in its own repository.
 
