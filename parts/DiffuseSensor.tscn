@@ -164,7 +164,6 @@ shadow_mesh = SubResource("ArrayMesh_0umne")
 
 [node name="DiffuseSensor" type="Node3D"]
 script = ExtResource("1_vtdj1")
-max_range = 1.524
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 

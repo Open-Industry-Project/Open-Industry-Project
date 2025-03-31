@@ -11,7 +11,7 @@ var beam_mat : StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
 var instance
 var scenario
 
-@export var max_range: float = 6.0:
+@export var max_range: float = 1.524:
 	set(value):
 		value = clamp(value,0,100)
 		max_range = value
@@ -78,6 +78,7 @@ func _exit_tree() -> void:
 	RenderingServer.free_rid(instance)
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+
 
 func _physics_process(delta: float) -> void:
 	var start_pos = global_transform.translated_local(Vector3(0, 0.25, 0.42)).origin
