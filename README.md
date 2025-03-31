@@ -67,7 +67,7 @@ https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/
 
 ## Communications
 
-Communications to PLCs or an OPC UA server are handled via the "Comms" panel on the bottom of the editor:
+Configure the communication to PLCs or an OPC UA server via the "Comms" panel on the bottom of the editor:
 
 ![image](https://github.com/user-attachments/assets/1582640d-fd9c-48e2-9c72-4f5c03e1cb3a)
 
