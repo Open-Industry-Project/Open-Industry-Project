@@ -61,7 +61,7 @@ Parts can be dragged into the viewport to instantiate it. Once they're in the sc
 
 https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/fc3dca44-ceab-4ecf-8c7d-cd5754fce558
 
-Most parts have properties that can be setup to communicate to a PLC or OPC Server (see [communications below](#communications). In this example Ignition was used as an OPC server to write to the conveyor tag.
+Most parts have properties that can be setup to communicate to a PLC or OPC Server (see [communications below](#communications)). In this example Ignition was used as an OPC server to write to the conveyor tag.
 
 https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/c14ec7ba-a0ed-4163-850a-4f75f8ec5579
 
