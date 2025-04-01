@@ -110,6 +110,8 @@ transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_07qd2")
 Speed = 2.0
 BeltPhysicsMaterial = SubResource("PhysicsMaterial_hcu6p")
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
