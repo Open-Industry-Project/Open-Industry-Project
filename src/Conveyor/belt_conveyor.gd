@@ -1,4 +1,5 @@
 @tool
+class_name BeltConveyor
 extends Node3D
 
 enum ConvTexture {
@@ -33,7 +34,7 @@ signal speed_changed
 			(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
 
 
-@export var Speed: float:
+@export var Speed: float = 2:
 	set(value):
 		if value == Speed:
 			return
@@ -85,12 +86,31 @@ var register_running_tag_ok := false
 var speed_tag_group_init := false
 var running_tag_group_init := false
 
+@export_category("Communications")
 @export var enable_comms := true
-@export var speed_tag_group_name := "TagGroup0"
+@export var speed_tag_group_name: String
+@export_custom(0,"tag_group_enum") var speed_tag_groups:
+	set(value):
+		speed_tag_group_name = value
+		speed_tag_groups = value
 @export var speed_tag_name := ""
-@export var running_tag_group_name := "TagGroup0"
+@export var running_tag_group_name: String
+@export_custom(0,"tag_group_enum") var running_tag_groups:
+	set(value):
+		running_tag_group_name = value
+		running_tag_groups = value
 @export var running_tag_name := ""
 
+func _validate_property(property: Dictionary):
+	if property.name == "speed_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "speed_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+	elif property.name == "running_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "running_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+		
 func get_conveyor_end1():
 	return get_node_or_null("ConveyorEnd")
 func get_conveyor_end2():
