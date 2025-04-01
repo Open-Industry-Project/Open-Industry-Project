@@ -27,6 +27,9 @@ func _process(delta: float) -> void:
 	_select_nodes()
 
 func _input(event: InputEvent) -> void:
+	if not Engine.is_editor_hint():
+		return
+	
 	var editor_settings := EditorInterface.get_editor_settings()
 	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed():
 		var selection = EditorInterface.get_selection()
