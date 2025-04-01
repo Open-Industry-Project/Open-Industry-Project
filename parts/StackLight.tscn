@@ -9,23 +9,27 @@
 [ext_resource type="PackedScene" uid="uid://dlm5s307lqs6b" path="res://src/StackLight/StackSegment.tscn" id="7_u0n62"]
 [ext_resource type="ArrayMesh" uid="uid://b6ko36gue766v" path="res://assets/3DModels/StackLight/Meshes/StackTop_StackTop.res" id="9_hoqsd"]
 
-[sub_resource type="Resource" id="Resource_v0hgu"]
+[sub_resource type="Resource" id="Resource_w3ou4"]
 resource_local_to_scene = true
 script = ExtResource("6_vxp13")
 active = false
 segment_color = Color(0, 1, 0, 0.5)
 
-[sub_resource type="Resource" id="Resource_oqsfm"]
+[sub_resource type="Resource" id="Resource_0p8xi"]
 resource_local_to_scene = true
 script = ExtResource("2_v0hgu")
-segment_datas = [SubResource("Resource_v0hgu")]
+segment_datas = [SubResource("Resource_w3ou4")]
 
 [node name="StackLight" type="Node3D"]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
 script = ExtResource("1_vxp13")
+tag_group_name = "TagGroup0"
 Segments = 1
-data = SubResource("Resource_oqsfm")
-"Light 1" = SubResource("Resource_v0hgu")
+data = SubResource("Resource_0p8xi")
+"Light 1" = SubResource("Resource_w3ou4")
+enable_comms = true
+tag_groups = "TagGroup0"
+tag_name = ""
 metadata/_edit_group_ = true
 
 [node name="Bottom" type="MeshInstance3D" parent="."]
@@ -43,7 +47,7 @@ mesh = ExtResource("6_tq4eb")
 
 [node name="StackSegment" parent="Mid/Segments" instance=ExtResource("7_u0n62")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0385172, 0)
-segment_data = SubResource("Resource_v0hgu")
+segment_data = SubResource("Resource_w3ou4")
 
 [node name="Top" type="MeshInstance3D" parent="Mid"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.087, 0)

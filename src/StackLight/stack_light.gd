@@ -1,12 +1,16 @@
 @tool
+class_name StackLight
 extends Node3D
+
 
 var segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")
 var data: StackLightData = load("res://src/StackLight/StackLightData.tres")
 
-var prev_scale: Vector3
+var register_tag_ok := false
+var tag_group_init := false
+var tag_group_original: String
 
-@export var enable_comms := true
+var prev_scale: Vector3
 
 var Segments: int = 1:
 	set(value):
@@ -26,6 +30,15 @@ var Segments: int = 1:
 				top_mesh.position = Vector3(0, top_mesh_initial_y_pos + (step * (Segments - 1)), 0)
 		notify_property_list_changed()
 		
+var enable_comms := true
+@export var tag_group_name: String
+var tag_groups:
+	set(value):
+		tag_group_name = value
+		tag_groups = value
+
+var tag_name := ""
+	
 var step: float = 0.048
 var segments_container: Node3D
 var top_mesh: MeshInstance3D
@@ -44,14 +57,13 @@ func _get(property: StringName) -> Variant:
 			var segment = segments_container.get_child(i)
 			return segment.segment_data
 	return null
-
+	
+func _validate_property(property: Dictionary):
+	if property.name == "tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+		
 func _get_property_list() -> Array:
 	var properties = []
-	properties.append({
-		"name": "StackLight",
-		"type": TYPE_NIL,
-		"usage": PROPERTY_USAGE_CATEGORY
-	})
 	properties.append({
 		"name": "Segments",
 		"type": TYPE_INT,
@@ -69,9 +81,30 @@ func _get_property_list() -> Array:
 			"type": TYPE_OBJECT,
 			"usage": PROPERTY_USAGE_DEFAULT
 		})
+	properties.append({
+		"name": "Communications",
+		"type": TYPE_NIL,
+		"usage": PROPERTY_USAGE_CATEGORY
+	})	
+	properties.append({
+		"name": "enable_comms",
+		"type": TYPE_BOOL,
+		"usage": PROPERTY_USAGE_DEFAULT
+	})
+	properties.append({
+		"name": "tag_groups",
+		"type": 0,
+		"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE,
+		"hint": 0,
+		"hint_string": "tag_group_enum"
+	})
+	properties.append({
+		"name": "tag_name",
+		"type": TYPE_STRING,
+		"usage": PROPERTY_USAGE_DEFAULT
+	})
 	return properties
 
-var tags_by_group := {}
 func _ready() -> void:
 	data = data.duplicate(true)
 	data.init_segments(Segments)
@@ -87,14 +120,16 @@ func _ready() -> void:
 	prev_scale = scale
 	Rescale()
 	
-	# need to run this at least once at the beginning
-	
-
-
 func _enter_tree() -> void:
-	tags_by_group = {}
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
+	
+	tag_group_original = tag_group_name
+	if(tag_group_name.is_empty()):
+		tag_group_name = OIPComms.get_tag_groups()[0]
+
+	tag_groups = tag_group_name
+
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
@@ -107,17 +142,17 @@ func _on_simulation_started() -> void:
 			OIPComms.register_tag(segment.tag_group_name, segment.tag_name, 1)
 			
 			# create hash map that links the tag group name to the tag/stack segment
-			if segment.tag_group_name not in tags_by_group:
-				tags_by_group[segment.tag_group_name] = {}
-			
-			tags_by_group[segment.tag_group_name][segment.tag_name] = segment
+			#if segment.tag_group_name not in tags_by_group:
+				#tags_by_group[segment.tag_group_name] = {}
+			#
+			#tags_by_group[segment.tag_group_name][segment.tag_name] = segment
 		
 func _tag_group_polled(_tag_group_name: String) -> void:
 	if not enable_comms: return
-	if _tag_group_name in tags_by_group:
-		for tag_name in tags_by_group[_tag_group_name]:
-			var segment: StackSegmentData = tags_by_group[_tag_group_name][tag_name]
-			segment.active = OIPComms.read_bit(_tag_group_name, tag_name)
+	#if _tag_group_name in tags_by_group:
+		#for tag_name in tags_by_group[_tag_group_name]:
+			#var segment: StackSegmentData = tags_by_group[_tag_group_name][tag_name]
+			#segment.active = OIPComms.read_bit(_tag_group_name, tag_name)
 
 func _process(delta: float) -> void:
 	if scale != prev_scale:

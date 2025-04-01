@@ -5,9 +5,6 @@ extends Resource
 signal active_changed(value)
 signal color_changed(value)
 
-@export var tag_group_name := "TagGroup0"
-@export var tag_name := ""
-
 @export var active: bool = false:
 	set(value):
 		active = value
