@@ -19,8 +19,8 @@ func _select_nodes() -> void:
 			if(!node):
 				return
 
-			if node.has_method("select"):
-				node.call("select")
+			if node.has_method("selected"):
+				node.call("selected")
 
 
 func _process(delta: float) -> void:
