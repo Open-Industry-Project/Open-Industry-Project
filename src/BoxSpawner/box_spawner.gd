@@ -1,6 +1,7 @@
 @tool
 extends Node3D
 
+@onready var mesh_instance_3d: MeshInstance3D = $MeshInstance3D
 @export var scene: PackedScene
 
 @export var disable: bool = false:
@@ -8,14 +9,16 @@ extends Node3D
 		if(value == disable):
 			return
 		disable = value
+		change_texture()
 		if(!disable):
-			scan_interval = spawn_interval 
-			
+			_reset_spawn_cycle()
+
 @export var spawn_random_scale: bool = false
 @export var spawn_random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
 @export var spawn_random_size_max: Vector3 = Vector3(1, 1, 1)
 @export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
-@export var spawn_interval: float = 1.0
+@export var boxes_per_minute: int = 45
+@export var fixed_rate_spawn: bool = false
 
 @export var conveyor : Node3D = null:
 	set(value):
@@ -23,14 +26,16 @@ extends Node3D
 		if not value:
 			_conveyor_stopped = false
 
-
 var scan_interval: float = 0.0
 var _conveyor_stopped: bool = false
+var next_spawn_time: float = 0.0
+var spawn_counter: int = 0
+var first_spawn_done: bool = false
 
 func _enter_tree() -> void:
 	set_notify_local_transform(true)
-	scan_interval = spawn_interval
-	
+	_reset_spawn_cycle()
+
 func _ready() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
@@ -38,11 +43,27 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if disable || _conveyor_stopped || not SimulationEvents.simulation_running:
 		return
-		
+
 	scan_interval += delta
-	if scan_interval >= spawn_interval:
-		scan_interval = 0
+	
+	if not first_spawn_done:
 		_spawn_box()
+		first_spawn_done = true
+		scan_interval = 0.0 
+			
+	if fixed_rate_spawn:
+		var time_between = 60.0 / float(boxes_per_minute)
+		if scan_interval >= time_between:
+			_spawn_box()
+			scan_interval = 0.0
+	else:
+		if scan_interval >= next_spawn_time:
+			_spawn_box()
+			spawn_counter += 1
+			if spawn_counter >= boxes_per_minute:
+				_reset_spawn_cycle()
+			else:
+				next_spawn_time = scan_interval + (60.0 / boxes_per_minute) * randf_range(0.5, 1.5)
 
 func _spawn_box() -> void:
 	
@@ -63,8 +84,25 @@ func _spawn_box() -> void:
 	add_child(box,true)
 	box.owner = get_tree().edited_scene_root
 	
+func _reset_spawn_cycle() -> void:
+	scan_interval = 0.0
+	spawn_counter = 0
+	first_spawn_done = false
+	next_spawn_time = (60.0 / boxes_per_minute) * randf_range(0.5, 1.5)
+
 func _conveyor_speed_changed() -> void:
 	_conveyor_stopped = conveyor.Speed == 0
+
+func change_texture() -> void:
+	var mesh = mesh_instance_3d.mesh as Mesh
+	var material = mesh.surface_get_material(0)
+	var new_texture : Texture
+
+	if disable:
+		new_texture = load("res://.godot/imported/Box_Cardboard box 24 Disabled.png-dc1cd3711890b5b61cdf2cc52d3402bb.s3tc.ctex")
+	else:
+		new_texture = load("res://.godot/imported/Box_Cardboard box 24.png-07baf25ed4bd4f2557c167df6e87fe5b.s3tc.ctex")
+	material.albedo_texture = new_texture
 
 func use() -> void:
 	disable = !disable
@@ -76,7 +114,7 @@ func _on_simulation_started() -> void:
 			conveyor.connect("speed_changed", _conveyor_speed_changed)
 		else:
 			push_error("Conveyor in " + name + " is not of type Conveyor")
-	scan_interval = spawn_interval
+	_reset_spawn_cycle()
 
 func _on_simulation_ended() -> void:
 	if conveyor && conveyor.is_connected("speed_changed",_conveyor_speed_changed):
