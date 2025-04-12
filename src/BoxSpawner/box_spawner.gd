@@ -1,4 +1,5 @@
 @tool
+class_name BoxSpawner
 extends Node3D
 
 @onready var mesh_instance_3d: MeshInstance3D = $MeshInstance3D
@@ -13,15 +14,15 @@ extends Node3D
 		if(!disable):
 			_reset_spawn_cycle()
 
-@export var spawn_random_scale: bool = false
-@export var spawn_random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
-@export var spawn_random_size_max: Vector3 = Vector3(1, 1, 1)
-@export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
+@export var random_size: bool = false
+@export var random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
+@export var random_size_max: Vector3 = Vector3(1, 1, 1)
+@export var initial_linear_velocity: Vector3 = Vector3.ZERO
 @export var boxes_per_minute: int = 45:
 	set(value):
 		value = clamp(value,0,1000)
 		boxes_per_minute = value
-@export var fixed_rate_spawn: bool = true
+@export var fixed_rate: bool = true
 
 @export var conveyor : Node3D = null:
 	set(value):
@@ -54,7 +55,7 @@ func _physics_process(delta: float) -> void:
 		first_spawn_done = true
 		scan_interval = 0.0 
 			
-	if fixed_rate_spawn:
+	if fixed_rate:
 		var time_between = 60.0 / float(boxes_per_minute)
 		if scan_interval >= time_between:
 			_spawn_box()
@@ -72,17 +73,17 @@ func _spawn_box() -> void:
 	
 	var box = scene.instantiate() as Box
 
-	if spawn_random_scale:
-		var x = randf_range(spawn_random_size_min.x, spawn_random_size_max.x)
-		var y = randf_range(spawn_random_size_min.y, spawn_random_size_max.y)
-		var z = randf_range(spawn_random_size_min.z, spawn_random_size_max.z)
+	if random_size:
+		var x = randf_range(random_size_max.x, random_size_max.x)
+		var y = randf_range(random_size_max.y, random_size_max.y)
+		var z = randf_range(random_size_max.z, random_size_max.z)
 		box.scale = Vector3(x, y, z)
 	else:
 		box.scale = scale
 		
 	box.rotation = rotation
 	box.position = position
-	box.initial_linear_velocity = spawn_initial_linear_velocity
+	box.initial_linear_velocity = initial_linear_velocity
 	box.instanced = true
 	add_child(box,true)
 	box.owner = get_tree().edited_scene_root
