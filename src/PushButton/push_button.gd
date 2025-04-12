@@ -2,16 +2,7 @@
 extends Node3D
 class_name PushButton
 
-@export var enable_comms := true
-@export var pushbutton_tag_group_name := "TagGroup0"
-@export var pushbutton_tag_name := ""
-@export var lamp_tag_group_name := "TagGroup0"
-@export var lamp_tag_name := ""
-
-var register_pushbutton_tag_ok := false
-var register_lamp_tag_ok := false
-
-@export var text: String = "Stop":
+@export var text: String = "STOP":
 	set(value):
 		text = value
 		if _text_mesh:
@@ -66,6 +57,36 @@ var _text_mesh: TextMesh
 var _button_mesh: MeshInstance3D
 var _button_material: StandardMaterial3D
 var _button_pressed_z_pos: float = -0.04
+
+var register_pushbutton_tag_ok := false
+var register_lamp_tag_ok := false
+var pushbutton_tag_group_init := false
+var lamp_tag_group_init := false
+
+@export_category("Communications")
+@export var enable_comms := false
+@export var pushbutton_tag_group_name: String
+@export_custom(0,"tag_group_enum") var pushbutton_tag_groups:
+	set(value):
+		pushbutton_tag_group_name = value
+		pushbutton = value
+@export var pushbutton_tag_name := ""
+@export var lamp_tag_group_name: String
+@export_custom(0,"tag_group_enum") var lamp_tag_groups:
+	set(value):
+		lamp_tag_group_name = value
+		lamp_tag_groups = value
+@export var lamp_tag_name := ""
+
+func _validate_property(property: Dictionary):
+	if property.name == "pushbutton_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "pushbutton_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+	elif property.name == "lamp_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "lamp_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
 
 func reset_pushbutton() -> void:
 	await get_tree().create_timer(0.3).timeout
