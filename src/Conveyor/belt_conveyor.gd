@@ -79,8 +79,6 @@ var metal_material: Material
 var belt_position: float = 0.0
 var box_size: Vector3
 
-var Main
-
 var register_speed_tag_ok := false
 var register_running_tag_ok := false
 var speed_tag_group_init := false
