@@ -58,14 +58,13 @@ albedo_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
 [sub_resource type="TextMesh" id="TextMesh_hc61d"]
 resource_local_to_scene = true
 material = SubResource("StandardMaterial3D_yo721")
-text = "stop"
+text = "STOP"
 font_size = 3
 uppercase = true
 depth = 0.004
 
 [node name="PushButton" type="Node3D"]
 script = ExtResource("1_kcxih")
-text = "stop"
 metadata/_edit_group_ = true
 
 [node name="Meshes" type="Node3D" parent="."]
