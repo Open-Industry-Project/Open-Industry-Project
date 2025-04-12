@@ -2,14 +2,14 @@
 class_name Diverter
 extends Node3D
 
-var register_tag_ok := false
-var tag_group_init := false
-var tag_group_original: String
-
 @export_tool_button("Divert") var divert_action = divert
 
 @export var divert_time: float = 0.25
 @export var divert_distance: float = 0.75
+
+var register_tag_ok := false
+var tag_group_init := false
+var tag_group_original: String
 
 @export_category("Communications")
 
