@@ -148,6 +148,11 @@ func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
+func use() -> void:
+	light_value += 1
+	if light_value >= (1 << Segments):
+		light_value = 0
+	
 func _on_simulation_started() -> void:
 	if enable_comms:
 		OIPComms.register_tag(tag_group_name, tag_name, 1)
