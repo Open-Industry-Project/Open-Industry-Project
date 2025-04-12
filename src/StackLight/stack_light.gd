@@ -30,6 +30,14 @@ var Segments: int = 1:
 				top_mesh.position = Vector3(0, top_mesh_initial_y_pos + (step * (Segments - 1)), 0)
 		notify_property_list_changed()
 		
+var light_value = 0:
+	set(value):
+		light_value = value
+		if not is_node_ready(): return
+		for i in range(Segments):
+			var segment: StackSegmentData = get("Light " + str(i + 1))
+			segment.active = (light_value >> i) & 1 == 1
+		
 var enable_comms := true
 @export var tag_group_name: String
 var tag_groups:
@@ -64,6 +72,11 @@ func _validate_property(property: Dictionary):
 		
 func _get_property_list() -> Array:
 	var properties = []
+	properties.append({
+		"name": "light_value",
+		"type": TYPE_INT,
+		"usage": PROPERTY_USAGE_DEFAULT
+	})
 	properties.append({
 		"name": "Segments",
 		"type": TYPE_INT,
@@ -137,22 +150,12 @@ func _exit_tree() -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		for i in range(Segments):
-			var segment: StackSegmentData = get("Light " + str(i + 1))
-			OIPComms.register_tag(segment.tag_group_name, segment.tag_name, 1)
+		OIPComms.register_tag(tag_group_name, tag_name, 1)
 			
-			# create hash map that links the tag group name to the tag/stack segment
-			#if segment.tag_group_name not in tags_by_group:
-				#tags_by_group[segment.tag_group_name] = {}
-			#
-			#tags_by_group[segment.tag_group_name][segment.tag_name] = segment
 		
 func _tag_group_polled(_tag_group_name: String) -> void:
 	if not enable_comms: return
-	#if _tag_group_name in tags_by_group:
-		#for tag_name in tags_by_group[_tag_group_name]:
-			#var segment: StackSegmentData = tags_by_group[_tag_group_name][tag_name]
-			#segment.active = OIPComms.read_bit(_tag_group_name, tag_name)
+	light_value = OIPComms.read_int32(tag_group_name, tag_name)
 
 func _process(delta: float) -> void:
 	if scale != prev_scale:
