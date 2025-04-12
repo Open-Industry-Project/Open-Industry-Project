@@ -9,7 +9,7 @@ func _exit_tree() -> void:
 
 func _body_entered(node: Node) -> void:
 		var _parent = node.get_parent()
-		if(_parent.has_method("select")):
+		if(_parent.has_method("selected")):
 			_parent.queue_free()
 			
 		
