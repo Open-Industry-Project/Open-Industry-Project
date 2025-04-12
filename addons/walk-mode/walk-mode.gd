@@ -54,9 +54,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			get_tree().edited_scene_root.remove_child(character)
 			character_spawned = false
-			RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(),_camera.get_camera_rid())
-			InputMap.load_default()
-			
+			RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(),_camera.get_camera_rid())	
 			rotation_gizmo.visible = true
 			if(EditorInterface.get_editor_settings().get_setting("editors/3d/navigation/show_viewport_navigation_gizmo")):
 				right_navigation_gizmo.visible = true
