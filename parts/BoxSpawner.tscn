@@ -112,7 +112,6 @@ shadow_mesh = SubResource("ArrayMesh_e42t8")
 transform = Transform3D(1, 2.30012e-09, -9.31322e-10, -2.30012e-09, 1, 8.84756e-09, 9.31322e-10, -8.84756e-09, 1, 0, 0, 0)
 script = ExtResource("1_hb8rk")
 scene = ExtResource("2_2xggy")
-spawn_interval = 3.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)

@@ -17,8 +17,11 @@ extends Node3D
 @export var spawn_random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
 @export var spawn_random_size_max: Vector3 = Vector3(1, 1, 1)
 @export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
-@export var boxes_per_minute: int = 45
-@export var fixed_rate_spawn: bool = false
+@export var boxes_per_minute: int = 45:
+	set(value):
+		value = clamp(value,0,1000)
+		boxes_per_minute = value
+@export var fixed_rate_spawn: bool = true
 
 @export var conveyor : Node3D = null:
 	set(value):
