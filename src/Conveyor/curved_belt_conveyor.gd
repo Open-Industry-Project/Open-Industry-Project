@@ -1,4 +1,5 @@
 @tool
+class_name CurvedBeltConveyor
 extends Node3D
 
 enum ConvTexture {
@@ -34,7 +35,7 @@ const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 		if ce2 and ce2.belt_material:
 			(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
 
-@export var Speed: float:
+@export var Speed: float = 2:
 	set(value):
 		if value == Speed:
 			return
@@ -46,7 +47,7 @@ var AngularSpeed: float = 0.0
 var LinearSpeed: float = 0.0
 var prev_scale_x: float = 0.0
 
-@export var ReferenceDistance: float:
+@export var ReferenceDistance: float = 0.5:
 	set(value):
 		ReferenceDistance = value
 		RecalculateSpeeds()
@@ -72,27 +73,44 @@ var sb: StaticBody3D
 var mesh: MeshInstance3D
 var belt_material: Material
 var metal_material: Material
-
-var origin: Vector3
-var running: bool = false
 var belt_position: float = 0.0
+var origin: Vector3
 
+
+var register_speed_tag_ok := false
+var register_running_tag_ok := false
+var speed_tag_group_init := false
+var running_tag_group_init := false
+
+@export_category("Communications")
+@export var enable_comms := false
+@export var speed_tag_group_name: String
+@export_custom(0,"tag_group_enum") var speed_tag_groups:
+	set(value):
+		speed_tag_group_name = value
+		speed_tag_groups = value
+@export var speed_tag_name := ""
+@export var running_tag_group_name: String
+@export_custom(0,"tag_group_enum") var running_tag_groups:
+	set(value):
+		running_tag_group_name = value
+		running_tag_groups = value
+@export var running_tag_name := ""
+
+func _validate_property(property: Dictionary):
+	if property.name == "speed_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "speed_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+	elif property.name == "running_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "running_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+		
 func get_conveyor_end1():
 	return get_node_or_null("ConveyorEnd")
 func get_conveyor_end2():
 	return get_node_or_null("ConveyorEnd2")
-
-# Dynamically update the ReferenceDistance property hint.
-func _get_property_list() -> Array:
-	var properties = []
-	properties.append({
-		"name": "ReferenceDistance",
-		"type": TYPE_FLOAT,
-		"usage": PROPERTY_USAGE_DEFAULT,
-		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "0," + str(scale.x * BASE_CONVEYOR_WIDTH) + ",suffix:m"
-	})
-	return properties
 
 func _init() -> void:
 	set_notify_local_transform(true)
@@ -140,11 +158,16 @@ func _ready() -> void:
 	prev_scale_x = scale.x
 
 func _enter_tree() -> void:
+	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
-
+	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
+	OIPComms.tag_group_polled.connect(_tag_group_polled)
 
 func _exit_tree() -> void:
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
@@ -199,6 +222,11 @@ func UpdateMetalMaterialScale() -> void:
 	if metal_material:
 		(metal_material as ShaderMaterial).set_shader_parameter("Scale", scale.x / 2.0)
 
+func _on_simulation_started() -> void:
+	if enable_comms:
+		register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
+		register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
+		
 func _on_simulation_ended() -> void:
 	belt_position = 0.0
 	(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position)
@@ -206,3 +234,15 @@ func _on_simulation_ended() -> void:
 		if child is Node3D:
 			child.position = Vector3.ZERO
 			child.rotation = Vector3.ZERO
+
+func _tag_group_initialized(_tag_group_name: String) -> void:
+	if _tag_group_name == speed_tag_group_name:
+		speed_tag_group_init = true
+	if _tag_group_name == running_tag_group_name:
+		running_tag_group_init = true
+
+func _tag_group_polled(_tag_group_name: String) -> void:
+	if not enable_comms: return
+	
+	if _tag_group_name == speed_tag_group_name and speed_tag_group_init:
+		Speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)

@@ -85,7 +85,7 @@ var speed_tag_group_init := false
 var running_tag_group_init := false
 
 @export_category("Communications")
-@export var enable_comms := true
+@export var enable_comms := false
 @export var speed_tag_group_name: String
 @export_custom(0,"tag_group_enum") var speed_tag_groups:
 	set(value):

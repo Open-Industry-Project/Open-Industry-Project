@@ -22,7 +22,7 @@ render_priority = 0
 shader = ExtResource("2_lr6k1")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
 shader_parameter/BlackTextureOn = true
-shader_parameter/Scale = -0.762
+shader_parameter/Scale = 0.762
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
 
@@ -87,10 +87,7 @@ data = PackedVector3Array(-0.24195, 0.15, 1.21615, -0.3556, 0.15, 1.17225, -0.35
 process_mode = 1
 transform = Transform3D(1.524, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_541io")
-Speed = -1.0
-ReferenceDistance = 0.5
 BeltPhysicsMaterial = SubResource("PhysicsMaterial_6l8kf")
-ReferenceDistance = 0.5
 metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
@@ -115,8 +112,8 @@ shape = SubResource("ConcavePolygonShape3D_aja0w")
 
 [node name="ConveyorEnd" parent="." instance=ExtResource("4_b1am8")]
 transform = Transform3D(-1.27761e-07, -1.50996e-07, -1, 9.90786e-08, -1, 1.50996e-07, -0.656168, -1.50996e-07, 1.94707e-07, -0.75, -0.25, 0)
-Speed = -0.813523
+Speed = 1.62705
 
 [node name="ConveyorEnd2" parent="." instance=ExtResource("4_b1am8")]
 transform = Transform3D(0.656168, -1.50996e-07, -2.38421e-07, 9.90787e-08, 1, 1.56219e-07, 1.56444e-07, -1.56219e-07, 1, 0, -0.25, 0.75)
-Speed = -0.813523
+Speed = 1.62705
