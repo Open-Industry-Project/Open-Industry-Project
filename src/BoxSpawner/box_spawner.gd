@@ -1,7 +1,7 @@
 @tool
 extends Node3D
 
-@onready var mesh_instance_3d: MeshInstance3D = $MeshInstance3D
+@onready var disabled_box_texture: MeshInstance3D = $MeshInstance3D2
 @export var scene: PackedScene
 
 @export var disable: bool = false:
@@ -97,15 +97,8 @@ func _conveyor_speed_changed() -> void:
 	_conveyor_stopped = conveyor.Speed == 0
 
 func change_texture() -> void:
-	var mesh = mesh_instance_3d.mesh as Mesh
-	var material = mesh.surface_get_material(0)
-	var new_texture : Texture
-
-	if disable:
-		new_texture = load("res://.godot/imported/Box_Cardboard box 24 Disabled.png-dc1cd3711890b5b61cdf2cc52d3402bb.s3tc.ctex")
-	else:
-		new_texture = load("res://.godot/imported/Box_Cardboard box 24.png-07baf25ed4bd4f2557c167df6e87fe5b.s3tc.ctex")
-	material.albedo_texture = new_texture
+	if disabled_box_texture:
+		disabled_box_texture.visible = disable
 
 func use() -> void:
 	disable = !disable
