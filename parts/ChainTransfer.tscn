@@ -12,18 +12,17 @@ size = Vector3(1.9, 0.2, 0.414)
 process_mode = 3
 transform = Transform3D(-3.60619e-08, 0, 1, 0, 1, 0, -0.825, 0, -4.37114e-08, 0, 0, 0)
 script = ExtResource("1_dolaf")
-popup_chains = true
+speed_tag_group_name = "TagGroup0"
+popup_tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
 [node name="ChainBases" type="Node3D" parent="."]
 script = ExtResource("2_dolaf")
 
 [node name="Base" parent="ChainBases" instance=ExtResource("2_ftoaw")]
-active = true
 
 [node name="Base2" parent="ChainBases" instance=ExtResource("2_ftoaw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.33)
-active = true
 
 [node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
 transform = Transform3D(1.21212, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
