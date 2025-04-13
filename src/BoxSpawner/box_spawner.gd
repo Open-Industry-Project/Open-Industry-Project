@@ -74,9 +74,9 @@ func _spawn_box() -> void:
 	var box = scene.instantiate() as Box
 
 	if random_size:
-		var x = randf_range(random_size_max.x, random_size_max.x)
-		var y = randf_range(random_size_max.y, random_size_max.y)
-		var z = randf_range(random_size_max.z, random_size_max.z)
+		var x = randf_range(random_size_min.x, random_size_max.x)
+		var y = randf_range(random_size_min.y, random_size_max.y)
+		var z = randf_range(random_size_min.z, random_size_max.z)
 		box.scale = Vector3(x, y, z)
 	else:
 		box.scale = scale
