@@ -1,5 +1,6 @@
-[gd_scene load_steps=7 format=3 uid="uid://dyhvoundu2kqc"]
+[gd_scene load_steps=8 format=3 uid="uid://dyhvoundu2kqc"]
 
+[ext_resource type="Script" uid="uid://b0216dkga4vul" path="res://parts/building.gd" id="1_5rwsc"]
 [ext_resource type="MeshLibrary" uid="uid://qe567y4r5nfd" path="res://assets/MeshLibs/Floor.meshlib" id="3_wtaol"]
 [ext_resource type="MeshLibrary" uid="uid://ts85f4i6j21q" path="res://assets/MeshLibs/Walls.meshlib" id="4_pxyuu"]
 [ext_resource type="MeshLibrary" uid="uid://ywavdt3n2yvt" path="res://assets/MeshLibs/Roof.meshlib" id="5_tibu8"]
@@ -14,6 +15,7 @@ albedo_color = Color(1, 1, 1, 0)
 material = SubResource("StandardMaterial3D_rm06n")
 
 [node name="Building" type="Node3D"]
+script = ExtResource("1_5rwsc")
 metadata/_edit_lock_ = true
 metadata/_edit_group_ = true
 
