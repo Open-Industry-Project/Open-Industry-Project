@@ -50,6 +50,13 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 			if(character_spawned == false):
 				return
 			
+			var walk_camera = character.find_child("Camera", true, false)
+			if walk_camera:
+				var cam_transform : Transform3D = walk_camera.global_transform
+				var forward_direction = cam_transform.basis.z.normalized()
+				cam_transform.origin -= forward_direction * 2.5
+				_camera.global_transform = cam_transform
+			
 			canvas_viewport.gui_disable_input = true
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			get_tree().edited_scene_root.remove_child(character)
@@ -65,6 +72,9 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 			InputMap.load_from_project_settings()
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			character = load(ProjectSettings.get_setting("addons/walk_mode/character/path")).instantiate()
+			var spawn_transform = _camera.global_transform
+			spawn_transform.origin -= spawn_transform.basis.y * 1.5
+			character.global_transform = spawn_transform
 			get_tree().edited_scene_root.add_child(character)
 			character_spawned = true
 			RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(),character.find_children("*","Camera3D",true)[0].get_camera_rid())
