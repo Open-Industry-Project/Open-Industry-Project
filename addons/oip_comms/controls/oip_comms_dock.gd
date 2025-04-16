@@ -143,6 +143,7 @@ func register_tag_groups() -> void:
 
 func _on_EnableComms_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_comms(toggled_on)
+	OIPComms.enable_comms_changed.emit()
 
 func _on_EnableLogging_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_log(toggled_on)

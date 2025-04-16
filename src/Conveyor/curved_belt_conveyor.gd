@@ -81,6 +81,9 @@ var register_speed_tag_ok := false
 var register_running_tag_ok := false
 var speed_tag_group_init := false
 var running_tag_group_init := false
+var _enable_comms_changed = false:
+	set(value):
+		notify_property_list_changed()
 
 @export_category("Communications")
 @export var enable_comms := false
@@ -98,14 +101,20 @@ var running_tag_group_init := false
 @export var running_tag_name := ""
 
 func _validate_property(property: Dictionary):
-	if property.name == "speed_tag_group_name":
+	if property.name == "enable_comms":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == "speed_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "running_tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == "running_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "running_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 		
 func get_conveyor_end1():
 	return get_node_or_null("ConveyorEnd")
@@ -162,6 +171,7 @@ func _enter_tree() -> void:
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
+	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)

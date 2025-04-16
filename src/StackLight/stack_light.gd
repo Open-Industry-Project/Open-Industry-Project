@@ -6,10 +6,6 @@ extends Node3D
 var segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")
 var data: StackLightData = load("res://src/StackLight/StackLightData.tres")
 
-var register_tag_ok := false
-var tag_group_init := false
-var tag_group_original: String
-
 var prev_scale: Vector3
 
 var Segments: int = 1:
@@ -57,6 +53,13 @@ var bottom_mesh: MeshInstance3D
 var stem_mesh: MeshInstance3D
 var mid_mesh: MeshInstance3D
 
+var register_tag_ok := false
+var tag_group_init := false
+var tag_group_original: String
+var _enable_comms_changed = false:
+	set(value):
+		notify_property_list_changed()
+
 func _get(property: StringName) -> Variant:
 	if not segments_container:
 		return null
@@ -102,19 +105,19 @@ func _get_property_list() -> Array:
 	properties.append({
 		"name": "enable_comms",
 		"type": TYPE_BOOL,
-		"usage": PROPERTY_USAGE_DEFAULT
+		"usage": PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	})
 	properties.append({
 		"name": "tag_groups",
 		"type": 0,
-		"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE,
+		"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE  if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE,
 		"hint": 0,
 		"hint_string": "tag_group_enum"
 	})
 	properties.append({
 		"name": "tag_name",
 		"type": TYPE_STRING,
-		"usage": PROPERTY_USAGE_DEFAULT
+		"usage": PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	})
 	return properties
 
@@ -142,6 +145,8 @@ func _enter_tree() -> void:
 		tag_group_name = OIPComms.get_tag_groups()[0]
 
 	tag_groups = tag_group_name
+	
+	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms)
 
 
 func _exit_tree() -> void:

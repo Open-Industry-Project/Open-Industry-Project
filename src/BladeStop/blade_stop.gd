@@ -34,6 +34,9 @@ var _corners: Node3D
 var register_tag_ok := false
 var tag_group_init := false
 var tag_group_original: String
+var _enable_comms_changed = false:
+	set(value):
+		notify_property_list_changed()
 
 @export_category("Communications")
 
@@ -49,8 +52,12 @@ var tag_group_original: String
 func _validate_property(property: Dictionary):
 	if property.name == "tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "enable_comms":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 
 func _property_can_revert(property: StringName) -> bool:
 	return property == "tag_groups"
@@ -71,6 +78,7 @@ func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
+	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
