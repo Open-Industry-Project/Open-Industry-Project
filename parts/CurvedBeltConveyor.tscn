@@ -87,7 +87,6 @@ data = PackedVector3Array(-0.24195, 0.15, 1.21615, -0.3556, 0.15, 1.17225, -0.35
 process_mode = 1
 transform = Transform3D(1.524, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_541io")
-BeltPhysicsMaterial = SubResource("PhysicsMaterial_6l8kf")
 metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]

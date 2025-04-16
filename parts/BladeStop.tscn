@@ -26,6 +26,7 @@ size = Vector3(0.20314, 0.911072, 0.198853)
 [node name="BladeStop" type="Node3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.448, 0, 0, 0)
 script = ExtResource("1_tokfa")
+tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
 [node name="Blade" type="StaticBody3D" parent="."]

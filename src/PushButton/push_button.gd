@@ -62,6 +62,9 @@ var register_pushbutton_tag_ok := false
 var register_lamp_tag_ok := false
 var pushbutton_tag_group_init := false
 var lamp_tag_group_init := false
+var _enable_comms_changed = false:
+	set(value):
+		notify_property_list_changed()
 
 @export_category("Communications")
 @export var enable_comms := false
@@ -79,14 +82,20 @@ var lamp_tag_group_init := false
 @export var lamp_tag_name := ""
 
 func _validate_property(property: Dictionary):
-	if property.name == "pushbutton_tag_group_name":
+	if property.name == "enable_comms":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "pushbutton_tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == "pushbutton_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "pushbutton_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "lamp_tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == "lamp_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "lamp_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 
 func reset_pushbutton() -> void:
 	await get_tree().create_timer(0.3).timeout
@@ -106,6 +115,7 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
+	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
