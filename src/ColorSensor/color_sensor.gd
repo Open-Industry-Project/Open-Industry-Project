@@ -126,6 +126,9 @@ func _physics_process(delta: float) -> void:
 		
 		mesh.surface_end()
 
+func use():
+	show_beam = !show_beam
+	
 func _on_simulation_started() -> void:
 	if enable_comms:
 		register_tag_ok = OIPComms.register_tag(tag_group_name, tag_name, 1)
