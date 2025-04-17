@@ -24,8 +24,8 @@ var chain_transfer_base_scene: PackedScene = load("res://src/ChainTransfer/Base.
 		distance = clamp(value, 0.03, 5.0)
 		_set_chains_distance(distance)
 
-var speed: float = 2.0
-@export_custom(PROPERTY_HINT_NONE,"suffix: m/s") var Speed: float = 2.0
+
+@export_custom(PROPERTY_HINT_NONE,"suffix: m/s") var speed: float = 2.0
 
 @export var popup_chains: bool = false
 
@@ -34,7 +34,7 @@ var prev_scale: Vector3
 var register_speed_tag_ok := false
 var register_running_tag_ok := false
 var speed_tag_group_init := false
-var running_tag_group_init := false
+var popup_tag_group_init := false
 var speed_tag_group_original: String
 var popup_tag_group_original: String
 var _enable_comms_changed = false:
@@ -175,6 +175,10 @@ func _fix_chains(ch: int) -> void:
 
 func _on_simulation_started() -> void:
 	_turn_on_chains()
+	
+	if enable_comms:
+		register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
+		register_running_tag_ok = OIPComms.register_tag(popup_tag_group_name, popup_tag_name, 1)
 
 func _on_simulation_ended() -> void:
 	_turn_off_chains()
@@ -191,12 +195,12 @@ func _tag_group_initialized(_tag_group_name: String) -> void:
 	if _tag_group_name == speed_tag_group_name:
 		speed_tag_group_init = true
 	if _tag_group_name == popup_tag_group_name:
-		running_tag_group_init = true
+		popup_tag_group_init = true
 
 func _tag_group_polled(_tag_group_name: String) -> void:
 	if not enable_comms: return
 	
 	if _tag_group_name == speed_tag_group_name and speed_tag_group_init:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
-		print(speed)
+	if _tag_group_name == popup_tag_group_name and popup_tag_group_init:
 		popup_chains = OIPComms.read_bit(popup_tag_groups, popup_tag_name)
