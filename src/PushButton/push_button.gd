@@ -5,8 +5,9 @@ class_name PushButton
 @export var text: String = "STOP":
 	set(value):
 		text = value
-		if _text_mesh:
-			_text_mesh.text = text
+		var _text_mesh_instance: MeshInstance3D = $TextMesh
+		var _text_mesh: TextMesh = _text_mesh_instance.mesh
+		_text_mesh.text = text
 
 @export var toggle: bool = false:
 	set(value):
@@ -50,12 +51,13 @@ class_name PushButton
 		if _button_material:
 			_button_material.albedo_color = value
 			_button_material.emission = value
-	
-var _text_mesh_instance: MeshInstance3D
-var _text_mesh: TextMesh
 
-var _button_mesh: MeshInstance3D
-var _button_material: StandardMaterial3D
+var _button_mesh: MeshInstance3D:
+	get:
+		return $Meshes/Button
+var _button_material: StandardMaterial3D:
+	get:
+		return _button_mesh.mesh.surface_get_material(0)
 var _button_pressed_z_pos: float = -0.04
 
 var register_pushbutton_tag_ok := false
@@ -102,15 +104,7 @@ func reset_pushbutton() -> void:
 	pushbutton = false
 
 func _ready() -> void:
-	_text_mesh_instance = $TextMesh
-	_text_mesh = _text_mesh_instance.mesh.duplicate() as TextMesh
-	_text_mesh_instance.mesh = _text_mesh
-	_text_mesh.text = text
-
-	_button_mesh = $Meshes/Button
-	_button_mesh.mesh = _button_mesh.mesh.duplicate()
-	_button_material = _button_mesh.mesh.surface_get_material(0).duplicate() as StandardMaterial3D
-	_button_mesh.mesh.surface_set_material(0, _button_material)
+	pass
 
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
