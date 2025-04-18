@@ -198,6 +198,7 @@ func RemoveSegments(count: int) -> void:
 		segments_container.get_child(child_index).queue_free()
 
 func FixSegments() -> void:
+	if not is_node_ready(): return
 	var child_count: int = segments_container.get_child_count()
 	var difference: int = child_count - Segments
 	if difference <= 0:
