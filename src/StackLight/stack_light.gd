@@ -28,7 +28,7 @@ var Segments: int = 1:
 		
 var light_value = 0:
 	set(value):
-		light_value = value
+		light_value = value % (1 << Segments)
 		if not is_node_ready(): return
 		for i in range(Segments):
 			var segment: StackSegmentData = get("Light " + str(i + 1))
@@ -155,8 +155,6 @@ func _exit_tree() -> void:
 
 func use() -> void:
 	light_value += 1
-	if light_value >= (1 << Segments):
-		light_value = 0
 	
 func _on_simulation_started() -> void:
 	if enable_comms:
