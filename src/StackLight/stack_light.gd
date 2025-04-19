@@ -95,7 +95,7 @@ func _get_property_list() -> Array:
 			"name": "Light " + str(i + 1),
 			"class_name": "StackSegmentData",
 			"type": TYPE_OBJECT,
-			"usage": PROPERTY_USAGE_DEFAULT
+			"usage": PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY
 		})
 	properties.append({
 		"name": "Communications",
