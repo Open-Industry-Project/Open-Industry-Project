@@ -31,7 +31,7 @@ func _input(event: InputEvent) -> void:
 		return
 	
 	var editor_settings := EditorInterface.get_editor_settings()
-	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed():
+	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed() and not event.is_echo():
 		var selection = EditorInterface.get_selection()
 		for node : Node in selection.get_selected_nodes():
 			if(node.has_method("use")):
