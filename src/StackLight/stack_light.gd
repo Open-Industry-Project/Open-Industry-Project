@@ -13,26 +13,41 @@ var Segments: int = 1:
 		if value == Segments or SimulationEvents.simulation_running:
 			return
 		var new_value: int = clamp(value, 1, 10)
-		if new_value > Segments:
-			SpawnSegments(new_value - Segments)
-		else:
-			RemoveSegments(Segments - new_value)
-		Segments = new_value
-		FixSegments()
+		if new_value == Segments: return
+		
+		Segments = new_value 
+
 		if segments_container:
-			data.set_segments(Segments)
+			data.set_segments(Segments) 
+
+			var current_child_count = segments_container.get_child_count()
+			var difference = Segments - current_child_count
+
+			if difference > 0:
+				SpawnSegments(difference)
+			elif difference < 0:
+				RemoveSegments(-difference)
+
 			InitSegments()
+			
+			# If segments were removed, mask the light value
+			var new_light_value = light_value & ((1 << Segments) - 1)
+			if new_light_value != light_value:
+				light_value = new_light_value
+				_update_segment_visuals() 
+
 			if top_mesh:
 				top_mesh.position = Vector3(0, top_mesh_initial_y_pos + (step * (Segments - 1)), 0)
 		notify_property_list_changed()
 		
 var light_value = 0:
 	set(value):
-		light_value = value % (1 << Segments)
-		if not is_node_ready(): return
-		for i in range(Segments):
-			var segment: StackSegmentData = get("Light " + str(i + 1))
-			segment.active = (light_value >> i) & 1 == 1
+		var new_val = value % (1 << Segments)
+		if new_val == light_value:
+			return
+		light_value = new_val
+		_update_segment_visuals()
+		notify_property_list_changed()
 		
 var enable_comms := true
 @export var tag_group_name: String
@@ -128,14 +143,37 @@ func _ready() -> void:
 	top_mesh = get_node("Mid/Top")
 	bottom_mesh = get_node("Bottom")
 	mid_mesh = get_node("Mid")
-	segment_initial_y_pos = segments_container.get_node("StackSegment").position.y
-	if segments_container.get_child_count() <= 1:
-		SpawnSegments(Segments - 1)
-	top_mesh.position = Vector3(0, top_mesh_initial_y_pos + (step * (Segments - 1)), 0)
+	
+	var current_child_count = segments_container.get_child_count()
+	var difference = Segments - current_child_count
+
+	if difference > 0:
+		# Need to add segments
+		SpawnSegments(difference)
+	elif difference < 0:
+		# Need to remove segments (queue_free excess)
+		for i in range(-difference):
+			var child_to_remove_index = current_child_count - 1 - i
+			if child_to_remove_index >= 0:
+				var child_node = segments_container.get_child(child_to_remove_index)
+				child_node.queue_free()
+			else:
+				pass # Tried to remove invalid index
+	
+	if segments_container.get_child_count() > 0:
+		segment_initial_y_pos = segments_container.get_child(0).position.y
+	else:
+		# Need a fallback if all segments are removed (e.g., Segments set to 0, although we clamp to 1)
+		segment_initial_y_pos = 0.0
+	
+	FixSegmentPositions()
 	InitSegments()
+	
+	top_mesh.position = Vector3(0, top_mesh_initial_y_pos + (step * (max(0, Segments - 1))), 0) # Use max(0,...) in case Segments is 0 temporarily
+	_update_segment_visuals()
 	prev_scale = scale
 	Rescale()
-	
+
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
@@ -152,6 +190,12 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	# Disconnect signals from all segments
+	if segments_container:
+		for i in range(segments_container.get_child_count()):
+			var segment_node = segments_container.get_child(i)
+			if segment_node.is_connected("active_state_changed", _on_segment_state_changed):
+				segment_node.active_state_changed.disconnect(_on_segment_state_changed)
 
 func use() -> void:
 	light_value += 1
@@ -178,28 +222,78 @@ func Rescale() -> void:
 
 func InitSegments() -> void:
 	for i in range(Segments):
-		var segment = segments_container.get_child(i)
-		segment.segment_data = data.segment_datas[i]
+		if i >= segments_container.get_child_count():
+			printerr("Mismatch between Segments count and child nodes during InitSegments")
+			break 
+		var segment_node = segments_container.get_child(i)
+		segment_node.segment_data = data.segment_datas[i]
+		segment_node.index = i
+
+		if not segment_node.is_connected("active_state_changed", _on_segment_state_changed):
+			segment_node.active_state_changed.connect(_on_segment_state_changed)
 
 func SpawnSegments(count: int) -> void:
-	if Segments == 0 or segments_container == null:
+	if segments_container == null:
 		return
+	var start_index = segments_container.get_child_count()
 	for i in range(count):
 		var segment = segment_scene.instantiate() as Node3D
 		segments_container.add_child(segment, true)
 		segment.owner = self
-		segment.position = Vector3(0, segment_initial_y_pos + (step * segment.get_index()), 0)
+		var current_index = start_index + i
+		segment.index = current_index
+		segment.position = Vector3(0, segment_initial_y_pos + (step * current_index), 0)
+
+		if current_index < data.segment_datas.size():
+			segment.segment_data = data.segment_datas[current_index]
+		else:
+			printerr("Not enough data segments available when spawning segment %d" % current_index)
+		segment.active_state_changed.connect(_on_segment_state_changed)
 
 func RemoveSegments(count: int) -> void:
+	if not segments_container: return
+	var current_child_count = segments_container.get_child_count()
 	for i in range(count):
-		var child_index = segments_container.get_child_count() - 1 - i
-		segments_container.get_child(child_index).queue_free()
+		var child_index = current_child_count - 1 - i
+		if child_index < 0: break # Should not happen if count is correct
+		var segment_node = segments_container.get_child(child_index)
 
-func FixSegments() -> void:
-	if not is_node_ready(): return
-	var child_count: int = segments_container.get_child_count()
-	var difference: int = child_count - Segments
-	if difference <= 0:
+		if segment_node.is_connected("active_state_changed", _on_segment_state_changed):
+			segment_node.active_state_changed.disconnect(_on_segment_state_changed)
+		segment_node.queue_free()
+
+func _on_segment_state_changed(index: int, active: bool) -> void:
+	if index < 0 or index >= Segments:
+		printerr("Received state change for invalid index: ", index)
 		return
-	for i in range(difference):
-		segments_container.get_child(segments_container.get_child_count() - 1 - i).queue_free()
+	
+	var current_bit = (1 << index)
+	var newlight_value: int
+	if active:
+		newlight_value = light_value | current_bit
+	else:
+		newlight_value = light_value & ~current_bit
+	
+	self.light_value = newlight_value 
+
+func _update_segment_visuals() -> void:
+	if not is_node_ready() or not segments_container: return
+	for i in range(Segments):
+		if i < data.segment_datas.size():
+			var segment_data: StackSegmentData = data.segment_datas[i]
+			var is_active = (light_value >> i) & 1 == 1
+			# This prevents recursive signals if _on_segment_state_changed was triggered by inspector
+			if segment_data.active != is_active:
+				segment_data.active = is_active 
+		else:
+			# This case handles if Segments count > data array size temporarily
+			# Ensure segment visuals are off if no data is present
+			if i < segments_container.get_child_count():
+				var segment_node = segments_container.get_child(i) as StackSegment
+				segment_node._set_active(false) # Directly set visual state
+
+func FixSegmentPositions() -> void:
+	if not segments_container: return
+	for i in range(segments_container.get_child_count()):
+		var segment_node = segments_container.get_child(i)
+		segment_node.position = Vector3(0, segment_initial_y_pos + (step * i), 0)

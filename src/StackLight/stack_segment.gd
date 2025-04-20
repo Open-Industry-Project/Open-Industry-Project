@@ -1,5 +1,8 @@
 @tool
+class_name StackSegment
 extends Node3D
+
+signal active_state_changed(index: int, active: bool)
 
 @export var segment_data: StackSegmentData:
 	set(value):
@@ -18,6 +21,7 @@ extends Node3D
 		
 var mesh_instance: MeshInstance3D
 var material: StandardMaterial3D
+var index: int = -1
 
 func _ready() -> void:
 	mesh_instance = $LightMesh
@@ -51,6 +55,7 @@ func _set_segment_color(new_value: Color) -> void:
 
 func _on_active_changed(new_active: bool) -> void:
 	_set_active(new_active)
+	emit_signal("active_state_changed", index, new_active)
 
 func _on_color_changed(new_color: Color) -> void:
 	_set_segment_color(new_color)
