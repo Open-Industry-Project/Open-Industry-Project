@@ -7,29 +7,29 @@ var segment_data: StackSegmentData = load("res://src/StackLight/StackSegmentData
 @export var segment_datas: Array = []
 
 func init_segments(count: int) -> void:
+	var old_datas = segment_datas
+	segment_datas = []
+	segment_datas.resize(count)
 	segments = count
-	if segment_datas.is_empty():
-		segment_datas = []
-		for i in range(segments):
-			segment_datas.append(segment_data.duplicate(true))
-	else:
-		var cache := []
-		for i in range(count):
-			cache.append(segment_datas[i].duplicate(true))
-		segment_datas = cache
+	
+	for i in range(count):
+		if old_datas != null and i < old_datas.size() and old_datas[i] is StackSegmentData:
+			segment_datas[i] = old_datas[i].duplicate(true)
+		else:
+			segment_datas[i] = segment_data.duplicate(true)
 
 func set_segments(count: int) -> void:
 	if count == segments:
 		return
-	var cache := []
-	if count < segments:
-		for i in range(count):
-			cache.append(segment_datas[i])
-	else:
-		for i in range(count):
-			if i < segments:
-				cache.append(segment_datas[i])
-			else:
-				cache.append(segment_data.duplicate(true))
+		
+	var old_datas = segment_datas
+	segment_datas = []
+	segment_datas.resize(count)
+	var old_count = segments
 	segments = count
-	segment_datas = cache
+	
+	for i in range(count):
+		if i < old_count and old_datas[i] is StackSegmentData:
+			segment_datas[i] = old_datas[i]
+		else:
+			segment_datas[i] = segment_data.duplicate(true)
