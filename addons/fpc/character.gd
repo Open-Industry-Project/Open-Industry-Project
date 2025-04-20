@@ -161,6 +161,12 @@ func change_reticle(reticle): # Yup, this function is kinda strange
 func _physics_process(delta):
 	if get_tree().edited_scene_root == self:
 		return
+	
+	var forward = -global_transform.basis.z
+	var flat_forward = Vector3(forward.x, 0, forward.z).normalized()
+	var target_basis = Basis().looking_at(flat_forward, Vector3.UP)
+	global_transform.basis = global_transform.basis.slerp(target_basis, 3.0 * delta)
+	
 	# Big thanks to github.com/LorenzoAncora for the concept of the improved debug values
 	current_speed = Vector3.ZERO.distance_to(get_real_velocity())
 	var cv : Vector3 = get_real_velocity()
@@ -221,8 +227,9 @@ func handle_jumping():
 
 
 func handle_movement(delta, input_dir):
-	var direction = input_dir.rotated(-HEAD.rotation.y)
-	direction = Vector3(direction.x, 0, direction.y)
+	var forward = HEAD.global_transform.basis.z
+	var right = HEAD.global_transform.basis.x
+	var direction = (right * input_dir.x + forward * input_dir.y).normalized()
 	move_and_slide()
 	
 	if in_air_momentum:
@@ -334,7 +341,7 @@ func update_camera_fov():
 	if state == "sprinting":
 		CAMERA.fov = lerp(CAMERA.fov, 85.0, 0.3)
 	else:
-		CAMERA.fov = lerp(CAMERA.fov, 75.0, 0.3)
+		CAMERA.fov = lerp(CAMERA.fov, 70.0, 0.3)
 
 
 func headbob_animation(moving):
