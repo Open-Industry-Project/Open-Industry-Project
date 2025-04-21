@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://cc1m2a1obsyn4"]
+[gd_scene load_steps=18 format=3 uid="uid://iqmbam7l1lxe"]
 
 [ext_resource type="Script" uid="uid://eoiefoirt3i5" path="res://addons/fpc/character.gd" id="1_0t4e8"]
 
@@ -374,6 +374,19 @@ libraries = {
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 
 [node name="Camera" type="Camera3D" parent="Head"]
+
+[node name="Crosshair" type="Label3D" parent="Head/Camera"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.55)
+pixel_size = 0.0005
+billboard = 1
+text = "."
+font_size = 64
+
+[node name="InteractText" type="Label3D" parent="Head/Camera"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.104, -0.55)
+pixel_size = 0.0003
+billboard = 1
+font_size = 64
 
 [node name="HeadbobAnimation" type="AnimationPlayer" parent="Head"]
 libraries = {
