@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=4 uid="uid://gddgyvex6gdj"]
+[gd_scene load_steps=14 format=4 uid="uid://gddgyvex6gdj"]
 
 [ext_resource type="ArrayMesh" uid="uid://cigybp2vspbf8" path="res://assets/3DModels/PushButton/Meshes/PushButton_Plane_001.res" id="1_7mqik"]
 [ext_resource type="Script" uid="uid://du1fxhc85e8jp" path="res://src/PushButton/push_button.gd" id="1_kcxih"]
@@ -63,7 +63,10 @@ font_size = 3
 uppercase = true
 depth = 0.004
 
-[node name="PushButton" type="Node3D"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_kcxih"]
+size = Vector3(0.5, 0.5, 0.4)
+
+[node name="PushButton" type="Node3D" groups=["interactable"]]
 script = ExtResource("1_kcxih")
 metadata/_edit_group_ = true
 
@@ -106,3 +109,10 @@ skeleton = NodePath("")
 [node name="TextMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.145237, 0.228853)
 mesh = SubResource("TextMesh_hc61d")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.107774)
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+shape = SubResource("BoxShape3D_kcxih")

@@ -6,7 +6,7 @@
 
 extends CharacterBody3D
 
-
+@onready var label = $Head/Camera/InteractText
 ## The settings for the character's movement and feel.
 @export_category("Character")
 ## The speed that the character moves at without crouching or sprinting.
@@ -210,7 +210,32 @@ func _physics_process(delta):
 					JUMP_ANIMATION.play("land_right", 0.25)
 	
 	was_on_floor = is_on_floor() # This must always be at the end of physics_process
+	
+	handle_interaction()
+	
+func handle_interaction():
+	var start_pos = CAMERA.global_transform.origin
+	var end_pos = start_pos + -CAMERA.global_transform.basis.z * 3.0 #Range
 
+	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos)
+	query.collision_mask = 2
+	query.collide_with_areas = true
+
+	var result = get_world_3d().direct_space_state.intersect_ray(query)
+
+	if result:
+		var collider = result.collider
+		if collider:
+			var hit_object = collider.get_parent()
+			
+			if hit_object.is_in_group("interactable"):
+				if Input.is_action_just_pressed("interact"):
+					hit_object.call("use")
+				label.text = "Press 'E' to use " + hit_object.name
+				label.visible = true
+				return
+				
+	label.visible = false
 
 func handle_jumping():
 	if jumping_enabled:
