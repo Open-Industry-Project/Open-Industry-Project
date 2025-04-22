@@ -119,7 +119,7 @@ albedo_texture = ExtResource("6_xxu0y")
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_xxu0y"]
 
-[node name="BoxSpawner" type="Node3D" groups=["interactable"]]
+[node name="BoxSpawner" type="Node3D"]
 transform = Transform3D(1, 2.30012e-09, -9.31322e-10, -2.30012e-09, 1, 8.84756e-09, 9.31322e-10, -8.84756e-09, 1, 0, 0, 0)
 script = ExtResource("1_hb8rk")
 scene = ExtResource("2_2xggy")

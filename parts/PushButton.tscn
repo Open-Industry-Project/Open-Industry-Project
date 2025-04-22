@@ -64,9 +64,9 @@ uppercase = true
 depth = 0.004
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_kcxih"]
-size = Vector3(0.5, 0.5, 0.4)
+size = Vector3(0.5, 0.5, 0.5)
 
-[node name="PushButton" type="Node3D" groups=["interactable"]]
+[node name="PushButton" type="Node3D"]
 script = ExtResource("1_kcxih")
 metadata/_edit_group_ = true
 

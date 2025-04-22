@@ -112,7 +112,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_jl6cr")
 
-[node name="Box" type="Node3D" groups=["interactable"]]
+[node name="Box" type="Node3D"]
 top_level = true
 script = ExtResource("1_jl6cr")
 metadata/_edit_group_ = true
@@ -124,6 +124,7 @@ collision_mask = 15
 mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_jt2n8")
 can_sleep = false
+freeze = true
 continuous_cd = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
