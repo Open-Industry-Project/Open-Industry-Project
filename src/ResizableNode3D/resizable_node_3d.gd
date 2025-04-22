@@ -1,5 +1,5 @@
-extends Node3D
 class_name ResizableNode3D
+extends Node3D
 
 ## Minimum allowed value for the size property.
 ## The size property will be automatically constrained accordingly.
