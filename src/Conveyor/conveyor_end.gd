@@ -15,21 +15,26 @@ var mesh: MeshInstance3D
 var belt_material: ShaderMaterial
 var metal_material: ShaderMaterial
 
+
 static func _get_constrained_size(new_size: Vector3) -> Vector3:
 	var height := new_size.y
 	new_size.x = height / 2.0
 	return new_size
 
+
 func _init() -> void:
 	SIZE_MIN = Vector3(0.01, 0.02, 0.01)
+
 
 func _on_instantiated():
 	_setup_references()
 	_setup_materials()
 	_on_size_changed()
 
+
 func _ready() -> void:
 	pass
+
 
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
@@ -39,13 +44,16 @@ func _physics_process(delta: float) -> void:
 			belt_position = 0.0
 		_update_belt_material_position()
 
+
 func _on_simulation_started() -> void:
 	_update_belt_velocity()
+
 
 func _on_simulation_ended() -> void:
 	belt_position = 0.0
 	_update_belt_material_position()
 	_update_belt_velocity()
+
 
 func _setup_references() -> void:
 	static_body = get_node("StaticBody3D") as StaticBody3D
@@ -53,11 +61,13 @@ func _setup_references() -> void:
 	belt_material = mesh.mesh.surface_get_material(0) as ShaderMaterial
 	metal_material = mesh.mesh.surface_get_material(1) as ShaderMaterial
 
+
 func _setup_materials() -> void:
 	belt_material = mesh.mesh.surface_get_material(0).duplicate() as ShaderMaterial
 	metal_material = mesh.mesh.surface_get_material(1).duplicate() as ShaderMaterial
 	mesh.set_surface_override_material(0, belt_material)
 	mesh.set_surface_override_material(1, metal_material)
+
 
 func _update_belt_material_scale() -> void:
 	const BASE_RADIUS := 0.25
@@ -68,14 +78,17 @@ func _update_belt_material_scale() -> void:
 	if belt_material && Speed != 0:
 		(belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(Speed))
 
+
 func _update_metal_material_scale() -> void:
 	if metal_material:
 		(metal_material as ShaderMaterial).set_shader_parameter("Scale", mesh.scale.x)
 		(metal_material as ShaderMaterial).set_shader_parameter("Scale2", mesh.scale.y)
 
+
 func _update_belt_material_position() -> void:
 	if belt_material:
 		(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(-Speed))
+
 
 func _on_size_changed():
 	if not (get_node_or_null("MeshInstance3D") and get_node_and_resource("StaticBody3D/CollisionShape3D:shape")[1]):
@@ -91,6 +104,7 @@ func _on_size_changed():
 	_update_belt_material_scale()
 	_update_metal_material_scale()
 	_update_belt_velocity()
+
 
 func _update_belt_velocity():
 	if SimulationEvents.simulation_running:
