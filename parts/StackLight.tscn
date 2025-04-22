@@ -21,9 +21,9 @@ script = ExtResource("2_v0hgu")
 segment_datas = [SubResource("Resource_v0hgu")]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_w3ou4"]
-size = Vector3(0.05, 1.8, 0.05)
+size = Vector3(0.1, 1.8, 0.1)
 
-[node name="StackLight" type="Node3D" groups=["interactable"]]
+[node name="StackLight" type="Node3D"]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
 script = ExtResource("1_vxp13")
 tag_group_name = "TagGroup0"

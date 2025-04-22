@@ -50,6 +50,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 			if(character_spawned == false):
 				return
 			
+			character.release_held_box()
 			var walk_camera : Camera3D = character.find_child("Camera", true, false)
 			_camera.global_transform  = walk_camera.global_transform		
 			canvas_viewport.gui_disable_input = true

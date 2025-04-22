@@ -388,6 +388,9 @@ pixel_size = 0.0003
 billboard = 1
 font_size = 64
 
+[node name="Marker3D" type="Marker3D" parent="Head/Camera"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.704693, -0.96941)
+
 [node name="HeadbobAnimation" type="AnimationPlayer" parent="Head"]
 libraries = {
 &"": SubResource("AnimationLibrary_o0unb")

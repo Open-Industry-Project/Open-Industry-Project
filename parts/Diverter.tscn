@@ -6,7 +6,7 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_n8u7v"]
 size = Vector3(0.722412, 1.19974, 2.12695)
 
-[node name="Diverter" type="Node3D" groups=["interactable"]]
+[node name="Diverter" type="Node3D"]
 script = ExtResource("1_8wula")
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true

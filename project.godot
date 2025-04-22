@@ -43,10 +43,6 @@ enabled=PackedStringArray("res://addons/oip_comms/plugin.cfg", "res://addons/oip
 import/blender/enabled=false
 import/fbx/enabled=false
 
-[global_group]
-
-interactable="Used to interact with objects"
-
 [input]
 
 w={
