@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=4 uid="uid://bq16fe5njnr2i"]
 
-[ext_resource type="Script" uid="uid://dcenj3lymfh8n" path="res://src/Box/box.gd" id="1_jl6cr"]
+[ext_resource type="Script" uid="uid://dcenj3lymfh8n" path="res://src/Box/Box.gd" id="1_jl6cr"]
 [ext_resource type="Texture2D" uid="uid://jf0rgqy7atfe" path="res://src/Box/Box_Cardboard box 24.png" id="2_bpads"]
 [ext_resource type="Texture2D" uid="uid://csdxeq0v42ln0" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_roughness.png" id="3_rqr71"]
 [ext_resource type="Texture2D" uid="uid://dh3q2sjb870tg" path="res://src/Box/Box_TexturesCom_Cardboard_Dirty_1K_normal.png" id="4_y5qrc"]
@@ -119,11 +119,12 @@ metadata/_edit_group_ = true
 
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
 process_mode = 3
-collision_layer = 8
+collision_layer = 10
 collision_mask = 15
 mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_jt2n8")
 can_sleep = false
+freeze = true
 continuous_cd = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
