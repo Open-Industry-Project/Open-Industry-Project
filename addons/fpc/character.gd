@@ -8,7 +8,7 @@ extends CharacterBody3D
 
 @onready var label = $Head/Camera/InteractText
 @onready var hold_point = $Head/Camera/Marker3D
-var HELD_BOX : Node3D = null
+var HELD_BOX : Box = null
 
 ## The settings for the character's movement and feel.
 @export_category("Character")
@@ -234,12 +234,9 @@ func handle_interaction():
 		return
 	
 	var hit_object = result.collider.get_parent()
-	if not hit_object: 
-		label.visible = false
-		return
-		
+	
 	# Handle box interaction
-	if hit_object.has_method("use") and hit_object.has_method("use_box"):
+	if hit_object is Box:
 		label.text = "Press 'E' to pick up!"
 		label.visible = true
 		
@@ -261,12 +258,11 @@ func handle_interaction():
 # Make box to be held in front of character
 func update_held_box(delta):
 	var rigid = HELD_BOX.get_node("RigidBody3D")
-	var target = hold_point.global_transform
-	var current = rigid.global_transform
 	
-	current.origin = current.origin.lerp(target.origin, 8 * delta)
-	current.basis = target.basis
-	rigid.global_transform = current
+	rigid.gravity_scale = 0
+	
+	rigid.global_position = rigid.global_position.lerp(hold_point.global_position, 8 * delta)
+	rigid.global_rotation = hold_point.global_rotation
 	
 	label.visible = false
 	
@@ -278,13 +274,9 @@ func pick_up_box(box):
 	
 func release_held_box():
 	if HELD_BOX:
-		var rigid = HELD_BOX.get_node("RigidBody3D")
-		rigid.get_node("CollisionShape3D").disabled = false
-		rigid.freeze = false
-		rigid.sleeping = true
-		rigid.global_transform.origin = hold_point.global_transform.origin
-		if rigid:
-			rigid.sleeping = false
+		var box = HELD_BOX.get_node("RigidBody3D")
+		box.gravity_scale = 1
+		box.freeze = false
 		HELD_BOX = null
 
 func handle_jumping():
@@ -299,7 +291,6 @@ func handle_jumping():
 				if jump_animation:
 					JUMP_ANIMATION.play("jump", 0.25)
 				velocity.y += jump_velocity
-
 
 func handle_movement(delta, input_dir):
 	var forward = HEAD.global_transform.basis.z
