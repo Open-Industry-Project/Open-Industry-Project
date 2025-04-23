@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://c2qoafuw6id5v"]
+
+[ext_resource type="Script" uid="uid://bly2r1sqb01u5" path="res://parts/generic_data.gd" id="1_18pcd"]
+
+[node name="GenericData" type="Node"]
+script = ExtResource("1_18pcd")
+tag_group_name = "TagGroup0"
