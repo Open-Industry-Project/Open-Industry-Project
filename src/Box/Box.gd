@@ -56,7 +56,7 @@ func selected() -> void:
 
 func use() -> void:
 	rigid_body_3d.freeze = not rigid_body_3d.freeze
-
+	
 func _on_simulation_started() -> void:
 	if(_enable_inital_transform):
 		return

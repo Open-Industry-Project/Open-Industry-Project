@@ -6,6 +6,9 @@
 
 extends CharacterBody3D
 
+@onready var label = $Head/Camera/InteractText
+@onready var hold_point = $Head/Camera/Marker3D
+var HELD_BOX : Box = null
 
 ## The settings for the character's movement and feel.
 @export_category("Character")
@@ -188,7 +191,12 @@ func _physics_process(delta):
 	if !immobile: # Immobility works by interrupting user input, so other forces can still be applied to the player
 		input_dir = Input.get_vector(LEFT, RIGHT, FORWARD, BACKWARD)
 	handle_movement(delta, input_dir)
-
+	
+	if HELD_BOX:
+		update_held_box(delta)
+	else:
+		handle_interaction()
+	
 	handle_head_rotation()
 	
 	# The player is not able to stand up if the ceiling is too low
@@ -210,7 +218,66 @@ func _physics_process(delta):
 					JUMP_ANIMATION.play("land_right", 0.25)
 	
 	was_on_floor = is_on_floor() # This must always be at the end of physics_process
+	
+func handle_interaction():
+	# Define ray start and end positions based on camera direction (3m current range)
+	var start_pos = CAMERA.global_transform.origin
+	var end_pos = start_pos + -CAMERA.global_transform.basis.z * 3.0
 
+	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos)
+	query.collision_mask = 2
+	query.collide_with_areas = true
+
+	var result = get_world_3d().direct_space_state.intersect_ray(query)
+	if not result: 
+		label.visible = false
+		return
+	
+	var hit_object = result.collider.get_parent()
+	
+	# Handle box interaction
+	if hit_object is Box:
+		label.text = "Press 'E' to pick up!"
+		label.visible = true
+		
+		if Input.is_action_just_pressed("interact"):
+			pick_up_box(hit_object)
+		return
+		
+	# Handle general interaction
+	if hit_object.has_method("use"):
+		label.text = "Press 'E' to use " + hit_object.name
+		label.visible = true
+		
+		if Input.is_action_just_pressed("interact"):
+			hit_object.call("use")
+		return
+		
+	label.visible = false
+	
+# Make box to be held in front of character
+func update_held_box(delta):
+	var rigid = HELD_BOX.get_node("RigidBody3D")
+	
+	rigid.gravity_scale = 0
+	
+	rigid.global_position = rigid.global_position.lerp(hold_point.global_position, 8 * delta)
+	rigid.global_rotation = hold_point.global_rotation
+	
+	label.visible = false
+	
+	if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("release_box"):
+		release_held_box()
+	
+func pick_up_box(box):
+	HELD_BOX = box
+	
+func release_held_box():
+	if HELD_BOX:
+		var box = HELD_BOX.get_node("RigidBody3D")
+		box.gravity_scale = 1
+		box.freeze = false
+		HELD_BOX = null
 
 func handle_jumping():
 	if jumping_enabled:
@@ -224,7 +291,6 @@ func handle_jumping():
 				if jump_animation:
 					JUMP_ANIMATION.play("jump", 0.25)
 				velocity.y += jump_velocity
-
 
 func handle_movement(delta, input_dir):
 	var forward = HEAD.global_transform.basis.z

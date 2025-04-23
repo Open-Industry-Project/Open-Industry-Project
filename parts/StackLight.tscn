@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://drle8i15nwr68"]
+[gd_scene load_steps=12 format=3 uid="uid://drle8i15nwr68"]
 
 [ext_resource type="Script" uid="uid://btas2578kr5b7" path="res://src/StackLight/stack_light.gd" id="1_vxp13"]
 [ext_resource type="Script" uid="uid://bl7o7avq4pi78" path="res://src/StackLight/stack_light_data.gd" id="2_v0hgu"]
@@ -20,6 +20,9 @@ resource_local_to_scene = true
 script = ExtResource("2_v0hgu")
 segment_datas = [SubResource("Resource_v0hgu")]
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_w3ou4"]
+size = Vector3(0.1, 1.8, 0.1)
+
 [node name="StackLight" type="Node3D"]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
 script = ExtResource("1_vxp13")
@@ -28,9 +31,6 @@ light_value = 0
 Segments = 1
 data = SubResource("Resource_oqsfm")
 "Light 1" = SubResource("Resource_v0hgu")
-enable_comms = false
-tag_groups = "TagGroup0"
-tag_name = ""
 metadata/_edit_group_ = true
 
 [node name="Bottom" type="MeshInstance3D" parent="."]
@@ -54,3 +54,11 @@ segment_data = SubResource("Resource_v0hgu")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.087, 0)
 mesh = ExtResource("9_hoqsd")
 skeleton = NodePath("../..")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.107774)
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.89616, -0.107057)
+shape = SubResource("BoxShape3D_w3ou4")
