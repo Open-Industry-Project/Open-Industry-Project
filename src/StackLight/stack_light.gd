@@ -10,8 +10,6 @@ var prev_scale: Vector3
 
 var Segments: int = 1:
 	set(value):
-		if value == Segments or SimulationEvents.simulation_running:
-			return
 		var new_value: int = clamp(value, 1, 10)
 		if new_value == Segments: return
 		
