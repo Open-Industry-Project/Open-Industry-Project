@@ -277,6 +277,8 @@ func release_held_box():
 		var box = HELD_BOX.get_node("RigidBody3D")
 		box.gravity_scale = 1
 		box.freeze = false
+		box.linear_velocity = Vector3.ZERO
+		box.angular_velocity = Vector3.ZERO
 		HELD_BOX = null
 
 func handle_jumping():
