@@ -1,5 +1,5 @@
 class_name ResizableNode3D
-extends Node3D
+extends EnhancedNode3D
 
 ## Minimum allowed value for the size property.
 ## The size property will be automatically constrained accordingly.
@@ -14,32 +14,6 @@ var SIZE_DEFAULT = Vector3.ONE
 		if has_changed:
 			size = constrained_size
 			_on_size_changed()
-
-
-func _notification(what: int):
-	# Custom notification number.
-	# This would be better implemented in the engine.
-	const NOTIFICATION_OWNER_SCENE_INSTANTIATED = 9999
-	match what:
-		NOTIFICATION_SCENE_INSTANTIATED:
-			_on_scene_instantiated()
-			# Walk the tree to send NOTIFICATION_OWNER_SCENE_INSTANTIATED
-			var nodes_remaining: Array[Node] = get_children(true)
-			while nodes_remaining:
-				var descendent = nodes_remaining.pop_front()
-				nodes_remaining.append_array(descendent.get_children(true))
-				if descendent.owner == self:
-					descendent.notification(NOTIFICATION_OWNER_SCENE_INSTANTIATED)
-		NOTIFICATION_OWNER_SCENE_INSTANTIATED:
-			_on_owner_scene_instantiated()
-
-
-func _on_scene_instantiated() -> void:
-	_on_instantiated()
-
-
-func _on_owner_scene_instantiated() -> void:
-	_on_instantiated()
 
 
 func _on_instantiated() -> void:
