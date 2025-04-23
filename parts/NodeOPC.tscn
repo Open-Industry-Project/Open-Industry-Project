@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://c2qoafuw6id5v"]
-
-[ext_resource type="Script" uid="uid://dnb3aexkid3o2" path="res://src/NodeOPC/NodeOPC.cs" id="1_2ed6x"]
-
-[node name="NodeOPC" type="Node"]
-script = ExtResource("1_2ed6x")
