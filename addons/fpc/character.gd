@@ -266,7 +266,7 @@ func update_held_box(delta):
 	
 	label.visible = false
 	
-	if Input.is_action_just_pressed("interact"):
+	if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("release_box"):
 		release_held_box()
 	
 func pick_up_box(box):
