@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://mabnuj1tnqlo"]
+[gd_scene load_steps=5 format=3 uid="uid://mabnuj1tnqlo"]
 
 [ext_resource type="Script" uid="uid://dpeg2oajgjsu3" path="res://src/Conveyor/belt_conveyor_assembly.gd" id="1_upkoq"]
 [ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="2_rxjsx"]
+[ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://src/SideGuards/SideGuardsAssembly.tscn" id="3_rxjsx"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
@@ -10,4 +11,7 @@ friction = 0.5
 script = ExtResource("1_upkoq")
 
 [node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
+unique_name_in_owner = true
+
+[node name="SideGuardsAssembly" parent="Conveyor" instance=ExtResource("3_rxjsx")]
 unique_name_in_owner = true
