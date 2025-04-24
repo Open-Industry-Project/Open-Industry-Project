@@ -1,6 +1,8 @@
 class_name ResizableNode3D
 extends EnhancedNode3D
 
+signal size_changed
+
 ## Minimum allowed value for the size property.
 ## The size property will be automatically constrained accordingly.
 var SIZE_MIN = Vector3(0.01, 0.01, 0.01)
@@ -14,6 +16,7 @@ var SIZE_DEFAULT = Vector3.ONE
 		if has_changed:
 			size = constrained_size
 			_on_size_changed()
+			emit_signal("size_changed")
 
 
 func _on_instantiated() -> void:
