@@ -5,9 +5,9 @@ class_name PushButton
 @export var text: String = "STOP":
 	set(value):
 		text = value
-		var _text_mesh_instance: MeshInstance3D = $TextMesh
-		var _text_mesh: TextMesh = _text_mesh_instance.mesh
-		_text_mesh.text = text
+		var _text: Label3D = $Text
+		_text.text = text
+		
 
 @export var toggle: bool = false:
 	set(value):

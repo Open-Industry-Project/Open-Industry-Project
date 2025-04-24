@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://gddgyvex6gdj"]
+[gd_scene load_steps=12 format=4 uid="uid://gddgyvex6gdj"]
 
 [ext_resource type="ArrayMesh" uid="uid://cigybp2vspbf8" path="res://assets/3DModels/PushButton/Meshes/PushButton_Plane_001.res" id="1_7mqik"]
 [ext_resource type="Script" uid="uid://du1fxhc85e8jp" path="res://src/PushButton/push_button.gd" id="1_kcxih"]
@@ -52,17 +52,6 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_raix2")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yo721"]
-albedo_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
-
-[sub_resource type="TextMesh" id="TextMesh_hc61d"]
-resource_local_to_scene = true
-material = SubResource("StandardMaterial3D_yo721")
-text = "STOP"
-font_size = 3
-uppercase = true
-depth = 0.004
-
 [sub_resource type="BoxShape3D" id="BoxShape3D_kcxih"]
 size = Vector3(0.5, 0.415131, 0.292805)
 
@@ -106,9 +95,12 @@ skeleton = NodePath("")
 mesh = ExtResource("7_75p7m")
 skeleton = NodePath("")
 
-[node name="TextMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.145237, 0.228853)
-mesh = SubResource("TextMesh_hc61d")
+[node name="Text" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00140679, 0.132016, 0.22899)
+pixel_size = 0.0004
+modulate = Color(0, 0, 0, 1)
+text = "STOP"
+font_size = 77
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.107774)
