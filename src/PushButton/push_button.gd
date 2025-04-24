@@ -104,7 +104,10 @@ func reset_pushbutton() -> void:
 	pushbutton = false
 
 func _ready() -> void:
-	pass
+	var mesh: Mesh = _button_mesh.mesh.duplicate()
+	var mat: StandardMaterial3D = mesh.surface_get_material(0).duplicate()
+	mesh.surface_set_material(0, mat)
+	_button_mesh.mesh = mesh
 
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
