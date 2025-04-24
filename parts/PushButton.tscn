@@ -64,7 +64,7 @@ uppercase = true
 depth = 0.004
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_kcxih"]
-size = Vector3(0.5, 0.5, 0.5)
+size = Vector3(0.5, 0.415131, 0.292805)
 
 [node name="PushButton" type="Node3D"]
 script = ExtResource("1_kcxih")
@@ -115,4 +115,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.107774)
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.034793)
 shape = SubResource("BoxShape3D_kcxih")
