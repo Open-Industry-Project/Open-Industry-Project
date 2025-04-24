@@ -53,6 +53,7 @@ var _enable_comms_changed = false:
 		tag_groups = value
 		
 @export var tag_name := ""
+@export var setup := false
 
 func _validate_property(property: Dictionary):
 	if property.name == "tag_group_name":
@@ -63,6 +64,8 @@ func _validate_property(property: Dictionary):
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "tag_name":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "setup":
+		property.usage = PROPERTY_USAGE_STORAGE
 
 func _property_can_revert(property: StringName) -> bool:
 	return property == "tag_groups"
@@ -74,6 +77,10 @@ func _property_get_revert(property: StringName) -> Variant:
 		return
 
 func _enter_tree() -> void:
+	if not setup:
+		tag_value = false
+		setup = true
+	
 	tag_group_original = tag_group_name
 	if(tag_group_name.is_empty()):
 		tag_group_name = OIPComms.get_tag_groups()[0]

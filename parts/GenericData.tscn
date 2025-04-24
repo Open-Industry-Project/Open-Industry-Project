@@ -4,4 +4,6 @@
 
 [node name="GenericData" type="Node"]
 script = ExtResource("1_18pcd")
+tag_value = false
 tag_group_name = "TagGroup0"
+setup = true
