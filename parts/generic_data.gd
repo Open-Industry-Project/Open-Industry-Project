@@ -23,7 +23,7 @@ enum Datatype {
 
 @export var tag_value: Variant:
 	set(value):
-		if value == tag_value:
+		if is_same(value,tag_value):
 			return
 		tag_value = value
 		match data_type:
