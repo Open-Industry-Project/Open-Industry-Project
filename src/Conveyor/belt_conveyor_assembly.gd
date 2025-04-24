@@ -3,6 +3,34 @@ class_name BeltConveyorAssembly
 extends EnhancedNode3D
 
 const CONVEYOR_CLASS_NAME = "BeltConveyor"
+const SIDE_GUARDS_SCRIPT_PATH = "res://src/SideGuards/side_guards_assembly.gd"
+const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
+
+@export_category(SIDE_GUARDS_SCRIPT_FILENAME)
+@export var sideguards_right_side: bool = true:
+	get:
+		if has_instantiated:
+			return %SideGuardsAssembly.right_side
+		else:
+			return sideguards_right_side
+	set(value):
+		if has_instantiated:
+			%SideGuardsAssembly.right_side = value
+		else:
+			sideguards_right_side = value
+@export var sideguards_left_side: bool = true:
+	get:
+		if has_instantiated:
+			return %SideGuardsAssembly.left_side
+		else:
+			return sideguards_left_side
+	set(value):
+		if has_instantiated:
+			%SideGuardsAssembly.left_side = value
+		else:
+			sideguards_left_side = value
+
+
 var conveyor_script: Script
 var has_instantiated := false
 var cached_property_values: Dictionary = {}
@@ -18,6 +46,16 @@ func _get_property_list() -> Array[Dictionary]:
 	# Expose the conveyor's properties as our own.
 	#print("_get_property_list()")
 	return _get_conveyor_forwarded_properties()
+
+
+func _validate_property(property: Dictionary) -> void:
+	#print("_validate_property(%s)" % property)
+	if property[&"name"] == SIDE_GUARDS_SCRIPT_FILENAME \
+			&& property[&"usage"] & PROPERTY_USAGE_CATEGORY:
+		# Link the category to a script.
+		# This will make the category show the script class and icon as if we inherited from it.
+		assert(SIDE_GUARDS_SCRIPT_PATH.get_file() == SIDE_GUARDS_SCRIPT_FILENAME, "SIDE_GUARDS_SCRIPT_PATH doesn't match SIDE_GUARDS_SCRIPT_FILENAME")
+		property[&"hint_string"] = SIDE_GUARDS_SCRIPT_PATH
 
 
 func _set(property: StringName, value: Variant) -> bool:
