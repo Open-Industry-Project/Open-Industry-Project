@@ -139,6 +139,8 @@ func _property_get_revert(property: StringName) -> Variant:
 
 func _on_instantiated() -> void:
 	# Copy cached values to conveyor instance, now that it's available.
+	# Godot actually calls the setters for us an extra time, so this step isn't actually needed right now.
+	# But it's here just in case that changes.
 	for property in cached_property_values:
 		var value = cached_property_values[property]
 		%Conveyor.set(property, value)
