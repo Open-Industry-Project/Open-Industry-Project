@@ -7,6 +7,7 @@ const SIDE_GUARDS_SCRIPT_PATH = "res://src/SideGuards/side_guards_assembly.gd"
 const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
 
 @export_category(SIDE_GUARDS_SCRIPT_FILENAME)
+@export_group("Side Guards", "sideguards")
 @export var sideguards_right_side: bool = true:
 	get:
 		if has_instantiated:
@@ -18,6 +19,17 @@ const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
 			%SideGuardsAssembly.right_side = value
 		else:
 			sideguards_right_side = value
+@export var sideguards_right_side_openings: Array[SideGuardOpening] = []:
+	get:
+		if has_instantiated:
+			return %SideGuardsAssembly.right_side_openings
+		else:
+			return sideguards_right_side_openings
+	set(value):
+		if has_instantiated:
+			%SideGuardsAssembly.right_side_openings = value
+		else:
+			sideguards_right_side_openings = value
 @export var sideguards_left_side: bool = true:
 	get:
 		if has_instantiated:
@@ -29,6 +41,17 @@ const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
 			%SideGuardsAssembly.left_side = value
 		else:
 			sideguards_left_side = value
+@export var sideguards_left_side_openings: Array[SideGuardOpening] = []:
+	get:
+		if has_instantiated:
+			return %SideGuardsAssembly.left_side_openings
+		else:
+			return sideguards_left_side_openings
+	set(value):
+		if has_instantiated:
+			%SideGuardsAssembly.left_side_openings = value
+		else:
+			sideguards_left_side_openings = value
 
 
 var conveyor_script: Script
