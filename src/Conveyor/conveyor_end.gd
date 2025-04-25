@@ -69,6 +69,14 @@ func _setup_materials() -> void:
 	mesh.set_surface_override_material(1, metal_material)
 
 
+func fix_material_overrides() -> void:
+	# This is necessary because the editor's duplication action will overwrite our materials after we've initialized them.
+	if mesh.get_surface_override_material(0) != belt_material:
+		mesh.set_surface_override_material(0, belt_material)
+	if mesh.get_surface_override_material(1) != metal_material:
+		mesh.set_surface_override_material(1, metal_material)
+
+
 func _update_belt_material_scale() -> void:
 	const BASE_RADIUS := 0.25
 	const BASE_BELT_LENGTH := PI * BASE_RADIUS
@@ -77,17 +85,20 @@ func _update_belt_material_scale() -> void:
 	var belt_scale: float = belt_length / BASE_BELT_LENGTH
 	if belt_material && Speed != 0:
 		(belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(Speed))
+		fix_material_overrides()
 
 
 func _update_metal_material_scale() -> void:
 	if metal_material:
 		(metal_material as ShaderMaterial).set_shader_parameter("Scale", mesh.scale.x)
 		(metal_material as ShaderMaterial).set_shader_parameter("Scale2", mesh.scale.y)
+		fix_material_overrides()
 
 
 func _update_belt_material_position() -> void:
 	if belt_material:
 		(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(-Speed))
+		fix_material_overrides()
 
 
 func _on_size_changed():

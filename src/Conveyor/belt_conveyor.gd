@@ -189,22 +189,38 @@ func _setup_materials() -> void:
 	mesh.set_surface_override_material(2, metal_material)
 
 
+func fix_material_overrides() -> void:
+	# This is necessary because the editor's duplication action will overwrite our materials after we've initialized them.
+	if mesh.get_surface_override_material(0) != belt_material:
+		mesh.set_surface_override_material(0, belt_material)
+	if mesh.get_surface_override_material(1) != metal_material:
+		mesh.set_surface_override_material(1, metal_material)
+	if mesh.get_surface_override_material(2) != metal_material:
+		mesh.set_surface_override_material(2, metal_material)
+
+
 func _update_material_texture() -> void:
 	if belt_material:
 		belt_material.set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		fix_material_overrides()
 	if ce1 and ce1.belt_material:
 		ce1.belt_material.set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		ce1.fix_material_overrides()
 	if ce2 and ce2.belt_material:
 		ce2.belt_material.set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		ce2.fix_material_overrides()
 
 
 func _update_material_color() -> void:
 	if belt_material:
 		belt_material.set_shader_parameter("ColorMix", BeltColor)
+		fix_material_overrides()
 	if ce1 and ce1.belt_material:
 		ce1.belt_material.set_shader_parameter("ColorMix", BeltColor)
+		ce1.fix_material_overrides()
 	if ce2 and ce2.belt_material:
 		ce2.belt_material.set_shader_parameter("ColorMix", BeltColor)
+		ce2.fix_material_overrides()
 
 
 func _update_speed() -> void:
@@ -228,12 +244,14 @@ func _update_physics_material() -> void:
 func _update_belt_material_scale() -> void:
 	if belt_material and Speed != 0:
 		(belt_material as ShaderMaterial).set_shader_parameter("Scale", mesh.scale.x * sign(Speed))
+		fix_material_overrides()
 
 
 func _update_metal_material_scale() -> void:
 	if metal_material:
 		(metal_material as ShaderMaterial).set_shader_parameter("Scale", mesh.scale.x)
 		(metal_material as ShaderMaterial).set_shader_parameter("Scale2", mesh.scale.y)
+		fix_material_overrides()
 
 
 func _on_size_changed() -> void:
