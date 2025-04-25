@@ -68,11 +68,13 @@ func _validate_property(property: Dictionary):
 		property.usage = PROPERTY_USAGE_STORAGE
 
 func _property_can_revert(property: StringName) -> bool:
-	return property == "tag_groups"
+	return property == "tag_groups" || property == "tag_value"
 
 func _property_get_revert(property: StringName) -> Variant:
 	if property == "tag_groups":
 		return tag_group_original
+	elif property == "tag_value":
+		return tag_value
 	else:
 		return
 
