@@ -63,7 +63,9 @@ var _button_pressed_z_pos: float = -0.04
 var register_pushbutton_tag_ok := false
 var register_lamp_tag_ok := false
 var pushbutton_tag_group_init := false
+var pushbutton_tag_group_original: String
 var lamp_tag_group_init := false
+var lamp_tag_group_original: String
 var _enable_comms_changed = false:
 	set(value):
 		notify_property_list_changed()
@@ -74,7 +76,7 @@ var _enable_comms_changed = false:
 @export_custom(0,"tag_group_enum") var pushbutton_tag_groups:
 	set(value):
 		pushbutton_tag_group_name = value
-		pushbutton = value
+		pushbutton_tag_groups = value
 @export var pushbutton_tag_name := ""
 @export var lamp_tag_group_name: String
 @export_custom(0,"tag_group_enum") var lamp_tag_groups:
@@ -109,7 +111,32 @@ func _ready() -> void:
 	mesh.surface_set_material(0, mat)
 	_button_mesh.mesh = mesh
 
+func _property_can_revert(property: StringName) -> bool:
+	return property == "pushbutton_tag_groups" || property == "lamp_tag_groups"
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property == "pushbutton_tag_groups":
+		return pushbutton_tag_group_original
+	elif property == "lamp_tag_groups":
+		return lamp_tag_group_original
+	else:
+		return
+		
 func _enter_tree() -> void:
+	pushbutton_tag_group_original = pushbutton_tag_group_name
+	if(pushbutton_tag_group_name.is_empty()):
+		pushbutton_tag_group_name = OIPComms.get_tag_groups()[0]
+		pushbutton_tag_group_original = pushbutton_tag_group_name
+
+	pushbutton_tag_groups = pushbutton_tag_group_name
+	
+	lamp_tag_group_original = lamp_tag_group_name
+	if(lamp_tag_group_name.is_empty()):
+		lamp_tag_group_name = OIPComms.get_tag_groups()[0]
+		lamp_tag_group_original = lamp_tag_group_name
+
+	lamp_tag_groups = lamp_tag_group_name
+	
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms)
