@@ -138,6 +138,9 @@ func _property_get_revert(property: StringName) -> Variant:
 
 
 func _on_instantiated() -> void:
+	# Keep property list in sync with child's.
+	%Conveyor.property_list_changed.connect(notify_property_list_changed)
+
 	# Copy cached values to conveyor instance, now that it's available.
 	# Godot actually calls the setters for us an extra time, so this step isn't actually needed right now.
 	# But it's here just in case that changes.
