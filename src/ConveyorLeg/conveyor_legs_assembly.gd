@@ -1,0 +1,651 @@
+@tool
+class_name ConveyorLegsAssembly
+extends Node3D
+
+# Workarounds for renaming class
+var assembly: EnhancedNode3D:
+	get:
+		return get_parent()
+
+var conveyor: ResizableNode3D:
+	get:
+		return get_parent()
+
+var apparent_transform: Transform3D:
+	get:
+		return transform
+	set(value):
+		transform = value
+
+# Region Leg Stands
+# Region Constants
+const LEG_STANDS_BASE_WIDTH = 2.0
+const AUTO_LEG_STAND_NAME_PREFIX = "ConveyorLeg"
+const AUTO_LEG_STAND_NAME_FRONT = "ConveyorLegHead"
+const AUTO_LEG_STAND_NAME_REAR = "ConveyorLegTail"
+
+enum LegIndex {
+	FRONT = -1,
+	REAR = -2,
+	NON_AUTO = -3,
+}
+
+@export_custom(PROPERTY_HINT_NONE, "suffix:m")
+var floor_offset: float:
+	get:
+		return get_floor_offset()
+	set(value):
+		set_floor_offset(value)
+@export
+var floor_offset_lock := false
+@export_custom(PROPERTY_HINT_NONE, "radians_as_degrees")
+var floor_angle: float:
+	set(value):
+		floor_angle = value
+		set_floor_angle(value)
+
+
+@export_group("Middle Legs", "middle_legs")
+@export
+var middle_legs_enabled := false:
+	set(value):
+		if middle_legs_enabled != value:
+			middle_legs_enabled = value
+			set_needs_update(true)
+@export_range(-5, 5, 0.01, "or_less", "or_greater", "suffix:m")
+var middle_legs_initial_leg_position: float:
+	get:
+		return get_middle_legs_initial_leg_position()
+	set(value):
+		set_middle_legs_initial_leg_position(value)
+@export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
+var middle_legs_spacing: float = 2:
+	set(value):
+		if middle_legs_spacing != value:
+			middle_legs_spacing = value
+			set_needs_update(true)
+
+
+@export_group("Head End", "head_end")
+@export_range(0, 1, 0.01, "or_greater", "suffix:m")
+var head_end_attachment_offset: float = 0.45:
+	set(value):
+		if head_end_attachment_offset != value:
+			head_end_attachment_offset = value
+			update_leg_stand_coverage()
+@export
+var head_end_leg_enabled: bool = true:
+	set(value):
+		if head_end_leg_enabled != value:
+			head_end_leg_enabled = value
+			set_needs_update(true)
+@export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
+var head_end_leg_clearance: float = 0.5:
+	set(value):
+		if head_end_leg_clearance != value:
+			head_end_leg_clearance = value
+			set_needs_update(true)
+
+
+@export_group("Tail End", "tail_end")
+@export_range(0, 1, 0.01, "or_greater", "suffix:m")
+var tail_end_attachment_offset: float = 0.45:
+	set(value):
+		if tail_end_attachment_offset != value:
+			tail_end_attachment_offset = value
+			update_leg_stand_coverage()
+@export
+var tail_end_leg_enabled: bool = true:
+	set(value):
+		if tail_end_leg_enabled != value:
+			tail_end_leg_enabled = value
+			set_needs_update(true)
+@export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
+var tail_end_leg_clearance: float = 0.5:
+	set(value):
+		if tail_end_leg_clearance != value:
+			tail_end_leg_clearance = value
+			set_needs_update(true)
+
+
+@export_group("Model", "leg_model")
+@export
+var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
+	set(value):
+		if leg_model_scene != value:
+			leg_model_scene = value
+			update_leg_stands_height_and_visibility()
+			update_leg_stand_coverage()
+@export
+var leg_model_grabs_offset: float = 0.132:
+	set(value):
+		if leg_model_grabs_offset != value:
+			leg_model_grabs_offset = value
+			update_leg_stands_height_and_visibility()
+			update_leg_stand_coverage()
+
+
+# Configuration change detection fields
+var assembly_transform_prev := Transform3D.IDENTITY
+var conveyors_transform_prev := Transform3D.IDENTITY
+var leg_stands_transform_prev := Transform3D.IDENTITY
+var target_width_prev := NAN
+var conveyor_angle_prev := 0.0
+var middle_legs_enabled_prev := false
+var middle_legs_spacing_prev: float
+var head_end_leg_enabled_prev := false
+var tail_end_leg_enabled_prev := false
+var head_end_leg_clearance_prev := 0.5
+var tail_end_leg_clearance_prev := 0.5
+var leg_model_scene_prev: PackedScene
+
+var leg_stands_path_changed := true
+
+# Fields / Leg stand coverage
+var leg_stand_coverage_min: float
+var leg_stand_coverage_max: float
+var leg_stand_coverage_min_prev: float
+var leg_stand_coverage_max_prev: float
+var leg_stands_coverage_changed := false
+
+# Dictionary to store pre-existing leg stand owners
+var foreign_leg_stands_owners := {}
+
+func _init():
+	pass
+
+func _ready():
+	var edited_scene = get_tree().get_edited_scene_root()
+	for leg_stand in get_children():
+		if leg_stand.owner != edited_scene:
+			foreign_leg_stands_owners[leg_stand.name] = leg_stand.owner
+
+func _notification(what):
+	if what == NOTIFICATION_PARENTED:
+		assembly_transform_prev = get_parent().transform
+		conveyor.size_changed.connect(func():
+			update_leg_stand_coverage()
+			update_leg_stands_height_and_visibility())
+
+func _physics_process(_delta):
+	update_leg_stands()
+	set_needs_update(false)
+
+func set_needs_update(value: bool):
+	set_physics_process(value)
+
+func get_floor_offset() -> float:
+	var normal_y = apparent_transform.basis.y.normalized()
+	return apparent_transform.origin.dot(normal_y)
+
+func set_floor_offset(value: float):
+	var floor_offset = value
+	var interval_offset = get_middle_legs_initial_leg_position()
+	var normal_y = get_floor_normal()
+	var normal_z = apparent_transform.basis.z.normalized()
+	var normal_x = normal_y.cross(normal_z).normalized()
+	var origin = normal_x * interval_offset + normal_y * floor_offset
+	apparent_transform = Transform3D(normal_x, normal_y, normal_z, origin)
+	set_needs_update(true)
+
+func set_floor_angle(value: float):
+	set_local_floor_plane(Plane(get_floor_normal(), get_floor_offset()))
+
+func set_local_floor_plane(local_floor_plane: Plane):
+	var floor_offset = local_floor_plane.d
+	var interval_offset = get_middle_legs_initial_leg_position()
+	var normal_y = local_floor_plane.normal
+	var normal_z = apparent_transform.basis.z.normalized()
+	var normal_x = normal_y.cross(normal_z).normalized()
+	var origin = normal_x * interval_offset + normal_y * floor_offset
+	apparent_transform = Transform3D(normal_x, normal_y, normal_z, origin)
+	update_leg_stand_coverage()
+
+func get_floor_normal() -> Vector3:
+	var assembly_basis = assembly.basis if assembly else Basis.IDENTITY
+	var normal_external = Vector3.UP.rotated(assembly_basis.z.normalized(), floor_angle)
+	var normal_local = assembly_basis.inverse() * normal_external
+	return normal_local.normalized()
+
+func get_middle_legs_initial_leg_position() -> float:
+	var normal_x = apparent_transform.basis.x.normalized()
+	return apparent_transform.origin.dot(normal_x)
+
+func set_middle_legs_initial_leg_position(value: float):
+	var floor_offset = get_floor_offset()
+	var interval_offset = value
+	var normal_y = get_floor_normal()
+	var normal_z = apparent_transform.basis.z.normalized()
+	var normal_x = normal_y.cross(normal_z).normalized()
+	var origin = normal_x * interval_offset + normal_y * floor_offset
+	apparent_transform = Transform3D(normal_x, normal_y, normal_z, origin)
+	update_leg_stand_coverage()
+
+func update_leg_stand_coverage():
+	var coverage = get_leg_stand_coverage()
+	leg_stand_coverage_min = coverage[0]
+	leg_stand_coverage_max = coverage[1]
+	leg_stands_coverage_changed = leg_stand_coverage_min != leg_stand_coverage_min_prev \
+								or leg_stand_coverage_max != leg_stand_coverage_max_prev
+	if leg_stands_coverage_changed:
+		set_needs_update(true)
+
+func get_leg_stand_coverage() -> Array[float]:
+	if not conveyor:
+		return [0.0, 0.0]
+
+	var min_val := INF
+	var max_val := -INF
+
+	# Conveyor's Transform in the legStands space
+	var local_conveyor_transform := transform.affine_inverse()
+
+	# Extent and offset positions in unscaled conveyor space
+	var conveyor_extent_front := Vector3(-absf(conveyor.size.x * 0.5), 0.0, 0.0)
+	var conveyor_extent_rear := Vector3(absf(conveyor.size.x * 0.5), 0.0, 0.0)
+
+	var margin_offset_front := Vector3(head_end_attachment_offset, 0.0, 0.0)
+	var margin_offset_rear := Vector3(-tail_end_attachment_offset, 0.0, 0.0)
+
+	# The tip of the leg stand has a rotating grab model that isn't counted towards its height.
+	# Because the grab will rotate towards the conveyor, we account for its reach here.
+	# Grab the bottom of the conveyor.
+	var conveyor_depth = conveyor.size.y
+	var grab_offset := Vector3(0.0, -leg_model_grabs_offset - conveyor_depth, 0.0)
+
+	# Final grab points in legStands space
+	var leg_grab_point_front := local_conveyor_transform.orthonormalized() * (conveyor_extent_front + margin_offset_front + grab_offset)
+	var leg_grab_point_rear := local_conveyor_transform.orthonormalized() * (conveyor_extent_rear + margin_offset_rear + grab_offset)
+
+	# Update min and max
+	min_val = minf(min_val, minf(leg_grab_point_rear.x, leg_grab_point_front.x))
+	max_val = maxf(max_val, maxf(leg_grab_point_rear.x, leg_grab_point_front.x))
+
+	return [min_val, max_val]
+
+# TODO CALL ME
+func on_assembly_transform_changed():
+	var assembly_transform_delta_local = assembly.transform.affine_inverse() * assembly_transform_prev
+
+	# Update either FloorNormal or FloorOffset, not both at once
+	# Assume either assembly.Rotation or assembly.Position has changed, but not both
+	var rotation_or_scale_changed = assembly.basis != assembly_transform_prev.basis
+	var position_changed = assembly.position != assembly_transform_prev.origin
+	assembly_transform_prev = assembly.transform
+
+	# Just don't touch anything if both changed
+	# This shouldn't happen typically anyway
+	if rotation_or_scale_changed and position_changed:
+		return
+
+	# Disable dynamically adjusting the FloorOffset when the assembly is outside the tree
+	# This covers the case when the assembly is being initialized for the first time
+	# The user wants to drop the assembly at a location with its default height
+	# This is different from placing the assembly at the world origin and dragging it there
+	if not is_inside_tree() or floor_offset_lock:
+		return
+
+	var old_offset = get_floor_offset()
+	var new_offset = old_offset
+	if position_changed and not rotation_or_scale_changed:
+		var assembly_translation_delta_local = assembly_transform_delta_local.origin
+		var delta_offset = assembly_translation_delta_local.dot(apparent_transform.basis.y.normalized())
+		new_offset = old_offset + delta_offset
+
+	set_local_floor_plane(Plane(get_floor_normal(), new_offset))
+	set_needs_update(true)
+
+func update_leg_stands():
+	# If the leg stand scene changes, we need to regenerate everything
+	if leg_model_scene != leg_model_scene_prev:
+		delete_all_auto_leg_stands()
+
+	# Only bother repositioning leg stands if the user could manually edit them
+	# All the leg stands that we generated should already be in the right spots
+	var edited_root = get_tree().get_edited_scene_root()
+	var leg_stands_is_editable = edited_root != null and (edited_root == owner or edited_root.is_editable_instance(owner))
+	if leg_stands_is_editable or leg_stands_path_changed:
+		snap_all_leg_stands_to_path()
+
+	leg_stands_path_changed = false
+
+	var target_width_new = get_leg_stand_target_width()
+	var target_width_changed = target_width_prev != target_width_new
+	target_width_prev = target_width_new
+	if leg_stands_is_editable or target_width_changed:
+		update_all_leg_stands_width()
+
+	var debug_invariants = true
+	var leg_stand_coverage_min_value_for_assertion = 0.0
+	var leg_stand_coverage_max_value_for_assertion = 0.0
+	if debug_invariants:
+		leg_stand_coverage_min_value_for_assertion = leg_stand_coverage_min
+		leg_stand_coverage_max_value_for_assertion = leg_stand_coverage_max
+
+	var auto_leg_stands_update_is_needed = middle_legs_enabled != middle_legs_enabled_prev \
+		or middle_legs_spacing != middle_legs_spacing_prev \
+		or head_end_leg_enabled != head_end_leg_enabled_prev \
+		or tail_end_leg_enabled != tail_end_leg_enabled_prev \
+		or head_end_leg_clearance != head_end_leg_clearance_prev \
+		or tail_end_leg_clearance != tail_end_leg_clearance_prev \
+		or leg_model_scene != leg_model_scene_prev \
+		or leg_stands_coverage_changed
+
+	var number_of_leg_stands_adjusted = 0
+	var did_add_or_remove = false
+	if auto_leg_stands_update_is_needed:
+		number_of_leg_stands_adjusted = adjust_auto_leg_stand_positions()
+		did_add_or_remove = create_and_remove_auto_leg_stands()
+
+	# Dependencies
+	var leg_stands_children_changed = number_of_leg_stands_adjusted != 0 or did_add_or_remove
+	# Actually, it's the relative transform of LegStands and Conveyors that we need to monitor,
+	# specifically the conveyor_plane in update_leg_stands_height_and_visibility,
+	# but the individual Transforms are good enough for now, though overkill
+	var conveyor_transform_changed = conveyor.transform != conveyors_transform_prev
+	var leg_stands_transform_changed = transform != leg_stands_transform_prev
+	if leg_stands_children_changed or conveyor_transform_changed or leg_stands_transform_changed or leg_stands_coverage_changed:
+		update_leg_stands_height_and_visibility()
+
+	# Record external state to detect any changes next run
+	conveyors_transform_prev = conveyor.transform
+	leg_stands_transform_prev = transform
+	middle_legs_enabled_prev = middle_legs_enabled
+	head_end_leg_enabled_prev = head_end_leg_enabled
+	tail_end_leg_enabled_prev = tail_end_leg_enabled
+	head_end_leg_clearance_prev = head_end_leg_clearance
+	tail_end_leg_clearance_prev = tail_end_leg_clearance
+	leg_model_scene_prev = leg_model_scene
+	leg_stand_coverage_min_prev = leg_stand_coverage_min
+	leg_stand_coverage_max_prev = leg_stand_coverage_max
+
+	if debug_invariants:
+		assert(leg_stand_coverage_min == leg_stand_coverage_min_value_for_assertion, "Unexpected change detected: leg_stand_coverage_min")
+		assert(leg_stand_coverage_max == leg_stand_coverage_max_value_for_assertion, "Unexpected change detected: leg_stand_coverage_max")
+
+func delete_all_auto_leg_stands():
+	for child in get_children():
+		if is_auto_leg_stand(child):
+			remove_child(child)
+			child.queue_free()
+
+func is_auto_leg_stand(node: Node) -> bool:
+	return get_auto_leg_stand_index(node.name) != LegIndex.NON_AUTO
+
+
+func snap_all_leg_stands_to_path() -> void:
+	# Force legStand alignment with LegStands group
+	for child in get_children():
+		if not child is ConveyorLeg:
+			continue
+		snap_to_leg_stands_path(child)
+
+func update_all_leg_stands_width() -> void:
+	for child in get_children():
+		if not child is ConveyorLeg:
+			continue
+		update_leg_stand_width(child)
+
+func update_leg_stand_width(leg_stand: Node3D) -> void:
+	var target_width := get_leg_stand_target_width()
+	leg_stand.scale = Vector3(1.0, leg_stand.scale.y, target_width / LEG_STANDS_BASE_WIDTH)
+
+func get_leg_stand_target_width() -> float:
+	# This is a hack to account for the fact that CurvedRollerConveyors are slightly wider than other conveyors
+	var conveyor_width: float = conveyor.size.z
+	# TODO: Restore RollerConveyor code.
+	#if conveyor is CurvedRollerConveyor:
+	#	return conveyor_width * 1.055
+	#if conveyor is RollerConveyor:
+	#	return conveyor_width + 0.051 * 2.0
+	return conveyor_width
+
+# Snap a child leg stand to a position on the leg stands path.
+#
+# The leg stands path is a surface parallel to `leg_stands` Y axis.
+# It represents any position that the conveyor line would be directly above or below at some length.
+# For straight assemblies, this is `leg_stands` XY plane.
+# For curved assemblies, this is overridden to be a cylinder centered on `leg_stands`.
+func snap_to_leg_stands_path(leg_stand: Node3D) -> void:
+	move_leg_stand_to_path_position(leg_stand, get_position_on_leg_stands_path(leg_stand.position))
+
+# Get the path position of a point projected onto the leg stands path.
+#
+# The path position is a linear representation of where a point is on the leg stands path.
+# For straight assemblies, this is the X coordinate of the point.
+# For curved assemblies, this is an angle of the point around the leg stands Y axis in degrees.
+func get_position_on_leg_stands_path(position: Vector3) -> float:
+	return position.x
+
+# Move a leg stand to a given position on the leg stands path.
+#
+# The leg stand is moved and rotated to align with the path.
+# The leg stand keeps its Y position and Z rotation.
+# Curved assemblies override this and don't keep the Z rotation.
+func move_leg_stand_to_path_position(leg_stand: Node3D, path_position: float) -> bool:
+	var changed := false
+	var new_position := Vector3(path_position, leg_stand.position.y, 0.0)
+	if leg_stand.position != new_position:
+		leg_stand.position = new_position
+		changed = true
+
+	var new_rotation := Vector3(0.0, 0.0, leg_stand.rotation.z)
+	if leg_stand.rotation != new_rotation:
+		leg_stand.rotation = new_rotation
+		changed = true
+
+	return changed
+
+# Adjust the positions of all auto-instanced leg stands to match changed settings or coverage.
+func adjust_auto_leg_stand_positions() -> int:
+	# Don't allow tiny or negative intervals
+	middle_legs_spacing = maxf(0.5, middle_legs_spacing)
+	if middle_legs_spacing == middle_legs_spacing_prev and \
+	   leg_stand_coverage_max == leg_stand_coverage_max_prev and \
+	   leg_stand_coverage_min == leg_stand_coverage_min_prev:
+		return 0
+
+	var change_count := 0
+	for child in get_children():
+		if not child is ConveyorLeg:
+			continue
+
+		var leg_stand_index := get_auto_leg_stand_index(child.name)
+		match leg_stand_index:
+			LegIndex.NON_AUTO:
+				# Only adjust auto leg stands
+				pass
+			_:
+				# Update leg stand position to the new interval
+				if move_leg_stand_to_path_position(child, get_auto_leg_stand_position(leg_stand_index)):
+					change_count += 1
+
+	middle_legs_spacing_prev = middle_legs_spacing
+	return change_count
+
+
+func get_auto_leg_stand_index(name: StringName) -> int:
+	if name == AUTO_LEG_STAND_NAME_FRONT:
+		return LegIndex.FRONT
+	if name == AUTO_LEG_STAND_NAME_REAR:
+		return LegIndex.REAR
+	if name.begins_with(AUTO_LEG_STAND_NAME_PREFIX):
+		var index_str = name.substr(AUTO_LEG_STAND_NAME_PREFIX.length())
+		if index_str.is_valid_int():
+			# Names start at 1, but indices start at 0
+			return index_str.to_int() - 1
+	return LegIndex.NON_AUTO
+
+func get_auto_leg_stand_position(index: int) -> float:
+	if index == LegIndex.FRONT:
+		return leg_stand_coverage_min
+	if index == LegIndex.REAR:
+		return leg_stand_coverage_max
+	return get_interval_leg_stand_position(index)
+
+func get_interval_leg_stand_position(index: int) -> float:
+	assert(index >= 0)
+	# Don't allow negative clearance
+	head_end_leg_clearance = maxf(0.0, head_end_leg_clearance)
+	var front_margin = head_end_leg_clearance if head_end_leg_enabled else 0.0
+	var first_position = ceili((leg_stand_coverage_min + front_margin) / middle_legs_spacing) * middle_legs_spacing
+	return first_position + index * middle_legs_spacing
+
+
+
+func create_and_remove_auto_leg_stands() -> bool:
+	var changed := false
+	# Don't allow negative clearance
+	tail_end_leg_clearance = maxf(0.0, tail_end_leg_clearance)
+	# Enforce a margin from fixed front and rear legs if they exist
+	var first_position := get_interval_leg_stand_position(0)
+	var rear_margin: float = tail_end_leg_clearance if tail_end_leg_enabled else 0.0
+	var last_position: float = floorf((leg_stand_coverage_max - rear_margin) / middle_legs_spacing) * middle_legs_spacing
+
+	var interval_leg_stand_count: int
+	if not middle_legs_enabled:
+		interval_leg_stand_count = 0
+	elif first_position > last_position:
+		# Invalid range implies zero interval-aligned leg stands are needed
+		interval_leg_stand_count = 0
+	else:
+		interval_leg_stand_count = int((last_position - first_position) / middle_legs_spacing) + 1
+
+	# Inventory our existing leg stands and delete the ones we don't need
+	var has_front_leg := false
+	var has_rear_leg := false
+	var leg_stands_inventory := []
+	leg_stands_inventory.resize(interval_leg_stand_count)
+	leg_stands_inventory.fill(false)
+
+	for child in get_children():
+		if not child is ConveyorLeg:
+			continue
+
+		var leg_stand_index := get_auto_leg_stand_index(child.name)
+		match leg_stand_index:
+			LegIndex.NON_AUTO:
+				# Only manage auto leg stands
+				pass
+			LegIndex.FRONT:
+				if head_end_leg_enabled:
+					has_front_leg = true
+				else:
+					remove_child(child)
+					child.queue_free()
+			LegIndex.REAR:
+				if tail_end_leg_enabled:
+					has_rear_leg = true
+				else:
+					remove_child(child)
+					child.queue_free()
+			_:
+				# Mark existing leg stands that are in the new interval
+				if leg_stand_index < interval_leg_stand_count and middle_legs_enabled:
+					leg_stands_inventory[leg_stand_index] = true
+				else:
+					# Delete leg stands that are outside the new interval
+					remove_child(child)
+					child.queue_free()
+					changed = true
+
+	# Create the missing leg stands
+	if leg_model_scene == null:
+		return changed
+
+	if not has_front_leg and head_end_leg_enabled:
+		add_leg_stand_at_index(LegIndex.FRONT)
+		changed = true
+
+	for i in interval_leg_stand_count:
+		if not leg_stands_inventory[i]:
+			add_leg_stand_at_index(i)
+			changed = true
+
+	if not has_rear_leg and tail_end_leg_enabled:
+		add_leg_stand_at_index(LegIndex.REAR)
+		changed = true
+
+	return changed
+
+func add_leg_stand_at_index(index: int) -> ConveyorLeg:
+	var position := get_auto_leg_stand_position(index)
+	var name: StringName
+
+	match index:
+		LegIndex.FRONT:
+			name = &"ConveyorLegHead"
+		LegIndex.REAR:
+			name = &"ConveyorLegTail"
+		_:
+			# Indices start at 0, but names start at 1
+			name = &"ConveyorLegMiddle%d" % (index + 1)
+
+	var leg_stand := add_or_get_leg_stand_instance(name) as ConveyorLeg
+	move_leg_stand_to_path_position(leg_stand, position)
+	update_leg_stand_width(leg_stand)
+
+	# It probably doesn't matter, but let's try to keep leg stands in order
+	var true_index: int
+	match index:
+		LegIndex.FRONT:
+			true_index = 0
+		LegIndex.REAR:
+			true_index = -1
+		_:
+			true_index = index + 1 if head_end_leg_enabled else index
+
+	if true_index < get_child_count():
+		move_child(leg_stand, true_index)
+
+	return leg_stand
+
+func add_or_get_leg_stand_instance(name: StringName) -> Node:
+	var leg_stand := get_node_or_null(NodePath(name))
+	if leg_stand != null:
+		return leg_stand
+
+	leg_stand = leg_model_scene.instantiate()
+	leg_stand.name = name
+	add_child(leg_stand)
+	# If the leg stand used to exist, restore its original owner
+	leg_stand.owner = foreign_leg_stands_owners.get(name, get_tree().get_edited_scene_root())
+	return leg_stand
+
+
+func update_leg_stands_height_and_visibility():
+	if not conveyor:
+		return
+
+	# Plane transformed from conveyors space into legStands space
+	var conveyor_plane = Plane(Vector3.UP, Vector3(0, -leg_model_grabs_offset - conveyor.size.y, 0)) \
+		* conveyor.transform.affine_inverse() * transform
+
+	for child in get_children():
+		var leg_stand = child as ConveyorLeg
+		if leg_stand:
+			update_individual_leg_stand_height_and_visibility(leg_stand, conveyor_plane)
+
+func update_individual_leg_stand_height_and_visibility(leg_stand: ConveyorLeg, conveyor_plane: Plane):
+	# Raycast from the minimum-height tip of the leg stand to the conveyor plane
+	var intersection = conveyor_plane.intersects_ray(
+		leg_stand.position + leg_stand.basis.y.normalized(),
+		leg_stand.basis.y.normalized()
+	)
+
+	if not intersection:
+		leg_stand.visible = false
+		# Set scale to minimum height
+		leg_stand.scale = Vector3(1.0, 1.0, leg_stand.scale.z)
+		return
+
+	var leg_height = intersection.distance_to(leg_stand.position)
+	leg_stand.scale = Vector3(1.0, leg_height, leg_stand.scale.z)
+	leg_stand.grabs_rotation = rad_to_deg(leg_stand.basis.y.signed_angle_to(
+		conveyor_plane.normal.slide(leg_stand.basis.z.normalized()),
+		leg_stand.basis.z
+	))
+
+	# Only show leg stands that touch a conveyor
+	var tip_position = get_position_on_leg_stands_path(leg_stand.position + leg_stand.basis.y)
+	leg_stand.visible = leg_stand_coverage_min <= tip_position and tip_position <= leg_stand_coverage_max
