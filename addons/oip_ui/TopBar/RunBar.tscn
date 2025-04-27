@@ -31,28 +31,47 @@ events = [SubResource("InputEventKey_psllm")]
 
 [node name="RunBar" type="PanelContainer"]
 process_mode = 3
-offset_right = 80.0
-offset_bottom = 24.0
+custom_minimum_size = Vector2(120, 30)
+offset_right = 120.0
+offset_bottom = 30.0
+size_flags_horizontal = 3
 script = ExtResource("1_akwgd")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 8
 
 [node name="Play" type="Button" parent="HBoxContainer"]
+custom_minimum_size = Vector2(30, 24)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 shortcut = SubResource("Shortcut_6h0ux")
 icon = ExtResource("2_cpndj")
+icon_alignment = 1
+expand_icon = true
 
 [node name="Pause" type="Button" parent="HBoxContainer"]
+custom_minimum_size = Vector2(30, 24)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 disabled = true
 toggle_mode = true
 shortcut = SubResource("Shortcut_psllm")
 icon = ExtResource("3_ci4su")
+icon_alignment = 1
+expand_icon = true
 
 [node name="Stop" type="Button" parent="HBoxContainer"]
+custom_minimum_size = Vector2(30, 24)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 disabled = true
 shortcut = SubResource("Shortcut_3mp6e")
 icon = ExtResource("4_ahhx3")
+icon_alignment = 1
+expand_icon = true

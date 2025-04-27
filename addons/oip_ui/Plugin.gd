@@ -71,6 +71,11 @@ func _scene_changed(root : Node):
 		
 
 func _enter_tree() -> void:
+	# Set minimum editor window size to 1075px width for the OIP plugin
+	var editor_window = EditorInterface.get_base_control().get_window()
+	var current_min_size = editor_window.get_min_size()
+	editor_window.set_min_size(Vector2(1075, current_min_size.y))
+	
 	_editor_node = get_tree().root.get_child(0)
 
 	if(EditorInterface.has_method("mark_scene_as_saved")):
@@ -91,6 +96,10 @@ func _on_id_pressed(id: int) -> void:
 	roof.visible = is_perspective_checked || (id > 0 && id < 8)
 
 func _exit_tree() -> void:
+	# Reset minimum window size when plugin is disabled
+	var editor_window = EditorInterface.get_base_control().get_window()
+	editor_window.set_min_size(Vector2(0, 0))
+	
 	_center_buttons.visible = true
 
 	if _run_bar:
@@ -155,8 +164,9 @@ func _editor_layout_loaded():
 
 	_toggle_view = TOGGLE_VIEW.instantiate()
 	_title_bar.add_child(_toggle_view)
-
-	_empty_margin.custom_minimum_size = Vector2(165, 0)
+	
+	# Set fixed size for empty margin to ensure buttons are properly spaced
+	_empty_margin.custom_minimum_size = Vector2(20, 0)
 
 	_editor_popup_menu.add_separator()
 	_editor_popup_menu.add_check_item("Toggle Godot Native UI",ID_TOGGLE_NATIVE_UI)
