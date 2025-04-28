@@ -1,5 +1,5 @@
 @tool
-class_name ConveyorEnd
+class_name BeltConveyorEnd
 extends ResizableNode3D
 
 @export var Speed: float:

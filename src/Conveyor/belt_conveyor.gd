@@ -46,16 +46,16 @@ signal speed_changed
 		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			sb_node.physics_material_override = value
-		var sb_end1 = get_node_or_null("ConveyorEnd/StaticBody3D") as StaticBody3D
+		var sb_end1 = get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
 		if sb_end1:
 			sb_end1.physics_material_override = value
-		var sb_end2 = get_node_or_null("ConveyorEnd2/StaticBody3D") as StaticBody3D
+		var sb_end2 = get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
 		if sb_end2:
 			sb_end2.physics_material_override = value
 
 var sb: StaticBody3D
-var ce1: ConveyorEnd
-var ce2: ConveyorEnd
+var ce1: BeltConveyorEnd
+var ce2: BeltConveyorEnd
 var mesh: MeshInstance3D
 var belt_material: Material
 var metal_material: Material
@@ -174,8 +174,8 @@ func _on_simulation_ended() -> void:
 
 func _setup_references() -> void:
 	sb = get_node("StaticBody3D") as StaticBody3D
-	ce1 = get_node("ConveyorEnd") as ConveyorEnd
-	ce2 = get_node("ConveyorEnd2") as ConveyorEnd
+	ce1 = get_node("BeltConveyorEnd") as BeltConveyorEnd
+	ce2 = get_node("BeltConveyorEnd2") as BeltConveyorEnd
 	mesh = get_node("StaticBody3D/MeshInstance3D") as MeshInstance3D
 	belt_material = mesh.mesh.surface_get_material(0)
 	metal_material = mesh.mesh.surface_get_material(1)
