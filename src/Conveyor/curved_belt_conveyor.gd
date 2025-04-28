@@ -62,10 +62,10 @@ var prev_scale_x: float = 0.0
 		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			sb_node.physics_material_override = value
-		var sb_end1 = get_node_or_null("ConveyorEnd/StaticBody3D") as StaticBody3D
+		var sb_end1 = get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
 		if sb_end1:
 			sb_end1.physics_material_override = value
-		var sb_end2 = get_node_or_null("ConveyorEnd2/StaticBody3D") as StaticBody3D
+		var sb_end2 = get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
 		if sb_end2:
 			sb_end2.physics_material_override = value
 
@@ -115,11 +115,11 @@ func _validate_property(property: Dictionary):
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "running_tag_name":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-		
+
 func get_conveyor_end1():
-	return get_node_or_null("ConveyorEnd")
+	return get_node_or_null("BeltConveyorEnd")
 func get_conveyor_end2():
-	return get_node_or_null("ConveyorEnd2")
+	return get_node_or_null("BeltConveyorEnd2")
 
 func _init() -> void:
 	set_notify_local_transform(true)

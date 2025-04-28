@@ -1,6 +1,6 @@
 [gd_scene load_steps=29 format=4 uid="uid://byog2n752js4y"]
 
-[ext_resource type="Script" uid="uid://br24cppp65ba3" path="res://src/Conveyor/conveyor_end.gd" id="1_crir7"]
+[ext_resource type="Script" uid="uid://br24cppp65ba3" path="res://src/Conveyor/belt_conveyor_end.gd" id="1_crir7"]
 [ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="2_6dxkv"]
 [ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="3_3ynyp"]
 [ext_resource type="Material" uid="uid://00bmdgt6cfmg" path="res://assets/3DModels/Materials/MetalMaterial.tres" id="3_ypirl"]
@@ -284,7 +284,7 @@ friction = 0.5
 resource_local_to_scene = true
 radius = 0.25
 
-[node name="ConveyorEnd" type="Node3D"]
+[node name="BeltConveyorEnd" type="Node3D"]
 script = ExtResource("1_crir7")
 size = Vector3(0.25, 0.5, 2)
 metadata/_edit_group_ = true
