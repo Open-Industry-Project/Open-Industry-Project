@@ -11,48 +11,48 @@ const BASE_INNER_RADIUS: float = 0.25
 const BASE_OUTER_RADIUS: float = 1.25
 const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 
-@export var BeltColor : Color = Color(1, 1, 1, 1):
+@export var belt_color : Color = Color(1, 1, 1, 1):
 	set(value):
-		BeltColor = value
+		belt_color = value
 		if belt_material:
-			(belt_material as ShaderMaterial).set_shader_parameter("ColorMix", BeltColor)
+			(belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 		var ce1 = get_conveyor_end1()
 		var ce2 = get_conveyor_end2()
 		if ce1 and ce1.belt_material:
-			(ce1.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", BeltColor)
+			(ce1.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 		if ce2 and ce2.belt_material:
-			(ce2.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", BeltColor)
+			(ce2.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 
-@export var BeltTexture = ConvTexture.STANDARD:
+@export var belt_texture = ConvTexture.STANDARD:
 	set(value):
-		BeltTexture = value
+		belt_texture = value
 		if belt_material:
-			(belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+			(belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		var ce1 = get_conveyor_end1()
 		var ce2 = get_conveyor_end2()
 		if ce1 and ce1.belt_material:
-			(ce1.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+			(ce1.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		if ce2 and ce2.belt_material:
-			(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+			(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 
-@export var Speed: float = 2:
+@export var speed: float = 2:
 	set(value):
-		if value == Speed:
+		if value == speed:
 			return
-		Speed = value
+		speed = value
 		RecalculateSpeeds()
 		UpdateBeltMaterialScale()
 
-var AngularSpeed: float = 0.0
-var LinearSpeed: float = 0.0
+var angular_speed: float = 0.0
+var linear_speed: float = 0.0
 var prev_scale_x: float = 0.0
 
-@export var ReferenceDistance: float = 0.5:
+@export var reference_distance: float = 0.5:
 	set(value):
-		ReferenceDistance = value
+		reference_distance = value
 		RecalculateSpeeds()
 
-@export var BeltPhysicsMaterial : PhysicsMaterial:
+@export var belt_physics_material : PhysicsMaterial:
 	get:
 		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
@@ -135,25 +135,25 @@ func _ready() -> void:
 	
 	origin = sb.position
 	
-	(belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+	(belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	if ce1 and ce1.belt_material:
-		(ce1.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		(ce1.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 	if ce2 and ce2.belt_material:
-		(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 	
-	(belt_material as ShaderMaterial).set_shader_parameter("ColorMix", BeltColor)
+	(belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 	if ce1 and ce1.belt_material:
-		(ce1.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", BeltColor)
+		(ce1.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 	if ce2 and ce2.belt_material:
-		(ce2.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", BeltColor)
+		(ce2.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 	
 	RecalculateSpeeds()
 	if ce1:
-		ce1.speed = LinearSpeed
+		ce1.speed = linear_speed
 	if ce2:
-		ce2.speed = LinearSpeed
+		ce2.speed = linear_speed
 	
 	if ce1:
 		var sb1 = ce1.get_node("StaticBody3D") as StaticBody3D
@@ -202,31 +202,31 @@ func OnScaleChanged() -> void:
 		prev_scale_x = scale.x
 
 func RecalculateSpeeds() -> void:
-	var reference_radius: float = scale.x * BASE_OUTER_RADIUS - ReferenceDistance
-	AngularSpeed = 0.0 if reference_radius == 0.0 else Speed / reference_radius
-	LinearSpeed = AngularSpeed * (scale.x * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2.0)
+	var reference_radius: float = scale.x * BASE_OUTER_RADIUS - reference_distance
+	angular_speed = 0.0 if reference_radius == 0.0 else speed / reference_radius
+	linear_speed = angular_speed * (scale.x * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2.0)
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	if ce1:
-		ce1.Speed = LinearSpeed
+		ce1.speed = linear_speed
 	if ce2:
-		ce2.Speed = LinearSpeed
+		ce2.speed = linear_speed
 
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
 		var local_up = sb.global_transform.basis.y.normalized()
-		var velocity = -local_up * AngularSpeed
+		var velocity = -local_up * angular_speed
 		sb.constant_angular_velocity = velocity
 		if not SimulationEvents.simulation_paused:
-			belt_position += LinearSpeed * delta
-		if LinearSpeed != 0:
-			(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(LinearSpeed))
+			belt_position += linear_speed * delta
+		if linear_speed != 0:
+			(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(linear_speed))
 		if belt_position >= 1.0:
 			belt_position = 0.0
 
 func UpdateBeltMaterialScale() -> void:
-	if belt_material and Speed != 0:
-		(belt_material as ShaderMaterial).set_shader_parameter("Scale", scale.x / 2.0 * sign(Speed))
+	if belt_material and speed != 0:
+		(belt_material as ShaderMaterial).set_shader_parameter("Scale", scale.x / 2.0 * sign(speed))
 
 func UpdateMetalMaterialScale() -> void:
 	if metal_material:
@@ -255,4 +255,4 @@ func _tag_group_polled(_tag_group_name: String) -> void:
 	if not enable_comms: return
 	
 	if _tag_group_name == speed_tag_group_name and speed_tag_group_init:
-		Speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
+		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
