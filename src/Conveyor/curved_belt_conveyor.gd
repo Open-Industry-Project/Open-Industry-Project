@@ -151,9 +151,9 @@ func _ready() -> void:
 	
 	RecalculateSpeeds()
 	if ce1:
-		ce1.Speed = LinearSpeed
+		ce1.speed = LinearSpeed
 	if ce2:
-		ce2.Speed = LinearSpeed
+		ce2.speed = LinearSpeed
 	
 	if ce1:
 		var sb1 = ce1.get_node("StaticBody3D") as StaticBody3D
