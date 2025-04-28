@@ -88,6 +88,7 @@ enum Side
 var conveyor_connected = false;
 
 
+#region Managing connection to Conveyor's signals
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_PARENTED:
@@ -120,6 +121,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 	if not conveyor_connected:
 		return ["This node must be a child of a Conveyor or ConveyorAssembly."]
 	return []
+#endregion
 
 
 func _on_conveyor_size_changed() -> void:
@@ -293,7 +295,7 @@ func _insert_openings_into_extents(extent_pairs: Array, side: SideGuardsAssembly
 		i += 1
 
 
-
+#region Adding and removing instances
 func _add_or_remove_side_guards(side_node: Node3D, desired_side_guard_count: int) -> void:
 	# Add or remove guards
 	# Assume all children are guards.
@@ -327,6 +329,7 @@ func _instantiate_guard() -> Node3D:
 func _get_sideguard_scene() -> PackedScene:
 	# TODO: Account for differences between conveyors/side guard types.
 	return load("res://parts/SideGuard.tscn")
+#endregion
 
 
 func _adjust_side_guards(side_node: Node3D, side_guard_extents: Array, side: SideGuardsAssembly.Side) -> void:
