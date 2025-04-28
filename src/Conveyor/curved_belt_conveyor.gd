@@ -196,9 +196,11 @@ func OnScaleChanged() -> void:
 		var ce1 = get_conveyor_end1()
 		var ce2 = get_conveyor_end2()
 		if ce1:
-			ce1.OnOwnerScaleChanged(scale)
+			ce1.scale = scale.inverse()
+			ce1.size.z = scale.x
 		if ce2:
-			ce2.OnOwnerScaleChanged(scale)
+			ce2.scale = Vector3(scale.z, scale.y, scale.x).inverse()
+			ce2.size.z = scale.z
 		prev_scale_x = scale.x
 
 func RecalculateSpeeds() -> void:
