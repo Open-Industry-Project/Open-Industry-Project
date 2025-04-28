@@ -7,24 +7,27 @@ enum ConvTexture {
 	ALTERNATE
 }
 
+## Emitted when the conveyor's speed changes.
 signal speed_changed
 
-@export var BeltColor : Color = Color(1, 1, 1, 1):
+@export var belt_color : Color = Color(1, 1, 1, 1):
 	set(value):
-		BeltColor = value
+		belt_color = value
 		_update_material_color()
 
-@export var BeltTexture = ConvTexture.STANDARD:
+@export var belt_texture = ConvTexture.STANDARD:
 	set(value):
-		BeltTexture = value
+		belt_texture = value
 		_update_material_texture()
 
 
-@export var Speed: float = 2:
+## Conveyor speed in meters per second.
+## Negative values will reverse the direction of the conveyor.
+@export var speed: float = 2:
 	set(value):
-		if value == Speed:
+		if value == speed:
 			return
-		Speed = value
+		speed = value
 		_update_speed()
 		_update_belt_material_scale()
 		speed_changed.emit()
@@ -36,7 +39,7 @@ signal speed_changed
 		if register_running_tag_ok and running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value > 0.0)
 
-@export var BeltPhysicsMaterial : PhysicsMaterial:
+@export var belt_physics_material : PhysicsMaterial:
 	get:
 		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
@@ -150,12 +153,12 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
 		var local_left = sb.global_transform.basis.x.normalized()
-		var velocity = local_left * Speed
+		var velocity = local_left * speed
 		sb.constant_linear_velocity = velocity
 		if !SimulationEvents.simulation_paused:
-			belt_position += Speed * delta
-		if Speed != 0:
-			(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(Speed))
+			belt_position += speed * delta
+		if speed != 0:
+			(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(speed))
 		if belt_position >= 1.0:
 			belt_position = 0.0
 
@@ -201,33 +204,33 @@ func fix_material_overrides() -> void:
 
 func _update_material_texture() -> void:
 	if belt_material:
-		belt_material.set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		fix_material_overrides()
 	if ce1 and ce1.belt_material:
-		ce1.belt_material.set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		ce1.belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		ce1.fix_material_overrides()
 	if ce2 and ce2.belt_material:
-		ce2.belt_material.set_shader_parameter("BlackTextureOn", BeltTexture == ConvTexture.STANDARD)
+		ce2.belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		ce2.fix_material_overrides()
 
 
 func _update_material_color() -> void:
 	if belt_material:
-		belt_material.set_shader_parameter("ColorMix", BeltColor)
+		belt_material.set_shader_parameter("ColorMix", belt_color)
 		fix_material_overrides()
 	if ce1 and ce1.belt_material:
-		ce1.belt_material.set_shader_parameter("ColorMix", BeltColor)
+		ce1.belt_material.set_shader_parameter("ColorMix", belt_color)
 		ce1.fix_material_overrides()
 	if ce2 and ce2.belt_material:
-		ce2.belt_material.set_shader_parameter("ColorMix", BeltColor)
+		ce2.belt_material.set_shader_parameter("ColorMix", belt_color)
 		ce2.fix_material_overrides()
 
 
 func _update_speed() -> void:
 	if ce1:
-		ce1.Speed = Speed
+		ce1.speed = speed
 	if ce2:
-		ce2.Speed = Speed
+		ce2.speed = speed
 
 
 func _update_physics_material() -> void:
@@ -242,8 +245,8 @@ func _update_physics_material() -> void:
 
 
 func _update_belt_material_scale() -> void:
-	if belt_material and Speed != 0:
-		(belt_material as ShaderMaterial).set_shader_parameter("Scale", mesh.scale.x * sign(Speed))
+	if belt_material and speed != 0:
+		(belt_material as ShaderMaterial).set_shader_parameter("Scale", mesh.scale.x * sign(speed))
 		fix_material_overrides()
 
 
@@ -326,4 +329,4 @@ func _tag_group_polled(_tag_group_name: String) -> void:
 	if not enable_comms: return
 
 	if _tag_group_name == speed_tag_group_name and speed_tag_group_init:
-		Speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
+		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)

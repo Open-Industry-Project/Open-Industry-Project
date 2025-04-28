@@ -128,10 +128,10 @@ skeleton = NodePath("../..")
 
 [node name="BeltConveyorEnd" parent="." instance=ExtResource("3_rx6or")]
 transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 1.75, -0.25, 0)
-Speed = 2.0
+speed = 2.0
 size = Vector3(0.25, 0.5, 1.524)
 
 [node name="BeltConveyorEnd2" parent="." instance=ExtResource("3_rx6or")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.75, -0.25, 0)
-Speed = 2.0
+speed = 2.0
 size = Vector3(0.25, 0.5, 1.524)

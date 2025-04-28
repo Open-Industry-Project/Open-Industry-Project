@@ -2,9 +2,11 @@
 class_name BeltConveyorEnd
 extends ResizableNode3D
 
-@export var Speed: float:
+## Conveyor speed in meters per second.
+## Negative values will reverse the direction of the conveyor.
+@export var speed: float:
 	set(value):
-		Speed = value
+		speed = value
 		_update_belt_material_scale()
 		_update_belt_material_position()
 
@@ -39,7 +41,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
 		if not SimulationEvents.simulation_paused:
-			belt_position += Speed * delta
+			belt_position += speed * delta
 		if belt_position >= 1.0:
 			belt_position = 0.0
 		_update_belt_material_position()
@@ -83,8 +85,8 @@ func _update_belt_material_scale() -> void:
 	var radius: float = size.x
 	var belt_length: float = PI * radius
 	var belt_scale: float = belt_length / BASE_BELT_LENGTH
-	if belt_material && Speed != 0:
-		(belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(Speed))
+	if belt_material && speed != 0:
+		(belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
 		fix_material_overrides()
 
 
@@ -97,7 +99,7 @@ func _update_metal_material_scale() -> void:
 
 func _update_belt_material_position() -> void:
 	if belt_material:
-		(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(-Speed))
+		(belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(-speed))
 		fix_material_overrides()
 
 
@@ -121,7 +123,7 @@ func _update_belt_velocity():
 	if SimulationEvents.simulation_running:
 		var local_front: Vector3 = global_transform.basis.z.normalized()
 		var radius: float = size.x
-		var new_velocity: Vector3 = local_front * Speed / radius
+		var new_velocity: Vector3 = local_front * speed / radius
 		if static_body.constant_angular_velocity != new_velocity:
 			static_body.constant_angular_velocity = new_velocity
 	else:
