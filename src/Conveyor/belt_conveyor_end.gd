@@ -4,7 +4,7 @@ extends ResizableNode3D
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
-@export var speed: float:
+@export var speed: float = 2:
 	set(value):
 		speed = value
 		_update_belt_material_scale()
