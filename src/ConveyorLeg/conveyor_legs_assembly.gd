@@ -151,6 +151,8 @@ var leg_stands_coverage_changed := false
 # Dictionary to store pre-existing leg stand owners
 var foreign_leg_stands_owners := {}
 
+var conveyor_connected: bool = false
+
 func _init():
 	pass
 
@@ -160,12 +162,38 @@ func _ready():
 		if leg_stand.owner != edited_scene:
 			foreign_leg_stands_owners[leg_stand.name] = leg_stand.owner
 
+#region Managing connection to Conveyor's signals
 func _notification(what):
 	if what == NOTIFICATION_PARENTED:
 		assembly_transform_prev = get_parent().transform
-		conveyor.size_changed.connect(func():
-			update_leg_stand_coverage()
-			update_leg_stands_height_and_visibility())
+		_connect_conveyor_signals()
+	elif what == NOTIFICATION_UNPARENTED:
+		_disconnect_conveyor_signals()
+
+func _connect_conveyor_signals() -> void:
+	if conveyor.has_signal("size_changed") and "size" in conveyor and conveyor.size is Vector3:
+		conveyor.connect("size_changed", self._on_conveyor_size_changed)
+		conveyor_connected = true
+		_on_conveyor_size_changed()
+	else:
+		conveyor_connected = false
+	update_configuration_warnings()
+
+func _disconnect_conveyor_signals() -> void:
+	if not conveyor_connected:
+		return
+	conveyor_connected = false
+	conveyor.disconnect("size_changed", self._on_conveyor_size_changed)
+
+func _get_configuration_warnings() -> PackedStringArray:
+	if not conveyor_connected:
+		return ["This node must be a child of a Conveyor or ConveyorAssembly."]
+	return []
+#endregion
+
+func _on_conveyor_size_changed():
+	update_leg_stand_coverage()
+	update_leg_stands_height_and_visibility()
 
 func _physics_process(_delta):
 	update_leg_stands()
