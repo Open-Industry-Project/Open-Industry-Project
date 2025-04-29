@@ -154,7 +154,7 @@ var foreign_leg_stands_owners := {}
 var conveyor_connected: bool = false
 
 func _init():
-	pass
+	set_notify_transform(true)
 
 func _ready():
 	var edited_scene = get_tree().get_edited_scene_root()
@@ -169,6 +169,15 @@ func _notification(what):
 		_connect_conveyor_signals()
 	elif what == NOTIFICATION_UNPARENTED:
 		_disconnect_conveyor_signals()
+	elif what == NOTIFICATION_TRANSFORM_CHANGED:
+		_on_global_transform_changed()
+	elif what == NOTIFICATION_ENTER_TREE:
+		_on_global_transform_changed()
+
+func _on_global_transform_changed():
+	_update_floor_plane()
+	update_leg_stand_coverage()
+	update_leg_stands_height_and_visibility()
 
 func _connect_conveyor_signals() -> void:
 	if conveyor.has_signal("size_changed") and "size" in conveyor and conveyor.size is Vector3:
@@ -218,6 +227,13 @@ func set_floor_offset(value: float):
 
 func set_floor_angle(value: float):
 	set_local_floor_plane(Plane(get_floor_normal(), get_floor_offset()))
+
+func set_global_floor_plane(global_floor_plane: Plane):
+	assert(is_inside_tree(), "set_global_floor_plane: Node must be inside tree to use global_tranform.")
+	# Prevent infinite loop.
+	set_notify_transform(false)
+	set_local_floor_plane(conveyor.global_transform.affine_inverse() * global_floor_plane)
+	set_notify_transform(true)
 
 func set_local_floor_plane(local_floor_plane: Plane):
 	var floor_offset = local_floor_plane.d
@@ -322,6 +338,25 @@ func on_assembly_transform_changed():
 
 	set_local_floor_plane(Plane(get_floor_normal(), new_offset))
 	set_needs_update(true)
+
+func _update_floor_plane():
+	if not is_inside_tree():
+		return
+	var gravity: Vector3 = ProjectSettings.get_setting("physics/3d/default_gravity_vector")
+	assert(gravity != null, "Gravity vector is null somehow. This should never happen.")
+	var gravity_vector: Vector3 = gravity.normalized()
+	var global_floor_normal: Vector3 = -gravity_vector.normalized()
+	var global_floor_plane_point := Vector3.ZERO
+	var global_floor_plane := Plane(global_floor_normal, global_floor_plane_point)
+	# Legs must be constrained to the conveyor's Z plane, so we must project the floor normal onto it.
+	var legs_plane := Plane(conveyor.global_basis.z, conveyor.global_position)
+	var adjusted_global_floor_plane_normal: Vector3 = global_floor_normal.slide(legs_plane.normal).normalized()
+	var adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, -adjusted_global_floor_plane_normal)
+	if adjusted_global_floor_plane_point == null:
+		adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, adjusted_global_floor_plane_normal)
+		print("adjusted_global_floor_plane_point: ", adjusted_global_floor_plane_point)
+	var adjusted_global_floor_plane := Plane(adjusted_global_floor_plane_normal, adjusted_global_floor_plane_point)
+	set_global_floor_plane(adjusted_global_floor_plane)
 
 func update_leg_stands():
 	# If the leg stand scene changes, we need to regenerate everything
