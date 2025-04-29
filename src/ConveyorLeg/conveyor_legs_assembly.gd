@@ -647,7 +647,7 @@ func update_leg_stands_height_and_visibility():
 
 	# Plane transformed from conveyors space into legStands space
 	var conveyor_plane = Plane(Vector3.UP, Vector3(0, -leg_model_grabs_offset - conveyor.size.y, 0)) \
-		* conveyor.transform.affine_inverse() * transform
+		* transform
 
 	for child in get_children():
 		var leg_stand = child as ConveyorLeg
