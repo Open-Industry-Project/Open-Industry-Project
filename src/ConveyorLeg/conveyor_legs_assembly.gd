@@ -20,7 +20,7 @@ var apparent_transform: Transform3D:
 # Region Leg Stands
 # Region Constants
 const LEG_STANDS_BASE_WIDTH = 2.0
-const AUTO_LEG_STAND_NAME_PREFIX = "ConveyorLeg"
+const AUTO_LEG_STAND_NAME_PREFIX = "ConveyorLegMiddle"
 const AUTO_LEG_STAND_NAME_FRONT = "ConveyorLegHead"
 const AUTO_LEG_STAND_NAME_REAR = "ConveyorLegTail"
 const MIDDLE_LEGS_SPACING_MIN: float = 0.5
