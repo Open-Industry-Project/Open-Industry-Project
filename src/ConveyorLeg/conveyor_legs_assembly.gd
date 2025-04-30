@@ -372,14 +372,14 @@ func update_leg_stands():
 	if leg_stands_is_editable or target_width_changed:
 		update_all_leg_stands_width()
 
-	var debug_invariants = true
-	var leg_stand_coverage_min_value_for_assertion = 0.0
-	var leg_stand_coverage_max_value_for_assertion = 0.0
+	var debug_invariants := true
+	var leg_stand_coverage_min_value_for_assertion: float = 0.0
+	var leg_stand_coverage_max_value_for_assertion: float = 0.0
 	if debug_invariants:
 		leg_stand_coverage_min_value_for_assertion = leg_stand_coverage_min
 		leg_stand_coverage_max_value_for_assertion = leg_stand_coverage_max
 
-	var auto_leg_stands_update_is_needed = middle_legs_enabled != middle_legs_enabled_prev \
+	var auto_leg_stands_update_is_needed: bool = middle_legs_enabled != middle_legs_enabled_prev \
 		or middle_legs_spacing != middle_legs_spacing_prev \
 		or head_end_leg_enabled != head_end_leg_enabled_prev \
 		or tail_end_leg_enabled != tail_end_leg_enabled_prev \
@@ -388,8 +388,8 @@ func update_leg_stands():
 		or leg_model_scene != leg_model_scene_prev \
 		or leg_stands_coverage_changed
 
-	var number_of_leg_stands_adjusted = 0
-	var did_add_or_remove = false
+	var number_of_leg_stands_adjusted: int = 0
+	var did_add_or_remove := false
 	if auto_leg_stands_update_is_needed:
 		number_of_leg_stands_adjusted = adjust_auto_leg_stand_positions()
 		did_add_or_remove = create_and_remove_auto_leg_stands()
@@ -571,7 +571,7 @@ func create_and_remove_auto_leg_stands() -> bool:
 	# Inventory our existing leg stands and delete the ones we don't need
 	var has_front_leg := false
 	var has_rear_leg := false
-	var leg_stands_inventory := []
+	var leg_stands_inventory: Array[bool] = []
 	leg_stands_inventory.resize(interval_leg_stand_count)
 	leg_stands_inventory.fill(false)
 
