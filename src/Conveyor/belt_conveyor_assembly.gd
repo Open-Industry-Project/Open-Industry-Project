@@ -5,7 +5,10 @@ extends EnhancedNode3D
 const CONVEYOR_CLASS_NAME = "BeltConveyor"
 const SIDE_GUARDS_SCRIPT_PATH = "res://src/SideGuards/side_guards_assembly.gd"
 const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
+const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH = "res://src/ConveyorLeg/conveyor_legs_assembly.gd"
+const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 
+#region SideGuardsAssembly properties
 @export_category(SIDE_GUARDS_SCRIPT_FILENAME)
 @export_group("Side Guards", "sideguards")
 @export var sideguards_right_side: bool = true:
@@ -52,6 +55,192 @@ const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
 			%SideGuardsAssembly.left_side_openings = value
 		else:
 			sideguards_left_side_openings = value
+#endregion
+
+#region ConveyorLegsAssembly properties
+@export_category(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME)
+@export_group("Conveyor Legs", "conveyor_legs_")
+@export_custom(PROPERTY_HINT_NONE, "suffix:m")
+var conveyor_legs_floor_offset: float:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.floor_offset
+		else:
+			return conveyor_legs_floor_offset
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.floor_offset = value
+		else:
+			conveyor_legs_floor_offset = value
+@export
+var conveyor_legs_floor_offset_lock := false:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.floor_offset_lock
+		else:
+			return conveyor_legs_floor_offset_lock
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.floor_offset_lock = value
+		else:
+			conveyor_legs_floor_offset_lock = value
+@export_custom(PROPERTY_HINT_NONE, "radians_as_degrees")
+var conveyor_legs_floor_angle: float:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.floor_angle
+		else:
+			return conveyor_legs_floor_angle
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.floor_angle = value
+		else:
+			conveyor_legs_floor_angle = value
+
+
+@export_subgroup("Middle Legs", "conveyor_legs_middle_legs")
+@export
+var conveyor_legs_middle_legs_enabled := false:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.middle_legs_enabled
+		else:
+			return conveyor_legs_middle_legs_enabled
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.middle_legs_enabled = value
+		else:
+			conveyor_legs_middle_legs_enabled = value
+@export_range(-5, 5, 0.01, "or_less", "or_greater", "suffix:m")
+var conveyor_legs_middle_legs_initial_leg_position: float:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.middle_legs_initial_leg_position
+		else:
+			return conveyor_legs_middle_legs_initial_leg_position
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.middle_legs_initial_leg_position = value
+		else:
+			conveyor_legs_middle_legs_initial_leg_position = value
+@export_range(preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).MIDDLE_LEGS_SPACING_MIN, 5, 0.01, "or_greater", "suffix:m")
+var conveyor_legs_middle_legs_spacing: float = 2:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.middle_legs_spacing
+		else:
+			return conveyor_legs_middle_legs_spacing
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.middle_legs_spacing = value
+		else:
+			conveyor_legs_middle_legs_spacing = value
+
+
+@export_subgroup("Head End", "conveyor_legs_head_end")
+@export_range(0, 1, 0.01, "or_greater", "suffix:m")
+var conveyor_legs_head_end_attachment_offset: float = 0.45:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.head_end_attachment_offset
+		else:
+			return conveyor_legs_head_end_attachment_offset
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.head_end_attachment_offset = value
+		else:
+			conveyor_legs_head_end_attachment_offset = value
+@export
+var conveyor_legs_head_end_leg_enabled: bool = true:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.head_end_leg_enabled
+		else:
+			return conveyor_legs_head_end_leg_enabled
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.head_end_leg_enabled = value
+		else:
+			conveyor_legs_head_end_leg_enabled = value
+@export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
+var conveyor_legs_head_end_leg_clearance: float = 0.5:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.head_end_leg_clearance
+		else:
+			return conveyor_legs_head_end_leg_clearance
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.head_end_leg_clearance = value
+		else:
+			conveyor_legs_head_end_leg_clearance = value
+
+
+@export_subgroup("Tail End", "conveyor_legs_tail_end")
+@export_range(0, 1, 0.01, "or_greater", "suffix:m")
+var conveyor_legs_tail_end_attachment_offset: float = 0.45:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.tail_end_attachment_offset
+		else:
+			return conveyor_legs_tail_end_attachment_offset
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.tail_end_attachment_offset = value
+		else:
+			conveyor_legs_tail_end_attachment_offset = value
+@export
+var conveyor_legs_tail_end_leg_enabled: bool = true:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.tail_end_leg_enabled
+		else:
+			return conveyor_legs_tail_end_leg_enabled
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.tail_end_leg_enabled = value
+		else:
+			conveyor_legs_tail_end_leg_enabled = value
+@export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
+var conveyor_legs_tail_end_leg_clearance: float = 0.5:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.tail_end_leg_clearance
+		else:
+			return conveyor_legs_tail_end_leg_clearance
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.tail_end_leg_clearance = value
+		else:
+			conveyor_legs_tail_end_leg_clearance = value
+
+
+@export_subgroup("Model", "conveyor_legs_leg_model")
+@export
+var conveyor_legs_leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.leg_model_scene
+		else:
+			return conveyor_legs_leg_model_scene
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.leg_model_scene = value
+		else:
+			conveyor_legs_leg_model_scene = value
+@export
+var conveyor_legs_leg_model_grabs_offset: float = 0.132:
+	get:
+		if has_instantiated:
+			return %ConveyorLegsAssembly.leg_model_grabs_offset
+		else:
+			return conveyor_legs_leg_model_grabs_offset
+	set(value):
+		if has_instantiated:
+			%ConveyorLegsAssembly.leg_model_grabs_offset = value
+		else:
+			conveyor_legs_leg_model_grabs_offset = value
+#endregion
 
 
 var conveyor_script: Script
@@ -79,6 +268,12 @@ func _validate_property(property: Dictionary) -> void:
 		# This will make the category show the script class and icon as if we inherited from it.
 		assert(SIDE_GUARDS_SCRIPT_PATH.get_file() == SIDE_GUARDS_SCRIPT_FILENAME, "SIDE_GUARDS_SCRIPT_PATH doesn't match SIDE_GUARDS_SCRIPT_FILENAME")
 		property[&"hint_string"] = SIDE_GUARDS_SCRIPT_PATH
+	elif property[&"name"] == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME \
+			&& property[&"usage"] & PROPERTY_USAGE_CATEGORY:
+		# Link the category to a script.
+		# This will make the category show the script class and icon as if we inherited from it.
+		assert(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH.get_file() == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME, "CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH doesn't match CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME")
+		property[&"hint_string"] = CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH
 
 
 func _set(property: StringName, value: Variant) -> bool:
