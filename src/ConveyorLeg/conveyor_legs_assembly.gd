@@ -33,17 +33,12 @@ enum LegIndex {
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m")
 var floor_offset: float:
-	get:
-		return get_floor_offset()
-	set(value):
-		set_floor_offset(value)
+	get = get_floor_offset, set = set_floor_offset
 @export
 var floor_offset_lock := false
 @export_custom(PROPERTY_HINT_NONE, "radians_as_degrees")
 var floor_angle: float:
-	set(value):
-		floor_angle = value
-		set_floor_angle(value)
+	set = set_floor_angle
 
 
 @export_group("Middle Legs", "middle_legs")
@@ -55,10 +50,7 @@ var middle_legs_enabled := false:
 			set_needs_update(true)
 @export_range(-5, 5, 0.01, "or_less", "or_greater", "suffix:m")
 var middle_legs_initial_leg_position: float:
-	get:
-		return get_middle_legs_initial_leg_position()
-	set(value):
-		set_middle_legs_initial_leg_position(value)
+	get = get_middle_legs_initial_leg_position, set = set_middle_legs_initial_leg_position
 @export_range(MIDDLE_LEGS_SPACING_MIN, 5, 0.01, "or_greater", "suffix:m")
 var middle_legs_spacing: float = 2:
 	set(value):
@@ -227,6 +219,7 @@ func set_floor_offset(value: float):
 	set_needs_update(true)
 
 func set_floor_angle(value: float):
+	floor_angle = value
 	set_local_floor_plane(Plane(get_floor_normal(), get_floor_offset()))
 
 func set_global_floor_plane(global_floor_plane: Plane):
