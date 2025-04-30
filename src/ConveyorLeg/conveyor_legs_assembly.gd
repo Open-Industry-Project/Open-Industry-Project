@@ -23,6 +23,7 @@ const LEG_STANDS_BASE_WIDTH = 2.0
 const AUTO_LEG_STAND_NAME_PREFIX = "ConveyorLeg"
 const AUTO_LEG_STAND_NAME_FRONT = "ConveyorLegHead"
 const AUTO_LEG_STAND_NAME_REAR = "ConveyorLegTail"
+const MIDDLE_LEGS_SPACING_MIN: float = 0.5
 
 enum LegIndex {
 	FRONT = -1,
@@ -58,7 +59,7 @@ var middle_legs_initial_leg_position: float:
 		return get_middle_legs_initial_leg_position()
 	set(value):
 		set_middle_legs_initial_leg_position(value)
-@export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
+@export_range(MIDDLE_LEGS_SPACING_MIN, 5, 0.01, "or_greater", "suffix:m")
 var middle_legs_spacing: float = 2:
 	set(value):
 		if middle_legs_spacing != value:
@@ -502,7 +503,7 @@ func move_leg_stand_to_path_position(leg_stand: Node3D, path_position: float) ->
 # Adjust the positions of all auto-instanced leg stands to match changed settings or coverage.
 func adjust_auto_leg_stand_positions() -> int:
 	# Don't allow tiny or negative intervals
-	middle_legs_spacing = maxf(0.5, middle_legs_spacing)
+	middle_legs_spacing = maxf(MIDDLE_LEGS_SPACING_MIN, middle_legs_spacing)
 	if middle_legs_spacing == middle_legs_spacing_prev and \
 	   leg_stand_coverage_max == leg_stand_coverage_max_prev and \
 	   leg_stand_coverage_min == leg_stand_coverage_min_prev:
