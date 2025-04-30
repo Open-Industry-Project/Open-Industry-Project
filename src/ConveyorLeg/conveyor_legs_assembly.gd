@@ -457,28 +457,28 @@ func get_leg_stand_target_width() -> float:
 	#	return conveyor_width + 0.051 * 2.0
 	return conveyor_width
 
-# Snap a child leg stand to a position on the leg stands path.
-#
-# The leg stands path is a surface parallel to `leg_stands` Y axis.
-# It represents any position that the conveyor line would be directly above or below at some length.
-# For straight assemblies, this is `leg_stands` XY plane.
-# For curved assemblies, this is overridden to be a cylinder centered on `leg_stands`.
+## Snap a child leg stand to a position on the leg stands path.
+##
+## The leg stands path is a surface parallel to `leg_stands` Y axis.
+## It represents any position that the conveyor line would be directly above or below at some length.
+## For straight assemblies, this is `leg_stands` XY plane.
+## For curved assemblies, this is overridden to be a cylinder centered on `leg_stands`.
 func snap_to_leg_stands_path(leg_stand: Node3D) -> void:
 	move_leg_stand_to_path_position(leg_stand, get_position_on_leg_stands_path(leg_stand.position))
 
-# Get the path position of a point projected onto the leg stands path.
-#
-# The path position is a linear representation of where a point is on the leg stands path.
-# For straight assemblies, this is the X coordinate of the point.
-# For curved assemblies, this is an angle of the point around the leg stands Y axis in degrees.
+## Get the path position of a point projected onto the leg stands path.
+##
+## The path position is a linear representation of where a point is on the leg stands path.
+## For straight assemblies, this is the X coordinate of the point.
+## For curved assemblies, this is an angle of the point around the leg stands Y axis in degrees.
 func get_position_on_leg_stands_path(position: Vector3) -> float:
 	return position.x
 
-# Move a leg stand to a given position on the leg stands path.
-#
-# The leg stand is moved and rotated to align with the path.
-# The leg stand keeps its Y position and Z rotation.
-# Curved assemblies override this and don't keep the Z rotation.
+## Move a leg stand to a given position on the leg stands path.
+##
+## The leg stand is moved and rotated to align with the path.
+## The leg stand keeps its Y position and Z rotation.
+## Curved assemblies override this and don't keep the Z rotation.
 func move_leg_stand_to_path_position(leg_stand: Node3D, path_position: float) -> bool:
 	var changed := false
 	var new_position := Vector3(path_position, leg_stand.position.y, 0.0)
@@ -493,7 +493,7 @@ func move_leg_stand_to_path_position(leg_stand: Node3D, path_position: float) ->
 
 	return changed
 
-# Adjust the positions of all auto-instanced leg stands to match changed settings or coverage.
+## Adjust the positions of all auto-instanced leg stands to match changed settings or coverage.
 func adjust_auto_leg_stand_positions() -> int:
 	# Don't allow tiny or negative intervals
 	middle_legs_spacing = maxf(MIDDLE_LEGS_SPACING_MIN, middle_legs_spacing)
@@ -626,7 +626,7 @@ func create_and_remove_auto_leg_stands() -> bool:
 	return changed
 
 func add_leg_stand_at_index(index: int) -> ConveyorLeg:
-	var position := get_auto_leg_stand_position(index)
+	var position: float = get_auto_leg_stand_position(index)
 	var name: StringName
 
 	match index:
