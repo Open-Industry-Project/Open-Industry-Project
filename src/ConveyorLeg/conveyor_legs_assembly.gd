@@ -24,6 +24,7 @@ const AUTO_LEG_STAND_NAME_PREFIX = "ConveyorLegMiddle"
 const AUTO_LEG_STAND_NAME_FRONT = "ConveyorLegHead"
 const AUTO_LEG_STAND_NAME_REAR = "ConveyorLegTail"
 const MIDDLE_LEGS_SPACING_MIN: float = 0.5
+const DEFAULT_FLOOR_PLANE := Plane(Vector3.UP, 0.0)
 
 enum LegIndex {
 	FRONT = -1,
@@ -31,14 +32,38 @@ enum LegIndex {
 	NON_AUTO = -3,
 }
 
+## A global plane that represents the floor for the legs.
+##
+## A plane is defined by a normal vector and a distance from the origin.
+## Legs will reach down from their conveyor to this plane, and they will be aligned to the normal vector when possible.
+## However, they prioritize being aligned to the conveyor.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m")
-var floor_offset: float:
-	get = get_floor_offset, set = set_floor_offset
-@export
-var floor_offset_lock := false
-@export_custom(PROPERTY_HINT_NONE, "radians_as_degrees")
-var floor_angle: float:
-	set = set_floor_angle
+var floor_plane: Plane = DEFAULT_FLOOR_PLANE:
+	set(value):
+		global_floor_plane = value
+	get:
+		return global_floor_plane
+## A global plane that represents the floor for the legs.
+##
+## A plane is defined by a normal vector and a distance from the origin.
+## Legs will reach down from their conveyor to this plane, and they will be aligned to the normal vector when possible.
+## However, they prioritize being aligned to the conveyor.
+var global_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
+	set(value):
+		global_floor_plane = value
+		_update_floor_plane()
+## The plane that represents the floor for the legs in the conveyor's space.
+##
+## A plane is defined by a normal vector and a distance from the origin.
+## Legs will reach down from their conveyor to this plane in the direction of the normal vector.
+##
+## This plane is derived from `global_floor_plane` and the conveyor's transform.
+## It's used as a backup when the node is outside the tree and global calculations aren't possible.
+## It's directly connected to the ConveyorLegsAssembly's `transform` property, which is always on this plane and aligned with it.
+## Its normal is aligned to the conveyor and its legs, so it may not correspond to `global_floor_plane` if the conveyor has rotated on its X-axis.
+@export_storage
+var local_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
+	get = get_local_floor_plane, set = set_local_floor_plane
 
 
 @export_group("Middle Legs", "middle_legs")
@@ -205,31 +230,19 @@ func set_needs_update(value: bool):
 	set_physics_process(value)
 
 func get_floor_offset() -> float:
-	var normal_y = apparent_transform.basis.y.normalized()
-	return apparent_transform.origin.dot(normal_y)
+	return get_local_floor_plane().d
 
-func set_floor_offset(value: float):
-	var floor_offset = value
-	var interval_offset = get_middle_legs_initial_leg_position()
-	var normal_y = get_floor_normal()
-	var normal_z = apparent_transform.basis.z.normalized()
-	var normal_x = normal_y.cross(normal_z).normalized()
-	var origin = normal_x * interval_offset + normal_y * floor_offset
-	apparent_transform = Transform3D(normal_x, normal_y, normal_z, origin)
-	set_needs_update(true)
+func set_local_floor_plane(value: Plane):
+	var old_value = get_local_floor_plane()
+	var normal_changed = old_value.normal != value.normal
+	var distance_changed = old_value.d != value.d
+	_save_local_floor_plane_to_transform(value)
+	if normal_changed:
+		update_leg_stand_coverage()
+	if normal_changed or distance_changed:
+		update_leg_stands_height_and_visibility()
 
-func set_floor_angle(value: float):
-	floor_angle = value
-	set_local_floor_plane(Plane(get_floor_normal(), get_floor_offset()))
-
-func set_global_floor_plane(global_floor_plane: Plane):
-	assert(is_inside_tree(), "set_global_floor_plane: Node must be inside tree to use global_tranform.")
-	# Prevent infinite loop.
-	set_notify_transform(false)
-	set_local_floor_plane(conveyor.global_transform.affine_inverse() * global_floor_plane)
-	set_notify_transform(true)
-
-func set_local_floor_plane(local_floor_plane: Plane):
+func _save_local_floor_plane_to_transform(local_floor_plane: Plane):
 	var floor_offset = local_floor_plane.d
 	var interval_offset = get_middle_legs_initial_leg_position()
 	var normal_y = local_floor_plane.normal
@@ -237,13 +250,14 @@ func set_local_floor_plane(local_floor_plane: Plane):
 	var normal_x = normal_y.cross(normal_z).normalized()
 	var origin = normal_x * interval_offset + normal_y * floor_offset
 	apparent_transform = Transform3D(normal_x, normal_y, normal_z, origin)
-	update_leg_stand_coverage()
+
+func get_local_floor_plane() -> Plane:
+	var floor_normal: Vector3 = transform.basis.y.normalized()
+	var floor_offset = transform.origin.dot(floor_normal)
+	return Plane(floor_normal, floor_offset)
 
 func get_floor_normal() -> Vector3:
-	var assembly_basis = assembly.basis if assembly else Basis.IDENTITY
-	var normal_external = Vector3.UP.rotated(assembly_basis.z.normalized(), floor_angle)
-	var normal_local = assembly_basis.inverse() * normal_external
-	return normal_local.normalized()
+	return get_local_floor_plane().normal
 
 func get_middle_legs_initial_leg_position() -> float:
 	var normal_x = apparent_transform.basis.x.normalized()
@@ -301,56 +315,22 @@ func get_leg_stand_coverage() -> Array[float]:
 
 	return [min_val, max_val]
 
-# TODO CALL ME
-func on_assembly_transform_changed():
-	var assembly_transform_delta_local = assembly.transform.affine_inverse() * assembly_transform_prev
-
-	# Update either FloorNormal or FloorOffset, not both at once
-	# Assume either assembly.Rotation or assembly.Position has changed, but not both
-	var rotation_or_scale_changed = assembly.basis != assembly_transform_prev.basis
-	var position_changed = assembly.position != assembly_transform_prev.origin
-	assembly_transform_prev = assembly.transform
-
-	# Just don't touch anything if both changed
-	# This shouldn't happen typically anyway
-	if rotation_or_scale_changed and position_changed:
-		return
-
-	# Disable dynamically adjusting the FloorOffset when the assembly is outside the tree
-	# This covers the case when the assembly is being initialized for the first time
-	# The user wants to drop the assembly at a location with its default height
-	# This is different from placing the assembly at the world origin and dragging it there
-	if not is_inside_tree() or floor_offset_lock:
-		return
-
-	var old_offset = get_floor_offset()
-	var new_offset = old_offset
-	if position_changed and not rotation_or_scale_changed:
-		var assembly_translation_delta_local = assembly_transform_delta_local.origin
-		var delta_offset = assembly_translation_delta_local.dot(apparent_transform.basis.y.normalized())
-		new_offset = old_offset + delta_offset
-
-	set_local_floor_plane(Plane(get_floor_normal(), new_offset))
-	set_needs_update(true)
-
 func _update_floor_plane():
 	if not is_inside_tree():
 		return
-	var gravity: Vector3 = ProjectSettings.get_setting("physics/3d/default_gravity_vector")
-	assert(gravity != null, "Gravity vector is null somehow. This should never happen.")
-	var gravity_vector: Vector3 = gravity.normalized()
-	var global_floor_normal: Vector3 = -gravity_vector.normalized()
-	var global_floor_plane_point := Vector3.ZERO
-	var global_floor_plane := Plane(global_floor_normal, global_floor_plane_point)
 	# Legs must be constrained to the conveyor's Z plane, so we must project the floor normal onto it.
 	var legs_plane := Plane(conveyor.global_basis.z, conveyor.global_position)
-	var adjusted_global_floor_plane_normal: Vector3 = global_floor_normal.slide(legs_plane.normal).normalized()
+	var adjusted_global_floor_plane_normal: Vector3 = global_floor_plane.normal.slide(legs_plane.normal).normalized()
 	var adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, -adjusted_global_floor_plane_normal)
 	if adjusted_global_floor_plane_point == null:
 		adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, adjusted_global_floor_plane_normal)
 		print("adjusted_global_floor_plane_point: ", adjusted_global_floor_plane_point)
 	var adjusted_global_floor_plane := Plane(adjusted_global_floor_plane_normal, adjusted_global_floor_plane_point)
-	set_global_floor_plane(adjusted_global_floor_plane)
+
+	# Prevent infinite loop.
+	set_notify_transform(false)
+	set_local_floor_plane(conveyor.global_transform.affine_inverse() * adjusted_global_floor_plane)
+	set_notify_transform(true)
 
 func update_leg_stands():
 	# If the leg stand scene changes, we need to regenerate everything
