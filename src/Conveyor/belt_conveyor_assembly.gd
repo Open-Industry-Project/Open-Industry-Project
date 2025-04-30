@@ -60,42 +60,60 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 #region ConveyorLegsAssembly properties
 @export_category(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME)
 @export_group("Conveyor Legs", "conveyor_legs_")
+## A global plane that represents the floor for the legs.
+##
+## A plane is defined by a normal vector and a distance from the origin.
+## Legs will reach down from their conveyor to this plane, and they will be aligned to the normal vector when possible.
+## However, they prioritize being aligned to the conveyor.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m")
-var conveyor_legs_floor_offset: float:
+var conveyor_legs_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
 		if has_instantiated:
-			return %ConveyorLegsAssembly.floor_offset
+			return %ConveyorLegsAssembly.floor_plane
 		else:
-			return conveyor_legs_floor_offset
+			return conveyor_legs_floor_plane
 	set(value):
 		if has_instantiated:
-			%ConveyorLegsAssembly.floor_offset = value
+			%ConveyorLegsAssembly.floor_plane = value
 		else:
-			conveyor_legs_floor_offset = value
-@export
-var conveyor_legs_floor_offset_lock := false:
+			conveyor_legs_floor_plane = value
+## A global plane that represents the floor for the legs.
+##
+## A plane is defined by a normal vector and a distance from the origin.
+## Legs will reach down from their conveyor to this plane, and they will be aligned to the normal vector when possible.
+## However, they prioritize being aligned to the conveyor.
+var conveyor_legs_global_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
 		if has_instantiated:
-			return %ConveyorLegsAssembly.floor_offset_lock
+			return %ConveyorLegsAssembly.global_floor_plane
 		else:
-			return conveyor_legs_floor_offset_lock
+			return conveyor_legs_global_floor_plane
 	set(value):
 		if has_instantiated:
-			%ConveyorLegsAssembly.floor_offset_lock = value
+			%ConveyorLegsAssembly.global_floor_plane = value
 		else:
-			conveyor_legs_floor_offset_lock = value
-@export_custom(PROPERTY_HINT_NONE, "radians_as_degrees")
-var conveyor_legs_floor_angle: float:
+			conveyor_legs_global_floor_plane = value
+## The plane that represents the floor for the legs in the conveyor's space.
+##
+## A plane is defined by a normal vector and a distance from the origin.
+## Legs will reach down from their conveyor to this plane in the direction of the normal vector.
+##
+## This plane is derived from `global_floor_plane` and the conveyor's transform.
+## It's used as a backup when the node is outside the tree and global calculations aren't possible.
+## It's directly connected to the ConveyorLegsAssembly's `transform` property, which is always on this plane and aligned with it.
+## Its normal is aligned to the conveyor and its legs, so it may not correspond to `global_floor_plane` if the conveyor has rotated on its X-axis.
+@export_storage
+var conveyor_legs_local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
 		if has_instantiated:
-			return %ConveyorLegsAssembly.floor_angle
+			return %ConveyorLegsAssembly.floor_plane
 		else:
-			return conveyor_legs_floor_angle
+			return conveyor_legs_floor_plane
 	set(value):
 		if has_instantiated:
-			%ConveyorLegsAssembly.floor_angle = value
+			%ConveyorLegsAssembly.floor_plane = value
 		else:
-			conveyor_legs_floor_angle = value
+			conveyor_legs_floor_plane = value
 
 
 @export_subgroup("Middle Legs", "conveyor_legs_middle_legs")
