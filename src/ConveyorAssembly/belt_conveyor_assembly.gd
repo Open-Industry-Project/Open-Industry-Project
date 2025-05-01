@@ -59,205 +59,186 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 
 #region ConveyorLegsAssembly properties
 @export_category(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME)
-@export_group("Conveyor Legs", "conveyor_legs_")
-## A global plane that represents the floor for the legs.
-##
-## A plane is defined by a normal vector and a distance from the origin.
-## Legs will reach down from their conveyor to this plane, and they will be aligned to the normal vector when possible.
-## However, they prioritize being aligned to the conveyor.
+@export_group("Conveyor Legs", "")
 @export_custom(PROPERTY_HINT_NONE, "suffix:m")
-var conveyor_legs_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
+var floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.floor_plane
 		else:
-			return conveyor_legs_floor_plane
+			return floor_plane
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.floor_plane = value
 		else:
-			conveyor_legs_floor_plane = value
-## A global plane that represents the floor for the legs.
-##
-## A plane is defined by a normal vector and a distance from the origin.
-## Legs will reach down from their conveyor to this plane, and they will be aligned to the normal vector when possible.
-## However, they prioritize being aligned to the conveyor.
-var conveyor_legs_global_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
+			floor_plane = value
+var global_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.global_floor_plane
 		else:
-			return conveyor_legs_global_floor_plane
+			return global_floor_plane
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.global_floor_plane = value
 		else:
-			conveyor_legs_global_floor_plane = value
-## The plane that represents the floor for the legs in the conveyor's space.
-##
-## A plane is defined by a normal vector and a distance from the origin.
-## Legs will reach down from their conveyor to this plane in the direction of the normal vector.
-##
-## This plane is derived from `global_floor_plane` and the conveyor's transform.
-## It's used as a backup when the node is outside the tree and global calculations aren't possible.
-## It's directly connected to the ConveyorLegsAssembly's `transform` property, which is always on this plane and aligned with it.
-## Its normal is aligned to the conveyor and its legs, so it may not correspond to `global_floor_plane` if the conveyor has rotated on its X-axis.
+			global_floor_plane = value
 @export_storage
-var conveyor_legs_local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
+var local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
 		if _has_instantiated:
-			return %ConveyorLegsAssembly.floor_plane
+			return %ConveyorLegsAssembly.local_floor_plane
 		else:
-			return conveyor_legs_floor_plane
+			return local_floor_plane
 	set(value):
 		if _has_instantiated:
-			%ConveyorLegsAssembly.floor_plane = value
+			%ConveyorLegsAssembly.local_floor_plane = value
 		else:
-			conveyor_legs_floor_plane = value
+			local_floor_plane = value
 
 
-@export_subgroup("Middle Legs", "conveyor_legs_middle_legs")
+@export_subgroup("Middle Legs", "middle_legs")
 @export
-var conveyor_legs_middle_legs_enabled := false:
+var middle_legs_enabled := false:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.middle_legs_enabled
 		else:
-			return conveyor_legs_middle_legs_enabled
+			return middle_legs_enabled
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.middle_legs_enabled = value
 		else:
-			conveyor_legs_middle_legs_enabled = value
+			middle_legs_enabled = value
 @export_range(-5, 5, 0.01, "or_less", "or_greater", "suffix:m")
-var conveyor_legs_middle_legs_initial_leg_position: float:
+var middle_legs_initial_leg_position: float:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.middle_legs_initial_leg_position
 		else:
-			return conveyor_legs_middle_legs_initial_leg_position
+			return middle_legs_initial_leg_position
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.middle_legs_initial_leg_position = value
 		else:
-			conveyor_legs_middle_legs_initial_leg_position = value
+			middle_legs_initial_leg_position = value
 @export_range(preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).MIDDLE_LEGS_SPACING_MIN, 5, 0.01, "or_greater", "suffix:m")
-var conveyor_legs_middle_legs_spacing: float = 2:
+var middle_legs_spacing: float = 2:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.middle_legs_spacing
 		else:
-			return conveyor_legs_middle_legs_spacing
+			return middle_legs_spacing
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.middle_legs_spacing = value
 		else:
-			conveyor_legs_middle_legs_spacing = value
+			middle_legs_spacing = value
 
 
-@export_subgroup("Head End", "conveyor_legs_head_end")
+@export_subgroup("Head End", "head_end")
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
-var conveyor_legs_head_end_attachment_offset: float = 0.45:
+var head_end_attachment_offset: float = 0.45:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.head_end_attachment_offset
 		else:
-			return conveyor_legs_head_end_attachment_offset
+			return head_end_attachment_offset
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.head_end_attachment_offset = value
 		else:
-			conveyor_legs_head_end_attachment_offset = value
+			head_end_attachment_offset = value
 @export
-var conveyor_legs_head_end_leg_enabled: bool = true:
+var head_end_leg_enabled: bool = true:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.head_end_leg_enabled
 		else:
-			return conveyor_legs_head_end_leg_enabled
+			return head_end_leg_enabled
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.head_end_leg_enabled = value
 		else:
-			conveyor_legs_head_end_leg_enabled = value
+			head_end_leg_enabled = value
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
-var conveyor_legs_head_end_leg_clearance: float = 0.5:
+var head_end_leg_clearance: float = 0.5:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.head_end_leg_clearance
 		else:
-			return conveyor_legs_head_end_leg_clearance
+			return head_end_leg_clearance
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.head_end_leg_clearance = value
 		else:
-			conveyor_legs_head_end_leg_clearance = value
+			head_end_leg_clearance = value
 
 
-@export_subgroup("Tail End", "conveyor_legs_tail_end")
+@export_subgroup("Tail End", "tail_end")
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
-var conveyor_legs_tail_end_attachment_offset: float = 0.45:
+var tail_end_attachment_offset: float = 0.45:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.tail_end_attachment_offset
 		else:
-			return conveyor_legs_tail_end_attachment_offset
+			return tail_end_attachment_offset
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.tail_end_attachment_offset = value
 		else:
-			conveyor_legs_tail_end_attachment_offset = value
+			tail_end_attachment_offset = value
 @export
-var conveyor_legs_tail_end_leg_enabled: bool = true:
+var tail_end_leg_enabled: bool = true:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.tail_end_leg_enabled
 		else:
-			return conveyor_legs_tail_end_leg_enabled
+			return tail_end_leg_enabled
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.tail_end_leg_enabled = value
 		else:
-			conveyor_legs_tail_end_leg_enabled = value
+			tail_end_leg_enabled = value
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
-var conveyor_legs_tail_end_leg_clearance: float = 0.5:
+var tail_end_leg_clearance: float = 0.5:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.tail_end_leg_clearance
 		else:
-			return conveyor_legs_tail_end_leg_clearance
+			return tail_end_leg_clearance
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.tail_end_leg_clearance = value
 		else:
-			conveyor_legs_tail_end_leg_clearance = value
+			tail_end_leg_clearance = value
 
 
-@export_subgroup("Model", "conveyor_legs_leg_model")
+@export_subgroup("Model", "leg_model")
 @export
-var conveyor_legs_leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
+var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.leg_model_scene
 		else:
-			return conveyor_legs_leg_model_scene
+			return leg_model_scene
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.leg_model_scene = value
 		else:
-			conveyor_legs_leg_model_scene = value
+			leg_model_scene = value
 @export
-var conveyor_legs_leg_model_grabs_offset: float = 0.132:
+var leg_model_grabs_offset: float = 0.132:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.leg_model_grabs_offset
 		else:
-			return conveyor_legs_leg_model_grabs_offset
+			return leg_model_grabs_offset
 	set(value):
 		if _has_instantiated:
 			%ConveyorLegsAssembly.leg_model_grabs_offset = value
 		else:
-			conveyor_legs_leg_model_grabs_offset = value
+			leg_model_grabs_offset = value
 #endregion
 
 
