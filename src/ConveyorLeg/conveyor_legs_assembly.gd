@@ -2,14 +2,12 @@
 class_name ConveyorLegsAssembly
 extends Node3D
 
-# Workarounds for renaming class
-var assembly: EnhancedNode3D:
+var conveyor: Node3D:
 	get:
-		return get_parent()
-
-var conveyor: ResizableNode3D:
-	get:
-		return get_parent()
+		var parent = get_parent() as Node3D
+		if parent != null && parent.has_signal("size_changed") and "size" in parent and parent.size is Vector3:
+			return parent
+		return null
 
 var apparent_transform: Transform3D:
 	get:
@@ -145,7 +143,6 @@ var leg_model_grabs_offset: float = 0.132:
 
 
 # Configuration change detection fields
-var assembly_transform_prev := Transform3D.IDENTITY
 var conveyors_transform_prev := Transform3D.IDENTITY
 var leg_stands_transform_prev := Transform3D.IDENTITY
 var target_width_prev := NAN
@@ -184,7 +181,6 @@ func _ready():
 #region Managing connection to Conveyor's signals
 func _notification(what):
 	if what == NOTIFICATION_PARENTED:
-		assembly_transform_prev = get_parent().transform
 		_connect_conveyor_signals()
 	elif what == NOTIFICATION_UNPARENTED:
 		_disconnect_conveyor_signals()
@@ -199,7 +195,7 @@ func _on_global_transform_changed():
 	update_leg_stands_height_and_visibility()
 
 func _connect_conveyor_signals() -> void:
-	if conveyor.has_signal("size_changed") and "size" in conveyor and conveyor.size is Vector3:
+	if conveyor != null:
 		conveyor.connect("size_changed", self._on_conveyor_size_changed)
 		conveyor_connected = true
 		_on_conveyor_size_changed()
@@ -316,7 +312,7 @@ func get_leg_stand_coverage() -> Array[float]:
 	return [min_val, max_val]
 
 func _update_floor_plane():
-	if not is_inside_tree():
+	if not is_inside_tree() or conveyor == null:
 		return
 	# Legs must be constrained to the conveyor's Z plane, so we must project the floor normal onto it.
 	var legs_plane := Plane(conveyor.global_basis.z, conveyor.global_position)
@@ -336,6 +332,9 @@ func _update_floor_plane():
 	set_notify_transform(true)
 
 func update_leg_stands():
+	if conveyor == null:
+		return
+
 	# If the leg stand scene changes, we need to regenerate everything
 	if leg_model_scene != leg_model_scene_prev:
 		delete_all_auto_leg_stands()
