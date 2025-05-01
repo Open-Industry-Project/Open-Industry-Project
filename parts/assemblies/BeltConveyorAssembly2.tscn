@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dpeg2oajgjsu3" path="res://src/Conveyor/belt_conveyor_assembly.gd" id="1_upkoq"]
 [ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="2_rxjsx"]
 [ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://src/SideGuards/SideGuardsAssembly.tscn" id="3_rxjsx"]
-[ext_resource type="Script" uid="uid://dxaug2s6x4otb" path="res://src/ConveyorLeg/conveyor_legs_assembly.gd" id="4_xgosv"]
+[ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://src/ConveyorLeg/ConveyorLegsAssembly.tscn" id="4_xgosv"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
@@ -17,8 +17,5 @@ unique_name_in_owner = true
 [node name="SideGuardsAssembly" parent="Conveyor" instance=ExtResource("3_rxjsx")]
 unique_name_in_owner = true
 
-[node name="ConveyorLegsAssembly" type="Node3D" parent="Conveyor"]
+[node name="ConveyorLegsAssembly" parent="Conveyor" instance=ExtResource("4_xgosv")]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
-script = ExtResource("4_xgosv")
-floor_offset = -2.0
