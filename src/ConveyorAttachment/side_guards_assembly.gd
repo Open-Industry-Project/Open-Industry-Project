@@ -8,21 +8,22 @@ enum Side
 	RIGHT = 2,
 }
 
-@export var right_side = true:
+@export_subgroup("Right Side Guards", "right_side_guards_")
+@export var right_side_guards_enabled = true:
 	set(value):
-		right_side = value
-		_update_side(Side.RIGHT, right_side)
-@export var right_side_openings: Array[SideGuardOpening]:
+		right_side_guards_enabled = value
+		_update_side(Side.RIGHT, right_side_guards_enabled)
+@export var right_side_guards_openings: Array[SideGuardOpening]:
 	set(value):
 		# Unsubscribe from previous openings. They may be replaced with new ones.
-		for opening in right_side_openings:
+		for opening in right_side_guards_openings:
 			# Shouldn't be null since all nulls should have been replaced by instances.
 			assert(opening != null, "Opening is null.")
 			opening.disconnect("changed", self._on_opening_changed_right)
 
 		# Workaround for faulty duplicate behavior in the editor.
 		# See issue #74918.
-		if right_side_openings.size() == 0:
+		if right_side_guards_openings.size() == 0:
 			# Assume that we're initializing for the first time if existing Array is empty.
 			for opening in value:
 				# Any openings we see in the new Array possibly came from an original that this instance is a duplicate of.
@@ -30,37 +31,38 @@ enum Side
 				# Make all the openings unique to this instance to prevent editing the originals.
 				if opening != null:
 					opening = opening.duplicate(true)
-				right_side_openings.append(opening)
+				right_side_guards_openings.append(opening)
 		else:
 			# If we're not initializing, avoid making unnecessary duplicates.
-			right_side_openings.assign(value)
+			right_side_guards_openings.assign(value)
 
 		# Replace null with a new gap so users don't have to do this by hand.
-		for i in range(right_side_openings.size()):
-			if right_side_openings[i] == null:
-				right_side_openings[i] = SideGuardOpening.new()
+		for i in range(right_side_guards_openings.size()):
+			if right_side_guards_openings[i] == null:
+				right_side_guards_openings[i] = SideGuardOpening.new()
 
 		# Subscribe to ensure that side guards update whenever openings change.
-		for opening in right_side_openings:
+		for opening in right_side_guards_openings:
 			opening.connect("changed", self._on_opening_changed_right)
 
 		# Update side guards to account for added or removed gaps.
 		_on_opening_changed_right()
-@export var left_side = true:
+@export_subgroup("Left Side Guards", "left_side_guards_")
+@export var left_side_guards_enabled = true:
 	set(value):
-		left_side = value
-		_update_side(Side.LEFT, left_side)
-@export var left_side_openings: Array[SideGuardOpening]:
+		left_side_guards_enabled = value
+		_update_side(Side.LEFT, left_side_guards_enabled)
+@export var left_side_guards_openings: Array[SideGuardOpening]:
 	set(value):
 		# Unsubscribe from previous openings. They may be replaced with new ones.
-		for opening in left_side_openings:
+		for opening in left_side_guards_openings:
 			# Shouldn't be null since all nulls should have been replaced by instances.
 			assert(opening != null, "Opening is null.")
 			opening.disconnect("changed", self._on_opening_changed_left)
 
 		# Workaround for faulty duplicate behavior in the editor.
 		# See issue #74918.
-		if left_side_openings.size() == 0:
+		if left_side_guards_openings.size() == 0:
 			# Assume that we're initializing for the first time if existing Array is empty.
 			for opening in value:
 				# Any openings we see in the new Array possibly came from an original that this instance is a duplicate of.
@@ -68,18 +70,18 @@ enum Side
 				# Make all the openings unique to this instance to prevent editing the originals.
 				if opening != null:
 					opening = opening.duplicate(true)
-				left_side_openings.append(opening)
+				left_side_guards_openings.append(opening)
 		else:
 			# If we're not initializing, avoid making unnecessary duplicates.
-			left_side_openings.assign(value)
+			left_side_guards_openings.assign(value)
 
 		# Replace null with a new gap so users don't have to do this by hand.
-		for i in range(left_side_openings.size()):
-			if left_side_openings[i] == null:
-				left_side_openings[i] = SideGuardOpening.new()
+		for i in range(left_side_guards_openings.size()):
+			if left_side_guards_openings[i] == null:
+				left_side_guards_openings[i] = SideGuardOpening.new()
 
 		# Subscribe to ensure that side guards update whenever openings change.
-		for opening in left_side_openings:
+		for opening in left_side_guards_openings:
 			opening.connect("changed", self._on_opening_changed_left)
 
 		# Update side guards to account for added or removed gaps.
@@ -130,8 +132,8 @@ func _on_conveyor_size_changed() -> void:
 
 func _update_side_guards() -> void:
 	transform = Transform3D()
-	_update_side(Side.LEFT, left_side)
-	_update_side(Side.RIGHT, right_side)
+	_update_side(Side.LEFT, left_side_guards_enabled)
+	_update_side(Side.RIGHT, right_side_guards_enabled)
 
 
 func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
@@ -206,9 +208,9 @@ func _insert_openings_into_extents(extent_pairs: Array, side: SideGuardsAssembly
 	var side_guards_gaps: Array
 	match side:
 		Side.RIGHT:
-			side_guards_gaps = right_side_openings
+			side_guards_gaps = right_side_guards_openings
 		Side.LEFT:
-			side_guards_gaps = left_side_openings
+			side_guards_gaps = left_side_guards_openings
 	# Gap extents.
 	var gaps: Array = []
 	for gap in side_guards_gaps:
@@ -364,7 +366,7 @@ func _adjust_side_guards(side_node: Node3D, side_guard_extents: Array, side: Sid
 		guard.transform = mount_transform * facing_transform * guard_base_transform * length_adjustment
 
 func _on_opening_changed_left() -> void:
-	_update_side(Side.LEFT, left_side)
+	_update_side(Side.LEFT, left_side_guards_enabled)
 
 func _on_opening_changed_right() -> void:
-	_update_side(Side.RIGHT, right_side)
+	_update_side(Side.RIGHT, right_side_guards_enabled)
