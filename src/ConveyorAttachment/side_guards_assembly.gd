@@ -85,7 +85,7 @@ enum Side
 		# Update side guards to account for added or removed gaps.
 		_on_opening_changed_left()
 
-var conveyor_connected = false;
+var _conveyor_connected = false;
 
 
 #region Managing connection to Conveyor's signals
@@ -102,23 +102,23 @@ func _connect_conveyor_signals() -> void:
 	var conveyor = get_parent()
 	if conveyor.has_signal("size_changed") and "size" in conveyor and conveyor.size is Vector3:
 		conveyor.connect("size_changed", self._on_conveyor_size_changed)
-		conveyor_connected = true
+		_conveyor_connected = true
 		_on_conveyor_size_changed()
 	else:
-		conveyor_connected = false
+		_conveyor_connected = false
 	update_configuration_warnings()
 
 
 func _disconnect_conveyor_signals() -> void:
-	if not conveyor_connected:
+	if not _conveyor_connected:
 		return
-	conveyor_connected = false
+	_conveyor_connected = false
 	var conveyor = get_parent()
 	conveyor.disconnect("size_changed", self._on_conveyor_size_changed)
 
 
 func _get_configuration_warnings() -> PackedStringArray:
-	if not conveyor_connected:
+	if not _conveyor_connected:
 		return ["This node must be a child of a Conveyor or ConveyorAssembly."]
 	return []
 #endregion

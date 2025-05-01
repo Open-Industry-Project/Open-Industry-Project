@@ -13,45 +13,45 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 @export_group("Side Guards", "sideguards")
 @export var sideguards_right_side: bool = true:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %SideGuardsAssembly.right_side
 		else:
 			return sideguards_right_side
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%SideGuardsAssembly.right_side = value
 		else:
 			sideguards_right_side = value
 @export var sideguards_right_side_openings: Array[SideGuardOpening] = []:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %SideGuardsAssembly.right_side_openings
 		else:
 			return sideguards_right_side_openings
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%SideGuardsAssembly.right_side_openings = value
 		else:
 			sideguards_right_side_openings = value
 @export var sideguards_left_side: bool = true:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %SideGuardsAssembly.left_side
 		else:
 			return sideguards_left_side
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%SideGuardsAssembly.left_side = value
 		else:
 			sideguards_left_side = value
 @export var sideguards_left_side_openings: Array[SideGuardOpening] = []:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %SideGuardsAssembly.left_side_openings
 		else:
 			return sideguards_left_side_openings
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%SideGuardsAssembly.left_side_openings = value
 		else:
 			sideguards_left_side_openings = value
@@ -68,12 +68,12 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 @export_custom(PROPERTY_HINT_NONE, "suffix:m")
 var conveyor_legs_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.floor_plane
 		else:
 			return conveyor_legs_floor_plane
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.floor_plane = value
 		else:
 			conveyor_legs_floor_plane = value
@@ -84,12 +84,12 @@ var conveyor_legs_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PAT
 ## However, they prioritize being aligned to the conveyor.
 var conveyor_legs_global_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.global_floor_plane
 		else:
 			return conveyor_legs_global_floor_plane
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.global_floor_plane = value
 		else:
 			conveyor_legs_global_floor_plane = value
@@ -105,12 +105,12 @@ var conveyor_legs_global_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCR
 @export_storage
 var conveyor_legs_local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.floor_plane
 		else:
 			return conveyor_legs_floor_plane
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.floor_plane = value
 		else:
 			conveyor_legs_floor_plane = value
@@ -120,36 +120,36 @@ var conveyor_legs_local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRI
 @export
 var conveyor_legs_middle_legs_enabled := false:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.middle_legs_enabled
 		else:
 			return conveyor_legs_middle_legs_enabled
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.middle_legs_enabled = value
 		else:
 			conveyor_legs_middle_legs_enabled = value
 @export_range(-5, 5, 0.01, "or_less", "or_greater", "suffix:m")
 var conveyor_legs_middle_legs_initial_leg_position: float:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.middle_legs_initial_leg_position
 		else:
 			return conveyor_legs_middle_legs_initial_leg_position
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.middle_legs_initial_leg_position = value
 		else:
 			conveyor_legs_middle_legs_initial_leg_position = value
 @export_range(preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).MIDDLE_LEGS_SPACING_MIN, 5, 0.01, "or_greater", "suffix:m")
 var conveyor_legs_middle_legs_spacing: float = 2:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.middle_legs_spacing
 		else:
 			return conveyor_legs_middle_legs_spacing
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.middle_legs_spacing = value
 		else:
 			conveyor_legs_middle_legs_spacing = value
@@ -159,36 +159,36 @@ var conveyor_legs_middle_legs_spacing: float = 2:
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
 var conveyor_legs_head_end_attachment_offset: float = 0.45:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.head_end_attachment_offset
 		else:
 			return conveyor_legs_head_end_attachment_offset
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.head_end_attachment_offset = value
 		else:
 			conveyor_legs_head_end_attachment_offset = value
 @export
 var conveyor_legs_head_end_leg_enabled: bool = true:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.head_end_leg_enabled
 		else:
 			return conveyor_legs_head_end_leg_enabled
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.head_end_leg_enabled = value
 		else:
 			conveyor_legs_head_end_leg_enabled = value
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
 var conveyor_legs_head_end_leg_clearance: float = 0.5:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.head_end_leg_clearance
 		else:
 			return conveyor_legs_head_end_leg_clearance
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.head_end_leg_clearance = value
 		else:
 			conveyor_legs_head_end_leg_clearance = value
@@ -198,36 +198,36 @@ var conveyor_legs_head_end_leg_clearance: float = 0.5:
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
 var conveyor_legs_tail_end_attachment_offset: float = 0.45:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.tail_end_attachment_offset
 		else:
 			return conveyor_legs_tail_end_attachment_offset
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.tail_end_attachment_offset = value
 		else:
 			conveyor_legs_tail_end_attachment_offset = value
 @export
 var conveyor_legs_tail_end_leg_enabled: bool = true:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.tail_end_leg_enabled
 		else:
 			return conveyor_legs_tail_end_leg_enabled
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.tail_end_leg_enabled = value
 		else:
 			conveyor_legs_tail_end_leg_enabled = value
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
 var conveyor_legs_tail_end_leg_clearance: float = 0.5:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.tail_end_leg_clearance
 		else:
 			return conveyor_legs_tail_end_leg_clearance
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.tail_end_leg_clearance = value
 		else:
 			conveyor_legs_tail_end_leg_clearance = value
@@ -237,39 +237,39 @@ var conveyor_legs_tail_end_leg_clearance: float = 0.5:
 @export
 var conveyor_legs_leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.leg_model_scene
 		else:
 			return conveyor_legs_leg_model_scene
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.leg_model_scene = value
 		else:
 			conveyor_legs_leg_model_scene = value
 @export
 var conveyor_legs_leg_model_grabs_offset: float = 0.132:
 	get:
-		if has_instantiated:
+		if _has_instantiated:
 			return %ConveyorLegsAssembly.leg_model_grabs_offset
 		else:
 			return conveyor_legs_leg_model_grabs_offset
 	set(value):
-		if has_instantiated:
+		if _has_instantiated:
 			%ConveyorLegsAssembly.leg_model_grabs_offset = value
 		else:
 			conveyor_legs_leg_model_grabs_offset = value
 #endregion
 
 
-var conveyor_script: Script
-var has_instantiated := false
-var cached_property_values: Dictionary = {}
+var _conveyor_script: Script
+var _has_instantiated := false
+var _cached_property_values: Dictionary = {}
 
 
 func _init() -> void:
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
-	conveyor_script = load(class_details["path"]) as Script
+	_conveyor_script = load(class_details["path"]) as Script
 
 
 func _get_property_list() -> Array[Dictionary]:
@@ -298,12 +298,12 @@ func _set(property: StringName, value: Variant) -> bool:
 	# Pass-through most conveyor properties.
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
-	if has_instantiated:
+	if _has_instantiated:
 		%Conveyor.set(property, value)
 		return true
 	else:
 		# The conveyor instance won't exist yet, so cache the values to apply them later.
-		cached_property_values[property] = value
+		_cached_property_values[property] = value
 		return true
 
 
@@ -313,13 +313,13 @@ func _get(property: StringName) -> Variant:
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
 	# Beware null values because Godot will treat them differently (godot/godotengine#86989).
-	if has_instantiated:
+	if _has_instantiated:
 		#print("getting property: ", property, ": ", %Conveyor.get(property))
 		return %Conveyor.get(property)
 	else:
 		# The conveyor instance won't exist yet, so return the cached value.
-		#print("getting property: ", property, ": ", cached_property_values[property])
-		return cached_property_values[property]
+		#print("getting property: ", property, ": ", _cached_property_values[property])
+		return _cached_property_values[property]
 
 
 func _property_can_revert(property: StringName) -> bool:
@@ -331,7 +331,7 @@ func _property_get_revert(property: StringName) -> Variant:
 	#print("_property_get_revert(%s)" % property)
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
-	if has_instantiated:
+	if _has_instantiated:
 		if %Conveyor.property_can_revert(property):
 			#print("revert for ", property, ": ", %Conveyor.property_get_revert(property))
 			return %Conveyor.property_get_revert(property)
@@ -346,8 +346,8 @@ func _property_get_revert(property: StringName) -> Variant:
 			# Try the script's default instead.
 			#print("revert for ", property, ": ", %Conveyor.get_script().get_property_default_value(property))
 			return %Conveyor.get_script().get_property_default_value(property)
-	#print("revert for ", property, ": ", conveyor_script.get_property_default_value(property))
-	return conveyor_script.get_property_default_value(property)
+	#print("revert for ", property, ": ", _conveyor_script.get_property_default_value(property))
+	return _conveyor_script.get_property_default_value(property)
 
 
 func _on_instantiated() -> void:
@@ -357,12 +357,12 @@ func _on_instantiated() -> void:
 	# Copy cached values to conveyor instance, now that it's available.
 	# Godot actually calls the setters for us an extra time, so this step isn't actually needed right now.
 	# But it's here just in case that changes.
-	for property in cached_property_values:
-		var value = cached_property_values[property]
+	for property in _cached_property_values:
+		var value = _cached_property_values[property]
 		%Conveyor.set(property, value)
 	# Clear the cache to ensure it can't haunt us later somehow.
-	cached_property_values.clear()
-	has_instantiated = true
+	_cached_property_values.clear()
+	_has_instantiated = true
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
@@ -371,11 +371,11 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	var has_seen_node3d_category = false
 	var has_seen_category_after_node3d = false
 
-	if has_instantiated:
+	if _has_instantiated:
 		all_properties = %Conveyor.get_property_list()
 	else:
 		# The conveyor instance won't exist yet, so grab from the script class instead.
-		all_properties = conveyor_script.get_script_property_list()
+		all_properties = _conveyor_script.get_script_property_list()
 		# List doesn't include built-in properties, so we don't have to skip them.
 		has_seen_node3d_category = true
 
