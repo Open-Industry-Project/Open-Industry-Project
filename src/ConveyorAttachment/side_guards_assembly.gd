@@ -9,10 +9,12 @@ enum Side
 }
 
 @export_subgroup("Right Side Guards", "right_side_guards_")
+## If [code]true[/code], automatically generate side guards on the right-hand side of the conveyor.
 @export var right_side_guards_enabled = true:
 	set(value):
 		right_side_guards_enabled = value
 		_update_side(Side.RIGHT, right_side_guards_enabled)
+## A list of locations on the right-hand side to be kept clear of generated side guards.
 @export var right_side_guards_openings: Array[SideGuardOpening]:
 	set(value):
 		# Unsubscribe from previous openings. They may be replaced with new ones.
@@ -48,10 +50,12 @@ enum Side
 		# Update side guards to account for added or removed gaps.
 		_on_opening_changed_right()
 @export_subgroup("Left Side Guards", "left_side_guards_")
+## If [code]true[/code], automatically generate side guards on the left-hand side of the conveyor.
 @export var left_side_guards_enabled = true:
 	set(value):
 		left_side_guards_enabled = value
 		_update_side(Side.LEFT, left_side_guards_enabled)
+## A list of locations on the left-hand side to be kept clear of generated side guards.
 @export var left_side_guards_openings: Array[SideGuardOpening]:
 	set(value):
 		# Unsubscribe from previous openings. They may be replaced with new ones.
