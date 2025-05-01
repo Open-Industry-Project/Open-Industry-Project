@@ -50,7 +50,8 @@ var floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 ## However, they prioritize being aligned to the conveyor.
 var global_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 	set(value):
-		global_floor_plane = value
+		assert(value.normal != Vector3.ZERO, "global_floor_plane: normal cannot be zero.")
+		global_floor_plane = value.normalized()
 		_update_floor_plane()
 ## The plane that represents the floor for the legs in the conveyor's space.
 ##
@@ -320,11 +321,14 @@ func _update_floor_plane():
 		return
 	# Legs must be constrained to the conveyor's Z plane, so we must project the floor normal onto it.
 	var legs_plane := Plane(conveyor.global_basis.z, conveyor.global_position)
+	assert(legs_plane.normal != Vector3.ZERO, "ConveyorLegsAssembly: conveyor's global Z basis vector must not be zero")
+	assert(global_floor_plane.normal != Vector3.ZERO, "ConveyorLegsAssembly: global_floor_plane normal is zero")
 	var adjusted_global_floor_plane_normal: Vector3 = global_floor_plane.normal.slide(legs_plane.normal).normalized()
+	assert(adjusted_global_floor_plane_normal != Vector3.ZERO, "ConveyorLegsAssembly: Legs and floor plane can't be parallel; the legs would never reach the floor.")
 	var adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, -adjusted_global_floor_plane_normal)
 	if adjusted_global_floor_plane_point == null:
 		adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, adjusted_global_floor_plane_normal)
-		print("adjusted_global_floor_plane_point: ", adjusted_global_floor_plane_point)
+	assert(adjusted_global_floor_plane_point != null, "ConveyorLegsAssembly: adjusted_global_floor_plane_point is null")
 	var adjusted_global_floor_plane := Plane(adjusted_global_floor_plane_normal, adjusted_global_floor_plane_point)
 
 	# Prevent infinite loop.
