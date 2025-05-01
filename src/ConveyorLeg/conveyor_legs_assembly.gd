@@ -22,7 +22,7 @@ const AUTO_LEG_STAND_NAME_PREFIX = "ConveyorLegMiddle"
 const AUTO_LEG_STAND_NAME_FRONT = "ConveyorLegTail"
 const AUTO_LEG_STAND_NAME_REAR = "ConveyorLegHead"
 const MIDDLE_LEGS_SPACING_MIN: float = 0.5
-const DEFAULT_FLOOR_PLANE := Plane(Vector3.UP, 0.0)
+const DEFAULT_FLOOR_PLANE := Plane(Vector3.UP, -2.0)
 
 enum LegIndex {
 	FRONT = -1,
@@ -38,6 +38,7 @@ enum LegIndex {
 @export_custom(PROPERTY_HINT_NONE, "suffix:m")
 var floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 	set(value):
+		floor_plane = value
 		global_floor_plane = value
 	get:
 		return global_floor_plane
