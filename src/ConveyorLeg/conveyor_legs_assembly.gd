@@ -83,6 +83,21 @@ var middle_legs_spacing: float = 2:
 			middle_legs_spacing = value
 			set_needs_update(true)
 
+## The number middle leg instances
+##
+## Setting this creates or removes legs. Getting it returns the current number of legs.
+##
+## Addresses "Child node disappeared while duplicating" issue.
+@export_storage()
+var middle_legs_instance_count: int = 0:
+	set(value):
+		middle_legs_instance_count = value
+		create_and_remove_auto_leg_stands(value)
+	get:
+		# Count middle legs
+		return get_children().reduce(func(acc, child):
+				return acc + (1 if child.name.begins_with(AUTO_LEG_STAND_NAME_PREFIX) else 0), 0)
+
 
 @export_group("Head End", "head_end")
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
@@ -342,7 +357,7 @@ func update_leg_stands():
 
 	# Only bother repositioning leg stands if the user could manually edit them
 	# All the leg stands that we generated should already be in the right spots
-	var edited_root = get_tree().get_edited_scene_root()
+	var edited_root = get_tree().get_edited_scene_root() if is_inside_tree() else null
 	var leg_stands_is_editable = edited_root != null and (edited_root == owner or edited_root.is_editable_instance(owner))
 	if leg_stands_is_editable or leg_stands_path_changed:
 		snap_all_leg_stands_to_path()
@@ -431,6 +446,11 @@ func update_leg_stand_width(leg_stand: Node3D) -> void:
 	leg_stand.scale = Vector3(1.0, leg_stand.scale.y, target_width / LEG_STANDS_BASE_WIDTH)
 
 func get_leg_stand_target_width() -> float:
+	if conveyor == null:
+		# Fall back to something. Doesn't matter what.
+		# This only happens during duplication.
+		# The duplicated legs will be updated with the correct width once we enter the tree.
+		return LEG_STANDS_BASE_WIDTH
 	# This is a hack to account for the fact that CurvedRollerConveyors are slightly wider than other conveyors
 	var conveyor_width: float = conveyor.size.z
 	# TODO: Restore RollerConveyor code.
@@ -533,8 +553,7 @@ func get_interval_leg_stand_position(index: int) -> float:
 
 
 
-func create_and_remove_auto_leg_stands() -> bool:
-	var changed := false
+func get_desired_interval_leg_stand_count() -> int:
 	# Don't allow negative clearance
 	head_end_leg_clearance = maxf(0.0, head_end_leg_clearance)
 	# Enforce a margin from fixed front and rear legs if they exist
@@ -550,7 +569,12 @@ func create_and_remove_auto_leg_stands() -> bool:
 		interval_leg_stand_count = 0
 	else:
 		interval_leg_stand_count = int((last_position - first_position) / middle_legs_spacing) + 1
+	return interval_leg_stand_count
 
+func create_and_remove_auto_leg_stands(interval_leg_stand_count=null) -> bool:
+	if interval_leg_stand_count == null:
+		interval_leg_stand_count = get_desired_interval_leg_stand_count()
+	var changed := false
 	# Inventory our existing leg stands and delete the ones we don't need
 	var has_front_leg := false
 	var has_rear_leg := false
