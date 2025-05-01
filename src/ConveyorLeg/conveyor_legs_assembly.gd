@@ -501,8 +501,10 @@ func adjust_auto_leg_stand_positions() -> int:
 	# Don't allow tiny or negative intervals
 	middle_legs_spacing = maxf(MIDDLE_LEGS_SPACING_MIN, middle_legs_spacing)
 	if middle_legs_spacing == middle_legs_spacing_prev and \
-	   leg_stand_coverage_max == leg_stand_coverage_max_prev and \
-	   leg_stand_coverage_min == leg_stand_coverage_min_prev:
+			leg_stand_coverage_max == leg_stand_coverage_max_prev and \
+			leg_stand_coverage_min == leg_stand_coverage_min_prev and \
+			tail_end_leg_enabled == tail_end_leg_enabled_prev and \
+			(tail_end_leg_clearance == tail_end_leg_clearance_prev or not tail_end_leg_enabled):
 		return 0
 
 	var change_count := 0
