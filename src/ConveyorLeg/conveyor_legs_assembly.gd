@@ -230,8 +230,10 @@ func _physics_process(_delta):
 func set_needs_update(value: bool):
 	set_physics_process(value)
 
-func get_floor_offset() -> float:
-	return get_local_floor_plane().d
+func get_local_floor_plane() -> Plane:
+	var floor_normal: Vector3 = transform.basis.y.normalized()
+	var floor_offset = transform.origin.dot(floor_normal)
+	return Plane(floor_normal, floor_offset)
 
 func set_local_floor_plane(value: Plane):
 	var old_value = get_local_floor_plane()
@@ -243,36 +245,33 @@ func set_local_floor_plane(value: Plane):
 	if normal_changed or distance_changed:
 		update_leg_stands_height_and_visibility()
 
-func _save_local_floor_plane_to_transform(local_floor_plane: Plane):
-	var floor_offset = local_floor_plane.d
-	var interval_offset = get_middle_legs_initial_leg_position()
-	var normal_y = local_floor_plane.normal
+func _save_local_floor_plane_to_transform(new_local_floor_plane: Plane):
+	_save_properties_to_local_transform(new_local_floor_plane, middle_legs_initial_leg_position)
+
+func _save_properties_to_local_transform(new_local_floor_plane: Plane, new_middle_legs_initial_leg_position: float):
+	var floor_offset = new_local_floor_plane.d
+	var floor_normal = new_local_floor_plane.normal
+
+	var offset_x = new_middle_legs_initial_leg_position
+	var offset_y = floor_offset
+	var normal_y = floor_normal
 	var normal_z = apparent_transform.basis.z.normalized()
 	var normal_x = normal_y.cross(normal_z).normalized()
-	var origin = normal_x * interval_offset + normal_y * floor_offset
+	var origin = normal_x * offset_x + normal_y * offset_y
 	apparent_transform = Transform3D(normal_x, normal_y, normal_z, origin)
-
-func get_local_floor_plane() -> Plane:
-	var floor_normal: Vector3 = transform.basis.y.normalized()
-	var floor_offset = transform.origin.dot(floor_normal)
-	return Plane(floor_normal, floor_offset)
-
-func get_floor_normal() -> Vector3:
-	return get_local_floor_plane().normal
 
 func get_middle_legs_initial_leg_position() -> float:
 	var normal_x = apparent_transform.basis.x.normalized()
 	return apparent_transform.origin.dot(normal_x)
 
 func set_middle_legs_initial_leg_position(value: float):
-	var floor_offset = get_floor_offset()
-	var interval_offset = value
-	var normal_y = get_floor_normal()
-	var normal_z = apparent_transform.basis.z.normalized()
-	var normal_x = normal_y.cross(normal_z).normalized()
-	var origin = normal_x * interval_offset + normal_y * floor_offset
-	apparent_transform = Transform3D(normal_x, normal_y, normal_z, origin)
+	if (value == get_middle_legs_initial_leg_position()):
+		return
+	_save_middle_legs_initial_leg_position_to_transform(value)
 	update_leg_stand_coverage()
+
+func _save_middle_legs_initial_leg_position_to_transform(new_middle_legs_initial_leg_position: float):
+	_save_properties_to_local_transform(local_floor_plane, new_middle_legs_initial_leg_position)
 
 func update_leg_stand_coverage():
 	var coverage = get_leg_stand_coverage()
