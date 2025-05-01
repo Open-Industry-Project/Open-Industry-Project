@@ -2,12 +2,11 @@
 class_name ConveyorLegsAssembly
 extends Node3D
 
-var conveyor: Node3D:
-	get:
-		var parent = get_parent() as Node3D
-		if parent != null && parent.has_signal("size_changed") and "size" in parent and parent.size is Vector3:
-			return parent
-		return null
+enum LegIndex {
+	FRONT = -1,
+	REAR = -2,
+	NON_AUTO = -3,
+}
 
 const CONVEYOR_LEGS_BASE_WIDTH = 2.0
 const AUTO_CONVEYOR_LEG_NAME_PREFIX_MIDDLE = "ConveyorLegMiddle"
@@ -15,12 +14,6 @@ const AUTO_CONVEYOR_LEG_NAME_FRONT = "ConveyorLegTail"
 const AUTO_CONVEYOR_LEG_NAME_REAR = "ConveyorLegHead"
 const MIDDLE_LEGS_SPACING_MIN: float = 0.5
 const DEFAULT_FLOOR_PLANE := Plane(Vector3.UP, -2.0)
-
-enum LegIndex {
-	FRONT = -1,
-	REAR = -2,
-	NON_AUTO = -3,
-}
 
 ## A global plane that represents the floor for the legs.
 ##
@@ -147,6 +140,14 @@ var leg_model_grabs_offset: float = 0.132:
 			leg_model_grabs_offset = value
 			update_conveyor_legs_height_and_visibility()
 			update_conveyor_leg_coverage()
+
+
+var conveyor: Node3D:
+	get:
+		var parent = get_parent() as Node3D
+		if parent != null && parent.has_signal("size_changed") and "size" in parent and parent.size is Vector3:
+			return parent
+		return null
 
 
 # Configuration change detection fields
