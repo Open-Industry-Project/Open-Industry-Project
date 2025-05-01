@@ -21,8 +21,8 @@ var apparent_transform: Transform3D:
 # Region Constants
 const LEG_STANDS_BASE_WIDTH = 2.0
 const AUTO_LEG_STAND_NAME_PREFIX = "ConveyorLegMiddle"
-const AUTO_LEG_STAND_NAME_FRONT = "ConveyorLegHead"
-const AUTO_LEG_STAND_NAME_REAR = "ConveyorLegTail"
+const AUTO_LEG_STAND_NAME_FRONT = "ConveyorLegTail"
+const AUTO_LEG_STAND_NAME_REAR = "ConveyorLegHead"
 const MIDDLE_LEGS_SPACING_MIN: float = 0.5
 const DEFAULT_FLOOR_PLANE := Plane(Vector3.UP, 0.0)
 
@@ -296,8 +296,8 @@ func get_leg_stand_coverage() -> Array[float]:
 	var conveyor_extent_front := Vector3(-absf(conveyor.size.x * 0.5), 0.0, 0.0)
 	var conveyor_extent_rear := Vector3(absf(conveyor.size.x * 0.5), 0.0, 0.0)
 
-	var margin_offset_front := Vector3(head_end_attachment_offset, 0.0, 0.0)
-	var margin_offset_rear := Vector3(-tail_end_attachment_offset, 0.0, 0.0)
+	var margin_offset_front := Vector3(tail_end_attachment_offset, 0.0, 0.0)
+	var margin_offset_rear := Vector3(-head_end_attachment_offset, 0.0, 0.0)
 
 	# The tip of the leg stand has a rotating grab model that isn't counted towards its height.
 	# Because the grab will rotate towards the conveyor, we account for its reach here.
@@ -526,8 +526,8 @@ func get_auto_leg_stand_position(index: int) -> float:
 func get_interval_leg_stand_position(index: int) -> float:
 	assert(index >= 0)
 	# Don't allow negative clearance
-	head_end_leg_clearance = maxf(0.0, head_end_leg_clearance)
-	var front_margin = head_end_leg_clearance if head_end_leg_enabled else 0.0
+	tail_end_leg_clearance = maxf(0.0, tail_end_leg_clearance)
+	var front_margin = tail_end_leg_clearance if tail_end_leg_enabled else 0.0
 	var first_position = ceili((leg_stand_coverage_min + front_margin) / middle_legs_spacing) * middle_legs_spacing
 	return first_position + index * middle_legs_spacing
 
@@ -536,10 +536,10 @@ func get_interval_leg_stand_position(index: int) -> float:
 func create_and_remove_auto_leg_stands() -> bool:
 	var changed := false
 	# Don't allow negative clearance
-	tail_end_leg_clearance = maxf(0.0, tail_end_leg_clearance)
+	head_end_leg_clearance = maxf(0.0, head_end_leg_clearance)
 	# Enforce a margin from fixed front and rear legs if they exist
 	var first_position := get_interval_leg_stand_position(0)
-	var rear_margin: float = tail_end_leg_clearance if tail_end_leg_enabled else 0.0
+	var rear_margin: float = head_end_leg_clearance if head_end_leg_enabled else 0.0
 	var last_position: float = floorf((leg_stand_coverage_max - rear_margin) / middle_legs_spacing) * middle_legs_spacing
 
 	var interval_leg_stand_count: int
@@ -568,13 +568,13 @@ func create_and_remove_auto_leg_stands() -> bool:
 				# Only manage auto leg stands
 				pass
 			LegIndex.FRONT:
-				if head_end_leg_enabled:
+				if tail_end_leg_enabled:
 					has_front_leg = true
 				else:
 					remove_child(child)
 					child.queue_free()
 			LegIndex.REAR:
-				if tail_end_leg_enabled:
+				if head_end_leg_enabled:
 					has_rear_leg = true
 				else:
 					remove_child(child)
@@ -593,7 +593,7 @@ func create_and_remove_auto_leg_stands() -> bool:
 	if leg_model_scene == null:
 		return changed
 
-	if not has_front_leg and head_end_leg_enabled:
+	if not has_front_leg and tail_end_leg_enabled:
 		add_leg_stand_at_index(LegIndex.FRONT)
 		changed = true
 
@@ -602,7 +602,7 @@ func create_and_remove_auto_leg_stands() -> bool:
 			add_leg_stand_at_index(i)
 			changed = true
 
-	if not has_rear_leg and tail_end_leg_enabled:
+	if not has_rear_leg and head_end_leg_enabled:
 		add_leg_stand_at_index(LegIndex.REAR)
 		changed = true
 
@@ -614,9 +614,9 @@ func add_leg_stand_at_index(index: int) -> ConveyorLeg:
 
 	match index:
 		LegIndex.FRONT:
-			name = &"ConveyorLegHead"
-		LegIndex.REAR:
 			name = &"ConveyorLegTail"
+		LegIndex.REAR:
+			name = &"ConveyorLegHead"
 		_:
 			# Indices start at 0, but names start at 1
 			name = &"ConveyorLegMiddle%d" % (index + 1)
