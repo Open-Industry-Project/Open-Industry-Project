@@ -648,7 +648,7 @@ func add_or_get_leg_stand_instance(name: StringName) -> Node:
 	leg_stand.name = name
 	add_child(leg_stand)
 	# If the leg stand used to exist, restore its original owner
-	leg_stand.owner = foreign_leg_stands_owners.get(name, get_tree().get_edited_scene_root())
+	leg_stand.owner = foreign_leg_stands_owners.get(name, self)
 	return leg_stand
 
 
