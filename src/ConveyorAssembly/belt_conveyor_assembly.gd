@@ -10,51 +10,51 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 
 #region SideGuardsAssembly properties
 @export_category(SIDE_GUARDS_SCRIPT_FILENAME)
-@export_group("Side Guards", "sideguards")
-@export var sideguards_right_side: bool = true:
+@export_group("Side Guards", "")
+@export var right_side: bool = true:
 	get:
 		if _has_instantiated:
 			return %SideGuardsAssembly.right_side
 		else:
-			return sideguards_right_side
+			return right_side
 	set(value):
 		if _has_instantiated:
 			%SideGuardsAssembly.right_side = value
 		else:
-			sideguards_right_side = value
-@export var sideguards_right_side_openings: Array[SideGuardOpening] = []:
+			right_side = value
+@export var right_side_openings: Array[SideGuardOpening] = []:
 	get:
 		if _has_instantiated:
 			return %SideGuardsAssembly.right_side_openings
 		else:
-			return sideguards_right_side_openings
+			return right_side_openings
 	set(value):
 		if _has_instantiated:
 			%SideGuardsAssembly.right_side_openings = value
 		else:
-			sideguards_right_side_openings = value
-@export var sideguards_left_side: bool = true:
+			right_side_openings = value
+@export var left_side: bool = true:
 	get:
 		if _has_instantiated:
 			return %SideGuardsAssembly.left_side
 		else:
-			return sideguards_left_side
+			return left_side
 	set(value):
 		if _has_instantiated:
 			%SideGuardsAssembly.left_side = value
 		else:
-			sideguards_left_side = value
-@export var sideguards_left_side_openings: Array[SideGuardOpening] = []:
+			left_side = value
+@export var left_side_openings: Array[SideGuardOpening] = []:
 	get:
 		if _has_instantiated:
 			return %SideGuardsAssembly.left_side_openings
 		else:
-			return sideguards_left_side_openings
+			return left_side_openings
 	set(value):
 		if _has_instantiated:
 			%SideGuardsAssembly.left_side_openings = value
 		else:
-			sideguards_left_side_openings = value
+			left_side_openings = value
 #endregion
 
 #region ConveyorLegsAssembly properties
