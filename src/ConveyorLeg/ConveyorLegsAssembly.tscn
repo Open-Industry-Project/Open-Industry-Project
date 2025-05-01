@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://cg4ii4p426pqb"]
+
+[ext_resource type="Script" uid="uid://dxaug2s6x4otb" path="res://src/ConveyorLeg/conveyor_legs_assembly.gd" id="1_vbjla"]
+[ext_resource type="PackedScene" uid="uid://cr8u3bta0skiy" path="res://parts/ConveyorLegBC.tscn" id="2_jpvnt"]
+
+[node name="ConveyorLegsAssembly" type="Node3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+script = ExtResource("1_vbjla")
+
+[node name="ConveyorLegTail" parent="." instance=ExtResource("2_jpvnt")]
+transform = Transform3D(1, 0, 0, 0, 1.368, 0, 0, 0, 0.762, -1.55, 0, 0)
+
+[node name="ConveyorLegHead" parent="." instance=ExtResource("2_jpvnt")]
+transform = Transform3D(1, 0, 0, 0, 1.368, 0, 0, 0, 0.762, 1.55, 0, 0)
