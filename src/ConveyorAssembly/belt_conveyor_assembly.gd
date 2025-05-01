@@ -10,51 +10,52 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 
 #region SideGuardsAssembly properties
 @export_category(SIDE_GUARDS_SCRIPT_FILENAME)
-@export_group("Side Guards", "")
-@export var right_side: bool = true:
+@export_group("Right Side Guards", "right_side_guards_")
+@export var right_side_guards_enabled: bool = true:
 	get:
 		if _has_instantiated:
-			return %SideGuardsAssembly.right_side
+			return %SideGuardsAssembly.right_side_guards_enabled
 		else:
-			return right_side
+			return right_side_guards_enabled
 	set(value):
 		if _has_instantiated:
-			%SideGuardsAssembly.right_side = value
+			%SideGuardsAssembly.right_side_guards_enabled = value
 		else:
-			right_side = value
-@export var right_side_openings: Array[SideGuardOpening] = []:
+			right_side_guards_enabled = value
+@export var right_side_guards_openings: Array[SideGuardOpening] = []:
 	get:
 		if _has_instantiated:
-			return %SideGuardsAssembly.right_side_openings
+			return %SideGuardsAssembly.right_side_guards_openings
 		else:
-			return right_side_openings
+			return right_side_guards_openings
 	set(value):
 		if _has_instantiated:
-			%SideGuardsAssembly.right_side_openings = value
+			%SideGuardsAssembly.right_side_guards_openings = value
 		else:
-			right_side_openings = value
-@export var left_side: bool = true:
+			right_side_guards_openings = value
+@export_group("Left Side Guards", "left_side_guards_")
+@export var left_side_guards_enabled: bool = true:
 	get:
 		if _has_instantiated:
-			return %SideGuardsAssembly.left_side
+			return %SideGuardsAssembly.left_side_guards_enabled
 		else:
-			return left_side
+			return left_side_guards_enabled
 	set(value):
 		if _has_instantiated:
-			%SideGuardsAssembly.left_side = value
+			%SideGuardsAssembly.left_side_guards_enabled = value
 		else:
-			left_side = value
-@export var left_side_openings: Array[SideGuardOpening] = []:
+			left_side_guards_enabled = value
+@export var left_side_guards_openings: Array[SideGuardOpening] = []:
 	get:
 		if _has_instantiated:
-			return %SideGuardsAssembly.left_side_openings
+			return %SideGuardsAssembly.left_side_guards_openings
 		else:
-			return left_side_openings
+			return left_side_guards_openings
 	set(value):
 		if _has_instantiated:
-			%SideGuardsAssembly.left_side_openings = value
+			%SideGuardsAssembly.left_side_guards_openings = value
 		else:
-			left_side_openings = value
+			left_side_guards_openings = value
 #endregion
 
 #region ConveyorLegsAssembly properties
