@@ -147,8 +147,7 @@ var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
 	set(value):
 		if leg_model_scene != value:
 			leg_model_scene = value
-			update_leg_stands_height_and_visibility()
-			update_leg_stand_coverage()
+			set_needs_update(true)
 @export
 var leg_model_grabs_offset: float = 0.132:
 	set(value):
