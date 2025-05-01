@@ -3,9 +3,9 @@ class_name BeltConveyorAssembly
 extends EnhancedNode3D
 
 const CONVEYOR_CLASS_NAME = "BeltConveyor"
-const SIDE_GUARDS_SCRIPT_PATH = "res://src/SideGuards/side_guards_assembly.gd"
+const SIDE_GUARDS_SCRIPT_PATH = "res://src/ConveyorAttachment/side_guards_assembly.gd"
 const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
-const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH = "res://src/ConveyorLeg/conveyor_legs_assembly.gd"
+const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 
 #region SideGuardsAssembly properties
