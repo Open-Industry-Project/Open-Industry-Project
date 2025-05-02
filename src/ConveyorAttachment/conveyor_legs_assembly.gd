@@ -42,25 +42,32 @@ var global_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 ## A plane is defined by a normal vector and a distance from the origin.
 ## Legs will reach down from their conveyor to this plane in the direction of the normal vector.
 ##
-## This plane is derived from `global_floor_plane` and the conveyor's transform.
+## This plane is derived from [member global_floor_plane] and the conveyor's [member Node3D.transform].
 ## It's used as a backup when the node is outside the tree and global calculations aren't possible.
-## It's directly connected to the ConveyorLegsAssembly's `transform` property, which is always on this plane and aligned with it.
-## Its normal is aligned to the conveyor and its legs, so it may not correspond to `global_floor_plane` if the conveyor has rotated on its X-axis.
+## It's directly connected to the ConveyorLegsAssembly's [member transform] property, which is always on this plane and aligned with it.
+## Its normal is aligned to the conveyor and its legs, so it may not correspond to [member global_floor_plane] if the conveyor has rotated on its X-axis.
 @export_storage
 var local_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 	get = get_local_floor_plane, set = set_local_floor_plane
 
 
 @export_group("Middle Legs", "middle_legs")
+## If [code]true[/code], automatically generate conveyor legs under the conveyor spaced at a given interval.
 @export
 var middle_legs_enabled := false:
 	set(value):
 		if middle_legs_enabled != value:
 			middle_legs_enabled = value
 			_set_needs_update(true)
+## The linear position of the first generated leg along the conveyor's path.
+##
+## Other generated legs are positioned relative to this one.
 @export_range(-5, 5, 0.01, "or_less", "or_greater", "suffix:m")
 var middle_legs_initial_leg_position: float:
 	get = get_middle_legs_initial_leg_position, set = set_middle_legs_initial_leg_position
+## The distance in meters between each generated middle leg.[br][br]
+##
+## See also: [member head_end_leg_clearance] and [member tail_end_leg_clearance] for minimum distances from the end legs.
 @export_range(MIDDLE_LEGS_SPACING_MIN, 5, 0.01, "or_greater", "suffix:m")
 var middle_legs_spacing: float = 2:
 	set(value):
@@ -68,7 +75,7 @@ var middle_legs_spacing: float = 2:
 			middle_legs_spacing = value
 			_set_needs_update(true)
 
-## The number middle leg instances
+## The number of middle leg instances.
 ##
 ## Setting this creates or removes legs. Getting it returns the current number of legs.
 ##
@@ -85,18 +92,30 @@ var _middle_legs_instance_count: int = 0:
 
 
 @export_group("Head End", "head_end")
+## Distance in meters from the head-end of the conveyor to be kept clear of generated conveyor legs.
+##
+## Prevents any conveyor legs from generating within the given distance of the head-end.
+## Useful for ensuring the conveyor leg models don't improperly overlap with the conveyor-end models.[br][br]
+##
+## A conveyor leg will be generated at this location offset when [member head_end_leg_enabled] is [code]true[/code].
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
 var head_end_attachment_offset: float = 0.45:
 	set(value):
 		if head_end_attachment_offset != value:
 			head_end_attachment_offset = value
 			_update_conveyor_leg_coverage()
+## If [code]true[/code], automatically generate a conveyor leg at the head-end of the conveyor.
+## The linear position of this conveyor leg is determined by the length of the conveyor and [member head_end_attachment_offset].
 @export
 var head_end_leg_enabled: bool = true:
 	set(value):
 		if head_end_leg_enabled != value:
 			head_end_leg_enabled = value
 			_set_needs_update(true)
+## Distance in meters from the head-end leg to be kept clear of any other conveyor legs.
+## When [member head_end_leg_enabled] is [code]true[/code], prevents any conveyor legs from generating within the given distance from the head-end leg.
+## When the leg isn't enabled, it has no effect.
+## Useful for ensuring an acceptable amount of space separates the head-end leg and the last middle leg.
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
 var head_end_leg_clearance: float = 0.5:
 	set(value):
@@ -106,18 +125,29 @@ var head_end_leg_clearance: float = 0.5:
 
 
 @export_group("Tail End", "tail_end")
+## Distance in meters from the tail-end of the conveyor to be kept clear of generated conveyor legs.
+## Prevents any conveyor legs from generating within the given distance of the tail-end.
+## Useful for ensuring the conveyor leg models don't improperly overlap with the conveyor-end models.[br][br]
+##
+## A conveyor leg will be generated at this location offset when [member tail_end_leg_enabled] is [code]true[/code].
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
 var tail_end_attachment_offset: float = 0.45:
 	set(value):
 		if tail_end_attachment_offset != value:
 			tail_end_attachment_offset = value
 			_update_conveyor_leg_coverage()
+## If [code]true[/code], automatically generate a conveyor leg at the tail-end of the conveyor.
+## The linear position of this conveyor leg is determined by the length of the conveyor and [member tail_end_attachment_offset].
 @export
 var tail_end_leg_enabled: bool = true:
 	set(value):
 		if tail_end_leg_enabled != value:
 			tail_end_leg_enabled = value
 			_set_needs_update(true)
+## Distance in meters from the tail-end leg to be kept clear of any other conveyor legs.
+## When [member tail_end_leg_enabled] is [code]true[/code], prevents any conveyor legs from generating within the given distance from the tail-end leg.
+## When the leg isn't enabled, it has no effect.
+## Useful for ensuring an acceptable amount of space separates the tail-end leg and the first middle leg.
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
 var tail_end_leg_clearance: float = 0.5:
 	set(value):
@@ -126,13 +156,16 @@ var tail_end_leg_clearance: float = 0.5:
 			_set_needs_update(true)
 
 
-@export_group("Model", "leg_model")
+@export_group("Leg Model", "leg_model")
+## The scene to instantiate for generated conveyor legs.
 @export
 var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
 	set(value):
 		if leg_model_scene != value:
 			leg_model_scene = value
 			_set_needs_update(true)
+## Length in meters of any rotatable tip ("grab") at the top of the conveyor leg model.
+## This value affects the position of generated legs when the conveyor is inclined.
 @export
 var leg_model_grabs_offset: float = 0.132:
 	set(value):
@@ -142,6 +175,9 @@ var leg_model_grabs_offset: float = 0.132:
 			_update_conveyor_leg_coverage()
 
 
+## The conveyor parent that this assembly is attached to.
+##
+## If this assembly is not the child of a compatible Node, returns [code]null[/code].
 var conveyor: Node3D:
 	get:
 		var parent = get_parent() as Node3D
