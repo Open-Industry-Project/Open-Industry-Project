@@ -20,7 +20,10 @@ func _ready() -> void:
 	setup_existing_rollers()
 
 func _get_rollers() -> Array[Roller]:
-	return [roller] if roller else []
+	var rollers: Array[Roller] = []
+	if roller:
+		rollers.assign([roller])
+	return rollers
 
 func set_width(width: float) -> void:
 	var end = get_node("ConveyorRollerEnd")
