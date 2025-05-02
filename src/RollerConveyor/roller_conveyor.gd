@@ -141,18 +141,15 @@ func constrain_transform() -> void:
 	var current_transform = transform
 	if current_transform != previous_transform:
 		var new_basis: Basis
-		var scale_x = current_transform.basis.get_scale().x
-		var scale_y = current_transform.basis.get_scale().y
-		var scale_z = current_transform.basis.get_scale().z
-
-		if scale_x <= 0 or scale_y <= 0 or scale_z <= 0:
+		var _scale = current_transform.basis.get_scale()
+		if _scale.x <= 0 or _scale.y <= 0 or _scale.z <= 0:
 			new_basis = previous_transform.basis
 		else:
 			new_basis = current_transform.basis
 
-		new_basis.x = Vector3(max(1.0, abs(scale_x)), 0, 0).normalized()
+		new_basis.x = max(1.0, abs(_scale.x)) * new_basis.x.normalized()
 		new_basis.y = new_basis.y.normalized()
-		new_basis.z = Vector3(0, 0, max(0.1, abs(scale_z))).normalized()
+		new_basis.z = max(0.1, abs(_scale.z)) * new_basis.z.normalized()
 		transform = Transform3D(new_basis, current_transform.origin)
 
 	previous_transform = transform
