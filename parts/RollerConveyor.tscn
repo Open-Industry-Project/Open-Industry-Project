@@ -22,7 +22,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
 [node name="Rollers" type="Node3D" parent="."]
 transform = Transform3D(0.97561, 0, 0, 0, 1, -9.32474e-15, 0, 1.42109e-14, 0.656168, -0.5, -0.08, 0)
 script = ExtResource("3_peu56")
-rollerScene = ExtResource("2_v7a13")
+roller_scene = ExtResource("2_v7a13")
 
 [node name="Roller" parent="Rollers" instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0, 0)
