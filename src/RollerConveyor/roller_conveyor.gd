@@ -53,7 +53,7 @@ var roller_material: StandardMaterial3D
 var main
 
 func _init() -> void:
-	notify_local_transform = true
+	set_notify_local_transform(true)
 
 func _validate_property(property: Dictionary) -> void:
 	var property_name: String = property["name"]
