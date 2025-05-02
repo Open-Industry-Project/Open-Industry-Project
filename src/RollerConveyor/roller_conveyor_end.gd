@@ -6,26 +6,26 @@ const BASE_WIDTH: float = 2.0
 
 @export var flipped: bool = false:
 	set(value):
-		if _flipped != value:
-			_flipped = value
+		if flipped != value:
+			flipped = value
 			emit_signal("roller_rotation_changed", _get_rotation_from_skew_angle(_roller_skew_angle_degrees))
 
-var _flipped: bool = false
 var roller: Roller
 
-func _ready() -> void:
-	if not get_parent():
-		return
-	roller = get_node("Roller")
-	setup_existing_rollers()
+func _init() -> void:
+	width_changed.connect(self.set_ends_separation)
 
+# Overrides virtual method from AbstractRollerContainer
+func setup_existing_rollers() -> void:
+	roller = get_node("Roller")
+	super.setup_existing_rollers()
+
+# Overrides virtual method from AbstractRollerContainer
 func _get_rollers() -> Array[Roller]:
-	var rollers: Array[Roller] = []
-	if roller:
-		rollers.assign([roller])
+	var rollers: Array[Roller] = [roller]
 	return rollers
 
-func set_width(width: float) -> void:
+func set_ends_separation(width: float) -> void:
 	var end = get_node("ConveyorRollerEnd")
 	end.scale = Vector3(1.0, 1.0, width / BASE_WIDTH)
 	for end_mesh in end.get_children():
