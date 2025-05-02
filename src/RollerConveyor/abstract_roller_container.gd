@@ -11,7 +11,8 @@ var _roller_skew_angle_degrees: float = 0.0
 
 # Virtual method to be overridden
 func _get_rollers() -> Array[Roller]:
-	return []
+	var rollers: Array[Roller] = []
+	return rollers
 
 func setup_existing_rollers() -> void:
 	for roller in _get_rollers():
