@@ -19,3 +19,5 @@ unique_name_in_owner = true
 
 [node name="ConveyorLegsAssembly" parent="Conveyor" instance=ExtResource("4_xgosv")]
 unique_name_in_owner = true
+middle_legs_enabled = true
+_middle_legs_instance_count = 1
