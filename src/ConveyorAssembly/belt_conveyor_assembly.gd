@@ -100,7 +100,7 @@ var local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAU
 
 @export_subgroup("Middle Legs", "middle_legs")
 @export
-var middle_legs_enabled := false:
+var middle_legs_enabled := true:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.middle_legs_enabled

@@ -10,9 +10,18 @@ friction = 0.5
 
 [node name="BeltConveyorAssembly" type="Node3D"]
 script = ExtResource("1_upkoq")
+belt_color = Color(1, 1, 1, 1)
+belt_texture = 0
+speed = 2.0
+belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(4, 0.5, 1.524)
+metadata/_edit_group_ = null
 
 [node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true
+belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
 
 [node name="SideGuardsAssembly" parent="Conveyor" instance=ExtResource("3_rxjsx")]
 unique_name_in_owner = true
