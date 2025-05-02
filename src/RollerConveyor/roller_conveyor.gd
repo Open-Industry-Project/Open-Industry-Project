@@ -50,7 +50,6 @@ var metal_material: Material
 var rollers: Rollers
 var ends: Node3D
 var roller_material: StandardMaterial3D
-var main
 
 func _init() -> void:
 	set_notify_local_transform(true)
@@ -70,13 +69,13 @@ func _ready() -> void:
 	update_metal_material_scale()
 
 func _physics_process(delta: float) -> void:
-	if not main:
+	if not SimulationEvents:
 		return
 
-	if main.simulation_running and not main.simulation_paused:
+	if SimulationEvents.simulation_running and not SimulationEvents.simulation_paused:
 		roller_material.uv1_offset += Vector3(4.0 * speed / CIRCUMFERENCE * delta, 0, 0)
 
-	if enable_comms and main.simulation_running:
+	if enable_comms and SimulationEvents.simulation_running:
 		# Additional communication logic would go here
 		pass
 
