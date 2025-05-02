@@ -1,4 +1,4 @@
-[gd_resource type="VisualShader" load_steps=15 format=3 uid="uid://lg3xcvqgjhjj"]
+[gd_resource type="VisualShader" load_steps=17 format=3 uid="uid://lg3xcvqgjhjj"]
 
 [ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="1_rb8be"]
 
@@ -29,6 +29,14 @@ parameter_name = "Color"
 [sub_resource type="VisualShaderNodeColorOp" id="VisualShaderNodeColorOp_d0s8w"]
 operator = 4
 
+[sub_resource type="VisualShaderNodeFloatParameter" id="VisualShaderNodeFloatParameter_mmpb4"]
+parameter_name = "Scale2"
+default_value_enabled = true
+default_value = 1.0
+
+[sub_resource type="VisualShaderNodeFloatFunc" id="VisualShaderNodeFloatFunc_1odp7"]
+function = 15
+
 [sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_7nhjk"]
 
 [sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_ycidp"]
@@ -50,6 +58,7 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_s
 uniform float BeltPosition : hint_range(0.0, 1.0);
 uniform bool Invert;
 uniform float Scale;
+uniform float Scale2 = 1.0;
 uniform sampler2D tex_frg_5 : source_color;
 uniform vec4 Color : source_color;
 
@@ -94,9 +103,16 @@ void fragment() {
 	float n_out14p0 = round(n_out19p0);
 
 
+// FloatParameter:22
+	float n_out22p0 = Scale2;
+
+
+// FloatFunc:23
+	float n_out23p0 = round(n_out22p0);
+
+
 // VectorCompose:11
-	float n_in11p1 = 1.00000;
-	vec2 n_out11p0 = vec2(n_out14p0, n_in11p1);
+	vec2 n_out11p0 = vec2(n_out14p0, n_out23p0);
 
 
 // UVFunc:13
@@ -176,4 +192,8 @@ nodes/fragment/20/node = SubResource("VisualShaderNodeColorParameter_j67t0")
 nodes/fragment/20/position = Vector2(60, 340)
 nodes/fragment/21/node = SubResource("VisualShaderNodeColorOp_d0s8w")
 nodes/fragment/21/position = Vector2(420, 240)
-nodes/fragment/connections = PackedInt32Array(7, 0, 3, 2, 11, 0, 13, 1, 3, 0, 13, 0, 13, 0, 5, 0, 15, 0, 16, 0, 8, 0, 17, 0, 16, 0, 17, 1, 17, 0, 7, 1, 19, 0, 14, 0, 14, 0, 11, 0, 20, 0, 21, 1, 5, 0, 21, 0, 21, 0, 0, 0)
+nodes/fragment/22/node = SubResource("VisualShaderNodeFloatParameter_mmpb4")
+nodes/fragment/22/position = Vector2(-1160, 600)
+nodes/fragment/23/node = SubResource("VisualShaderNodeFloatFunc_1odp7")
+nodes/fragment/23/position = Vector2(-760, 480)
+nodes/fragment/connections = PackedInt32Array(7, 0, 3, 2, 11, 0, 13, 1, 3, 0, 13, 0, 13, 0, 5, 0, 15, 0, 16, 0, 8, 0, 17, 0, 16, 0, 17, 1, 17, 0, 7, 1, 19, 0, 14, 0, 14, 0, 11, 0, 20, 0, 21, 1, 5, 0, 21, 0, 21, 0, 0, 0, 22, 0, 23, 0, 23, 0, 11, 1)

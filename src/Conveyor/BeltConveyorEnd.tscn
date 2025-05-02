@@ -1,6 +1,6 @@
 [gd_scene load_steps=29 format=4 uid="uid://byog2n752js4y"]
 
-[ext_resource type="Script" uid="uid://br24cppp65ba3" path="res://src/Conveyor/conveyor_end.gd" id="1_crir7"]
+[ext_resource type="Script" uid="uid://br24cppp65ba3" path="res://src/Conveyor/belt_conveyor_end.gd" id="1_crir7"]
 [ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="2_6dxkv"]
 [ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="3_3ynyp"]
 [ext_resource type="Material" uid="uid://00bmdgt6cfmg" path="res://assets/3DModels/Materials/MetalMaterial.tres" id="3_ypirl"]
@@ -281,16 +281,15 @@ shadow_mesh = SubResource("ArrayMesh_i5p73")
 friction = 0.5
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_bhx60"]
-height = 1.0
+resource_local_to_scene = true
 radius = 0.25
 
-[node name="ConveyorEnd" type="Node3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
+[node name="BeltConveyorEnd" type="Node3D"]
 script = ExtResource("1_crir7")
+size = Vector3(0.25, 0.5, 2)
 metadata/_edit_group_ = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
 mesh = SubResource("ArrayMesh_bcffs")
 skeleton = NodePath("../StaticBody3D")
 

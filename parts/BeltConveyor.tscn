@@ -3,13 +3,14 @@
 [ext_resource type="Script" uid="uid://cxteqnku32m0m" path="res://src/Conveyor/belt_conveyor.gd" id="1_07qd2"]
 [ext_resource type="Shader" uid="uid://bejqoybamob1y" path="res://assets/3DModels/Shaders/BeltShader.tres" id="2_7ui2k"]
 [ext_resource type="Shader" uid="uid://lg3xcvqgjhjj" path="res://assets/3DModels/Shaders/MetalShader.tres" id="3_ceo50"]
-[ext_resource type="PackedScene" uid="uid://byog2n752js4y" path="res://src/Conveyor/ConveyorEnd.tscn" id="3_rx6or"]
+[ext_resource type="PackedScene" uid="uid://byog2n752js4y" path="res://src/Conveyor/BeltConveyorEnd.tscn" id="3_rx6or"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_me2ob"]
-size = Vector3(1, 0.5, 1)
+resource_local_to_scene = true
+size = Vector3(3.5, 0.5, 1.524)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_07qd2"]
 render_priority = 0
@@ -106,12 +107,11 @@ shadow_mesh = SubResource("ArrayMesh_5v2fq")
 
 [node name="Conveyor" type="Node3D"]
 process_mode = 1
-transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 1.524, 0, 0, 0)
 script = ExtResource("1_07qd2")
-Speed = 2.0
 BeltPhysicsMaterial = SubResource("PhysicsMaterial_hcu6p")
 speed_tag_group_name = "TagGroup0"
 running_tag_group_name = "TagGroup0"
+size = Vector3(4, 0.5, 1.524)
 metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
@@ -122,14 +122,14 @@ physics_material_override = SubResource("PhysicsMaterial_hcu6p")
 shape = SubResource("BoxShape3D_me2ob")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
 mesh = SubResource("ArrayMesh_uu43a")
 skeleton = NodePath("../..")
 
-[node name="ConveyorEnd" parent="." instance=ExtResource("3_rx6or")]
-transform = Transform3D(0.25, -1.50996e-07, -1.50996e-07, -3.7749e-08, -1, 1.69622e-07, -3.7749e-08, -1.69622e-07, -1, 0.5, -0.25, 0)
-Speed = 2.0
+[node name="BeltConveyorEnd" parent="." instance=ExtResource("3_rx6or")]
+transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 1.75, -0.25, 0)
+size = Vector3(0.25, 0.5, 1.524)
 
-[node name="ConveyorEnd2" parent="." instance=ExtResource("3_rx6or")]
-transform = Transform3D(-0.25, -1.50996e-07, 1.50996e-07, -3.7749e-08, 1, -1.56219e-07, -3.77489e-08, -1.56219e-07, -1, -0.5, -0.25, 0)
-Speed = 2.0
+[node name="BeltConveyorEnd2" parent="." instance=ExtResource("3_rx6or")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.75, -0.25, 0)
+size = Vector3(0.25, 0.5, 1.524)
