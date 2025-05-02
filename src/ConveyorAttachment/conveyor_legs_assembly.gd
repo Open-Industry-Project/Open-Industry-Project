@@ -268,6 +268,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 func _on_conveyor_size_changed():
 	_update_conveyor_leg_coverage()
 	_update_conveyor_legs_height_and_visibility()
+	_update_all_conveyor_legs_width()
 
 
 func _physics_process(_delta):
@@ -411,11 +412,7 @@ func _update_conveyor_legs():
 
 	_conveyor_legs_path_changed = false
 
-	var target_width_new = _get_conveyor_leg_target_width()
-	var target_width_changed = _target_width_prev != target_width_new
-	_target_width_prev = target_width_new
-	if conveyor_legs_assembly_is_editable or target_width_changed:
-		_update_all_conveyor_legs_width()
+	_update_all_conveyor_legs_width()
 
 	var debug_invariants := true
 	var conveyor_leg_coverage_min_value_for_assertion: float = 0.0
@@ -487,6 +484,11 @@ func _snap_all_conveyor_legs_to_path() -> void:
 
 
 func _update_all_conveyor_legs_width() -> void:
+	var target_width_new = _get_conveyor_leg_target_width()
+	var target_width_changed = _target_width_prev != target_width_new
+	_target_width_prev = target_width_new
+	if not target_width_changed:
+		return
 	for child in get_children():
 		if not child is ConveyorLeg:
 			continue
