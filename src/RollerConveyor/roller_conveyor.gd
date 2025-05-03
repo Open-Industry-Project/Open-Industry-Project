@@ -42,7 +42,7 @@ var previous_transform: Transform3D = Transform3D.IDENTITY
 var metal_material: Material
 var rollers: Rollers
 var ends: Node3D
-var roller_material: StandardMaterial3D
+var roller_material: BaseMaterial3D
 
 func _init() -> void:
 	set_notify_local_transform(true)
@@ -199,7 +199,7 @@ func update_metal_material_scale() -> void:
 	if metal_material is ShaderMaterial:
 		metal_material.set_shader_parameter("Scale", scale.x)
 
-func set_roller_override_material(material: StandardMaterial3D) -> void:
+func set_roller_override_material(material: BaseMaterial3D) -> void:
 	if roller_material != material:
 		roller_material = material
 		roller_override_material_changed.emit(roller_material)
