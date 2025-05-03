@@ -44,6 +44,11 @@ var rollers: Rollers
 var ends: Node3D
 var roller_material: BaseMaterial3D
 
+var running := false:
+	set(value):
+		running = value
+		set_physics_process(running)
+
 func _init() -> void:
 	set_notify_local_transform(true)
 
@@ -51,6 +56,17 @@ func _validate_property(property: Dictionary) -> void:
 	var property_name: String = property["name"]
 	if property_name in ["update_rate", "tag"]:
 		property["usage"] = PROPERTY_USAGE_DEFAULT if enable_comms else PROPERTY_USAGE_NO_EDITOR
+
+func _enter_tree() -> void:
+	if SimulationEvents:
+		SimulationEvents.simulation_started.connect(self._on_simulation_started)
+		SimulationEvents.simulation_ended.connect(self._on_simulation_ended)
+		running = SimulationEvents.simulation_running
+
+func _exit_tree() -> void:
+	if SimulationEvents:
+		SimulationEvents.simulation_started.disconnect(self._on_simulation_started)
+		SimulationEvents.simulation_ended.disconnect(self._on_simulation_ended)
 
 func _ready() -> void:
 	var mesh_instance1 = get_node("ConvRoller/ConvRollerL") as MeshInstance3D
@@ -60,15 +76,17 @@ func _ready() -> void:
 	mesh_instance1.mesh.surface_set_material(0, metal_material)
 	mesh_instance2.mesh.surface_set_material(0, metal_material)
 	update_metal_material_scale()
+	if not running:
+		set_physics_process(false)
 
 func _physics_process(delta: float) -> void:
 	if not SimulationEvents:
 		return
 
-	if SimulationEvents.simulation_running and not SimulationEvents.simulation_paused:
+	if not SimulationEvents.simulation_paused:
 		roller_material.uv1_offset += Vector3(4.0 * speed / CIRCUMFERENCE * delta, 0, 0)
 
-	if enable_comms and SimulationEvents.simulation_running:
+	if enable_comms:
 		# Additional communication logic would go here
 		pass
 
@@ -101,10 +119,17 @@ func on_scene_instantiated() -> void:
 	update_length()
 	update_size()
 
-func setup_roller_container(container: AbstractRollerContainer) -> void:
-	if not container:
-		return
+func _on_simulation_started() -> void:
+	running = true
+	if enable_comms:
+		# TODO setup comms
+		pass
 
+func _on_simulation_ended() -> void:
+	running = false
+
+func setup_roller_container(container: AbstractRollerContainer) -> void:
+	assert(container != null)
 	container.roller_added.connect(_on_roller_added)
 	container.roller_removed.connect(_on_roller_removed)
 
