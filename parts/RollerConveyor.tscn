@@ -1,6 +1,7 @@
-[gd_scene load_steps=7 format=3 uid="uid://dg47c07xr4ksu"]
+[gd_scene load_steps=8 format=3 uid="uid://dg47c07xr4ksu"]
 
-[ext_resource type="Script" uid="uid://dcaw86aiehy46" path="res://src/RollerConveyor/roller_conveyor_legacy.gd" id="1_vnty6"]
+[ext_resource type="Script" uid="uid://c3i26qc2exbsa" path="res://src/RollerConveyor/roller_conveyor.gd" id="1_vnty6"]
+[ext_resource type="Script" uid="uid://dcaw86aiehy46" path="res://src/RollerConveyor/roller_conveyor_legacy.gd" id="2_sau1a"]
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]
 [ext_resource type="Script" uid="uid://cux2ryj2tvgtk" path="res://src/RollerConveyor/rollers.gd" id="3_peu56"]
 [ext_resource type="PackedScene" uid="uid://b6dc0ajcxde1s" path="res://assets/3DModels/ConveyorRollerBaseSplit.glb" id="3_sau1a"]
@@ -10,42 +11,46 @@
 resource_local_to_scene = true
 size = Vector3(1.525, 0.24, 1.524)
 
-[node name="RollerConveyorLegacy" type="Node3D"]
-process_mode = 1
-transform = Transform3D(1.025, 0, 0, 0, 1, -2.30118e-07, 0, 1.50996e-07, 1.524, 0, 0, 0)
+[node name="RollerConveyor" type="Node3D"]
 script = ExtResource("1_vnty6")
 metadata/_edit_group_ = true
 
-[node name="ConvRoller" parent="." instance=ExtResource("3_sau1a")]
+[node name="RollerConveyorLegacy" type="Node3D" parent="."]
+process_mode = 1
+transform = Transform3D(1.025, 0, 0, 0, 1, -2.30118e-07, 0, 1.50996e-07, 1.524, 0, 0, 0)
+script = ExtResource("2_sau1a")
+metadata/_edit_group_ = true
+
+[node name="ConvRoller" parent="RollerConveyorLegacy" instance=ExtResource("3_sau1a")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
 
-[node name="Rollers" type="Node3D" parent="."]
+[node name="Rollers" type="Node3D" parent="RollerConveyorLegacy"]
 transform = Transform3D(0.97561, 0, 0, 0, 1, -9.32474e-15, 0, 1.42109e-14, 0.656168, -0.5, -0.08, 0)
 script = ExtResource("3_peu56")
 roller_scene = ExtResource("2_v7a13")
 
-[node name="Roller" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller" parent="RollerConveyorLegacy/Rollers" instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0, 0)
 
-[node name="Roller2" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller2" parent="RollerConveyorLegacy/Rollers" instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.66, 0, 0)
 
-[node name="Ends" type="Node3D" parent="."]
+[node name="Ends" type="Node3D" parent="RollerConveyorLegacy"]
 transform = Transform3D(1, 0, 0, 0, 1, 1.42109e-14, 0, -1.42109e-14, 1, 0, -0.25, 0)
 
-[node name="RollerConveyorEnd" parent="Ends" instance=ExtResource("6_fn5jx")]
+[node name="RollerConveyorEnd" parent="RollerConveyorLegacy/Ends" instance=ExtResource("6_fn5jx")]
 transform = Transform3D(0.97561, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0.5, 0, 0)
 
-[node name="RollerConveyorEnd2" parent="Ends" instance=ExtResource("6_fn5jx")]
+[node name="RollerConveyorEnd2" parent="RollerConveyorLegacy/Ends" instance=ExtResource("6_fn5jx")]
 transform = Transform3D(-0.97561, 6.47981e-14, 9.90786e-08, -2.5757e-14, 1, -3.96315e-07, -1.47313e-07, -6.03984e-07, -0.656168, -0.5, 0, 0)
 flipped = true
 
-[node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
+[node name="SimpleConveyorShape" type="StaticBody3D" parent="RollerConveyorLegacy"]
 transform = Transform3D(0.97561, 0, 0, 0, 1, 0, 0, 0, 0.656168, 0, -0.08, 0)
 collision_layer = 16
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SimpleConveyorShape"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RollerConveyorLegacy/SimpleConveyorShape"]
 transform = Transform3D(0.999999, 0, 0, 0, 0.999981, -4.26334e-14, 0, 4.26326e-14, 1, 0, 0, 0)
 shape = SubResource("BoxShape3D_vc5t3")
 debug_color = Color(0, 0.6, 0.7, 0.42)
