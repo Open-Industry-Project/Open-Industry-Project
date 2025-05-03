@@ -23,21 +23,14 @@ const FRAME_BASE_WIDTH: float = 2.0
 @export var update_rate: int = 100
 @export var speed: float = 2.0:
 	set(value):
-		if value != prev_speed:
-			_speed = value
-			emit_signal("set_speed", value)
-			prev_speed = value
-	get:
-		return _speed
-
-var prev_speed: float = 0.0
-var _speed: float = 2.0
+		speed = value
+		set_speed.emit(value)
 
 @export var skew_angle: float = 0.0:
 	set(value):
 		if skew_angle != value:
 			skew_angle = value
-			emit_signal("roller_skew_angle_changed", skew_angle)
+			roller_skew_angle_changed.emit(skew_angle)
 
 var node_scale_x: float = 1.0
 var node_scale_z: float = 1.0
@@ -102,6 +95,7 @@ func on_scene_instantiated() -> void:
 		if end is RollerConveyorEnd:
 			setup_roller_container(end)
 
+	# In case transform was changed before scene was instantiated somehow.
 	update_scale()
 	update_width()
 	update_length()
@@ -159,11 +153,11 @@ func is_transform_valid() -> bool:
 
 func update_scale() -> void:
 	if last_scale != scale:
-		emit_signal("scale_changed", scale)
+		scale_changed.emit(scale)
 		last_scale = scale
 
 		var simple_conveyor_shape_body = get_node("SimpleConveyorShape")
-		simple_conveyor_shape_body.scale = Vector3(1.0 / scale.x, 1.0 / scale.y, 1.0 / scale.z)
+		simple_conveyor_shape_body.scale = scale.inverse()
 
 		update_metal_material_scale()
 
@@ -171,13 +165,14 @@ func update_width() -> void:
 	var new_width = scale.z * BASE_WIDTH
 	if last_width != new_width:
 		update_sides_mesh_scale(new_width)
-		emit_signal("width_changed", new_width)
+		width_changed.emit(new_width)
 		last_width = new_width
 
 func update_length() -> void:
+	# Note: This length measurement doesn't include the extra 0.5m from Ends.
 	var new_length = scale.x
 	if last_length != new_length:
-		emit_signal("length_changed", new_length)
+		length_changed.emit(new_length)
 		last_length = new_length
 
 func update_size() -> void:
@@ -207,4 +202,4 @@ func update_metal_material_scale() -> void:
 func set_roller_override_material(material: StandardMaterial3D) -> void:
 	if roller_material != material:
 		roller_material = material
-		emit_signal("roller_override_material_changed", roller_material)
+		roller_override_material_changed.emit(roller_material)
