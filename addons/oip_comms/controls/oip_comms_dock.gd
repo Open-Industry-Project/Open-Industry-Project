@@ -9,27 +9,32 @@ extends Control
 
 signal save_changes(value: bool)
 
-const TAG_GROUPS_FILE := "res://addons/oip_comms/save_data/tag_groups.json"
+const TAG_GROUPS_FILE := "res://addons/oip_comms/save_data/tag_groups.cfg"
+const SETTINGS_FILE := "res://addons/oip_comms/save_data/settings.cfg"
 const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
 
 @onready var v_box_container: VBoxContainer = $ScrollContainer/VBoxContainer
 @onready var enable_comms: CheckBox = $HFlowContainer2/EnableComms
+@onready var enable_logging: CheckBox = $HFlowContainer2/EnableLogging
 
 var tag_groups_data: Array = []
 var last_tag_groups_data: Array = []
 var changes_present := false
+var settings_config: ConfigFile = ConfigFile.new()
+var tag_groups_config: ConfigFile = ConfigFile.new()
+
 
 func _ready() -> void:
-	
 	load_tag_groups_data()
 	load_tag_groups_ui()
+	load_settings()
 	register_tag_groups()
 	
 	last_tag_groups_data = tag_groups_data.duplicate(true)
 	
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
-	
+
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
 
 func _process(_delta: float) -> void:
@@ -39,13 +44,32 @@ func _process(_delta: float) -> void:
 			save_changes.emit(changes_present)
 
 func load_tag_groups_data() -> void:
-	if FileAccess.file_exists(TAG_GROUPS_FILE):
-		var save_file := FileAccess.open(TAG_GROUPS_FILE, FileAccess.READ)
-		var json_string := save_file.get_line()
-		tag_groups_data = JSON.parse_string(json_string)
-		
-		save_file.close()
+	tag_groups_data = []
 	
+	var error = tag_groups_config.load(TAG_GROUPS_FILE)
+	if error == OK:
+		var group_count = tag_groups_config.get_value("info", "group_count", 0)
+		
+		for i in range(group_count):
+			var group_section = "group_" + str(i)
+			var group_data = {
+				"name": tag_groups_config.get_value(group_section, "name", "TagGroup" + str(i)),
+				"polling_rate": tag_groups_config.get_value(group_section, "polling_rate", "500"),
+				"protocol": tag_groups_config.get_value(group_section, "protocol", "0"),
+				"gateway": tag_groups_config.get_value(group_section, "gateway", "localhost"),
+				"path": tag_groups_config.get_value(group_section, "path", "1,0"),
+				"cpu": tag_groups_config.get_value(group_section, "cpu", "ControlLogix")
+			}
+			tag_groups_data.append(group_data)
+
+func load_settings() -> void:
+	var error = settings_config.load(SETTINGS_FILE)
+	
+	if error == OK:
+		enable_comms.button_pressed = settings_config.get_value("settings", "enable_comms", false)
+		#TODO a bug is making this always false.
+		#enable_logging.button_pressed = settings_config.get_value("settings", "enable_logging", false)
+
 func load_tag_groups_ui() -> void:
 	for tag_group: _OIPCommsTagGroup in v_box_container.get_children():
 		tag_group.queue_free()
@@ -65,14 +89,14 @@ func save_all() -> void:
 	save_changes.emit(changes_present)
 
 	save_tag_groups_ui()
-	
 	var buffer_tag_groups_data := tag_groups_data.duplicate(true)
 	
 	if last_tag_groups_data.hash() != tag_groups_data.hash():
-		
 		save_tag_groups_data()
 		print("OIP Comms: Tag group data saved")
-		
+	
+	save_settings()
+	
 	# last tag group data indicates the last time it was saved
 	last_tag_groups_data = buffer_tag_groups_data
 	
@@ -85,10 +109,23 @@ func save_tag_groups_ui() -> void:
 		tag_groups_data.push_back(tag_group.save_data)
 
 func save_tag_groups_data() -> void:
-	var save_file := FileAccess.open(TAG_GROUPS_FILE, FileAccess.WRITE)
-	var json_string := JSON.stringify(tag_groups_data)
-	save_file.store_line(json_string)
-	save_file.close()
+	tag_groups_config.clear()
+	
+	tag_groups_config.set_value("info", "group_count", tag_groups_data.size())
+	
+	for i in range(tag_groups_data.size()):
+		var group_data = tag_groups_data[i]
+		var group_section = "group_" + str(i)
+		
+		tag_groups_config.set_value(group_section, "name", group_data.name)
+		tag_groups_config.set_value(group_section, "polling_rate", group_data.polling_rate)
+		tag_groups_config.set_value(group_section, "protocol", group_data.protocol)
+		tag_groups_config.set_value(group_section, "gateway", group_data.gateway)
+		tag_groups_config.set_value(group_section, "path", group_data.path)
+		tag_groups_config.set_value(group_section, "cpu", group_data.cpu)
+	
+	tag_groups_config.save(TAG_GROUPS_FILE)
+
 
 func tag_group_delete(t: _OIPCommsTagGroup) -> void:
 	var index := -1
@@ -104,20 +141,10 @@ func tag_group_delete(t: _OIPCommsTagGroup) -> void:
 		tag_groups_data.remove_at(index)
 		t.queue_free()
 
-# old save button
-func _on_Button_pressed() -> void:
-	save_tag_groups_ui()
-	save_tag_groups_data()
-
-# old load button
-func _on_Button2_pressed() -> void:
-	load_tag_groups_data()
-	load_tag_groups_ui()
-
 func _on_AddTagGroup_pressed() -> void:
 	var _name := "TagGroup" + str(len(tag_groups_data))
 	tag_groups_data.push_back({
-		"name": _name, "polling_rate": "500", "protocol": "ab_eip",
+		"name": _name, "polling_rate": "500", "protocol": "0",
 		"gateway": "localhost", "path": "1,0", "cpu": "ControlLogix"
 	})
 	load_tag_groups_ui()
@@ -144,12 +171,20 @@ func register_tag_groups() -> void:
 func _on_EnableComms_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_comms(toggled_on)
 	OIPComms.enable_comms_changed.emit()
+	save_settings()
 
 func _on_EnableLogging_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_log(toggled_on)
+	save_settings()
 
 func _on_simulation_started() -> void:
 	OIPComms.set_sim_running(true)
 
 func _on_simulation_ended() -> void:
 	OIPComms.set_sim_running(false)
+
+func save_settings() -> void:
+	settings_config.set_value("settings", "enable_comms", enable_comms.button_pressed)
+	settings_config.set_value("settings", "enable_logging", enable_logging.button_pressed)
+	
+	var error = settings_config.save(SETTINGS_FILE)
