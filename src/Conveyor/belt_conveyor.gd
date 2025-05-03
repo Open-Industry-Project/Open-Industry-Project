@@ -118,7 +118,7 @@ static func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 
 func _init() -> void:
-	SIZE_DEFAULT = Vector3(4, 0.5, 1.524)
+	size_default = Vector3(4, 0.5, 1.524)
 
 
 func _on_instantiated() -> void:
@@ -132,12 +132,12 @@ func _on_instantiated() -> void:
 
 
 func _enter_tree() -> void:
+	super._enter_tree()
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
-
 
 func _ready() -> void:
 	migrate_scale_to_size()
@@ -148,7 +148,7 @@ func _exit_tree() -> void:
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-
+	super._exit_tree()
 
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
@@ -307,7 +307,7 @@ func _on_size_changed() -> void:
 func migrate_scale_to_size() -> void:
 	if scale == Vector3.ONE:
 		return  # scale already reset; nothing to do
-	if size != SIZE_DEFAULT:
+	if size != size_default:
 		return  # size isn't default; assume migration has already happened despite the unexpected scale.
 	
 	var scale_original = scale

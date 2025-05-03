@@ -13,7 +13,9 @@ size = Vector3(1.525, 0.24, 1.524)
 
 [node name="RollerConveyor" type="Node3D"]
 script = ExtResource("1_vnty6")
+size = Vector3(1.525, 0.24, 1.524)
 metadata/_edit_group_ = true
+metadata/hijack_scale = true
 
 [node name="RollerConveyorLegacy" type="Node3D" parent="."]
 process_mode = 1
@@ -53,4 +55,3 @@ collision_mask = 0
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RollerConveyorLegacy/SimpleConveyorShape"]
 transform = Transform3D(0.999999, 0, 0, 0, 0.999981, -4.26334e-14, 0, 4.26326e-14, 1, 0, 0, 0)
 shape = SubResource("BoxShape3D_vc5t3")
-debug_color = Color(0, 0.6, 0.7, 0.42)

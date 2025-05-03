@@ -44,10 +44,22 @@ var _register_running_tag_ok: bool = false
 var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
 
-
 static func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return Vector3(max(1.5, new_size.x), 0.24, max(0.10, new_size.z))
 
+func _enter_tree() -> void:
+	super._enter_tree()
+	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
+	OIPComms.tag_group_polled.connect(_tag_group_polled)
+	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+
+func _exit_tree() -> void:
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	super._exit_tree()
 
 func _on_instantiated() -> void:
 	$RollerConveyorLegacy.on_scene_instantiated()
@@ -62,20 +74,6 @@ func _on_instantiated() -> void:
 
 	if _register_running_tag_ok and _running_tag_group_init:
 		OIPComms.write_bit(running_tag_group_name, running_tag_name, speed > 0.0)
-
-
-func _enter_tree() -> void:
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
-
-
-func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 
 
 func _on_simulation_started() -> void:
