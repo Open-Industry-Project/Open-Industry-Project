@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=3 uid="uid://dg47c07xr4ksu"]
 
-[ext_resource type="Script" uid="uid://dcaw86aiehy46" path="res://src/RollerConveyor/roller_conveyor.gd" id="1_vnty6"]
+[ext_resource type="Script" uid="uid://dcaw86aiehy46" path="res://src/RollerConveyor/roller_conveyor_legacy.gd" id="1_vnty6"]
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]
 [ext_resource type="Script" uid="uid://cux2ryj2tvgtk" path="res://src/RollerConveyor/rollers.gd" id="3_peu56"]
 [ext_resource type="PackedScene" uid="uid://b6dc0ajcxde1s" path="res://assets/3DModels/ConveyorRollerBaseSplit.glb" id="3_sau1a"]
@@ -10,7 +10,7 @@
 resource_local_to_scene = true
 size = Vector3(1.525, 0.24, 1.524)
 
-[node name="RollerConveyor" type="Node3D"]
+[node name="RollerConveyorLegacy" type="Node3D"]
 process_mode = 1
 transform = Transform3D(1.025, 0, 0, 0, 1, -2.30118e-07, 0, 1.50996e-07, 1.524, 0, 0, 0)
 script = ExtResource("1_vnty6")
