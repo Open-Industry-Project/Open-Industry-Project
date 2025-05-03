@@ -7,6 +7,7 @@ class_name Rollers
 const ROLLERS_DISTANCE: float = 0.33
 
 func _init() -> void:
+	super()
 	length_changed.connect(_add_or_remove_rollers)
 
 func _ready() -> void:

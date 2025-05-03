@@ -13,6 +13,7 @@ const BASE_WIDTH: float = 2.0
 var roller: Roller
 
 func _init() -> void:
+	super()
 	width_changed.connect(self.set_ends_separation)
 
 # Overrides virtual method from AbstractRollerContainer
