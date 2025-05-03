@@ -26,7 +26,7 @@ static func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 
 func _init() -> void:
-	SIZE_MIN = Vector3(0.01, 0.02, 0.01)
+	size_min = Vector3(0.01, 0.02, 0.01)
 
 
 func _on_instantiated() -> void:
@@ -36,6 +36,7 @@ func _on_instantiated() -> void:
 
 
 func _enter_tree() -> void:
+	super._enter_tree()
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 
@@ -43,6 +44,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	super._exit_tree()
 
 
 func _ready() -> void:
