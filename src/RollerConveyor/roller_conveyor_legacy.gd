@@ -1,6 +1,6 @@
 @tool
 extends Node3D
-class_name RollerConveyor
+class_name RollerConveyorLegacy
 
 signal width_changed(width: float)
 signal length_changed(length: float)
