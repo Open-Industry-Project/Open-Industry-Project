@@ -21,12 +21,6 @@ func _init() -> void:
 # Virtual method to be overridden
 func setup_existing_rollers() -> void:
 	for roller in _get_rollers():
-		# If length_changed has already been fired, then we've already
-		# added and subscribed some Rollers, but we still need to
-		# subscribe the original ones. To ensure that each Roller is
-		# only subscribed once, we're going to unsubscribe them all,
-		# then then subscribe them.
-		roller_removed.emit(roller)
 		roller_added.emit(roller)
 
 func on_owner_scale_changed(scale: Vector3) -> void:
@@ -76,8 +70,13 @@ func _handle_roller_added(roller: Roller) -> void:
 	roller.set_rotation_degrees(_get_rotation_from_skew_angle(_roller_skew_angle_degrees))
 	roller.set_length(_roller_length)
 
-	roller_rotation_changed.connect(roller.set_rotation_degrees)
-	roller_length_changed.connect(roller.set_length)
+	# It's possible for this handler to be called multiple times for the same roller:
+	# Once when an increase in length adds a Roller and again when instantiation completes (setup_existing_rollers).
+	# Check if the signal is already connected to avoid errors.
+	if not roller_rotation_changed.is_connected(roller.set_rotation_degrees):
+		roller_rotation_changed.connect(roller.set_rotation_degrees)
+	if not roller_length_changed.is_connected(roller.set_length):
+		roller_length_changed.connect(roller.set_length)
 
 func _handle_roller_removed(roller: Roller) -> void:
 	roller_rotation_changed.disconnect(roller.set_rotation_degrees)
