@@ -10,6 +10,7 @@ friction = 0.5
 
 [node name="BeltConveyorAssembly" type="Node3D"]
 script = ExtResource("1_upkoq")
+middle_legs_enabled = true
 belt_color = Color(1, 1, 1, 1)
 belt_texture = 0
 speed = 2.0
