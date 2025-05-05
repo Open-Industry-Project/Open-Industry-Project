@@ -39,36 +39,20 @@ var DEFAULT_DEPTH: float = 0.5
 		if _set_process_if_changed(conveyor_count, value):
 			conveyor_count = value
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var speed: float = 2.0:
-	set(value):
-		if _set_process_if_changed(speed, value):
-			speed = value
-
-@export var conveyor_scene: PackedScene = preload("res://parts/BeltConveyor.tscn"):
+@export_storage var conveyor_scene: PackedScene = preload("res://parts/BeltConveyor.tscn"):
 	set(value):
 		if _set_process_if_changed(conveyor_scene, value):
 			conveyor_scene = value
 			# Recreate all conveyors
 			_add_or_remove_conveyors(0)
 
-@export var enable_comms: bool = false:
-	set(value):
-		if _set_process_if_changed(enable_comms, value):
-			enable_comms = value
-			notify_property_list_changed()
 
-@export var tag: String = "":
-	set(value):
-		if _set_process_if_changed(tag, value):
-			tag = value
-
-@export var update_rate: int = 100:
-	set(value):
-		if _set_process_if_changed(update_rate, value):
-			update_rate = value
+func _init() -> void:
+	SIZE_DEFAULT = Vector3(DEFAULT_LENGTH, DEFAULT_DEPTH, DEFAULT_WIDTH)
 
 
-func _ready() -> void:
+func _on_instantiated() -> void:
+	super._on_instantiated()
 	_process(0.0)
 
 
@@ -79,9 +63,6 @@ func _process(delta: float) -> void:
 
 func _validate_property(property: Dictionary) -> void:
 	var property_name = property["name"]
-
-	if property_name == "update_rate" or property_name == "tag":
-		property["usage"] = PROPERTY_USAGE_DEFAULT if enable_comms else PROPERTY_USAGE_NO_EDITOR
 	if property_name in ["length", "width", "depth"]:
 		# Don't store; size property handles that.
 		property["usage"] = PROPERTY_USAGE_EDITOR
@@ -144,13 +125,11 @@ func _update_conveyor(index: int) -> void:
 	if "size" in child_3d:
 		child_3d.size = _get_new_size_for_conveyor(index)
 
-	if child_3d.has_method("set_enable_comms"):  # IComms equivalent check
-		child_3d.enable_comms = enable_comms
-		child_3d.tag = tag
-		child_3d.update_rate = update_rate
+	_set_conveyor_properties(child_3d)
 
-	if child_3d.has_method("set_speed"):  # IConveyor equivalent check
-		child_3d.speed = speed
+
+func _set_conveyor_properties(conveyor: Node) -> void:
+	pass
 
 
 func _get_new_transform_for_conveyor(index: int) -> Transform3D:
@@ -185,3 +164,14 @@ func _set_process_if_changed(cached_val, new_val) -> bool:
 	if changed:
 		set_process(true)
 	return changed
+
+
+func _on_size_changed() -> void:
+	set_process(true)
+	super._on_size_changed()
+
+
+func _get_first_conveyor() -> Node:
+	if _get_internal_child_count() > 0:
+		return get_child(0, true)
+	return null

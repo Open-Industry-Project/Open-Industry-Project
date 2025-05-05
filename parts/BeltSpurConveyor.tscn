@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dd3civx5yylxh"]
 
-[ext_resource type="Script" uid="uid://cc06x1o0ekd7n" path="res://src/ConveyorAssembly/spur_conveyor_assembly.gd" id="1_ghsei"]
+[ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_ghsei"]
 
 [node name="BeltSpurConveyor" type="Node3D"]
 process_mode = 3
