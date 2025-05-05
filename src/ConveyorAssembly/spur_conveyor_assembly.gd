@@ -12,17 +12,17 @@ const DEFAULT_SIZE := Vector3(DEFAULT_LENGTH, DEFAULT_DEPTH, DEFAULT_WIDTH)
 		if _set_process_if_changed(size, value):
 			size = value
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = DEFAULT_WIDTH:
-	set(value):
-		size.z = value
-	get:
-		return size.z
-
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = DEFAULT_LENGTH:
 	set(value):
 		size.x = value
 	get:
 		return size.x
+
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = DEFAULT_WIDTH:
+	set(value):
+		size.z = value
+	get:
+		return size.z
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var depth: float = DEFAULT_DEPTH:
 	set(value):
