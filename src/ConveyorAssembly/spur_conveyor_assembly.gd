@@ -2,15 +2,33 @@
 class_name SpurConveyorAssembly
 extends Node3D
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = 2.0:
-	set(value):
-		if _set_process_if_changed(width, value):
-			width = value
+const DEFAULT_WIDTH: float = 1.524
+const DEFAULT_LENGTH: float = 2.0
+const DEFAULT_DEPTH: float = 0.5
+const DEFAULT_SIZE := Vector3(DEFAULT_LENGTH, DEFAULT_DEPTH, DEFAULT_WIDTH)
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 4.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var size: Vector3 = DEFAULT_SIZE:
 	set(value):
-		if _set_process_if_changed(length, value):
-			length = value
+		if _set_process_if_changed(size, value):
+			size = value
+
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = DEFAULT_WIDTH:
+	set(value):
+		size.z = value
+	get:
+		return size.z
+
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = DEFAULT_LENGTH:
+	set(value):
+		size.x = value
+	get:
+		return size.x
+
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var depth: float = DEFAULT_DEPTH:
+	set(value):
+		size.y = value
+	get:
+		return size.y
 
 @export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = 0.0:
 	set(value):
@@ -140,8 +158,8 @@ func _get_new_size_for_conveyor(index: int) -> Vector3:
 	var pos_x: float = (slope_downstream * pos_z + slope_upstream * pos_z) / 2.0
 	var l: float = length + slope_downstream * pos_z - slope_upstream * pos_z
 
-	var size := Vector3(l, 1, w)
-	return size
+	var conveyor_size := Vector3(l, depth, w)
+	return conveyor_size
 
 
 func _set_process_if_changed(cached_val, new_val) -> bool:
