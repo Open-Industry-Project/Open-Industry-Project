@@ -1,4 +1,5 @@
 @tool
+class_name SpurConveyorAssembly
 extends Node3D
 
 const CONVEYOR_SCENE_BASE_LENGTH = 1.0
@@ -46,7 +47,7 @@ const CONVEYOR_SCENE_BASE_WIDTH = 1.0
 	get:
 		return _speed
 
-@export var conveyor_scene: PackedScene = preload("res://parts/BeltConveyor.tscn"):
+@export var conveyor_scene: PackedScene:
 	set(value):
 		if _set_process_if_changed(_conveyor_scene, value):
 			_conveyor_scene = value
@@ -84,7 +85,7 @@ var _angle_downstream: float = 0.0
 var _angle_upstream: float = 0.0
 var _conveyor_count: int = 4
 var _speed: float = 2.0
-var _conveyor_scene: PackedScene
+var _conveyor_scene: PackedScene = preload("res://parts/BeltConveyor.tscn")
 var _enable_comms: bool = false
 var _tag: String = ""
 var _update_rate: int = 100
@@ -93,8 +94,8 @@ func _ready() -> void:
 	_process(0.0)
 
 func _process(delta: float) -> void:
-	_update_conveyors()
 	set_process(false)
+	_update_conveyors()
 
 func _validate_property(property: Dictionary) -> void:
 	var property_name = property["name"]
@@ -104,14 +105,17 @@ func _validate_property(property: Dictionary) -> void:
 
 func _update_conveyors() -> void:
 	_add_or_remove_conveyors(conveyor_count)
-	for i in range(conveyor_count):
+	for i in range(_get_internal_child_count()):
 		_update_conveyor(i)
 
 func _add_or_remove_conveyors(count: int) -> void:
-	while get_child_count(true) - get_child_count() > count and get_child_count(true) - get_child_count() > 0:
+	while _get_internal_child_count() > count and _get_internal_child_count() > 0:
 		_remove_last_child()
-	while get_child_count(true) - get_child_count() < count:
+	while _get_internal_child_count() < count and _conveyor_scene != null:
 		_spawn_conveyor()
+
+func _get_internal_child_count() -> int:
+	return get_child_count(true) - get_child_count()
 
 func _remove_last_child() -> void:
 	var child = get_child(get_child_count(true) - 1, true)
@@ -125,6 +129,7 @@ func _spawn_conveyor() -> void:
 
 func _update_conveyor(index: int) -> void:
 	var child_3d = get_child(index + get_child_count(), true) as Node3D
+	assert(child_3d != null, "SpurConveyorAssembly child is wrong type or missing.")
 	child_3d.transform = _get_new_transform_for_conveyor(index)
 
 	if child_3d.has_method("set_enable_comms"):  # IComms equivalent check
