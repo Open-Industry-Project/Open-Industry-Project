@@ -88,6 +88,12 @@ func _validate_property(property: Dictionary) -> void:
 
 	if property_name == "update_rate" or property_name == "tag":
 		property["usage"] = PROPERTY_USAGE_DEFAULT if enable_comms else PROPERTY_USAGE_NO_EDITOR
+	if property_name in ["length", "width", "depth"]:
+		# Don't store; size property handles that.
+		property["usage"] = PROPERTY_USAGE_EDITOR
+	if property_name == "size":
+		# Store size, but don't show it in the editor.
+		property["usage"] = PROPERTY_USAGE_STORAGE
 
 
 func _update_conveyors() -> void:
