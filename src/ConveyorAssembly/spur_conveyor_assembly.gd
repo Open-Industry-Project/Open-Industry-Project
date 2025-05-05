@@ -7,88 +7,56 @@ const CONVEYOR_SCENE_BASE_WIDTH = 1.0
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = 2.0:
 	set(value):
-		if _set_process_if_changed(_width, value):
-			_width = value
-	get:
-		return _width
+		if _set_process_if_changed(width, value):
+			width = value
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 4.0:
 	set(value):
-		if _set_process_if_changed(_length, value):
-			_length = value
-	get:
-		return _length
+		if _set_process_if_changed(length, value):
+			length = value
 
 @export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = 0.0:
 	set(value):
-		if _set_process_if_changed(_angle_downstream, value):
-			_angle_downstream = value
-	get:
-		return _angle_downstream
+		if _set_process_if_changed(angle_downstream, value):
+			angle_downstream = value
 
 @export_range(-70, 70, 1, "radians_as_degrees") var angle_upstream: float = 0.0:
 	set(value):
-		if _set_process_if_changed(_angle_upstream, value):
-			_angle_upstream = value
-	get:
-		return _angle_upstream
+		if _set_process_if_changed(angle_upstream, value):
+			angle_upstream = value
 
 @export_range(1, 20, 1) var conveyor_count: int = 4:
 	set(value):
-		if _set_process_if_changed(_conveyor_count, value):
-			_conveyor_count = value
-	get:
-		return _conveyor_count
+		if _set_process_if_changed(conveyor_count, value):
+			conveyor_count = value
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var speed: float = 2.0:
 	set(value):
-		if _set_process_if_changed(_speed, value):
-			_speed = value
-	get:
-		return _speed
+		if _set_process_if_changed(speed, value):
+			speed = value
 
-@export var conveyor_scene: PackedScene:
+@export var conveyor_scene: PackedScene = preload("res://parts/BeltConveyor.tscn"):
 	set(value):
-		if _set_process_if_changed(_conveyor_scene, value):
-			_conveyor_scene = value
+		if _set_process_if_changed(conveyor_scene, value):
+			conveyor_scene = value
 			# Recreate all conveyors
 			_add_or_remove_conveyors(0)
-	get:
-		return _conveyor_scene
 
 @export var enable_comms: bool = false:
 	set(value):
-		if _set_process_if_changed(_enable_comms, value):
-			_enable_comms = value
+		if _set_process_if_changed(enable_comms, value):
+			enable_comms = value
 			notify_property_list_changed()
-	get:
-		return _enable_comms
 
 @export var tag: String = "":
 	set(value):
-		if _set_process_if_changed(_tag, value):
-			_tag = value
-	get:
-		return _tag
+		if _set_process_if_changed(tag, value):
+			tag = value
 
 @export var update_rate: int = 100:
 	set(value):
-		if _set_process_if_changed(_update_rate, value):
-			_update_rate = value
-	get:
-		return _update_rate
-
-# Private variables to store the actual values
-var _width: float = 2.0
-var _length: float = 4.0
-var _angle_downstream: float = 0.0
-var _angle_upstream: float = 0.0
-var _conveyor_count: int = 4
-var _speed: float = 2.0
-var _conveyor_scene: PackedScene = preload("res://parts/BeltConveyor.tscn")
-var _enable_comms: bool = false
-var _tag: String = ""
-var _update_rate: int = 100
+		if _set_process_if_changed(update_rate, value):
+			update_rate = value
 
 func _ready() -> void:
 	_process(0.0)
@@ -111,7 +79,7 @@ func _update_conveyors() -> void:
 func _add_or_remove_conveyors(count: int) -> void:
 	while _get_internal_child_count() > count and _get_internal_child_count() > 0:
 		_remove_last_child()
-	while _get_internal_child_count() < count and _conveyor_scene != null:
+	while _get_internal_child_count() < count and conveyor_scene != null:
 		_spawn_conveyor()
 
 func _get_internal_child_count() -> int:
