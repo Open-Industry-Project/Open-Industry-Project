@@ -5,28 +5,28 @@ extends Node3D
 const CONVEYOR_SCENE_BASE_LENGTH = 1.0
 const CONVEYOR_SCENE_BASE_WIDTH = 1.0
 
-@export var width: float = 2.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = 2.0:
 	set(value):
 		if _set_process_if_changed(_width, value):
 			_width = value
 	get:
 		return _width
 
-@export var length: float = 4.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 4.0:
 	set(value):
 		if _set_process_if_changed(_length, value):
 			_length = value
 	get:
 		return _length
 
-@export_range(-70, 70, 1) var angle_downstream: float = 0.0:
+@export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = 0.0:
 	set(value):
 		if _set_process_if_changed(_angle_downstream, value):
 			_angle_downstream = value
 	get:
 		return _angle_downstream
 
-@export_range(-70, 70, 1) var angle_upstream: float = 0.0:
+@export_range(-70, 70, 1, "radians_as_degrees") var angle_upstream: float = 0.0:
 	set(value):
 		if _set_process_if_changed(_angle_upstream, value):
 			_angle_upstream = value
@@ -40,7 +40,7 @@ const CONVEYOR_SCENE_BASE_WIDTH = 1.0
 	get:
 		return _conveyor_count
 
-@export var speed: float = 2.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var speed: float = 2.0:
 	set(value):
 		if _set_process_if_changed(_speed, value):
 			_speed = value
