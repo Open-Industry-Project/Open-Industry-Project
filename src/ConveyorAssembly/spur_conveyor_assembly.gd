@@ -1,30 +1,24 @@
 @tool
 class_name SpurConveyorAssembly
-extends Node3D
+extends ResizableNode3D
 
-const DEFAULT_WIDTH: float = 1.524
-const DEFAULT_LENGTH: float = 2.0
-const DEFAULT_DEPTH: float = 0.5
-const DEFAULT_SIZE := Vector3(DEFAULT_LENGTH, DEFAULT_DEPTH, DEFAULT_WIDTH)
+var DEFAULT_LENGTH: float = 2.0
+var DEFAULT_WIDTH: float = 1.524
+var DEFAULT_DEPTH: float = 0.5
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var size: Vector3 = DEFAULT_SIZE:
-	set(value):
-		if _set_process_if_changed(size, value):
-			size = value
-
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = DEFAULT_LENGTH:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float:
 	set(value):
 		size.x = value
 	get:
 		return size.x
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = DEFAULT_WIDTH:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float:
 	set(value):
 		size.z = value
 	get:
 		return size.z
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var depth: float = DEFAULT_DEPTH:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var depth: float:
 	set(value):
 		size.y = value
 	get:
@@ -94,6 +88,24 @@ func _validate_property(property: Dictionary) -> void:
 	if property_name == "size":
 		# Store size, but don't show it in the editor.
 		property["usage"] = PROPERTY_USAGE_STORAGE
+
+
+func _property_can_revert(property: StringName) -> bool:
+	if property in ["length", "width", "depth"]:
+		return true
+	return false
+
+
+func _property_get_revert(property: StringName) -> Variant:
+	match property:
+		&"length":
+			return DEFAULT_LENGTH
+		&"width":
+			return DEFAULT_WIDTH
+		&"depth":
+			return DEFAULT_DEPTH
+		_:
+			return null
 
 
 func _update_conveyors() -> void:
