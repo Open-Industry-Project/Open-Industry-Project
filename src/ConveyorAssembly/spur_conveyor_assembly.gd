@@ -131,6 +131,8 @@ func _update_conveyor(index: int) -> void:
 	var child_3d = get_child(index + get_child_count(), true) as Node3D
 	assert(child_3d != null, "SpurConveyorAssembly child is wrong type or missing.")
 	child_3d.transform = _get_new_transform_for_conveyor(index)
+	if "size" in child_3d:
+		child_3d.size = _get_new_size_for_conveyor(index)
 
 	if child_3d.has_method("set_enable_comms"):  # IComms equivalent check
 		child_3d.enable_comms = enable_comms
@@ -141,18 +143,29 @@ func _update_conveyor(index: int) -> void:
 		child_3d.speed = speed
 
 func _get_new_transform_for_conveyor(index: int) -> Transform3D:
-	var slope_downstream = tan(angle_downstream)
-	var slope_upstream = tan(angle_upstream)
+	var slope_downstream: float = tan(angle_downstream)
+	var slope_upstream: float = tan(angle_upstream)
 
-	var w = width / conveyor_count
-	var pos_z = -0.5 * width + 0.5 * w + index * width / conveyor_count
-	var pos_x = (slope_downstream * pos_z + slope_upstream * pos_z) / 2.0
-	var l = length + slope_downstream * pos_z - slope_upstream * pos_z
+	var w: float = width / conveyor_count
+	var pos_z: float = -0.5 * width + 0.5 * w + index * width / conveyor_count
+	var pos_x: float = (slope_downstream * pos_z + slope_upstream * pos_z) / 2.0
+	var l: float = length + slope_downstream * pos_z - slope_upstream * pos_z
 
-	var position = Vector3(pos_x, 0, pos_z)
-	var scale = Vector3(l / CONVEYOR_SCENE_BASE_LENGTH, 1, w / CONVEYOR_SCENE_BASE_WIDTH)
+	var position := Vector3(pos_x, 0, pos_z)
 
-	return Transform3D(Basis().scaled(scale), position)
+	return Transform3D(Basis.IDENTITY, position)
+
+func _get_new_size_for_conveyor(index: int) -> Vector3:
+	var slope_downstream: float = tan(angle_downstream)
+	var slope_upstream: float = tan(angle_upstream)
+
+	var w: float = width / conveyor_count
+	var pos_z: float = -0.5 * width + 0.5 * w + index * width / conveyor_count
+	var pos_x: float = (slope_downstream * pos_z + slope_upstream * pos_z) / 2.0
+	var l: float = length + slope_downstream * pos_z - slope_upstream * pos_z
+
+	var size := Vector3(l, 1, w)
+	return size
 
 func _set_process_if_changed(cached_val, new_val) -> bool:
 	var changed = cached_val != new_val
