@@ -2,9 +2,6 @@
 class_name SpurConveyorAssembly
 extends Node3D
 
-const CONVEYOR_SCENE_BASE_LENGTH = 1.0
-const CONVEYOR_SCENE_BASE_WIDTH = 1.0
-
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float = 2.0:
 	set(value):
 		if _set_process_if_changed(width, value):
@@ -58,12 +55,15 @@ const CONVEYOR_SCENE_BASE_WIDTH = 1.0
 		if _set_process_if_changed(update_rate, value):
 			update_rate = value
 
+
 func _ready() -> void:
 	_process(0.0)
+
 
 func _process(delta: float) -> void:
 	set_process(false)
 	_update_conveyors()
+
 
 func _validate_property(property: Dictionary) -> void:
 	var property_name = property["name"]
@@ -71,10 +71,12 @@ func _validate_property(property: Dictionary) -> void:
 	if property_name == "update_rate" or property_name == "tag":
 		property["usage"] = PROPERTY_USAGE_DEFAULT if enable_comms else PROPERTY_USAGE_NO_EDITOR
 
+
 func _update_conveyors() -> void:
 	_add_or_remove_conveyors(conveyor_count)
 	for i in range(_get_internal_child_count()):
 		_update_conveyor(i)
+
 
 func _add_or_remove_conveyors(count: int) -> void:
 	while _get_internal_child_count() > count and _get_internal_child_count() > 0:
@@ -82,18 +84,22 @@ func _add_or_remove_conveyors(count: int) -> void:
 	while _get_internal_child_count() < count and conveyor_scene != null:
 		_spawn_conveyor()
 
+
 func _get_internal_child_count() -> int:
 	return get_child_count(true) - get_child_count()
+
 
 func _remove_last_child() -> void:
 	var child = get_child(get_child_count(true) - 1, true)
 	remove_child(child)
 	child.queue_free()
 
+
 func _spawn_conveyor() -> void:
 	var conveyor = conveyor_scene.instantiate() as Node3D
 	add_child(conveyor, false, Node.INTERNAL_MODE_BACK)
 	conveyor.owner = null
+
 
 func _update_conveyor(index: int) -> void:
 	var child_3d = get_child(index + get_child_count(), true) as Node3D
@@ -110,6 +116,7 @@ func _update_conveyor(index: int) -> void:
 	if child_3d.has_method("set_speed"):  # IConveyor equivalent check
 		child_3d.speed = speed
 
+
 func _get_new_transform_for_conveyor(index: int) -> Transform3D:
 	var slope_downstream: float = tan(angle_downstream)
 	var slope_upstream: float = tan(angle_upstream)
@@ -123,6 +130,7 @@ func _get_new_transform_for_conveyor(index: int) -> Transform3D:
 
 	return Transform3D(Basis.IDENTITY, position)
 
+
 func _get_new_size_for_conveyor(index: int) -> Vector3:
 	var slope_downstream: float = tan(angle_downstream)
 	var slope_upstream: float = tan(angle_upstream)
@@ -134,6 +142,7 @@ func _get_new_size_for_conveyor(index: int) -> Vector3:
 
 	var size := Vector3(l, 1, w)
 	return size
+
 
 func _set_process_if_changed(cached_val, new_val) -> bool:
 	var changed = cached_val != new_val
