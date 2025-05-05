@@ -5,6 +5,5 @@
 [node name="BeltSpurConveyor" type="Node3D"]
 process_mode = 3
 script = ExtResource("1_ghsei")
-width = 1.524
-length = 2.0
 angle_downstream = -0.523599
+size = Vector3(2, 0.5, 1.524)
