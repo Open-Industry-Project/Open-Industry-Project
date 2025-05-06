@@ -23,7 +23,7 @@ signal speed_changed
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
-@export var speed: float = 2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
 	set(value):
 		if value == speed:
 			return
