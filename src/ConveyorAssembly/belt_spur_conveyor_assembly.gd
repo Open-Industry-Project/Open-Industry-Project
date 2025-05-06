@@ -49,6 +49,12 @@ var _conveyor_script: Script
 	set(value):
 		_set_process_if_changed(speed_tag_group_name, value)
 		speed_tag_group_name = value
+		_set_for_all_conveyors(&"speed_tag_group_name", value)
+	get():
+		var conveyor := _get_first_conveyor() as BeltConveyor
+		if conveyor:
+			return conveyor.speed_tag_group_name
+		return speed_tag_group_name
 @export_custom(0,"tag_group_enum") var speed_tag_groups:
 	set(value):
 		_set_process_if_changed(speed_tag_groups, value)
@@ -61,6 +67,12 @@ var _conveyor_script: Script
 	set(value):
 		_set_process_if_changed(running_tag_group_name, value)
 		running_tag_group_name = value
+		_set_for_all_conveyors(&"running_tag_group_name", value)
+	get():
+		var conveyor := _get_first_conveyor() as BeltConveyor
+		if conveyor:
+			return conveyor.running_tag_group_name
+		return running_tag_group_name
 @export_custom(0,"tag_group_enum") var running_tag_groups:
 	set(value):
 		_set_process_if_changed(running_tag_groups, value)
@@ -143,7 +155,7 @@ func _get_conveyor_script():
 
 func _set_conveyor_properties(conveyor: Node) -> void:
 	for property_name in _get_conveyor_property_names():
-		if property_name in [&"speed_tag_groups", &"running_tag_groups"] and not OIPComms.get_enable_comms():
+		if property_name in [&"speed_tag_groups", &"running_tag_groups"] and get(property_name) == null:
 			continue
 		conveyor.set(property_name, get(property_name))
 
