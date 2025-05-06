@@ -39,6 +39,8 @@ var _conveyor_script: Script
 		if conveyor:
 			return conveyor.belt_physics_material
 		return belt_physics_material
+
+@export_category("Communications")
 @export var enable_comms: bool = false:
 	set(value):
 		_set_process_if_changed(enable_comms, value)
@@ -71,6 +73,14 @@ var _conveyor_script: Script
 
 func _init() -> void:
 	super()
+
+
+func _enter_tree() -> void:
+	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+
+
+func _exit_tree() -> void:
+	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 
 
 func _validate_property(property: Dictionary) -> void:
