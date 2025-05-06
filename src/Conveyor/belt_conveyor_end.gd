@@ -9,6 +9,7 @@ extends ResizableNode3D
 		speed = value
 		_update_belt_material_scale()
 		_update_belt_material_position()
+		_update_belt_velocity()
 
 var belt_position: float = 0.0
 var running: bool = false
@@ -32,6 +33,16 @@ func _on_instantiated():
 	_setup_references()
 	_setup_materials()
 	_on_size_changed()
+
+
+func _enter_tree() -> void:
+	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+
+
+func _exit_tree() -> void:
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 
 
 func _ready() -> void:
