@@ -136,12 +136,19 @@ func _get_new_transform_for_conveyor(index: int) -> Transform3D:
 	var slope_downstream: float = tan(angle_downstream)
 	var slope_upstream: float = tan(angle_upstream)
 
-	var w: float = width / conveyor_count
-	var pos_z: float = -0.5 * width + 0.5 * w + index * width / conveyor_count
-	var pos_x: float = (slope_downstream * pos_z + slope_upstream * pos_z) / 2.0
-	var l: float = length + slope_downstream * pos_z - slope_upstream * pos_z
+	var conv_width: float = width / conveyor_count
+	var conv_half_width: float = 0.5 * conv_width
+	var conv_pos_z: float = -0.5 * width + conv_half_width + index * width / conveyor_count
+	# Pivot the line of contact around a fixed point at z=0.
+	# This is a line that conveyors will always touch but never cross.
+	var ds_contact_z_offset = -conv_half_width if angle_downstream > 0 else conv_half_width
+	var us_contact_z_offset = conv_half_width if angle_upstream > 0 else -conv_half_width
+	var ds_displacement_x: float = slope_downstream * (conv_pos_z + ds_contact_z_offset)
+	var us_displacement_x: float = slope_upstream * (conv_pos_z + us_contact_z_offset)
+	var conv_pos_x: float = (ds_displacement_x + us_displacement_x) / 2.0
+	var conv_length: float = length + ds_displacement_x - us_displacement_x
 
-	var position := Vector3(pos_x, 0, pos_z)
+	var position := Vector3(conv_pos_x, 0, conv_pos_z)
 
 	return Transform3D(Basis.IDENTITY, position)
 
@@ -150,13 +157,20 @@ func _get_new_size_for_conveyor(index: int) -> Vector3:
 	var slope_downstream: float = tan(angle_downstream)
 	var slope_upstream: float = tan(angle_upstream)
 
-	var w: float = width / conveyor_count
-	var pos_z: float = -0.5 * width + 0.5 * w + index * width / conveyor_count
-	var pos_x: float = (slope_downstream * pos_z + slope_upstream * pos_z) / 2.0
-	var l: float = length + slope_downstream * pos_z - slope_upstream * pos_z
+	var conv_width: float = width / conveyor_count
+	var conv_half_width: float = 0.5 * conv_width
+	var conv_pos_z: float = -0.5 * width + conv_half_width + index * width / conveyor_count
+	# Pivot the line of contact around a fixed point at z=0.
+	# This is a line that conveyors will always touch but never cross.
+	var ds_contact_z_offset = -conv_half_width if angle_downstream > 0 else conv_half_width
+	var us_contact_z_offset = conv_half_width if angle_upstream > 0 else -conv_half_width
+	var ds_displacement_x: float = slope_downstream * (conv_pos_z + ds_contact_z_offset)
+	var us_displacement_x: float = slope_upstream * (conv_pos_z + us_contact_z_offset)
+	var conv_pos_x: float = (ds_displacement_x + us_displacement_x) / 2.0
+	var conv_length: float = length + ds_displacement_x - us_displacement_x
 
-	var conveyor_size := Vector3(l, depth, w)
-	return conveyor_size
+	var conv_size := Vector3(conv_length, depth, conv_width)
+	return conv_size
 
 
 func _set_process_if_changed(cached_val, new_val) -> bool:
