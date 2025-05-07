@@ -229,7 +229,7 @@ var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegRC.tscn"):
 		else:
 			leg_model_scene = value
 @export
-var leg_model_grabs_offset: float = 0.132:
+var leg_model_grabs_offset: float = 0.392:
 	get:
 		if _has_instantiated:
 			return %ConveyorLegsAssembly.leg_model_grabs_offset

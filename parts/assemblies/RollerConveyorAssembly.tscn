@@ -23,3 +23,4 @@ unique_name_in_owner = true
 middle_legs_enabled = true
 _middle_legs_instance_count = 1
 leg_model_scene = ExtResource("2_a0feq")
+leg_model_grabs_offset = 0.392
