@@ -10,7 +10,6 @@
 script = ExtResource("1_upkoq")
 middle_legs_enabled = true
 size = Vector3(4, 0.5, 1.524)
-leg_model_scene = ExtResource("2_a0feq")
 
 [node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true
