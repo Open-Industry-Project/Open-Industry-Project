@@ -508,11 +508,14 @@ func _get_conveyor_leg_target_width() -> float:
 		return CONVEYOR_LEGS_BASE_WIDTH
 	# This is a hack to account for the fact that CurvedRollerConveyors are slightly wider than other conveyors
 	var conveyor_width: float = conveyor.size.z
-	# TODO: Restore RollerConveyor code.
+	# TODO: Restore CurvedRollerConveyor code.
 	#if conveyor is CurvedRollerConveyor:
 	#	return conveyor_width * 1.055
-	#if conveyor is RollerConveyor:
-	#	return conveyor_width + 0.051 * 2.0
+	# TODO: Make this check not depend on concrete type.
+	# It should also work for conveyor assemblies that forward their conveyor's info.
+	# Perhaps it should be coupled to the leg model instead?
+	if conveyor is RollerConveyor:
+		return conveyor_width + 0.051 * 2.0
 	return conveyor_width
 
 
