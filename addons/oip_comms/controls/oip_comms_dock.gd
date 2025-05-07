@@ -16,13 +16,13 @@ const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
 @onready var v_box_container: VBoxContainer = $ScrollContainer/VBoxContainer
 @onready var enable_comms: CheckBox = $HFlowContainer2/EnableComms
 @onready var enable_logging: CheckBox = $HFlowContainer2/EnableLogging
+@onready var save_comms_button: Button = $"HFlowContainer2/Save Changes"
 
 var tag_groups_data: Array = []
 var last_tag_groups_data: Array = []
 var changes_present := false
 var settings_config: ConfigFile = ConfigFile.new()
 var tag_groups_config: ConfigFile = ConfigFile.new()
-
 
 func _ready() -> void:
 	load_tag_groups_data()
@@ -36,12 +36,24 @@ func _ready() -> void:
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
+	
+	# Connect the new save button
+	if is_instance_valid(save_comms_button):
+		save_comms_button.connect("pressed", _on_save_comms_button_pressed)
+		save_comms_button.disabled = not changes_present # Disable initially if no changes
 
 func _process(_delta: float) -> void:
 	if tag_groups_data.hash() != last_tag_groups_data.hash():
 		if not changes_present:
 			changes_present = true
 			save_changes.emit(changes_present)
+			if is_instance_valid(save_comms_button):
+				save_comms_button.disabled = false # Enable the button when changes occur
+	elif changes_present:
+		changes_present = false
+		save_changes.emit(changes_present)
+		if is_instance_valid(save_comms_button):
+			save_comms_button.disabled = true # Disable if changes are reverted (though unlikely with this logic)
 
 func load_tag_groups_data() -> void:
 	tag_groups_data = []
@@ -188,3 +200,6 @@ func save_settings() -> void:
 	settings_config.set_value("settings", "enable_logging", enable_logging.button_pressed)
 	
 	var error = settings_config.save(SETTINGS_FILE)
+
+func _on_save_comms_button_pressed() -> void:
+	save_all()
