@@ -13,49 +13,25 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 @export_group("Right Side Guards", "right_side_guards_")
 @export var right_side_guards_enabled: bool = true:
 	get:
-		if _has_instantiated:
-			return %SideGuardsAssembly.right_side_guards_enabled
-		else:
-			return right_side_guards_enabled
+		return _side_guards_property_cached_get(&"right_side_guards_enabled", right_side_guards_enabled)
 	set(value):
-		if _has_instantiated:
-			%SideGuardsAssembly.right_side_guards_enabled = value
-		else:
-			right_side_guards_enabled = value
+		right_side_guards_enabled = _side_guards_property_cached_set(&"right_side_guards_enabled", value, right_side_guards_enabled)
 @export var right_side_guards_openings: Array[SideGuardOpening] = []:
 	get:
-		if _has_instantiated:
-			return %SideGuardsAssembly.right_side_guards_openings
-		else:
-			return right_side_guards_openings
+		return _side_guards_property_cached_get(&"right_side_guards_openings", right_side_guards_openings)
 	set(value):
-		if _has_instantiated:
-			%SideGuardsAssembly.right_side_guards_openings = value
-		else:
-			right_side_guards_openings = value
+		right_side_guards_openings = _side_guards_property_cached_set(&"right_side_guards_openings", value, right_side_guards_openings)
 @export_group("Left Side Guards", "left_side_guards_")
 @export var left_side_guards_enabled: bool = true:
 	get:
-		if _has_instantiated:
-			return %SideGuardsAssembly.left_side_guards_enabled
-		else:
-			return left_side_guards_enabled
+		return _side_guards_property_cached_get(&"left_side_guards_enabled", left_side_guards_enabled)
 	set(value):
-		if _has_instantiated:
-			%SideGuardsAssembly.left_side_guards_enabled = value
-		else:
-			left_side_guards_enabled = value
+		left_side_guards_enabled = _side_guards_property_cached_set(&"left_side_guards_enabled", value, left_side_guards_enabled)
 @export var left_side_guards_openings: Array[SideGuardOpening] = []:
 	get:
-		if _has_instantiated:
-			return %SideGuardsAssembly.left_side_guards_openings
-		else:
-			return left_side_guards_openings
+		return _side_guards_property_cached_get(&"left_side_guards_openings", left_side_guards_openings)
 	set(value):
-		if _has_instantiated:
-			%SideGuardsAssembly.left_side_guards_openings = value
-		else:
-			left_side_guards_openings = value
+		left_side_guards_openings = _side_guards_property_cached_set(&"left_side_guards_openings", value, left_side_guards_openings)
 #endregion
 
 #region ConveyorLegsAssembly properties
@@ -64,188 +40,106 @@ const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 @export_custom(PROPERTY_HINT_NONE, "suffix:m")
 var floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.floor_plane
-		else:
-			return floor_plane
+		return _legs_property_cached_get(&"floor_plane", floor_plane)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.floor_plane = value
-		else:
-			floor_plane = value
+		floor_plane = _legs_property_cached_set(&"floor_plane", value, floor_plane)
 var global_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.global_floor_plane
-		else:
-			return global_floor_plane
+		return _legs_property_cached_get(&"global_floor_plane", global_floor_plane)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.global_floor_plane = value
-		else:
-			global_floor_plane = value
+		global_floor_plane = _legs_property_cached_set(&"global_floor_plane", value, global_floor_plane)
 @export_storage
 var local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.local_floor_plane
-		else:
-			return local_floor_plane
+		return _legs_property_cached_get(&"local_floor_plane", local_floor_plane)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.local_floor_plane = value
-		else:
-			local_floor_plane = value
+		local_floor_plane = _legs_property_cached_set(&"local_floor_plane", value, local_floor_plane)
 
 
 @export_subgroup("Middle Legs", "middle_legs")
 @export
 var middle_legs_enabled := true:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.middle_legs_enabled
-		else:
-			return middle_legs_enabled
+		return _legs_property_cached_get(&"middle_legs_enabled", middle_legs_enabled)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.middle_legs_enabled = value
-		else:
-			middle_legs_enabled = value
+		middle_legs_enabled = _legs_property_cached_set(&"middle_legs_enabled", value, middle_legs_enabled)
 @export_range(-5, 5, 0.01, "or_less", "or_greater", "suffix:m")
 var middle_legs_initial_leg_position: float:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.middle_legs_initial_leg_position
-		else:
-			return middle_legs_initial_leg_position
+		return _legs_property_cached_get(&"middle_legs_initial_leg_position", middle_legs_initial_leg_position)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.middle_legs_initial_leg_position = value
-		else:
-			middle_legs_initial_leg_position = value
+		middle_legs_initial_leg_position = _legs_property_cached_set(&"middle_legs_initial_leg_position", value, middle_legs_initial_leg_position)
 @export_range(preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).MIDDLE_LEGS_SPACING_MIN, 5, 0.01, "or_greater", "suffix:m")
 var middle_legs_spacing: float = 2:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.middle_legs_spacing
-		else:
-			return middle_legs_spacing
+		return _legs_property_cached_get(&"middle_legs_spacing", middle_legs_spacing)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.middle_legs_spacing = value
-		else:
-			middle_legs_spacing = value
+		middle_legs_spacing = _legs_property_cached_set(&"middle_legs_spacing", value, middle_legs_spacing)
 
 
 @export_subgroup("Head End", "head_end")
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
 var head_end_attachment_offset: float = 0.45:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.head_end_attachment_offset
-		else:
-			return head_end_attachment_offset
+		return _legs_property_cached_get(&"head_end_attachment_offset", head_end_attachment_offset)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.head_end_attachment_offset = value
-		else:
-			head_end_attachment_offset = value
+		head_end_attachment_offset = _legs_property_cached_set(&"head_end_attachment_offset", value, head_end_attachment_offset)
 @export
 var head_end_leg_enabled: bool = true:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.head_end_leg_enabled
-		else:
-			return head_end_leg_enabled
+		return _legs_property_cached_get(&"head_end_leg_enabled", head_end_leg_enabled)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.head_end_leg_enabled = value
-		else:
-			head_end_leg_enabled = value
+		head_end_leg_enabled = _legs_property_cached_set(&"head_end_leg_enabled", value, head_end_leg_enabled)
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
 var head_end_leg_clearance: float = 0.5:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.head_end_leg_clearance
-		else:
-			return head_end_leg_clearance
+		return _legs_property_cached_get(&"head_end_leg_clearance", head_end_leg_clearance)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.head_end_leg_clearance = value
-		else:
-			head_end_leg_clearance = value
+		head_end_leg_clearance = _legs_property_cached_set(&"head_end_leg_clearance", value, head_end_leg_clearance)
 
 
 @export_subgroup("Tail End", "tail_end")
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
 var tail_end_attachment_offset: float = 0.45:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.tail_end_attachment_offset
-		else:
-			return tail_end_attachment_offset
+		return _legs_property_cached_get(&"tail_end_attachment_offset", tail_end_attachment_offset)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.tail_end_attachment_offset = value
-		else:
-			tail_end_attachment_offset = value
+		tail_end_attachment_offset = _legs_property_cached_set(&"tail_end_attachment_offset", value, tail_end_attachment_offset)
 @export
 var tail_end_leg_enabled: bool = true:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.tail_end_leg_enabled
-		else:
-			return tail_end_leg_enabled
+		return _legs_property_cached_get(&"tail_end_leg_enabled", tail_end_leg_enabled)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.tail_end_leg_enabled = value
-		else:
-			tail_end_leg_enabled = value
+		tail_end_leg_enabled = _legs_property_cached_set(&"tail_end_leg_enabled", value, tail_end_leg_enabled)
 @export_range(0.5, 5, 0.01, "or_greater", "suffix:m")
 var tail_end_leg_clearance: float = 0.5:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.tail_end_leg_clearance
-		else:
-			return tail_end_leg_clearance
+		return _legs_property_cached_get(&"tail_end_leg_clearance", tail_end_leg_clearance)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.tail_end_leg_clearance = value
-		else:
-			tail_end_leg_clearance = value
+		tail_end_leg_clearance = _legs_property_cached_set(&"tail_end_leg_clearance", value, tail_end_leg_clearance)
 
 
 @export_subgroup("Model", "leg_model")
 @export
 var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegRC.tscn"):
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.leg_model_scene
-		else:
-			return leg_model_scene
+		return _legs_property_cached_get(&"leg_model_scene", leg_model_scene)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.leg_model_scene = value
-		else:
-			leg_model_scene = value
+		leg_model_scene = _legs_property_cached_set(&"leg_model_scene", value, leg_model_scene)
 @export
 var leg_model_grabs_offset: float = 0.392:
 	get:
-		if _has_instantiated:
-			return %ConveyorLegsAssembly.leg_model_grabs_offset
-		else:
-			return leg_model_grabs_offset
+		return _legs_property_cached_get(&"leg_model_grabs_offset", leg_model_grabs_offset)
 	set(value):
-		if _has_instantiated:
-			%ConveyorLegsAssembly.leg_model_grabs_offset = value
-		else:
-			leg_model_grabs_offset = value
+		leg_model_grabs_offset = _legs_property_cached_set(&"leg_model_grabs_offset", value, leg_model_grabs_offset)
 #endregion
 
 
 var _conveyor_script: Script
 var _has_instantiated := false
-var _cached_property_values: Dictionary = {}
+var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
+var _cached_side_guards_property_values: Dictionary[StringName, Variant] = {}
+var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 
 func _init() -> void:
@@ -280,13 +174,8 @@ func _set(property: StringName, value: Variant) -> bool:
 	# Pass-through most conveyor properties.
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
-	if _has_instantiated:
-		%Conveyor.set(property, value)
-		return true
-	else:
-		# The conveyor instance won't exist yet, so cache the values to apply them later.
-		_cached_property_values[property] = value
-		return true
+	_conveyor_property_cached_set(property, value)
+	return true
 
 
 func _get(property: StringName) -> Variant:
@@ -295,13 +184,7 @@ func _get(property: StringName) -> Variant:
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
 	# Beware null values because Godot will treat them differently (godot/godotengine#86989).
-	if _has_instantiated:
-		#print("getting property: ", property, ": ", %Conveyor.get(property))
-		return %Conveyor.get(property)
-	else:
-		# The conveyor instance won't exist yet, so return the cached value.
-		#print("getting property: ", property, ": ", _cached_property_values[property])
-		return _cached_property_values[property]
+	return _conveyor_property_cached_get(property)
 
 
 func _property_can_revert(property: StringName) -> bool:
@@ -337,13 +220,33 @@ func _on_instantiated() -> void:
 	%Conveyor.property_list_changed.connect(notify_property_list_changed)
 
 	# Copy cached values to conveyor instance, now that it's available.
-	# Godot actually calls the setters for us an extra time, so this step isn't actually needed right now.
-	# But it's here just in case that changes.
-	for property in _cached_property_values:
-		var value = _cached_property_values[property]
+	for property: StringName in _cached_conveyor_property_values:
+		var value = _cached_conveyor_property_values[property]
 		%Conveyor.set(property, value)
 	# Clear the cache to ensure it can't haunt us later somehow.
-	_cached_property_values.clear()
+	_cached_conveyor_property_values.clear()
+
+	# Keep property list in sync with child's.
+	%SideGuardsAssembly.property_list_changed.connect(notify_property_list_changed)
+
+	# Copy cached values to SideGuardsAssembly instance, now that it's available.
+	for property: StringName in _cached_side_guards_property_values:
+		var value = _cached_side_guards_property_values[property]
+		%SideGuardsAssembly.set(property, value)
+	# Clear the cache to ensure it can't haunt us later somehow.
+	_cached_side_guards_property_values.clear()
+
+	# Keep property list in sync with child's.
+	%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
+
+	# Copy cached values to ConveyorLegsAssembly instance, now that it's available.
+	for property: StringName in _cached_legs_property_values:
+		var value = _cached_legs_property_values[property]
+		%ConveyorLegsAssembly.set(property, value)
+	# Clear the cache to ensure it can't haunt us later somehow.
+	_cached_legs_property_values.clear()
+
+	# Disable caching from now on.
 	_has_instantiated = true
 
 
@@ -388,3 +291,70 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					and not prop_name.begins_with("metadata/")))
 			.map(func(property): return property[&"name"] as String))
 	return result
+
+
+## Forward the property value to the Conveyor node; cache it if that child isn't present.
+func _conveyor_property_cached_set(property: StringName, value: Variant) -> void:
+	if _has_instantiated:
+		%Conveyor.set(property, value)
+	else:
+		# The instance won't exist yet, so cache the values to apply them later.
+		_cached_conveyor_property_values[property] = value
+
+
+## Forward the property value to the SideGuardsAssembly node; cache it if that child isn't present.
+##
+## The return value is to be used by the property's setter to update its backing field.
+func _side_guards_property_cached_set(property: StringName, value: Variant, existing_backing_field_value: Variant) -> Variant:
+	if _has_instantiated:
+		%SideGuardsAssembly.set(property, value)
+		return value
+	else:
+		# The instance won't exist yet, so cache the values to apply them later.
+		_cached_side_guards_property_values[property] = value
+		return value
+
+
+## Forward the property value to the ConveyorLegsAssembly node; cache it if that child isn't present.
+##
+## The return value is to be used by the property's setter to update its backing field.
+func _legs_property_cached_set(property: StringName, value: Variant, existing_backing_field_value: Variant) -> Variant:
+	if _has_instantiated:
+		%ConveyorLegsAssembly.set(property, value)
+		return value
+	else:
+		# The instance won't exist yet, so cache the values to apply them later.
+		_cached_legs_property_values[property] = value
+		return value
+
+
+## Get the property value from the Conveyor node; use a cached value if that child isn't present.
+func _conveyor_property_cached_get(property: StringName) -> Variant:
+	if _has_instantiated:
+		return %Conveyor.get(property)
+	else:
+		# The instance won't exist yet, so return the cached or default value.
+		# TODO return default value if property is missing from cache.
+		return _cached_conveyor_property_values[property]
+
+
+## Get the property value from the SideGuardsAssembly node; use a cached value if that child isn't present.
+##
+## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
+func _side_guards_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
+	if _has_instantiated:
+		return %SideGuardsAssembly.get(property)
+	else:
+		# The instance won't exist yet, so return the cached or default value.
+		return backing_field_value
+
+
+## Get the property value from the ConveyorLegsAssembly node; use a cached value if that child isn't present.
+##
+## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
+func _legs_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
+	if _has_instantiated:
+		return %ConveyorLegsAssembly.get(property)
+	else:
+		# The instance won't exist yet, so return the cached or default value.
+		return backing_field_value
