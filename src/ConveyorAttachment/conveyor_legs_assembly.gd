@@ -466,6 +466,10 @@ func _update_conveyor_legs():
 func _delete_all_auto_conveyor_legs():
 	for child in get_children():
 		if _is_auto_conveyor_leg(child):
+			# Setting owner to null prevents an error during drag and drop instantiation.
+			# "ERROR: Invalid owner. Owner must be an ancestor in the tree."
+			# A Godot bug, perhaps?
+			child.owner = null
 			remove_child(child)
 			child.queue_free()
 
