@@ -196,7 +196,7 @@ var _head_end_leg_enabled_prev := false
 var _tail_end_leg_enabled_prev := false
 var _head_end_leg_clearance_prev := 0.5
 var _tail_end_leg_clearance_prev := 0.5
-var _leg_model_scene_prev: PackedScene
+var _leg_model_scene_prev: PackedScene = preload("res://parts/ConveyorLegBC.tscn")
 
 var _conveyor_legs_path_changed := true
 
@@ -207,9 +207,6 @@ var _conveyor_leg_coverage_min_prev: float
 var _conveyor_leg_coverage_max_prev: float
 var _conveyor_legs_coverage_changed := false
 
-# Dictionary to store pre-existing conveyor leg owners.
-var _foreign_conveyor_legs_owners := {}
-
 var _conveyor_connected: bool = false
 
 
@@ -217,17 +214,10 @@ func _init():
 	set_notify_transform(true)
 
 
-func _ready():
-	var edited_scene = get_tree().get_edited_scene_root()
-	for conveyor_leg in get_children():
-		if conveyor_leg.owner != edited_scene:
-			_foreign_conveyor_legs_owners[conveyor_leg.name] = conveyor_leg.owner
-
-
 #region Managing connection to Conveyor's signals
 func _notification(what):
 	if what == NOTIFICATION_PARENTED:
-		_connect_conveyor_signals()
+		_connect_conveyor()
 	elif what == NOTIFICATION_UNPARENTED:
 		_disconnect_conveyor_signals()
 	elif what == NOTIFICATION_TRANSFORM_CHANGED:
@@ -242,11 +232,14 @@ func _on_global_transform_changed():
 	_update_conveyor_legs_height_and_visibility()
 
 
-func _connect_conveyor_signals() -> void:
+func _connect_conveyor() -> void:
 	if conveyor != null:
 		conveyor.connect("size_changed", self._on_conveyor_size_changed)
 		_conveyor_connected = true
 		_on_conveyor_size_changed()
+		# Now is a good time to synchronize the state of the setters with the scene.
+		if is_physics_processing():
+			_physics_process(0.0)
 	else:
 		_conveyor_connected = false
 	update_configuration_warnings()
@@ -466,6 +459,10 @@ func _update_conveyor_legs():
 func _delete_all_auto_conveyor_legs():
 	for child in get_children():
 		if _is_auto_conveyor_leg(child):
+			# Setting owner to null prevents an error during drag and drop instantiation.
+			# "ERROR: Invalid owner. Owner must be an ancestor in the tree."
+			# A Godot bug, perhaps?
+			child.owner = null
 			remove_child(child)
 			child.queue_free()
 
@@ -508,11 +505,14 @@ func _get_conveyor_leg_target_width() -> float:
 		return CONVEYOR_LEGS_BASE_WIDTH
 	# This is a hack to account for the fact that CurvedRollerConveyors are slightly wider than other conveyors
 	var conveyor_width: float = conveyor.size.z
-	# TODO: Restore RollerConveyor code.
+	# TODO: Restore CurvedRollerConveyor code.
 	#if conveyor is CurvedRollerConveyor:
 	#	return conveyor_width * 1.055
-	#if conveyor is RollerConveyor:
-	#	return conveyor_width + 0.051 * 2.0
+	# TODO: Make this check not depend on concrete type.
+	# It should also work for conveyor assemblies that forward their conveyor's info.
+	# Perhaps it should be coupled to the leg model instead?
+	if conveyor is RollerConveyor:
+		return conveyor_width + 0.051 * 2.0
 	return conveyor_width
 
 
@@ -737,8 +737,7 @@ func _add_or_get_conveyor_leg_instance(name: StringName) -> Node:
 	conveyor_leg = leg_model_scene.instantiate()
 	conveyor_leg.name = name
 	add_child(conveyor_leg)
-	# If the conveyor leg used to exist, restore its original owner.
-	conveyor_leg.owner = _foreign_conveyor_legs_owners.get(name, self)
+	conveyor_leg.owner = self
 	return conveyor_leg
 
 
