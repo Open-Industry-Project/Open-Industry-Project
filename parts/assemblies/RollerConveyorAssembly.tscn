@@ -8,8 +8,12 @@
 
 [node name="RollerConveyorAssembly" type="Node3D"]
 script = ExtResource("1_upkoq")
-middle_legs_enabled = true
+speed = 2.0
+skew_angle = 0.0
+speed_tag_group_name = ""
+running_tag_group_name = ""
 size = Vector3(4, 0.24, 1.524)
+metadata/_edit_group_ = null
 
 [node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true
