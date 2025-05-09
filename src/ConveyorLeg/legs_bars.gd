@@ -15,11 +15,9 @@ var bars_distance: float = 1.0
 		parent_scale = value
 		set_process(true)
 
-var bar_owner: ConveyorLeg
 var prev_scale: Vector3
 
 func _ready() -> void:
-	bar_owner = get_owner() as ConveyorLeg
 	FixBars()
 	# Trigger the setter to adjust the bars based on the current parent_scale.
 	parent_scale = parent_scale
