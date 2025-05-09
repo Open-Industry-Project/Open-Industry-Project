@@ -196,7 +196,7 @@ var _head_end_leg_enabled_prev := false
 var _tail_end_leg_enabled_prev := false
 var _head_end_leg_clearance_prev := 0.5
 var _tail_end_leg_clearance_prev := 0.5
-var _leg_model_scene_prev: PackedScene
+var _leg_model_scene_prev: PackedScene = preload("res://parts/ConveyorLegBC.tscn")
 
 var _conveyor_legs_path_changed := true
 
