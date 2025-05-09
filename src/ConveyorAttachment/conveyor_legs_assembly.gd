@@ -227,7 +227,7 @@ func _ready():
 #region Managing connection to Conveyor's signals
 func _notification(what):
 	if what == NOTIFICATION_PARENTED:
-		_connect_conveyor_signals()
+		_connect_conveyor()
 	elif what == NOTIFICATION_UNPARENTED:
 		_disconnect_conveyor_signals()
 	elif what == NOTIFICATION_TRANSFORM_CHANGED:
@@ -242,11 +242,14 @@ func _on_global_transform_changed():
 	_update_conveyor_legs_height_and_visibility()
 
 
-func _connect_conveyor_signals() -> void:
+func _connect_conveyor() -> void:
 	if conveyor != null:
 		conveyor.connect("size_changed", self._on_conveyor_size_changed)
 		_conveyor_connected = true
 		_on_conveyor_size_changed()
+		# Now is a good time to synchronize the state of the setters with the scene.
+		if is_physics_processing():
+			_physics_process(0.0)
 	else:
 		_conveyor_connected = false
 	update_configuration_warnings()
