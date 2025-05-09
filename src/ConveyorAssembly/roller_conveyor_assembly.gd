@@ -1,8 +1,8 @@
 @tool
-class_name BeltConveyorAssembly
+class_name RollerConveyorAssembly
 extends EnhancedNode3D
 
-const CONVEYOR_CLASS_NAME = "BeltConveyor"
+const CONVEYOR_CLASS_NAME = "RollerConveyor"
 const SIDE_GUARDS_SCRIPT_PATH = "res://src/ConveyorAttachment/side_guards_assembly.gd"
 const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
@@ -121,13 +121,13 @@ var tail_end_leg_clearance: float = 0.5:
 
 @export_subgroup("Model", "leg_model")
 @export
-var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
+var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegRC.tscn"):
 	get:
 		return _legs_property_cached_get(&"leg_model_scene", leg_model_scene)
 	set(value):
 		leg_model_scene = _legs_property_cached_set(&"leg_model_scene", value, leg_model_scene)
 @export
-var leg_model_grabs_offset: float = 0.132:
+var leg_model_grabs_offset: float = 0.392:
 	get:
 		return _legs_property_cached_get(&"leg_model_grabs_offset", leg_model_grabs_offset)
 	set(value):
