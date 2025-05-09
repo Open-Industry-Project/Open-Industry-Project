@@ -207,21 +207,11 @@ var _conveyor_leg_coverage_min_prev: float
 var _conveyor_leg_coverage_max_prev: float
 var _conveyor_legs_coverage_changed := false
 
-# Dictionary to store pre-existing conveyor leg owners.
-var _foreign_conveyor_legs_owners := {}
-
 var _conveyor_connected: bool = false
 
 
 func _init():
 	set_notify_transform(true)
-
-
-func _ready():
-	var edited_scene = get_tree().get_edited_scene_root()
-	for conveyor_leg in get_children():
-		if conveyor_leg.owner != edited_scene:
-			_foreign_conveyor_legs_owners[conveyor_leg.name] = conveyor_leg.owner
 
 
 #region Managing connection to Conveyor's signals
@@ -747,8 +737,7 @@ func _add_or_get_conveyor_leg_instance(name: StringName) -> Node:
 	conveyor_leg = leg_model_scene.instantiate()
 	conveyor_leg.name = name
 	add_child(conveyor_leg)
-	# If the conveyor leg used to exist, restore its original owner.
-	conveyor_leg.owner = _foreign_conveyor_legs_owners.get(name, self)
+	conveyor_leg.owner = self
 	return conveyor_leg
 
 
