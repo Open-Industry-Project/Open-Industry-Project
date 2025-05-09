@@ -20,6 +20,7 @@ config/name="Open Industry Project"
 config/features=PackedStringArray("4.5", "Forward Plus")
 boot_splash/fullsize=false
 boot_splash/image="res://assets/png/splash.png"
+run/scene_time_scale=1.0
 
 [autoload]
 
