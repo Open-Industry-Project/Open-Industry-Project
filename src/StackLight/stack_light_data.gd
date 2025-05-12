@@ -6,6 +6,7 @@ var segments: int = 0
 var segment_data: StackSegmentData = load("res://src/StackLight/StackSegmentData.tres")
 @export var segment_datas: Array = []
 
+
 func init_segments(count: int) -> void:
 	var old_datas = segment_datas
 	segment_datas = []
@@ -18,10 +19,11 @@ func init_segments(count: int) -> void:
 		else:
 			segment_datas[i] = segment_data.duplicate(true)
 
+
 func set_segments(count: int) -> void:
 	if count == segments:
 		return
-		
+	
 	var old_datas = segment_datas
 	segment_datas = []
 	segment_datas.resize(count)

@@ -17,7 +17,6 @@ var save_data := {}
 @onready var path_label: Label = $PathLabel
 @onready var gateway_label: Label = $GatewayLabel
 
-
 var loading_complete := false
 
 func _ready() -> void:

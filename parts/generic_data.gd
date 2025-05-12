@@ -23,7 +23,7 @@ enum Datatype {
 
 @export var tag_value: Variant:
 	set(value):
-		if is_same(value,tag_value):
+		if is_same(value, tag_value):
 			return
 		tag_value = value
 		match data_type:
@@ -47,15 +47,16 @@ var _enable_comms_changed = false:
 
 @export var enable_comms := false
 @export var tag_group_name: String
-@export_custom(0,"tag_group_enum") var tag_groups:
+@export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-		
+
 @export var tag_name := ""
 @export var setup := false
 
-func _validate_property(property: Dictionary):
+
+func _validate_property(property: Dictionary) -> void:
 	if property.name == "tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == "enable_comms":
@@ -67,8 +68,10 @@ func _validate_property(property: Dictionary):
 	elif property.name == "setup":
 		property.usage = PROPERTY_USAGE_STORAGE
 
+
 func _property_can_revert(property: StringName) -> bool:
-	return property == "tag_groups" || property == "tag_value"
+	return property == "tag_groups" or property == "tag_value"
+
 
 func _property_get_revert(property: StringName) -> Variant:
 	if property == "tag_groups":
@@ -76,39 +79,45 @@ func _property_get_revert(property: StringName) -> Variant:
 	elif property == "tag_value":
 		return tag_value
 	else:
-		return
+		return null
+
 
 func _enter_tree() -> void:
 	if not setup:
 		tag_value = false
 		setup = true
-	
+
 	tag_group_original = tag_group_name
-	if(tag_group_name.is_empty()):
+	if tag_group_name.is_empty():
 		tag_group_name = OIPComms.get_tag_groups()[0]
 
 	tag_groups = tag_group_name
-	
+
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms)
+	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
+
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
+
 func _on_simulation_started() -> void:
 	if enable_comms:
 		register_tag_ok = OIPComms.register_tag(tag_group_name, tag_name, 1)
 
+
 func _tag_group_initialized(_tag_group_name: String) -> void:
 	if _tag_group_name == tag_group_name:
 		tag_group_init = true
-			
+
+
 func _tag_group_polled(_tag_group_name: String) -> void:
-	if not enable_comms: return
+	if not enable_comms:
+		return
 	var converted: Variant
 	match data_type:
 		Datatype.BOOL:

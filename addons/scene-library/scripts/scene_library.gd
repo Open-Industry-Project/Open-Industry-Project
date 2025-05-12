@@ -1,16 +1,14 @@
 # Copyright (c) 2023-2025 Mansur Isaev and contributors - MIT License
 # See `LICENSE.md` included in the source distribution for details.
 
+class_name SceneLibrary
 extends MarginContainer
 
 
 signal library_changed
-
 signal library_unsaved
 signal library_saved
-
 signal collection_changed
-
 signal open_asset_request(path: String)
 signal inherit_asset_request(path: String)
 signal show_in_file_system_request(path: String)
@@ -23,20 +21,24 @@ enum CollectionTabMenu {
 	RENAME,
 	DELETE,
 }
+
 enum LibraryMenu {
 	NEW,
 	OPEN,
 	SAVE,
 	SAVE_AS,
 }
+
 enum DisplayMode{
 	THUMBNAILS,
 	LIST,
 }
+
 enum SortMode {
 	NAME,
 	NAME_REVERSE,
 }
+
 enum AssetContextMenu {
 	OPEN_ASSET,
 	INHERIT_ASSET,
@@ -52,36 +54,26 @@ enum AssetContextMenu {
 
 const NULL_LIBRARY: Array[Dictionary] = []
 const NULL_COLLECTION: Dictionary[StringName, Variant] = {}
-
 const THUMB_GRID_SIZE: int = 192
 const THUMB_LIST_SIZE: int = 48
 
-
 var _main_vbox: VBoxContainer = null
-
 var _collec_hbox: HBoxContainer = null
 var _collec_tab_bar: TabBar = null
 var _collec_tab_add: Button = null
 var _all_tabs_list: MenuButton = null
 var _collec_option: MenuButton = null
-
 var _main_container: PanelContainer = null
 var _content_vbox: VBoxContainer = null
-
 var _top_hbox: HBoxContainer = null
 var _asset_filter_line: LineEdit = null
 var _asset_sort_mode_btn: Button = null
-
 var _mode_thumb_btn: Button = null
 var _mode_list_btn: Button = null
-
 var _item_list: ItemList = null
-
 var _open_dialog: ConfirmationDialog = null
 var _save_dialog: ConfirmationDialog = null
-
 var _save_timer: Timer = null
-
 var _thumb_grid_icon_size: int = 64
 var _thumb_list_icon_size: int = 16
 
@@ -91,28 +83,22 @@ var _cache_path: String = "res://.godot/thumb_cache"
 
 # Create thumbnail scene:
 var _viewport: SubViewport = null
-
 var _camera_2d: Camera2D = null
-
 var _camera_3d: Camera3D = null
 var _light_3d: DirectionalLight3D = null
-
 var _asset_display_mode: DisplayMode = DisplayMode.THUMBNAILS
 var _sort_mode: SortMode = SortMode.NAME
-
 var _thumbnails: Dictionary[int, ImageTexture] = {}
-
 var _mutex: Mutex = null
 var _thread: Thread = null
 var _thread_queue: Array[Dictionary] = []
 var _thread_sem: Semaphore = null
 var _thread_work: bool = true
-
 var _saved: bool = true
+
 # INFO: Use key-value pairs to store collections.
 var _curr_lib: Array[Dictionary] = NULL_LIBRARY # Array[Dictionary[StringName, ImageTexture]]
 var _curr_lib_path: String = ""
-
 var _curr_collec: Dictionary[StringName, Variant] = NULL_COLLECTION
 
 
@@ -951,7 +937,7 @@ func load_library(path: String) -> void:
 		elif extension == "json":
 			library = _load_json(path)
 
-	# Check for “null” value.
+	# Check for "null" value.
 	if library.is_read_only():
 		return
 

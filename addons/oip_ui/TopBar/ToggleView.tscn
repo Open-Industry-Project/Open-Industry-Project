@@ -11,8 +11,8 @@ offset_right = 40.0
 offset_bottom = 40.0
 alignment = 2
 script = ExtResource("1_n1e43")
-texture_3d = ExtResource("2_5o2r8")
-texture_script = ExtResource("3_ctd1b")
+icon_3d_view = ExtResource("2_5o2r8")
+icon_script_view = ExtResource("3_ctd1b")
 
 [node name="TimeScaleButton" type="Button" parent="."]
 layout_mode = 2

@@ -1,6 +1,6 @@
 @tool
-extends Node3D
 class_name ConveyorLeg
+extends Node3D
 
 @export_range(-60, 60, 0.1) var grabs_rotation: float = 0.0:
 	set(value):
@@ -9,15 +9,12 @@ class_name ConveyorLeg
 
 var grab1: MeshInstance3D
 var grab2: MeshInstance3D
-
 var top: MeshInstance3D
-
 var legs_sides_mesh1: MeshInstance3D
 var legs_sides_mesh2: MeshInstance3D
 var legs_sides_material: ShaderMaterial
 var legs_bars: LegBars
 var ends: Node3D
-
 var prev_scale: Vector3
 
 func _init() -> void:
@@ -48,6 +45,7 @@ func constrain_scale() -> Vector3:
 func on_scale_changed() -> void:
 	if scale == prev_scale:
 		return
+	
 	setup_references()
 	if legs_sides_material:
 		legs_sides_material.set_shader_parameter("Scale", scale.y)

@@ -8,6 +8,7 @@ signal size_changed
 var SIZE_MIN = Vector3(0.01, 0.01, 0.01)
 ## Default value for the size property.
 var SIZE_DEFAULT = Vector3.ONE
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var size := Vector3.ZERO:
 	set(value):
 		if value == Vector3.ZERO:
@@ -22,7 +23,7 @@ var SIZE_DEFAULT = Vector3.ONE
 		size = constrained_size
 		if has_changed and _instance_ready:
 			_on_size_changed()
-			emit_signal("size_changed")
+			size_changed.emit()
 
 
 func _on_instantiated() -> void:
@@ -31,7 +32,7 @@ func _on_instantiated() -> void:
 		size = Vector3.ZERO
 	else:
 		_on_size_changed()
-		emit_signal("size_changed")
+		size_changed.emit()
 
 
 ## Override this to constrain size dimensions relative to each other.
@@ -59,7 +60,7 @@ func _on_size_changed() -> void:
 
 ## Convert existing scale into size.
 ## Avoids doing anything if size has already been set to a non-default value.
-func migrate_scale_to_size():
+func migrate_scale_to_size() -> void:
 	if scale == Vector3.ONE:
 		return  # scale already reset; nothing to do
 	if size != SIZE_DEFAULT:

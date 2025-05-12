@@ -1,6 +1,6 @@
 @tool
-extends MeshInstance3D
 class_name CurvedSideGuards
+extends MeshInstance3D
 
 var shader_material: ShaderMaterial = null
 
@@ -12,13 +12,13 @@ func _ready() -> void:
 	self.mesh = self.mesh.duplicate()
 	shader_material = self.mesh.surface_get_material(0).duplicate() as ShaderMaterial
 	self.mesh.surface_set_material(0, shader_material)
-	on_scale_changed()
+	_on_scale_changed()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
-		on_scale_changed()
+		_on_scale_changed()
 
-func on_scale_changed() -> void:
+func _on_scale_changed() -> void:
 	var new_scale: Vector3 = Vector3(scale.x, 1, scale.x)
 	if scale != new_scale:
 		set_notify_local_transform(false)

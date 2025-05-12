@@ -1,6 +1,6 @@
 @tool
-extends Resource
 class_name SideGuardOpening
+extends Resource
 
 
 ## The position of the opening's midpoint along the side of the conveyor.
@@ -10,6 +10,7 @@ class_name SideGuardOpening
 		position = value
 		if has_changed:
 			emit_changed()
+
 ## The distance that the opening spans in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var size: float = 1.0:
 	set(value):

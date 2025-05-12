@@ -7,75 +7,82 @@ enum LightColor {
 	Green = 4
 }
 
-var pusher_mesh_instance: MeshInstance3D
-var red_light_material: StandardMaterial3D
-var green_light_material: StandardMaterial3D
+var _pusher_mesh_instance: MeshInstance3D
+var _red_light_material: StandardMaterial3D
+var _green_light_material: StandardMaterial3D
 
-var part1: MeshInstance3D
-var part1_start_pos: Vector3
-var part1_maximum_z_pos: float = 0.32
+var _part1: MeshInstance3D
+var _part1_start_pos: Vector3
+var _part1_maximum_z_pos: float = 0.32
 
-var part2: MeshInstance3D
-var part2_start_pos: Vector3
-var part2_maximum_z_pos: float = 0.65
+var _part2: MeshInstance3D
+var _part2_start_pos: Vector3
+var _part2_maximum_z_pos: float = 0.65
 
-var part_end: RigidBody3D
-var part_end_start_pos: Vector3
-var part_end_maximum_z_pos: float = 1.0
+var _part_end: RigidBody3D
+var _part_end_start_pos: Vector3
+var _part_end_maximum_z_pos: float = 1.0
 
-var firing: bool = false
+var _firing: bool = false
+
 
 func _ready() -> void:
-	pusher_mesh_instance = $Pusher
-	pusher_mesh_instance.mesh = pusher_mesh_instance.mesh.duplicate()
-	red_light_material = (pusher_mesh_instance.mesh.surface_get_material(3)).duplicate() as StandardMaterial3D
-	green_light_material = (pusher_mesh_instance.mesh.surface_get_material(4)).duplicate() as StandardMaterial3D
-	pusher_mesh_instance.mesh.surface_set_material(3, red_light_material)
-	pusher_mesh_instance.mesh.surface_set_material(4, green_light_material)
-	
-	part1 = $Pusher/part1
-	part1_start_pos = part1.position
-	
-	part2 = $Pusher/part2
-	part2_start_pos = part2.position
-	
-	part_end = $Pusher/PartEnd
-	part_end_start_pos = part_end.position
+	_pusher_mesh_instance = $Pusher
+	_pusher_mesh_instance.mesh = _pusher_mesh_instance.mesh.duplicate()
+	_red_light_material = (_pusher_mesh_instance.mesh.surface_get_material(3)).duplicate() as StandardMaterial3D
+	_green_light_material = (_pusher_mesh_instance.mesh.surface_get_material(4)).duplicate() as StandardMaterial3D
+	_pusher_mesh_instance.mesh.surface_set_material(3, _red_light_material)
+	_pusher_mesh_instance.mesh.surface_set_material(4, _green_light_material)
 
-func set_lamp_light(light_color: int, enabled: bool) -> void:
-	var current_material = pusher_mesh_instance.mesh.surface_get_material(light_color) as StandardMaterial3D
+	_part1 = $Pusher/part1
+	_part1_start_pos = _part1.position
+
+	_part2 = $Pusher/part2
+	_part2_start_pos = _part2.position
+
+	_part_end = $Pusher/PartEnd
+	_part_end_start_pos = _part_end.position
+
+
+func _set_lamp_light(light_color: int, enabled: bool) -> void:
+	var current_material = _pusher_mesh_instance.mesh.surface_get_material(light_color) as StandardMaterial3D
 	if enabled:
 		current_material.emission_energy_multiplier = 1.0
 	else:
 		current_material.emission_energy_multiplier = 0.0
 
-func push(time: float, distance: float) -> void:
-	set_lamp_light(LightColor.Green, true)
+
+func _push(time: float, distance: float) -> void:
+	_set_lamp_light(LightColor.Green, true)
 	var tween = get_tree().create_tween()
 	var forward = Vector3.FORWARD
-	tween.parallel().tween_property(part1, "position", part1_start_pos + forward * part1_maximum_z_pos * distance, time)
-	tween.parallel().tween_property(part2, "position", part2_start_pos + forward * part2_maximum_z_pos * distance, time)
-	tween.parallel().tween_property(part_end, "position", part_end_start_pos + forward * part_end_maximum_z_pos * distance, time)
-	tween.tween_callback(Callable(self, "return_phase"))
-	tween.parallel().tween_property(part1, "position", part1_start_pos, time)
-	tween.parallel().tween_property(part2, "position", part2_start_pos, time)
-	tween.parallel().tween_property(part_end, "position", part_end_start_pos, time)
-	tween.tween_callback(Callable(self, "finish"))
+	tween.parallel().tween_property(_part1, "position", _part1_start_pos + forward * _part1_maximum_z_pos * distance, time)
+	tween.parallel().tween_property(_part2, "position", _part2_start_pos + forward * _part2_maximum_z_pos * distance, time)
+	tween.parallel().tween_property(_part_end, "position", _part_end_start_pos + forward * _part_end_maximum_z_pos * distance, time)
+	tween.tween_callback(Callable(self, "_return_phase"))
+	tween.parallel().tween_property(_part1, "position", _part1_start_pos, time)
+	tween.parallel().tween_property(_part2, "position", _part2_start_pos, time)
+	tween.parallel().tween_property(_part_end, "position", _part_end_start_pos, time)
+	tween.tween_callback(Callable(self, "_finish"))
 
-func return_phase() -> void:
-	set_lamp_light(LightColor.Green, false)
-	set_lamp_light(LightColor.Red, true)
 
-func finish() -> void:
-	part_end.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
-	set_lamp_light(LightColor.Red, false)
-	firing = false
+func _return_phase() -> void:
+	_set_lamp_light(LightColor.Green, false)
+	_set_lamp_light(LightColor.Red, true)
 
-func Fire(time: float, distance: float) -> void:
-	if not firing:
-		part_end.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
-		firing = true
-		push(time, distance)
 
-func Disable() -> void:
-	finish()
+func _finish() -> void:
+	_part_end.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
+	_set_lamp_light(LightColor.Red, false)
+	_firing = false
+
+
+func fire(time: float, distance: float) -> void:
+	if not _firing:
+		_part_end.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+		_firing = true
+		_push(time, distance)
+
+
+func disable() -> void:
+	_finish()

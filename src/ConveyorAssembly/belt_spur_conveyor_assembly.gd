@@ -55,7 +55,7 @@ var _conveyor_script: Script
 		if conveyor:
 			return conveyor.speed_tag_group_name
 		return speed_tag_group_name
-@export_custom(0,"tag_group_enum") var speed_tag_groups:
+@export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		_set_process_if_changed(speed_tag_groups, value)
 		speed_tag_groups = value
@@ -73,7 +73,7 @@ var _conveyor_script: Script
 		if conveyor:
 			return conveyor.running_tag_group_name
 		return running_tag_group_name
-@export_custom(0,"tag_group_enum") var running_tag_groups:
+@export_custom(0, "tag_group_enum") var running_tag_groups:
 	set(value):
 		_set_process_if_changed(running_tag_groups, value)
 		running_tag_groups = value
@@ -100,7 +100,7 @@ func _validate_property(property: Dictionary) -> void:
 	if property_name == "update_rate" or property_name == "tag":
 		property["usage"] = PROPERTY_USAGE_DEFAULT if enable_comms else PROPERTY_USAGE_NO_EDITOR
 	if property[&"name"] == CONVEYOR_SCRIPT_FILENAME \
-			&& property[&"usage"] & PROPERTY_USAGE_CATEGORY:
+			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
 		# Link the category to a script.
 		# This will make the category show the script class and icon as if we inherited from it.
 		assert(CONVEYOR_SCRIPT_PATH.get_file() == CONVEYOR_SCRIPT_FILENAME, "CONVEYOR_SCRIPT_PATH doesn't match CONVEYOR_SCRIPT_FILENAME")
@@ -147,10 +147,11 @@ func _get_conveyor_property_names() -> Array[StringName]:
 	return property_names
 
 
-func _get_conveyor_script():
+func _get_conveyor_script() -> Script:
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
 	_conveyor_script = load(class_details["path"]) as Script
+	return _conveyor_script
 
 
 func _set_conveyor_properties(conveyor: Node) -> void:

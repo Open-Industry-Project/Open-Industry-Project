@@ -1,15 +1,16 @@
 @tool
+class_name PalletSpawner
 extends Node3D
 
 @export var scene: PackedScene
 
 @export var disable: bool = false:
 	set(value):
-		if(value == disable):
+		if value == disable:
 			return
 		disable = value
-		if(!disable):
-			scan_interval = spawn_interval 
+		if not disable:
+			scan_interval = spawn_interval
 
 @export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
 @export var spawn_interval: float = 1.0
@@ -32,7 +33,7 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if disable:
 		return
-		
+	
 	scan_interval += delta
 	if scan_interval > spawn_interval:
 		scan_interval = 0
@@ -40,16 +41,16 @@ func _physics_process(delta: float) -> void:
 
 func _spawn_box() -> void:
 	var pallet = scene.instantiate() as Pallet
-		
+
 	pallet.rotation = rotation
 	pallet.position = position
 	pallet.initial_linear_velocity = spawn_initial_linear_velocity
 	pallet.instanced = true
-	add_child(pallet,true)
+	add_child(pallet, true)
 	pallet.owner = get_tree().edited_scene_root
 
-func Use() -> void:
-	disable = !disable
+func use() -> void:
+	disable = not disable
 
 func _on_simulation_started() -> void:
 	set_physics_process(true)

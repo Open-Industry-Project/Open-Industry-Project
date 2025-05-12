@@ -12,12 +12,13 @@ var speed: float = 2.0:
 			$RollerConveyorLegacy.speed = value
 
 			# dont write until the group is initialized
-			if register_speed_tag_ok and speed_tag_group_init:
+			if _register_speed_tag_ok and _speed_tag_group_init:
 				OIPComms.write_float32(speed_tag_group_name, speed_tag_name, value)
 
-			if register_running_tag_ok and running_tag_group_init:
+			if _register_running_tag_ok and _running_tag_group_init:
 				OIPComms.write_bit(running_tag_group_name, running_tag_name, value > 0.0)
-@export_range(-60, 60 , 1, "degrees") var skew_angle: float = 0.0:
+
+@export_range(-60, 60, 1, "degrees") var skew_angle: float = 0.0:
 	set(value):
 		skew_angle = value
 		if _instance_ready:
@@ -26,23 +27,22 @@ var speed: float = 2.0:
 @export_category("Communications")
 @export var enable_comms := false
 @export var speed_tag_group_name: String
-@export_custom(0,"tag_group_enum") var speed_tag_groups:
+@export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
-@export_custom(0,"tag_group_enum") var running_tag_groups:
+@export_custom(0, "tag_group_enum") var running_tag_groups:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
 @export var running_tag_name := ""
 
-
-var register_speed_tag_ok := false
-var register_running_tag_ok := false
-var speed_tag_group_init := false
-var running_tag_group_init := false
+var _register_speed_tag_ok: bool = false
+var _register_running_tag_ok: bool = false
+var _speed_tag_group_init: bool = false
+var _running_tag_group_init: bool = false
 
 
 static func _get_constrained_size(new_size: Vector3) -> Vector3:
@@ -54,12 +54,13 @@ func _on_instantiated() -> void:
 	super._on_instantiated()
 	$RollerConveyorLegacy.speed = speed
 	$RollerConveyorLegacy.skew_angle = skew_angle
+	_instance_ready = true
 
 	# dont write until the group is initialized
-	if register_speed_tag_ok and speed_tag_group_init:
+	if _register_speed_tag_ok and _speed_tag_group_init:
 		OIPComms.write_float32(speed_tag_group_name, speed_tag_name, speed)
 
-	if register_running_tag_ok and running_tag_group_init:
+	if _register_running_tag_ok and _running_tag_group_init:
 		OIPComms.write_bit(running_tag_group_name, running_tag_name, speed > 0.0)
 
 
@@ -79,8 +80,8 @@ func _exit_tree() -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
-		register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
+		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
+		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
 
 
 func _get_initial_size() -> Vector3:
@@ -95,7 +96,7 @@ func _on_size_changed() -> void:
 	$RollerConveyorLegacy.set_size(size)
 
 
-func _validate_property(property: Dictionary):
+func _validate_property(property: Dictionary) -> void:
 	if property.name == "enable_comms":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "speed_tag_group_name":
@@ -112,15 +113,16 @@ func _validate_property(property: Dictionary):
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 
 
-func _tag_group_initialized(_tag_group_name: String) -> void:
-	if _tag_group_name == speed_tag_group_name:
-		speed_tag_group_init = true
-	if _tag_group_name == running_tag_group_name:
-		running_tag_group_init = true
+func _tag_group_initialized(tag_group_name_param: String) -> void:
+	if tag_group_name_param == speed_tag_group_name:
+		_speed_tag_group_init = true
+	if tag_group_name_param == running_tag_group_name:
+		_running_tag_group_init = true
 
 
-func _tag_group_polled(_tag_group_name: String) -> void:
-	if not enable_comms: return
+func _tag_group_polled(tag_group_name_param: String) -> void:
+	if not enable_comms:
+		return
 
-	if _tag_group_name == speed_tag_group_name and speed_tag_group_init:
+	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)

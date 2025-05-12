@@ -144,7 +144,7 @@ var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 func _init() -> void:
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
-	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
+	var class_details: Dictionary = class_list[class_list.find_custom(func(item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
 	_conveyor_script = load(class_details["path"]) as Script
 
 
@@ -157,13 +157,13 @@ func _get_property_list() -> Array[Dictionary]:
 func _validate_property(property: Dictionary) -> void:
 	#print("_validate_property(%s)" % property)
 	if property[&"name"] == SIDE_GUARDS_SCRIPT_FILENAME \
-			&& property[&"usage"] & PROPERTY_USAGE_CATEGORY:
+			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
 		# Link the category to a script.
 		# This will make the category show the script class and icon as if we inherited from it.
 		assert(SIDE_GUARDS_SCRIPT_PATH.get_file() == SIDE_GUARDS_SCRIPT_FILENAME, "SIDE_GUARDS_SCRIPT_PATH doesn't match SIDE_GUARDS_SCRIPT_FILENAME")
 		property[&"hint_string"] = SIDE_GUARDS_SCRIPT_PATH
 	elif property[&"name"] == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME \
-			&& property[&"usage"] & PROPERTY_USAGE_CATEGORY:
+			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
 		# Link the category to a script.
 		# This will make the category show the script class and icon as if we inherited from it.
 		assert(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH.get_file() == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME, "CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH doesn't match CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME")
