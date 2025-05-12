@@ -1,6 +1,6 @@
 @tool
-extends Node3D
 class_name AbstractRollerContainer
+extends Node3D
 
 signal width_changed(width: float)
 signal length_changed(length: float)
@@ -24,16 +24,16 @@ func setup_existing_rollers() -> void:
 		roller_added.emit(roller)
 
 func on_owner_scale_changed(scale: Vector3) -> void:
-	rescale_inverse(scale)
+	_rescale_inverse(scale)
 
-func rescale_inverse(owner_scale: Vector3) -> void:
+func _rescale_inverse(owner_scale: Vector3) -> void:
 	scale = Vector3(1.0 / owner_scale.x, 1.0 / owner_scale.y, 1.0 / owner_scale.z)
 
 func set_width(width: float) -> void:
 	var changed: bool = _width != width
 	_width = width
 	if changed:
-		update_roller_length()
+		_update_roller_length()
 		width_changed.emit(_width)
 
 func set_length(length: float) -> void:
@@ -47,9 +47,9 @@ func set_roller_skew_angle(skew_angle_degrees: float) -> void:
 	_roller_skew_angle_degrees = skew_angle_degrees
 	if changed:
 		roller_rotation_changed.emit(_get_rotation_from_skew_angle(_roller_skew_angle_degrees))
-		update_roller_length()
+		_update_roller_length()
 
-func update_roller_length() -> void:
+func _update_roller_length() -> void:
 	if abs(fmod(_roller_skew_angle_degrees, 180.0)) == 90.0:
 		return
 	var new_length: float = _width / cos(_roller_skew_angle_degrees * 2.0 * PI / 360.0)

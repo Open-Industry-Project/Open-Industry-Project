@@ -1,6 +1,6 @@
 @tool
-extends Node3D
 class_name ChainTransferBases
+extends Node3D
 
 func set_chains_distance(distance: float) -> void:
 	for chain_base : ChainTransferBase in get_children():
@@ -31,5 +31,6 @@ func fix_chains(chains: int) -> void:
 	var difference = child_count - chains
 	if difference <= 0:
 		return
+		
 	for i in range(difference):
 		get_child(get_child_count() - 1 - i).queue_free()

@@ -181,7 +181,7 @@ var leg_model_grabs_offset: float = 0.132:
 var conveyor: Node3D:
 	get:
 		var parent = get_parent() as Node3D
-		if parent != null && parent.has_signal("size_changed") and "size" in parent and parent.size is Vector3:
+		if parent != null and parent.has_signal("size_changed") and "size" in parent and parent.size is Vector3:
 			return parent
 		return null
 
@@ -210,12 +210,12 @@ var _conveyor_legs_coverage_changed := false
 var _conveyor_connected: bool = false
 
 
-func _init():
+func _init() -> void:
 	set_notify_transform(true)
 
 
 #region Managing connection to Conveyor's signals
-func _notification(what):
+func _notification(what) -> void:
 	if what == NOTIFICATION_PARENTED:
 		_connect_conveyor()
 	elif what == NOTIFICATION_UNPARENTED:
@@ -226,7 +226,7 @@ func _notification(what):
 		_on_global_transform_changed()
 
 
-func _on_global_transform_changed():
+func _on_global_transform_changed() -> void:
 	_update_floor_plane()
 	_update_conveyor_leg_coverage()
 	_update_conveyor_legs_height_and_visibility()
@@ -258,18 +258,18 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return []
 #endregion
 
-func _on_conveyor_size_changed():
+func _on_conveyor_size_changed() -> void:
 	_update_conveyor_leg_coverage()
 	_update_conveyor_legs_height_and_visibility()
 	_update_all_conveyor_legs_width()
 
 
-func _physics_process(_delta):
+func _physics_process(_delta) -> void:
 	_update_conveyor_legs()
 	_set_needs_update(false)
 
 
-func _set_needs_update(value: bool):
+func _set_needs_update(value: bool) -> void:
 	set_physics_process(value)
 
 
@@ -279,7 +279,7 @@ func get_local_floor_plane() -> Plane:
 	return Plane(floor_normal, floor_offset)
 
 
-func set_local_floor_plane(value: Plane):
+func set_local_floor_plane(value: Plane) -> void:
 	var old_value = get_local_floor_plane()
 	var normal_changed = old_value.normal != value.normal
 	var distance_changed = old_value.d != value.d
@@ -290,11 +290,11 @@ func set_local_floor_plane(value: Plane):
 		_update_conveyor_legs_height_and_visibility()
 
 
-func _save_local_floor_plane_to_transform(new_local_floor_plane: Plane):
+func _save_local_floor_plane_to_transform(new_local_floor_plane: Plane) -> void:
 	_save_properties_to_local_transform(new_local_floor_plane, middle_legs_initial_leg_position)
 
 
-func _save_properties_to_local_transform(new_local_floor_plane: Plane, new_middle_legs_initial_leg_position: float):
+func _save_properties_to_local_transform(new_local_floor_plane: Plane, new_middle_legs_initial_leg_position: float) -> void:
 	var floor_offset = new_local_floor_plane.d
 	var floor_normal = new_local_floor_plane.normal
 
@@ -312,18 +312,18 @@ func get_middle_legs_initial_leg_position() -> float:
 	return transform.origin.dot(normal_x)
 
 
-func set_middle_legs_initial_leg_position(value: float):
+func set_middle_legs_initial_leg_position(value: float) -> void:
 	if (value == get_middle_legs_initial_leg_position()):
 		return
 	_save_middle_legs_initial_leg_position_to_transform(value)
 	_update_conveyor_leg_coverage()
 
 
-func _save_middle_legs_initial_leg_position_to_transform(new_middle_legs_initial_leg_position: float):
+func _save_middle_legs_initial_leg_position_to_transform(new_middle_legs_initial_leg_position: float) -> void:
 	_save_properties_to_local_transform(local_floor_plane, new_middle_legs_initial_leg_position)
 
 
-func _update_conveyor_leg_coverage():
+func _update_conveyor_leg_coverage() -> void:
 	var coverage = _get_conveyor_leg_coverage()
 	_conveyor_leg_coverage_min = coverage[0]
 	_conveyor_leg_coverage_max = coverage[1]
@@ -367,7 +367,7 @@ func _get_conveyor_leg_coverage() -> Array[float]:
 	return [min_val, max_val]
 
 
-func _update_floor_plane():
+func _update_floor_plane() -> void:
 	if not is_inside_tree() or conveyor == null:
 		return
 	# Legs must be constrained to the conveyor's Z plane, so we must project the floor normal onto it.
@@ -388,7 +388,7 @@ func _update_floor_plane():
 	set_notify_transform(true)
 
 
-func _update_conveyor_legs():
+func _update_conveyor_legs() -> void:
 	if conveyor == null:
 		return
 
@@ -456,7 +456,7 @@ func _update_conveyor_legs():
 		assert(_conveyor_leg_coverage_max == conveyor_leg_coverage_max_value_for_assertion, "Unexpected change detected: _conveyor_leg_coverage_max")
 
 
-func _delete_all_auto_conveyor_legs():
+func _delete_all_auto_conveyor_legs() -> void:
 	for child in get_children():
 		if _is_auto_conveyor_leg(child):
 			# Setting owner to null prevents an error during drag and drop instantiation.
@@ -741,7 +741,7 @@ func _add_or_get_conveyor_leg_instance(name: StringName) -> Node:
 	return conveyor_leg
 
 
-func _update_conveyor_legs_height_and_visibility():
+func _update_conveyor_legs_height_and_visibility() -> void:
 	if not conveyor:
 		return
 
@@ -755,7 +755,7 @@ func _update_conveyor_legs_height_and_visibility():
 			_update_individual_conveyor_leg_height_and_visibility(conveyor_leg, conveyor_plane)
 
 
-func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: ConveyorLeg, conveyor_plane: Plane):
+func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: ConveyorLeg, conveyor_plane: Plane) -> void:
 	# Raycast from the minimum-height tip of the conveyor leg to the conveyor plane.
 	var intersection = conveyor_plane.intersects_ray(
 		conveyor_leg.position + conveyor_leg.basis.y.normalized(),

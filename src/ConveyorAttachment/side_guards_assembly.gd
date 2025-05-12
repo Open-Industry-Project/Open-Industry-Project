@@ -175,7 +175,7 @@ func _ensure_side(side: SideGuardsAssembly.Side) -> Node3D:
 	return side_node
 
 
-func _get_side_node_transform(side: SideGuardsAssembly.Side):
+func _get_side_node_transform(side: SideGuardsAssembly.Side) -> Transform3D:
 	var conveyor = get_parent()
 	var conveyor_width: float = conveyor.size.z
 	var offset_z: float = conveyor_width / 2.0
@@ -184,15 +184,20 @@ func _get_side_node_transform(side: SideGuardsAssembly.Side):
 			return Transform3D(Basis.IDENTITY, Vector3(0, 0, -offset_z))
 		Side.RIGHT:
 			return Transform3D(Basis.IDENTITY, Vector3(0, 0, offset_z))
-	assert(false, "Unknown side: " + str(side))
+		_:  # Default case for any unexpected values
+			assert(false, "Unknown side: " + str(side))
+			return Transform3D()  # Return default transform if assertion doesn't trigger
 
 
-func _get_side_node_name(side: SideGuardsAssembly.Side):
+func _get_side_node_name(side: SideGuardsAssembly.Side) -> StringName:
 	match side:
 		Side.LEFT:
 			return "LeftSide"
 		Side.RIGHT:
 			return "RightSide"
+		_:  # Default case for any unexpected values
+			assert(false, "Unknown side: " + str(side))
+			return &""  # Return empty StringName if assertion doesn't trigger
 
 
 func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:

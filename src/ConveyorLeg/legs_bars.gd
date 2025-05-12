@@ -1,6 +1,6 @@
 @tool
-extends Node3D
 class_name LegBars
+extends Node3D
 
 @export var legs_bar_scene: PackedScene
 var bars_distance: float = 1.0
@@ -9,16 +9,16 @@ var bars_distance: float = 1.0
 	set(value):
 		var rounded_scale: int = floor(value.y) + 1
 		while (rounded_scale - 1 > get_child_count() and rounded_scale != 0):
-			SpawnBar()
+			spawn_bar()
 		while (get_child_count() > rounded_scale - 1 and get_child_count() > 1):
-			RemoveBar()
+			remove_bar()
 		parent_scale = value
 		set_process(true)
 
 var prev_scale: Vector3
 
 func _ready() -> void:
-	FixBars()
+	fix_bars()
 	# Trigger the setter to adjust the bars based on the current parent_scale.
 	parent_scale = parent_scale
 
@@ -26,27 +26,29 @@ func _process(delta: float) -> void:
 	if owner:
 		if parent_scale == prev_scale:
 			return
+		
 		var new_scale: Vector3 = Vector3(1 / parent_scale.x, 1 / parent_scale.y, 1)
 		if scale != new_scale:
 			scale = new_scale
 		prev_scale = parent_scale
 	set_process(false)
 
-func SpawnBar() -> void:
+func spawn_bar() -> void:
 	var legs_bar: Node3D = legs_bar_scene.instantiate() as Node3D
 	add_child(legs_bar)
 	legs_bar.owner = self
 	legs_bar.position = Vector3(0, bars_distance * get_child_count(), 0)
-	FixBars()
+	fix_bars()
 
-func RemoveBar() -> void:
+func remove_bar() -> void:
 	var child = get_child(get_child_count() - 1)
 	child.queue_free()
 	remove_child(child)
 
-func FixBars() -> void:
+func fix_bars() -> void:
 	if get_parent() == null:
 		return
+	
 	var first_child: Node3D = get_child(0) as Node3D
 	first_child.owner = get_parent()
 	first_child.position = Vector3(0, bars_distance, 0)

@@ -8,7 +8,8 @@ const NOTIFICATION_OWNER_SCENE_INSTANTIATED = 9999
 
 var _instance_ready := false
 
-func _notification(what: int):
+
+func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_SCENE_INSTANTIATED:
 			_instance_ready = true
