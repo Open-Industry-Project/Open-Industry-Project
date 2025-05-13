@@ -13,25 +13,27 @@ var bars_distance: float = 1.0
 		while (get_child_count() > rounded_scale - 1 and get_child_count() > 1):
 			remove_bar()
 		parent_scale = value
-		set_process(true)
+		_update_scale()
 
 var prev_scale: Vector3
 
 func _ready() -> void:
+	set_notify_transform(true)
 	fix_bars()
 	# Trigger the setter to adjust the bars based on the current parent_scale.
 	parent_scale = parent_scale
 
-func _process(delta: float) -> void:
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if owner and parent_scale != prev_scale:
+			_update_scale()
+
+func _update_scale() -> void:
 	if owner:
-		if parent_scale == prev_scale:
-			return
-		
 		var new_scale: Vector3 = Vector3(1 / parent_scale.x, 1 / parent_scale.y, 1)
 		if scale != new_scale:
 			scale = new_scale
 		prev_scale = parent_scale
-	set_process(false)
 
 func spawn_bar() -> void:
 	var legs_bar: Node3D = legs_bar_scene.instantiate() as Node3D

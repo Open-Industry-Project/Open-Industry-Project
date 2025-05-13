@@ -136,6 +136,7 @@ func _get_property_list() -> Array:
 	return properties
 
 func _ready() -> void:
+	set_notify_transform(true)
 	_data = _data.duplicate(true)
 	_data.init_segments(segments)
 	_segments_container = get_node("Mid/Segments")
@@ -211,10 +212,11 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 	light_value = OIPComms.read_int32(tag_group_name, tag_name)
 
-func _process(delta: float) -> void:
-	if scale != _prev_scale:
-		_rescale()
-	_prev_scale = scale
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if scale != _prev_scale:
+			_rescale()
+			_prev_scale = scale
 
 func _rescale() -> void:
 	scale = Vector3(scale.x, scale.y, scale.x)
