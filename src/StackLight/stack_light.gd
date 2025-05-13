@@ -15,7 +15,7 @@ var segments: int = 1:
 
 		segments = new_value
 
-		if _segments_container:
+		if is_inside_tree():
 			_data.set_segments(segments)
 
 			var current_child_count = _segments_container.get_child_count()
@@ -74,7 +74,7 @@ var _enable_comms_changed: bool = false:
 		notify_property_list_changed()
 
 func _get(property: StringName) -> Variant:
-	if not _segments_container:
+	if not is_inside_tree():
 		return null
 	
 	for i in range(segments):
@@ -236,7 +236,7 @@ func _init_segments() -> void:
 			segment_node.active_state_changed.connect(_on_segment_state_changed)
 
 func _spawn_segments(count: int) -> void:
-	if _segments_container == null:
+	if not is_inside_tree():
 		return
 	var start_index = _segments_container.get_child_count()
 	for i in range(count):
@@ -254,7 +254,7 @@ func _spawn_segments(count: int) -> void:
 		segment.active_state_changed.connect(_on_segment_state_changed)
 
 func _remove_segments(count: int) -> void:
-	if not _segments_container:
+	if not is_inside_tree():
 		return
 	var current_child_count = _segments_container.get_child_count()
 	for i in range(count):
@@ -282,7 +282,7 @@ func _on_segment_state_changed(index: int, active: bool) -> void:
 	self.light_value = newlight_value
 
 func _update_segment_visuals() -> void:
-	if not is_node_ready() or not _segments_container:
+	if not is_inside_tree():
 		return
 	for i in range(segments):
 		if i < _data.segment_datas.size():
@@ -299,7 +299,7 @@ func _update_segment_visuals() -> void:
 				segment_node._set_active(false) # Directly set visual state
 
 func _fix_segment_positions() -> void:
-	if not _segments_container:
+	if not is_inside_tree():
 		return
 	for i in range(_segments_container.get_child_count()):
 		var segment_node = _segments_container.get_child(i)

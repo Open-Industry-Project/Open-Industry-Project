@@ -10,9 +10,10 @@ extends Node3D
 		if value == disable:
 			return
 		disable = value
-		_change_texture()
-		if not disable:
-			_reset_spawn_cycle()
+		if is_inside_tree():
+			_change_texture()
+			if not disable:
+				_reset_spawn_cycle()
 
 @export var random_size: bool = false
 @export var random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
@@ -98,8 +99,9 @@ func _conveyor_speed_changed() -> void:
 	_conveyor_stopped = conveyor.speed == 0
 
 func _change_texture() -> void:
-	if disabled_box_texture:
-		disabled_box_texture.visible = disable
+	if not is_inside_tree():
+		return
+	disabled_box_texture.visible = disable
 
 func use() -> void:
 	disable = not disable
