@@ -5,7 +5,7 @@ extends Node3D
 @export var active: bool = false:
 	set(value):
 		active = value
-		if not _blade:
+		if not is_inside_tree():
 			return
 			
 		if active:
@@ -18,7 +18,7 @@ var _active_pos: float = 0.24
 @export var air_pressure_height: float = 0.0:
 	set(value):
 		air_pressure_height = value
-		if not _blade:
+		if not is_inside_tree():
 			return
 			
 		_blade.position = Vector3(_blade.position.x, air_pressure_height + _active_pos if active else air_pressure_height, _blade.position.z)
