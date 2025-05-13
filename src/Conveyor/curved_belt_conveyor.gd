@@ -16,24 +16,14 @@ const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 		belt_color = value
 		if _belt_material:
 			(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
-		var ce1 = get_conveyor_end1()
-		var ce2 = get_conveyor_end2()
-		if ce1 and ce1.belt_material:
-			(ce1.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
-		if ce2 and ce2.belt_material:
-			(ce2.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
+		set_belt_material_shader_params_on_ends()
 
 @export var belt_texture = ConvTexture.STANDARD:
 	set(value):
 		belt_texture = value
 		if _belt_material:
 			(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-		var ce1 = get_conveyor_end1()
-		var ce2 = get_conveyor_end2()
-		if ce1 and ce1.belt_material:
-			(ce1.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-		if ce2 and ce2.belt_material:
-			(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
+		set_belt_material_shader_params_on_ends()
 
 @export var speed: float = 2:
 	set(value):
@@ -120,6 +110,20 @@ func get_conveyor_end1() -> Node:
 func get_conveyor_end2() -> Node:
 	return get_node_or_null("BeltConveyorEnd2")
 
+func set_belt_material_shader_params_on_ends() -> void:
+	var ce1 = get_conveyor_end1()
+	var ce2 = get_conveyor_end2()
+	if ce1 and ce1 is BeltConveyorEnd:
+		var end1_material = ce1.get_node("MeshInstance3D").get_surface_override_material(0) as ShaderMaterial
+		if end1_material:
+			end1_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
+			end1_material.set_shader_parameter("ColorMix", belt_color)
+	if ce2 and ce2 is BeltConveyorEnd:
+		var end2_material = ce2.get_node("MeshInstance3D").get_surface_override_material(0) as ShaderMaterial
+		if end2_material:
+			end2_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
+			end2_material.set_shader_parameter("ColorMix", belt_color)
+
 func _init() -> void:
 	set_notify_local_transform(true)
 
@@ -135,20 +139,12 @@ func _ready() -> void:
 	_origin = _sb.position
 
 	(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
-	if ce1 and ce1.belt_material:
-		(ce1.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-	if ce2 and ce2.belt_material:
-		(ce2.belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-
 	(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
-	if ce1 and ce1.belt_material:
-		(ce1.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
-	if ce2 and ce2.belt_material:
-		(ce2.belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
+	set_belt_material_shader_params_on_ends()
 
 	_recalculate_speeds()
+	var ce1 = get_conveyor_end1()
+	var ce2 = get_conveyor_end2()
 	if ce1:
 		ce1.speed = _linear_speed
 	if ce2:
