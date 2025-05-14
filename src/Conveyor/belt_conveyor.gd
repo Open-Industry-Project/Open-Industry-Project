@@ -246,18 +246,13 @@ func _update_physics_material() -> void:
 
 func _update_belt_material_scale() -> void:
 	if belt_material and speed != 0:
-		# Use a consistent approach with the belt_conveyor_end.gd
-		var y = size.y
-		var BASE_RADIUS: float = clamp(round((y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
-		
-		# Apply proper scaling based on the calculated base radius
-		var scale_factor = 1.0
-		if BASE_RADIUS < 0.25:
-			scale_factor = 0.25 / BASE_RADIUS
-		
-		(belt_material as ShaderMaterial).set_shader_parameter("Scale", mesh.scale.x * sign(speed) * scale_factor)
+		var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
+		var collision_shape = sb.get_node("CollisionShape3D").shape as BoxShape3D
+		var middle_length = collision_shape.size.x
+		var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
+		var belt_scale: float = middle_length / BASE_BELT_LENGTH
+		(belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
 		fix_material_overrides()
-
 
 func _update_metal_material_scale() -> void:
 	if metal_material:
