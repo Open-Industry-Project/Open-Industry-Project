@@ -66,7 +66,7 @@ data = PackedVector3Array(0, 0.25, 0.381, 0, 0.25, 1.905, -0.0997, 0.25, 1.90239
 [node name="CurvedBeltConveyor" type="Node3D"]
 process_mode = 1
 script = ExtResource("1_541io")
-size = Vector3(1.524, 1, 1.524)
+size = Vector3(1.524, 0.5, 1.524)
 metadata/_edit_group_ = true
 metadata/hijack_scale = true
 
