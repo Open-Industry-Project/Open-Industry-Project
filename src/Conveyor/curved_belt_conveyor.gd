@@ -12,7 +12,7 @@ const BASE_OUTER_RADIUS: float = 1.25
 const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 
 # Default size for the conveyor
-const SIZE_DEFAULT: Vector3 = Vector3(1.524, 1.0, 1.524)
+const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
 @export var belt_color: Color = Color(1, 1, 1, 1):
 	set(value):
@@ -191,10 +191,10 @@ func _ready() -> void:
 	
 	_recalculate_speeds()
 	if ce1:
-		ce1.size = Vector3(size.y / 2.0, size.y/ 2.0, size.x)
+		ce1.size = Vector3(size.y, size.y, size.x)
 		ce1.speed = _linear_speed
 	if ce2:
-		ce2.size = Vector3(size.y / 2.0, size.y/ 2.0, size.x)
+		ce2.size = Vector3(size.y, size.y, size.x)
 		ce2.speed = _linear_speed
 	
 	if ce1:
@@ -226,9 +226,10 @@ func _position_conveyor_ends() -> void:
 	
 	var radians: = deg_to_rad(conveyor_angle)
 	
-	ce1.position = Vector3(-sin(radians) * size.x * 0.75, -0.25, cos(radians) * size.x * 0.75)
+	# Position ends with y offset to keep top surface at y=0
+	ce1.position = Vector3(-sin(radians) * size.x * 0.75, -size.y/2.0, cos(radians) * size.x * 0.75)
 	ce1.rotation.y = -radians
-	ce2.position = Vector3(0, -0.25, size.x * BASE_OUTER_RADIUS * 0.6)
+	ce2.position = Vector3(0, -size.y/2.0, size.x * BASE_OUTER_RADIUS * 0.6)
 	ce2.rotation.y = 0
 
 func _create_conveyor_mesh() -> void:
@@ -237,7 +238,7 @@ func _create_conveyor_mesh() -> void:
 	var angle_radians: float = deg_to_rad(conveyor_angle)
 	var radius_inner: float = BASE_INNER_RADIUS * size.x
 	var radius_outer: float = BASE_OUTER_RADIUS * size.x
-	const DEFAULT_HEIGHT_RATIO: float = 0.25
+	const DEFAULT_HEIGHT_RATIO: float = 0.50
 	var height = DEFAULT_HEIGHT_RATIO * size.y 
 	var scale_factor := 2.0
 
@@ -338,10 +339,11 @@ func _create_vertices(segments: int, angle_radians: float, radius_inner: float, 
 		var sin_a: float = sin(angle)
 		var cos_a: float = cos(angle)
 		
-		var inner_top = Vector3(-sin_a * radius_inner, height * 0.5, cos_a * radius_inner) * scale_factor
-		var outer_top = Vector3(-sin_a * radius_outer, height * 0.5, cos_a * radius_outer) * scale_factor
-		var inner_bottom = Vector3(-sin_a * radius_inner, -height * 0.5, cos_a * radius_inner) * scale_factor
-		var outer_bottom = Vector3(-sin_a * radius_outer, -height * 0.5, cos_a * radius_outer) * scale_factor
+		# Modify vertical positioning to keep top surface at y=0
+		var inner_top = Vector3(-sin_a * radius_inner, 0 + 0.125, cos_a * radius_inner) * scale_factor
+		var outer_top = Vector3(-sin_a * radius_outer, 0+ 0.125, cos_a * radius_outer) * scale_factor
+		var inner_bottom = Vector3(-sin_a * radius_inner, -height+ 0.125, cos_a * radius_inner) * scale_factor
+		var outer_bottom = Vector3(-sin_a * radius_outer, -height+ 0.125, cos_a * radius_outer) * scale_factor
 		
 		all_vertices.append({
 			"inner_top": inner_top,
@@ -726,9 +728,9 @@ func _on_size_changed() -> void:
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	if ce1:
-		ce1.size = Vector3(size.y / 2.0, size.y/ 2.0, size.x)
+		ce1.size = Vector3(size.y, size.y, size.x)
 	if ce2:
-		ce2.size = Vector3(size.y / 2.0, size.y/ 2.0, size.x)
+		ce2.size = Vector3(size.y, size.y, size.x)
 	
 	update_visible_meshes()
 	_update_belt_material_scale()
