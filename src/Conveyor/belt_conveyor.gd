@@ -253,7 +253,12 @@ func _update_physics_material() -> void:
 
 func _update_belt_material_scale() -> void:
 	if _belt_material and speed != 0:
-		(_belt_material as ShaderMaterial).set_shader_parameter("Scale", _mesh.scale.x * sign(speed))
+		var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
+		var collision_shape = _sb.get_node("CollisionShape3D").shape as BoxShape3D
+		var middle_length = collision_shape.size.x
+		var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
+		var belt_scale: float = middle_length / BASE_BELT_LENGTH
+		(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
 		fix_material_overrides()
 
 
