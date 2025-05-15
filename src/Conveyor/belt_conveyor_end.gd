@@ -93,13 +93,13 @@ func fix_material_overrides() -> void:
 
 
 func _update_belt_material_scale() -> void:
-	const BASE_RADIUS := 0.25
-	const BASE_BELT_LENGTH := PI * BASE_RADIUS
-	var radius: float = size.x
-	var belt_length: float = PI * radius
-	var belt_scale: float = belt_length / BASE_BELT_LENGTH
+	var BASE_RADIUS = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
+	var BASE_BELT_LENGTH = PI * BASE_RADIUS
+	var belt_length = PI * size.x
+	var belt_scale = belt_length / BASE_BELT_LENGTH
 	if _belt_material and speed != 0:
-		(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
+		# Apply scaled UV scrolling to curved part of the conveyor end
+		_belt_material.set_shader_parameter("Scale", belt_scale * sign(speed))
 		fix_material_overrides()
 
 
