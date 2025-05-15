@@ -141,3 +141,13 @@ func _update_belt_velocity() -> void:
 			_static_body.constant_angular_velocity = new_velocity
 	else:
 		_static_body.constant_angular_velocity = Vector3.ZERO
+
+func update_belt_color(color: Color) -> void:
+	if _belt_material:
+		(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", color)
+		fix_material_overrides()
+		
+func update_belt_texture(is_standard_texture: bool) -> void:
+	if _belt_material:
+		(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", is_standard_texture)
+		fix_material_overrides()

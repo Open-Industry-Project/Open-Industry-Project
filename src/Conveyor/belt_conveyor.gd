@@ -130,6 +130,13 @@ func _on_instantiated() -> void:
 	_update_physics_material()
 	_on_size_changed()
 
+	if _ce1:
+		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
+		_ce1.update_belt_color(belt_color)
+	if _ce2:
+		_ce2.update_belt_texture(belt_texture == ConvTexture.STANDARD)
+		_ce2.update_belt_color(belt_color)
+
 
 func _enter_tree() -> void:
 	super._enter_tree()
@@ -207,8 +214,10 @@ func _update_material_texture() -> void:
 		_belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		fix_material_overrides()
 	if _ce1:
+		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
 		_ce1.fix_material_overrides()
 	if _ce2:
+		_ce2.update_belt_texture(belt_texture == ConvTexture.STANDARD)
 		_ce2.fix_material_overrides()
 
 
@@ -217,8 +226,10 @@ func _update_material_color() -> void:
 		_belt_material.set_shader_parameter("ColorMix", belt_color)
 		fix_material_overrides()
 	if _ce1:
+		_ce1.update_belt_color(belt_color)
 		_ce1.fix_material_overrides()
 	if _ce2:
+		_ce2.update_belt_color(belt_color)
 		_ce2.fix_material_overrides()
 
 
