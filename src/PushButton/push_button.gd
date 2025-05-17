@@ -12,22 +12,22 @@ extends Node3D
 	set(value):
 		toggle = value
 		if not toggle:
-			pushbutton = false
+			pressed = false
 
-@export var pushbutton: bool = false:
+@export var pressed: bool = false:
 	set(value):
-		if _register_pushbutton_tag_ok and value != pushbutton:
+		if _register_pushbutton_tag_ok and value != pressed:
 			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, value)
 
-		pushbutton = value
-		if not toggle and pushbutton:
+		pressed = value
+		if not toggle and pressed:
 			_reset_pushbutton()
 			var tween = create_tween()
 			tween.tween_property(_button_mesh, "position", Vector3(0, 0, _button_pressed_z_pos), 0.035)
 			tween.tween_interval(0.2)
 			tween.tween_property(_button_mesh, "position", Vector3.ZERO, 0.02)
 		elif _button_mesh:
-			if pushbutton:
+			if pressed:
 				_button_mesh.position = Vector3(0, 0, _button_pressed_z_pos)
 			else:
 				_button_mesh.position = Vector3.ZERO
@@ -103,7 +103,7 @@ func _validate_property(property: Dictionary) -> void:
 
 func _reset_pushbutton() -> void:
 	await get_tree().create_timer(0.3).timeout
-	pushbutton = false
+	pressed = false
 
 
 func _ready() -> void:
@@ -166,4 +166,4 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 
 func use() -> void:
-	pushbutton = not pushbutton
+	pressed = not pressed
