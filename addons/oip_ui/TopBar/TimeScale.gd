@@ -7,7 +7,9 @@ var last_known_scale := 1.0
 func _ready() -> void:
 	toggle_mode = true
 	tooltip_text = "Change speed (1x, 2x, 4x)"
-
+	
+	icon = get_theme_icon("Time", "EditorIcons")
+	
 	# Initialize or validate existing setting
 	last_known_scale = _get_valid_time_scale()
 	Engine.time_scale = last_known_scale

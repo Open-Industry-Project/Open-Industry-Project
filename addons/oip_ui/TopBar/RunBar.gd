@@ -17,6 +17,10 @@ func _ready() -> void:
 		ProjectSettings.set_setting("addons/Open Industry Project/Output/Clear on Simulation Start", false)
 
 	ProjectSettings.set_as_basic("addons/Open Industry Project/Output/Clear on Simulation Start", true)
+	
+	play_button.icon = get_theme_icon("Play", "EditorIcons")
+	pause_button.icon = get_theme_icon("Pause", "EditorIcons")
+	stop_button.icon = get_theme_icon("Stop", "EditorIcons")
 
 	clear_output_btn = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(2).get_child(0).get_child(0)
 

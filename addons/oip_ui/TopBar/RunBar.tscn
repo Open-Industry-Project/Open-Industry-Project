@@ -1,9 +1,6 @@
-[gd_scene load_steps=11 format=3 uid="uid://bc71peokxkxdb"]
+[gd_scene load_steps=9 format=3 uid="uid://bc71peokxkxdb"]
 
 [ext_resource type="Script" uid="uid://bfjdnhti3p50c" path="res://addons/oip_ui/TopBar/RunBar.gd" id="1_akwgd"]
-[ext_resource type="Texture2D" uid="uid://dg5f0ryhxqj4a" path="res://addons/oip_ui/TopBar/Icons/MainPlay.png" id="2_cpndj"]
-[ext_resource type="Texture2D" uid="uid://b1xq8qtpci5uy" path="res://addons/oip_ui/TopBar/Icons/Pause.png" id="3_ci4su"]
-[ext_resource type="Texture2D" uid="uid://nd3pesjqlu83" path="res://addons/oip_ui/TopBar/Icons/Stop.png" id="4_ahhx3"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_6h0ux"]
 device = -1
@@ -20,6 +17,10 @@ keycode = 4194337
 [sub_resource type="Shortcut" id="Shortcut_psllm"]
 resource_name = "Pause Simulation"
 events = [SubResource("InputEventKey_mmyma")]
+
+[sub_resource type="SVGTexture" id="SVGTexture_2q2mv"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
+"
 
 [sub_resource type="InputEventKey" id="InputEventKey_psllm"]
 device = -1
@@ -42,17 +43,16 @@ theme_override_constants/separation = 8
 [node name="Play" type="Button" parent="HBoxContainer"]
 layout_mode = 2
 shortcut = SubResource("Shortcut_6h0ux")
-icon = ExtResource("2_cpndj")
 
 [node name="Pause" type="Button" parent="HBoxContainer"]
 layout_mode = 2
 disabled = true
 toggle_mode = true
 shortcut = SubResource("Shortcut_psllm")
-icon = ExtResource("3_ci4su")
+icon = SubResource("SVGTexture_2q2mv")
 
 [node name="Stop" type="Button" parent="HBoxContainer"]
 layout_mode = 2
 disabled = true
 shortcut = SubResource("Shortcut_3mp6e")
-icon = ExtResource("4_ahhx3")
+icon = SubResource("SVGTexture_2q2mv")
