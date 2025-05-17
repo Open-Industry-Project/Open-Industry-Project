@@ -1,6 +1,6 @@
 @tool
 class_name BeltConveyorAssembly
-extends EnhancedNode3D
+extends ResizableNode3D
 
 const CONVEYOR_CLASS_NAME = "BeltConveyor"
 const SIDE_GUARDS_SCRIPT_PATH = "res://src/ConveyorAttachment/side_guards_assembly.gd"
@@ -148,14 +148,57 @@ func _init() -> void:
 	_conveyor_script = load(class_details["path"]) as Script
 
 
+func _ready() -> void:
+	migrate_scale_to_size()
+	if _has_instantiated and is_instance_valid(%Conveyor):
+		%Conveyor.size = size
+
+
+## Convert existing scale into size, similar to the ResizableNode3D implementation.
+func migrate_scale_to_size() -> void:
+	if scale == Vector3.ONE:
+		return  # scale already reset; nothing to do
+	
+	var scale_original = scale
+	scale = Vector3.ONE
+	size = scale_original
+	
+	if _has_instantiated and is_instance_valid(%Conveyor):
+		%Conveyor.size = size
+
+
 func _get_property_list() -> Array[Dictionary]:
-	# Expose the conveyor's properties as our own.
-	#print("_get_property_list()")
-	return _get_conveyor_forwarded_properties()
+	# Get all the properties from the conveyor
+	var conveyor_properties = _get_conveyor_forwarded_properties()
+	
+	# Create a filtered list
+	var filtered_properties: Array[Dictionary] = []
+	
+	# The ResizableNode3D category has already been added by the parent class
+	# We only need to filter the conveyor properties
+	
+	var found_categories = []
+	
+	for prop in conveyor_properties:
+		var prop_name = prop[&"name"] as String
+		var usage = prop[&"usage"] as int
+		
+		# Skip any duplicate categories (like ResizableNode3D or EnhancedNode3D)
+		if usage & PROPERTY_USAGE_CATEGORY:
+			if prop_name == "ResizableNode3D" or prop_name == "EnhancedNode3D" or prop_name in found_categories:
+				continue
+			found_categories.append(prop_name)
+			
+		# Skip size property since it's already defined by ResizableNode3D
+		if prop_name == "size":
+			continue
+		
+		filtered_properties.append(prop)
+	
+	return filtered_properties
 
 
 func _validate_property(property: Dictionary) -> void:
-	#print("_validate_property(%s)" % property)
 	if property[&"name"] == SIDE_GUARDS_SCRIPT_FILENAME \
 			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
 		# Link the category to a script.
@@ -248,6 +291,9 @@ func _on_instantiated() -> void:
 
 	# Disable caching from now on.
 	_has_instantiated = true
+	
+	# Make sure the size is properly set on the conveyor
+	%Conveyor.size = size
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
@@ -255,6 +301,8 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	# Skip properties until we reach the category after the "Node3D" category.
 	var has_seen_node3d_category = false
 	var has_seen_category_after_node3d = false
+	# Avoid duplicating ResizableNode3D properties
+	var has_seen_resizable_node_3d_category = false
 
 	if _has_instantiated:
 		all_properties = %Conveyor.get_property_list()
@@ -266,6 +314,18 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 	var filtered_properties: Array[Dictionary] = []
 	for property in all_properties:
+		# Skip ResizableNode3D properties completely since we already have them from our parent class
+		if property[&"name"] == "ResizableNode3D" and property[&"usage"] == PROPERTY_USAGE_CATEGORY:
+			has_seen_resizable_node_3d_category = true
+			continue
+		
+		if has_seen_resizable_node_3d_category:
+			# Skip all properties until we find the next category
+			if property[&"usage"] == PROPERTY_USAGE_CATEGORY:
+				has_seen_resizable_node_3d_category = false
+			else:
+				continue
+				
 		if not has_seen_node3d_category:
 			has_seen_node3d_category = (property[&"name"] == "Node3D"
 					and property[&"usage"] == PROPERTY_USAGE_CATEGORY)
@@ -284,6 +344,9 @@ func _get_conveyor_forwarded_property_names() -> Array:
 			.filter(func(property):
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
+				# Skip properties that are already in ResizableNode3D
+				if prop_name in ["size", "original_size", "transform_in_progress", "size_min", "size_default"]:
+					return false
 				return (not (usage & PROPERTY_USAGE_CATEGORY
 					or usage & PROPERTY_USAGE_GROUP
 					or usage & PROPERTY_USAGE_SUBGROUP)
@@ -358,3 +421,9 @@ func _legs_property_cached_get(property: StringName, backing_field_value: Varian
 	else:
 		# The instance won't exist yet, so return the cached or default value.
 		return backing_field_value
+
+
+## Override from ResizableNode3D to propagate size changes to children
+func _on_size_changed() -> void:
+	if _has_instantiated and is_instance_valid(%Conveyor):
+		%Conveyor.size = size
