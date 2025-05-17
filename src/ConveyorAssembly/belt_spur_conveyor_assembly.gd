@@ -95,6 +95,12 @@ func _exit_tree() -> void:
 	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 
 
+func _ready() -> void:
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+
+
 func _validate_property(property: Dictionary) -> void:
 	var property_name = property["name"]
 	if property_name == "update_rate" or property_name == "tag":
