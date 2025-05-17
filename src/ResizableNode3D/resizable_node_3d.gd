@@ -11,9 +11,30 @@ var size_default = Vector3.ONE
 
 var original_size := Vector3.ZERO
 var transform_in_progress := false
+var _scale_notification_cooldown := false
 
 func _init() -> void:
 	set_meta("hijack_scale", true)
+	set_notify_transform(true)
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_TRANSFORM_CHANGED:
+			if scale != Vector3.ONE and not transform_in_progress:
+				# Reset scale back to Vector3.ONE
+				scale = Vector3.ONE
+				
+				# Show toast notification (with cooldown to prevent spam)
+				if not _scale_notification_cooldown:
+					_scale_notification_cooldown = true
+					EditorInterface.get_editor_toaster().push_toast(
+						"Please use the 'size' property instead of scale.",
+						EditorToaster.SEVERITY_WARNING
+					)
+					# Reset cooldown after a delay
+					get_tree().create_timer(1.0).timeout.connect(func(): 
+						_scale_notification_cooldown = false
+					)
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var size := Vector3.ZERO:
 	set(value):
