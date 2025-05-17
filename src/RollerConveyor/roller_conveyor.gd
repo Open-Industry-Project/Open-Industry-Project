@@ -2,6 +2,9 @@
 class_name RollerConveyor
 extends ResizableNode3D
 
+func _init() -> void:
+	super._init() # Call parent _init to inherit hijack_scale metadata
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s")
 var speed: float = 2.0:
 	set(value):

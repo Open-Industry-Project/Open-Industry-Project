@@ -17,9 +17,7 @@ belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
 speed_tag_group_name = "TagGroup0"
 running_tag_group_name = "TagGroup0"
 metadata/_edit_group_ = null
-metadata/hijack_scale = true
 size = Vector3(4, 0.5, 1.524)
-metadata/hijack_scale = true
 
 [node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true

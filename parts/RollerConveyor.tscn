@@ -15,7 +15,6 @@ size = Vector3(1.525, 0.24, 1.524)
 script = ExtResource("1_vnty6")
 size = Vector3(1.525, 0.24, 1.524)
 metadata/_edit_group_ = true
-metadata/hijack_scale = true
 
 [node name="RollerConveyorLegacy" type="Node3D" parent="."]
 process_mode = 1

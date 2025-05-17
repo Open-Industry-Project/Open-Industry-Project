@@ -118,6 +118,7 @@ static func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 
 func _init() -> void:
+	super._init() # Call parent _init to inherit hijack_scale metadata
 	size_default = Vector3(4, 0.5, 1.524)
 
 

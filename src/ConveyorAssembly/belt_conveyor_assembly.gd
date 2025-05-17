@@ -143,6 +143,8 @@ var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 
 func _init() -> void:
+	super._init() # Call parent _init to inherit hijack_scale metadata
+	
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
 	_conveyor_script = load(class_details["path"]) as Script

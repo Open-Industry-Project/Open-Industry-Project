@@ -146,6 +146,7 @@ func set_belt_material_shader_params_on_ends() -> void:
 				material.set_shader_parameter("ColorMix", belt_color)
 
 func _init() -> void:
+	super._init() # Call parent _init to inherit hijack_scale metadata
 	set_notify_local_transform(true)
 	# SIZE_DEFAULT already initialized at class level
 

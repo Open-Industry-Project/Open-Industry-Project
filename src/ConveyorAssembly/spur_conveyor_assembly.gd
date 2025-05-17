@@ -48,6 +48,7 @@ var DEFAULT_DEPTH: float = 0.5
 
 
 func _init() -> void:
+	super._init() # Call parent _init to inherit hijack_scale metadata
 	size_default = Vector3(DEFAULT_LENGTH, DEFAULT_DEPTH, DEFAULT_WIDTH)
 
 

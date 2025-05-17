@@ -132,7 +132,6 @@ speed_tag_group_name = "TagGroup0"
 running_tag_group_name = "TagGroup0"
 size = Vector3(4, 0.5, 1.524)
 metadata/_edit_group_ = true
-metadata/hijack_scale = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)

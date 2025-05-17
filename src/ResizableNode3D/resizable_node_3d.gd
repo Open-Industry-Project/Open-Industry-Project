@@ -12,6 +12,9 @@ var size_default = Vector3.ONE
 var original_size := Vector3.ZERO
 var transform_in_progress := false
 
+func _init() -> void:
+	set_meta("hijack_scale", true)
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var size := Vector3.ZERO:
 	set(value):
 		if value == Vector3.ZERO:
