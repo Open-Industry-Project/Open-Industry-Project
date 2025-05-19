@@ -20,7 +20,7 @@ func _init() -> void:
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_TRANSFORM_CHANGED:
-			if scale != Vector3.ONE and not transform_in_progress:
+			if not scale.is_equal_approx(Vector3.ONE) and not transform_in_progress:
 				# Reset scale back to Vector3.ONE
 				scale = Vector3.ONE
 				
