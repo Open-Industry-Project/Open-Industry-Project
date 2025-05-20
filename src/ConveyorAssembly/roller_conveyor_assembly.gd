@@ -8,6 +8,28 @@ const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
 
+## Conveyor speed in meters per second.
+## Negative values will reverse the direction of the conveyor.
+var speed: float = 2:
+	get:
+		return _conveyor_property_cached_get(&"speed")
+	set(value):
+		_conveyor_property_cached_set(&"speed", value)
+
+## The color of the conveyor rollers.
+var roller_color: Color = Color(1, 1, 1, 1):
+	get:
+		return _conveyor_property_cached_get(&"roller_color")
+	set(value):
+		_conveyor_property_cached_set(&"roller_color", value)
+
+## Physics material for the conveyor rollers surface.
+var roller_physics_material: PhysicsMaterial:
+	get:
+		return _conveyor_property_cached_get(&"roller_physics_material")
+	set(value):
+		_conveyor_property_cached_set(&"roller_physics_material", value)
+
 #region SideGuardsAssembly properties
 @export_category(SIDE_GUARDS_SCRIPT_FILENAME)
 @export_group("Right Side Guards", "right_side_guards_")
