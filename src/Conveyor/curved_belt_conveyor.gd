@@ -638,6 +638,7 @@ func _setup_collision_shape() -> void:
 	collision_shape.scale = Vector3.ONE
 
 func _enter_tree() -> void:
+	super._enter_tree()
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
@@ -649,8 +650,10 @@ func _exit_tree() -> void:
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	super._exit_tree()
 
 func _notification(what: int) -> void:
+	super._notification(what)
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
 		set_notify_local_transform(false)
 		# Ensure uniform scale on X and Z axes
