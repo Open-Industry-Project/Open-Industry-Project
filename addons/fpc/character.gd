@@ -171,18 +171,11 @@ func _physics_process(delta) -> void:
 
 	var forward = -global_transform.basis.z
 	var flat_forward = Vector3(forward.x, 0, forward.z).normalized()
-	var target_basis = Basis().looking_at(flat_forward, Vector3.UP)
+	var target_basis = Basis.looking_at(flat_forward, Vector3.UP)
 	global_transform.basis = global_transform.basis.slerp(target_basis, 3.0 * delta)
 
 	# Big thanks to github.com/LorenzoAncora for the concept of the improved debug values
 	current_speed = Vector3.ZERO.distance_to(get_real_velocity())
-	var cv: Vector3 = get_real_velocity()
-	var vd: Array[float] = [
-		snappedf(cv.x, 0.001),
-		snappedf(cv.y, 0.001),
-		snappedf(cv.z, 0.001)
-	]
-	var readable_velocity: String = "X: " + str(vd[0]) + " Y: " + str(vd[1]) + " Z: " + str(vd[2])
 
 	# Gravity
 	#gravity = ProjectSettings.get_setting("physics/3d/default_gravity") # If the gravity changes during your game, uncomment this code
@@ -394,8 +387,6 @@ func enter_normal_state() -> void:
 	speed = base_speed
 
 func enter_crouch_state() -> void:
-	#print("entering crouch state")
-	var prev_state = state
 	state = "crouching"
 	speed = crouch_speed
 	CROUCH_ANIMATION.play("crouch")
@@ -444,11 +435,7 @@ func headbob_animation(moving) -> void:
 			HEADBOB_ANIMATION.play("RESET", 1)
 
 
-func _process(delta) -> void:
-	var status: String = state
-	if not is_on_floor():
-		status += " in the air"
-
+func _process(_delta) -> void:
 	if pausing_enabled:
 		if Input.is_action_just_pressed(PAUSE):
 			# You may want another node to handle pausing, because this player may get paused too.
