@@ -2,7 +2,7 @@
 class_name Diverter
 extends Node3D
 
-@export_tool_button("Divert") var divert_action = _divert
+@export_tool_button("Divert") var divert_action = divert
 
 @export var divert_time: float = 0.25
 @export var divert_distance: float = 0.75
@@ -75,9 +75,9 @@ func _ready() -> void:
 	_diverter_animator = $DiverterAnimator
 
 func use() -> void:
-	_divert()
+	divert()
 
-func _divert() -> void:
+func divert() -> void:
 	_fire_divert = true
 
 func _physics_process(delta: float) -> void:
