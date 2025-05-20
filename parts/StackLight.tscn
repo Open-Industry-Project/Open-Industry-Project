@@ -21,15 +21,15 @@ script = ExtResource("2_v0hgu")
 segment_datas = [SubResource("Resource_v0hgu")]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_w3ou4"]
-size = Vector3(0.1, 1.8, 0.1)
+size = Vector3(0.0578278, 1.67107, 0.0593018)
 
 [node name="StackLight" type="Node3D"]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
 script = ExtResource("1_vxp13")
 tag_group_name = "TagGroup0"
 light_value = 0
-Segments = 1
-data = SubResource("Resource_oqsfm")
+segments = 1
+_data = SubResource("Resource_oqsfm")
 "Light 1" = SubResource("Resource_v0hgu")
 metadata/_edit_group_ = true
 
@@ -56,9 +56,9 @@ mesh = ExtResource("9_hoqsd")
 skeleton = NodePath("../..")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.107774)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.89616, -0.107057)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000291446, -0.147864, -0.000134274)
 shape = SubResource("BoxShape3D_w3ou4")
