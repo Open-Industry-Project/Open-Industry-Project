@@ -147,9 +147,6 @@ func _enter_tree() -> void:
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
 
-func _ready() -> void:
-	migrate_scale_to_size()
-
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
@@ -317,19 +314,6 @@ func _on_size_changed() -> void:
 	var end_offset_x = length / 2.0 - end_length
 	end1.position = Vector3(base_pos.x + end_offset_x, base_pos.y, base_pos.z)
 	end2.position = Vector3(base_pos.x + -end_offset_x, base_pos.y, base_pos.z)
-
-
-## Convert existing scale into size.
-## Avoids doing anything if size has already been set to a non-default value.
-func migrate_scale_to_size() -> void:
-	if scale == Vector3.ONE:
-		return  # scale already reset; nothing to do
-	if size != size_default:
-		return  # size isn't default; assume migration has already happened despite the unexpected scale.
-	
-	var scale_original = scale
-	scale = Vector3.ONE
-	size = scale_original * Vector3(1, 0.5, 1) + Vector3(0.5, 0, 0)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
