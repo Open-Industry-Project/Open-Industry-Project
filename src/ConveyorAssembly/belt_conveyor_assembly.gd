@@ -180,20 +180,6 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	migrate_scale_to_size()
-	if _has_instantiated and is_instance_valid(%Conveyor):
-		%Conveyor.size = size
-
-
-## Convert existing scale into size, similar to the ResizableNode3D implementation.
-func migrate_scale_to_size() -> void:
-	if scale == Vector3.ONE:
-		return  # scale already reset; nothing to do
-	
-	var scale_original = scale
-	scale = Vector3.ONE
-	size = scale_original
-	
 	if _has_instantiated and is_instance_valid(%Conveyor):
 		%Conveyor.size = size
 

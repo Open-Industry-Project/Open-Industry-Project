@@ -35,7 +35,6 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	migrate_scale_to_size()
 	if color != Color.WHITE:
 		set("color", color)
 	_rigid_body_3d.freeze = not SimulationEvents.simulation_running
@@ -58,19 +57,6 @@ func _on_size_changed() -> void:
 		var box_shape = collision_shape.shape as BoxShape3D
 		if box_shape:
 			box_shape.size = size
-
-
-## Convert existing scale into size.
-## Avoids doing anything if size has already been set to a non-default value.
-func migrate_scale_to_size() -> void:
-	if scale == Vector3.ONE:
-		return  # scale already reset; nothing to do
-	if size != size_default:
-		return  # size isn't default; assume migration has already happened despite the unexpected scale.
-	
-	var scale_original = scale
-	scale = Vector3.ONE
-	size = scale_original
 
 
 func _exit_tree() -> void:
