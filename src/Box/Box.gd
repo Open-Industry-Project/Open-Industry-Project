@@ -35,6 +35,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	_on_size_changed()
 	if color != Color.WHITE:
 		set("color", color)
 	_rigid_body_3d.freeze = not SimulationEvents.simulation_running
