@@ -1,6 +1,6 @@
 @tool
 class_name Box
-extends Node3D
+extends ResizableNode3D
 
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
 @export var color: Color = Color.WHITE:
@@ -22,13 +22,20 @@ var _enable_initial_transform: bool = false
 var instanced: bool = false
 
 
+func _init() -> void:
+	super._init() # Call parent _init to inherit hijack_scale metadata
+	size_default = Vector3(1, 1, 1)
+
+
 func _enter_tree() -> void:
+	super._enter_tree()
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	SimulationEvents.simulation_set_paused.connect(_on_simulation_set_paused)
 
 
 func _ready() -> void:
+	migrate_scale_to_size()
 	if color != Color.WHITE:
 		set("color", color)
 	_rigid_body_3d.freeze = not SimulationEvents.simulation_running
@@ -37,10 +44,40 @@ func _ready() -> void:
 		_rigid_body_3d.linear_velocity = initial_linear_velocity
 
 
+func _on_size_changed() -> void:
+	if not is_instance_valid(_mesh_instance_3d) or not is_instance_valid(_rigid_body_3d):
+		return
+		
+	var mesh_instance = _mesh_instance_3d
+	var collision_shape = _rigid_body_3d.get_node_or_null("CollisionShape3D")
+	
+	if mesh_instance:
+		mesh_instance.scale = size/2
+		
+	if collision_shape:
+		var box_shape = collision_shape.shape as BoxShape3D
+		if box_shape:
+			box_shape.size = size
+
+
+## Convert existing scale into size.
+## Avoids doing anything if size has already been set to a non-default value.
+func migrate_scale_to_size() -> void:
+	if scale == Vector3.ONE:
+		return  # scale already reset; nothing to do
+	if size != size_default:
+		return  # size isn't default; assume migration has already happened despite the unexpected scale.
+	
+	var scale_original = scale
+	scale = Vector3.ONE
+	size = scale_original
+
+
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	SimulationEvents.simulation_set_paused.disconnect(_on_simulation_set_paused)
+	super._exit_tree()
 	if instanced:
 		queue_free()
 

@@ -9,6 +9,7 @@
 friction = 0.5
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_h4we7"]
+resource_local_to_scene = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ekrlf"]
 resource_name = "Material.001"
@@ -115,6 +116,8 @@ shadow_mesh = SubResource("ArrayMesh_jl6cr")
 [node name="Box" type="Node3D"]
 top_level = true
 script = ExtResource("1_jl6cr")
+size = Vector3(1, 1, 1)
+metadata/hijack_scale = true
 metadata/_edit_group_ = true
 
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
@@ -124,7 +127,6 @@ collision_mask = 15
 mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_jt2n8")
 can_sleep = false
-freeze = true
 continuous_cd = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
