@@ -18,11 +18,13 @@ var _scenario: RID
 		if _instance:
 			RenderingServer.instance_set_visible(_instance, show_beam)
 
-@export var blocked: bool = false:
+@export var normally_closed: bool = false
+
+@export var output: bool = false:
 	set(value):
-		if _register_tag_ok and _tag_group_init and value != blocked:
+		if _register_tag_ok and _tag_group_init and value != output:
 			OIPComms.write_bit(tag_group_name, tag_name, value)
-		blocked = value
+		output = value
 
 var _register_tag_ok := false
 var _tag_group_init := false
@@ -43,7 +45,7 @@ var _enable_comms_changed = false:
 
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "blocked":
+	if property.name == "output":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 	elif property.name == "tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
@@ -103,10 +105,10 @@ func _physics_process(_delta: float) -> void:
 
 	if result.size() > 0:
 		result_distance = start_pos.distance_to(result["position"])
-		blocked = true
+		output = not normally_closed if normally_closed else true
 		_beam_mat.albedo_color = Color.RED
 	else:
-		blocked = false
+		output = normally_closed if normally_closed else false
 		_beam_mat.albedo_color = Color.GREEN
 
 	if show_beam:
@@ -114,7 +116,7 @@ func _physics_process(_delta: float) -> void:
 		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_mat)
 		_mesh.surface_add_vertex(start_pos)
 
-		if blocked:
+		if result.size() > 0:
 			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
 		else:
 			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
@@ -135,4 +137,4 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if tag_group_name_param == tag_group_name:
 		_tag_group_init = true
 		if _register_tag_ok:
-			OIPComms.write_bit(tag_group_name, tag_name, blocked)
+			OIPComms.write_bit(tag_group_name, tag_name, output)
