@@ -1,8 +1,6 @@
 @tool
-extends AbstractRollerContainer
 class_name RollerConveyorEnd
-
-const BASE_WIDTH: float = 2.0
+extends AbstractRollerContainer
 
 @export var flipped: bool = false:
 	set(value):
@@ -16,23 +14,27 @@ func _init() -> void:
 	super()
 	width_changed.connect(self._set_ends_separation)
 
-# Overrides virtual method from AbstractRollerContainer
 func setup_existing_rollers() -> void:
 	_roller = get_node("Roller")
 	super.setup_existing_rollers()
 
-# Overrides virtual method from AbstractRollerContainer
 func _get_rollers() -> Array[Roller]:
 	var rollers: Array[Roller] = [_roller]
 	return rollers
 
-func _set_ends_separation(width: float) -> void:
-	var end = get_node("ConveyorRollerEnd")
-	end.scale = Vector3(1.0, 1.0, width / BASE_WIDTH)
-	for end_mesh in end.get_children():
-		if end_mesh is MeshInstance3D:
-			end_mesh.scale = Vector3(1.0, 1.0, BASE_WIDTH / width)
-
 func _get_rotation_from_skew_angle(angle_degrees: float) -> Vector3:
 	var rot = super._get_rotation_from_skew_angle(angle_degrees)
 	return rot + Vector3(0, 180, 0) if flipped else rot
+
+func _set_ends_separation(width: float) -> void:
+	var end_node = get_node("ConveyorRollerEnd")
+	if end_node:
+		var meshes = []
+		for child in end_node.get_children():
+			if child is MeshInstance3D:
+				meshes.append(child)
+
+		if meshes.size() >= 2:
+			var half_width = width / 2.0
+			meshes[0].position = Vector3(meshes[0].position.x, meshes[0].position.y, -half_width)
+			meshes[1].position = Vector3(meshes[1].position.x, meshes[1].position.y, half_width)

@@ -2,24 +2,22 @@
 class_name Rollers
 extends AbstractRollerContainer
 
-@export var roller_scene: PackedScene
-
 const ROLLERS_DISTANCE: float = 0.33
 
+@export var roller_scene: PackedScene
 
 func _init() -> void:
 	super()
 	length_changed.connect(_add_or_remove_rollers)
 
-
 func _ready() -> void:
 	_fix_rollers()
 
-
 func _add_or_remove_rollers(conveyor_length: float) -> void:
-	var rounded_length: int = round(conveyor_length / ROLLERS_DISTANCE) + 1
+	var available_length: float = conveyor_length - 0.2 - 0.33
+	var rounded_length: int = floor(available_length / ROLLERS_DISTANCE)
 	var roller_count: int = get_child_count()
-	var desired_roller_count: int = rounded_length - 2
+	var desired_roller_count: int = max(0, rounded_length)
 
 	var difference: int = desired_roller_count - roller_count
 
@@ -33,7 +31,6 @@ func _add_or_remove_rollers(conveyor_length: float) -> void:
 			remove_child(roller)
 			roller.queue_free()
 
-
 func _spawn_roller() -> void:
 	var roller = roller_scene.instantiate() as Roller
 	add_child(roller, true)
@@ -41,7 +38,6 @@ func _spawn_roller() -> void:
 	roller.position = Vector3(ROLLERS_DISTANCE * get_child_count(), 0, 0)
 	roller_added.emit(roller)
 	_fix_rollers()
-
 
 func _fix_rollers() -> void:
 	if get_child_count() > 0:

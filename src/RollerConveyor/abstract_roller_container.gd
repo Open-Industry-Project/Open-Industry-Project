@@ -23,11 +23,6 @@ func setup_existing_rollers() -> void:
 	for roller in _get_rollers():
 		roller_added.emit(roller)
 
-func on_owner_scale_changed(scale: Vector3) -> void:
-	_rescale_inverse(scale)
-
-func _rescale_inverse(owner_scale: Vector3) -> void:
-	scale = Vector3(1.0 / owner_scale.x, 1.0 / owner_scale.y, 1.0 / owner_scale.z)
 
 func set_width(width: float) -> void:
 	var changed: bool = _width != width
