@@ -107,6 +107,10 @@ func _ready() -> void:
 	_simple_conveyor_shape = get_node("SimpleConveyorShape") as StaticBody3D
 	if _simple_conveyor_shape:
 		_setup_conveyor_physics()
+		var collision_shape := _simple_conveyor_shape.get_node("CollisionShape3D") as CollisionShape3D
+		if collision_shape and collision_shape.shape is BoxShape3D:
+			var box_shape := collision_shape.shape as BoxShape3D
+			box_shape.size = size
 	
 	if not running:
 		set_physics_process(false)
