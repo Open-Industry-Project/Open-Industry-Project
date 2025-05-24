@@ -9,10 +9,10 @@ signal roller_rotation_changed(rotation_degrees: Vector3)
 signal roller_added(roller: Roller)
 signal roller_removed(roller: Roller)
 
-var _width: float = 2
-var _length: float = 1
-var _roller_length: float = 2
-var _roller_skew_angle_degrees: float = 0.0
+var _width := 2.0
+var _length := 1.0
+var _roller_length := 2.0
+var _roller_skew_angle_degrees := 0.0
 
 func _init() -> void:
 	roller_added.connect(self._handle_roller_added)
@@ -23,22 +23,21 @@ func setup_existing_rollers() -> void:
 	for roller in _get_rollers():
 		roller_added.emit(roller)
 
-
 func set_width(width: float) -> void:
-	var changed: bool = _width != width
+	var changed := _width != width
 	_width = width
 	if changed:
 		_update_roller_length()
 		width_changed.emit(_width)
 
 func set_length(length: float) -> void:
-	var changed: bool = _length != length
+	var changed := _length != length
 	_length = length
 	if changed:
 		length_changed.emit(_length)
 
 func set_roller_skew_angle(skew_angle_degrees: float) -> void:
-	var changed: bool = fmod(_roller_skew_angle_degrees, 360.0) != fmod(skew_angle_degrees, 360.0)
+	var changed := fmod(_roller_skew_angle_degrees, 360.0) != fmod(skew_angle_degrees, 360.0)
 	_roller_skew_angle_degrees = skew_angle_degrees
 	if changed:
 		roller_rotation_changed.emit(_get_rotation_from_skew_angle(_roller_skew_angle_degrees))
@@ -47,8 +46,8 @@ func set_roller_skew_angle(skew_angle_degrees: float) -> void:
 func _update_roller_length() -> void:
 	if abs(fmod(_roller_skew_angle_degrees, 180.0)) == 90.0:
 		return
-	var new_length: float = _width / cos(_roller_skew_angle_degrees * 2.0 * PI / 360.0)
-	var changed: bool = new_length != _roller_length
+	var new_length := _width / cos(_roller_skew_angle_degrees * 2.0 * PI / 360.0)
+	var changed := new_length != _roller_length
 	_roller_length = new_length
 	if changed:
 		roller_length_changed.emit(_roller_length)

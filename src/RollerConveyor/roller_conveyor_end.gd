@@ -23,18 +23,18 @@ func _get_rollers() -> Array[Roller]:
 	return rollers
 
 func _get_rotation_from_skew_angle(angle_degrees: float) -> Vector3:
-	var rot = super._get_rotation_from_skew_angle(angle_degrees)
+	var rot := super._get_rotation_from_skew_angle(angle_degrees)
 	return rot + Vector3(0, 180, 0) if flipped else rot
 
 func _set_ends_separation(width: float) -> void:
-	var end_node = get_node("ConveyorRollerEnd")
+	var end_node := get_node("ConveyorRollerEnd")
 	if end_node:
-		var meshes = []
+		var meshes := []
 		for child in end_node.get_children():
 			if child is MeshInstance3D:
 				meshes.append(child)
 
 		if meshes.size() >= 2:
-			var half_width = width / 2.0
+			var half_width := width / 2.0
 			meshes[0].position = Vector3(meshes[0].position.x, meshes[0].position.y, -half_width)
 			meshes[1].position = Vector3(meshes[1].position.x, meshes[1].position.y, half_width)
