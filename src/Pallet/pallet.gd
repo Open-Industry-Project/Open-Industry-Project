@@ -13,7 +13,6 @@ func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	SimulationEvents.simulation_set_paused.connect(_on_simulation_set_paused)
-	get_tree().current_scene
 
 func _ready() -> void:
 	_rigid_body = $RigidBody3D
