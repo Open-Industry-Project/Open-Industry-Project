@@ -8,7 +8,7 @@ const BASE_LENGTH: float = 2.0
 
 var _chain_transfer_base_scene: PackedScene = load("res://src/ChainTransfer/Base.tscn")
 
-@export var chains: int = 2:
+@export var chains: int = 3:
 	set(value):
 		var new_value: int = clamp(value, 2, 6)
 		if new_value > chains:
@@ -91,7 +91,8 @@ func _notification(what: int) -> void:
 			_rescale()
 
 func _ready() -> void:
-	_spawn_chains(chains - get_child_count())
+	var current_chain_count = chain_transfer_bases.get_child_count() if chain_transfer_bases else 0
+	_spawn_chains(chains - current_chain_count)
 	_set_chains_distance(distance)
 	_set_chain_speed(speed)
 	_set_popup_chains(popup_chains)
@@ -138,22 +139,30 @@ func _rescale() -> void:
 	_update_simple_shape()
 
 func _set_chains_distance(dist: float) -> void:
-	chain_transfer_bases.set_chains_distance(dist)
+	if chain_transfer_bases:
+		chain_transfer_bases.set_chains_distance(dist)
 
 func _set_chain_speed(speed: float) -> void:
-	chain_transfer_bases.set_chains_speed(speed)
+	if chain_transfer_bases:
+		chain_transfer_bases.set_chains_speed(speed)
 
 func _set_popup_chains(popup: bool) -> void:
-	chain_transfer_bases.set_chains_popup_chains(popup)
+	if chain_transfer_bases:
+		chain_transfer_bases.set_chains_popup_chains(popup)
 
 func _turn_on_chains() -> void:
-	chain_transfer_bases.turn_on_chains()
+	if chain_transfer_bases:
+		chain_transfer_bases.turn_on_chains()
 
 func _turn_off_chains() -> void:
-	chain_transfer_bases.turn_off_chains()
+	if chain_transfer_bases:
+		chain_transfer_bases.turn_off_chains()
 
 func _spawn_chains(count: int) -> void:
 	if chains <= 0:
+		return
+	
+	if not chain_transfer_bases:
 		return
 		
 	for i in range(count):
@@ -167,10 +176,12 @@ func _spawn_chains(count: int) -> void:
 			chain_base.turn_on()
 
 func _remove_chains(count: int) -> void:
-	chain_transfer_bases.remove_chains(count)
+	if chain_transfer_bases:
+		chain_transfer_bases.remove_chains(count)
 
 func _fix_chains(ch: int) -> void:
-	chain_transfer_bases.fix_chains(ch)
+	if chain_transfer_bases:
+		chain_transfer_bases.fix_chains(ch)
 
 func _on_simulation_started() -> void:
 	_turn_on_chains()
@@ -183,12 +194,17 @@ func _on_simulation_ended() -> void:
 	_turn_off_chains()
 
 func _update_simple_shape() -> void:
-	var simple_conveyor_shape_body = get_node("SimpleConveyorShape") as Node3D
+	var simple_conveyor_shape_body = get_node_or_null("SimpleConveyorShape") as Node3D
+	if not simple_conveyor_shape_body:
+		return
 	simple_conveyor_shape_body.scale = scale.inverse()
-	var simple_conveyor_shape_node = simple_conveyor_shape_body.get_node("CollisionShape3D") as CollisionShape3D
+	var simple_conveyor_shape_node = simple_conveyor_shape_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if not simple_conveyor_shape_node:
+		return
 	simple_conveyor_shape_node.position = Vector3(0, -0.094, (chains - 1) * distance / 2.0)
 	var simple_conveyor_shape = simple_conveyor_shape_node.shape as BoxShape3D
-	simple_conveyor_shape.size = Vector3(scale.x * BASE_LENGTH + 0.25, 0.2, (chains - 1) * distance + 0.042 * 2.0)
+	if simple_conveyor_shape:
+		simple_conveyor_shape.size = Vector3(scale.x * BASE_LENGTH + 0.25, 0.2, (chains - 1) * distance + 0.042 * 2.0)
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if tag_group_name_param == speed_tag_group_name:
