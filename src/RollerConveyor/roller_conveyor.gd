@@ -11,7 +11,7 @@ signal roller_override_material_changed(material: Material)
 const RADIUS: float = 0.12
 const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		speed = value
 		speed_changed.emit(value)
