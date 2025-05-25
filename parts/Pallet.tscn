@@ -63,6 +63,6 @@ continuous_cd = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.107211, 0)
 shape = SubResource("BoxShape3D_kbfuw")
 
-[node name="Wood_Pallet" type="MeshInstance3D" parent="RigidBody3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D"]
 mesh = SubResource("ArrayMesh_dllc6")
 skeleton = NodePath("")

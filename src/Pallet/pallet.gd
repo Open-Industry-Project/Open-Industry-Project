@@ -2,8 +2,18 @@
 class_name Pallet extends Node3D
 
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
+@export var color: Color = Color.WHITE:
+	set(value):
+		color = value
+		if _mesh_instance_3d:
+			var mat: StandardMaterial3D
+			_mesh_instance_3d.mesh = _mesh_instance_3d.mesh.duplicate()
+			mat = _mesh_instance_3d.mesh.surface_get_material(0).duplicate()
+			mat.albedo_color = color
+			_mesh_instance_3d.mesh.surface_set_material(0, mat)
 
 var _rigid_body: RigidBody3D
+var _mesh_instance_3d: MeshInstance3D
 var _initial_transform: Transform3D
 var instanced: bool = false
 var _paused: bool = false
@@ -16,10 +26,13 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	_rigid_body = $RigidBody3D
+	_mesh_instance_3d = $RigidBody3D/MeshInstance3D
 	_rigid_body.freeze = not SimulationEvents.simulation_running
 	if SimulationEvents.simulation_running:
 		instanced = true
 		_rigid_body.linear_velocity = initial_linear_velocity
+	if color != Color.WHITE:
+		set("color", color)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
