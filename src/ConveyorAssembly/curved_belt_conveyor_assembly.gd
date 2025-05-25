@@ -19,11 +19,6 @@ func _get_property_list() -> Array[Dictionary]:
 	# Expose the conveyor's properties as our own.
 	return _get_conveyor_forwarded_properties()
 
-
-func _validate_property(property: Dictionary) -> void:
-	pass  # You can add custom validation if needed
-
-
 func _set(property: StringName, value: Variant) -> bool:
 	# Pass-through most conveyor properties.
 	if property not in _get_conveyor_forwarded_property_names():
@@ -141,34 +136,72 @@ func _conveyor_property_cached_get(property: StringName) -> Variant:
 	else:
 		# The instance won't exist yet, so return the cached or default value.
 		return _cached_conveyor_property_values[property]
-
 func _update_legs_position() -> void:
 	if not _has_instantiated:
 		return
-	
+
+	# Check if node is in the scene tree before accessing global_transform
+	if not is_inside_tree():
+		return
+
 	var conveyor = $ConveyorCorner
 	var radians := deg_to_rad(conveyor.conveyor_angle)
-	
-	$SideGuardsCBC.guard_angle = conveyor.conveyor_angle - 5
-	$SideGuardsCBC.size.x = conveyor.size.x + 0.04
-	
+
+	# Clamp the conveyor angle to prevent mesh generation issues at 0 degrees
+	if conveyor.conveyor_angle <= 10.0:
+		conveyor.conveyor_angle = 10.0
+		radians = deg_to_rad(10.0)
+
+	$SideGuardsCBC.guard_angle = conveyor.conveyor_angle
+	$SideGuardsCBC.size.x = conveyor.size.x + 0.036
+
 	if has_node("AutoLegsStandFront") and has_node("AutoLegsStandRear"):
 		var front_legs = $AutoLegsStandFront
 		var rear_legs = $AutoLegsStandRear
-		
+
+		var should_show_legs = conveyor.size.y <= 0.8
+		front_legs.visible = should_show_legs
+		rear_legs.visible = should_show_legs
+
+		if not should_show_legs:
+			return
+
 		var size_factor = conveyor.size.x
-		
+
+		# Constants
+		const LEGS_WORLD_Y = -2.0  # Fixed world Y position for legs
+		const DEFAULT_LEG_HEIGHT = 0.75
+		const HEIGHT_MULTIPLIER = 1
+
+		# Calculate the Y position in local space to maintain world Y = LEGS_WORLD_Y
+		var local_y = LEGS_WORLD_Y - global_transform.origin.y
+
+		# Calculate positions (X and Z in local space)
 		var leg_x = -sin(radians) * 0.75 * size_factor
 		var leg_z = cos(radians) * 0.73 * size_factor
-		
-		front_legs.position = Vector3(leg_x, -2.0, 0.04 + leg_z)
+
+		# Calculate height scale based on conveyor height
+		var height_scale = DEFAULT_LEG_HEIGHT + (1.0 - conveyor.size.y) * HEIGHT_MULTIPLIER
+
+		# Position legs
+		front_legs.position = Vector3(
+			leg_x,
+			local_y,  # Adjusted to maintain world Y position
+			0.04 + leg_z
+		)
 		front_legs.rotation.y = -radians
-		
-		rear_legs.position = Vector3(-0.04, -2.0, 0.75 * size_factor)
+
+		rear_legs.position = Vector3(
+			-0.04,
+			local_y,  # Adjusted to maintain world Y position
+			0.75 * size_factor
+		)
 		rear_legs.rotation.y = 0
-		
-		var base_scale := Vector3(1.0, 1.25, 0.8)
+
+		# Base scale components
+		var base_scale := Vector3(1.0, 1.0, 0.8)
 		var z_scale_factor = 0.69 + (size_factor - 1.0) * 0.62
-		
-		front_legs.scale = Vector3(base_scale.x, base_scale.y, base_scale.z * z_scale_factor)
-		rear_legs.scale = Vector3(base_scale.x, base_scale.y, base_scale.z * z_scale_factor)
+
+		# Apply scales
+		front_legs.scale = Vector3(base_scale.x, height_scale, base_scale.z * z_scale_factor)
+		rear_legs.scale = Vector3(base_scale.x, height_scale, base_scale.z * z_scale_factor)
