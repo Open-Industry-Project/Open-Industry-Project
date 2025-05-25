@@ -119,6 +119,9 @@ func _physics_process(delta: float) -> void:
 	if not SimulationEvents:
 		return
 
+	if SimulationEvents.simulation_running:
+		_update_conveyor_velocity()
+		
 	if not SimulationEvents.simulation_paused:
 		_roller_material.uv1_offset += Vector3(4.0 * speed / CIRCUMFERENCE * delta, 0, 0)
 
@@ -318,7 +321,10 @@ func _update_conveyor_velocity() -> void:
 		return
 	
 	if running and speed != 0.0:
-		var conveyor_direction := Vector3(1, 0, 0).rotated(Vector3.UP, deg_to_rad(skew_angle))
-		_simple_conveyor_shape.constant_linear_velocity = conveyor_direction * speed
+		var local_x = _simple_conveyor_shape.global_transform.basis.x.normalized()
+		var local_y = _simple_conveyor_shape.global_transform.basis.y.normalized()
+		var angle_rad := deg_to_rad(skew_angle)
+		var velocity := local_x.rotated(local_y, angle_rad) * speed
+		_simple_conveyor_shape.constant_linear_velocity = velocity
 	else:
 		_simple_conveyor_shape.constant_linear_velocity = Vector3.ZERO
