@@ -42,23 +42,6 @@ func _enter_tree() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.draw.connect(_on_overlay_draw)
 	
-	var viewport_ui = EditorInterface.get_editor_viewport_3d().get_parent()
-
-	# Create the label
-	var label = Label.new()
-	label.text = "Scene paused. Click to resume."
-	label.anchor_left = 0.5
-	label.anchor_top = 0.5
-	label.anchor_right = 0.5
-	label.anchor_bottom = 0.5
-	label.position = Vector2(0, 0)  # Centered exactly
-	label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	label.add_theme_color_override("font_color", Color.WHITE)
-	label.add_theme_font_size_override("font_size", 28)
-
-	overlay.add_child(label)
-
 func _on_overlay_draw():
 	var window_size = get_window().get_size() 
 	overlay.draw_rect(Rect2(0, 0, window_size.x, window_size.y), Color(0, 0, 0, 0.1)) 
@@ -82,12 +65,6 @@ func handle_focus_lost() -> void:
 			main_window.add_child(overlay)
 			overlay.visible = true
 			overlay.queue_redraw()
-
-		#Pause Simulation
-		if SimulationEvents.simulation_running and not SimulationEvents.simulation_paused:
-			SimulationEvents.simulation_paused = true
-			SimulationEvents.simulation_set_paused.emit(true)
-			get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_DISABLED
 
 func handle_focus_gained() -> void:
 	if was_in_walk_mode and character_spawned:
@@ -114,12 +91,6 @@ func handle_focus_gained() -> void:
 		
 		reset_camera_input()
 		was_in_walk_mode = false
-		
-		#Resume simulation
-		if SimulationEvents.simulation_running and SimulationEvents.simulation_paused:
-			SimulationEvents.simulation_paused = false
-			SimulationEvents.simulation_set_paused.emit(false)
-			get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_INHERIT
 		
 		var main_window = EditorInterface.get_base_control()
 		if is_instance_valid(overlay):
