@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://c1mup2vown0ak"]
+[gd_scene load_steps=17 format=3 uid="uid://c1mup2vown0ak"]
 
 [ext_resource type="Script" uid="uid://ck2rh8e3xxtj0" path="res://src/BladeStop/blade_stop.gd" id="1_tokfa"]
 [ext_resource type="PhysicsMaterial" uid="uid://vthdgr7hg05m" path="res://src/BladeStop/BladePhysicMaterial.tres" id="2_ctgt5"]
@@ -23,6 +23,11 @@ size = Vector3(0.05, 0.25, 0.114)
 [sub_resource type="BoxShape3D" id="BoxShape3D_pbd6i"]
 size = Vector3(0.20314, 0.911072, 0.198853)
 
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_tokfa"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tokfa"]
+size = Vector3(0.42, 0.91, 2.895)
+
 [node name="BladeStop" type="Node3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.448, 0, 0, 0)
 script = ExtResource("1_tokfa")
@@ -30,6 +35,7 @@ tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
 [node name="Blade" type="StaticBody3D" parent="."]
+collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Blade"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.103607, 0.122727, 0)
@@ -40,6 +46,7 @@ mesh = ExtResource("2_lenbf")
 skeleton = NodePath("")
 
 [node name="Base" type="StaticBody3D" parent="."]
+collision_layer = 3
 physics_material_override = ExtResource("2_ctgt5")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Base"]
@@ -62,6 +69,7 @@ mesh = ExtResource("3_dm566")
 skeleton = NodePath("")
 
 [node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureR/BladeCornerR"]
+collision_layer = 3
 physics_material_override = ExtResource("2_ctgt5")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/AirPressureR/BladeCornerR/StaticBody"]
@@ -78,6 +86,7 @@ mesh = ExtResource("5_qmqyj")
 skeleton = NodePath("")
 
 [node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureL/BladeCornerL"]
+collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/AirPressureL/BladeCornerL/StaticBody"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.105, 0.122836, 0.057)
@@ -89,6 +98,7 @@ mesh = ExtResource("2_idi6q")
 skeleton = NodePath("")
 
 [node name="StaticBody" type="StaticBody3D" parent="Corners/BaseCornerR"]
+collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/BaseCornerR/StaticBody"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.300896, -0.20142, -0.0991821)
@@ -100,8 +110,17 @@ mesh = ExtResource("9_vmhlq")
 skeleton = NodePath("")
 
 [node name="StaticBody" type="StaticBody3D" parent="Corners/BaseCornerL"]
+collision_layer = 3
 physics_material_override = ExtResource("2_ctgt5")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/BaseCornerL/StaticBody"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.202, -0.201715, 0.099)
 shape = SubResource("BoxShape3D_pbd6i")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_layer = 3
+physics_material_override = SubResource("PhysicsMaterial_tokfa")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.197124, -0.20461, 0)
+shape = SubResource("BoxShape3D_tokfa")

@@ -21,7 +21,7 @@ script = ExtResource("2_v0hgu")
 segment_datas = [SubResource("Resource_v0hgu")]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_w3ou4"]
-size = Vector3(0.0578278, 1.67107, 0.0593018)
+size = Vector3(0.07, 1.75, 0.07)
 
 [node name="StackLight" type="Node3D"]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
@@ -60,5 +60,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000291446, -0.147864, -0.000134274)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000291446, -0.148, -0.000134274)
 shape = SubResource("BoxShape3D_w3ou4")

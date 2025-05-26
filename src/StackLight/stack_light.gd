@@ -234,6 +234,7 @@ func _init_segments() -> void:
 
 		if not segment_node.is_connected("active_state_changed", _on_segment_state_changed):
 			segment_node.active_state_changed.connect(_on_segment_state_changed)
+	_increase_collision_shape()
 
 func _spawn_segments(count: int) -> void:
 	if not is_inside_tree():
@@ -304,3 +305,10 @@ func _fix_segment_positions() -> void:
 	for i in range(_segments_container.get_child_count()):
 		var segment_node = _segments_container.get_child(i)
 		segment_node.position = Vector3(0, _segment_initial_y_pos + (STEP * i), 0)
+	
+func _increase_collision_shape() -> void:
+	var collision_shape = $StaticBody3D/CollisionShape3D
+	if collision_shape:
+		var new_scale_y = 1.45 + (0.3 * segments)
+		collision_shape.shape.size.y = new_scale_y
+		collision_shape.position.y = -0.148 + (0.16 * (segments - 1))
