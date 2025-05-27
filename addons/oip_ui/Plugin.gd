@@ -35,12 +35,13 @@ var _help_popup_menu: PopupMenu
 const ID_TOGGLE_NATIVE_UI = 1234
 # The IDs here must match those in the original Project menu (_project_popup_menu).
 const ID_PROJECT_SETTINGS = 18
-const ID_PACK_PROJECT_AS_ZIP = 21
-const ID_OPEN_USER_DATA_FOLDER = 23
-const ID_RELOAD_CURRENT_PROJECT = 24
-const ID_QUIT_TO_PROJECT_LIST = 25
+const ID_FIND_IN_FILES = 19
+const ID_PACK_PROJECT_AS_ZIP = 22
+const ID_OPEN_USER_DATA_FOLDER = 24
+const ID_RELOAD_CURRENT_PROJECT = 25
+const ID_QUIT_TO_PROJECT_LIST = 26
 # This ID must match the ID for the "Search Help..." item in the original Help menu (_help_popup_menu).
-const ID_SEARCH_HELP = 44
+const ID_SEARCH_HELP = 45
 
 # Top bar content
 var _title_bar: Node
@@ -268,12 +269,14 @@ func _on_custom_project_menu_id_pressed(id: int) -> void:
 		0:
 			native_item_id = ID_PROJECT_SETTINGS
 		1:
-			native_item_id = ID_PACK_PROJECT_AS_ZIP
+			native_item_id = ID_FIND_IN_FILES
 		2:
-			native_item_id = ID_OPEN_USER_DATA_FOLDER
+			native_item_id = ID_PACK_PROJECT_AS_ZIP
 		3:
-			native_item_id = ID_RELOAD_CURRENT_PROJECT
+			native_item_id = ID_OPEN_USER_DATA_FOLDER
 		4:
+			native_item_id = ID_RELOAD_CURRENT_PROJECT
+		5:
 			native_item_id = ID_QUIT_TO_PROJECT_LIST
 		_:
 			native_item_id = null

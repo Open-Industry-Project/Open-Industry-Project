@@ -1,21 +1,24 @@
 [gd_scene format=3 uid="uid://bdia0mlqnolox"]
 
 [node name="Project" type="PopupMenu"]
+oversampling_override = 1.0
 size = Vector2i(333, 186)
 visible = true
 unfocusable = true
-item_count = 7
+item_count = 8
 item_0/text = "Project Settings..."
 item_0/id = 0
-item_1/id = 0
-item_1/separator = true
-item_2/text = "Pack Project as ZIP..."
-item_2/id = 1
-item_3/text = "Open User Data Folder"
+item_1/text = "Find in Files..."
+item_1/id = 1
+item_2/id = 0
+item_2/separator = true
+item_3/text = "Pack Project as ZIP..."
 item_3/id = 2
-item_4/id = 0
-item_4/separator = true
-item_5/text = "Reload Current Project"
-item_5/id = 3
-item_6/text = "Quit to Project List"
+item_4/text = "Open User Data Folder"
+item_4/id = 3
+item_5/id = 0
+item_5/separator = true
+item_6/text = "Reload Current Project"
 item_6/id = 4
+item_7/text = "Quit to Project List"
+item_7/id = 5
