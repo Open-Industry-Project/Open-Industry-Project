@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://x7ajd6h1vd07"]
+[gd_scene load_steps=16 format=4 uid="uid://x7ajd6h1vd07"]
 
 [ext_resource type="Script" uid="uid://d16jj3qspvfrh" path="res://src/ColorSensor/color_sensor.gd" id="1_dr6em"]
 
@@ -162,9 +162,15 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_0umne")
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_dr6em"]
+size = Vector3(0.26, 0.715, 0.425)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pllj2"]
+size = Vector3(0.185, 0.225, 0.185)
+
 [node name="ColorSensor" type="Node3D"]
-transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 0, 0, 0)
 script = ExtResource("1_dr6em")
+color_detected = Color(1, 1, 1, 0)
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
@@ -191,3 +197,15 @@ skeleton = NodePath("")
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_ie336")
 skeleton = NodePath("")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.294407, 0.183749)
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.02659e-09, 0.0592939, 0.0287486)
+shape = SubResource("BoxShape3D_dr6em")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.396041, 0.0448691)
+shape = SubResource("BoxShape3D_pllj2")

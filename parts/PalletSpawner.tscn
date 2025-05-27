@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=4 uid="uid://rqr8ymsl2cph"]
+[gd_scene load_steps=8 format=4 uid="uid://rqr8ymsl2cph"]
 
 [ext_resource type="Script" uid="uid://cnvwx0n8igwtt" path="res://src/PalletSpawner/pallet_spawner.gd" id="1_kwg42"]
 [ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://parts/Pallet.tscn" id="2_g1ntt"]
@@ -40,6 +40,9 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_6uvh1")
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_633hj"]
+size = Vector3(2.4, 0.25, 2.2)
+
 [node name="PalletSpawner" type="Node3D"]
 script = ExtResource("1_kwg42")
 scene = ExtResource("2_g1ntt")
@@ -49,3 +52,10 @@ spawn_interval = 3.0
 transparency = 0.7
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_dllc6")
+
+[node name="Area3D" type="Area3D" parent="."]
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.102482, 0)
+shape = SubResource("BoxShape3D_633hj")

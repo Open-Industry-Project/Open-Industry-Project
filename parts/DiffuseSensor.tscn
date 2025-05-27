@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=4 uid="uid://kdpe7o4ec1fa"]
+[gd_scene load_steps=16 format=4 uid="uid://kdpe7o4ec1fa"]
 
 [ext_resource type="Script" uid="uid://k4n13po1k8gj" path="res://src/DiffuseSensor/diffuse_sensor.gd" id="1_vtdj1"]
 
@@ -163,7 +163,10 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_0umne")
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_vtdj1"]
-size = Vector3(0.4, 0.8, 0.6)
+size = Vector3(0.26, 0.715, 0.425)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_7x1p7"]
+size = Vector3(0.185, 0.225, 0.185)
 
 [node name="DiffuseSensor" type="Node3D"]
 script = ExtResource("1_vtdj1")
@@ -199,4 +202,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.294407, 0.183749)
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.02659e-09, 0.0592939, 0.0287486)
 shape = SubResource("BoxShape3D_vtdj1")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.396, 0.0446391)
+shape = SubResource("BoxShape3D_7x1p7")

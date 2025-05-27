@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=4 uid="uid://nsio1mg8ru3w"]
+[gd_scene load_steps=28 format=4 uid="uid://nsio1mg8ru3w"]
 
 [ext_resource type="Script" uid="uid://d3jg66l8vh42f" path="res://src/LaserSensor/laser_sensor.gd" id="1_27ueu"]
 
@@ -318,9 +318,14 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ssju6")
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_27ueu"]
+size = Vector3(0.42, 0.455, 0.55)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_py1qu"]
+size = Vector3(0.14, 0.145, 0.14)
+
 [node name="LaserSensor" type="Node3D"]
 script = ExtResource("1_27ueu")
-distance = 1.524
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
@@ -366,3 +371,15 @@ mesh = SubResource("ArrayMesh_ol5se")
 skeleton = NodePath("")
 
 [node name="Node3D" type="Node3D" parent="."]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.294407, -0.239077)
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.27906, -0.036006)
+shape = SubResource("BoxShape3D_27ueu")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.573, -0.0398384)
+shape = SubResource("BoxShape3D_py1qu")
