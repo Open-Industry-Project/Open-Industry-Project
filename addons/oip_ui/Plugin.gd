@@ -140,7 +140,7 @@ func _editor_layout_loaded() -> void:
 
 	_create_root_vbox = _editor_node.find_children("Scene", "SceneTreeDock", true, false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
 	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
-	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0)
+	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0)
 
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")

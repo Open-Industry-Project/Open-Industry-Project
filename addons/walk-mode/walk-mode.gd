@@ -126,7 +126,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 		if not editor_ui:
 			editor_ui = node3d_viewport.get_parent().get_parent().get_child(1)
 			rotation_gizmo = editor_ui.get_child(8).get_child(0)
-			menu = editor_ui.get_child(0).get_child(0)
+			menu = editor_ui.get_child(0).get_child(0).get_child(0)
 			right_navigation_gizmo = editor_ui.get_child(6)
 			left_navigation_gizmo = editor_ui.get_child(7)
 
