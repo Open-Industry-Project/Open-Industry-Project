@@ -76,14 +76,17 @@ func handle_focus_gained() -> void:
 			center = viewport.get_visible_rect().size / 2
 			viewport.warp_mouse(center)
 		
-		var click_event = InputEventMouseButton.new()
-		click_event.button_index = MOUSE_BUTTON_LEFT
-		click_event.pressed = true
-		click_event.position = center
-		Input.parse_input_event(click_event)
+		var click_press_event = InputEventMouseButton.new()
+		click_press_event.button_index = MOUSE_BUTTON_LEFT
+		click_press_event.pressed = true
+		click_press_event.position = center
+		Input.parse_input_event(click_press_event)
 		
-		click_event.pressed = false
-		Input.parse_input_event(click_event)
+		var click_release_event = InputEventMouseButton.new()
+		click_release_event.button_index = MOUSE_BUTTON_LEFT
+		click_release_event.pressed = false
+		click_release_event.position = center
+		Input.parse_input_event(click_release_event)
 		
 		await get_tree().create_timer(FOCUS_RETURN_DELAY).timeout
 			
