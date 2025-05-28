@@ -2,6 +2,7 @@
 class_name PalletSpawner
 extends Node3D
 
+@onready var disabled_pallet: MeshInstance3D = $Disabled_Pallet
 @export var scene: PackedScene
 
 @export var disable: bool = false:
@@ -11,6 +12,7 @@ extends Node3D
 		disable = value
 		if not disable:
 			scan_interval = spawn_interval
+		_change_texture()
 
 @export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
 @export var spawn_interval: float = 1.0
@@ -25,6 +27,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	set_physics_process(SimulationEvents.simulation_running)
+	_change_texture()
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
@@ -51,6 +54,11 @@ func _spawn_box() -> void:
 
 func use() -> void:
 	disable = not disable
+	
+func _change_texture() -> void:
+	if not is_inside_tree():
+		return
+	disabled_pallet.visible = disable
 
 func _on_simulation_started() -> void:
 	set_physics_process(true)
