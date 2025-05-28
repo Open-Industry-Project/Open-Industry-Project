@@ -33,7 +33,6 @@ var rollers_mid: Node3D
 var rollers_high: Node3D
 var roller_material: StandardMaterial3D
 var ends: Node3D
-var main
 var prev_scale_x: float
 
 # Property getters/setters
@@ -96,25 +95,22 @@ func _ready() -> void:
 
 
 func _enter_tree() -> void:
-    main = get_parent().get_tree().edited_scene_root
-    if main != null:
-        main.simulation_started.connect(on_simulation_started)
-        main.simulation_ended.connect(on_simulation_ended)
-        if main.simulation_running:
-            running = true
+    SimulationEvents.simulation_started.connect(on_simulation_started)
+    SimulationEvents.simulation_ended.connect(on_simulation_ended)
+    if SimulationEvents.simulation_running:
+        running = true
 
 
 func _exit_tree() -> void:
-    if main != null:
-        main.simulation_started.disconnect(on_simulation_started)
-        main.simulation_ended.disconnect(on_simulation_ended)
+    SimulationEvents.simulation_started.disconnect(on_simulation_started)
+    SimulationEvents.simulation_ended.disconnect(on_simulation_ended)
 
 
 func _process(delta: float) -> void:
     if running:
         var uv_speed = get_roller_angular_speed() / (2.0 * PI)
         var uv_offset = roller_material.uv1_offset
-        if !main.simulation_paused:
+        if !SimulationEvents.simulation_paused:
             uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
         roller_material.uv1_offset = uv_offset
 
@@ -217,7 +213,7 @@ func set_rollers_speed(rollers: Node3D, speed: float) -> void:
 func on_simulation_started() -> void:
     running = true
     if enable_comms:
-        read_successful = main.connect_device(id, "Float", name, tag)
+        read_successful = SimulationEvents.connect_device(id, "Float", name, tag)
 
 
 func on_simulation_ended() -> void:
@@ -226,7 +222,7 @@ func on_simulation_ended() -> void:
 
 #func scan_tag() -> void:
 #    try:
-#        speed = await main.read_float(id)
+#        speed = await SimulationEvents.read_float(id)
 #    except:
 #        printerr("Failure to read: %s in Node: %s" % [tag, name])
 #        read_successful = false
