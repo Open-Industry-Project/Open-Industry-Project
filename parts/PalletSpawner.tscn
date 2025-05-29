@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://cnvwx0n8igwtt" path="res://src/PalletSpawner/pallet_spawner.gd" id="1_kwg42"]
 [ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://parts/Pallet.tscn" id="2_g1ntt"]
 [ext_resource type="Texture2D" uid="uid://b77uw0t6btlrk" path="res://assets/3DModels/Textures/Pallet_Mat_Base_Color.png" id="2_j7tet"]
-[ext_resource type="Texture2D" uid="uid://dwxxolkqsledl" path="res://assets/3DModels/Textures/Disabled_Pallet.png" id="4_gptpf"]
+[ext_resource type="Texture2D" uid="uid://bwyisvrnm0koh" path="res://assets/3DModels/Textures/Disabled_Pallet.png" id="4_gptpf"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_adrf5"]
 resource_name = "Mat"
