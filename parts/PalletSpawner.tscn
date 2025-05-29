@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=4 uid="uid://rqr8ymsl2cph"]
+[gd_scene load_steps=11 format=4 uid="uid://rqr8ymsl2cph"]
 
 [ext_resource type="Script" uid="uid://cnvwx0n8igwtt" path="res://src/PalletSpawner/pallet_spawner.gd" id="1_kwg42"]
 [ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://parts/Pallet.tscn" id="2_g1ntt"]
 [ext_resource type="Texture2D" uid="uid://b77uw0t6btlrk" path="res://assets/3DModels/Textures/Pallet_Mat_Base_Color.png" id="2_j7tet"]
+[ext_resource type="Texture2D" uid="uid://dwxxolkqsledl" path="res://assets/3DModels/Textures/Disabled_Pallet.png" id="4_gptpf"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_adrf5"]
 resource_name = "Mat"
@@ -40,6 +41,18 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_6uvh1")
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_11xno"]
+render_priority = 1
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 1
+alpha_antialiasing_edge = 0.3
+shading_mode = 0
+albedo_texture = ExtResource("4_gptpf")
+
+[sub_resource type="BoxMesh" id="BoxMesh_mo2d6"]
+material = SubResource("StandardMaterial3D_11xno")
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_633hj"]
 size = Vector3(2.4, 0.25, 2.2)
 
@@ -52,6 +65,12 @@ spawn_interval = 3.0
 transparency = 0.7
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_dllc6")
+
+[node name="Disabled_Pallet" type="MeshInstance3D" parent="."]
+transform = Transform3D(2.37514, 0, 0, 0, 0.242887, 0, 0, 0, 2.17006, 0, 0.103391, 0.0117566)
+visible = false
+cast_shadow = 0
+mesh = SubResource("BoxMesh_mo2d6")
 
 [node name="Area3D" type="Area3D" parent="."]
 collision_layer = 3
