@@ -1,4 +1,5 @@
 @tool
+class_name CurvedRollerConveyor
 extends Node3D
 
 # Constants
@@ -13,11 +14,17 @@ const ROLLER_OUTER_END_RADIUS = 0.12
 enum Scales {LOW, MID, HIGH}
 
 # Properties
-var enable_comms: bool = false
-var tag: String = ""
-var update_rate: int = 100
-var speed: float = 0.0
-var reference_distance: float = 0.5
+@export var enable_comms: bool = false:
+    get = get_enable_comms,
+    set = set_enable_comms
+@export var tag: String = ""
+@export var update_rate: int = 100
+@export var speed: float = 0.0:
+    get = get_speed,
+    set = set_speed
+@export var reference_distance: float = 0.5:
+    get = get_reference_distance,
+    set = set_reference_distance
 
 var current_scale = Scales.MID
 var run: bool = true
