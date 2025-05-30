@@ -14,11 +14,6 @@ const ROLLER_OUTER_END_RADIUS = 0.12
 enum Scales {LOW, MID, HIGH}
 
 # Properties
-@export var enable_comms: bool = false:
-	get = get_enable_comms,
-	set = set_enable_comms
-@export var tag: String = ""
-@export var update_rate: int = 100
 @export var speed: float = 0.0:
 	get = get_speed,
 	set = set_speed
@@ -26,12 +21,49 @@ enum Scales {LOW, MID, HIGH}
 	get = get_reference_distance,
 	set = set_reference_distance
 
+#region Communications
+var _register_speed_tag_ok: bool = false
+var _register_running_tag_ok: bool = false
+var _speed_tag_group_init: bool = false
+var _running_tag_group_init: bool = false
+
+@export_category("Communications")
+@export var enable_comms := false:
+	get = get_enable_comms,
+	set = set_enable_comms
+@export var speed_tag_group_name: String
+@export_custom(0, "tag_group_enum") var speed_tag_groups:
+	set(value):
+		speed_tag_group_name = value
+		speed_tag_groups = value
+@export var speed_tag_name := ""
+@export var running_tag_group_name: String
+@export_custom(0, "tag_group_enum") var running_tag_groups:
+	set(value):
+		running_tag_group_name = value
+		running_tag_groups = value
+@export var running_tag_name := ""
+
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "enable_comms":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "speed_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "running_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "running_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "running_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+#endregion
+
 var current_scale = Scales.MID
 var run: bool = true
-var id = "" # Using string instead of Guid
-var scan_interval: float = 0.0
 var running: bool = false
-var read_successful: bool = false
 
 var mesh_instance: MeshInstance3D
 var metal_material: Material
@@ -102,15 +134,19 @@ func _ready() -> void:
 
 
 func _enter_tree() -> void:
-	SimulationEvents.simulation_started.connect(on_simulation_started)
-	SimulationEvents.simulation_ended.connect(on_simulation_ended)
-	if SimulationEvents.simulation_running:
-		running = true
+	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
+	OIPComms.tag_group_polled.connect(_tag_group_polled)
+	OIPComms.enable_comms_changed.connect(self.notify_property_list_changed)
 
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(on_simulation_ended)
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	OIPComms.enable_comms_changed.disconnect(self.notify_property_list_changed)
 
 
 func _process(delta: float) -> void:
@@ -123,11 +159,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if running and enable_comms and read_successful:
-		scan_interval += delta
-		if scan_interval > float(update_rate) / 1000.0 and read_successful:
-			scan_interval = 0
-			#scan_tag.call_deferred()
+	pass
 
 
 func _notification(what: int) -> void:
@@ -217,22 +249,30 @@ func set_rollers_speed(rollers: Node3D, speed: float) -> void:
 				roller.set_speed(speed)
 
 
-func on_simulation_started() -> void:
+func _on_simulation_started() -> void:
 	running = true
 	if enable_comms:
-		read_successful = SimulationEvents.connect_device(id, "Float", name, tag)
+		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
+		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
 
 
-func on_simulation_ended() -> void:
+func _on_simulation_ended() -> void:
 	running = false
 
 
-#func scan_tag() -> void:
-#	try:
-#		speed = await SimulationEvents.read_float(id)
-#	except:
-#		printerr("Failure to read: %s in Node: %s" % [tag, name])
-#		read_successful = false
+func _tag_group_initialized(tag_group_name_param: String) -> void:
+	if tag_group_name_param == speed_tag_group_name:
+		_speed_tag_group_init = true
+	if tag_group_name_param == running_tag_group_name:
+		_running_tag_group_init = true
+
+
+func _tag_group_polled(tag_group_name_param: String) -> void:
+	if not enable_comms:
+		return
+
+	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
+		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
 
 
 func get_curve_inner_radius() -> float:
