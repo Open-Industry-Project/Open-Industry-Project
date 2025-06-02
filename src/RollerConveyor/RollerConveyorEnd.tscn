@@ -10,6 +10,7 @@ script = ExtResource("2_dhet7")
 metadata/_edit_group_ = true
 
 [node name="ConveyorRollerEnd" parent="." instance=ExtResource("2_fcm28")]
+transform = Transform3D(0.65, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="Roller" parent="." instance=ExtResource("2_p44y0")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)

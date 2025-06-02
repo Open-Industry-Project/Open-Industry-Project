@@ -199,7 +199,7 @@ func _on_size_changed() -> void:
 			# Slide end along end_axis to set its radial position.
 			end.position = Vector3(0, 0, center_radius)
 			# Ends scale from their center/midpoint.
-			end.scale = Vector3(1, 1, conveyor_width / BASE_END_LENGTH)
+			end.scale = Vector3(0.5, 1, conveyor_width / BASE_END_LENGTH)
 
 	for roller_group in [rollers_low, rollers_mid, rollers_high]:
 		if roller_group:
