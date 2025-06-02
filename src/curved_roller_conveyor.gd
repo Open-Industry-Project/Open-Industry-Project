@@ -152,6 +152,7 @@ func _ready() -> void:
 
 
 func _enter_tree() -> void:
+	super._enter_tree()
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
@@ -165,6 +166,7 @@ func _exit_tree() -> void:
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 	OIPComms.enable_comms_changed.disconnect(self.notify_property_list_changed)
+	super._exit_tree()
 
 
 func _process(delta: float) -> void:
