@@ -208,7 +208,7 @@ func _on_size_changed() -> void:
 				# Slide roller along roller_axis to set its radial position.
 				roller.position = Vector3(0, 0, center_radius)
 				# Rollers scale from their center/midpoint.
-				roller.scale = Vector3(1, 1, conveyor_width / BASE_ROLLER_LENGTH)
+				roller.length = conveyor_width
 
 	regenerate_simple_conveyor_shape()
 	set_current_scale()
