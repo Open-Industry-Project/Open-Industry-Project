@@ -13,6 +13,8 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
+		if value == speed:
+			return
 		speed = value
 		speed_changed.emit(value)
 		_update_conveyor_velocity()
@@ -56,6 +58,11 @@ var _register_speed_tag_ok := false
 var _register_running_tag_ok := false
 var _speed_tag_group_init := false
 var _running_tag_group_init := false
+var _speed_tag_group_original: String
+var _running_tag_group_original: String
+var _enable_comms_changed: bool = false:
+	set(value):
+		notify_property_list_changed()
 var _last_size := Vector3(1.525, 0.24, 1.524)
 var _last_length := 1.525
 var _last_width := 1.524
@@ -76,6 +83,18 @@ static func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	
+	_speed_tag_group_original = speed_tag_group_name
+	_running_tag_group_original = running_tag_group_name
+	
+	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
+		speed_tag_group_name = OIPComms.get_tag_groups()[0]
+	if running_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
+		running_tag_group_name = OIPComms.get_tag_groups()[0]
+	
+	speed_tag_groups = speed_tag_group_name
+	running_tag_groups = running_tag_group_name
+	
 	if SimulationEvents:
 		SimulationEvents.simulation_started.connect(_on_simulation_started)
 		SimulationEvents.simulation_ended.connect(_on_simulation_ended)
@@ -83,7 +102,7 @@ func _enter_tree() -> void:
 
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
 
 func _exit_tree() -> void:
 	if SimulationEvents:
@@ -92,7 +111,6 @@ func _exit_tree() -> void:
 
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 	super._exit_tree()
 
 func _ready() -> void:
@@ -149,6 +167,20 @@ func _validate_property(property: Dictionary) -> void:
 		property["usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property_name in ["update_rate", "tag"]:
 		property["usage"] = PROPERTY_USAGE_STORAGE
+
+
+func _property_can_revert(property: StringName) -> bool:
+	return property == "speed_tag_groups" or property == "running_tag_groups"
+
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property == "speed_tag_groups":
+		return _speed_tag_group_original
+	elif property == "running_tag_groups":
+		return _running_tag_group_original
+	else:
+		return null
+
 
 func set_roller_override_material(material: BaseMaterial3D) -> void:
 	if _roller_material != material:

@@ -157,6 +157,7 @@ var leg_model_grabs_offset: float = 0.392:
 #endregion
 
 
+
 var _conveyor_script: Script
 var _has_instantiated := false
 var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
@@ -170,6 +171,7 @@ func _init() -> void:
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func(item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
 	_conveyor_script = load(class_details["path"]) as Script
+
 
 
 func _ready() -> void:
