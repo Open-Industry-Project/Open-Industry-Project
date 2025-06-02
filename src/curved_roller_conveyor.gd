@@ -1,12 +1,14 @@
 @tool
 class_name CurvedRollerConveyor
-extends Node3D
+extends ResizableNode3D
 
 # Constants
 const CURVE_BASE_INNER_RADIUS = 0.25
 const CURVE_BASE_OUTER_RADIUS = 1.25
 const BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS
 const BASE_ROLLER_LENGTH = 2.0
+const BASE_END_LENGTH = 2.0
+const BASE_MODEL_SIZE = Vector3(2, 0.5, 2)
 const ROLLER_INNER_END_RADIUS = 0.044587
 const ROLLER_OUTER_END_RADIUS = 0.12
 
@@ -74,6 +76,22 @@ var roller_material: StandardMaterial3D
 var ends: Node3D
 var prev_scale_x: float
 
+var outer_radius: float:
+	get:
+		return size.x * CURVE_BASE_OUTER_RADIUS
+
+var inner_radius: float:
+	get:
+		return size.x * CURVE_BASE_INNER_RADIUS
+
+var conveyor_width: float:
+	get:
+		return outer_radius - inner_radius
+
+var center_radius: float:
+	get:
+		return (outer_radius + inner_radius) / 2.0
+
 # Property getters/setters
 func get_enable_comms() -> bool:
 	return enable_comms
@@ -103,14 +121,14 @@ func set_reference_distance(value: float) -> void:
 
 # Computed properties
 func get_angular_speed_around_curve() -> float:
-	var reference_radius = scale.x * CURVE_BASE_OUTER_RADIUS - reference_distance
+	var reference_radius = outer_radius - reference_distance
 	return 0.0 if reference_radius == 0.0 else speed / reference_radius
 
 
 func get_roller_angular_speed() -> float:
-	if scale.x == 0.0:
+	if size.x == 0.0:
 		return 0.0
-	var reference_point_along_roller = BASE_ROLLER_LENGTH - reference_distance / scale.x
+	var reference_point_along_roller = BASE_ROLLER_LENGTH - reference_distance
 	var roller_radius_at_reference_point = ROLLER_INNER_END_RADIUS + reference_point_along_roller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH
 	return 0.0 if roller_radius_at_reference_point == 0.0 else speed / roller_radius_at_reference_point
 
@@ -128,7 +146,7 @@ func _ready() -> void:
 
 	ends = get_node("Ends")
 
-	on_scale_changed()
+	_on_size_changed()
 	set_all_rollers_speed()
 	set_notify_transform(true)
 
@@ -162,48 +180,50 @@ func _physics_process(delta: float) -> void:
 	pass
 
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_TRANSFORM_CHANGED:
-		on_scale_changed()
+func _on_size_changed() -> void:
+	#if prev_scale_x != scale.x:
+	#	notify_property_list_changed()
+
+	#if scale.x > 1.0:
+	#	if metal_material != null and speed != 0:
+	#		metal_material.set_shader_parameter("Scale", scale.x / 2.0)
 
 
-func on_scale_changed() -> void:
-	constrain_scale()
-
-	if prev_scale_x != scale.x:
-		notify_property_list_changed()
-
-	if scale.x > 1.0:
-		if metal_material != null and speed != 0:
-			metal_material.set_shader_parameter("Scale", scale.x / 2.0)
+	# Just scale the parts for now.
+	# TODO: Generate meshes instead.
+	$MeshInstance3D.scale = size / BASE_MODEL_SIZE
 
 	if ends != null:
-		for end in ends.get_children():
-			if end is MeshInstance3D:
-				end.scale = Vector3(1.0 / scale.x, 1, 1)
+		for end_axis in ends.get_children():
+			var end := end_axis.get_child(0) as MeshInstance3D
+			# Slide end along end_axis to set its radial position.
+			end.position = Vector3(0, 0, center_radius)
+			# Ends scale from their center/midpoint.
+			end.scale = Vector3(1, 1, conveyor_width / BASE_END_LENGTH)
 
-	for rollers in [rollers_low, rollers_mid, rollers_high]:
-		if rollers:
-			for roller in rollers.get_children():
-				if roller.has_method("set_speed"):  # Check if it's a RollerCorner
-					roller.scale = Vector3(BASE_ROLLER_LENGTH / BASE_CONVEYOR_WIDTH / scale.x, 1, 1)
+	for roller_group in [rollers_low, rollers_mid, rollers_high]:
+		if roller_group:
+			for roller_axis in roller_group.get_children():
+				var roller := roller_axis.get_child(0) as RollerCorner
+				# Slide roller along roller_axis to set its radial position.
+				roller.position = Vector3(0, 0, center_radius)
+				# Rollers scale from their center/midpoint.
+				roller.scale = Vector3(1, 1, conveyor_width / BASE_ROLLER_LENGTH)
 
 	regenerate_simple_conveyor_shape()
 	set_current_scale()
 	set_all_rollers_speed()
 
 
-func constrain_scale() -> void:
-	var new_scale = Vector3(scale.x, 1, scale.x)
-	if scale != new_scale:
-		scale = new_scale
+static func _get_constrained_size(new_size: Vector3) -> Vector3:
+	return Vector3(new_size.x, 0.5, new_size.x)
 
 
 func set_current_scale() -> void:
 	var new_scale
-	if scale.x < 1.5:
+	if size.x < 1.5:
 		new_scale = Scales.LOW
-	elif scale.x >= 1.5 and scale.x < 3.2:
+	elif size.x >= 1.5 and size.x < 3.2:
 		new_scale = Scales.MID
 	else:
 		new_scale = Scales.HIGH
@@ -226,12 +246,13 @@ func set_current_scale() -> void:
 
 
 func takeover_roller_material() -> StandardMaterial3D:
-	var dup_material = rollers_low.get_child(0).get_material().duplicate()
-	for rollers in [rollers_low, rollers_mid, rollers_high]:
-		if rollers:
-			for roller in rollers.get_children():
-				if roller.has_method("set_override_material"):
-					roller.set_override_material(dup_material)
+	var dup_material = rollers_low.get_child(0).get_child(0).get_material().duplicate()
+	for roller_group in [rollers_low, rollers_mid, rollers_high]:
+		if not roller_group:
+			continue
+		for roller_axis in roller_group.get_children():
+			var roller := roller_axis.get_child(0) as RollerCorner
+			roller.set_override_material(dup_material)
 	return dup_material
 
 
@@ -242,11 +263,11 @@ func set_all_rollers_speed() -> void:
 	set_rollers_speed(rollers_high, roller_speed)
 
 
-func set_rollers_speed(rollers: Node3D, speed: float) -> void:
-	if rollers:
-		for roller in rollers.get_children():
-			if roller.has_method("set_speed"):
-				roller.set_speed(speed)
+func set_rollers_speed(roller_group: Node3D, speed: float) -> void:
+	if roller_group:
+		for roller_axis in roller_group.get_children():
+			var roller := roller_axis.get_child(0) as RollerCorner
+			roller.set_speed(speed)
 
 
 func _on_simulation_started() -> void:
@@ -275,20 +296,9 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
 
 
-func get_curve_inner_radius() -> float:
-	return CURVE_BASE_INNER_RADIUS * scale.x
-
-
-func get_curve_outer_radius() -> float:
-	return CURVE_BASE_OUTER_RADIUS * scale.x
-
-
 func regenerate_simple_conveyor_shape() -> void:
 	var simple_conveyor_shape_body = get_node("SimpleConveyorShape")
-	simple_conveyor_shape_body.scale = scale.inverse()
 
-	var inner_radius = get_curve_inner_radius()
-	var outer_radius = get_curve_outer_radius()
 	const END_SIZE = 0.125
 	const INNER_Y = ROLLER_INNER_END_RADIUS
 	const OUTER_Y = ROLLER_OUTER_END_RADIUS
