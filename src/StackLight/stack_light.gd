@@ -87,6 +87,17 @@ func _validate_property(property: Dictionary) -> void:
 	if property.name == "tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 
+
+func _property_can_revert(property: StringName) -> bool:
+	return property == "tag_groups"
+
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property == "tag_groups":
+		return _tag_group_original
+	else:
+		return null
+
 func _get_property_list() -> Array:
 	var properties = []
 	properties.append({

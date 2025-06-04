@@ -84,6 +84,8 @@ var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
 var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
+var _speed_tag_group_original: String
+var _running_tag_group_original: String
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
@@ -118,6 +120,20 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "running_tag_name":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+
+
+func _property_can_revert(property: StringName) -> bool:
+	return property == "speed_tag_groups" or property == "running_tag_groups"
+
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property == "speed_tag_groups":
+		return _speed_tag_group_original
+	elif property == "running_tag_groups":
+		return _running_tag_group_original
+	else:
+		return null
+
 
 func get_conveyor_end1() -> Node:
 	return get_node_or_null("BeltConveyorEnd")
@@ -639,6 +655,18 @@ func _setup_collision_shape() -> void:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	
+	_speed_tag_group_original = speed_tag_group_name
+	_running_tag_group_original = running_tag_group_name
+	
+	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
+		speed_tag_group_name = OIPComms.get_tag_groups()[0]
+	if running_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
+		running_tag_group_name = OIPComms.get_tag_groups()[0]
+	
+	speed_tag_groups = speed_tag_group_name
+	running_tag_groups = running_tag_group_name
+	
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
