@@ -4,6 +4,8 @@
 [ext_resource type="Texture2D" uid="uid://b77uw0t6btlrk" path="res://assets/3DModels/Textures/Pallet_Mat_Base_Color.png" id="2_u7a1e"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_vb87h"]
+rough = true
+absorbent = true
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_kbfuw"]
 size = Vector3(2.4, 0.243, 2.18)

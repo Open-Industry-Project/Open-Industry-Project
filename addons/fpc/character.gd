@@ -9,6 +9,8 @@ extends CharacterBody3D
 @onready var label = $Head/Camera/InteractText
 @onready var hold_point = $Head/Camera/Marker3D
 var HELD_BOX: Box = null
+var HELD_PALLET: Pallet = null
+var pallet_offset: Vector3 = Vector3.ZERO
 
 ## The settings for the character's movement and feel.
 @export_category("Character")
@@ -191,6 +193,8 @@ func _physics_process(delta) -> void:
 
 	if HELD_BOX:
 		update_held_box(delta)
+	elif HELD_PALLET:
+		update_held_pallet(delta)
 	else:
 		handle_interaction()
 
@@ -200,6 +204,10 @@ func _physics_process(delta) -> void:
 	low_ceiling = $CrouchCeilingDetection.is_colliding()
 
 	handle_state(input_dir)
+	
+	if HELD_PALLET:
+		speed = base_speed * 0.6
+	
 	if dynamic_fov: # This may be changed to an AnimationPlayer
 		update_camera_fov()
 
@@ -222,7 +230,7 @@ func handle_interaction() -> void:
 	var end_pos = start_pos + -CAMERA.global_transform.basis.z * 3.0
 
 	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos)
-	query.collision_mask = 2
+	query.collision_mask = 10  # Include layers 2 (boxes) and 8 (pallets)
 	query.collide_with_areas = true
 
 	var result = get_world_3d().direct_space_state.intersect_ray(query)
@@ -239,6 +247,15 @@ func handle_interaction() -> void:
 
 		if Input.is_action_just_pressed("interact"):
 			pick_up_box(hit_object)
+		return
+
+	# Handle pallet interaction
+	if hit_object is Pallet:
+		label.text = "Press 'E' to move pallet!"
+		label.visible = true
+
+		if Input.is_action_just_pressed("interact"):
+			pick_up_pallet(hit_object)
 		return
 
 	# Handle general interaction
@@ -277,6 +294,74 @@ func release_held_box() -> void:
 		box.linear_velocity = Vector3.ZERO
 		box.angular_velocity = Vector3.ZERO
 		HELD_BOX = null
+
+func pick_up_pallet(pallet) -> void:
+	HELD_PALLET = pallet
+	var standard_pallet_jack_length = 2.5
+	var initial_direction = (pallet.global_position - global_position).normalized()
+	pallet_offset = initial_direction * standard_pallet_jack_length
+
+func update_held_pallet(delta) -> void:
+	var rigid = HELD_PALLET.get_node("RigidBody3D")
+	
+	rigid.gravity_scale = 0.1
+	
+	var pallet_jack_length = pallet_offset.length()
+	var forward_direction = -HEAD.global_transform.basis.z
+	var target_pos = global_position + forward_direction * pallet_jack_length
+	
+	var hover_height = 0.05
+	target_pos.y = global_position.y + hover_height
+	
+	var input_dir = Input.get_vector(LEFT, RIGHT, FORWARD, BACKWARD)
+	var player_is_moving = input_dir.length() > 0.1
+	var position_diff = target_pos - rigid.global_position
+	
+	var base_responsiveness = 1.8
+	var movement_responsiveness = base_responsiveness
+	
+	if not player_is_moving:
+		movement_responsiveness = base_responsiveness * 0.4
+	
+	var target_velocity = position_diff * movement_responsiveness
+	var velocity_blend = 0.7
+	rigid.linear_velocity.x = lerp(rigid.linear_velocity.x, target_velocity.x, velocity_blend)
+	rigid.linear_velocity.z = lerp(rigid.linear_velocity.z, target_velocity.z, velocity_blend)
+	rigid.linear_velocity.y = target_velocity.y * 2.0
+	
+	var target_rotation = HEAD.global_rotation.y
+	var current_rotation = rigid.global_rotation.y
+	var rotation_diff = target_rotation - current_rotation
+	
+	if rotation_diff > PI:
+		rotation_diff -= 2 * PI
+	elif rotation_diff < -PI:
+		rotation_diff += 2 * PI
+	
+	var steering_responsiveness = 1.0
+	if not player_is_moving:
+		steering_responsiveness = 0.3
+	
+	var target_angular_velocity = rotation_diff * steering_responsiveness
+	rigid.angular_velocity.y = lerp(rigid.angular_velocity.y, target_angular_velocity, 0.6)
+	
+	rigid.angular_velocity.x = 0
+	rigid.angular_velocity.z = 0
+	
+	label.visible = false
+	
+	if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("release_box"):
+		release_held_pallet()
+
+func release_held_pallet() -> void:
+	if HELD_PALLET:
+		var pallet_rigid = HELD_PALLET.get_node("RigidBody3D")
+		pallet_rigid.gravity_scale = 1
+		pallet_rigid.linear_velocity *= 0.3
+		pallet_rigid.angular_velocity *= 0.2
+		HELD_PALLET = null
+		pallet_offset = Vector3.ZERO
+		speed = base_speed
 
 func handle_jumping() -> void:
 	if jumping_enabled:
