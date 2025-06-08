@@ -20,6 +20,12 @@ signal speed_changed
 		belt_texture = value
 		_update_material_texture()
 
+@export var enable_physics: bool = true:
+	set(value):
+		if value == enable_physics:
+			return
+		enable_physics = value
+		_update_physics_enabled()
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
@@ -70,6 +76,8 @@ var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
 var _speed_tag_group_original: String
 var _running_tag_group_original: String
+var _original_collision_layer: int = 1
+var _original_collision_mask: int = 1
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
@@ -144,6 +152,7 @@ func _on_instantiated() -> void:
 	_update_material_color()
 	_update_speed()
 	_update_physics_material()
+	_update_physics_enabled()
 	_on_size_changed()
 
 	if _ce1:
@@ -211,9 +220,14 @@ func _setup_references() -> void:
 	_sb = get_node("StaticBody3D") as StaticBody3D
 	_ce1 = get_node("BeltConveyorEnd") as BeltConveyorEnd
 	_ce2 = get_node("BeltConveyorEnd2") as BeltConveyorEnd
-	_mesh = get_node("StaticBody3D/MeshInstance3D") as MeshInstance3D
+	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	_belt_material = _mesh.mesh.surface_get_material(0)
 	_metal_material = _mesh.mesh.surface_get_material(1)
+	
+	# Store original collision settings
+	if _sb:
+		_original_collision_layer = _sb.collision_layer
+		_original_collision_mask = _sb.collision_mask
 
 
 func _setup_materials() -> void:
@@ -356,3 +370,52 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
+
+
+func _update_physics_enabled() -> void:
+	if _sb:
+		_sb.set_physics_process(enable_physics)
+		
+		# Set collision layers/masks to 0 to prevent interactions, but keep shapes enabled
+		if enable_physics:
+			# Restore original collision settings
+			_sb.collision_layer = _original_collision_layer
+			_sb.collision_mask = _original_collision_mask
+		else:
+			# Set to 0 so it doesn't interact with anything
+			_sb.collision_layer = 0
+			_sb.collision_mask = 0
+		
+		# Make the main static body visible/invisible
+		_sb.visible = enable_physics
+		
+		# Also update collision layers/masks and visibility on the conveyor ends
+		if _ce1:
+			var end1_sb = _ce1.get_node_or_null("StaticBody3D") as StaticBody3D
+			if end1_sb:
+				end1_sb.set_physics_process(enable_physics)
+				if enable_physics:
+					end1_sb.collision_layer = _original_collision_layer
+					end1_sb.collision_mask = _original_collision_mask
+				else:
+					end1_sb.collision_layer = 0
+					end1_sb.collision_mask = 0
+				# Make the static body visible/invisible
+				end1_sb.visible = enable_physics
+		
+		if _ce2:
+			var end2_sb = _ce2.get_node_or_null("StaticBody3D") as StaticBody3D
+			if end2_sb:
+				end2_sb.set_physics_process(enable_physics)
+				if enable_physics:
+					end2_sb.collision_layer = _original_collision_layer
+					end2_sb.collision_mask = _original_collision_mask
+				else:
+					end2_sb.collision_layer = 0
+					end2_sb.collision_mask = 0
+				# Make the static body visible/invisible
+				end2_sb.visible = enable_physics
+		
+		# Reset velocity when disabling physics
+		if not enable_physics:
+			_sb.constant_linear_velocity = Vector3.ZERO
