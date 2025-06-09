@@ -13,6 +13,8 @@ enum Side
 @export var right_side_guards_enabled = true:
 	set(value):
 		right_side_guards_enabled = value
+		if not is_inside_tree():
+			return
 		_update_side(Side.RIGHT, right_side_guards_enabled)
 ## A list of locations on the right-hand side to be kept clear of generated side guards.
 @export var right_side_guards_openings: Array[SideGuardOpening]:
@@ -48,12 +50,15 @@ enum Side
 			opening.connect("changed", self._on_opening_changed_right)
 
 		# Update side guards to account for added or removed gaps.
-		_on_opening_changed_right()
+		if is_inside_tree():
+			_on_opening_changed_right()
 @export_subgroup("Left Side Guards", "left_side_guards_")
 ## If [code]true[/code], automatically generate side guards on the left-hand side of the conveyor.
 @export var left_side_guards_enabled = true:
 	set(value):
 		left_side_guards_enabled = value
+		if not is_inside_tree():
+			return
 		_update_side(Side.LEFT, left_side_guards_enabled)
 ## A list of locations on the left-hand side to be kept clear of generated side guards.
 @export var left_side_guards_openings: Array[SideGuardOpening]:
@@ -89,7 +94,8 @@ enum Side
 			opening.connect("changed", self._on_opening_changed_left)
 
 		# Update side guards to account for added or removed gaps.
-		_on_opening_changed_left()
+		if is_inside_tree():
+			_on_opening_changed_left()
 
 var _conveyor_connected = false;
 
@@ -135,12 +141,16 @@ func _on_conveyor_size_changed() -> void:
 
 
 func _update_side_guards() -> void:
+	if not is_inside_tree():
+		return
 	transform = Transform3D()
 	_update_side(Side.LEFT, left_side_guards_enabled)
 	_update_side(Side.RIGHT, right_side_guards_enabled)
 
 
 func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
+	if not is_inside_tree():
+		return
 	if not side_enabled:
 		_clear_side(side)
 		return
@@ -375,7 +385,11 @@ func _adjust_side_guards(side_node: Node3D, side_guard_extents: Array, side: Sid
 		guard.transform = mount_transform * facing_transform * guard_base_transform * length_adjustment
 
 func _on_opening_changed_left() -> void:
+	if not is_inside_tree():
+		return
 	_update_side(Side.LEFT, left_side_guards_enabled)
 
 func _on_opening_changed_right() -> void:
+	if not is_inside_tree():
+		return
 	_update_side(Side.RIGHT, right_side_guards_enabled)

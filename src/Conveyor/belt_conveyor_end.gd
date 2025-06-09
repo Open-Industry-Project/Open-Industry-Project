@@ -7,12 +7,12 @@ extends ResizableNode3D
 @export var speed: float = 2:
 	set(value):
 		speed = value
-		_update_belt_material_scale()
-		_update_belt_material_position()
-		_update_belt_velocity()
+		if is_inside_tree():
+			_update_belt_material_scale()
+			_update_belt_material_position()
+			_update_belt_velocity()
 
 var _belt_position: float = 0.0
-var _running: bool = false
 var _static_body: StaticBody3D
 var _mesh: MeshInstance3D
 var _belt_material: ShaderMaterial
@@ -141,6 +141,8 @@ func _update_belt_velocity() -> void:
 		if _static_body.constant_angular_velocity != new_velocity:
 			_static_body.constant_angular_velocity = new_velocity
 	else:
+		if not is_inside_tree():
+			return
 		_static_body.constant_angular_velocity = Vector3.ZERO
 
 func update_belt_color(color: Color) -> void:

@@ -25,7 +25,7 @@ signal speed_changed
 		if value == enable_physics:
 			return
 		enable_physics = value
-		_update_physics_enabled()
+
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
@@ -152,7 +152,6 @@ func _on_instantiated() -> void:
 	_update_material_color()
 	_update_speed()
 	_update_physics_material()
-	_update_physics_enabled()
 	_on_size_changed()
 
 	if _ce1:
@@ -165,18 +164,18 @@ func _on_instantiated() -> void:
 
 func _enter_tree() -> void:
 	super._enter_tree()
-	
+
 	_speed_tag_group_original = speed_tag_group_name
 	_running_tag_group_original = running_tag_group_name
-	
+
 	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		speed_tag_group_name = OIPComms.get_tag_groups()[0]
 	if running_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		running_tag_group_name = OIPComms.get_tag_groups()[0]
-	
+
 	speed_tag_groups = speed_tag_group_name
 	running_tag_groups = running_tag_group_name
-	
+
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
@@ -212,8 +211,10 @@ func _on_simulation_started() -> void:
 
 func _on_simulation_ended() -> void:
 	_belt_position = 0.0
-	(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
-	_sb.constant_linear_velocity = Vector3.ZERO
+	if _belt_material:
+		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
+	if _sb:
+		_sb.constant_linear_velocity = Vector3.ZERO
 
 
 func _setup_references() -> void:
@@ -223,7 +224,7 @@ func _setup_references() -> void:
 	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	_belt_material = _mesh.mesh.surface_get_material(0)
 	_metal_material = _mesh.mesh.surface_get_material(1)
-	
+
 	# Store original collision settings
 	if _sb:
 		_original_collision_layer = _sb.collision_layer
@@ -249,9 +250,10 @@ func fix_material_overrides() -> void:
 
 
 func _update_material_texture() -> void:
-	if _belt_material:
-		_belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-		fix_material_overrides()
+	if not _belt_material:
+		return
+	_belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
+	fix_material_overrides()
 	if _ce1:
 		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
 		_ce1.fix_material_overrides()
@@ -261,9 +263,10 @@ func _update_material_texture() -> void:
 
 
 func _update_material_color() -> void:
-	if _belt_material:
-		_belt_material.set_shader_parameter("ColorMix", belt_color)
-		fix_material_overrides()
+	if not _belt_material:
+		return
+	_belt_material.set_shader_parameter("ColorMix", belt_color)
+	fix_material_overrides()
 	if _ce1:
 		_ce1.update_belt_color(belt_color)
 		_ce1.fix_material_overrides()
@@ -280,6 +283,8 @@ func _update_speed() -> void:
 
 
 func _update_physics_material() -> void:
+	if not _sb:
+		return
 	if _ce1:
 		var sb1 = _ce1.get_node("StaticBody3D") as StaticBody3D
 		if sb1:
@@ -291,21 +296,23 @@ func _update_physics_material() -> void:
 
 
 func _update_belt_material_scale() -> void:
-	if _belt_material and speed != 0:
-		var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
-		var collision_shape = _sb.get_node("CollisionShape3D").shape as BoxShape3D
-		var middle_length = collision_shape.size.x
-		var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
-		var belt_scale: float = middle_length / BASE_BELT_LENGTH
-		(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
-		fix_material_overrides()
+	if not _belt_material or not _sb or speed == 0:
+		return
+	var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
+	var collision_shape = _sb.get_node("CollisionShape3D").shape as BoxShape3D
+	var middle_length = collision_shape.size.x
+	var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
+	var belt_scale: float = middle_length / BASE_BELT_LENGTH
+	(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
+	fix_material_overrides()
 
 
 func _update_metal_material_scale() -> void:
-	if _metal_material:
-		(_metal_material as ShaderMaterial).set_shader_parameter("Scale", _mesh.scale.x)
-		(_metal_material as ShaderMaterial).set_shader_parameter("Scale2", _mesh.scale.y)
-		fix_material_overrides()
+	if not _metal_material or not _mesh:
+		return
+	(_metal_material as ShaderMaterial).set_shader_parameter("Scale", _mesh.scale.x)
+	(_metal_material as ShaderMaterial).set_shader_parameter("Scale2", _mesh.scale.y)
+	fix_material_overrides()
 
 
 func _on_size_changed() -> void:
@@ -370,52 +377,3 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
-
-
-func _update_physics_enabled() -> void:
-	if _sb:
-		_sb.set_physics_process(enable_physics)
-		
-		# Set collision layers/masks to 0 to prevent interactions, but keep shapes enabled
-		if enable_physics:
-			# Restore original collision settings
-			_sb.collision_layer = _original_collision_layer
-			_sb.collision_mask = _original_collision_mask
-		else:
-			# Set to 0 so it doesn't interact with anything
-			_sb.collision_layer = 0
-			_sb.collision_mask = 0
-		
-		# Make the main static body visible/invisible
-		_sb.visible = enable_physics
-		
-		# Also update collision layers/masks and visibility on the conveyor ends
-		if _ce1:
-			var end1_sb = _ce1.get_node_or_null("StaticBody3D") as StaticBody3D
-			if end1_sb:
-				end1_sb.set_physics_process(enable_physics)
-				if enable_physics:
-					end1_sb.collision_layer = _original_collision_layer
-					end1_sb.collision_mask = _original_collision_mask
-				else:
-					end1_sb.collision_layer = 0
-					end1_sb.collision_mask = 0
-				# Make the static body visible/invisible
-				end1_sb.visible = enable_physics
-		
-		if _ce2:
-			var end2_sb = _ce2.get_node_or_null("StaticBody3D") as StaticBody3D
-			if end2_sb:
-				end2_sb.set_physics_process(enable_physics)
-				if enable_physics:
-					end2_sb.collision_layer = _original_collision_layer
-					end2_sb.collision_mask = _original_collision_mask
-				else:
-					end2_sb.collision_layer = 0
-					end2_sb.collision_mask = 0
-				# Make the static body visible/invisible
-				end2_sb.visible = enable_physics
-		
-		# Reset velocity when disabling physics
-		if not enable_physics:
-			_sb.constant_linear_velocity = Vector3.ZERO
