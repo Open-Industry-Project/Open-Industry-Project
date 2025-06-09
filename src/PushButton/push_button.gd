@@ -142,12 +142,14 @@ func _enter_tree() -> void:
 	lamp_tag_groups = lamp_tag_group_name
 
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
 
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
 
@@ -155,6 +157,15 @@ func _on_simulation_started() -> void:
 	if enable_comms:
 		_register_pushbutton_tag_ok = OIPComms.register_tag(pushbutton_tag_group_name, pushbutton_tag_name, 1)
 		_register_lamp_tag_ok = OIPComms.register_tag(lamp_tag_group_name, lamp_tag_name, 1)
+
+
+func _tag_group_initialized(tag_group_name_param: String) -> void:
+	if tag_group_name_param == pushbutton_tag_group_name:
+		_pushbutton_tag_group_init = true
+		if _register_pushbutton_tag_ok:
+			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, pressed)
+	if tag_group_name_param == lamp_tag_group_name:
+		_lamp_tag_group_init = true
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
