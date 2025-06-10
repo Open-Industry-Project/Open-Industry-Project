@@ -34,6 +34,8 @@ func _ready() -> void:
 		EditorInterface.set_main_screen_editor("3D")
 		EditorInterface.open_scene_from_path("res://Main/Main.tscn")
 
+	get_tree().paused = false
+
 
 func _process(delta: float) -> void:
 	_select_nodes()
@@ -49,6 +51,31 @@ func _input(event: InputEvent) -> void:
 		for node : Node in selection.get_selected_nodes():
 			if(node.has_method("use")):
 				node.call("use")
+
+
+func start_simulation() -> void:
+	simulation_paused = false
+	simulation_set_paused.emit(false)
+	simulation_started.emit()
+	if EditorInterface.has_method("set_simulation_started"):
+		EditorInterface.call("set_simulation_started", true)
+
+
+func stop_simulation() -> void:
+	simulation_paused = false
+	simulation_set_paused.emit(false)
+	simulation_ended.emit()
+	if EditorInterface.has_method("set_simulation_started"):
+		EditorInterface.call("set_simulation_started", false)
+
+
+func toggle_pause_simulation(pressed: bool = !simulation_paused) -> void:
+	simulation_paused = pressed
+	simulation_set_paused.emit(pressed)
+	if simulation_paused:
+		get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_DISABLED
+	else:
+		get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 func _on_selection_changed() -> void:

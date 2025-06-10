@@ -105,11 +105,11 @@ func reset_camera_input() -> void:
 	if not character:
 		return
 		
-	# Reset mouse input by manipulating the InputEventMouseMotion buffer
-	# This is a more universal way to clear any pending mouse motion
 	var event = InputEventMouseMotion.new()
 	event.relative = Vector2.ZERO
 	Input.parse_input_event(event)
+
+
 
 func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	var root := EditorInterface.get_edited_scene_root() as Node3D
@@ -121,6 +121,14 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	
 	var key = event as InputEventKey
 	var editor_settings := EditorInterface.get_editor_settings()
+	
+	if key != null and event.is_pressed() and not event.is_echo():
+		if key.keycode == KEY_F5:
+			SimulationEvents.start_simulation()
+		elif key.keycode == KEY_F6:
+			SimulationEvents.toggle_pause_simulation()
+		elif key.keycode == KEY_F7:
+			SimulationEvents.stop_simulation()
 	
 	if event.is_pressed() and (editor_settings.is_shortcut("Open Industry Project/Spawn Character", event) or (key != null and key.keycode == KEY_ESCAPE)):
 		if not editor_ui:

@@ -24,8 +24,6 @@ func _ready() -> void:
 
 	clear_output_btn = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(2).get_child(0).get_child(0)
 
-	get_tree().paused = false
-
 	SimulationEvents.simulation_started.connect(func() -> void:
 		SimulationEvents.simulation_running = true
 		PhysicsServer3D.set_active(true)
@@ -47,36 +45,38 @@ func _ready() -> void:
 		stop = true
 	)
 
-	play_button.pressed.connect(start_simulation)
-	pause_button.toggled.connect(toggle_pause_simulation)
-	stop_button.pressed.connect(stop_simulation)
+	play_button.pressed.connect(_on_play_pressed)
+	pause_button.toggled.connect(_on_pause_toggled)
+	stop_button.pressed.connect(_on_stop_pressed)
 
 
-func start_simulation() -> void:
+func _on_play_pressed() -> void:
 	pause_button.button_pressed = false
 	play = false
-	SimulationEvents.simulation_set_paused.emit(false)
-	SimulationEvents.simulation_started.emit()
-	if EditorInterface.has_method("set_simulation_started"):
-		EditorInterface.call("set_simulation_started", true)
+	SimulationEvents.start_simulation()
+
+
+func _on_pause_toggled(pressed: bool) -> void:
+	SimulationEvents.toggle_pause_simulation(pressed)
+
+
+func _on_stop_pressed() -> void:
+	pause_button.button_pressed = false
+	pause = false
+	SimulationEvents.stop_simulation()
+
+
+# Legacy methods - kept for compatibility but delegate to SimulationEvents
+func start_simulation() -> void:
+	SimulationEvents.start_simulation()
 
 
 func toggle_pause_simulation(pressed: bool) -> void:
-	SimulationEvents.simulation_paused = not SimulationEvents.simulation_paused
-	SimulationEvents.simulation_set_paused.emit(pressed)
-	if SimulationEvents.simulation_paused:
-		get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_DISABLED
-	else:
-		get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_INHERIT
+	SimulationEvents.toggle_pause_simulation(pressed)
 
 
 func stop_simulation() -> void:
-	pause_button.button_pressed = false
-	pause = false
-	SimulationEvents.simulation_set_paused.emit(false)
-	SimulationEvents.simulation_ended.emit()
-	if EditorInterface.has_method("set_simulation_started"):
-		EditorInterface.call("set_simulation_started", false)
+	SimulationEvents.stop_simulation()
 
 
 func _disable_buttons() -> void:
