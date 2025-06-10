@@ -8,10 +8,6 @@
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_me2ob"]
-resource_local_to_scene = true
-size = Vector3(3.5, 0.5, 1.524)
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_07qd2"]
 render_priority = 0
 shader = ExtResource("2_7ui2k")
@@ -111,7 +107,7 @@ render_priority = 0
 shader = ExtResource("2_7ui2k")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
 shader_parameter/BlackTextureOn = true
-shader_parameter/Scale = 3.5
+shader_parameter/Scale = 4.45633840657307
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
 
@@ -124,6 +120,10 @@ shader_parameter/Scale = 3.5
 shader_parameter/Scale2 = 1.0
 shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_me2ob"]
+resource_local_to_scene = true
+size = Vector3(3.5, 0.5, 1.524)
+
 [node name="Conveyor" type="Node3D"]
 process_mode = 1
 script = ExtResource("1_07qd2")
@@ -131,7 +131,15 @@ belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
 speed_tag_group_name = "TagGroup0"
 running_tag_group_name = "TagGroup0"
 size = Vector3(4, 0.5, 1.524)
+metadata/hijack_scale = true
 metadata/_edit_group_ = true
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, -0.25, 0)
+mesh = SubResource("ArrayMesh_uu43a")
+surface_material_override/0 = SubResource("ShaderMaterial_uu43a")
+surface_material_override/1 = SubResource("ShaderMaterial_sml8l")
+surface_material_override/2 = SubResource("ShaderMaterial_sml8l")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
@@ -139,14 +147,6 @@ physics_material_override = SubResource("PhysicsMaterial_hcu6p")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
 shape = SubResource("BoxShape3D_me2ob")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
-transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
-mesh = SubResource("ArrayMesh_uu43a")
-skeleton = NodePath("../..")
-surface_material_override/0 = SubResource("ShaderMaterial_uu43a")
-surface_material_override/1 = SubResource("ShaderMaterial_sml8l")
-surface_material_override/2 = SubResource("ShaderMaterial_sml8l")
 
 [node name="BeltConveyorEnd" parent="." instance=ExtResource("3_rx6or")]
 transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 1.75, -0.25, 0)

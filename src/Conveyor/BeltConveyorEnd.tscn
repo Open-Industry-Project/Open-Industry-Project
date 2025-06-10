@@ -1,9 +1,10 @@
-[gd_scene load_steps=29 format=4 uid="uid://byog2n752js4y"]
+[gd_scene load_steps=32 format=4 uid="uid://byog2n752js4y"]
 
 [ext_resource type="Script" uid="uid://br24cppp65ba3" path="res://src/Conveyor/belt_conveyor_end.gd" id="1_crir7"]
 [ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="2_6dxkv"]
 [ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="3_3ynyp"]
 [ext_resource type="Material" uid="uid://00bmdgt6cfmg" path="res://assets/3DModels/Materials/MetalMaterial.tres" id="3_ypirl"]
+[ext_resource type="Shader" uid="uid://lg3xcvqgjhjj" path="res://assets/3DModels/Shaders/MetalShader.tres" id="5_p6cdy"]
 
 [sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_fbs2d"]
 default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]
@@ -277,6 +278,24 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_i5p73")
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5c7st"]
+render_priority = 0
+shader = SubResource("VisualShader_uqw5q")
+shader_parameter/ColorMix = Color(1, 1, 1, 1)
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = 1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pmfa5"]
+render_priority = 0
+shader = ExtResource("5_p6cdy")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Scale2 = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_kvs74"]
 friction = 0.5
 
@@ -287,11 +306,14 @@ radius = 0.25
 [node name="BeltConveyorEnd" type="Node3D"]
 script = ExtResource("1_crir7")
 size = Vector3(0.25, 0.5, 2)
+metadata/hijack_scale = true
 metadata/_edit_group_ = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("ArrayMesh_bcffs")
 skeleton = NodePath("../StaticBody3D")
+surface_material_override/0 = SubResource("ShaderMaterial_5c7st")
+surface_material_override/1 = SubResource("ShaderMaterial_pmfa5")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 collision_layer = 2
