@@ -1,5 +1,5 @@
 @tool
-class_name BeltConveyor
+class_name BeltConveyorArea3D
 extends ResizableNode3D
 
 enum ConvTexture {
@@ -39,24 +39,8 @@ signal speed_changed
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value > 0.0)
 
-@export var belt_physics_material: PhysicsMaterial:
-	get:
-		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
-		if sb_node:
-			return sb_node.physics_material_override
-		return null
-	set(value):
-		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
-		if sb_node:
-			sb_node.physics_material_override = value
-		var sb_end1 = get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
-		if sb_end1:
-			sb_end1.physics_material_override = value
-		var sb_end2 = get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
-		if sb_end2:
-			sb_end2.physics_material_override = value
 
-var _sb: StaticBody3D
+var _sb: Area3D
 var _ce1: BeltConveyorEnd
 var _ce2: BeltConveyorEnd
 var _mesh: MeshInstance3D
@@ -145,7 +129,6 @@ func _on_instantiated() -> void:
 	_update_material_texture()
 	_update_material_color()
 	_update_speed()
-	_update_physics_material()
 	_on_size_changed()
 
 	if _ce1:
@@ -188,7 +171,7 @@ func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
 		var local_left = _sb.global_transform.basis.x.normalized()
 		var velocity = local_left * speed
-		_sb.constant_linear_velocity = velocity
+		_sb.conveyor_belt_linear_velocity = velocity
 		if not SimulationEvents.simulation_paused:
 			_belt_position += speed * delta
 		if speed != 0:
@@ -208,21 +191,16 @@ func _on_simulation_ended() -> void:
 	if _belt_material:
 		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
 	if _sb:
-		_sb.constant_linear_velocity = Vector3.ZERO
+		_sb.conveyor_belt_linear_velocity = Vector3.ZERO
 
 
 func _setup_references() -> void:
-	_sb = get_node("StaticBody3D") as StaticBody3D
+	_sb = get_node("Area3D") as Area3D
 	_ce1 = get_node("BeltConveyorEnd") as BeltConveyorEnd
 	_ce2 = get_node("BeltConveyorEnd2") as BeltConveyorEnd
 	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	_belt_material = _mesh.mesh.surface_get_material(0)
 	_metal_material = _mesh.mesh.surface_get_material(1)
-
-	# Store original collision settings
-	if _sb:
-		_original_collision_layer = _sb.collision_layer
-		_original_collision_mask = _sb.collision_mask
 
 
 func _setup_materials() -> void:
@@ -276,17 +254,7 @@ func _update_speed() -> void:
 		_ce2.speed = speed
 
 
-func _update_physics_material() -> void:
-	if not _sb:
-		return
-	if _ce1:
-		var sb1 = _ce1.get_node("StaticBody3D") as StaticBody3D
-		if sb1:
-			sb1.physics_material_override = _sb.physics_material_override
-	if _ce2:
-		var sb2 = _ce2.get_node("StaticBody3D") as StaticBody3D
-		if sb2:
-			sb2.physics_material_override = _sb.physics_material_override
+
 
 
 func _update_belt_material_scale() -> void:
@@ -319,7 +287,7 @@ func _on_size_changed() -> void:
 	var end2 := _ce2
 	var middle_body := _sb
 	var middle_mesh := _mesh
-	var middle_collision_shape := get_node_and_resource("StaticBody3D/CollisionShape3D:shape")[1] as BoxShape3D
+	var middle_collision_shape := get_node_and_resource("Area3D/CollisionShape3D:shape")[1] as BoxShape3D
 	if not (is_instance_valid(end1)
 			and is_instance_valid(end2)
 			and is_instance_valid(middle_body)
@@ -341,7 +309,7 @@ func _on_size_changed() -> void:
 	# Size of the mesh at scale=1. (Size per scale unit.)
 	var middle_mesh_base_size := Vector3(1, 0.5, 2)
 	middle_mesh.scale = middle_size / middle_mesh_base_size
-	middle_collision_shape.size = middle_size
+	middle_collision_shape.size = Vector3(middle_length + 2.0 * end_length, height, width)
 	end1.size = end_size
 	end2.size = end_size
 

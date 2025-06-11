@@ -1,0 +1,443 @@
+[gd_scene load_steps=40 format=4 uid="uid://dykb5m6sdtwbi"]
+
+[ext_resource type="Script" uid="uid://bek2slkxke7ue" path="res://src/Conveyor/belt_conveyor_area3d.gd" id="1_xxe1n"]
+[ext_resource type="Shader" uid="uid://bejqoybamob1y" path="res://assets/3DModels/Shaders/BeltShader.tres" id="2_hkt53"]
+[ext_resource type="Shader" uid="uid://lg3xcvqgjhjj" path="res://assets/3DModels/Shaders/MetalShader.tres" id="3_t71cu"]
+[ext_resource type="PackedScene" uid="uid://byog2n752js4y" path="res://src/Conveyor/BeltConveyorEnd.tscn" id="4_cd1v2"]
+[ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="5_hkt53"]
+[ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="6_t71cu"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_07qd2"]
+render_priority = 0
+shader = ExtResource("2_hkt53")
+shader_parameter/ColorMix = Color(1, 1, 1, 1)
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = 4.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_asgog"]
+render_priority = 0
+shader = ExtResource("3_t71cu")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 4.0
+shader_parameter/Scale2 = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_5v2fq"]
+_surfaces = [{
+"aabb": AABB(-0.5, -0.25, -1, 1.00001, 0.50001, 2),
+"format": 34896613377,
+"index_count": 36,
+"index_data": PackedByteArray("AAAGAAQAAAACAAYADAAGAAIADAANAAYABQADAAEABQAHAAMACQAAAAQACQAIAAAABQALAAoABQABAAsAAwAOAA8AAwAHAA4A"),
+"name": "BeltTopDown",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 16,
+"vertex_data": PackedByteArray("/v/9/wAAAAD+/wAAAAAAAP7//f///wAA/v8AAP7/AAAAAP3/AAAAAAAAAAAAAAAAAAD9////AAAAAAAA/v8AAP7/i+sAAAAAAACL6wAAAAAAAHIUAAAAAP7/chQAAAAA/v+L6///AAAAAIvr//8AAAAAchT+/wAA/v9yFP7/AAA=")
+}, {
+"aabb": AABB(-0.5, -0.210063, -1, 1, 0.420126, 2),
+"format": 34896613377,
+"index_count": 84,
+"index_data": PackedByteArray("HQABABoAHQACAAEAFwAEABAAFwAHAAQAAQADAAAAAQACAAMACgAcABsACgALABwABAAGAAUABAAHAAYAEgANAAwAEgAVAA0AGQADAB4AGQAAAAMAEwAGABQAEwAFAAYAEAAWABcAEAARABYAEgAUABUAEgATABQADwAWABEADwAOABYAGgAcAB0AGgAbABwAGAAeAB8AGAAZAB4AGAAIAAkAGAAfAAgA"),
+"name": "BeltSide",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 32,
+"vertex_data": PackedByteArray("AABl22YGAAAAAJkkZgYAAP//mSRmBgAA//9l22YGAAD//5kkmPkAAP//ZduY+QAAAABl25j5AAAAAJkkmPkAAP////8AAAAAAAD//wAAAAAAAAAAAAAAAP//AAAAAAAA///+////AAAAAP7///8AAAAAAAD+/wAA//8AAP7/AAD//5kkb/0AAP//aRj+/wAA//+V5///AAD//2Xbb/0AAAAAZdtv/QAAAACV5/7/AAAAAGkY/v8AAAAAmSRv/QAAAACV5wAAAAAAAGXbjwIAAAAAmSSPAgAAAABpGAAAAAD//2kYAAAAAP//mSSPAgAA//9l248CAAD//5XnAAAAAA==")
+}, {
+"aabb": AABB(-0.5, -0.25, -1, 1.00001, 0.50001, 2),
+"format": 34896613377,
+"index_count": 108,
+"index_data": PackedByteArray("FQAEAAYAEQAhACAAFQARAAQAHAAVAB0ADgAVABwAFQAhABEAFQAIACEADgAIABUACQAjACIADgAJAAgAHgAPAB8ADwAJAA4ACQASACMAEgAHAAUAFgAPAB4AEgAWAAcADwASAAkAEgAPABYAAAAUAAIAFAAbABoAFAANABsAEAAUAAAAJgAQACcACwAQACYAEAANABQADAAZABgAEAAMAA0ACwAMABAADAAXABkAFwABAAMAEwAlACQAFwATAAEACwAXAAwAEwAKACUACgAXAAsAFwAKABMA"),
+"name": "BeltSide2",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 40,
+"vertex_data": PackedByteArray("/v/9/wAAAAD+/wAAAAAAAP7//f///wAA/v8AAP7/AAAAAP3/AAAAAAAAAAAAAAAAAAD9////AAAAAAAA/v8AAAAAysxmBgAAAAAyM2YGAAD+/zIzZgYAAP7/ysxmBgAA/v8yM5j5AAD+/8rMmPkAAAAAysyY+QAAAAAyM5j5AAD+/4vrAAAAAAAAi+sAAAAAAAByFAAAAAD+/3IUAAAAAP7/i+v//wAAAACL6///AAAAAHIU/v8AAP7/chT+/wAA/v8yM2/9AAD+//Uo/v8AAP7/CNf//wAA/v/KzG/9AAAAAMrMb/0AAAAACNf+/wAAAAD1KP7/AAAAADIzb/0AAAAACNcAAAAAAADKzI8CAAAAADIzjwIAAAAA9SgAAAAA/v/1KAAAAAD+/zIzjwIAAP7/ysyPAgAA/v8I1wAAAAA=")
+}]
+blend_shape_mode = 0
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_uu43a"]
+resource_name = "ConvBox_Cube_002"
+_surfaces = [{
+"aabb": AABB(-0.5, -0.25, -1, 1.00001, 0.50001, 2),
+"attribute_data": PackedByteArray("AID/f/9//3//f///AID+/8z8/3/M/P9/zPz//8z8/v8AgP7//3////9//38AgP9/zPz+/8z8///M/P9/zPz/f858/3/OfP7/znz/f858/v/+//9////+//7//3/+//7/"),
+"format": 34896613399,
+"index_count": 36,
+"index_data": PackedByteArray("AQANAAkAAQAFAA0AFAAMAAQAFAAVAAwACgAGAAIACgAOAAYAEQAAAAgAEQAQAAAACwATABIACwADABMABwAWABcABwAPABYA"),
+"material": SubResource("ShaderMaterial_07qd2"),
+"name": "BeltTopDown",
+"primitive": 3,
+"uv_scale": Vector4(2.05123, 2, 0, 0),
+"vertex_count": 24,
+"vertex_data": PackedByteArray("/v/9/wAA///+//3/AABU1f7/AAAAAFTV/v8AAAAA///+//3/////v/7//f///1TV/v8AAP7/VNX+/wAA/v//vwAA/f8AAP//AAD9/wAAVNUAAAAAAABU1QAAAAAAAP//AAD9/////78AAP3///9U1QAAAAD+/1TVAAAAAP7//7/+/4vrAAD//wAAi+sAAP//AAByFAAA///+/3IUAAD///7/i+v///+/AACL6////78AAHIU/v//v/7/chT+//+//7//v6qqqqqqKlTV/z//v/9//3+qqqqqqipU1f//////v/+/qqqqqqoqVNX/P/+//3//f6qqqqqqKlTV//////+//7//v/+//z//v/8//7//f/9//3//f///////////")
+}, {
+"aabb": AABB(-0.5, -0.210063, -1, 1, 0.420126, 2),
+"attribute_data": PackedByteArray("/v8dW/7/HVv+/+Sn/v/kpxIA5KcSAOSnEgAdWxIAHVv+/+Sn/v/kp/7/HVv+/x1bEgAdWxIAHVsSAOSnEgDkpxIA8kH+//JB/v8QwRIAEMH+//JBEgDyQRIAEMH+/xDB/v+Sr/7/kq/+/8+2/v/Ptv7/M0z+/zNM/v9wU/7/cFMSAHBTEgBwUxIAM0wSADNMEgDPthIAz7YSAJKvEgCSr/7/M0z+/zNM/v9wU/7/cFP+/5Kv/v+Sr/7/z7b+/8+2EgDPthIAz7YSAJKvEgCSrxIAcFMSAHBTEgAzTBIAM0w="),
+"format": 34896613399,
+"index_count": 84,
+"index_data": PackedByteArray("MwADAC0AMwAFAAMAJwAJABkAJwAPAAkAAgAHAAEAAgAEAAcAEgAwAC4AEgATADAACAANAAsACAAOAA0AHQAVABQAHQAjABUAKgAGADQAKgAAAAYAHgAMACAAHgAKAAwAGAAlACYAGAAbACUAHAAhACIAHAAfACEAFwAkABoAFwAWACQALAAxADIALAAvADEAKAA1ADYAKAArADUAKQAQABEAKQA3ABAA"),
+"material": SubResource("ShaderMaterial_asgog"),
+"name": "BeltSide",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 56,
+"vertex_data": PackedByteArray("AABl22YG//8AAGXbZgb//wAAmSRmBv//AACZJGYG/////5kkZgb/////mSRmBv////9l22YG/////2XbZgb/////mSSY+f9///+ZJJj5/7///2XbmPn/v///ZduY+f9/AABl25j5/78AAGXbmPn/fwAAmSSY+f9/AACZJJj5/7//////AAD//wAA//8AAP//AAAAAAAA/////wAAAAD//////v////9/AAD+/////38AAAAA/v//f///AAD+//9///+ZJG/9/5///5kkb/3/v///aRj+//9///9pGP7//5///5Xn////n///lef///9///9l22/9/7///2Xbb/3/nwAAZdtv/f+/AABl22/9/58AAJXn/v//nwAAlef+//9/AABpGP7//38AAGkY/v//nwAAmSRv/f+fAACZJG/9/78AAJXnAAD//wAAlecAAP//AABl248C//8AAGXbjwL//wAAmSSPAv//AACZJI8C//8AAGkYAAD//wAAaRgAAP////9pGAAA/////2kYAAD/////mSSPAv////+ZJI8C/////2XbjwL/////ZduPAv////+V5wAA/////5XnAAD///9//z//f////3////9//7//f////3//v/9//z//f////3////7//38AAP9//3///wAA/3//f////3///////3//f/7//3/+//9//v//f/7//3////9/////f////3////7//3/+//9//3////7//38AAP9//3///wAA/38AAP9/AAD/fwAA/38AAP9//3////9////+//9//v//f////398pf7//3/+//9//z98pf7//3+B2v9//7//f/7//3+B2v9//v//f4Ha/3+B2v9//7//f/8/fKX+/3yl/v//f/7/")
+}, {
+"aabb": AABB(-0.5, -0.25, -1, 1.00001, 0.50001, 2),
+"attribute_data": PackedByteArray("+f/KzPn/+f8+M8rMPjP5/zQzPjMFAD4zNDP5/wUA+f/3KFw4QQpcONv6vfXb+gfXXDi99Vw4B9f3KNv6QQrb+vn/6dEVLj4zIwU+M/n/2/o+M+nRFS75/yMF+f8+M9v6SjW99T4zyfc+M/vUSjUH1/co7f0DK/n/NQj5/0EK7f0DKz4z9yhKNUEKSjU1CD4z+f/J9+39vfXt/QfX+f/71A=="),
+"format": 34896613399,
+"index_count": 108,
+"index_data": PackedByteArray("FQAEAAYAEQAhACAAFQARAAQAHAAVAB0ADgAVABwAFQAhABEAFQAIACEADgAIABUACQAjACIADgAJAAgAHgAPAB8ADwAJAA4ACQASACMAEgAHAAUAFgAPAB4AEgAWAAcADwASAAkAEgAPABYAAAAUAAIAFAAbABoAFAANABsAEAAUAAAAJgAQACcACwAQACYAEAANABQADAAZABgAEAAMAA0ACwAMABAADAAXABkAFwABAAMAEwAlACQAFwATAAEACwAXAAwAEwAKACUACgAXAAsAFwAKABMA"),
+"material": SubResource("ShaderMaterial_asgog"),
+"name": "BeltSide2",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 40,
+"vertex_data": PackedByteArray("/v/9/wAA/7/+/wAAAAD/v/7//f////+//v8AAP7//78AAP3/AABU1QAAAAAAAFTVAAD9////VNUAAAAA/v9U1QAAysxmBlHVAAAyM2YGVNX+/zIzZgb/v/7/ysxmBgDA/v8yM5j5AcD+/8rMmPn/vwAAysyY+VTVAAAyM5j5VNX+/4vrAAADwAAAi+sAAFTVAAByFAAAVNX+/3IUAAACwP7/i+v//wLAAACL6///VNUAAHIU/v9U1f7/chT+/wLA/v8yM2/9/7/+//Uo/v8fwP7/CNf//w7B/v/KzG/9CcAAAMrMb/1U1QAACNf+/1TVAAD1KP7/VNUAADIzb/1U1QAACNcAAFTVAADKzI8CVNUAADIzjwJU1QAA9SgAAFTV/v/1KAAADsH+/zIzjwIJwP7/ysyPAgnA/v8I1wAADsH/fwAA/38AAP9/AAD/fwAAVNVU1VTVVNVU1VTVVNVU1VHVVtVU1VTVxn8cACKBRQL9gfsDxn8cAFTVVNVU1VTVgoIFBVTVVNVU1VTV8XsGAvF7BgJU1VTVVNVU1VCCoQT/fwAAX4a/DH5gwA9jeM0DVNVU1VTVVNVU1VTVVNVU1VTVVNVU1VTVVNVU1VTVVNV+YMAPY3jNA82DmwfAj4Ef")
+}]
+blend_shape_mode = 0
+shadow_mesh = SubResource("ArrayMesh_5v2fq")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cd1v2"]
+render_priority = 0
+shader = ExtResource("2_hkt53")
+shader_parameter/ColorMix = Color(1, 1, 1, 1)
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = 5.092958178940651
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xydx8"]
+render_priority = 0
+shader = ExtResource("3_t71cu")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 3.5
+shader_parameter/Scale2 = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_me2ob"]
+resource_local_to_scene = true
+size = Vector3(4, 0.5, 1.524)
+
+[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_fbs2d"]
+default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]
+op_type = 0
+
+[sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_n0owj"]
+function = 1
+
+[sub_resource type="VisualShaderNodeFloatFunc" id="VisualShaderNodeFloatFunc_g8ku5"]
+function = 15
+
+[sub_resource type="VisualShaderNodeBooleanParameter" id="VisualShaderNodeBooleanParameter_2h2g3"]
+parameter_name = "Invert"
+
+[sub_resource type="VisualShaderNodeSwitch" id="VisualShaderNodeSwitch_22bnh"]
+default_input_values = [0, false, 1, -1.0, 2, 1.0]
+
+[sub_resource type="VisualShaderNodeFloatParameter" id="VisualShaderNodeFloatParameter_kj3yh"]
+parameter_name = "Scale"
+
+[sub_resource type="VisualShaderNodeFloatOp" id="VisualShaderNodeFloatOp_36rcc"]
+operator = 2
+
+[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_tays4"]
+default_input_values = [0, 1.0, 1, 0.0, 2, 0.0]
+op_type = 0
+
+[sub_resource type="VisualShaderNodeFloatOp" id="VisualShaderNodeFloatOp_6wgjj"]
+default_input_values = [0, 1.0, 1, 0.0]
+operator = 3
+
+[sub_resource type="VisualShaderNodeVectorCompose" id="VisualShaderNodeVectorCompose_difc1"]
+default_input_values = [0, 1.0, 1, 1.0, 2, 0.0]
+op_type = 0
+
+[sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_y2xp6"]
+
+[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_lnyy2"]
+texture = ExtResource("5_hkt53")
+texture_type = 1
+
+[sub_resource type="VisualShaderNodeSwitch" id="VisualShaderNodeSwitch_kp7nu"]
+default_input_values = [0, true, 1, Vector3(1, 1, 1), 2, Vector3(0, 0, 0)]
+op_type = 4
+
+[sub_resource type="VisualShaderNodeBooleanParameter" id="VisualShaderNodeBooleanParameter_e014d"]
+parameter_name = "BlackTextureOn"
+default_value_enabled = true
+default_value = true
+
+[sub_resource type="VisualShaderNodeColorParameter" id="VisualShaderNodeColorParameter_13ptr"]
+parameter_name = "ColorMix"
+
+[sub_resource type="VisualShaderNodeVectorOp" id="VisualShaderNodeVectorOp_6ixvs"]
+operator = 2
+
+[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_1puaf"]
+texture = ExtResource("6_t71cu")
+texture_type = 1
+
+[sub_resource type="VisualShaderNodeFloatParameter" id="VisualShaderNodeFloatParameter_jcqhx"]
+parameter_name = "BeltPosition"
+hint = 1
+
+[sub_resource type="VisualShader" id="VisualShader_uqw5q"]
+code = "shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_schlick_ggx;
+
+uniform vec4 ColorMix : source_color;
+uniform bool BlackTextureOn = true;
+uniform float Scale;
+uniform float BeltPosition : hint_range(0.0, 1.0);
+uniform bool Invert;
+uniform sampler2D tex_frg_5 : source_color;
+uniform sampler2D tex_frg_32 : source_color;
+
+
+
+void fragment() {
+// ColorParameter:35
+	vec4 n_out35p0 = ColorMix;
+
+
+// BooleanParameter:34
+	bool n_out34p0 = BlackTextureOn;
+
+
+// FloatParameter:19
+	float n_out19p0 = Scale;
+
+
+// FloatFunc:14
+	float n_out14p0 = round(n_out19p0);
+
+
+// FloatOp:28
+	float n_in28p0 = 1.00000;
+	float n_out28p0 = n_in28p0 / n_out14p0;
+
+
+// VectorCompose:29
+	float n_in29p0 = 1.00000;
+	vec2 n_out29p0 = vec2(n_in29p0, n_out28p0);
+
+
+// FloatParameter:8
+	float n_out8p0 = BeltPosition;
+
+
+// BooleanParameter:15
+	bool n_out15p0 = Invert;
+
+
+	float n_out16p0;
+// Switch:16
+	float n_in16p1 = -1.00000;
+	float n_in16p2 = 1.00000;
+	n_out16p0 = mix(n_in16p2, n_in16p1, float(n_out15p0));
+
+
+// FloatOp:25
+	float n_out25p0 = n_out8p0 * n_out16p0;
+
+
+// VectorCompose:27
+	float n_in27p0 = 1.00000;
+	vec2 n_out27p0 = vec2(n_in27p0, n_out25p0);
+
+
+// UVFunc:3
+	vec2 n_out3p0 = n_out27p0 * n_out29p0 + UV;
+
+
+// VectorCompose:11
+	float n_in11p0 = 1.00000;
+	vec2 n_out11p0 = vec2(n_in11p0, n_out14p0);
+
+
+// UVFunc:13
+	vec2 n_in13p2 = vec2(0.00000, 0.00000);
+	vec2 n_out13p0 = (n_out3p0 - n_in13p2) * n_out11p0 + n_in13p2;
+
+
+// Texture2D:5
+	vec4 n_out5p0 = texture(tex_frg_5, n_out13p0);
+
+
+// Texture2D:32
+	vec4 n_out32p0 = texture(tex_frg_32, n_out13p0);
+
+
+	vec3 n_out33p0;
+// Switch:33
+	n_out33p0 = mix(vec3(n_out32p0.xyz), vec3(n_out5p0.xyz), float(n_out34p0));
+
+
+// VectorOp:36
+	vec3 n_out36p0 = vec3(n_out35p0.xyz) * n_out33p0;
+
+
+// Output:0
+	ALBEDO = n_out36p0;
+
+
+}
+"
+graph_offset = Vector2(541.202, -40.1259)
+nodes/fragment/0/position = Vector2(1040, 120)
+nodes/fragment/3/node = SubResource("VisualShaderNodeUVFunc_y2xp6")
+nodes/fragment/3/position = Vector2(-360, 100)
+nodes/fragment/5/node = SubResource("VisualShaderNodeTexture_1puaf")
+nodes/fragment/5/position = Vector2(280, 180)
+nodes/fragment/8/node = SubResource("VisualShaderNodeFloatParameter_jcqhx")
+nodes/fragment/8/position = Vector2(-1480, -140)
+nodes/fragment/11/node = SubResource("VisualShaderNodeVectorCompose_fbs2d")
+nodes/fragment/11/position = Vector2(-780, 460)
+nodes/fragment/13/node = SubResource("VisualShaderNodeUVFunc_n0owj")
+nodes/fragment/13/position = Vector2(-100, 140)
+nodes/fragment/14/node = SubResource("VisualShaderNodeFloatFunc_g8ku5")
+nodes/fragment/14/position = Vector2(-1200, 360)
+nodes/fragment/15/node = SubResource("VisualShaderNodeBooleanParameter_2h2g3")
+nodes/fragment/15/position = Vector2(-1500, 140)
+nodes/fragment/16/node = SubResource("VisualShaderNodeSwitch_22bnh")
+nodes/fragment/16/position = Vector2(-1180, 100)
+nodes/fragment/19/node = SubResource("VisualShaderNodeFloatParameter_kj3yh")
+nodes/fragment/19/position = Vector2(-1520, 340)
+nodes/fragment/25/node = SubResource("VisualShaderNodeFloatOp_36rcc")
+nodes/fragment/25/position = Vector2(-920, 60)
+nodes/fragment/27/node = SubResource("VisualShaderNodeVectorCompose_tays4")
+nodes/fragment/27/position = Vector2(-640, 80)
+nodes/fragment/28/node = SubResource("VisualShaderNodeFloatOp_6wgjj")
+nodes/fragment/28/position = Vector2(-900, 280)
+nodes/fragment/29/node = SubResource("VisualShaderNodeVectorCompose_difc1")
+nodes/fragment/29/position = Vector2(-640, 240)
+nodes/fragment/32/node = SubResource("VisualShaderNodeTexture_lnyy2")
+nodes/fragment/32/position = Vector2(280, 480)
+nodes/fragment/33/node = SubResource("VisualShaderNodeSwitch_kp7nu")
+nodes/fragment/33/position = Vector2(560, 160)
+nodes/fragment/34/node = SubResource("VisualShaderNodeBooleanParameter_e014d")
+nodes/fragment/34/position = Vector2(180, 0)
+nodes/fragment/35/node = SubResource("VisualShaderNodeColorParameter_13ptr")
+nodes/fragment/35/position = Vector2(500, -140)
+nodes/fragment/36/node = SubResource("VisualShaderNodeVectorOp_6ixvs")
+nodes/fragment/36/position = Vector2(820, -20)
+nodes/fragment/connections = PackedInt32Array(3, 0, 13, 0, 13, 0, 5, 0, 15, 0, 16, 0, 19, 0, 14, 0, 14, 0, 11, 1, 11, 0, 13, 1, 8, 0, 25, 0, 16, 0, 25, 1, 27, 0, 3, 2, 25, 0, 27, 1, 14, 0, 28, 1, 28, 0, 29, 1, 29, 0, 3, 1, 13, 0, 32, 0, 32, 0, 33, 2, 5, 0, 33, 1, 34, 0, 33, 0, 35, 0, 36, 0, 33, 0, 36, 1, 36, 0, 0, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gika4"]
+render_priority = 0
+shader = SubResource("VisualShader_uqw5q")
+shader_parameter/ColorMix = Color(1, 1, 1, 1)
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = 1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wabok"]
+render_priority = 0
+shader = ExtResource("3_t71cu")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Scale2 = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
+friction = 0.5
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_hkt53"]
+resource_local_to_scene = true
+height = 1.524
+radius = 0.25
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_riq8t"]
+render_priority = 0
+shader = SubResource("VisualShader_uqw5q")
+shader_parameter/ColorMix = Color(1, 1, 1, 1)
+shader_parameter/BlackTextureOn = true
+shader_parameter/Scale = 1.0
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_uqdxc"]
+render_priority = 0
+shader = ExtResource("3_t71cu")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Scale2 = 1.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_t71cu"]
+resource_local_to_scene = true
+height = 1.524
+radius = 0.25
+
+[node name="Conveyor" type="Node3D"]
+process_mode = 1
+script = ExtResource("1_xxe1n")
+speed = 0.40000000000873115
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(4, 0.5, 1.524)
+metadata/hijack_scale = true
+metadata/_edit_group_ = true
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, -0.25, 0)
+mesh = SubResource("ArrayMesh_uu43a")
+surface_material_override/0 = SubResource("ShaderMaterial_cd1v2")
+surface_material_override/1 = SubResource("ShaderMaterial_xydx8")
+surface_material_override/2 = SubResource("ShaderMaterial_xydx8")
+
+[node name="Area3D" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+collision_layer = 8
+collision_mask = 15
+conveyor_belt_enabled = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+shape = SubResource("BoxShape3D_me2ob")
+
+[node name="BeltConveyorEnd" parent="." instance=ExtResource("4_cd1v2")]
+transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 1.75, -0.25, 0)
+speed = 0.40000000000873115
+size = Vector3(0.25, 0.5, 1.524)
+
+[node name="MeshInstance3D" parent="BeltConveyorEnd" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
+surface_material_override/0 = SubResource("ShaderMaterial_gika4")
+surface_material_override/1 = SubResource("ShaderMaterial_wabok")
+
+[node name="StaticBody3D" parent="BeltConveyorEnd" index="1"]
+visible = false
+collision_layer = 0
+physics_material_override = SubResource("PhysicsMaterial_hcu6p")
+
+[node name="CollisionShape3D" parent="BeltConveyorEnd/StaticBody3D" index="0"]
+shape = SubResource("CylinderShape3D_hkt53")
+
+[node name="BeltConveyorEnd2" parent="." instance=ExtResource("4_cd1v2")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.75, -0.25, 0)
+speed = 0.40000000000873115
+size = Vector3(0.25, 0.5, 1.524)
+
+[node name="MeshInstance3D" parent="BeltConveyorEnd2" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
+surface_material_override/0 = SubResource("ShaderMaterial_riq8t")
+surface_material_override/1 = SubResource("ShaderMaterial_uqdxc")
+
+[node name="StaticBody3D" parent="BeltConveyorEnd2" index="1"]
+visible = false
+collision_layer = 0
+physics_material_override = SubResource("PhysicsMaterial_hcu6p")
+
+[node name="CollisionShape3D" parent="BeltConveyorEnd2/StaticBody3D" index="0"]
+shape = SubResource("CylinderShape3D_t71cu")
+
+[editable path="BeltConveyorEnd"]
+[editable path="BeltConveyorEnd2"]
