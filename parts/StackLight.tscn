@@ -12,8 +12,6 @@
 [sub_resource type="Resource" id="Resource_v0hgu"]
 resource_local_to_scene = true
 script = ExtResource("6_vxp13")
-active = false
-segment_color = Color(0, 1, 0, 0.5)
 
 [sub_resource type="Resource" id="Resource_oqsfm"]
 resource_local_to_scene = true
@@ -34,14 +32,14 @@ _data = SubResource("Resource_oqsfm")
 metadata/_edit_group_ = true
 
 [node name="Bottom" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 2.22222, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 2.2222223, 0, 0, 0, 1, 0, 0, 0)
 mesh = ExtResource("4_31tda")
 
 [node name="Stem" type="MeshInstance3D" parent="."]
 mesh = ExtResource("5_rxxuc")
 
 [node name="Mid" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 6.66667, 0, 0, 0, 1, 0, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 6.666667, 0, 0, 0, 1, 0, 1, 0)
 mesh = ExtResource("6_tq4eb")
 
 [node name="Segments" type="Node3D" parent="Mid"]
