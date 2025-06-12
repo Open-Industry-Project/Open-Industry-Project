@@ -4,13 +4,12 @@
 [ext_resource type="Resource" uid="uid://ff1xcf7jap8r" path="res://src/StackLight/StackSegmentData.tres" id="2_h5qyy"]
 [ext_resource type="ArrayMesh" uid="uid://c3fha40hp314n" path="res://assets/3DModels/StackLight/Meshes/StackCap_StackMid_002.res" id="3_6nxrd"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ps278"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h5qyy"]
 resource_local_to_scene = true
 transparency = 1
-albedo_color = Color(0, 1, 0, 0.5)
+albedo_color = Color(0.5, 0.5, 0.5, 1)
 roughness = 0.5
 emission_enabled = true
-emission = Color(0, 1, 0, 0.5)
 emission_energy_multiplier = 0.0
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_7r4ed"]
@@ -28,7 +27,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_fdsld"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_lgnsr"]
 resource_local_to_scene = true
 _surfaces = [{
 "aabb": AABB(-0.0317865, -0.00196692, -0.0317865, 0.063573, 0.0352446, 0.063573),
@@ -37,7 +36,7 @@ _surfaces = [{
 "index_count": 480,
 "index_data": PackedByteArray("GgA6ABgAGgA8ADoADQAtAAsADQAvAC0AHAA8ABoAHAA+ADwADwAvAA0ADwAxAC8AHgA+ABwAHgBAAD4AEQAxAA8AEQAzADEAIABAAB4AIABCAEAAEwAzABEAEwA0ADMABQAjAAMABQAnACMAAgBCACAAAgAiAEIAFAA0ABMAFAA2ADQABwAnAAUABwApACcAFgA2ABQAFgA4ADYACQApAAcACQArACkAGAA4ABYAGAA6ADgACwArAAkACwAtACsAGwBhAB0AGwBfAGEAOwB9ADkAOwB/AH0AHQBjAB8AHQBhAGMAAQBIAAQAAQBFAEgAPQB/ADsAPQCBAH8AHwBlACEAHwBjAGUABABKAAYABABIAEoAPwCBAD0APwCDAIEAIQBEAAAAIQBlAEQABgBMAAgABgBKAEwAQQCDAD8AQQCFAIMAJgBpACUAJgBqAGkACABOAAoACABMAE4AQwCFAEEAQwCHAIUAKABqACYAKABsAGoACgBQAAwACgBOAFAAJACHAEMAJABoAIcAKgBsACgAKgBuAGwADABSAA4ADABQAFIALABuACoALABwAG4ADgBUABAADgBSAFQALgBwACwALgByAHAAEABWABIAEABUAFYAMAByAC4AMAB0AHIAEgBZABUAEgBWAFkAMgB0ADAAMgB2AHQAFQBbABcAFQBZAFsANQB2ADIANQB5AHYAFwBdABkAFwBbAF0ANwB5ADUANwB7AHkAGQBfABsAGQBdAF8AOQB7ADcAOQB9AHsAXgCWAGAAXgCVAJYAfgCkAHwAfgClAKQAYACXAGIAYACWAJcARwCKAEkARwCJAIoAgAClAH4AgACmAKUAYgCYAGQAYgCXAJgASQCLAEsASQCKAIsAggCmAIAAggCnAKYAZACIAEYAZACYAIgASwCMAE0ASwCLAIwAhACnAIIAhACoAKcAawCaAGcAawCbAJoATQCNAE8ATQCMAI0AhgCoAIQAhgCpAKgAbQCbAGsAbQCcAJsATwCOAFEATwCNAI4AZgCpAIYAZgCZAKkAbwCcAG0AbwCdAJwAUQCPAFMAUQCOAI8AcQCdAG8AcQCeAJ0AUwCQAFUAUwCPAJAAcwCeAHEAcwCfAJ4AVQCRAFcAVQCQAJEAdQCfAHMAdQCgAJ8AVwCSAFgAVwCRAJIAdwCgAHUAdwChAKAAWACTAFoAWACSAJMAeAChAHcAeACiAKEAWgCUAFwAWgCTAJQAegCiAHgAegCjAKIAXACVAF4AXACUAJUAfACjAHoAfACkAKMA"),
 "lods": [0.0246387, PackedByteArray("qwCxAK8AqwCvAKoABwAjAAMABwCwACMAAgBAAK0AAgAiAEAArgBAAKwArACzALIAAQBSAAYAAQBFAFIABgBSAA4ADgBSAB0AHQBSAEQAHQBEAAAAQQCFAHYAJACFAEEAJABoAIUAQQB2ADIAMgB2ACoAKgB2AG4AKgBuAGkAKgBpACUAUwCVAJYAUwCUAJUAUwCTAJQAUwCWAJcAUwCXAJgAUwCYAIgAUwCIAEYAUwC9AL4AUwCQAJEAUwCPAJAAUwCOAI8AUwCNAI4ARwC8AFMAUwCKAIsARwCJAIoAdwClAMsAhAClAHcAugDLAMoAugDJAMgAhACnAKYAhACoAKcAhACpAKgAZgCpAIQAZgCZAKkAuwDNAMwAbwDFALYAbwCcAJsAbwCdAJwAbwCeAJ0AuQCeALgAuQCjAKIAuQCiAKEAuQChAKAAuQCgAJ8AtwDHAMYAtAC/AMAAtQDBAMIAtQDDAMQA")],
-"material": SubResource("StandardMaterial3D_ps278"),
+"material": SubResource("StandardMaterial3D_h5qyy"),
 "name": "StackLight",
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
@@ -53,7 +52,7 @@ segment_data = ExtResource("2_h5qyy")
 
 [node name="LightMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.017, 0)
-mesh = SubResource("ArrayMesh_fdsld")
+mesh = SubResource("ArrayMesh_lgnsr")
 
 [node name="CapMesh" type="MeshInstance3D" parent="."]
 mesh = ExtResource("3_6nxrd")
