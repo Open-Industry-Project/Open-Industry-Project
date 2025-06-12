@@ -73,7 +73,7 @@ hint = 1
 
 [resource]
 code = "shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_opaque, depth_test_default, cull_back, diffuse_lambert, specular_schlick_ggx;
 
 uniform vec4 ColorMix : source_color;
 uniform bool BlackTextureOn = true;
@@ -183,7 +183,6 @@ void fragment() {
 
 }
 "
-graph_offset = Vector2(-586.962, -213.895)
 nodes/fragment/0/position = Vector2(1820, 0)
 nodes/fragment/3/node = SubResource("VisualShaderNodeUVFunc_7nhjk")
 nodes/fragment/3/position = Vector2(0, 80)
