@@ -39,8 +39,12 @@ signal speed_changed
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value > 0.0)
 
+@export var belt_strength: float = 10.0:
+	set(value):
+		belt_strength = value
+		_update_conveyor_belt_strength()
 
-var _sb: Area3D
+var _area3d: Area3D
 var _ce1: BeltConveyorEnd
 var _ce2: BeltConveyorEnd
 var _mesh: MeshInstance3D
@@ -54,8 +58,6 @@ var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
 var _speed_tag_group_original: String
 var _running_tag_group_original: String
-var _original_collision_layer: int = 1
-var _original_collision_mask: int = 1
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
@@ -129,6 +131,8 @@ func _on_instantiated() -> void:
 	_update_material_texture()
 	_update_material_color()
 	_update_speed()
+	_update_conveyor_belt_strength()
+	_setup_conveyor_surface_normal()
 	_on_size_changed()
 
 	if _ce1:
@@ -141,6 +145,8 @@ func _on_instantiated() -> void:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	
+	set_notify_transform(true)
 
 	_speed_tag_group_original = speed_tag_group_name
 	_running_tag_group_original = running_tag_group_name
@@ -167,11 +173,16 @@ func _exit_tree() -> void:
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 	super._exit_tree()
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		_update_conveyor_surface_normal()
+
+
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
-		var local_left = _sb.global_transform.basis.x.normalized()
+		var local_left = _area3d.global_transform.basis.x.normalized()
 		var velocity = local_left * speed
-		_sb.conveyor_belt_linear_velocity = velocity
+		_area3d.conveyor_belt_linear_velocity = velocity
 		if not SimulationEvents.simulation_paused:
 			_belt_position += speed * delta
 		if speed != 0:
@@ -190,12 +201,12 @@ func _on_simulation_ended() -> void:
 	_belt_position = 0.0
 	if _belt_material:
 		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
-	if _sb:
-		_sb.conveyor_belt_linear_velocity = Vector3.ZERO
+	if _area3d:
+		_area3d.conveyor_belt_linear_velocity = Vector3.ZERO
 
 
 func _setup_references() -> void:
-	_sb = get_node("Area3D") as Area3D
+	_area3d = get_node("Area3D") as Area3D
 	_ce1 = get_node("BeltConveyorEnd") as BeltConveyorEnd
 	_ce2 = get_node("BeltConveyorEnd2") as BeltConveyorEnd
 	_mesh = get_node("MeshInstance3D") as MeshInstance3D
@@ -254,14 +265,11 @@ func _update_speed() -> void:
 		_ce2.speed = speed
 
 
-
-
-
 func _update_belt_material_scale() -> void:
-	if not _belt_material or not _sb or speed == 0:
+	if not _belt_material or not _area3d or speed == 0:
 		return
 	var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
-	var collision_shape = _sb.get_node("CollisionShape3D").shape as BoxShape3D
+	var collision_shape = _area3d.get_node("CollisionShape3D").shape as BoxShape3D
 	var middle_length = collision_shape.size.x
 	var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
 	var belt_scale: float = middle_length / BASE_BELT_LENGTH
@@ -285,7 +293,7 @@ func _on_size_changed() -> void:
 	# Get components that need to be adjusted.
 	var end1 := _ce1
 	var end2 := _ce2
-	var middle_body := _sb
+	var middle_body := _area3d
 	var middle_mesh := _mesh
 	var middle_collision_shape := get_node_and_resource("Area3D/CollisionShape3D:shape")[1] as BoxShape3D
 	if not (is_instance_valid(end1)
@@ -320,7 +328,7 @@ func _on_size_changed() -> void:
 	# Update component positions.
 	# Ensures that the top surface of the conveyor is on the y=0 plane.
 	var base_pos = Vector3(0, -height / 2.0, 0)
-	middle_body.position = base_pos
+	middle_body.position = base_pos + Vector3(0,0.01,0)
 	var end_offset_x = length / 2.0 - end_length
 	end1.position = Vector3(base_pos.x + end_offset_x, base_pos.y, base_pos.z)
 	end2.position = Vector3(base_pos.x + -end_offset_x, base_pos.y, base_pos.z)
@@ -339,3 +347,21 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
+
+
+func _setup_conveyor_surface_normal() -> void:
+	if _area3d:
+		_area3d.conveyor_belt_use_surface_normal = true
+		_update_conveyor_surface_normal()
+
+
+func _update_conveyor_surface_normal() -> void:
+	if _area3d:
+		var local_surface_normal = Vector3(0, 1, 0)
+		var world_surface_normal = global_transform.basis * local_surface_normal
+		_area3d.conveyor_belt_surface_normal = world_surface_normal.normalized()
+
+
+func _update_conveyor_belt_strength() -> void:
+	if _area3d:
+		_area3d.conveyor_belt_strength = belt_strength
