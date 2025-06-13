@@ -4,7 +4,6 @@ extends Node
 signal simulation_started
 signal simulation_set_paused(paused)
 signal simulation_ended
-signal use
 
 var simulation_running = false
 var simulation_paused = false
@@ -26,6 +25,16 @@ func _enter_tree() -> void:
 		alert_shortcut.events.append(key_stroke)
 		editor_settings.add_shortcut("Open Industry Project/Use", alert_shortcut)
 
+	# Add shortcut for conveyor snapping
+	if not editor_settings.get_shortcut("Open Industry Project/Snap Conveyor"):
+		var snap_shortcut := Shortcut.new()
+		var snap_key_stroke := InputEventKey.new()
+		snap_key_stroke.keycode = KEY_C
+		snap_key_stroke.ctrl_pressed = true
+		snap_key_stroke.shift_pressed = true
+		snap_shortcut.events.append(snap_key_stroke)
+		editor_settings.add_shortcut("Open Industry Project/Snap Conveyor", snap_shortcut)
+
 
 func _ready() -> void:
 	if is_instance_valid(owner):
@@ -46,11 +55,17 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var editor_settings := EditorInterface.get_editor_settings()
+	
+	# Handle Use shortcut
 	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed() and not event.is_echo():
 		var selection = EditorInterface.get_selection()
 		for node : Node in selection.get_selected_nodes():
 			if(node.has_method("use")):
 				node.call("use")
+	
+	# Handle Snap Conveyor shortcut
+	if editor_settings.is_shortcut("Open Industry Project/Snap Conveyor", event) and event.is_pressed() and not event.is_echo():
+		ConveyorSnapping.snap_selected_conveyors()
 
 
 func start_simulation() -> void:

@@ -1,0 +1,61 @@
+[gd_scene load_steps=10 format=3 uid="uid://ce1putyvqg5ge"]
+
+[ext_resource type="PackedScene" uid="uid://cqmxk8rw8hn5a" path="res://src/Conveyor/CollisionManager.tscn" id="1_5phl1"]
+[ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="2_xor74"]
+[ext_resource type="PackedScene" uid="uid://dykb5m6sdtwbi" path="res://parts/BeltConveyorArea3D.tscn" id="4_mggyf"]
+[ext_resource type="PackedScene" uid="uid://bl73u0rvt2orv" path="res://parts/Despawner.tscn" id="5_7wx65"]
+[ext_resource type="PackedScene" uid="uid://co2mqmdwpn57w" path="res://parts/BoxSpawner.tscn" id="6_4jj7q"]
+[ext_resource type="PackedScene" uid="uid://5pjmdoyiub35" path="res://parts/Diverter.tscn" id="6_mggyf"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_q6ts0"]
+friction = 0.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_q6ts0"]
+size = Vector3(8.023903, 0.5, 1.537)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_vgtbc"]
+size = Vector3(4.01, 0.51, 1.534)
+
+[node name="Simulation" type="Node3D"]
+
+[node name="CollisionManager" parent="." node_paths=PackedStringArray("static_body") instance=ExtResource("1_5phl1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.032241523, 0)
+static_body = NodePath("ConveyorStaticBody")
+
+[node name="ConveyorStaticBody" type="StaticBody3D" parent="CollisionManager"]
+physics_material_override = SubResource("PhysicsMaterial_q6ts0")
+
+[node name="MergedConveyorCollision_Group0" type="CollisionShape3D" parent="CollisionManager/ConveyorStaticBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0119514, -1.7177584, 0.81049997)
+shape = SubResource("BoxShape3D_q6ts0")
+
+[node name="ConveyorCollision_Conveyor4" type="CollisionShape3D" parent="CollisionManager/ConveyorStaticBody"]
+transform = Transform3D(0.82685506, -0.56241536, 0, 0.56241536, 0.82685506, 0, 0, 0, 1, 7.622057, -0.752313, 0.7883836)
+shape = SubResource("BoxShape3D_vgtbc")
+
+[node name="Building" parent="." instance=ExtResource("2_xor74")]
+
+[node name="BoxSpawner" parent="." instance=ExtResource("6_4jj7q")]
+transform = Transform3D(1, 2.30012e-09, -9.31322e-10, -2.30012e-09, 1, 8.84756e-09, 9.31322e-10, -8.84756e-09, 1, -1.2698965, -0.999, 1.0297406)
+random_size = true
+boxes_per_minute = 30
+
+[node name="Conveyor" parent="." instance=ExtResource("4_mggyf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.5, 0.804)
+
+[node name="Conveyor2" parent="." instance=ExtResource("4_mggyf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.0239034, -1.5, 0.817)
+speed = 1.0
+
+[node name="Conveyor3" parent="." instance=ExtResource("4_mggyf")]
+transform = Transform3D(0.82685506, -0.56241536, 0, 0.56241536, 0.82685506, 0, 0, 0, 1, 7.622057, -0.46847153, 0.7883836)
+speed = 1.0
+belt_strength = 4.960000000006403
+
+[node name="Despawner" parent="." instance=ExtResource("5_7wx65")]
+transform = Transform3D(2, 0, 0, 0, 1, 0, 0, 0, 2, 10.4254055, 0.41897213, 1.3957665)
+
+[node name="Diverter" parent="." instance=ExtResource("6_mggyf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4332924, -1.6152978, 2.725278)
+divert_time = 0.15000000000873115
+divert_distance = 1.0

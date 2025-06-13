@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=4 uid="uid://dykb5m6sdtwbi"]
+[gd_scene load_steps=14 format=4 uid="uid://dykb5m6sdtwbi"]
 
 [ext_resource type="Script" uid="uid://bek2slkxke7ue" path="res://src/Conveyor/belt_conveyor_area3d.gd" id="1_xxe1n"]
 [ext_resource type="Shader" uid="uid://bejqoybamob1y" path="res://assets/3DModels/Shaders/BeltShader.tres" id="2_hkt53"]
@@ -121,6 +121,16 @@ shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
 resource_local_to_scene = true
 size = Vector3(4, 0.5, 1.524)
 
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_hkt53"]
+resource_local_to_scene = true
+height = 1.524
+radius = 0.25
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_t71cu"]
+resource_local_to_scene = true
+height = 1.524
+radius = 0.25
+
 [node name="Conveyor" type="Node3D"]
 process_mode = 1
 script = ExtResource("1_xxe1n")
@@ -151,6 +161,31 @@ shape = SubResource("BoxShape3D_me2ob")
 transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 1.75, -0.25, 0)
 size = Vector3(0.25, 0.5, 1.524)
 
+[node name="MeshInstance3D" parent="BeltConveyorEnd" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
+surface_material_override/0 = null
+surface_material_override/1 = null
+
+[node name="StaticBody3D" parent="BeltConveyorEnd" index="1"]
+collision_layer = 0
+
+[node name="CollisionShape3D" parent="BeltConveyorEnd/StaticBody3D" index="0"]
+shape = SubResource("CylinderShape3D_hkt53")
+
 [node name="BeltConveyorEnd2" parent="." instance=ExtResource("4_cd1v2")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.75, -0.25, 0)
 size = Vector3(0.25, 0.5, 1.524)
+
+[node name="MeshInstance3D" parent="BeltConveyorEnd2" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
+surface_material_override/0 = null
+surface_material_override/1 = null
+
+[node name="StaticBody3D" parent="BeltConveyorEnd2" index="1"]
+collision_layer = 0
+
+[node name="CollisionShape3D" parent="BeltConveyorEnd2/StaticBody3D" index="0"]
+shape = SubResource("CylinderShape3D_t71cu")
+
+[editable path="BeltConveyorEnd"]
+[editable path="BeltConveyorEnd2"]
