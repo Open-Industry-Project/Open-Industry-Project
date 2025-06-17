@@ -15,6 +15,9 @@ extends Node3D
 			if not disable:
 				_reset_spawn_cycle()
 
+@export var box_color: Color = Color.WHITE:
+	set(value):
+		box_color = value
 @export var random_size: bool = false
 @export var random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
 @export var random_size_max: Vector3 = Vector3(1, 1, 1)
@@ -85,6 +88,7 @@ func _spawn_box() -> void:
 	box.rotation = rotation
 	box.position = position
 	box.initial_linear_velocity = initial_linear_velocity
+	box.color = box_color
 	box.instanced = true
 	add_child(box, true)
 	box.owner = get_tree().edited_scene_root
