@@ -20,12 +20,6 @@ signal speed_changed
 		belt_texture = value
 		_update_material_texture()
 
-@export var enable_physics: bool = true:
-	set(value):
-		if value == enable_physics:
-			return
-		enable_physics = value
-
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
@@ -55,12 +49,6 @@ signal speed_changed
 		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			sb_node.physics_material_override = value
-		var sb_end1 = get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
-		if sb_end1:
-			sb_end1.physics_material_override = value
-		var sb_end2 = get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
-		if sb_end2:
-			sb_end2.physics_material_override = value
 
 var _sb: StaticBody3D
 var _ce1: BeltConveyorEnd
@@ -283,16 +271,9 @@ func _update_speed() -> void:
 
 
 func _update_physics_material() -> void:
-	if not _sb:
-		return
-	if _ce1:
-		var sb1 = _ce1.get_node("StaticBody3D") as StaticBody3D
-		if sb1:
-			sb1.physics_material_override = _sb.physics_material_override
-	if _ce2:
-		var sb2 = _ce2.get_node("StaticBody3D") as StaticBody3D
-		if sb2:
-			sb2.physics_material_override = _sb.physics_material_override
+	# Physics material is now only applied to the main StaticBody3D
+	# The ends are visual only and don't have collision
+	pass
 
 
 func _update_belt_material_scale() -> void:
@@ -347,7 +328,8 @@ func _on_size_changed() -> void:
 	# Size of the mesh at scale=1. (Size per scale unit.)
 	var middle_mesh_base_size := Vector3(1, 0.5, 2)
 	middle_mesh.scale = middle_size / middle_mesh_base_size
-	middle_collision_shape.size = middle_size
+	# Make collision shape span the entire conveyor length including ends
+	middle_collision_shape.size = Vector3(length, height, width)
 	end1.size = end_size
 	end2.size = end_size
 
@@ -358,7 +340,11 @@ func _on_size_changed() -> void:
 	# Update component positions.
 	# Ensures that the top surface of the conveyor is on the y=0 plane.
 	var base_pos = Vector3(0, -height / 2.0, 0)
+	
+	# Position the main mesh to align with the height
+	middle_mesh.position = base_pos
 	middle_body.position = base_pos
+	
 	var end_offset_x = length / 2.0 - end_length
 	end1.position = Vector3(base_pos.x + end_offset_x, base_pos.y, base_pos.z)
 	end2.position = Vector3(base_pos.x + -end_offset_x, base_pos.y, base_pos.z)

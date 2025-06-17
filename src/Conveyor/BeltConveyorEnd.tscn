@@ -71,7 +71,7 @@ hint = 1
 
 [sub_resource type="VisualShader" id="VisualShader_uqw5q"]
 code = "shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_opaque, depth_test_default, cull_back, diffuse_lambert, specular_schlick_ggx;
 
 uniform vec4 ColorMix : source_color;
 uniform bool BlackTextureOn = true;
@@ -278,7 +278,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_i5p73")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_5c7st"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_p6cdy"]
 render_priority = 0
 shader = SubResource("VisualShader_uqw5q")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
@@ -287,7 +287,7 @@ shader_parameter/Scale = 1.0
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = true
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_pmfa5"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5c7st"]
 render_priority = 0
 shader = ExtResource("5_p6cdy")
 shader_parameter/BeltPosition = 0.0
@@ -295,13 +295,6 @@ shader_parameter/Invert = false
 shader_parameter/Scale = 1.0
 shader_parameter/Scale2 = 1.0
 shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_kvs74"]
-friction = 0.5
-
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_bhx60"]
-resource_local_to_scene = true
-radius = 0.25
 
 [node name="BeltConveyorEnd" type="Node3D"]
 script = ExtResource("1_crir7")
@@ -311,20 +304,5 @@ metadata/_edit_group_ = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("ArrayMesh_bcffs")
-skeleton = NodePath("../StaticBody3D")
-surface_material_override/0 = SubResource("ShaderMaterial_5c7st")
-surface_material_override/1 = SubResource("ShaderMaterial_pmfa5")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
-collision_layer = 2
-collision_mask = 0
-axis_lock_linear_x = true
-axis_lock_linear_y = true
-axis_lock_linear_z = true
-axis_lock_angular_x = true
-axis_lock_angular_y = true
-physics_material_override = SubResource("PhysicsMaterial_kvs74")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0)
-shape = SubResource("CylinderShape3D_bhx60")
+surface_material_override/0 = SubResource("ShaderMaterial_p6cdy")
+surface_material_override/1 = SubResource("ShaderMaterial_5c7st")

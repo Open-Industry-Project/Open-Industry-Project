@@ -10,10 +10,8 @@ extends ResizableNode3D
 		if is_inside_tree():
 			_update_belt_material_scale()
 			_update_belt_material_position()
-			_update_belt_velocity()
 
 var _belt_position: float = 0.0
-var _static_body: StaticBody3D
 var _mesh: MeshInstance3D
 var _belt_material: ShaderMaterial
 var _metal_material: ShaderMaterial
@@ -62,17 +60,15 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_simulation_started() -> void:
-	_update_belt_velocity()
+	pass
 
 
 func _on_simulation_ended() -> void:
 	_belt_position = 0.0
 	_update_belt_material_position()
-	_update_belt_velocity()
 
 
 func _setup_references() -> void:
-	_static_body = get_node("StaticBody3D") as StaticBody3D
 	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	_belt_material = _mesh.mesh.surface_get_material(0) as ShaderMaterial
 	_metal_material = _mesh.mesh.surface_get_material(1) as ShaderMaterial
@@ -118,32 +114,22 @@ func _update_belt_material_position() -> void:
 
 
 func _on_size_changed() -> void:
-	if not (get_node_or_null("MeshInstance3D") and get_node_and_resource("StaticBody3D/CollisionShape3D:shape")[1]):
+	if not get_node_or_null("MeshInstance3D"):
 		# Children not instantiated yet.
 		# Do nothing and wait to get called again later.
 		return
 	var mesh_base_size := Vector3(0.25, 0.5, 2)
 	$MeshInstance3D.scale = size / mesh_base_size
-	var cylinder := $StaticBody3D/CollisionShape3D.shape as CylinderShape3D
-	cylinder.height = size.z
-	cylinder.radius = size.x
+	
+	# Position the mesh to align with the main conveyor body
+	# The main conveyor keeps the top surface at y=0 by positioning components at -height/2
+	# The BeltConveyorEnd node itself is positioned at -height/2 by the main conveyor,
+	# so we need to position our mesh at the center of our height (0) to align properly
+	$MeshInstance3D.position = Vector3(0, 0, 0)
 
 	_update_belt_material_scale()
 	_update_metal_material_scale()
-	_update_belt_velocity()
 
-
-func _update_belt_velocity() -> void:
-	if SimulationEvents.simulation_running:
-		var local_front: Vector3 = global_transform.basis.z.normalized()
-		var radius: float = size.x
-		var new_velocity: Vector3 = local_front * speed / radius
-		if _static_body.constant_angular_velocity != new_velocity:
-			_static_body.constant_angular_velocity = new_velocity
-	else:
-		if not is_inside_tree():
-			return
-		_static_body.constant_angular_velocity = Vector3.ZERO
 
 func update_belt_color(color: Color) -> void:
 	if _belt_material:

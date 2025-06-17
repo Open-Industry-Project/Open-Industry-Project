@@ -107,7 +107,7 @@ render_priority = 0
 shader = ExtResource("2_7ui2k")
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
 shader_parameter/BlackTextureOn = true
-shader_parameter/Scale = 4.45633840657307
+shader_parameter/Scale = 5.092958178940651
 shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
 
@@ -122,7 +122,7 @@ shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_me2ob"]
 resource_local_to_scene = true
-size = Vector3(3.5, 0.5, 1.524)
+size = Vector3(4, 0.5, 1.524)
 
 [node name="Conveyor" type="Node3D"]
 process_mode = 1
