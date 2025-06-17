@@ -25,6 +25,7 @@ run/scene_time_scale=1.0
 [autoload]
 
 SimulationEvents="*res://addons/oip_ui/Autoload/SimulationEvents.gd"
+ConveyorSnapping="*res://addons/oip_ui/Autoload/ConveyorSnapping.gd"
 
 [debug]
 
