@@ -128,6 +128,7 @@ mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_jt2n8")
 can_sleep = false
 continuous_cd = true
+ghost_collision_filtering_enabled = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
 shape = SubResource("BoxShape3D_h4we7")
