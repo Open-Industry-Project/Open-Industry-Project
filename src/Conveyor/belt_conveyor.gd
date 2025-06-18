@@ -358,6 +358,7 @@ func _on_size_changed() -> void:
 	# Update component positions.
 	# Ensures that the top surface of the conveyor is on the y=0 plane.
 	var base_pos = Vector3(0, -height / 2.0, 0)
+	middle_mesh.position = base_pos
 	middle_body.position = base_pos
 	var end_offset_x = length / 2.0 - end_length
 	end1.position = Vector3(base_pos.x + end_offset_x, base_pos.y, base_pos.z)
