@@ -20,12 +20,6 @@ signal speed_changed
 		belt_texture = value
 		_update_material_texture()
 
-@export var enable_physics: bool = true:
-	set(value):
-		if value == enable_physics:
-			return
-		enable_physics = value
-
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
