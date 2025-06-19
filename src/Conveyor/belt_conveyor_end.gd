@@ -49,7 +49,7 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
-	pass
+	_update_belt_velocity()
 
 
 func _physics_process(delta: float) -> void:
