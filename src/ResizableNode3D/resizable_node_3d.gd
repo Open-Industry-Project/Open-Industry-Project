@@ -17,6 +17,7 @@ signal size_changed
 		var has_changed := size != constrained_size
 		size = constrained_size
 		if has_changed:
+			update_gizmos()
 			_on_size_changed()
 			size_changed.emit()
 
