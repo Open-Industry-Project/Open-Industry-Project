@@ -1,6 +1,6 @@
 [gd_scene load_steps=15 format=4 uid="uid://c3cdcxifx4eej"]
 
-[ext_resource type="Script" uid="uid://bj7grxymjnen0" path="res://src/curved_roller_conveyor.gd" id="1_wbi3o"]
+[ext_resource type="Script" uid="uid://bj7grxymjnen0" path="res://src/RollerConveyor/curved_roller_conveyor.gd" id="1_wbi3o"]
 [ext_resource type="Shader" uid="uid://d0c82kmt01y6x" path="res://assets/3DModels/Shaders/MetalShaderRoller.tres" id="2_rk0si"]
 [ext_resource type="ArrayMesh" uid="uid://coiskou3emyq8" path="res://assets/3DModels/Meshes/ConveyorRollerEnd_Cube_006.res" id="3_o3bxo"]
 [ext_resource type="PackedScene" uid="uid://bb40krgmbtuw4" path="res://src/RollerConveyor/RollerCorner.tscn" id="3_s4o52"]
@@ -298,7 +298,7 @@ skeleton = NodePath("")
 [node name="StaticBody3D" type="StaticBody3D" parent="Ends/EndAxis1"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ends/EndAxis1/StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 0.164, 1.0875)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 0.165, 1.0875)
 shape = SubResource("BoxShape3D_ue8nd")
 
 [node name="EndAxis2" type="Node3D" parent="Ends"]
@@ -312,7 +312,7 @@ skeleton = NodePath("")
 [node name="StaticBody3D" type="StaticBody3D" parent="Ends/EndAxis2"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ends/EndAxis2/StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.06, 0.164, 1.0875)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.06, 0.165, 1.0875)
 shape = SubResource("BoxShape3D_1gove")
 
 [node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
