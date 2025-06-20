@@ -184,6 +184,10 @@ func _ready() -> void:
 		%Conveyor.size = size
 
 
+func _enter_tree() -> void:
+	call_deferred("_ensure_side_guards_updated")
+
+
 func _get_property_list() -> Array[Dictionary]:
 	# Get all the properties from the conveyor
 	var conveyor_properties = _get_conveyor_forwarded_properties()
@@ -311,6 +315,8 @@ func _on_instantiated() -> void:
 	
 	# Make sure the size is properly set on the conveyor
 	%Conveyor.size = size
+	
+	call_deferred("_ensure_side_guards_updated")
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
@@ -444,3 +450,7 @@ func _legs_property_cached_get(property: StringName, backing_field_value: Varian
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid(%Conveyor):
 		%Conveyor.size = size
+
+
+func _ensure_side_guards_updated() -> void:
+	%SideGuardsAssembly._on_conveyor_size_changed()
