@@ -22,7 +22,7 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 		if _register_speed_tag_ok and _speed_tag_group_init:
 			OIPComms.write_float32(speed_tag_group_name, speed_tag_name, value)
 		if _register_running_tag_ok and _running_tag_group_init:
-			OIPComms.write_bit(running_tag_group_name, running_tag_name, value > 0.0)
+			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
 @export_range(-60, 60, 1, "degrees") var skew_angle: float = 0.0:
 	set(value):
