@@ -18,7 +18,15 @@ var _scenario: RID
 		if _instance:
 			RenderingServer.instance_set_visible(_instance, show_beam)
 
-@export var normally_closed: bool = false
+@export var normally_closed: bool = false:
+	set(value):
+		normally_closed = value
+		_update_output()
+
+@export var detected: bool = false:
+	set(value):
+		detected = value
+		_update_output()
 
 @export var output: bool = false:
 	set(value):
@@ -45,7 +53,9 @@ var _enable_comms_changed = false:
 
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "output":
+	if property.name == "detected":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
+	elif property.name == "output":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 	elif property.name == "tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
@@ -94,6 +104,13 @@ func _exit_tree() -> void:
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 
 
+func _update_output() -> void:
+	var new_output = detected
+	if normally_closed:
+		new_output = !detected
+	output = new_output
+
+
 func _physics_process(_delta: float) -> void:
 	var start_pos = global_transform.translated_local(Vector3(0, 0.25, 0.42)).origin
 	var end_pos = start_pos + global_transform.basis.z * max_range
@@ -105,10 +122,10 @@ func _physics_process(_delta: float) -> void:
 
 	if result.size() > 0:
 		result_distance = start_pos.distance_to(result["position"])
-		output = not normally_closed if normally_closed else true
+		detected = true
 		_beam_mat.albedo_color = Color.RED
 	else:
-		output = normally_closed if normally_closed else false
+		detected = false
 		_beam_mat.albedo_color = Color.GREEN
 
 	if show_beam:

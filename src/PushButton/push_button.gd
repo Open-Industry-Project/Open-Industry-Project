@@ -14,12 +14,16 @@ extends Node3D
 		if not toggle:
 			pressed = false
 
+@export var normally_closed: bool = false:
+	set(value):
+		normally_closed = value
+		_update_output()
+
 @export var pressed: bool = false:
 	set(value):
-		if _register_pushbutton_tag_ok and value != pressed:
-			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, value)
-
 		pressed = value
+		_update_output()
+		
 		if not toggle and pressed:
 			_reset_pushbutton()
 			var tween = create_tween()
@@ -31,6 +35,12 @@ extends Node3D
 				_button_mesh.position = Vector3(0, 0, _button_pressed_z_pos)
 			else:
 				_button_mesh.position = Vector3.ZERO
+
+@export var output: bool = false:
+	set(value):
+		if _register_pushbutton_tag_ok and _tag_group_init and value != output:
+			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, value)
+		output = value
 
 @export var lamp: bool = false:
 	set(value):
@@ -66,6 +76,7 @@ var _lamp_tag_group_original: String
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
+var _tag_group_init: bool = false
 
 @export_category("Communications")
 
@@ -87,6 +98,8 @@ var _enable_comms_changed: bool = false:
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "enable_comms":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "output":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 	elif property.name == "pushbutton_tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == "pushbutton_tag_groups":
@@ -162,8 +175,9 @@ func _on_simulation_started() -> void:
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if tag_group_name_param == pushbutton_tag_group_name:
 		_pushbutton_tag_group_init = true
+		_tag_group_init = true
 		if _register_pushbutton_tag_ok:
-			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, pressed)
+			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, output)
 	if tag_group_name_param == lamp_tag_group_name:
 		_lamp_tag_group_init = true
 
@@ -178,3 +192,10 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 func use() -> void:
 	pressed = not pressed
+
+
+func _update_output() -> void:
+	var new_output = pressed
+	if normally_closed:
+		new_output = !pressed
+	output = new_output
