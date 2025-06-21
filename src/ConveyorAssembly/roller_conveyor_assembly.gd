@@ -180,6 +180,7 @@ func _ready() -> void:
 
 
 func _enter_tree() -> void:
+	super._enter_tree()
 	call_deferred("_ensure_side_guards_updated")
 
 

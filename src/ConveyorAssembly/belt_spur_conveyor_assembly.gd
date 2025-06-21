@@ -88,6 +88,7 @@ func _init() -> void:
 
 
 func _enter_tree() -> void:
+	super._enter_tree()
 	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
 
