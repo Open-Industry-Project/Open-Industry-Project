@@ -1035,8 +1035,7 @@ func _create_thumb(item: Dictionary[StringName, Variant], callback: Callable) ->
 	if not is_instance_valid(packed_scene) or not packed_scene.can_instantiate():
 		return callback.call()
 
-	var instance: Node = packed_scene.instantiate()
-	_disable_node_processing(instance)
+	var instance: Node = packed_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED, PackedScene.INSTANTIATION_NO_SCRIPTS)
 
 	_viewport.call_deferred(&"add_child", instance)
 	await instance.ready
@@ -1069,11 +1068,6 @@ func _create_thumb(item: Dictionary[StringName, Variant], callback: Callable) ->
 
 	callback.call()
 
-func _disable_node_processing(node: Node) -> void:
-	node.set_process_mode(Node.PROCESS_MODE_DISABLED)
-	
-	for child in node.get_children():
-		_disable_node_processing(child)
 
 func _thread_process() -> void:
 	var semaphore := Semaphore.new()
