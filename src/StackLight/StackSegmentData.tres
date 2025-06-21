@@ -5,5 +5,3 @@
 [resource]
 resource_local_to_scene = true
 script = ExtResource("1_1p7i5")
-active = false
-segment_color = Color(0, 1, 0, 0.5)

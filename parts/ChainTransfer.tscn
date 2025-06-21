@@ -10,7 +10,7 @@ size = Vector3(1.45, 0.2, 0.744)
 
 [node name="ChainTransfer" type="Node3D"]
 process_mode = 3
-transform = Transform3D(-2.62268e-08, 0, 1, 0, 1, 0, -0.6, 0, -4.37114e-08, 0, 0, 0)
+transform = Transform3D(-2.6226834e-08, 0, 1, 0, 1, 0, -0.6, 0, -4.371139e-08, 0, 0, 0)
 script = ExtResource("1_dolaf")
 speed_tag_group_name = "TagGroup0"
 popup_tag_group_name = "TagGroup0"
@@ -28,7 +28,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.33)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.66)
 
 [node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
-transform = Transform3D(1.66667, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1.6666666, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 collision_layer = 18
 collision_mask = 0
 

@@ -15,8 +15,8 @@ conveyor_angle = 90.0
 speed = 2.0
 reference_distance = 0.5
 belt_physics_material = null
-speed_tag_group_name = ""
-running_tag_group_name = ""
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
 size = Vector3(1.524, 0.5, 1.524)
 metadata/hijack_scale = false
 metadata/_edit_group_ = true
@@ -30,7 +30,7 @@ unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7486e-07, -2, 0)
 
 [node name="ConveyorLegTail" parent="ConveyorCorner/ConveyorLegsAssembly" index="0"]
-transform = Transform3D(-4.37114e-08, 0, -0.762, 0, 1.268, 0, 1, 0, -3.33081e-08, -1.143, 0, 0.04)
+transform = Transform3D(-4.371139e-08, 0, -0.762, 0, 1.268, 0, 1, 0, -3.330808e-08, -1.143, 0, 0.04)
 script = ExtResource("4_qnxuu")
 metadata/_edit_group_ = true
 
@@ -41,6 +41,6 @@ metadata/_edit_group_ = true
 
 [node name="SideGuardsCBC" parent="." instance=ExtResource("4_wyu5c")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.246, 0)
-size = Vector3(1.56, 4, 1)
+size = Vector3(1.5600001, 4, 1)
 
 [editable path="ConveyorCorner/ConveyorLegsAssembly"]

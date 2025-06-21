@@ -127,6 +127,7 @@ collision_mask = 15
 mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_jt2n8")
 can_sleep = false
+freeze = true
 continuous_cd = true
 ghost_collision_filtering_enabled = true
 

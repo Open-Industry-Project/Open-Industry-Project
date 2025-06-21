@@ -6,5 +6,5 @@
 render_priority = 0
 shader = ExtResource("1_8txb1")
 shader_parameter/Scale = 6.0
-shader_parameter/ChainPosition = null
-shader_parameter/Invert = null
+shader_parameter/ChainPosition = 0.0
+shader_parameter/Invert = false

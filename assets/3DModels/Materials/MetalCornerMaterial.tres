@@ -9,5 +9,5 @@ shader_parameter/BeltPosition = 0.0
 shader_parameter/Invert = false
 shader_parameter/Scale = 1.0
 shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
-shader_parameter/Metallic = null
-shader_parameter/Roughness = null
+shader_parameter/Metallic = 0.0
+shader_parameter/Roughness = 0.0

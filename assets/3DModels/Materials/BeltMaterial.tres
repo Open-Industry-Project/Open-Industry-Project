@@ -5,7 +5,7 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_al2cb")
-shader_parameter/ColorMix = null
+shader_parameter/ColorMix = Color(0, 0, 0, 1)
 shader_parameter/BlackTextureOn = true
 shader_parameter/Scale = 1.0
 shader_parameter/BeltPosition = 0.0

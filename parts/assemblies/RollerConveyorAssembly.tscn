@@ -10,14 +10,16 @@
 script = ExtResource("1_upkoq")
 speed = 2.0
 skew_angle = 0.0
-speed_tag_group_name = ""
-running_tag_group_name = ""
-size = Vector3(4, 0.24, 1.524)
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+metadata/hijack_scale = true
 metadata/_edit_group_ = null
+size = Vector3(4, 0.24, 1.524)
+metadata/hijack_scale = true
 
 [node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true
-size = Vector3(4, 0.24, 1.524)
+speed = 2.0
 
 [node name="SideGuardsAssembly" parent="Conveyor" instance=ExtResource("3_rxjsx")]
 unique_name_in_owner = true

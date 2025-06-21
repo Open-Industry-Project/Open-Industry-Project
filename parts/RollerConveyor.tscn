@@ -16,6 +16,8 @@ size = Vector3(4, 0.24, 1.524)
 
 [node name="RollerConveyor" type="Node3D"]
 script = ExtResource("1_vnty6")
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
 size = Vector3(4, 0.24, 1.524)
 metadata/hijack_scale = true
 metadata/_edit_group_ = true
