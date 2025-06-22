@@ -38,14 +38,26 @@ static func snap_selected_conveyors() -> void:
 		if _has_side_guards(conveyor):
 			retraction_info_snapped = _calculate_side_guard_retraction(conveyor, target_conveyor, snap_transform)
 		
+		var snapped_forward = snap_transform.basis.x.normalized()
+		var target_forward = target_conveyor.global_transform.basis.x.normalized()
+		var dot_product = abs(snapped_forward.dot(target_forward))
+		var is_inline_connection = dot_product > 0.7
+		
+		var target_right = target_conveyor.global_transform.basis.z.normalized()
+		var side_alignment = abs(snapped_forward.dot(target_right))
+		if side_alignment < 0.8:
+			is_inline_connection = true
+		
 		undo_redo.add_do_property(conveyor, "global_transform", snap_transform)
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
 		
-		if not intersection_info_target.is_empty():
+		if not intersection_info_target.is_empty() and intersection_info_target.get("intersections", []).size() > 0:
 			_add_side_guard_undo_redo_operations(undo_redo, target_conveyor, intersection_info_target, original_side_guard_states.get(target_conveyor.get_instance_id(), {}))
 		
-		if not retraction_info_snapped.is_empty():
+		if not retraction_info_snapped.is_empty() and retraction_info_snapped.get("retractions", []).size() > 0:
 			_add_side_guard_retraction_operations(undo_redo, conveyor, retraction_info_snapped, original_side_guard_states.get(conveyor.get_instance_id(), {}))
+		elif is_inline_connection and _has_side_guards(conveyor):
+			_clear_side_guard_openings_for_inline_connection(undo_redo, conveyor, original_side_guard_states.get(conveyor.get_instance_id(), {}))
 	
 	undo_redo.commit_action()
 
@@ -95,19 +107,36 @@ static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Nod
 	var tolerance = 0.001
 	var side_guard_margin = 0.15 if _has_side_guards(snapped_conveyor) else 0.05
 	
-	if max_bounds.z >= (-target_half_width - tolerance) and min_bounds.z <= (-target_half_width + tolerance):
-		intersections.append({
-			"side": "left",
-			"position": (min_bounds.x + max_bounds.x) / 2.0,
-			"size": (max_bounds.x - min_bounds.x) + side_guard_margin
-		})
+	var snapped_forward = snapped_transform.basis.x.normalized()
+	var target_forward = target_transform.basis.x.normalized()
+	var dot_product = abs(snapped_forward.dot(target_forward))
+	var is_perpendicular = dot_product < 0.7
 	
-	if min_bounds.z <= (target_half_width + tolerance) and max_bounds.z >= (target_half_width - tolerance):
-		intersections.append({
-			"side": "right",
-			"position": (min_bounds.x + max_bounds.x) / 2.0,
-			"size": (max_bounds.x - min_bounds.x) + side_guard_margin
-		})
+	var target_right = target_transform.basis.z.normalized()
+	var side_alignment = abs(snapped_forward.dot(target_right))
+	if side_alignment > 0.3:
+		is_perpendicular = true
+	
+	var opening_position: float
+	if is_perpendicular:
+		opening_position = snapped_local_transform.origin.x
+	else:
+		opening_position = (min_bounds.x + max_bounds.x) / 2.0
+	
+	if is_perpendicular:
+		if max_bounds.z >= (-target_half_width - tolerance) and min_bounds.z <= (-target_half_width + tolerance):
+			intersections.append({
+				"side": "left",
+				"position": opening_position,
+				"size": (max_bounds.x - min_bounds.x) + side_guard_margin
+			})
+		
+		if min_bounds.z <= (target_half_width + tolerance) and max_bounds.z >= (target_half_width - tolerance):
+			intersections.append({
+				"side": "right",
+				"position": opening_position,
+				"size": (max_bounds.x - min_bounds.x) + side_guard_margin
+			})
 	
 	return {"intersections": intersections}
 
@@ -188,7 +217,7 @@ static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor
 	var selected_forward = selected_transform.basis.x.normalized()
 	var target_forward = target_transform.basis.x.normalized()
 	var dot_product = abs(selected_forward.dot(target_forward))
-	var is_perpendicular = dot_product < 0.5
+	var is_perpendicular = dot_product < 0.7
 	
 	var min_distance = min(distance_to_front, min(distance_to_back, min(distance_to_left, distance_to_right)))
 	var snap_transform = Transform3D()
@@ -212,10 +241,7 @@ static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor
 		snap_transform.origin = connection_position + height_offset
 		
 	elif min_distance == distance_to_back:
-		var flipped_basis = target_transform.basis
-		flipped_basis.x = -flipped_basis.x
-		flipped_basis.z = -flipped_basis.z
-		var new_basis = _apply_inclination_to_basis(flipped_basis, selected_inclination)
+		var new_basis = _apply_inclination_to_basis(target_transform.basis, selected_inclination)
 		var connection_position = target_back_edge - target_transform.basis.x * (selected_size.x / 2.0)
 		var height_offset = _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
 		snap_transform.basis = new_basis
@@ -307,12 +333,22 @@ static func _get_bottom_edge_offset(conveyor_size: Vector3, inclination_angle: f
 
 
 static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D) -> Dictionary:
-	if not _has_side_guards(target_conveyor):
+	if not _has_side_guards(snapped_conveyor):
 		return {}
 	
 	var snapped_size = _get_conveyor_size(snapped_conveyor)
 	var target_transform = target_conveyor.global_transform
 	var target_size = _get_conveyor_size(target_conveyor)
+	
+	var snapped_forward = snapped_transform.basis.x.normalized()
+	var target_forward = target_transform.basis.x.normalized()
+	var dot_product = abs(snapped_forward.dot(target_forward))
+	var is_perpendicular = dot_product < 0.7
+	
+	var target_right = target_transform.basis.z.normalized()
+	var side_alignment = abs(snapped_forward.dot(target_right))
+	if side_alignment > 0.3:
+		is_perpendicular = true
 	
 	var snapped_inverse = snapped_transform.affine_inverse()
 	var target_local_transform = snapped_inverse * target_transform
@@ -320,45 +356,32 @@ static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_co
 	var target_half_length = target_size.x / 2.0
 	var target_half_width = target_size.z / 2.0
 	var snapped_half_length = snapped_size.x / 2.0
+	var snapped_half_width = snapped_size.z / 2.0
 	
 	var retractions = []
-	var retraction_margin = 0.052
+	var retraction_margin = 0.2
 	
-	var target_corners = [
-		target_local_transform.origin + target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width,
-		target_local_transform.origin + target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width,
-		target_local_transform.origin - target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width,
-		target_local_transform.origin - target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width
-	]
-	
-	var min_x = INF
-	var max_x = -INF
-	var min_z = INF
-	var max_z = -INF
-	
-	for corner in target_corners:
-		min_x = min(min_x, corner.x)
-		max_x = max(max_x, corner.x)
-		min_z = min(min_z, corner.z)
-		max_z = max(max_z, corner.z)
-	
-	if max_x > -snapped_half_length and min_x < snapped_half_length:
-		min_x = max(min_x, -snapped_half_length)
-		max_x = min(max_x, snapped_half_length)
+	if is_perpendicular:
+		var target_center_local = target_local_transform.origin
+		var target_belt_center = target_center_local.x
 		
-		if min_z < 0:
-			retractions.append({
-				"side": "left",
-				"start_position": min_x - retraction_margin,
-				"end_position": max_x + retraction_margin
-			})
+		var target_width = target_size.z
+		var margin = 0.15
+		var gap_size = target_width + margin
+		var recess_start = target_belt_center - gap_size / 2.0
+		var recess_end = target_belt_center + gap_size / 2.0
 		
-		if max_z > 0:
-			retractions.append({
-				"side": "right", 
-				"start_position": min_x - retraction_margin,
-				"end_position": max_x + retraction_margin
-			})
+		retractions.append({
+			"side": "left",
+			"start_position": recess_start,
+			"end_position": recess_end
+		})
+		
+		retractions.append({
+			"side": "right", 
+			"start_position": recess_start,
+			"end_position": recess_end
+		})
 	
 	return {"retractions": retractions}
 
@@ -411,3 +434,32 @@ static func _add_retraction_opening(original_openings: Array, start_pos: float, 
 		new_openings.append(new_opening)
 	
 	return new_openings
+
+
+static func _clear_side_guard_openings_for_inline_connection(undo_redo: EditorUndoRedoManager, conveyor: Node3D, original_state: Dictionary) -> void:
+	if not _has_side_guards(conveyor):
+		return
+	
+	var side_guards_assembly = null
+	if conveyor.has_node("%SideGuardsAssembly"):
+		side_guards_assembly = conveyor.get_node("%SideGuardsAssembly")
+	elif conveyor.has_node("Conveyor/SideGuardsAssembly"):
+		side_guards_assembly = conveyor.get_node("Conveyor/SideGuardsAssembly")
+	elif conveyor.has_node("%Conveyor/%SideGuardsAssembly"):
+		side_guards_assembly = conveyor.get_node("%Conveyor/%SideGuardsAssembly")
+	
+	if not side_guards_assembly:
+		return
+		
+	var current_left_openings = side_guards_assembly.left_side_guards_openings
+	var current_right_openings = side_guards_assembly.right_side_guards_openings
+	
+	if current_left_openings.size() > 0 or current_right_openings.size() > 0:
+		var empty_left_openings: Array[SideGuardOpening] = []
+		var empty_right_openings: Array[SideGuardOpening] = []
+		
+		side_guards_assembly.set("left_side_guards_openings", empty_left_openings)
+		side_guards_assembly.set("right_side_guards_openings", empty_right_openings)
+		
+		undo_redo.add_undo_property(side_guards_assembly, "left_side_guards_openings", current_left_openings)
+		undo_redo.add_undo_property(side_guards_assembly, "right_side_guards_openings", current_right_openings)
