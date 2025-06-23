@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://6vu4cx2v1ltg" path="res://parts/CurvedBeltConveyor.tscn" id="3_a54t1"]
 [ext_resource type="Script" uid="uid://67vowlelar02" path="res://src/ConveyorLeg/conveyor_leg.gd" id="4_qnxuu"]
 [ext_resource type="PackedScene" uid="uid://c1dcpxt5x65et" path="res://parts/SideGuardsCBC.tscn" id="4_wyu5c"]
-[ext_resource type="PackedScene" path="res://parts/assemblies/CurvedConveyorLegsAssembly.tscn" id="5_curved_legs"]
+[ext_resource type="PackedScene" uid="uid://cidlpglw76h7j" path="res://parts/assemblies/CurvedConveyorLegsAssembly.tscn" id="5_curved_legs"]
 
 [node name="CurvedBeltConveyorAssembly" type="Node3D"]
 process_mode = 3

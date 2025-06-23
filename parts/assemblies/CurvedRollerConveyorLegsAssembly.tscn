@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://b3j6k7x4h8rpg"]
+
+[ext_resource type="Script" uid="uid://bhs4j5q8k2n7p" path="res://src/ConveyorAttachment/curved_roller_conveyor_legs_assembly.gd" id="1_curved"]
+[ext_resource type="PackedScene" uid="uid://somtwmiih8bb" path="res://parts/ConveyorLegCRC.tscn" id="2_leg"]
+
+[node name="CurvedRollerConveyorLegsAssembly" type="Node3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+script = ExtResource("1_curved")
+leg_model_scene = ExtResource("2_leg")
+
+[node name="ConveyorLegTail" parent="." instance=ExtResource("2_leg")]
+transform = Transform3D(-4.371139e-08, 0, -0.822, 0, 1.253, 0, 1, 0, -3.592267e-08, -1.143, 0, 0.04)
+
+[node name="ConveyorLegHead" parent="." instance=ExtResource("2_leg")]
+transform = Transform3D(1, 0, 0, 0, 1.253, 0, 0, 0, 0.822, -0.04, 0, 1.143) 
