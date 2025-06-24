@@ -327,6 +327,7 @@ func _on_roller_removed(roller: Roller) -> void:
 
 func _on_simulation_started() -> void:
 	running = true
+	_update_conveyor_velocity()
 	if enable_comms:
 		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
 		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
@@ -334,6 +335,7 @@ func _on_simulation_started() -> void:
 
 func _on_simulation_ended() -> void:
 	running = false
+	_update_conveyor_velocity()
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
