@@ -4,10 +4,8 @@ extends Node3D
 
 signal size_changed
 
-## Minimum allowed value for the size property.
-## The size property will be automatically constrained accordingly.
 var size_min = Vector3(0.01, 0.01, 0.01)
-## Default value for the size property.
+
 var size_default = Vector3.ONE
 
 var original_size := Vector3.ZERO
@@ -22,10 +20,8 @@ func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_TRANSFORM_CHANGED:
 			if not scale.is_equal_approx(Vector3.ONE) and not transform_in_progress:
-				# Reset scale back to Vector3.ONE
 				scale = Vector3.ONE
 
-				# Show toast notification (with cooldown to prevent spam)
 				if not _scale_notification_cooldown:
 					_scale_notification_cooldown = true
 					EditorInterface.get_editor_toaster().push_toast(
@@ -40,7 +36,6 @@ func _notification(what: int) -> void:
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var size := Vector3.ZERO:
 	set(value):
 		if value == Vector3.ZERO:
-			# Treat zero as a null value.
 			if size == Vector3.ZERO:
 				size = size_default
 				return
@@ -53,13 +48,13 @@ func _notification(what: int) -> void:
 			_on_size_changed()
 			size_changed.emit()
 
-## Override this to constrain size dimensions relative to each other.
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return new_size
 
+
 func _on_instantiated() -> void:
 	if size == Vector3.ZERO:
-		# Set to default size
 		size = Vector3.ZERO
 	else:
 		_on_size_changed()
@@ -69,11 +64,13 @@ func _enter_tree() -> void:
 	EditorInterface.transform_requested.connect(_transform_requested)
 	EditorInterface.transform_commited.connect(_transform_commited)
 
+
 func _exit_tree() -> void:
 	if EditorInterface.transform_requested.is_connected(_transform_requested):
 		EditorInterface.transform_requested.disconnect(_transform_requested)
 	if EditorInterface.transform_commited.is_connected(_transform_commited):
 		EditorInterface.transform_commited.disconnect(_transform_commited)
+
 
 func _transform_requested(data) -> void:
 	if not EditorInterface.get_selection().get_selected_nodes().has(self):
@@ -90,6 +87,7 @@ func _transform_requested(data) -> void:
 		new_size = _get_constrained_size(new_size)
 		size = new_size
 
+
 func _transform_commited() -> void:
 	if transform_in_progress:
 		if size != original_size:
@@ -102,6 +100,5 @@ func _transform_commited() -> void:
 		transform_in_progress = false
 
 
-## Override this to reconfigure nodes when a new value is assigned to the size property.
 func _on_size_changed() -> void:
 	pass

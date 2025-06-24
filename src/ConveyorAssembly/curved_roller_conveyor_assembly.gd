@@ -33,7 +33,25 @@ func _notification(what: int) -> void:
 
 
 func _get_property_list() -> Array[Dictionary]:
-	return _get_conveyor_forwarded_properties()
+	var conveyor_properties = _get_conveyor_forwarded_properties()
+	var filtered_properties: Array[Dictionary] = []
+	var found_categories = []
+
+	for prop in conveyor_properties:
+		var prop_name = prop[&"name"] as String
+		var usage = prop[&"usage"] as int
+
+		if usage & PROPERTY_USAGE_CATEGORY:
+			if prop_name == "ResizableNode3D" or prop_name in found_categories:
+				continue
+			found_categories.append(prop_name)
+
+		if prop_name == "size" or prop_name == "hijack_scale" or prop_name.begins_with("metadata/hijack_scale"):
+			continue
+
+		filtered_properties.append(prop)
+
+	return filtered_properties
 
 func _set(property: StringName, value: Variant) -> bool:
 	# Allow size property to be handled by ResizableNode3D
@@ -97,6 +115,8 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	# Skip properties until we reach the category after the "Node3D" category.
 	var has_seen_node3d_category = false
 	var has_seen_category_after_node3d = false
+	# Avoid duplicating ResizableNode3D properties
+	var has_seen_resizable_node_3d_category = false
 
 	if _has_instantiated:
 		all_properties = $ConveyorCorner.get_property_list()
@@ -108,6 +128,18 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 	var filtered_properties: Array[Dictionary] = []
 	for property in all_properties:
+		# Skip ResizableNode3D properties completely since we already have them from our parent class
+		if property[&"name"] == "ResizableNode3D" and property[&"usage"] == PROPERTY_USAGE_CATEGORY:
+			has_seen_resizable_node_3d_category = true
+			continue
+
+		if has_seen_resizable_node_3d_category:
+			# Skip all properties until we find the next category
+			if property[&"usage"] == PROPERTY_USAGE_CATEGORY:
+				has_seen_resizable_node_3d_category = false
+			else:
+				continue
+
 		if not has_seen_node3d_category:
 			has_seen_node3d_category = (property[&"name"] == "Node3D"
 					and property[&"usage"] == PROPERTY_USAGE_CATEGORY)
@@ -126,6 +158,10 @@ func _get_conveyor_forwarded_property_names() -> Array:
 			.filter(func(property):
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
+				if prop_name in ["size", "original_size", "transform_in_progress", "size_min", "size_default", "hijack_scale"]:
+					return false
+				if prop_name.begins_with("metadata/hijack_scale"):
+					return false
 				return (not (usage & PROPERTY_USAGE_CATEGORY
 					or usage & PROPERTY_USAGE_GROUP
 					or usage & PROPERTY_USAGE_SUBGROUP)

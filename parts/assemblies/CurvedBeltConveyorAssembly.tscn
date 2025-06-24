@@ -20,8 +20,6 @@ running_tag_group_name = "TagGroup0"
 size = Vector3(1.524, 0.5, 1.524)
 metadata/hijack_scale = false
 metadata/_edit_group_ = true
-metadata/hijack_scale = false
-metadata/_edit_group_ = true
 
 [node name="ConveyorCorner" parent="." instance=ExtResource("3_a54t1")]
 

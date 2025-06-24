@@ -224,7 +224,7 @@ func _get_property_list() -> Array[Dictionary]:
 				continue
 			found_categories.append(prop_name)
 
-		if prop_name == "size":
+		if prop_name == "size" or prop_name == "hijack_scale" or prop_name.begins_with("metadata/hijack_scale"):
 			continue
 
 		filtered_properties.append(prop)
@@ -334,8 +334,9 @@ func _get_conveyor_forwarded_property_names() -> Array:
 			.filter(func(property):
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
-				# Skip properties that are already in ResizableNode3D
-				if prop_name in ["size", "original_size", "transform_in_progress", "size_min", "size_default"]:
+				if prop_name in ["size", "original_size", "transform_in_progress", "size_min", "size_default", "hijack_scale"]:
+					return false
+				if prop_name.begins_with("metadata/hijack_scale"):
 					return false
 				return (not (usage & PROPERTY_USAGE_CATEGORY
 					or usage & PROPERTY_USAGE_GROUP

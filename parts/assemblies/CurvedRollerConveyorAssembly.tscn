@@ -13,8 +13,6 @@ conveyor_angle = 90.0
 speed_tag_group_name = ""
 running_tag_group_name = ""
 size = Vector3(1.524, 0.5, 1.524)
-metadata/hijack_scale = null
-metadata/_edit_group_ = null
 
 [node name="ConveyorCorner" parent="." instance=ExtResource("2_1qr7y")]
 
