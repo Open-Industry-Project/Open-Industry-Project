@@ -174,7 +174,7 @@ func _setup_material() -> void:
 				metal_mesh_instance.set_surface_override_material(0, _metal_material)
 				right_mesh_instance.set_surface_override_material(0, _metal_material)
 
-	_simple_conveyor_shape = get_node_or_null("SimpleConveyorShape") as StaticBody3D
+
 
 
 func _setup_roller_initialization() -> void:
@@ -210,7 +210,14 @@ func _setup_roller_container(container: AbstractRollerContainer) -> void:
 
 
 func _setup_conveyor_physics() -> void:
+	_simple_conveyor_shape = get_node_or_null("SimpleConveyorShape") as StaticBody3D
+	
 	if _simple_conveyor_shape:
+		var collision_shape := _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if collision_shape and collision_shape.shape is BoxShape3D:
+			var box_shape := collision_shape.shape as BoxShape3D
+			box_shape.size = size
+		
 		var physics_material := PhysicsMaterial.new()
 		physics_material.friction = 0.8
 		physics_material.rough = true
