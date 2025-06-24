@@ -47,8 +47,10 @@ func _notification(what: int) -> void:
 					)
 
 func _enter_tree() -> void:
-	EditorInterface.transform_requested.connect(_transform_requested)
-	EditorInterface.transform_commited.connect(_transform_commited)
+	if not EditorInterface.transform_requested.is_connected(_transform_requested):
+		EditorInterface.transform_requested.connect(_transform_requested)
+	if not EditorInterface.transform_commited.is_connected(_transform_commited):
+		EditorInterface.transform_commited.connect(_transform_commited)
 
 func _exit_tree() -> void:
 	if EditorInterface.transform_requested.is_connected(_transform_requested):
