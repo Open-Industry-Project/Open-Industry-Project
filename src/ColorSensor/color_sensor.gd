@@ -2,13 +2,7 @@
 class_name ColorSensor
 extends Node3D
 
-var _mesh: ImmediateMesh
-var _beam_mat: StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
-var _instance: RID
-var _scenario: RID
-
 @export var max_range: float = 1.524
-
 @export var show_beam: bool = true:
 	set(value):
 		show_beam = value
@@ -18,9 +12,9 @@ var _scenario: RID
 @export var color_detected: Color = Color.BLACK:
 	set(value):
 		if _register_tag_ok and _tag_group_init and value != color_detected:
-			var red = round(value.r * 255)
-			var green = round(value.g * 255)
-			var blue = round(value.b * 255)
+			var red: int = round(value.r * 255)
+			var green: int = round(value.g * 255)
+			var blue: int = round(value.b * 255)
 			OIPComms.write_int32(tag_group_name, tag_name, red * 0x10000 + green * 0x100 + blue)
 		color_detected = value
 
@@ -36,22 +30,25 @@ var _scenario: RID
 			OIPComms.write_int32(tag_group_name, tag_name, value)
 		color_value = value
 
-var _register_tag_ok := false
-var _tag_group_init := false
+var _mesh: ImmediateMesh
+var _beam_mat: StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
+var _instance: RID
+var _scenario: RID
+var _register_tag_ok: bool = false
+var _tag_group_init: bool = false
 var _tag_group_original: String
-var _enable_comms_changed = false:
+var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
 
 @export_category("Communications")
-
-@export var enable_comms := false
+@export var enable_comms: bool = false
 @export var tag_group_name: String
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-@export var tag_name := ""
+@export var tag_name: String = ""
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -105,13 +102,13 @@ func _exit_tree() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	var start_pos = global_transform.translated_local(Vector3(0, 0.25, 0.42)).origin
-	var end_pos = start_pos + global_transform.basis.z * max_range
+	var start_pos := global_transform.translated_local(Vector3(0, 0.25, 0.42)).origin
+	var end_pos := start_pos + global_transform.basis.z * max_range
 
-	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos, 8)
-	var space_state = get_world_3d().direct_space_state
-	var result = space_state.intersect_ray(query)
-	var result_distance = max_range
+	var query := PhysicsRayQueryParameters3D.create(start_pos, end_pos, 8)
+	var space_state := get_world_3d().direct_space_state
+	var result := space_state.intersect_ray(query)
+	var result_distance := max_range
 
 	if result.size() > 0:
 		result_distance = start_pos.distance_to(result["position"])
@@ -150,7 +147,7 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if tag_group_name_param == tag_group_name:
 		_tag_group_init = true
 		if _register_tag_ok:
-			var red = round(color_detected.r * 255)
-			var green = round(color_detected.g * 255)
-			var blue = round(color_detected.b * 255)
+			var red: int = round(color_detected.r * 255)
+			var green: int = round(color_detected.g * 255)
+			var blue: int = round(color_detected.b * 255)
 			OIPComms.write_int32(tag_group_name, tag_name, red * 0x10000 + green * 0x100 + blue)

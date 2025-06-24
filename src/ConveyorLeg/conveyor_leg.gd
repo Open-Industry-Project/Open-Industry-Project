@@ -20,6 +20,13 @@ var prev_scale: Vector3
 func _init() -> void:
 	set_notify_local_transform(true)
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
+		var constrained_scale: Vector3 = constrain_scale()
+		if constrained_scale != scale:
+			scale = constrained_scale
+		on_scale_changed()
+
 func setup_references() -> void:
 	if legs_sides_mesh1 == null:
 		legs_sides_mesh1 = get_node("Sides/LegsSide1") as MeshInstance3D
@@ -70,10 +77,3 @@ func on_grabs_updated() -> void:
 		grab1.scale = Vector3.ONE
 	if grab2:
 		grab2.scale = Vector3.ONE
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
-		var constrained_scale: Vector3 = constrain_scale()
-		if constrained_scale != scale:
-			scale = constrained_scale
-		on_scale_changed()

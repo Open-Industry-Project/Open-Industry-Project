@@ -4,10 +4,6 @@ extends Node3D
 
 const BASE_LENGTH: float = 2.0
 
-@onready var chain_transfer_bases: ChainTransferBases = $ChainBases
-
-var _chain_transfer_base_scene: PackedScene = load("res://src/ChainTransfer/Base.tscn")
-
 @export var chains: int = 3:
 	set(value):
 		var new_value: int = clamp(value, 2, 6)
@@ -28,59 +24,34 @@ var _chain_transfer_base_scene: PackedScene = load("res://src/ChainTransfer/Base
 
 @export var popup_chains: bool = false
 
-var _prev_scale: Vector3 = Vector3.ONE
-
-var _register_speed_tag_ok := false
-var _register_running_tag_ok := false
-var _speed_tag_group_init := false
-var _popup_tag_group_init := false
-var _speed_tag_group_original: String
-var _popup_tag_group_original: String
-var _enable_comms_changed: bool = false:
-	set(value):
-		notify_property_list_changed()
-
 @export_category("Communications")
-@export var enable_comms := false
+@export var enable_comms: bool = false
 @export var speed_tag_group_name: String
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-@export var speed_tag_name := ""
+@export var speed_tag_name: String = ""
 @export var popup_tag_group_name: String
 @export_custom(0, "tag_group_enum") var popup_tag_groups:
 	set(value):
 		popup_tag_group_name = value
 		popup_tag_groups = value
-@export var popup_tag_name := ""
+@export var popup_tag_name: String = ""
 
-func _validate_property(property: Dictionary) -> void:
-	if property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "speed_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "speed_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "speed_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "popup_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "popup_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "popup_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+var _prev_scale: Vector3 = Vector3.ONE
+var _register_speed_tag_ok: bool = false
+var _register_running_tag_ok: bool = false
+var _speed_tag_group_init: bool = false
+var _popup_tag_group_init: bool = false
+var _speed_tag_group_original: String
+var _popup_tag_group_original: String
+var _enable_comms_changed: bool = false:
+	set(value):
+		notify_property_list_changed()
+var _chain_transfer_base_scene: PackedScene = load("res://src/ChainTransfer/Base.tscn")
 
-func _property_can_revert(property: StringName) -> bool:
-	return property == "speed_tag_groups" or property == "popup_tag_groups"
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "speed_tag_groups":
-		return _speed_tag_group_original
-	elif property == "popup_tag_groups":
-		return _popup_tag_group_original
-	else:
-		return null
+@onready var chain_transfer_bases: ChainTransferBases = $ChainBases
 
 func _init() -> void:
 	set_notify_local_transform(true)
@@ -91,7 +62,7 @@ func _notification(what: int) -> void:
 			_rescale()
 
 func _ready() -> void:
-	var current_chain_count = chain_transfer_bases.get_child_count() if chain_transfer_bases else 0
+	var current_chain_count: int = chain_transfer_bases.get_child_count() if chain_transfer_bases else 0
 	_spawn_chains(chains - current_chain_count)
 	_set_chains_distance(distance)
 	_set_chain_speed(speed)
@@ -124,15 +95,41 @@ func _exit_tree() -> void:
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
-func use() -> void:
-	popup_chains = not popup_chains
-
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	_set_popup_chains(popup_chains)
 	if SimulationEvents.simulation_running:
 		_set_chain_speed(speed)
 
-# _rescale resets scale to (scale.x, 1, 1) and updates the simple shape.
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "enable_comms":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "speed_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "popup_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "popup_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "popup_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+
+func _property_can_revert(property: StringName) -> bool:
+	return property == "speed_tag_groups" or property == "popup_tag_groups"
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property == "speed_tag_groups":
+		return _speed_tag_group_original
+	elif property == "popup_tag_groups":
+		return _popup_tag_group_original
+	else:
+		return null
+
+func use() -> void:
+	popup_chains = not popup_chains
+
 func _rescale() -> void:
 	_prev_scale = Vector3(scale.x, 1, 1)
 	scale = _prev_scale
@@ -142,9 +139,9 @@ func _set_chains_distance(dist: float) -> void:
 	if chain_transfer_bases:
 		chain_transfer_bases.set_chains_distance(dist)
 
-func _set_chain_speed(speed: float) -> void:
+func _set_chain_speed(speed_value: float) -> void:
 	if chain_transfer_bases:
-		chain_transfer_bases.set_chains_speed(speed)
+		chain_transfer_bases.set_chains_speed(speed_value)
 
 func _set_popup_chains(popup: bool) -> void:
 	if chain_transfer_bases:
@@ -166,7 +163,7 @@ func _spawn_chains(count: int) -> void:
 		return
 		
 	for i in range(count):
-		var chain_base = _chain_transfer_base_scene.instantiate() as ChainTransferBase
+		var chain_base := _chain_transfer_base_scene.instantiate() as ChainTransferBase
 		chain_transfer_bases.add_child(chain_base, true)
 		chain_base.owner = self
 		chain_base.position = Vector3(0, 0, distance * chain_base.get_index())
@@ -194,15 +191,15 @@ func _on_simulation_ended() -> void:
 	_turn_off_chains()
 
 func _update_simple_shape() -> void:
-	var simple_conveyor_shape_body = get_node_or_null("SimpleConveyorShape") as Node3D
+	var simple_conveyor_shape_body := get_node_or_null("SimpleConveyorShape") as Node3D
 	if not simple_conveyor_shape_body:
 		return
 	simple_conveyor_shape_body.scale = scale.inverse()
-	var simple_conveyor_shape_node = simple_conveyor_shape_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var simple_conveyor_shape_node := simple_conveyor_shape_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if not simple_conveyor_shape_node:
 		return
 	simple_conveyor_shape_node.position = Vector3(0, -0.094, (chains - 1) * distance / 2.0)
-	var simple_conveyor_shape = simple_conveyor_shape_node.shape as BoxShape3D
+	var simple_conveyor_shape := simple_conveyor_shape_node.shape as BoxShape3D
 	if simple_conveyor_shape:
 		simple_conveyor_shape.size = Vector3(scale.x * BASE_LENGTH + 0.25, 0.2, (chains - 1) * distance + 0.042 * 2.0)
 

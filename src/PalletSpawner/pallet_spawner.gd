@@ -2,9 +2,7 @@
 class_name PalletSpawner
 extends Node3D
 
-@onready var disabled_pallet: MeshInstance3D = $Disabled_Pallet
 @export var scene: PackedScene
-
 @export var disable: bool = false:
 	set(value):
 		if value == disable:
@@ -18,6 +16,8 @@ extends Node3D
 @export var spawn_interval: float = 1.0
 
 var scan_interval: float = 0.0
+
+@onready var disabled_pallet: MeshInstance3D = $Disabled_Pallet
 
 func _enter_tree() -> void:
 	set_notify_local_transform(true)
@@ -43,7 +43,7 @@ func _physics_process(delta: float) -> void:
 		_spawn_box()
 
 func _spawn_box() -> void:
-	var pallet = scene.instantiate() as Pallet
+	var pallet := scene.instantiate() as Pallet
 
 	pallet.rotation = rotation
 	pallet.position = position

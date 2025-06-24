@@ -19,9 +19,9 @@ signal active_state_changed(index: int, active: bool)
 		segment_data.active_changed.connect(_on_active_changed)
 		segment_data.color_changed.connect(_on_color_changed)
 
+var index: int = -1
 var _mesh_instance: MeshInstance3D
 var _material: StandardMaterial3D
-var index: int = -1
 
 func _ready() -> void:
 	_mesh_instance = $LightMesh
@@ -46,7 +46,7 @@ func _set_active(new_value: bool) -> void:
 	
 	if new_value:
 		_material.emission_energy_multiplier = 1.0
-		var opaque_color = Color(segment_data.segment_color.r, segment_data.segment_color.g, segment_data.segment_color.b, 235.0/255.0)
+		var opaque_color := Color(segment_data.segment_color.r, segment_data.segment_color.g, segment_data.segment_color.b, 235.0/255.0)
 		_material.albedo_color = opaque_color
 		_material.emission = Color(segment_data.segment_color.r, segment_data.segment_color.g, segment_data.segment_color.b, 1.0)
 	else:
@@ -56,8 +56,8 @@ func _set_active(new_value: bool) -> void:
 
 func _set_segment_color(new_value: Color) -> void:
 	if _material and segment_data and segment_data.active:
-		var albedo_color = Color(new_value.r, new_value.g, new_value.b, 235.0/255.0)
-		var emission_color = Color(new_value.r, new_value.g, new_value.b, 1.0)
+		var albedo_color := Color(new_value.r, new_value.g, new_value.b, 235.0/255.0)
+		var emission_color := Color(new_value.r, new_value.g, new_value.b, 1.0)
 		_material.albedo_color = albedo_color
 		_material.emission = emission_color
 

@@ -3,7 +3,6 @@ class_name Diverter
 extends Node3D
 
 @export_tool_button("Divert") var divert_action = divert
-
 @export var divert_time: float = 0.25
 @export var divert_distance: float = 0.75
 
@@ -17,23 +16,21 @@ var _cycled: bool = true
 var _diverting: bool = false
 var _previous_fire_divert_state: bool = false
 var _diverter_animator: DiverterAnimator
-
-var _register_tag_ok := false
-var _tag_group_init := false
+var _register_tag_ok: bool = false
+var _tag_group_init: bool = false
 var _tag_group_original: String
-var _enable_comms_changed = false:
+var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
 
 @export_category("Communications")
-
-@export var enable_comms := false
+@export var enable_comms: bool = false
 @export var tag_group_name: String
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-@export var tag_name := ""
+@export var tag_name: String = ""
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "tag_group_name":

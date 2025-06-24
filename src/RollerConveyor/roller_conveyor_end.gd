@@ -29,7 +29,7 @@ func _get_rotation_from_skew_angle(angle_degrees: float) -> Vector3:
 func _set_ends_separation(width: float) -> void:
 	var end_node := get_node("ConveyorRollerEnd")
 	if end_node:
-		var meshes := []
+		var meshes: Array = []
 		for child in end_node.get_children():
 			if child is MeshInstance3D:
 				meshes.append(child)

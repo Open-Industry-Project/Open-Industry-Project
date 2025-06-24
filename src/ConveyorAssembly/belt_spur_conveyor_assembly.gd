@@ -92,18 +92,18 @@ func _enter_tree() -> void:
 	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
 
-func _exit_tree() -> void:
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
-
-
 func _ready() -> void:
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
 
 
+func _exit_tree() -> void:
+	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+
+
 func _validate_property(property: Dictionary) -> void:
-	var property_name = property["name"]
+	var property_name: String = property["name"]
 	if property_name == "update_rate" or property_name == "tag":
 		property["usage"] = PROPERTY_USAGE_DEFAULT if enable_comms else PROPERTY_USAGE_NO_EDITOR
 	if property[&"name"] == CONVEYOR_SCRIPT_FILENAME \
@@ -115,7 +115,7 @@ func _validate_property(property: Dictionary) -> void:
 		return
 	if property_name in _get_conveyor_property_names():
 		# Copy property info from a conveyor or its script.
-		var property_found := false
+		var property_found: bool = false
 		if _get_internal_child_count() > 0:
 			var conveyor: Node = get_child(0, true)
 			# Search for the property.
@@ -169,7 +169,7 @@ func _set_conveyor_properties(conveyor: Node) -> void:
 
 
 func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
-	var conveyor_count = _get_internal_child_count()
+	var conveyor_count := _get_internal_child_count()
 	for i in range(conveyor_count):
 		var conveyor: Node = get_child(i, true)
 		conveyor.set(property, value)

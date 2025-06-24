@@ -5,8 +5,8 @@ signal simulation_started
 signal simulation_set_paused(paused)
 signal simulation_ended
 
-var simulation_running = false
-var simulation_paused = false
+var simulation_running: bool = false
+var simulation_paused: bool = false
 var selected_nodes: Array[Node]
 
 
@@ -58,8 +58,8 @@ func _input(event: InputEvent) -> void:
 	
 	# Handle Use shortcut
 	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed() and not event.is_echo():
-		var selection = EditorInterface.get_selection()
-		for node : Node in selection.get_selected_nodes():
+		var selection := EditorInterface.get_selection()
+		for node: Node in selection.get_selected_nodes():
 			if(node.has_method("use")):
 				node.call("use")
 	

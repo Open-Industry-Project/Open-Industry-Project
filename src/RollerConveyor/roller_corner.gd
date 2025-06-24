@@ -2,7 +2,7 @@
 class_name RollerCorner
 extends Node3D
 
-const MODEL_BASE_LENGTH := 2.0
+const MODEL_BASE_LENGTH: float = 2.0
 const MODEL_BASE_SHAPE_POINTS: PackedVector3Array = preload("res://src/RollerConveyor/roller_corner.shape").points
 
 @export var length: float = MODEL_BASE_LENGTH:
@@ -15,16 +15,20 @@ const MODEL_BASE_SHAPE_POINTS: PackedVector3Array = preload("res://src/RollerCon
 
 var angular_speed: float = 0.0
 var uv_speed: float = 0.0
+var _prev_global_basis: Basis = Basis.IDENTITY
 
 @onready var _mesh_instance: MeshInstance3D = $MeshInstance3D
 @onready var _static_body: StaticBody3D = $StaticBody3D
 @onready var _collision_shape: CollisionShape3D = $StaticBody3D/CollisionShape3D
 
-var _prev_global_basis: Basis = Basis.IDENTITY
-
 
 func _init() -> void:
 	set_notify_transform(true)
+
+
+func _ready() -> void:
+	_update_shape_length()
+	_update_mesh_length()
 
 
 func _notification(what: int) -> void:
@@ -34,9 +38,12 @@ func _notification(what: int) -> void:
 		_prev_global_basis = global_basis
 
 
-func _ready() -> void:
-	_update_shape_length()
-	_update_mesh_length()
+func get_material() -> Material:
+	return _mesh_instance.mesh.surface_get_material(0)
+
+
+func set_override_material(material: Material) -> void:
+	_mesh_instance.set_surface_override_material(0, material)
 
 
 func _update_shape_length() -> void:
@@ -49,14 +56,3 @@ func _update_shape_length() -> void:
 
 func _update_mesh_length() -> void:
 	_mesh_instance.scale.z = length / MODEL_BASE_LENGTH
-
-
-
-
-
-func get_material() -> Material:
-	return _mesh_instance.mesh.surface_get_material(0)
-
-
-func set_override_material(material: Material) -> void:
-	_mesh_instance.set_surface_override_material(0, material)

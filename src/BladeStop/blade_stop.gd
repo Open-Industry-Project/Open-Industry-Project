@@ -13,8 +13,6 @@ extends Node3D
 		else:
 			_down()
 
-var _active_pos: float = 0.24
-
 @export var air_pressure_height: float = 0.0:
 	set(value):
 		air_pressure_height = value
@@ -25,6 +23,14 @@ var _active_pos: float = 0.24
 		_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 		_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)
 
+var _active_pos: float = 0.24
+var _register_tag_ok: bool = false
+var _tag_group_init: bool = false
+var _tag_group_original: String
+var _enable_comms_changed: bool = false:
+	set(value):
+		notify_property_list_changed()
+
 var _blade: StaticBody3D
 var _air_pressure_r: MeshInstance3D
 var _air_pressure_l: MeshInstance3D
@@ -32,22 +38,14 @@ var _blade_corner_r: MeshInstance3D
 var _blade_corner_l: MeshInstance3D
 var _corners: Node3D
 
-var _register_tag_ok := false
-var _tag_group_init := false
-var _tag_group_original: String
-var _enable_comms_changed = false:
-	set(value):
-		notify_property_list_changed()
-
 @export_category("Communications")
-
-@export var enable_comms := false
+@export var enable_comms: bool = false
 @export var tag_group_name: String
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-@export var tag_name := ""
+@export var tag_name: String = ""
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -109,14 +107,14 @@ func use() -> void:
 
 
 func _up() -> void:
-	var tween = create_tween().set_parallel()
+	var tween := create_tween().set_parallel()
 	tween.tween_property(_blade, "position", Vector3(_blade.position.x, air_pressure_height + _active_pos, _blade.position.z), 0.15)
 	tween.tween_property(_blade_corner_r, "position", Vector3(_blade_corner_r.position.x, _active_pos, _blade_corner_r.position.z), 0.15)
 	tween.tween_property(_blade_corner_l, "position", Vector3(_blade_corner_l.position.x, _active_pos, _blade_corner_l.position.z), 0.15)
 
 
 func _down() -> void:
-	var tween = create_tween().set_parallel()
+	var tween := create_tween().set_parallel()
 	tween.tween_property(_blade, "position", Vector3(_blade.position.x, air_pressure_height, _blade.position.z), 0.15)
 	tween.tween_property(_blade_corner_r, "position", Vector3(_blade_corner_r.position.x, 0, _blade_corner_r.position.z), 0.15)
 	tween.tween_property(_blade_corner_l, "position", Vector3(_blade_corner_l.position.x, 0, _blade_corner_l.position.z), 0.15)

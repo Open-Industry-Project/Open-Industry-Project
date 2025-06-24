@@ -2,11 +2,6 @@
 class_name LaserSensor
 extends Node3D
 
-var _mesh: ImmediateMesh
-var _beam_mat: StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
-var _instance: RID
-var _scenario: RID
-
 @export var max_range: float = 1.524:
 	set(value):
 		value = clamp(value, 0, 100)
@@ -24,22 +19,25 @@ var _scenario: RID
 			OIPComms.write_float32(tag_group_name, tag_name, value)
 		distance = value
 
-var _register_tag_ok := false
-var _tag_group_init := false
+var _mesh: ImmediateMesh
+var _beam_mat: StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
+var _instance: RID
+var _scenario: RID
+var _register_tag_ok: bool = false
+var _tag_group_init: bool = false
 var _tag_group_original: String
-var _enable_comms_changed = false:
+var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
 
 @export_category("Communications")
-
-@export var enable_comms := false
+@export var enable_comms: bool = false
 @export var tag_group_name: String
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-@export var tag_name := ""
+@export var tag_name: String = ""
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -93,12 +91,12 @@ func _exit_tree() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	var start_pos = global_transform.translated_local(Vector3(0, 0, 0)).origin
-	var end_pos = start_pos + global_transform.basis.z * max_range
+	var start_pos := global_transform.translated_local(Vector3(0, 0, 0)).origin
+	var end_pos := start_pos + global_transform.basis.z * max_range
 
-	var query = PhysicsRayQueryParameters3D.create(start_pos, end_pos, 8)
-	var space_state = get_world_3d().direct_space_state
-	var result = space_state.intersect_ray(query)
+	var query := PhysicsRayQueryParameters3D.create(start_pos, end_pos, 8)
+	var space_state := get_world_3d().direct_space_state
+	var result := space_state.intersect_ray(query)
 
 	if result.size() > 0:
 		distance = start_pos.distance_to(result["position"])

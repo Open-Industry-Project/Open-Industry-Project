@@ -10,7 +10,6 @@ signal color_changed(value)
 		active = value
 		active_changed.emit(active)
 
-
 @export var segment_color: Color = Color(0.0, 1.0, 0.0, 0.5):
 	set(value):
 		segment_color = value

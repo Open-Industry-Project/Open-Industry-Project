@@ -9,10 +9,10 @@ signal roller_rotation_changed(rotation_degrees: Vector3)
 signal roller_added(roller: Roller)
 signal roller_removed(roller: Roller)
 
-var _width := 2.0
-var _length := 1.0
-var _roller_length := 2.0
-var _roller_skew_angle_degrees := 0.0
+var _width: float = 2.0
+var _length: float = 1.0
+var _roller_length: float = 2.0
+var _roller_skew_angle_degrees: float = 0.0
 
 func _init() -> void:
 	roller_added.connect(self._handle_roller_added)

@@ -20,7 +20,6 @@ enum Datatype {
 			Datatype.BOOL:
 				tag_value = false
 
-
 @export var tag_value: Variant:
 	set(value):
 		if is_same(value, tag_value):
@@ -36,24 +35,45 @@ enum Datatype {
 			Datatype.INT:
 				OIPComms.write_int32(tag_group_name, tag_name, value)
 
-var register_tag_ok := false
-var tag_group_init := false
+var register_tag_ok: bool = false
+var tag_group_init: bool = false
 var tag_group_original: String
-var _enable_comms_changed = false:
+var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
 
 @export_category("Communications")
-
-@export var enable_comms := false
+@export var enable_comms: bool = false
 @export var tag_group_name: String
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+@export var tag_name: String = ""
+@export var setup: bool = false
 
-@export var tag_name := ""
-@export var setup := false
+
+func _enter_tree() -> void:
+	if not setup:
+		tag_value = false
+		setup = true
+
+	tag_group_original = tag_group_name
+	if tag_group_name.is_empty():
+		tag_group_name = OIPComms.get_tag_groups()[0]
+
+	tag_groups = tag_group_name
+
+	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
+	OIPComms.tag_group_polled.connect(_tag_group_polled)
+	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
+
+
+func _exit_tree() -> void:
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -80,29 +100,6 @@ func _property_get_revert(property: StringName) -> Variant:
 		return tag_value
 	else:
 		return null
-
-
-func _enter_tree() -> void:
-	if not setup:
-		tag_value = false
-		setup = true
-
-	tag_group_original = tag_group_name
-	if tag_group_name.is_empty():
-		tag_group_name = OIPComms.get_tag_groups()[0]
-
-	tag_groups = tag_group_name
-
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
-
-
-func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 
 
 func _on_simulation_started() -> void:

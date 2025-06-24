@@ -1,5 +1,6 @@
 @tool
-class_name Pallet extends Node3D
+class_name Pallet
+extends Node3D
 
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
 @export var color: Color = Color.WHITE:

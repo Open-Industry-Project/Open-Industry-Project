@@ -4,11 +4,12 @@ extends Resource
 
 var segments: int = 0
 var segment_data: StackSegmentData = load("res://src/StackLight/StackSegmentData.tres")
+
 @export var segment_datas: Array = []
 
 
 func init_segments(count: int) -> void:
-	var old_datas = segment_datas
+	var old_datas := segment_datas
 	segment_datas = []
 	segment_datas.resize(count)
 	segments = count
@@ -24,10 +25,10 @@ func set_segments(count: int) -> void:
 	if count == segments:
 		return
 	
-	var old_datas = segment_datas
+	var old_datas := segment_datas
 	segment_datas = []
 	segment_datas.resize(count)
-	var old_count = segments
+	var old_count := segments
 	segments = count
 	
 	for i in range(count):

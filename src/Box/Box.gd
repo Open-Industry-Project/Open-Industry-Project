@@ -13,17 +13,17 @@ extends ResizableNode3D
 			mat.albedo_color = color
 			_mesh_instance_3d.mesh.surface_set_material(0, mat)
 
-@onready var _rigid_body_3d: RigidBody3D = $RigidBody3D
-@onready var _mesh_instance_3d: MeshInstance3D = $RigidBody3D/MeshInstance3D
-
 var _initial_transform: Transform3D
 var _paused: bool = false
 var _enable_initial_transform: bool = false
 var instanced: bool = false
 
+@onready var _rigid_body_3d: RigidBody3D = $RigidBody3D
+@onready var _mesh_instance_3d: MeshInstance3D = $RigidBody3D/MeshInstance3D
+
 
 func _init() -> void:
-	super._init() # Call parent _init to inherit hijack_scale metadata
+	super._init()
 	size_default = Vector3(1, 1, 1)
 
 
@@ -44,28 +44,6 @@ func _ready() -> void:
 		_rigid_body_3d.linear_velocity = initial_linear_velocity
 
 
-func _get_constrained_size(new_size: Vector3) -> Vector3:
-	# Boxes can be any size, no constraints
-	return new_size
-
-
-
-func _on_size_changed() -> void:
-	if not is_instance_valid(_mesh_instance_3d) or not is_instance_valid(_rigid_body_3d):
-		return
-
-	var mesh_instance = _mesh_instance_3d
-	var collision_shape = _rigid_body_3d.get_node_or_null("CollisionShape3D")
-
-	if mesh_instance:
-		mesh_instance.scale = size/2
-
-	if collision_shape:
-		var box_shape = collision_shape.shape as BoxShape3D
-		if box_shape:
-			box_shape.size = size
-
-
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
@@ -73,6 +51,10 @@ func _exit_tree() -> void:
 	super._exit_tree()
 	if instanced:
 		queue_free()
+
+
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	return new_size
 
 
 func selected() -> void:
@@ -91,6 +73,22 @@ func selected() -> void:
 
 func use() -> void:
 	_rigid_body_3d.freeze = not _rigid_body_3d.freeze
+
+
+func _on_size_changed() -> void:
+	if not is_instance_valid(_mesh_instance_3d) or not is_instance_valid(_rigid_body_3d):
+		return
+
+	var mesh_instance := _mesh_instance_3d
+	var collision_shape := _rigid_body_3d.get_node_or_null("CollisionShape3D")
+
+	if mesh_instance:
+		mesh_instance.scale = size/2
+
+	if collision_shape:
+		var box_shape := collision_shape.shape as BoxShape3D
+		if box_shape:
+			box_shape.size = size
 
 
 func _on_simulation_started() -> void:

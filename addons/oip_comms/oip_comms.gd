@@ -23,12 +23,12 @@ func _exit_tree() -> void:
 	_dock.free()
 
 
-func _scene_saved(filepath: String) -> void:
-	_dock.save_all()
-
-
 func save_changes(value: bool) -> void:
 	if value:
 		bottom_panel_button.text = "Comms(*)"
 	else:
 		bottom_panel_button.text = "Comms"
+
+
+func _scene_saved(filepath: String) -> void:
+	_dock.save_all()

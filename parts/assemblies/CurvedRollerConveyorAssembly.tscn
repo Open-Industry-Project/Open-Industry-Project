@@ -12,7 +12,9 @@ reference_distance = 0.5
 conveyor_angle = 90.0
 speed_tag_group_name = ""
 running_tag_group_name = ""
+metadata/_edit_group_ = null
 size = Vector3(1.524, 0.5, 1.524)
+metadata/hijack_scale = true
 
 [node name="ConveyorCorner" parent="." instance=ExtResource("2_1qr7y")]
 
@@ -22,6 +24,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7486e-07, -2, 0)
 
 [node name="SideGuardsCBC" parent="." instance=ExtResource("3_8k5xq")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.246, 0)
-size = Vector3(1.5600001, 4, 1)
+size = Vector3(1.5600001, 4, 1.5600001)
+metadata/hijack_scale = true
 
 [connection signal="ready" from="ConveyorCorner" to="." method="_on_instantiated"]

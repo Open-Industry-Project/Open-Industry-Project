@@ -2,11 +2,11 @@
 class_name BeltConveyorAssembly
 extends ResizableNode3D
 
-const CONVEYOR_CLASS_NAME = "BeltConveyor"
-const SIDE_GUARDS_SCRIPT_PATH = "res://src/ConveyorAttachment/side_guards_assembly.gd"
-const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
-const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
-const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
+const CONVEYOR_CLASS_NAME: String = "BeltConveyor"
+const SIDE_GUARDS_SCRIPT_PATH: String = "res://src/ConveyorAttachment/side_guards_assembly.gd"
+const SIDE_GUARDS_SCRIPT_FILENAME: String = "side_guards_assembly.gd"
+const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH: String = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
+const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME: String = "conveyor_legs_assembly.gd"
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
@@ -24,7 +24,7 @@ var belt_color: Color = Color(1, 1, 1, 1):
 		_conveyor_property_cached_set(&"belt_color", value)
 
 ## The texture pattern used on the conveyor belt.
-var belt_texture = 0:
+var belt_texture: int = 0:
 	get:
 		return _conveyor_property_cached_get(&"belt_texture")
 	set(value):
@@ -36,6 +36,12 @@ var belt_physics_material: PhysicsMaterial:
 		return _conveyor_property_cached_get(&"belt_physics_material")
 	set(value):
 		_conveyor_property_cached_set(&"belt_physics_material", value)
+
+var _conveyor_script: Script
+var _has_instantiated: bool = false
+var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
+var _cached_side_guards_property_values: Dictionary[StringName, Variant] = {}
+var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 #region SideGuardsAssembly properties
 @export_category(SIDE_GUARDS_SCRIPT_FILENAME)
@@ -84,10 +90,9 @@ var local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAU
 	set(value):
 		local_floor_plane = _legs_property_cached_set(&"local_floor_plane", value, local_floor_plane)
 
-
 @export_subgroup("Middle Legs", "middle_legs")
 @export
-var middle_legs_enabled := true:
+var middle_legs_enabled: bool = true:
 	get:
 		return _legs_property_cached_get(&"middle_legs_enabled", middle_legs_enabled)
 	set(value):
@@ -104,7 +109,6 @@ var middle_legs_spacing: float = 2:
 		return _legs_property_cached_get(&"middle_legs_spacing", middle_legs_spacing)
 	set(value):
 		middle_legs_spacing = _legs_property_cached_set(&"middle_legs_spacing", value, middle_legs_spacing)
-
 
 @export_subgroup("Head End", "head_end")
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
@@ -126,7 +130,6 @@ var head_end_leg_clearance: float = 0.5:
 	set(value):
 		head_end_leg_clearance = _legs_property_cached_set(&"head_end_leg_clearance", value, head_end_leg_clearance)
 
-
 @export_subgroup("Tail End", "tail_end")
 @export_range(0, 1, 0.01, "or_greater", "suffix:m")
 var tail_end_attachment_offset: float = 0.45:
@@ -147,7 +150,6 @@ var tail_end_leg_clearance: float = 0.5:
 	set(value):
 		tail_end_leg_clearance = _legs_property_cached_set(&"tail_end_leg_clearance", value, tail_end_leg_clearance)
 
-
 @export_subgroup("Model", "leg_model")
 @export
 var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
@@ -164,13 +166,6 @@ var leg_model_grabs_offset: float = 0.132:
 #endregion
 
 
-var _conveyor_script: Script
-var _has_instantiated := false
-var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
-var _cached_side_guards_property_values: Dictionary[StringName, Variant] = {}
-var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
-
-
 func _init() -> void:
 	super._init()
 
@@ -184,7 +179,7 @@ func _ready() -> void:
 		%Conveyor.property_list_changed.connect(notify_property_list_changed)
 
 	for property: StringName in _cached_conveyor_property_values:
-		var value = _cached_conveyor_property_values[property]
+		var value: Variant = _cached_conveyor_property_values[property]
 		%Conveyor.set(property, value)
 	_cached_conveyor_property_values.clear()
 
@@ -192,7 +187,7 @@ func _ready() -> void:
 		%SideGuardsAssembly.property_list_changed.connect(notify_property_list_changed)
 
 	for property: StringName in _cached_side_guards_property_values:
-		var value = _cached_side_guards_property_values[property]
+		var value: Variant = _cached_side_guards_property_values[property]
 		%SideGuardsAssembly.set(property, value)
 	_cached_side_guards_property_values.clear()
 
@@ -200,7 +195,7 @@ func _ready() -> void:
 		%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
 
 	for property: StringName in _cached_legs_property_values:
-		var value = _cached_legs_property_values[property]
+		var value: Variant = _cached_legs_property_values[property]
 		%ConveyorLegsAssembly.set(property, value)
 	_cached_legs_property_values.clear()
 
@@ -211,13 +206,13 @@ func _ready() -> void:
 
 
 func _get_property_list() -> Array[Dictionary]:
-	var conveyor_properties = _get_conveyor_forwarded_properties()
+	var conveyor_properties := _get_conveyor_forwarded_properties()
 	var filtered_properties: Array[Dictionary] = []
-	var found_categories = []
+	var found_categories: Array = []
 
 	for prop in conveyor_properties:
-		var prop_name = prop[&"name"] as String
-		var usage = prop[&"usage"] as int
+		var prop_name := prop[&"name"] as String
+		var usage := prop[&"usage"] as int
 
 		if usage & PROPERTY_USAGE_CATEGORY:
 			if prop_name == "ResizableNode3D" or prop_name in found_categories:
@@ -283,16 +278,27 @@ func _property_get_revert(property: StringName) -> Variant:
 	return _conveyor_script.get_property_default_value(property)
 
 
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	# No constraints for belt conveyor assemblies
+	return new_size
 
+
+func _on_size_changed() -> void:
+	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
+		%Conveyor.size = size
+
+
+func _ensure_side_guards_updated() -> void:
+	%SideGuardsAssembly._on_conveyor_size_changed()
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	var all_properties: Array[Dictionary]
 	# Skip properties until we reach the category after the "Node3D" category.
-	var has_seen_node3d_category = false
-	var has_seen_category_after_node3d = false
+	var has_seen_node3d_category: bool = false
+	var has_seen_category_after_node3d: bool = false
 	# Avoid duplicating ResizableNode3D properties
-	var has_seen_resizable_node_3d_category = false
+	var has_seen_resizable_node_3d_category: bool = false
 
 	if _has_instantiated:
 		all_properties = %Conveyor.get_property_list()
@@ -385,7 +391,7 @@ func _legs_property_cached_set(property: StringName, value: Variant, existing_ba
 ## Get the property value from the Conveyor node; use a cached value if that child isn't present.
 func _conveyor_property_cached_get(property: StringName) -> Variant:
 	if _has_instantiated and is_instance_valid(%Conveyor):
-		var value = %Conveyor.get(property)
+		var value: Variant = %Conveyor.get(property)
 		if value != null:
 			return value
 
@@ -405,7 +411,7 @@ func _conveyor_property_cached_get(property: StringName) -> Variant:
 ## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
 func _side_guards_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
 	if _has_instantiated and is_instance_valid(%SideGuardsAssembly):
-		var value = %SideGuardsAssembly.get(property)
+		var value: Variant = %SideGuardsAssembly.get(property)
 		if value != null:
 			return value
 
@@ -418,24 +424,9 @@ func _side_guards_property_cached_get(property: StringName, backing_field_value:
 ## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
 func _legs_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
 	if _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
-		var value = %ConveyorLegsAssembly.get(property)
+		var value: Variant = %ConveyorLegsAssembly.get(property)
 		if value != null:
 			return value
 
 	# Return backing field value as fallback (this maintains the typed defaults)
 	return backing_field_value
-
-
-func _get_constrained_size(new_size: Vector3) -> Vector3:
-	# No constraints for belt conveyor assemblies
-	return new_size
-
-
-
-func _on_size_changed() -> void:
-	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
-		%Conveyor.size = size
-
-
-func _ensure_side_guards_updated() -> void:
-	%SideGuardsAssembly._on_conveyor_size_changed()

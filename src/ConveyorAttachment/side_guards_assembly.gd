@@ -10,7 +10,7 @@ enum Side
 
 @export_subgroup("Right Side Guards", "right_side_guards_")
 ## If [code]true[/code], automatically generate side guards on the right-hand side of the conveyor.
-@export var right_side_guards_enabled = true:
+@export var right_side_guards_enabled: bool = true:
 	set(value):
 		right_side_guards_enabled = value
 		if not is_inside_tree():
@@ -54,7 +54,7 @@ enum Side
 			_on_opening_changed_right()
 @export_subgroup("Left Side Guards", "left_side_guards_")
 ## If [code]true[/code], automatically generate side guards on the left-hand side of the conveyor.
-@export var left_side_guards_enabled = true:
+@export var left_side_guards_enabled: bool = true:
 	set(value):
 		left_side_guards_enabled = value
 		if not is_inside_tree():
@@ -97,10 +97,9 @@ enum Side
 		if is_inside_tree():
 			_on_opening_changed_left()
 
-var _conveyor_connected = false;
+var _conveyor_connected: bool = false
 
 
-#region Managing connection to Conveyor's signals
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_PARENTED:
@@ -108,8 +107,15 @@ func _notification(what: int) -> void:
 		NOTIFICATION_UNPARENTED:
 			_disconnect_conveyor_signals()
 
+
+func _get_configuration_warnings() -> PackedStringArray:
+	if not _conveyor_connected:
+		return ["This node must be a child of a Conveyor or ConveyorAssembly."]
+	return []
+
+
 func _connect_conveyor_signals() -> void:
-	var conveyor = get_parent()
+	var conveyor := get_parent()
 	if conveyor.has_signal("size_changed") and "size" in conveyor and conveyor.size is Vector3:
 		conveyor.connect("size_changed", self._on_conveyor_size_changed)
 		_conveyor_connected = true
@@ -122,15 +128,8 @@ func _disconnect_conveyor_signals() -> void:
 	if not _conveyor_connected:
 		return
 	_conveyor_connected = false
-	var conveyor = get_parent()
+	var conveyor := get_parent()
 	conveyor.disconnect("size_changed", self._on_conveyor_size_changed)
-
-
-func _get_configuration_warnings() -> PackedStringArray:
-	if not _conveyor_connected:
-		return ["This node must be a child of a Conveyor or ConveyorAssembly."]
-	return []
-#endregion
 
 
 func _on_conveyor_size_changed() -> void:
@@ -173,7 +172,7 @@ func _clear_side(side: SideGuardsAssembly.Side) -> void:
 ## Get or create the node for the given side.
 func _ensure_side(side: SideGuardsAssembly.Side) -> Node3D:
 	var side_name: String = _get_side_node_name(side)
-	var side_node = get_node_or_null(side_name)
+	var side_node := get_node_or_null(side_name)
 	if side_node == null:
 		side_node = Node3D.new()
 		side_node.name = side_name

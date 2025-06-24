@@ -11,72 +11,32 @@ extends Node3D
 			_down()
 
 var speed: float = 0.0
-
+var running: bool = false
 var _container_body: StaticBody3D
 var _chain_base: Node3D
 var _container: Node3D
 var _chain: Node3D
-
 var _inactive_pos: float = 0.0
 var _active_pos: float = 0.095
-
 var _sb: StaticBody3D
 var _sb_active_position: Vector3 = Vector3.ZERO
 var _sb_inactive_position: Vector3 = Vector3.ZERO
-
-var running: bool = false
-
 var _chain_base_length: float = 2.0
 var _chain_scale: int = 32
 var _chain_end_scale: int = 6
-
 var _chain_mesh: MeshInstance3D
 var _chain_end_l_mesh: MeshInstance3D
 var _chain_end_r_mesh: MeshInstance3D
-
 var _chain_material: ShaderMaterial
 var _chain_end_l_material: ShaderMaterial
 var _chain_end_r_material: ShaderMaterial
-
 var _chain_position: float = 0.0
 var _chain_end_position: float = 0.0
-
-func _init_mesh(path: String) -> Array:
-	var m = get_node(path) as MeshInstance3D
-	m.mesh = m.mesh.duplicate()
-	var mat = m.mesh.surface_get_material(0).duplicate() as ShaderMaterial
-	m.mesh.surface_set_material(0, mat)
-	return [m, mat]
-
-func _set_chain_position(mat: ShaderMaterial, pos: float) -> void:
-	if mat:
-		mat.set_shader_parameter("ChainPosition", pos)
-
-func _ensure_valid_node_references() -> void:
-	if _sb:
-		return
-	
-	_container_body = get_node("ContainerBody") as StaticBody3D
-	_chain_base = get_node("Base") as Node3D
-	_container = get_node("Container") as Node3D
-	_chain = get_node("Chain") as Node3D
-	_sb = get_node("Chain/StaticBody3D") as StaticBody3D
-
-func _scale_children(nodes_container: Node3D) -> void:
-	if owner == null:
-		return
-	
-	for child in nodes_container.get_children():
-		# If the container is "Chain" and the child is a StaticBody3D, skip scaling.
-		if nodes_container.name == "Chain" and child is StaticBody3D:
-			continue
-		if child is Node3D:
-			child.scale = Vector3(1 / owner.scale.x, 1, 1)
 
 func _ready() -> void:
 	_ensure_valid_node_references()
 
-	var result = _init_mesh("Chain")
+	var result := _init_mesh("Chain")
 	_chain_mesh = result[0]
 	_chain_material = result[1]
 
@@ -98,8 +58,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if running:
-		var local_left = _sb.global_transform.basis.x.normalized()
-		var velocity = local_left * speed
+		var local_left := _sb.global_transform.basis.x.normalized()
+		var velocity := local_left * speed
 		_sb.constant_linear_velocity = velocity
 		_sb.position = _sb_active_position
 		_sb.rotation = Vector3.ZERO
@@ -139,11 +99,43 @@ func turn_off() -> void:
 	_sb.rotation = Vector3.ZERO
 	_sb.constant_linear_velocity = Vector3.ZERO
 
+func _init_mesh(path: String) -> Array:
+	var m := get_node(path) as MeshInstance3D
+	m.mesh = m.mesh.duplicate()
+	var mat := m.mesh.surface_get_material(0).duplicate() as ShaderMaterial
+	m.mesh.surface_set_material(0, mat)
+	return [m, mat]
+
+func _set_chain_position(mat: ShaderMaterial, pos: float) -> void:
+	if mat:
+		mat.set_shader_parameter("ChainPosition", pos)
+
+func _ensure_valid_node_references() -> void:
+	if _sb:
+		return
+	
+	_container_body = get_node("ContainerBody") as StaticBody3D
+	_chain_base = get_node("Base") as Node3D
+	_container = get_node("Container") as Node3D
+	_chain = get_node("Chain") as Node3D
+	_sb = get_node("Chain/StaticBody3D") as StaticBody3D
+
+func _scale_children(nodes_container: Node3D) -> void:
+	if owner == null:
+		return
+	
+	for child in nodes_container.get_children():
+		# If the container is "Chain" and the child is a StaticBody3D, skip scaling.
+		if nodes_container.name == "Chain" and child is StaticBody3D:
+			continue
+		if child is Node3D:
+			child.scale = Vector3(1 / owner.scale.x, 1, 1)
+
 func _up() -> void:
 	_ensure_valid_node_references()
 	
 	if is_inside_tree():
-		var tween = create_tween().set_parallel()
+		var tween := create_tween().set_parallel()
 		tween.tween_property(_container_body, "position", Vector3(_container_body.position.x, _active_pos, _container_body.position.z), 0.15)
 		tween.tween_property(_container, "position", Vector3(_container.position.x, _active_pos, _container.position.z), 0.15)
 		tween.tween_property(_chain, "position", Vector3(_chain.position.x, _active_pos, _chain.position.z), 0.15)
@@ -156,7 +148,7 @@ func _down() -> void:
 	_ensure_valid_node_references()
 	
 	if is_inside_tree():
-		var tween = create_tween().set_parallel()
+		var tween := create_tween().set_parallel()
 		tween.tween_property(_container_body, "position", Vector3(_container_body.position.x, _inactive_pos, _container_body.position.z), 0.15)
 		tween.tween_property(_container, "position", Vector3(_container.position.x, _inactive_pos, _container.position.z), 0.15)
 		tween.tween_property(_chain, "position", Vector3(_chain.position.x, _inactive_pos, _chain.position.z), 0.15)

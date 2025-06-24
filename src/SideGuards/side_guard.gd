@@ -8,13 +8,11 @@ extends MeshInstance3D
 		if l_end:
 			l_end.visible = value
 
-
 @export var right_end: bool = false:
 	set(value):
 		right_end = value
 		if r_end:
 			r_end.visible = value
-
 
 @export var length: float = 1.0:
 	set(value):
@@ -32,6 +30,7 @@ extends MeshInstance3D
 var _metal_material: ShaderMaterial = null
 var _l_end: Node3D = null
 var _r_end: Node3D = null
+var prev_scale: Vector3
 
 var l_end: Node3D:
 	get:
@@ -66,7 +65,7 @@ func get_metal_material() -> ShaderMaterial:
 	if _metal_material:
 		return _metal_material
 		
-	var mesh_instance = self
+	var mesh_instance := self
 	mesh_instance.mesh = mesh_instance.mesh.duplicate()
 	_metal_material = mesh_instance.mesh.surface_get_material(0).duplicate() as ShaderMaterial
 	mesh_instance.mesh.surface_set_material(0, _metal_material)

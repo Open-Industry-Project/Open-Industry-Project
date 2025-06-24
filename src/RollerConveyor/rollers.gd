@@ -15,9 +15,9 @@ func _ready() -> void:
 
 func _add_or_remove_rollers(conveyor_length: float) -> void:
 	var available_length := conveyor_length - 0.2 - 0.33
-	var rounded_length = floor(available_length / ROLLERS_DISTANCE)
+	var rounded_length: int = int(floor(available_length / ROLLERS_DISTANCE))
 	var roller_count := get_child_count()
-	var desired_roller_count := max(0, rounded_length) as int
+	var desired_roller_count: int = max(0, rounded_length)
 
 	var difference := desired_roller_count - roller_count
 

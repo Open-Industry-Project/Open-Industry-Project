@@ -5,21 +5,18 @@ extends ResizableNode3D
 const CONVEYOR_CLASS_NAME = "CurvedRollerConveyor"
 
 var _conveyor_script: Script
-var _has_instantiated := false
+var _has_instantiated: bool = false
 var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
 
 
 func _init() -> void:
-	# Set default size for curved roller conveyor assemblies BEFORE calling super._init()
 	size_default = Vector3(1.524, 0.5, 1.524)
-
 	super._init()
 
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
 	_conveyor_script = load(class_details["path"]) as Script
 
-	# Enable transform notifications
 	set_notify_transform(true)
 
 
@@ -32,14 +29,31 @@ func _notification(what: int) -> void:
 			_update_attachments()
 
 
+func _ready() -> void:
+	if not $ConveyorCorner.property_list_changed.is_connected(notify_property_list_changed):
+		$ConveyorCorner.property_list_changed.connect(notify_property_list_changed)
+
+	for property: StringName in _cached_conveyor_property_values:
+		var value: Variant = _cached_conveyor_property_values[property]
+		$ConveyorCorner.set(property, value)
+	_cached_conveyor_property_values.clear()
+
+	_has_instantiated = true
+
+	if is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
+		$ConveyorCorner.size = size
+
+	_update_attachments()
+
+
 func _get_property_list() -> Array[Dictionary]:
-	var conveyor_properties = _get_conveyor_forwarded_properties()
+	var conveyor_properties := _get_conveyor_forwarded_properties()
 	var filtered_properties: Array[Dictionary] = []
-	var found_categories = []
+	var found_categories: Array = []
 
 	for prop in conveyor_properties:
-		var prop_name = prop[&"name"] as String
-		var usage = prop[&"usage"] as int
+		var prop_name: String = prop[&"name"] as String
+		var usage: int = prop[&"usage"] as int
 
 		if usage & PROPERTY_USAGE_CATEGORY:
 			if prop_name == "ResizableNode3D" or prop_name in found_categories:
@@ -53,8 +67,8 @@ func _get_property_list() -> Array[Dictionary]:
 
 	return filtered_properties
 
+
 func _set(property: StringName, value: Variant) -> bool:
-	# Allow size property to be handled by ResizableNode3D
 	if property == "size":
 		return false
 
@@ -81,60 +95,34 @@ func _property_get_revert(property: StringName) -> Variant:
 		if $ConveyorCorner.property_can_revert(property):
 			return $ConveyorCorner.property_get_revert(property)
 		elif $ConveyorCorner.scene_file_path:
-			# Find the property's value in the PackedScene file.
 			var scene := load($ConveyorCorner.scene_file_path) as PackedScene
 			var scene_state := scene.get_state()
 			for prop_idx in range(scene_state.get_node_property_count(0)):
 				if scene_state.get_node_property_name(0, prop_idx) == property:
 					return scene_state.get_node_property_value(0, prop_idx)
-			# Try the script's default instead.
 			return $ConveyorCorner.get_script().get_property_default_value(property)
 	return _conveyor_script.get_property_default_value(property)
 
 
-func _ready() -> void:
-	if not $ConveyorCorner.property_list_changed.is_connected(notify_property_list_changed):
-		$ConveyorCorner.property_list_changed.connect(notify_property_list_changed)
-
-	for property: StringName in _cached_conveyor_property_values:
-		var value = _cached_conveyor_property_values[property]
-		$ConveyorCorner.set(property, value)
-	_cached_conveyor_property_values.clear()
-
-	_has_instantiated = true
-
-	# Sync the assembly's size to the ConveyorCorner
-	if is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
-		$ConveyorCorner.size = size
-
-	_update_attachments()
-
-
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	var all_properties: Array[Dictionary]
-	# Skip properties until we reach the category after the "Node3D" category.
-	var has_seen_node3d_category = false
-	var has_seen_category_after_node3d = false
-	# Avoid duplicating ResizableNode3D properties
-	var has_seen_resizable_node_3d_category = false
+	var has_seen_node3d_category: bool = false
+	var has_seen_category_after_node3d: bool = false
+	var has_seen_resizable_node_3d_category: bool = false
 
 	if _has_instantiated:
 		all_properties = $ConveyorCorner.get_property_list()
 	else:
-		# The conveyor instance won't exist yet, so grab from the script class instead.
 		all_properties = _conveyor_script.get_script_property_list()
-		# List doesn't include built-in properties, so we don't have to skip them.
 		has_seen_node3d_category = true
 
 	var filtered_properties: Array[Dictionary] = []
 	for property in all_properties:
-		# Skip ResizableNode3D properties completely since we already have them from our parent class
 		if property[&"name"] == "ResizableNode3D" and property[&"usage"] == PROPERTY_USAGE_CATEGORY:
 			has_seen_resizable_node_3d_category = true
 			continue
 
 		if has_seen_resizable_node_3d_category:
-			# Skip all properties until we find the next category
 			if property[&"usage"] == PROPERTY_USAGE_CATEGORY:
 				has_seen_resizable_node_3d_category = false
 			else:
@@ -148,7 +136,6 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 			has_seen_category_after_node3d = property[&"usage"] == PROPERTY_USAGE_CATEGORY
 		if not has_seen_category_after_node3d:
 			continue
-		# Take all successive properties.
 		filtered_properties.append(property)
 	return filtered_properties
 
@@ -179,53 +166,44 @@ func _conveyor_property_cached_set(property: StringName, value: Variant) -> void
 	else:
 		_cached_conveyor_property_values[property] = value
 
+
 func _conveyor_property_cached_get(property: StringName) -> Variant:
 	if _has_instantiated and is_instance_valid($ConveyorCorner):
-		var value = $ConveyorCorner.get(property)
+		var value: Variant = $ConveyorCorner.get(property)
 		if value != null:
 			return value
 
-	# Return cached value or look up default from cache
 	if property in _cached_conveyor_property_values:
 		return _cached_conveyor_property_values[property]
 
-	# Return script default as final fallback
 	if _conveyor_script:
 		return _conveyor_script.get_property_default_value(property)
 
 	return null
 
-func _on_size_changed() -> void:
-	if _has_instantiated and is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
-		$ConveyorCorner.size = size
-	_update_attachments()
 
 func _update_attachments() -> void:
 	if not _has_instantiated:
 		return
-	# Check if node is in the scene tree before accessing global_transform
 	if not is_inside_tree():
 		return
 
-	var conveyor = $ConveyorCorner
+	var conveyor := $ConveyorCorner
 	var radians := deg_to_rad(conveyor.conveyor_angle)
-	# Clamp the conveyor angle to prevent mesh generation issues at 0 degrees
 	if conveyor.conveyor_angle <= 10.0:
 		conveyor.conveyor_angle = 10.0
 		radians = deg_to_rad(10.0)
 	$SideGuardsCBC.guard_angle = conveyor.conveyor_angle
 	$SideGuardsCBC.size.x = conveyor.size.x + 0.036
 
-	var front_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegTail
-	var rear_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegHead
+	var front_legs := $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegTail
+	var rear_legs := $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegHead
 
-	var size_factor = conveyor.size.x
+	var size_factor: float = conveyor.size.x
 
-	# Calculate positions (X and Z in local space) - these change with angle
-	var leg_x = -sin(radians) * 0.75 * size_factor
-	var leg_z = cos(radians) * 0.73 * size_factor
+	var leg_x: float = -sin(radians) * 0.75 * size_factor
+	var leg_z: float = cos(radians) * 0.73 * size_factor
 
-	# Handle position (X and Z only) and rotation for legs
 	front_legs.position.x = leg_x
 	front_legs.position.z = 0.04 + leg_z
 	front_legs.rotation.y = -radians
@@ -233,3 +211,9 @@ func _update_attachments() -> void:
 	rear_legs.position.x = -0.04
 	rear_legs.position.z = 0.75 * size_factor
 	rear_legs.rotation.y = 0
+
+
+func _on_size_changed() -> void:
+	if _has_instantiated and is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
+		$ConveyorCorner.size = size
+	_update_attachments()

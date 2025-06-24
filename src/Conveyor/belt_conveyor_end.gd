@@ -19,24 +19,9 @@ var _belt_material: ShaderMaterial
 var _metal_material: ShaderMaterial
 
 
-func _get_constrained_size(new_size: Vector3) -> Vector3:
-	var height := new_size.y
-	new_size.x = height / 2.0
-	return new_size
-
-
-
-
 func _init() -> void:
 	super._init() # Call parent _init to inherit hijack_scale metadata
 	size_min = Vector3(0.01, 0.02, 0.01)
-
-
-func _ready() -> void:
-	_setup_references()
-	_setup_materials()
-	_on_size_changed()
-	_update_belt_velocity()
 
 
 func _enter_tree() -> void:
@@ -45,10 +30,11 @@ func _enter_tree() -> void:
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 
 
-func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
-	super._exit_tree()
+func _ready() -> void:
+	_setup_references()
+	_setup_materials()
+	_on_size_changed()
+	_update_belt_velocity()
 
 
 func _physics_process(delta: float) -> void:
@@ -60,14 +46,36 @@ func _physics_process(delta: float) -> void:
 		_update_belt_material_position()
 
 
-func _on_simulation_started() -> void:
-	_update_belt_velocity()
+func _exit_tree() -> void:
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	super._exit_tree()
 
 
-func _on_simulation_ended() -> void:
-	_belt_position = 0.0
-	_update_belt_material_position()
-	_update_belt_velocity()
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	var height := new_size.y
+	new_size.x = height / 2.0
+	return new_size
+
+
+func fix_material_overrides() -> void:
+	# This is necessary because the editor's duplication action will overwrite our materials after we've initialized them.
+	if _mesh.get_surface_override_material(0) != _belt_material:
+		_mesh.set_surface_override_material(0, _belt_material)
+	if _mesh.get_surface_override_material(1) != _metal_material:
+		_mesh.set_surface_override_material(1, _metal_material)
+
+
+func update_belt_color(color: Color) -> void:
+	if _belt_material:
+		(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", color)
+		fix_material_overrides()
+
+
+func update_belt_texture(is_standard_texture: bool) -> void:
+	if _belt_material:
+		(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", is_standard_texture)
+		fix_material_overrides()
 
 
 func _setup_references() -> void:
@@ -84,19 +92,11 @@ func _setup_materials() -> void:
 	_mesh.set_surface_override_material(1, _metal_material)
 
 
-func fix_material_overrides() -> void:
-	# This is necessary because the editor's duplication action will overwrite our materials after we've initialized them.
-	if _mesh.get_surface_override_material(0) != _belt_material:
-		_mesh.set_surface_override_material(0, _belt_material)
-	if _mesh.get_surface_override_material(1) != _metal_material:
-		_mesh.set_surface_override_material(1, _metal_material)
-
-
 func _update_belt_material_scale() -> void:
-	var BASE_RADIUS = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
-	var BASE_BELT_LENGTH = PI * BASE_RADIUS
-	var belt_length = PI * size.x
-	var belt_scale = belt_length / BASE_BELT_LENGTH
+	var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
+	var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
+	var belt_length := PI * size.x
+	var belt_scale: float = belt_length / BASE_BELT_LENGTH
 	if _belt_material and speed != 0:
 		# Apply scaled UV scrolling to curved part of the conveyor end
 		_belt_material.set_shader_parameter("Scale", belt_scale * sign(speed))
@@ -116,6 +116,19 @@ func _update_belt_material_position() -> void:
 		fix_material_overrides()
 
 
+func _update_belt_velocity() -> void:
+	if SimulationEvents.simulation_running:
+		var local_front: Vector3 = global_transform.basis.z.normalized()
+		var radius: float = size.x
+		var new_velocity: Vector3 = local_front * speed / radius
+		if _static_body.constant_angular_velocity != new_velocity:
+			_static_body.constant_angular_velocity = new_velocity
+	else:
+		if not is_inside_tree():
+			return
+		_static_body.constant_angular_velocity = Vector3.ZERO
+
+
 func _on_size_changed() -> void:
 	if not (get_node_or_null("MeshInstance3D") and get_node_and_resource("StaticBody3D/CollisionShape3D:shape")[1]):
 		# Children not instantiated yet.
@@ -132,24 +145,11 @@ func _on_size_changed() -> void:
 	_update_belt_velocity()
 
 
-func _update_belt_velocity() -> void:
-	if SimulationEvents.simulation_running:
-		var local_front: Vector3 = global_transform.basis.z.normalized()
-		var radius: float = size.x
-		var new_velocity: Vector3 = local_front * speed / radius
-		if _static_body.constant_angular_velocity != new_velocity:
-			_static_body.constant_angular_velocity = new_velocity
-	else:
-		if not is_inside_tree():
-			return
-		_static_body.constant_angular_velocity = Vector3.ZERO
+func _on_simulation_started() -> void:
+	_update_belt_velocity()
 
-func update_belt_color(color: Color) -> void:
-	if _belt_material:
-		(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", color)
-		fix_material_overrides()
 
-func update_belt_texture(is_standard_texture: bool) -> void:
-	if _belt_material:
-		(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", is_standard_texture)
-		fix_material_overrides()
+func _on_simulation_ended() -> void:
+	_belt_position = 0.0
+	_update_belt_material_position()
+	_update_belt_velocity()

@@ -2,14 +2,14 @@
 class_name RunBar
 extends PanelContainer
 
+var play: bool = false
+var pause: bool = true
+var stop: bool = true
+var clear_output_btn: Button
+
 @onready var play_button: Button = $HBoxContainer/Play
 @onready var pause_button: Button = $HBoxContainer/Pause
 @onready var stop_button: Button = $HBoxContainer/Stop
-var clear_output_btn: Button
-
-var play = false
-var pause = true
-var stop = true
 
 
 func _ready() -> void:
@@ -50,6 +50,20 @@ func _ready() -> void:
 	stop_button.pressed.connect(_on_stop_pressed)
 
 
+func _disable_buttons() -> void:
+	PhysicsServer3D.set_active(false)
+	play_button.disabled = true
+	pause_button.disabled = true
+	stop_button.disabled = true
+
+
+func _enable_buttons() -> void:
+	PhysicsServer3D.set_active(play)
+	play_button.disabled = play
+	pause_button.disabled = pause
+	stop_button.disabled = stop
+
+
 func _on_play_pressed() -> void:
 	pause_button.button_pressed = false
 	play = false
@@ -64,30 +78,3 @@ func _on_stop_pressed() -> void:
 	pause_button.button_pressed = false
 	pause = false
 	SimulationEvents.stop_simulation()
-
-
-# Legacy methods - kept for compatibility but delegate to SimulationEvents
-func start_simulation() -> void:
-	SimulationEvents.start_simulation()
-
-
-func toggle_pause_simulation(pressed: bool) -> void:
-	SimulationEvents.toggle_pause_simulation(pressed)
-
-
-func stop_simulation() -> void:
-	SimulationEvents.stop_simulation()
-
-
-func _disable_buttons() -> void:
-	PhysicsServer3D.set_active(false)
-	play_button.disabled = true
-	pause_button.disabled = true
-	stop_button.disabled = true
-
-
-func _enable_buttons() -> void:
-	PhysicsServer3D.set_active(play)
-	play_button.disabled = play
-	pause_button.disabled = pause
-	stop_button.disabled = stop

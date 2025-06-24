@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-var tag_group_enum := TagGroupOptionButtonPlugin.new()
+var tag_group_enum: TagGroupOptionButtonPlugin = TagGroupOptionButtonPlugin.new()
 
 func _enter_tree() -> void:
 	add_inspector_plugin(tag_group_enum)
@@ -22,8 +22,8 @@ class TagGroupOptionButtonPlugin extends EditorInspectorPlugin:
 		
 class TagGroupOptionButton extends EditorProperty:
 	var option_button: OptionButton
-	var last_selected_index
-	var groups
+	var last_selected_index: int
+	var groups: Array
 	
 	func _init() -> void:
 		option_button = OptionButton.new()
@@ -36,7 +36,7 @@ class TagGroupOptionButton extends EditorProperty:
 		OIPComms.tag_groups_registered.connect(_tag_groups_registered)
 	
 	func _update_property() -> void:
-		var i = 0
+		var i: int = 0
 		for group in OIPComms.get_tag_groups():
 			if group == get_edited_object().get(get_edited_property()):
 				last_selected_index = i

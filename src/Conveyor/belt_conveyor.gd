@@ -2,27 +2,23 @@
 class_name BeltConveyor
 extends ResizableNode3D
 
+signal speed_changed
+
 enum ConvTexture {
 	STANDARD,
 	ALTERNATE
 }
-
-## Emitted when the conveyor's speed changes.
-signal speed_changed
 
 @export var belt_color: Color = Color(1, 1, 1, 1):
 	set(value):
 		belt_color = value
 		_update_material_color()
 
-@export var belt_texture = ConvTexture.STANDARD:
+@export var belt_texture: ConvTexture = ConvTexture.STANDARD:
 	set(value):
 		belt_texture = value
 		_update_material_texture()
 
-
-## Conveyor speed in meters per second.
-## Negative values will reverse the direction of the conveyor.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
 	set(value):
 		if value == speed:
@@ -32,7 +28,6 @@ signal speed_changed
 		_update_belt_material_scale()
 		speed_changed.emit()
 
-		# dont write until the group is initialized
 		if _register_speed_tag_ok and _speed_tag_group_init:
 			OIPComms.write_float32(speed_tag_group_name, speed_tag_name, value)
 
@@ -41,18 +36,18 @@ signal speed_changed
 
 @export var belt_physics_material: PhysicsMaterial:
 	get:
-		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
+		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			return sb_node.physics_material_override
 		return null
 	set(value):
-		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
+		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			sb_node.physics_material_override = value
-		var sb_end1 = get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
+		var sb_end1 := get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
 		if sb_end1:
 			sb_end1.physics_material_override = value
-		var sb_end2 = get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
+		var sb_end2 := get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
 		if sb_end2:
 			sb_end2.physics_material_override = value
 
@@ -63,7 +58,6 @@ var _mesh: MeshInstance3D
 var _belt_material: Material
 var _metal_material: Material
 var _belt_position: float = 0.0
-
 var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
 var _speed_tag_group_init: bool = false
@@ -77,19 +71,19 @@ var _enable_comms_changed: bool = false:
 		notify_property_list_changed()
 
 @export_category("Communications")
-@export var enable_comms := false
+@export var enable_comms: bool = false
 @export var speed_tag_group_name: String
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-@export var speed_tag_name := ""
+@export var speed_tag_name: String = ""
 @export var running_tag_group_name: String
 @export_custom(0, "tag_group_enum") var running_tag_groups:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
-@export var running_tag_name := ""
+@export var running_tag_name: String = ""
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -134,28 +128,9 @@ func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return new_size
 
 
-
-
 func _init() -> void:
-	super._init() # Call parent _init to inherit hijack_scale metadata
+	super._init()
 	size_default = Vector3(4, 0.5, 1.524)
-
-
-func _ready() -> void:
-	_setup_references()
-	_setup_materials()
-	_update_material_texture()
-	_update_material_color()
-	_update_speed()
-	_update_physics_material()
-	_on_size_changed()
-
-	if _ce1:
-		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
-		_ce1.update_belt_color(belt_color)
-	if _ce2:
-		_ce2.update_belt_texture(belt_texture == ConvTexture.STANDARD)
-		_ce2.update_belt_color(belt_color)
 
 
 func _enter_tree() -> void:
@@ -179,17 +154,27 @@ func _enter_tree() -> void:
 	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
 
 
-func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	super._exit_tree()
+func _ready() -> void:
+	_setup_references()
+	_setup_materials()
+	_update_material_texture()
+	_update_material_color()
+	_update_speed()
+	_update_physics_material()
+	_on_size_changed()
+
+	if _ce1:
+		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
+		_ce1.update_belt_color(belt_color)
+	if _ce2:
+		_ce2.update_belt_texture(belt_texture == ConvTexture.STANDARD)
+		_ce2.update_belt_color(belt_color)
+
 
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
-		var local_left = _sb.global_transform.basis.x.normalized()
-		var velocity = local_left * speed
+		var local_left := _sb.global_transform.basis.x.normalized()
+		var velocity := local_left * speed
 		_sb.constant_linear_velocity = velocity
 		if not SimulationEvents.simulation_paused:
 			_belt_position += speed * delta
@@ -199,18 +184,22 @@ func _physics_process(delta: float) -> void:
 			_belt_position = 0.0
 
 
-func _on_simulation_started() -> void:
-	if enable_comms:
-		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
-		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
+func _exit_tree() -> void:
+	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	super._exit_tree()
 
 
-func _on_simulation_ended() -> void:
-	_belt_position = 0.0
-	if _belt_material:
-		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
-	if _sb:
-		_sb.constant_linear_velocity = Vector3.ZERO
+func fix_material_overrides() -> void:
+	# This is necessary because the editor's duplication action will overwrite our materials after we've initialized them.
+	if _mesh.get_surface_override_material(0) != _belt_material:
+		_mesh.set_surface_override_material(0, _belt_material)
+	if _mesh.get_surface_override_material(1) != _metal_material:
+		_mesh.set_surface_override_material(1, _metal_material)
+	if _mesh.get_surface_override_material(2) != _metal_material:
+		_mesh.set_surface_override_material(2, _metal_material)
 
 
 func _setup_references() -> void:
@@ -233,16 +222,6 @@ func _setup_materials() -> void:
 	_mesh.set_surface_override_material(0, _belt_material)
 	_mesh.set_surface_override_material(1, _metal_material)
 	_mesh.set_surface_override_material(2, _metal_material)
-
-
-func fix_material_overrides() -> void:
-	# This is necessary because the editor's duplication action will overwrite our materials after we've initialized them.
-	if _mesh.get_surface_override_material(0) != _belt_material:
-		_mesh.set_surface_override_material(0, _belt_material)
-	if _mesh.get_surface_override_material(1) != _metal_material:
-		_mesh.set_surface_override_material(1, _metal_material)
-	if _mesh.get_surface_override_material(2) != _metal_material:
-		_mesh.set_surface_override_material(2, _metal_material)
 
 
 func _update_material_texture() -> void:
@@ -282,11 +261,11 @@ func _update_physics_material() -> void:
 	if not _sb:
 		return
 	if _ce1:
-		var sb1 = _ce1.get_node("StaticBody3D") as StaticBody3D
+		var sb1 := _ce1.get_node("StaticBody3D") as StaticBody3D
 		if sb1:
 			sb1.physics_material_override = _sb.physics_material_override
 	if _ce2:
-		var sb2 = _ce2.get_node("StaticBody3D") as StaticBody3D
+		var sb2 := _ce2.get_node("StaticBody3D") as StaticBody3D
 		if sb2:
 			sb2.physics_material_override = _sb.physics_material_override
 
@@ -295,8 +274,8 @@ func _update_belt_material_scale() -> void:
 	if not _belt_material or not _sb or speed == 0:
 		return
 	var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
-	var collision_shape = _sb.get_node("CollisionShape3D").shape as BoxShape3D
-	var middle_length = collision_shape.size.x
+	var collision_shape := _sb.get_node("CollisionShape3D").shape as BoxShape3D
+	var middle_length := collision_shape.size.x
 	var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
 	var belt_scale: float = middle_length / BASE_BELT_LENGTH
 	(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
@@ -353,12 +332,26 @@ func _on_size_changed() -> void:
 
 	# Update component positions.
 	# Ensures that the top surface of the conveyor is on the y=0 plane.
-	var base_pos = Vector3(0, -height / 2.0, 0)
+	var base_pos := Vector3(0, -height / 2.0, 0)
 	middle_mesh.position = base_pos
 	middle_body.position = base_pos
-	var end_offset_x = length / 2.0 - end_length
+	var end_offset_x := length / 2.0 - end_length
 	end1.position = Vector3(base_pos.x + end_offset_x, base_pos.y, base_pos.z)
 	end2.position = Vector3(base_pos.x + -end_offset_x, base_pos.y, base_pos.z)
+
+
+func _on_simulation_started() -> void:
+	if enable_comms:
+		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
+		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
+
+
+func _on_simulation_ended() -> void:
+	_belt_position = 0.0
+	if _belt_material:
+		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
+	if _sb:
+		_sb.constant_linear_velocity = Vector3.ZERO
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:

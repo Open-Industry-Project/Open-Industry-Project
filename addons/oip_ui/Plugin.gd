@@ -4,19 +4,27 @@ extends EditorPlugin
 
 # UI Resources and Components
 const CUSTOM_PROJECT_MENU: PackedScene = preload("res://addons/oip_ui/TopBar/CustomProject.tscn")
-var _custom_project_menu: PopupMenu
-
 const CUSTOM_HELP_MENU: PackedScene = preload("res://addons/oip_ui/TopBar/CustomHelp.tscn")
-var _custom_help_menu: PopupMenu
-
 const RUN_BAR: PackedScene = preload("res://addons/oip_ui/TopBar/RunBar.tscn")
-var _run_bar: PanelContainer
-
 const TOGGLE_VIEW: PackedScene = preload("res://addons/oip_ui/TopBar/ToggleView.tscn")
-var _toggle_view: HBoxContainer
-
 const ICON: Texture2D = preload("res://assets/png/OIP-LOGO-RGB_ICON.svg")
 
+# Menu item IDs
+const ID_TOGGLE_NATIVE_UI: int = 1234
+# The IDs here must match those in the original Project menu (_project_popup_menu).
+const ID_PROJECT_SETTINGS: int = 18
+const ID_FIND_IN_FILES: int = 19
+const ID_PACK_PROJECT_AS_ZIP: int = 22
+const ID_OPEN_USER_DATA_FOLDER: int = 24
+const ID_RELOAD_CURRENT_PROJECT: int = 25
+const ID_QUIT_TO_PROJECT_LIST: int = 26
+# This ID must match the ID for the "Search Help..." item in the original Help menu (_help_popup_menu).
+const ID_SEARCH_HELP: int = 45
+
+var _custom_project_menu: PopupMenu
+var _custom_help_menu: PopupMenu
+var _run_bar: PanelContainer
+var _toggle_view: HBoxContainer
 var _layout_loaded: bool = false
 
 # Editor Node
@@ -30,18 +38,6 @@ var _menu_bar: MenuBar
 var _project_popup_menu: PopupMenu
 var _editor_popup_menu: PopupMenu
 var _help_popup_menu: PopupMenu
-
-# Menu item IDs
-const ID_TOGGLE_NATIVE_UI = 1234
-# The IDs here must match those in the original Project menu (_project_popup_menu).
-const ID_PROJECT_SETTINGS = 18
-const ID_FIND_IN_FILES = 19
-const ID_PACK_PROJECT_AS_ZIP = 22
-const ID_OPEN_USER_DATA_FOLDER = 24
-const ID_RELOAD_CURRENT_PROJECT = 25
-const ID_QUIT_TO_PROJECT_LIST = 26
-# This ID must match the ID for the "Search Help..." item in the original Help menu (_help_popup_menu).
-const ID_SEARCH_HELP = 45
 
 # Top bar content
 var _title_bar: Node
@@ -58,19 +54,6 @@ var _scene_tabs: TabBar
 # Perspective Menu
 var _perspective_menu: MenuButton
 
-func _scene_changed(root: Node) -> void:
-	if not _layout_loaded:
-		return
-
-	if root != null:
-		_run_bar._enable_buttons()
-	else:
-		_run_bar._disable_buttons()
-
-	if root == null:
-		return
-
-	_run_bar.stop_simulation()
 
 func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
@@ -78,19 +61,6 @@ func _enter_tree() -> void:
 	if EditorInterface.has_method("mark_scene_as_saved"):
 		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
 
-func _on_id_pressed(id: int) -> void:
-	if get_tree().edited_scene_root == null:
-		return
-
-	var building = get_tree().edited_scene_root.get_node_or_null("Building")
-	if building == null:
-		return
-
-	var roof = building.get_child(2) as GridMap
-	var index = _perspective_menu.get_popup().get_item_index(10)
-	var is_perspective_checked = _perspective_menu.get_popup().is_item_checked(index)
-
-	roof.visible = is_perspective_checked or (id > 0 and id < 8)
 
 func _exit_tree() -> void:
 	_center_buttons.visible = true
@@ -104,7 +74,7 @@ func _exit_tree() -> void:
 	if _empty_margin:
 		_empty_margin.queue_free()
 
-	var item_index = _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
+	var item_index := _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
 	_editor_popup_menu.remove_item(item_index)
 	_editor_popup_menu.remove_item(item_index - 1)
 
@@ -124,6 +94,37 @@ func _exit_tree() -> void:
 		_custom_help_menu.queue_free()
 
 	_toggle_native_mode(true)
+
+
+func _scene_changed(root: Node) -> void:
+	if not _layout_loaded:
+		return
+
+	if root != null:
+		_run_bar._enable_buttons()
+	else:
+		_run_bar._disable_buttons()
+
+	if root == null:
+		return
+
+	SimulationEvents.stop_simulation()
+
+
+func _on_id_pressed(id: int) -> void:
+	if get_tree().edited_scene_root == null:
+		return
+
+	var building := get_tree().edited_scene_root.get_node_or_null("Building")
+	if building == null:
+		return
+
+	var roof := building.get_child(2) as GridMap
+	var index := _perspective_menu.get_popup().get_item_index(10)
+	var is_perspective_checked := _perspective_menu.get_popup().is_item_checked(index)
+
+	roof.visible = is_perspective_checked or (id > 0 and id < 8)
+
 
 func _editor_layout_loaded() -> void:
 	_layout_loaded = true
@@ -168,7 +169,7 @@ func _editor_layout_loaded() -> void:
 	_custom_help_menu.id_pressed.connect(_on_custom_help_menu_id_pressed)
 
 	if EditorInterface.has_method("set_simulation_started"):
-		var button = Button.new()
+		var button := Button.new()
 		button.text = "New Simulation"
 		button.icon = ICON
 		button.pressed.connect(self._new_simulation_btn_pressed)
@@ -181,7 +182,7 @@ func _editor_layout_loaded() -> void:
 	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
 	scene_changed.connect(_scene_changed)
 
-	var root = get_tree().edited_scene_root
+	var root := get_tree().edited_scene_root
 
 	_run_bar._enable_buttons()
 
@@ -189,15 +190,17 @@ func _editor_layout_loaded() -> void:
 		_create_new_simulation()
 		EditorInterface.call("mark_scene_as_saved")
 
+
 func _new_simulation_btn_pressed() -> void:
 	get_undo_redo().create_action("Create New Simulation")
 	get_undo_redo().add_do_method(self, "_create_new_simulation")
 	get_undo_redo().add_undo_method(self, "_remove_new_simulation")
 	get_undo_redo().commit_action()
 
+
 func _create_new_simulation() -> void:
-	var script = EditorScript.new()
-	var scene = Node3D.new()
+	var script := EditorScript.new()
+	var scene := Node3D.new()
 	scene.name = "Simulation"
 	var building: Node3D = load("res://parts/Building.tscn").instantiate()
 	script.add_root_node(scene)
@@ -206,9 +209,11 @@ func _create_new_simulation() -> void:
 	if _run_bar != null:
 		_run_bar._enable_buttons()
 
+
 func _remove_new_simulation() -> void:
-	var script = EditorScript.new()
+	var script := EditorScript.new()
 	script.call("remove_root_node")
+
 
 func _toggle_native_mode(native_mode: bool) -> void:
 	if not native_mode and get_node_or_null("/root/SimulationEvents"):
@@ -238,6 +243,7 @@ func _toggle_native_mode(native_mode: bool) -> void:
 
 	_empty_margin.visible = not native_mode
 
+
 func _instantiate_custom_menu(CUSTOM_MENU: PackedScene, index: int, node_name: String) -> PopupMenu:
 	var custom_menu: PopupMenu = CUSTOM_MENU.instantiate()
 	_menu_bar.add_child(custom_menu)
@@ -245,6 +251,7 @@ func _instantiate_custom_menu(CUSTOM_MENU: PackedScene, index: int, node_name: S
 	custom_menu.name = node_name
 	custom_menu.visible = false
 	return custom_menu
+
 
 func _set_original_popup_menu(value: bool, original: PopupMenu, custom: PopupMenu, node_name: String) -> void:
 	if value:
@@ -256,15 +263,17 @@ func _set_original_popup_menu(value: bool, original: PopupMenu, custom: PopupMen
 		if custom:
 			custom.name = node_name
 
+
 func _on_editor_popup_id_pressed(id: int) -> void:
 	if id == ID_TOGGLE_NATIVE_UI:
-		var index = _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
+		var index := _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
 		_editor_popup_menu.set_item_checked(index, not _editor_popup_menu.is_item_checked(index))
 		_toggle_native_mode(_editor_popup_menu.is_item_checked(index))
 
+
 func _on_custom_project_menu_id_pressed(id: int) -> void:
 	# Piggyback off the original project menu by emitting its events.
-	var native_item_id
+	var native_item_id: int
 	match id:
 		0:
 			native_item_id = ID_PROJECT_SETTINGS
@@ -279,23 +288,24 @@ func _on_custom_project_menu_id_pressed(id: int) -> void:
 		5:
 			native_item_id = ID_QUIT_TO_PROJECT_LIST
 		_:
-			native_item_id = null
+			native_item_id = -1
 	# Check if the ID still exists in the original menu.
 	# If not, the menu ID constants need to be updated.
-	if native_item_id == null or -1 == _project_popup_menu.get_item_index(native_item_id):
+	if native_item_id == -1 or -1 == _project_popup_menu.get_item_index(native_item_id):
 		print("Menu item broken! OIP maintainers should fix it with the info below.")
 		print("Valid 'Project' menu item IDs:")
 		_print_menu_ids(_project_popup_menu)
 		return
 	_project_popup_menu.id_pressed.emit(native_item_id)
 
+
 func _on_custom_help_menu_id_pressed(id: int) -> void:
 	if id == 0:
 		# Piggyback off the original help menu by emitting its event.
-		var native_item_id = ID_SEARCH_HELP
+		var native_item_id := ID_SEARCH_HELP
 		# Check if the ID still exists in the original menu.
 		# If not, the menu ID constants need to be updated.
-		if native_item_id == null or -1 == _help_popup_menu.get_item_index(native_item_id):
+		if native_item_id == -1 or -1 == _help_popup_menu.get_item_index(native_item_id):
 			print("Menu item broken! OIP maintainers should fix it with the info below.")
 			print("Valid 'Help' menu item IDs:")
 			_print_menu_ids(_help_popup_menu)
@@ -304,8 +314,9 @@ func _on_custom_help_menu_id_pressed(id: int) -> void:
 	if id == 2:
 		OS.shell_open("https://github.com/Open-Industry-Project/Open-Industry-Project")
 
+
 static func _print_menu_ids(menu: PopupMenu) -> void:
 	for item_index in range(menu.item_count):
-		var item_id = menu.get_item_id(item_index)
-		var item_text = menu.get_item_text(item_index)
+		var item_id := menu.get_item_id(item_index)
+		var item_text := menu.get_item_text(item_index)
 		print("* " + str(item_id) + ": " + item_text)

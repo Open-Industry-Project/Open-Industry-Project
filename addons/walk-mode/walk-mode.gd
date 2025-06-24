@@ -1,20 +1,20 @@
 @tool
 extends EditorPlugin
 
-var character_spawned := false
+const CHARACTER_Y_OFFSET: float = 1.5
+const FOCUS_RETURN_DELAY: float = 0.05
+
+var character_spawned: bool = false
 var preview_mode: CheckBox
 var character: CharacterBody3D
 var rotation_gizmo: Control
 var menu: MenuButton
 var right_navigation_gizmo: Control
 var left_navigation_gizmo: Control
-var was_in_walk_mode := false
+var was_in_walk_mode: bool = false
 var editor_ui: Control
-
 var overlay: Control
 
-const CHARACTER_Y_OFFSET = 1.5
-const FOCUS_RETURN_DELAY = 0.05
 
 func _enter_tree() -> void:
 	var editor_settings := EditorInterface.get_editor_settings()
@@ -41,74 +41,18 @@ func _enter_tree() -> void:
 	overlay.anchor_bottom = 1
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.draw.connect(_on_overlay_draw)
-	
-func _on_overlay_draw():
-	var window_size = get_window().get_size() 
-	overlay.draw_rect(Rect2(0, 0, window_size.x, window_size.y), Color(0, 0, 0, 0.1)) 
 
-func _exit_tree():
+
+func _exit_tree() -> void:
 	if is_instance_valid(overlay):
 		overlay.queue_free()
+
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		handle_focus_lost()
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		handle_focus_gained()
-
-func handle_focus_lost() -> void:
-	if character_spawned and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		was_in_walk_mode = true
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		var main_window = EditorInterface.get_base_control()
-		if is_instance_valid(main_window):
-			main_window.add_child(overlay)
-			overlay.visible = true
-			overlay.queue_redraw()
-
-func handle_focus_gained() -> void:
-	if was_in_walk_mode and character_spawned:
-		await get_tree().process_frame
-		
-		var center = Vector2.ZERO
-		var viewport = get_viewport()
-		if viewport:
-			center = viewport.get_visible_rect().size / 2
-			viewport.warp_mouse(center)
-		
-		var click_press_event = InputEventMouseButton.new()
-		click_press_event.button_index = MOUSE_BUTTON_LEFT
-		click_press_event.pressed = true
-		click_press_event.position = center
-		Input.parse_input_event(click_press_event)
-		
-		var click_release_event = InputEventMouseButton.new()
-		click_release_event.button_index = MOUSE_BUTTON_LEFT
-		click_release_event.pressed = false
-		click_release_event.position = center
-		Input.parse_input_event(click_release_event)
-		
-		await get_tree().create_timer(FOCUS_RETURN_DELAY).timeout
-			
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		
-		reset_camera_input()
-		was_in_walk_mode = false
-		
-		var main_window = EditorInterface.get_base_control()
-		if is_instance_valid(overlay):
-			main_window.remove_child(overlay)
-			overlay.visible = false
-		
-
-func reset_camera_input() -> void:
-	if not character:
-		return
-		
-	var event = InputEventMouseMotion.new()
-	event.relative = Vector2.ZERO
-	Input.parse_input_event(event)
-
 
 
 func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
@@ -119,7 +63,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	var canvas_viewport := root.get_viewport()
 	var node3d_viewport := _camera.get_viewport()
 	
-	var key = event as InputEventKey
+	var key := event as InputEventKey
 	var editor_settings := EditorInterface.get_editor_settings()
 	
 	if key != null and event.is_pressed() and not event.is_echo():
@@ -149,6 +93,32 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	canvas_viewport.push_input(event)
 	return AfterGUIInput.AFTER_GUI_INPUT_STOP
 
+
+func enter_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewport: Viewport) -> void:
+	canvas_viewport.gui_disable_input = false
+	InputMap.load_from_project_settings()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	
+	var character_path: String = ProjectSettings.get_setting("addons/walk_mode/character/path")
+	character = load(character_path).instantiate()
+	
+	var spawn_transform := _camera.global_transform
+	spawn_transform.origin -= spawn_transform.basis.y * CHARACTER_Y_OFFSET
+	character.global_transform = spawn_transform
+	
+	get_tree().edited_scene_root.add_child(character)
+	character_spawned = true
+	
+	var camera: Array = character.find_children("*", "Camera3D", true)
+	if camera.size() > 0:
+		RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(), camera[0].get_camera_rid())
+	
+	rotation_gizmo.visible = false
+	right_navigation_gizmo.visible = false
+	left_navigation_gizmo.visible = false
+	menu.visible = false
+
+
 func exit_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewport: Viewport) -> void:
 	if not character_spawned:
 		return
@@ -170,26 +140,62 @@ func exit_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewpor
 	
 	menu.visible = true
 
-func enter_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewport: Viewport) -> void:
-	canvas_viewport.gui_disable_input = false
-	InputMap.load_from_project_settings()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	
-	var character_path = ProjectSettings.get_setting("addons/walk_mode/character/path")
-	character = load(character_path).instantiate()
-	
-	var spawn_transform = _camera.global_transform
-	spawn_transform.origin -= spawn_transform.basis.y * CHARACTER_Y_OFFSET
-	character.global_transform = spawn_transform
-	
-	get_tree().edited_scene_root.add_child(character)
-	character_spawned = true
-	
-	var camera = character.find_children("*", "Camera3D", true)
-	if camera.size() > 0:
-		RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(), camera[0].get_camera_rid())
-	
-	rotation_gizmo.visible = false
-	right_navigation_gizmo.visible = false
-	left_navigation_gizmo.visible = false
-	menu.visible = false
+
+func handle_focus_lost() -> void:
+	if character_spawned and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		was_in_walk_mode = true
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		var main_window := EditorInterface.get_base_control()
+		if is_instance_valid(main_window):
+			main_window.add_child(overlay)
+			overlay.visible = true
+			overlay.queue_redraw()
+
+
+func handle_focus_gained() -> void:
+	if was_in_walk_mode and character_spawned:
+		await get_tree().process_frame
+		
+		var center := Vector2.ZERO
+		var viewport := get_viewport()
+		if viewport:
+			center = viewport.get_visible_rect().size / 2
+			viewport.warp_mouse(center)
+		
+		var click_press_event := InputEventMouseButton.new()
+		click_press_event.button_index = MOUSE_BUTTON_LEFT
+		click_press_event.pressed = true
+		click_press_event.position = center
+		Input.parse_input_event(click_press_event)
+		
+		var click_release_event := InputEventMouseButton.new()
+		click_release_event.button_index = MOUSE_BUTTON_LEFT
+		click_release_event.pressed = false
+		click_release_event.position = center
+		Input.parse_input_event(click_release_event)
+		
+		await get_tree().create_timer(FOCUS_RETURN_DELAY).timeout
+			
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		
+		reset_camera_input()
+		was_in_walk_mode = false
+		
+		var main_window := EditorInterface.get_base_control()
+		if is_instance_valid(overlay):
+			main_window.remove_child(overlay)
+			overlay.visible = false
+
+
+func reset_camera_input() -> void:
+	if not character:
+		return
+		
+	var event := InputEventMouseMotion.new()
+	event.relative = Vector2.ZERO
+	Input.parse_input_event(event)
+
+
+func _on_overlay_draw() -> void:
+	var window_size := get_window().get_size() 
+	overlay.draw_rect(Rect2(0, 0, window_size.x, window_size.y), Color(0, 0, 0, 0.1))
