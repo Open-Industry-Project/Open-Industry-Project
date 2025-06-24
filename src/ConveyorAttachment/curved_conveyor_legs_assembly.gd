@@ -30,33 +30,45 @@ func _move_conveyor_leg_to_path_position(conveyor_leg: Node3D, path_position: fl
 	var leg_index = _get_auto_conveyor_leg_index(conveyor_leg.name)
 	
 	if leg_index == LegIndex.FRONT:
-		# Front leg (tail) - positioned at the start of the curve
-		# Original position: X=-1.143, Y=-2.000397, Z=0.04 (world space)
-		# Position at Y=0, scale will be adjusted to reach correct height
+		# Front leg (tail) - positioned based on conveyor angle
+		# Get the actual conveyor angle and size
+		var conveyor_angle = 90.0
+		var size_factor = 1.524
+		if conveyor and "conveyor_angle" in conveyor:
+			conveyor_angle = conveyor.conveyor_angle
+		if conveyor and "size" in conveyor:
+			size_factor = conveyor.size.x
+		
+		var radians = deg_to_rad(conveyor_angle)
+		var leg_x = -sin(radians) * 0.75 * size_factor
+		var leg_z = cos(radians) * 0.73 * size_factor
+		
 		var new_position := Vector3(
-			-1.143,
+			leg_x,
 			0.0,
-			0.04
+			0.04 + leg_z
 		)
 		
 		if conveyor_leg.position != new_position:
 			conveyor_leg.position = new_position
 			changed = true
 		
-		# Original rotation from transform matrix
-		var new_rotation := Vector3(0.0, -PI/2, 0.0)
+		# Rotate based on the actual angle
+		var new_rotation := Vector3(0.0, -radians, 0.0)
 		if conveyor_leg.rotation != new_rotation:
 			conveyor_leg.rotation = new_rotation
 			changed = true
 			
 	elif leg_index == LegIndex.REAR:
-		# Rear leg (head) - positioned at the end of the curve
-		# Original position: X=-0.04, Y=-2.000397, Z=1.143 (world space)
-		# Position at Y=0, scale will be adjusted to reach correct height
+		# Rear leg (head) - positioned based on conveyor size
+		var size_factor = 1.524
+		if conveyor and "size" in conveyor:
+			size_factor = conveyor.size.x
+		
 		var new_position := Vector3(
 			-0.04,
 			0.0,
-			1.143
+			0.75 * size_factor
 		)
 		
 		if conveyor_leg.position != new_position:

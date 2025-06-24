@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://nfw6cy1ol6wn"]
+[gd_scene load_steps=6 format=3 uid="uid://nfw6cy1ol6wn"]
 
 [ext_resource type="Script" path="res://src/ConveyorAssembly/curved_roller_conveyor_assembly.gd" id="1_0vkx8"]
 [ext_resource type="PackedScene" uid="uid://c3cdcxifx4eej" path="res://parts/CurvedRollerConveyor.tscn" id="2_1qr7y"]
 [ext_resource type="PackedScene" uid="uid://c1dcpxt5x65et" path="res://parts/SideGuardsCBC.tscn" id="3_8k5xq"]
+[ext_resource type="Script" uid="uid://67vowlelar02" path="res://src/ConveyorLeg/conveyor_leg.gd" id="4_6a8l4"]
 [ext_resource type="PackedScene" uid="uid://b3j6k7x4h8rpg" path="res://parts/assemblies/CurvedRollerConveyorLegsAssembly.tscn" id="4_roller_legs"]
 
 [node name="CurvedRollerConveyorAssembly" type="Node3D"]
@@ -22,9 +23,19 @@ metadata/hijack_scale = true
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7486e-07, -2, 0)
 
+[node name="ConveyorLegTail" parent="ConveyorCorner/ConveyorLegsAssembly" index="0"]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1.268, 0, 1, 0, -4.371139e-08, -1.143, 0, 0.04)
+script = ExtResource("4_6a8l4")
+metadata/_edit_group_ = true
+
+[node name="ConveyorLegHead" parent="ConveyorCorner/ConveyorLegsAssembly" index="1"]
+transform = Transform3D(1, 0, 0, 0, 1.253, 0, 0, 0, 0.83, -0.04, 0, 1.143)
+script = ExtResource("4_6a8l4")
+metadata/_edit_group_ = true
+
 [node name="SideGuardsCBC" parent="." instance=ExtResource("3_8k5xq")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.246, 0)
 size = Vector3(1.5600001, 4, 1.5600001)
 metadata/hijack_scale = true
 
-[connection signal="ready" from="ConveyorCorner" to="." method="_on_instantiated"]
+[editable path="ConveyorCorner/ConveyorLegsAssembly"]

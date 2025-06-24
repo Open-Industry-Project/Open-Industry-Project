@@ -211,7 +211,6 @@ func _update_attachments() -> void:
 		radians = deg_to_rad(10.0)
 	$SideGuardsCBC.guard_angle = conveyor.conveyor_angle
 	$SideGuardsCBC.size.x = conveyor.size.x + 0.036
-
 	var front_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegTail
 	var rear_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegHead
 	var size_factor = conveyor.size.x

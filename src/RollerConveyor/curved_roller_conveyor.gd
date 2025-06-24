@@ -2,7 +2,6 @@
 class_name CurvedRollerConveyor
 extends ResizableNode3D
 
-# Constants
 const CURVE_BASE_INNER_RADIUS = 0.25
 const CURVE_BASE_OUTER_RADIUS = 1.25
 const BASE_CONVEYOR_WIDTH = CURVE_BASE_OUTER_RADIUS - CURVE_BASE_INNER_RADIUS
@@ -12,10 +11,8 @@ const BASE_MODEL_SIZE = Vector3(2, 0.5, 2)
 const ROLLER_INNER_END_RADIUS = 0.044587
 const ROLLER_OUTER_END_RADIUS = 0.12
 
-# Enums
 enum Scales {LOW, MID, HIGH}
 
-# Properties
 @export var speed: float = 0.0:
 	get = get_speed,
 	set = set_speed
@@ -29,7 +26,7 @@ enum Scales {LOW, MID, HIGH}
 		_update_mesh()
 		_update_end_axis_angle()
 
-# Communications
+
 var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
 var _speed_tag_group_init: bool = false
@@ -91,6 +88,9 @@ var _angular_speed: float = 0.0
 var _linear_speed: float = 0.0
 var _sb: StaticBody3D = null
 
+func _init() -> void:
+	pass
+	
 var outer_radius: float:
 	get:
 		return size.x * CURVE_BASE_OUTER_RADIUS
