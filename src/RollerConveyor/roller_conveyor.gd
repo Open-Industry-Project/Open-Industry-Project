@@ -77,24 +77,24 @@ func _init() -> void:
 	size_default = Vector3(1.525, 0.24, 1.524)
 
 
-static func _get_constrained_size(new_size: Vector3) -> Vector3:
+func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return Vector3(max(1.5, new_size.x), 0.24, max(0.10, new_size.z))
 
 
 func _enter_tree() -> void:
 	super._enter_tree()
-	
+
 	_speed_tag_group_original = speed_tag_group_name
 	_running_tag_group_original = running_tag_group_name
-	
+
 	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		speed_tag_group_name = OIPComms.get_tag_groups()[0]
 	if running_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		running_tag_group_name = OIPComms.get_tag_groups()[0]
-	
+
 	speed_tag_groups = speed_tag_group_name
 	running_tag_groups = running_tag_group_name
-	
+
 	if SimulationEvents:
 		SimulationEvents.simulation_started.connect(_on_simulation_started)
 		SimulationEvents.simulation_ended.connect(_on_simulation_ended)
@@ -121,7 +121,7 @@ func _ready() -> void:
 	mesh_instance1.mesh.surface_set_material(0, _metal_material)
 	mesh_instance2.mesh.surface_set_material(0, _metal_material)
 	_update_metal_material_scale()
-	
+
 	_simple_conveyor_shape = get_node("SimpleConveyorShape") as StaticBody3D
 	if _simple_conveyor_shape:
 		_setup_conveyor_physics()
@@ -129,7 +129,7 @@ func _ready() -> void:
 		if collision_shape and collision_shape.shape is BoxShape3D:
 			var box_shape := collision_shape.shape as BoxShape3D
 			box_shape.size = size
-	
+
 	if not running:
 		set_physics_process(false)
 
@@ -139,7 +139,7 @@ func _physics_process(delta: float) -> void:
 
 	if SimulationEvents.simulation_running:
 		_update_conveyor_velocity()
-		
+
 	if not SimulationEvents.simulation_paused:
 		_roller_material.uv1_offset += Vector3(4.0 * speed / CIRCUMFERENCE * delta, 0, 0)
 
@@ -154,14 +154,14 @@ func _validate_property(property: Dictionary) -> void:
 	elif property_name == "speed_tag_group_name":
 		property["usage"] = PROPERTY_USAGE_STORAGE
 	elif property_name == "speed_tag_groups":
-		property["usage"] = (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE 
+		property["usage"] = (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
 				if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE)
 	elif property_name == "speed_tag_name":
 		property["usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property_name == "running_tag_group_name":
 		property["usage"] = PROPERTY_USAGE_STORAGE
 	elif property_name == "running_tag_groups":
-		property["usage"] = (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE 
+		property["usage"] = (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE
 				if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE)
 	elif property_name == "running_tag_name":
 		property["usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
@@ -243,12 +243,7 @@ func _on_size_changed() -> void:
 		if _simple_conveyor_shape:
 			_simple_conveyor_shape.position = Vector3(0, -0.08, 0)
 
-func _get_initial_size() -> Vector3:
-	return Vector3(1.525, 0.24, 1.524)
 
-
-func _get_default_size() -> Vector3:
-	return Vector3(1.525, 0.24, 1.524)
 
 
 func _setup_roller_container(container: AbstractRollerContainer) -> void:
@@ -344,14 +339,14 @@ func _setup_conveyor_physics() -> void:
 		physics_material.friction = 0.8
 		physics_material.rough = true
 		_simple_conveyor_shape.physics_material_override = physics_material
-		
+
 		_update_conveyor_velocity()
 
 
 func _update_conveyor_velocity() -> void:
 	if not _simple_conveyor_shape:
 		return
-	
+
 	if running and speed != 0.0:
 		var local_x = _simple_conveyor_shape.global_transform.basis.x.normalized()
 		var local_y = _simple_conveyor_shape.global_transform.basis.y.normalized()

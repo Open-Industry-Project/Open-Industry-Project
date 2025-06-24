@@ -22,13 +22,13 @@ enum Scales {LOW, MID, HIGH}
 @export var reference_distance: float = 0.5:
 	get = get_reference_distance,
 	set = set_reference_distance
-	
+
 @export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
 	set(value):
 		conveyor_angle = value
 		_update_mesh()
 		_update_end_axis_angle()
-		
+
 # Communications
 var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
@@ -175,21 +175,21 @@ func _ready() -> void:
 	_on_size_changed()
 	_recalculate_speeds()
 	set_notify_transform(true)
-	
+
 	outer_mesh = find_child('InnerRollerConveyor') as MeshInstance3D
 	if not outer_mesh:
 		outer_mesh = MeshInstance3D.new()
 		outer_mesh.name = 'InnerRollerConveyor'
 		add_child(outer_mesh)
 		outer_mesh.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
-	
+
 	inner_mesh = find_child('OuterRollerConveyor') as MeshInstance3D
 	if not inner_mesh:
 		inner_mesh = MeshInstance3D.new()
 		inner_mesh.name = 'OuterRollerConveyor'
 		add_child(inner_mesh)
 		inner_mesh.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
-	
+
 	# Set up materials
 	_setup_materials()
 	_update_mesh()
@@ -223,7 +223,7 @@ func _physics_process(delta: float) -> void:
 		var local_up = _sb.global_transform.basis.y.normalized()
 		var velocity = -local_up * _angular_speed
 		_sb.constant_angular_velocity = velocity
-		
+
 		var angle_radians = deg_to_rad(conveyor_angle)
 		for static_body in _end_static_bodies:
 			var velocity_dir: Vector3
@@ -237,7 +237,7 @@ func _physics_process(delta: float) -> void:
 			_sb.constant_angular_velocity = Vector3.ZERO
 		for static_body in _end_static_bodies:
 			static_body.constant_linear_velocity = Vector3.ZERO
-			
+
 func _on_size_changed() -> void:
 	$MeshInstance3D.scale = size / BASE_MODEL_SIZE
 
@@ -258,8 +258,10 @@ func _on_size_changed() -> void:
 	_recalculate_speeds()
 	_update_mesh()
 
-static func _get_constrained_size(new_size: Vector3) -> Vector3:
+func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return Vector3(new_size.x, 0.5, new_size.x)
+
+
 
 func set_current_scale() -> void:
 	var new_scale
@@ -327,11 +329,11 @@ func _setup_materials() -> void:
 	shader_material = ShaderMaterial.new()
 	shader_material.shader = load('res://assets/3DModels/Shaders/MetalShader.tres') as Shader
 	shader_material.set_shader_parameter('Color', Color('#56a7c8'))
-	
+
 	inner_shader_material = ShaderMaterial.new()
 	inner_shader_material.shader = load('res://assets/3DModels/Shaders/MetalShader.tres') as Shader
 	inner_shader_material.set_shader_parameter('Color', Color('#56a7c8'))
-	
+
 	_update_material_scale()
 
 func _update_material_scale() -> void:
@@ -340,11 +342,11 @@ func _update_material_scale() -> void:
 		var avg_radius: float = size.x * BASE_OUTER_RADIUS
 		var length: float = 2.0 * PI * avg_radius * angle_portion
 		var scale: float = length / (PI * 1.0)
-		
+
 		shader_material.set_shader_parameter('Scale', size.x * 2)
 		shader_material.set_shader_parameter('Scale2', size.y * 8)
 		shader_material.set_shader_parameter('EdgeScale', scale * 1.2)
-		
+
 		inner_shader_material.set_shader_parameter('Scale', size.x * 2)
 		inner_shader_material.set_shader_parameter('Scale2', size.y * 8)
 		inner_shader_material.set_shader_parameter('EdgeScale', scale * 1.2)
@@ -354,29 +356,29 @@ var _end_static_bodies: Array[StaticBody3D] = []
 func _create_end_collision_shapes() -> void:
 	if not ends:
 		return
-	
+
 	# Clear previous static bodies
 	_end_static_bodies.clear()
-	
+
 	for end_axis in ends.get_children():
 		var end_mesh = end_axis.get_child(0) as MeshInstance3D
 		if not end_mesh:
 			continue
-		
+
 		var static_body = end_axis.get_node_or_null("StaticBody3D") as StaticBody3D
 		if not static_body:
 			static_body = StaticBody3D.new()
 			static_body.name = "StaticBody3D"
 			end_axis.add_child(static_body)
 			static_body.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
-		
+
 		var collision_shape = static_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if not collision_shape:
 			collision_shape = CollisionShape3D.new()
 			collision_shape.name = "CollisionShape3D"
 			static_body.add_child(collision_shape)
 			collision_shape.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
-		
+
 		var box_shape = BoxShape3D.new()
 		var end_scale = end_mesh.scale
 		box_shape.size = Vector3(
@@ -384,49 +386,49 @@ func _create_end_collision_shapes() -> void:
 			end_scale.y * 0.25,
 			end_scale.z * BASE_END_LENGTH
 		)
-		
+
 		if end_axis.name == "EndAxis2":
 			collision_shape.position = Vector3(-0.06, 0.165, end_mesh.position.z)
 		else:
 			collision_shape.position = Vector3(0.06,0.165, end_mesh.position.z)
-		
+
 		collision_shape.shape = box_shape
 		_end_static_bodies.append(static_body)
-		
+
 func _update_mesh() -> void:
 	if not is_inside_tree() or not outer_mesh or not inner_mesh:
 		return
-		
+
 	_update_material_scale()
 	_create_conveyor_collision_shape()
 	_create_outer_mesh()
 	_create_inner_mesh()
 	_create_end_collision_shapes()
-	
+
 	# Update roller visibility based on conveyor_angle
 	var angle_proportion = conveyor_angle / 90.0
-	
+
 	if rollers_low:
 		var visible_low_count = roundi(5 * angle_proportion)
 		for i in range(5):
 			var roller_axis = rollers_low.get_node_or_null("RollerAxis" + str(i + 1))
 			if roller_axis:
 				roller_axis.visible = i < visible_low_count
-	
+
 	if rollers_mid:
 		var visible_mid_count = roundi(10 * angle_proportion)
 		for i in range(10):
 			var roller_axis = rollers_mid.get_node_or_null("RollerAxis" + str(i + 1))
 			if roller_axis:
 				roller_axis.visible = i < visible_mid_count
-	
+
 	if rollers_high:
 		var visible_high_count = roundi(9 * angle_proportion)
 		for i in range(9):
 			var roller_axis = rollers_high.get_node_or_null("RollerAxis" + str(i + 1))
 			if roller_axis:
 				roller_axis.visible = i < visible_high_count
-	
+
 	_update_end_axis_angle()
 
 func _update_end_axis_angle() -> void:
@@ -501,12 +503,12 @@ func _create_vertices(segments: int, angle_radians: float, radius_inner: float, 
 		var angle: float = t * angle_radians
 		var sin_a: float = sin(angle)
 		var cos_a: float = cos(angle)
-		
+
 		var inner_top = Vector3(-sin_a * radius_inner, 0, cos_a * radius_inner) * scale_factor
 		var outer_top = Vector3(-sin_a * radius_outer, 0, cos_a * radius_outer) * scale_factor
 		var inner_bottom = Vector3(-sin_a * radius_inner, -height, cos_a * radius_inner) * scale_factor
 		var outer_bottom = Vector3(-sin_a * radius_outer, -height, cos_a * radius_outer) * scale_factor
-		
+
 		all_vertices.append({
 			"inner_top": inner_top,
 			"outer_top": outer_top,
@@ -522,7 +524,7 @@ func _build_top_and_bottom_surfaces(surfaces: Dictionary, all_vertices: Array) -
 		surfaces.top.vertices.append_array([vertex_data.inner_top, vertex_data.outer_top])
 		surfaces.top.normals.append_array([Vector3.UP, Vector3.UP])
 		surfaces.top.uvs.append_array([Vector2(1, 1-vertex_data.t), Vector2(0, 1-vertex_data.t)])
-		
+
 		surfaces.bottom.vertices.append_array([vertex_data.inner_bottom, vertex_data.outer_bottom])
 		surfaces.bottom.normals.append_array([Vector3.DOWN, Vector3.DOWN])
 		surfaces.bottom.uvs.append_array([Vector2(0, vertex_data.t), Vector2(1, vertex_data.t)])
@@ -532,7 +534,7 @@ func _create_surface_triangles(surfaces: Dictionary, segments: int) -> void:
 		var idx = i * 2
 		_add_double_sided_triangle(surfaces.top.indices, idx, idx + 1, idx + 3)
 		_add_double_sided_triangle(surfaces.top.indices, idx, idx + 3, idx + 2)
-		
+
 		_add_double_sided_triangle(surfaces.bottom.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.bottom.indices, idx, idx + 3, idx + 1)
 
@@ -541,36 +543,36 @@ func _add_double_sided_triangle(array_indices: PackedInt32Array, a: int, b: int,
 
 func _create_inner_mesh() -> void:
 	var mesh := ArrayMesh.new()
-	
+
 	var base_scale: float = 0.22
 	var progressive_factor: float = base_scale * pow(1.18, 0.05)
 	var inner_scale_x: float = size.x * progressive_factor
 	var radius_outer: float = BASE_OUTER_RADIUS * inner_scale_x
 	var height: float = size.y + 0.0105
-	
+
 	var top_lip_height: float = 0.4 * size.y
 	var bottom_lip_height: float = 0.02 * size.y
 	var lip_inward: float = 0.049 * size.x / 0.97
 	var diagonal_depth: float = -0.003
 	var diagonal_height: float = top_lip_height * 0.03
-	
+
 	var segments: int = int(conveyor_angle / 9.0)
 	var angle_radians: float = deg_to_rad(conveyor_angle)
-	
+
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	
+
 	var arc_length: float = radius_outer * angle_radians
 	var uv_scale_length: float = arc_length / 2.0
-	
+
 	for i in range(segments + 1):
 		var t: float = float(i) / segments
 		var angle: float = t * angle_radians
 		var sin_a: float = sin(angle)
 		var cos_a: float = cos(angle)
-		
+
 		var outer_top := Vector3(-sin_a * radius_outer, height, cos_a * radius_outer )
 		var outer_bottom := Vector3(-sin_a * radius_outer, 0, cos_a * radius_outer)
 		var middle_top := Vector3(-sin_a * (radius_outer), height, cos_a * (radius_outer))
@@ -588,22 +590,22 @@ func _create_inner_mesh() -> void:
 		var outer_normal := (outer_top - center).normalized()
 		outer_normal.y = 0
 		outer_normal = outer_normal.normalized()
-		
+
 		var inner_normal := (center - middle_top).normalized()
 		inner_normal.y = 0
 		inner_normal = inner_normal.normalized()
-		
+
 		var top_diagonal_dir := (top_diagonal_start - top_lip_top).normalized()
 		var top_diagonal_normal := Vector3(top_diagonal_dir.z, 0, -top_diagonal_dir.x).normalized()
 		var bottom_diagonal_dir := (bottom_diagonal_end - vertical_bottom).normalized()
 		var bottom_diagonal_normal := Vector3(bottom_diagonal_dir.z, 0, -bottom_diagonal_dir.x).normalized()
-		
+
 		var uv_arc_pos: float = t * uv_scale_length
-		
+
 		vertices.append_array([outer_top, outer_bottom, top_lip_middle_outer, bottom_lip_middle_outer, outer_top, top_lip_top, outer_bottom, bottom_lip_bottom, top_lip_top, top_diagonal_start, top_diagonal_start, vertical_top, vertical_top, vertical_bottom, vertical_bottom, bottom_diagonal_end, bottom_diagonal_end, top_lip_middle_outer, bottom_lip_middle_outer, bottom_lip_middle_inner, bottom_lip_middle_inner, bottom_lip_bottom, bottom_lip_bottom, middle_bottom])
 		normals.append_array([outer_normal, outer_normal, inner_normal, inner_normal, Vector3.UP, Vector3.UP, Vector3.DOWN, Vector3.DOWN, Vector3.UP, Vector3.UP, top_diagonal_normal, top_diagonal_normal, inner_normal, inner_normal, bottom_diagonal_normal, bottom_diagonal_normal, Vector3.DOWN, Vector3.DOWN, Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP, inner_normal, inner_normal])
 		uvs.append_array([Vector2(uv_arc_pos, 0.6), Vector2(uv_arc_pos, 0.8), Vector2(uv_arc_pos, 0.2), Vector2(uv_arc_pos, 0.4), Vector2(0.8, uv_arc_pos), Vector2(1.0, uv_arc_pos), Vector2(0.0, uv_arc_pos), Vector2(0.2, uv_arc_pos), Vector2(uv_arc_pos, 0.05), Vector2(uv_arc_pos, 0.1), Vector2(uv_arc_pos, 0.1), Vector2(uv_arc_pos, 0.15), Vector2(uv_arc_pos, 0.15), Vector2(uv_arc_pos, 0.18), Vector2(uv_arc_pos, 0.18), Vector2(uv_arc_pos, 0.2), Vector2(uv_arc_pos, 0.2), Vector2(uv_arc_pos, 0.25), Vector2(uv_arc_pos, 0.08), Vector2(uv_arc_pos, 0.1), Vector2(0.0, uv_arc_pos), Vector2(0.2, uv_arc_pos), Vector2(uv_arc_pos + 0.1, 0.4), Vector2(uv_arc_pos + 0.1, 0.5)])
-	
+
 	for i in range(segments):
 		var base: int = i * 24
 		indices.append_array([
@@ -620,7 +622,7 @@ func _create_inner_mesh() -> void:
 			base + 20, base + 44, base + 45, base + 20, base + 45, base + 21,
 			base + 22, base + 23, base + 47, base + 22, base + 47, base + 46
 		])
-	
+
 	if segments > 0:
 		vertices.append_array([vertices[0], vertices[2], vertices[1], vertices[3]])
 		var left_normal := Vector3(-1, 0, 0)
@@ -628,7 +630,7 @@ func _create_inner_mesh() -> void:
 		uvs.append_array([Vector2(0.8, 0.2), Vector2(1.0, 0.2), Vector2(0.8, 0.4), Vector2(1.0, 0.4)])
 		var left_base: int = vertices.size() - 4
 		indices.append_array([left_base, left_base + 1, left_base + 3, left_base, left_base + 3, left_base + 2])
-		
+
 		var last: int = segments * 24
 		vertices.append_array([vertices[last], vertices[last + 2], vertices[last + 1], vertices[last + 3]])
 		var right_normal := Vector3(1, 0, 0)
@@ -636,14 +638,14 @@ func _create_inner_mesh() -> void:
 		uvs.append_array([Vector2(0.8, 0.6), Vector2(1.0, 0.6), Vector2(0.8, 0.8), Vector2(1.0, 0.8)])
 		var right_base: int = vertices.size() - 4
 		indices.append_array([right_base, right_base + 3, right_base + 1, right_base, right_base + 2, right_base + 3])
-		
+
 		var left_top_lip_verts = [vertices[4], vertices[5], vertices[8], vertices[9], vertices[10], vertices[11], vertices[12], vertices[13], vertices[14], vertices[15], vertices[16], vertices[17]]
 		vertices.append_array(left_top_lip_verts)
 		for j in range(12): normals.append(left_normal)
 		uvs.append_array([Vector2(0.0, 0.9), Vector2(0.0, 1.0), Vector2(0.1, 0.9), Vector2(0.1, 1.0), Vector2(0.2, 0.8), Vector2(0.2, 0.9), Vector2(0.3, 0.7), Vector2(0.3, 0.8), Vector2(0.4, 0.6), Vector2(0.4, 0.7), Vector2(0.5, 0.5), Vector2(0.5, 0.6)])
 		var top_lip_left_base: int = vertices.size() - 12
 		indices.append_array([top_lip_left_base, top_lip_left_base + 2, top_lip_left_base + 1, top_lip_left_base + 2, top_lip_left_base + 4, top_lip_left_base + 3, top_lip_left_base + 4, top_lip_left_base + 6, top_lip_left_base + 5, top_lip_left_base + 6, top_lip_left_base + 8, top_lip_left_base + 7, top_lip_left_base + 8, top_lip_left_base + 10, top_lip_left_base + 9, top_lip_left_base + 10, top_lip_left_base + 1, top_lip_left_base + 11])
-		
+
 		var last_lip: int = segments * 24
 		var right_top_lip_verts = [vertices[last_lip + 4], vertices[last_lip + 5], vertices[last_lip + 8], vertices[last_lip + 9], vertices[last_lip + 10], vertices[last_lip + 11], vertices[last_lip + 12], vertices[last_lip + 13], vertices[last_lip + 14], vertices[last_lip + 15], vertices[last_lip + 16], vertices[last_lip + 17]]
 		vertices.append_array(right_top_lip_verts)
@@ -651,66 +653,66 @@ func _create_inner_mesh() -> void:
 		uvs.append_array([Vector2(0.6, 0.9), Vector2(0.6, 1.0), Vector2(0.7, 0.9), Vector2(0.7, 1.0), Vector2(0.8, 0.8), Vector2(0.8, 0.9), Vector2(0.9, 0.7), Vector2(0.9, 0.8), Vector2(1.0, 0.6), Vector2(1.0, 0.7), Vector2(0.9, 0.5), Vector2(0.9, 0.6)])
 		var top_lip_right_base: int = vertices.size() - 12
 		indices.append_array([top_lip_right_base, top_lip_right_base + 1, top_lip_right_base + 2, top_lip_right_base + 2, top_lip_right_base + 3, top_lip_right_base + 4, top_lip_right_base + 4, top_lip_right_base + 5, top_lip_right_base + 6, top_lip_right_base + 6, top_lip_right_base + 7, top_lip_right_base + 8, top_lip_right_base + 8, top_lip_right_base + 9, top_lip_right_base + 10, top_lip_right_base + 10, top_lip_right_base + 11, top_lip_right_base + 1])
-		
+
 		vertices.append_array([vertices[18], vertices[19], vertices[21], vertices[6]])
 		normals.append_array([left_normal, left_normal, left_normal, left_normal])
 		uvs.append_array([Vector2(0.0, 0.0), Vector2(0.0, 0.2), Vector2(0.2, 0.2), Vector2(0.2, 0.0)])
 		var bottom_lip_left_base: int = vertices.size() - 4
 		indices.append_array([bottom_lip_left_base, bottom_lip_left_base + 1, bottom_lip_left_base + 2, bottom_lip_left_base, bottom_lip_left_base + 2, bottom_lip_left_base + 3])
-		
+
 		vertices.append_array([vertices[last_lip + 18], vertices[last_lip + 19], vertices[last_lip + 21], vertices[last_lip + 6]])
 		normals.append_array([right_normal, right_normal, right_normal, right_normal])
 		uvs.append_array([Vector2(0.4, 0.0), Vector2(0.4, 0.2), Vector2(0.6, 0.2), Vector2(0.6, 0.0)])
 		var bottom_lip_right_base: int = vertices.size() - 4
 		indices.append_array([bottom_lip_right_base, bottom_lip_right_base + 2, bottom_lip_right_base + 1, bottom_lip_right_base, bottom_lip_right_base + 3, bottom_lip_right_base + 2])
-	
+
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
-	
+
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(0, shader_material)
 	outer_mesh.mesh = mesh
-	
+
 func _create_outer_mesh() -> void:
 	var mesh := ArrayMesh.new()
-	
+
 	var progressive_factor: float = pow(0.957, 0.5)
 	var inner_scale_x: float = size.x * progressive_factor
 	var radius_inner: float = BASE_OUTER_RADIUS * inner_scale_x + 0.005
 	var height: float = size.y + 0.0105
 	var thickness: float = 0.005
-	
+
 	var top_lip_height: float = 0.4 * size.y
 	var bottom_lip_height: float = 0.02 * size.y
 	var lip_outward: float = 0.047 * size.x / 0.90
 	var diagonal_depth: float = 0.003
 	var diagonal_height: float = top_lip_height * 0.03
-	
+
 	var segments: int = int(conveyor_angle / 9.0)
 	var angle_radians: float = deg_to_rad(conveyor_angle)
-	
+
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	
+
 	var arc_length: float = radius_inner * angle_radians
 	var uv_scale_length: float = arc_length / 2.0
-	
+
 	var default_size_x: float = 0.97
 	var size_scale: float = size.x / default_size_x
 	var outward_adjustment: float = lip_outward * 0.015 * (size_scale - 1.0)
-	
+
 	for i in range(segments + 1):
 		var t: float = float(i) / segments
 		var angle: float = t * angle_radians
 		var sin_a: float = sin(angle)
 		var cos_a: float = cos(angle)
-		
+
 		var inner_top := Vector3(-sin_a * radius_inner + 0.006, height, cos_a * radius_inner - 0.006)
 		var inner_bottom := Vector3(-sin_a * radius_inner, 0, cos_a * radius_inner)
 		var middle_top := Vector3(-sin_a * (radius_inner), height, cos_a * (radius_inner))
@@ -729,25 +731,25 @@ func _create_outer_mesh() -> void:
 		var inner_normal := (center - middle_top).normalized()
 		inner_normal.y = 0
 		inner_normal = inner_normal.normalized()
-		
+
 		var outer_normal := (inner_top - center).normalized()
 		outer_normal.y = 0
 		outer_normal = outer_normal.normalized()
-		
+
 		var top_diagonal_dir := (top_diagonal_start - top_lip_top).normalized()
 		var top_diagonal_normal := Vector3(-top_diagonal_dir.z, 0, top_diagonal_dir.x).normalized()
 		var bottom_diagonal_dir := (bottom_diagonal_end - vertical_bottom).normalized()
 		var bottom_diagonal_normal := Vector3(-bottom_diagonal_dir.z, 0, bottom_diagonal_dir.x).normalized()
-		
+
 		var uv_arc_pos: float = t * uv_scale_length
-		
+
 		vertices.append_array([inner_top, inner_bottom, top_lip_middle_outer, bottom_lip_middle_outer, inner_top, top_lip_top, inner_bottom, bottom_lip_bottom, top_lip_top, top_diagonal_start, top_diagonal_start, vertical_top, vertical_top, vertical_bottom, vertical_bottom, bottom_diagonal_end, bottom_diagonal_end, top_lip_middle_outer, bottom_lip_middle_outer, bottom_lip_middle_inner, bottom_lip_middle_inner, bottom_lip_bottom, bottom_lip_bottom, middle_bottom])
 		normals.append_array([inner_normal, inner_normal, outer_normal, outer_normal, Vector3.UP, Vector3.UP, Vector3.DOWN, Vector3.DOWN, Vector3.UP, Vector3.UP, top_diagonal_normal, top_diagonal_normal, outer_normal, outer_normal, bottom_diagonal_normal, bottom_diagonal_normal, Vector3.DOWN, Vector3.DOWN, Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP, outer_normal, outer_normal])
 		uvs.append_array([Vector2(uv_arc_pos, 0.6), Vector2(uv_arc_pos, 0.8), Vector2(uv_arc_pos, 0.2), Vector2(uv_arc_pos, 0.4), Vector2(0.8, uv_arc_pos), Vector2(1.0, uv_arc_pos), Vector2(0.0, uv_arc_pos), Vector2(0.2, uv_arc_pos), Vector2(uv_arc_pos, 0.05), Vector2(uv_arc_pos, 0.1), Vector2(uv_arc_pos, 0.1), Vector2(uv_arc_pos, 0.15), Vector2(uv_arc_pos, 0.15), Vector2(uv_arc_pos, 0.18), Vector2(uv_arc_pos, 0.18), Vector2(uv_arc_pos, 0.2), Vector2(uv_arc_pos, 0.2), Vector2(uv_arc_pos, 0.25), Vector2(uv_arc_pos, 0.08), Vector2(uv_arc_pos, 0.1), Vector2(0.0, uv_arc_pos), Vector2(0.2, uv_arc_pos), Vector2(uv_arc_pos + 0.1, 0.4), Vector2(uv_arc_pos + 0.1, 0.5)])
-	
+
 	for i in range(segments):
 		var base: int = i * 24
-		
+
 		indices.append_array([
 			base, base + 25, base + 1, base, base + 24, base + 25,
 			base + 2, base + 3, base + 27, base + 2, base + 27, base + 26,
@@ -762,7 +764,7 @@ func _create_outer_mesh() -> void:
 			base + 20, base + 45, base + 44, base + 20, base + 21, base + 45,
 			base + 22, base + 47, base + 23, base + 22, base + 46, base + 47
 		])
-	
+
 	if segments > 0:
 		vertices.append_array([vertices[0], vertices[2], vertices[1], vertices[3]])
 		var left_normal := Vector3(1, 0, 0)
@@ -770,7 +772,7 @@ func _create_outer_mesh() -> void:
 		uvs.append_array([Vector2(0.8, 0.2), Vector2(1.0, 0.2), Vector2(0.8, 0.4), Vector2(1.0, 0.4)])
 		var left_base: int = vertices.size() - 4
 		indices.append_array([left_base, left_base + 3, left_base + 1, left_base, left_base + 2, left_base + 3])
-		
+
 		var last: int = segments * 24
 		vertices.append_array([vertices[last], vertices[last + 2], vertices[last + 1], vertices[last + 3]])
 		var right_normal := Vector3(-1, 0, 0)
@@ -778,14 +780,14 @@ func _create_outer_mesh() -> void:
 		uvs.append_array([Vector2(0.8, 0.6), Vector2(1.0, 0.6), Vector2(0.8, 0.8), Vector2(1.0, 0.8)])
 		var right_base: int = vertices.size() - 4
 		indices.append_array([right_base, right_base + 1, right_base + 3, right_base, right_base + 3, right_base + 2])
-		
+
 		var left_top_lip_verts = [vertices[4], vertices[5], vertices[8], vertices[9], vertices[10], vertices[11], vertices[12], vertices[13], vertices[14], vertices[15], vertices[16], vertices[17]]
 		vertices.append_array(left_top_lip_verts)
 		for j in range(12): normals.append(left_normal)
 		uvs.append_array([Vector2(0.0, 0.9), Vector2(0.0, 1.0), Vector2(0.1, 0.9), Vector2(0.1, 1.0), Vector2(0.2, 0.8), Vector2(0.2, 0.9), Vector2(0.3, 0.7), Vector2(0.3, 0.8), Vector2(0.4, 0.6), Vector2(0.4, 0.7), Vector2(0.5, 0.5), Vector2(0.5, 0.6)])
 		var top_lip_left_base: int = vertices.size() - 12
 		indices.append_array([top_lip_left_base, top_lip_left_base + 1, top_lip_left_base + 2, top_lip_left_base + 2, top_lip_left_base + 3, top_lip_left_base + 4, top_lip_left_base + 4, top_lip_left_base + 5, top_lip_left_base + 6, top_lip_left_base + 6, top_lip_left_base + 7, top_lip_left_base + 8, top_lip_left_base + 8, top_lip_left_base + 9, top_lip_left_base + 10, top_lip_left_base + 10, top_lip_left_base + 11, top_lip_left_base + 1])
-		
+
 		var last_lip: int = segments * 24
 		var right_top_lip_verts = [vertices[last_lip + 4], vertices[last_lip + 5], vertices[last_lip + 8], vertices[last_lip + 9], vertices[last_lip + 10], vertices[last_lip + 11], vertices[last_lip + 12], vertices[last_lip + 13], vertices[last_lip + 14], vertices[last_lip + 15], vertices[last_lip + 16], vertices[last_lip + 17]]
 		vertices.append_array(right_top_lip_verts)
@@ -793,26 +795,26 @@ func _create_outer_mesh() -> void:
 		uvs.append_array([Vector2(0.6, 0.9), Vector2(0.6, 1.0), Vector2(0.7, 0.9), Vector2(0.7, 1.0), Vector2(0.8, 0.8), Vector2(0.8, 0.9), Vector2(0.9, 0.7), Vector2(0.9, 0.8), Vector2(1.0, 0.6), Vector2(1.0, 0.7), Vector2(0.9, 0.5), Vector2(0.9, 0.6)])
 		var top_lip_right_base: int = vertices.size() - 12
 		indices.append_array([top_lip_right_base, top_lip_right_base + 2, top_lip_right_base + 1, top_lip_right_base + 2, top_lip_right_base + 4, top_lip_right_base + 3, top_lip_right_base + 4, top_lip_right_base + 6, top_lip_right_base + 5, top_lip_right_base + 6, top_lip_right_base + 8, top_lip_right_base + 7, top_lip_right_base + 8, top_lip_right_base + 10, top_lip_right_base + 9, top_lip_right_base + 10, top_lip_right_base + 1, top_lip_right_base + 11])
-		
+
 		vertices.append_array([vertices[18], vertices[19], vertices[21], vertices[6]])
 		normals.append_array([left_normal, left_normal, left_normal, left_normal])
 		uvs.append_array([Vector2(0.0, 0.0), Vector2(0.0, 0.2), Vector2(0.2, 0.2), Vector2(0.2, 0.0)])
 		var bottom_lip_left_base: int = vertices.size() - 4
 		indices.append_array([bottom_lip_left_base, bottom_lip_left_base + 2, bottom_lip_left_base + 1, bottom_lip_left_base, bottom_lip_left_base + 3, bottom_lip_left_base + 2])
-		
+
 		vertices.append_array([vertices[last_lip + 18], vertices[last_lip + 19], vertices[last_lip + 21], vertices[last_lip + 6]])
 		normals.append_array([right_normal, right_normal, right_normal, right_normal])
 		uvs.append_array([Vector2(0.4, 0.0), Vector2(0.4, 0.2), Vector2(0.6, 0.2), Vector2(0.6, 0.0)])
 		var bottom_lip_right_base: int = vertices.size() - 4
 		indices.append_array([bottom_lip_right_base, bottom_lip_right_base + 1, bottom_lip_right_base + 2, bottom_lip_right_base, bottom_lip_right_base + 2, bottom_lip_right_base + 3])
-	
+
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
-	
+
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(0, shader_material)
 	inner_mesh.mesh = mesh

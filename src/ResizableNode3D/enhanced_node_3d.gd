@@ -1,4 +1,5 @@
-class_name EnhancedNode3D
+@tool
+abstract class_name EnhancedNode3D
 extends Node3D
 
 # Custom notification number.
@@ -40,6 +41,7 @@ func _on_scene_instantiated() -> void:
 ## Called for this node when its [member owner] receives [constant NOTIFICATION_SCENE_INSTANTIATED].
 ## Nodes are processed in tree order (top down, depth first), as in [method _enter_tree].
 ## Requires the [member owner] to be an [EnhancedNode3D].
+## Override this method in subclasses to add custom behavior when the owner scene is instantiated.
 func _on_owner_scene_instantiated() -> void:
 	pass
 
@@ -47,5 +49,6 @@ func _on_owner_scene_instantiated() -> void:
 ## Called once for this node the first time it or its [member owner] receive [constant NOTIFICATION_SCENE_INSTANTIATED].
 ## Nodes are processed in tree order (top down, depth first), as in [method _enter_tree].
 ## Requires the [member owner] to be an [EnhancedNode3D] for [member owner]-initiated behavior.
+## Override this method in subclasses to add custom initialization behavior.
 func _on_instantiated() -> void:
 	pass

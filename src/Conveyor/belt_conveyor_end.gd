@@ -19,10 +19,12 @@ var _belt_material: ShaderMaterial
 var _metal_material: ShaderMaterial
 
 
-static func _get_constrained_size(new_size: Vector3) -> Vector3:
+func _get_constrained_size(new_size: Vector3) -> Vector3:
 	var height := new_size.y
 	new_size.x = height / 2.0
 	return new_size
+
+
 
 
 func _init() -> void:
@@ -149,7 +151,7 @@ func update_belt_color(color: Color) -> void:
 	if _belt_material:
 		(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", color)
 		fix_material_overrides()
-		
+
 func update_belt_texture(is_standard_texture: bool) -> void:
 	if _belt_material:
 		(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", is_standard_texture)

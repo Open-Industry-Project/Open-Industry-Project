@@ -122,7 +122,7 @@ func _property_get_revert(property: StringName) -> Variant:
 		return null
 
 
-static func _get_constrained_size(new_size: Vector3) -> Vector3:
+func _get_constrained_size(new_size: Vector3) -> Vector3:
 	# Don't allow belt conveyors to be shorter than the total length of their ends.
 	# Ends' length varies with height.
 	var height := new_size.y
@@ -132,6 +132,8 @@ static func _get_constrained_size(new_size: Vector3) -> Vector3:
 	var minimum_length := end_length * 2.0 + middle_min_length
 	new_size.x = max(new_size.x, minimum_length)
 	return new_size
+
+
 
 
 func _init() -> void:

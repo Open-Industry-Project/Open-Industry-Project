@@ -44,16 +44,22 @@ func _ready() -> void:
 		_rigid_body_3d.linear_velocity = initial_linear_velocity
 
 
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	# Boxes can be any size, no constraints
+	return new_size
+
+
+
 func _on_size_changed() -> void:
 	if not is_instance_valid(_mesh_instance_3d) or not is_instance_valid(_rigid_body_3d):
 		return
-		
+
 	var mesh_instance = _mesh_instance_3d
 	var collision_shape = _rigid_body_3d.get_node_or_null("CollisionShape3D")
-	
+
 	if mesh_instance:
 		mesh_instance.scale = size/2
-		
+
 	if collision_shape:
 		var box_shape = collision_shape.shape as BoxShape3D
 		if box_shape:
@@ -72,7 +78,7 @@ func _exit_tree() -> void:
 func selected() -> void:
 	if _paused or not SimulationEvents.simulation_running:
 		return
-		
+
 	if _rigid_body_3d.freeze:
 		_rigid_body_3d.top_level = false
 		if _rigid_body_3d.transform != Transform3D.IDENTITY:

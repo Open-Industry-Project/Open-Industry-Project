@@ -181,6 +181,12 @@ func _set_process_if_changed(cached_val, new_val) -> bool:
 	return changed
 
 
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	# No constraints for spur conveyor assemblies
+	return new_size
+
+
+
 func _on_size_changed() -> void:
 	set_process(true)
 	super._on_size_changed()
