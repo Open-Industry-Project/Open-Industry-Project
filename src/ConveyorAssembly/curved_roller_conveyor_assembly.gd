@@ -1,6 +1,6 @@
 @tool
 class_name CurvedRollerConveyorAssembly
-extends EnhancedNode3D
+extends ResizableNode3D
 
 const CONVEYOR_CLASS_NAME = "CurvedRollerConveyor"
 
@@ -13,7 +13,10 @@ func _init() -> void:
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
 	_conveyor_script = load(class_details["path"]) as Script
-	
+
+	# Set default size for curved roller conveyor assemblies
+	size_default = Vector3(1.524, 0.5, 1.524)
+
 	# Enable transform notifications
 	set_notify_transform(true)
 
@@ -28,11 +31,12 @@ func _notification(what: int) -> void:
 
 
 func _get_property_list() -> Array[Dictionary]:
-	# Expose the conveyor's properties as our own.
 	return _get_conveyor_forwarded_properties()
 
 func _set(property: StringName, value: Variant) -> bool:
-	# Pass-through most conveyor properties.
+	if property == "size":
+		return false
+
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
 	_conveyor_property_cached_set(property, value)
@@ -40,10 +44,8 @@ func _set(property: StringName, value: Variant) -> bool:
 
 
 func _get(property: StringName) -> Variant:
-	# Pass-through most conveyor properties.
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
-	# Beware null values because Godot will treat them differently (godot/godotengine#86989).
 	return _conveyor_property_cached_get(property)
 
 
@@ -70,21 +72,15 @@ func _property_get_revert(property: StringName) -> Variant:
 
 
 func _on_instantiated() -> void:
-	# Keep property list in sync with child's.
 	if not $ConveyorCorner.property_list_changed.is_connected(notify_property_list_changed):
 		$ConveyorCorner.property_list_changed.connect(notify_property_list_changed)
 
-	# Copy cached values to conveyor instance, now that it's available.
 	for property: StringName in _cached_conveyor_property_values:
 		var value = _cached_conveyor_property_values[property]
 		$ConveyorCorner.set(property, value)
-	# Clear the cache to ensure it can't haunt us later somehow.
 	_cached_conveyor_property_values.clear()
 
-	# Disable caching from now on.
 	_has_instantiated = true
-	
-	# Update attachments
 	_update_attachments()
 
 
@@ -131,32 +127,32 @@ func _get_conveyor_forwarded_property_names() -> Array:
 	return result
 
 
-## Forward the property value to the Conveyor node; cache it if that child isn't present.
 func _conveyor_property_cached_set(property: StringName, value: Variant) -> void:
 	if _has_instantiated:
 		$ConveyorCorner.set(property, value)
 		if property in ["conveyor_angle", "size"]:
 			_update_attachments()
 	else:
-		# The instance won't exist yet, so cache the values to apply them later.
 		_cached_conveyor_property_values[property] = value
 
-
-## Get the property value from the Conveyor node; use a cached value if that child isn't present.
 func _conveyor_property_cached_get(property: StringName) -> Variant:
 	if _has_instantiated:
 		return $ConveyorCorner.get(property)
 	else:
-		# The instance won't exist yet, so return the cached or default value.
 		return _cached_conveyor_property_values[property]
-		
+
+func _on_size_changed() -> void:
+	if _has_instantiated and is_instance_valid($ConveyorCorner):
+		$ConveyorCorner.size = size
+	_update_attachments()
+
 func _update_attachments() -> void:
 	if not _has_instantiated:
 		return
 	# Check if node is in the scene tree before accessing global_transform
 	if not is_inside_tree():
 		return
-		
+
 	var conveyor = $ConveyorCorner
 	var radians := deg_to_rad(conveyor.conveyor_angle)
 	# Clamp the conveyor angle to prevent mesh generation issues at 0 degrees
@@ -165,21 +161,21 @@ func _update_attachments() -> void:
 		radians = deg_to_rad(10.0)
 	$SideGuardsCBC.guard_angle = conveyor.conveyor_angle
 	$SideGuardsCBC.size.x = conveyor.size.x + 0.036
-	
+
 	var front_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegTail
 	var rear_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegHead
-	
+
 	var size_factor = conveyor.size.x
-	
+
 	# Calculate positions (X and Z in local space) - these change with angle
 	var leg_x = -sin(radians) * 0.75 * size_factor
 	var leg_z = cos(radians) * 0.73 * size_factor
-	
+
 	# Handle position (X and Z only) and rotation for legs
 	front_legs.position.x = leg_x
 	front_legs.position.z = 0.04 + leg_z
 	front_legs.rotation.y = -radians
-	
+
 	rear_legs.position.x = -0.04
 	rear_legs.position.z = 0.75 * size_factor
 	rear_legs.rotation.y = 0

@@ -166,7 +166,7 @@ var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 
 func _init() -> void:
-	super._init() # Call parent _init to inherit hijack_scale metadata
+	super._init()
 
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func(item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
@@ -185,28 +185,19 @@ func _enter_tree() -> void:
 
 
 func _get_property_list() -> Array[Dictionary]:
-	# Get all the properties from the conveyor
 	var conveyor_properties = _get_conveyor_forwarded_properties()
-
-	# Create a filtered list
 	var filtered_properties: Array[Dictionary] = []
-
-	# The ResizableNode3D category has already been added by the parent class
-	# We only need to filter the conveyor properties
-
 	var found_categories = []
 
 	for prop in conveyor_properties:
 		var prop_name = prop[&"name"] as String
 		var usage = prop[&"usage"] as int
 
-		# Skip any duplicate categories (like ResizableNode3D or EnhancedNode3D)
 		if usage & PROPERTY_USAGE_CATEGORY:
 			if prop_name == "ResizableNode3D" or prop_name == "EnhancedNode3D" or prop_name in found_categories:
 				continue
 			found_categories.append(prop_name)
 
-		# Skip size property since it's already defined by ResizableNode3D
 		if prop_name == "size":
 			continue
 
@@ -216,23 +207,17 @@ func _get_property_list() -> Array[Dictionary]:
 
 
 func _validate_property(property: Dictionary) -> void:
-	#print("_validate_property(%s)" % property)
 	if property[&"name"] == SIDE_GUARDS_SCRIPT_FILENAME \
 			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
-		# Link the category to a script.
-		# This will make the category show the script class and icon as if we inherited from it.
 		assert(SIDE_GUARDS_SCRIPT_PATH.get_file() == SIDE_GUARDS_SCRIPT_FILENAME, "SIDE_GUARDS_SCRIPT_PATH doesn't match SIDE_GUARDS_SCRIPT_FILENAME")
 		property[&"hint_string"] = SIDE_GUARDS_SCRIPT_PATH
 	elif property[&"name"] == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME \
 			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
-		# Link the category to a script.
-		# This will make the category show the script class and icon as if we inherited from it.
 		assert(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH.get_file() == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME, "CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH doesn't match CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME")
 		property[&"hint_string"] = CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH
 
 
 func _set(property: StringName, value: Variant) -> bool:
-	# Pass-through most conveyor properties.
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
 	_conveyor_property_cached_set(property, value)
@@ -240,16 +225,12 @@ func _set(property: StringName, value: Variant) -> bool:
 
 
 func _get(property: StringName) -> Variant:
-	#print("_get(%s)" % property)
-	# Pass-through most conveyor properties.
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
-	# Beware null values because Godot will treat them differently (godot/godotengine#86989).
 	return _conveyor_property_cached_get(property)
 
 
 func _property_can_revert(property: StringName) -> bool:
-	#print("_property_can_revert(%s)" % property)
 	return property in _get_conveyor_forwarded_property_names()
 
 
@@ -278,7 +259,8 @@ func _property_get_revert(property: StringName) -> Variant:
 
 func _on_instantiated() -> void:
 	# Keep property list in sync with child's.
-	%Conveyor.property_list_changed.connect(notify_property_list_changed)
+	if not %Conveyor.property_list_changed.is_connected(notify_property_list_changed):
+		%Conveyor.property_list_changed.connect(notify_property_list_changed)
 
 	# Copy cached values to conveyor instance, now that it's available.
 	for property: StringName in _cached_conveyor_property_values:
@@ -288,7 +270,8 @@ func _on_instantiated() -> void:
 	_cached_conveyor_property_values.clear()
 
 	# Keep property list in sync with child's.
-	%SideGuardsAssembly.property_list_changed.connect(notify_property_list_changed)
+	if not %SideGuardsAssembly.property_list_changed.is_connected(notify_property_list_changed):
+		%SideGuardsAssembly.property_list_changed.connect(notify_property_list_changed)
 
 	# Copy cached values to SideGuardsAssembly instance, now that it's available.
 	for property: StringName in _cached_side_guards_property_values:
@@ -298,7 +281,8 @@ func _on_instantiated() -> void:
 	_cached_side_guards_property_values.clear()
 
 	# Keep property list in sync with child's.
-	%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
+	if not %ConveyorLegsAssembly.property_list_changed.is_connected(notify_property_list_changed):
+		%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
 
 	# Copy cached values to ConveyorLegsAssembly instance, now that it's available.
 	for property: StringName in _cached_legs_property_values:
@@ -435,7 +419,6 @@ func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 
 
-## Override from ResizableNode3D to propagate size changes to children
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid(%Conveyor):
 		%Conveyor.size = size

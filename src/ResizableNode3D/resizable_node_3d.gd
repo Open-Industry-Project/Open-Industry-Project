@@ -19,6 +19,7 @@ func _init() -> void:
 	set_notify_transform(true)
 
 func _notification(what: int) -> void:
+	super._notification(what)
 	match what:
 		NOTIFICATION_TRANSFORM_CHANGED:
 			if not scale.is_equal_approx(Vector3.ONE) and not transform_in_progress:

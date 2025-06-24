@@ -43,12 +43,11 @@ var DEFAULT_DEPTH: float = 0.5
 	set(value):
 		if _set_process_if_changed(conveyor_scene, value):
 			conveyor_scene = value
-			# Recreate all conveyors
 			_add_or_remove_conveyors(0)
 
 
 func _init() -> void:
-	super._init() # Call parent _init to inherit hijack_scale metadata
+	super._init()
 	size_default = Vector3(DEFAULT_LENGTH, DEFAULT_DEPTH, DEFAULT_WIDTH)
 
 
@@ -65,10 +64,8 @@ func _process(delta: float) -> void:
 func _validate_property(property: Dictionary) -> void:
 	var property_name = property["name"]
 	if property_name in ["length", "width", "depth"]:
-		# Don't store; size property handles that.
 		property["usage"] = PROPERTY_USAGE_EDITOR
 	if property_name == "size":
-		# Store size, but don't show it in the editor.
 		property["usage"] = PROPERTY_USAGE_STORAGE
 
 
@@ -140,8 +137,6 @@ func _get_new_transform_for_conveyor(index: int) -> Transform3D:
 	var conv_width: float = width / conveyor_count
 	var conv_half_width: float = 0.5 * conv_width
 	var conv_pos_z: float = -0.5 * width + conv_half_width + index * width / conveyor_count
-	# Pivot the line of contact around a fixed point at z=0.
-	# This is a line that conveyors will always touch but never cross.
 	var ds_contact_z_offset = -conv_half_width if angle_downstream > 0 else conv_half_width
 	var us_contact_z_offset = conv_half_width if angle_upstream > 0 else -conv_half_width
 	var ds_displacement_x: float = slope_downstream * (conv_pos_z + ds_contact_z_offset)
@@ -150,7 +145,6 @@ func _get_new_transform_for_conveyor(index: int) -> Transform3D:
 	var conv_length: float = length + ds_displacement_x - us_displacement_x
 
 	var position := Vector3(conv_pos_x, 0, conv_pos_z)
-
 	return Transform3D(Basis.IDENTITY, position)
 
 
@@ -161,8 +155,6 @@ func _get_new_size_for_conveyor(index: int) -> Vector3:
 	var conv_width: float = width / conveyor_count
 	var conv_half_width: float = 0.5 * conv_width
 	var conv_pos_z: float = -0.5 * width + conv_half_width + index * width / conveyor_count
-	# Pivot the line of contact around a fixed point at z=0.
-	# This is a line that conveyors will always touch but never cross.
 	var ds_contact_z_offset = -conv_half_width if angle_downstream > 0 else conv_half_width
 	var us_contact_z_offset = conv_half_width if angle_upstream > 0 else -conv_half_width
 	var ds_displacement_x: float = slope_downstream * (conv_pos_z + ds_contact_z_offset)
@@ -182,7 +174,6 @@ func _set_process_if_changed(cached_val, new_val) -> bool:
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
-	# No constraints for spur conveyor assemblies
 	return new_size
 
 
