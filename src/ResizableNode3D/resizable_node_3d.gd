@@ -1,6 +1,6 @@
 @tool
 abstract class_name ResizableNode3D
-extends EnhancedNode3D
+extends Node3D
 
 signal size_changed
 
@@ -19,7 +19,6 @@ func _init() -> void:
 	set_notify_transform(true)
 
 func _notification(what: int) -> void:
-	super._notification(what)
 	match what:
 		NOTIFICATION_TRANSFORM_CHANGED:
 			if not scale.is_equal_approx(Vector3.ONE) and not transform_in_progress:
@@ -50,7 +49,7 @@ func _notification(what: int) -> void:
 		var constrained_size = _get_constrained_size(clamped_size)
 		var has_changed = size != constrained_size
 		size = constrained_size
-		if has_changed and _instance_ready:
+		if has_changed:
 			_on_size_changed()
 			size_changed.emit()
 

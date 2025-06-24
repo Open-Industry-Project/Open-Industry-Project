@@ -51,8 +51,7 @@ func _init() -> void:
 	size_default = Vector3(DEFAULT_LENGTH, DEFAULT_DEPTH, DEFAULT_WIDTH)
 
 
-func _on_instantiated() -> void:
-	super._on_instantiated()
+func _ready() -> void:
 	_process(0.0)
 
 

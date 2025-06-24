@@ -10,12 +10,14 @@ var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
 
 
 func _init() -> void:
+	# Set default size for curved belt conveyor assemblies BEFORE calling super._init()
+	size_default = Vector3(1.524, 0.5, 1.524)
+
+	super._init()
+
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
 	_conveyor_script = load(class_details["path"]) as Script
-
-	# Set default size for curved belt conveyor assemblies
-	size_default = Vector3(1.524, 0.5, 1.524)
 
 	# Enable transform notifications
 	set_notify_transform(true)
@@ -34,6 +36,7 @@ func _get_property_list() -> Array[Dictionary]:
 	return _get_conveyor_forwarded_properties()
 
 func _set(property: StringName, value: Variant) -> bool:
+	# Allow size property to be handled by ResizableNode3D
 	if property == "size":
 		return false
 
@@ -71,7 +74,7 @@ func _property_get_revert(property: StringName) -> Variant:
 	return _conveyor_script.get_property_default_value(property)
 
 
-func _on_instantiated() -> void:
+func _ready() -> void:
 	if not $ConveyorCorner.property_list_changed.is_connected(notify_property_list_changed):
 		$ConveyorCorner.property_list_changed.connect(notify_property_list_changed)
 
@@ -81,6 +84,11 @@ func _on_instantiated() -> void:
 	_cached_conveyor_property_values.clear()
 
 	_has_instantiated = true
+
+	# Sync the assembly's size to the ConveyorCorner
+	if is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
+		$ConveyorCorner.size = size
+
 	_update_attachments()
 
 
@@ -132,13 +140,23 @@ func _conveyor_property_cached_set(property: StringName, value: Variant) -> void
 		_cached_conveyor_property_values[property] = value
 
 func _conveyor_property_cached_get(property: StringName) -> Variant:
-	if _has_instantiated:
-		return $ConveyorCorner.get(property)
-	else:
+	if _has_instantiated and is_instance_valid($ConveyorCorner):
+		var value = $ConveyorCorner.get(property)
+		if value != null:
+			return value
+
+	# Return cached value or look up default from cache
+	if property in _cached_conveyor_property_values:
 		return _cached_conveyor_property_values[property]
 
+	# Return script default as final fallback
+	if _conveyor_script:
+		return _conveyor_script.get_property_default_value(property)
+
+	return null
+
 func _on_size_changed() -> void:
-	if _has_instantiated and is_instance_valid($ConveyorCorner):
+	if _has_instantiated and is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
 		$ConveyorCorner.size = size
 	_update_attachments()
 

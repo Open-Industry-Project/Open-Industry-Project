@@ -32,10 +32,11 @@ func _init() -> void:
 	size_min = Vector3(0.01, 0.02, 0.01)
 
 
-func _on_instantiated() -> void:
+func _ready() -> void:
 	_setup_references()
 	_setup_materials()
 	_on_size_changed()
+	_update_belt_velocity()
 
 
 func _enter_tree() -> void:
@@ -48,10 +49,6 @@ func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	super._exit_tree()
-
-
-func _ready() -> void:
-	_update_belt_velocity()
 
 
 func _physics_process(delta: float) -> void:

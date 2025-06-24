@@ -141,7 +141,7 @@ func _init() -> void:
 	size_default = Vector3(4, 0.5, 1.524)
 
 
-func _on_instantiated() -> void:
+func _ready() -> void:
 	_setup_references()
 	_setup_materials()
 	_update_material_texture()

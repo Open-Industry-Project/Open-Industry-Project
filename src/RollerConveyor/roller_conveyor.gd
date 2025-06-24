@@ -114,24 +114,28 @@ func _exit_tree() -> void:
 	super._exit_tree()
 
 func _ready() -> void:
-	var mesh_instance1 := get_node("ConvRoller/ConvRollerL") as MeshInstance3D
-	var mesh_instance2 := get_node("ConvRoller/ConvRollerR") as MeshInstance3D
-	mesh_instance1.mesh = mesh_instance1.mesh.duplicate()
-	_metal_material = mesh_instance1.mesh.surface_get_material(0).duplicate()
-	mesh_instance1.mesh.surface_set_material(0, _metal_material)
-	mesh_instance2.mesh.surface_set_material(0, _metal_material)
-	_update_metal_material_scale()
+	var mesh_instance1 := get_node_or_null("ConvRoller/ConvRollerL") as MeshInstance3D
+	var mesh_instance2 := get_node_or_null("ConvRoller/ConvRollerR") as MeshInstance3D
 
-	_simple_conveyor_shape = get_node("SimpleConveyorShape") as StaticBody3D
+	if mesh_instance1 and mesh_instance2:
+		mesh_instance1.mesh = mesh_instance1.mesh.duplicate()
+		_metal_material = mesh_instance1.mesh.surface_get_material(0).duplicate()
+		mesh_instance1.mesh.surface_set_material(0, _metal_material)
+		mesh_instance2.mesh.surface_set_material(0, _metal_material)
+		_update_metal_material_scale()
+
+	_simple_conveyor_shape = get_node_or_null("SimpleConveyorShape") as StaticBody3D
 	if _simple_conveyor_shape:
 		_setup_conveyor_physics()
-		var collision_shape := _simple_conveyor_shape.get_node("CollisionShape3D") as CollisionShape3D
+		var collision_shape := _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if collision_shape and collision_shape.shape is BoxShape3D:
 			var box_shape := collision_shape.shape as BoxShape3D
 			box_shape.size = size
 
 	if not running:
 		set_physics_process(false)
+
+	_setup_roller_initialization()
 
 func _physics_process(delta: float) -> void:
 	if not SimulationEvents:
@@ -188,18 +192,19 @@ func set_roller_override_material(material: BaseMaterial3D) -> void:
 		roller_override_material_changed.emit(_roller_material)
 
 
-func _on_instantiated() -> void:
-	super._on_instantiated()
-
+func _setup_roller_initialization() -> void:
 	set_roller_override_material(load("res://assets/3DModels/Materials/Metall2.tres").duplicate(true))
 
 	_rollers = get_node_or_null("Rollers")
 	_ends = get_node_or_null("Ends")
 
-	_setup_roller_container(_rollers)
-	for end in _ends.get_children():
-		if end is RollerConveyorEnd:
-			_setup_roller_container(end)
+	if _rollers:
+		_setup_roller_container(_rollers)
+
+	if _ends:
+		for end in _ends.get_children():
+			if end is RollerConveyorEnd:
+				_setup_roller_container(end)
 
 func _on_simulation_started() -> void:
 	running = true
@@ -230,7 +235,7 @@ func _on_size_changed() -> void:
 		_last_size = size
 
 		if _simple_conveyor_shape:
-			var collision_shape := _simple_conveyor_shape.get_node("CollisionShape3D") as CollisionShape3D
+			var collision_shape := _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 			if collision_shape and collision_shape.shape is BoxShape3D:
 				var box_shape := collision_shape.shape as BoxShape3D
 				box_shape.size = size
@@ -247,7 +252,9 @@ func _on_size_changed() -> void:
 
 
 func _setup_roller_container(container: AbstractRollerContainer) -> void:
-	assert(container != null)
+	if container == null:
+		return
+
 	container.roller_added.connect(_on_roller_added)
 	container.roller_removed.connect(_on_roller_removed)
 
@@ -261,31 +268,31 @@ func _setup_roller_container(container: AbstractRollerContainer) -> void:
 	container.set_length(size.x)
 
 func _update_component_positions() -> void:
-	var conv_roller := get_node("ConvRoller")
+	var conv_roller := get_node_or_null("ConvRoller")
 	if conv_roller:
 		var end_offset := 0.165
 		var target_length := size.x - (2 * end_offset)
 		conv_roller.scale = Vector3(target_length, 1, 1)
 		conv_roller.position = Vector3(0, -0.25, 0)
 
-		var left_side := conv_roller.get_node("ConvRollerL")
-		var right_side := conv_roller.get_node("ConvRollerR")
+		var left_side := conv_roller.get_node_or_null("ConvRollerL")
+		var right_side := conv_roller.get_node_or_null("ConvRollerR")
 		if left_side and right_side:
 			var half_width := size.z / 2.0
 			left_side.position = Vector3(left_side.position.x, left_side.position.y, -half_width)
 			right_side.position = Vector3(right_side.position.x, right_side.position.y, half_width)
 
-	var rollers_node := get_node("Rollers")
+	var rollers_node := get_node_or_null("Rollers")
 	if rollers_node:
 		rollers_node.position = Vector3(-size.x / 2.0 + 0.2, -0.08, 0)
 		rollers_node.scale = Vector3.ONE
 
-	var ends_node := get_node("Ends")
+	var ends_node := get_node_or_null("Ends")
 	if ends_node:
 		ends_node.position = Vector3(0, -0.25, 0)
 
-		var end1 := ends_node.get_node("RollerConveyorEnd")
-		var end2 := ends_node.get_node("RollerConveyorEnd2")
+		var end1 := ends_node.get_node_or_null("RollerConveyorEnd")
+		var end2 := ends_node.get_node_or_null("RollerConveyorEnd2")
 
 		var end_offset := 0.165
 		if end1:

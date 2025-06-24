@@ -175,12 +175,33 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	if _has_instantiated and is_instance_valid(%Conveyor):
+	if not %Conveyor.property_list_changed.is_connected(notify_property_list_changed):
+		%Conveyor.property_list_changed.connect(notify_property_list_changed)
+
+	for property: StringName in _cached_conveyor_property_values:
+		var value = _cached_conveyor_property_values[property]
+		%Conveyor.set(property, value)
+	_cached_conveyor_property_values.clear()
+
+	if not %SideGuardsAssembly.property_list_changed.is_connected(notify_property_list_changed):
+		%SideGuardsAssembly.property_list_changed.connect(notify_property_list_changed)
+
+	for property: StringName in _cached_side_guards_property_values:
+		var value = _cached_side_guards_property_values[property]
+		%SideGuardsAssembly.set(property, value)
+	_cached_side_guards_property_values.clear()
+
+	if not %ConveyorLegsAssembly.property_list_changed.is_connected(notify_property_list_changed):
+		%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
+
+	for property: StringName in _cached_legs_property_values:
+		var value = _cached_legs_property_values[property]
+		%ConveyorLegsAssembly.set(property, value)
+	_cached_legs_property_values.clear()
+
+	_has_instantiated = true
+	if is_instance_valid(%Conveyor) and "size" in %Conveyor:
 		%Conveyor.size = size
-
-
-func _enter_tree() -> void:
-	super._enter_tree()
 	call_deferred("_ensure_side_guards_updated")
 
 
@@ -194,7 +215,7 @@ func _get_property_list() -> Array[Dictionary]:
 		var usage = prop[&"usage"] as int
 
 		if usage & PROPERTY_USAGE_CATEGORY:
-			if prop_name == "ResizableNode3D" or prop_name == "EnhancedNode3D" or prop_name in found_categories:
+			if prop_name == "ResizableNode3D" or prop_name in found_categories:
 				continue
 			found_categories.append(prop_name)
 
@@ -257,47 +278,7 @@ func _property_get_revert(property: StringName) -> Variant:
 	return _conveyor_script.get_property_default_value(property)
 
 
-func _on_instantiated() -> void:
-	# Keep property list in sync with child's.
-	if not %Conveyor.property_list_changed.is_connected(notify_property_list_changed):
-		%Conveyor.property_list_changed.connect(notify_property_list_changed)
 
-	# Copy cached values to conveyor instance, now that it's available.
-	for property: StringName in _cached_conveyor_property_values:
-		var value = _cached_conveyor_property_values[property]
-		%Conveyor.set(property, value)
-	# Clear the cache to ensure it can't haunt us later somehow.
-	_cached_conveyor_property_values.clear()
-
-	# Keep property list in sync with child's.
-	if not %SideGuardsAssembly.property_list_changed.is_connected(notify_property_list_changed):
-		%SideGuardsAssembly.property_list_changed.connect(notify_property_list_changed)
-
-	# Copy cached values to SideGuardsAssembly instance, now that it's available.
-	for property: StringName in _cached_side_guards_property_values:
-		var value = _cached_side_guards_property_values[property]
-		%SideGuardsAssembly.set(property, value)
-	# Clear the cache to ensure it can't haunt us later somehow.
-	_cached_side_guards_property_values.clear()
-
-	# Keep property list in sync with child's.
-	if not %ConveyorLegsAssembly.property_list_changed.is_connected(notify_property_list_changed):
-		%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
-
-	# Copy cached values to ConveyorLegsAssembly instance, now that it's available.
-	for property: StringName in _cached_legs_property_values:
-		var value = _cached_legs_property_values[property]
-		%ConveyorLegsAssembly.set(property, value)
-	# Clear the cache to ensure it can't haunt us later somehow.
-	_cached_legs_property_values.clear()
-
-	# Disable caching from now on.
-	_has_instantiated = true
-
-	# Make sure the size is properly set on the conveyor
-	%Conveyor.size = size
-
-	call_deferred("_ensure_side_guards_updated")
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
@@ -383,34 +364,44 @@ func _legs_property_cached_set(property: StringName, value: Variant, existing_ba
 
 ## Get the property value from the Conveyor node; use a cached value if that child isn't present.
 func _conveyor_property_cached_get(property: StringName) -> Variant:
-	if _has_instantiated:
-		return %Conveyor.get(property)
-	else:
-		# The instance won't exist yet, so return the cached or default value.
-		# TODO return default value if property is missing from cache.
+	if _has_instantiated and is_instance_valid(%Conveyor):
+		var value = %Conveyor.get(property)
+		if value != null:
+			return value
+
+	# Return cached value or look up default from cache
+	if property in _cached_conveyor_property_values:
 		return _cached_conveyor_property_values[property]
+
+	# Return script default as final fallback
+	if _conveyor_script:
+		return _conveyor_script.get_property_default_value(property)
+
+	return null
 
 
 ## Get the property value from the SideGuardsAssembly node; use a cached value if that child isn't present.
 ##
 ## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
 func _side_guards_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
-	if _has_instantiated:
-		return %SideGuardsAssembly.get(property)
-	else:
-		# The instance won't exist yet, so return the cached or default value.
-		return backing_field_value
+	if _has_instantiated and is_instance_valid(%SideGuardsAssembly):
+		var value = %SideGuardsAssembly.get(property)
+		if value != null:
+			return value
+
+	return backing_field_value
 
 
 ## Get the property value from the ConveyorLegsAssembly node; use a cached value if that child isn't present.
 ##
 ## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
 func _legs_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
-	if _has_instantiated:
-		return %ConveyorLegsAssembly.get(property)
-	else:
-		# The instance won't exist yet, so return the cached or default value.
-		return backing_field_value
+	if _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
+		var value = %ConveyorLegsAssembly.get(property)
+		if value != null:
+			return value
+
+	return backing_field_value
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
@@ -420,7 +411,7 @@ func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 
 func _on_size_changed() -> void:
-	if _has_instantiated and is_instance_valid(%Conveyor):
+	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
 		%Conveyor.size = size
 
 

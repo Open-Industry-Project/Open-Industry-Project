@@ -1,6 +1,6 @@
 @tool
 class_name SideGuardsAssembly
-extends EnhancedNode3D
+extends Node3D
 
 enum Side
 {
@@ -107,16 +107,12 @@ func _notification(what: int) -> void:
 			_connect_conveyor_signals()
 		NOTIFICATION_UNPARENTED:
 			_disconnect_conveyor_signals()
-	super._notification(what)
-
 
 func _connect_conveyor_signals() -> void:
 	var conveyor = get_parent()
 	if conveyor.has_signal("size_changed") and "size" in conveyor and conveyor.size is Vector3:
 		conveyor.connect("size_changed", self._on_conveyor_size_changed)
 		_conveyor_connected = true
-		if _instance_ready:
-			_on_conveyor_size_changed()
 	else:
 		_conveyor_connected = false
 	update_configuration_warnings()
