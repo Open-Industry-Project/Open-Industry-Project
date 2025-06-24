@@ -203,6 +203,15 @@ func _ready() -> void:
 	if is_instance_valid(%Conveyor) and "size" in %Conveyor:
 		%Conveyor.size = size
 	call_deferred("_ensure_side_guards_updated")
+	
+	# Connect to OIPComms signal to update property visibility when global comms setting changes
+	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+
+
+func _exit_tree() -> void:
+	# Disconnect from OIPComms signal
+	if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
+		OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 
 
 func _get_property_list() -> Array[Dictionary]:
@@ -236,6 +245,23 @@ func _validate_property(property: Dictionary) -> void:
 			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
 		assert(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH.get_file() == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME, "CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH doesn't match CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME")
 		property[&"hint_string"] = CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH
+	# Handle communication properties forwarded from RollerConveyor
+	elif property[&"name"] == "Communications" and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
+		property[&"usage"] = PROPERTY_USAGE_CATEGORY if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "enable_comms":
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "speed_tag_group_name":
+		property[&"usage"] = PROPERTY_USAGE_STORAGE
+	elif property[&"name"] == "speed_tag_groups":
+		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "speed_tag_name":
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "running_tag_group_name":
+		property[&"usage"] = PROPERTY_USAGE_STORAGE
+	elif property[&"name"] == "running_tag_groups":
+		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "running_tag_name":
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 
 
 func _set(property: StringName, value: Variant) -> bool:

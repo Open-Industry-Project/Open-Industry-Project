@@ -31,10 +31,7 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 			_update_conveyor_velocity()
 
 @export_category("Communications")
-@export var enable_comms: bool = false:
-	set(value):
-		enable_comms = value
-		notify_property_list_changed()
+@export var enable_comms: bool = false
 @export var speed_tag_group_name: String
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
@@ -59,9 +56,6 @@ var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
 var _speed_tag_group_original: String
 var _running_tag_group_original: String
-var _enable_comms_changed: bool = false:
-	set(value):
-		notify_property_list_changed()
 var _last_size: Vector3 = Vector3(1.525, 0.24, 1.524)
 var _last_length: float = 1.525
 var _last_width: float = 1.524
@@ -98,7 +92,37 @@ func _enter_tree() -> void:
 
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
+	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+
+
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "enable_comms":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "speed_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "speed_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "running_tag_group_name":
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == "running_tag_groups":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property.name == "running_tag_name":
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+
+
+func _property_can_revert(property: StringName) -> bool:
+	return property == "speed_tag_groups" or property == "running_tag_groups"
+
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property == "speed_tag_groups":
+		return _speed_tag_group_original
+	elif property == "running_tag_groups":
+		return _running_tag_group_original
+	else:
+		return null
 
 
 func _exit_tree() -> void:
@@ -112,6 +136,8 @@ func _exit_tree() -> void:
 		OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	if OIPComms.tag_group_polled.is_connected(_tag_group_polled):
 		OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
+		OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 
 	super._exit_tree()
 
