@@ -1,5 +1,6 @@
 @tool
-abstract class_name ResizableNode3D
+@abstract
+class_name ResizableNode3D
 extends Node3D
 
 signal size_changed

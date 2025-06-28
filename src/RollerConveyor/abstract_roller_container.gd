@@ -1,5 +1,6 @@
 @tool
-abstract class_name AbstractRollerContainer
+@abstract
+class_name AbstractRollerContainer
 extends Node3D
 
 signal width_changed(width: float)
