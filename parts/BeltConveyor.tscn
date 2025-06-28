@@ -61,7 +61,6 @@ _surfaces = [{
 blend_shape_mode = 0
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_uu43a"]
-resource_name = "ConvBox_Cube_002"
 _surfaces = [{
 "aabb": AABB(-0.5, -0.25, -1, 1.00001, 0.50001, 2),
 "attribute_data": PackedByteArray("AID/f/9//3//f///AID+/8z8/3/M/P9/zPz//8z8/v8AgP7//3////9//38AgP9/zPz+/8z8///M/P9/zPz/f858/3/OfP7/znz/f858/v/+//9////+//7//3/+//7/"),
