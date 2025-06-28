@@ -129,6 +129,18 @@ func _update_belt_velocity() -> void:
 		_static_body.constant_angular_velocity = Vector3.ZERO
 
 
+func _update_marker_positions() -> void:
+	# Update marker positions to maintain their relative positions as the conveyor is resized
+	var curved_end_marker_1 = get_node_or_null("CurvedEndMarker")
+	var curved_end_marker_2 = get_node_or_null("CurvedEndMarker2")
+	
+	if curved_end_marker_1:
+		curved_end_marker_1.position = Vector3(size.x, 0, size.z / 2.0)
+	
+	if curved_end_marker_2:
+		curved_end_marker_2.position = Vector3(size.x, 0, -size.z / 2.0)
+
+
 func _on_size_changed() -> void:
 	if not (get_node_or_null("MeshInstance3D") and get_node_and_resource("StaticBody3D/CollisionShape3D:shape")[1]):
 		# Children not instantiated yet.
@@ -143,6 +155,7 @@ func _on_size_changed() -> void:
 	_update_belt_material_scale()
 	_update_metal_material_scale()
 	_update_belt_velocity()
+	_update_marker_positions()
 
 
 func _on_simulation_started() -> void:

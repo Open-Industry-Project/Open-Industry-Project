@@ -23,7 +23,28 @@ static func snap_selected_conveyors() -> void:
 		return
 	
 	var undo_redo := EditorInterface.get_editor_undo_redo()
-	undo_redo.create_action("Snap Conveyors with Side Guard Openings")
+	
+	# Determine appropriate action name based on conveyor types and side guards
+	var has_curved := false
+	var has_side_guards := false
+	
+	for conveyor in selected_conveyors:
+		if _is_curved_conveyor(conveyor) or _is_curved_conveyor(target_conveyor):
+			has_curved = true
+		if _has_side_guards(conveyor) or _has_side_guards(target_conveyor):
+			has_side_guards = true
+	
+	var action_name: String
+	if has_curved and has_side_guards:
+		action_name = "Snap Curved Conveyors with Side Guard Openings"
+	elif has_curved:
+		action_name = "Snap Curved Conveyors"
+	elif has_side_guards:
+		action_name = "Snap Conveyors with Side Guard Openings"
+	else:
+		action_name = "Snap Conveyors"
+	
+	undo_redo.create_action(action_name)
 	
 	for conveyor in selected_conveyors:
 		var original_transform := conveyor.global_transform
@@ -203,6 +224,10 @@ static func _is_conveyor(node: Node) -> bool:
 
 
 static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+	# Check if either conveyor is curved - if so, use marker-based snapping
+	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
+		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor)
+	
 	var target_transform := target_conveyor.global_transform
 	var selected_transform := selected_conveyor.global_transform
 	var selected_size := _get_conveyor_size(selected_conveyor)
@@ -468,3 +493,393 @@ static func _clear_side_guard_openings_for_inline_connection(undo_redo: EditorUn
 		
 		undo_redo.add_undo_property(side_guards_assembly, "left_side_guards_openings", current_left_openings)
 		undo_redo.add_undo_property(side_guards_assembly, "right_side_guards_openings", current_right_openings)
+
+
+static func _is_curved_conveyor(conveyor: Node3D) -> bool:
+	var node_script: Script = conveyor.get_script()
+	var global_name: String = node_script.get_global_name() if node_script != null else ""
+	var node_class := conveyor.get_class()
+	var node_name := conveyor.name
+	
+	# Check for curved conveyor types
+	var curved_types := [
+		"CurvedBeltConveyor", "CurvedRollerConveyor", "CurvedBeltConveyorAssembly", "CurvedRollerConveyorAssembly"
+	]
+	
+	return (global_name in curved_types or 
+			node_class in curved_types or 
+			"Curved" in node_name or
+			"curved" in node_name.to_lower())
+
+
+static func _get_conveyor_markers(conveyor: Node3D) -> Array[Marker3D]:
+	var markers: Array[Marker3D] = []
+	
+	for child in conveyor.get_children():
+		if child is Marker3D and ("CurvedEndMarker" in child.name or "curved" in child.name.to_lower()):
+			markers.append(child as Marker3D)
+		_find_markers_recursive(child, markers)
+	
+	return markers
+
+
+static func _find_markers_recursive(node: Node, markers: Array[Marker3D]) -> void:
+	for child in node.get_children():
+		if child is Marker3D and ("CurvedEndMarker" in child.name or "curved" in child.name.to_lower()):
+			markers.append(child as Marker3D)
+		_find_markers_recursive(child, markers)
+
+
+static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+	var selected_markers := _get_conveyor_markers(selected_conveyor)
+	var target_markers := _get_conveyor_markers(target_conveyor)
+	
+	if selected_markers.is_empty() or target_markers.is_empty():
+		EditorInterface.get_editor_toaster().push_toast("Could not find curved end markers - falling back to edge snapping", EditorToaster.SEVERITY_WARNING)
+		return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
+	
+	var selected_ends := _group_markers_by_ends(selected_markers)
+	var target_ends := _group_markers_by_ends(target_markers)
+	
+	if selected_ends.is_empty() or target_ends.is_empty():
+		EditorInterface.get_editor_toaster().push_toast("Could not group markers into ends", EditorToaster.SEVERITY_ERROR)
+		return selected_conveyor.global_transform
+	
+	var min_distance := INF
+	var closest_selected_end: Array[Marker3D] = []
+	var closest_target_end: Array[Marker3D] = []
+	
+	# First pass: try to find non-overlapping connections
+	for i in range(selected_ends.size()):
+		var selected_end := selected_ends[i]
+		var selected_center := _get_end_center_position(selected_end)
+		
+		for j in range(target_ends.size()):
+			var target_end := target_ends[j]
+			var target_center := _get_end_center_position(target_end)
+			var distance := selected_center.distance_to(target_center)
+			
+			if distance < min_distance:
+				if not _would_cause_overlap(selected_conveyor, target_conveyor, selected_end, target_end):
+					min_distance = distance
+					closest_selected_end = selected_end
+					closest_target_end = target_end
+	
+	# Fallback: if all connections would overlap, choose the closest one anyway
+	if closest_selected_end.is_empty() or closest_target_end.is_empty():
+		min_distance = INF
+		for i in range(selected_ends.size()):
+			var selected_end := selected_ends[i]
+			var selected_center := _get_end_center_position(selected_end)
+			
+			for j in range(target_ends.size()):
+				var target_end := target_ends[j]
+				var target_center := _get_end_center_position(target_end)
+				var distance := selected_center.distance_to(target_center)
+				
+				if distance < min_distance:
+					min_distance = distance
+					closest_selected_end = selected_end
+					closest_target_end = target_end
+	
+	if closest_selected_end.is_empty() or closest_target_end.is_empty():
+		EditorInterface.get_editor_toaster().push_toast("Could not determine closest ends", EditorToaster.SEVERITY_ERROR)
+		return selected_conveyor.global_transform
+	
+	return _calculate_end_alignment_transform(selected_conveyor, closest_selected_end, closest_target_end)
+
+
+static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+	# This is the original snapping logic for non-curved conveyors
+	var target_transform := target_conveyor.global_transform
+	var selected_transform := selected_conveyor.global_transform
+	var selected_size := _get_conveyor_size(selected_conveyor)
+	var target_size := _get_conveyor_size(target_conveyor)
+	
+	var target_front_edge := target_transform.origin + target_transform.basis.x * (target_size.x / 2.0)
+	var target_back_edge := target_transform.origin - target_transform.basis.x * (target_size.x / 2.0)
+	var target_left_edge := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0)
+	var target_right_edge := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0)
+	
+	var selected_position := selected_transform.origin
+	var distance_to_front := selected_position.distance_to(target_front_edge)
+	var distance_to_back := selected_position.distance_to(target_back_edge)
+	var distance_to_left := selected_position.distance_to(target_left_edge)
+	var distance_to_right := selected_position.distance_to(target_right_edge)
+	
+	var selected_forward := selected_transform.basis.x.normalized()
+	var target_forward := target_transform.basis.x.normalized()
+	var dot_product: float = abs(selected_forward.dot(target_forward))
+	var is_perpendicular: bool = dot_product < 0.7
+	
+	var min_distance: float = min(distance_to_front, min(distance_to_back, min(distance_to_left, distance_to_right)))
+	var snap_transform := Transform3D()
+	
+	if is_perpendicular:
+		var min_side_distance: float = min(distance_to_left, distance_to_right)
+		var min_end_distance: float = min(distance_to_front, distance_to_back)
+		
+		if min_end_distance < 0.5 and min_end_distance < min_side_distance * 0.2:
+			min_distance = min_end_distance
+		else:
+			min_distance = min_side_distance
+	
+	var selected_inclination := _get_z_inclination(selected_transform)
+	
+	if min_distance == distance_to_front:
+		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
+		var connection_position := target_front_edge + target_transform.basis.x * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+		
+	elif min_distance == distance_to_back:
+		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
+		var connection_position := target_back_edge - target_transform.basis.x * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+		
+	elif min_distance == distance_to_left:
+		var edge_start := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
+		var edge_end := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
+		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
+		
+		var perpendicular_basis := Basis()
+		perpendicular_basis.x = target_transform.basis.z
+		perpendicular_basis.y = target_transform.basis.y
+		perpendicular_basis.z = -target_transform.basis.x
+		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
+		var connection_position := closest_point_on_edge - target_transform.basis.z * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+		
+	else:
+		var edge_start := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
+		var edge_end := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
+		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
+		
+		var perpendicular_basis := Basis()
+		perpendicular_basis.x = -target_transform.basis.z
+		perpendicular_basis.y = target_transform.basis.y
+		perpendicular_basis.z = target_transform.basis.x
+		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
+		var connection_position := closest_point_on_edge + target_transform.basis.z * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+	
+	return snap_transform
+
+
+static func _group_markers_by_ends(markers: Array[Marker3D]) -> Array[Array]:
+	if markers.size() != 4:
+		return []
+	
+	var conveyor: Node3D = null
+	for marker in markers:
+		var current_node: Node = marker
+		while current_node != null:
+			if current_node is Node3D and current_node.get_script() != null:
+				conveyor = current_node as Node3D
+				break
+			current_node = current_node.get_parent()
+		if conveyor != null:
+			break
+	
+	if conveyor == null:
+		var sorted_markers := markers.duplicate()
+		sorted_markers.sort_custom(func(a, b): return a.global_position.x < b.global_position.x)
+		var front_end: Array[Marker3D] = [sorted_markers[0], sorted_markers[1]]
+		var back_end: Array[Marker3D] = [sorted_markers[2], sorted_markers[3]]
+		return [front_end, back_end]
+	
+	var markers_with_local_pos: Array = []
+	for marker in markers:
+		var local_pos := conveyor.global_transform.affine_inverse() * marker.global_position
+		markers_with_local_pos.append({"marker": marker, "local_pos": local_pos})
+	
+	markers_with_local_pos.sort_custom(func(a, b): return a.local_pos.x < b.local_pos.x)
+	
+	var front_end: Array[Marker3D] = [markers_with_local_pos[0].marker, markers_with_local_pos[1].marker]
+	var back_end: Array[Marker3D] = [markers_with_local_pos[2].marker, markers_with_local_pos[3].marker]
+	
+	return [front_end, back_end]
+
+
+static func _would_cause_overlap(selected_conveyor: Node3D, target_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> bool:
+	if selected_end.is_empty() or target_end.is_empty():
+		return false
+	
+	# For now, use a simpler overlap detection focusing on end-to-end distance vs conveyor sizes
+	var target_end_center := _get_end_center_position(target_end)
+	var selected_end_center := _get_end_center_position(selected_end)
+	
+	# Get approximate conveyor lengths to check for overlap
+	var target_size := _get_conveyor_size(target_conveyor)
+	var selected_size := _get_conveyor_size(selected_conveyor)
+	
+	# Calculate centers and directions
+	var target_center := target_conveyor.global_position
+	var selected_center := selected_conveyor.global_position
+	
+	# Direction from target center to its end
+	var target_to_end := target_end_center - target_center
+	
+	# Estimate where selected center would be after snapping
+	var offset := selected_center - selected_end_center
+	var projected_selected_center := target_end_center + offset
+	
+	# Check if this would place the selected conveyor center very close to the target center
+	# This indicates potential overlap
+	var distance_to_target_center := projected_selected_center.distance_to(target_center)
+	var min_safe_distance := (target_size.x + selected_size.x) * 0.1  # More permissive threshold
+	
+	return distance_to_target_center < min_safe_distance
+
+
+static func _get_end_center_position(end: Array[Marker3D]) -> Vector3:
+	if end.is_empty():
+		return Vector3.ZERO
+	
+	var center := Vector3.ZERO
+	for marker in end:
+		center += marker.global_position
+	
+	return center / float(end.size())
+
+
+static func _calculate_end_alignment_transform(selected_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> Transform3D:
+	if selected_end.is_empty() or target_end.is_empty():
+		EditorInterface.get_editor_toaster().push_toast("Cannot align empty marker ends", EditorToaster.SEVERITY_ERROR)
+		return selected_conveyor.global_transform
+	
+	if selected_end.size() >= 2 and target_end.size() >= 2:
+		return _calculate_best_marker_pair_alignment(selected_conveyor, selected_end, target_end)
+	else:
+		return _calculate_single_marker_alignment(selected_conveyor, selected_end[0], target_end[0])
+
+
+static func _calculate_best_marker_pair_alignment(selected_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> Transform3D:
+	var min_distance := INF
+	var best_selected_marker: Marker3D = null
+	var best_target_marker: Marker3D = null
+	
+	for selected_marker in selected_end:
+		for target_marker in target_end:
+			var distance := selected_marker.global_position.distance_to(target_marker.global_position)
+			if distance < min_distance:
+				min_distance = distance
+				best_selected_marker = selected_marker
+				best_target_marker = target_marker
+	
+	var remaining_selected: Array[Marker3D] = []
+	var remaining_target: Array[Marker3D] = []
+	
+	for marker in selected_end:
+		if marker != best_selected_marker:
+			remaining_selected.append(marker)
+	
+	for marker in target_end:
+		if marker != best_target_marker:
+			remaining_target.append(marker)
+	
+	var second_selected_marker: Marker3D = null
+	var second_target_marker: Marker3D = null
+	
+	if remaining_selected.size() > 0 and remaining_target.size() > 0:
+		var second_min_distance := INF
+		for selected_marker in remaining_selected:
+			for target_marker in remaining_target:
+				var distance := selected_marker.global_position.distance_to(target_marker.global_position)
+				if distance < second_min_distance:
+					second_min_distance = distance
+					second_selected_marker = selected_marker
+					second_target_marker = target_marker
+		
+		var selected_pair: Array[Marker3D] = [best_selected_marker, second_selected_marker]
+		var target_pair: Array[Marker3D] = [best_target_marker, second_target_marker]
+		return _calculate_dual_marker_alignment(selected_conveyor, selected_pair, target_pair)
+	else:
+		return _calculate_single_marker_alignment(selected_conveyor, best_selected_marker, best_target_marker)
+
+
+static func _calculate_dual_marker_alignment(selected_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> Transform3D:
+	selected_end.sort_custom(func(a, b): return a.global_position.z < b.global_position.z)
+	target_end.sort_custom(func(a, b): return a.global_position.z < b.global_position.z)
+	
+	var selected_marker1 := selected_end[0]
+	var selected_marker2 := selected_end[1]
+	var target_marker1 := target_end[0]
+	var target_marker2 := target_end[1]
+	
+	var selected_spacing := selected_marker1.global_position.distance_to(selected_marker2.global_position)
+	var target_spacing := target_marker1.global_position.distance_to(target_marker2.global_position)
+	var spacings_match: bool = abs(selected_spacing - target_spacing) < 0.01
+	
+	if not spacings_match:
+		var swap_spacing_1_2: float = selected_marker1.global_position.distance_to(target_marker2.global_position)
+		var swap_spacing_2_1: float = selected_marker2.global_position.distance_to(target_marker1.global_position)
+		
+		if (swap_spacing_1_2 + swap_spacing_2_1) < (selected_marker1.global_position.distance_to(target_marker1.global_position) + selected_marker2.global_position.distance_to(target_marker2.global_position)):
+			var temp_marker := target_marker1
+			target_marker1 = target_marker2
+			target_marker2 = temp_marker
+	
+	var selected_marker1_local := selected_conveyor.global_transform.affine_inverse() * selected_marker1.global_position
+	var selected_marker2_local := selected_conveyor.global_transform.affine_inverse() * selected_marker2.global_position
+	
+	var snap_transform: Transform3D
+	
+	if spacings_match:
+		var target_direction := (target_marker2.global_position - target_marker1.global_position).normalized()
+		var selected_direction_local := (selected_marker2_local - selected_marker1_local).normalized()
+		var selected_direction_world := selected_conveyor.global_transform.basis * selected_direction_local
+		
+		var rotation_quat: Quaternion
+		if selected_direction_world.length_squared() > 0.001 and target_direction.length_squared() > 0.001:
+			rotation_quat = Quaternion(selected_direction_world, target_direction)
+		else:
+			rotation_quat = Quaternion.IDENTITY
+		
+		var new_basis := Basis(rotation_quat) * selected_conveyor.global_transform.basis
+		var rotated_marker1_local := new_basis * selected_marker1_local
+		var rotated_marker2_local := new_basis * selected_marker2_local
+		
+		var translation1 := target_marker1.global_position - rotated_marker1_local
+		var translation2 := target_marker2.global_position - rotated_marker2_local
+		var final_translation := (translation1 + translation2) * 0.5
+		
+		snap_transform = Transform3D(new_basis, final_translation)
+	else:
+		var selected_center_local := (selected_marker1_local + selected_marker2_local) * 0.5
+		var target_center := (target_marker1.global_position + target_marker2.global_position) * 0.5
+		var target_direction := (target_marker2.global_position - target_marker1.global_position).normalized()
+		var selected_direction_local := (selected_marker2_local - selected_marker1_local).normalized()
+		
+		var rotation_quat: Quaternion
+		if selected_direction_local.length_squared() > 0.001 and target_direction.length_squared() > 0.001:
+			rotation_quat = Quaternion(selected_direction_local, target_direction)
+			rotation_quat = rotation_quat.slerp(Quaternion.IDENTITY, 0.4)
+		else:
+			rotation_quat = Quaternion.IDENTITY
+		
+		var new_basis := Basis(rotation_quat) * selected_conveyor.global_transform.basis
+		var rotated_center_local := new_basis * selected_center_local
+		var translation := target_center - rotated_center_local
+		
+		snap_transform = Transform3D(new_basis, translation)
+	
+	return snap_transform
+
+
+static func _calculate_single_marker_alignment(selected_conveyor: Node3D, selected_marker: Marker3D, target_marker: Marker3D) -> Transform3D:
+	var target_marker_global := target_marker.global_transform
+	var selected_marker_local := selected_marker.transform
+	var selected_conveyor_to_marker := selected_marker_local
+	var marker_to_conveyor := selected_conveyor_to_marker.affine_inverse()
+	var snap_transform := target_marker_global * marker_to_conveyor
+	var selected_inclination := _get_z_inclination(selected_conveyor.global_transform)
+	snap_transform.basis = _apply_inclination_to_basis(snap_transform.basis, selected_inclination)
+	return snap_transform

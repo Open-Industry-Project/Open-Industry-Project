@@ -327,3 +327,11 @@ physics_material_override = SubResource("PhysicsMaterial_kvs74")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0)
 shape = SubResource("CylinderShape3D_bhx60")
+
+[node name="CurvedEndMarker" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0, 1)
+gizmo_extents = 0.0
+
+[node name="CurvedEndMarker2" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0, -1)
+gizmo_extents = 0.0
