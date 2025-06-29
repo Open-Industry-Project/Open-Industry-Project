@@ -33,6 +33,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		if conveyor_angle == value:
 			return
 		conveyor_angle = value
+		_mesh_regeneration_needed = true
 		update_visible_meshes()
 
 @export var speed: float = 2:
@@ -79,6 +80,11 @@ var _angular_speed: float = 0.0
 var _linear_speed: float = 0.0
 var _prev_scale_x: float = 1.0
 var curved_mesh: MeshInstance3D
+
+# Add tracking variables to control when mesh regeneration is needed
+var _mesh_regeneration_needed: bool = true
+var _last_conveyor_angle: float = 90.0
+var _last_size: Vector3 = Vector3.ZERO
 
 var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
@@ -224,6 +230,7 @@ func _ready() -> void:
 			sb2.physics_material_override = _sb.physics_material_override
 
 	_prev_scale_x = scale.x
+	_mesh_regeneration_needed = true
 	update_visible_meshes()
 	_update_belt_material_scale()
 
@@ -232,8 +239,18 @@ func update_visible_meshes() -> void:
 		return
 
 	_position_conveyor_ends()
-	_create_conveyor_mesh()
-	_setup_collision_shape()
+	
+	if _mesh_regeneration_needed:
+		_create_conveyor_mesh()
+		_setup_collision_shape()
+		_mesh_regeneration_needed = false
+		_last_conveyor_angle = conveyor_angle
+		_last_size = size
+
+func update_conveyor_end_positions() -> void:
+	if not is_inside_tree():
+		return
+	_position_conveyor_ends()
 
 func _position_conveyor_ends() -> void:
 	var ce1 = get_conveyor_end1()
@@ -771,6 +788,9 @@ func _on_size_changed() -> void:
 	if ce2:
 		ce2.size = Vector3(size.y, size.y, size.x)
 
+	if _last_size != size:
+		_mesh_regeneration_needed = true
+	
 	update_visible_meshes()
 	_update_belt_material_scale()
 	_update_metal_material_scale()

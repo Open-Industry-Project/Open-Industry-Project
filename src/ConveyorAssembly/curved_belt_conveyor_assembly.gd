@@ -8,6 +8,10 @@ var _conveyor_script: Script
 var _has_instantiated := false
 var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
 
+# Track when attachment updates are needed to avoid unnecessary recalculations
+var _attachment_update_needed: bool = true
+var _last_conveyor_angle: float = 0.0
+var _last_conveyor_size: Vector3 = Vector3.ZERO
 
 func _init() -> void:
 	# Set default size for curved belt conveyor assemblies BEFORE calling super._init()
@@ -25,10 +29,11 @@ func _init() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
-		if _has_instantiated and is_inside_tree():
+		if _has_instantiated and is_inside_tree() and _attachment_update_needed:
 			_update_attachments()
 	elif what == NOTIFICATION_ENTER_TREE:
 		if _has_instantiated:
+			_attachment_update_needed = true
 			_update_attachments()
 
 
@@ -175,6 +180,7 @@ func _conveyor_property_cached_set(property: StringName, value: Variant) -> void
 	if _has_instantiated:
 		$ConveyorCorner.set(property, value)
 		if property in ["conveyor_angle", "size"]:
+			_attachment_update_needed = true
 			_update_attachments()
 	else:
 		_cached_conveyor_property_values[property] = value
@@ -198,6 +204,7 @@ func _conveyor_property_cached_get(property: StringName) -> Variant:
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
 		$ConveyorCorner.size = size
+	_attachment_update_needed = true
 	_update_attachments()
 
 func _update_attachments() -> void:
@@ -205,15 +212,23 @@ func _update_attachments() -> void:
 		return
 
 	var conveyor = $ConveyorCorner
-	var radians := deg_to_rad(conveyor.conveyor_angle)
-	if conveyor.conveyor_angle <= 10.0:
+	var current_angle = conveyor.conveyor_angle
+	var current_size = conveyor.size
+	
+	if not _attachment_update_needed and current_angle == _last_conveyor_angle and current_size == _last_conveyor_size:
+		return
+	
+	var radians := deg_to_rad(current_angle)
+	if current_angle <= 10.0:
 		conveyor.conveyor_angle = 10.0
 		radians = deg_to_rad(10.0)
-	$SideGuardsCBC.guard_angle = conveyor.conveyor_angle
-	$SideGuardsCBC.size.x = conveyor.size.x + 0.036
+		current_angle = 10.0
+		
+	$SideGuardsCBC.guard_angle = current_angle
+	$SideGuardsCBC.size.x = current_size.x + 0.036
 	var front_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegTail
 	var rear_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegHead
-	var size_factor = conveyor.size.x
+	var size_factor = current_size.x
 	var leg_x = -sin(radians) * 0.75 * size_factor
 	var leg_z = cos(radians) * 0.73 * size_factor
 
@@ -224,3 +239,7 @@ func _update_attachments() -> void:
 	rear_legs.position.x = -0.04
 	rear_legs.position.z = 0.75 * size_factor
 	rear_legs.rotation.y = 0
+	
+	_last_conveyor_angle = current_angle
+	_last_conveyor_size = current_size
+	_attachment_update_needed = false

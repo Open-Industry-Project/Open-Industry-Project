@@ -22,7 +22,10 @@ enum Scales {LOW, MID, HIGH}
 
 @export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
 	set(value):
+		if conveyor_angle == value:
+			return
 		conveyor_angle = value
+		_mesh_regeneration_needed = true
 		_update_mesh()
 		_update_end_axis_angle()
 
@@ -68,6 +71,11 @@ func _validate_property(property: Dictionary) -> void:
 var current_scale = Scales.MID
 var run: bool = true
 var running: bool = false
+
+# Track when mesh regeneration is needed to avoid unnecessary recalculations
+var _mesh_regeneration_needed: bool = true
+var _last_conveyor_angle: float = 90.0
+var _last_size: Vector3 = Vector3.ZERO
 
 var mesh_instance: MeshInstance3D
 var metal_material: Material
@@ -195,6 +203,7 @@ func _ready() -> void:
 
 	# Set up materials
 	_setup_materials()
+	_mesh_regeneration_needed = true
 	_update_mesh()
 
 func _enter_tree() -> void:
@@ -263,6 +272,10 @@ func _on_size_changed() -> void:
 
 	set_current_scale()
 	_recalculate_speeds()
+	
+	if _last_size != size:
+		_mesh_regeneration_needed = true
+	
 	_update_mesh()
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
@@ -404,11 +417,15 @@ func _update_mesh() -> void:
 	if not is_inside_tree() or not outer_mesh or not inner_mesh:
 		return
 
-	_update_material_scale()
-	_create_conveyor_collision_shape()
-	_create_outer_mesh()
-	_create_inner_mesh()
-	_create_end_collision_shapes()
+	if _mesh_regeneration_needed:
+		_update_material_scale()
+		_create_conveyor_collision_shape()
+		_create_outer_mesh()
+		_create_inner_mesh()
+		_create_end_collision_shapes()
+		_mesh_regeneration_needed = false
+		_last_conveyor_angle = conveyor_angle
+		_last_size = size
 
 	# Update roller visibility based on conveyor_angle
 	var angle_proportion = conveyor_angle / 90.0
