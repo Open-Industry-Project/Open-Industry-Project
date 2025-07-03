@@ -208,7 +208,7 @@ static func _has_side_guards(conveyor: Node3D) -> bool:
 
 
 static func _is_conveyor(node: Node) -> bool:
-	if node is BeltConveyorAssembly or node is RollerConveyorAssembly or node is CurvedBeltConveyorAssembly:
+	if node is BeltConveyorAssembly or node is RollerConveyorAssembly or node is CurvedBeltConveyorAssembly or node is CurvedRollerConveyorAssembly:
 		return true
 	
 	var node_script: Script = node.get_script()
@@ -217,7 +217,8 @@ static func _is_conveyor(node: Node) -> bool:
 	
 	var conveyor_types := [
 		"BeltSpurConveyor", "SpurConveyorAssembly", "BeltConveyor", "RollerConveyor", 
-		"CurvedBeltConveyor", "BeltConveyorAssembly", "RollerConveyorAssembly", "CurvedBeltConveyorAssembly"
+		"CurvedBeltConveyor", "CurvedRollerConveyor", "BeltConveyorAssembly", "RollerConveyorAssembly", 
+		"CurvedBeltConveyorAssembly", "CurvedRollerConveyorAssembly"
 	]
 	
 	return global_name in conveyor_types or node_class in conveyor_types
