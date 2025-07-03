@@ -8,7 +8,7 @@
 [node name="CurvedRollerConveyorAssembly" type="Node3D"]
 script = ExtResource("1_0vkx8")
 speed = 2.0
-reference_distance = 0.5
+reference_distance = 0.762
 conveyor_angle = 90.0
 speed_tag_group_name = ""
 running_tag_group_name = ""

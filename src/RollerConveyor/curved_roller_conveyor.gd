@@ -13,12 +13,10 @@ const ROLLER_OUTER_END_RADIUS = 0.12
 
 enum Scales {LOW, MID, HIGH}
 
-@export var speed: float = 0.0:
-	get = get_speed,
-	set = set_speed
-@export var reference_distance: float = 0.5:
-	get = get_reference_distance,
-	set = set_reference_distance
+const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
+
+@export var speed: float = 0.0
+@export var reference_distance: float = SIZE_DEFAULT.x/2
 
 @export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
 	set(value):

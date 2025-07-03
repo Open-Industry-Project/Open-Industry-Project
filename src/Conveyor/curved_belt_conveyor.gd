@@ -11,7 +11,6 @@ const BASE_INNER_RADIUS: float = 0.25
 const BASE_OUTER_RADIUS: float = 1.25
 const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 
-# Default size for the conveyor
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
 @export var belt_color: Color = Color(1, 1, 1, 1):
@@ -48,7 +47,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
-@export var reference_distance: float = 0.5:
+@export var reference_distance: float = SIZE_DEFAULT.x/2:
 	set(value):
 		reference_distance = value
 		_recalculate_speeds()
@@ -170,7 +169,7 @@ func set_belt_material_shader_params_on_ends() -> void:
 func _init() -> void:
 	super._init() # Call parent _init to inherit hijack_scale metadata
 	set_notify_local_transform(true)
-	# SIZE_DEFAULT already initialized at class level
+
 
 func _ready() -> void:
 	_sb = get_node("StaticBody3D") as StaticBody3D
