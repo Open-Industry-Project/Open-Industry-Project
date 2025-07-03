@@ -12,6 +12,11 @@ extends ResizableNode3D
 			_update_belt_material_position()
 			_update_belt_velocity()
 
+@export var disable_collision: bool = false:
+	set(value):
+		disable_collision = value
+		_update_collision_and_visibility()
+
 var _belt_position: float = 0.0
 var _static_body: StaticBody3D
 var _mesh: MeshInstance3D
@@ -35,6 +40,7 @@ func _ready() -> void:
 	_setup_materials()
 	_on_size_changed()
 	_update_belt_velocity()
+	_update_collision_and_visibility()
 
 
 func _physics_process(delta: float) -> void:
@@ -114,6 +120,19 @@ func _update_belt_material_position() -> void:
 	if _belt_material:
 		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position * sign(-speed))
 		fix_material_overrides()
+
+
+func _update_collision_and_visibility() -> void:
+	if not _static_body:
+		return
+	if disable_collision:
+		_static_body.collision_layer = 0
+		_static_body.collision_mask = 0
+		_static_body.visible = false
+	else:
+		_static_body.collision_layer = 2
+		_static_body.collision_mask = 0
+		_static_body.visible = true
 
 
 func _update_belt_velocity() -> void:

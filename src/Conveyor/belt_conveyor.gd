@@ -166,9 +166,11 @@ func _ready() -> void:
 	if _ce1:
 		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
 		_ce1.update_belt_color(belt_color)
+		_ce1.disable_collision = true
 	if _ce2:
 		_ce2.update_belt_texture(belt_texture == ConvTexture.STANDARD)
 		_ce2.update_belt_color(belt_color)
+		_ce2.disable_collision = true
 
 
 func _physics_process(delta: float) -> void:
@@ -322,7 +324,7 @@ func _on_size_changed() -> void:
 	# Size of the mesh at scale=1. (Size per scale unit.)
 	var middle_mesh_base_size := Vector3(1, 0.5, 2)
 	middle_mesh.scale = middle_size / middle_mesh_base_size
-	middle_collision_shape.size = middle_size
+	middle_collision_shape.size = Vector3(length, height, width)
 	end1.size = end_size
 	end2.size = end_size
 
