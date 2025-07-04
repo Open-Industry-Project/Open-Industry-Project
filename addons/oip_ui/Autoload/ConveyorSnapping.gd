@@ -113,13 +113,36 @@ static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Nod
 	var min_bounds := Vector3(INF, 0, INF)
 	var max_bounds := Vector3(-INF, 0, -INF)
 	
-	for x_sign in [-1, 1]:
-		for z_sign in [-1, 1]:
-			var local_corner: Vector3 = snapped_local_transform.origin + snapped_local_transform.basis.x * (x_sign * snapped_half_length) + snapped_local_transform.basis.z * (z_sign * snapped_half_width)
-			min_bounds.x = min(min_bounds.x, local_corner.x)
-			max_bounds.x = max(max_bounds.x, local_corner.x)
-			min_bounds.z = min(min_bounds.z, local_corner.z)
-			max_bounds.z = max(max_bounds.z, local_corner.z)
+	# For spur conveyors, we need to consider the angled configuration
+	var is_spur := _is_spur_conveyor_assembly(snapped_conveyor)
+	var downstream_angle := _get_spur_downstream_angle(snapped_conveyor) if is_spur else 0.0
+	
+	if is_spur and abs(downstream_angle) > 0.001:
+		# For spur conveyors, calculate bounds considering the angled individual conveyors
+		var spur_width_expansion: float = snapped_size.z * abs(sin(downstream_angle))
+		var spur_length_compression: float = snapped_size.z * abs(cos(downstream_angle))
+		
+		# Calculate the effective footprint of the angled spur
+		for x_sign in [-1, 1]:
+			for z_sign in [-1, 1]:
+				var base_corner: Vector3 = snapped_local_transform.origin + snapped_local_transform.basis.x * (x_sign * snapped_half_length) + snapped_local_transform.basis.z * (z_sign * snapped_half_width)
+				# Add the expansion due to angled conveyors
+				var angle_expansion: Vector3 = snapped_local_transform.basis.x * (z_sign * spur_width_expansion * sign(downstream_angle))
+				var local_corner: Vector3 = base_corner + angle_expansion
+				
+				min_bounds.x = min(min_bounds.x, local_corner.x)
+				max_bounds.x = max(max_bounds.x, local_corner.x)
+				min_bounds.z = min(min_bounds.z, local_corner.z)
+				max_bounds.z = max(max_bounds.z, local_corner.z)
+	else:
+		# Standard calculation for non-spur conveyors
+		for x_sign in [-1, 1]:
+			for z_sign in [-1, 1]:
+				var local_corner: Vector3 = snapped_local_transform.origin + snapped_local_transform.basis.x * (x_sign * snapped_half_length) + snapped_local_transform.basis.z * (z_sign * snapped_half_width)
+				min_bounds.x = min(min_bounds.x, local_corner.x)
+				max_bounds.x = max(max_bounds.x, local_corner.x)
+				min_bounds.z = min(min_bounds.z, local_corner.z)
+				max_bounds.z = max(max_bounds.z, local_corner.z)
 	
 	if max_bounds.x < -target_half_length or min_bounds.x > target_half_length:
 		return {}
@@ -144,22 +167,36 @@ static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Nod
 	var opening_position: float
 	if is_perpendicular:
 		opening_position = snapped_local_transform.origin.x
+		# For spur conveyors, position the opening downstream of the connection point
+		if is_spur and abs(downstream_angle) > 0.001:
+			var downstream_offset: float = (max_bounds.x - min_bounds.x) * 0.3 * sign(downstream_angle)  # Position opening towards downstream end based on angle direction
+			opening_position += downstream_offset
 	else:
 		opening_position = (min_bounds.x + max_bounds.x) / 2.0
 	
 	if is_perpendicular:
 		if max_bounds.z >= (-target_half_width - tolerance) and min_bounds.z <= (-target_half_width + tolerance):
+			var opening_size: float = (max_bounds.x - min_bounds.x) + side_guard_margin
+			# For spurs, extend the opening size to accommodate the angled configuration
+			if is_spur and abs(downstream_angle) > 0.001:
+				opening_size *= 1.2  # Increase opening size for angled spur
+			
 			intersections.append({
 				"side": "left",
 				"position": opening_position,
-				"size": (max_bounds.x - min_bounds.x) + side_guard_margin
+				"size": opening_size
 			})
 		
 		if min_bounds.z <= (target_half_width + tolerance) and max_bounds.z >= (target_half_width - tolerance):
+			var opening_size: float = (max_bounds.x - min_bounds.x) + side_guard_margin
+			# For spurs, extend the opening size to accommodate the angled configuration
+			if is_spur and abs(downstream_angle) > 0.001:
+				opening_size *= 1.2  # Increase opening size for angled spur
+			
 			intersections.append({
 				"side": "right",
 				"position": opening_position,
-				"size": (max_bounds.x - min_bounds.x) + side_guard_margin
+				"size": opening_size
 			})
 	
 	return {"intersections": intersections}
@@ -228,6 +265,10 @@ static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor
 	# Check if either conveyor is curved - if so, use marker-based snapping
 	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
 		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor)
+	
+	# Check if selected conveyor is a spur assembly - use specialized snapping
+	if _is_spur_conveyor_assembly(selected_conveyor):
+		return _calculate_spur_snap_transform(selected_conveyor, target_conveyor)
 	
 	var target_transform := target_conveyor.global_transform
 	var selected_transform := selected_conveyor.global_transform
@@ -530,6 +571,130 @@ static func _is_straight_conveyor_assembly(conveyor: Node3D) -> bool:
 	]
 	
 	return global_name in straight_assembly_types or node_class in straight_assembly_types
+
+
+static func _is_spur_conveyor_assembly(conveyor: Node3D) -> bool:
+	var node_script: Script = conveyor.get_script()
+	var global_name: String = node_script.get_global_name() if node_script != null else ""
+	var node_class := conveyor.get_class()
+	
+	var spur_assembly_types := [
+		"SpurConveyorAssembly", "BeltSpurConveyor"
+	]
+	
+	return global_name in spur_assembly_types or node_class in spur_assembly_types
+
+
+static func _get_spur_downstream_angle(conveyor: Node3D) -> float:
+	if _is_spur_conveyor_assembly(conveyor) and "angle_downstream" in conveyor:
+		return conveyor.angle_downstream
+	return 0.0
+
+
+static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+	var target_transform := target_conveyor.global_transform
+	var selected_transform := selected_conveyor.global_transform
+	var selected_size := _get_conveyor_size(selected_conveyor)
+	var target_size := _get_conveyor_size(target_conveyor)
+	var downstream_angle: float = _get_spur_downstream_angle(selected_conveyor)
+	
+	# Calculate target edges
+	var target_front_edge := target_transform.origin + target_transform.basis.x * (target_size.x / 2.0)
+	var target_back_edge := target_transform.origin - target_transform.basis.x * (target_size.x / 2.0)
+	var target_left_edge := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0)
+	var target_right_edge := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0)
+	
+	var selected_position := selected_transform.origin
+	var distance_to_front := selected_position.distance_to(target_front_edge)
+	var distance_to_back := selected_position.distance_to(target_back_edge)
+	var distance_to_left := selected_position.distance_to(target_left_edge)
+	var distance_to_right := selected_position.distance_to(target_right_edge)
+	
+	# Determine which edge is closest
+	var min_distance: float = min(distance_to_front, min(distance_to_back, min(distance_to_left, distance_to_right)))
+	var snap_transform := Transform3D()
+	var selected_inclination := _get_z_inclination(selected_transform)
+	
+	# For spur conveyors, we want to optimize the connection considering the downstream angle
+	if min_distance == distance_to_front:
+		# Connecting to front edge - spur should point away from target
+		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
+		# Apply opposite rotation to compensate for downstream angle
+		if abs(downstream_angle) > 0.001:
+			var opposite_rotation := Basis(Vector3.UP, -downstream_angle)
+			new_basis = new_basis * opposite_rotation
+		var connection_position := target_front_edge + new_basis.x * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+		
+	elif min_distance == distance_to_back:
+		# Connecting to back edge - spur should point away from target
+		var reversed_basis := Basis()
+		reversed_basis.x = -target_transform.basis.x
+		reversed_basis.y = target_transform.basis.y
+		reversed_basis.z = -target_transform.basis.z
+		var new_basis := _apply_inclination_to_basis(reversed_basis, selected_inclination)
+		# Apply opposite rotation to compensate for downstream angle
+		if abs(downstream_angle) > 0.001:
+			var opposite_rotation := Basis(Vector3.UP, -downstream_angle)
+			new_basis = new_basis * opposite_rotation
+		var connection_position := target_back_edge - new_basis.x * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+		
+	elif min_distance == distance_to_left:
+		# Connecting to left side - spur perpendicular to target
+		var edge_start := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
+		var edge_end := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
+		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
+		
+		var perpendicular_basis := Basis()
+		perpendicular_basis.x = target_transform.basis.z
+		perpendicular_basis.y = target_transform.basis.y
+		perpendicular_basis.z = -target_transform.basis.x
+		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
+		
+		# For side connections, adjust position based on downstream angle to optimize fit
+		if abs(downstream_angle) > 0.001:
+			var opposite_rotation := Basis(Vector3.UP, -downstream_angle)
+			new_basis = new_basis * opposite_rotation
+			# Adjust connection position to account for the angled configuration
+			var angle_offset: float = sin(downstream_angle) * (selected_size.z / 2.0)
+			closest_point_on_edge += target_transform.basis.x * angle_offset
+		
+		var connection_position := closest_point_on_edge - target_transform.basis.z * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+		
+	else:  # Right side
+		# Connecting to right side - spur perpendicular to target
+		var edge_start := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
+		var edge_end := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
+		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
+		
+		var perpendicular_basis := Basis()
+		perpendicular_basis.x = -target_transform.basis.z
+		perpendicular_basis.y = target_transform.basis.y
+		perpendicular_basis.z = target_transform.basis.x
+		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
+		
+		# For side connections, adjust position based on downstream angle to optimize fit
+		if abs(downstream_angle) > 0.001:
+			var opposite_rotation := Basis(Vector3.UP, -downstream_angle)
+			new_basis = new_basis * opposite_rotation
+			# Adjust connection position to account for the angled configuration
+			var angle_offset: float = sin(downstream_angle) * (selected_size.z / 2.0)
+			closest_point_on_edge += target_transform.basis.x * angle_offset
+		
+		var connection_position := closest_point_on_edge + target_transform.basis.z * (selected_size.x / 2.0)
+		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		snap_transform.basis = new_basis
+		snap_transform.origin = connection_position + height_offset
+	
+	return snap_transform
 
 
 static func _get_conveyor_markers(conveyor: Node3D) -> Array[Marker3D]:
@@ -902,4 +1067,5 @@ static func _calculate_single_marker_alignment(selected_conveyor: Node3D, select
 	var snap_transform := target_marker_global * marker_to_conveyor
 	var selected_inclination := _get_z_inclination(selected_conveyor.global_transform)
 	snap_transform.basis = _apply_inclination_to_basis(snap_transform.basis, selected_inclination)
+	
 	return snap_transform
