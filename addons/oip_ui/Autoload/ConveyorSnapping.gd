@@ -367,6 +367,10 @@ static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_co
 	if not _has_side_guards(snapped_conveyor):
 		return {}
 	
+	# Don't recess side guards when snapping straight conveyor assemblies to curved conveyors
+	if _is_straight_conveyor_assembly(snapped_conveyor) and _is_curved_conveyor(target_conveyor):
+		return {}
+	
 	var snapped_size := _get_conveyor_size(snapped_conveyor)
 	var target_transform := target_conveyor.global_transform
 	var target_size := _get_conveyor_size(target_conveyor)
@@ -511,6 +515,21 @@ static func _is_curved_conveyor(conveyor: Node3D) -> bool:
 			node_class in curved_types or 
 			"Curved" in node_name or
 			"curved" in node_name.to_lower())
+
+
+static func _is_straight_conveyor_assembly(conveyor: Node3D) -> bool:
+	if conveyor is BeltConveyorAssembly or conveyor is RollerConveyorAssembly:
+		return true
+	
+	var node_script: Script = conveyor.get_script()
+	var global_name: String = node_script.get_global_name() if node_script != null else ""
+	var node_class := conveyor.get_class()
+	
+	var straight_assembly_types := [
+		"BeltConveyorAssembly", "RollerConveyorAssembly"
+	]
+	
+	return global_name in straight_assembly_types or node_class in straight_assembly_types
 
 
 static func _get_conveyor_markers(conveyor: Node3D) -> Array[Marker3D]:
