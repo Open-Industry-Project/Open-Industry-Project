@@ -11,12 +11,15 @@ extends Node3D
 
 @export var color_detected: Color = Color.BLACK:
 	set(value):
-		if _register_tag_ok and _tag_group_init and value != color_detected:
-			var red: int = round(value.r * 255)
-			var green: int = round(value.g * 255)
-			var blue: int = round(value.b * 255)
-			OIPComms.write_int32(tag_group_name, tag_name, red * 0x10000 + green * 0x100 + blue)
 		color_detected = value
+
+		if color_map.has(value):
+			color_value = color_map[value]
+		else:
+			color_value = 0
+		
+		if _register_tag_ok and _tag_group_init:
+			OIPComms.write_int32(tag_group_name, tag_name, color_value)
 
 @export var color_map: Dictionary[Color, int] = {
 	Color.RED: 1,
@@ -109,17 +112,22 @@ func _physics_process(_delta: float) -> void:
 	var space_state := get_world_3d().direct_space_state
 	var result := space_state.intersect_ray(query)
 	var result_distance := max_range
+	var new_color: Color
 
 	if result.size() > 0:
 		result_distance = start_pos.distance_to(result["position"])
 		var collider: CollisionObject3D = result["collider"]
 		var mesh_instance: MeshInstance3D = collider.get_node("MeshInstance3D")
 		var material: StandardMaterial3D = mesh_instance.mesh.surface_get_material(0)
-		color_detected = material.albedo_color
-		_beam_mat.albedo_color = color_detected
+		new_color = material.albedo_color
+		_beam_mat.albedo_color = new_color
 	else:
-		color_detected = Color.TRANSPARENT
+		new_color = Color.TRANSPARENT
 		_beam_mat.albedo_color = Color.GREEN
+
+	# Only update color_detected if the color actually changed
+	if new_color != color_detected:
+		color_detected = new_color
 
 	if show_beam:
 		_mesh.clear_surfaces()
@@ -147,7 +155,4 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if tag_group_name_param == tag_group_name:
 		_tag_group_init = true
 		if _register_tag_ok:
-			var red: int = round(color_detected.r * 255)
-			var green: int = round(color_detected.g * 255)
-			var blue: int = round(color_detected.b * 255)
-			OIPComms.write_int32(tag_group_name, tag_name, red * 0x10000 + green * 0x100 + blue)
+			OIPComms.write_int32(tag_group_name, tag_name, color_value)
