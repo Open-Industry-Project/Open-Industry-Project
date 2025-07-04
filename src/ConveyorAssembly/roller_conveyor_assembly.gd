@@ -167,6 +167,7 @@ var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 func _init() -> void:
 	super._init()
+	size_default = Vector3(4, 0.24, 1.524)
 
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func(item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
@@ -432,15 +433,20 @@ func _legs_property_cached_get(property: StringName, backing_field_value: Varian
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
-	# No constraints for roller conveyor assemblies
-	return new_size
+	return Vector3(new_size.x, size_default.y, new_size.z)
 
 
 
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
 		%Conveyor.size = size
+	call_deferred("_ensure_legs_updated")
 
 
 func _ensure_side_guards_updated() -> void:
 	%SideGuardsAssembly._on_conveyor_size_changed()
+
+
+func _ensure_legs_updated() -> void:
+	if is_instance_valid(%ConveyorLegsAssembly):
+		%ConveyorLegsAssembly._on_conveyor_size_changed()

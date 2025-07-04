@@ -68,7 +68,7 @@ var _simple_conveyor_shape: StaticBody3D
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(4, 0.5, 1.524)
+	size_default = Vector3(4, 0.24, 1.524)
 
 
 func _enter_tree() -> void:
