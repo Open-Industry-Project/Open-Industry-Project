@@ -17,6 +17,7 @@ size = Vector3(1.524, 0.5, 1.524)
 metadata/hijack_scale = true
 
 [node name="ConveyorCorner" parent="." instance=ExtResource("2_1qr7y")]
+reference_distance = 0.5
 
 [node name="ConveyorLegsAssembly" parent="ConveyorCorner" instance=ExtResource("4_roller_legs")]
 unique_name_in_owner = true

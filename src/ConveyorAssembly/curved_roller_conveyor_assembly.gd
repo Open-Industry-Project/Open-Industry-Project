@@ -169,6 +169,8 @@ func _conveyor_property_cached_set(property: StringName, value: Variant) -> void
 		$ConveyorCorner.set(property, value)
 		if property in ["conveyor_angle", "size"]:
 			_attachment_update_needed = true
+			# Notify legs assembly when angle or size changes since these affect leg positioning
+			call_deferred("_notify_legs_assembly_of_changes")
 			_update_attachments()
 	else:
 		_cached_conveyor_property_values[property] = value
@@ -208,24 +210,12 @@ func _update_attachments() -> void:
 		radians = deg_to_rad(10.0)
 		current_angle = 10.0
 		
+	# Update side guards
 	$SideGuardsCBC.guard_angle = current_angle
 	$SideGuardsCBC.size.x = current_size.x + 0.036
 
-	var front_legs := $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegTail
-	var rear_legs := $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegHead
-
-	var size_factor: float = current_size.x
-
-	var leg_x: float = -sin(radians) * 0.75 * size_factor
-	var leg_z: float = cos(radians) * 0.73 * size_factor
-
-	front_legs.position.x = leg_x
-	front_legs.position.z = 0.04 + leg_z
-	front_legs.rotation.y = -radians
-
-	rear_legs.position.x = -0.04
-	rear_legs.position.z = 0.75 * size_factor
-	rear_legs.rotation.y = 0
+	# ConveyorLegsAssembly handles its own positioning via _notify_legs_assembly_of_changes()
+	# when conveyor_angle or size properties change
 	
 	_last_conveyor_angle = current_angle
 	_last_conveyor_size = current_size
@@ -235,5 +225,19 @@ func _update_attachments() -> void:
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
 		$ConveyorCorner.size = size
+	
 	_attachment_update_needed = true
+	# Notify legs assembly since size affects leg positioning
+	call_deferred("_notify_legs_assembly_of_changes")
 	_update_attachments()
+
+
+## Helper method to safely notify the legs assembly of property changes
+func _notify_legs_assembly_of_changes() -> void:
+	if not _has_instantiated or not is_inside_tree():
+		return
+		
+	var legs_assembly = $ConveyorCorner.get_node_or_null("ConveyorLegsAssembly")
+	if legs_assembly and legs_assembly.has_method("_on_conveyor_size_changed"):
+		# Force the legs assembly to update when conveyor properties change
+		legs_assembly._on_conveyor_size_changed()

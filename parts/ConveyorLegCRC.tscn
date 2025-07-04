@@ -79,38 +79,39 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_xr7le")
 
 [node name="LegsStandCRC" instance=ExtResource("1_e265i")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.84, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1.253, 0, 0, 0, 0.82, 0, 0, 0)
 
 [node name="LegsSide1" parent="Sides" index="0"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1.1904762, 0, 0, -1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1.2195122, 0, 0, -1)
 mesh = SubResource("ArrayMesh_nnukv")
 
 [node name="LegsSide2" parent="Sides" index="1"]
-transform = Transform3D(-1, 0, 1.7975691e-07, 0, 1, 0, -1.509958e-07, 0, -1.1904762, 0, 0, 1)
+transform = Transform3D(-1, 0, 1.8414123e-07, 0, 1, 0, -1.509958e-07, 0, -1.2195122, 0, 0, 1)
 mesh = SubResource("ArrayMesh_nnukv")
 
 [node name="LegsBars" parent="." index="1"]
-parent_scale = Vector3(1, 1, 0.84)
+transform = Transform3D(1, 0, 0, 0, 0.79808456, 0, 0, 0, 1, 0, 0, 0)
+parent_scale = Vector3(1, 1.253, 0.82)
 
 [node name="LegsBar" parent="LegsBars" index="0"]
 mesh = SubResource("ArrayMesh_t32bb")
 
 [node name="LegsTop1" parent="Ends" index="0"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1.1904762, 0, 1, -1)
+transform = Transform3D(1, 0, 0, 0, 0.79808456, 0, 0, 0, 1.2195122, 0, 1, -1)
 mesh = ExtResource("4_04qd1")
 
 [node name="LegsGrab1" parent="Ends/LegsTop1" index="0"]
 visible = false
 
 [node name="LegsTop2" parent="Ends" index="1"]
-transform = Transform3D(-1, 0, -1.7975691e-07, 0, 1, 0, 1.509958e-07, 0, -1.1904762, 0, 1, 1)
+transform = Transform3D(-1, 0, -1.8414123e-07, 0, 0.79808456, 0, 1.509958e-07, 0, -1.2195122, 0, 1, 1)
 mesh = ExtResource("4_04qd1")
 
 [node name="LegsGrab2" parent="Ends/LegsTop2" index="0"]
 visible = false
 
 [node name="LegsBottom1" parent="Ends" index="2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1.1904762, 0, 0, -1)
+transform = Transform3D(1, 0, 0, 0, 0.79808456, 0, 0, 0, 1.2195122, 0, 0, -1)
 
 [node name="LegsBottom2" parent="Ends" index="3"]
-transform = Transform3D(-1, 0, -1.7975691e-07, 0, 1, 0, 1.509958e-07, 0, -1.1904762, 0, 0, 1)
+transform = Transform3D(-1, 0, -1.8414123e-07, 0, 0.79808456, 0, 1.509958e-07, 0, -1.2195122, 0, 0, 1)
