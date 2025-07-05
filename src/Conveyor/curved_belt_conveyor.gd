@@ -289,7 +289,7 @@ func _create_conveyor_mesh() -> void:
 	_add_surfaces_to_mesh(surfaces, mesh_instance)
 
 	# Assign mesh to MeshInstance3D
-	curved_mesh = $StaticBody3D/MeshInstance3D
+	curved_mesh = $MeshInstance3D
 	curved_mesh.mesh = mesh_instance
 
 func _setup_materials() -> void:

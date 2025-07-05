@@ -326,8 +326,6 @@ shape = SubResource("BoxShape3D_njw7x")
 
 [node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.29, 0)
-collision_layer = 5
-collision_mask = 8
 axis_lock_linear_x = true
 axis_lock_linear_y = true
 axis_lock_linear_z = true

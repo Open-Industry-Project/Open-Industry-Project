@@ -72,31 +72,21 @@ size = Vector3(1.524, 0.5, 1.524)
 metadata/hijack_scale = true
 metadata/_edit_group_ = true
 
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, -0.25, 0)
+mesh = SubResource("ArrayMesh_6arjl")
+
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
-collision_layer = 4
-collision_mask = 8
-axis_lock_linear_x = true
-axis_lock_linear_y = true
-axis_lock_linear_z = true
-axis_lock_angular_x = true
-axis_lock_angular_z = true
 constant_angular_velocity = Vector3(0, -1.42349, 0)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
-transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
-mesh = SubResource("ArrayMesh_6arjl")
-skeleton = NodePath("../..")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
 shape = SubResource("ConcavePolygonShape3D_imrqm")
 
 [node name="BeltConveyorEnd" parent="." instance=ExtResource("4_b1am8")]
 transform = Transform3D(4.371141e-08, -1.50996e-07, -1, 1.509958e-07, -1, 1.50996e-07, -1, -1.509958e-07, -4.371139e-08, -1.143, -0.25, 6.9988566e-17)
-speed = 1.6270462448661789
 size = Vector3(0.25, 0.5, 1.524)
 
 [node name="BeltConveyorEnd2" parent="." instance=ExtResource("4_b1am8")]
 transform = Transform3D(1, -1.50996e-07, 0, 1.50996e-07, 1, 1.56219e-07, -2.3588445e-14, -1.56219e-07, 1, 0, -0.25, 1.143)
-speed = 1.6270462448661789
 size = Vector3(0.25, 0.5, 1.524)
