@@ -161,15 +161,20 @@ func _update_marker_positions() -> void:
 
 
 func _on_size_changed() -> void:
-	if not (get_node_or_null("MeshInstance3D") and get_node_and_resource("StaticBody3D/CollisionShape3D:shape")[1]):
-		# Children not instantiated yet.
-		# Do nothing and wait to get called again later.
+	if not get_node_or_null("MeshInstance3D"):
 		return
+	
+	var collision_shape := get_node_or_null("StaticBody3D/CollisionShape3D")
+	if not collision_shape or not collision_shape.shape:
+		return
+	
 	var mesh_base_size := Vector3(0.25, 0.5, 2)
 	$MeshInstance3D.scale = size / mesh_base_size
-	var cylinder := $StaticBody3D/CollisionShape3D.shape as CylinderShape3D
-	cylinder.height = size.z
-	cylinder.radius = size.x
+	
+	var cylinder := collision_shape.shape as CylinderShape3D
+	if cylinder:
+		cylinder.height = size.z
+		cylinder.radius = size.x
 
 	_update_belt_material_scale()
 	_update_metal_material_scale()
