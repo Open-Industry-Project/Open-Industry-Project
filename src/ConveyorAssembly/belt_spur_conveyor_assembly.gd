@@ -8,88 +8,38 @@ const CONVEYOR_SCRIPT_FILENAME = "belt_conveyor.gd"
 
 var _conveyor_script: Script
 
-# Conveyor properties
-# This category annotation will make the properties inherit metadata and docs from the conveyor script.
-@export_category(CONVEYOR_SCRIPT_FILENAME)
-@export var belt_color: Color = Color(1, 1, 1, 1):
-	set(value):
-		_set_process_if_changed(belt_color, value)
-		belt_color = value
-@export var belt_texture: BeltConveyor.ConvTexture = BeltConveyor.ConvTexture.STANDARD:
-	set(value):
-		_set_process_if_changed(belt_texture, value)
-		belt_texture = value
-@export var speed: float = 2:
-	set(value):
-		_set_process_if_changed(speed, value)
-		speed = value
-		_set_for_all_conveyors(&"speed", value)
-	get():
-		var conveyor := _get_first_conveyor() as BeltConveyor
-		if conveyor:
-			return conveyor.speed
-		return speed
-@export var belt_physics_material: PhysicsMaterial:
-	set(value):
-		_set_process_if_changed(belt_physics_material, value)
-		belt_physics_material = value
-		_set_for_all_conveyors(&"belt_physics_material", value)
-	get():
-		var conveyor := _get_first_conveyor() as BeltConveyor
-		if conveyor:
-			return conveyor.belt_physics_material
-		return belt_physics_material
+# Store properties locally and forward to child conveyors
+# This ensures properties persist even when child conveyors are recreated dynamically
+@export_storage var _cached_properties: Dictionary = {}
 
-@export_category("Communications")
-@export var enable_comms: bool = false:
-	set(value):
-		_set_process_if_changed(enable_comms, value)
-		enable_comms = value
-@export var speed_tag_group_name: String:
-	set(value):
-		_set_process_if_changed(speed_tag_group_name, value)
-		speed_tag_group_name = value
-		_set_for_all_conveyors(&"speed_tag_group_name", value)
-	get():
-		var conveyor := _get_first_conveyor() as BeltConveyor
-		if conveyor:
-			return conveyor.speed_tag_group_name
-		return speed_tag_group_name
-@export_custom(0, "tag_group_enum") var speed_tag_groups:
-	set(value):
-		_set_process_if_changed(speed_tag_groups, value)
-		speed_tag_groups = value
-@export var speed_tag_name: String = "":
-	set(value):
-		_set_process_if_changed(speed_tag_name, value)
-		speed_tag_name = value
-@export var running_tag_group_name: String:
-	set(value):
-		_set_process_if_changed(running_tag_group_name, value)
-		running_tag_group_name = value
-		_set_for_all_conveyors(&"running_tag_group_name", value)
-	get():
-		var conveyor := _get_first_conveyor() as BeltConveyor
-		if conveyor:
-			return conveyor.running_tag_group_name
-		return running_tag_group_name
-@export_custom(0, "tag_group_enum") var running_tag_groups:
-	set(value):
-		_set_process_if_changed(running_tag_groups, value)
-		running_tag_groups = value
-@export var running_tag_name: String = "":
-	set(value):
-		_set_process_if_changed(running_tag_name, value)
-		running_tag_name = value
+# Default property values
+var _default_speed: float = 2.0
+var _default_belt_color: Color = Color.WHITE
+var _default_belt_texture: int = 0  # BeltConveyor.ConvTexture.STANDARD
+var _default_enable_comms: bool = false
+var _default_speed_tag_group_name: String = ""
+var _default_speed_tag_name: String = ""
+var _default_running_tag_group_name: String = ""
+var _default_running_tag_name: String = ""
 
 
 func _init() -> void:
 	super()
+	# Initialize cached properties with default values
+	_cached_properties[&"speed"] = _default_speed
+	_cached_properties[&"belt_color"] = _default_belt_color
+	_cached_properties[&"belt_texture"] = _default_belt_texture
+	_cached_properties[&"enable_comms"] = _default_enable_comms
+	_cached_properties[&"speed_tag_group_name"] = _default_speed_tag_group_name
+	_cached_properties[&"speed_tag_name"] = _default_speed_tag_name
+	_cached_properties[&"running_tag_group_name"] = _default_running_tag_group_name
+	_cached_properties[&"running_tag_name"] = _default_running_tag_name
 
 
 func _enter_tree() -> void:
 	super._enter_tree()
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	if not OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
+		OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
 
 func _ready() -> void:
@@ -99,13 +49,33 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
+		OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+
+
+func _get_property_list() -> Array[Dictionary]:
+	var conveyor_properties := _get_conveyor_forwarded_properties()
+	var filtered_properties: Array[Dictionary] = []
+	var found_categories: Array = []
+
+	for prop in conveyor_properties:
+		var prop_name := prop[&"name"] as String
+		var usage := prop[&"usage"] as int
+
+		if usage & PROPERTY_USAGE_CATEGORY:
+			if prop_name == "ResizableNode3D" or prop_name in found_categories:
+				continue
+			found_categories.append(prop_name)
+
+		if prop_name == "size" or prop_name == "hijack_scale" or prop_name.begins_with("metadata/hijack_scale"):
+			continue
+
+		filtered_properties.append(prop)
+
+	return filtered_properties
 
 
 func _validate_property(property: Dictionary) -> void:
-	var property_name: String = property["name"]
-	if property_name == "update_rate" or property_name == "tag":
-		property["usage"] = PROPERTY_USAGE_DEFAULT if enable_comms else PROPERTY_USAGE_NO_EDITOR
 	if property[&"name"] == CONVEYOR_SCRIPT_FILENAME \
 			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
 		# Link the category to a script.
@@ -113,45 +83,30 @@ func _validate_property(property: Dictionary) -> void:
 		assert(CONVEYOR_SCRIPT_PATH.get_file() == CONVEYOR_SCRIPT_FILENAME, "CONVEYOR_SCRIPT_PATH doesn't match CONVEYOR_SCRIPT_FILENAME")
 		property[&"hint_string"] = CONVEYOR_SCRIPT_PATH
 		return
-	if property_name in _get_conveyor_property_names():
-		# Copy property info from a conveyor or its script.
-		var property_found: bool = false
-		if _get_internal_child_count() > 0:
-			var conveyor: Node = get_child(0, true)
-			# Search for the property.
-			var conveyor_properties: Array[Dictionary] = conveyor.get_property_list()
-			for property_info in conveyor_properties:
-				if property_info["name"] == property_name:
-					property.assign(property_info)
-					property_found = true
-					break
-		# Fallback to script if no instance available.
-		if not property_found:
-			# Search for the property.
-			var conveyor_properties: Array[Dictionary] = _get_conveyor_script().get_script_property_list()
-			for property_info in conveyor_properties:
-				if property_info["name"] == property_name:
-					property.assign(property_info)
-					property_found = true
-					break
+	
+	# Handle communication properties forwarded from child conveyors
+	elif property[&"name"] == "Communications" and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
+		property[&"usage"] = PROPERTY_USAGE_CATEGORY if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "enable_comms":
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "speed_tag_group_name":
+		# This is a storage-only property, not visible in editor
+		property[&"usage"] = PROPERTY_USAGE_STORAGE
+	elif property[&"name"] == "speed_tag_groups":
+		# This is the visible dropdown selector for speed tag groups
+		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "speed_tag_name":
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "running_tag_group_name":
+		# This is a storage-only property, not visible in editor
+		property[&"usage"] = PROPERTY_USAGE_STORAGE
+	elif property[&"name"] == "running_tag_groups":
+		# This is the visible dropdown selector for running tag groups
+		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	elif property[&"name"] == "running_tag_name":
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+	
 	super._validate_property(property)
-
-
-func _get_conveyor_property_names() -> Array[StringName]:
-	var property_names: Array[StringName] = [
-		&"belt_color",
-		&"belt_texture",
-		&"speed",
-		&"belt_physics_material",
-		&"enable_comms",
-		&"speed_tag_group_name",
-		&"speed_tag_groups",
-		&"speed_tag_name",
-		&"running_tag_group_name",
-		&"running_tag_groups",
-		&"running_tag_name",
-	]
-	return property_names
 
 
 func _get_conveyor_script() -> Script:
@@ -162,10 +117,10 @@ func _get_conveyor_script() -> Script:
 
 
 func _set_conveyor_properties(conveyor: Node) -> void:
-	for property_name in _get_conveyor_property_names():
-		if property_name in [&"speed_tag_groups", &"running_tag_groups"] and get(property_name) == null:
-			continue
-		conveyor.set(property_name, get(property_name))
+	# Apply all cached properties to the new conveyor
+	for property_name in _cached_properties:
+		if conveyor.has_method("set"):
+			conveyor.set(property_name, _cached_properties[property_name])
 
 
 func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
@@ -175,9 +130,117 @@ func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
 		conveyor.set(property, value)
 
 
-#func _get(property: StringName) -> Variant:
-#	if _get_internal_child_count() > 0:
-#		var conveyor: Node = get_child(0, true)
-#		if property in _get_conveyor_property_names():
-#			return conveyor.get(property)
-#	return null
+func _set(property: StringName, value: Variant) -> bool:
+	if property not in _get_conveyor_forwarded_property_names():
+		return false
+	# Cache the property value
+	_cached_properties[property] = value
+	# Set the property on all child conveyors
+	_set_for_all_conveyors(property, value)
+	# Special handling for enable_comms - refresh property list when it changes
+	if property == &"enable_comms":
+		notify_property_list_changed()
+	return true
+
+
+func _get(property: StringName) -> Variant:
+	if property not in _get_conveyor_forwarded_property_names():
+		return null
+	# Get the property from the first child conveyor if available
+	var conveyor := _get_first_conveyor()
+	if conveyor:
+		return conveyor.get(property)
+	# Fall back to cached value
+	if property in _cached_properties:
+		return _cached_properties[property]
+	# Fall back to default values
+	match property:
+		&"speed":
+			return _default_speed
+		&"belt_color":
+			return _default_belt_color
+		&"belt_texture":
+			return _default_belt_texture
+		&"enable_comms":
+			return _default_enable_comms
+		&"speed_tag_group_name":
+			return _default_speed_tag_group_name
+		&"speed_tag_name":
+			return _default_speed_tag_name
+		&"running_tag_group_name":
+			return _default_running_tag_group_name
+		&"running_tag_name":
+			return _default_running_tag_name
+		_:
+			return null
+
+
+func _property_can_revert(property: StringName) -> bool:
+	return property in _get_conveyor_forwarded_property_names()
+
+
+func _property_get_revert(property: StringName) -> Variant:
+	if property not in _get_conveyor_forwarded_property_names():
+		return null
+	if _get_internal_child_count() > 0:
+		var conveyor: Node = get_child(0, true)
+		if conveyor.has_method("property_can_revert") and conveyor.property_can_revert(property):
+			return conveyor.property_get_revert(property)
+		elif conveyor.scene_file_path:
+			# Find the property's value in the PackedScene file.
+			var scene := load(conveyor.scene_file_path) as PackedScene
+			var scene_state := scene.get_state()
+			for prop_idx in range(scene_state.get_node_property_count(0)):
+				if scene_state.get_node_property_name(0, prop_idx) == property:
+					return scene_state.get_node_property_value(0, prop_idx)
+			# Try the script's default instead.
+			return conveyor.get_script().get_property_default_value(property)
+	return _conveyor_script.get_property_default_value(property)
+
+
+func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
+	var all_properties: Array[Dictionary]
+	# Skip properties until we reach the category after the "Node3D" category.
+	var has_seen_node3d_category: bool = false
+	var has_seen_category_after_node3d: bool = false
+
+	if _get_internal_child_count() > 0:
+		var conveyor: Node = get_child(0, true)
+		all_properties = conveyor.get_property_list()
+	else:
+		# The conveyor instance won't exist yet, so grab from the script class instead.
+		all_properties = _get_conveyor_script().get_script_property_list()
+		# List doesn't include built-in properties, so we don't have to skip them.
+		has_seen_node3d_category = true
+
+	var filtered_properties: Array[Dictionary] = []
+	for property in all_properties:
+		if not has_seen_node3d_category:
+			has_seen_node3d_category = (property[&"name"] == "Node3D"
+					and property[&"usage"] == PROPERTY_USAGE_CATEGORY)
+			continue
+		if not has_seen_category_after_node3d:
+			has_seen_category_after_node3d = property[&"usage"] == PROPERTY_USAGE_CATEGORY
+		if not has_seen_category_after_node3d:
+			continue
+		# Take all successive properties.
+		filtered_properties.append(property)
+	return filtered_properties
+
+
+func _get_conveyor_forwarded_property_names() -> Array:
+	var result: Array = (_get_conveyor_forwarded_properties()
+			.filter(func(property):
+				var prop_name := property[&"name"] as String
+				var usage := property[&"usage"] as int
+				if prop_name in ["size", "original_size", "transform_in_progress", "size_min", "size_default", "hijack_scale"]:
+					return false
+				if prop_name.begins_with("metadata/hijack_scale"):
+					return false
+				return (not (usage & PROPERTY_USAGE_CATEGORY
+					or usage & PROPERTY_USAGE_GROUP
+					or usage & PROPERTY_USAGE_SUBGROUP)
+					and usage & PROPERTY_USAGE_STORAGE
+					and not prop_name.begins_with("metadata/")))
+			.map(func(property): return property[&"name"] as String))
+	return result
