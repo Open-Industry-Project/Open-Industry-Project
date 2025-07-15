@@ -1,6 +1,9 @@
 @tool
 class_name CurvedBeltConveyor
-extends ResizableNode3D
+extends Node3D
+
+## Emitted when size changes (for compatibility with legs assembly)
+signal size_changed
 
 enum ConvTexture {
 	STANDARD,
@@ -12,6 +15,46 @@ const BASE_OUTER_RADIUS: float = 1.25
 const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
+
+@export var inner_radius: float = BASE_INNER_RADIUS:
+	set(value):
+		inner_radius = max(0.1, value)  # Minimum inner radius
+		_mesh_regeneration_needed = true
+		_update_calculated_size()
+		_update_all_components()
+
+@export var conveyor_width: float = BASE_CONVEYOR_WIDTH:
+	set(value):
+		conveyor_width = max(0.1, value)  # Minimum width
+		_mesh_regeneration_needed = true
+		_update_calculated_size()
+		_update_all_components()
+
+@export var belt_height: float = 0.5:
+	set(value):
+		belt_height = max(0.1, value)
+		_update_calculated_size()
+		_update_all_components()
+
+## Calculated automatically from radius and width - not directly editable
+var size: Vector3:
+	get:
+		return _calculated_size
+	set(_value):
+		pass
+
+var _calculated_size: Vector3 = SIZE_DEFAULT
+
+func _update_calculated_size() -> void:
+	# Calculate size automatically from radius, width, and height
+	var outer_radius = inner_radius + conveyor_width
+	var diameter = outer_radius * 2.0
+	var old_size = _calculated_size
+	_calculated_size = Vector3(diameter, belt_height, diameter)
+	
+	# Emit size_changed signal when size changes
+	if old_size != _calculated_size:
+		size_changed.emit()
 
 @export var belt_color: Color = Color(1, 1, 1, 1):
 	set(value):
@@ -167,8 +210,8 @@ func set_belt_material_shader_params_on_ends() -> void:
 				material.set_shader_parameter("ColorMix", belt_color)
 
 func _init() -> void:
-	super._init() # Call parent _init to inherit hijack_scale metadata
 	set_notify_local_transform(true)
+	_update_calculated_size()
 
 
 func _ready() -> void:
@@ -213,10 +256,10 @@ func _ready() -> void:
 
 	_recalculate_speeds()
 	if ce1:
-		ce1.size = Vector3(size.y, size.y, size.x)
+		ce1.size = Vector3(size.y, size.y, conveyor_width)
 		ce1.speed = _linear_speed
 	if ce2:
-		ce2.size = Vector3(size.y, size.y, size.x)
+		ce2.size = Vector3(size.y, size.y, conveyor_width)
 		ce2.speed = _linear_speed
 
 	if ce1:
@@ -232,6 +275,86 @@ func _ready() -> void:
 	_mesh_regeneration_needed = true
 	update_visible_meshes()
 	_update_belt_material_scale()
+
+func _update_all_components() -> void:
+	if not is_inside_tree():
+		return
+	
+	update_visible_meshes()
+	_update_belt_ends_size()
+	_update_side_guards()
+	_update_assembly_components()
+
+func _update_belt_ends_size() -> void:
+	var ce1 = get_conveyor_end1()
+	var ce2 = get_conveyor_end2()
+	
+	# Calculate the new end size based on conveyor width (now absolute)
+	var end_size = Vector3(size.y, size.y, conveyor_width)
+	
+	if ce1:
+		ce1.size = end_size
+		ce1.speed = _linear_speed
+	if ce2:
+		ce2.size = end_size
+		ce2.speed = _linear_speed
+
+func _update_side_guards() -> void:
+	# Update side guards attached to parent assembly
+	var parent_node = get_parent()
+	if parent_node:
+		# Try specific names for curved conveyor side guards
+		var side_guards = parent_node.get_node_or_null("SideGuardsCBC")
+		if not side_guards:
+			side_guards = parent_node.get_node_or_null("SideGuardsAssembly") 
+		if not side_guards:
+			side_guards = parent_node.get_node_or_null("%SideGuardsAssembly")
+		
+		# Try to find SideGuardsCBC more aggressively
+		if not side_guards:
+			# Search all children recursively for SideGuardsCBC
+			for child in parent_node.get_children():
+				if child.name == "SideGuardsCBC" or child.get_script() and child.get_script().get_global_name() == "CurvedSideGuards":
+					side_guards = child
+					break
+				# Check nested children
+				for nested_child in child.get_children():
+					if nested_child.name == "SideGuardsCBC" or nested_child.get_script() and nested_child.get_script().get_global_name() == "CurvedSideGuards":
+						side_guards = nested_child
+						break
+		
+		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
+			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+		else:
+			# Fallback: search all siblings for side guards
+			for sibling in parent_node.get_children():
+				if sibling != self and sibling.name.contains("SideGuards") and sibling.has_method("update_for_curved_conveyor"):
+					sibling.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+					break
+
+func _update_assembly_components() -> void:
+	# Update assembly components (legs, etc.)
+	var parent_node = get_parent()
+	if not parent_node:
+		return
+	
+	# Check if parent is an assembly with the update method
+	if parent_node.has_method("update_attachments_for_curved_conveyor"):
+		parent_node.update_attachments_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+	else:
+		# Fallback: find legs assembly directly
+		var legs_assembly = parent_node.get_node_or_null("ConveyorLegsAssembly")
+		if not legs_assembly:
+			legs_assembly = parent_node.get_node_or_null("%ConveyorLegsAssembly")
+		
+		if legs_assembly and legs_assembly.has_method("update_for_curved_conveyor"):
+			legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+		else:
+			# Search for any legs components
+			for sibling in parent_node.get_children():
+				if sibling != self and sibling.name.contains("Legs") and sibling.has_method("update_for_curved_conveyor"):
+					sibling.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+					break
 
 func update_visible_meshes() -> void:
 	if not is_inside_tree():
@@ -258,19 +381,25 @@ func _position_conveyor_ends() -> void:
 	assert(ce2 != null)
 
 	var radians: = deg_to_rad(conveyor_angle)
+	var radius_inner: float = inner_radius  # Now absolute values
+	var radius_outer: float = inner_radius + conveyor_width  # Now absolute values
+	var avg_radius: float = (radius_inner + radius_outer) / 2.0
 
-	# Position ends with y offset to keep top surface at y=0
-	ce1.position = Vector3(-sin(radians) * size.x * 0.75, -size.y/2.0, cos(radians) * size.x * 0.75)
+	# Position ends at the actual curve endpoints using average radius
+	# End 1 (angled end) - positioned at the end of the curve
+	ce1.position = Vector3(-sin(radians) * avg_radius, -size.y/2.0, cos(radians) * avg_radius)
 	ce1.rotation.y = -radians
-	ce2.position = Vector3(0, -size.y/2.0, size.x * BASE_OUTER_RADIUS * 0.6)
+	
+	# End 2 (straight end) - positioned at the start of the curve
+	ce2.position = Vector3(0, -size.y/2.0, avg_radius)
 	ce2.rotation.y = 0
 
 func _create_conveyor_mesh() -> void:
 	var segments := conveyor_angle / 3.0
 
 	var angle_radians: float = deg_to_rad(conveyor_angle)
-	var radius_inner: float = BASE_INNER_RADIUS * size.x
-	var radius_outer: float = BASE_OUTER_RADIUS * size.x
+	var radius_inner: float = inner_radius  # Now absolute values
+	var radius_outer: float = inner_radius + conveyor_width  # Now absolute values
 	const DEFAULT_HEIGHT_RATIO: float = 0.50
 	var height = DEFAULT_HEIGHT_RATIO * size.y
 	var scale_factor := 2.0
@@ -300,7 +429,7 @@ func _setup_materials() -> void:
 	_update_belt_material_scale()
 
 	# Add an edge scale parameter for belt edges
-	var avg_radius: float = size.x * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2.0
+	var avg_radius: float = size.x * (inner_radius + conveyor_width + inner_radius) / 2.0
 	var angle_portion = conveyor_angle / 360.0
 	var belt_length: float = 2.0 * PI * avg_radius * angle_portion
 	var belt_scale: float = belt_length / (PI * 1.0)  # Base belt length is PI * 1.0
@@ -670,7 +799,6 @@ func _setup_collision_shape() -> void:
 	collision_shape.scale = Vector3.ONE
 
 func _enter_tree() -> void:
-	super._enter_tree()
 
 	_speed_tag_group_original = speed_tag_group_name
 	_running_tag_group_original = running_tag_group_name
@@ -694,10 +822,8 @@ func _exit_tree() -> void:
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	super._exit_tree()
 
 func _notification(what: int) -> void:
-	super._notification(what)
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
 		set_notify_local_transform(false)
 		# Ensure uniform scale on X and Z axes
@@ -706,9 +832,10 @@ func _notification(what: int) -> void:
 		set_notify_local_transform(true)
 
 func _recalculate_speeds() -> void:
-	var reference_radius: float = size.x * BASE_OUTER_RADIUS - reference_distance
+	var outer_radius_val: float = (inner_radius + conveyor_width) * size.x
+	var reference_radius: float = outer_radius_val - reference_distance
 	_angular_speed = 0.0 if reference_radius == 0.0 else speed / reference_radius
-	_linear_speed = _angular_speed * (size.x * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2.0)
+	_linear_speed = _angular_speed * (size.x * (inner_radius + conveyor_width + inner_radius) / 2.0)
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	if ce1:
@@ -780,17 +907,11 @@ func _on_size_changed() -> void:
 
 	_recalculate_speeds()
 	size.z = size.x
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
-	if ce1:
-		ce1.size = Vector3(size.y, size.y, size.x)
-	if ce2:
-		ce2.size = Vector3(size.y, size.y, size.x)
 
 	if _last_size != size:
 		_mesh_regeneration_needed = true
 	
-	update_visible_meshes()
+	_update_all_components()
 	_update_belt_material_scale()
 	_update_metal_material_scale()
 

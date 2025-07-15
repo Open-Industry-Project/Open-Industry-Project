@@ -778,3 +778,18 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 	# Only show conveyor legs that touch a conveyor.
 	var tip_position = _get_position_on_conveyor_legs_path(conveyor_leg.position + conveyor_leg.basis.y)
 	conveyor_leg.visible = _conveyor_leg_coverage_min <= tip_position and tip_position <= _conveyor_leg_coverage_max
+
+
+## Called by curved conveyor when inner_radius or conveyor_width changes
+func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
+	if not is_inside_tree():
+		return
+	
+	# For curved conveyors, force immediate update of coverage and leg positioning
+	_update_conveyor_leg_coverage()
+	_set_needs_update(true)
+	
+	# Update immediately rather than waiting for physics process
+	if conveyor:
+		_update_conveyor_legs()
+		_update_conveyor_legs_height_and_visibility()

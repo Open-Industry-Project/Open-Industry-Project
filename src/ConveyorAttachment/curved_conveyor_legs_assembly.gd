@@ -6,26 +6,39 @@ const DEFAULT_LEG_SCALE := Vector3(1.0, 1.253, 0.82)
 const DEFAULT_ASSEMBLY_SIZE := Vector3(1.524, 0.5, 1.524)
 
 func _get_leg_scale_for_assembly_size() -> Vector3:
-	if not conveyor or not "size" in conveyor:
+	if not conveyor:
 		return DEFAULT_LEG_SCALE
 	
-	var assembly_size = conveyor.size
-	var scale_factor_x = assembly_size.x / DEFAULT_ASSEMBLY_SIZE.x
-	var scale_factor_y = assembly_size.y / DEFAULT_ASSEMBLY_SIZE.y
-	var scale_factor_z = assembly_size.z / DEFAULT_ASSEMBLY_SIZE.z
+	var inner_radius = 0.25
+	var conveyor_width = 1.0
+	var belt_height = 0.5
+	
+	if "inner_radius" in conveyor:
+		inner_radius = conveyor.inner_radius
+	if "conveyor_width" in conveyor:
+		conveyor_width = conveyor.conveyor_width
+	if "belt_height" in conveyor:
+		belt_height = conveyor.belt_height
+		
+	var outer_radius = inner_radius + conveyor_width
+	var default_outer_radius = (0.25 + 1.0) * DEFAULT_ASSEMBLY_SIZE.x
+	
+	var scale_factor = outer_radius / default_outer_radius
 	
 	return Vector3(
-		DEFAULT_LEG_SCALE.x * scale_factor_x,
-		DEFAULT_LEG_SCALE.y * scale_factor_y, 
-		DEFAULT_LEG_SCALE.z * scale_factor_z
+		DEFAULT_LEG_SCALE.x * scale_factor,
+		DEFAULT_LEG_SCALE.y * (belt_height / 0.5),
+		DEFAULT_LEG_SCALE.z * scale_factor
 	)
 
 func _ready() -> void:
+	# Apply proper scaling to any existing legs
 	if Engine.is_editor_hint():
-		for child in get_children():
-			var conveyor_leg = child as ConveyorLeg
-			if conveyor_leg:
-				conveyor_leg.scale = _get_leg_scale_for_assembly_size()
+		_update_all_leg_scales()
+	
+	# Trigger leg creation/update
+	if conveyor:
+		_set_needs_update(true)
 
 ## For curved assemblies, this is an angle around the Y axis in degrees.
 func _get_position_on_conveyor_legs_path(position: Vector3) -> float:
@@ -51,15 +64,24 @@ func _move_conveyor_leg_to_path_position(conveyor_leg: Node3D, path_position: fl
 	
 	if leg_index == LegIndex.FRONT:
 		var conveyor_angle = 90.0
-		var size_factor = 1.524
+		var inner_radius = 0.25
+		var conveyor_width = 1.0
+		
 		if conveyor and "conveyor_angle" in conveyor:
 			conveyor_angle = conveyor.conveyor_angle
-		if conveyor and "size" in conveyor:
-			size_factor = conveyor.size.x
+		if conveyor and "inner_radius" in conveyor:
+			inner_radius = conveyor.inner_radius
+		if conveyor and "conveyor_width" in conveyor:
+			conveyor_width = conveyor.conveyor_width
+		
+		var size_x = DEFAULT_ASSEMBLY_SIZE.x
+		var relative_inner = inner_radius / size_x
+		var relative_width = conveyor_width / size_x
+		var relative_avg_radius = relative_inner + (relative_width / 2.0)
 		
 		var radians = deg_to_rad(conveyor_angle)
-		var leg_x = -sin(radians) * 0.75 * size_factor
-		var leg_z = cos(radians) * 0.73 * size_factor
+		var leg_x = -sin(radians) * 0.75 * relative_avg_radius * size_x
+		var leg_z = cos(radians) * 0.73 * relative_avg_radius * size_x
 		
 		var new_position := Vector3(leg_x, 0.0, 0.04 + leg_z)
 		
@@ -73,11 +95,20 @@ func _move_conveyor_leg_to_path_position(conveyor_leg: Node3D, path_position: fl
 			changed = true
 			
 	elif leg_index == LegIndex.REAR:
-		var size_factor = 1.524
-		if conveyor and "size" in conveyor:
-			size_factor = conveyor.size.x
+		var inner_radius = 0.25
+		var conveyor_width = 1.0
 		
-		var new_position := Vector3(-0.04, 0.0, 0.75 * size_factor)
+		if conveyor and "inner_radius" in conveyor:
+			inner_radius = conveyor.inner_radius
+		if conveyor and "conveyor_width" in conveyor:
+			conveyor_width = conveyor.conveyor_width
+		
+		var size_x = DEFAULT_ASSEMBLY_SIZE.x
+		var relative_inner = inner_radius / size_x
+		var relative_width = conveyor_width / size_x
+		var relative_avg_radius = relative_inner + (relative_width / 2.0)
+		
+		var new_position := Vector3(-0.04, 0.0, 0.75 * relative_avg_radius * size_x)
 		
 		if conveyor_leg.position != new_position:
 			conveyor_leg.position = new_position
@@ -89,7 +120,19 @@ func _move_conveyor_leg_to_path_position(conveyor_leg: Node3D, path_position: fl
 			changed = true
 	else:
 		var angle_rad = deg_to_rad(path_position)
-		var radius = conveyor.size.x if conveyor else 1.524
+		var inner_radius = 0.25
+		var conveyor_width = 1.0
+		
+		if conveyor and "inner_radius" in conveyor:
+			inner_radius = conveyor.inner_radius
+		if conveyor and "conveyor_width" in conveyor:
+			conveyor_width = conveyor.conveyor_width
+		
+		var size_x = DEFAULT_ASSEMBLY_SIZE.x
+		var relative_inner = inner_radius / size_x
+		var relative_width = conveyor_width / size_x
+		var relative_avg_radius = relative_inner + (relative_width / 2.0)
+		var radius = relative_avg_radius * size_x
 		
 		var new_position := Vector3(
 			radius * sin(angle_rad),
@@ -196,3 +239,14 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 	else:
 		var tip_position = _get_position_on_conveyor_legs_path(conveyor_leg.position + conveyor_leg.basis.y)
 		conveyor_leg.visible = _conveyor_leg_coverage_min <= tip_position and tip_position <= _conveyor_leg_coverage_max
+
+## Override to handle curved conveyor parameter changes for leg scaling
+func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
+	if not is_inside_tree():
+		return
+	
+	# Call parent method for standard updates
+	super.update_for_curved_conveyor(inner_radius, conveyor_width, conveyor_size, conveyor_angle)
+	
+	# Force leg scale updates for curved conveyor parameters
+	_update_all_leg_scales()
