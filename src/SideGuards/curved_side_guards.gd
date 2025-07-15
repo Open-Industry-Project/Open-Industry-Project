@@ -10,11 +10,15 @@ const MIDDLE_THICKNESS: float = 0.02
 
 @export_range(10.0, 90.0, 1.0, 'degrees') var guard_angle: float = 90.0:
 	set(value):
+		if abs(guard_angle - value) < 0.001:
+			return  # No significant change
 		guard_angle = value
 		_update_mesh()
 
 @export var size: Vector3 = Vector3(1.56, 4.0, 1.0):
 	set(value):
+		if size.is_equal_approx(value):
+			return  # No significant change
 		size = value
 		_update_mesh()
 
@@ -24,10 +28,22 @@ var _prev_scale_x: float = 1.0
 var outer_mesh: MeshInstance3D = null
 var inner_mesh: MeshInstance3D = null
 
+# Store radius parameters for direct use in mesh generation
+var _current_inner_radius: float = 0.25
+var _current_conveyor_width: float = 1.0
+
 func _init() -> void:
 	set_notify_local_transform(true)
 
 func _ready() -> void:
+	# Initialize stored radius parameters from size (fallback for initial creation)
+	if _current_inner_radius == 0.25 and _current_conveyor_width == 1.0:
+		# Extract initial values from size if not yet set by update_for_curved_conveyor
+		var diameter = size.x - 0.036
+		var outer_radius = diameter / 2.0
+		_current_conveyor_width = 1.0  # Use default conveyor width
+		_current_inner_radius = outer_radius - _current_conveyor_width
+	
 	# Initialize outer guard mesh
 	outer_mesh = find_child('OuterSideGuard') as MeshInstance3D
 	if not outer_mesh:
@@ -47,6 +63,7 @@ func _ready() -> void:
 	# Set up materials
 	_setup_materials()
 	_prev_scale_x = size.x
+	
 	_update_mesh()
 
 func _setup_materials() -> void:
@@ -78,28 +95,37 @@ func _update_mesh() -> void:
 	
 	# Position guard end pieces
 	_update_guard_end_pieces()
-# Helper function for piecewise linear interpolation
 func _update_guard_end_pieces() -> void:
-	const SIZE_RANGE: float = 3.42
-	var size_factor: float = (size.x - 1.58) / SIZE_RANGE
+	# Calculate size_factor from radius parameters to match original interpolation system
+	# This preserves the original visual positioning logic while working with radius parameters
+	var outer_radius = _current_inner_radius + _current_conveyor_width
+	var calculated_size_x = outer_radius * 2.0 + 0.036  # How size.x was calculated
+	var size_factor: float = (calculated_size_x - 1.58) / 3.42  # Original interpolation range (1.58 to 5.0)
 	
-	# First guard ends (using existing linear interpolation method)
+	# Original positioning calculations that worked correctly
+	# These formulas were designed for the visual appearance of the guard ends
 	var end1_x: float = 0.25 + size_factor * 0.02
-	var end1_z: float = 0.927 + size_factor * (5.165 - 0.89)
+	var end1_z: float = 0.927 + size_factor * (5.165 - 0.89)  # 4.275
 	var end1_scale_x: float = 1.03 + size_factor * 0.15
 	
 	var inner_end1_x: float = 0.25 + size_factor * 0.02
 	var inner_end1_z: float = 1.385 + size_factor * 0.86
 	var inner_end1_scale_x: float = 1.03 + size_factor * 0.06
 	
-	$OuterSideGuardEnd.scale = Vector3(end1_scale_x, size.y / 4.0, 1.0)
-	$OuterSideGuardEnd.position = Vector3(end1_x, -0.004, end1_z)
+	# Check if guard end nodes exist before positioning them
+	var outer_end1 = get_node_or_null("OuterSideGuardEnd")
+	var inner_end1 = get_node_or_null("InnerSideGuardEnd")
 	
-	$InnerSideGuardEnd.scale = Vector3(inner_end1_scale_x, size.y / 4.0, 1.0)
-	$InnerSideGuardEnd.position = Vector3(inner_end1_x, -0.004, inner_end1_z)
+	if outer_end1:
+		outer_end1.scale = Vector3(end1_scale_x, size.y / 4.0, 1.0)
+		outer_end1.position = Vector3(end1_x, -0.004, end1_z)
 	
-	# Second guard ends (default positions with angle adjustment)
-	var end2_x: float = -0.927 + size_factor * (-5.165 - -0.89)
+	if inner_end1:
+		inner_end1.scale = Vector3(inner_end1_scale_x, size.y / 4.0, 1.0)
+		inner_end1.position = Vector3(inner_end1_x, -0.004, inner_end1_z)
+	
+	# Second guard ends (using original formula)
+	var end2_x: float = -0.927 + size_factor * (-5.165 - -0.89)  # -4.275
 	var end2_z: float = -0.25 + size_factor * -0.02
 	var end2_scale_x: float = 1.0 + size_factor * 0.15
 	
@@ -107,7 +133,7 @@ func _update_guard_end_pieces() -> void:
 	var inner_end2_z: float = -0.25 + size_factor * -0.02
 	var inner_end2_scale_x: float = 1.03 + size_factor * 0.1
 	
-	# Apply angle adjustment if guard_angle is not 90 degrees
+	# Apply angle adjustment if guard_angle is not 90 degrees (original logic)
 	if guard_angle != 90.0:
 		var radians: float = deg_to_rad(guard_angle - 90.0)  # Offset from default 90 degrees
 		
@@ -125,23 +151,38 @@ func _update_guard_end_pieces() -> void:
 		inner_end2_x = sin(inner_original_angle - radians) * inner_distance
 		inner_end2_z = cos(inner_original_angle - radians) * inner_distance
 		
-		# Set rotation for the guard ends (default - adjustment for reversed direction)
-		$OuterSideGuardEnd2.rotation.y = deg_to_rad(90.0) - radians
-		$InnerSideGuardEnd2.rotation.y = deg_to_rad(-90.0) - radians
+		# Set rotation for the guard ends to align with curve direction
+		var outer_end2 = get_node_or_null("OuterSideGuardEnd2")
+		var inner_end2 = get_node_or_null("InnerSideGuardEnd2")
+		if outer_end2:
+			outer_end2.rotation.y = radians
+		if inner_end2:
+			inner_end2.rotation.y = radians
 	else:
-		# Set default rotations when at default angle
-		$OuterSideGuardEnd2.rotation.y = deg_to_rad(90.0)
-		$InnerSideGuardEnd2.rotation.y = deg_to_rad(-90.0)
+		var outer_end2 = get_node_or_null("OuterSideGuardEnd2")
+		var inner_end2 = get_node_or_null("InnerSideGuardEnd2")
+		if outer_end2:
+			outer_end2.rotation.y = 0.0
+		if inner_end2:
+			inner_end2.rotation.y = 0.0
 	
-	$OuterSideGuardEnd2.scale = Vector3(end2_scale_x, size.y / 4.0, 1.0)
-	$OuterSideGuardEnd2.position = Vector3(end2_x, -0.004, end2_z)
-	$InnerSideGuardEnd2.scale = Vector3(inner_end2_scale_x, size.y / 4.0, 1.0)
-	$InnerSideGuardEnd2.position = Vector3(inner_end2_x, -0.004, inner_end2_z)
+	# Apply positions and scales for second guard ends
+	var outer_end2 = get_node_or_null("OuterSideGuardEnd2")
+	var inner_end2 = get_node_or_null("InnerSideGuardEnd2")
+	
+	if outer_end2:
+		outer_end2.scale = Vector3(end2_scale_x, size.y / 4.0, 1.0)
+		outer_end2.position = Vector3(end2_x, -0.004, end2_z)
+	
+	if inner_end2:
+		inner_end2.scale = Vector3(inner_end2_scale_x, size.y / 4.0, 1.0)
+		inner_end2.position = Vector3(inner_end2_x, -0.004, inner_end2_z)
+
 func _create_outer_guard_mesh() -> void:
 	var mesh := ArrayMesh.new()
 	
-	# Calculate dimensions
-	var radius_outer: float = BASE_OUTER_RADIUS * size.x + 0.033
+	# Calculate dimensions using stored radius parameters directly
+	var radius_outer: float = _current_inner_radius + _current_conveyor_width + 0.033
 	var height: float = BASE_HEIGHT * size.y
 	var thickness: float = MIDDLE_THICKNESS
 	
@@ -485,16 +526,9 @@ func _create_outer_guard_mesh() -> void:
 func _create_inner_guard_mesh() -> void:
 	var mesh := ArrayMesh.new()
 	
-	var base_size: float = 1.56  # Default size
-	var base_scale: float = 0.165  # Good scaling at default size
-	
-	# Progressive scaling - increases more as size gets larger
-	var size_ratio: float = size.x / base_size
-	var progressive_factor: float = base_scale * pow(size_ratio, 0.12)  # Exponential scaling
-	
-	
-	var inner_scale_x: float = size.x * progressive_factor
-	var radius_outer: float = BASE_OUTER_RADIUS * inner_scale_x
+	# Calculate inner guard radius using stored radius parameters directly
+	# Inner guard should be at the inner radius of the conveyor
+	var radius_outer: float = _current_inner_radius - 0.033  # Slightly inside the inner edge
 	var height: float = BASE_HEIGHT * size.y
 	var thickness: float = MIDDLE_THICKNESS
 	
@@ -844,7 +878,8 @@ func _on_scale_changed() -> void:
 func _update_material_scale() -> void:
 	if shader_material and inner_shader_material:
 		var angle_portion: float = guard_angle / 360.0
-		var avg_radius: float = size.x * BASE_OUTER_RADIUS
+		# Use stored radius parameters directly
+		var avg_radius: float = _current_inner_radius + (_current_conveyor_width / 2.0)
 		var guard_length: float = 2.0 * PI * avg_radius * angle_portion
 		var guard_scale: float = guard_length / (PI * 1.0)
 		
@@ -912,3 +947,33 @@ func _setup_collision_shape(mesh_instance: MeshInstance3D, is_inner: bool) -> vo
 	var shape := ConcavePolygonShape3D.new()
 	shape.data = scaled_vertices
 	collision_shape.shape = shape
+
+
+## Called by curved conveyor when inner_radius or conveyor_width changes
+func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
+	if not is_inside_tree():
+		return
+	
+	# Early return if values haven't changed (avoid redundant updates)
+	var tolerance = 0.0001
+	if abs(_current_inner_radius - inner_radius) < tolerance and \
+	   abs(_current_conveyor_width - conveyor_width) < tolerance and \
+	   abs(guard_angle - conveyor_angle) < tolerance:
+		return
+	
+	# Store the radius parameters for direct use in mesh generation
+	_current_inner_radius = inner_radius
+	_current_conveyor_width = conveyor_width
+	
+	# Update guard angle to match conveyor angle
+	guard_angle = conveyor_angle
+	
+	# Calculate new size based on absolute conveyor parameters (for compatibility)
+	var outer_radius = inner_radius + conveyor_width
+	var new_size_x = outer_radius * 2.0 + 0.036  # Add small offset for proper fit
+	
+	# Keep Y and Z dimensions, only update X
+	size = Vector3(new_size_x, size.y, size.z)
+	
+	# Explicitly update mesh and guard end pieces with new radius parameters
+	_update_mesh()

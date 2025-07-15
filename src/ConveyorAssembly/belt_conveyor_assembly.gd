@@ -256,25 +256,18 @@ func _property_can_revert(property: StringName) -> bool:
 
 
 func _property_get_revert(property: StringName) -> Variant:
-	#print("_property_get_revert(%s)" % property)
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
 	if _has_instantiated:
 		if %Conveyor.property_can_revert(property):
-			#print("revert for ", property, ": ", %Conveyor.property_get_revert(property))
 			return %Conveyor.property_get_revert(property)
 		elif %Conveyor.scene_file_path:
-			# Find the property's value in the PackedScene file.
 			var scene := load(%Conveyor.scene_file_path) as PackedScene
 			var scene_state := scene.get_state()
 			for prop_idx in range(scene_state.get_node_property_count(0)):
 				if scene_state.get_node_property_name(0, prop_idx) == property:
-					#print("revert for ", property, ": ", scene_state.get_node_property_value(0, prop_idx))
 					return scene_state.get_node_property_value(0, prop_idx)
-			# Try the script's default instead.
-			#print("revert for ", property, ": ", %Conveyor.get_script().get_property_default_value(property))
 			return %Conveyor.get_script().get_property_default_value(property)
-	#print("revert for ", property, ": ", _conveyor_script.get_property_default_value(property))
 	return _conveyor_script.get_property_default_value(property)
 
 
@@ -330,7 +323,6 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 			has_seen_category_after_node3d = property[&"usage"] == PROPERTY_USAGE_CATEGORY
 		if not has_seen_category_after_node3d:
 			continue
-		# Take all successive properties.
 		filtered_properties.append(property)
 	return filtered_properties
 
@@ -430,3 +422,25 @@ func _legs_property_cached_get(property: StringName, backing_field_value: Varian
 
 	# Return backing field value as fallback (this maintains the typed defaults)
 	return backing_field_value
+
+
+## Called by curved conveyor when inner_radius or conveyor_width changes
+func update_attachments_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
+	if not _has_instantiated:
+		return
+	
+	# Update side guards for curved conveyor
+	var side_guards = get_node_or_null("SideGuardsAssembly")
+	if not side_guards:
+		side_guards = get_node_or_null("%SideGuardsAssembly")
+	
+	if is_instance_valid(side_guards) and side_guards.has_method("update_for_curved_conveyor"):
+		side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, conveyor_size, conveyor_angle)
+	
+	# Update legs for curved conveyor  
+	var legs_assembly = get_node_or_null("ConveyorLegsAssembly")
+	if not legs_assembly:
+		legs_assembly = get_node_or_null("%ConveyorLegsAssembly")
+	
+	if is_instance_valid(legs_assembly) and legs_assembly.has_method("update_for_curved_conveyor"):
+		legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, conveyor_size, conveyor_angle)

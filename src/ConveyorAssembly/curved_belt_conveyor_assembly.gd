@@ -1,6 +1,6 @@
 @tool
 class_name CurvedBeltConveyorAssembly
-extends ResizableNode3D
+extends Node3D
 
 const CONVEYOR_CLASS_NAME = "CurvedBeltConveyor"
 
@@ -14,10 +14,7 @@ var _last_conveyor_angle: float = 0.0
 var _last_conveyor_size: Vector3 = Vector3.ZERO
 
 func _init() -> void:
-	# Set default size for curved belt conveyor assemblies BEFORE calling super._init()
-	size_default = Vector3(1.524, 0.5, 1.524)
-
-	super._init()
+	# Note: No longer inherits from ResizableNode3D, so no size controls
 
 	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
 	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
@@ -108,9 +105,7 @@ func _ready() -> void:
 
 	_has_instantiated = true
 
-	# Sync the assembly's size to the ConveyorCorner
-	if is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
-		$ConveyorCorner.size = size
+	# Note: ConveyorCorner now calculates its own size automatically from radius/width
 
 	_update_attachments()
 
@@ -202,8 +197,7 @@ func _conveyor_property_cached_get(property: StringName) -> Variant:
 	return null
 
 func _on_size_changed() -> void:
-	if _has_instantiated and is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
-		$ConveyorCorner.size = size
+	# Note: Size is now calculated automatically, no manual syncing needed
 	_attachment_update_needed = true
 	_update_attachments()
 
@@ -224,21 +218,20 @@ func _update_attachments() -> void:
 		radians = deg_to_rad(10.0)
 		current_angle = 10.0
 		
+	# For curved conveyors, let the SideGuardsCBC calculate its own size based on conveyor parameters
+	# instead of overriding it with a simple offset
 	$SideGuardsCBC.guard_angle = current_angle
-	$SideGuardsCBC.size.x = current_size.x + 0.036
-	var front_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegTail
-	var rear_legs = $ConveyorCorner/ConveyorLegsAssembly/ConveyorLegHead
-	var size_factor = current_size.x
-	var leg_x = -sin(radians) * 0.75 * size_factor
-	var leg_z = cos(radians) * 0.73 * size_factor
-
-	front_legs.position.x = leg_x
-	front_legs.position.z = 0.04 + leg_z
-	front_legs.rotation.y = -radians
-
-	rear_legs.position.x = -0.04
-	rear_legs.position.z = 0.75 * size_factor
-	rear_legs.rotation.y = 0
+	
+	# Get conveyor parameters for proper side guard sizing (now absolute values)
+	var inner_radius = conveyor.get("inner_radius") if "inner_radius" in conveyor else 0.25
+	var conveyor_width = conveyor.get("conveyor_width") if "conveyor_width" in conveyor else 1.0
+	var outer_radius = inner_radius + conveyor_width  # Now absolute, not relative to size
+	var calculated_size_x = outer_radius * 2.0 + 0.036
+	
+	$SideGuardsCBC.size.x = calculated_size_x
+	
+	# Note: Leg positioning is now handled automatically by the ConveyorLegsAssembly
+	# via the update_for_curved_conveyor method - no manual positioning needed
 	
 	_last_conveyor_angle = current_angle
 	_last_conveyor_size = current_size

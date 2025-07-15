@@ -84,6 +84,7 @@ shadow_mesh = SubResource("ArrayMesh_xr7le")
 mesh = SubResource("ArrayMesh_qbj2v")
 
 [node name="LegsSide2" parent="Sides" index="1"]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, 0, 0, 1)
 mesh = SubResource("ArrayMesh_qbj2v")
 
 [node name="LegsBar" parent="LegsBars" index="0"]
@@ -96,7 +97,11 @@ mesh = ExtResource("4_w11cr")
 visible = false
 
 [node name="LegsTop2" parent="Ends" index="1"]
+transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, 0, 1, 1)
 mesh = ExtResource("4_w11cr")
 
 [node name="LegsGrab2" parent="Ends/LegsTop2" index="0"]
 visible = false
+
+[node name="LegsBottom2" parent="Ends" index="3"]
+transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, 0, 0, 1)
