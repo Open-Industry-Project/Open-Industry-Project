@@ -223,12 +223,12 @@ func _update_attachments() -> void:
 	$SideGuardsCBC.guard_angle = current_angle
 	
 	# Get conveyor parameters for proper side guard sizing (now absolute values)
-	var inner_radius = conveyor.get("inner_radius") if "inner_radius" in conveyor else 0.25
-	var conveyor_width = conveyor.get("conveyor_width") if "conveyor_width" in conveyor else 1.0
-	var outer_radius = inner_radius + conveyor_width  # Now absolute, not relative to size
-	var calculated_size_x = outer_radius * 2.0 + 0.036
+	#var inner_radius = conveyor.get("inner_radius") if "inner_radius" in conveyor else 0.25
+	#var conveyor_width = conveyor.get("conveyor_width") if "conveyor_width" in conveyor else 1.0
+	#var outer_radius = inner_radius + conveyor_width  # Now absolute, not relative to size
+	#var calculated_size_x = outer_radius * 2.0 + 0.036
 	
-	$SideGuardsCBC.size.x = calculated_size_x
+	$SideGuardsCBC.size.x =  $ConveyorCorner.size.x
 	
 	# Note: Leg positioning is now handled automatically by the ConveyorLegsAssembly
 	# via the update_for_curved_conveyor method - no manual positioning needed

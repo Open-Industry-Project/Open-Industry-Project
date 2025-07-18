@@ -95,24 +95,22 @@ func _update_mesh() -> void:
 	
 	# Position guard end pieces
 	_update_guard_end_pieces()
+	
 func _update_guard_end_pieces() -> void:
-	# Calculate size_factor from radius parameters to match original interpolation system
-	# This preserves the original visual positioning logic while working with radius parameters
 	var outer_radius = _current_inner_radius + _current_conveyor_width
-	var calculated_size_x = outer_radius * 2.0 + 0.036  # How size.x was calculated
-	var size_factor: float = (calculated_size_x - 1.58) / 3.42  # Original interpolation range (1.58 to 5.0)
+	var avg_radius = (_current_inner_radius + outer_radius) / 2.0
 	
-	# Original positioning calculations that worked correctly
-	# These formulas were designed for the visual appearance of the guard ends
-	var end1_x: float = 0.25 + size_factor * 0.02
-	var end1_z: float = 0.927 + size_factor * (5.165 - 0.89)  # 4.275
-	var end1_scale_x: float = 1.03 + size_factor * 0.15
+	var base_offset = -0.99
+	var width_response = (_current_conveyor_width) * 0.493
 	
-	var inner_end1_x: float = 0.25 + size_factor * 0.02
-	var inner_end1_z: float = 1.385 + size_factor * 0.86
-	var inner_end1_scale_x: float = 1.03 + size_factor * 0.06
-	
-	# Check if guard end nodes exist before positioning them
+	var end1_x: float = 0.25
+	var end1_z: float = avg_radius + base_offset + width_response
+	var end1_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+
+	var inner_end1_x: float = 0.25
+	var inner_end1_z: float = _current_inner_radius + 0.01 - base_offset
+	var inner_end1_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+
 	var outer_end1 = get_node_or_null("OuterSideGuardEnd")
 	var inner_end1 = get_node_or_null("InnerSideGuardEnd")
 	
@@ -123,66 +121,45 @@ func _update_guard_end_pieces() -> void:
 	if inner_end1:
 		inner_end1.scale = Vector3(inner_end1_scale_x, size.y / 4.0, 1.0)
 		inner_end1.position = Vector3(inner_end1_x, -0.004, inner_end1_z)
+
+	var radians = deg_to_rad(guard_angle)
 	
-	# Second guard ends (using original formula)
-	var end2_x: float = -0.927 + size_factor * (-5.165 - -0.89)  # -4.275
-	var end2_z: float = -0.25 + size_factor * -0.02
-	var end2_scale_x: float = 1.0 + size_factor * 0.15
+	var end2_x: float = -sin(radians) * (avg_radius + base_offset + width_response)
+	var end2_z: float = cos(radians) * (avg_radius + base_offset + width_response)
 	
-	var inner_end2_x: float = -1.385 + size_factor * -0.86
-	var inner_end2_z: float = -0.25 + size_factor * -0.02
-	var inner_end2_scale_x: float = 1.03 + size_factor * 0.1
+	var curve_offset = -0.25
+	var outward_offset_x = cos(radians) * curve_offset
+	var outward_offset_z = sin(radians) * curve_offset
 	
-	# Apply angle adjustment if guard_angle is not 90 degrees (original logic)
-	if guard_angle != 90.0:
-		var radians: float = deg_to_rad(guard_angle - 90.0)  # Offset from default 90 degrees
-		
-		# Calculate distance from origin for rotation
-		var outer_distance: float = sqrt(end2_x * end2_x + end2_z * end2_z)
-		var inner_distance: float = sqrt(inner_end2_x * inner_end2_x + inner_end2_z * inner_end2_z)
-		
-		# Get original angles
-		var outer_original_angle: float = atan2(end2_x, end2_z)
-		var inner_original_angle: float = atan2(inner_end2_x, inner_end2_z)
-		
-		# Apply rotation adjustment (reversed direction)
-		end2_x = sin(outer_original_angle - radians) * outer_distance
-		end2_z = cos(outer_original_angle - radians) * outer_distance
-		inner_end2_x = sin(inner_original_angle - radians) * inner_distance
-		inner_end2_z = cos(inner_original_angle - radians) * inner_distance
-		
-		# Set rotation for the guard ends to align with curve direction
-		var outer_end2 = get_node_or_null("OuterSideGuardEnd2")
-		var inner_end2 = get_node_or_null("InnerSideGuardEnd2")
-		if outer_end2:
-			outer_end2.rotation.y = radians
-		if inner_end2:
-			inner_end2.rotation.y = radians
-	else:
-		var outer_end2 = get_node_or_null("OuterSideGuardEnd2")
-		var inner_end2 = get_node_or_null("InnerSideGuardEnd2")
-		if outer_end2:
-			outer_end2.rotation.y = 0.0
-		if inner_end2:
-			inner_end2.rotation.y = 0.0
+	end2_x += outward_offset_x
+	end2_z += outward_offset_z
+	var end2_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+
+	var inner_end2_x: float = -sin(radians) * (_current_inner_radius + 0.01 - base_offset)
+	var inner_end2_z: float = cos(radians) * (_current_inner_radius + 0.01 - base_offset)
 	
-	# Apply positions and scales for second guard ends
+	inner_end2_x += outward_offset_x
+	inner_end2_z += outward_offset_z
+	var inner_end2_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+
 	var outer_end2 = get_node_or_null("OuterSideGuardEnd2")
 	var inner_end2 = get_node_or_null("InnerSideGuardEnd2")
 	
 	if outer_end2:
+		outer_end2.rotation.y = -radians + deg_to_rad(180.0)
 		outer_end2.scale = Vector3(end2_scale_x, size.y / 4.0, 1.0)
 		outer_end2.position = Vector3(end2_x, -0.004, end2_z)
 	
 	if inner_end2:
+		inner_end2.rotation.y = -radians
 		inner_end2.scale = Vector3(inner_end2_scale_x, size.y / 4.0, 1.0)
 		inner_end2.position = Vector3(inner_end2_x, -0.004, inner_end2_z)
-
+	
 func _create_outer_guard_mesh() -> void:
 	var mesh := ArrayMesh.new()
 	
 	# Calculate dimensions using stored radius parameters directly
-	var radius_outer: float = _current_inner_radius + _current_conveyor_width + 0.033
+	var radius_outer: float = _current_inner_radius + _current_conveyor_width + 0.08
 	var height: float = BASE_HEIGHT * size.y
 	var thickness: float = MIDDLE_THICKNESS
 	
@@ -528,7 +505,7 @@ func _create_inner_guard_mesh() -> void:
 	
 	# Calculate inner guard radius using stored radius parameters directly
 	# Inner guard should be at the inner radius of the conveyor
-	var radius_outer: float = _current_inner_radius - 0.033  # Slightly inside the inner edge
+	var radius_outer: float = _current_inner_radius - 0.06  # Slightly inside the inner edge
 	var height: float = BASE_HEIGHT * size.y
 	var thickness: float = MIDDLE_THICKNESS
 	
@@ -970,7 +947,7 @@ func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conv
 	
 	# Calculate new size based on absolute conveyor parameters (for compatibility)
 	var outer_radius = inner_radius + conveyor_width
-	var new_size_x = outer_radius * 2.0 + 0.036  # Add small offset for proper fit
+	var new_size_x = outer_radius * 2.0 
 	
 	# Keep Y and Z dimensions, only update X
 	size = Vector3(new_size_x, size.y, size.z)
