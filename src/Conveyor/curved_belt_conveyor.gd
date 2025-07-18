@@ -11,8 +11,7 @@ enum ConvTexture {
 }
 
 const BASE_INNER_RADIUS: float = 0.5
-const BASE_OUTER_RADIUS: float = 1.25
-const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
+const BASE_CONVEYOR_WIDTH: float = 1.524
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 

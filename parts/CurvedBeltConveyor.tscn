@@ -85,10 +85,10 @@ shape = SubResource("ConcavePolygonShape3D_imrqm")
 
 [node name="BeltConveyorEnd" parent="." instance=ExtResource("4_b1am8")]
 transform = Transform3D(4.371141e-08, -1.50996e-07, -1, 1.509958e-07, -1, 1.50996e-07, -1, -1.509958e-07, -4.371139e-08, -1.262, -0.25, 7.727521e-17)
-speed = 1.5869657378725923
+speed = 1.3749082336034282
 size = Vector3(0.25, 0.5, 1.524)
 
 [node name="BeltConveyorEnd2" parent="." instance=ExtResource("4_b1am8")]
 transform = Transform3D(1, -1.50996e-07, 0, 1.50996e-07, 1, 1.56219e-07, -2.3588445e-14, -1.56219e-07, 1, 0, -0.25, 1.262)
-speed = 1.5869657378725923
+speed = 1.3749082336034282
 size = Vector3(0.25, 0.5, 1.524)
