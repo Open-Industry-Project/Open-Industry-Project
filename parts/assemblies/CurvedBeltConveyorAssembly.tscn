@@ -1,14 +1,15 @@
-[gd_scene load_steps=5 format=3 uid="uid://dvpvhht5hn7ww"]
+[gd_scene load_steps=6 format=3 uid="uid://dvpvhht5hn7ww"]
 
 [ext_resource type="Script" uid="uid://bnqnyx54dx1q8" path="res://src/ConveyorAssembly/curved_belt_conveyor_assembly.gd" id="1_5kj7c"]
 [ext_resource type="PackedScene" uid="uid://6vu4cx2v1ltg" path="res://parts/CurvedBeltConveyor.tscn" id="3_a54t1"]
+[ext_resource type="PackedScene" uid="uid://b2hnylsj67c5m" path="res://parts/ConveyorLegCBC.tscn" id="4_qnxuu"]
 [ext_resource type="PackedScene" uid="uid://c1dcpxt5x65et" path="res://parts/SideGuardsCBC.tscn" id="4_wyu5c"]
 [ext_resource type="PackedScene" uid="uid://cidlpglw76h7j" path="res://parts/assemblies/CurvedConveyorLegsAssembly.tscn" id="5_curved_legs"]
 
 [node name="CurvedBeltConveyorAssembly" type="Node3D"]
 process_mode = 3
 script = ExtResource("1_5kj7c")
-inner_radius = 0.25
+inner_radius = 0.5
 conveyor_width = 1.5240000000048894
 belt_height = 0.5
 belt_color = Color(1, 1, 1, 1)
@@ -17,19 +18,24 @@ conveyor_angle = 90.0
 speed = 2.0
 reference_distance = 0.762
 belt_physics_material = null
+enable_comms = false
 speed_tag_group_name = "TagGroup0"
+speed_tag_name = ""
 running_tag_group_name = "TagGroup0"
+running_tag_name = ""
 metadata/_edit_group_ = true
 metadata/_edit_group_ = true
 metadata/hijack_scale = false
 
 [node name="ConveyorCorner" parent="." instance=ExtResource("3_a54t1")]
+inner_radius = 0.5
 conveyor_width = 1.5240000000048894
 
 [node name="ConveyorLegsAssembly" parent="ConveyorCorner" instance=ExtResource("5_curved_legs")]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7486e-07, -2, 0)
+leg_model_scene = ExtResource("4_qnxuu")
 
 [node name="SideGuardsCBC" parent="." instance=ExtResource("4_wyu5c")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.246, 0)
-size = Vector3(3.584, 4, 1)
+size = Vector3(4.048, 4, 1)
