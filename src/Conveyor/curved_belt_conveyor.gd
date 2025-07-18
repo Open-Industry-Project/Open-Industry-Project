@@ -10,7 +10,7 @@ enum ConvTexture {
 	ALTERNATE
 }
 
-const BASE_INNER_RADIUS: float = 0.25
+const BASE_INNER_RADIUS: float = 0.5
 const BASE_OUTER_RADIUS: float = 1.25
 const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 
@@ -33,6 +33,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 @export var belt_height: float = 0.5:
 	set(value):
 		belt_height = max(0.1, value)
+		_mesh_regeneration_needed = true
 		_update_calculated_size()
 		_update_all_components()
 
@@ -77,6 +78,7 @@ func _update_calculated_size() -> void:
 		conveyor_angle = value
 		_mesh_regeneration_needed = true
 		update_visible_meshes()
+		_update_all_components()
 
 @export var speed: float = 2:
 	set(value):
