@@ -241,9 +241,13 @@ func _physics_process(delta: float) -> void:
 		for static_body in _end_static_bodies:
 			var velocity_dir: Vector3
 			if static_body.get_parent().name == "EndAxis2":
-				velocity_dir = Vector3(cos(angle_radians), 0, -sin(angle_radians)).normalized()
+				# Transform the local direction by the conveyor's global transform
+				var local_dir = Vector3(cos(angle_radians), 0, -sin(angle_radians)).normalized()
+				velocity_dir = global_transform.basis * local_dir
 			else:
-				velocity_dir = Vector3(-1, 0, 0)
+				# Transform the local direction by the conveyor's global transform
+				var local_dir = Vector3(-1, 0, 0)
+				velocity_dir = global_transform.basis * local_dir
 			static_body.constant_linear_velocity = velocity_dir * _linear_speed
 	else:
 		if _sb:

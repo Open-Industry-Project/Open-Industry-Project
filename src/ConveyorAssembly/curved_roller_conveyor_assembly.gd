@@ -210,9 +210,8 @@ func _update_attachments() -> void:
 		radians = deg_to_rad(10.0)
 		current_angle = 10.0
 		
-	# Update side guards
-	$SideGuardsCBC.guard_angle = current_angle
-	$SideGuardsCBC.size.x = current_size.x + 0.036
+	# Update side guards with proper radius parameters
+	_update_side_guards_for_curved_conveyor(conveyor, current_angle, current_size)
 
 	# ConveyorLegsAssembly handles its own positioning via _notify_legs_assembly_of_changes()
 	# when conveyor_angle or size properties change
@@ -221,6 +220,30 @@ func _update_attachments() -> void:
 	_last_conveyor_size = current_size
 	_attachment_update_needed = false
 
+func _update_side_guards_for_curved_conveyor(conveyor: Node, angle: float, conveyor_size: Vector3) -> void:
+	var side_guards = $SideGuardsCBC
+	if not side_guards or not side_guards.has_method("update_for_curved_conveyor"):
+		# Fallback to old method if update_for_curved_conveyor doesn't exist
+		side_guards.guard_angle = angle
+		side_guards.size.x = conveyor_size.x + 0.036
+		return
+	
+	# Get radius parameters from the curved roller conveyor
+	var inner_radius: float = 0.25  # Default fallback
+	var conveyor_width: float = 1.0  # Default fallback
+	
+	if "inner_radius" in conveyor and "conveyor_width" in conveyor:
+		inner_radius = conveyor.inner_radius
+		conveyor_width = conveyor.conveyor_width
+	else:
+		# Calculate from size if direct radius properties not available
+		var diameter = conveyor_size.x
+		var outer_radius = diameter / 2.0
+		conveyor_width = 1.0  # Use default conveyor width
+		inner_radius = outer_radius - conveyor_width
+	
+	# Update side guards using proper radius-based method
+	side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, conveyor_size, angle)
 
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:

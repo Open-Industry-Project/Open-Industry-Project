@@ -9,8 +9,9 @@ enum ConvTexture {
 	ALTERNATE
 }
 
-const BASE_INNER_RADIUS: float = 0.5
-const BASE_CONVEYOR_WIDTH: float = 1.524
+const BASE_INNER_RADIUS: float = 0.25
+const BASE_OUTER_RADIUS: float = 1.25
+const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
@@ -823,9 +824,9 @@ func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
 		var local_up = _sb.global_transform.basis.y.normalized()
 		var velocity = -local_up * _angular_speed
-		_sb.constant_angular_velocity = velocity
+		_sb.constant_angular_velocity = velocity * 2.0  # Increase the velocity multiplier
 		if not SimulationEvents.simulation_paused:
-			belt_position += _linear_speed * delta
+			belt_position += _linear_speed * delta * 2.0  # Increase the belt animation speed
 		if _linear_speed != 0:
 		
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(_linear_speed))
