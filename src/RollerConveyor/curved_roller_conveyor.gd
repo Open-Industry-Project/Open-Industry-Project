@@ -15,7 +15,15 @@ enum Scales {LOW, MID, HIGH}
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
-@export var speed: float = 0.0
+@export var speed: float = 0.0:
+	set(value):
+		speed = value
+		_recalculate_speeds()
+		if _register_speed_tag_ok and _speed_tag_group_init:
+			OIPComms.write_float32(speed_tag_group_name, speed_tag_name, value)
+		if _register_running_tag_ok and _running_tag_group_init:
+			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
+
 @export var reference_distance: float = SIZE_DEFAULT.x/2
 
 @export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
@@ -225,7 +233,7 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	if running:
-		var uv_speed = get_roller_angular_speed() / (2.0 * PI)
+		var uv_speed = speed / (2.0 * PI)
 		var uv_offset = roller_material.uv1_offset
 		if !SimulationEvents.simulation_paused:
 			uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
@@ -248,7 +256,7 @@ func _physics_process(delta: float) -> void:
 				# Transform the local direction by the conveyor's global transform
 				var local_dir = Vector3(-1, 0, 0)
 				velocity_dir = global_transform.basis * local_dir
-			static_body.constant_linear_velocity = velocity_dir * _linear_speed
+			static_body.constant_linear_velocity = velocity_dir * speed
 	else:
 		if _sb:
 			_sb.constant_angular_velocity = Vector3.ZERO
@@ -327,7 +335,6 @@ func takeover_roller_material() -> StandardMaterial3D:
 func _recalculate_speeds() -> void:
 	var reference_radius: float = size.x * BASE_OUTER_RADIUS - reference_distance
 	_angular_speed = 0.0 if reference_radius == 0.0 else speed / reference_radius
-	_linear_speed = _angular_speed * (size.x * (BASE_OUTER_RADIUS + BASE_INNER_RADIUS) / 2.0)
 
 func _on_simulation_started() -> void:
 	running = true
