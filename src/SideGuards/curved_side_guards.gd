@@ -113,13 +113,29 @@ func _update_guard_end_pieces() -> void:
 	var base_offset = -0.99
 	var width_response = (_current_conveyor_width) * 0.493
 	
+	# Get parent to check if it's a roller conveyor
+	var parent = get_parent()
+	var is_roller = "CONVEYOR_CLASS_NAME" in parent and parent.CONVEYOR_CLASS_NAME == "CurvedRollerConveyor"
+	
 	var end1_x: float = 0.25
 	var end1_z: float = avg_radius + base_offset + width_response
-	var end1_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+	if is_roller:
+		end1_x -= 0.12  
+	var end1_scale_x: float
+	if is_roller:
+		end1_scale_x = 0.6 + (_current_conveyor_width - 1.0) * 0.01
+	else:
+		end1_scale_x = 1.07 + (_current_conveyor_width - 1.0) * 0.01
 
 	var inner_end1_x: float = 0.25
 	var inner_end1_z: float = _current_inner_radius + 0.01 - base_offset
-	var inner_end1_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+	if is_roller:
+		inner_end1_x -= 0.12
+	var inner_end1_scale_x: float
+	if is_roller:
+		inner_end1_scale_x = 0.6 + (_current_conveyor_width - 1.0) * 0.01
+	else:
+		inner_end1_scale_x = 1.07 + (_current_conveyor_width - 1.0) * 0.01
 
 	var outer_end1 = get_node_or_null("OuterSideGuardEnd")
 	var inner_end1 = get_node_or_null("InnerSideGuardEnd")
@@ -143,14 +159,26 @@ func _update_guard_end_pieces() -> void:
 	
 	end2_x += outward_offset_x
 	end2_z += outward_offset_z
-	var end2_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+	if is_roller:
+		end2_z += 0.12
+	var end2_scale_x: float
+	if is_roller:
+		end2_scale_x = 0.6 + (_current_conveyor_width - 1.0) * 0.01
+	else:
+		end2_scale_x = 1.07 + (_current_conveyor_width - 1.0) * 0.01
 
 	var inner_end2_x: float = -sin(radians) * (_current_inner_radius + 0.01 - base_offset)
 	var inner_end2_z: float = cos(radians) * (_current_inner_radius + 0.01 - base_offset)
 	
 	inner_end2_x += outward_offset_x
 	inner_end2_z += outward_offset_z
-	var inner_end2_scale_x: float = 1.07 + (_current_conveyor_width - 1.0) * 0.01
+	if is_roller:
+		inner_end2_z += 0.12
+	var inner_end2_scale_x: float
+	if is_roller:
+		inner_end2_scale_x = 0.6 + (_current_conveyor_width - 1.0) * 0.01
+	else:
+		inner_end2_scale_x = 1.07 + (_current_conveyor_width - 1.0) * 0.01
 
 	var outer_end2 = get_node_or_null("OuterSideGuardEnd2")
 	var inner_end2 = get_node_or_null("InnerSideGuardEnd2")
