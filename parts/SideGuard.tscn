@@ -8,7 +8,7 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_1ah88"]
 render_priority = 0
 shader = ExtResource("2_ydsd4")
-shader_parameter/Scale = 1.0
+shader_parameter/Scale = 3.5
 shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
@@ -49,8 +49,10 @@ shadow_mesh = SubResource("ArrayMesh_gn6s2")
 size = Vector3(1, 0.602947, 0.0693115)
 
 [node name="SideGuard" type="MeshInstance3D"]
+transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_nnfrr")
 script = ExtResource("2_1ah88")
+length = 3.5
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 disable_mode = 1
@@ -63,7 +65,7 @@ shape = SubResource("BoxShape3D_mn2rf")
 [node name="Ends" type="Node3D" parent="."]
 
 [node name="SideGuardEndL" parent="Ends" instance=ExtResource("3_e6wdq")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0, 0)
+transform = Transform3D(0.2857143, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0, 0)
 
 [node name="SideGuardEndR" parent="Ends" instance=ExtResource("4_e8bpb")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
+transform = Transform3D(0.2857143, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
