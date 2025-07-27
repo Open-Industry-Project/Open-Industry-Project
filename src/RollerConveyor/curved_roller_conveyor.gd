@@ -495,9 +495,8 @@ func _create_conveyor_collision_shape() -> void:
 			all_verts[all_indices[i + 2]]
 		])
 
-	var shape: ConcavePolygonShape3D = ConcavePolygonShape3D.new()
+	var shape: ConcavePolygonShape3D = collision_shape.shape
 	shape.data = triangle_verts
-	collision_shape.shape = shape
 	collision_shape.scale = Vector3.ONE
 
 func _create_surfaces() -> Dictionary:
