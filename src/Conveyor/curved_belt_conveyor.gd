@@ -290,7 +290,7 @@ func _update_belt_ends_size() -> void:
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	
-	# Calculate the new end size based on conveyor width (now absolute)
+	# Calculate the new end size based on conveyor width
 	var end_size = Vector3(size.y, size.y, conveyor_width)
 	
 	if ce1:
@@ -756,18 +756,15 @@ func _add_surfaces_to_mesh(surfaces: Dictionary, mesh_instance: ArrayMesh) -> vo
 		arrays[Mesh.ARRAY_INDEX] = surface.indices
 		mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-		# Apply appropriate material based on surface
 		var material_to_use = _belt_material
 		if surface_name == "sides":
 			material_to_use = _metal_material
 		mesh_instance.surface_set_material(surface_index, material_to_use)
 
 func _setup_collision_shape() -> void:
-	# Create collision shape
 	var collision_shape: CollisionShape3D = $StaticBody3D.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	assert(collision_shape != null, "CollisionShape3D node is missing!")
 
-	# Combine all surfaces for collision
 	var all_verts: PackedVector3Array = PackedVector3Array()
 	var all_indices: PackedInt32Array = PackedInt32Array()
 
@@ -794,9 +791,8 @@ func _setup_collision_shape() -> void:
 	for vert in triangle_verts:
 		scaled_verts.append(Vector3(vert.x * 0.5, vert.y * 1.0, vert.z * 0.5))
 
-	var shape: ConcavePolygonShape3D = ConcavePolygonShape3D.new()
+	var shape: ConcavePolygonShape3D = collision_shape.shape
 	shape.data = scaled_verts
-	collision_shape.shape = shape
 	collision_shape.scale = Vector3.ONE
 
 func _enter_tree() -> void:
@@ -833,10 +829,13 @@ func _notification(what: int) -> void:
 		set_notify_local_transform(true)
 
 func _recalculate_speeds() -> void:
-	var outer_radius_val: float = (inner_radius + conveyor_width) * size.x
+	var outer_radius_val: float = inner_radius + conveyor_width
 	var reference_radius: float = outer_radius_val - reference_distance
 	_angular_speed = 0.0 if reference_radius == 0.0 else speed / reference_radius
-	_linear_speed = _angular_speed * (size.x * (inner_radius + conveyor_width + inner_radius) / 2.0)
+	
+	var center_radius: float = (inner_radius + outer_radius_val) / 2.0
+	_linear_speed = _angular_speed * center_radius
+	
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	if ce1:
@@ -867,6 +866,13 @@ func _update_metal_material_scale() -> void:
 		(_metal_material as ShaderMaterial).set_shader_parameter("Scale2", 1.0)
 
 func _on_simulation_started() -> void:
+	var ce1 = get_conveyor_end1()
+	var ce2 = get_conveyor_end2()
+	if ce1:
+		ce1.speed = _linear_speed
+	if ce2:
+		ce2.speed = _linear_speed
+	
 	if enable_comms:
 		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
 		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)

@@ -136,16 +136,15 @@ func _update_collision_and_visibility() -> void:
 
 
 func _update_belt_velocity() -> void:
-	if SimulationEvents.simulation_running:
+	if not _static_body:
+		return
+		
+	if SimulationEvents.simulation_running or speed != 0:
 		var local_front: Vector3 = global_transform.basis.z.normalized()
 		var radius: float = size.x
 		var new_velocity: Vector3 = local_front * speed / radius
 		if _static_body.constant_angular_velocity != new_velocity:
 			_static_body.constant_angular_velocity = new_velocity
-	else:
-		if not is_inside_tree():
-			return
-		_static_body.constant_angular_velocity = Vector3.ZERO
 
 
 func _update_marker_positions() -> void:
@@ -189,4 +188,6 @@ func _on_simulation_started() -> void:
 func _on_simulation_ended() -> void:
 	_belt_position = 0.0
 	_update_belt_material_position()
-	_update_belt_velocity()
+	if not is_inside_tree() or not _static_body:
+		return
+	_static_body.constant_angular_velocity = Vector3.ZERO
