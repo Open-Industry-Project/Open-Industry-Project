@@ -51,10 +51,10 @@ enum ConvTexture {
 		if sb_end2:
 			sb_end2.physics_material_override = value
 
-var _sb: StaticBody3D
-var _ce1: BeltConveyorEnd
-var _ce2: BeltConveyorEnd
-var _mesh: MeshInstance3D
+@onready var _sb: StaticBody3D = get_node("StaticBody3D")
+@onready var _ce1: BeltConveyorEnd = get_node("BeltConveyorEnd")
+@onready var _ce2: BeltConveyorEnd = get_node("BeltConveyorEnd2")
+@onready var _mesh: MeshInstance3D = get_node("MeshInstance3D")
 var _belt_material: Material
 var _metal_material: Material
 var _belt_position: float = 0.0
@@ -206,10 +206,6 @@ func fix_material_overrides() -> void:
 
 
 func _setup_references() -> void:
-	_sb = get_node("StaticBody3D") as StaticBody3D
-	_ce1 = get_node("BeltConveyorEnd") as BeltConveyorEnd
-	_ce2 = get_node("BeltConveyorEnd2") as BeltConveyorEnd
-	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	_belt_material = _mesh.mesh.surface_get_material(0)
 	_metal_material = _mesh.mesh.surface_get_material(1)
 

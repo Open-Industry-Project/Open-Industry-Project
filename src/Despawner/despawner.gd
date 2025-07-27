@@ -9,7 +9,7 @@ extends Node3D
 	get:
 		return _area_3d.monitoring if _area_3d else true
 
-var _area_3d: Area3D
+@onready var _area_3d: Area3D = get_node("Area3D")
 
 
 func _enter_tree() -> void:
@@ -18,7 +18,6 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	_area_3d = get_node("Area3D") as Area3D
 	_area_3d.body_entered.connect(_body_entered)
 
 

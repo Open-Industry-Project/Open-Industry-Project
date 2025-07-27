@@ -5,8 +5,8 @@ extends Node3D
 @export var text: String = "STOP":
 	set(value):
 		text = value
-		var _text: Label3D = $Text
-		_text.text = text
+		if _text:
+			_text.text = text
 
 @export var toggle: bool = false:
 	set(value):
@@ -71,12 +71,11 @@ var _enable_comms_changed: bool = false:
 		notify_property_list_changed()
 var _tag_group_init: bool = false
 
-var _button_mesh: MeshInstance3D:
-	get:
-		return $Meshes/Button
+@onready var _text: Label3D = $Text
+@onready var _button_mesh: MeshInstance3D = $Meshes/Button
 var _button_material: StandardMaterial3D:
 	get:
-		return _button_mesh.mesh.surface_get_material(0)
+		return _button_mesh.mesh.surface_get_material(0) if _button_mesh else null
 
 @export_category("Communications")
 @export var enable_comms: bool = false

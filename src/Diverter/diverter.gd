@@ -15,13 +15,14 @@ var _fire_divert: bool = false:
 var _cycled: bool = true
 var _diverting: bool = false
 var _previous_fire_divert_state: bool = false
-var _diverter_animator: DiverterAnimator
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
 var _tag_group_original: String
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
+
+@onready var _diverter_animator: DiverterAnimator = $DiverterAnimator
 
 @export_category("Communications")
 @export var enable_comms: bool = false
@@ -67,9 +68,6 @@ func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-
-func _ready() -> void:
-	_diverter_animator = $DiverterAnimator
 
 func use() -> void:
 	divert()

@@ -13,12 +13,13 @@ extends Node3D
 			mat.albedo_color = color
 			_mesh_instance_3d.mesh.surface_set_material(0, mat)
 
-var _rigid_body: RigidBody3D
-var _mesh_instance_3d: MeshInstance3D
 var _initial_transform: Transform3D
 var instanced: bool = false
 var _paused: bool = false
 var _enable_initial_transform: bool = false
+
+@onready var _rigid_body: RigidBody3D = $RigidBody3D
+@onready var _mesh_instance_3d: MeshInstance3D = $RigidBody3D/MeshInstance3D
 
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
@@ -26,8 +27,6 @@ func _enter_tree() -> void:
 	SimulationEvents.simulation_set_paused.connect(_on_simulation_set_paused)
 
 func _ready() -> void:
-	_rigid_body = $RigidBody3D
-	_mesh_instance_3d = $RigidBody3D/MeshInstance3D
 	_rigid_body.freeze = not SimulationEvents.simulation_running
 	if SimulationEvents.simulation_running:
 		instanced = true

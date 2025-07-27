@@ -18,10 +18,11 @@ extends ResizableNode3D
 		_update_collision_and_visibility()
 
 var _belt_position: float = 0.0
-var _static_body: StaticBody3D
-var _mesh: MeshInstance3D
 var _belt_material: ShaderMaterial
 var _metal_material: ShaderMaterial
+
+@onready var _static_body: StaticBody3D = get_node("StaticBody3D")
+@onready var _mesh: MeshInstance3D = get_node("MeshInstance3D")
 
 
 func _init() -> void:
@@ -85,8 +86,6 @@ func update_belt_texture(is_standard_texture: bool) -> void:
 
 
 func _setup_references() -> void:
-	_static_body = get_node("StaticBody3D") as StaticBody3D
-	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	_belt_material = _mesh.mesh.surface_get_material(0) as ShaderMaterial
 	_metal_material = _mesh.mesh.surface_get_material(1) as ShaderMaterial
 	

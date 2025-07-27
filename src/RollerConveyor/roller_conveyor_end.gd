@@ -8,14 +8,13 @@ extends AbstractRollerContainer
 			flipped = value
 			roller_rotation_changed.emit(_get_rotation_from_skew_angle(_roller_skew_angle_degrees))
 
-var _roller: Roller
+@onready var _roller: Roller = get_node("Roller")
 
 func _init() -> void:
 	super()
 	width_changed.connect(self._set_ends_separation)
 
 func setup_existing_rollers() -> void:
-	_roller = get_node("Roller")
 	super.setup_existing_rollers()
 
 func _get_rollers() -> Array[Roller]:

@@ -57,18 +57,19 @@ var tag_name: String = ""
 var _segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")
 var _data: StackLightData = load("res://src/StackLight/StackLightData.tres")
 var _prev_scale: Vector3
-var _segments_container: Node3D
-var _top_mesh: MeshInstance3D
+var _top_mesh_initial_y_pos: float
 var _segment_initial_y_pos: float
-var _bottom_mesh: MeshInstance3D
-var _stem_mesh: MeshInstance3D
-var _mid_mesh: MeshInstance3D
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
 var _tag_group_original: String
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
+
+@onready var _segments_container: Node3D = get_node("Mid/Segments")
+@onready var _top_mesh: MeshInstance3D = get_node("Mid/Top")
+@onready var _bottom_mesh: MeshInstance3D = get_node("Bottom")
+@onready var _mid_mesh: MeshInstance3D = get_node("Mid")
 
 
 func _get(property: StringName) -> Variant:
@@ -164,10 +165,6 @@ func _ready() -> void:
 	set_notify_transform(true)
 	_data = _data.duplicate(true)
 	_data.init_segments(segments)
-	_segments_container = get_node("Mid/Segments")
-	_top_mesh = get_node("Mid/Top")
-	_bottom_mesh = get_node("Bottom")
-	_mid_mesh = get_node("Mid")
 
 	var current_child_count := _segments_container.get_child_count()
 	var difference := segments - current_child_count

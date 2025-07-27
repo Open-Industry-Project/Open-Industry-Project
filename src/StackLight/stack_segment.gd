@@ -20,11 +20,10 @@ signal active_state_changed(index: int, active: bool)
 		segment_data.color_changed.connect(_on_color_changed)
 
 var index: int = -1
-var _mesh_instance: MeshInstance3D
+@onready var _mesh_instance: MeshInstance3D = $LightMesh
 var _material: StandardMaterial3D
 
 func _ready() -> void:
-	_mesh_instance = $LightMesh
 	_mesh_instance.mesh = _mesh_instance.mesh.duplicate()
 
 	_material = _mesh_instance.mesh.surface_get_material(0).duplicate() as StandardMaterial3D

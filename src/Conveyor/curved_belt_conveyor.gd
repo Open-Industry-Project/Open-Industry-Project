@@ -111,7 +111,6 @@ func _update_calculated_size() -> void:
 		if sb_end2:
 			sb_end2.physics_material_override = value
 
-var _sb: StaticBody3D
 var mesh: MeshInstance3D
 var _belt_material: Material
 var _metal_material: Material
@@ -120,7 +119,11 @@ var origin: Vector3
 var _angular_speed: float = 0.0
 var _linear_speed: float = 0.0
 var _prev_scale_x: float = 1.0
-var curved_mesh: MeshInstance3D
+
+@onready var _sb: StaticBody3D = get_node("StaticBody3D")
+@onready var curved_mesh: MeshInstance3D = $MeshInstance3D
+@onready var _conveyor_end1: Node = get_node_or_null("BeltConveyorEnd")
+@onready var _conveyor_end2: Node = get_node_or_null("BeltConveyorEnd2")
 
 # Add tracking variables to control when mesh regeneration is needed
 var _mesh_regeneration_needed: bool = true
@@ -183,10 +186,10 @@ func _property_get_revert(property: StringName) -> Variant:
 
 
 func get_conveyor_end1() -> Node:
-	return get_node_or_null("BeltConveyorEnd")
+	return _conveyor_end1
 
 func get_conveyor_end2() -> Node:
-	return get_node_or_null("BeltConveyorEnd2")
+	return _conveyor_end2
 
 func set_belt_material_shader_params_on_ends() -> void:
 	var ce1 = get_conveyor_end1()
@@ -214,7 +217,6 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	_sb = get_node("StaticBody3D") as StaticBody3D
 	origin = _sb.position
 	
 	var collision_shape = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
@@ -395,7 +397,6 @@ func _create_conveyor_mesh() -> void:
 
 	_add_surfaces_to_mesh(surfaces, mesh_instance)
 
-	curved_mesh = $MeshInstance3D
 	curved_mesh.mesh = mesh_instance
 
 func _setup_materials() -> void:

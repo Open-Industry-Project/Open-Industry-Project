@@ -28,27 +28,22 @@ extends MeshInstance3D
 				r_end.scale = Vector3(1 / length, 1, 1)
 
 var _metal_material: ShaderMaterial = null
-var _l_end: Node3D = null
-var _r_end: Node3D = null
 var prev_scale: Vector3
+
+@onready var _l_end: Node3D = get_node("Ends/SideGuardEndL")
+@onready var _r_end: Node3D = get_node("Ends/SideGuardEndR")
 
 var l_end: Node3D:
 	get:
-		if _l_end and is_instance_valid(_l_end):
-			return _l_end
-		_l_end = get_node("Ends/SideGuardEndL") as Node3D
 		return _l_end
 
 var r_end: Node3D:
 	get:
-		if _r_end and is_instance_valid(_r_end):
-			return _r_end
-		_r_end = get_node("Ends/SideGuardEndR") as Node3D
 		return _r_end
 
 
 func _enter_tree() -> void:
-	length = scale.x
+	#length = scale.x
 	set_notify_local_transform(true)
 
 

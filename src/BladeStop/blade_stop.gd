@@ -31,12 +31,12 @@ var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
 
-var _blade: StaticBody3D
-var _air_pressure_r: MeshInstance3D
-var _air_pressure_l: MeshInstance3D
-var _blade_corner_r: MeshInstance3D
-var _blade_corner_l: MeshInstance3D
-var _corners: Node3D
+@onready var _blade: StaticBody3D = $Blade
+@onready var _air_pressure_r: MeshInstance3D = $Corners/AirPressureR
+@onready var _air_pressure_l: MeshInstance3D = $Corners/AirPressureL
+@onready var _blade_corner_r: MeshInstance3D = $Corners/AirPressureR/BladeCornerR
+@onready var _blade_corner_l: MeshInstance3D = $Corners/AirPressureL/BladeCornerL
+@onready var _corners: Node3D = $Corners
 
 @export_category("Communications")
 @export var enable_comms: bool = false
@@ -90,13 +90,6 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
-	_blade = $Blade
-	_air_pressure_r = $Corners/AirPressureR
-	_air_pressure_l = $Corners/AirPressureL
-	_blade_corner_r = $Corners/AirPressureR/BladeCornerR
-	_blade_corner_l = $Corners/AirPressureL/BladeCornerL
-	_corners = $Corners
-
 	_blade.position = Vector3(_blade.position.x, air_pressure_height, _blade.position.z)
 	_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 	_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)
