@@ -26,6 +26,8 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		_mesh_regeneration_needed = true
 		_update_mesh()
 		_update_end_axis_angle()
+		_update_side_guards()
+		_update_assembly_components()
 
 
 var _register_speed_tag_ok: bool = false
@@ -113,7 +115,6 @@ var center_radius: float:
 	get:
 		return (outer_radius + inner_radius) / 2.0
 
-# Property getters/setters
 func get_enable_comms() -> bool:
 	return enable_comms
 
@@ -173,13 +174,16 @@ func _ready() -> void:
 		add_child(_sb)
 		_sb.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 
-	# Ensure collision shape exists
+	# Ensure collision shape exists and is unique to this instance
 	var collision_shape = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if not collision_shape:
 		collision_shape = CollisionShape3D.new()
 		collision_shape.name = "CollisionShape3D"
 		_sb.add_child(collision_shape)
 		collision_shape.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
+	
+	if collision_shape.shape:
+		collision_shape.shape = collision_shape.shape.duplicate()
 
 	_on_size_changed()
 	_recalculate_speeds()
@@ -199,7 +203,6 @@ func _ready() -> void:
 		add_child(inner_mesh)
 		inner_mesh.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 
-	# Set up materials
 	_setup_materials()
 	_mesh_regeneration_needed = true
 	_update_mesh()
@@ -273,6 +276,9 @@ func _on_size_changed() -> void:
 	
 	if _last_size != size:
 		_mesh_regeneration_needed = true
+	
+	_update_side_guards()
+	_update_assembly_components()
 	
 	_update_mesh()
 
@@ -425,7 +431,6 @@ func _update_mesh() -> void:
 		_last_conveyor_angle = conveyor_angle
 		_last_size = size
 
-	# Update roller visibility based on conveyor_angle
 	var angle_proportion = conveyor_angle / 90.0
 
 	if rollers_low:
@@ -838,3 +843,30 @@ func _create_outer_mesh() -> void:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(0, shader_material)
 	inner_mesh.mesh = mesh
+
+func _update_side_guards() -> void:
+	var parent_node = get_parent()
+	if parent_node:
+		var side_guards = parent_node.get_node_or_null("SideGuardsCBC")
+		if not side_guards:
+			side_guards = parent_node.get_node_or_null("SideGuardsAssembly") 
+		if not side_guards:
+			side_guards = parent_node.get_node_or_null("%SideGuardsAssembly")
+		
+		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
+			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+
+func _update_assembly_components() -> void:
+	var parent_node = get_parent()
+	if not parent_node:
+		return
+	
+	if parent_node.has_method("update_attachments_for_curved_conveyor"):
+		parent_node.update_attachments_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+	else:
+		var legs_assembly = parent_node.get_node_or_null("ConveyorLegsAssembly")
+		if not legs_assembly:
+			legs_assembly = parent_node.get_node_or_null("%ConveyorLegsAssembly")
+		
+		if legs_assembly and legs_assembly.has_method("update_for_curved_conveyor"):
+			legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)

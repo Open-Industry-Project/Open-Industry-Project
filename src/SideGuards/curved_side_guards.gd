@@ -28,7 +28,6 @@ var _prev_scale_x: float = 1.0
 var outer_mesh: MeshInstance3D = null
 var inner_mesh: MeshInstance3D = null
 
-# Store radius parameters for direct use in mesh generation
 var _current_inner_radius: float = 0.25
 var _current_conveyor_width: float = 1.0
 
@@ -36,15 +35,12 @@ func _init() -> void:
 	set_notify_local_transform(true)
 
 func _ready() -> void:
-	# Initialize stored radius parameters from size (fallback for initial creation)
 	if _current_inner_radius == 0.25 and _current_conveyor_width == 1.0:
-		# Extract initial values from size if not yet set by update_for_curved_conveyor
 		var diameter = size.x - 0.036
 		var outer_radius = diameter / 2.0
 		_current_conveyor_width = 1.0  # Use default conveyor width
 		_current_inner_radius = outer_radius - _current_conveyor_width
 	
-	# Initialize outer guard mesh
 	outer_mesh = find_child('OuterSideGuard') as MeshInstance3D
 	if not outer_mesh:
 		outer_mesh = MeshInstance3D.new()
@@ -52,7 +48,6 @@ func _ready() -> void:
 		add_child(outer_mesh)
 		outer_mesh.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 	
-	# Initialize inner guard mesh
 	inner_mesh = find_child('InnerSideGuard') as MeshInstance3D
 	if not inner_mesh:
 		inner_mesh = MeshInstance3D.new()
@@ -60,40 +55,55 @@ func _ready() -> void:
 		add_child(inner_mesh)
 		inner_mesh.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 	
-	# Set up materials
 	_setup_materials()
+	_ensure_unique_collision_shapes()
+	_ensure_unique_mesh_resources()
+	
 	_prev_scale_x = size.x
 	
 	_update_mesh()
 
 func _setup_materials() -> void:
-	# Configure outer guard material
 	shader_material = ShaderMaterial.new()
 	shader_material.shader = load('res://assets/3DModels/Shaders/SideGuardShaderCBC.tres') as Shader
 	shader_material.set_shader_parameter('Color', Color('#56a7c8'))
 	
-	# Configure inner guard material with brighter visibility
 	inner_shader_material = ShaderMaterial.new()
 	inner_shader_material.shader = load('res://assets/3DModels/Shaders/SideGuardShaderCBC.tres') as Shader
 	inner_shader_material.set_shader_parameter('Color', Color('#56a7c8'))
 	
-	# Update material scale parameters
 	_update_material_scale()
+
+func _ensure_unique_collision_shapes() -> void:
+	if outer_mesh:
+		var static_body = outer_mesh.get_node_or_null("StaticBody3D") as StaticBody3D
+		if static_body:
+			var collision_shape = static_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+			if collision_shape and collision_shape.shape:
+				collision_shape.shape = collision_shape.shape.duplicate()
+	
+	if inner_mesh:
+		var static_body = inner_mesh.get_node_or_null("StaticBody3D") as StaticBody3D
+		if static_body:
+			var collision_shape = static_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+			if collision_shape and collision_shape.shape:
+				collision_shape.shape = collision_shape.shape.duplicate()
+
+func _ensure_unique_mesh_resources() -> void:
+	if outer_mesh and outer_mesh.mesh:
+		outer_mesh.mesh = outer_mesh.mesh.duplicate()
+	if inner_mesh and inner_mesh.mesh:
+		inner_mesh.mesh = inner_mesh.mesh.duplicate()
 
 func _update_mesh() -> void:
 	if not is_inside_tree() or not outer_mesh or not inner_mesh:
 		return
-	
-	# Generate meshes
 	_create_outer_guard_mesh()
 	_create_inner_guard_mesh()
 	
-	# Update material scale and collision shapes
 	_update_material_scale()
 	_setup_collision_shape(outer_mesh, false)
 	_setup_collision_shape(inner_mesh, true)
-	
-	# Position guard end pieces
 	_update_guard_end_pieces()
 	
 func _update_guard_end_pieces() -> void:
@@ -158,7 +168,7 @@ func _update_guard_end_pieces() -> void:
 func _create_outer_guard_mesh() -> void:
 	var mesh := ArrayMesh.new()
 	
-	# Calculate dimensions using stored radius parameters directly
+
 	var radius_outer: float = _current_inner_radius + _current_conveyor_width + 0.08
 	var height: float = BASE_HEIGHT * size.y
 	var thickness: float = MIDDLE_THICKNESS
@@ -168,11 +178,9 @@ func _create_outer_guard_mesh() -> void:
 	var lip_outward: float = 0.05
 	var lip_inward: float = 0.05
 	
-	# Calculate segments based on guard angle
 	var segments: int = int(guard_angle / 9.0)
 	var angle_radians: float = deg_to_rad(guard_angle)
 	
-	# Initialize mesh arrays
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -503,7 +511,7 @@ func _create_outer_guard_mesh() -> void:
 func _create_inner_guard_mesh() -> void:
 	var mesh := ArrayMesh.new()
 	
-	# Calculate inner guard radius using stored radius parameters directly
+
 	# Inner guard should be at the inner radius of the conveyor
 	var radius_outer: float = _current_inner_radius - 0.06  # Slightly inside the inner edge
 	var height: float = BASE_HEIGHT * size.y
@@ -513,11 +521,9 @@ func _create_inner_guard_mesh() -> void:
 	var lip_outward: float = 0.05
 	var lip_inward: float = 0.05
 	
-	# Calculate segments
 	var segments: int = int(guard_angle / 9.0)
 	var angle_radians: float = deg_to_rad(guard_angle)
 	
-	# Initialize mesh arrays
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -860,18 +866,17 @@ func _update_material_scale() -> void:
 		var guard_length: float = 2.0 * PI * avg_radius * angle_portion
 		var guard_scale: float = guard_length / (PI * 1.0)
 		
-		# Update outer guard shader parameters
+	
 		shader_material.set_shader_parameter('Scale', size.x)
 		shader_material.set_shader_parameter('Scale2', size.y)
 		shader_material.set_shader_parameter('EdgeScale', guard_scale * 1.2)
 		
-		# Update inner guard shader parameters
+	
 		inner_shader_material.set_shader_parameter('Scale', size.x)
 		inner_shader_material.set_shader_parameter('Scale2', size.y)
 		inner_shader_material.set_shader_parameter('EdgeScale', guard_scale * 1.2)
 
 func _setup_collision_shape(mesh_instance: MeshInstance3D, is_inner: bool) -> void:
-	# Initialize static body
 	var static_body: StaticBody3D = mesh_instance.get_node_or_null('StaticBody3D') as StaticBody3D
 	if not static_body:
 		static_body = StaticBody3D.new()
@@ -879,7 +884,6 @@ func _setup_collision_shape(mesh_instance: MeshInstance3D, is_inner: bool) -> vo
 		mesh_instance.add_child(static_body)
 		static_body.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 	
-	# Initialize collision shape
 	var collision_shape: CollisionShape3D = static_body.get_node_or_null('CollisionShape3D') as CollisionShape3D
 	if not collision_shape:
 		collision_shape = CollisionShape3D.new()
@@ -887,12 +891,10 @@ func _setup_collision_shape(mesh_instance: MeshInstance3D, is_inner: bool) -> vo
 		static_body.add_child(collision_shape)
 		collision_shape.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 	
-	# Get mesh data
 	var mesh: ArrayMesh = mesh_instance.mesh
 	if not mesh:
 		return
 	
-	# Combine surface data
 	var all_vertices := PackedVector3Array()
 	var all_indices := PackedInt32Array()
 	
@@ -904,7 +906,7 @@ func _setup_collision_shape(mesh_instance: MeshInstance3D, is_inner: bool) -> vo
 		for i in surface[Mesh.ARRAY_INDEX]:
 			all_indices.append(base_index + i)
 	
-	# Create triangle vertices
+
 	var triangle_vertices := PackedVector3Array()
 	for i in range(0, all_indices.size(), 3):
 		if i + 2 >= all_indices.size():
@@ -915,34 +917,35 @@ func _setup_collision_shape(mesh_instance: MeshInstance3D, is_inner: bool) -> vo
 			all_vertices[all_indices[i + 2]]
 		])
 	
-	# Apply scaling
+
 	var scaled_vertices := PackedVector3Array()
 	for vertex in triangle_vertices:
 		scaled_vertices.append(Vector3(vertex.x * 1.0, vertex.y * 1.0, vertex.z * 1.0))
 	
-	# Assign collision shape
-	var shape := ConcavePolygonShape3D.new()
+	# Reuse existing collision shape if possible, otherwise create new one
+	var shape: ConcavePolygonShape3D
+	if collision_shape.shape != null and collision_shape.shape is ConcavePolygonShape3D:
+		shape = collision_shape.shape as ConcavePolygonShape3D
+	else:
+		shape = ConcavePolygonShape3D.new()
+		collision_shape.shape = shape
+	
 	shape.data = scaled_vertices
-	collision_shape.shape = shape
 
 
-## Called by curved conveyor when inner_radius or conveyor_width changes
 func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
 	if not is_inside_tree():
 		return
 	
-	# Early return if values haven't changed (avoid redundant updates)
 	var tolerance = 0.0001
 	if abs(_current_inner_radius - inner_radius) < tolerance and \
 	   abs(_current_conveyor_width - conveyor_width) < tolerance and \
 	   abs(guard_angle - conveyor_angle) < tolerance:
 		return
 	
-	# Store the radius parameters for direct use in mesh generation
 	_current_inner_radius = inner_radius
 	_current_conveyor_width = conveyor_width
 	
-	# Update guard angle to match conveyor angle
 	guard_angle = conveyor_angle
 	
 	# Calculate new size based on absolute conveyor parameters (for compatibility)

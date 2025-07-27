@@ -2,7 +2,6 @@
 class_name CurvedBeltConveyor
 extends Node3D
 
-## Emitted when size changes (for compatibility with legs assembly)
 signal size_changed
 
 enum ConvTexture {
@@ -52,7 +51,6 @@ func _update_calculated_size() -> void:
 	var old_size = _calculated_size
 	_calculated_size = Vector3(diameter, belt_height, diameter)
 	
-	# Emit size_changed signal when size changes
 	if old_size != _calculated_size:
 		size_changed.emit()
 
@@ -218,6 +216,14 @@ func _init() -> void:
 func _ready() -> void:
 	_sb = get_node("StaticBody3D") as StaticBody3D
 	origin = _sb.position
+	
+	var collision_shape = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if collision_shape and collision_shape.shape:
+		collision_shape.shape = collision_shape.shape.duplicate()
+	
+	var main_mesh_instance = get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if main_mesh_instance and main_mesh_instance.mesh:
+		main_mesh_instance.mesh = main_mesh_instance.mesh.duplicate()
 
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
@@ -290,7 +296,7 @@ func _update_belt_ends_size() -> void:
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	
-	# Calculate the new end size based on conveyor width
+
 	var end_size = Vector3(size.y, size.y, conveyor_width)
 	
 	if ce1:
@@ -301,61 +307,32 @@ func _update_belt_ends_size() -> void:
 		ce2.speed = _linear_speed
 
 func _update_side_guards() -> void:
-	# Update side guards attached to parent assembly
 	var parent_node = get_parent()
 	if parent_node:
-		# Try specific names for curved conveyor side guards
 		var side_guards = parent_node.get_node_or_null("SideGuardsCBC")
 		if not side_guards:
 			side_guards = parent_node.get_node_or_null("SideGuardsAssembly") 
 		if not side_guards:
 			side_guards = parent_node.get_node_or_null("%SideGuardsAssembly")
 		
-		# Try to find SideGuardsCBC more aggressively
-		if not side_guards:
-			# Search all children recursively for SideGuardsCBC
-			for child in parent_node.get_children():
-				if child.name == "SideGuardsCBC" or child.get_script() and child.get_script().get_global_name() == "CurvedSideGuards":
-					side_guards = child
-					break
-				# Check nested children
-				for nested_child in child.get_children():
-					if nested_child.name == "SideGuardsCBC" or nested_child.get_script() and nested_child.get_script().get_global_name() == "CurvedSideGuards":
-						side_guards = nested_child
-						break
-		
 		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
 			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
-		else:
-			# Fallback: search all siblings for side guards
-			for sibling in parent_node.get_children():
-				if sibling != self and sibling.name.contains("SideGuards") and sibling.has_method("update_for_curved_conveyor"):
-					sibling.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
-					break
 
 func _update_assembly_components() -> void:
-	# Update assembly components (legs, etc.)
 	var parent_node = get_parent()
 	if not parent_node:
 		return
 	
-	# Check if parent is an assembly with the update method
 	if parent_node.has_method("update_attachments_for_curved_conveyor"):
 		parent_node.update_attachments_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
 	else:
-		# Fallback: find legs assembly directly
 		var legs_assembly = parent_node.get_node_or_null("ConveyorLegsAssembly")
 		if not legs_assembly:
 			legs_assembly = parent_node.get_node_or_null("%ConveyorLegsAssembly")
 		
 		if legs_assembly and legs_assembly.has_method("update_for_curved_conveyor"):
 			legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
-		else:
-			# Search for any legs components
-			for sibling in parent_node.get_children():
-				if sibling != self and sibling.name.contains("Legs") and sibling.has_method("update_for_curved_conveyor"):
-					sibling.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
-					break
+		# Removed aggressive fallback search that was updating legs from other assemblies
 
 func update_visible_meshes() -> void:
 	if not is_inside_tree():
@@ -418,7 +395,6 @@ func _create_conveyor_mesh() -> void:
 
 	_add_surfaces_to_mesh(surfaces, mesh_instance)
 
-	# Assign mesh to MeshInstance3D
 	curved_mesh = $MeshInstance3D
 	curved_mesh.mesh = mesh_instance
 
@@ -526,7 +502,7 @@ func _build_belt_surfaces(surfaces: Dictionary, edges: Dictionary, all_vertices:
 	_add_belt_edges_to_surfaces(surfaces, edges)
 
 func _build_top_and_bottom_surfaces(surfaces: Dictionary, all_vertices: Array) -> void:
-	# Create top surface
+
 	for i in range(len(all_vertices)):
 		var vertex_data = all_vertices[i]
 		surfaces.top.vertices.append_array([vertex_data.inner_top, vertex_data.outer_top])
@@ -545,7 +521,7 @@ func _build_top_and_bottom_surfaces(surfaces: Dictionary, all_vertices: Array) -
 		"offset_v": texture_offset_v
 	}
 
-	# Create bottom surface
+
 	for i in range(len(all_vertices)):
 		var vertex_data = all_vertices[i]
 		surfaces.bottom.vertices.append_array([vertex_data.inner_bottom, vertex_data.outer_bottom])
@@ -553,7 +529,7 @@ func _build_top_and_bottom_surfaces(surfaces: Dictionary, all_vertices: Array) -
 		surfaces.bottom.uvs.append_array([Vector2(0, vertex_data.t), Vector2(1, vertex_data.t)])
 
 func _create_surface_triangles(surfaces: Dictionary, segments: int) -> void:
-	# Create triangles for top and bottom
+
 	for i in range(segments):
 		var idx = i * 2
 		_add_double_sided_triangle(surfaces.top.indices, idx, idx + 1, idx + 3)
@@ -618,7 +594,7 @@ func _create_inner_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: 
 		var top_diag_normal: Vector3 = Vector3(normal.x * 0.8, -0.8, normal.z * 0.8).normalized()
 		var bottom_diag_normal: Vector3 = Vector3(normal.x * 0.8, 0.8, normal.z * 0.8).normalized()
 
-		# Store vertices with calculated normals
+	
 		middle_vertices.append([inner_top_flat, inner_bottom_inner, normal, Vector2(vertex_data.t, 0), Vector2(vertex_data.t, 1.0)])
 		top_metal_lip_vertices.append([inner_top_belt_lip, inner_top_metal_lip, normal, Vector2(vertex_data.t, 0.8), Vector2(vertex_data.t, 1.0)])
 		bottom_metal_lip_vertices.append([inner_bottom_metal_lip, inner_bottom_belt_lip, normal, Vector2(vertex_data.t, 0.0), Vector2(vertex_data.t, 0.2)])
@@ -644,13 +620,12 @@ func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, to
 							  bottom_metal_lip_vertices: Array, top_metal_to_flat_vertices: Array,
 							  bottom_flat_to_metal_vertices: Array, top_flat_vertices: Array,
 							  bottom_flat_vertices: Array, segments: int) -> void:
-	# Prepare sides surface
+
 	surfaces.sides.vertices.clear()
 	surfaces.sides.normals.clear()
 	surfaces.sides.uvs.clear()
 	surfaces.sides.indices.clear()
 
-	# 1. Build middle section
 	for data in middle_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
 		surfaces.sides.normals.append_array([data[2], data[2]])
@@ -661,7 +636,7 @@ func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, to
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 2. Add top metal lip section
+
 	var top_lip_start_idx = surfaces.sides.vertices.size()
 	for data in top_metal_lip_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -673,7 +648,7 @@ func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, to
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 3. Add bottom metal lip section
+
 	var bottom_lip_start_idx = surfaces.sides.vertices.size()
 	for data in bottom_metal_lip_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -685,7 +660,7 @@ func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, to
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 4. Add top transition from metal lip to diagonal
+
 	var top_metal_to_flat_start_idx = surfaces.sides.vertices.size()
 	for data in top_metal_to_flat_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -697,7 +672,7 @@ func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, to
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 5. Add top flat sections
+
 	var top_flat_start_idx = surfaces.sides.vertices.size()
 	for data in top_flat_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -709,7 +684,7 @@ func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, to
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 6. Add bottom flat sections
+
 	var bottom_flat_start_idx = surfaces.sides.vertices.size()
 	for data in bottom_flat_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -721,7 +696,7 @@ func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, to
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 7. Add bottom transition from diagonal to metal lip
+
 	var bottom_flat_to_metal_start_idx = surfaces.sides.vertices.size()
 	for data in bottom_flat_to_metal_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -744,7 +719,7 @@ func _add_surfaces_to_mesh(surfaces: Dictionary, mesh_instance: ArrayMesh) -> vo
 		var surface_index: int = pair[1]
 		var surface: Dictionary = surfaces[surface_name]
 
-		# Skip empty surfaces
+
 		if surface.vertices.size() == 0:
 			continue
 
@@ -851,7 +826,7 @@ func _physics_process(delta: float) -> void:
 		if not SimulationEvents.simulation_paused:
 			belt_position += _linear_speed * delta
 		if _linear_speed != 0:
-			# Set the belt position for animation
+		
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(_linear_speed))
 		if belt_position >= 1.0:
 			belt_position = 0.0
@@ -924,8 +899,6 @@ func _on_size_changed() -> void:
 
 func _build_belt_edges(edges: Dictionary, segments: int) -> void:
 	for edge_name in edges.keys():
-
-		# Then create triangles
 		for i in range(segments):
 			var idx = i * 2
 			if idx + 3 < edges[edge_name].vertices.size():
@@ -933,7 +906,6 @@ func _build_belt_edges(edges: Dictionary, segments: int) -> void:
 				_add_double_sided_triangle(edges[edge_name].indices, idx, idx + 3, idx + 2)
 
 func _add_belt_edges_to_surfaces(surfaces: Dictionary, edges: Dictionary) -> void:
-	# Add all belt edges to the appropriate surfaces
 	for edge_name in edges.keys():
 		var edge = edges[edge_name]
 		if edge.vertices.size() == 0:
@@ -1011,7 +983,7 @@ func _create_outer_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: 
 		var top_diag_normal: Vector3 = Vector3(normal.x * 0.8, -0.6, normal.z * 0.8).normalized()
 		var bottom_diag_normal: Vector3 = Vector3(normal.x * 0.8, 0.6, normal.z * 0.8).normalized()
 
-		# Store vertices for each section with updated normals
+	
 		outer_middle_vertices.append([outer_top_flat, outer_bottom_inner, normal, Vector2(vertex_data.t * size.x, 0), Vector2(vertex_data.t * size.x, 1)])
 		outer_top_metal_lip_vertices.append([outer_top_belt_lip, outer_top_metal_lip, normal, Vector2(vertex_data.t * size.x, 0.8), Vector2(vertex_data.t * size.x, 1.0)])
 		outer_bottom_metal_lip_vertices.append([outer_bottom_metal_lip, outer_bottom_belt_lip, normal, Vector2(vertex_data.t * size.x, 0.0), Vector2(vertex_data.t * size.x, 0.2)])
@@ -1021,7 +993,7 @@ func _create_outer_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: 
 		outer_bottom_flat_vertices.append([outer_bottom_inner, outer_bottom_diagonal_offset, bottom_flat_normal, Vector2(vertex_data.t, 0.6), Vector2(vertex_data.t, 0.65)])
 
 		var scale_factor = 0.5
-		# Belt edges
+	
 		edges.top_outer.vertices.append_array([outer_top, outer_top_belt_lip])
 		edges.top_outer.normals.append_array([normal, normal])
 		edges.top_outer.uvs.append_array([Vector2(1, 1 - vertex_data.t * scale_factor), Vector2(0.95, 1 - vertex_data.t * scale_factor)])
@@ -1038,7 +1010,7 @@ func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Arr
 							   outer_bottom_metal_lip_vertices: Array, outer_top_metal_to_flat_vertices: Array,
 							   outer_bottom_flat_to_metal_vertices: Array, outer_top_flat_vertices: Array,
 							   outer_bottom_flat_vertices: Array, segments: int) -> void:
-	# 1. Outer middle section
+
 	var outer_middle_start_idx = surfaces.sides.vertices.size()
 	for data in outer_middle_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -1050,7 +1022,7 @@ func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Arr
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 2. Outer top metal lip section
+
 	var outer_top_lip_start_idx = surfaces.sides.vertices.size()
 	for data in outer_top_metal_lip_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -1062,7 +1034,7 @@ func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Arr
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 3. Outer bottom metal lip section
+
 	var outer_bottom_lip_start_idx = surfaces.sides.vertices.size()
 	for data in outer_bottom_metal_lip_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -1074,7 +1046,7 @@ func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Arr
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 4. Add outer top transition from metal lip to diagonal
+
 	var outer_top_metal_to_flat_start_idx = surfaces.sides.vertices.size()
 	for data in outer_top_metal_to_flat_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -1086,7 +1058,7 @@ func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Arr
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 5. Outer top flat sections
+
 	var outer_top_flat_start_idx = surfaces.sides.vertices.size()
 	for data in outer_top_flat_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -1098,7 +1070,7 @@ func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Arr
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 6. Outer bottom flat sections
+
 	var outer_bottom_flat_start_idx = surfaces.sides.vertices.size()
 	for data in outer_bottom_flat_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])
@@ -1110,7 +1082,7 @@ func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Arr
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
 		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
 
-	# 7. Add outer bottom transition from diagonal to metal lip
+
 	var outer_bottom_flat_to_metal_start_idx = surfaces.sides.vertices.size()
 	for data in outer_bottom_flat_to_metal_vertices:
 		surfaces.sides.vertices.append_array([data[0], data[1]])

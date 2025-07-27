@@ -89,6 +89,10 @@ func _setup_references() -> void:
 	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	_belt_material = _mesh.mesh.surface_get_material(0) as ShaderMaterial
 	_metal_material = _mesh.mesh.surface_get_material(1) as ShaderMaterial
+	
+	var collision_shape = _static_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if collision_shape and collision_shape.shape:
+		collision_shape.shape = collision_shape.shape.duplicate()
 
 
 func _setup_materials() -> void:

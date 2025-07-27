@@ -157,6 +157,7 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	_setup_references()
 	_setup_materials()
+	_setup_collision_shape()
 	_update_material_texture()
 	_update_material_color()
 	_update_speed()
@@ -224,6 +225,12 @@ func _setup_materials() -> void:
 	_mesh.set_surface_override_material(0, _belt_material)
 	_mesh.set_surface_override_material(1, _metal_material)
 	_mesh.set_surface_override_material(2, _metal_material)
+
+
+func _setup_collision_shape() -> void:
+	var collision_shape_node := _sb.get_node("CollisionShape3D") as CollisionShape3D
+	if collision_shape_node and collision_shape_node.shape:
+		collision_shape_node.shape = collision_shape_node.shape.duplicate() as BoxShape3D
 
 
 func _update_material_texture() -> void:

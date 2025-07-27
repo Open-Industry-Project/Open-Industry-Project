@@ -144,6 +144,7 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	_setup_conveyor_physics()
+	_setup_collision_shape()
 	_setup_roller_initialization()
 	_setup_material()
 	_on_size_changed()
@@ -224,6 +225,13 @@ func _setup_conveyor_physics() -> void:
 		_simple_conveyor_shape.physics_material_override = physics_material
 
 		_update_conveyor_velocity()
+
+
+func _setup_collision_shape() -> void:
+	if _simple_conveyor_shape:
+		var collision_shape := _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if collision_shape and collision_shape.shape:
+			collision_shape.shape = collision_shape.shape.duplicate() as BoxShape3D
 
 
 func _update_component_positions() -> void:
