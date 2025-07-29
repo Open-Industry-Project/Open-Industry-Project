@@ -38,7 +38,7 @@ func _ready() -> void:
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
 
 	if is_instance_valid(save_comms_button):
-		save_comms_button.connect("pressed", _on_save_comms_button_pressed)
+		save_comms_button.pressed.connect(_on_save_comms_button_pressed)
 		save_comms_button.disabled = true
 
 func load_tag_groups_data() -> void:
