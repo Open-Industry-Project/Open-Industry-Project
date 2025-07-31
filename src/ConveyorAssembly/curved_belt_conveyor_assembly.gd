@@ -107,6 +107,16 @@ func _ready() -> void:
 
 	# Note: ConveyorCorner now calculates its own size automatically from radius/width
 
+	# Force immediate update of legs assembly
+	var legs_assembly = $ConveyorCorner.get_node_or_null("ConveyorLegsAssembly")
+	if legs_assembly and legs_assembly.has_method("update_for_curved_conveyor"):
+		legs_assembly.update_for_curved_conveyor(
+			$ConveyorCorner.inner_radius,
+			$ConveyorCorner.conveyor_width,
+			$ConveyorCorner.size,
+			$ConveyorCorner.conveyor_angle
+		)
+
 	_update_attachments()
 
 

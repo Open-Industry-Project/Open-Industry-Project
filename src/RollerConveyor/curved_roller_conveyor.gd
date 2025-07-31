@@ -15,6 +15,19 @@ enum Scales {LOW, MID, HIGH}
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
+@export var inner_radius_f: float = 0.5:
+	set(value):
+		if Engine.is_editor_hint():
+			EditorInterface.get_editor_toaster().push_toast("You cannot change the inner radius at this moment", EditorToaster.SEVERITY_WARNING)
+		pass
+
+@export var conveyor_width: float = 1.524:
+	set(value):
+		conveyor_width = value
+		# Update size.x when conveyor_width changes, but only if the value is valid and we're initialized
+		if value > 0.0 and is_inside_tree():
+			size = Vector3(value, size.y, size.z)
+
 @export var speed: float = 0.0:
 	set(value):
 		speed = value
@@ -61,7 +74,9 @@ var _running_tag_group_init: bool = false
 @export var running_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "enable_comms":
+	if property.name == "size":
+		property.usage = PROPERTY_USAGE_NONE  # Hide the size property
+	elif property.name == "enable_comms":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "speed_tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
@@ -115,7 +130,7 @@ var inner_radius: float:
 	get:
 		return size.x * CURVE_BASE_INNER_RADIUS
 
-var conveyor_width: float:
+var actual_conveyor_width: float:
 	get:
 		return outer_radius - inner_radius
 
@@ -159,6 +174,10 @@ func get_roller_angular_speed() -> float:
 	return 0.0 if roller_radius_at_reference_point == 0.0 else speed / roller_radius_at_reference_point
 
 func _ready() -> void:
+	# Ensure size is properly set from conveyor_width when scene loads
+	if conveyor_width > 0.0:
+		size = Vector3(conveyor_width, size.y, size.z)
+	
 	mesh_instance = get_node_or_null("MeshInstance3D")
 	if mesh_instance:
 		mesh_instance.mesh = mesh_instance.mesh.duplicate()
@@ -273,7 +292,7 @@ func _on_size_changed() -> void:
 			var end := end_axis.get_child(0) as MeshInstance3D
 			if end:
 				end.position = Vector3(0, 0, center_radius)
-				end.scale = Vector3(0.5, 1, conveyor_width / BASE_END_LENGTH)
+				end.scale = Vector3(0.5, 1, actual_conveyor_width / BASE_END_LENGTH)
 
 	for roller_group in [rollers_low, rollers_mid, rollers_high]:
 		if roller_group:
@@ -281,7 +300,7 @@ func _on_size_changed() -> void:
 				var roller := roller_axis.get_child(0) as RollerCorner
 				if roller:
 					roller.position = Vector3(0, 0, center_radius)
-					roller.length = conveyor_width
+					roller.length = actual_conveyor_width
 
 	set_current_scale()
 	_recalculate_speeds()
@@ -589,7 +608,6 @@ func _create_inner_mesh() -> void:
 	var top_lip_height: float = 0.4 * size.y
 	var bottom_lip_height: float = 0.02 * size.y
 	var lip_inward: float = 0.049 * size.x / 0.97
-	var diagonal_depth: float = -0.003
 	var diagonal_height: float = top_lip_height * 0.03
 
 	var segments: int = int(conveyor_angle / 9.0)
@@ -614,9 +632,9 @@ func _create_inner_mesh() -> void:
 		var middle_top := Vector3(-sin_a * (radius_outer), height, cos_a * (radius_outer))
 		var middle_bottom := Vector3(-sin_a * (radius_outer), 0, cos_a * (radius_outer))
 		var top_lip_top := Vector3(-sin_a * (radius_outer - lip_inward), height, cos_a * (radius_outer - lip_inward))
-		var top_diagonal_start := Vector3(-sin_a * (radius_outer - lip_inward + diagonal_depth), height - diagonal_height, cos_a * (radius_outer - lip_inward + diagonal_depth))
-		var vertical_top := Vector3(-sin_a * (radius_outer - lip_inward + diagonal_depth - 0.01), height - diagonal_height, cos_a * (radius_outer - lip_inward + diagonal_depth - 0.01))
-		var vertical_bottom := Vector3(-sin_a * (radius_outer - lip_inward + diagonal_depth - 0.01), height - top_lip_height + diagonal_height + 0.0145, cos_a * (radius_outer - lip_inward + diagonal_depth - 0.01))
+		var top_diagonal_start := Vector3(-sin_a * (radius_outer - lip_inward), height - diagonal_height, cos_a * (radius_outer - lip_inward))
+		var vertical_top := Vector3(-sin_a * (radius_outer - lip_inward - 0.005), height - diagonal_height, cos_a * (radius_outer - lip_inward - 0.005))
+		var vertical_bottom := Vector3(-sin_a * (radius_outer - lip_inward - 0.005), height - top_lip_height + diagonal_height + 0.0145, cos_a * (radius_outer - lip_inward - 0.005))
 		var bottom_diagonal_end := Vector3(-sin_a * (radius_outer - lip_inward + 0.007), height - top_lip_height, cos_a * (radius_outer - lip_inward + 0.007))
 		var top_lip_middle_outer := Vector3(-sin_a * (radius_outer - lip_inward * 0.1), height - top_lip_height, cos_a * (radius_outer - lip_inward * 0.1))
 		var bottom_lip_bottom := Vector3(-sin_a * (radius_outer - lip_inward * 1.08), 0, cos_a * (radius_outer - lip_inward * 1.08))
@@ -865,7 +883,7 @@ func _update_side_guards() -> void:
 			side_guards = parent_node.get_node_or_null("%SideGuardsAssembly")
 		
 		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
-			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+			side_guards.update_for_curved_conveyor(inner_radius, actual_conveyor_width, size, conveyor_angle)
 
 func _update_assembly_components() -> void:
 	var parent_node = get_parent()
@@ -873,11 +891,11 @@ func _update_assembly_components() -> void:
 		return
 	
 	if parent_node.has_method("update_attachments_for_curved_conveyor"):
-		parent_node.update_attachments_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+		parent_node.update_attachments_for_curved_conveyor(inner_radius, actual_conveyor_width, size, conveyor_angle)
 	else:
 		var legs_assembly = parent_node.get_node_or_null("ConveyorLegsAssembly")
 		if not legs_assembly:
 			legs_assembly = parent_node.get_node_or_null("%ConveyorLegsAssembly")
 		
 		if legs_assembly and legs_assembly.has_method("update_for_curved_conveyor"):
-			legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+			legs_assembly.update_for_curved_conveyor(inner_radius, actual_conveyor_width, size, conveyor_angle)

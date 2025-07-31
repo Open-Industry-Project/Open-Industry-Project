@@ -17,6 +17,14 @@ func _get_leg_scale_for_assembly_size() -> Vector3:
 	if "belt_height" in conveyor:
 		belt_height = conveyor.belt_height
 		
+	# For curved roller conveyors, add margin with slower scaling and adjust grabs offset
+	if conveyor.get_script() and conveyor.get_script().get_global_name() == "CurvedRollerConveyor":
+		var base_margin = 1.08
+		# Additional margin that scales with size, but much slower
+		var size_scale = conveyor.size.x / DEFAULT_ASSEMBLY_SIZE.x
+		var additional_margin = 1.0 + (size_scale - 1.0) * -0.01  # Only 1% increase per unit of scale
+		conveyor_width *= base_margin * additional_margin
+		
 	# Scale leg width to match conveyor width, keep length constant
 	# Inner radius changes should only affect positioning, not leg size
 	var base_conveyor_width = 1.0  # Reference width for default scale
@@ -242,6 +250,11 @@ func _update_all_conveyor_legs_width() -> void:
 			)
 
 func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: ConveyorLeg, conveyor_plane: Plane) -> void:
+	# Get the grabs offset based on conveyor type
+	var grabs_offset = leg_model_grabs_offset
+	if conveyor and conveyor.get_script() and conveyor.get_script().get_global_name() == "CurvedRollerConveyor":
+		grabs_offset = 0.115
+
 	var intersection = conveyor_plane.intersects_ray(
 		conveyor_leg.position + conveyor_leg.basis.y.normalized(),
 		conveyor_leg.basis.y.normalized()
@@ -254,7 +267,7 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 		return
 
 	var leg_height = intersection.distance_to(conveyor_leg.position)
-	var adjusted_height = leg_height - 0.1
+	var adjusted_height = leg_height - grabs_offset  # Use the type-specific grabs offset
 	var assembly_scale = _get_leg_scale_for_assembly_size()
 	
 	conveyor_leg.scale = Vector3(

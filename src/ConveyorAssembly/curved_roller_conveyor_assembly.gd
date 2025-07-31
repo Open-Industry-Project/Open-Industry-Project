@@ -46,11 +46,23 @@ func _ready() -> void:
 
 	_has_instantiated = true
 
-	if is_instance_valid($ConveyorCorner) and "size" in $ConveyorCorner:
-		$ConveyorCorner.size = size
+	if is_instance_valid($ConveyorCorner):
+		# Sync assembly size with conveyor's conveyor_width if it exists
+		if "conveyor_width" in $ConveyorCorner:
+			var conveyor_width_value = $ConveyorCorner.conveyor_width
+			if conveyor_width_value > 0.0:
+				size = Vector3(conveyor_width_value, size.y, size.z)
+		
+		# Ensure the conveyor's size matches the assembly
+		if "size" in $ConveyorCorner:
+			$ConveyorCorner.size = size
 
 	_update_attachments()
 
+
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "size":
+		property.usage = PROPERTY_USAGE_NONE  # Hide the size property
 
 func _get_property_list() -> Array[Dictionary]:
 	var conveyor_properties := _get_conveyor_forwarded_properties()
@@ -167,9 +179,10 @@ func _get_conveyor_forwarded_property_names() -> Array:
 func _conveyor_property_cached_set(property: StringName, value: Variant) -> void:
 	if _has_instantiated:
 		$ConveyorCorner.set(property, value)
-		if property in ["conveyor_angle", "size"]:
+		if property == "conveyor_width" and value is float and value > 0.0:
+			size = Vector3(value, size.y, size.z)
+		if property in ["conveyor_width", "conveyor_angle", "size"]:
 			_attachment_update_needed = true
-			# Notify legs assembly when angle or size changes since these affect leg positioning
 			call_deferred("_notify_legs_assembly_of_changes")
 			_update_attachments()
 	else:
