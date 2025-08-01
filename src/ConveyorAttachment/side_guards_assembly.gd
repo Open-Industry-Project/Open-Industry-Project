@@ -23,7 +23,7 @@ enum Side
 		for opening in right_side_guards_openings:
 			# Shouldn't be null since all nulls should have been replaced by instances.
 			assert(opening != null, "Opening is null.")
-			opening.disconnect("changed", self._on_opening_changed_right)
+			opening.changed.disconnect(_on_opening_changed_right)
 
 		# Workaround for faulty duplicate behavior in the editor.
 		# See issue #74918.
@@ -47,7 +47,7 @@ enum Side
 
 		# Subscribe to ensure that side guards update whenever openings change.
 		for opening in right_side_guards_openings:
-			opening.connect("changed", self._on_opening_changed_right)
+			opening.changed.connect(_on_opening_changed_right)
 
 		# Update side guards to account for added or removed gaps.
 		if is_inside_tree():
@@ -67,7 +67,7 @@ enum Side
 		for opening in left_side_guards_openings:
 			# Shouldn't be null since all nulls should have been replaced by instances.
 			assert(opening != null, "Opening is null.")
-			opening.disconnect("changed", self._on_opening_changed_left)
+			opening.changed.disconnect(_on_opening_changed_left)
 
 		# Workaround for faulty duplicate behavior in the editor.
 		# See issue #74918.
@@ -91,7 +91,7 @@ enum Side
 
 		# Subscribe to ensure that side guards update whenever openings change.
 		for opening in left_side_guards_openings:
-			opening.connect("changed", self._on_opening_changed_left)
+			opening.changed.connect(_on_opening_changed_left)
 
 		# Update side guards to account for added or removed gaps.
 		if is_inside_tree():
@@ -117,7 +117,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 func _connect_conveyor_signals() -> void:
 	var conveyor := get_parent()
 	if conveyor.has_signal("size_changed") and "size" in conveyor and conveyor.size is Vector3:
-		conveyor.connect("size_changed", self._on_conveyor_size_changed)
+		conveyor.size_changed.connect(_on_conveyor_size_changed)
 		_conveyor_connected = true
 	else:
 		_conveyor_connected = false
@@ -129,7 +129,7 @@ func _disconnect_conveyor_signals() -> void:
 		return
 	_conveyor_connected = false
 	var conveyor := get_parent()
-	conveyor.disconnect("size_changed", self._on_conveyor_size_changed)
+	conveyor.size_changed.disconnect(_on_conveyor_size_changed)
 
 
 func _on_conveyor_size_changed() -> void:

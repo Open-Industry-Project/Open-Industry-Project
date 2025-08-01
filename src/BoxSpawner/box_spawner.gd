@@ -112,14 +112,14 @@ func _on_simulation_started() -> void:
 	if conveyor:
 		if conveyor.has_signal("speed_changed"):
 			_conveyor_stopped = conveyor.speed == 0
-			conveyor.connect("speed_changed", _conveyor_speed_changed)
+			conveyor.speed_changed.connect(_conveyor_speed_changed)
 		else:
 			push_error("Conveyor in " + name + " is not of type Conveyor")
 	_reset_spawn_cycle()
 
 func _on_simulation_ended() -> void:
-	if conveyor and conveyor.is_connected("speed_changed", _conveyor_speed_changed):
-		conveyor.disconnect("speed_changed", _conveyor_speed_changed)
+	if conveyor and conveyor.speed_changed.is_connected(_conveyor_speed_changed):
+		conveyor.speed_changed.disconnect(_conveyor_speed_changed)
 
 func _conveyor_speed_changed() -> void:
 	_conveyor_stopped = conveyor.speed == 0

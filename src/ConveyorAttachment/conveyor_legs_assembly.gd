@@ -234,7 +234,7 @@ func _on_global_transform_changed() -> void:
 
 func _connect_conveyor() -> void:
 	if conveyor != null:
-		conveyor.connect("size_changed", self._on_conveyor_size_changed)
+		conveyor.size_changed.connect(_on_conveyor_size_changed)
 		_conveyor_connected = true
 		_on_conveyor_size_changed()
 		# Now is a good time to synchronize the state of the setters with the scene.
@@ -249,7 +249,7 @@ func _disconnect_conveyor_signals() -> void:
 	if not _conveyor_connected:
 		return
 	_conveyor_connected = false
-	conveyor.disconnect("size_changed", self._on_conveyor_size_changed)
+	conveyor.size_changed.disconnect(_on_conveyor_size_changed)
 
 
 func _get_configuration_warnings() -> PackedStringArray:

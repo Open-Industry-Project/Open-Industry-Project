@@ -59,7 +59,7 @@ func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
 
 	if EditorInterface.has_method("mark_scene_as_saved"):
-		_editor_node.connect("editor_layout_loaded", _editor_layout_loaded)
+		_editor_node.editor_layout_loaded.connect(_editor_layout_loaded)
 
 
 func _exit_tree() -> void:

@@ -204,7 +204,7 @@ func _exit_tree() -> void:
 	if _segments_container:
 		for i in range(_segments_container.get_child_count()):
 			var segment_node := _segments_container.get_child(i)
-			if segment_node.is_connected("active_state_changed", _on_segment_state_changed):
+			if segment_node.active_state_changed.is_connected(_on_segment_state_changed):
 				segment_node.active_state_changed.disconnect(_on_segment_state_changed)
 
 
@@ -234,7 +234,7 @@ func _init_segments() -> void:
 		segment_node.segment_data = _data.segment_datas[i]
 		segment_node.index = i
 
-		if not segment_node.is_connected("active_state_changed", _on_segment_state_changed):
+		if not segment_node.active_state_changed.is_connected(_on_segment_state_changed):
 			segment_node.active_state_changed.connect(_on_segment_state_changed)
 	_increase_collision_shape()
 
@@ -268,7 +268,7 @@ func _remove_segments(count: int) -> void:
 			break # Should not happen if count is correct
 		var segment_node := _segments_container.get_child(child_index)
 
-		if segment_node.is_connected("active_state_changed", _on_segment_state_changed):
+		if segment_node.active_state_changed.is_connected(_on_segment_state_changed):
 			segment_node.active_state_changed.disconnect(_on_segment_state_changed)
 		segment_node.queue_free()
 
