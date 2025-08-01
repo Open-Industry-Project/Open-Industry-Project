@@ -21,13 +21,13 @@ metadata/_edit_group_ = null
 metadata/hijack_scale = true
 
 [node name="ConveyorCorner" parent="." instance=ExtResource("2_1qr7y")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.11652005, 0, 0.122134805)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.121967435, 0, 0.122134805)
 
 [node name="ConveyorLegsAssembly" parent="ConveyorCorner" instance=ExtResource("4_roller_legs")]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7486e-07, -2, 0)
 
 [node name="SideGuardsCBC" parent="." instance=ExtResource("3_8k5xq")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.11652005, -0.246, 0.122134805)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.121967435, -0.246, 0.122134805)
 size = Vector3(3.8100002, 4, 1.5600001)
 metadata/hijack_scale = true

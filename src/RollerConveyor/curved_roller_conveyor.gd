@@ -17,7 +17,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
 @export var inner_radius_f: float = 0.5:
 	set(value):
-		if Engine.is_editor_hint():
+		if Engine.is_editor_hint() and value != inner_radius_f:
 			EditorInterface.get_editor_toaster().push_toast("You cannot change the inner radius at this moment", EditorToaster.SEVERITY_WARNING)
 		pass
 
