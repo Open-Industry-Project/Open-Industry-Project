@@ -25,7 +25,6 @@ func _enter_tree() -> void:
 		alert_shortcut.events.append(key_stroke)
 		editor_settings.add_shortcut("Open Industry Project/Use", alert_shortcut)
 
-	# Add shortcut for conveyor snapping
 	if not editor_settings.get_shortcut("Open Industry Project/Snap Conveyor"):
 		var snap_shortcut := Shortcut.new()
 		var snap_key_stroke := InputEventKey.new()
