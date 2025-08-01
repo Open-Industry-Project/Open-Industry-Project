@@ -586,8 +586,12 @@ static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_c
 		else:
 			return _calculate_curved_to_belt_snap_transform(selected_conveyor, target_conveyor)
 	elif not is_target_belt_conveyor and is_selected_belt_conveyor:
-		# BeltConveyor snapping to CurvedBeltConveyor (no resnap)
-		return _calculate_belt_to_curved_snap_transform(selected_conveyor, target_conveyor)
+		# BeltConveyor snapping to CurvedBeltConveyor
+		var is_already_snapped := _is_belt_to_curved_already_snapped(selected_conveyor, target_conveyor)
+		if is_already_snapped:
+			return _calculate_belt_to_curved_resnap_transform(selected_conveyor, target_conveyor)
+		else:
+			return _calculate_belt_to_curved_snap_transform(selected_conveyor, target_conveyor)
 	else:
 		# CurvedBeltConveyor snapping to CurvedBeltConveyor
 		# Check if conveyor is already snapped (same position, perpendicular rotation)
@@ -677,7 +681,7 @@ static func _calculate_curved_to_curved_snap_transform(selected_conveyor: Node3D
 	
 	var is_both_roller := _is_curved_roller_conveyor(selected_conveyor) and _is_curved_roller_conveyor(target_conveyor)
 	var is_both_belt := not _is_curved_roller_conveyor(selected_conveyor) and not _is_curved_roller_conveyor(target_conveyor)
-	var offset := 0.01 if is_both_roller else (0.5 if is_both_belt else 0.25)
+	var offset := 0.004 if is_both_roller else (0.5 if is_both_belt else 0.25)
 	
 	if abs(right_component) > abs(forward_component):
 		if right_component > 0:
@@ -1067,16 +1071,16 @@ static func _calculate_curved_to_curved_resnap_transform(selected_conveyor: Node
 	
 	var is_both_roller := _is_curved_roller_conveyor(selected_conveyor) and _is_curved_roller_conveyor(target_conveyor)
 	var is_both_belt := not _is_curved_roller_conveyor(selected_conveyor) and not _is_curved_roller_conveyor(target_conveyor)
-	var offset := 0.01 if is_both_roller else (0.5 if is_both_belt else 0.25)
+	var offset := 0.004 if is_both_roller else (0.5 if is_both_belt else 0.25)
 	
 	# Calculate distance based on conveyor types
 	var distance: float
 	if is_both_belt:
 		distance = selected_conveyor_width + target_inner_radius + selected_inner_radius
 	elif is_both_roller:
-		distance = target_inner_radius + selected_inner_radius + 2.029
+		distance = target_inner_radius + selected_inner_radius + 2.030
 	else:
-		distance = target_inner_radius + selected_inner_radius + 1.776
+		distance = target_inner_radius + selected_inner_radius + 1.777
 	
 	if abs(right_component) > abs(forward_component):
 		if right_component > 0:
@@ -1149,6 +1153,7 @@ static func _calculate_belt_to_curved_snap_transform(selected_conveyor: Node3D, 
 	var target_right := target_transform.basis.z.normalized()
 	var target_forward := target_transform.basis.x.normalized()
 	var forward_component := relative_pos.dot(target_forward)
+	var right_component := relative_pos.dot(target_right)
 	
 	var snap_position: Vector3
 	var snap_rotation: Vector3
@@ -1166,7 +1171,19 @@ static func _calculate_belt_to_curved_snap_transform(selected_conveyor: Node3D, 
 	var z_offset_front := selected_size.x / 2.0 + offset
 	var z_offset_back := 1.265 + (target_inner_radius - 0.5)
 	
-	if forward_component > 0:
+	# Calculate potential snap positions for both sides
+	var front_local_offset := Vector3(x_offset_front, 0, -z_offset_front)
+	var back_local_offset := Vector3(x_offset_back, 0, z_offset_back)
+	
+	var front_snap_pos := target_pos + target_transform.basis * front_local_offset
+	var back_snap_pos := target_pos + target_transform.basis * back_local_offset
+	
+	# Choose the side closest to the selected conveyor
+	var distance_to_front := selected_pos.distance_to(front_snap_pos)
+	var distance_to_back := selected_pos.distance_to(back_snap_pos)
+	var use_front_side := distance_to_front < distance_to_back
+	
+	if use_front_side:
 		var local_offset := Vector3(x_offset_front, 0, -z_offset_front)
 		snap_position = target_pos + target_transform.basis * local_offset
 		snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(90), 0)
@@ -1265,3 +1282,27 @@ static func _is_curved_to_belt_already_snapped(selected_conveyor: Node3D, target
 	var is_perpendicular: bool = (abs(y_diff - PI/2) < 0.3) or (abs(y_diff) < 0.3)
 	
 	return is_perpendicular
+
+
+static func _is_belt_to_curved_already_snapped(selected_conveyor: Node3D, target_conveyor: Node3D) -> bool:
+	# Simple distance check - if close to target, assume already snapped
+	var distance := selected_conveyor.global_position.distance_to(target_conveyor.global_position)
+	return distance < 3.0
+
+
+static func _calculate_belt_to_curved_resnap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+	# Temporarily move the selected conveyor to the opposite side to force different snap logic
+	var original_pos := selected_conveyor.global_position
+	var target_pos := target_conveyor.global_position
+	var offset_direction := (original_pos - target_pos).normalized()
+	
+	# Move to opposite side temporarily
+	selected_conveyor.global_position = target_pos - offset_direction * 4.0
+	
+	# Use existing snap logic to find the new position
+	var result := _calculate_belt_to_curved_snap_transform(selected_conveyor, target_conveyor)
+	
+	# Restore original position
+	selected_conveyor.global_position = original_pos
+	
+	return result
