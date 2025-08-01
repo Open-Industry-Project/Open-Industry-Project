@@ -148,7 +148,7 @@ func use() -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_register_tag_ok = OIPComms.register_tag(tag_group_name, tag_name, 0)
+		_register_tag_ok = OIPComms.register_tag(tag_group_name, tag_name, 1)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
