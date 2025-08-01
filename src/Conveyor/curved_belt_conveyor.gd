@@ -9,22 +9,21 @@ enum ConvTexture {
 	ALTERNATE
 }
 
-const BASE_INNER_RADIUS: float = 0.25
-const BASE_OUTER_RADIUS: float = 1.25
-const BASE_CONVEYOR_WIDTH: float = BASE_OUTER_RADIUS - BASE_INNER_RADIUS
+const BASE_INNER_RADIUS: float = 0.5
+const BASE_CONVEYOR_WIDTH: float = 1.524
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
 @export var inner_radius: float = BASE_INNER_RADIUS:
 	set(value):
-		inner_radius = max(0.1, value)  # Minimum inner radius
+		inner_radius = max(0.1, value)
 		_mesh_regeneration_needed = true
 		_update_calculated_size()
 		_update_all_components()
 
 @export var conveyor_width: float = BASE_CONVEYOR_WIDTH:
 	set(value):
-		conveyor_width = max(0.1, value)  # Minimum width
+		conveyor_width = max(0.1, value)
 		_mesh_regeneration_needed = true
 		_update_calculated_size()
 		_update_all_components()
@@ -46,7 +45,6 @@ var size: Vector3:
 var _calculated_size: Vector3 = SIZE_DEFAULT
 
 func _update_calculated_size() -> void:
-	# Calculate size automatically from radius, width, and height
 	var outer_radius = inner_radius + conveyor_width
 	var diameter = outer_radius * 2.0
 	var old_size = _calculated_size
@@ -126,7 +124,6 @@ var _prev_scale_x: float = 1.0
 @onready var _conveyor_end1: Node = get_node_or_null("BeltConveyorEnd")
 @onready var _conveyor_end2: Node = get_node_or_null("BeltConveyorEnd2")
 
-# Add tracking variables to control when mesh regeneration is needed
 var _mesh_regeneration_needed: bool = true
 var _last_conveyor_angle: float = 90.0
 var _last_size: Vector3 = Vector3.ZERO
@@ -231,7 +228,6 @@ func _ready() -> void:
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 
-	# Update BlackTextureOn parameter on conveyor ends
 	if ce1 and ce1 is BeltConveyorEnd:
 		var mesh_instance = ce1.get_node_or_null("MeshInstance3D")
 		if mesh_instance and mesh_instance is MeshInstance3D:
@@ -249,7 +245,6 @@ func _ready() -> void:
 	if _belt_material:
 		(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 
-	# Update ColorMix parameter on conveyor ends
 	if ce1 and ce1 is BeltConveyorEnd:
 		var mesh_instance = ce1.get_node_or_null("MeshInstance3D")
 		if mesh_instance and mesh_instance is MeshInstance3D:
@@ -407,11 +402,10 @@ func _setup_materials() -> void:
 	_belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 	_update_belt_material_scale()
 
-	# Add an edge scale parameter for belt edges
 	var avg_radius: float = size.x * (inner_radius + conveyor_width + inner_radius) / 2.0
 	var angle_portion = conveyor_angle / 360.0
 	var belt_length: float = 2.0 * PI * avg_radius * angle_portion
-	var belt_scale: float = belt_length / (PI * 1.0)  # Base belt length is PI * 1.0
+	var belt_scale: float = belt_length / (PI * 1.0)
 	_belt_material.set_shader_parameter("EdgeScale", belt_scale * 1.2)
 
 	_metal_material = ShaderMaterial.new()
@@ -516,7 +510,6 @@ func _build_top_and_bottom_surfaces(surfaces: Dictionary, all_vertices: Array) -
 	var texture_scale_v = 2.0
 	var texture_offset_v = 0.0
 
-	# Store these for edge UV mapping
 	surfaces.uvs_info = {
 		"scale_u": texture_scale_u,
 		"scale_v": texture_scale_v,
@@ -824,9 +817,9 @@ func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
 		var local_up = _sb.global_transform.basis.y.normalized()
 		var velocity = -local_up * _angular_speed
-		_sb.constant_angular_velocity = velocity * 2.0  # Increase the velocity multiplier
+		_sb.constant_angular_velocity = velocity
 		if not SimulationEvents.simulation_paused:
-			belt_position += _linear_speed * delta * 2.0  # Increase the belt animation speed
+			belt_position += _linear_speed * delta
 		if _linear_speed != 0:
 		
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(_linear_speed))

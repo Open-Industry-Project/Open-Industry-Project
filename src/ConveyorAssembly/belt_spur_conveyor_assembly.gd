@@ -133,9 +133,7 @@ func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
 func _set(property: StringName, value: Variant) -> bool:
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
-	# Cache the property value
 	_cached_properties[property] = value
-	# Set the property on all child conveyors
 	_set_for_all_conveyors(property, value)
 	# Special handling for enable_comms - refresh property list when it changes
 	if property == &"enable_comms":

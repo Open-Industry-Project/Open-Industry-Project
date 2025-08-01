@@ -11,14 +11,14 @@ const MIDDLE_THICKNESS: float = 0.02
 @export_range(10.0, 90.0, 1.0, 'degrees') var guard_angle: float = 90.0:
 	set(value):
 		if abs(guard_angle - value) < 0.001:
-			return  # No significant change
+			return
 		guard_angle = value
 		_update_mesh()
 
 @export var size: Vector3 = Vector3(1.56, 4.0, 1.0):
 	set(value):
 		if size.is_equal_approx(value):
-			return  # No significant change
+			return
 		size = value
 		_update_mesh()
 
@@ -38,7 +38,7 @@ func _ready() -> void:
 	if _current_inner_radius == 0.25 and _current_conveyor_width == 1.0:
 		var diameter = size.x - 0.036
 		var outer_radius = diameter / 2.0
-		_current_conveyor_width = 1.0  # Use default conveyor width
+		_current_conveyor_width = 1.0
 		_current_inner_radius = outer_radius - _current_conveyor_width
 	
 	outer_mesh = find_child('OuterSideGuard') as MeshInstance3D
@@ -983,5 +983,4 @@ func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conv
 	# Keep Y and Z dimensions, only update X
 	size = Vector3(new_size_x, size.y, size.z)
 	
-	# Explicitly update mesh and guard end pieces with new radius parameters
 	_update_mesh()

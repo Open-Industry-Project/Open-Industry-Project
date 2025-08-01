@@ -43,7 +43,6 @@ var r_end: Node3D:
 
 
 func _enter_tree() -> void:
-	#length = scale.x
 	set_notify_local_transform(true)
 
 

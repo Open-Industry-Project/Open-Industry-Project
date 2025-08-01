@@ -29,7 +29,6 @@ func _notification(what: int) -> void:
 		on_scale_changed()
 
 func setup_references() -> void:
-	# Node references are now handled by @onready variables
 	if legs_sides_material == null and legs_sides_mesh1:
 		legs_sides_material = legs_sides_mesh1.mesh.surface_get_material(0) as ShaderMaterial
 		legs_sides_mesh1.mesh.surface_set_material(0, legs_sides_material)

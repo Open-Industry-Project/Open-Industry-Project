@@ -725,8 +725,8 @@ static func _calculate_curved_to_belt_snap_transform(selected_conveyor: Node3D, 
 	
 	var target_size := _get_conveyor_size(target_conveyor)
 	var is_roller := _is_curved_roller_conveyor(selected_conveyor)
-	var x_offset := target_size.x / 2.0 + (0.01 if is_roller else 0.242)
-	var z_offset := target_size.z / 2.0 + selected_inner_radius - 0.01
+	var x_offset := target_size.x / 2.0 + (0.001 if is_roller else 0.242)
+	var z_offset := target_size.z / 2.0 + selected_inner_radius + 0.003
 	
 	if forward_component > 0:
 		var local_offset := Vector3(x_offset, 0, -z_offset)
@@ -1074,9 +1074,9 @@ static func _calculate_curved_to_curved_resnap_transform(selected_conveyor: Node
 	if is_both_belt:
 		distance = selected_conveyor_width + target_inner_radius + selected_inner_radius
 	elif is_both_roller:
-		distance = target_inner_radius + selected_inner_radius + 2.024
+		distance = target_inner_radius + selected_inner_radius + 2.029
 	else:
-		distance = target_inner_radius + selected_inner_radius + 1.786
+		distance = target_inner_radius + selected_inner_radius + 1.776
 	
 	if abs(right_component) > abs(forward_component):
 		if right_component > 0:
@@ -1124,8 +1124,8 @@ static func _calculate_curved_to_belt_resnap_transform(selected_conveyor: Node3D
 	
 	var target_size := _get_conveyor_size(target_conveyor)
 	var is_roller := _is_curved_roller_conveyor(selected_conveyor)
-	var x_offset := target_size.x / 2.0 + (0.01 if is_roller else 0.242)
-	var z_offset := target_size.z / 2.0 + selected_inner_radius - 0.01
+	var x_offset := target_size.x / 2.0 + (0.001 if is_roller else 0.242)
+	var z_offset := target_size.z / 2.0 + selected_inner_radius + 0.002
 	
 	if forward_component > 0:
 		var local_offset := Vector3(x_offset, 0, z_offset)
@@ -1159,12 +1159,12 @@ static func _calculate_belt_to_curved_snap_transform(selected_conveyor: Node3D, 
 	
 	var selected_size := _get_conveyor_size(selected_conveyor)
 	var is_roller := _is_curved_roller_conveyor(target_conveyor)
-	var offset := 0.01 if is_roller else 0.242
+	var offset := 0.001 if is_roller else 0.242
 	
-	var x_offset_front := -(1.262 + (target_inner_radius - 0.5))
+	var x_offset_front := -(1.265 + (target_inner_radius - 0.5))
 	var x_offset_back := selected_size.x / 2.0 + offset
 	var z_offset_front := selected_size.x / 2.0 + offset
-	var z_offset_back := 1.258 + (target_inner_radius - 0.5)
+	var z_offset_back := 1.265 + (target_inner_radius - 0.5)
 	
 	if forward_component > 0:
 		var local_offset := Vector3(x_offset_front, 0, -z_offset_front)

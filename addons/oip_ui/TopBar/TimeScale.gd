@@ -58,7 +58,6 @@ func _get_valid_time_scale() -> float:
 			return saved_scale
 		printerr("Unsupported time scale (<= 0). Reverting to default 1.0.")
 
-	# Set default
 	ProjectSettings.set_setting(TIME_SCALE_KEY, 1.0)
 	ProjectSettings.save()
 	return 1.0

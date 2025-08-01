@@ -356,11 +356,9 @@ func _get_conveyor_leg_coverage() -> Array[float]:
 	var conveyor_depth = conveyor.size.y
 	var grab_offset := Vector3(0.0, -leg_model_grabs_offset - conveyor_depth, 0.0)
 
-	# Final grab points in local space.
 	var leg_grab_point_front := local_conveyor_transform.orthonormalized() * (conveyor_extent_front + margin_offset_front + grab_offset)
 	var leg_grab_point_rear := local_conveyor_transform.orthonormalized() * (conveyor_extent_rear + margin_offset_rear + grab_offset)
 
-	# Update min and max.
 	min_val = minf(min_val, minf(leg_grab_point_rear.x, leg_grab_point_front.x))
 	max_val = maxf(max_val, maxf(leg_grab_point_rear.x, leg_grab_point_front.x))
 
@@ -577,7 +575,6 @@ func _adjust_auto_conveyor_leg_positions() -> int:
 				# Only adjust auto conveyor legs.
 				pass
 			_:
-				# Update conveyor leg position to the new interval.
 				if _move_conveyor_leg_to_path_position(child, _get_auto_conveyor_leg_position(conveyor_leg_index)):
 					change_count += 1
 

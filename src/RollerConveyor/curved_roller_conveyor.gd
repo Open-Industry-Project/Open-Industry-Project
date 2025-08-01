@@ -17,7 +17,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
 @export var inner_radius_f: float = 0.5:
 	set(value):
-		if Engine.is_editor_hint():
+		if Engine.is_editor_hint() and value != inner_radius_f:
 			EditorInterface.get_editor_toaster().push_toast("You cannot change the inner radius at this moment", EditorToaster.SEVERITY_WARNING)
 		pass
 
@@ -75,7 +75,7 @@ var _running_tag_group_init: bool = false
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "size":
-		property.usage = PROPERTY_USAGE_NONE  # Hide the size property
+		property.usage = PROPERTY_USAGE_NONE
 	elif property.name == "enable_comms":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "speed_tag_group_name":
@@ -95,7 +95,6 @@ var current_scale = Scales.MID
 var run: bool = true
 var running: bool = false
 
-# Track when mesh regeneration is needed to avoid unnecessary recalculations
 var _mesh_regeneration_needed: bool = true
 var _last_conveyor_angle: float = 90.0
 var _last_size: Vector3 = Vector3.ZERO
@@ -174,7 +173,6 @@ func get_roller_angular_speed() -> float:
 	return 0.0 if roller_radius_at_reference_point == 0.0 else speed / roller_radius_at_reference_point
 
 func _ready() -> void:
-	# Ensure size is properly set from conveyor_width when scene loads
 	if conveyor_width > 0.0:
 		size = Vector3(conveyor_width, size.y, size.z)
 	
@@ -193,7 +191,6 @@ func _ready() -> void:
 
 	ends = get_node_or_null("Ends")
 
-	# Initialize StaticBody3D
 	_sb = get_node_or_null("SimpleConveyorShape") as StaticBody3D
 	if not _sb:
 		_sb = StaticBody3D.new()
@@ -201,7 +198,6 @@ func _ready() -> void:
 		add_child(_sb)
 		_sb.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 
-	# Ensure collision shape exists and is unique to this instance
 	var collision_shape = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if not collision_shape:
 		collision_shape = CollisionShape3D.new()
@@ -268,11 +264,9 @@ func _physics_process(delta: float) -> void:
 		for static_body in _end_static_bodies:
 			var velocity_dir: Vector3
 			if static_body.get_parent().name == "EndAxis2":
-				# Transform the local direction by the conveyor's global transform
 				var local_dir = Vector3(cos(angle_radians), 0, -sin(angle_radians)).normalized()
 				velocity_dir = global_transform.basis * local_dir
 			else:
-				# Transform the local direction by the conveyor's global transform
 				var local_dir = Vector3(-1, 0, 0)
 				velocity_dir = global_transform.basis * local_dir
 			static_body.constant_linear_velocity = velocity_dir * speed
@@ -409,7 +403,6 @@ func _create_end_collision_shapes() -> void:
 	if not ends:
 		return
 
-	# Clear previous static bodies
 	_end_static_bodies.clear()
 
 	for end_axis in ends.get_children():

@@ -43,7 +43,6 @@ func _notification(what: int) -> void:
 						"Please use the 'size' property instead of scale.",
 						EditorToaster.SEVERITY_WARNING
 					)
-					# Reset cooldown after a delay
 					get_tree().create_timer(1.0).timeout.connect(func():
 						_scale_notification_cooldown = false
 					)
