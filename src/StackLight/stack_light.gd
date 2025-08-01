@@ -170,28 +170,25 @@ func _ready() -> void:
 	var difference := segments - current_child_count
 
 	if difference > 0:
-		# Need to add segments
 		_spawn_segments(difference)
 	elif difference < 0:
-		# Need to remove segments (queue_free excess)
 		for i in range(-difference):
 			var child_to_remove_index := current_child_count - 1 - i
 			if child_to_remove_index >= 0:
 				var child_node := _segments_container.get_child(child_to_remove_index)
 				child_node.queue_free()
 			else:
-				pass # Tried to remove invalid index
+				pass
 
 	if _segments_container.get_child_count() > 0:
 		_segment_initial_y_pos = _segments_container.get_child(0).position.y
 	else:
-		# Need a fallback if all segments are removed (e.g., Segments set to 0, although we clamp to 1)
 		_segment_initial_y_pos = 0.0
 
 	_fix_segment_positions()
 	_init_segments()
 
-	_top_mesh.position = Vector3(0, _TOP_MESH_INITIAL_Y_POS + (STEP * (max(0, segments - 1))), 0) # Use max(0,...) in case Segments is 0 temporarily
+	_top_mesh.position = Vector3(0, _TOP_MESH_INITIAL_Y_POS + (STEP * (max(0, segments - 1))), 0)
 	_update_segment_visuals()
 	_prev_scale = scale
 	_rescale()
@@ -200,7 +197,6 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	# Disconnect signals from all segments
 	if _segments_container:
 		for i in range(_segments_container.get_child_count()):
 			var segment_node := _segments_container.get_child(i)
@@ -265,7 +261,7 @@ func _remove_segments(count: int) -> void:
 	for i in range(count):
 		var child_index := current_child_count - 1 - i
 		if child_index < 0:
-			break # Should not happen if count is correct
+			break
 		var segment_node := _segments_container.get_child(child_index)
 
 		if segment_node.active_state_changed.is_connected(_on_segment_state_changed):
@@ -296,15 +292,12 @@ func _update_segment_visuals() -> void:
 		if i < _data.segment_datas.size():
 			var segment_data: StackSegmentData = _data.segment_datas[i]
 			var is_active := (light_value >> i) & 1 == 1
-			# This prevents recursive signals if _on_segment_state_changed was triggered by inspector
 			if segment_data.active != is_active:
 				segment_data.active = is_active
 		else:
-			# This case handles if segments count > data array size temporarily
-			# Ensure segment visuals are off if no data is present
 			if i < _segments_container.get_child_count():
 				var segment_node := _segments_container.get_child(i) as StackSegment
-				segment_node._set_active(false) # Directly set visual state
+				segment_node._set_active(false)
 
 
 func _on_segment_state_changed(index: int, active: bool) -> void:
@@ -330,7 +323,6 @@ func _on_simulation_started() -> void:
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
-	# Use the tag_group_name_param if we need to check which tag group was polled
 	if tag_group_name_param != tag_group_name:
 		return
 

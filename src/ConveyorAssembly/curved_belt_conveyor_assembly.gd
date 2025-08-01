@@ -109,7 +109,6 @@ func _ready() -> void:
 
 	_update_attachments()
 
-
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	var all_properties: Array[Dictionary]
 	# Skip properties until we reach the category after the "Node3D" category.

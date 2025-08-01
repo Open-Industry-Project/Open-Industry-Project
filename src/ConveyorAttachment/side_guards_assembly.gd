@@ -357,7 +357,6 @@ func _adjust_side_guards(side_node: Node3D, side_guard_extents: Array, side: Sid
 		# TODO use a `length` property for side guards instead of `scale.x`.
 		var guard_scale_x: float = max(0.01, ext_length - 0.5)
 		var length_adjustment := Transform3D().scaled(Vector3(guard_scale_x, 1, 1))
-		# Apply all transforms.
 		guard.transform = mount_transform * facing_transform * guard_base_transform * length_adjustment
 
 func _on_opening_changed_left() -> void:
@@ -483,5 +482,4 @@ func _adjust_curved_side_guards(side_node: Node3D, side_guard_extents: Array, si
 		var guard_scale_x: float = max(0.01, ext_length - 0.5)
 		var length_adjustment := Transform3D().scaled(Vector3(guard_scale_x, 1, 1))
 		
-		# Apply all transforms
 		guard.transform = mount_transform * tangent_rotation * facing_transform * guard_base_transform * length_adjustment

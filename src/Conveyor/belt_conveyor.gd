@@ -300,7 +300,6 @@ func _on_size_changed() -> void:
 	var height := size.y
 	var width := size.z
 
-	# Get components that need to be adjusted.
 	var end1 := _ce1
 	var end2 := _ce2
 	var middle_body := _sb
@@ -311,32 +310,24 @@ func _on_size_changed() -> void:
 			and is_instance_valid(middle_body)
 			and is_instance_valid(middle_mesh)
 			and is_instance_valid(middle_collision_shape)):
-		# Children not instantiated yet.
-		# Do nothing and wait to get called again later.
 		return
 
 	# Calculate dimensions of the components (when they don't match the ones above).
 	# Ends' length varies with height.
 	var end_length := height / 2.0
-	# Middle length fills the rest.
 	var middle_length := length - 2.0 * end_length
 
-	# Update component sizes.
 	var middle_size := Vector3(middle_length, height, width)
 	var end_size := Vector3(end_length, height, width)
-	# Size of the mesh at scale=1. (Size per scale unit.)
 	var middle_mesh_base_size := Vector3(1, 0.5, 2)
 	middle_mesh.scale = middle_size / middle_mesh_base_size
 	middle_collision_shape.size = Vector3(length, height, width)
 	end1.size = end_size
 	end2.size = end_size
 
-	# Update materials.
 	_update_belt_material_scale()
 	_update_metal_material_scale()
 
-	# Update component positions.
-	# Ensures that the top surface of the conveyor is on the y=0 plane.
 	var base_pos := Vector3(0, -height / 2.0, 0)
 	middle_mesh.position = base_pos
 	middle_body.position = base_pos
