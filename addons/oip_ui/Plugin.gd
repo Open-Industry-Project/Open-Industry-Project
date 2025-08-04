@@ -199,11 +199,10 @@ func _new_simulation_btn_pressed() -> void:
 
 
 func _create_new_simulation() -> void:
-	var script := EditorScript.new()
 	var scene := Node3D.new()
 	scene.name = "Simulation"
 	var building: Node3D = load("res://parts/Building.tscn").instantiate()
-	script.add_root_node(scene)
+	EditorInterface.add_root_node(scene)
 	get_tree().edited_scene_root.add_child(building)
 	building.owner = scene
 	if _run_bar != null:
@@ -211,8 +210,7 @@ func _create_new_simulation() -> void:
 
 
 func _remove_new_simulation() -> void:
-	var script := EditorScript.new()
-	script.call("remove_root_node")
+	EditorInterface.remove_root_node()
 
 
 func _toggle_native_mode(native_mode: bool) -> void:
