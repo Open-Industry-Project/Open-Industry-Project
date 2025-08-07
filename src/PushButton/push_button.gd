@@ -45,19 +45,22 @@ extends Node3D
 @export var lamp: bool = false:
 	set(value):
 		lamp = value
-		if not _button_material:
-			return
-		if value:
-			_button_material.emission_energy_multiplier = 1.0
-		else:
-			_button_material.emission_energy_multiplier = 0.0
+		if _button_mesh:
+			_ensure_unique_material()
+			var mat = _button_mesh.get_surface_override_material(0)
+			if value:
+				mat.emission_energy_multiplier = 1.0
+			else:
+				mat.emission_energy_multiplier = 0.0
 
 @export var button_color: Color = Color.RED:
 	set(value):
 		button_color = value
-		if _button_material:
-			_button_material.albedo_color = value
-			_button_material.emission = value
+		if _button_mesh:
+			_ensure_unique_material()
+			var mat = _button_mesh.get_surface_override_material(0)
+			mat.albedo_color = value
+			mat.emission = value
 
 var _button_pressed_z_pos: float = -0.04
 var _register_pushbutton_tag_ok: bool = false
@@ -70,12 +73,10 @@ var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
 var _tag_group_init: bool = false
+var _material_made_unique: bool = false
 
 @onready var _text: Label3D = $Text
 @onready var _button_mesh: MeshInstance3D = $Meshes/Button
-var _button_material: StandardMaterial3D:
-	get:
-		return _button_mesh.mesh.surface_get_material(0) if _button_mesh else null
 
 @export_category("Communications")
 @export var enable_comms: bool = false
@@ -147,8 +148,24 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	var mat: StandardMaterial3D = _button_mesh.mesh.surface_get_material(0).duplicate()
-	_button_mesh.set_surface_override_material(0, mat)
+	_text.text = text
+	button_color = button_color
+	lamp = lamp
+
+
+func _ensure_unique_material() -> void:
+	if not _button_mesh or _material_made_unique:
+		return
+		
+	var current_override = _button_mesh.get_surface_override_material(0)
+	if current_override:
+		var unique_mat = current_override.duplicate()
+		_button_mesh.set_surface_override_material(0, unique_mat)
+	else:
+		var mat: StandardMaterial3D = _button_mesh.mesh.surface_get_material(0).duplicate()
+		_button_mesh.set_surface_override_material(0, mat)
+	
+	_material_made_unique = true
 
 
 func _exit_tree() -> void:
