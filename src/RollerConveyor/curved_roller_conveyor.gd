@@ -178,9 +178,8 @@ func _ready() -> void:
 	
 	mesh_instance = get_node_or_null("MeshInstance3D")
 	if mesh_instance:
-		mesh_instance.mesh = mesh_instance.mesh.duplicate()
 		metal_material = mesh_instance.mesh.surface_get_material(0).duplicate()
-		mesh_instance.mesh.surface_set_material(0, metal_material)
+		mesh_instance.set_surface_override_material(0, metal_material)
 
 	rollers_low = get_node_or_null("RollersLow")
 	rollers_mid = get_node_or_null("RollersMid")

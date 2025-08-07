@@ -147,10 +147,8 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	var mesh: Mesh = _button_mesh.mesh.duplicate()
-	var mat: StandardMaterial3D = mesh.surface_get_material(0).duplicate()
-	mesh.surface_set_material(0, mat)
-	_button_mesh.mesh = mesh
+	var mat: StandardMaterial3D = _button_mesh.mesh.surface_get_material(0).duplicate()
+	_button_mesh.set_surface_override_material(0, mat)
 
 
 func _exit_tree() -> void:

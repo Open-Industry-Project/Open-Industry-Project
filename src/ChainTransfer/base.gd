@@ -100,9 +100,8 @@ func turn_off() -> void:
 
 func _init_mesh(path: String) -> Array:
 	var m := get_node(path) as MeshInstance3D
-	m.mesh = m.mesh.duplicate()
 	var mat := m.mesh.surface_get_material(0).duplicate() as ShaderMaterial
-	m.mesh.surface_set_material(0, mat)
+	m.set_surface_override_material(0, mat)
 	return [m, mat]
 
 func _set_chain_position(mat: ShaderMaterial, pos: float) -> void:

@@ -24,11 +24,10 @@ var _firing: bool = false
 
 
 func _ready() -> void:
-	_pusher_mesh_instance.mesh = _pusher_mesh_instance.mesh.duplicate()
-	_red_light_material = (_pusher_mesh_instance.mesh.surface_get_material(3)).duplicate() as StandardMaterial3D
-	_green_light_material = (_pusher_mesh_instance.mesh.surface_get_material(4)).duplicate() as StandardMaterial3D
-	_pusher_mesh_instance.mesh.surface_set_material(3, _red_light_material)
-	_pusher_mesh_instance.mesh.surface_set_material(4, _green_light_material)
+	_red_light_material = _pusher_mesh_instance.mesh.surface_get_material(3).duplicate() as StandardMaterial3D
+	_green_light_material = _pusher_mesh_instance.mesh.surface_get_material(4).duplicate() as StandardMaterial3D
+	_pusher_mesh_instance.set_surface_override_material(3, _red_light_material)
+	_pusher_mesh_instance.set_surface_override_material(4, _green_light_material)
 
 	_part1_start_pos = _part1.position
 

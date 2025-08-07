@@ -60,7 +60,6 @@ func get_metal_material() -> ShaderMaterial:
 		return _metal_material
 		
 	var mesh_instance := self
-	mesh_instance.mesh = mesh_instance.mesh.duplicate()
 	_metal_material = mesh_instance.mesh.surface_get_material(0).duplicate() as ShaderMaterial
-	mesh_instance.mesh.surface_set_material(0, _metal_material)
+	mesh_instance.set_surface_override_material(0, _metal_material)
 	return _metal_material

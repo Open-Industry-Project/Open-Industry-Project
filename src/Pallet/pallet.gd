@@ -7,11 +7,9 @@ extends Node3D
 	set(value):
 		color = value
 		if _mesh_instance_3d:
-			var mat: StandardMaterial3D
-			_mesh_instance_3d.mesh = _mesh_instance_3d.mesh.duplicate()
-			mat = _mesh_instance_3d.mesh.surface_get_material(0).duplicate()
+			var mat: StandardMaterial3D = _mesh_instance_3d.mesh.surface_get_material(0).duplicate()
 			mat.albedo_color = color
-			_mesh_instance_3d.mesh.surface_set_material(0, mat)
+			_mesh_instance_3d.set_surface_override_material(0, mat)
 
 var _initial_transform: Transform3D
 var instanced: bool = false

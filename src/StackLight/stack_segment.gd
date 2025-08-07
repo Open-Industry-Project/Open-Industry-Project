@@ -24,10 +24,8 @@ var index: int = -1
 var _material: StandardMaterial3D
 
 func _ready() -> void:
-	_mesh_instance.mesh = _mesh_instance.mesh.duplicate()
-
 	_material = _mesh_instance.mesh.surface_get_material(0).duplicate() as StandardMaterial3D
-	_mesh_instance.mesh.surface_set_material(0, _material)
+	_mesh_instance.set_surface_override_material(0, _material)
 
 	if segment_data:
 		segment_data.active_changed.disconnect(_on_active_changed)
