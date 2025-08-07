@@ -30,7 +30,7 @@ extends Node3D
 		output = value
 
 var _mesh: ImmediateMesh
-var _beam_mat: StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
+static var _beam_material: StandardMaterial3D = preload("uid://ntmcfd25jgpm")
 var _instance: RID
 var _scenario: RID
 var _register_tag_ok: bool = false
@@ -111,20 +111,23 @@ func _physics_process(_delta: float) -> void:
 	var result := space_state.intersect_ray(query)
 	var result_distance := max_range
 
+	var beam_color: Color
 	if result.size() > 0:
 		result_distance = start_pos.distance_to(result["position"])
 		detected = true
-		_beam_mat.albedo_color = Color.RED
+		beam_color = Color.RED
 	else:
 		detected = false
-		_beam_mat.albedo_color = Color.GREEN
+		beam_color = Color.GREEN
 
 	if show_beam:
 		_mesh.clear_surfaces()
-		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_mat)
+		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
+		_mesh.surface_set_color(beam_color)
 		_mesh.surface_add_vertex(start_pos)
 
 		if result.size() > 0:
+			_mesh.surface_set_color(beam_color)
 			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
 		else:
 			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)

@@ -34,7 +34,7 @@ extends Node3D
 		color_value = value
 
 var _mesh: ImmediateMesh
-var _beam_mat: StandardMaterial3D = preload("uid://ntmcfd25jgpm").duplicate()
+static var _beam_material: StandardMaterial3D = preload("uid://ntmcfd25jgpm")
 var _instance: RID
 var _scenario: RID
 var _register_tag_ok: bool = false
@@ -118,25 +118,32 @@ func _physics_process(_delta: float) -> void:
 		result_distance = start_pos.distance_to(result["position"])
 		var collider: CollisionObject3D = result["collider"]
 		var mesh_instance: MeshInstance3D = collider.get_node("MeshInstance3D")
-		var material: StandardMaterial3D = mesh_instance.mesh.surface_get_material(0)
+		
+		var material: StandardMaterial3D = mesh_instance.get_surface_override_material(0)
+		if not material:
+			material = mesh_instance.mesh.surface_get_material(0)
+		
 		new_color = material.albedo_color
-		_beam_mat.albedo_color = new_color
 	else:
 		new_color = Color.TRANSPARENT
-		_beam_mat.albedo_color = Color.GREEN
 
 	# Only update color_detected if the color actually changed
 	if new_color != color_detected:
 		color_detected = new_color
 
+	var beam_color := new_color if new_color != Color.TRANSPARENT else Color.GREEN
+
 	if show_beam:
 		_mesh.clear_surfaces()
-		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_mat)
+		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
+		_mesh.surface_set_color(beam_color)
 		_mesh.surface_add_vertex(start_pos)
 
 		if result.size() > 0:
+			_mesh.surface_set_color(beam_color)
 			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
 		else:
+			_mesh.surface_set_color(beam_color)
 			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
 
 		_mesh.surface_end()
