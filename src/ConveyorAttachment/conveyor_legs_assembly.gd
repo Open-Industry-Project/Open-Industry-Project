@@ -236,13 +236,24 @@ func _connect_conveyor() -> void:
 	if conveyor != null:
 		conveyor.size_changed.connect(_on_conveyor_size_changed)
 		_conveyor_connected = true
-		_on_conveyor_size_changed()
+		_reset_existing_legs_scale()
+		call_deferred("_on_conveyor_size_changed")
 		# Now is a good time to synchronize the state of the setters with the scene.
 		if is_physics_processing():
 			_physics_process(0.0)
 	else:
 		_conveyor_connected = false
 	update_configuration_warnings()
+
+
+func _reset_existing_legs_scale() -> void:
+	set_meta("skip_height_updates", true)
+	call_deferred("_enable_height_updates")
+
+
+func _enable_height_updates() -> void:
+	remove_meta("skip_height_updates")
+	_update_conveyor_legs_height_and_visibility()
 
 
 func _disconnect_conveyor_signals() -> void:
@@ -743,8 +754,11 @@ func _update_conveyor_legs_height_and_visibility() -> void:
 		return
 
 	# Plane transformed from conveyors space into local space.
-	var conveyor_plane = Plane(Vector3.UP, Vector3(0, -leg_model_grabs_offset - conveyor.size.y, 0)) \
-		* transform
+	var effective_height = conveyor.size.y
+	if effective_height <= 0.0 and conveyor.get_script() and conveyor.get_script().get_global_name() == "BeltConveyor":
+		effective_height = 0.5
+	
+	var conveyor_plane = Plane(Vector3.UP, Vector3(0, -leg_model_grabs_offset - effective_height, 0)) * transform
 
 	for child in get_children():
 		var conveyor_leg = child as ConveyorLeg
@@ -753,6 +767,10 @@ func _update_conveyor_legs_height_and_visibility() -> void:
 
 
 func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: ConveyorLeg, conveyor_plane: Plane) -> void:
+	# Skip height updates during initialization to prevent corrupted calculations
+	if has_meta("skip_height_updates"):
+		return
+	
 	# Raycast from the minimum-height tip of the conveyor leg to the conveyor plane.
 	var intersection = conveyor_plane.intersects_ray(
 		conveyor_leg.position + conveyor_leg.basis.y.normalized(),
@@ -765,7 +783,7 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 		conveyor_leg.scale = Vector3(1.0, 1.0, conveyor_leg.scale.z)
 		return
 
-	var leg_height = intersection.distance_to(conveyor_leg.position)
+	var leg_height = max(intersection.distance_to(conveyor_leg.position), 0.1)
 	conveyor_leg.scale = Vector3(1.0, leg_height, conveyor_leg.scale.z)
 	conveyor_leg.grabs_rotation = rad_to_deg(conveyor_leg.basis.y.signed_angle_to(
 		conveyor_plane.normal.slide(conveyor_leg.basis.z.normalized()),

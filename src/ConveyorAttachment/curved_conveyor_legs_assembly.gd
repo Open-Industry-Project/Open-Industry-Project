@@ -250,7 +250,9 @@ func _update_all_conveyor_legs_width() -> void:
 			)
 
 func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: ConveyorLeg, conveyor_plane: Plane) -> void:
-	# Get the grabs offset based on conveyor type
+	if has_meta("skip_height_updates"):
+		return
+		
 	var grabs_offset = leg_model_grabs_offset
 	if conveyor and conveyor.get_script() and conveyor.get_script().get_global_name() == "CurvedRollerConveyor":
 		grabs_offset = 0.115
@@ -266,15 +268,10 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 		conveyor_leg.scale = Vector3(assembly_scale.x, 1.0, assembly_scale.z)
 		return
 
-	var leg_height = intersection.distance_to(conveyor_leg.position)
-	var adjusted_height = leg_height - grabs_offset  # Use the type-specific grabs offset
+	var adjusted_height = max(intersection.distance_to(conveyor_leg.position) - grabs_offset, 0.1)
 	var assembly_scale = _get_leg_scale_for_assembly_size()
 	
-	conveyor_leg.scale = Vector3(
-		assembly_scale.x, 
-		adjusted_height, 
-		assembly_scale.z
-	)
+	conveyor_leg.scale = Vector3(assembly_scale.x, adjusted_height, assembly_scale.z)
 	conveyor_leg.grabs_rotation = rad_to_deg(conveyor_leg.basis.y.signed_angle_to(
 		conveyor_plane.normal.slide(conveyor_leg.basis.z.normalized()),
 		conveyor_leg.basis.z
