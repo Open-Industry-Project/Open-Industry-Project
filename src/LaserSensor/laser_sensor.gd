@@ -12,6 +12,8 @@ extends Node3D
 		show_beam = value
 		if _instance:
 			RenderingServer.instance_set_visible(_instance, show_beam)
+			if show_beam:
+				_beam_needs_update = true
 
 @export var distance: float = max_range:
 	set(value):
@@ -29,6 +31,11 @@ var _tag_group_original: String
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
+
+var _last_distance: float = -1.0
+var _last_beam_color: Color = Color.TRANSPARENT
+var _last_transform: Transform3D
+var _beam_needs_update: bool = true
 
 @export_category("Communications")
 @export var enable_comms: bool = false
@@ -72,6 +79,7 @@ func _enter_tree() -> void:
 	RenderingServer.instance_set_scenario(_instance, _scenario)
 	RenderingServer.instance_set_base(_instance, _mesh)
 	RenderingServer.instance_set_visible(_instance, show_beam)
+	_beam_needs_update = true
 
 	_tag_group_original = tag_group_name
 	if tag_group_name.is_empty():
@@ -98,28 +106,41 @@ func _physics_process(_delta: float) -> void:
 	var space_state := get_world_3d().direct_space_state
 	var result := space_state.intersect_ray(query)
 
+	var new_distance: float
 	var beam_color: Color
 	if result.size() > 0:
-		distance = start_pos.distance_to(result["position"])
+		new_distance = start_pos.distance_to(result["position"])
 		beam_color = Color.RED
 	else:
-		distance = max_range
+		new_distance = max_range
 		beam_color = Color.GREEN
 
-	if show_beam:
-		_mesh.clear_surfaces()
-		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
+	if new_distance != distance:
+		distance = new_distance
+	
+	var current_transform = global_transform
+	if show_beam and (_beam_needs_update or new_distance != _last_distance or beam_color != _last_beam_color or current_transform != _last_transform):
+		_update_beam_mesh(start_pos, new_distance, beam_color)
+		_last_distance = new_distance
+		_last_beam_color = beam_color
+		_last_transform = current_transform
+		_beam_needs_update = false
+
+
+func _update_beam_mesh(start_pos: Vector3, beam_distance: float, beam_color: Color) -> void:
+	_mesh.clear_surfaces()
+	_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
+	_mesh.surface_set_color(beam_color)
+	_mesh.surface_add_vertex(start_pos)
+
+	if beam_distance != max_range:
 		_mesh.surface_set_color(beam_color)
-		_mesh.surface_add_vertex(start_pos)
+		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * beam_distance)
+	else:
+		_mesh.surface_set_color(beam_color)
+		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
 
-		if distance != max_range:
-			_mesh.surface_set_color(beam_color)
-			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * distance)
-		else:
-			_mesh.surface_set_color(beam_color)
-			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
-
-		_mesh.surface_end()
+	_mesh.surface_end()
 
 
 func use() -> void:

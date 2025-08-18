@@ -8,6 +8,8 @@ extends Node3D
 		show_beam = value
 		if _instance:
 			RenderingServer.instance_set_visible(_instance, show_beam)
+			if show_beam:
+				_beam_needs_update = true
 
 @export var color_detected: Color = Color.BLACK:
 	set(value):
@@ -43,6 +45,12 @@ var _tag_group_original: String
 var _enable_comms_changed: bool = false:
 	set(value):
 		notify_property_list_changed()
+
+var _last_result_distance: float = -1.0
+var _last_beam_color: Color = Color.TRANSPARENT
+var _last_has_detection: bool = false
+var _last_transform: Transform3D
+var _beam_needs_update: bool = true
 
 @export_category("Communications")
 @export var enable_comms: bool = false
@@ -86,6 +94,7 @@ func _enter_tree() -> void:
 	RenderingServer.instance_set_scenario(_instance, _scenario)
 	RenderingServer.instance_set_base(_instance, _mesh)
 	RenderingServer.instance_set_visible(_instance, show_beam)
+	_beam_needs_update = true
 
 	_tag_group_original = tag_group_name
 	if tag_group_name.is_empty():
@@ -113,8 +122,9 @@ func _physics_process(_delta: float) -> void:
 	var result := space_state.intersect_ray(query)
 	var result_distance := max_range
 	var new_color: Color
+	var has_detection := result.size() > 0
 
-	if result.size() > 0:
+	if has_detection:
 		result_distance = start_pos.distance_to(result["position"])
 		var collider: CollisionObject3D = result["collider"]
 		var mesh_instance: MeshInstance3D = collider.get_node("MeshInstance3D")
@@ -127,26 +137,36 @@ func _physics_process(_delta: float) -> void:
 	else:
 		new_color = Color.TRANSPARENT
 
-	# Only update color_detected if the color actually changed
 	if new_color != color_detected:
 		color_detected = new_color
 
 	var beam_color := new_color if new_color != Color.TRANSPARENT else Color.GREEN
+	var current_transform = global_transform
+	if show_beam and (_beam_needs_update or result_distance != _last_result_distance or 
+					  beam_color != _last_beam_color or has_detection != _last_has_detection or 
+					  current_transform != _last_transform):
+		_update_beam_mesh(start_pos, result_distance, beam_color, has_detection)
+		_last_result_distance = result_distance
+		_last_beam_color = beam_color
+		_last_has_detection = has_detection
+		_last_transform = current_transform
+		_beam_needs_update = false
 
-	if show_beam:
-		_mesh.clear_surfaces()
-		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
+
+func _update_beam_mesh(start_pos: Vector3, result_distance: float, beam_color: Color, has_detection: bool) -> void:
+	_mesh.clear_surfaces()
+	_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
+	_mesh.surface_set_color(beam_color)
+	_mesh.surface_add_vertex(start_pos)
+
+	if has_detection:
 		_mesh.surface_set_color(beam_color)
-		_mesh.surface_add_vertex(start_pos)
+		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
+	else:
+		_mesh.surface_set_color(beam_color)
+		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
 
-		if result.size() > 0:
-			_mesh.surface_set_color(beam_color)
-			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
-		else:
-			_mesh.surface_set_color(beam_color)
-			_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
-
-		_mesh.surface_end()
+	_mesh.surface_end()
 
 
 func use() -> void:
