@@ -96,7 +96,7 @@ var _material_made_unique: bool = false
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 	elif property.name == "output":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 	elif property.name == "pushbutton_tag_group_name":
@@ -104,13 +104,13 @@ func _validate_property(property: Dictionary) -> void:
 	elif property.name == "pushbutton_tag_groups":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "pushbutton_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 	elif property.name == "lamp_tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == "lamp_tag_groups":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "lamp_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
 
 func _property_can_revert(property: StringName) -> bool:

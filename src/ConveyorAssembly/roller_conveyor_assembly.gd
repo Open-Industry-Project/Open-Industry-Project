@@ -250,19 +250,19 @@ func _validate_property(property: Dictionary) -> void:
 	elif property[&"name"] == "Communications" and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
 		property[&"usage"] = PROPERTY_USAGE_CATEGORY if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property[&"name"] == "enable_comms":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 	elif property[&"name"] == "speed_tag_group_name":
 		property[&"usage"] = PROPERTY_USAGE_STORAGE
 	elif property[&"name"] == "speed_tag_groups":
 		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property[&"name"] == "speed_tag_name":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 	elif property[&"name"] == "running_tag_group_name":
 		property[&"usage"] = PROPERTY_USAGE_STORAGE
 	elif property[&"name"] == "running_tag_groups":
 		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property[&"name"] == "running_tag_name":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
 
 func _set(property: StringName, value: Variant) -> bool:

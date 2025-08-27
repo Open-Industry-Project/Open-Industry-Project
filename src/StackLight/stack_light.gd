@@ -131,7 +131,7 @@ func _get_property_list() -> Array:
 	properties.append({
 		"name": "enable_comms",
 		"type": TYPE_BOOL,
-		"usage": PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		"usage": PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 	})
 	properties.append({
 		"name": "tag_groups",
@@ -143,7 +143,7 @@ func _get_property_list() -> Array:
 	properties.append({
 		"name": "tag_name",
 		"type": TYPE_STRING,
-		"usage": PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
+		"usage": PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 	})
 	return properties
 
