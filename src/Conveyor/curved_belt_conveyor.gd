@@ -83,8 +83,6 @@ func _update_calculated_size() -> void:
 		speed = value
 		_recalculate_speeds()
 		_update_belt_material_scale()
-		if _register_speed_tag_ok and _speed_tag_group_init:
-			OIPComms.write_float32(speed_tag_group_name, speed_tag_name, value)
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 

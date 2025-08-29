@@ -32,8 +32,6 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 	set(value):
 		speed = value
 		_recalculate_speeds()
-		if _register_speed_tag_ok and _speed_tag_group_init:
-			OIPComms.write_float32(speed_tag_group_name, speed_tag_name, value)
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
