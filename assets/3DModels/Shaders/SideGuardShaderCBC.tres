@@ -35,61 +35,6 @@ texture = ExtResource("1_pk2x6")
 texture_type = 1
 
 [resource]
-code = "shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, depth_test_default, cull_back, diffuse_lambert, specular_schlick_ggx;
-
-uniform float Scale;
-uniform sampler2D tex_frg_5 : source_color;
-uniform float Metallic = 0.93999999761581;
-uniform float Roughness = 0.5;
-uniform float Specular = 0.5;
-
-
-
-void fragment() {
-// FloatParameter:19
-	float n_out19p0 = Scale;
-
-
-// FloatFunc:14
-	float n_out14p0 = round(n_out19p0);
-
-
-// VectorCompose:11
-	float n_in11p0 = 1.00000;
-	vec2 n_out11p0 = vec2(n_in11p0, n_out14p0);
-
-
-// UVFunc:13
-	vec2 n_in13p2 = vec2(0.00000, 0.00000);
-	vec2 n_out13p0 = (UV - n_in13p2) * n_out11p0 + n_in13p2;
-
-
-// Texture2D:5
-	vec4 n_out5p0 = texture(tex_frg_5, n_out13p0);
-
-
-// FloatParameter:22
-	float n_out22p0 = Metallic;
-
-
-// FloatParameter:23
-	float n_out23p0 = Roughness;
-
-
-// FloatParameter:24
-	float n_out24p0 = Specular;
-
-
-// Output:0
-	ALBEDO = vec3(n_out5p0.xyz);
-	METALLIC = n_out22p0;
-	ROUGHNESS = n_out23p0;
-	SPECULAR = n_out24p0;
-
-
-}
-"
 nodes/fragment/0/position = Vector2(800, 180)
 nodes/fragment/5/node = SubResource("VisualShaderNodeTexture_ycidp")
 nodes/fragment/5/position = Vector2(140, 60)

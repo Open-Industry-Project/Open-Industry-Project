@@ -7,33 +7,33 @@
 [ext_resource type="ArrayMesh" uid="uid://cbw48nv0pkcs8" path="res://assets/3DModels/WallsAndRoof/Meshes/WallMid_WallMid.res" id="5_d5xcc"]
 [ext_resource type="ArrayMesh" uid="uid://jkim7hdrtsnb" path="res://assets/3DModels/WallsAndRoof/Meshes/WallTop_WallTop.res" id="6_6ycaw"]
 
-[node name="Walls" type="Node3D"]
+[node name="Walls" type="Node3D" unique_id=1034930706]
 
-[node name="WallBig" type="MeshInstance3D" parent="."]
+[node name="WallBig" type="MeshInstance3D" parent="." unique_id=172441631]
 mesh = ExtResource("1_vunon")
 skeleton = NodePath("")
 
-[node name="WallBottom" type="MeshInstance3D" parent="."]
+[node name="WallBottom" type="MeshInstance3D" parent="." unique_id=1828074056]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 0)
 mesh = ExtResource("2_pjjqf")
 skeleton = NodePath("")
 
-[node name="WallCornerL" type="MeshInstance3D" parent="."]
+[node name="WallCornerL" type="MeshInstance3D" parent="." unique_id=629705310]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 0)
 mesh = ExtResource("3_3ryqm")
 skeleton = NodePath("")
 
-[node name="WallCornerR" type="MeshInstance3D" parent="."]
+[node name="WallCornerR" type="MeshInstance3D" parent="." unique_id=1385701919]
 transform = Transform3D(-1, 0, -3.89414e-07, 0, 1, 0, 3.89414e-07, 0, -1, 16, 0, 0)
 mesh = ExtResource("4_2bkuq")
 skeleton = NodePath("")
 
-[node name="WallMid" type="MeshInstance3D" parent="."]
+[node name="WallMid" type="MeshInstance3D" parent="." unique_id=1859371933]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 8.5)
 mesh = ExtResource("5_d5xcc")
 skeleton = NodePath("")
 
-[node name="WallTop" type="MeshInstance3D" parent="."]
+[node name="WallTop" type="MeshInstance3D" parent="." unique_id=1446001122]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0)
 mesh = ExtResource("6_6ycaw")
 skeleton = NodePath("")

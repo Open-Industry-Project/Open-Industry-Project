@@ -14,15 +14,15 @@ albedo_color = Color(1, 1, 1, 0)
 [sub_resource type="BoxMesh" id="BoxMesh_bv1le"]
 material = SubResource("StandardMaterial3D_rm06n")
 
-[node name="Building" type="Node3D"]
+[node name="Building" type="Node3D" unique_id=183560046]
 script = ExtResource("1_5rwsc")
 metadata/_edit_lock_ = true
 metadata/_edit_group_ = true
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2028685564]
 environment = SubResource("Environment_ijpc5")
 
-[node name="Floor" type="GridMap" parent="."]
+[node name="Floor" type="GridMap" parent="." unique_id=1032330647]
 mesh_library = ExtResource("3_wtaol")
 cell_size = Vector3(4, 2, 4)
 cell_center_y = false
@@ -32,7 +32,7 @@ data = {
 }
 metadata/_editor_floor_ = Vector3(0, -1, 0)
 
-[node name="Walls" type="GridMap" parent="."]
+[node name="Walls" type="GridMap" parent="." unique_id=1289864612]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 mesh_library = ExtResource("4_pxyuu")
 cell_size = Vector3(8, 4, 8)
@@ -44,7 +44,7 @@ data = {
 }
 metadata/_editor_floor_ = Vector3(0, 2, 0)
 
-[node name="Roof" type="GridMap" parent="."]
+[node name="Roof" type="GridMap" parent="." unique_id=1331643088]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 mesh_library = ExtResource("5_tibu8")
 cell_size = Vector3(8, 4, 8)
@@ -56,45 +56,45 @@ data = {
 }
 metadata/_editor_floor_ = Vector3(0, 4, 0)
 
-[node name="Lights" type="Node3D" parent="."]
+[node name="Lights" type="Node3D" parent="." unique_id=1188991356]
 
-[node name="OmniLight3D" type="OmniLight3D" parent="Lights"]
+[node name="OmniLight3D" type="OmniLight3D" parent="Lights" unique_id=557229946]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.6036, 9.08638, -5.50612)
 light_energy = 6.0
 shadow_enabled = true
 omni_range = 40.0
 
-[node name="OmniLight3D2" type="OmniLight3D" parent="Lights"]
+[node name="OmniLight3D2" type="OmniLight3D" parent="Lights" unique_id=340347516]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.5969, 9.08638, 13.6823)
 light_energy = 6.0
 shadow_enabled = true
 omni_range = 40.0
 
-[node name="OmniLight3D3" type="OmniLight3D" parent="Lights"]
+[node name="OmniLight3D3" type="OmniLight3D" parent="Lights" unique_id=1125177433]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.3399, 9.08638, -6.29657)
 light_energy = 6.0
 shadow_enabled = true
 omni_range = 40.0
 
-[node name="OmniLight3D4" type="OmniLight3D" parent="Lights"]
+[node name="OmniLight3D4" type="OmniLight3D" parent="Lights" unique_id=1292171669]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.646, 9.08638, 12.7832)
 light_energy = 6.0
 shadow_enabled = true
 omni_range = 40.0
 
-[node name="OmniLight3D5" type="OmniLight3D" parent="Lights"]
+[node name="OmniLight3D5" type="OmniLight3D" parent="Lights" unique_id=1394930464]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0142975, 9.08638, -5.50612)
 light_energy = 6.0
 shadow_enabled = true
 omni_range = 40.0
 
-[node name="OmniLight3D6" type="OmniLight3D" parent="Lights"]
+[node name="OmniLight3D6" type="OmniLight3D" parent="Lights" unique_id=78204871]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.943365, 9.08638, 12.7832)
 light_energy = 6.0
 shadow_enabled = true
 omni_range = 40.0
 
-[node name="ThumbnailMesh" type="MeshInstance3D" parent="."]
+[node name="ThumbnailMesh" type="MeshInstance3D" parent="." unique_id=299569442]
 transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
 mesh = SubResource("BoxMesh_bv1le")
 metadata/_edit_lock_ = true

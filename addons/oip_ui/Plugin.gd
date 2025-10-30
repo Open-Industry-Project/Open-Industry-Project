@@ -12,14 +12,14 @@ const ICON: Texture2D = preload("res://assets/png/OIP-LOGO-RGB_ICON.svg")
 # Menu item IDs
 const ID_TOGGLE_NATIVE_UI: int = 1234
 # The IDs here must match those in the original Project menu (_project_popup_menu).
-const ID_PROJECT_SETTINGS: int = 18
-const ID_FIND_IN_FILES: int = 19
-const ID_PACK_PROJECT_AS_ZIP: int = 22
-const ID_OPEN_USER_DATA_FOLDER: int = 24
-const ID_RELOAD_CURRENT_PROJECT: int = 25
-const ID_QUIT_TO_PROJECT_LIST: int = 26
+const ID_PROJECT_SETTINGS: int = 19
+const ID_FIND_IN_FILES: int = 20
+const ID_PACK_PROJECT_AS_ZIP: int = 23
+const ID_OPEN_USER_DATA_FOLDER: int = 25
+const ID_RELOAD_CURRENT_PROJECT: int = 26
+const ID_QUIT_TO_PROJECT_LIST: int = 27
 # This ID must match the ID for the "Search Help..." item in the original Help menu (_help_popup_menu).
-const ID_SEARCH_HELP: int = 45
+const ID_SEARCH_HELP: int = 46
 
 var _custom_project_menu: PopupMenu
 var _custom_help_menu: PopupMenu
@@ -57,9 +57,7 @@ var _perspective_menu: MenuButton
 
 func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
-
-	if EditorInterface.has_method("mark_scene_as_saved"):
-		_editor_node.editor_layout_loaded.connect(_editor_layout_loaded)
+	_editor_node.editor_layout_loaded.connect(_editor_layout_loaded)
 
 
 func _exit_tree() -> void:
@@ -139,7 +137,7 @@ func _editor_layout_loaded() -> void:
 	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
 	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
 
-	_create_root_vbox = _editor_node.find_children("Scene", "SceneTreeDock", true, false)[0].get_child(2).get_child(1).get_child(0).get_child(0)
+	_create_root_vbox = _editor_node.find_child("BeginnerNodeShortcuts",true,false)
 	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
 	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0)
 
@@ -273,17 +271,17 @@ func _on_custom_project_menu_id_pressed(id: int) -> void:
 	# Piggyback off the original project menu by emitting its events.
 	var native_item_id: int
 	match id:
-		0:
+		19:
 			native_item_id = ID_PROJECT_SETTINGS
-		1:
+		20:
 			native_item_id = ID_FIND_IN_FILES
-		2:
+		23:
 			native_item_id = ID_PACK_PROJECT_AS_ZIP
-		3:
+		25:
 			native_item_id = ID_OPEN_USER_DATA_FOLDER
-		4:
+		26:
 			native_item_id = ID_RELOAD_CURRENT_PROJECT
-		5:
+		27:
 			native_item_id = ID_QUIT_TO_PROJECT_LIST
 		_:
 			native_item_id = -1
@@ -298,7 +296,7 @@ func _on_custom_project_menu_id_pressed(id: int) -> void:
 
 
 func _on_custom_help_menu_id_pressed(id: int) -> void:
-	if id == 0:
+	if id == 46:
 		# Piggyback off the original help menu by emitting its event.
 		var native_item_id := ID_SEARCH_HELP
 		# Check if the ID still exists in the original menu.
@@ -309,7 +307,7 @@ func _on_custom_help_menu_id_pressed(id: int) -> void:
 			_print_menu_ids(_help_popup_menu)
 			return
 		_help_popup_menu.id_pressed.emit(native_item_id)
-	if id == 2:
+	if id == 47:
 		OS.shell_open("https://github.com/Open-Industry-Project/Open-Industry-Project")
 
 

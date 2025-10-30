@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=4 uid="uid://dvjrx5crpqs5f"]
+[gd_scene load_steps=10 format=4 uid="uid://dvjrx5crpqs5f"]
 
 [ext_resource type="Script" uid="uid://cnenk7khucv8s" path="res://src/SideGuards/side_guard.gd" id="2_1ah88"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="2_ydsd4"]
@@ -45,27 +45,36 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_gn6s2")
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nnfrr"]
+render_priority = 0
+shader = ExtResource("2_ydsd4")
+shader_parameter/Scale = 3.5
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_mn2rf"]
 size = Vector3(1, 0.602947, 0.0693115)
 
-[node name="SideGuard" type="MeshInstance3D"]
+[node name="SideGuard" type="MeshInstance3D" unique_id=1285279302]
 transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_nnfrr")
+surface_material_override/0 = SubResource("ShaderMaterial_nnfrr")
 script = ExtResource("2_1ah88")
 length = 3.5
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=432297405]
 disable_mode = 1
 collision_mask = 8
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=871359227]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.296473, -1.09432)
 shape = SubResource("BoxShape3D_mn2rf")
 
-[node name="Ends" type="Node3D" parent="."]
+[node name="Ends" type="Node3D" parent="." unique_id=1114789980]
 
-[node name="SideGuardEndL" parent="Ends" instance=ExtResource("3_e6wdq")]
+[node name="SideGuardEndL" parent="Ends" unique_id=2035535295 instance=ExtResource("3_e6wdq")]
 transform = Transform3D(0.2857143, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0, 0)
 
-[node name="SideGuardEndR" parent="Ends" instance=ExtResource("4_e8bpb")]
+[node name="SideGuardEndR" parent="Ends" unique_id=924576576 instance=ExtResource("4_e8bpb")]
 transform = Transform3D(0.2857143, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)

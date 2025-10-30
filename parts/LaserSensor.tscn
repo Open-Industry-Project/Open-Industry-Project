@@ -324,62 +324,62 @@ size = Vector3(0.42, 0.455, 0.55)
 [sub_resource type="BoxShape3D" id="BoxShape3D_py1qu"]
 size = Vector3(0.14, 0.145, 0.14)
 
-[node name="LaserSensor" type="Node3D"]
+[node name="LaserSensor" type="Node3D" unique_id=1636363449]
 script = ExtResource("1_27ueu")
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
-[node name="LaserSensor" type="Node3D" parent="."]
+[node name="LaserSensor" type="Node3D" parent="." unique_id=780659429]
 
-[node name="Bunkspeed Root" type="Node3D" parent="LaserSensor"]
+[node name="Bunkspeed Root" type="Node3D" parent="LaserSensor" unique_id=1659997198]
 
-[node name="IFM_Laser_Distance" type="Node3D" parent="LaserSensor/Bunkspeed Root"]
+[node name="IFM_Laser_Distance" type="Node3D" parent="LaserSensor/Bunkspeed Root" unique_id=959553082]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, -0.28)
 
-[node name="Root" type="Node3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance"]
+[node name="Root" type="Node3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance" unique_id=1538588426]
 
-[node name="color" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=172874757]
 mesh = SubResource("ArrayMesh_ru4hq")
 skeleton = NodePath("")
 
-[node name="color-2" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color-2" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=1146458983]
 mesh = SubResource("ArrayMesh_ab1wp")
 skeleton = NodePath("")
 
-[node name="color-3" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color-3" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=818634500]
 mesh = SubResource("ArrayMesh_vjn2o")
 skeleton = NodePath("")
 
-[node name="color-4" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color-4" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=355254055]
 mesh = SubResource("ArrayMesh_daec0")
 skeleton = NodePath("")
 
-[node name="color-5" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color-5" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=743307820]
 mesh = SubResource("ArrayMesh_5lb8j")
 skeleton = NodePath("")
 
-[node name="color-6" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color-6" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=1683041214]
 mesh = SubResource("ArrayMesh_i3s3g")
 skeleton = NodePath("")
 
-[node name="color-7" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color-7" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=1343341405]
 mesh = SubResource("ArrayMesh_wqmli")
 skeleton = NodePath("")
 
-[node name="color-8" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root"]
+[node name="color-8" type="MeshInstance3D" parent="LaserSensor/Bunkspeed Root/IFM_Laser_Distance/Root" unique_id=999327623]
 mesh = SubResource("ArrayMesh_ol5se")
 skeleton = NodePath("")
 
-[node name="Node3D" type="Node3D" parent="."]
+[node name="Node3D" type="Node3D" parent="." unique_id=900077820]
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1305139791]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.294407, -0.239077)
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1773490604]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.27906, -0.036006)
 shape = SubResource("BoxShape3D_27ueu")
 
-[node name="CollisionShape3D2" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="StaticBody3D" unique_id=185522057]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.573, -0.0398384)
 shape = SubResource("BoxShape3D_py1qu")

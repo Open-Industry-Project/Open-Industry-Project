@@ -372,7 +372,7 @@ _data = {
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_k4wwl"]
 
-[node name="Character" type="CharacterBody3D" node_paths=PackedStringArray("HEAD", "CAMERA", "HEADBOB_ANIMATION", "JUMP_ANIMATION", "CROUCH_ANIMATION", "COLLISION_MESH")]
+[node name="Character" type="CharacterBody3D" unique_id=1640689384 node_paths=PackedStringArray("HEAD", "CAMERA", "HEADBOB_ANIMATION", "JUMP_ANIMATION", "CROUCH_ANIMATION", "COLLISION_MESH")]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 0, 0, 0)
 script = ExtResource("1_0t4e8")
 default_reticle = "res://addons/fpc/reticles/reticle_1.tscn"
@@ -387,53 +387,53 @@ RIGHT = "d"
 FORWARD = "w"
 BACKWARD = "s"
 
-[node name="Mesh" type="MeshInstance3D" parent="."]
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=571329383]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 mesh = SubResource("CapsuleMesh_jw1de")
 
-[node name="Collision" type="CollisionShape3D" parent="."]
+[node name="Collision" type="CollisionShape3D" parent="." unique_id=453073649]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("CapsuleShape3D_uy03j")
 
-[node name="CrouchAnimation" type="AnimationPlayer" parent="."]
+[node name="CrouchAnimation" type="AnimationPlayer" parent="." unique_id=442477651]
 libraries = {
 &"": SubResource("AnimationLibrary_5e5t5")
 }
 
-[node name="Head" type="Node3D" parent="."]
+[node name="Head" type="Node3D" parent="." unique_id=657848324]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 
-[node name="Camera" type="Camera3D" parent="Head"]
+[node name="Camera" type="Camera3D" parent="Head" unique_id=1476562658]
 
-[node name="Crosshair" type="Label3D" parent="Head/Camera"]
+[node name="Crosshair" type="Label3D" parent="Head/Camera" unique_id=2088646257]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3063e-09, 0, -0.475)
 pixel_size = 0.0005
 billboard = 1
 text = "."
 font_size = 56
 
-[node name="InteractText" type="Label3D" parent="Head/Camera"]
+[node name="InteractText" type="Label3D" parent="Head/Camera" unique_id=952607189]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3063e-09, -0.104, -0.475)
 pixel_size = 0.0003
 billboard = 1
 font_size = 56
 
-[node name="Marker3D" type="Marker3D" parent="Head/Camera"]
+[node name="Marker3D" type="Marker3D" parent="Head/Camera" unique_id=1139396985]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -2.2)
 
-[node name="HeadbobAnimation" type="AnimationPlayer" parent="Head"]
+[node name="HeadbobAnimation" type="AnimationPlayer" parent="Head" unique_id=2013222070]
 libraries = {
 &"": SubResource("AnimationLibrary_o0unb")
 }
 blend_times = [&"RESET", &"RESET", 0.5, &"RESET", &"walk", 0.5, &"walk", &"RESET", 0.5]
 
-[node name="JumpAnimation" type="AnimationPlayer" parent="Head"]
+[node name="JumpAnimation" type="AnimationPlayer" parent="Head" unique_id=1370483734]
 libraries = {
 &"": SubResource("AnimationLibrary_qeg5r")
 }
 speed_scale = 4.0
 
-[node name="CrouchCeilingDetection" type="ShapeCast3D" parent="."]
+[node name="CrouchCeilingDetection" type="ShapeCast3D" parent="." unique_id=1685154253]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("SphereShape3D_k4wwl")
 target_position = Vector3(0, 0.5, 0)

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://gat6xfeiidsw" path="res://addons/oip_comms/controls/oip_comms_dock.gd" id="1_ac54y"]
 
-[node name="Dock" type="Control"]
+[node name="Dock" type="Control" unique_id=1346319187]
 custom_minimum_size = Vector2(467, 300)
 layout_direction = 3
 layout_mode = 3
@@ -15,7 +15,7 @@ grow_vertical = 2
 script = ExtResource("1_ac54y")
 metadata/_edit_horizontal_guides_ = [21.0]
 
-[node name="HFlowContainer2" type="HFlowContainer" parent="."]
+[node name="HFlowContainer2" type="HFlowContainer" parent="." unique_id=779071617]
 layout_direction = 3
 layout_mode = 0
 offset_left = 1.0
@@ -23,23 +23,23 @@ offset_top = -3.0
 offset_right = 1043.0
 offset_bottom = 22.0
 
-[node name="EnableLogging" type="CheckBox" parent="HFlowContainer2"]
+[node name="EnableLogging" type="CheckBox" parent="HFlowContainer2" unique_id=68578691]
 layout_direction = 2
 layout_mode = 2
 text = "Enable Logging to Console"
 
-[node name="EnableComms" type="CheckBox" parent="HFlowContainer2"]
+[node name="EnableComms" type="CheckBox" parent="HFlowContainer2" unique_id=951481301]
 layout_direction = 2
 layout_mode = 2
 text = "Enable Comms"
 
-[node name="Save Changes" type="Button" parent="HFlowContainer2"]
+[node name="Save Changes" type="Button" parent="HFlowContainer2" unique_id=712725037]
 layout_mode = 2
 disabled = true
 text = "Save Changes
 "
 
-[node name="HFlowContainer" type="HFlowContainer" parent="."]
+[node name="HFlowContainer" type="HFlowContainer" parent="." unique_id=1496367017]
 layout_direction = 2
 layout_mode = 0
 offset_left = 5.0
@@ -47,11 +47,11 @@ offset_top = -2.0
 offset_right = 351.0
 offset_bottom = 24.0
 
-[node name="AddTagGroup" type="Button" parent="HFlowContainer"]
+[node name="AddTagGroup" type="Button" parent="HFlowContainer" unique_id=1293693311]
 layout_mode = 2
 text = "Add Tag Group"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="."]
+[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1644294663]
 layout_direction = 2
 layout_mode = 1
 anchors_preset = 15
@@ -62,7 +62,7 @@ offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer" unique_id=2008732738]
 layout_mode = 2
 size_flags_horizontal = 3
 

@@ -3,26 +3,26 @@
 [ext_resource type="Script" uid="uid://dsb3kx6e8adi8" path="res://addons/oip_ui/TopBar/ToggleView.gd" id="1_n1e43"]
 [ext_resource type="Script" uid="uid://btkrlws2l12ax" path="res://addons/oip_ui/TopBar/TimeScale.gd" id="4_d27m1"]
 
-[sub_resource type="DPITexture" id="SVGTexture_4ccqa"]
+[sub_resource type="DPITexture" id="DPITexture_4ccqa"]
 _source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
 "
 
-[node name="ToggleView" type="HBoxContainer"]
+[node name="ToggleView" type="HBoxContainer" unique_id=1123657015]
 custom_minimum_size = Vector2(75, 0)
 offset_right = 40.0
 offset_bottom = 40.0
 alignment = 2
 script = ExtResource("1_n1e43")
 
-[node name="TimeScaleButton" type="Button" parent="."]
+[node name="TimeScaleButton" type="Button" parent="." unique_id=1442696792]
 layout_mode = 2
 tooltip_text = "Change speed (1x, 2x, 4x)"
 toggle_mode = true
 text = "1.00x"
-icon = SubResource("SVGTexture_4ccqa")
+icon = SubResource("DPITexture_4ccqa")
 script = ExtResource("4_d27m1")
 
-[node name="ScreenButton" type="Button" parent="."]
+[node name="ScreenButton" type="Button" parent="." unique_id=22157435]
 layout_mode = 2
 tooltip_text = "Toggle Script/3D"
-icon = SubResource("SVGTexture_4ccqa")
+icon = SubResource("DPITexture_4ccqa")

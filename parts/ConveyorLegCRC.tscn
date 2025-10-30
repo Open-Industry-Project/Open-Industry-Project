@@ -78,40 +78,40 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_xr7le")
 
-[node name="LegsStandCRC" instance=ExtResource("1_e265i")]
+[node name="LegsStandCRC" unique_id=1180478620 instance=ExtResource("1_e265i")]
 transform = Transform3D(1, 0, 0, 0, 1.253, 0, 0, 0, 0.82, 0, 0, 0)
 
-[node name="LegsSide1" parent="Sides" index="0"]
+[node name="LegsSide1" parent="Sides" parent_id_path=PackedInt32Array(592676756) index="0" unique_id=354479434]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1.2195122, 0, 0, -1)
 mesh = SubResource("ArrayMesh_nnukv")
 
-[node name="LegsSide2" parent="Sides" index="1"]
+[node name="LegsSide2" parent="Sides" parent_id_path=PackedInt32Array(592676756) index="1" unique_id=1609460838]
 transform = Transform3D(-1, 0, 1.8414123e-07, 0, 1, 0, -1.509958e-07, 0, -1.2195122, 0, 0, 1)
 mesh = SubResource("ArrayMesh_nnukv")
 
-[node name="LegsBars" parent="." index="1"]
+[node name="LegsBars" parent="." index="1" unique_id=315501628]
 transform = Transform3D(1, 0, 0, 0, 0.79808456, 0, 0, 0, 1, 0, 0, 0)
 parent_scale = Vector3(1, 1.253, 0.82)
 
-[node name="LegsBar" parent="LegsBars" index="0"]
+[node name="LegsBar" parent="LegsBars" index="0" unique_id=114698961]
 mesh = SubResource("ArrayMesh_t32bb")
 
-[node name="LegsTop1" parent="Ends" index="0"]
+[node name="LegsTop1" parent="Ends" parent_id_path=PackedInt32Array(1831636979) index="0" unique_id=1707676469]
 transform = Transform3D(1, 0, 0, 0, 0.79808456, 0, 0, 0, 1.2195122, 0, 1, -1)
 mesh = ExtResource("4_04qd1")
 
-[node name="LegsGrab1" parent="Ends/LegsTop1" index="0"]
+[node name="LegsGrab1" parent="Ends/LegsTop1" index="0" unique_id=784791838]
 visible = false
 
-[node name="LegsTop2" parent="Ends" index="1"]
+[node name="LegsTop2" parent="Ends" parent_id_path=PackedInt32Array(1831636979) index="1" unique_id=507369864]
 transform = Transform3D(-1, 0, -1.8414123e-07, 0, 0.79808456, 0, 1.509958e-07, 0, -1.2195122, 0, 1, 1)
 mesh = ExtResource("4_04qd1")
 
-[node name="LegsGrab2" parent="Ends/LegsTop2" index="0"]
+[node name="LegsGrab2" parent="Ends/LegsTop2" index="0" unique_id=133655850]
 visible = false
 
-[node name="LegsBottom1" parent="Ends" index="2"]
+[node name="LegsBottom1" parent="Ends" parent_id_path=PackedInt32Array(1831636979) index="2" unique_id=284475660]
 transform = Transform3D(1, 0, 0, 0, 0.79808456, 0, 0, 0, 1.2195122, 0, 0, -1)
 
-[node name="LegsBottom2" parent="Ends" index="3"]
+[node name="LegsBottom2" parent="Ends" parent_id_path=PackedInt32Array(1831636979) index="3" unique_id=2008228755]
 transform = Transform3D(-1, 0, -1.8414123e-07, 0, 0.79808456, 0, 1.509958e-07, 0, -1.2195122, 0, 0, 1)

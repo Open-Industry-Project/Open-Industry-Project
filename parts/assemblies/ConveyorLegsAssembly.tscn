@@ -3,12 +3,12 @@
 [ext_resource type="Script" uid="uid://dxaug2s6x4otb" path="res://src/ConveyorAttachment/conveyor_legs_assembly.gd" id="1_vbjla"]
 [ext_resource type="PackedScene" uid="uid://cr8u3bta0skiy" path="res://parts/ConveyorLegBC.tscn" id="2_jpvnt"]
 
-[node name="ConveyorLegsAssembly" type="Node3D"]
+[node name="ConveyorLegsAssembly" type="Node3D" unique_id=517478431]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
 script = ExtResource("1_vbjla")
 
-[node name="ConveyorLegTail" parent="." instance=ExtResource("2_jpvnt")]
+[node name="ConveyorLegTail" parent="." unique_id=441583070 instance=ExtResource("2_jpvnt")]
 transform = Transform3D(1, 0, 0, 0, 1.368, 0, 0, 0, 0.762, -1.55, 0, 0)
 
-[node name="ConveyorLegHead" parent="." instance=ExtResource("2_jpvnt")]
+[node name="ConveyorLegHead" parent="." unique_id=1849965632 instance=ExtResource("2_jpvnt")]
 transform = Transform3D(1, 0, 0, 0, 1.368, 0, 0, 0, 0.762, 1.55, 0, 0)

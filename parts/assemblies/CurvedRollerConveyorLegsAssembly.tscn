@@ -3,13 +3,13 @@
 [ext_resource type="Script" uid="uid://k8v8a2rwprq2" path="res://src/ConveyorAttachment/curved_conveyor_legs_assembly.gd" id="1_curved"]
 [ext_resource type="PackedScene" uid="uid://somtwmiih8bb" path="res://parts/ConveyorLegCRC.tscn" id="2_leg"]
 
-[node name="CurvedRollerConveyorLegsAssembly" type="Node3D"]
+[node name="CurvedRollerConveyorLegsAssembly" type="Node3D" unique_id=821709019]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
 script = ExtResource("1_curved")
 leg_model_scene = ExtResource("2_leg")
 
-[node name="ConveyorLegTail" parent="." instance=ExtResource("2_leg")]
-transform = Transform3D(-4.371139e-08, 0, -0.82, 0, 1.253, 0, 1, 0, -3.584334e-08, -1.143, 0, 0.04)
+[node name="ConveyorLegTail" parent="." unique_id=934866817 instance=ExtResource("2_leg")]
+transform = Transform3D(-4.371139e-08, 0, -0.5, 0, 1.253, 0, 1, 0, -2.1855694e-08, -1.143, 0, 0.04)
 
-[node name="ConveyorLegHead" parent="." instance=ExtResource("2_leg")]
-transform = Transform3D(1, 0, 0, 0, 1.253, 0, 0, 0, 0.82, -0.04, 0, 1.143)
+[node name="ConveyorLegHead" parent="." unique_id=2016316505 instance=ExtResource("2_leg")]
+transform = Transform3D(1, 0, 0, 0, 1.253, 0, 0, 0, 0.5, -0.04, 0, 1.143)

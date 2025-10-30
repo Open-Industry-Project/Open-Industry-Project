@@ -6,20 +6,27 @@
 [ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="3_rxjsx"]
 [ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="4_xgosv"]
 
-[node name="RollerConveyorAssembly" type="Node3D"]
+[node name="RollerConveyorAssembly" type="Node3D" unique_id=1360212875]
 script = ExtResource("1_upkoq")
+speed = 2.0
+skew_angle = 0.0
+enable_comms = false
+speed_tag_group_name = "TagGroup0"
+speed_tag_name = ""
+running_tag_group_name = "TagGroup0"
+running_tag_name = ""
+metadata/_edit_group_ = null
 size = Vector3(4, 0.24, 1.524)
 metadata/hijack_scale = true
 
-[node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
+[node name="Conveyor" parent="." unique_id=193664504 instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true
-size = Vector3(4, 0.24, 1.524)
 speed = 2.0
 
-[node name="SideGuardsAssembly" parent="Conveyor" instance=ExtResource("3_rxjsx")]
+[node name="SideGuardsAssembly" parent="Conveyor" unique_id=691358305 instance=ExtResource("3_rxjsx")]
 unique_name_in_owner = true
 
-[node name="ConveyorLegsAssembly" parent="Conveyor" instance=ExtResource("4_xgosv")]
+[node name="ConveyorLegsAssembly" parent="Conveyor" unique_id=1298571912 instance=ExtResource("4_xgosv")]
 unique_name_in_owner = true
 middle_legs_enabled = true
 _middle_legs_instance_count = 1

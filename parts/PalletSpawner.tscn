@@ -56,25 +56,25 @@ material = SubResource("StandardMaterial3D_11xno")
 [sub_resource type="BoxShape3D" id="BoxShape3D_633hj"]
 size = Vector3(2.4, 0.25, 2.2)
 
-[node name="PalletSpawner" type="Node3D"]
+[node name="PalletSpawner" type="Node3D" unique_id=1239684601]
 script = ExtResource("1_kwg42")
 scene = ExtResource("2_g1ntt")
 spawn_interval = 3.0
 
-[node name="Wood_Pallet" type="MeshInstance3D" parent="."]
+[node name="Wood_Pallet" type="MeshInstance3D" parent="." unique_id=1366181803]
 transparency = 0.7
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_dllc6")
 
-[node name="Disabled_Pallet" type="MeshInstance3D" parent="."]
+[node name="Disabled_Pallet" type="MeshInstance3D" parent="." unique_id=341540179]
 transform = Transform3D(2.37514, 0, 0, 0, 0.242887, 0, 0, 0, 2.17006, 0, 0.103391, 0.0117566)
 visible = false
 cast_shadow = 0
 mesh = SubResource("BoxMesh_mo2d6")
 
-[node name="Area3D" type="Area3D" parent="."]
+[node name="Area3D" type="Area3D" parent="." unique_id=56718920]
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=2077038708]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.102482, 0)
 shape = SubResource("BoxShape3D_633hj")

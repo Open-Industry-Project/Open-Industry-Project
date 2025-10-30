@@ -119,26 +119,26 @@ albedo_texture = ExtResource("6_xxu0y")
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_xxu0y"]
 
-[node name="BoxSpawner" type="Node3D"]
+[node name="BoxSpawner" type="Node3D" unique_id=1009593353]
 transform = Transform3D(1, 2.30012e-09, -9.31322e-10, -2.30012e-09, 1, 8.84756e-09, 9.31322e-10, -8.84756e-09, 1, 0, 0, 0)
 script = ExtResource("1_hb8rk")
 scene = ExtResource("2_2xggy")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1653744283]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
 transparency = 0.7
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_odklf")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=1726561881]
 transform = Transform3D(0.501, 0, 0, 0, 0.501, 0, 0, 0, 0.501, 0, 0, 0)
 visible = false
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_odklf")
 surface_material_override/0 = SubResource("StandardMaterial3D_uyy21")
 
-[node name="Area3D" type="Area3D" parent="."]
+[node name="Area3D" type="Area3D" parent="." unique_id=1861193151]
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=2020067369]
 shape = SubResource("BoxShape3D_xxu0y")

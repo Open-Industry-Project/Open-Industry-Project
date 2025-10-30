@@ -21,7 +21,7 @@ segment_datas = [SubResource("Resource_v0hgu")]
 [sub_resource type="BoxShape3D" id="BoxShape3D_w3ou4"]
 size = Vector3(0.07, 1.75, 0.07)
 
-[node name="StackLight" type="Node3D"]
+[node name="StackLight" type="Node3D" unique_id=1223138583]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
 script = ExtResource("1_vxp13")
 tag_group_name = "TagGroup0"
@@ -29,34 +29,36 @@ light_value = 0
 segments = 1
 _data = SubResource("Resource_oqsfm")
 "Light 1" = SubResource("Resource_v0hgu")
+enable_comms = true
+tag_name = ""
 metadata/_edit_group_ = true
 
-[node name="Bottom" type="MeshInstance3D" parent="."]
+[node name="Bottom" type="MeshInstance3D" parent="." unique_id=1143004030]
 transform = Transform3D(1, 0, 0, 0, 2.2222223, 0, 0, 0, 1, 0, 0, 0)
 mesh = ExtResource("4_31tda")
 
-[node name="Stem" type="MeshInstance3D" parent="."]
+[node name="Stem" type="MeshInstance3D" parent="." unique_id=1036328701]
 mesh = ExtResource("5_rxxuc")
 
-[node name="Mid" type="MeshInstance3D" parent="."]
+[node name="Mid" type="MeshInstance3D" parent="." unique_id=668075570]
 transform = Transform3D(1, 0, 0, 0, 6.666667, 0, 0, 0, 1, 0, 1, 0)
 mesh = ExtResource("6_tq4eb")
 
-[node name="Segments" type="Node3D" parent="Mid"]
+[node name="Segments" type="Node3D" parent="Mid" unique_id=1108180490]
 
-[node name="StackSegment" parent="Mid/Segments" instance=ExtResource("7_u0n62")]
+[node name="StackSegment" parent="Mid/Segments" unique_id=677151403 instance=ExtResource("7_u0n62")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0385172, 0)
 segment_data = SubResource("Resource_v0hgu")
 
-[node name="Top" type="MeshInstance3D" parent="Mid"]
+[node name="Top" type="MeshInstance3D" parent="Mid" unique_id=1062653787]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.087, 0)
 mesh = ExtResource("9_hoqsd")
 skeleton = NodePath("../..")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=769880711]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1673468325]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000291446, -0.148, -0.000134274)
 shape = SubResource("BoxShape3D_w3ou4")

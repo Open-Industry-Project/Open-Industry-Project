@@ -8,27 +8,29 @@
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
 
-[node name="BeltConveyorAssembly" type="Node3D"]
+[node name="BeltConveyorAssembly" type="Node3D" unique_id=197585006]
 script = ExtResource("1_upkoq")
 belt_color = Color(1, 1, 1, 1)
 belt_texture = 0
 speed = 2.0
 belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
+enable_comms = false
 speed_tag_group_name = "TagGroup0"
+speed_tag_name = ""
 running_tag_group_name = "TagGroup0"
-metadata/hijack_scale = true
+running_tag_name = ""
 metadata/_edit_group_ = null
 size = Vector3(4, 0.5, 1.524)
 metadata/hijack_scale = true
 
-[node name="Conveyor" parent="." instance=ExtResource("2_rxjsx")]
+[node name="Conveyor" parent="." unique_id=2055711349 instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true
 belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
 
-[node name="SideGuardsAssembly" parent="Conveyor" instance=ExtResource("3_rxjsx")]
+[node name="SideGuardsAssembly" parent="Conveyor" unique_id=293151412 instance=ExtResource("3_rxjsx")]
 unique_name_in_owner = true
 
-[node name="ConveyorLegsAssembly" parent="Conveyor" instance=ExtResource("4_xgosv")]
+[node name="ConveyorLegsAssembly" parent="Conveyor" unique_id=2044325584 instance=ExtResource("4_xgosv")]
 unique_name_in_owner = true
 middle_legs_enabled = true
 _middle_legs_instance_count = 1

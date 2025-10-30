@@ -168,43 +168,43 @@ size = Vector3(0.26, 0.715, 0.425)
 [sub_resource type="BoxShape3D" id="BoxShape3D_7x1p7"]
 size = Vector3(0.185, 0.225, 0.185)
 
-[node name="DiffuseSensor" type="Node3D"]
+[node name="DiffuseSensor" type="Node3D" unique_id=1915908865]
 script = ExtResource("1_vtdj1")
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
-[node name="Photoeye" type="Node3D" parent="."]
+[node name="Photoeye" type="Node3D" parent="." unique_id=2002314618]
 
-[node name="Root" type="Node3D" parent="Photoeye"]
+[node name="Root" type="Node3D" parent="Photoeye" unique_id=1456369525]
 
-[node name="Body" type="MeshInstance3D" parent="Photoeye/Root"]
+[node name="Body" type="MeshInstance3D" parent="Photoeye/Root" unique_id=171140478]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_fgebl")
 skeleton = NodePath("")
 
-[node name="Connector" type="MeshInstance3D" parent="Photoeye/Root"]
+[node name="Connector" type="MeshInstance3D" parent="Photoeye/Root" unique_id=1186862124]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_fpkyj")
 skeleton = NodePath("")
 
-[node name="Diffuse" type="MeshInstance3D" parent="Photoeye/Root"]
+[node name="Diffuse" type="MeshInstance3D" parent="Photoeye/Root" unique_id=1826797678]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_2wh1k")
 skeleton = NodePath("")
 
-[node name="Top" type="MeshInstance3D" parent="Photoeye/Root"]
+[node name="Top" type="MeshInstance3D" parent="Photoeye/Root" unique_id=1739396088]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_ie336")
 skeleton = NodePath("")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=32237725]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.294407, 0.183749)
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=531442447]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.02659e-09, 0.0592939, 0.0287486)
 shape = SubResource("BoxShape3D_vtdj1")
 
-[node name="CollisionShape3D2" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="StaticBody3D" unique_id=506398982]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.396, 0.0446391)
 shape = SubResource("BoxShape3D_7x1p7")

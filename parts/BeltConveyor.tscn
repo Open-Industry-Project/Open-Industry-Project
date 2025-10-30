@@ -123,7 +123,7 @@ shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
 resource_local_to_scene = true
 size = Vector3(4, 0.5, 1.524)
 
-[node name="Conveyor" type="Node3D"]
+[node name="Conveyor" type="Node3D" unique_id=648130432]
 process_mode = 1
 script = ExtResource("1_07qd2")
 belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
@@ -133,26 +133,26 @@ size = Vector3(4, 0.5, 1.524)
 metadata/hijack_scale = true
 metadata/_edit_group_ = true
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=194957246]
 transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, -0.25, 0)
 mesh = SubResource("ArrayMesh_uu43a")
 surface_material_override/0 = SubResource("ShaderMaterial_uu43a")
 surface_material_override/1 = SubResource("ShaderMaterial_sml8l")
 surface_material_override/2 = SubResource("ShaderMaterial_sml8l")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=2077228500]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 physics_material_override = SubResource("PhysicsMaterial_hcu6p")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=982818502]
 shape = SubResource("BoxShape3D_qeh4m")
 
-[node name="BeltConveyorEnd" parent="." instance=ExtResource("3_rx6or")]
+[node name="BeltConveyorEnd" parent="." unique_id=1374261522 instance=ExtResource("3_rx6or")]
 transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 1.75, -0.25, 0)
 disable_collision = true
 size = Vector3(0.25, 0.5, 1.524)
 
-[node name="BeltConveyorEnd2" parent="." instance=ExtResource("3_rx6or")]
+[node name="BeltConveyorEnd2" parent="." unique_id=1928483432 instance=ExtResource("3_rx6or")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.75, -0.25, 0)
 disable_collision = true
 size = Vector3(0.25, 0.5, 1.524)

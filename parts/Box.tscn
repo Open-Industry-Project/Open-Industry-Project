@@ -113,26 +113,27 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_jl6cr")
 
-[node name="Box" type="Node3D"]
+[node name="Box" type="Node3D" unique_id=1373682946]
 top_level = true
 script = ExtResource("1_jl6cr")
 size = Vector3(1, 1, 1)
 metadata/hijack_scale = true
 metadata/_edit_group_ = true
 
-[node name="RigidBody3D" type="RigidBody3D" parent="."]
+[node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=1929949017]
 process_mode = 3
 collision_layer = 10
 collision_mask = 15
 mass = 10.0
 physics_material_override = SubResource("PhysicsMaterial_jt2n8")
 can_sleep = false
+freeze = true
 ghost_collision_filtering_enabled = true
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=467390607]
 shape = SubResource("BoxShape3D_h4we7")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=519485523]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
 mesh = SubResource("ArrayMesh_edno1")
 skeleton = NodePath("")

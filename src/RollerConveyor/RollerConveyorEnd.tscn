@@ -38,23 +38,23 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[node name="RollerConveyorEnd" type="Node3D"]
+[node name="RollerConveyorEnd" type="Node3D" unique_id=931591505]
 process_mode = 1
 script = ExtResource("2_dhet7")
 metadata/_edit_group_ = true
 
-[node name="ConveyorRollerEnd" type="Node3D" parent="."]
+[node name="ConveyorRollerEnd" type="Node3D" parent="." unique_id=1819929401]
 transform = Transform3D(0.65, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
-[node name="ConvRollerEndL" type="MeshInstance3D" parent="ConveyorRollerEnd"]
+[node name="ConvRollerEndL" type="MeshInstance3D" parent="ConveyorRollerEnd" unique_id=1643539990]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.762)
 mesh = SubResource("ArrayMesh_38d5w")
 skeleton = NodePath("")
 
-[node name="ConvRollerEndR" type="MeshInstance3D" parent="ConveyorRollerEnd"]
+[node name="ConvRollerEndR" type="MeshInstance3D" parent="ConveyorRollerEnd" unique_id=682550670]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.762)
 mesh = SubResource("ArrayMesh_juo62")
 skeleton = NodePath("")
 
-[node name="Roller" parent="." instance=ExtResource("2_p44y0")]
+[node name="Roller" parent="." unique_id=1424174293 instance=ExtResource("2_p44y0")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)

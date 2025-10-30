@@ -70,107 +70,6 @@ parameter_name = "BeltPosition"
 hint = 1
 
 [sub_resource type="VisualShader" id="VisualShader_uqw5q"]
-code = "shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, depth_test_default, cull_back, diffuse_lambert, specular_schlick_ggx;
-
-uniform vec4 ColorMix : source_color;
-uniform bool BlackTextureOn = true;
-uniform float Scale;
-uniform float BeltPosition : hint_range(0.0, 1.0);
-uniform bool Invert;
-uniform sampler2D tex_frg_5 : source_color;
-uniform sampler2D tex_frg_32 : source_color;
-
-
-
-void fragment() {
-// ColorParameter:35
-	vec4 n_out35p0 = ColorMix;
-
-
-// BooleanParameter:34
-	bool n_out34p0 = BlackTextureOn;
-
-
-// FloatParameter:19
-	float n_out19p0 = Scale;
-
-
-// FloatFunc:14
-	float n_out14p0 = round(n_out19p0);
-
-
-// FloatOp:28
-	float n_in28p0 = 1.00000;
-	float n_out28p0 = n_in28p0 / n_out14p0;
-
-
-// VectorCompose:29
-	float n_in29p0 = 1.00000;
-	vec2 n_out29p0 = vec2(n_in29p0, n_out28p0);
-
-
-// FloatParameter:8
-	float n_out8p0 = BeltPosition;
-
-
-// BooleanParameter:15
-	bool n_out15p0 = Invert;
-
-
-	float n_out16p0;
-// Switch:16
-	float n_in16p1 = -1.00000;
-	float n_in16p2 = 1.00000;
-	n_out16p0 = mix(n_in16p2, n_in16p1, float(n_out15p0));
-
-
-// FloatOp:25
-	float n_out25p0 = n_out8p0 * n_out16p0;
-
-
-// VectorCompose:27
-	float n_in27p0 = 1.00000;
-	vec2 n_out27p0 = vec2(n_in27p0, n_out25p0);
-
-
-// UVFunc:3
-	vec2 n_out3p0 = n_out27p0 * n_out29p0 + UV;
-
-
-// VectorCompose:11
-	float n_in11p0 = 1.00000;
-	vec2 n_out11p0 = vec2(n_in11p0, n_out14p0);
-
-
-// UVFunc:13
-	vec2 n_in13p2 = vec2(0.00000, 0.00000);
-	vec2 n_out13p0 = (n_out3p0 - n_in13p2) * n_out11p0 + n_in13p2;
-
-
-// Texture2D:5
-	vec4 n_out5p0 = texture(tex_frg_5, n_out13p0);
-
-
-// Texture2D:32
-	vec4 n_out32p0 = texture(tex_frg_32, n_out13p0);
-
-
-	vec3 n_out33p0;
-// Switch:33
-	n_out33p0 = mix(vec3(n_out32p0.xyz), vec3(n_out5p0.xyz), float(n_out34p0));
-
-
-// VectorOp:36
-	vec3 n_out36p0 = vec3(n_out35p0.xyz) * n_out33p0;
-
-
-// Output:0
-	ALBEDO = n_out36p0;
-
-
-}
-"
 nodes/fragment/0/position = Vector2(1040, 120)
 nodes/fragment/3/node = SubResource("VisualShaderNodeUVFunc_y2xp6")
 nodes/fragment/3/position = Vector2(-360, 100)
@@ -298,23 +197,23 @@ shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_kvs74"]
 friction = 0.5
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_bhx60"]
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_pmfa5"]
 resource_local_to_scene = true
 radius = 0.25
 
-[node name="BeltConveyorEnd" type="Node3D"]
+[node name="BeltConveyorEnd" type="Node3D" unique_id=1727141422]
 script = ExtResource("1_crir7")
 size = Vector3(0.25, 0.5, 2)
 metadata/hijack_scale = true
 metadata/_edit_group_ = true
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=890271801]
 mesh = SubResource("ArrayMesh_bcffs")
 skeleton = NodePath("../StaticBody3D")
 surface_material_override/0 = SubResource("ShaderMaterial_p6cdy")
 surface_material_override/1 = SubResource("ShaderMaterial_5c7st")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1567398867]
 collision_layer = 2
 collision_mask = 0
 axis_lock_linear_x = true
@@ -323,15 +222,16 @@ axis_lock_linear_z = true
 axis_lock_angular_x = true
 axis_lock_angular_y = true
 physics_material_override = SubResource("PhysicsMaterial_kvs74")
+constant_angular_velocity = Vector3(0, 0, 8)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=211344245]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0)
-shape = SubResource("CylinderShape3D_bhx60")
+shape = SubResource("CylinderShape3D_pmfa5")
 
-[node name="CurvedEndMarker" type="Marker3D" parent="."]
+[node name="CurvedEndMarker" type="Marker3D" parent="." unique_id=1869775974]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0, 1)
 gizmo_extents = 0.0
 
-[node name="CurvedEndMarker2" type="Marker3D" parent="."]
+[node name="CurvedEndMarker2" type="Marker3D" parent="." unique_id=929711809]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0, -1)
 gizmo_extents = 0.0

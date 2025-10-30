@@ -2,6 +2,6 @@
 
 [ext_resource type="Script" uid="uid://k8v8a2rwprq2" path="res://src/ConveyorAttachment/curved_conveyor_legs_assembly.gd" id="1_curved"]
 
-[node name="CurvedConveyorLegsAssembly" type="Node3D"]
+[node name="CurvedConveyorLegsAssembly" type="Node3D" unique_id=577597572]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
 script = ExtResource("1_curved")

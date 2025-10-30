@@ -78,19 +78,19 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_xr7le")
 
-[node name="LegsStandRC" instance=ExtResource("1_0pp1r")]
+[node name="LegsStandRC" unique_id=589425310 instance=ExtResource("1_0pp1r")]
 
-[node name="LegsSide1" parent="Sides" index="0"]
+[node name="LegsSide1" parent="Sides" parent_id_path=PackedInt32Array(592676756) index="0" unique_id=354479434]
 mesh = SubResource("ArrayMesh_m24d6")
 
-[node name="LegsSide2" parent="Sides" index="1"]
+[node name="LegsSide2" parent="Sides" parent_id_path=PackedInt32Array(592676756) index="1" unique_id=1609460838]
 mesh = SubResource("ArrayMesh_m24d6")
 
-[node name="LegsBar" parent="LegsBars" index="0"]
+[node name="LegsBar" parent="LegsBars" parent_id_path=PackedInt32Array(315501628) index="0" unique_id=114698961]
 mesh = SubResource("ArrayMesh_pxb4j")
 
-[node name="LegsGrab1" parent="Ends/LegsTop1" index="0"]
+[node name="LegsGrab1" parent="Ends/LegsTop1" parent_id_path=PackedInt32Array(1707676469) index="0" unique_id=784791838]
 mesh = ExtResource("4_4tjn2")
 
-[node name="LegsGrab2" parent="Ends/LegsTop2" index="0"]
+[node name="LegsGrab2" parent="Ends/LegsTop2" parent_id_path=PackedInt32Array(507369864) index="0" unique_id=133655850]
 mesh = ExtResource("4_4tjn2")

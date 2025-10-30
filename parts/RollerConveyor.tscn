@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=4 uid="uid://dg47c07xr4ksu"]
+[gd_scene load_steps=14 format=4 uid="uid://dg47c07xr4ksu"]
 
 [ext_resource type="Script" uid="uid://c3i26qc2exbsa" path="res://src/RollerConveyor/roller_conveyor.gd" id="1_vnty6"]
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]
@@ -47,6 +47,15 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_8jdet")
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vc5t3"]
+render_priority = 0
+shader = ExtResource("2_vc5t3")
+shader_parameter/BeltPosition = 0.0
+shader_parameter/Invert = false
+shader_parameter/Scale = 1.0
+shader_parameter/Scale2 = 2.0
+shader_parameter/Color = Color(0.337255, 0.654902, 0.784314, 1)
+
 [sub_resource type="ArrayMesh" id="ArrayMesh_ve8ru"]
 _surfaces = [{
 "aabb": AABB(-0.5, -0.25000006, -0.055000186, 1, 0.5103388, 0.11000025),
@@ -79,15 +88,15 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ve8ru")
 
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_vc5t3"]
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_sau1a"]
 friction = 0.8
 rough = true
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_vc5t3"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_enukr"]
 resource_local_to_scene = true
 size = Vector3(4, 0.24, 1.524)
 
-[node name="RollerConveyor" type="Node3D"]
+[node name="RollerConveyor" type="Node3D" unique_id=1156243860]
 script = ExtResource("1_vnty6")
 speed_tag_group_name = "TagGroup0"
 running_tag_group_name = "TagGroup0"
@@ -95,67 +104,69 @@ size = Vector3(4, 0.24, 1.524)
 metadata/hijack_scale = true
 metadata/_edit_group_ = true
 
-[node name="ConvRoller" type="Node3D" parent="."]
+[node name="ConvRoller" type="Node3D" parent="." unique_id=2118945966]
 transform = Transform3D(3.67, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 
-[node name="ConvRollerL" type="MeshInstance3D" parent="ConvRoller"]
+[node name="ConvRollerL" type="MeshInstance3D" parent="ConvRoller" unique_id=32611414]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.762)
 mesh = SubResource("ArrayMesh_enukr")
 skeleton = NodePath("")
+surface_material_override/0 = SubResource("ShaderMaterial_vc5t3")
 
-[node name="ConvRollerR" type="MeshInstance3D" parent="ConvRoller"]
+[node name="ConvRollerR" type="MeshInstance3D" parent="ConvRoller" unique_id=1978607783]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.762)
 mesh = SubResource("ArrayMesh_rh5bt")
 skeleton = NodePath("")
+surface_material_override/0 = SubResource("ShaderMaterial_vc5t3")
 
-[node name="Rollers" type="Node3D" parent="."]
+[node name="Rollers" type="Node3D" parent="." unique_id=186954691]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8, -0.08, 0)
 script = ExtResource("3_peu56")
 roller_scene = ExtResource("2_v7a13")
 
-[node name="Roller" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller" parent="Rollers" unique_id=56896616 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0, 0)
 
-[node name="Roller2" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller2" parent="Rollers" unique_id=214687304 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.66, 0, 0)
 
-[node name="Roller3" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller3" parent="Rollers" unique_id=583242759 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0, 0)
 
-[node name="Roller4" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller4" parent="Rollers" unique_id=445092000 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.32, 0, 0)
 
-[node name="Roller5" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller5" parent="Rollers" unique_id=1592699378 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.65, 0, 0)
 
-[node name="Roller6" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller6" parent="Rollers" unique_id=428989232 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.98, 0, 0)
 
-[node name="Roller7" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller7" parent="Rollers" unique_id=470847676 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.31, 0, 0)
 
-[node name="Roller8" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller8" parent="Rollers" unique_id=2114981963 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.64, 0, 0)
 
-[node name="Roller9" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller9" parent="Rollers" unique_id=341746238 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.97, 0, 0)
 
-[node name="Roller10" parent="Rollers" instance=ExtResource("2_v7a13")]
+[node name="Roller10" parent="Rollers" unique_id=742532508 instance=ExtResource("2_v7a13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3, 0, 0)
 
-[node name="Ends" type="Node3D" parent="."]
+[node name="Ends" type="Node3D" parent="." unique_id=1773600737]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 
-[node name="RollerConveyorEnd" parent="Ends" instance=ExtResource("6_fn5jx")]
+[node name="RollerConveyorEnd" parent="Ends" unique_id=93448298 instance=ExtResource("6_fn5jx")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.835, 0, 0)
 
-[node name="RollerConveyorEnd2" parent="Ends" instance=ExtResource("6_fn5jx")]
+[node name="RollerConveyorEnd2" parent="Ends" unique_id=326210278 instance=ExtResource("6_fn5jx")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -1.835, 0, 0)
 flipped = true
 
-[node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
+[node name="SimpleConveyorShape" type="StaticBody3D" parent="." unique_id=482945586]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
-physics_material_override = SubResource("PhysicsMaterial_vc5t3")
+physics_material_override = SubResource("PhysicsMaterial_sau1a")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SimpleConveyorShape"]
-shape = SubResource("BoxShape3D_vc5t3")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SimpleConveyorShape" unique_id=475299996]
+shape = SubResource("BoxShape3D_enukr")

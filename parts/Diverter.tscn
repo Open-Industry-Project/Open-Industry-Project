@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=4 uid="uid://5pjmdoyiub35"]
+[gd_scene load_steps=21 format=4 uid="uid://5pjmdoyiub35"]
 
 [ext_resource type="Script" uid="uid://ej2fvcfstqio" path="res://src/Diverter/diverter.gd" id="1_8wula"]
 [ext_resource type="Script" uid="uid://dtgqdb65nle3j" path="res://src/Diverter/diverter_animator.gd" id="2_1je71"]
@@ -231,41 +231,59 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ohjvn")
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ri0ud"]
+resource_name = "LampRed"
+albedo_color = Color(0.576515, 0.372541, 0.368615, 1)
+roughness = 0.654
+emission_enabled = true
+emission = Color(0.74902, 0.0509804, 0.0509804, 1)
+emission_energy_multiplier = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cyv7m"]
+resource_name = "LampGreen"
+albedo_color = Color(0.427485, 0.596067, 0.423515, 1)
+roughness = 0.612
+emission_enabled = true
+emission = Color(0, 1, 0.282353, 1)
+emission_energy_multiplier = 0.0
+
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_j5w02"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_snq0a"]
 size = Vector3(0.467773, 0.395508, 2.08258)
 
-[node name="Diverter" type="Node3D"]
+[node name="Diverter" type="Node3D" unique_id=1865443018]
 script = ExtResource("1_8wula")
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=678008501]
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=438776507]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.21666, 0)
 shape = SubResource("BoxShape3D_n8u7v")
 
-[node name="DiverterAnimator" type="Node3D" parent="."]
+[node name="DiverterAnimator" type="Node3D" parent="." unique_id=365882001]
 script = ExtResource("2_1je71")
 
-[node name="Pusher" type="MeshInstance3D" parent="DiverterAnimator"]
+[node name="Pusher" type="MeshInstance3D" parent="DiverterAnimator" unique_id=402683298]
 mesh = SubResource("ArrayMesh_ri0ud")
 skeleton = NodePath("")
+surface_material_override/3 = SubResource("StandardMaterial3D_ri0ud")
+surface_material_override/4 = SubResource("StandardMaterial3D_cyv7m")
 
-[node name="part1" type="MeshInstance3D" parent="DiverterAnimator/Pusher"]
+[node name="part1" type="MeshInstance3D" parent="DiverterAnimator/Pusher" unique_id=2009318069]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000149414, 0.446347, -0.330678)
 mesh = ExtResource("9_y5w5p")
 skeleton = NodePath("")
 
-[node name="part2" type="MeshInstance3D" parent="DiverterAnimator/Pusher"]
+[node name="part2" type="MeshInstance3D" parent="DiverterAnimator/Pusher" unique_id=1377530694]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000149414, 0.446347, -0.330678)
 mesh = ExtResource("10_podjm")
 skeleton = NodePath("")
 
-[node name="PartEnd" type="RigidBody3D" parent="DiverterAnimator/Pusher"]
+[node name="PartEnd" type="RigidBody3D" parent="DiverterAnimator/Pusher" unique_id=1893148572]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0031511, 0.447451, -0.874989)
 collision_layer = 2
 collision_mask = 8
@@ -278,10 +296,10 @@ lock_rotation = true
 freeze = true
 continuous_cd = true
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="DiverterAnimator/Pusher/PartEnd"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DiverterAnimator/Pusher/PartEnd" unique_id=1308724094]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.811371)
 shape = SubResource("BoxShape3D_snq0a")
 
-[node name="partEnd" type="MeshInstance3D" parent="DiverterAnimator/Pusher/PartEnd"]
+[node name="partEnd" type="MeshInstance3D" parent="DiverterAnimator/Pusher/PartEnd" unique_id=619477814]
 mesh = ExtResource("11_tiun1")
 skeleton = NodePath("")

@@ -43,6 +43,6 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_xr7le")
 
-[node name="LegsBar" type="MeshInstance3D"]
+[node name="LegsBar" type="MeshInstance3D" unique_id=627703949]
 mesh = SubResource("ArrayMesh_wrol4")
 skeleton = NodePath("")

@@ -14,7 +14,7 @@ corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 corner_detail = 3
 
-[node name="TagGroup" type="Control"]
+[node name="TagGroup" type="Control" unique_id=627326832]
 custom_minimum_size = Vector2(860, 120)
 layout_mode = 3
 anchors_preset = 0
@@ -25,7 +25,7 @@ script = ExtResource("1_ugh8j")
 metadata/_edit_horizontal_guides_ = [35.0, 67.0, 21.0, 55.0, 8.0]
 metadata/_edit_vertical_guides_ = [297.0, 468.0, 949.0, 698.0]
 
-[node name="NameLabel" type="Label" parent="."]
+[node name="NameLabel" type="Label" parent="." unique_id=1303666003]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 0
 offset_left = 3.0
@@ -34,7 +34,7 @@ offset_right = 103.0
 offset_bottom = 29.0
 text = "Name"
 
-[node name="Name" type="LineEdit" parent="."]
+[node name="Name" type="LineEdit" parent="." unique_id=1339611222]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 0
 offset_left = 91.0
@@ -43,7 +43,7 @@ offset_right = 251.0
 offset_bottom = 33.0
 select_all_on_focus = true
 
-[node name="PollingRateLabel" type="Label" parent="."]
+[node name="PollingRateLabel" type="Label" parent="." unique_id=1851167501]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 0
 offset_left = 299.0
@@ -52,7 +52,7 @@ offset_right = 449.0
 offset_bottom = 30.0
 text = "Polling Rate (ms)"
 
-[node name="PollingRate" type="SpinBox" parent="."]
+[node name="PollingRate" type="SpinBox" parent="." unique_id=1126150991]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 0
 offset_left = 468.0
@@ -62,7 +62,7 @@ offset_bottom = 34.0
 max_value = 1000000.0
 rounded = true
 
-[node name="ProtocolLabel" type="Label" parent="."]
+[node name="ProtocolLabel" type="Label" parent="." unique_id=332030810]
 custom_minimum_size = Vector2(70, 0)
 layout_mode = 0
 offset_left = 620.0
@@ -71,7 +71,7 @@ offset_right = 721.0
 offset_bottom = 30.0
 text = "Protocol"
 
-[node name="Protocol" type="OptionButton" parent="."]
+[node name="Protocol" type="OptionButton" parent="." unique_id=1405846332]
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 0
 offset_left = 723.0
@@ -87,7 +87,7 @@ popup/item_1/id = 1
 popup/item_2/text = "opc_ua"
 popup/item_2/id = 2
 
-[node name="Delete" type="Button" parent="."]
+[node name="Delete" type="Button" parent="." unique_id=647893285]
 layout_mode = 0
 offset_left = 909.0
 offset_top = 31.0
@@ -95,7 +95,7 @@ offset_right = 955.0
 offset_bottom = 56.0
 text = "Delete"
 
-[node name="GatewayLabel" type="Label" parent="."]
+[node name="GatewayLabel" type="Label" parent="." unique_id=1369797978]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 0
 offset_left = 1.0
@@ -104,7 +104,7 @@ offset_right = 151.0
 offset_bottom = 76.0
 text = "Gateway"
 
-[node name="Gateway" type="LineEdit" parent="."]
+[node name="Gateway" type="LineEdit" parent="." unique_id=657437687]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 0
 offset_left = 90.0
@@ -113,7 +113,7 @@ offset_right = 250.0
 offset_bottom = 80.0
 select_all_on_focus = true
 
-[node name="PathLabel" type="Label" parent="."]
+[node name="PathLabel" type="Label" parent="." unique_id=1710551226]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 0
 offset_left = 297.0
@@ -122,7 +122,7 @@ offset_right = 447.0
 offset_bottom = 76.0
 text = "Path"
 
-[node name="Path" type="LineEdit" parent="."]
+[node name="Path" type="LineEdit" parent="." unique_id=1686324053]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 0
 offset_left = 468.0
@@ -131,7 +131,7 @@ offset_right = 568.0
 offset_bottom = 80.0
 select_all_on_focus = true
 
-[node name="CPULabel" type="Label" parent="."]
+[node name="CPULabel" type="Label" parent="." unique_id=769741869]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 0
 offset_left = 620.0
@@ -140,7 +140,7 @@ offset_right = 720.0
 offset_bottom = 76.0
 text = "CPU"
 
-[node name="CPU" type="OptionButton" parent="."]
+[node name="CPU" type="OptionButton" parent="." unique_id=700648847]
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 0
 offset_left = 724.0
@@ -164,7 +164,7 @@ popup/item_5/id = 5
 popup/item_6/text = "Omron"
 popup/item_6/id = 6
 
-[node name="Panel" type="Panel" parent="."]
+[node name="Panel" type="Panel" parent="." unique_id=720323293]
 custom_minimum_size = Vector2(0, 3)
 layout_mode = 0
 offset_left = 1.0

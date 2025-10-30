@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://c1dcpxt5x65et" path="res://parts/SideGuardsCBC.tscn" id="3_8k5xq"]
 [ext_resource type="PackedScene" uid="uid://b3j6k7x4h8rpg" path="res://parts/assemblies/CurvedRollerConveyorLegsAssembly.tscn" id="4_roller_legs"]
 
-[node name="CurvedRollerConveyorAssembly" type="Node3D"]
+[node name="CurvedRollerConveyorAssembly" type="Node3D" unique_id=1547953207]
 script = ExtResource("1_0vkx8")
 inner_radius_f = 0.5
 conveyor_width = 1.524
@@ -20,14 +20,14 @@ running_tag_name = ""
 metadata/_edit_group_ = null
 metadata/hijack_scale = true
 
-[node name="ConveyorCorner" parent="." instance=ExtResource("2_1qr7y")]
+[node name="ConveyorCorner" parent="." unique_id=483308205 instance=ExtResource("2_1qr7y")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.121967435, 0, 0.122134805)
 
-[node name="ConveyorLegsAssembly" parent="ConveyorCorner" instance=ExtResource("4_roller_legs")]
+[node name="ConveyorLegsAssembly" parent="ConveyorCorner" unique_id=1482390139 instance=ExtResource("4_roller_legs")]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7486e-07, -2, 0)
 
-[node name="SideGuardsCBC" parent="." instance=ExtResource("3_8k5xq")]
+[node name="SideGuardsCBC" parent="." unique_id=1461403159 instance=ExtResource("3_8k5xq")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.121967435, -0.246, 0.122134805)
 size = Vector3(3.8100002, 4, 1.5600001)
 metadata/hijack_scale = true

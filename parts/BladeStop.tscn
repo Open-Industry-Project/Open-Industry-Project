@@ -28,99 +28,99 @@ size = Vector3(0.20314, 0.911072, 0.198853)
 [sub_resource type="BoxShape3D" id="BoxShape3D_tokfa"]
 size = Vector3(0.42, 0.91, 2.895)
 
-[node name="BladeStop" type="Node3D"]
+[node name="BladeStop" type="Node3D" unique_id=1831714670]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.448, 0, 0, 0)
 script = ExtResource("1_tokfa")
 tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
-[node name="Blade" type="StaticBody3D" parent="."]
+[node name="Blade" type="StaticBody3D" parent="." unique_id=1543170829]
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Blade"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Blade" unique_id=646551998]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.103607, 0.122727, 0)
 shape = SubResource("BoxShape3D_hs4hh")
 
-[node name="BladeMiddle" type="MeshInstance3D" parent="Blade"]
+[node name="BladeMiddle" type="MeshInstance3D" parent="Blade" unique_id=1969706610]
 mesh = ExtResource("2_lenbf")
 skeleton = NodePath("")
 
-[node name="Base" type="StaticBody3D" parent="."]
+[node name="Base" type="StaticBody3D" parent="." unique_id=333146166]
 collision_layer = 3
 physics_material_override = ExtResource("2_ctgt5")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Base"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Base" unique_id=2096221622]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.297729, -0.198643, 0)
 shape = SubResource("BoxShape3D_eunin")
 
-[node name="BaseMiddle" type="MeshInstance3D" parent="Base"]
+[node name="BaseMiddle" type="MeshInstance3D" parent="Base" unique_id=667862848]
 mesh = ExtResource("3_phkgk")
 skeleton = NodePath("")
 
-[node name="Corners" type="Node3D" parent="."]
+[node name="Corners" type="Node3D" parent="." unique_id=689768199]
 
-[node name="AirPressureR" type="MeshInstance3D" parent="Corners"]
+[node name="AirPressureR" type="MeshInstance3D" parent="Corners" unique_id=850792996]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, -1)
 mesh = ExtResource("6_y8bb3")
 skeleton = NodePath("")
 
-[node name="BladeCornerR" type="MeshInstance3D" parent="Corners/AirPressureR"]
+[node name="BladeCornerR" type="MeshInstance3D" parent="Corners/AirPressureR" unique_id=1024072587]
 mesh = ExtResource("3_dm566")
 skeleton = NodePath("")
 
-[node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureR/BladeCornerR"]
+[node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureR/BladeCornerR" unique_id=1331705948]
 collision_layer = 3
 physics_material_override = ExtResource("2_ctgt5")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/AirPressureR/BladeCornerR/StaticBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/AirPressureR/BladeCornerR/StaticBody" unique_id=2070486987]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.104848, 0.123261, -0.056549)
 shape = SubResource("BoxShape3D_objeq")
 
-[node name="AirPressureL" type="MeshInstance3D" parent="Corners"]
+[node name="AirPressureL" type="MeshInstance3D" parent="Corners" unique_id=1909080282]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, 1)
 mesh = ExtResource("4_tinri")
 skeleton = NodePath("")
 
-[node name="BladeCornerL" type="MeshInstance3D" parent="Corners/AirPressureL"]
+[node name="BladeCornerL" type="MeshInstance3D" parent="Corners/AirPressureL" unique_id=1038601249]
 mesh = ExtResource("5_qmqyj")
 skeleton = NodePath("")
 
-[node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureL/BladeCornerL"]
+[node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureL/BladeCornerL" unique_id=1430092770]
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/AirPressureL/BladeCornerL/StaticBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/AirPressureL/BladeCornerL/StaticBody" unique_id=1607870127]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.105, 0.122836, 0.057)
 shape = SubResource("BoxShape3D_objeq")
 
-[node name="BaseCornerR" type="MeshInstance3D" parent="Corners"]
+[node name="BaseCornerR" type="MeshInstance3D" parent="Corners" unique_id=1203568680]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, -1)
 mesh = ExtResource("2_idi6q")
 skeleton = NodePath("")
 
-[node name="StaticBody" type="StaticBody3D" parent="Corners/BaseCornerR"]
+[node name="StaticBody" type="StaticBody3D" parent="Corners/BaseCornerR" unique_id=1218957378]
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/BaseCornerR/StaticBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/BaseCornerR/StaticBody" unique_id=331510942]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.300896, -0.20142, -0.0991821)
 shape = SubResource("BoxShape3D_pbd6i")
 
-[node name="BaseCornerL" type="MeshInstance3D" parent="Corners"]
+[node name="BaseCornerL" type="MeshInstance3D" parent="Corners" unique_id=685243902]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, 1)
 mesh = ExtResource("9_vmhlq")
 skeleton = NodePath("")
 
-[node name="StaticBody" type="StaticBody3D" parent="Corners/BaseCornerL"]
+[node name="StaticBody" type="StaticBody3D" parent="Corners/BaseCornerL" unique_id=1730614616]
 collision_layer = 3
 physics_material_override = ExtResource("2_ctgt5")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/BaseCornerL/StaticBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Corners/BaseCornerL/StaticBody" unique_id=520599638]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.202, -0.201715, 0.099)
 shape = SubResource("BoxShape3D_pbd6i")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1560831011]
 collision_layer = 3
 physics_material_override = SubResource("PhysicsMaterial_tokfa")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=376753566]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.197124, -0.20461, 0)
 shape = SubResource("BoxShape3D_tokfa")

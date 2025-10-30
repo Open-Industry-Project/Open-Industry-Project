@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=4 uid="uid://gddgyvex6gdj"]
+[gd_scene load_steps=13 format=4 uid="uid://gddgyvex6gdj"]
 
 [ext_resource type="ArrayMesh" uid="uid://cigybp2vspbf8" path="res://assets/3DModels/PushButton/Meshes/PushButton_Plane_001.res" id="1_7mqik"]
 [ext_resource type="Script" uid="uid://du1fxhc85e8jp" path="res://src/PushButton/push_button.gd" id="1_kcxih"]
@@ -52,62 +52,72 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_raix2")
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wmlno"]
+resource_local_to_scene = true
+resource_name = "PushButton"
+albedo_color = Color(1, 0, 0, 1)
+roughness = 0.5
+emission_enabled = true
+emission = Color(1, 0, 0, 1)
+emission_energy_multiplier = 0.0
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_kcxih"]
 size = Vector3(0.5, 0.415131, 0.292805)
 
-[node name="PushButton" type="Node3D"]
+[node name="PushButton" type="Node3D" unique_id=1216453833]
 script = ExtResource("1_kcxih")
 pushbutton_tag_group_name = "TagGroup0"
 lamp_tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
-[node name="Meshes" type="Node3D" parent="."]
+[node name="Meshes" type="Node3D" parent="." unique_id=570554531]
 
-[node name="Base" type="MeshInstance3D" parent="Meshes"]
+[node name="Base" type="MeshInstance3D" parent="Meshes" unique_id=798106629]
 mesh = ExtResource("1_7mqik")
 skeleton = NodePath("")
 
-[node name="Bolts" type="Node3D" parent="Meshes"]
+[node name="Bolts" type="Node3D" parent="Meshes" unique_id=1965675394]
 
-[node name="Bolt" type="MeshInstance3D" parent="Meshes/Bolts"]
+[node name="Bolt" type="MeshInstance3D" parent="Meshes/Bolts" unique_id=386750258]
 transform = Transform3D(0.897273, -0.441475, 0, 0.441475, 0.897273, 0, 0, 0, 1, 0.175553, 0.174951, 0.220576)
 mesh = ExtResource("2_to26t")
 skeleton = NodePath("")
 
-[node name="Bolt_001" type="MeshInstance3D" parent="Meshes/Bolts"]
+[node name="Bolt_001" type="MeshInstance3D" parent="Meshes/Bolts" unique_id=1628387074]
 transform = Transform3D(0.955381, 0.295377, 0, -0.295377, 0.955381, 0, 0, 0, 1, -0.175553, 0.174951, 0.220576)
 mesh = ExtResource("3_s7xbp")
 skeleton = NodePath("")
 
-[node name="Bolt_002" type="MeshInstance3D" parent="Meshes/Bolts"]
+[node name="Bolt_002" type="MeshInstance3D" parent="Meshes/Bolts" unique_id=1817894393]
 transform = Transform3D(0.417923, -0.908482, 0, 0.908482, 0.417923, 0, 0, 0, 1, -0.175553, -0.174951, 0.220576)
 mesh = ExtResource("4_uhq27")
 skeleton = NodePath("")
 
-[node name="Bolt_003" type="MeshInstance3D" parent="Meshes/Bolts"]
+[node name="Bolt_003" type="MeshInstance3D" parent="Meshes/Bolts" unique_id=356940933]
 transform = Transform3D(0.774941, 0.632034, 0, -0.632034, 0.774941, 0, 0, 0, 1, 0.175553, -0.174951, 0.220576)
 mesh = ExtResource("5_itv40")
 skeleton = NodePath("")
 
-[node name="Button" type="MeshInstance3D" parent="Meshes"]
+[node name="Button" type="MeshInstance3D" parent="Meshes" unique_id=1901392168]
 mesh = SubResource("ArrayMesh_wmlno")
 skeleton = NodePath("")
+surface_material_override/0 = SubResource("StandardMaterial3D_wmlno")
 
-[node name="PushButton" type="MeshInstance3D" parent="Meshes"]
+[node name="PushButton" type="MeshInstance3D" parent="Meshes" unique_id=1323062254]
 mesh = ExtResource("7_75p7m")
 skeleton = NodePath("")
 
-[node name="Text" type="Label3D" parent="."]
+[node name="Text" type="Label3D" parent="." unique_id=256082355]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00140679, 0.132016, 0.22899)
 pixel_size = 0.0004
 modulate = Color(0, 0, 0, 1)
 text = "STOP"
 font_size = 77
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1816559611]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.107774)
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1436524246]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.034793)
 shape = SubResource("BoxShape3D_kcxih")

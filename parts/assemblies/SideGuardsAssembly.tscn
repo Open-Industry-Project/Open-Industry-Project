@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=4 uid="uid://pf3t2vk7fmn"]
+[gd_scene load_steps=10 format=4 uid="uid://pf3t2vk7fmn"]
 
 [ext_resource type="Script" uid="uid://b2f50dwn2r8w2" path="res://src/ConveyorAttachment/side_guards_assembly.gd" id="1_rsl22"]
 [ext_resource type="PackedScene" uid="uid://dvjrx5crpqs5f" path="res://parts/SideGuard.tscn" id="2_gw8aj"]
@@ -28,6 +28,14 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_08v0o"]
+render_priority = 0
+shader = ExtResource("3_x5s3x")
+shader_parameter/Scale = 3.5
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_5ubf2"]
 render_priority = 0
 shader = ExtResource("3_x5s3x")
@@ -52,21 +60,29 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[node name="SideGuardsAssembly" type="Node3D"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bfj65"]
+render_priority = 0
+shader = ExtResource("3_x5s3x")
+shader_parameter/Scale = 3.5
+shader_parameter/Metallic = 0.94
+shader_parameter/Roughness = 0.5
+shader_parameter/Specular = 0.5
+
+[node name="SideGuardsAssembly" type="Node3D" unique_id=677856310]
 script = ExtResource("1_rsl22")
 
-[node name="LeftSide" type="Node3D" parent="."]
+[node name="LeftSide" type="Node3D" parent="." unique_id=1937136310]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.762)
 
-[node name="SideGuard" parent="LeftSide" instance=ExtResource("2_gw8aj")]
+[node name="SideGuard" parent="LeftSide" unique_id=279221475 instance=ExtResource("2_gw8aj")]
 transform = Transform3D(3.5, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 1)
 mesh = SubResource("ArrayMesh_08v0o")
-length = 3.5
+surface_material_override/0 = SubResource("ShaderMaterial_08v0o")
 
-[node name="RightSide" type="Node3D" parent="."]
+[node name="RightSide" type="Node3D" parent="." unique_id=642164670]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.762)
 
-[node name="SideGuard" parent="RightSide" instance=ExtResource("2_gw8aj")]
+[node name="SideGuard" parent="RightSide" unique_id=213822702 instance=ExtResource("2_gw8aj")]
 transform = Transform3D(-3.5, 0, -8.742278e-08, 0, 1, 0, 3.059797e-07, 0, -1, 0, -0.25, -1)
 mesh = SubResource("ArrayMesh_bfj65")
-length = 3.5
+surface_material_override/0 = SubResource("ShaderMaterial_bfj65")

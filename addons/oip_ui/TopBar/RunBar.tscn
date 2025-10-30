@@ -10,7 +10,7 @@ keycode = 4194336
 resource_name = "Play Simulation"
 events = [SubResource("InputEventKey_6h0ux")]
 
-[sub_resource type="DPITexture" id="SVGTexture_4ccqa"]
+[sub_resource type="DPITexture" id="DPITexture_4ccqa"]
 _source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
 "
 
@@ -30,30 +30,30 @@ keycode = 4194338
 resource_name = "Stop Simulation"
 events = [SubResource("InputEventKey_psllm")]
 
-[node name="RunBar" type="PanelContainer"]
+[node name="RunBar" type="PanelContainer" unique_id=1966038860]
 process_mode = 3
 offset_right = 80.0
 offset_bottom = 24.0
 script = ExtResource("1_akwgd")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="."]
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=417340228]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Play" type="Button" parent="HBoxContainer"]
+[node name="Play" type="Button" parent="HBoxContainer" unique_id=1292924449]
 layout_mode = 2
 shortcut = SubResource("Shortcut_6h0ux")
-icon = SubResource("SVGTexture_4ccqa")
+icon = SubResource("DPITexture_4ccqa")
 
-[node name="Pause" type="Button" parent="HBoxContainer"]
+[node name="Pause" type="Button" parent="HBoxContainer" unique_id=980106507]
 layout_mode = 2
 disabled = true
 toggle_mode = true
 shortcut = SubResource("Shortcut_psllm")
-icon = SubResource("SVGTexture_4ccqa")
+icon = SubResource("DPITexture_4ccqa")
 
-[node name="Stop" type="Button" parent="HBoxContainer"]
+[node name="Stop" type="Button" parent="HBoxContainer" unique_id=1055835747]
 layout_mode = 2
 disabled = true
 shortcut = SubResource("Shortcut_3mp6e")
-icon = SubResource("SVGTexture_4ccqa")
+icon = SubResource("DPITexture_4ccqa")

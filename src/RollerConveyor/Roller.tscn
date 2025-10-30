@@ -148,24 +148,24 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_2jnpe")
 
-[node name="Roller" type="Node3D"]
+[node name="Roller" type="Node3D" unique_id=1390447334]
 process_mode = 1
 script = ExtResource("1_f1goy")
 metadata/_edit_group_ = true
 
-[node name="RollerMeshes" type="Node3D" parent="."]
+[node name="RollerMeshes" type="Node3D" parent="." unique_id=453151449]
 
-[node name="RollerEndR" type="MeshInstance3D" parent="RollerMeshes"]
+[node name="RollerEndR" type="MeshInstance3D" parent="RollerMeshes" unique_id=91289176]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.762)
 mesh = SubResource("ArrayMesh_8pg44")
 skeleton = NodePath("")
 
-[node name="RollerLength" type="MeshInstance3D" parent="RollerMeshes"]
+[node name="RollerLength" type="MeshInstance3D" parent="RollerMeshes" unique_id=856655030]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.745, 0, 0, 0)
 mesh = SubResource("ArrayMesh_owdod")
 skeleton = NodePath("")
 
-[node name="RollerEndL" type="MeshInstance3D" parent="RollerMeshes"]
+[node name="RollerEndL" type="MeshInstance3D" parent="RollerMeshes" unique_id=1206632293]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.762)
 mesh = SubResource("ArrayMesh_pkqfy")
 skeleton = NodePath("")

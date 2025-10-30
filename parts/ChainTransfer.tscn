@@ -8,7 +8,7 @@
 resource_local_to_scene = true
 size = Vector3(1.45, 0.2, 0.744)
 
-[node name="ChainTransfer" type="Node3D"]
+[node name="ChainTransfer" type="Node3D" unique_id=1063223612]
 process_mode = 3
 transform = Transform3D(-2.6226834e-08, 0, 1, 0, 1, 0, -0.6, 0, -4.371139e-08, 0, 0, 0)
 script = ExtResource("1_dolaf")
@@ -16,22 +16,22 @@ speed_tag_group_name = "TagGroup0"
 popup_tag_group_name = "TagGroup0"
 metadata/_edit_group_ = true
 
-[node name="ChainBases" type="Node3D" parent="."]
+[node name="ChainBases" type="Node3D" parent="." unique_id=2005978236]
 script = ExtResource("2_dolaf")
 
-[node name="Base" parent="ChainBases" instance=ExtResource("2_ftoaw")]
+[node name="Base" parent="ChainBases" unique_id=1350737450 instance=ExtResource("2_ftoaw")]
 
-[node name="Base2" parent="ChainBases" instance=ExtResource("2_ftoaw")]
+[node name="Base2" parent="ChainBases" unique_id=1270443092 instance=ExtResource("2_ftoaw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.33)
 
-[node name="ChainTransferBase" parent="ChainBases" instance=ExtResource("2_ftoaw")]
+[node name="ChainTransferBase" parent="ChainBases" unique_id=874599072 instance=ExtResource("2_ftoaw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.66)
 
-[node name="SimpleConveyorShape" type="StaticBody3D" parent="."]
+[node name="SimpleConveyorShape" type="StaticBody3D" parent="." unique_id=134051690]
 transform = Transform3D(1.6666666, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 collision_layer = 18
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SimpleConveyorShape"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SimpleConveyorShape" unique_id=884805445]
 transform = Transform3D(1, 0, 0, 0, 1, 0, -2.52243e-13, 0, 1, 0, -0.094, 0.33)
 shape = SubResource("BoxShape3D_og5kt")

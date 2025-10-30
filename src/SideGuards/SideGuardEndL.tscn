@@ -5,15 +5,15 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_o2vd4"]
 size = Vector3(0.249268, 0.401978, 0.0222168)
 
-[node name="SideGuardEndL" type="Node3D"]
+[node name="SideGuardEndL" type="Node3D" unique_id=1798544614]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1757915831]
 mesh = ExtResource("1_moxwq")
 skeleton = NodePath("")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1860295916]
 collision_mask = 8
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1848111646]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.126099, 0.399597, -1.07092)
 shape = SubResource("BoxShape3D_o2vd4")
