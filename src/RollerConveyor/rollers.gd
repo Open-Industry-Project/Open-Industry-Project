@@ -34,7 +34,6 @@ func _add_or_remove_rollers(conveyor_length: float) -> void:
 func _spawn_roller() -> void:
 	var roller := roller_scene.instantiate() as Roller
 	add_child(roller, true)
-	roller.owner = self.owner
 	roller.position = Vector3(ROLLERS_DISTANCE * get_child_count(), 0, 0)
 	roller_added.emit(roller)
 	_fix_rollers()

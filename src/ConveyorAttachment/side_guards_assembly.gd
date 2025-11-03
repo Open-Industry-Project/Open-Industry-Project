@@ -177,7 +177,6 @@ func _ensure_side(side: SideGuardsAssembly.Side) -> Node3D:
 		side_node = Node3D.new()
 		side_node.name = side_name
 		add_child(side_node)
-		side_node.owner = self
 	return side_node
 
 
@@ -310,7 +309,6 @@ func _add_or_remove_side_guards(side_node: Node3D, desired_side_guard_count: int
 func _add_guard(side_node: Node) -> void:
 	var guard: Node3D = _instantiate_guard()
 	side_node.add_child(guard)
-	guard.owner = self
 
 
 func _remove_guard(side_node) -> void:

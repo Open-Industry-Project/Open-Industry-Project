@@ -165,7 +165,6 @@ func _spawn_chains(count: int) -> void:
 	for i in range(count):
 		var chain_base := _chain_transfer_base_scene.instantiate() as ChainTransferBase
 		chain_transfer_bases.add_child(chain_base, true)
-		chain_base.owner = self
 		chain_base.position = Vector3(0, 0, distance * chain_base.get_index())
 		chain_base.active = popup_chains
 		chain_base.speed = speed

@@ -440,13 +440,7 @@ func _get_constrained_size(new_size: Vector3) -> Vector3:
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
 		%Conveyor.size = size
-	call_deferred("_ensure_legs_updated")
 
 
 func _ensure_side_guards_updated() -> void:
 	%SideGuardsAssembly._on_conveyor_size_changed()
-
-
-func _ensure_legs_updated() -> void:
-	if is_instance_valid(%ConveyorLegsAssembly):
-		%ConveyorLegsAssembly._on_conveyor_size_changed()

@@ -43,6 +43,8 @@ func _get_leg_scale_for_assembly_size() -> Vector3:
 	)
 
 func _ready() -> void:
+	super._ready()
+	
 	# Apply proper scaling to any existing legs
 	if Engine.is_editor_hint():
 		_update_all_leg_scales()
@@ -218,10 +220,7 @@ func _add_or_get_conveyor_leg_instance(name: StringName) -> Node:
 	conveyor_leg = leg_model_scene.instantiate()
 	conveyor_leg.name = name
 	add_child(conveyor_leg)
-	conveyor_leg.owner = self
-	
 	conveyor_leg.scale = _get_leg_scale_for_assembly_size()
-	
 	return conveyor_leg
 
 func _update_conveyor_leg_width(conveyor_leg: Node3D) -> void:

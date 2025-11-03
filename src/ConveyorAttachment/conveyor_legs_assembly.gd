@@ -214,6 +214,21 @@ func _init() -> void:
 	set_notify_transform(true)
 
 
+func _ready() -> void:
+	call_deferred("_sync_floor_plane_after_load")
+
+
+func _sync_floor_plane_after_load() -> void:
+	if not is_inside_tree() or not conveyor:
+		return
+	
+	var current_local_plane = get_local_floor_plane()
+	var global_plane = conveyor.global_transform * current_local_plane
+	
+	if global_plane.normal != Vector3.ZERO:
+		global_floor_plane = global_plane
+
+
 #region Managing connection to Conveyor's signals
 func _notification(what) -> void:
 	if what == NOTIFICATION_PARENTED:
@@ -236,10 +251,10 @@ func _connect_conveyor() -> void:
 	if conveyor != null:
 		conveyor.size_changed.connect(_on_conveyor_size_changed)
 		_conveyor_connected = true
-		_on_conveyor_size_changed()
+		call_deferred("_on_conveyor_size_changed")
 		# Now is a good time to synchronize the state of the setters with the scene.
 		if is_physics_processing():
-			_physics_process(0.0)
+			call_deferred("_physics_process", 0.0)
 	else:
 		_conveyor_connected = false
 	update_configuration_warnings()
@@ -734,7 +749,6 @@ func _add_or_get_conveyor_leg_instance(name: StringName) -> Node:
 	conveyor_leg = leg_model_scene.instantiate()
 	conveyor_leg.name = name
 	add_child(conveyor_leg)
-	conveyor_leg.owner = self
 	return conveyor_leg
 
 

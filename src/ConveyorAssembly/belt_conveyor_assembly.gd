@@ -428,19 +428,19 @@ func _legs_property_cached_get(property: StringName, backing_field_value: Varian
 func update_attachments_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
 	if not _has_instantiated:
 		return
-	
+
 	# Update side guards for curved conveyor
 	var side_guards = get_node_or_null("SideGuardsAssembly")
 	if not side_guards:
 		side_guards = get_node_or_null("%SideGuardsAssembly")
-	
+
 	if is_instance_valid(side_guards) and side_guards.has_method("update_for_curved_conveyor"):
 		side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, conveyor_size, conveyor_angle)
-	
-	# Update legs for curved conveyor  
+
+	# Update legs for curved conveyor
 	var legs_assembly = get_node_or_null("ConveyorLegsAssembly")
 	if not legs_assembly:
 		legs_assembly = get_node_or_null("%ConveyorLegsAssembly")
-	
+
 	if is_instance_valid(legs_assembly) and legs_assembly.has_method("update_for_curved_conveyor"):
 		legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, conveyor_size, conveyor_angle)

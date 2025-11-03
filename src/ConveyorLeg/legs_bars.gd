@@ -30,7 +30,6 @@ func _notification(what: int) -> void:
 func spawn_bar() -> void:
 	var legs_bar: Node3D = legs_bar_scene.instantiate() as Node3D
 	add_child(legs_bar)
-	legs_bar.owner = self
 	legs_bar.position = Vector3(0, bars_distance * get_child_count(), 0)
 	fix_bars()
 

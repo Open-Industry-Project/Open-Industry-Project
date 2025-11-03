@@ -242,7 +242,6 @@ func _spawn_segments(count: int) -> void:
 	for i in range(count):
 		var segment := _segment_scene.instantiate() as Node3D
 		_segments_container.add_child(segment, true)
-		segment.owner = self
 		var current_index := start_index + i
 		segment.index = current_index
 		segment.position = Vector3(0, _segment_initial_y_pos + (STEP * current_index), 0)
