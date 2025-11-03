@@ -48,11 +48,17 @@ func disable() -> void:
 
 
 func _set_lamp_light(light_color: int, enabled: bool) -> void:
-	var current_material := _pusher_mesh_instance.mesh.surface_get_material(light_color) as StandardMaterial3D
-	if enabled:
-		current_material.emission_energy_multiplier = 1.0
-	else:
-		current_material.emission_energy_multiplier = 0.0
+	var current_material: StandardMaterial3D
+	if light_color == LightColor.Red:
+		current_material = _red_light_material
+	elif light_color == LightColor.Green:
+		current_material = _green_light_material
+
+	if current_material:
+		if enabled:
+			current_material.emission_energy_multiplier = 1.0
+		else:
+			current_material.emission_energy_multiplier = 0.0
 
 
 func _push(time: float, distance: float) -> void:
@@ -69,12 +75,7 @@ func _push(time: float, distance: float) -> void:
 	tween.tween_callback(Callable(self, "_finish"))
 
 
-func _return_phase() -> void:
-	_set_lamp_light(LightColor.Green, false)
-	_set_lamp_light(LightColor.Red, true)
-
-
 func _finish() -> void:
 	_part_end.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
-	_set_lamp_light(LightColor.Red, false)
+	_set_lamp_light(LightColor.Green, false)
 	_firing = false
