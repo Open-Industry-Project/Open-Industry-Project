@@ -282,6 +282,7 @@ func _enter_tree() -> void:
 	_item_list.set_select_mode(ItemList.SELECT_MULTI)
 	_item_list.set_texture_filter(CanvasItem.TEXTURE_FILTER_LINEAR)
 	_item_list.set_v_size_flags(Control.SIZE_EXPAND_FILL)
+	_item_list.add_theme_stylebox_override("panel", get_theme_stylebox("normal", "RichTextLabel"))
 	_item_list.gui_input.connect(_on_item_list_gui_input)
 	_item_list.item_clicked.connect(_on_item_list_item_clicked)
 	_item_list.item_activated.connect(_on_item_list_item_activated)
