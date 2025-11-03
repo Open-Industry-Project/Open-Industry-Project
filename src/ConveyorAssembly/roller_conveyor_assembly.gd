@@ -7,6 +7,7 @@ const SIDE_GUARDS_SCRIPT_PATH = "res://src/ConveyorAttachment/side_guards_assemb
 const SIDE_GUARDS_SCRIPT_FILENAME = "side_guards_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME = "conveyor_legs_assembly.gd"
+const PREVIEW_SCENE: PackedScene = preload("res://parts/assemblies/RollerConveyorAssembly.tscn")
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
@@ -440,6 +441,36 @@ func _get_constrained_size(new_size: Vector3) -> Vector3:
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
 		%Conveyor.size = size
+
+
+func _get_custom_preview_node() -> Node3D:
+	var preview_node = PREVIEW_SCENE.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+
+	_disable_collisions_recursive(preview_node)
+
+	var legs_assembly = preview_node.get_node_or_null("%ConveyorLegsAssembly")
+	if is_instance_valid(legs_assembly):
+		legs_assembly.set_meta("is_preview", true)
+		legs_assembly.set_process_mode(Node.PROCESS_MODE_DISABLED)
+
+	var side_guards = preview_node.get_node_or_null("%SideGuardsAssembly")
+	if is_instance_valid(side_guards):
+		side_guards.set_meta("is_preview", true)
+		side_guards.set_process_mode(Node.PROCESS_MODE_DISABLED)
+
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+	
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+	
+	for child in node.get_children():
+		_disable_collisions_recursive(child)
 
 
 func _ensure_side_guards_updated() -> void:

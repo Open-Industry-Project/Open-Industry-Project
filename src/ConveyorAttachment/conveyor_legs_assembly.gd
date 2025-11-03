@@ -221,10 +221,10 @@ func _ready() -> void:
 func _sync_floor_plane_after_load() -> void:
 	if not is_inside_tree() or not conveyor:
 		return
-	
+
 	var current_local_plane = get_local_floor_plane()
 	var global_plane = conveyor.global_transform * current_local_plane
-	
+
 	if global_plane.normal != Vector3.ZERO:
 		global_floor_plane = global_plane
 
@@ -383,6 +383,8 @@ func _get_conveyor_leg_coverage() -> Array[float]:
 func _update_floor_plane() -> void:
 	if not is_inside_tree() or conveyor == null:
 		return
+	if has_meta("is_preview"):
+		return
 	# Legs must be constrained to the conveyor's Z plane, so we must project the floor normal onto it.
 	var legs_plane := Plane(conveyor.global_basis.z, conveyor.global_position)
 	assert(legs_plane.normal != Vector3.ZERO, "ConveyorLegsAssembly: conveyor's global Z basis vector must not be zero")
@@ -412,7 +414,9 @@ func _update_conveyor_legs() -> void:
 	# Only bother repositioning conveyor legs if the user could manually edit them.
 	# All the conveyor legs that we generated should already be in the right spots.
 	var edited_root = get_tree().get_edited_scene_root() if is_inside_tree() else null
-	var conveyor_legs_assembly_is_editable = edited_root != null and (edited_root == owner or edited_root.is_editable_instance(owner))
+	var conveyor_legs_assembly_is_editable = false
+	if not has_meta("is_preview"):
+		conveyor_legs_assembly_is_editable = edited_root != null and owner != null and (edited_root == owner or edited_root.is_editable_instance(owner))
 	if conveyor_legs_assembly_is_editable or _conveyor_legs_path_changed:
 		_snap_all_conveyor_legs_to_path()
 
@@ -795,11 +799,11 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
 	if not is_inside_tree():
 		return
-	
+
 	# For curved conveyors, force immediate update of coverage and leg positioning
 	_update_conveyor_leg_coverage()
 	_set_needs_update(true)
-	
+
 	# Update immediately rather than waiting for physics process
 	if conveyor:
 		_update_conveyor_legs()

@@ -5,6 +5,7 @@ extends SpurConveyorAssembly
 const CONVEYOR_CLASS_NAME = "BeltConveyor"
 const CONVEYOR_SCRIPT_PATH = "res://src/Conveyor/belt_conveyor.gd"
 const CONVEYOR_SCRIPT_FILENAME = "belt_conveyor.gd"
+const PREVIEW_SCENE: PackedScene = preload("res://parts/BeltSpurConveyor.tscn")
 
 var _conveyor_script: Script
 
@@ -121,6 +122,33 @@ func _set_conveyor_properties(conveyor: Node) -> void:
 	for property_name in _cached_properties:
 		if conveyor.has_method("set"):
 			conveyor.set(property_name, _cached_properties[property_name])
+
+
+func _get_custom_preview_node() -> Node3D:
+	var preview_node = PREVIEW_SCENE.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as SpurConveyorAssembly
+	
+	preview_node.set_meta("is_preview", true)
+	
+	if preview_node.has_method("_update_conveyors"):
+		preview_node._update_conveyors()
+	
+	_disable_collisions_recursive(preview_node)
+	
+	preview_node.set_process_mode(Node.PROCESS_MODE_DISABLED)
+	
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+	
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+	
+	for child in node.get_children(true):
+		_disable_collisions_recursive(child)
 
 
 func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
