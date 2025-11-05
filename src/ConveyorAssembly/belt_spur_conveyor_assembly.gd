@@ -5,7 +5,7 @@ extends SpurConveyorAssembly
 const CONVEYOR_CLASS_NAME = "BeltConveyor"
 const CONVEYOR_SCRIPT_PATH = "res://src/Conveyor/belt_conveyor.gd"
 const CONVEYOR_SCRIPT_FILENAME = "belt_conveyor.gd"
-const PREVIEW_SCENE: PackedScene = preload("res://parts/BeltSpurConveyor.tscn")
+const PREVIEW_SCENE_PATH: String = "res://parts/BeltSpurConveyor.tscn"
 
 var _conveyor_script: Script
 
@@ -125,7 +125,8 @@ func _set_conveyor_properties(conveyor: Node) -> void:
 
 
 func _get_custom_preview_node() -> Node3D:
-	var preview_node = PREVIEW_SCENE.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as SpurConveyorAssembly
+	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
+	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as SpurConveyorAssembly
 	
 	preview_node.set_meta("is_preview", true)
 	

@@ -3,7 +3,7 @@ class_name CurvedRollerConveyorAssembly
 extends ResizableNode3D
 
 const CONVEYOR_CLASS_NAME = "CurvedRollerConveyor"
-const PREVIEW_SCENE: PackedScene = preload("res://parts/assemblies/CurvedRollerConveyorAssembly.tscn")
+const PREVIEW_SCENE_PATH: String = "res://parts/assemblies/CurvedRollerConveyorAssembly.tscn"
 
 var _conveyor_script: Script
 var _has_instantiated: bool = false
@@ -265,7 +265,8 @@ func _on_size_changed() -> void:
 
 
 func _get_custom_preview_node() -> Node3D:
-	var preview_node = PREVIEW_SCENE.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
+	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 
 	_disable_collisions_recursive(preview_node)
 

@@ -7,7 +7,7 @@ const SIDE_GUARDS_SCRIPT_PATH: String = "res://src/ConveyorAttachment/side_guard
 const SIDE_GUARDS_SCRIPT_FILENAME: String = "side_guards_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH: String = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
 const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME: String = "conveyor_legs_assembly.gd"
-const PREVIEW_SCENE: PackedScene = preload("res://parts/assemblies/BeltConveyorAssembly.tscn")
+const PREVIEW_SCENE_PATH: String = "res://parts/assemblies/BeltConveyorAssembly.tscn"
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
@@ -282,7 +282,8 @@ func _on_size_changed() -> void:
 		%Conveyor.size = size
 
 func _get_custom_preview_node() -> Node3D:
-	var preview_node = PREVIEW_SCENE.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
+	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 
 	_disable_collisions_recursive(preview_node)
 
