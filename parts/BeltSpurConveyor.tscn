@@ -28,6 +28,7 @@ speed_tag_group_name = "TagGroup0"
 speed_tag_name = ""
 running_tag_group_name = "TagGroup0"
 running_tag_name = ""
+metadata/_edit_group_ = true
 angle_downstream = -0.523599
 size = Vector3(2, 0.5, 1.524)
 metadata/hijack_scale = true

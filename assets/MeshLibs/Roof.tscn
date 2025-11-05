@@ -7,8 +7,6 @@
 
 [node name="RoofCurved" type="MeshInstance3D" parent="." unique_id=1009706519]
 mesh = ExtResource("1_3u5m2")
-skeleton = NodePath("")
 
 [node name="RoofStraight" type="MeshInstance3D" parent="." unique_id=1364309529]
 mesh = ExtResource("2_i6kap")
-skeleton = NodePath("")

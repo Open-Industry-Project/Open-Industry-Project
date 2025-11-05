@@ -101,7 +101,6 @@ data = PackedVector3Array(0, 0.596, -0.29800004, 0, 0, -0.29800004, 0.046617474,
 [node name="CRCSideGuard" type="MeshInstance3D" unique_id=773710709]
 transform = Transform3D(1.09355, 0, 0, 0, 1, 0, 0, 0, 1.09355, 0, 0, 0)
 mesh = SubResource("ArrayMesh_o1rej")
-skeleton = NodePath("")
 script = ExtResource("2_aafbe")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1891372959]

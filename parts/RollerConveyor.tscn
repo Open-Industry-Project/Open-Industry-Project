@@ -110,13 +110,11 @@ transform = Transform3D(3.67, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 [node name="ConvRollerL" type="MeshInstance3D" parent="ConvRoller" unique_id=32611414]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.762)
 mesh = SubResource("ArrayMesh_enukr")
-skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_vc5t3")
 
 [node name="ConvRollerR" type="MeshInstance3D" parent="ConvRoller" unique_id=1978607783]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.762)
 mesh = SubResource("ArrayMesh_rh5bt")
-skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_vc5t3")
 
 [node name="Rollers" type="Node3D" parent="." unique_id=186954691]

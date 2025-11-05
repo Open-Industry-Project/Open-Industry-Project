@@ -158,14 +158,11 @@ metadata/_edit_group_ = true
 [node name="RollerEndR" type="MeshInstance3D" parent="RollerMeshes" unique_id=91289176]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.762)
 mesh = SubResource("ArrayMesh_8pg44")
-skeleton = NodePath("")
 
 [node name="RollerLength" type="MeshInstance3D" parent="RollerMeshes" unique_id=856655030]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.745, 0, 0, 0)
 mesh = SubResource("ArrayMesh_owdod")
-skeleton = NodePath("")
 
 [node name="RollerEndL" type="MeshInstance3D" parent="RollerMeshes" unique_id=1206632293]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.762)
 mesh = SubResource("ArrayMesh_pkqfy")
-skeleton = NodePath("")

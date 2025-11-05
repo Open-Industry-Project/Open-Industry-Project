@@ -68,4 +68,3 @@ shape = SubResource("BoxShape3D_kbfuw")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=942705181]
 mesh = SubResource("ArrayMesh_dllc6")
-skeleton = NodePath("")

@@ -130,7 +130,6 @@ metadata/_edit_group_ = true
 transform = Transform3D(0.762, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, -0.25, 0)
 visible = false
 mesh = SubResource("ArrayMesh_njw7x")
-skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_njw7x")
 
 [node name="RollersLow" type="Node3D" parent="." unique_id=791434154]
@@ -294,7 +293,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 [node name="ConvRollerEnd" type="MeshInstance3D" parent="Ends/EndAxis1" unique_id=1386418852]
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 1.143)
 mesh = ExtResource("3_o3bxo")
-skeleton = NodePath("")
 
 [node name="CurvedEndMarker" type="Marker3D" parent="Ends/EndAxis1/ConvRollerEnd" unique_id=321185071]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.24371415, 0.25517163, 1)
@@ -316,7 +314,6 @@ transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0.00
 [node name="ConvRollerEnd2" type="MeshInstance3D" parent="Ends/EndAxis2" unique_id=476806972]
 transform = Transform3D(-0.5, 0, -1.150588e-07, 0, 1, 0, 7.54979e-08, 0, -0.762, 0, 0, 1.143)
 mesh = ExtResource("3_o3bxo")
-skeleton = NodePath("")
 
 [node name="CurvedEndMarker" type="Marker3D" parent="Ends/EndAxis2/ConvRollerEnd2" unique_id=1411067504]
 transform = Transform3D(1, 0, -2.842171e-14, 0, 1, 0, 0, 0, 1, 0.24999994, 0.25928438, 1.0000002)

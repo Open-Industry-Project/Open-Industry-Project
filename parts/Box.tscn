@@ -136,4 +136,3 @@ shape = SubResource("BoxShape3D_h4we7")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=519485523]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
 mesh = SubResource("ArrayMesh_edno1")
-skeleton = NodePath("")

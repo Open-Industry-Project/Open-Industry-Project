@@ -49,12 +49,10 @@ transform = Transform3D(0.65, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 [node name="ConvRollerEndL" type="MeshInstance3D" parent="ConveyorRollerEnd" unique_id=1643539990]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.762)
 mesh = SubResource("ArrayMesh_38d5w")
-skeleton = NodePath("")
 
 [node name="ConvRollerEndR" type="MeshInstance3D" parent="ConveyorRollerEnd" unique_id=682550670]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.762)
 mesh = SubResource("ArrayMesh_juo62")
-skeleton = NodePath("")
 
 [node name="Roller" parent="." unique_id=1424174293 instance=ExtResource("2_p44y0")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)

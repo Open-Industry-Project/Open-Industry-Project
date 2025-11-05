@@ -10,4 +10,3 @@ length = 1.5240000000048894
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2091538442]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 0)
 mesh = ExtResource("1_sexki")
-skeleton = NodePath("")

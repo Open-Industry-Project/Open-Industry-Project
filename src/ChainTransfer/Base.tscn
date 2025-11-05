@@ -320,33 +320,27 @@ shape = SubResource("BoxShape3D_xvmrf")
 
 [node name="Base" type="MeshInstance3D" parent="." unique_id=1810793458]
 mesh = ExtResource("1_co4kh")
-skeleton = NodePath("")
 
 [node name="BaseEndR" type="MeshInstance3D" parent="Base" unique_id=1983149001]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, -0.200264, 0)
 mesh = SubResource("ArrayMesh_v1abg")
-skeleton = NodePath("")
 
 [node name="BaseEndL" type="MeshInstance3D" parent="Base" unique_id=1088069053]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, -0.200264, 0)
 mesh = SubResource("ArrayMesh_j3bcc")
-skeleton = NodePath("")
 
 [node name="Chain" type="MeshInstance3D" parent="." unique_id=1031027183]
 mesh = SubResource("ArrayMesh_p1ajb")
-skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_p1ajb")
 
 [node name="ChainL" type="MeshInstance3D" parent="Chain" unique_id=2024484124]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, -0.0943089, 0)
 mesh = SubResource("ArrayMesh_an0y7")
-skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_an0y7")
 
 [node name="ChainR" type="MeshInstance3D" parent="Chain" unique_id=1614163573]
-transform = Transform3D(-1, 3.49577e-14, 0, -3.49577e-14, -1, 0, 0, 0, 1, -1, -0.0943089, 0)
+transform = Transform3D(-1, -8.742278e-08, 0, 8.742278e-08, -1, 0, 0, 0, 1, -1, -0.0943089, 0)
 mesh = SubResource("ArrayMesh_3wix6")
-skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_3wix6")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="Chain" unique_id=1654326792]
@@ -364,7 +358,6 @@ shape = SubResource("BoxShape3D_8d0fv")
 
 [node name="Container" type="MeshInstance3D" parent="." unique_id=1779150520]
 mesh = ExtResource("3_1fnbt")
-skeleton = NodePath("")
 
 [node name="ContainerEndL" type="StaticBody3D" parent="Container" unique_id=683203186]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, -0.3, 0)
@@ -372,7 +365,6 @@ collision_mask = 8
 
 [node name="ContainerEndL" type="MeshInstance3D" parent="Container/ContainerEndL" unique_id=1200916]
 mesh = SubResource("ArrayMesh_d5fbw")
-skeleton = NodePath("")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Container/ContainerEndL" unique_id=51437017]
 shape = SubResource("ConvexPolygonShape3D_hoviy")
@@ -383,7 +375,6 @@ collision_mask = 8
 
 [node name="ContainerEndR" type="MeshInstance3D" parent="Container/ContainerEndR" unique_id=518429184]
 mesh = SubResource("ArrayMesh_v66yo")
-skeleton = NodePath("")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Container/ContainerEndR" unique_id=484205849]
 shape = SubResource("ConvexPolygonShape3D_rbmuw")
@@ -391,9 +382,7 @@ shape = SubResource("ConvexPolygonShape3D_rbmuw")
 [node name="WheelL" type="MeshInstance3D" parent="Container" unique_id=166730198]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, -0.0943089, 0)
 mesh = SubResource("ArrayMesh_ynja5")
-skeleton = NodePath("")
 
 [node name="WheelR" type="MeshInstance3D" parent="Container" unique_id=1777151610]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, -0.0943089, 0)
 mesh = ExtResource("5_ites2")
-skeleton = NodePath("")

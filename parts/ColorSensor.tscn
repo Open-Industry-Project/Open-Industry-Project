@@ -181,22 +181,18 @@ metadata/_edit_group_ = true
 [node name="Body" type="MeshInstance3D" parent="Photoeye/Root" unique_id=1051969253]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_fgebl")
-skeleton = NodePath("")
 
 [node name="Connector" type="MeshInstance3D" parent="Photoeye/Root" unique_id=1684349238]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_fpkyj")
-skeleton = NodePath("")
 
 [node name="Diffuse" type="MeshInstance3D" parent="Photoeye/Root" unique_id=359198356]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_2wh1k")
-skeleton = NodePath("")
 
 [node name="Top" type="MeshInstance3D" parent="Photoeye/Root" unique_id=1783629552]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 mesh = SubResource("ArrayMesh_ie336")
-skeleton = NodePath("")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=284405746]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.294407, 0.183749)

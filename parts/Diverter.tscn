@@ -269,19 +269,16 @@ script = ExtResource("2_1je71")
 
 [node name="Pusher" type="MeshInstance3D" parent="DiverterAnimator" unique_id=402683298]
 mesh = SubResource("ArrayMesh_ri0ud")
-skeleton = NodePath("")
 surface_material_override/3 = SubResource("StandardMaterial3D_ri0ud")
 surface_material_override/4 = SubResource("StandardMaterial3D_cyv7m")
 
 [node name="part1" type="MeshInstance3D" parent="DiverterAnimator/Pusher" unique_id=2009318069]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000149414, 0.446347, -0.330678)
 mesh = ExtResource("9_y5w5p")
-skeleton = NodePath("")
 
 [node name="part2" type="MeshInstance3D" parent="DiverterAnimator/Pusher" unique_id=1377530694]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000149414, 0.446347, -0.330678)
 mesh = ExtResource("10_podjm")
-skeleton = NodePath("")
 
 [node name="PartEnd" type="RigidBody3D" parent="DiverterAnimator/Pusher" unique_id=1893148572]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0031511, 0.447451, -0.874989)
@@ -302,4 +299,3 @@ shape = SubResource("BoxShape3D_snq0a")
 
 [node name="partEnd" type="MeshInstance3D" parent="DiverterAnimator/Pusher/PartEnd" unique_id=619477814]
 mesh = ExtResource("11_tiun1")
-skeleton = NodePath("")
