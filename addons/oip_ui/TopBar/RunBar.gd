@@ -17,12 +17,12 @@ func _ready() -> void:
 		ProjectSettings.set_setting("addons/Open Industry Project/Output/Clear on Simulation Start", false)
 
 	ProjectSettings.set_as_basic("addons/Open Industry Project/Output/Clear on Simulation Start", true)
-	
+
 	play_button.icon = get_theme_icon("Play", "EditorIcons")
 	pause_button.icon = get_theme_icon("Pause", "EditorIcons")
 	stop_button.icon = get_theme_icon("Stop", "EditorIcons")
 
-	clear_output_btn = get_tree().root.get_child(0).get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(2).get_child(0).get_child(0)
+	clear_output_btn =  get_tree().root.get_child(0).find_child("ClearOutputButton",true,false)
 
 	SimulationEvents.simulation_started.connect(func() -> void:
 		SimulationEvents.simulation_running = true
@@ -33,7 +33,11 @@ func _ready() -> void:
 		play = true
 		pause = false
 		stop = false
+
+		if ProjectSettings.get_setting("addons/Open Industry Project/Output/Clear on Simulation Start"):
+			clear_output_btn.pressed.emit()
 	)
+	
 	SimulationEvents.simulation_ended.connect(func() -> void:
 		SimulationEvents.simulation_running = false
 		PhysicsServer3D.set_active(false)
