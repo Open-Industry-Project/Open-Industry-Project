@@ -29,7 +29,9 @@ ConveyorSnapping="*res://addons/oip_ui/Autoload/ConveyorSnapping.gd"
 
 [debug]
 
-gdscript/warnings/exclude_addons=false
+gdscript/warnings/directory_rules={
+"res://addons": 1
+}
 
 [editor]
 

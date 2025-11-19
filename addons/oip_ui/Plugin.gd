@@ -12,12 +12,12 @@ const ICON: Texture2D = preload("res://assets/png/OIP-LOGO-RGB_ICON.svg")
 # Menu item IDs
 const ID_TOGGLE_NATIVE_UI: int = 1234
 # The IDs here must match those in the original Project menu (_project_popup_menu).
-const ID_PROJECT_SETTINGS: int = 19
-const ID_FIND_IN_FILES: int = 20
-const ID_PACK_PROJECT_AS_ZIP: int = 23
-const ID_OPEN_USER_DATA_FOLDER: int = 25
-const ID_RELOAD_CURRENT_PROJECT: int = 26
-const ID_QUIT_TO_PROJECT_LIST: int = 27
+const ID_PROJECT_SETTINGS: int = 20
+const ID_FIND_IN_FILES: int = 21
+const ID_PACK_PROJECT_AS_ZIP: int = 24
+const ID_OPEN_USER_DATA_FOLDER: int = 26
+const ID_RELOAD_CURRENT_PROJECT: int = 27
+const ID_QUIT_TO_PROJECT_LIST: int = 28
 # This ID must match the ID for the "Search Help..." item in the original Help menu (_help_popup_menu).
 const ID_SEARCH_HELP: int = 46
 
@@ -271,17 +271,17 @@ func _on_custom_project_menu_id_pressed(id: int) -> void:
 	# Piggyback off the original project menu by emitting its events.
 	var native_item_id: int
 	match id:
-		19:
-			native_item_id = ID_PROJECT_SETTINGS
 		20:
+			native_item_id = ID_PROJECT_SETTINGS
+		21:
 			native_item_id = ID_FIND_IN_FILES
-		23:
+		24:
 			native_item_id = ID_PACK_PROJECT_AS_ZIP
-		25:
-			native_item_id = ID_OPEN_USER_DATA_FOLDER
 		26:
-			native_item_id = ID_RELOAD_CURRENT_PROJECT
+			native_item_id = ID_OPEN_USER_DATA_FOLDER
 		27:
+			native_item_id = ID_RELOAD_CURRENT_PROJECT
+		28:
 			native_item_id = ID_QUIT_TO_PROJECT_LIST
 		_:
 			native_item_id = -1
