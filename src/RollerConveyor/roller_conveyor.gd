@@ -364,7 +364,3 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
-
-	if tag_group_name_param == running_tag_group_name and _running_tag_group_init:
-		var is_running: bool = OIPComms.read_bit(running_tag_group_name, running_tag_name)
-		speed = 1.0 if is_running else 0.0
