@@ -58,13 +58,21 @@ func _input(event: InputEvent) -> void:
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and character_spawned:
 		if event is InputEventKey:
 			var key := event as InputEventKey
-
-			if key.keycode == KEY_ESCAPE or key.keycode == KEY_F5 or key.keycode == KEY_F6 or key.keycode == KEY_F7:
-				return
 			var editor_settings := EditorInterface.get_editor_settings()
+
+			if key.keycode == KEY_ESCAPE:
+				return
+
 			if editor_settings.is_shortcut("Open Industry Project/Spawn Character", event):
 				return
+			if editor_settings.is_shortcut("Open Industry Project/Start Simulation", event):
+				return
+			if editor_settings.is_shortcut("Open Industry Project/Toggle Pause Simulation", event):
+				return
+			if editor_settings.is_shortcut("Open Industry Project/Stop Simulation", event):
+				return
 
+			# Block all other keyboard input from reaching the editor
 			get_viewport().set_input_as_handled()
 
 
@@ -79,12 +87,12 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	var key := event as InputEventKey
 	var editor_settings := EditorInterface.get_editor_settings()
 
-	if key != null and event.is_pressed() and not event.is_echo():
-		if key.keycode == KEY_F5:
+	if event.is_pressed() and not event.is_echo():
+		if editor_settings.is_shortcut("Open Industry Project/Start Simulation", event):
 			SimulationEvents.start_simulation()
-		elif key.keycode == KEY_F6:
+		elif editor_settings.is_shortcut("Open Industry Project/Toggle Pause Simulation", event):
 			SimulationEvents.toggle_pause_simulation()
-		elif key.keycode == KEY_F7:
+		elif editor_settings.is_shortcut("Open Industry Project/Stop Simulation", event):
 			SimulationEvents.stop_simulation()
 
 	if event.is_pressed() and (editor_settings.is_shortcut("Open Industry Project/Spawn Character", event) or (key != null and key.keycode == KEY_ESCAPE)):

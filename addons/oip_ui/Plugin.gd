@@ -59,6 +59,27 @@ func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
 	_editor_node.editor_layout_loaded.connect(_editor_layout_loaded)
 
+	# Register simulation control shortcuts
+	var editor_settings := EditorInterface.get_editor_settings()
+
+	var start_shortcut := Shortcut.new()
+	var start_key := InputEventKey.new()
+	start_key.keycode = KEY_F5
+	start_shortcut.events.append(start_key)
+	editor_settings.add_shortcut("Open Industry Project/Start Simulation", start_shortcut)
+
+	var pause_shortcut := Shortcut.new()
+	var pause_key := InputEventKey.new()
+	pause_key.keycode = KEY_F6
+	pause_shortcut.events.append(pause_key)
+	editor_settings.add_shortcut("Open Industry Project/Toggle Pause Simulation", pause_shortcut)
+
+	var stop_shortcut := Shortcut.new()
+	var stop_key := InputEventKey.new()
+	stop_key.keycode = KEY_F7
+	stop_shortcut.events.append(stop_key)
+	editor_settings.add_shortcut("Open Industry Project/Stop Simulation", stop_shortcut)
+
 
 func _exit_tree() -> void:
 	_center_buttons.visible = true
