@@ -28,10 +28,6 @@ var _scenario: RID
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
 var _tag_group_original: String
-var _enable_comms_changed: bool = false:
-	set(value):
-		notify_property_list_changed()
-
 var _last_distance: float = -1.0
 var _last_beam_color: Color = Color.TRANSPARENT
 var _last_transform: Transform3D
@@ -89,13 +85,14 @@ func _enter_tree() -> void:
 
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
+	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
 
 func _exit_tree() -> void:
 	RenderingServer.free_rid(_instance)
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
+	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 
 
 func _physics_process(_delta: float) -> void:

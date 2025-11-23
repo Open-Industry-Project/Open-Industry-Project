@@ -62,10 +62,6 @@ var _segment_initial_y_pos: float
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
 var _tag_group_original: String
-var _enable_comms_changed: bool = false:
-	set(value):
-		notify_property_list_changed()
-
 @onready var _segments_container: Node3D = get_node("Mid/Segments")
 @onready var _top_mesh: MeshInstance3D = get_node("Mid/Top")
 @onready var _bottom_mesh: MeshInstance3D = get_node("Bottom")
@@ -158,7 +154,7 @@ func _enter_tree() -> void:
 
 	_tag_groups = tag_group_name
 
-	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
+	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
 
 func _ready() -> void:
@@ -197,6 +193,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 	if _segments_container:
 		for i in range(_segments_container.get_child_count()):
 			var segment_node := _segments_container.get_child(i)

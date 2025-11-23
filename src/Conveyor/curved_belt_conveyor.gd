@@ -132,10 +132,6 @@ var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
 var _speed_tag_group_original: String
 var _running_tag_group_original: String
-var _enable_comms_changed: bool = false:
-	set(value):
-		notify_property_list_changed()
-
 @export_category("Communications")
 @export var enable_comms := false
 @export var speed_tag_group_name: String
@@ -780,13 +776,14 @@ func _enter_tree() -> void:
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(func() -> void: _enable_comms_changed = OIPComms.get_enable_comms())
+	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
+	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
