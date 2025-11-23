@@ -55,6 +55,20 @@ func _notification(what: int) -> void:
 		handle_focus_gained()
 
 
+func _input(event: InputEvent) -> void:
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and character_spawned:
+		if event is InputEventKey:
+			var key := event as InputEventKey
+
+			if key.keycode == KEY_ESCAPE or key.keycode == KEY_F5 or key.keycode == KEY_F6 or key.keycode == KEY_F7:
+				return
+			var editor_settings := EditorInterface.get_editor_settings()
+			if editor_settings.is_shortcut("Open Industry Project/Spawn Character", event):
+				return
+
+			get_viewport().set_input_as_handled()
+
+
 func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	var root := EditorInterface.get_edited_scene_root() as Node3D
 	if not root:
