@@ -18,21 +18,19 @@ func _enter_tree() -> void:
 
 	var editor_settings := EditorInterface.get_editor_settings()
 
-	if not editor_settings.get_shortcut("Open Industry Project/Use"):
-		var alert_shortcut := Shortcut.new()
-		var key_stroke := InputEventKey.new()
-		key_stroke.keycode = KEY_C
-		alert_shortcut.events.append(key_stroke)
-		editor_settings.add_shortcut("Open Industry Project/Use", alert_shortcut)
+	var use_shortcut := Shortcut.new()
+	var key_stroke := InputEventKey.new()
+	key_stroke.keycode = KEY_C
+	use_shortcut.events.append(key_stroke)
+	editor_settings.add_shortcut("Open Industry Project/Use", use_shortcut)
 
-	if not editor_settings.get_shortcut("Open Industry Project/Snap Conveyor"):
-		var snap_shortcut := Shortcut.new()
-		var snap_key_stroke := InputEventKey.new()
-		snap_key_stroke.keycode = KEY_C
-		snap_key_stroke.ctrl_pressed = true
-		snap_key_stroke.shift_pressed = true
-		snap_shortcut.events.append(snap_key_stroke)
-		editor_settings.add_shortcut("Open Industry Project/Snap Conveyor", snap_shortcut)
+	var snap_shortcut := Shortcut.new()
+	var snap_key_stroke := InputEventKey.new()
+	snap_key_stroke.keycode = KEY_C
+	snap_key_stroke.ctrl_pressed = true
+	snap_key_stroke.shift_pressed = true
+	snap_shortcut.events.append(snap_key_stroke)
+	editor_settings.add_shortcut("Open Industry Project/Snap Conveyor", snap_shortcut)
 
 
 func _ready() -> void:
