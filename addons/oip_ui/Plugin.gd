@@ -30,9 +30,6 @@ var _layout_loaded: bool = false
 # Editor Node
 var _editor_node: Node
 
-# Editor Scene Tabs
-var _editor_scene_tabs: Node
-
 # Menu buttons: top-left
 var _menu_bar: MenuBar
 var _project_popup_menu: PopupMenu
@@ -49,7 +46,6 @@ var _empty_margin: Control = Control.new()
 
 # Create Root Node
 var _create_root_vbox: VBoxContainer
-var _scene_tabs: TabBar
 
 # Perspective Menu
 var _perspective_menu: MenuButton
@@ -159,13 +155,10 @@ func _editor_layout_loaded() -> void:
 	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
 
 	_create_root_vbox = _editor_node.find_child("BeginnerNodeShortcuts",true,false)
-	_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
-	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0)
-
+	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(2).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0)
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
 
-	_editor_scene_tabs = _editor_node.get_child(4).get_child(0).get_child(1).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(0)
 	_toggle_native_mode(false)
 
 	_run_bar = RUN_BAR.instantiate()
