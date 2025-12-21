@@ -19,7 +19,7 @@ const ID_OPEN_USER_DATA_FOLDER: int = 26
 const ID_RELOAD_CURRENT_PROJECT: int = 27
 const ID_QUIT_TO_PROJECT_LIST: int = 28
 # This ID must match the ID for the "Search Help..." item in the original Help menu (_help_popup_menu).
-const ID_SEARCH_HELP: int = 46
+const ID_SEARCH_HELP: int = 47
 
 var _custom_project_menu: PopupMenu
 var _custom_help_menu: PopupMenu
@@ -194,8 +194,6 @@ func _editor_layout_loaded() -> void:
 	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
 	scene_changed.connect(_scene_changed)
 
-	var root := get_tree().edited_scene_root
-
 	_run_bar._enable_buttons()
 
 	if EditorInterface.get_open_scenes().size() == 0:
@@ -321,8 +319,39 @@ func _on_custom_help_menu_id_pressed(id: int) -> void:
 			_print_menu_ids(_help_popup_menu)
 			return
 		_help_popup_menu.id_pressed.emit(native_item_id)
-	if id == 47:
+	elif id == 47:
 		OS.shell_open("https://github.com/Open-Industry-Project/Open-Industry-Project")
+	elif id == 48:
+		var version_info := Engine.get_version_info()
+		var version_hash: String = version_info.hash.left(9) if version_info.hash else ""
+		var os_name := OS.get_distribution_name() if OS.get_distribution_name() else OS.get_name()
+		var os_version := OS.get_version_alias()
+		var screen_count := DisplayServer.get_screen_count()
+		var window_mode := "Multi-window" if DisplayServer.has_feature(DisplayServer.FEATURE_SUBWINDOWS) else "Single-window"
+		var gpu := RenderingServer.get_video_adapter_name()
+		var gpu_vendor := RenderingServer.get_video_adapter_vendor()
+		var gpu_type_id := RenderingServer.get_video_adapter_type()
+		var gpu_type_names := ["unknown", "integrated", "discrete", "virtual", "cpu"]
+		var gpu_type: String = gpu_type_names[gpu_type_id] if gpu_type_id < gpu_type_names.size() else "unknown"
+		var gpu_api := RenderingServer.get_video_adapter_api_version()
+		var method: String = ProjectSettings.get_setting("rendering/renderer/rendering_method", "")
+		var method_display := method.capitalize().replace("_", "+")
+		var cpu := OS.get_processor_name()
+		var cpu_threads := OS.get_processor_count()
+		var memory_info := OS.get_memory_info()
+		var memory_gib: float = float(memory_info.physical) / 1073741824.0
+
+		var info := "Godot v%s.%s.%s (%s) - %s (%s) - %s, %d monitor%s - %s (%s) - %s %s (%s) - %s (%d threads) - %.2f GiB memory" % [
+			version_info.major, version_info.minor, version_info.status, version_hash,
+			os_name, os_version,
+			window_mode, screen_count, "s" if screen_count != 1 else "",
+			gpu_api.split(" ")[0] if " " in gpu_api else gpu_api, method_display,
+			gpu_type, gpu, gpu_vendor,
+			cpu, cpu_threads,
+			memory_gib
+		]
+
+		DisplayServer.clipboard_set(info)
 
 
 static func _print_menu_ids(menu: PopupMenu) -> void:
