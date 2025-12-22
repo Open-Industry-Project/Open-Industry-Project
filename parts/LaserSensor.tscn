@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=4 uid="uid://nsio1mg8ru3w"]
+[gd_scene format=4 uid="uid://nsio1mg8ru3w"]
 
 [ext_resource type="Script" uid="uid://d3jg66l8vh42f" path="res://src/LaserSensor/laser_sensor.gd" id="1_27ueu"]
 

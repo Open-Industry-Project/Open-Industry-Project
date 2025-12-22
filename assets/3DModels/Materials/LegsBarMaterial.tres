@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bu38jsm0fmha4"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bu38jsm0fmha4"]
 
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="1_pbsbg"]
 

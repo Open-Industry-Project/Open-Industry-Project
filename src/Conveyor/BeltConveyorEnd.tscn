@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=4 uid="uid://byog2n752js4y"]
+[gd_scene format=4 uid="uid://byog2n752js4y"]
 
 [ext_resource type="Script" uid="uid://br24cppp65ba3" path="res://src/Conveyor/belt_conveyor_end.gd" id="1_crir7"]
 [ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="2_6dxkv"]

@@ -1,4 +1,4 @@
-[gd_resource type="VisualShader" load_steps=15 format=3 uid="uid://d0c82kmt01y6x"]
+[gd_resource type="VisualShader" format=3 uid="uid://d0c82kmt01y6x"]
 
 [ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="1_ada2n"]
 

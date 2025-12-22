@@ -1,4 +1,4 @@
-[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://djyjdpob6kkpx"]
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://djyjdpob6kkpx"]
 
 [ext_resource type="Texture2D" uid="uid://b7gdnb6l4jijv" path="res://assets/3DModels/TopCRC_GrayMetal.png" id="1_c1rel"]
 

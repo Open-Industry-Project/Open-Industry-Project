@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://co2mqmdwpn57w"]
+[gd_scene format=4 uid="uid://co2mqmdwpn57w"]
 
 [ext_resource type="Script" uid="uid://bn65m4b5yne4r" path="res://src/BoxSpawner/box_spawner.gd" id="1_hb8rk"]
 [ext_resource type="PackedScene" uid="uid://bq16fe5njnr2i" path="res://parts/Box.tscn" id="2_2xggy"]

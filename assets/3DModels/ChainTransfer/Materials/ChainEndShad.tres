@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://cd5u6xf7efa06"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://cd5u6xf7efa06"]
 
 [ext_resource type="Shader" uid="uid://dny8ls5gyqoq0" path="res://assets/3DModels/ChainTransfer/Shaders/ChainEndShader.tres" id="1_8txb1"]
 

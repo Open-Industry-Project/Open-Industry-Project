@@ -1,4 +1,4 @@
-[gd_resource type="VisualShader" load_steps=15 format=3 uid="uid://d10y8mbk5y7mn"]
+[gd_resource type="VisualShader" format=3 uid="uid://d10y8mbk5y7mn"]
 
 [ext_resource type="Texture2D" uid="uid://ss03sm2hsofi" path="res://assets/3DModels/ChainTransfer/ChainTransfer_chain_tex_pattern.png" id="1_884k8"]
 

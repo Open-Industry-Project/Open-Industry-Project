@@ -1,4 +1,4 @@
-[gd_resource type="ArrayMesh" load_steps=4 format=4 uid="uid://lqv2qc6oeokk"]
+[gd_resource type="ArrayMesh" format=4 uid="uid://lqv2qc6oeokk"]
 
 [ext_resource type="Material" uid="uid://du46ksuaixoxi" path="res://assets/3DModels/Materials/BeltMaterial.tres" id="1_gd4c0"]
 [ext_resource type="Material" uid="uid://00bmdgt6cfmg" path="res://assets/3DModels/Materials/MetalMaterial.tres" id="2_a2tht"]

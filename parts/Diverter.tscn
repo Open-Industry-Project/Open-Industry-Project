@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=4 uid="uid://5pjmdoyiub35"]
+[gd_scene format=4 uid="uid://5pjmdoyiub35"]
 
 [ext_resource type="Script" uid="uid://ej2fvcfstqio" path="res://src/Diverter/diverter.gd" id="1_8wula"]
 [ext_resource type="Script" uid="uid://dtgqdb65nle3j" path="res://src/Diverter/diverter_animator.gd" id="2_1je71"]

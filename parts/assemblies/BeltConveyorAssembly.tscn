@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://bqlkj4ar8q1ws"]
+[gd_scene format=3 uid="uid://bqlkj4ar8q1ws"]
 
 [ext_resource type="Script" uid="uid://dpeg2oajgjsu3" path="res://src/ConveyorAssembly/belt_conveyor_assembly.gd" id="1_upkoq"]
 [ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="2_rxjsx"]

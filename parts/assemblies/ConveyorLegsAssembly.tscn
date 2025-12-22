@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://cg4ii4p426pqb"]
+[gd_scene format=3 uid="uid://cg4ii4p426pqb"]
 
 [ext_resource type="Script" uid="uid://dxaug2s6x4otb" path="res://src/ConveyorAttachment/conveyor_legs_assembly.gd" id="1_vbjla"]
 

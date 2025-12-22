@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://bl73u0rvt2orv"]
+[gd_scene format=3 uid="uid://bl73u0rvt2orv"]
 
 [ext_resource type="Script" uid="uid://dybkfctqmuyt6" path="res://src/Despawner/despawner.gd" id="1_f5xau"]
 

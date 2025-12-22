@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=4 uid="uid://c4xqkx88xf1dy"]
+[gd_scene format=4 uid="uid://c4xqkx88xf1dy"]
 
 [ext_resource type="Shader" uid="uid://b4wwduhuvem3q" path="res://assets/3DModels/Shaders/SideGuardShaderCBC.tres" id="2_0cxq4"]
 [ext_resource type="Script" uid="uid://c1eeo0688a1j5" path="res://src/SideGuards/curved_side_guards.gd" id="2_aafbe"]

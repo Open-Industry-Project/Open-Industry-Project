@@ -1,4 +1,4 @@
-[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://vqc0gef8g4ne"]
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://vqc0gef8g4ne"]
 
 [ext_resource type="Texture2D" uid="uid://cgavoykv7aany" path="res://assets/3DModels/Textures/LegsSide_GrayMetal.png" id="1_qiag4"]
 

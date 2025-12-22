@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=4 uid="uid://pf3t2vk7fmn"]
+[gd_scene format=4 uid="uid://pf3t2vk7fmn"]
 
 [ext_resource type="Script" uid="uid://b2f50dwn2r8w2" path="res://src/ConveyorAttachment/side_guards_assembly.gd" id="1_rsl22"]
 [ext_resource type="PackedScene" uid="uid://dvjrx5crpqs5f" path="res://parts/SideGuard.tscn" id="2_gw8aj"]

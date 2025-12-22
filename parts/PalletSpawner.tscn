@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=4 uid="uid://rqr8ymsl2cph"]
+[gd_scene format=4 uid="uid://rqr8ymsl2cph"]
 
 [ext_resource type="Script" uid="uid://cnvwx0n8igwtt" path="res://src/PalletSpawner/pallet_spawner.gd" id="1_kwg42"]
 [ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://parts/Pallet.tscn" id="2_g1ntt"]

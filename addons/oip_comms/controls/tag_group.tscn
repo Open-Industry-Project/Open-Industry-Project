@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://b0wmg3bm6lht7"]
+[gd_scene format=3 uid="uid://b0wmg3bm6lht7"]
 
 [ext_resource type="Script" uid="uid://d362g8dqm3op5" path="res://addons/oip_comms/controls/tag_group.gd" id="1_ugh8j"]
 

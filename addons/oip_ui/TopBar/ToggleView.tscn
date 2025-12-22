@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://gfxysqahufut"]
+[gd_scene format=3 uid="uid://gfxysqahufut"]
 
 [ext_resource type="Script" uid="uid://dsb3kx6e8adi8" path="res://addons/oip_ui/TopBar/ToggleView.gd" id="1_n1e43"]
 [ext_resource type="Script" uid="uid://btkrlws2l12ax" path="res://addons/oip_ui/TopBar/TimeScale.gd" id="4_d27m1"]

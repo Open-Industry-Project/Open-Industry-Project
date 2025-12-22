@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://nfw6cy1ol6wn"]
+[gd_scene format=3 uid="uid://nfw6cy1ol6wn"]
 
 [ext_resource type="Script" path="res://src/ConveyorAssembly/curved_roller_conveyor_assembly.gd" id="1_0vkx8"]
 [ext_resource type="PackedScene" uid="uid://c3cdcxifx4eej" path="res://parts/CurvedRollerConveyor.tscn" id="2_1qr7y"]

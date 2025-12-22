@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=4 uid="uid://c3cdcxifx4eej"]
+[gd_scene format=4 uid="uid://c3cdcxifx4eej"]
 
 [ext_resource type="Script" uid="uid://bj7grxymjnen0" path="res://src/RollerConveyor/curved_roller_conveyor.gd" id="1_wbi3o"]
 [ext_resource type="Shader" uid="uid://d0c82kmt01y6x" path="res://assets/3DModels/Shaders/MetalShaderRoller.tres" id="2_rk0si"]

@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=4 uid="uid://x7ajd6h1vd07"]
+[gd_scene format=4 uid="uid://x7ajd6h1vd07"]
 
 [ext_resource type="Script" uid="uid://d16jj3qspvfrh" path="res://src/ColorSensor/color_sensor.gd" id="1_dr6em"]
 

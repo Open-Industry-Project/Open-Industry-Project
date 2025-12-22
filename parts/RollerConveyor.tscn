@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://dg47c07xr4ksu"]
+[gd_scene format=4 uid="uid://dg47c07xr4ksu"]
 
 [ext_resource type="Script" uid="uid://c3i26qc2exbsa" path="res://src/RollerConveyor/roller_conveyor.gd" id="1_vnty6"]
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]

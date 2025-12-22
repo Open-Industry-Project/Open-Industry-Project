@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://cqywoaa7fg0x1"]
+[gd_scene format=3 uid="uid://cqywoaa7fg0x1"]
 
 [ext_resource type="PackedScene" uid="uid://b4sdmxvfay63o" path="res://assets/3DModels/Floor.glb" id="1_gk7di"]
 
@@ -7,7 +7,7 @@ size = Vector3(4, 0.01, 4)
 
 [node name="Floor" unique_id=1780024993 instance=ExtResource("1_gk7di")]
 
-[node name="StaticBody3D" type="StaticBody3D" parent="ConcreteTile" parent_id_path=PackedInt32Array(1349617138) index="0" unique_id=2001153940]
+[node name="StaticBody3D" type="StaticBody3D" parent="ConcreteTile" parent_id_path=PackedInt32Array(1722371977) index="0" unique_id=2001153940]
 collision_mask = 8
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ConcreteTile/StaticBody3D" index="0" unique_id=2005285080]

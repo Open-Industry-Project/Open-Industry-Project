@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://cb600vegtmn2l"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://cb600vegtmn2l"]
 
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="1_35k14"]
 

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="StackLightData" load_steps=2 format=3 uid="uid://d12ws8w1surr1"]
+[gd_resource type="Resource" script_class="StackLightData" format=3 uid="uid://d12ws8w1surr1"]
 
 [ext_resource type="Script" uid="uid://bl7o7avq4pi78" path="res://src/StackLight/stack_light_data.gd" id="1_rghtc"]
 

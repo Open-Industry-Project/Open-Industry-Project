@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=4 uid="uid://di0tdk31gf2cj"]
+[gd_scene format=4 uid="uid://di0tdk31gf2cj"]
 
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="1_dcps5"]
 

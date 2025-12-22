@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://c7e1r04ws0m1j"]
+[gd_scene format=3 uid="uid://c7e1r04ws0m1j"]
 
 [ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_pxi51"]
 

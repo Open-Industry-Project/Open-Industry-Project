@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=4 uid="uid://rv5ef61beh35"]
+[gd_scene format=4 uid="uid://rv5ef61beh35"]
 
 [ext_resource type="PackedScene" uid="uid://cr8u3bta0skiy" path="res://parts/ConveyorLegBC.tscn" id="1_0pp1r"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="2_3i18h"]

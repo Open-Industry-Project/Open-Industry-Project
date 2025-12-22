@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://csekr7nhdlmu0"]
+[gd_scene format=3 uid="uid://csekr7nhdlmu0"]
 
 [ext_resource type="Script" uid="uid://gat6xfeiidsw" path="res://addons/oip_comms/controls/oip_comms_dock.gd" id="1_ac54y"]
 

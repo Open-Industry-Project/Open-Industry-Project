@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=4 uid="uid://dvjrx5crpqs5f"]
+[gd_scene format=4 uid="uid://dvjrx5crpqs5f"]
 
 [ext_resource type="Script" uid="uid://cnenk7khucv8s" path="res://src/SideGuards/side_guard.gd" id="2_1ah88"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="2_ydsd4"]

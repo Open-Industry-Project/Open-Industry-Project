@@ -1,34 +1,37 @@
-[gd_scene load_steps=9 format=3 uid="uid://bc71peokxkxdb"]
+[gd_scene format=3 uid="uid://bc71peokxkxdb"]
 
 [ext_resource type="Script" uid="uid://bfjdnhti3p50c" path="res://addons/oip_ui/TopBar/RunBar.gd" id="1_akwgd"]
 
-[sub_resource type="InputEventKey" id="InputEventKey_6h0ux"]
-device = -1
+[sub_resource type="InputEventKey" id="InputEventKey_2q2mv"]
 keycode = 4194336
 
-[sub_resource type="Shortcut" id="Shortcut_6h0ux"]
-resource_name = "Play Simulation"
-events = [SubResource("InputEventKey_6h0ux")]
+[sub_resource type="Shortcut" id="Shortcut_v31bo"]
+resource_name = "Start Simulation"
+events = [SubResource("InputEventKey_2q2mv")]
+metadata/original = [SubResource("InputEventKey_2q2mv")]
+metadata/customized = true
 
 [sub_resource type="DPITexture" id="DPITexture_4ccqa"]
 _source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
 "
 
-[sub_resource type="InputEventKey" id="InputEventKey_mmyma"]
-device = -1
+[sub_resource type="InputEventKey" id="InputEventKey_m6dk3"]
 keycode = 4194337
 
-[sub_resource type="Shortcut" id="Shortcut_psllm"]
-resource_name = "Pause Simulation"
-events = [SubResource("InputEventKey_mmyma")]
+[sub_resource type="Shortcut" id="Shortcut_6h0ux"]
+resource_name = "Toggle Pause Simulation"
+events = [SubResource("InputEventKey_m6dk3")]
+metadata/original = [SubResource("InputEventKey_m6dk3")]
+metadata/customized = true
 
-[sub_resource type="InputEventKey" id="InputEventKey_psllm"]
-device = -1
+[sub_resource type="InputEventKey" id="InputEventKey_mmyma"]
 keycode = 4194338
 
-[sub_resource type="Shortcut" id="Shortcut_3mp6e"]
+[sub_resource type="Shortcut" id="Shortcut_psllm"]
 resource_name = "Stop Simulation"
-events = [SubResource("InputEventKey_psllm")]
+events = [SubResource("InputEventKey_mmyma")]
+metadata/original = [SubResource("InputEventKey_mmyma")]
+metadata/customized = true
 
 [node name="RunBar" type="PanelContainer" unique_id=1966038860]
 process_mode = 3
@@ -42,18 +45,24 @@ theme_override_constants/separation = 8
 
 [node name="Play" type="Button" parent="HBoxContainer" unique_id=1292924449]
 layout_mode = 2
-shortcut = SubResource("Shortcut_6h0ux")
+tooltip_text = "Start Simulation (F5)"
+shortcut = SubResource("Shortcut_v31bo")
+shortcut_in_tooltip = false
 icon = SubResource("DPITexture_4ccqa")
 
 [node name="Pause" type="Button" parent="HBoxContainer" unique_id=980106507]
 layout_mode = 2
+tooltip_text = "Pause Simulation (F6)"
 disabled = true
 toggle_mode = true
-shortcut = SubResource("Shortcut_psllm")
+shortcut = SubResource("Shortcut_6h0ux")
+shortcut_in_tooltip = false
 icon = SubResource("DPITexture_4ccqa")
 
 [node name="Stop" type="Button" parent="HBoxContainer" unique_id=1055835747]
 layout_mode = 2
+tooltip_text = "Stop Simulation (F7)"
 disabled = true
-shortcut = SubResource("Shortcut_3mp6e")
+shortcut = SubResource("Shortcut_psllm")
+shortcut_in_tooltip = false
 icon = SubResource("DPITexture_4ccqa")

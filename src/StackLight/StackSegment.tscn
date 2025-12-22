@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=4 uid="uid://dlm5s307lqs6b"]
+[gd_scene format=4 uid="uid://dlm5s307lqs6b"]
 
 [ext_resource type="Script" uid="uid://drqduoo67opbr" path="res://src/StackLight/stack_segment.gd" id="1_3k4vh"]
 [ext_resource type="Resource" uid="uid://ff1xcf7jap8r" path="res://src/StackLight/StackSegmentData.tres" id="2_h5qyy"]

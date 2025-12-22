@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://vrqch763taww"]
+[gd_scene format=3 uid="uid://vrqch763taww"]
 
 [ext_resource type="ArrayMesh" uid="uid://c5qdgsij7hwi5" path="res://assets/3DModels/SideGuardsFix/Meshes/RCSideGuardEndL_RCSideGuardEndL.res" id="1_moxwq"]
 

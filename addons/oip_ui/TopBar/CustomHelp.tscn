@@ -9,7 +9,7 @@ _source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\">
 [node name="Help" type="PopupMenu" unique_id=142010995]
 oversampling_override = 1.0
 title = "Help"
-size = Vector2i(268, 66)
+size = Vector2i(268, 93)
 visible = true
 unfocusable = true
 item_count = 4

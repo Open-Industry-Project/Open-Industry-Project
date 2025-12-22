@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://bx3tdqm2gwu4d"]
+[gd_scene format=3 uid="uid://bx3tdqm2gwu4d"]
 
 [ext_resource type="ArrayMesh" uid="uid://cy6jt6h7civ2u" path="res://assets/3DModels/WallsAndRoof/Meshes/WallBig_WallBig.res" id="1_vunon"]
 [ext_resource type="ArrayMesh" uid="uid://1v7x8nimyn23" path="res://assets/3DModels/WallsAndRoof/Meshes/WallBottom_WallBottom.res" id="2_pjjqf"]

@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://cr8u3bta0skiy"]
+[gd_scene format=4 uid="uid://cr8u3bta0skiy"]
 
 [ext_resource type="Script" uid="uid://67vowlelar02" path="res://src/ConveyorLeg/conveyor_leg.gd" id="1_p257i"]
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="2_ggjff"]

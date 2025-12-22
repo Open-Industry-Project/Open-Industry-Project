@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://c1mup2vown0ak"]
+[gd_scene format=3 uid="uid://c1mup2vown0ak"]
 
 [ext_resource type="Script" uid="uid://ck2rh8e3xxtj0" path="res://src/BladeStop/blade_stop.gd" id="1_tokfa"]
 [ext_resource type="PhysicsMaterial" uid="uid://vthdgr7hg05m" path="res://src/BladeStop/BladePhysicMaterial.tres" id="2_ctgt5"]

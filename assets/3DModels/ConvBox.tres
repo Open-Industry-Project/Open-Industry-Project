@@ -1,4 +1,4 @@
-[gd_resource type="ArrayMesh" load_steps=7 format=4 uid="uid://bv24wl8p40gei"]
+[gd_resource type="ArrayMesh" format=4 uid="uid://bv24wl8p40gei"]
 
 [ext_resource type="Texture2D" uid="uid://b0h1q3nq683yk" path="res://assets/3DModels/ConvBox_Conv_text__arrows_1024.png" id="1_wuw18"]
 [ext_resource type="Texture2D" uid="uid://b8gdhf3jnfoyq" path="res://assets/3DModels/ConvBox_Metal.png" id="2_tv6wb"]
