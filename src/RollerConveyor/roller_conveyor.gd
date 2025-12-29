@@ -12,6 +12,7 @@ const RADIUS: float = 0.12
 const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
+		value = abs(value)
 		if value == speed:
 			return
 		speed = value
@@ -20,6 +21,17 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
+			
+@export var reversed: bool = false:
+	set(value):
+		if reversed == value:
+			return
+		reversed = value
+		_update_conveyor_velocity()
+
+var effective_speed: float:
+	get:
+		return -speed if reversed else speed
 
 @export_range(-60, 60, 1, "degrees") var skew_angle: float = 0.0:
 	set(value):
@@ -150,7 +162,7 @@ func _ready() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if running and _roller_material:
-		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + speed * _delta / CIRCUMFERENCE, 1.0)
+		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + effective_speed * _delta / CIRCUMFERENCE, 1.0)
 
 
 func set_roller_override_material(material: Material) -> void:
@@ -302,7 +314,8 @@ func _update_conveyor_velocity() -> void:
 		var local_x := _simple_conveyor_shape.global_transform.basis.x.normalized()
 		var local_y := _simple_conveyor_shape.global_transform.basis.y.normalized()
 		var angle_rad := deg_to_rad(skew_angle)
-		var velocity := local_x.rotated(local_y, angle_rad) * speed
+		var velocity := local_x.rotated(local_y, angle_rad) * effective_speed
+
 		_simple_conveyor_shape.constant_linear_velocity = velocity
 	else:
 		_simple_conveyor_shape.constant_linear_velocity = Vector3.ZERO

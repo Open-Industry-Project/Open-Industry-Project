@@ -9,6 +9,12 @@ enum ConvTexture {
 	ALTERNATE
 }
 
+@export var reversed: bool = false:
+	set(value):
+		reversed = value
+		_update_speed()
+		_update_belt_material_scale()
+
 @export var belt_color: Color = Color(1, 1, 1, 1):
 	set(value):
 		belt_color = value
@@ -19,8 +25,9 @@ enum ConvTexture {
 		belt_texture = value
 		_update_material_texture()
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
 	set(value):
+		value = abs(value)
 		if value == speed:
 			return
 		speed = value
@@ -77,6 +84,12 @@ var _original_collision_mask: int = 1
 		running_tag_group_name = value
 		running_tag_groups = value
 @export var running_tag_name: String = ""
+
+
+		
+var effective_speed: float:
+	get:
+		return -speed if reversed else speed
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -170,12 +183,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if SimulationEvents.simulation_running:
 		var local_left := _sb.global_transform.basis.x.normalized()
-		var velocity := local_left * speed
+		var velocity := local_left * effective_speed
 		_sb.constant_linear_velocity = velocity
 		if not SimulationEvents.simulation_paused:
-			_belt_position += speed * delta
-		if speed != 0:
-			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position * sign(speed))
+			_belt_position += effective_speed * delta
+		if effective_speed != 0:
+			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position * sign(effective_speed))
 		if _belt_position >= 1.0:
 			_belt_position = 0.0
 
@@ -251,9 +264,9 @@ func _update_material_color() -> void:
 
 func _update_speed() -> void:
 	if _ce1:
-		_ce1.speed = speed
+		_ce1.speed = effective_speed
 	if _ce2:
-		_ce2.speed = speed
+		_ce2.speed = effective_speed
 
 
 func _update_physics_material() -> void:
@@ -270,14 +283,14 @@ func _update_physics_material() -> void:
 
 
 func _update_belt_material_scale() -> void:
-	if not _belt_material or not _sb or speed == 0:
+	if not _belt_material or not _sb or effective_speed == 0:
 		return
 	var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
 	var collision_shape := _sb.get_node("CollisionShape3D").shape as BoxShape3D
 	var middle_length := collision_shape.size.x
 	var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
 	var belt_scale: float = middle_length / BASE_BELT_LENGTH
-	(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
+	(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(effective_speed))
 	fix_material_overrides()
 
 
@@ -356,4 +369,4 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 		return
 
 	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
-		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
+		effective_speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
