@@ -6,6 +6,8 @@
 [ext_resource type="PackedScene" uid="uid://c1dcpxt5x65et" path="res://parts/SideGuardsCBC.tscn" id="4_wyu5c"]
 [ext_resource type="PackedScene" uid="uid://cidlpglw76h7j" path="res://parts/assemblies/CurvedConveyorLegsAssembly.tscn" id="5_curved_legs"]
 
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_541io"]
+
 [node name="CurvedBeltConveyorAssembly" type="Node3D" unique_id=250519520]
 process_mode = 3
 script = ExtResource("1_5kj7c")
@@ -17,7 +19,7 @@ belt_texture = 0
 conveyor_angle = 90.0
 speed = 2.0
 reference_distance = 0.762
-belt_physics_material = null
+belt_physics_material = SubResource("PhysicsMaterial_541io")
 enable_comms = false
 speed_tag_group_name = "TagGroup0"
 speed_tag_name = ""
