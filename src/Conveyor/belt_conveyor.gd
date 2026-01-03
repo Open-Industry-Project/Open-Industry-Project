@@ -4,21 +4,27 @@ extends ResizableNode3D
 
 signal speed_changed
 
+## Belt texture options for visual appearance.
 enum ConvTexture {
+	## Typical industrial belt texture.
 	STANDARD,
+	## Modern pattern with flow direction indicators.
 	ALTERNATE
 }
 
+## The color tint applied to the belt surface.
 @export var belt_color: Color = Color(1, 1, 1, 1):
 	set(value):
 		belt_color = value
 		_update_material_color()
 
+## The texture style of the belt (standard or alternate pattern).
 @export var belt_texture: ConvTexture = ConvTexture.STANDARD:
 	set(value):
 		belt_texture = value
 		_update_material_texture()
 
+## The linear speed of the belt in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
 	set(value):
 		if value == speed:
@@ -31,6 +37,7 @@ enum ConvTexture {
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
+## The physics material applied to the belt surface for friction control.
 @export var belt_physics_material: PhysicsMaterial:
 	get:
 		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
@@ -64,18 +71,23 @@ var _running_tag_group_original: String
 var _original_collision_layer: int = 1
 var _original_collision_mask: int = 1
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var speed_tag_group_name: String
+## The tag group for reading speed values from external systems.
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
+## The tag name for the speed value in the selected tag group.
 @export var speed_tag_name: String = ""
 @export var running_tag_group_name: String
+## The tag group for the running state signal.
 @export_custom(0, "tag_group_enum") var running_tag_groups:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
+## The tag name for the running state in the selected tag group.
 @export var running_tag_name: String = ""
 
 

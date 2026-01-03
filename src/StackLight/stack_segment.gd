@@ -4,6 +4,7 @@ extends Node3D
 
 signal active_state_changed(index: int, active: bool)
 
+## The data resource controlling this segment's active state and color.
 @export var segment_data: StackSegmentData:
 	set(value):
 		if segment_data:

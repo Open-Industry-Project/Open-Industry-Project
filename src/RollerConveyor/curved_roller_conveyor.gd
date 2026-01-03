@@ -15,12 +15,14 @@ enum Scales {LOW, MID, HIGH}
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
+## Inner radius of the curve (read-only, based on conveyor width).
 @export var inner_radius_f: float = 0.5:
 	set(value):
 		if Engine.is_editor_hint() and value != inner_radius_f:
 			EditorInterface.get_editor_toaster().push_toast("You cannot change the inner radius at this moment", EditorToaster.SEVERITY_WARNING)
 		pass
 
+## Width of the conveyor in meters.
 @export var conveyor_width: float = 1.524:
 	set(value):
 		conveyor_width = value
@@ -28,6 +30,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		if value > 0.0 and is_inside_tree():
 			size = Vector3(value, size.y, size.z)
 
+## Linear speed at the reference distance in meters per second.
 @export var speed: float = 0.0:
 	set(value):
 		speed = value
@@ -35,8 +38,10 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
+## Distance from outer edge where speed value applies (for angular speed calc).
 @export var reference_distance: float = SIZE_DEFAULT.x/2
 
+## Angle of the curved section in degrees (10-90).
 @export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
 	set(value):
 		if conveyor_angle == value:
@@ -55,20 +60,25 @@ var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms := false:
 	get = get_enable_comms,
 	set = set_enable_comms
 @export var speed_tag_group_name: String
+## The tag group for reading speed values from external systems.
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
+## The tag name for the speed value in the selected tag group.
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
+## The tag group for the running state signal.
 @export_custom(0, "tag_group_enum") var running_tag_groups:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
+## The tag name for the running state in the selected tag group.
 @export var running_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:

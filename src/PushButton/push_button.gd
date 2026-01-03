@@ -2,23 +2,27 @@
 class_name PushButton
 extends Node3D
 
+## Text label displayed on the button.
 @export var text: String = "STOP":
 	set(value):
 		text = value
 		if _text:
 			_text.text = text
 
+## When true, button stays pressed until clicked again (toggle mode).
 @export var toggle: bool = false:
 	set(value):
 		toggle = value
 		if not toggle:
 			pressed = false
 
+## When true, output is inverted (false when pressed).
 @export var normally_closed: bool = false:
 	set(value):
 		normally_closed = value
 		_update_output()
 
+## Current pressed state of the button.
 @export var pressed: bool = false:
 	set(value):
 		pressed = value
@@ -36,12 +40,14 @@ extends Node3D
 			else:
 				_button_mesh.position = Vector3.ZERO
 
+## Final output signal after applying normally_closed logic (read-only).
 @export var output: bool = false:
 	set(value):
 		if _register_pushbutton_tag_ok and _tag_group_init and value != output:
 			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, value)
 		output = value
 
+## When true, the button illuminates (lamp indicator).
 @export var lamp: bool = false:
 	set(value):
 		lamp = value
@@ -53,6 +59,7 @@ extends Node3D
 			else:
 				mat.emission_energy_multiplier = 0.0
 
+## Color of the button and its lamp emission.
 @export var button_color: Color = Color.RED:
 	set(value):
 		button_color = value
@@ -76,18 +83,23 @@ var _material_made_unique: bool = false
 @onready var _button_mesh: MeshInstance3D = $Meshes/Button
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var pushbutton_tag_group_name: String
+## The tag group for writing button output state.
 @export_custom(0, "tag_group_enum") var pushbutton_tag_groups:
 	set(value):
 		pushbutton_tag_group_name = value
 		pushbutton_tag_groups = value
+## The tag name for the button output in the selected tag group.
 @export var pushbutton_tag_name: String = ""
 @export var lamp_tag_group_name: String
+## The tag group for reading lamp control signals.
 @export_custom(0, "tag_group_enum") var lamp_tag_groups:
 	set(value):
 		lamp_tag_group_name = value
 		lamp_tag_groups = value
+## The tag name for the lamp control in the selected tag group.
 @export var lamp_tag_name: String = ""
 
 

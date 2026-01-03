@@ -5,6 +5,7 @@ extends Node3D
 const STEP: float = 0.048
 const _TOP_MESH_INITIAL_Y_POS: float = 0.087
 
+## Number of light segments in the stack (1-10).
 var segments: int = 1:
 	set(value):
 		var new_value: int = clamp(value, 1, 10)
@@ -36,6 +37,7 @@ var segments: int = 1:
 				_top_mesh.position = Vector3(0, _TOP_MESH_INITIAL_Y_POS + (STEP * (segments - 1)), 0)
 		notify_property_list_changed()
 
+## Bitmask controlling which segments are lit (bit 0 = segment 1, etc.).
 var light_value: int = 0:
 	set(value):
 		var new_val: int = value % (1 << segments)
@@ -45,13 +47,17 @@ var light_value: int = 0:
 		_update_segment_visuals()
 		notify_property_list_changed()
 
+## Enable communication with external PLC/control systems.
 var enable_comms: bool = true
+## Internal storage for the selected tag group name.
 @export var tag_group_name: String
+## The tag group for reading light values from external systems.
 var _tag_groups: String:
 	set(value):
 		tag_group_name = value
 		_tag_groups = value
 
+## The tag name for the light value in the selected tag group.
 var tag_name: String = ""
 
 var _segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")

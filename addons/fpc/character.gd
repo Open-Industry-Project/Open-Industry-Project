@@ -39,23 +39,35 @@ var pallet_offset: Vector3 = Vector3.ZERO
 
 ## The node that holds the camera. This is rotated instead of the camera for mouse input.
 @export var HEAD: Node3D
+## The camera node used for rendering the player's view.
 @export var CAMERA: Camera3D
+## Animation player for head bobbing effect while walking.
 @export var HEADBOB_ANIMATION: AnimationPlayer
+## Animation player for jump and landing effects.
 @export var JUMP_ANIMATION: AnimationPlayer
+## Animation player for crouching transitions.
 @export var CROUCH_ANIMATION: AnimationPlayer
+## The collision shape representing the player's physical body.
 @export var COLLISION_MESH: CollisionShape3D
 
 @export_group("Controls")
 
 # We are using UI controls because they are built into Godot Engine so they can be used right away
+## Input action name for jumping.
 @export var JUMP: String = "ui_accept"
+## Input action name for moving left.
 @export var LEFT: String = "ui_left"
+## Input action name for moving right.
 @export var RIGHT: String = "ui_right"
+## Input action name for moving forward.
 @export var FORWARD: String = "ui_up"
+## Input action name for moving backward.
 @export var BACKWARD: String = "ui_down"
 ## By default this does not pause the game, but that can be changed in _process.
 @export var PAUSE: String = "ui_cancel"
+## Input action name for crouching.
 @export var CROUCH: String = "crouch"
+## Input action name for sprinting.
 @export var SPRINT: String = "sprint"
 
 # Uncomment if you want controller support
@@ -73,9 +85,13 @@ var pallet_offset: Vector3 = Vector3.ZERO
 @export var in_air_momentum: bool = true
 ## Smooths the feel of walking.
 @export var motion_smoothing: bool = true
+## Enable or disable sprinting ability.
 @export var sprint_enabled: bool = true
+## Enable or disable crouching ability.
 @export var crouch_enabled: bool = true
+## Crouch input behavior: hold the button or toggle on/off.
 @export_enum("Hold to Crouch", "Toggle Crouch") var crouch_mode: int = 0
+## Sprint input behavior: hold the button or toggle on/off.
 @export_enum("Hold to Sprint", "Toggle Sprint") var sprint_mode: int = 0
 ## Wether sprinting should effect FOV.
 @export var dynamic_fov: bool = true

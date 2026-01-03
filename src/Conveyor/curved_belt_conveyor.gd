@@ -4,8 +4,11 @@ extends Node3D
 
 signal size_changed
 
+## Belt texture options for visual appearance.
 enum ConvTexture {
+	## Typical industrial belt texture.
 	STANDARD,
+	## Modern pattern with flow direction indicators.
 	ALTERNATE
 }
 
@@ -14,6 +17,7 @@ const BASE_CONVEYOR_WIDTH: float = 1.524
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
+## Radius of the inner curve edge in meters.
 @export var inner_radius: float = BASE_INNER_RADIUS:
 	set(value):
 		inner_radius = max(0.1, value)
@@ -21,6 +25,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		_update_calculated_size()
 		_update_all_components()
 
+## Width of the conveyor belt in meters.
 @export var conveyor_width: float = BASE_CONVEYOR_WIDTH:
 	set(value):
 		conveyor_width = max(0.1, value)
@@ -28,6 +33,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		_update_calculated_size()
 		_update_all_components()
 
+## Height of the belt frame in meters.
 @export var belt_height: float = 0.5:
 	set(value):
 		belt_height = max(0.1, value)
@@ -49,10 +55,11 @@ func _update_calculated_size() -> void:
 	var diameter = outer_radius * 2.0
 	var old_size = _calculated_size
 	_calculated_size = Vector3(diameter, belt_height, diameter)
-	
+
 	if old_size != _calculated_size:
 		size_changed.emit()
 
+## The color tint applied to the belt surface.
 @export var belt_color: Color = Color(1, 1, 1, 1):
 	set(value):
 		belt_color = value
@@ -60,6 +67,7 @@ func _update_calculated_size() -> void:
 			(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 		set_belt_material_shader_params_on_ends()
 
+## The texture style of the belt (standard or alternate pattern).
 @export var belt_texture = ConvTexture.STANDARD:
 	set(value):
 		belt_texture = value
@@ -67,6 +75,7 @@ func _update_calculated_size() -> void:
 			(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		set_belt_material_shader_params_on_ends()
 
+## Angle of the curved section in degrees (5-90).
 @export_range(5.0, 90.0, 1.0, "degrees") var conveyor_angle: float = 90.0:
 	set(value):
 		if conveyor_angle == value:
@@ -76,6 +85,7 @@ func _update_calculated_size() -> void:
 		update_visible_meshes()
 		_update_all_components()
 
+## Linear speed at the reference distance in meters per second.
 @export var speed: float = 2:
 	set(value):
 		if value == speed:
@@ -86,11 +96,13 @@ func _update_calculated_size() -> void:
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
+## Distance from outer edge where speed value applies (for angular speed calc).
 @export var reference_distance: float = SIZE_DEFAULT.x/2:
 	set(value):
 		reference_distance = value
 		_recalculate_speeds()
 
+## The physics material applied to the belt surface for friction control.
 @export var belt_physics_material: PhysicsMaterial:
 	get:
 		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
@@ -133,18 +145,23 @@ var _running_tag_group_init: bool = false
 var _speed_tag_group_original: String
 var _running_tag_group_original: String
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms := false
 @export var speed_tag_group_name: String
+## The tag group for reading speed values from external systems.
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
+## The tag name for the speed value in the selected tag group.
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
+## The tag group for the running state signal.
 @export_custom(0, "tag_group_enum") var running_tag_groups:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
+## The tag name for the running state in the selected tag group.
 @export var running_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:
@@ -210,11 +227,11 @@ func _init() -> void:
 
 func _ready() -> void:
 	origin = _sb.position
-	
+
 	var collision_shape = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if collision_shape and collision_shape.shape:
 		collision_shape.shape = collision_shape.shape.duplicate()
-	
+
 	var main_mesh_instance = get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if main_mesh_instance and main_mesh_instance.mesh:
 		main_mesh_instance.mesh = main_mesh_instance.mesh.duplicate()
@@ -278,7 +295,7 @@ func _ready() -> void:
 func _update_all_components() -> void:
 	if not is_inside_tree():
 		return
-	
+
 	update_visible_meshes()
 	_update_belt_ends_size()
 	_update_side_guards()
@@ -287,10 +304,10 @@ func _update_all_components() -> void:
 func _update_belt_ends_size() -> void:
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
-	
+
 
 	var end_size = Vector3(size.y, size.y, conveyor_width)
-	
+
 	if ce1:
 		ce1.size = end_size
 		ce1.speed = _linear_speed
@@ -303,10 +320,10 @@ func _update_side_guards() -> void:
 	if parent_node:
 		var side_guards = parent_node.get_node_or_null("SideGuardsCBC")
 		if not side_guards:
-			side_guards = parent_node.get_node_or_null("SideGuardsAssembly") 
+			side_guards = parent_node.get_node_or_null("SideGuardsAssembly")
 		if not side_guards:
 			side_guards = parent_node.get_node_or_null("%SideGuardsAssembly")
-		
+
 		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
 			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
 
@@ -314,14 +331,14 @@ func _update_assembly_components() -> void:
 	var parent_node = get_parent()
 	if not parent_node:
 		return
-	
+
 	if parent_node.has_method("update_attachments_for_curved_conveyor"):
 		parent_node.update_attachments_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
 	else:
 		var legs_assembly = parent_node.get_node_or_null("ConveyorLegsAssembly")
 		if not legs_assembly:
 			legs_assembly = parent_node.get_node_or_null("%ConveyorLegsAssembly")
-		
+
 		if legs_assembly and legs_assembly.has_method("update_for_curved_conveyor"):
 			legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
 		# Removed aggressive fallback search that was updating legs from other assemblies
@@ -331,7 +348,7 @@ func update_visible_meshes() -> void:
 		return
 
 	_position_conveyor_ends()
-	
+
 	if _mesh_regeneration_needed:
 		_create_conveyor_mesh()
 		_setup_collision_shape()
@@ -359,7 +376,7 @@ func _position_conveyor_ends() -> void:
 	# End 1 (angled end) - positioned at the end of the curve
 	ce1.position = Vector3(-sin(radians) * avg_radius, -size.y/2.0, cos(radians) * avg_radius)
 	ce1.rotation.y = -radians
-	
+
 	# End 2 (straight end) - positioned at the start of the curve
 	ce2.position = Vector3(0, -size.y/2.0, avg_radius)
 	ce2.rotation.y = 0
@@ -583,7 +600,7 @@ func _create_inner_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: 
 		var top_diag_normal: Vector3 = Vector3(normal.x * 0.8, -0.8, normal.z * 0.8).normalized()
 		var bottom_diag_normal: Vector3 = Vector3(normal.x * 0.8, 0.8, normal.z * 0.8).normalized()
 
-	
+
 		middle_vertices.append([inner_top_flat, inner_bottom_inner, normal, Vector2(vertex_data.t, 0), Vector2(vertex_data.t, 1.0)])
 		top_metal_lip_vertices.append([inner_top_belt_lip, inner_top_metal_lip, normal, Vector2(vertex_data.t, 0.8), Vector2(vertex_data.t, 1.0)])
 		bottom_metal_lip_vertices.append([inner_bottom_metal_lip, inner_bottom_belt_lip, normal, Vector2(vertex_data.t, 0.0), Vector2(vertex_data.t, 0.2)])
@@ -797,10 +814,10 @@ func _recalculate_speeds() -> void:
 	var outer_radius_val: float = inner_radius + conveyor_width
 	var reference_radius: float = outer_radius_val - reference_distance
 	_angular_speed = 0.0 if reference_radius == 0.0 else speed / reference_radius
-	
+
 	var center_radius: float = (inner_radius + outer_radius_val) / 2.0
 	_linear_speed = _angular_speed * center_radius
-	
+
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 	if ce1:
@@ -816,7 +833,7 @@ func _physics_process(delta: float) -> void:
 		if not SimulationEvents.simulation_paused:
 			belt_position += _linear_speed * delta
 		if _linear_speed != 0:
-		
+
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(_linear_speed))
 		if belt_position >= 1.0:
 			belt_position = 0.0
@@ -837,7 +854,7 @@ func _on_simulation_started() -> void:
 		ce1.speed = _linear_speed
 	if ce2:
 		ce2.speed = _linear_speed
-	
+
 	if enable_comms:
 		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
 		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
@@ -882,7 +899,7 @@ func _on_size_changed() -> void:
 
 	if _last_size != size:
 		_mesh_regeneration_needed = true
-	
+
 	_update_all_components()
 	_update_belt_material_scale()
 	_update_metal_material_scale()
@@ -973,7 +990,7 @@ func _create_outer_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: 
 		var top_diag_normal: Vector3 = Vector3(normal.x * 0.8, -0.6, normal.z * 0.8).normalized()
 		var bottom_diag_normal: Vector3 = Vector3(normal.x * 0.8, 0.6, normal.z * 0.8).normalized()
 
-	
+
 		outer_middle_vertices.append([outer_top_flat, outer_bottom_inner, normal, Vector2(vertex_data.t * size.x, 0), Vector2(vertex_data.t * size.x, 1)])
 		outer_top_metal_lip_vertices.append([outer_top_belt_lip, outer_top_metal_lip, normal, Vector2(vertex_data.t * size.x, 0.8), Vector2(vertex_data.t * size.x, 1.0)])
 		outer_bottom_metal_lip_vertices.append([outer_bottom_metal_lip, outer_bottom_belt_lip, normal, Vector2(vertex_data.t * size.x, 0.0), Vector2(vertex_data.t * size.x, 0.2)])
@@ -983,7 +1000,7 @@ func _create_outer_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: 
 		outer_bottom_flat_vertices.append([outer_bottom_inner, outer_bottom_diagonal_offset, bottom_flat_normal, Vector2(vertex_data.t, 0.6), Vector2(vertex_data.t, 0.65)])
 
 		var scale_factor = 0.5
-	
+
 		edges.top_outer.vertices.append_array([outer_top, outer_top_belt_lip])
 		edges.top_outer.normals.append_array([normal, normal])
 		edges.top_outer.uvs.append_array([Vector2(1, 1 - vertex_data.t * scale_factor), Vector2(0.95, 1 - vertex_data.t * scale_factor)])

@@ -2,6 +2,7 @@
 class_name Despawner
 extends Node3D
 
+## When true, the despawner actively removes objects that enter its area.
 @export var monitoring: bool = true:
 	set(value):
 		if _area_3d:

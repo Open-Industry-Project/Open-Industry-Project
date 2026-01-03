@@ -2,6 +2,7 @@
 class_name BladeStop
 extends Node3D
 
+## When true, the blade is raised to stop items.
 @export var active: bool = false:
 	set(value):
 		active = value
@@ -13,6 +14,7 @@ extends Node3D
 		else:
 			_down()
 
+## Vertical offset for the blade's base position (adjusts mounting height).
 @export var air_pressure_height: float = 0.0:
 	set(value):
 		air_pressure_height = value
@@ -35,12 +37,15 @@ var _tag_group_original: String
 @onready var _corners: Node3D = $Corners
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var tag_group_name: String
+## The tag group for reading/writing the active state.
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+## The tag name for the blade stop state in the selected tag group.
 @export var tag_name: String = ""
 
 

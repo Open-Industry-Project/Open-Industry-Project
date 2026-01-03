@@ -5,6 +5,7 @@ extends Resource
 var segments: int = 0
 var segment_data: StackSegmentData = load("res://src/StackLight/StackSegmentData.tres")
 
+## Array of segment data resources, one for each light in the stack.
 @export var segment_datas: Array = []
 
 

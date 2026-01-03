@@ -4,6 +4,7 @@ extends Node3D
 
 const BASE_LENGTH: float = 2.0
 
+## Number of chain lanes (2-6).
 @export var chains: int = 3:
 	set(value):
 		var new_value: int = clamp(value, 2, 6)
@@ -15,28 +16,36 @@ const BASE_LENGTH: float = 2.0
 		_fix_chains(chains)
 		_update_simple_shape()
 
+## Distance between chain lanes in meters.
 @export_range(0.25, 1.0, 0.01, "or_greater suffix: m") var distance: float = 0.33:
 	set(value):
 		distance = clamp(value, 0.03, 5.0)
 		_set_chains_distance(distance)
 
+## Speed of the chains in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix: m/s") var speed: float = 2.0
 
+## When true, chains are raised to lift products off the main conveyor.
 @export var popup_chains: bool = false
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var speed_tag_group_name: String
+## The tag group for reading speed values from external systems.
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
+## The tag name for the speed value in the selected tag group.
 @export var speed_tag_name: String = ""
 @export var popup_tag_group_name: String
+## The tag group for reading popup state from external systems.
 @export_custom(0, "tag_group_enum") var popup_tag_groups:
 	set(value):
 		popup_tag_group_name = value
 		popup_tag_groups = value
+## The tag name for the popup state in the selected tag group.
 @export var popup_tag_name: String = ""
 
 var _prev_scale: Vector3 = Vector3.ONE

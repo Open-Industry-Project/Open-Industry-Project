@@ -4,6 +4,7 @@ extends Node3D
 
 const MODEL_BASE_LENGTH: float = 2.0
 
+## Length of the corner roller in meters.
 @export var length: float = MODEL_BASE_LENGTH:
 	set(value):
 		length = value

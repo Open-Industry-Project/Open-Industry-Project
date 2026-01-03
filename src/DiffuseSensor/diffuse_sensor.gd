@@ -2,11 +2,13 @@
 class_name DiffuseSensor
 extends Node3D
 
+## Maximum detection range of the diffuse sensor in meters.
 @export var max_range: float = 1.524:
 	set(value):
 		value = clamp(value, 0, 100)
 		max_range = value
 
+## Toggle visibility of the sensor beam visualization.
 @export var show_beam: bool = true:
 	set(value):
 		show_beam = value
@@ -15,16 +17,19 @@ extends Node3D
 			if show_beam:
 				_beam_needs_update = true
 
+## When true, output is inverted (false when object detected).
 @export var normally_closed: bool = false:
 	set(value):
 		normally_closed = value
 		_update_output()
 
+## True when an object is within detection range (read-only).
 @export var detected: bool = false:
 	set(value):
 		detected = value
 		_update_output()
 
+## Final output signal after applying normally_closed logic (read-only).
 @export var output: bool = false:
 	set(value):
 		if _register_tag_ok and _tag_group_init and value != output:
@@ -45,12 +50,15 @@ var _last_transform: Transform3D
 var _beam_needs_update: bool = true
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var tag_group_name: String
+## The tag group for writing output state to external systems.
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+## The tag name for the output state in the selected tag group.
 @export var tag_name: String = ""
 
 

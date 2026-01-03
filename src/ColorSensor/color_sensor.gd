@@ -2,7 +2,9 @@
 class_name ColorSensor
 extends Node3D
 
+## Maximum detection range of the color sensor in meters.
 @export var max_range: float = 1.524
+## Toggle visibility of the sensor beam visualization.
 @export var show_beam: bool = true:
 	set(value):
 		show_beam = value
@@ -11,6 +13,7 @@ extends Node3D
 			if show_beam:
 				_beam_needs_update = true
 
+## The color currently detected by the sensor (read-only).
 @export var color_detected: Color = Color.BLACK:
 	set(value):
 		color_detected = value
@@ -23,12 +26,14 @@ extends Node3D
 		if _register_tag_ok and _tag_group_init:
 			OIPComms.write_int32(tag_group_name, tag_name, color_value)
 
+## Maps detected colors to integer values for PLC communication.
 @export var color_map: Dictionary[Color, int] = {
 	Color.RED: 1,
 	Color.GREEN: 2,
 	Color.BLUE: 3
 }
 
+## Integer value corresponding to detected color from color_map (read-only).
 @export var color_value: int = 0:
 	set(value):
 		if _register_tag_ok and _tag_group_init and value != color_value:
@@ -49,12 +54,15 @@ var _last_transform: Transform3D
 var _beam_needs_update: bool = true
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var tag_group_name: String
+## The tag group for writing color values to external systems.
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+## The tag name for the color value in the selected tag group.
 @export var tag_name: String = ""
 
 

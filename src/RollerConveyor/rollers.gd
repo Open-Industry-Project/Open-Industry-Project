@@ -4,6 +4,7 @@ extends AbstractRollerContainer
 
 const ROLLERS_DISTANCE: float = 0.33
 
+## The scene to instantiate for each roller on the conveyor.
 @export var roller_scene: PackedScene
 
 func _init() -> void:

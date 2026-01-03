@@ -2,18 +2,21 @@
 class_name SideGuard
 extends MeshInstance3D
 
+## Show the left end cap of the side guard.
 @export var left_end: bool = false:
 	set(value):
 		left_end = value
 		if l_end:
 			l_end.visible = value
 
+## Show the right end cap of the side guard.
 @export var right_end: bool = false:
 	set(value):
 		right_end = value
 		if r_end:
 			r_end.visible = value
 
+## Length of the side guard in meters.
 @export var length: float = 1.0:
 	set(value):
 		length = value

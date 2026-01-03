@@ -12,6 +12,7 @@ extends ResizableNode3D
 			_update_belt_material_position()
 			_update_belt_velocity()
 
+## When true, disables collision for this end piece (used when part of assembly).
 @export var disable_collision: bool = false:
 	set(value):
 		disable_collision = value

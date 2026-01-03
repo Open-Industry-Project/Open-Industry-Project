@@ -2,7 +2,9 @@
 class_name BoxSpawner
 extends Node3D
 
+## The box scene to spawn (must be a Box-derived PackedScene).
 @export var scene: PackedScene
+## When enabled, stops spawning new boxes.
 @export var disable: bool = false:
 	set(value):
 		if value == disable:
@@ -13,20 +15,28 @@ extends Node3D
 			if not disable:
 				_reset_spawn_cycle()
 
+## The color applied to spawned boxes.
 @export var box_color: Color = Color.WHITE:
 	set(value):
 		box_color = value
 
+## Enable random sizing for spawned boxes within min/max range.
 @export var random_size: bool = false
+## Minimum size for randomly sized boxes (X, Y, Z dimensions).
 @export var random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
+## Maximum size for randomly sized boxes (X, Y, Z dimensions).
 @export var random_size_max: Vector3 = Vector3(1, 1, 1)
+## Initial velocity applied to spawned boxes.
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
+## Number of boxes spawned per minute (0-1000).
 @export var boxes_per_minute: int = 45:
 	set(value):
 		value = clamp(value, 0, 1000)
 		boxes_per_minute = value
 
+## When true, boxes spawn at a fixed rate. When false, spawn times vary randomly.
 @export var fixed_rate: bool = true
+## Optional conveyor reference. Spawning pauses when conveyor speed is zero.
 @export var conveyor: Node3D = null:
 	set(value):
 		conveyor = value

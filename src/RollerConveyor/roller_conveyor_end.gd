@@ -2,6 +2,7 @@
 class_name RollerConveyorEnd
 extends AbstractRollerContainer
 
+## When true, mirrors the end roller rotation (used for opposite-end positioning).
 @export var flipped: bool = false:
 	set(value):
 		if flipped != value:

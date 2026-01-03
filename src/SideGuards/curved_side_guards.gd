@@ -8,6 +8,7 @@ const BASE_OUTER_RADIUS: float = 1.25
 const BASE_HEIGHT: float = 0.149
 const MIDDLE_THICKNESS: float = 0.02
 
+## Angle of the curved guard section in degrees.
 @export_range(10.0, 90.0, 1.0, 'degrees') var guard_angle: float = 90.0:
 	set(value):
 		if abs(guard_angle - value) < 0.001:
@@ -15,6 +16,7 @@ const MIDDLE_THICKNESS: float = 0.02
 		guard_angle = value
 		_update_mesh()
 
+## Overall dimensions of the guard (X=diameter, Y=height multiplier, Z=unused).
 @export var size: Vector3 = Vector3(1.56, 4.0, 1.0):
 	set(value):
 		if size.is_equal_approx(value):

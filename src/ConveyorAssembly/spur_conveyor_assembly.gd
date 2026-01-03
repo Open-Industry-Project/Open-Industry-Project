@@ -2,34 +2,40 @@
 class_name SpurConveyorAssembly
 extends ResizableNode3D
 
+## Length of the spur conveyor assembly in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float:
 	set(value):
 		size.x = value
 	get:
 		return size.x
 
+## Width of the spur conveyor assembly in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float:
 	set(value):
 		size.z = value
 	get:
 		return size.z
 
+## Height/depth of the spur conveyor assembly in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var depth: float:
 	set(value):
 		size.y = value
 	get:
 		return size.y
 
+## Angular offset of the downstream end (positive angles splay outward).
 @export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = 0.0:
 	set(value):
 		if _set_process_if_changed(angle_downstream, value):
 			angle_downstream = value
 
+## Angular offset of the upstream end (positive angles splay outward).
 @export_range(-70, 70, 1, "radians_as_degrees") var angle_upstream: float = 0.0:
 	set(value):
 		if _set_process_if_changed(angle_upstream, value):
 			angle_upstream = value
 
+## Number of parallel conveyors in the spur assembly.
 @export_range(1, 20, 1) var conveyor_count: int = 4:
 	set(value):
 		if _set_process_if_changed(conveyor_count, value):

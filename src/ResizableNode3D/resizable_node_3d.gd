@@ -5,6 +5,7 @@ extends Node3D
 
 signal size_changed
 
+## The dimensions of this node in meters (X=length, Y=height, Z=width).
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var size: Vector3 = Vector3.ZERO:
 	set(value):
 		if value == Vector3.ZERO:

@@ -10,6 +10,7 @@ signal roller_override_material_changed(material: Material)
 
 const RADIUS: float = 0.12
 const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
+## Linear speed of the rollers in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		if value == speed:
@@ -21,6 +22,7 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 		if _register_running_tag_ok and _running_tag_group_init:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
+## Angle of roller skew for angled product movement (-60 to 60 degrees).
 @export_range(-60, 60, 1, "degrees") var skew_angle: float = 0.0:
 	set(value):
 		if skew_angle != value:
@@ -29,18 +31,23 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 			_update_conveyor_velocity()
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var speed_tag_group_name: String
+## The tag group for reading speed values from external systems.
 @export_custom(0, "tag_group_enum") var speed_tag_groups:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
+## The tag name for the speed value in the selected tag group.
 @export var speed_tag_name: String = ""
 @export var running_tag_group_name: String
+## The tag group for the running state signal.
 @export_custom(0, "tag_group_enum") var running_tag_groups:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
+## The tag name for the running state in the selected tag group.
 @export var running_tag_name: String = ""
 
 var running: bool = false:

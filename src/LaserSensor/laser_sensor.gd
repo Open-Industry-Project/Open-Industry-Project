@@ -2,11 +2,13 @@
 class_name LaserSensor
 extends Node3D
 
+## Maximum detection range of the laser sensor in meters.
 @export var max_range: float = 1.524:
 	set(value):
 		value = clamp(value, 0, 100)
 		max_range = value
 
+## Toggle visibility of the laser beam visualization.
 @export var show_beam: bool = true:
 	set(value):
 		show_beam = value
@@ -15,6 +17,7 @@ extends Node3D
 			if show_beam:
 				_beam_needs_update = true
 
+## Current measured distance to detected object (read-only).
 @export var distance: float = max_range:
 	set(value):
 		if _register_tag_ok and _tag_group_init and value != distance:
@@ -34,12 +37,15 @@ var _last_transform: Transform3D
 var _beam_needs_update: bool = true
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var tag_group_name: String
+## The tag group for writing distance values to external systems.
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+## The tag name for the distance value in the selected tag group.
 @export var tag_name: String = ""
 
 

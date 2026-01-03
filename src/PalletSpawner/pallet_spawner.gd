@@ -2,7 +2,9 @@
 class_name PalletSpawner
 extends Node3D
 
+## The pallet scene to spawn (must be a Pallet-derived PackedScene).
 @export var scene: PackedScene
+## When enabled, stops spawning new pallets.
 @export var disable: bool = false:
 	set(value):
 		if value == disable:
@@ -12,7 +14,9 @@ extends Node3D
 			scan_interval = spawn_interval
 		_change_texture()
 
+## Initial velocity applied to spawned pallets.
 @export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
+## Time interval in seconds between pallet spawns.
 @export var spawn_interval: float = 1.0
 
 var scan_interval: float = 0.0

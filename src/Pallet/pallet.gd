@@ -2,7 +2,9 @@
 class_name Pallet
 extends Node3D
 
+## Initial velocity applied to this pallet when simulation starts.
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
+## The color of the pallet material.
 @export var color: Color = Color.WHITE:
 	set(value):
 		color = value

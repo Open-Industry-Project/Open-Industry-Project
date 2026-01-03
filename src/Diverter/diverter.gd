@@ -2,8 +2,11 @@
 class_name Diverter
 extends Node3D
 
+## Button to trigger a divert action in the editor.
 @export_tool_button("Divert") var divert_action = divert
+## Time in seconds for the diverter to complete its motion.
 @export var divert_time: float = 0.25
+## Distance the diverter arm travels during activation.
 @export var divert_distance: float = 0.75
 
 var _fire_divert: bool = false:
@@ -21,12 +24,15 @@ var _tag_group_original: String
 @onready var _diverter_animator: DiverterAnimator = $DiverterAnimator
 
 @export_category("Communications")
+## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
 @export var tag_group_name: String
+## The tag group for reading divert commands from external systems.
 @export_custom(0, "tag_group_enum") var tag_groups:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+## The tag name for the divert trigger in the selected tag group.
 @export var tag_name: String = ""
 
 func _validate_property(property: Dictionary) -> void:

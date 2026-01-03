@@ -2,6 +2,7 @@
 class_name ChainTransferBase
 extends Node3D
 
+## When true, the chain base is raised to the active (popup) position.
 @export var active: bool = false:
 	set(value):
 		active = value
