@@ -18,7 +18,7 @@ const BASE_CONVEYOR_WIDTH: float = 1.524
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
 ## Radius of the inner curve edge in meters.
-@export var inner_radius: float = BASE_INNER_RADIUS:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var inner_radius: float = BASE_INNER_RADIUS:
 	set(value):
 		inner_radius = max(0.1, value)
 		_mesh_regeneration_needed = true
@@ -26,7 +26,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		_update_all_components()
 
 ## Width of the conveyor belt in meters.
-@export var conveyor_width: float = BASE_CONVEYOR_WIDTH:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var conveyor_width: float = BASE_CONVEYOR_WIDTH:
 	set(value):
 		conveyor_width = max(0.1, value)
 		_mesh_regeneration_needed = true
@@ -34,7 +34,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		_update_all_components()
 
 ## Height of the belt frame in meters.
-@export var belt_height: float = 0.5:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var belt_height: float = 0.5:
 	set(value):
 		belt_height = max(0.1, value)
 		_mesh_regeneration_needed = true
@@ -86,7 +86,7 @@ func _update_calculated_size() -> void:
 		_update_all_components()
 
 ## Linear speed at the reference distance in meters per second.
-@export var speed: float = 2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
 	set(value):
 		if value == speed:
 			return
@@ -97,7 +97,7 @@ func _update_calculated_size() -> void:
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
 ## Distance from outer edge where speed value applies (for angular speed calc).
-@export var reference_distance: float = SIZE_DEFAULT.x/2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = SIZE_DEFAULT.x/2:
 	set(value):
 		reference_distance = value
 		_recalculate_speeds()

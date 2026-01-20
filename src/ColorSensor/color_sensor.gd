@@ -3,7 +3,7 @@ class_name ColorSensor
 extends Node3D
 
 ## Maximum detection range of the color sensor in meters.
-@export var max_range: float = 1.524
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var max_range: float = 1.524
 ## Toggle visibility of the sensor beam visualization.
 @export var show_beam: bool = true:
 	set(value):

@@ -17,7 +17,7 @@ extends Node3D
 ## Initial velocity applied to spawned pallets.
 @export var spawn_initial_linear_velocity: Vector3 = Vector3.ZERO
 ## Time interval in seconds between pallet spawns.
-@export var spawn_interval: float = 1.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:s") var spawn_interval: float = 1.0
 
 var scan_interval: float = 0.0
 

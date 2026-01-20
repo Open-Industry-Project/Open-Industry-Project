@@ -17,7 +17,7 @@ extends MeshInstance3D
 			r_end.visible = value
 
 ## Length of the side guard in meters.
-@export var length: float = 1.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 1.0:
 	set(value):
 		length = value
 		if length != 0:

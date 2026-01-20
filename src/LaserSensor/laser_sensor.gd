@@ -3,7 +3,7 @@ class_name LaserSensor
 extends Node3D
 
 ## Maximum detection range of the laser sensor in meters.
-@export var max_range: float = 1.524:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var max_range: float = 1.524:
 	set(value):
 		value = clamp(value, 0, 100)
 		max_range = value
@@ -18,7 +18,7 @@ extends Node3D
 				_beam_needs_update = true
 
 ## Current measured distance to detected object (read-only).
-@export var distance: float = max_range:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var distance: float = max_range:
 	set(value):
 		if _register_tag_ok and _tag_group_init and value != distance:
 			OIPComms.write_float32(tag_group_name, tag_name, value)

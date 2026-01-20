@@ -23,7 +23,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 		pass
 
 ## Width of the conveyor in meters.
-@export var conveyor_width: float = 1.524:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var conveyor_width: float = 1.524:
 	set(value):
 		conveyor_width = value
 		# Update size.x when conveyor_width changes, but only if the value is valid and we're initialized
@@ -31,7 +31,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 			size = Vector3(value, size.y, size.z)
 
 ## Linear speed at the reference distance in meters per second.
-@export var speed: float = 0.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 0.0:
 	set(value):
 		speed = value
 		_recalculate_speeds()
@@ -39,7 +39,7 @@ const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
 
 ## Distance from outer edge where speed value applies (for angular speed calc).
-@export var reference_distance: float = SIZE_DEFAULT.x/2
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = SIZE_DEFAULT.x/2
 
 ## Angle of the curved section in degrees (10-90).
 @export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:

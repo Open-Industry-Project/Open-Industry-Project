@@ -4,7 +4,7 @@ extends ResizableNode3D
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
-@export var speed: float = 2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
 	set(value):
 		speed = value
 		if is_inside_tree():

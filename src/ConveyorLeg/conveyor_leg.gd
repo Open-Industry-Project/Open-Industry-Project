@@ -3,7 +3,7 @@ class_name ConveyorLeg
 extends Node3D
 
 ## Rotation angle of the leg grabs for adjusting attachment points (-60 to 60).
-@export_range(-60, 60, 0.1) var grabs_rotation: float = 0.0:
+@export_range(-60, 60, 0.1, "degrees") var grabs_rotation: float = 0.0:
 	set(value):
 		grabs_rotation = value
 		on_grabs_updated()

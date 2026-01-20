@@ -15,7 +15,7 @@ extends Node3D
 			_down()
 
 ## Vertical offset for the blade's base position (adjusts mounting height).
-@export var air_pressure_height: float = 0.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var air_pressure_height: float = 0.0:
 	set(value):
 		air_pressure_height = value
 		if not is_inside_tree():

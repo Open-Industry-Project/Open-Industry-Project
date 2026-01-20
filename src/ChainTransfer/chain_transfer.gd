@@ -17,13 +17,13 @@ const BASE_LENGTH: float = 2.0
 		_update_simple_shape()
 
 ## Distance between chain lanes in meters.
-@export_range(0.25, 1.0, 0.01, "or_greater suffix: m") var distance: float = 0.33:
+@export_range(0.25, 1.0, 0.01, "or_greater", "suffix:m") var distance: float = 0.33:
 	set(value):
 		distance = clamp(value, 0.03, 5.0)
 		_set_chains_distance(distance)
 
 ## Speed of the chains in meters per second.
-@export_custom(PROPERTY_HINT_NONE, "suffix: m/s") var speed: float = 2.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0
 
 ## When true, chains are raised to lift products off the main conveyor.
 @export var popup_chains: bool = false

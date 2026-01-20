@@ -5,9 +5,9 @@ extends Node3D
 ## Button to trigger a divert action in the editor.
 @export_tool_button("Divert") var divert_action = divert
 ## Time in seconds for the diverter to complete its motion.
-@export var divert_time: float = 0.25
+@export_custom(PROPERTY_HINT_NONE, "suffix:s") var divert_time: float = 0.25
 ## Distance the diverter arm travels during activation.
-@export var divert_distance: float = 0.75
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var divert_distance: float = 0.75
 
 var _fire_divert: bool = false:
 	set(value):
