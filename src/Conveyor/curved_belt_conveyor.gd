@@ -17,6 +17,9 @@ const BASE_CONVEYOR_WIDTH: float = 1.524
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
+const BELT_SHADER: Shader = preload("res://assets/3DModels/Shaders/BeltShader.tres")
+const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShaderCorner.tres")
+
 ## Radius of the inner curve edge in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var inner_radius: float = BASE_INNER_RADIUS:
 	set(value):
@@ -407,8 +410,9 @@ func _create_conveyor_mesh() -> void:
 	curved_mesh.mesh = mesh_instance
 
 func _setup_materials() -> void:
-	_belt_material = ShaderMaterial.new()
-	_belt_material.shader = load("res://assets/3DModels/Shaders/BeltShader.tres") as Shader
+	if not _belt_material:
+		_belt_material = ShaderMaterial.new()
+		_belt_material.shader = BELT_SHADER
 	_belt_material.set_shader_parameter("ColorMix", belt_color)
 	_belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 	_update_belt_material_scale()
@@ -419,8 +423,9 @@ func _setup_materials() -> void:
 	var belt_scale: float = belt_length / (PI * 1.0)
 	_belt_material.set_shader_parameter("EdgeScale", belt_scale * 1.2)
 
-	_metal_material = ShaderMaterial.new()
-	_metal_material.shader = load("res://assets/3DModels/Shaders/MetalShaderCorner.tres") as Shader
+	if not _metal_material:
+		_metal_material = ShaderMaterial.new()
+		_metal_material.shader = METAL_SHADER
 	_metal_material.set_shader_parameter("Color", Color("#56a7c8"))
 	_update_metal_material_scale()
 

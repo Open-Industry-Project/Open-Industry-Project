@@ -15,6 +15,8 @@ enum Scales {LOW, MID, HIGH}
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
+const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShader.tres")
+
 ## Inner radius of the curve (read-only, based on conveyor width).
 @export var inner_radius_f: float = 0.5:
 	set(value):
@@ -379,12 +381,14 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
 
 func _setup_materials() -> void:
-	shader_material = ShaderMaterial.new()
-	shader_material.shader = load('res://assets/3DModels/Shaders/MetalShader.tres') as Shader
+	if not shader_material:
+		shader_material = ShaderMaterial.new()
+		shader_material.shader = METAL_SHADER
 	shader_material.set_shader_parameter('Color', Color('#56a7c8'))
 
-	inner_shader_material = ShaderMaterial.new()
-	inner_shader_material.shader = load('res://assets/3DModels/Shaders/MetalShader.tres') as Shader
+	if not inner_shader_material:
+		inner_shader_material = ShaderMaterial.new()
+		inner_shader_material.shader = METAL_SHADER
 	inner_shader_material.set_shader_parameter('Color', Color('#56a7c8'))
 
 	_update_material_scale()
