@@ -190,7 +190,7 @@ func _physics_process(delta) -> void:
 	var forward = -global_transform.basis.z
 	var flat_forward = Vector3(forward.x, 0, forward.z).normalized()
 	var target_basis = Basis.looking_at(flat_forward, Vector3.UP)
-	global_transform.basis = global_transform.basis.slerp(target_basis, 3.0 * delta)
+	global_transform.basis = global_transform.basis.orthonormalized().slerp(target_basis, 3.0 * delta)
 
 	# Big thanks to github.com/LorenzoAncora for the concept of the improved debug values
 	current_speed = Vector3.ZERO.distance_to(get_real_velocity())

@@ -1,0 +1,157 @@
+[gd_scene format=3 uid="uid://dc6o7qkwd60ha"]
+
+[ext_resource type="Script" uid="uid://ckqgkrr7rm7gl" path="res://src/SixAxisRobot/six_axis_robot.gd" id="1_robot"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kvc56"]
+albedo_color = Color(0.3, 0.3, 0.35, 1)
+metallic = 0.3
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_f7oox"]
+top_radius = 0.45
+bottom_radius = 0.45
+height = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_rk2k5"]
+size = Vector3(0.36, 0.45, 0.36)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f7oox"]
+albedo_color = Color(0.9, 0.5, 0.1, 1)
+metallic = 0.4
+roughness = 0.5
+
+[sub_resource type="SphereMesh" id="SphereMesh_m7o1o"]
+radius = 0.21
+height = 0.42
+
+[sub_resource type="BoxMesh" id="BoxMesh_1ejrl"]
+size = Vector3(0.3, 1.5, 0.3)
+
+[sub_resource type="SphereMesh" id="SphereMesh_de851"]
+radius = 0.18
+height = 0.36
+
+[sub_resource type="BoxMesh" id="BoxMesh_8pfwo"]
+size = Vector3(0.24, 1.2, 0.24)
+
+[sub_resource type="SphereMesh" id="SphereMesh_42jvh"]
+radius = 0.144
+height = 0.288
+
+[sub_resource type="BoxMesh" id="BoxMesh_m82ma"]
+size = Vector3(0.18, 0.45, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rk2k5"]
+albedo_color = Color(0.2, 0.2, 0.25, 1)
+metallic = 0.5
+roughness = 0.4
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_444kt"]
+top_radius = 0.12
+bottom_radius = 0.12
+height = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ndts0"]
+albedo_color = Color(0.15, 0.15, 0.15, 1)
+metallic = 0.1
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_du1kw"]
+top_radius = 0.18
+bottom_radius = 0.18
+height = 0.09
+
+[sub_resource type="TorusMesh" id="TorusMesh_dade1"]
+inner_radius = 0.15
+outer_radius = 0.195
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_wqi2b"]
+radius = 0.45
+
+[node name="SixAxisRobot" type="Node3D" unique_id=508298280]
+script = ExtResource("1_robot")
+
+[node name="BasePivot" type="Node3D" parent="." unique_id=2083458254]
+
+[node name="BaseMesh" type="MeshInstance3D" parent="BasePivot" unique_id=646258752]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+material_override = SubResource("StandardMaterial3D_kvc56")
+mesh = SubResource("CylinderMesh_f7oox")
+
+[node name="ShoulderPivot" type="Node3D" parent="BasePivot" unique_id=1657548593]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+
+[node name="ShoulderMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot" unique_id=842920421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.225, 0)
+material_override = SubResource("StandardMaterial3D_kvc56")
+mesh = SubResource("BoxMesh_rk2k5")
+
+[node name="ShoulderJointMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot" unique_id=65136980]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+material_override = SubResource("StandardMaterial3D_f7oox")
+mesh = SubResource("SphereMesh_m7o1o")
+
+[node name="UpperArmPivot" type="Node3D" parent="BasePivot/ShoulderPivot" unique_id=1866091379]
+transform = Transform3D(0.7071067, 0.7071067, 0, -0.7071067, 0.7071067, 0, 0, 0, 1, 0, 0.45, 0)
+
+[node name="UpperArmMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot" unique_id=1976920913]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+material_override = SubResource("StandardMaterial3D_f7oox")
+mesh = SubResource("BoxMesh_1ejrl")
+
+[node name="ElbowPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot" unique_id=2025901694]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+
+[node name="ElbowMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot" unique_id=1665302845]
+material_override = SubResource("StandardMaterial3D_f7oox")
+mesh = SubResource("SphereMesh_de851")
+
+[node name="ForearmPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot" unique_id=1512831150]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="ForearmMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot" unique_id=1925357079]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("StandardMaterial3D_f7oox")
+mesh = SubResource("BoxMesh_8pfwo")
+
+[node name="WristJointMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot" unique_id=1414724925]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+material_override = SubResource("StandardMaterial3D_f7oox")
+mesh = SubResource("SphereMesh_42jvh")
+
+[node name="WristRotPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot" unique_id=688228556]
+transform = Transform3D(0.9063077, 0, 0.42261824, 0, 1, 0, -0.42261824, 0, 0.9063077, 0, 1.2, 0)
+
+[node name="WristPitchPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot" unique_id=255795822]
+transform = Transform3D(0.25881907, -0.9659258, 0, 0.9659258, 0.25881907, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="WristMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot" unique_id=1803694636]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.225, 0)
+material_override = SubResource("StandardMaterial3D_f7oox")
+mesh = SubResource("BoxMesh_m82ma")
+
+[node name="ToolPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot" unique_id=971647312]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+
+[node name="ToolMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1456117724]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+material_override = SubResource("StandardMaterial3D_rk2k5")
+mesh = SubResource("CylinderMesh_444kt")
+
+[node name="VacuumCup" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=2052352918]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.345, 0)
+material_override = SubResource("StandardMaterial3D_ndts0")
+mesh = SubResource("CylinderMesh_du1kw")
+
+[node name="VacuumCupRim" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1001921841]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+material_override = SubResource("StandardMaterial3D_ndts0")
+mesh = SubResource("TorusMesh_dade1")
+
+[node name="VacuumArea" type="Area3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1959107220]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+collision_layer = 0
+collision_mask = 10
+
+[node name="VacuumCollision" type="CollisionShape3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot/VacuumArea" unique_id=344399739]
+shape = SubResource("SphereShape3D_wqi2b")
