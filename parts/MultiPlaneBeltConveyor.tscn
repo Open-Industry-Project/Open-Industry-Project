@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/ConveyorAssembly/multi_plane_belt_conveyor.gd" id="1_mp1bc"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
+friction = 0.5
+
+[node name="MultiPlaneBeltConveyor" type="Node3D"]
+script = ExtResource("1_mp1bc")
+_cached_properties = {
+&"belt_color": Color(1, 1, 1, 1),
+&"belt_physics_material": SubResource("PhysicsMaterial_hcu6p"),
+&"belt_texture": 0,
+&"enable_comms": false,
+&"running_tag_group_name": "TagGroup0",
+&"running_tag_name": "",
+&"speed": 2.0,
+&"speed_tag_group_name": "TagGroup0",
+&"speed_tag_name": ""
+}
+width = 1.524
+depth = 0.5
+metadata/_edit_group_ = true
+metadata/hijack_scale = true
