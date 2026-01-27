@@ -50,7 +50,6 @@ shadow_mesh = SubResource("ArrayMesh_6uvh1")
 process_mode = 3
 top_level = true
 script = ExtResource("1_mbcks")
-metadata/_edit_group_ = true
 
 [node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=2082178171]
 process_mode = 3

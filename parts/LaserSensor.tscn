@@ -327,7 +327,6 @@ size = Vector3(0.14, 0.145, 0.14)
 [node name="LaserSensor" type="Node3D" unique_id=1636363449]
 script = ExtResource("1_27ueu")
 tag_group_name = "TagGroup0"
-metadata/_edit_group_ = true
 
 [node name="LaserSensor" type="Node3D" parent="." unique_id=780659429]
 

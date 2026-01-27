@@ -255,7 +255,6 @@ size = Vector3(0.467773, 0.395508, 2.08258)
 [node name="Diverter" type="Node3D" unique_id=1865443018]
 script = ExtResource("1_8wula")
 tag_group_name = "TagGroup0"
-metadata/_edit_group_ = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=678008501]
 collision_layer = 3

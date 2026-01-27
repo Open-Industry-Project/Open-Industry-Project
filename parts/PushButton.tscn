@@ -68,7 +68,6 @@ size = Vector3(0.5, 0.415131, 0.292805)
 script = ExtResource("1_kcxih")
 pushbutton_tag_group_name = "TagGroup0"
 lamp_tag_group_name = "TagGroup0"
-metadata/_edit_group_ = true
 
 [node name="Meshes" type="Node3D" parent="." unique_id=570554531]
 

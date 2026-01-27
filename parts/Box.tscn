@@ -118,7 +118,6 @@ top_level = true
 script = ExtResource("1_jl6cr")
 size = Vector3(1, 1, 1)
 metadata/hijack_scale = true
-metadata/_edit_group_ = true
 
 [node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=1929949017]
 process_mode = 3

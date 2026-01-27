@@ -84,7 +84,6 @@ shadow_mesh = SubResource("ArrayMesh_xr7le")
 
 [node name="LegsStandBC" type="Node3D" unique_id=343933872]
 script = ExtResource("1_p257i")
-metadata/_edit_group_ = true
 
 [node name="Sides" type="Node3D" parent="." unique_id=592676756]
 

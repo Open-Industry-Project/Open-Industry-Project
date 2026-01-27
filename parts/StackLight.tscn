@@ -31,7 +31,6 @@ _data = SubResource("Resource_oqsfm")
 "Light 1" = SubResource("Resource_v0hgu")
 enable_comms = true
 tag_name = ""
-metadata/_edit_group_ = true
 
 [node name="Bottom" type="MeshInstance3D" parent="." unique_id=1143004030]
 transform = Transform3D(1, 0, 0, 0, 2.2222223, 0, 0, 0, 1, 0, 0, 0)

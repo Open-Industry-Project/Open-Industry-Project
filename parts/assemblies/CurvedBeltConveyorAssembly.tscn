@@ -25,8 +25,6 @@ speed_tag_group_name = "TagGroup0"
 speed_tag_name = ""
 running_tag_group_name = "TagGroup0"
 running_tag_name = ""
-metadata/_edit_group_ = true
-metadata/_edit_group_ = true
 metadata/hijack_scale = false
 
 [node name="ConveyorCorner" parent="." unique_id=2039835046 instance=ExtResource("3_a54t1")]

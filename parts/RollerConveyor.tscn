@@ -102,7 +102,6 @@ speed_tag_group_name = "TagGroup0"
 running_tag_group_name = "TagGroup0"
 size = Vector3(4, 0.24, 1.524)
 metadata/hijack_scale = true
-metadata/_edit_group_ = true
 
 [node name="ConvRoller" type="Node3D" parent="." unique_id=2118945966]
 transform = Transform3D(3.67, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)

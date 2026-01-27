@@ -171,7 +171,6 @@ size = Vector3(0.185, 0.225, 0.185)
 [node name="DiffuseSensor" type="Node3D" unique_id=1915908865]
 script = ExtResource("1_vtdj1")
 tag_group_name = "TagGroup0"
-metadata/_edit_group_ = true
 
 [node name="Photoeye" type="Node3D" parent="." unique_id=2002314618]
 
