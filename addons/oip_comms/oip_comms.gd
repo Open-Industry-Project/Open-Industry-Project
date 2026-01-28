@@ -2,33 +2,38 @@
 class_name OIPCommsPlugin
 extends EditorPlugin
 
-const DOCK = preload("res://addons/oip_comms/controls/dock.tscn")
+const DOCK_SCENE = preload("res://addons/oip_comms/controls/dock.tscn")
+const DOCK_NAME: String = "Comms"
 
-var _dock: _OIPCommsDock
-var bottom_panel_button: Button
+var _comms_dock: _OIPCommsDock
+var _editor_dock: EditorDock
 
 
 func _enter_tree() -> void:
-	_dock = DOCK.instantiate()
-	bottom_panel_button = add_control_to_bottom_panel(_dock, "Comms")
+	_comms_dock = DOCK_SCENE.instantiate()
+	_editor_dock = EditorDock.new()
+	_editor_dock.name = DOCK_NAME
+	_editor_dock.default_slot = EditorDock.DOCK_SLOT_BOTTOM
+	_editor_dock.available_layouts = EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
+	_editor_dock.add_child(_comms_dock)
+	add_dock(_editor_dock)
 	
-	_dock.save_changes.connect(save_changes)
+	_comms_dock.save_changes.connect(save_changes)
 	
 	scene_saved.connect(_scene_saved)
 
 
 func _exit_tree() -> void:
-	remove_control_from_bottom_panel(_dock)
-	
-	_dock.free()
+	remove_dock(_editor_dock)
+	_editor_dock.queue_free()
 
 
 func save_changes(value: bool) -> void:
 	if value:
-		bottom_panel_button.text = "Comms(*)"
+		_editor_dock.name = DOCK_NAME + "(*)"
 	else:
-		bottom_panel_button.text = "Comms"
+		_editor_dock.name = DOCK_NAME
 
 
 func _scene_saved(filepath: String) -> void:
-	_dock.save_all()
+	_comms_dock.save_all()
