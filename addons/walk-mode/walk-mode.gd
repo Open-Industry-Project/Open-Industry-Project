@@ -76,10 +76,10 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
-func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
+func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent) -> int:
 	var root := EditorInterface.get_edited_scene_root() as Node3D
 	if not root:
-		return
+		return AfterGUIInput.AFTER_GUI_INPUT_PASS
 
 	var canvas_viewport := root.get_viewport()
 	var node3d_viewport := _camera.get_viewport()
@@ -109,7 +109,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 			enter_walk_mode(_camera, canvas_viewport, node3d_viewport)
 
 	if canvas_viewport.gui_disable_input == true:
-		return
+		return AfterGUIInput.AFTER_GUI_INPUT_PASS
 
 	canvas_viewport.push_input(event)
 	return AfterGUIInput.AFTER_GUI_INPUT_STOP
