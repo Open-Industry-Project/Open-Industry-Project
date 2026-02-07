@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://di5eqrm1i05k8"]
+
+[ext_resource type="Script" uid="uid://cjd1ofdnlungu" path="res://src/ConveyorAttachment/path_following_conveyor_legs_assembly.gd" id="1_hw6fc"]
+
+[node name="PathFollowingConveyorLegsAssembly" type="Node3D" unique_id=577597572]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+script = ExtResource("1_hw6fc")
