@@ -309,7 +309,6 @@ func _setup_local_path() -> void:
 	else:
 		$Path3D.visible = false
 		$PathFollowingConveyor/Path3D.visible = false
-		print($PathFollowingConveyor)
 
 		existing_path.visible = true
 
