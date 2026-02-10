@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://d8ni0m9yzp5ws"]
+
+[ext_resource type="Script" path="res://src/WarehouseRack/warehouse_rack_wide.gd" id="1_warehouse_rack_wide"]
+
+[node name="WarehouseRackWide" type="Node3D"]
+script = ExtResource("1_warehouse_rack_wide")
+metadata/_edit_group_ = true
