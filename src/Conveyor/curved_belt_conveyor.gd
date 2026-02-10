@@ -14,6 +14,7 @@ enum ConvTexture {
 
 const BASE_INNER_RADIUS: float = 0.5
 const BASE_CONVEYOR_WIDTH: float = 1.524
+const BASE_BELT_HEIGHT: float = 0.5  # Height at which mesh is generated
 
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
@@ -40,7 +41,7 @@ const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShaderC
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var belt_height: float = 0.5:
 	set(value):
 		belt_height = max(0.1, value)
-		_mesh_regeneration_needed = true
+		# Don't regenerate mesh - just scale it (like BeltConveyor does)
 		_update_calculated_size()
 		_update_all_components()
 
@@ -87,6 +88,12 @@ func _update_calculated_size() -> void:
 		_mesh_regeneration_needed = true
 		update_visible_meshes()
 		_update_all_components()
+
+## When true, belt ends use fixed length independent of height.
+@export var use_fixed_end_length: bool = true:
+	set(value):
+		use_fixed_end_length = value
+		_update_belt_ends_size()
 
 ## Linear speed at the reference distance in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
@@ -140,6 +147,7 @@ var _prev_scale_x: float = 1.0
 var _mesh_regeneration_needed: bool = true
 var _last_conveyor_angle: float = 90.0
 var _last_size: Vector3 = Vector3.ZERO
+var _base_collision_verts: PackedVector3Array = PackedVector3Array()
 
 var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
@@ -200,8 +208,10 @@ func _property_get_revert(property: StringName) -> Variant:
 func get_conveyor_end1() -> Node:
 	return _conveyor_end1
 
+
 func get_conveyor_end2() -> Node:
 	return _conveyor_end2
+
 
 func set_belt_material_shader_params_on_ends() -> void:
 	var ce1 = get_conveyor_end1()
@@ -222,6 +232,7 @@ func set_belt_material_shader_params_on_ends() -> void:
 			if material and material is ShaderMaterial:
 				material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 				material.set_shader_parameter("ColorMix", belt_color)
+
 
 func _init() -> void:
 	set_notify_local_transform(true)
@@ -274,12 +285,7 @@ func _ready() -> void:
 				material.set_shader_parameter("ColorMix", belt_color)
 
 	_recalculate_speeds()
-	if ce1:
-		ce1.size = Vector3(size.y, size.y, conveyor_width)
-		ce1.speed = _linear_speed
-	if ce2:
-		ce2.size = Vector3(size.y, size.y, conveyor_width)
-		ce2.speed = _linear_speed
+	_update_belt_ends_size()
 
 	if ce1:
 		var sb1 = ce1.get_node("StaticBody3D") as StaticBody3D
@@ -304,19 +310,38 @@ func _update_all_components() -> void:
 	_update_side_guards()
 	_update_assembly_components()
 
+
 func _update_belt_ends_size() -> void:
 	var ce1 = get_conveyor_end1()
 	var ce2 = get_conveyor_end2()
 
+	# Fixed end length prevents central arc from shrinking when belt_height changes
+	const REFERENCE_HEIGHT := 0.5
+	var end_length := REFERENCE_HEIGHT / 2.0
+	var end_size = Vector3(end_length, belt_height, conveyor_width)
 
-	var end_size = Vector3(size.y, size.y, conveyor_width)
+	var height_scale := belt_height / BASE_BELT_HEIGHT
+	var collision_y_offset := -0.25 * (height_scale - 1.0)
 
 	if ce1:
+		ce1.use_fixed_length = use_fixed_end_length
 		ce1.size = end_size
 		ce1.speed = _linear_speed
+		_adjust_end_collision_position(ce1, collision_y_offset)
 	if ce2:
+		ce2.use_fixed_length = use_fixed_end_length
 		ce2.size = end_size
 		ce2.speed = _linear_speed
+		_adjust_end_collision_position(ce2, -collision_y_offset)
+
+
+func _adjust_end_collision_position(end_node: Node, y_offset: float) -> void:
+	if not end_node:
+		return
+	var static_body = end_node.get_node_or_null("StaticBody3D") as StaticBody3D
+	if static_body:
+		static_body.position.y = y_offset
+
 
 func _update_side_guards() -> void:
 	var parent_node = get_parent()
@@ -329,6 +354,7 @@ func _update_side_guards() -> void:
 
 		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
 			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
+
 
 func _update_assembly_components() -> void:
 	var parent_node = get_parent()
@@ -359,10 +385,41 @@ func update_visible_meshes() -> void:
 		_last_conveyor_angle = conveyor_angle
 		_last_size = size
 
+	_apply_height_scale()
+
+
 func update_conveyor_end_positions() -> void:
 	if not is_inside_tree():
 		return
 	_position_conveyor_ends()
+
+
+func _apply_height_scale() -> void:
+	var height_scale := belt_height / BASE_BELT_HEIGHT
+	var y_offset := -0.25 * height_scale
+	if curved_mesh:
+		curved_mesh.scale.y = height_scale
+		curved_mesh.position.y = y_offset
+	if _sb:
+		_sb.position.y = y_offset
+	_update_collision_vertices()
+
+
+func _update_collision_vertices() -> void:
+	if _base_collision_verts.size() == 0 or not _sb:
+		return
+	var collision_shape: CollisionShape3D = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if not collision_shape or not collision_shape.shape:
+		return
+
+	var height_scale := belt_height / BASE_BELT_HEIGHT
+	var scaled_verts = PackedVector3Array()
+	for vert in _base_collision_verts:
+		scaled_verts.append(Vector3(vert.x, vert.y * height_scale, vert.z))
+
+	var shape: ConcavePolygonShape3D = collision_shape.shape
+	shape.data = scaled_verts
+
 
 func _position_conveyor_ends() -> void:
 	var ce1 = get_conveyor_end1()
@@ -370,29 +427,27 @@ func _position_conveyor_ends() -> void:
 	assert(ce1 != null)
 	assert(ce2 != null)
 
-	var radians: = deg_to_rad(conveyor_angle)
-	var radius_inner: float = inner_radius  # Now absolute values
-	var radius_outer: float = inner_radius + conveyor_width  # Now absolute values
-	var avg_radius: float = (radius_inner + radius_outer) / 2.0
+	var radians := deg_to_rad(conveyor_angle)
+	var radius_inner := inner_radius
+	var radius_outer := inner_radius + conveyor_width
+	var avg_radius := (radius_inner + radius_outer) / 2.0
 
-	# Position ends at the actual curve endpoints using average radius
-	# End 1 (angled end) - positioned at the end of the curve
-	ce1.position = Vector3(-sin(radians) * avg_radius, -size.y/2.0, cos(radians) * avg_radius)
+	ce1.position = Vector3(-sin(radians) * avg_radius, -size.y / 2.0, cos(radians) * avg_radius)
 	ce1.rotation.y = -radians
 
-	# End 2 (straight end) - positioned at the start of the curve
-	ce2.position = Vector3(0, -size.y/2.0, avg_radius)
+	ce2.position = Vector3(0, -size.y / 2.0, avg_radius)
 	ce2.rotation.y = 0
+
 
 func _create_conveyor_mesh() -> void:
 	var segments := conveyor_angle / 3.0
 
 	var angle_radians: float = deg_to_rad(conveyor_angle)
-	var radius_inner: float = inner_radius  # Now absolute values
-	var radius_outer: float = inner_radius + conveyor_width  # Now absolute values
+	var radius_inner: float = inner_radius
+	var radius_outer: float = inner_radius + conveyor_width
 	const DEFAULT_HEIGHT_RATIO: float = 0.50
-	var height = DEFAULT_HEIGHT_RATIO * size.y
-	var scale_factor := 2.0
+	var height = DEFAULT_HEIGHT_RATIO * BASE_BELT_HEIGHT
+	const MESH_SCALE_FACTOR := 2.0
 
 	var mesh_instance: = ArrayMesh.new()
 
@@ -400,7 +455,7 @@ func _create_conveyor_mesh() -> void:
 
 	var surfaces = _create_surfaces()
 	var edges = _create_belt_edges()
-	var all_vertices = _create_vertices(segments, angle_radians, radius_inner, radius_outer, height, scale_factor)
+	var all_vertices = _create_vertices(segments, angle_radians, radius_inner, radius_outer, height, MESH_SCALE_FACTOR)
 
 	_build_belt_surfaces(surfaces, edges, all_vertices, segments)
 	_build_belt_edges(edges, segments)
@@ -408,6 +463,11 @@ func _create_conveyor_mesh() -> void:
 	_add_surfaces_to_mesh(surfaces, mesh_instance)
 
 	curved_mesh.mesh = mesh_instance
+	# Mesh is generated at MESH_SCALE_FACTOR size, so scale down X/Z by inverse
+	# Y scale will be applied by _apply_height_scale()
+	var base_scale := 1.0 / MESH_SCALE_FACTOR
+	curved_mesh.scale = Vector3(base_scale, 1.0, base_scale)
+
 
 func _setup_materials() -> void:
 	if not _belt_material:
@@ -773,13 +833,15 @@ func _setup_collision_shape() -> void:
 			all_verts[all_indices[i + 2]]
 		])
 
-	var scaled_verts = PackedVector3Array()
+	# Store base vertices for later height scaling (X/Z pre-scaled to match mesh)
+	_base_collision_verts.clear()
 	for vert in triangle_verts:
-		scaled_verts.append(Vector3(vert.x * 0.5, vert.y * 1.0, vert.z * 0.5))
+		_base_collision_verts.append(Vector3(vert.x * 0.5, vert.y, vert.z * 0.5))
 
-	var shape: ConcavePolygonShape3D = collision_shape.shape
-	shape.data = scaled_verts
+	collision_shape.position = Vector3.ZERO
 	collision_shape.scale = Vector3.ONE
+	_update_collision_vertices()
+
 
 func _enter_tree() -> void:
 
@@ -800,12 +862,14 @@ func _enter_tree() -> void:
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
+
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
@@ -843,14 +907,17 @@ func _physics_process(delta: float) -> void:
 		if belt_position >= 1.0:
 			belt_position = 0.0
 
+
 func _update_belt_material_scale() -> void:
 	if _belt_material:
-			(_belt_material as ShaderMaterial).set_shader_parameter("Scale", size.x  * sign(speed))
+		(_belt_material as ShaderMaterial).set_shader_parameter("Scale", size.x * sign(speed))
+
 
 func _update_metal_material_scale() -> void:
 	if _metal_material:
 		(_metal_material as ShaderMaterial).set_shader_parameter("Scale", size.x)
 		(_metal_material as ShaderMaterial).set_shader_parameter("Scale2", 1.0)
+
 
 func _on_simulation_started() -> void:
 	var ce1 = get_conveyor_end1()
@@ -864,6 +931,7 @@ func _on_simulation_started() -> void:
 		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
 		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
 
+
 func _on_simulation_ended() -> void:
 	belt_position = 0.0
 	if _belt_material and _belt_material is ShaderMaterial:
@@ -875,11 +943,13 @@ func _on_simulation_ended() -> void:
 				child.position = Vector3.ZERO
 				child.rotation = Vector3.ZERO
 
+
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if tag_group_name_param == speed_tag_group_name:
 		_speed_tag_group_init = true
 	if tag_group_name_param == running_tag_group_name:
 		_running_tag_group_init = true
+
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
@@ -888,11 +958,10 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
 		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
 
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
-	# Curved belt conveyors must have equal X and Z dimensions (circular arc)
 	new_size.z = new_size.x
 	return new_size
-
 
 
 func _on_size_changed() -> void:
@@ -909,6 +978,7 @@ func _on_size_changed() -> void:
 	_update_belt_material_scale()
 	_update_metal_material_scale()
 
+
 func _build_belt_edges(edges: Dictionary, segments: int) -> void:
 	for edge_name in edges.keys():
 		for i in range(segments):
@@ -916,6 +986,7 @@ func _build_belt_edges(edges: Dictionary, segments: int) -> void:
 			if idx + 3 < edges[edge_name].vertices.size():
 				_add_double_sided_triangle(edges[edge_name].indices, idx, idx + 1, idx + 3)
 				_add_double_sided_triangle(edges[edge_name].indices, idx, idx + 3, idx + 2)
+
 
 func _add_belt_edges_to_surfaces(surfaces: Dictionary, edges: Dictionary) -> void:
 	for edge_name in edges.keys():
@@ -939,6 +1010,7 @@ func _add_belt_edges_to_surfaces(surfaces: Dictionary, edges: Dictionary) -> voi
 				])
 
 	surfaces.sides.vertex_count = surfaces.sides.vertices.size()
+
 
 func _create_outer_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: Array, segments: int) -> void:
 	var inset_factor: float = 0.04 * (size.x / SIZE_DEFAULT.x - 1)
@@ -1017,6 +1089,7 @@ func _create_outer_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: 
 							   outer_bottom_metal_lip_vertices, outer_top_metal_to_flat_vertices,
 							   outer_bottom_flat_to_metal_vertices, outer_top_flat_vertices,
 							   outer_bottom_flat_vertices, segments)
+
 
 func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Array, outer_top_metal_lip_vertices: Array,
 							   outer_bottom_metal_lip_vertices: Array, outer_top_metal_to_flat_vertices: Array,
