@@ -89,6 +89,13 @@ func _update_calculated_size() -> void:
 		update_visible_meshes()
 		_update_all_components()
 
+## When true, reverses the belt direction.
+@export var reverse_belt: bool = false:
+	set(value):
+		if reverse_belt != value:
+			reverse_belt = value
+			speed = -speed
+
 ## When true, belt ends use fixed length independent of height.
 @export var use_fixed_end_length: bool = true:
 	set(value):
