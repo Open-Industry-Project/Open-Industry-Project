@@ -17,6 +17,7 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var held_box = null
 var held_pallet = null
 var _pallet_offset: Vector3 = Vector3.ZERO
+var _interact_key_text: String = "E"
 
 
 func _ready() -> void:
@@ -28,6 +29,11 @@ func _ready() -> void:
 	_head.rotation.y = rotation.y
 	_head.rotation.x = clamp(rotation.x, deg_to_rad(-90), deg_to_rad(90))
 	rotation = Vector3.ZERO
+
+	var editor_settings := EditorInterface.get_editor_settings()
+	var interact_sc := editor_settings.get_shortcut("Pilot Mode/Interact")
+	if interact_sc and interact_sc.events.size() > 0:
+		_interact_key_text = interact_sc.events[0].as_text()
 
 	var crosshair := Label3D.new()
 	crosshair.text = "."
@@ -126,21 +132,21 @@ func _handle_interaction() -> void:
 	var hit_object = result.collider.get_parent()
 
 	if hit_object is Box:
-		_interact_text.text = "Press 'E' to pick up!"
+		_interact_text.text = "Press '%s' to pick up!" % _interact_key_text
 		_interact_text.visible = true
 		if InputMap.has_action("interact") and Input.is_action_just_pressed("interact"):
 			_pick_up_box(hit_object)
 		return
 
 	if hit_object is Pallet:
-		_interact_text.text = "Press 'E' to move pallet!"
+		_interact_text.text = "Press '%s' to move pallet!" % _interact_key_text
 		_interact_text.visible = true
 		if InputMap.has_action("interact") and Input.is_action_just_pressed("interact"):
 			_pick_up_pallet(hit_object)
 		return
 
 	if hit_object.has_method("use"):
-		_interact_text.text = "Press 'E' to use " + hit_object.name
+		_interact_text.text = "Press '%s' to use %s" % [_interact_key_text, hit_object.name]
 		_interact_text.visible = true
 		if InputMap.has_action("interact") and Input.is_action_just_pressed("interact"):
 			hit_object.call("use")

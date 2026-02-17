@@ -7,6 +7,7 @@ signal pilot_mode_exited
 const SPAWN_Y_OFFSET: float = 1.5
 const FOCUS_RETURN_DELAY: float = 0.05
 const SHORTCUT_PATH: String = "Pilot Mode/Toggle Pilot Mode"
+const INTERACT_SHORTCUT_PATH: String = "Pilot Mode/Interact"
 const SETTING_PATH: String = "addons/pilot_mode/scene/path"
 const DEFAULT_SCENE: String = "res://addons/editor-pilot-mode/default_character.tscn"
 
@@ -30,6 +31,12 @@ func _enter_tree() -> void:
 	key_stroke.shift_pressed = true
 	toggle_shortcut.events.append(key_stroke)
 	editor_settings.add_shortcut(SHORTCUT_PATH, toggle_shortcut)
+
+	var interact_shortcut := Shortcut.new()
+	var interact_key := InputEventKey.new()
+	interact_key.keycode = KEY_E
+	interact_shortcut.events.append(interact_key)
+	editor_settings.add_shortcut(INTERACT_SHORTCUT_PATH, interact_shortcut)
 
 	if not ProjectSettings.has_setting(SETTING_PATH):
 		ProjectSettings.set_setting(SETTING_PATH, DEFAULT_SCENE)
@@ -158,6 +165,16 @@ func enter_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewp
 
 	canvas_viewport.gui_disable_input = false
 	InputMap.load_from_project_settings()
+
+	var editor_settings := EditorInterface.get_editor_settings()
+	var interact_sc := editor_settings.get_shortcut(INTERACT_SHORTCUT_PATH)
+	if interact_sc and interact_sc.events.size() > 0:
+		if not InputMap.has_action("interact"):
+			InputMap.add_action("interact")
+		else:
+			InputMap.action_erase_events("interact")
+		InputMap.action_add_event("interact", interact_sc.events[0])
+
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 	var spawn_transform := _camera.global_transform
