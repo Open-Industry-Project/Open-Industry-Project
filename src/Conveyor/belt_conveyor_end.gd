@@ -3,7 +3,6 @@ class_name BeltConveyorEnd
 extends ResizableNode3D
 
 ## Conveyor speed in meters per second.
-## Negative values will reverse the direction of the conveyor.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
 	set(value):
 		speed = value
@@ -17,6 +16,9 @@ extends ResizableNode3D
 	set(value):
 		disable_collision = value
 		_update_collision_and_visibility()
+
+## When true, allows setting a fixed length independent of height (for curved conveyors).
+@export var use_fixed_length: bool = false
 
 var _belt_position: float = 0.0
 var _belt_material: ShaderMaterial
@@ -61,8 +63,9 @@ func _exit_tree() -> void:
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
-	var height := new_size.y
-	new_size.x = height / 2.0
+	if not use_fixed_length:
+		var height := new_size.y
+		new_size.x = height / 2.0
 	return new_size
 
 
