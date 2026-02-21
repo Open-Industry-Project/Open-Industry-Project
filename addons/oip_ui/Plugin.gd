@@ -155,7 +155,7 @@ func _editor_layout_loaded() -> void:
 	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
 
 	_create_root_vbox = _editor_node.find_child("BeginnerNodeShortcuts",true,false)
-	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(2).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0)
+	_perspective_menu = _editor_node.find_child("ViewDisplayMenu",true,false)
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
 
