@@ -144,18 +144,17 @@ func _on_id_pressed(id: int) -> void:
 func _editor_layout_loaded() -> void:
 	_layout_loaded = true
 
-	_menu_bar = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0)
-	_project_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(1)
-	_editor_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(3)
-	_help_popup_menu = _editor_node.get_child(4).get_child(0).get_child(0).get_child(0).get_child(4)
-
-	_title_bar = _editor_node.get_child(4).get_child(0).get_child(0)
-	_center_buttons = _editor_node.get_child(4).get_child(0).get_child(0).get_child(2)
-	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
-	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
+	_title_bar = _editor_node.find_child("EditorTitleBar", true, false)
+	_menu_bar = _editor_node.find_child("MainMenuBar", true, false)
+	_project_popup_menu = _menu_bar.find_child("Project", true, false)
+	_editor_popup_menu = _menu_bar.find_child("Editor", true, false)
+	_help_popup_menu = _menu_bar.find_child("Help", true, false)
+	_center_buttons = _editor_node.find_child("EditorMainScreenButtons", true, false)
+	_editor_run_bar_container = _editor_node.find_child("EditorRunBar", true, false)
+	_renderer_selection = _editor_node.find_child("RendererSelection", true, false)
 
 	_create_root_vbox = _editor_node.find_child("BeginnerNodeShortcuts",true,false)
-	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(2).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0)
+	_perspective_menu = _editor_node.find_child("ViewDisplayMenu",true,false)
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
 
