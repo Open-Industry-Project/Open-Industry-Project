@@ -56,7 +56,8 @@ func load_tag_groups_data() -> void:
 				"protocol": tag_groups_config.get_value(group_section, "protocol", "0"),
 				"gateway": tag_groups_config.get_value(group_section, "gateway", "localhost"),
 				"path": tag_groups_config.get_value(group_section, "path", "1,0"),
-				"cpu": tag_groups_config.get_value(group_section, "cpu", "ControlLogix")
+				"cpu": tag_groups_config.get_value(group_section, "cpu", "ControlLogix"),
+				"byte_order": tag_groups_config.get_value(group_section, "byte_order", "0")
 			}
 			tag_groups_data.append(group_data)
 
@@ -123,6 +124,7 @@ func save_tag_groups_data() -> void:
 		tag_groups_config.set_value(group_section, "gateway", group_data.gateway)
 		tag_groups_config.set_value(group_section, "path", group_data.path)
 		tag_groups_config.set_value(group_section, "cpu", group_data.cpu)
+		tag_groups_config.set_value(group_section, "byte_order", group_data.byte_order)
 
 	tag_groups_config.save(TAG_GROUPS_FILE)
 
@@ -145,7 +147,8 @@ func _on_AddTagGroup_pressed() -> void:
 	var _name := "TagGroup" + str(len(tag_groups_data))
 	tag_groups_data.push_back({
 		"name": _name, "polling_rate": "500", "protocol": "0",
-		"gateway": "localhost", "path": "1,0", "cpu": "ControlLogix"
+		"gateway": "localhost", "path": "1,0", "cpu": "ControlLogix",
+		"byte_order": "0"
 	})
 	load_tag_groups_ui()
 	mark_changes_present()
@@ -165,7 +168,10 @@ func register_tag_groups() -> void:
 		var g: String = tag_group_data.gateway
 		var p: String = tag_group_data.path
 		var c: String = tag_group_data.cpu
-		OIPComms.register_tag_group(n, int(pr), pt, g, p, c)
+
+		var bo_index := int(tag_group_data.get("byte_order", "0"))
+		var bo: String = _OIPCommsTagGroup.BYTE_ORDER_VALUES[bo_index] if bo_index < _OIPCommsTagGroup.BYTE_ORDER_VALUES.size() else ""
+		OIPComms.register_tag_group(n, int(pr), pt, g, p, c, bo)
 	OIPComms.tag_groups_registered.emit()
 
 func _on_EnableComms_toggled(toggled_on: bool) -> void:
