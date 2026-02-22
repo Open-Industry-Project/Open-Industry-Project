@@ -73,9 +73,7 @@ var _button_pressed_z_pos: float = -0.04
 var _register_pushbutton_tag_ok: bool = false
 var _register_lamp_tag_ok: bool = false
 var _pushbutton_tag_group_init: bool = false
-var _pushbutton_tag_group_original: String
 var _lamp_tag_group_init: bool = false
-var _lamp_tag_group_original: String
 var _tag_group_init: bool = false
 var _material_made_unique: bool = false
 
@@ -122,33 +120,11 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
 
-func _property_can_revert(property: StringName) -> bool:
-	return property == "pushbutton_tag_groups" or property == "lamp_tag_groups"
-
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "pushbutton_tag_groups":
-		return _pushbutton_tag_group_original
-	elif property == "lamp_tag_groups":
-		return _lamp_tag_group_original
-	else:
-		return null
-
-
 func _enter_tree() -> void:
-	_pushbutton_tag_group_original = pushbutton_tag_group_name
-	if pushbutton_tag_group_name.is_empty():
+	if pushbutton_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		pushbutton_tag_group_name = OIPComms.get_tag_groups()[0]
-		_pushbutton_tag_group_original = pushbutton_tag_group_name
-
-	pushbutton_tag_groups = pushbutton_tag_group_name
-
-	_lamp_tag_group_original = lamp_tag_group_name
-	if lamp_tag_group_name.is_empty():
+	if lamp_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		lamp_tag_group_name = OIPComms.get_tag_groups()[0]
-		_lamp_tag_group_original = lamp_tag_group_name
-
-	lamp_tag_groups = lamp_tag_group_name
 
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)

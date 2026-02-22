@@ -72,7 +72,7 @@ var _running_tag_group_init: bool = false
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.[br]Datatype: FLOAT
+## The tag name for the speed value in the selected tag group.[br]Datatype: REAL (32-bit float)
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.

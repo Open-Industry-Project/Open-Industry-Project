@@ -66,8 +66,6 @@ var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
 var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
-var _speed_tag_group_original: String
-var _running_tag_group_original: String
 var _original_collision_layer: int = 1
 var _original_collision_mask: int = 1
 @export_category("Communications")
@@ -79,7 +77,7 @@ var _original_collision_mask: int = 1
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.[br]Datatype: FLOAT
+## The tag name for the speed value in the selected tag group.[br]Datatype: REAL (32-bit float)
 @export var speed_tag_name: String = ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.
@@ -108,19 +106,6 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
 
-func _property_can_revert(property: StringName) -> bool:
-	return property == "speed_tag_groups" or property == "running_tag_groups"
-
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "speed_tag_groups":
-		return _speed_tag_group_original
-	elif property == "running_tag_groups":
-		return _running_tag_group_original
-	else:
-		return null
-
-
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	# Don't allow belt conveyors to be shorter than the total length of their ends.
 	# Ends' length varies with height.
@@ -141,17 +126,10 @@ func _init() -> void:
 func _enter_tree() -> void:
 	super._enter_tree()
 
-	_speed_tag_group_original = speed_tag_group_name
-	_running_tag_group_original = running_tag_group_name
-
 	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		speed_tag_group_name = OIPComms.get_tag_groups()[0]
 	if running_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		running_tag_group_name = OIPComms.get_tag_groups()[0]
-
-	speed_tag_groups = speed_tag_group_name
-	running_tag_groups = running_tag_group_name
-
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)

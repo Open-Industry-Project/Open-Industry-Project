@@ -127,8 +127,6 @@ size = Vector3(4, 0.5, 1.524)
 process_mode = 1
 script = ExtResource("1_07qd2")
 belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
-speed_tag_group_name = "TagGroup0"
-running_tag_group_name = "TagGroup0"
 size = Vector3(4, 0.5, 1.524)
 metadata/hijack_scale = true
 

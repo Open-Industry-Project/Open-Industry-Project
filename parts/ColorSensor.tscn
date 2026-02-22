@@ -171,8 +171,6 @@ size = Vector3(0.185, 0.225, 0.185)
 [node name="ColorSensor" type="Node3D" unique_id=2040135411]
 script = ExtResource("1_dr6em")
 color_detected = Color(1, 1, 1, 0)
-tag_group_name = "TagGroup0"
-
 [node name="Photoeye" type="Node3D" parent="." unique_id=499614232]
 
 [node name="Root" type="Node3D" parent="Photoeye" unique_id=1689092756]

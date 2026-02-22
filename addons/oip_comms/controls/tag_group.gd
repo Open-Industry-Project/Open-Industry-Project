@@ -31,9 +31,15 @@ func save() -> void:
 	save_data["path"] = path.text
 	save_data["cpu"] = cpu.text
 
+func lock_name() -> void:
+	if _name:
+		_name.editable = false
+
 func _load() -> void:
 	if "name" in save_data:
 		_name.text = save_data["name"]
+		if save_data.get("saved", false):
+			_name.editable = false
 		polling_rate.value = int(save_data["polling_rate"])
 		protocol.select(int(save_data["protocol"]))
 		gateway.text = save_data["gateway"]

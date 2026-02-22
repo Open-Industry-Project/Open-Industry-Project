@@ -46,6 +46,7 @@ text = "Polling (ms)"
 layout_mode = 2
 custom_minimum_size = Vector2(80, 0)
 max_value = 1000000.0
+value = 100.0
 rounded = true
 
 [node name="Delete" type="Button" parent="Row1"]

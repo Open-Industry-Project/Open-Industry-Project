@@ -37,7 +37,7 @@ const BASE_LENGTH: float = 2.0
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.[br]Datatype: FLOAT
+## The tag name for the speed value in the selected tag group.[br]Datatype: REAL (32-bit float)
 @export var speed_tag_name: String = ""
 @export var popup_tag_group_name: String
 ## The tag group for reading popup state from external systems.
@@ -53,8 +53,6 @@ var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
 var _speed_tag_group_init: bool = false
 var _popup_tag_group_init: bool = false
-var _speed_tag_group_original: String
-var _popup_tag_group_original: String
 var _chain_transfer_base_scene: PackedScene = load("res://src/ChainTransfer/Base.tscn")
 
 @onready var chain_transfer_bases: ChainTransferBases = $ChainBases
@@ -81,17 +79,10 @@ func _enter_tree() -> void:
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 
-	_speed_tag_group_original = speed_tag_group_name
-	if speed_tag_group_name.is_empty():
+	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		speed_tag_group_name = OIPComms.get_tag_groups()[0]
-
-	speed_tag_groups = speed_tag_group_name
-
-	_popup_tag_group_original = popup_tag_group_name
-	if popup_tag_group_name.is_empty():
+	if popup_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		popup_tag_group_name = OIPComms.get_tag_groups()[0]
-
-	popup_tag_groups = popup_tag_group_name
 
 	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
@@ -122,17 +113,6 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "popup_tag_name":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-
-func _property_can_revert(property: StringName) -> bool:
-	return property == "speed_tag_groups" or property == "popup_tag_groups"
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "speed_tag_groups":
-		return _speed_tag_group_original
-	elif property == "popup_tag_groups":
-		return _popup_tag_group_original
-	else:
-		return null
 
 func use() -> void:
 	popup_chains = not popup_chains

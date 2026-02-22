@@ -326,8 +326,6 @@ size = Vector3(0.14, 0.145, 0.14)
 
 [node name="LaserSensor" type="Node3D" unique_id=1636363449]
 script = ExtResource("1_27ueu")
-tag_group_name = "TagGroup0"
-
 [node name="LaserSensor" type="Node3D" parent="." unique_id=780659429]
 
 [node name="Bunkspeed Root" type="Node3D" parent="LaserSensor" unique_id=1659997198]
