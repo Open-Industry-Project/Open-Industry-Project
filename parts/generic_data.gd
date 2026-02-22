@@ -45,6 +45,7 @@ var tag_group_original: String
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+## The tag name in the selected tag group.[br]Datatype: matches the selected data_type
 @export var tag_name: String = ""
 @export var setup: bool = false
 

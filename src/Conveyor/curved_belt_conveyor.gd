@@ -156,7 +156,7 @@ var _running_tag_group_original: String
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.
+## The tag name for the speed value in the selected tag group.[br]Datatype: FLOAT
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.
@@ -164,7 +164,7 @@ var _running_tag_group_original: String
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
-## The tag name for the running state in the selected tag group.
+## The tag name for the running state in the selected tag group.[br]Datatype: BOOL
 @export var running_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:

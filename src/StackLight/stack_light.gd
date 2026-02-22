@@ -57,7 +57,7 @@ var _tag_groups: String:
 		tag_group_name = value
 		_tag_groups = value
 
-## The tag name for the light value in the selected tag group.
+## The tag name for the light value in the selected tag group.[br]Datatype: INT
 var tag_name: String = ""
 
 var _segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")

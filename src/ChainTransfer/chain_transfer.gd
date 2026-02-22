@@ -37,7 +37,7 @@ const BASE_LENGTH: float = 2.0
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.
+## The tag name for the speed value in the selected tag group.[br]Datatype: FLOAT
 @export var speed_tag_name: String = ""
 @export var popup_tag_group_name: String
 ## The tag group for reading popup state from external systems.
@@ -45,7 +45,7 @@ const BASE_LENGTH: float = 2.0
 	set(value):
 		popup_tag_group_name = value
 		popup_tag_groups = value
-## The tag name for the popup state in the selected tag group.
+## The tag name for the popup state in the selected tag group.[br]Datatype: BOOL
 @export var popup_tag_name: String = ""
 
 var _prev_scale: Vector3 = Vector3.ONE

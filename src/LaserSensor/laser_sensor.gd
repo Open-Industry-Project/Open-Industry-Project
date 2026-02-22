@@ -45,7 +45,7 @@ var _beam_needs_update: bool = true
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the distance value in the selected tag group.
+## The tag name for the distance value in the selected tag group.[br]Datatype: FLOAT
 @export var tag_name: String = ""
 
 
