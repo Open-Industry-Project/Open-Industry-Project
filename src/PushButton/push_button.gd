@@ -91,7 +91,7 @@ var _material_made_unique: bool = false
 	set(value):
 		pushbutton_tag_group_name = value
 		pushbutton_tag_groups = value
-## The tag name for the button output in the selected tag group.
+## The tag name for the button output in the selected tag group.[br]Datatype: BOOL
 @export var pushbutton_tag_name: String = ""
 @export var lamp_tag_group_name: String
 ## The tag group for reading lamp control signals.
@@ -99,7 +99,7 @@ var _material_made_unique: bool = false
 	set(value):
 		lamp_tag_group_name = value
 		lamp_tag_groups = value
-## The tag name for the lamp control in the selected tag group.
+## The tag name for the lamp control in the selected tag group.[br]Datatype: BOOL
 @export var lamp_tag_name: String = ""
 
 

@@ -45,7 +45,7 @@ var _tag_group_original: String
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the blade stop state in the selected tag group.
+## The tag name for the blade stop state in the selected tag group.[br]Datatype: BOOL
 @export var tag_name: String = ""
 
 

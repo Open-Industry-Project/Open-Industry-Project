@@ -32,7 +32,7 @@ var _tag_group_original: String
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the divert trigger in the selected tag group.
+## The tag name for the divert trigger in the selected tag group.[br]Datatype: BOOL
 @export var tag_name: String = ""
 
 func _validate_property(property: Dictionary) -> void:
