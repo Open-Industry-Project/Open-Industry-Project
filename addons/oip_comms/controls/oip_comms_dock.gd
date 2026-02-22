@@ -13,10 +13,10 @@ const TAG_GROUPS_FILE := "res://addons/oip_comms/save_data/tag_groups.cfg"
 const SETTINGS_FILE := "res://addons/oip_comms/save_data/settings.cfg"
 const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
 
-@onready var v_box_container: VBoxContainer = $ScrollContainer/VBoxContainer
-@onready var enable_comms: CheckBox = $HFlowContainer2/EnableComms
-@onready var enable_logging: CheckBox = $HFlowContainer2/EnableLogging
-@onready var save_comms_button: Button = $"HFlowContainer2/Save Changes"
+@onready var v_box_container: VBoxContainer = $Layout/ScrollContainer/TagGroupList
+@onready var enable_comms: CheckBox = $Layout/Toolbar/EnableComms
+@onready var enable_logging: CheckBox = $Layout/Toolbar/EnableLogging
+@onready var save_comms_button: Button = $"Layout/Toolbar/Save Changes"
 
 var tag_groups_data: Array = []
 var last_tag_groups_data: Array = []
