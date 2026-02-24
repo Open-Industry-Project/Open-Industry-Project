@@ -196,7 +196,7 @@ func _editor_layout_loaded() -> void:
 
 	_run_bar._enable_buttons()
 
-	if EditorInterface.get_open_scenes().size() == 0:
+	if get_tree().edited_scene_root == null:
 		_create_new_simulation()
 		EditorInterface.call("mark_scene_as_saved")
 
