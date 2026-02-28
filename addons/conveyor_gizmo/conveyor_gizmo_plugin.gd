@@ -88,6 +88,18 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, secondary: b
 		"position": node.position,
 		"transform": node.transform
 	}
+	
+	if _has_side_guard_openings(node):
+		var left_data := []
+		for opening in node.left_side_guards_openings:
+			if opening != null:
+				left_data.append({"position": opening.position, "size": opening.size})
+		var right_data := []
+		for opening in node.right_side_guards_openings:
+			if opening != null:
+				right_data.append({"position": opening.position, "size": opening.size})
+		_initial_state["left_opening_data"] = left_data
+		_initial_state["right_opening_data"] = right_data
 
 func _get_handle_value(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool):
 	var node = gizmo.get_node_3d()
@@ -154,6 +166,7 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	
 	node.position = new_position
 	resizable_node.size = new_size
+	_compensate_opening_positions(node)
 
 func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, restore, cancel: bool):
 	var node = gizmo.get_node_3d()
@@ -165,6 +178,7 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 	if cancel:
 		resizable_node.size = _initial_state["size"]
 		node.position = _initial_state["position"]
+		_restore_opening_positions(node)
 	else:
 		var undo_redo = EditorInterface.get_editor_undo_redo()
 		undo_redo.create_action("Resize Conveyor")
@@ -172,6 +186,88 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 		undo_redo.add_do_property(node, "position", node.position)
 		undo_redo.add_undo_property(resizable_node, "size", _initial_state["size"])
 		undo_redo.add_undo_property(node, "position", _initial_state["position"])
+		_add_opening_undo_redo(node, undo_redo)
 		undo_redo.commit_action()
 	
 	_initial_state.clear()
+
+
+func _has_side_guard_openings(node: Node3D) -> bool:
+	return ("left_side_guards_openings" in node and "right_side_guards_openings" in node)
+
+
+func _get_center_shift(node: Node3D) -> float:
+	var position_delta: Vector3 = node.position - _initial_state["position"]
+	var local_x: Vector3 = _initial_state["transform"].basis.x.normalized()
+	return position_delta.dot(local_x)
+
+
+func _compensate_opening_positions(node: Node3D) -> void:
+	if not _initial_state.has("left_opening_data"):
+		return
+	
+	var shift := _get_center_shift(node)
+	if abs(shift) < 0.0001:
+		return
+	
+	var left_data: Array = _initial_state["left_opening_data"]
+	var left_openings = node.left_side_guards_openings
+	for i in range(mini(left_openings.size(), left_data.size())):
+		if left_openings[i] != null:
+			left_openings[i].position = left_data[i]["position"] - shift
+	
+	var right_data: Array = _initial_state["right_opening_data"]
+	var right_openings = node.right_side_guards_openings
+	for i in range(mini(right_openings.size(), right_data.size())):
+		if right_openings[i] != null:
+			right_openings[i].position = right_data[i]["position"] - shift
+
+
+func _restore_opening_positions(node: Node3D) -> void:
+	if not _initial_state.has("left_opening_data"):
+		return
+	
+	var left_data: Array = _initial_state["left_opening_data"]
+	var left_openings = node.left_side_guards_openings
+	for i in range(mini(left_openings.size(), left_data.size())):
+		if left_openings[i] != null:
+			left_openings[i].position = left_data[i]["position"]
+	
+	var right_data: Array = _initial_state["right_opening_data"]
+	var right_openings = node.right_side_guards_openings
+	for i in range(mini(right_openings.size(), right_data.size())):
+		if right_openings[i] != null:
+			right_openings[i].position = right_data[i]["position"]
+
+
+func _add_opening_undo_redo(node: Node3D, undo_redo) -> void:
+	if not _initial_state.has("left_opening_data"):
+		return
+	
+	var shift := _get_center_shift(node)
+	if abs(shift) < 0.0001:
+		return
+	
+	var left_data: Array = _initial_state["left_opening_data"]
+	var right_data: Array = _initial_state["right_opening_data"]
+	
+	var adjusted_left: Array[SideGuardOpening] = []
+	for d in left_data:
+		adjusted_left.append(SideGuardOpening.new(d["position"] - shift, d["size"]))
+	
+	var adjusted_right: Array[SideGuardOpening] = []
+	for d in right_data:
+		adjusted_right.append(SideGuardOpening.new(d["position"] - shift, d["size"]))
+	
+	var original_left: Array[SideGuardOpening] = []
+	for d in left_data:
+		original_left.append(SideGuardOpening.new(d["position"], d["size"]))
+	
+	var original_right: Array[SideGuardOpening] = []
+	for d in right_data:
+		original_right.append(SideGuardOpening.new(d["position"], d["size"]))
+	
+	undo_redo.add_do_property(node, "left_side_guards_openings", adjusted_left)
+	undo_redo.add_do_property(node, "right_side_guards_openings", adjusted_right)
+	undo_redo.add_undo_property(node, "left_side_guards_openings", original_left)
+	undo_redo.add_undo_property(node, "right_side_guards_openings", original_right)
