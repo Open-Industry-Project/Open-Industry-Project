@@ -1,0 +1,155 @@
+[gd_scene format=3 uid="uid://bukvl3raex3u2"]
+
+[ext_resource type="Script" uid="uid://b3qys177kwwui" path="res://src/Gantry/gantry.gd" id="1_gantry"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_uxbl4"]
+albedo_color = Color(0.35, 0.35, 0.4, 1)
+metallic = 0.6
+roughness = 0.4
+
+[sub_resource type="CylinderMesh" id="post_mesh"]
+top_radius = 0.05
+bottom_radius = 0.05
+height = 1.5
+
+[sub_resource type="BoxMesh" id="beam_mesh"]
+size = Vector3(4, 0.08, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cepaf"]
+albedo_color = Color(0.7, 0.7, 0.75, 1)
+metallic = 0.7
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="rail_mesh"]
+size = Vector3(3.9, 0.06, 0.06)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c0i40"]
+albedo_color = Color(0.9, 0.5, 0.1, 1)
+metallic = 0.4
+roughness = 0.5
+
+[sub_resource type="BoxMesh" id="cross_beam_mesh"]
+size = Vector3(0.08, 0.08, 2)
+
+[sub_resource type="BoxMesh" id="carriage_block_mesh"]
+size = Vector3(0.12, 0.12, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7v4ag"]
+albedo_color = Color(0.2, 0.2, 0.25, 1)
+metallic = 0.5
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="actuator_rod_mesh"]
+size = Vector3(0.08, 0.08, 0.08)
+
+[sub_resource type="BoxMesh" id="tool_mount_mesh"]
+size = Vector3(0.18, 0.08, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2ykid"]
+albedo_color = Color(0.15, 0.15, 0.15, 1)
+metallic = 0.1
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="vacuum_cup_mesh"]
+top_radius = 0.15
+bottom_radius = 0.15
+height = 0.06
+
+[sub_resource type="TorusMesh" id="vacuum_rim_mesh"]
+inner_radius = 0.12
+outer_radius = 0.1575
+
+[sub_resource type="SphereShape3D" id="vacuum_sphere"]
+radius = 0.45
+
+[node name="Gantry" type="Node3D" unique_id=2134443764]
+script = ExtResource("1_gantry")
+frame_length = 4.0
+frame_width = 2.0
+
+[node name="Frame" type="Node3D" parent="." unique_id=2106180566]
+
+[node name="PostFrontLeft" type="MeshInstance3D" parent="Frame" unique_id=743734720]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.75, -1)
+material_override = SubResource("StandardMaterial3D_uxbl4")
+mesh = SubResource("post_mesh")
+
+[node name="PostFrontRight" type="MeshInstance3D" parent="Frame" unique_id=1907314317]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.75, -1)
+material_override = SubResource("StandardMaterial3D_uxbl4")
+mesh = SubResource("post_mesh")
+
+[node name="PostBackLeft" type="MeshInstance3D" parent="Frame" unique_id=1956211261]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.75, 1)
+material_override = SubResource("StandardMaterial3D_uxbl4")
+mesh = SubResource("post_mesh")
+
+[node name="PostBackRight" type="MeshInstance3D" parent="Frame" unique_id=1805385155]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.75, 1)
+material_override = SubResource("StandardMaterial3D_uxbl4")
+mesh = SubResource("post_mesh")
+
+[node name="BeamFront" type="MeshInstance3D" parent="Frame" unique_id=1941806450]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.46, -1)
+material_override = SubResource("StandardMaterial3D_uxbl4")
+mesh = SubResource("beam_mesh")
+
+[node name="BeamBack" type="MeshInstance3D" parent="Frame" unique_id=66359277]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.46, 1)
+material_override = SubResource("StandardMaterial3D_uxbl4")
+mesh = SubResource("beam_mesh")
+
+[node name="RailLeft" type="MeshInstance3D" parent="Frame" unique_id=173855944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.39, -1)
+material_override = SubResource("StandardMaterial3D_cepaf")
+mesh = SubResource("rail_mesh")
+
+[node name="RailRight" type="MeshInstance3D" parent="Frame" unique_id=1735232732]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.39, 1)
+material_override = SubResource("StandardMaterial3D_cepaf")
+mesh = SubResource("rail_mesh")
+
+[node name="XCarriage" type="Node3D" parent="." unique_id=534169474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.36, 0)
+
+[node name="CrossBeam" type="MeshInstance3D" parent="XCarriage" unique_id=1762399176]
+material_override = SubResource("StandardMaterial3D_c0i40")
+mesh = SubResource("cross_beam_mesh")
+
+[node name="YCarriage" type="Node3D" parent="XCarriage" unique_id=837008064]
+
+[node name="CarriageBlock" type="MeshInstance3D" parent="XCarriage/YCarriage" unique_id=435209859]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+material_override = SubResource("StandardMaterial3D_c0i40")
+mesh = SubResource("carriage_block_mesh")
+
+[node name="ZActuator" type="Node3D" parent="XCarriage/YCarriage" unique_id=1256889116]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.16, 0)
+
+[node name="ActuatorRod" type="MeshInstance3D" parent="XCarriage/YCarriage/ZActuator" unique_id=788329814]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.04, 0)
+material_override = SubResource("StandardMaterial3D_7v4ag")
+mesh = SubResource("actuator_rod_mesh")
+
+[node name="ToolMount" type="MeshInstance3D" parent="XCarriage/YCarriage/ZActuator" unique_id=443108717]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12, 0)
+material_override = SubResource("StandardMaterial3D_7v4ag")
+mesh = SubResource("tool_mount_mesh")
+
+[node name="VacuumCup" type="MeshInstance3D" parent="XCarriage/YCarriage/ZActuator" unique_id=1652233184]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.19, 0)
+material_override = SubResource("StandardMaterial3D_2ykid")
+mesh = SubResource("vacuum_cup_mesh")
+
+[node name="VacuumCupRim" type="MeshInstance3D" parent="XCarriage/YCarriage/ZActuator" unique_id=1351875546]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22, 0)
+material_override = SubResource("StandardMaterial3D_2ykid")
+mesh = SubResource("vacuum_rim_mesh")
+
+[node name="VacuumArea" type="Area3D" parent="XCarriage/YCarriage/ZActuator" unique_id=1441276742]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22, 0)
+collision_layer = 0
+collision_mask = 10
+
+[node name="VacuumCollision" type="CollisionShape3D" parent="XCarriage/YCarriage/ZActuator/VacuumArea" unique_id=102657677]
+shape = SubResource("vacuum_sphere")
