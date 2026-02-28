@@ -74,7 +74,7 @@ var _tag_group_init: bool = false
 
 
 func _get(property: StringName) -> Variant:
-	if not is_inside_tree():
+	if not is_inside_tree() or not _segments_container:
 		return null
 	
 	for i in range(segments):
