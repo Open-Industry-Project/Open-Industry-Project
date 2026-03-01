@@ -28,6 +28,7 @@ var _mesh: ImmediateMesh
 static var _beam_material: StandardMaterial3D = preload("uid://ntmcfd25jgpm")
 var _instance: RID
 var _scenario: RID
+var _ray_query: PhysicsRayQueryParameters3D
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
 var _last_distance: float = -1.0
@@ -71,6 +72,9 @@ func _enter_tree() -> void:
 	RenderingServer.instance_set_visible(_instance, show_beam)
 	_beam_needs_update = true
 
+	_ray_query = PhysicsRayQueryParameters3D.new()
+	_ray_query.collision_mask = 8
+
 	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		tag_group_name = OIPComms.get_tag_groups()[0]
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
@@ -89,9 +93,10 @@ func _physics_process(_delta: float) -> void:
 	var start_pos := global_transform.translated_local(Vector3(0, 0, 0)).origin
 	var end_pos := start_pos + global_transform.basis.z * max_range
 
-	var query := PhysicsRayQueryParameters3D.create(start_pos, end_pos, 8)
+	_ray_query.from = start_pos
+	_ray_query.to = end_pos
 	var space_state := get_world_3d().direct_space_state
-	var result := space_state.intersect_ray(query)
+	var result := space_state.intersect_ray(_ray_query)
 
 	var new_distance: float
 	var beam_color: Color

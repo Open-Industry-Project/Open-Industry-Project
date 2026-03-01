@@ -13,9 +13,12 @@ var _interact_text: Label3D
 var _hold_point: Marker3D
 var _mouse_input: Vector2 = Vector2.ZERO
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+var _interact_ray_query: PhysicsRayQueryParameters3D
 
 var held_box = null
+var _held_box_rigid: RigidBody3D
 var held_pallet = null
+var _held_pallet_rigid: RigidBody3D
 var _pallet_offset: Vector3 = Vector3.ZERO
 var _interact_key_text: String = "E"
 
@@ -56,6 +59,10 @@ func _ready() -> void:
 	_hold_point = Marker3D.new()
 	_hold_point.position = Vector3(0, -0.5, -2.2)
 	_camera.add_child(_hold_point)
+
+	_interact_ray_query = PhysicsRayQueryParameters3D.new()
+	_interact_ray_query.collision_mask = 10
+	_interact_ray_query.collide_with_areas = true
 
 
 func _physics_process(delta: float) -> void:
@@ -120,11 +127,10 @@ func _handle_interaction() -> void:
 	var start_pos := _camera.global_transform.origin
 	var end_pos := start_pos - _camera.global_transform.basis.z * 3.0
 
-	var query := PhysicsRayQueryParameters3D.create(start_pos, end_pos)
-	query.collision_mask = 10
-	query.collide_with_areas = true
+	_interact_ray_query.from = start_pos
+	_interact_ray_query.to = end_pos
 
-	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	var result := get_world_3d().direct_space_state.intersect_ray(_interact_ray_query)
 	if not result:
 		_interact_text.visible = false
 		return
@@ -159,10 +165,11 @@ func _handle_interaction() -> void:
 
 func _pick_up_box(box) -> void:
 	held_box = box
+	_held_box_rigid = box.get_node("RigidBody3D") as RigidBody3D
 
 
 func _update_held_box(delta: float) -> void:
-	var rigid := held_box.get_node("RigidBody3D") as RigidBody3D
+	var rigid := _held_box_rigid
 	rigid.gravity_scale = 0
 	rigid.global_position = rigid.global_position.lerp(_hold_point.global_position, 8.0 * delta)
 	rigid.global_rotation = _hold_point.global_rotation
@@ -177,24 +184,25 @@ func _update_held_box(delta: float) -> void:
 
 func release_held_box() -> void:
 	if held_box:
-		var box := held_box.get_node("RigidBody3D") as RigidBody3D
-		box.gravity_scale = 1
-		box.freeze = false
-		box.linear_velocity = Vector3.ZERO
-		box.angular_velocity = Vector3.ZERO
+		_held_box_rigid.gravity_scale = 1
+		_held_box_rigid.freeze = false
+		_held_box_rigid.linear_velocity = Vector3.ZERO
+		_held_box_rigid.angular_velocity = Vector3.ZERO
 		held_box = null
+		_held_box_rigid = null
 
 
 # --- Pallet moving ---
 
 func _pick_up_pallet(pallet) -> void:
 	held_pallet = pallet
+	_held_pallet_rigid = pallet.get_node("RigidBody3D") as RigidBody3D
 	var initial_direction: Vector3 = (pallet.global_position - global_position).normalized()
 	_pallet_offset = initial_direction * 2.5
 
 
 func _update_held_pallet(delta: float) -> void:
-	var rigid := held_pallet.get_node("RigidBody3D") as RigidBody3D
+	var rigid := _held_pallet_rigid
 	rigid.gravity_scale = 0.1
 
 	var pallet_jack_length := _pallet_offset.length()
@@ -246,9 +254,9 @@ func _update_held_pallet(delta: float) -> void:
 
 func release_held_pallet() -> void:
 	if held_pallet:
-		var pallet_rigid := held_pallet.get_node("RigidBody3D") as RigidBody3D
-		pallet_rigid.gravity_scale = 1
-		pallet_rigid.linear_velocity *= 0.3
-		pallet_rigid.angular_velocity *= 0.2
+		_held_pallet_rigid.gravity_scale = 1
+		_held_pallet_rigid.linear_velocity *= 0.3
+		_held_pallet_rigid.angular_velocity *= 0.2
 		held_pallet = null
+		_held_pallet_rigid = null
 		_pallet_offset = Vector3.ZERO
