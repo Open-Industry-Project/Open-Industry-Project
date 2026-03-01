@@ -170,6 +170,7 @@ func _fix_chains(ch: int) -> void:
 
 func _on_simulation_started() -> void:
 	_turn_on_chains()
+	_set_chain_speed(speed)
 
 	if enable_comms:
 		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
@@ -178,18 +179,43 @@ func _on_simulation_started() -> void:
 func _on_simulation_ended() -> void:
 	_turn_off_chains()
 
+func _get_custom_preview_node() -> Node3D:
+	var preview_scene := load("res://parts/ChainTransfer.tscn") as PackedScene
+	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+
+	_disable_collisions_recursive(preview_node)
+
+	var chain_bases_node = preview_node.get_node_or_null("ChainBases")
+	if chain_bases_node:
+		for base in chain_bases_node.get_children():
+			base.set_process_mode(Node.PROCESS_MODE_DISABLED)
+
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+
+	for child in node.get_children():
+		_disable_collisions_recursive(child)
+
+
 func _update_simple_shape() -> void:
 	var simple_conveyor_shape_body := get_node_or_null("SimpleConveyorShape") as Node3D
 	if not simple_conveyor_shape_body:
 		return
-	simple_conveyor_shape_body.scale = scale.inverse()
 	var simple_conveyor_shape_node := simple_conveyor_shape_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if not simple_conveyor_shape_node:
 		return
 	simple_conveyor_shape_node.position = Vector3(0, -0.094, (chains - 1) * distance / 2.0)
 	var simple_conveyor_shape := simple_conveyor_shape_node.shape as BoxShape3D
 	if simple_conveyor_shape:
-		simple_conveyor_shape.size = Vector3(scale.x * BASE_LENGTH + 0.25, 0.2, (chains - 1) * distance + 0.042 * 2.0)
+		simple_conveyor_shape.size = Vector3(BASE_LENGTH + 0.25 / scale.x, 0.2, (chains - 1) * distance + 0.042 * 2.0)
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if tag_group_name_param == speed_tag_group_name:
