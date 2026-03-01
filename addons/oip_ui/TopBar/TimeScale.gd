@@ -64,4 +64,5 @@ func _get_valid_time_scale() -> float:
 
 func _update_button_text() -> void:
 	text = "%.2fx" % last_known_scale
+	set_pressed_no_signal(last_known_scale != 1.0)
 	queue_redraw()
