@@ -5,6 +5,8 @@ extends Node3D
 ## When true, the chain base is raised to the active (popup) position.
 @export var active: bool = false:
 	set(value):
+		if value == active:
+			return
 		active = value
 		if active:
 			_up()

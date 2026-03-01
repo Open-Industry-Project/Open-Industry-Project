@@ -23,10 +23,17 @@ const BASE_LENGTH: float = 2.0
 		_set_chains_distance(distance)
 
 ## Speed of the chains in meters per second.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
+	set(value):
+		speed = value
+		if SimulationEvents.simulation_running:
+			_set_chain_speed(speed)
 
 ## When true, chains are raised to lift products off the main conveyor.
-@export var popup_chains: bool = false
+@export var popup_chains: bool = false:
+	set(value):
+		popup_chains = value
+		_set_popup_chains(popup_chains)
 
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.
@@ -92,11 +99,6 @@ func _exit_tree() -> void:
 	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
 	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
 	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
-
-func _physics_process(_delta: float) -> void:
-	_set_popup_chains(popup_chains)
-	if SimulationEvents.simulation_running:
-		_set_chain_speed(speed)
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "enable_comms":
