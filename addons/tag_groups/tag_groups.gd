@@ -22,32 +22,56 @@ class TagGroupOptionButtonPlugin extends EditorInspectorPlugin:
 		
 class TagGroupOptionButton extends EditorProperty:
 	var option_button: OptionButton
-	var last_selected_index: int
-	var groups: Array
 	
 	func _init() -> void:
 		option_button = OptionButton.new()
 		option_button.flat = true
+		option_button.allow_reselect = true
 		add_child(option_button)
-		groups = OIPComms.get_tag_groups()
-		for group in groups:
-			option_button.add_item(group)
-		option_button.item_selected.connect(func(index: int): get_edited_object().set(get_edited_property(), option_button.get_item_text(index)))
+		_populate_options()
+		option_button.item_selected.connect(_on_item_selected)
 		OIPComms.tag_groups_registered.connect(_tag_groups_registered)
 	
-	func _update_property() -> void:
-		var i: int = 0
-		for group in OIPComms.get_tag_groups():
-			if group == get_edited_object().get(get_edited_property()):
-				last_selected_index = i
-				option_button.select(i)
-				break
-			else:
-				i += 1
-							
-	func _tag_groups_registered() -> void:
+	func _on_item_selected(index: int) -> void:
+		if index < 0 or index >= option_button.item_count:
+			return
+		var value := option_button.get_item_text(index)
+		if value.begins_with("⚠️ "):
+			value = value.substr(3)
+		var storage_prop := get_edited_property().replace("tag_groups", "tag_group_name")
+		emit_changed(storage_prop, value)
+	
+	func _populate_options() -> void:
 		option_button.clear()
-		for group in OIPComms.get_tag_groups():
+		var groups := OIPComms.get_tag_groups()
+		for group in groups:
 			option_button.add_item(group)
-		option_button.select(last_selected_index)
+		option_button.disabled = groups.is_empty()
+	
+	func _select_current_value() -> void:
+		var obj := get_edited_object()
+		if obj == null:
+			return
+		var storage_prop := get_edited_property().replace("tag_groups", "tag_group_name")
+		var current_value: Variant = obj.get(storage_prop)
+		if current_value == null or not current_value is String or current_value.is_empty():
+			option_button.select(-1)
+			option_button.text = "(None)"
+			return
+		var groups := OIPComms.get_tag_groups()
+		for i in range(groups.size()):
+			if groups[i] == current_value:
+				option_button.select(i)
+				return
+		option_button.add_item("⚠️ " + current_value)
+		var stale_index := option_button.item_count - 1
+		option_button.set_item_disabled(stale_index, true)
+		option_button.select(stale_index)
+	
+	func _update_property() -> void:
+		_select_current_value()
+	
+	func _tag_groups_registered() -> void:
+		_populate_options()
+		_select_current_value()
 				

@@ -37,7 +37,6 @@ enum Datatype {
 
 var register_tag_ok: bool = false
 var tag_group_init: bool = false
-var tag_group_original: String
 @export_category("Communications")
 @export var enable_comms: bool = false
 @export var tag_group_name: String
@@ -45,6 +44,7 @@ var tag_group_original: String
 	set(value):
 		tag_group_name = value
 		tag_groups = value
+## The tag name in the selected tag group.[br]Datatype: matches the selected data_type
 @export var tag_name: String = ""
 @export var setup: bool = false
 
@@ -54,12 +54,8 @@ func _enter_tree() -> void:
 		tag_value = false
 		setup = true
 
-	tag_group_original = tag_group_name
-	if tag_group_name.is_empty():
+	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		tag_group_name = OIPComms.get_tag_groups()[0]
-
-	tag_groups = tag_group_name
-
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
@@ -87,13 +83,11 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func _property_can_revert(property: StringName) -> bool:
-	return property == "tag_groups" or property == "tag_value"
+	return property == "tag_value"
 
 
 func _property_get_revert(property: StringName) -> Variant:
-	if property == "tag_groups":
-		return tag_group_original
-	elif property == "tag_value":
+	if property == "tag_value":
 		return tag_value
 	else:
 		return null

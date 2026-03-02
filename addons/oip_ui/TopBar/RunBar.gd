@@ -13,9 +13,10 @@ var clear_output_btn: Button
 
 
 func _ready() -> void:
-	if not ProjectSettings.get_setting("addons/Open Industry Project/Output/Clear on Simulation Start"):
+	if not ProjectSettings.has_setting("addons/Open Industry Project/Output/Clear on Simulation Start"):
 		ProjectSettings.set_setting("addons/Open Industry Project/Output/Clear on Simulation Start", false)
 
+	ProjectSettings.set_initial_value("addons/Open Industry Project/Output/Clear on Simulation Start", false)
 	ProjectSettings.set_as_basic("addons/Open Industry Project/Output/Clear on Simulation Start", true)
 
 	play_button.icon = get_theme_icon("Play", "EditorIcons")

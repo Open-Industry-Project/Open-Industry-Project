@@ -44,9 +44,9 @@ var _mesh: ImmediateMesh
 static var _beam_material: StandardMaterial3D = preload("uid://ntmcfd25jgpm")
 var _instance: RID
 var _scenario: RID
+var _ray_query: PhysicsRayQueryParameters3D
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
-var _tag_group_original: String
 var _last_result_distance: float = -1.0
 var _last_beam_color: Color = Color.TRANSPARENT
 var _last_has_detection: bool = false
@@ -62,7 +62,7 @@ var _beam_needs_update: bool = true
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the color value in the selected tag group.
+## The tag name for the color value in the selected tag group.[br]Datatype: DINT (32-bit integer)
 @export var tag_name: String = ""
 
 
@@ -79,17 +79,6 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
 
-func _property_can_revert(property: StringName) -> bool:
-	return property == "tag_groups"
-
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "tag_groups":
-		return _tag_group_original
-	else:
-		return null
-
-
 func _enter_tree() -> void:
 	_instance = RenderingServer.instance_create()
 	_scenario = get_world_3d().scenario
@@ -100,12 +89,11 @@ func _enter_tree() -> void:
 	RenderingServer.instance_set_visible(_instance, show_beam)
 	_beam_needs_update = true
 
-	_tag_group_original = tag_group_name
-	if tag_group_name.is_empty():
+	_ray_query = PhysicsRayQueryParameters3D.new()
+	_ray_query.collision_mask = 8
+
+	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		tag_group_name = OIPComms.get_tag_groups()[0]
-
-	tag_groups = tag_group_name
-
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
@@ -122,9 +110,10 @@ func _physics_process(_delta: float) -> void:
 	var start_pos := global_transform.translated_local(Vector3(0, 0.25, 0.42)).origin
 	var end_pos := start_pos + global_transform.basis.z * max_range
 
-	var query := PhysicsRayQueryParameters3D.create(start_pos, end_pos, 8)
+	_ray_query.from = start_pos
+	_ray_query.to = end_pos
 	var space_state := get_world_3d().direct_space_state
-	var result := space_state.intersect_ray(query)
+	var result := space_state.intersect_ray(_ray_query)
 	var result_distance := max_range
 	var new_color: Color
 	var has_detection := result.size() > 0

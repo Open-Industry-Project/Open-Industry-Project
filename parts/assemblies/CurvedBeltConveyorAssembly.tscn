@@ -21,9 +21,7 @@ speed = 2.0
 reference_distance = 0.762
 belt_physics_material = SubResource("PhysicsMaterial_541io")
 enable_comms = false
-speed_tag_group_name = "TagGroup0"
 speed_tag_name = ""
-running_tag_group_name = "TagGroup0"
 running_tag_name = ""
 metadata/hijack_scale = false
 

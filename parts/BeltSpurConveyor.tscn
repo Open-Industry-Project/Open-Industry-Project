@@ -13,10 +13,8 @@ _cached_properties = {
 &"belt_physics_material": SubResource("PhysicsMaterial_hcu6p"),
 &"belt_texture": 0,
 &"enable_comms": false,
-&"running_tag_group_name": "TagGroup0",
 &"running_tag_name": "",
 &"speed": 2.0,
-&"speed_tag_group_name": "TagGroup0",
 &"speed_tag_name": ""
 }
 belt_color = Color(1, 1, 1, 1)
@@ -24,9 +22,7 @@ belt_texture = 0
 speed = 2.0
 belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
 enable_comms = false
-speed_tag_group_name = "TagGroup0"
 speed_tag_name = ""
-running_tag_group_name = "TagGroup0"
 running_tag_name = ""
 angle_downstream = -0.523599
 size = Vector3(2, 0.5, 1.524)

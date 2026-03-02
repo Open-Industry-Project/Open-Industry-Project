@@ -8,7 +8,7 @@ const _TOP_MESH_INITIAL_Y_POS: float = 0.087
 ## Number of light segments in the stack (1-10).
 var segments: int = 1:
 	set(value):
-		var new_value: int = clamp(value, 1, 10)
+		var new_value: int = clamp(value, 1, 8)
 		if new_value == segments:
 			return
 
@@ -57,7 +57,7 @@ var _tag_groups: String:
 		tag_group_name = value
 		_tag_groups = value
 
-## The tag name for the light value in the selected tag group.
+## The tag name for the light value in the selected tag group.[br]Datatype: BYTE (8-bit)
 var tag_name: String = ""
 
 var _segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")
@@ -67,7 +67,6 @@ var _top_mesh_initial_y_pos: float
 var _segment_initial_y_pos: float
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
-var _tag_group_original: String
 @onready var _segments_container: Node3D = get_node("Mid/Segments")
 @onready var _top_mesh: MeshInstance3D = get_node("Mid/Top")
 @onready var _bottom_mesh: MeshInstance3D = get_node("Bottom")
@@ -75,7 +74,7 @@ var _tag_group_original: String
 
 
 func _get(property: StringName) -> Variant:
-	if not is_inside_tree():
+	if not is_inside_tree() or not _segments_container:
 		return null
 	
 	for i in range(segments):
@@ -88,17 +87,6 @@ func _get(property: StringName) -> Variant:
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "tag_group_name":
 		property.usage = PROPERTY_USAGE_STORAGE
-
-
-func _property_can_revert(property: StringName) -> bool:
-	return property == "tag_groups"
-
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "tag_groups":
-		return _tag_group_original
-	else:
-		return null
 
 
 func _get_property_list() -> Array:
@@ -138,7 +126,7 @@ func _get_property_list() -> Array:
 	properties.append({
 		"name": "tag_groups",
 		"type": 0,
-		"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE,
+		"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE,
 		"hint": 0,
 		"hint_string": "tag_group_enum"
 	})
@@ -154,12 +142,8 @@ func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)
 
-	_tag_group_original = tag_group_name
-	if tag_group_name.is_empty():
+	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		tag_group_name = OIPComms.get_tag_groups()[0]
-
-	_tag_groups = tag_group_name
-
 	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
 
 
@@ -328,4 +312,4 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 	if tag_group_name_param != tag_group_name:
 		return
 
-	light_value = OIPComms.read_int32(tag_group_name, tag_name)
+	light_value = OIPComms.read_uint8(tag_group_name, tag_name)

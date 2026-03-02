@@ -5,6 +5,8 @@ extends Node3D
 ## When true, the chain base is raised to the active (popup) position.
 @export var active: bool = false:
 	set(value):
+		if value == active:
+			return
 		active = value
 		if active:
 			_up()
@@ -28,6 +30,7 @@ var _chain_end_l_material: ShaderMaterial
 var _chain_end_r_material: ShaderMaterial
 var _chain_position: float = 0.0
 var _chain_end_position: float = 0.0
+var _collision_shape: BoxShape3D
 
 @onready var _container_body: StaticBody3D = get_node("ContainerBody")
 @onready var _chain_base: Node3D = get_node("Base")
@@ -54,7 +57,21 @@ func _ready() -> void:
 	_set_chain_position(_chain_end_l_material, 0.0)
 	_set_chain_position(_chain_end_r_material, 0.0)
 
+	var collision_shape_node := _sb.get_node("CollisionShape3D") as CollisionShape3D
+	if collision_shape_node and collision_shape_node.shape:
+		collision_shape_node.shape = collision_shape_node.shape.duplicate() as BoxShape3D
+		_collision_shape = collision_shape_node.shape
+
 	owner = get_parent().get_parent()  # Assumes owner's type is ChainTransfer
+
+	if owner:
+		if _chain_material:
+			_chain_material.set_shader_parameter("Scale", owner.scale.x * _chain_scale)
+		if _collision_shape:
+			_collision_shape.size.x = _chain_base_length * owner.scale.x
+		_scale_children(_chain_base)
+		_scale_children(_container)
+		_scale_children(_chain)
 
 func _physics_process(delta: float) -> void:
 	if running:
@@ -63,7 +80,6 @@ func _physics_process(delta: float) -> void:
 		_sb.constant_linear_velocity = velocity
 		_sb.position = _sb_active_position
 		_sb.rotation = Vector3.ZERO
-		_sb.scale = Vector3.ONE
 
 		if _chain_material and owner:
 			var chain_links: int = int(round(owner.scale.x * _chain_scale))
@@ -80,6 +96,9 @@ func _physics_process(delta: float) -> void:
 
 	if _chain_material and owner:
 		_chain_material.set_shader_parameter("Scale", owner.scale.x * _chain_scale)
+
+	if _collision_shape and owner:
+		_collision_shape.size.x = _chain_base_length * owner.scale.x
 
 	_scale_children(_chain_base)
 	_scale_children(_container)
@@ -114,9 +133,6 @@ func _scale_children(nodes_container: Node3D) -> void:
 		return
 	
 	for child in nodes_container.get_children():
-		# If the container is "Chain" and the child is a StaticBody3D, skip scaling.
-		if nodes_container.name == "Chain" and child is StaticBody3D:
-			continue
 		if child is Node3D:
 			child.scale = Vector3(1 / owner.scale.x, 1, 1)
 

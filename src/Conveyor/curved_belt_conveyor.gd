@@ -145,8 +145,6 @@ var _register_speed_tag_ok: bool = false
 var _register_running_tag_ok: bool = false
 var _speed_tag_group_init: bool = false
 var _running_tag_group_init: bool = false
-var _speed_tag_group_original: String
-var _running_tag_group_original: String
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.
 @export var enable_comms := false
@@ -156,7 +154,7 @@ var _running_tag_group_original: String
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.
+## The tag name for the speed value in the selected tag group.[br]Datatype: REAL (32-bit float)
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.
@@ -164,7 +162,7 @@ var _running_tag_group_original: String
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
-## The tag name for the running state in the selected tag group.
+## The tag name for the running state in the selected tag group.[br]Datatype: BOOL
 @export var running_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:
@@ -182,19 +180,6 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
 	elif property.name == "running_tag_name":
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-
-
-func _property_can_revert(property: StringName) -> bool:
-	return property == "speed_tag_groups" or property == "running_tag_groups"
-
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "speed_tag_groups":
-		return _speed_tag_group_original
-	elif property == "running_tag_groups":
-		return _running_tag_group_original
-	else:
-		return null
 
 
 func get_conveyor_end1() -> Node:
@@ -783,17 +768,10 @@ func _setup_collision_shape() -> void:
 
 func _enter_tree() -> void:
 
-	_speed_tag_group_original = speed_tag_group_name
-	_running_tag_group_original = running_tag_group_name
-
 	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		speed_tag_group_name = OIPComms.get_tag_groups()[0]
 	if running_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		running_tag_group_name = OIPComms.get_tag_groups()[0]
-
-	speed_tag_groups = speed_tag_group_name
-	running_tag_groups = running_tag_group_name
-
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)

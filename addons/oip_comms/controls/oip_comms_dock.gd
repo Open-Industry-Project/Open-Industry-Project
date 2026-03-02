@@ -13,10 +13,10 @@ const TAG_GROUPS_FILE := "res://addons/oip_comms/save_data/tag_groups.cfg"
 const SETTINGS_FILE := "res://addons/oip_comms/save_data/settings.cfg"
 const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
 
-@onready var v_box_container: VBoxContainer = $ScrollContainer/VBoxContainer
-@onready var enable_comms: CheckBox = $HFlowContainer2/EnableComms
-@onready var enable_logging: CheckBox = $HFlowContainer2/EnableLogging
-@onready var save_comms_button: Button = $"HFlowContainer2/Save Changes"
+@onready var v_box_container: VBoxContainer = $Layout/ScrollContainer/TagGroupList
+@onready var enable_comms: CheckBox = $Layout/Toolbar/EnableComms
+@onready var enable_logging: CheckBox = $Layout/Toolbar/EnableLogging
+@onready var save_comms_button: Button = $"Layout/Toolbar/Save Changes"
 
 var tag_groups_data: Array = []
 var last_tag_groups_data: Array = []
@@ -52,11 +52,12 @@ func load_tag_groups_data() -> void:
 			var group_section = "group_" + str(i)
 			var group_data = {
 				"name": tag_groups_config.get_value(group_section, "name", "TagGroup" + str(i)),
-				"polling_rate": tag_groups_config.get_value(group_section, "polling_rate", "500"),
+				"polling_rate": tag_groups_config.get_value(group_section, "polling_rate", "100"),
 				"protocol": tag_groups_config.get_value(group_section, "protocol", "0"),
 				"gateway": tag_groups_config.get_value(group_section, "gateway", "localhost"),
 				"path": tag_groups_config.get_value(group_section, "path", "1,0"),
-				"cpu": tag_groups_config.get_value(group_section, "cpu", "ControlLogix")
+				"cpu": tag_groups_config.get_value(group_section, "cpu", "ControlLogix"),
+				"saved": true
 			}
 			tag_groups_data.append(group_data)
 
@@ -83,14 +84,34 @@ func tag_group_save(_t: _OIPCommsTagGroup) -> void:
 	save_tag_groups_ui()
 	mark_changes_present()
 
+func _has_duplicate_names() -> bool:
+	var names: Array[String] = []
+	for tag_group_data: Dictionary in tag_groups_data:
+		var n: String = tag_group_data.name
+		if n in names:
+			return true
+		names.append(n)
+	return false
+
 func save_all() -> void:
+	save_tag_groups_ui()
+
+	if _has_duplicate_names():
+		var dialog := AcceptDialog.new()
+		dialog.title = "OIP Comms"
+		dialog.dialog_text = "Duplicate tag group names found. Please rename before saving."
+		add_child(dialog)
+		dialog.popup_centered()
+		dialog.confirmed.connect(dialog.queue_free)
+		dialog.canceled.connect(dialog.queue_free)
+		return
+
 	changes_present = false
 	save_changes.emit(changes_present)
 
 	if is_instance_valid(save_comms_button):
 		save_comms_button.disabled = true
 
-	save_tag_groups_ui()
 	var buffer_tag_groups_data := tag_groups_data.duplicate(true)
 
 	if last_tag_groups_data.hash() != tag_groups_data.hash():
@@ -99,6 +120,11 @@ func save_all() -> void:
 
 	save_settings()
 	last_tag_groups_data = buffer_tag_groups_data
+
+	for tag_group_data: Dictionary in tag_groups_data:
+		tag_group_data["saved"] = true
+	for tag_group: _OIPCommsTagGroup in v_box_container.get_children():
+		tag_group.lock_name()
 
 	register_tag_groups()
 
@@ -144,7 +170,7 @@ func tag_group_delete(t: _OIPCommsTagGroup) -> void:
 func _on_AddTagGroup_pressed() -> void:
 	var _name := "TagGroup" + str(len(tag_groups_data))
 	tag_groups_data.push_back({
-		"name": _name, "polling_rate": "500", "protocol": "0",
+		"name": _name, "polling_rate": "100", "protocol": "0",
 		"gateway": "localhost", "path": "1,0", "cpu": "ControlLogix"
 	})
 	load_tag_groups_ui()

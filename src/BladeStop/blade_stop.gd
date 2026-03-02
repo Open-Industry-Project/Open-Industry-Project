@@ -28,7 +28,6 @@ extends Node3D
 var _active_pos: float = 0.24
 var _register_tag_ok: bool = false
 var _tag_group_init: bool = false
-var _tag_group_original: String
 @onready var _blade: StaticBody3D = $Blade
 @onready var _air_pressure_r: MeshInstance3D = $Corners/AirPressureR
 @onready var _air_pressure_l: MeshInstance3D = $Corners/AirPressureL
@@ -45,7 +44,7 @@ var _tag_group_original: String
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the blade stop state in the selected tag group.
+## The tag name for the blade stop state in the selected tag group.[br]Datatype: BOOL
 @export var tag_name: String = ""
 
 
@@ -60,24 +59,9 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
 
-func _property_can_revert(property: StringName) -> bool:
-	return property == "tag_groups"
-
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property == "tag_groups":
-		return _tag_group_original
-	else:
-		return null
-
-
 func _enter_tree() -> void:
-	_tag_group_original = tag_group_name
-	if tag_group_name.is_empty():
+	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
 		tag_group_name = OIPComms.get_tag_groups()[0]
-
-	tag_groups = tag_group_name
-
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
 	OIPComms.tag_group_polled.connect(_tag_group_polled)

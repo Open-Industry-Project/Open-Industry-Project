@@ -24,7 +24,6 @@ size = Vector3(0.07, 1.75, 0.07)
 [node name="StackLight" type="Node3D" unique_id=1223138583]
 transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 0, 0, 0)
 script = ExtResource("1_vxp13")
-tag_group_name = "TagGroup0"
 light_value = 0
 segments = 1
 _data = SubResource("Resource_oqsfm")
