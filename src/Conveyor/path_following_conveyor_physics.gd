@@ -31,7 +31,8 @@ func apply_force(body: RigidBody3D) -> void:
 
 	# Set velocity along path to conveyor speed (same behavior as constant_linear_velocity)
 	# Only speed up, don't slow down bodies already moving faster
-	var new_speed_along_path = maxf(current_speed_along_path, parent.speed)
+	# Use minf when speed is negative (backwards) to properly apply negative velocity
+	var new_speed_along_path = minf(current_speed_along_path, parent.speed) if parent.speed < 0.0 else maxf(current_speed_along_path, parent.speed)
 	
 	# Reconstruct velocity: path component at conveyor speed + preserved perpendicular component
 	body.linear_velocity = global_direction * new_speed_along_path + velocity_perpendicular
