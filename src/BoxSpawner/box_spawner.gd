@@ -69,13 +69,14 @@ func _physics_process(delta: float) -> void:
 	if not _first_spawn_done:
 		_spawn_box()
 		_first_spawn_done = true
+		_spawn_counter += 1
 		_scan_interval = 0.0
 
 	if fixed_rate:
 		var time_between: float = 60.0 / float(boxes_per_minute)
 		if _scan_interval >= time_between:
 			_spawn_box()
-			_scan_interval = 0.0
+			_scan_interval -= time_between
 	else:
 		if _scan_interval >= _next_spawn_time:
 			_spawn_box()
