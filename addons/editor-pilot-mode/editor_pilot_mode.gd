@@ -274,10 +274,10 @@ func get_pilot_camera() -> Camera3D:
 func cache_editor_ui(node3d_viewport: Viewport) -> void:
 	var ui := node3d_viewport.get_parent().get_parent().get_child(1) as Control
 	_active_viewport_ui = {
-		"rotation_gizmo": ui.get_child(8).get_child(0),
+		"rotation_gizmo": ui.get_child(6).get_child(0),
 		"menu": ui.get_child(0).get_child(0).get_child(0),
-		"right_nav": ui.get_child(6),
-		"left_nav": ui.get_child(7),
+		"right_nav": ui.get_child(5),
+		"left_nav": ui.get_child(4),
 	}
 
 
