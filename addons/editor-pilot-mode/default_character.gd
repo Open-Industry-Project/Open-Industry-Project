@@ -177,8 +177,7 @@ func _update_held_box(delta: float) -> void:
 	_interact_text.visible = false
 
 	var release := InputMap.has_action("interact") and Input.is_action_just_pressed("interact")
-	var alt_release := InputMap.has_action("release_box") and Input.is_action_just_pressed("release_box")
-	if release or alt_release:
+	if release or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		release_held_box()
 
 
@@ -247,8 +246,7 @@ func _update_held_pallet(delta: float) -> void:
 	_interact_text.visible = false
 
 	var release := InputMap.has_action("interact") and Input.is_action_just_pressed("interact")
-	var alt_release := InputMap.has_action("release_box") and Input.is_action_just_pressed("release_box")
-	if release or alt_release:
+	if release or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		release_held_pallet()
 
 
