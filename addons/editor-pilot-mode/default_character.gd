@@ -72,7 +72,7 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 
-	if Input.is_key_pressed(KEY_SPACE) and is_on_floor():
+	if InputMap.has_action("jump") and Input.is_action_pressed("jump") and is_on_floor():
 		velocity.y = jump_velocity
 
 	var current_speed := move_speed
@@ -82,13 +82,13 @@ func _physics_process(delta: float) -> void:
 		current_speed = move_speed * 0.6
 
 	var input_dir := Vector2.ZERO
-	if Input.is_key_pressed(KEY_W):
+	if InputMap.has_action("w") and Input.is_action_pressed("w"):
 		input_dir.y += 1
-	if Input.is_key_pressed(KEY_S):
+	if InputMap.has_action("s") and Input.is_action_pressed("s"):
 		input_dir.y -= 1
-	if Input.is_key_pressed(KEY_A):
+	if InputMap.has_action("a") and Input.is_action_pressed("a"):
 		input_dir.x -= 1
-	if Input.is_key_pressed(KEY_D):
+	if InputMap.has_action("d") and Input.is_action_pressed("d"):
 		input_dir.x += 1
 	input_dir = input_dir.normalized()
 
@@ -211,13 +211,13 @@ func _update_held_pallet(delta: float) -> void:
 	target_pos.y = global_position.y + 0.05
 
 	var input_dir := Vector2.ZERO
-	if Input.is_key_pressed(KEY_W):
+	if InputMap.has_action("w") and Input.is_action_pressed("w"):
 		input_dir.y += 1
-	if Input.is_key_pressed(KEY_S):
+	if InputMap.has_action("s") and Input.is_action_pressed("s"):
 		input_dir.y -= 1
-	if Input.is_key_pressed(KEY_A):
+	if InputMap.has_action("a") and Input.is_action_pressed("a"):
 		input_dir.x -= 1
-	if Input.is_key_pressed(KEY_D):
+	if InputMap.has_action("d") and Input.is_action_pressed("d"):
 		input_dir.x += 1
 	var player_is_moving := input_dir.length() > 0.1
 
