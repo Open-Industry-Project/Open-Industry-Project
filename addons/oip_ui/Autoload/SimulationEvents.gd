@@ -37,8 +37,12 @@ func _ready() -> void:
 	if is_instance_valid(owner):
 		await owner.ready
 
-		EditorInterface.set_main_screen_editor("3D")
-		EditorInterface.open_scene_from_path("res://Main/Main.tscn")
+	EditorInterface.set_main_screen_editor("3D")
+	var run_main: String = ProjectSettings.get_setting("application/run/main_scene", "")
+	if run_main.begins_with("uid://"):
+		run_main = ResourceUID.get_id_path(ResourceUID.text_to_id(run_main))
+	if not run_main.is_empty() and ResourceLoader.exists(run_main):
+		EditorInterface.open_scene_from_path(run_main)
 
 	get_tree().paused = false
 
@@ -69,6 +73,7 @@ func start_simulation() -> void:
 	simulation_paused = false
 	simulation_set_paused.emit(false)
 	simulation_started.emit()
+	_play_scene_animation_players()
 	if EditorInterface.has_method("set_simulation_started"):
 		EditorInterface.call("set_simulation_started", true)
 
@@ -76,6 +81,7 @@ func start_simulation() -> void:
 func stop_simulation() -> void:
 	simulation_paused = false
 	simulation_set_paused.emit(false)
+	_reset_scene_animation_players()
 	simulation_ended.emit()
 	if EditorInterface.has_method("set_simulation_started"):
 		EditorInterface.call("set_simulation_started", false)
@@ -103,3 +109,27 @@ func _select_nodes() -> void:
 
 			if node.has_method("selected"):
 				node.call("selected")
+
+
+func _play_scene_animation_players() -> void:
+	var root := get_tree().edited_scene_root
+	if not root:
+		return
+	for ap in root.find_children("*", "AnimationPlayer", true):
+		var player := ap as AnimationPlayer
+		if player.autoplay:
+			player.play(player.autoplay)
+		else:
+			var list := player.get_animation_list()
+			if list.size() > 0:
+				player.play(list[0])
+
+
+func _reset_scene_animation_players() -> void:
+	var root := get_tree().edited_scene_root
+	if not root:
+		return
+	for ap in root.find_children("*", "AnimationPlayer", true):
+		var player := ap as AnimationPlayer
+		player.stop()
+		player.seek(0.0, true)
