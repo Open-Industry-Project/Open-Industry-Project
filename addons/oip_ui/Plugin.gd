@@ -78,7 +78,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	_center_buttons.visible = true
+	if _center_buttons:
+		_center_buttons.visible = true
 
 	if _run_bar:
 		_run_bar.queue_free()
@@ -89,23 +90,24 @@ func _exit_tree() -> void:
 	if _empty_margin:
 		_empty_margin.queue_free()
 
-	var item_index := _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
-	_editor_popup_menu.remove_item(item_index)
-	_editor_popup_menu.remove_item(item_index - 1)
+	if _editor_popup_menu:
+		var item_index := _editor_popup_menu.get_item_index(ID_TOGGLE_NATIVE_UI)
+		if item_index >= 0:
+			_editor_popup_menu.remove_item(item_index)
+		if item_index - 1 >= 0:
+			_editor_popup_menu.remove_item(item_index - 1)
 
-	if _editor_popup_menu.id_pressed.is_connected(_on_editor_popup_id_pressed):
-		_editor_popup_menu.id_pressed.disconnect(_on_editor_popup_id_pressed)
-
-	if _custom_project_menu.id_pressed.is_connected(_on_custom_project_menu_id_pressed):
-		_custom_project_menu.id_pressed.disconnect(_on_custom_project_menu_id_pressed)
-
-	if _custom_help_menu.id_pressed.is_connected(_on_custom_help_menu_id_pressed):
-		_custom_help_menu.id_pressed.disconnect(_on_custom_help_menu_id_pressed)
+		if _editor_popup_menu.id_pressed.is_connected(_on_editor_popup_id_pressed):
+			_editor_popup_menu.id_pressed.disconnect(_on_editor_popup_id_pressed)
 
 	if _custom_project_menu:
+		if _custom_project_menu.id_pressed.is_connected(_on_custom_project_menu_id_pressed):
+			_custom_project_menu.id_pressed.disconnect(_on_custom_project_menu_id_pressed)
 		_custom_project_menu.queue_free()
 
 	if _custom_help_menu:
+		if _custom_help_menu.id_pressed.is_connected(_on_custom_help_menu_id_pressed):
+			_custom_help_menu.id_pressed.disconnect(_on_custom_help_menu_id_pressed)
 		_custom_help_menu.queue_free()
 
 	_toggle_native_mode(true)
@@ -154,10 +156,11 @@ func _editor_layout_loaded() -> void:
 	_editor_run_bar_container = _editor_node.get_child(4).get_child(0).get_child(0).get_child(4)
 	_renderer_selection = _editor_node.get_child(4).get_child(0).get_child(0).get_child(5)
 
-	_create_root_vbox = _editor_node.find_child("BeginnerNodeShortcuts",true,false)
-	_perspective_menu = _editor_node.get_child(4).get_child(0).get_child(1).get_child(2).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(1).get_child(1).get_child(0).get_child(0).get_child(0).get_child(0).get_child(1).get_child(0).get_child(0).get_child(0)
-	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
-	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
+	_create_root_vbox = _editor_node.find_child("BeginnerNodeShortcuts", true, false)
+
+	_perspective_menu = null
+	_custom_project_menu = null
+	_custom_help_menu = null
 
 	_toggle_native_mode(false)
 
@@ -177,8 +180,10 @@ func _editor_layout_loaded() -> void:
 	_editor_popup_menu.add_check_item("Toggle Godot Native UI", ID_TOGGLE_NATIVE_UI)
 	_editor_popup_menu.id_pressed.connect(_on_editor_popup_id_pressed)
 
-	_custom_project_menu.id_pressed.connect(_on_custom_project_menu_id_pressed)
-	_custom_help_menu.id_pressed.connect(_on_custom_help_menu_id_pressed)
+	if _custom_project_menu:
+		_custom_project_menu.id_pressed.connect(_on_custom_project_menu_id_pressed)
+	if _custom_help_menu:
+		_custom_help_menu.id_pressed.connect(_on_custom_help_menu_id_pressed)
 
 	if EditorInterface.has_method("set_simulation_started"):
 		var button := Button.new()
@@ -191,7 +196,11 @@ func _editor_layout_loaded() -> void:
 
 	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously", true)
 
-	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
+	if _perspective_menu and _perspective_menu.get_popup():
+		_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
+
+	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously", true)
+
 	scene_changed.connect(_scene_changed)
 
 	_run_bar._enable_buttons()

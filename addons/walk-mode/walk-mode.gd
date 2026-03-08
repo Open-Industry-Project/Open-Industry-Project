@@ -79,7 +79,7 @@ func _input(event: InputEvent) -> void:
 func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	var root := EditorInterface.get_edited_scene_root() as Node3D
 	if not root:
-		return
+		return EditorPlugin.AFTER_GUI_INPUT_PASS
 
 	var canvas_viewport := root.get_viewport()
 	var node3d_viewport := _camera.get_viewport()
@@ -98,10 +98,30 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 	if event.is_pressed() and (editor_settings.is_shortcut("Open Industry Project/Spawn Character", event) or (key != null and key.keycode == KEY_ESCAPE)):
 		if not editor_ui:
 			editor_ui = node3d_viewport.get_parent().get_parent().get_child(1)
-			rotation_gizmo = editor_ui.get_child(8).get_child(0)
-			menu = editor_ui.get_child(0).get_child(0).get_child(0)
-			right_navigation_gizmo = editor_ui.get_child(6)
-			left_navigation_gizmo = editor_ui.get_child(7)
+			if editor_ui.get_child_count() > 8:
+				rotation_gizmo = editor_ui.get_child(8).get_child(0)
+			else:
+				rotation_gizmo = null
+			if editor_ui.get_child_count() > 0:
+				var first_child = editor_ui.get_child(0)
+				if first_child.get_child_count() > 0:
+					var second_child = first_child.get_child(0)
+					if second_child.get_child_count() > 0:
+						menu = second_child.get_child(0)
+					else:
+						menu = null
+				else:
+					menu = null
+			else:
+				menu = null
+			if editor_ui.get_child_count() > 6:
+				right_navigation_gizmo = editor_ui.get_child(6)
+			else:
+				right_navigation_gizmo = null
+			if editor_ui.get_child_count() > 7:
+				left_navigation_gizmo = editor_ui.get_child(7)
+			else:
+				left_navigation_gizmo = null
 
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			exit_walk_mode(_camera, canvas_viewport, node3d_viewport)
@@ -109,10 +129,10 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent):
 			enter_walk_mode(_camera, canvas_viewport, node3d_viewport)
 
 	if canvas_viewport.gui_disable_input == true:
-		return
+		return EditorPlugin.AFTER_GUI_INPUT_PASS
 
 	canvas_viewport.push_input(event)
-	return AfterGUIInput.AFTER_GUI_INPUT_STOP
+	return EditorPlugin.AFTER_GUI_INPUT_STOP
 
 
 func enter_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewport: Viewport) -> void:
@@ -134,10 +154,14 @@ func enter_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewpo
 	if camera.size() > 0:
 		RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(), camera[0].get_camera_rid())
 
-	rotation_gizmo.visible = false
-	right_navigation_gizmo.visible = false
-	left_navigation_gizmo.visible = false
-	menu.visible = false
+	if rotation_gizmo:
+		rotation_gizmo.visible = false
+	if right_navigation_gizmo:
+		right_navigation_gizmo.visible = false
+	if left_navigation_gizmo:
+		left_navigation_gizmo.visible = false
+	if menu:
+		menu.visible = false
 
 
 func exit_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewport: Viewport) -> void:
@@ -153,13 +177,17 @@ func exit_walk_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewpor
 	character_spawned = false
 	was_in_walk_mode = false
 	RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(), _camera.get_camera_rid())
-	rotation_gizmo.visible = true
+	if rotation_gizmo:
+		rotation_gizmo.visible = true
 
 	if EditorInterface.get_editor_settings().get_setting("editors/3d/navigation/show_viewport_navigation_gizmo"):
-		right_navigation_gizmo.visible = true
-		left_navigation_gizmo.visible = true
+		if right_navigation_gizmo:
+			right_navigation_gizmo.visible = true
+		if left_navigation_gizmo:
+			left_navigation_gizmo.visible = true
 
-	menu.visible = true
+	if menu:
+		menu.visible = true
 
 
 func handle_focus_lost() -> void:
