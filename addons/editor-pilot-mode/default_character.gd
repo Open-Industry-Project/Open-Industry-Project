@@ -72,7 +72,7 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 
-	if Input.is_key_pressed(KEY_SPACE) and is_on_floor():
+	if Input.is_action_pressed("pilot_jump") and is_on_floor():
 		velocity.y = jump_velocity
 
 	var current_speed := move_speed
@@ -82,13 +82,13 @@ func _physics_process(delta: float) -> void:
 		current_speed = move_speed * 0.6
 
 	var input_dir := Vector2.ZERO
-	if Input.is_key_pressed(KEY_W):
+	if Input.is_action_pressed("pilot_move_forward"):
 		input_dir.y += 1
-	if Input.is_key_pressed(KEY_S):
+	if Input.is_action_pressed("pilot_move_back"):
 		input_dir.y -= 1
-	if Input.is_key_pressed(KEY_A):
+	if Input.is_action_pressed("pilot_move_left"):
 		input_dir.x -= 1
-	if Input.is_key_pressed(KEY_D):
+	if Input.is_action_pressed("pilot_move_right"):
 		input_dir.x += 1
 	input_dir = input_dir.normalized()
 
@@ -211,13 +211,13 @@ func _update_held_pallet(delta: float) -> void:
 	target_pos.y = global_position.y + 0.05
 
 	var input_dir := Vector2.ZERO
-	if Input.is_key_pressed(KEY_W):
+	if Input.is_action_pressed("pilot_move_forward"):
 		input_dir.y += 1
-	if Input.is_key_pressed(KEY_S):
+	if Input.is_action_pressed("pilot_move_back"):
 		input_dir.y -= 1
-	if Input.is_key_pressed(KEY_A):
+	if Input.is_action_pressed("pilot_move_left"):
 		input_dir.x -= 1
-	if Input.is_key_pressed(KEY_D):
+	if Input.is_action_pressed("pilot_move_right"):
 		input_dir.x += 1
 	var player_is_moving := input_dir.length() > 0.1
 

@@ -8,6 +8,11 @@ const SPAWN_Y_OFFSET: float = 1.5
 const FOCUS_RETURN_DELAY: float = 0.05
 const SHORTCUT_PATH: String = "Pilot Mode/Toggle Pilot Mode"
 const INTERACT_SHORTCUT_PATH: String = "Pilot Mode/Interact"
+const MOVE_FORWARD_PATH: String = "Pilot Mode/Move Forward"
+const MOVE_BACK_PATH: String = "Pilot Mode/Move Back"
+const MOVE_LEFT_PATH: String = "Pilot Mode/Move Left"
+const MOVE_RIGHT_PATH: String = "Pilot Mode/Move Right"
+const JUMP_PATH: String = "Pilot Mode/Jump"
 const SETTING_PATH: String = "addons/pilot_mode/scene/path"
 const DEFAULT_SCENE: String = "res://addons/editor-pilot-mode/default_character.tscn"
 
@@ -32,11 +37,15 @@ func _enter_tree() -> void:
 	toggle_shortcut.events.append(key_stroke)
 	editor_settings.add_shortcut(SHORTCUT_PATH, toggle_shortcut)
 
-	var interact_shortcut := Shortcut.new()
-	var interact_key := InputEventKey.new()
-	interact_key.keycode = KEY_E
-	interact_shortcut.events.append(interact_key)
-	editor_settings.add_shortcut(INTERACT_SHORTCUT_PATH, interact_shortcut)
+	_register_key_shortcut(editor_settings, INTERACT_SHORTCUT_PATH, KEY_E)
+
+	var scene_path: String = ProjectSettings.get_setting(SETTING_PATH, DEFAULT_SCENE)
+	if scene_path == DEFAULT_SCENE and ResourceLoader.exists(DEFAULT_SCENE):
+		_register_key_shortcut(editor_settings, MOVE_FORWARD_PATH, KEY_W)
+		_register_key_shortcut(editor_settings, MOVE_BACK_PATH, KEY_S)
+		_register_key_shortcut(editor_settings, MOVE_LEFT_PATH, KEY_A)
+		_register_key_shortcut(editor_settings, MOVE_RIGHT_PATH, KEY_D)
+		_register_key_shortcut(editor_settings, JUMP_PATH, KEY_SPACE)
 
 	if not ProjectSettings.has_setting(SETTING_PATH):
 		ProjectSettings.set_setting(SETTING_PATH, DEFAULT_SCENE)
@@ -167,13 +176,12 @@ func enter_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewp
 	InputMap.load_from_project_settings()
 
 	var editor_settings := EditorInterface.get_editor_settings()
-	var interact_sc := editor_settings.get_shortcut(INTERACT_SHORTCUT_PATH)
-	if interact_sc and interact_sc.events.size() > 0:
-		if not InputMap.has_action("interact"):
-			InputMap.add_action("interact")
-		else:
-			InputMap.action_erase_events("interact")
-		InputMap.action_add_event("interact", interact_sc.events[0])
+	_setup_action_from_shortcut(editor_settings, INTERACT_SHORTCUT_PATH, "interact")
+	_setup_action_from_shortcut(editor_settings, MOVE_FORWARD_PATH, "pilot_move_forward")
+	_setup_action_from_shortcut(editor_settings, MOVE_BACK_PATH, "pilot_move_back")
+	_setup_action_from_shortcut(editor_settings, MOVE_LEFT_PATH, "pilot_move_left")
+	_setup_action_from_shortcut(editor_settings, MOVE_RIGHT_PATH, "pilot_move_right")
+	_setup_action_from_shortcut(editor_settings, JUMP_PATH, "pilot_jump")
 
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -295,6 +303,24 @@ func set_editor_ui_visible(visible: bool) -> void:
 	_active_viewport_ui["menu"].visible = visible
 	_active_viewport_ui["right_nav"].visible = show_nav if visible else false
 	_active_viewport_ui["left_nav"].visible = show_nav if visible else false
+
+
+func _register_key_shortcut(editor_settings: EditorSettings, path: String, key: Key) -> void:
+	var shortcut := Shortcut.new()
+	var key_event := InputEventKey.new()
+	key_event.keycode = key
+	shortcut.events.append(key_event)
+	editor_settings.add_shortcut(path, shortcut)
+
+
+func _setup_action_from_shortcut(editor_settings: EditorSettings, shortcut_path: String, action_name: String) -> void:
+	var sc := editor_settings.get_shortcut(shortcut_path)
+	if sc and sc.events.size() > 0:
+		if not InputMap.has_action(action_name):
+			InputMap.add_action(action_name)
+		else:
+			InputMap.action_erase_events(action_name)
+		InputMap.action_add_event(action_name, sc.events[0])
 
 
 func simulate_click(position: Vector2) -> void:
