@@ -61,6 +61,9 @@ func _ready() -> void:
 	_change_texture()
 
 func _physics_process(delta: float) -> void:
+	if conveyor and SimulationEvents.simulation_running and &"speed" in conveyor:
+		_conveyor_stopped = conveyor.speed == 0
+
 	if disable or _conveyor_stopped or not SimulationEvents.simulation_running:
 		return
 	
@@ -69,13 +72,14 @@ func _physics_process(delta: float) -> void:
 	if not _first_spawn_done:
 		_spawn_box()
 		_first_spawn_done = true
+		_spawn_counter += 1
 		_scan_interval = 0.0
 
 	if fixed_rate:
 		var time_between: float = 60.0 / float(boxes_per_minute)
 		if _scan_interval >= time_between:
 			_spawn_box()
-			_scan_interval = 0.0
+			_scan_interval -= time_between
 	else:
 		if _scan_interval >= _next_spawn_time:
 			_spawn_box()
@@ -119,17 +123,9 @@ func use() -> void:
 	disable = not disable
 
 func _on_simulation_started() -> void:
-	if conveyor:
-		if conveyor.has_signal("speed_changed"):
-			_conveyor_stopped = conveyor.speed == 0
-			conveyor.speed_changed.connect(_conveyor_speed_changed)
-		else:
-			push_error("Conveyor in " + name + " is not of type Conveyor")
+	if conveyor and &"speed" not in conveyor:
+		push_warning("Conveyor reference in " + name + " does not have a speed property")
 	_reset_spawn_cycle()
 
 func _on_simulation_ended() -> void:
-	if conveyor and conveyor.speed_changed.is_connected(_conveyor_speed_changed):
-		conveyor.speed_changed.disconnect(_conveyor_speed_changed)
-
-func _conveyor_speed_changed() -> void:
-	_conveyor_stopped = conveyor.speed == 0
+	_conveyor_stopped = false
