@@ -9,8 +9,8 @@ extends Control
 
 signal save_changes(value: bool)
 
-const TAG_GROUPS_FILE := "res://addons/oip_comms/save_data/tag_groups.cfg"
-const SETTINGS_FILE := "res://addons/oip_comms/save_data/settings.cfg"
+const TAG_GROUPS_FILE := "res://oip_data/tag_groups.cfg"
+const SETTINGS_FILE := "res://oip_data/comms_settings.cfg"
 const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
 
 @onready var v_box_container: VBoxContainer = $Layout/ScrollContainer/TagGroupList
@@ -25,6 +25,7 @@ var settings_config: ConfigFile = ConfigFile.new()
 var tag_groups_config: ConfigFile = ConfigFile.new()
 
 func _ready() -> void:
+	DirAccess.make_dir_recursive_absolute("res://oip_data")
 	load_tag_groups_data()
 	load_tag_groups_ui()
 	load_settings()

@@ -12,5 +12,7 @@ export_credentials.cfg
 addons/oip_comms/bin/windows/~libOIP-COMMS.windows.template_debug.x86_64.dll
 addons/zylann.editor_debugger
 
+oip_data/
+
 #Other
 .vs/
