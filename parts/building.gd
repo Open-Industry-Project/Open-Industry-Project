@@ -54,9 +54,9 @@ func _ready() -> void:
 
 
 func _get_wall_bounds() -> Array[int]:
-	var x_min := -(width_sections / 2)
+	var x_min := -floori(width_sections / 2.0)
 	var x_max := x_min + width_sections
-	var z_min := -(length_sections / 2)
+	var z_min := -floori(length_sections / 2.0)
 	var z_max := z_min + length_sections
 	return [x_min, x_max, z_min, z_max]
 
@@ -179,7 +179,7 @@ func _update_lights() -> void:
 
 	for i in range(needed):
 		var col := i % cols
-		var row := i / cols
+		var row := floori(float(i) / cols)
 		var light := lights.get_child(i) as OmniLight3D
 		light.position = Vector3(
 			x_start + zone_w * (col + 0.5),
