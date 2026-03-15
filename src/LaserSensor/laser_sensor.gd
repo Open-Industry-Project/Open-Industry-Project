@@ -45,7 +45,7 @@ var _beam_needs_update: bool = true
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the distance value in the selected tag group.[br]Datatype: REAL (32-bit float)[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. hr0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
+## The tag name for the distance value in the selected tag group.[br]Datatype: [code]REAL[/code] (32-bit float)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
 @export var tag_name: String = ""
 
 

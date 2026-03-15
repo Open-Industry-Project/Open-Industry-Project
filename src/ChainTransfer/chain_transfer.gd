@@ -44,7 +44,7 @@ const BASE_LENGTH: float = 2.0
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.[br]Datatype: REAL (32-bit float)[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. hr0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
+## The tag name for the speed value in the selected tag group.[br]Datatype: [code]REAL[/code] (32-bit float)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
 @export var speed_tag_name: String = ""
 @export var popup_tag_group_name: String
 ## The tag group for reading popup state from external systems.
@@ -52,7 +52,7 @@ const BASE_LENGTH: float = 2.0
 	set(value):
 		popup_tag_group_name = value
 		popup_tag_groups = value
-## The tag name for the popup state in the selected tag group.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
+## The tag name for the popup state in the selected tag group.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
 @export var popup_tag_name: String = ""
 
 var _prev_scale: Vector3 = Vector3.ONE

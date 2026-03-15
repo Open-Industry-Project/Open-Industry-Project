@@ -95,13 +95,13 @@ const VACUUM_CUP_HEIGHT := 0.06
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## Integer value selecting which waypoint to move to (0 = home, 1+ = waypoint by order).[br]Datatype: INT (16-bit integer)[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. hr0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
+## Integer value selecting which waypoint to move to (0 = home, 1+ = waypoint by order).[br]Datatype: [code]INT[/code] (16-bit integer)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
 @export var command_tag: String = ""
-## Rising edge triggers movement to command waypoint.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
+## Rising edge triggers movement to command waypoint.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
 @export var execute_tag: String = ""
-## True when gantry has reached target position.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
+## True when gantry has reached target position.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
 @export var done_tag: String = ""
-## Vacuum gripper control.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
+## Vacuum gripper control.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
 @export var vacuum_tag: String = ""
 
 var _register_tag_ok: bool = false
