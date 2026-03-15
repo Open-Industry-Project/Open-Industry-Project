@@ -18,6 +18,7 @@ const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
 @onready var enable_logging: CheckBox = $Layout/Toolbar/EnableLogging
 @onready var save_comms_button: Button = $"Layout/Toolbar/Save Changes"
 
+
 var tag_groups_data: Array = []
 var last_tag_groups_data: Array = []
 var changes_present := false
@@ -37,6 +38,7 @@ func _ready() -> void:
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
+	OIPComms.comms_error.connect(_on_comms_error)
 
 	if is_instance_valid(save_comms_button):
 		save_comms_button.pressed.connect(_on_save_comms_button_pressed)
@@ -209,6 +211,20 @@ func _on_simulation_started() -> void:
 
 func _on_simulation_ended() -> void:
 	OIPComms.set_sim_running(false)
+
+func _on_comms_error() -> void:
+	_show_comms_error.call_deferred()
+
+func _show_comms_error() -> void:
+	SimulationEvents.stop_simulation()
+	var msg: String = OIPComms.get_comms_error()
+	var dialog := AcceptDialog.new()
+	dialog.title = "OIP Comms Error"
+	dialog.dialog_text = msg
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
 
 func save_settings() -> void:
 	settings_config.set_value("settings", "enable_comms", enable_comms.button_pressed)
