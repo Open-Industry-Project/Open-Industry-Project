@@ -89,7 +89,7 @@ var _material_made_unique: bool = false
 	set(value):
 		pushbutton_tag_group_name = value
 		pushbutton_tag_groups = value
-## The tag name for the button output in the selected tag group.[br]Datatype: BOOL
+## The tag name for the button output in the selected tag group.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var pushbutton_tag_name: String = ""
 @export var lamp_tag_group_name: String
 ## The tag group for reading lamp control signals.
@@ -97,7 +97,7 @@ var _material_made_unique: bool = false
 	set(value):
 		lamp_tag_group_name = value
 		lamp_tag_groups = value
-## The tag name for the lamp control in the selected tag group.[br]Datatype: BOOL
+## The tag name for the lamp control in the selected tag group.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var lamp_tag_name: String = ""
 
 

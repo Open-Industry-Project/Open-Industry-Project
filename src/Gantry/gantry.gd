@@ -95,13 +95,13 @@ const VACUUM_CUP_HEIGHT := 0.06
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## Integer value selecting which waypoint to move to (0 = home, 1+ = waypoint by order).[br]Datatype: INT (16-bit integer)
+## Integer value selecting which waypoint to move to (0 = home, 1+ = waypoint by order).[br]Datatype: INT (16-bit integer)[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. hr0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var command_tag: String = ""
-## Rising edge triggers movement to command waypoint.[br]Datatype: BOOL
+## Rising edge triggers movement to command waypoint.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var execute_tag: String = ""
-## True when gantry has reached target position.[br]Datatype: BOOL
+## True when gantry has reached target position.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var done_tag: String = ""
-## Vacuum gripper control.[br]Datatype: BOOL
+## Vacuum gripper control.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var vacuum_tag: String = ""
 
 var _register_tag_ok: bool = false

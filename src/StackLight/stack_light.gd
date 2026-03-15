@@ -57,7 +57,7 @@ var _tag_groups: String:
 		tag_group_name = value
 		_tag_groups = value
 
-## The tag name for the light value in the selected tag group.[br]Datatype: BYTE (8-bit)
+## The tag name for the light value in the selected tag group.[br]Datatype: BYTE (8-bit)[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. hr0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 var tag_name: String = ""
 
 var _segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")

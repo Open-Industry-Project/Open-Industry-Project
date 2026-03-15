@@ -62,7 +62,7 @@ var _beam_needs_update: bool = true
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the color value in the selected tag group.[br]Datatype: DINT (32-bit integer)
+## The tag name for the color value in the selected tag group.[br]Datatype: DINT (32-bit integer)[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. hr0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var tag_name: String = ""
 
 

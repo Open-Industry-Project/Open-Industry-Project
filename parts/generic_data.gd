@@ -44,7 +44,7 @@ var tag_group_init: bool = false
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name in the selected tag group.[br]Datatype: matches the selected data_type
+## The tag name in the selected tag group.[br]Datatype: matches the selected data_type[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. hr0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var tag_name: String = ""
 @export var setup: bool = false
 

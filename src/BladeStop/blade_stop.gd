@@ -44,7 +44,7 @@ var _tag_group_init: bool = false
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the blade stop state in the selected tag group.[br]Datatype: BOOL
+## The tag name for the blade stop state in the selected tag group.[br]Datatype: BOOL[br]Format varies by protocol: EIP uses CIP tag names, Modbus uses prefix+number (e.g. co0), OPC UA uses only the identifier after the namespace prefix (e.g. MyVariable from ns=2;s=MyVariable, or 12345 from ns=2;i=12345).
 @export var tag_name: String = ""
 
 

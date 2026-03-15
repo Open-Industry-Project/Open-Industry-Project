@@ -98,6 +98,14 @@ Devices typically have these settings: Enable Comms, Tag Group and Tag Name (Dif
 
 ![image](https://github.com/user-attachments/assets/3475dffd-5ba8-4f55-8797-3758e3e5994c)
 
+### Tag Name Format
+
+The Tag Name format depends on the protocol selected for the tag group:
+
+- **EtherNet/IP (`ab_eip`)**: The CIP tag name as defined in the PLC program, e.g. `MyTag`, `Program:MainProgram.MyTag`, `myUDT.field`, `myArray[0]`.
+- **Modbus TCP (`modbus_tcp`)**: A register type prefix followed by the register number. Prefixes: `co` (coil), `di` (discrete input), `hr` (holding register), `ir` (input register). For example: `hr0`, `co21`, `ir64000`.
+- **OPC UA (`opc_ua`)**: Only the identifier after the namespace prefix. The namespace is already specified by the tag group's "Namespace" field. For example, `MyVariable` from `ns=2;s=MyVariable`, or `12345` from `ns=2;i=12345`.
+
 The communication API ([OIPComms](https://github.com/Open-Industry-Project/oip-comms)) is contained within a separate GDextension plugin. Instructions to build and update it are located in its own repository.
 
 ## Importing Models
