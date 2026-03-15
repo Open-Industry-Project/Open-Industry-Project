@@ -15,6 +15,7 @@ const _WALL_TOP := 5
 
 const _ROOF_CURVED := 0
 const _ROOF_STRAIGHT := 1
+const _ROOF_FADE_SHADER: Shader = preload("res://addons/oip_ui/roof_fade.gdshader")
 
 ## Number of wall segments along the building width (each segment is 8 m).
 @export_range(2, 50) var width_sections: int = 8:
@@ -49,6 +50,7 @@ const _ROOF_STRAIGHT := 1
 
 
 func _ready() -> void:
+	_apply_roof_fade_materials()
 	if not Engine.is_editor_hint():
 		_generate_building()
 
@@ -189,3 +191,20 @@ func _update_lights() -> void:
 		light.light_energy = brightness
 		light.omni_range = zone_diag * 1.2
 		light.shadow_enabled = true
+
+
+func _apply_roof_fade_materials() -> void:
+	var lib := roof_grid.mesh_library.duplicate() as MeshLibrary
+	for item_id in lib.get_item_list():
+		var mesh := lib.get_item_mesh(item_id).duplicate()
+		for surface_idx in mesh.get_surface_count():
+			var mat: Material = mesh.surface_get_material(surface_idx)
+			if mat is StandardMaterial3D:
+				var std_mat := mat as StandardMaterial3D
+				var shader_mat := ShaderMaterial.new()
+				shader_mat.shader = _ROOF_FADE_SHADER
+				shader_mat.set_shader_parameter("albedo_texture", std_mat.albedo_texture)
+				shader_mat.set_shader_parameter("roughness", std_mat.roughness)
+				mesh.surface_set_material(surface_idx, shader_mat)
+		lib.set_item_mesh(item_id, mesh)
+	roof_grid.mesh_library = lib

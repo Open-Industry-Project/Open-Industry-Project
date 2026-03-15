@@ -47,8 +47,6 @@ var _empty_margin: Control = Control.new()
 # Create Root Node
 var _create_root_vbox: VBoxContainer
 
-# Perspective Menu
-var _perspective_menu: MenuButton
 
 
 func _enter_tree() -> void:
@@ -126,21 +124,6 @@ func _scene_changed(root: Node) -> void:
 	SimulationEvents.stop_simulation()
 
 
-func _on_id_pressed(id: int) -> void:
-	if get_tree().edited_scene_root == null:
-		return
-
-	var building := get_tree().edited_scene_root.get_node_or_null("Building")
-	if building == null:
-		return
-
-	var roof := building.get_child(2) as GridMap
-	var index := _perspective_menu.get_popup().get_item_index(10)
-	var is_perspective_checked := _perspective_menu.get_popup().is_item_checked(index)
-
-	roof.visible = is_perspective_checked or (id > 0 and id < 8)
-
-
 func _editor_layout_loaded() -> void:
 	_layout_loaded = true
 
@@ -154,7 +137,6 @@ func _editor_layout_loaded() -> void:
 	_renderer_selection = _editor_node.find_child("RendererSelection", true, false)
 
 	_create_root_vbox = _editor_node.find_child("BeginnerNodeShortcuts",true,false)
-	_perspective_menu = _editor_node.find_child("ViewDisplayMenu",true,false)
 	_custom_project_menu = _instantiate_custom_menu(CUSTOM_PROJECT_MENU, 2, "Project")
 	_custom_help_menu = _instantiate_custom_menu(CUSTOM_HELP_MENU, 6, "Help")
 
@@ -190,7 +172,6 @@ func _editor_layout_loaded() -> void:
 
 	EditorInterface.get_editor_settings().set_setting("interface/editor/update_continuously", true)
 
-	_perspective_menu.get_popup().id_pressed.connect(_on_id_pressed)
 	scene_changed.connect(_scene_changed)
 
 	_run_bar._enable_buttons()
