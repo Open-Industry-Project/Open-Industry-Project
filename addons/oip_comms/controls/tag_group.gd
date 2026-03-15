@@ -59,23 +59,21 @@ func _on_Gateway_text_changed(_new_text: String) -> void:
 	_on_text_changed(_new_text)
 
 func _on_Path_text_changed(_new_text: String) -> void:
-	if protocol.text == "opc_ua" and not _new_text.is_valid_int():
-		path.text = ""
-
 	_on_text_changed(_new_text)
 
 func update_protocol(_index: int, from_ready := false) -> void:
 	if _index == 2:  # opc_ua
 		cpu_row.hide()
-		path_label.text = "Namespace"
+		path_label.hide()
+		path.hide()
 		gateway_label.text = "Endpoint"
 
 		if not from_ready:
 			gateway.text = "opc.tcp://localhost:4840"
-			if protocol.text == "opc_ua" and not path.text.is_valid_int():
-				path.text = "1"
 	elif _index == 1:  # modbus_tcp
 		cpu_row.hide()
+		path_label.show()
+		path.show()
 		path_label.text = "Unit ID"
 		gateway_label.text = "Gateway"
 
@@ -84,6 +82,8 @@ func update_protocol(_index: int, from_ready := false) -> void:
 			path.text = "1"
 	else:  # ab_eip
 		cpu_row.show()
+		path_label.show()
+		path.show()
 		path_label.text = "Path"
 		gateway_label.text = "Gateway"
 		cpu.select(max(cpu.selected, 0))

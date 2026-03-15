@@ -97,7 +97,7 @@ When changing the Protocol to `opc_ua`, the options change to reflect the connec
 
 ![image](https://github.com/user-attachments/assets/381969f0-d8e4-4033-93e4-88dc77920f69)
 
-The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server. The "Namespace" is typically 1 unless otherwise specified by the OPC UA server.
+The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server.
 
 Devices typically have these settings: Enable Comms, Tag Group, and Tag Name (Diffuse Sensor shown).
 
@@ -109,7 +109,7 @@ The Tag Name format depends on the protocol selected for the tag group:
 
 - **EtherNet/IP (`ab_eip`)**: The CIP tag name as defined in the PLC program, e.g. `MyTag`, `Program:MainProgram.MyTag`, `myUDT.field`, `myArray[0]`.
 - **Modbus TCP (`modbus_tcp`)**: A register type prefix followed by the register number. Prefixes: `co` (coil), `di` (discrete input), `hr` (holding register), `ir` (input register). For example: `hr0`, `co21`, `ir64000`.
-- **OPC UA (`opc_ua`)**: Only the identifier after the namespace prefix. The namespace is already specified by the tag group's "Namespace" field. For example, `MyVariable` from `ns=2;s=MyVariable`, or `12345` from `ns=2;i=12345`.
+- **OPC UA (`opc_ua`)**: The full NodeId. For example, `ns=2;s=MyVariable` or `ns=2;i=12345`.
 
 The communication API ([OIPComms](https://github.com/Open-Industry-Project/oip-comms)) is contained within a separate GDExtension plugin. Instructions to build and update it are located in its own repository.
 

@@ -44,7 +44,7 @@ var tag_group_init: bool = false
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name in the selected tag group.[br]Datatype: matches the selected [code]data_type[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] identifier after the namespace prefix (e.g. [code]MyVariable[/code] from [code]ns=2;s=MyVariable[/code], or [code]12345[/code] from [code]ns=2;i=12345[/code]).
+## The tag name in the selected tag group.[br]Datatype: matches the selected [code]data_type[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var tag_name: String = ""
 @export var setup: bool = false
 
