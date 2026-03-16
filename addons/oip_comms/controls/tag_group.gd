@@ -16,6 +16,7 @@ var save_data := {}
 @onready var cpu_row: HBoxContainer = $Row2/CPURow
 @onready var path_label: Label = $Row2/PathLabel
 @onready var gateway_label: Label = $Row2/GatewayLabel
+@onready var browse_opc_ua: Button = $Row2/BrowseOpcUa
 
 var loading_complete := false
 
@@ -66,12 +67,14 @@ func update_protocol(_index: int, from_ready := false) -> void:
 		cpu_row.hide()
 		path_label.hide()
 		path.hide()
+		browse_opc_ua.show()
 		gateway_label.text = "Endpoint"
 
 		if not from_ready:
 			gateway.text = "opc.tcp://localhost:4840"
 	elif _index == 1:  # modbus_tcp
 		cpu_row.hide()
+		browse_opc_ua.hide()
 		path_label.show()
 		path.show()
 		path_label.text = "Unit ID"
@@ -82,6 +85,7 @@ func update_protocol(_index: int, from_ready := false) -> void:
 			path.text = "1"
 	else:  # ab_eip
 		cpu_row.show()
+		browse_opc_ua.hide()
 		path_label.show()
 		path.show()
 		path_label.text = "Path"
@@ -102,3 +106,13 @@ func _on_value_changed(_value: float) -> void:
 	if loading_complete:
 		save()
 		tag_group_save.emit(self)
+
+func _on_browse_opc_ua_pressed() -> void:
+	if not Engine.has_meta("opc_ua_browser_dock"):
+		push_warning("OPC UA Browser dock not found. Enable the OPC UA Browser plugin.")
+		return
+	var dock: EditorDock = Engine.get_meta("opc_ua_browser_dock")
+	dock.make_visible()
+	if Engine.has_meta("opc_ua_browser_content"):
+		var browser = Engine.get_meta("opc_ua_browser_content")
+		browser.connect_to_endpoint(gateway.text.strip_edges())
