@@ -1,7 +1,8 @@
 @tool
 extends VBoxContainer
 
-@onready var endpoint_label: Label = $EndpointPanel/EndpointLabel
+@onready var endpoint_label: Label = $EndpointPanel/EndpointHBox/EndpointLabel
+@onready var refresh_button: Button = $EndpointPanel/EndpointHBox/RefreshButton
 @onready var browse_tree: Tree = $BrowseTree
 @onready var details_label: RichTextLabel = $NodeDetails/DetailsLabel
 @onready var copy_button: Button = $CopyButton
@@ -12,6 +13,10 @@ var current_endpoint := ""
 
 func _ready() -> void:
 	copy_button.pressed.connect(_on_copy_pressed)
+	refresh_button.pressed.connect(_on_refresh_pressed)
+	var editor_base := EditorInterface.get_base_control()
+	if editor_base:
+		refresh_button.icon = editor_base.get_theme_icon("Reload", "EditorIcons")
 	browse_tree.item_collapsed.connect(_on_item_collapsed)
 	browse_tree.item_selected.connect(_on_item_selected)
 	browse_tree.columns = 1
@@ -129,6 +134,11 @@ func _on_item_selected() -> void:
 		text += "[b]Desc:[/b] " + desc_str
 
 	details_label.text = text
+
+func _on_refresh_pressed() -> void:
+	if not connected:
+		return
+	_load_root()
 
 func _on_copy_pressed() -> void:
 	var selected := browse_tree.get_selected()
