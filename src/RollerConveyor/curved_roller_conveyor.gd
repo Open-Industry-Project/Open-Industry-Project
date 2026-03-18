@@ -28,20 +28,8 @@ const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShader.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var conveyor_width: float = 1.524:
 	set(value):
 		conveyor_width = value
-		# Update size.x when conveyor_width changes, but only if the value is valid and we're initialized
 		if value > 0.0 and is_inside_tree():
 			size = Vector3(value, size.y, size.z)
-
-## Linear speed at the reference distance in meters per second.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 0.0:
-	set(value):
-		speed = value
-		_recalculate_speeds()
-		if _running_tag.is_ready():
-			_running_tag.write_bit(value != 0.0)
-
-## Distance from outer edge where speed value applies (for angular speed calc).
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = SIZE_DEFAULT.x/2
 
 ## Angle of the curved section in degrees (10-90).
 @export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
@@ -54,6 +42,23 @@ const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShader.
 		_update_end_axis_angle()
 		_update_side_guards()
 		_update_assembly_components()
+
+## When true, reverses the roller direction.
+@export var reverse: bool = false:
+	set(value):
+		reverse = value
+		_recalculate_speeds()
+
+## Linear speed at the reference distance in meters per second.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 0.0:
+	set(value):
+		speed = value
+		_recalculate_speeds()
+		if _running_tag.is_ready():
+			_running_tag.write_bit(value != 0.0)
+
+## Distance from outer edge where speed value applies (for angular speed calc).
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = SIZE_DEFAULT.x/2
 
 
 var _speed_tag := OIPCommsTag.new()
@@ -204,7 +209,8 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	if running:
-		var uv_speed = speed / (2.0 * PI)
+		var effective_speed := speed * (-1.0 if reverse else 1.0)
+		var uv_speed = effective_speed / (2.0 * PI)
 		var uv_offset = roller_material.uv1_offset
 		if !SimulationEvents.simulation_paused:
 			uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
@@ -216,6 +222,7 @@ func _physics_process(delta: float) -> void:
 		var velocity = -local_up * _angular_speed
 		_sb.constant_angular_velocity = velocity
 
+		var effective_speed := speed * (-1.0 if reverse else 1.0)
 		var angle_radians = deg_to_rad(conveyor_angle)
 		for static_body in _end_static_bodies:
 			var velocity_dir: Vector3
@@ -225,7 +232,7 @@ func _physics_process(delta: float) -> void:
 			else:
 				var local_dir = Vector3(-1, 0, 0)
 				velocity_dir = global_transform.basis * local_dir
-			static_body.constant_linear_velocity = velocity_dir * speed
+			static_body.constant_linear_velocity = velocity_dir * effective_speed
 	else:
 		if _sb:
 			_sb.constant_angular_velocity = Vector3.ZERO
@@ -302,8 +309,10 @@ func takeover_roller_material() -> StandardMaterial3D:
 	return dup_material
 
 func _recalculate_speeds() -> void:
+	var direction := -1.0 if reverse else 1.0
+	var effective_speed := speed * direction
 	var reference_radius: float = size.x * BASE_OUTER_RADIUS - reference_distance
-	_angular_speed = 0.0 if reference_radius == 0.0 else speed / reference_radius
+	_angular_speed = 0.0 if reference_radius == 0.0 else effective_speed / reference_radius
 
 func _on_simulation_started() -> void:
 	running = true
