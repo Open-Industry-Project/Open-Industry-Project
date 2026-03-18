@@ -108,8 +108,10 @@ const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 ## Vacuum gripper control.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var vacuum_tag: String = ""
 
-var _register_tag_ok: bool = false
-var _tag_group_init: bool = false
+var _command_tag := OIPCommsTag.new()
+var _execute_tag := OIPCommsTag.new()
+var _done_tag := OIPCommsTag.new()
+var _vacuum_tag := OIPCommsTag.new()
 var _last_execute: bool = false
 
 var _base_pivot: Node3D
@@ -144,22 +146,14 @@ var _solving_ik: bool = false
 
 
 func _enter_tree() -> void:
-	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		tag_group_name = OIPComms.get_tag_groups()[0]
-
+	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	_setup_node_references()
-	
+
 	if not SimulationEvents.simulation_started.is_connected(_on_simulation_started):
 		SimulationEvents.simulation_started.connect(_on_simulation_started)
 	if not SimulationEvents.simulation_ended.is_connected(_on_simulation_ended):
 		SimulationEvents.simulation_ended.connect(_on_simulation_ended)
-	if OIPComms:
-		if not OIPComms.tag_group_initialized.is_connected(_tag_group_initialized):
-			OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-		if not OIPComms.tag_group_polled.is_connected(_tag_group_polled):
-			OIPComms.tag_group_polled.connect(_tag_group_polled)
-		if not OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
-			OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
@@ -167,13 +161,7 @@ func _exit_tree() -> void:
 		SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	if SimulationEvents.simulation_ended.is_connected(_on_simulation_ended):
 		SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
-	if OIPComms:
-		if OIPComms.tag_group_initialized.is_connected(_tag_group_initialized):
-			OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-		if OIPComms.tag_group_polled.is_connected(_tag_group_polled):
-			OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-		if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
-			OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _ready() -> void:
@@ -251,19 +239,10 @@ func _validate_property(property: Dictionary) -> void:
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(waypoints.keys()) if waypoints.size() > 0 else "(no waypoints)"
 	
-	if not OIPComms:
+	if OIPCommsSetup.validate_tag_property(property):
 		return
-	
-	var global_comms := OIPComms.get_enable_comms()
-	
-	if property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if global_comms else PROPERTY_USAGE_STORAGE
-	elif property.name == "tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if global_comms else PROPERTY_USAGE_NONE
-	elif property.name in ["command_tag", "execute_tag", "done_tag", "vacuum_tag"]:
-		property.usage = PROPERTY_USAGE_DEFAULT if global_comms else PROPERTY_USAGE_STORAGE
+	if property.name in ["command_tag", "execute_tag", "done_tag", "vacuum_tag"]:
+		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
 
 
@@ -680,57 +659,53 @@ func _on_simulation_ended() -> void:
 func _on_simulation_started() -> void:
 	if not enable_comms or tag_group_name.is_empty():
 		return
-	
-	_register_tag_ok = true
+
 	_last_execute = false
-	
+
 	if not command_tag.is_empty():
-		_register_tag_ok = _register_tag_ok and OIPComms.register_tag(tag_group_name, command_tag, 1)
+		_command_tag.register(tag_group_name, command_tag)
 	if not execute_tag.is_empty():
-		_register_tag_ok = _register_tag_ok and OIPComms.register_tag(tag_group_name, execute_tag, 1)
+		_execute_tag.register(tag_group_name, execute_tag)
 	if not done_tag.is_empty():
-		_register_tag_ok = _register_tag_ok and OIPComms.register_tag(tag_group_name, done_tag, 1)
+		_done_tag.register(tag_group_name, done_tag)
 	if not vacuum_tag.is_empty():
-		_register_tag_ok = _register_tag_ok and OIPComms.register_tag(tag_group_name, vacuum_tag, 1)
+		_vacuum_tag.register(tag_group_name, vacuum_tag)
 
 
 func _tag_group_initialized(group_name: String) -> void:
-	if group_name == tag_group_name:
-		_tag_group_init = true
-		_write_status_tags()
+	_command_tag.on_group_initialized(group_name)
+	_execute_tag.on_group_initialized(group_name)
+	_done_tag.on_group_initialized(group_name)
+	_vacuum_tag.on_group_initialized(group_name)
+	_write_status_tags()
 
 
 func _tag_group_polled(group_name: String) -> void:
-	if not _tag_group_init or not _register_tag_ok:
-		return
 	if group_name != tag_group_name:
 		return
-	
-	# Read vacuum control
-	if not vacuum_tag.is_empty():
-		vacuum_on = OIPComms.read_bit(tag_group_name, vacuum_tag)
-	
-	# Read execute signal and detect rising edge
-	if not execute_tag.is_empty():
-		var execute := OIPComms.read_bit(tag_group_name, execute_tag)
+
+	if _vacuum_tag.is_ready():
+		vacuum_on = _vacuum_tag.read_bit()
+
+	if _execute_tag.is_ready():
+		var execute := _execute_tag.read_bit()
 		var rising_edge := execute and not _last_execute
 		_last_execute = execute
-		
+
 		if rising_edge and not _is_moving:
 			_execute_command()
-	
-	# Write status back to PLC
+
 	_write_status_tags()
 
 
 func _execute_command() -> void:
-	if command_tag.is_empty():
+	if not _command_tag.is_ready():
 		return
-	
-	var cmd: int = OIPComms.read_int16(tag_group_name, command_tag)
+
+	var cmd: int = _command_tag.read_int16()
 	if cmd == null:
 		return
-	
+
 	if cmd == 0:
 		move_to_home()
 	elif cmd > 0:
@@ -743,5 +718,5 @@ func _execute_command() -> void:
 
 
 func _write_status_tags() -> void:
-	if not done_tag.is_empty():
-		OIPComms.write_bit(tag_group_name, done_tag, not _is_moving)
+	if _done_tag.is_ready():
+		_done_tag.write_bit(not _is_moving)

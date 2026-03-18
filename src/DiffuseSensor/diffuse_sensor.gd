@@ -32,8 +32,8 @@ extends Node3D
 ## Final output signal after applying normally_closed logic (read-only).
 @export var output: bool = false:
 	set(value):
-		if _register_tag_ok and _tag_group_init and value != output:
-			OIPComms.write_bit(tag_group_name, tag_name, value)
+		if _tag.is_ready() and value != output:
+			_tag.write_bit(value)
 		output = value
 
 var _mesh: ImmediateMesh
@@ -41,8 +41,7 @@ static var _beam_material: StandardMaterial3D = preload("uid://ntmcfd25jgpm")
 var _instance: RID
 var _scenario: RID
 var _ray_query: PhysicsRayQueryParameters3D
-var _register_tag_ok: bool = false
-var _tag_group_init: bool = false
+var _tag := OIPCommsTag.new()
 var _last_result_distance: float = -1.0
 var _last_beam_color: Color = Color.TRANSPARENT
 var _last_has_detection: bool = false
@@ -67,14 +66,8 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 	elif property.name == "output":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-	elif property.name == "tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
+	else:
+		OIPCommsSetup.validate_tag_property(property)
 
 
 func _enter_tree() -> void:
@@ -90,18 +83,15 @@ func _enter_tree() -> void:
 	_ray_query = PhysicsRayQueryParameters3D.new()
 	_ray_query.collision_mask = 8
 
-	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		tag_group_name = OIPComms.get_tag_groups()[0]
+	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized)
 
 
 func _exit_tree() -> void:
 	RenderingServer.free_rid(_instance)
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized)
 
 
 func _physics_process(_delta: float) -> void:
@@ -164,11 +154,9 @@ func _update_output() -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_register_tag_ok = OIPComms.register_tag(tag_group_name, tag_name, 1)
+		_tag.register(tag_group_name, tag_name)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
-	if tag_group_name_param == tag_group_name:
-		_tag_group_init = true
-		if _register_tag_ok:
-			OIPComms.write_bit(tag_group_name, tag_name, output)
+	if _tag.on_group_initialized(tag_group_name_param):
+		_tag.write_bit(output)

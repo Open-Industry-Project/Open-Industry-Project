@@ -56,10 +56,8 @@ const BASE_LENGTH: float = 2.0
 @export var popup_tag_name: String = ""
 
 var _prev_scale: Vector3 = Vector3.ONE
-var _register_speed_tag_ok: bool = false
-var _register_running_tag_ok: bool = false
-var _speed_tag_group_init: bool = false
-var _popup_tag_group_init: bool = false
+var _speed_tag := OIPCommsTag.new()
+var _popup_tag := OIPCommsTag.new()
 var _chain_transfer_base_scene: PackedScene = load("res://src/ChainTransfer/Base.tscn")
 
 @onready var chain_transfer_bases: ChainTransferBases = $ChainBases
@@ -83,38 +81,19 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.tag_group_polled.connect(_tag_group_polled)
-
-	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		speed_tag_group_name = OIPComms.get_tag_groups()[0]
-	if popup_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		popup_tag_group_name = OIPComms.get_tag_groups()[0]
-
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
+	popup_tag_group_name = OIPCommsSetup.default_tag_group(popup_tag_group_name)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "speed_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "speed_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "speed_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "popup_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "popup_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "popup_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
+	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
+		return
+	OIPCommsSetup.validate_tag_property(property, "popup_tag_group_name", "popup_tag_groups", "popup_tag_name")
 
 func use() -> void:
 	popup_chains = not popup_chains
@@ -173,8 +152,8 @@ func _on_simulation_started() -> void:
 	_set_chain_speed(speed)
 
 	if enable_comms:
-		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
-		_register_running_tag_ok = OIPComms.register_tag(popup_tag_group_name, popup_tag_name, 1)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name)
+		_popup_tag.register(popup_tag_group_name, popup_tag_name)
 
 func _on_simulation_ended() -> void:
 	_turn_off_chains()
@@ -218,16 +197,14 @@ func _update_simple_shape() -> void:
 		simple_conveyor_shape.size = Vector3(BASE_LENGTH + 0.25 / scale.x, 0.2, (chains - 1) * distance + 0.042 * 2.0)
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
-	if tag_group_name_param == speed_tag_group_name:
-		_speed_tag_group_init = true
-	if tag_group_name_param == popup_tag_group_name:
-		_popup_tag_group_init = true
+	_speed_tag.on_group_initialized(tag_group_name_param)
+	_popup_tag.on_group_initialized(tag_group_name_param)
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
 
-	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
-		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
-	if tag_group_name_param == popup_tag_group_name and _popup_tag_group_init:
-		popup_chains = OIPComms.read_bit(popup_tag_groups, popup_tag_name)
+	if _speed_tag.matches_group(tag_group_name_param):
+		speed = _speed_tag.read_float32()
+	if _popup_tag.matches_group(tag_group_name_param):
+		popup_chains = _popup_tag.read_bit()

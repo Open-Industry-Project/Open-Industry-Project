@@ -43,8 +43,8 @@ extends Node3D
 ## Final output signal after applying normally_closed logic (read-only).
 @export var output: bool = false:
 	set(value):
-		if _register_pushbutton_tag_ok and _tag_group_init and value != output:
-			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, value)
+		if _pushbutton_tag.is_ready() and value != output:
+			_pushbutton_tag.write_bit(value)
 		output = value
 
 ## When true, the button illuminates (lamp indicator).
@@ -70,11 +70,8 @@ extends Node3D
 			mat.emission = value
 
 var _button_pressed_z_pos: float = -0.04
-var _register_pushbutton_tag_ok: bool = false
-var _register_lamp_tag_ok: bool = false
-var _pushbutton_tag_group_init: bool = false
-var _lamp_tag_group_init: bool = false
-var _tag_group_init: bool = false
+var _pushbutton_tag := OIPCommsTag.new()
+var _lamp_tag := OIPCommsTag.new()
 var _material_made_unique: bool = false
 
 @onready var _text: Label3D = $Text
@@ -102,34 +99,17 @@ var _material_made_unique: bool = false
 
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "output":
+	if property.name == "output":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-	elif property.name == "pushbutton_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "pushbutton_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "pushbutton_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "lamp_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "lamp_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "lamp_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
+	elif not OIPCommsSetup.validate_tag_property(property, "pushbutton_tag_group_name", "pushbutton_tag_groups", "pushbutton_tag_name"):
+		OIPCommsSetup.validate_tag_property(property, "lamp_tag_group_name", "lamp_tag_groups", "lamp_tag_name")
 
 
 func _enter_tree() -> void:
-	if pushbutton_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		pushbutton_tag_group_name = OIPComms.get_tag_groups()[0]
-	if lamp_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		lamp_tag_group_name = OIPComms.get_tag_groups()[0]
-
+	pushbutton_tag_group_name = OIPCommsSetup.default_tag_group(pushbutton_tag_group_name)
+	lamp_tag_group_name = OIPCommsSetup.default_tag_group(lamp_tag_group_name)
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _ready() -> void:
@@ -155,9 +135,7 @@ func _ensure_unique_material() -> void:
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func use() -> void:
@@ -178,23 +156,19 @@ func _update_output() -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_register_pushbutton_tag_ok = OIPComms.register_tag(pushbutton_tag_group_name, pushbutton_tag_name, 1)
-		_register_lamp_tag_ok = OIPComms.register_tag(lamp_tag_group_name, lamp_tag_name, 1)
+		_pushbutton_tag.register(pushbutton_tag_group_name, pushbutton_tag_name)
+		_lamp_tag.register(lamp_tag_group_name, lamp_tag_name)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
-	if tag_group_name_param == pushbutton_tag_group_name:
-		_pushbutton_tag_group_init = true
-		_tag_group_init = true
-		if _register_pushbutton_tag_ok:
-			OIPComms.write_bit(pushbutton_tag_group_name, pushbutton_tag_name, output)
-	if tag_group_name_param == lamp_tag_group_name:
-		_lamp_tag_group_init = true
+	if _pushbutton_tag.on_group_initialized(tag_group_name_param):
+		_pushbutton_tag.write_bit(output)
+	_lamp_tag.on_group_initialized(tag_group_name_param)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
-		
-	if tag_group_name_param == lamp_tag_group_name:
-		lamp = OIPComms.read_bit(lamp_tag_group_name, lamp_tag_name)
+
+	if _lamp_tag.matches_group(tag_group_name_param):
+		lamp = _lamp_tag.read_bit()

@@ -18,8 +18,7 @@ var _fire_divert: bool = false:
 var _cycled: bool = true
 var _diverting: bool = false
 var _previous_fire_divert_state: bool = false
-var _register_tag_ok: bool = false
-var _tag_group_init: bool = false
+var _tag := OIPCommsTag.new()
 @onready var _diverter_animator: DiverterAnimator = $DiverterAnimator
 
 @export_category("Communications")
@@ -35,28 +34,16 @@ var _tag_group_init: bool = false
 @export var tag_name: String = ""
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
+	OIPCommsSetup.validate_tag_property(property)
 
 func _enter_tree() -> void:
-	if tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		tag_group_name = OIPComms.get_tag_groups()[0]
+	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func use() -> void:
 	divert()
@@ -78,15 +65,13 @@ func _physics_process(delta: float) -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_register_tag_ok = OIPComms.register_tag(tag_group_name, tag_name, 1)
+		_tag.register(tag_group_name, tag_name)
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
-	if tag_group_name_param == tag_group_name:
-		_tag_group_init = true
-		if _register_tag_ok:
-			OIPComms.write_bit(tag_group_name, tag_name, _fire_divert)
+	if _tag.on_group_initialized(tag_group_name_param):
+		_tag.write_bit(_fire_divert)
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
-	if not enable_comms:
+	if not enable_comms or not _tag.matches_group(tag_group_name_param):
 		return
-	_fire_divert = OIPComms.read_bit(tag_group_name, tag_name)
+	_fire_divert = _tag.read_bit()

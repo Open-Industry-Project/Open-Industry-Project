@@ -7,7 +7,7 @@ func _enter_tree() -> void:
 	var content := preload("res://addons/opc_ua_browser/browser_dock.tscn").instantiate()
 	_editor_dock = EditorDock.new()
 	_editor_dock.title = "OPC UA Browser"
-	_editor_dock.default_slot = EditorDock.DOCK_SLOT_RIGHT_UL
+	_editor_dock.default_slot = EditorDock.DOCK_SLOT_LEFT_BR
 	_editor_dock.available_layouts = EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
 	_editor_dock.add_child(content)
 	add_dock(_editor_dock)

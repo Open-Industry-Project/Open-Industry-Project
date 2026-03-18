@@ -37,8 +37,8 @@ const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShader.
 	set(value):
 		speed = value
 		_recalculate_speeds()
-		if _register_running_tag_ok and _running_tag_group_init:
-			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
+		if _running_tag.is_ready():
+			_running_tag.write_bit(value != 0.0)
 
 ## Distance from outer edge where speed value applies (for angular speed calc).
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = SIZE_DEFAULT.x/2
@@ -56,10 +56,8 @@ const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShader.
 		_update_assembly_components()
 
 
-var _register_speed_tag_ok: bool = false
-var _register_running_tag_ok: bool = false
-var _speed_tag_group_init: bool = false
-var _running_tag_group_init: bool = false
+var _speed_tag := OIPCommsTag.new()
+var _running_tag := OIPCommsTag.new()
 
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.
@@ -86,20 +84,8 @@ var _running_tag_group_init: bool = false
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "size":
 		property.usage = PROPERTY_USAGE_NONE
-	elif property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "speed_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "speed_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "speed_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "running_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "running_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "running_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
+	elif not OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
+		OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
 
 var current_scale = Scales.MID
 var run: bool = true
@@ -243,16 +229,12 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	SimulationEvents.simulation_started.connect(_on_simulation_started)
 	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(self.notify_property_list_changed)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _exit_tree() -> void:
 	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
 	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
-	OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	OIPComms.enable_comms_changed.disconnect(self.notify_property_list_changed)
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 
 func _process(delta: float) -> void:
@@ -361,24 +343,22 @@ func _recalculate_speeds() -> void:
 func _on_simulation_started() -> void:
 	running = true
 	if enable_comms:
-		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
-		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name)
+		_running_tag.register(running_tag_group_name, running_tag_name)
 
 func _on_simulation_ended() -> void:
 	running = false
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
-	if tag_group_name_param == speed_tag_group_name:
-		_speed_tag_group_init = true
-	if tag_group_name_param == running_tag_group_name:
-		_running_tag_group_init = true
+	_speed_tag.on_group_initialized(tag_group_name_param)
+	_running_tag.on_group_initialized(tag_group_name_param)
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
 
-	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
-		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
+	if _speed_tag.matches_group(tag_group_name_param):
+		speed = _speed_tag.read_float32()
 
 func _setup_materials() -> void:
 	if not shader_material:

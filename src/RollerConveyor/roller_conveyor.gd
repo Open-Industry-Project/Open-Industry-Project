@@ -19,8 +19,8 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 		speed_changed.emit(value)
 		_update_conveyor_velocity()
 
-		if _register_running_tag_ok and _running_tag_group_init:
-			OIPComms.write_bit(running_tag_group_name, running_tag_name, value != 0.0)
+		if _running_tag.is_ready():
+			_running_tag.write_bit(value != 0.0)
 
 ## Angle of roller skew for angled product movement (-60 to 60 degrees).
 @export_range(-60, 60, 1, "degrees") var skew_angle: float = 0.0:
@@ -55,10 +55,8 @@ var running: bool = false:
 		running = value
 		set_physics_process(running)
 
-var _register_speed_tag_ok: bool = false
-var _register_running_tag_ok: bool = false
-var _speed_tag_group_init: bool = false
-var _running_tag_group_init: bool = false
+var _speed_tag := OIPCommsTag.new()
+var _running_tag := OIPCommsTag.new()
 var _last_size: Vector3 = Vector3(1.525, 0.24, 1.524)
 var _last_length: float = 1.525
 var _last_width: float = 1.524
@@ -77,35 +75,20 @@ func _init() -> void:
 func _enter_tree() -> void:
 	super._enter_tree()
 
-	if speed_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		speed_tag_group_name = OIPComms.get_tag_groups()[0]
-	if running_tag_group_name.is_empty() and OIPComms.get_tag_groups().size() > 0:
-		running_tag_group_name = OIPComms.get_tag_groups()[0]
+	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
+	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
 	if SimulationEvents:
 		SimulationEvents.simulation_started.connect(_on_simulation_started)
 		SimulationEvents.simulation_ended.connect(_on_simulation_ended)
 		running = SimulationEvents.simulation_running
 
-	OIPComms.tag_group_initialized.connect(_tag_group_initialized)
-	OIPComms.tag_group_polled.connect(_tag_group_polled)
-	OIPComms.enable_comms_changed.connect(notify_property_list_changed)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "enable_comms":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "speed_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "speed_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "speed_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property.name == "running_tag_group_name":
-		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name == "running_tag_groups":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property.name == "running_tag_name":
-		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
+	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
+		return
+	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
 
 
 func _exit_tree() -> void:
@@ -115,12 +98,7 @@ func _exit_tree() -> void:
 		if SimulationEvents.simulation_ended.is_connected(_on_simulation_ended):
 			SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
 
-	if OIPComms.tag_group_initialized.is_connected(_tag_group_initialized):
-		OIPComms.tag_group_initialized.disconnect(_tag_group_initialized)
-	if OIPComms.tag_group_polled.is_connected(_tag_group_polled):
-		OIPComms.tag_group_polled.disconnect(_tag_group_polled)
-	if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
-		OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 	super._exit_tree()
 
@@ -327,8 +305,8 @@ func _on_simulation_started() -> void:
 	running = true
 	_update_conveyor_velocity()
 	if enable_comms:
-		_register_speed_tag_ok = OIPComms.register_tag(speed_tag_group_name, speed_tag_name, 1)
-		_register_running_tag_ok = OIPComms.register_tag(running_tag_group_name, running_tag_name, 1)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name)
+		_running_tag.register(running_tag_group_name, running_tag_name)
 
 
 func _on_simulation_ended() -> void:
@@ -337,15 +315,13 @@ func _on_simulation_ended() -> void:
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
-	if tag_group_name_param == speed_tag_group_name:
-		_speed_tag_group_init = true
-	if tag_group_name_param == running_tag_group_name:
-		_running_tag_group_init = true
+	_speed_tag.on_group_initialized(tag_group_name_param)
+	_running_tag.on_group_initialized(tag_group_name_param)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
 
-	if tag_group_name_param == speed_tag_group_name and _speed_tag_group_init:
-		speed = OIPComms.read_float32(speed_tag_group_name, speed_tag_name)
+	if _speed_tag.matches_group(tag_group_name_param):
+		speed = _speed_tag.read_float32()
