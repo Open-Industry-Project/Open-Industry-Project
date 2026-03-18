@@ -88,11 +88,9 @@ func _validate_property(property: Dictionary) -> void:
 		OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
 
 var current_scale = Scales.MID
-var run: bool = true
 var running: bool = false
 
 var _mesh_regeneration_needed: bool = true
-var _last_conveyor_angle: float = 90.0
 var _last_size: Vector3 = Vector3.ZERO
 
 var mesh_instance: MeshInstance3D
@@ -102,7 +100,6 @@ var rollers_mid: Node3D
 var rollers_high: Node3D
 var roller_material: StandardMaterial3D
 var ends: Node3D
-var prev_scale_x: float
 const BASE_INNER_RADIUS: float = 0.25
 const BASE_OUTER_RADIUS: float = 1.25
 
@@ -111,12 +108,8 @@ var inner_shader_material: ShaderMaterial = null
 var outer_mesh: MeshInstance3D = null
 var inner_mesh: MeshInstance3D = null
 var _angular_speed: float = 0.0
-var _linear_speed: float = 0.0
 var _sb: StaticBody3D = null
 
-func _init() -> void:
-	pass
-	
 var outer_radius: float:
 	get:
 		return size.x * CURVE_BASE_OUTER_RADIUS
@@ -139,34 +132,6 @@ func get_enable_comms() -> bool:
 func set_enable_comms(value: bool) -> void:
 	enable_comms = value
 	notify_property_list_changed()
-
-func get_speed() -> float:
-	return speed
-
-func set_speed(value: float) -> void:
-	if value == speed:
-		return
-	speed = value
-	_recalculate_speeds()
-
-func get_reference_distance() -> float:
-	return reference_distance
-
-func set_reference_distance(value: float) -> void:
-	reference_distance = value
-	_recalculate_speeds()
-
-# Computed properties
-func get_angular_speed_around_curve() -> float:
-	var reference_radius = outer_radius - reference_distance
-	return 0.0 if reference_radius == 0.0 else speed / reference_radius
-
-func get_roller_angular_speed() -> float:
-	if size.x == 0.0:
-		return 0.0
-	var reference_point_along_roller = BASE_ROLLER_LENGTH - reference_distance
-	var roller_radius_at_reference_point = ROLLER_INNER_END_RADIUS + reference_point_along_roller * (ROLLER_OUTER_END_RADIUS - ROLLER_INNER_END_RADIUS) / BASE_ROLLER_LENGTH
-	return 0.0 if roller_radius_at_reference_point == 0.0 else speed / roller_radius_at_reference_point
 
 func _ready() -> void:
 	if conveyor_width > 0.0:
@@ -442,7 +407,6 @@ func _update_mesh() -> void:
 		_create_inner_mesh()
 		_create_end_collision_shapes()
 		_mesh_regeneration_needed = false
-		_last_conveyor_angle = conveyor_angle
 		_last_size = size
 
 	var angle_proportion = conveyor_angle / 90.0

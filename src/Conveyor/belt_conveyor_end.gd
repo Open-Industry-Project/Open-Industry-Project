@@ -37,7 +37,6 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	_setup_references()
 	_setup_materials()
 	_on_size_changed()
 	_update_belt_velocity()
@@ -83,20 +82,15 @@ func update_belt_texture(is_standard_texture: bool) -> void:
 		fix_material_overrides()
 
 
-func _setup_references() -> void:
-	_belt_material = _mesh.mesh.surface_get_material(0) as ShaderMaterial
-	_metal_material = _mesh.mesh.surface_get_material(1) as ShaderMaterial
-	
-	var collision_shape = _static_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
-	if collision_shape and collision_shape.shape:
-		collision_shape.shape = collision_shape.shape.duplicate()
-
-
 func _setup_materials() -> void:
 	_belt_material = _mesh.mesh.surface_get_material(0).duplicate() as ShaderMaterial
 	_metal_material = _mesh.mesh.surface_get_material(1).duplicate() as ShaderMaterial
 	_mesh.set_surface_override_material(0, _belt_material)
 	_mesh.set_surface_override_material(1, _metal_material)
+
+	var collision_shape = _static_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if collision_shape and collision_shape.shape:
+		collision_shape.shape = collision_shape.shape.duplicate()
 
 
 func _update_belt_material_scale() -> void:

@@ -129,14 +129,11 @@ func _update_calculated_size() -> void:
 		if sb_end2:
 			sb_end2.physics_material_override = value
 
-var mesh: MeshInstance3D
 var _belt_material: Material
 var _metal_material: Material
 var belt_position: float = 0.0
-var origin: Vector3
 var _angular_speed: float = 0.0
 var _linear_speed: float = 0.0
-var _prev_scale_x: float = 1.0
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var curved_mesh: MeshInstance3D = $MeshInstance3D
@@ -144,7 +141,6 @@ var _prev_scale_x: float = 1.0
 @onready var _conveyor_end2: Node = get_node_or_null("BeltConveyorEnd2")
 
 var _mesh_regeneration_needed: bool = true
-var _last_conveyor_angle: float = 90.0
 var _last_size: Vector3 = Vector3.ZERO
 
 var _speed_tag := OIPCommsTag.new()
@@ -210,8 +206,6 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	origin = _sb.position
-
 	var collision_shape = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if collision_shape and collision_shape.shape:
 		collision_shape.shape = collision_shape.shape.duplicate()
@@ -266,7 +260,6 @@ func _ready() -> void:
 		if sb2:
 			sb2.physics_material_override = _sb.physics_material_override
 
-	_prev_scale_x = scale.x
 	_mesh_regeneration_needed = true
 	update_visible_meshes()
 	_update_belt_material_scale()
@@ -346,7 +339,6 @@ func update_visible_meshes() -> void:
 		_create_conveyor_mesh()
 		_setup_collision_shape()
 		_mesh_regeneration_needed = false
-		_last_conveyor_angle = conveyor_angle
 		_last_size = size
 
 

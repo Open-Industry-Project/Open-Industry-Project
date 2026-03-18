@@ -64,8 +64,6 @@ var _metal_material: Material
 var _belt_position: float = 0.0
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
-var _original_collision_layer: int = 1
-var _original_collision_mask: int = 1
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.
 @export var enable_comms: bool = false
@@ -121,7 +119,6 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	_setup_references()
 	_setup_materials()
 	_setup_collision_shape()
 	_update_material_texture()
@@ -168,16 +165,6 @@ func fix_material_overrides() -> void:
 		_mesh.set_surface_override_material(1, _metal_material)
 	if _mesh.get_surface_override_material(2) != _metal_material:
 		_mesh.set_surface_override_material(2, _metal_material)
-
-
-func _setup_references() -> void:
-	_belt_material = _mesh.mesh.surface_get_material(0)
-	_metal_material = _mesh.mesh.surface_get_material(1)
-
-	# Store original collision settings
-	if _sb:
-		_original_collision_layer = _sb.collision_layer
-		_original_collision_mask = _sb.collision_mask
 
 
 func _setup_materials() -> void:
