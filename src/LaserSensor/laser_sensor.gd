@@ -80,7 +80,7 @@ func _exit_tree() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	var start_pos := global_transform.translated_local(Vector3(0, 0, 0)).origin
+	var start_pos := global_position
 	var end_pos := start_pos + global_transform.basis.z * max_range
 
 	_ray_query.from = start_pos
@@ -114,14 +114,8 @@ func _update_beam_mesh(start_pos: Vector3, beam_distance: float, beam_color: Col
 	_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
 	_mesh.surface_set_color(beam_color)
 	_mesh.surface_add_vertex(start_pos)
-
-	if beam_distance != max_range:
-		_mesh.surface_set_color(beam_color)
-		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * beam_distance)
-	else:
-		_mesh.surface_set_color(beam_color)
-		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
-
+	_mesh.surface_set_color(beam_color)
+	_mesh.surface_add_vertex(start_pos + global_transform.basis.z * beam_distance)
 	_mesh.surface_end()
 
 

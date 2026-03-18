@@ -48,7 +48,6 @@ var _ray_query: PhysicsRayQueryParameters3D
 var _tag := OIPCommsTag.new()
 var _last_result_distance: float = -1.0
 var _last_beam_color: Color = Color.TRANSPARENT
-var _last_has_detection: bool = false
 var _last_transform: Transform3D
 var _beam_needs_update: bool = true
 
@@ -127,29 +126,21 @@ func _physics_process(_delta: float) -> void:
 	var beam_color := new_color if new_color != Color.TRANSPARENT else Color.GREEN
 	var current_transform = global_transform
 	if show_beam and (_beam_needs_update or result_distance != _last_result_distance or 
-					  beam_color != _last_beam_color or has_detection != _last_has_detection or 
-					  current_transform != _last_transform):
-		_update_beam_mesh(start_pos, result_distance, beam_color, has_detection)
+					  beam_color != _last_beam_color or current_transform != _last_transform):
+		_update_beam_mesh(start_pos, result_distance, beam_color)
 		_last_result_distance = result_distance
 		_last_beam_color = beam_color
-		_last_has_detection = has_detection
 		_last_transform = current_transform
 		_beam_needs_update = false
 
 
-func _update_beam_mesh(start_pos: Vector3, result_distance: float, beam_color: Color, has_detection: bool) -> void:
+func _update_beam_mesh(start_pos: Vector3, result_distance: float, beam_color: Color) -> void:
 	_mesh.clear_surfaces()
 	_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _beam_material)
 	_mesh.surface_set_color(beam_color)
 	_mesh.surface_add_vertex(start_pos)
-
-	if has_detection:
-		_mesh.surface_set_color(beam_color)
-		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
-	else:
-		_mesh.surface_set_color(beam_color)
-		_mesh.surface_add_vertex(start_pos + global_transform.basis.z * max_range)
-
+	_mesh.surface_set_color(beam_color)
+	_mesh.surface_add_vertex(start_pos + global_transform.basis.z * result_distance)
 	_mesh.surface_end()
 
 
