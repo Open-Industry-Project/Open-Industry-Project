@@ -91,10 +91,3 @@ func _on_size_changed() -> void:
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return new_size
-
-func _on_instantiated() -> void:
-	if size == Vector3.ZERO:
-		size = Vector3.ZERO
-	else:
-		_on_size_changed()
-		size_changed.emit()

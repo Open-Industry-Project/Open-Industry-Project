@@ -31,7 +31,6 @@ extends MeshInstance3D
 				r_end.scale = Vector3(1 / length, 1, 1)
 
 var _metal_material: ShaderMaterial = null
-var prev_scale: Vector3
 
 @onready var _l_end: Node3D = get_node("Ends/SideGuardEndL")
 @onready var _r_end: Node3D = get_node("Ends/SideGuardEndR")

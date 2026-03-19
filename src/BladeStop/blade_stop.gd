@@ -32,7 +32,6 @@ var _tag := OIPCommsTag.new()
 @onready var _air_pressure_l: MeshInstance3D = $Corners/AirPressureL
 @onready var _blade_corner_r: MeshInstance3D = $Corners/AirPressureR/BladeCornerR
 @onready var _blade_corner_l: MeshInstance3D = $Corners/AirPressureL/BladeCornerL
-@onready var _corners: Node3D = $Corners
 
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.

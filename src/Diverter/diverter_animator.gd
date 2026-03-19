@@ -43,10 +43,6 @@ func fire(time: float, distance: float) -> void:
 		_push(time, distance)
 
 
-func disable() -> void:
-	_finish()
-
-
 func _set_lamp_light(light_color: int, enabled: bool) -> void:
 	var current_material: StandardMaterial3D
 	if light_color == LightColor.Red:

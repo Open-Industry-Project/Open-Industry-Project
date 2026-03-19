@@ -12,7 +12,6 @@ const MODEL_BASE_LENGTH: float = 2.0
 			_update_mesh_length()
 
 var angular_speed: float = 0.0
-var uv_speed: float = 0.0
 var _prev_global_basis: Basis = Basis.IDENTITY
 
 @onready var _mesh_instance: MeshInstance3D = $MeshInstance3D

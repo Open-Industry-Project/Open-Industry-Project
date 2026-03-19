@@ -8,7 +8,6 @@ extends Node3D
 		grabs_rotation = value
 		on_grabs_updated()
 
-var top: MeshInstance3D
 var legs_sides_material: ShaderMaterial
 var prev_scale: Vector3
 
