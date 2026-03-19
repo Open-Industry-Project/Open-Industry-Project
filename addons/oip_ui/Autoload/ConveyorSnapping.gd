@@ -225,90 +225,10 @@ static func _is_conveyor(node: Node) -> bool:
 
 
 static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	# Check if either conveyor is curved - if so, use marker-based snapping
 	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
 		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor)
 	
-	var target_transform := target_conveyor.global_transform
-	var selected_transform := selected_conveyor.global_transform
-	var selected_size := _get_conveyor_size(selected_conveyor)
-	var target_size := _get_conveyor_size(target_conveyor)
-	
-	var target_front_edge := target_transform.origin + target_transform.basis.x * (target_size.x / 2.0)
-	var target_back_edge := target_transform.origin - target_transform.basis.x * (target_size.x / 2.0)
-	var target_left_edge := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0)
-	var target_right_edge := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0)
-	
-	var selected_position := selected_transform.origin
-	var distance_to_front := selected_position.distance_to(target_front_edge)
-	var distance_to_back := selected_position.distance_to(target_back_edge)
-	var distance_to_left := selected_position.distance_to(target_left_edge)
-	var distance_to_right := selected_position.distance_to(target_right_edge)
-	
-	var selected_forward := selected_transform.basis.x.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var dot_product: float = abs(selected_forward.dot(target_forward))
-	var is_perpendicular: bool = dot_product < 0.7
-	
-	var min_distance: float = min(distance_to_front, min(distance_to_back, min(distance_to_left, distance_to_right)))
-	var snap_transform := Transform3D()
-	
-	if is_perpendicular:
-		var min_side_distance: float = min(distance_to_left, distance_to_right)
-		var min_end_distance: float = min(distance_to_front, distance_to_back)
-		
-		if min_end_distance < 0.5 and min_end_distance < min_side_distance * 0.2:
-			min_distance = min_end_distance
-		else:
-			min_distance = min_side_distance
-	
-	var selected_inclination := _get_z_inclination(selected_transform)
-	
-	if min_distance == distance_to_front:
-		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
-		var connection_position := target_front_edge + target_transform.basis.x * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
-		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
-		
-	elif min_distance == distance_to_back:
-		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
-		var connection_position := target_back_edge - target_transform.basis.x * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
-		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
-		
-	elif min_distance == distance_to_left:
-		var edge_start := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
-		var edge_end := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
-		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
-		
-		var perpendicular_basis := Basis()
-		perpendicular_basis.x = target_transform.basis.z
-		perpendicular_basis.y = target_transform.basis.y
-		perpendicular_basis.z = -target_transform.basis.x
-		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
-		var connection_position := closest_point_on_edge - target_transform.basis.z * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
-		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
-		
-	else:
-		var edge_start := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
-		var edge_end := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
-		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
-		
-		var perpendicular_basis := Basis()
-		perpendicular_basis.x = -target_transform.basis.z
-		perpendicular_basis.y = target_transform.basis.y
-		perpendicular_basis.z = target_transform.basis.x
-		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
-		var connection_position := closest_point_on_edge + target_transform.basis.z * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
-		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
-	
-	return snap_transform
+	return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
 
 
 static func _get_conveyor_size(conveyor: Node3D) -> Vector3:
