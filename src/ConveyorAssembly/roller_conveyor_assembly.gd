@@ -433,9 +433,22 @@ func _legs_property_cached_get(property: StringName, backing_field_value: Varian
 	return backing_field_value
 
 
+func _collision_repositioned_save() -> Variant:
+	return floor_plane
+
+
+func _collision_repositioned(collision_point: Vector3, collision_normal: Vector3) -> void:
+	if _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
+		%ConveyorLegsAssembly.collision_repositioned(collision_point, collision_normal)
+
+
+func _collision_repositioned_undo(saved_data: Variant) -> void:
+	if saved_data is Plane and _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
+		%ConveyorLegsAssembly.restore_floor_plane(saved_data)
+
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return Vector3(new_size.x, size_default.y, new_size.z)
-
 
 
 func _on_size_changed() -> void:

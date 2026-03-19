@@ -241,10 +241,38 @@ func _notification(what) -> void:
 		_on_global_transform_changed()
 
 
+var _collision_reposition_active: bool = false
+
+
 func _on_global_transform_changed() -> void:
+	if _collision_reposition_active:
+		return
 	_update_floor_plane()
 	_update_conveyor_leg_coverage()
 	_update_conveyor_legs_height_and_visibility()
+
+
+func collision_repositioned(collision_point: Vector3, collision_normal: Vector3) -> void:
+	if collision_normal == Vector3.ZERO:
+		return
+	_collision_reposition_active = true
+	_apply_floor_plane(Plane(collision_normal, collision_point))
+	call_deferred("_clear_collision_reposition_active")
+
+
+## Restores the floor plane to a previously saved value (e.g. on undo).
+func restore_floor_plane(plane: Plane) -> void:
+	_apply_floor_plane(plane)
+
+
+func _apply_floor_plane(plane: Plane) -> void:
+	global_floor_plane = plane
+	_update_conveyor_leg_coverage()
+	_update_conveyor_legs_height_and_visibility()
+
+
+func _clear_collision_reposition_active() -> void:
+	_collision_reposition_active = false
 
 
 func _connect_conveyor() -> void:

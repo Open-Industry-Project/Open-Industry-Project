@@ -272,6 +272,20 @@ func _property_get_revert(property: StringName) -> Variant:
 	return _conveyor_script.get_property_default_value(property)
 
 
+func _collision_repositioned_save() -> Variant:
+	return floor_plane
+
+
+func _collision_repositioned(collision_point: Vector3, collision_normal: Vector3) -> void:
+	if _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
+		%ConveyorLegsAssembly.collision_repositioned(collision_point, collision_normal)
+
+
+func _collision_repositioned_undo(saved_data: Variant) -> void:
+	if saved_data is Plane and _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
+		%ConveyorLegsAssembly.restore_floor_plane(saved_data)
+
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	# No constraints for belt conveyor assemblies
 	return new_size
