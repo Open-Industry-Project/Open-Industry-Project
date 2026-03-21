@@ -7,6 +7,8 @@ const CONVEYOR_SCRIPT_PATH = "res://src/Conveyor/belt_conveyor.gd"
 const CONVEYOR_SCRIPT_FILENAME = "belt_conveyor.gd"
 const PREVIEW_SCENE_PATH: String = "res://parts/BeltSpurConveyor.tscn"
 
+static var _conveyor_script_cached: Script
+
 var _conveyor_script: Script
 
 # Store properties locally and forward to child conveyors
@@ -111,9 +113,11 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func _get_conveyor_script() -> Script:
-	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
-	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
-	_conveyor_script = load(class_details["path"]) as Script
+	if _conveyor_script_cached == null:
+		var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
+		var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
+		_conveyor_script_cached = load(class_details["path"]) as Script
+	_conveyor_script = _conveyor_script_cached
 	return _conveyor_script
 
 
@@ -127,16 +131,16 @@ func _set_conveyor_properties(conveyor: Node) -> void:
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
 	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as SpurConveyorAssembly
-	
+
 	preview_node.set_meta("is_preview", true)
-	
+
 	if preview_node.has_method("_update_conveyors"):
 		preview_node._update_conveyors()
-	
+
 	_disable_collisions_recursive(preview_node)
-	
+
 	preview_node.set_process_mode(Node.PROCESS_MODE_DISABLED)
-	
+
 	return preview_node
 
 

@@ -38,6 +38,8 @@ var belt_physics_material: PhysicsMaterial:
 	set(value):
 		_conveyor_property_cached_set(&"belt_physics_material", value)
 
+static var _conveyor_script_cached: Script
+
 var _conveyor_script: Script
 var _has_instantiated: bool = false
 var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
@@ -170,9 +172,11 @@ var leg_model_grabs_offset: float = 0.132:
 func _init() -> void:
 	super._init()
 
-	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
-	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
-	_conveyor_script = load(class_details["path"]) as Script
+	if _conveyor_script_cached == null:
+		var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
+		var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
+		_conveyor_script_cached = load(class_details["path"]) as Script
+	_conveyor_script = _conveyor_script_cached
 
 
 func _ready() -> void:

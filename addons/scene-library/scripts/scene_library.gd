@@ -1392,7 +1392,17 @@ func _on_save_timer_timeout() -> void:
 
 
 class AssetItemList extends ItemList:
+	var _last_preloaded_item: int = -1
+
 	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventMouseMotion:
+			var item := get_item_at_position(event.position)
+			if item >= 0 and item != _last_preloaded_item:
+				_last_preloaded_item = item
+				var asset: Asset = get_item_metadata(item)
+				if is_instance_valid(asset):
+					ResourceLoader.load_threaded_request(asset.get_path())
+
 		if event.is_action_pressed(&"ui_text_select_all"):
 			for i: int in get_item_count():
 				select(i, false)
@@ -1434,7 +1444,9 @@ class AssetItemList extends ItemList:
 		var files := PackedStringArray()
 		for i: int in get_selected_items():
 			var asset: Asset = get_item_metadata(i)
-			files.push_back(asset.get_path())
+			var path := asset.get_path()
+			files.push_back(path)
+			ResourceLoader.load_threaded_request(path)
 
 		set_drag_preview(_create_drag_preview(files))
 

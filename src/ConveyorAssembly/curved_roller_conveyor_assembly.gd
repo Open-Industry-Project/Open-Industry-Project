@@ -5,6 +5,8 @@ extends ResizableNode3D
 const CONVEYOR_CLASS_NAME = "CurvedRollerConveyor"
 const PREVIEW_SCENE_PATH: String = "res://parts/assemblies/CurvedRollerConveyorAssembly.tscn"
 
+static var _conveyor_script_cached: Script
+
 var _conveyor_script: Script
 var _has_instantiated: bool = false
 var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
@@ -19,9 +21,11 @@ func _init() -> void:
 	size_default = Vector3(1.524, 0.5, 1.524)
 	super._init()
 
-	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
-	var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
-	_conveyor_script = load(class_details["path"]) as Script
+	if _conveyor_script_cached == null:
+		var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
+		var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
+		_conveyor_script_cached = load(class_details["path"]) as Script
+	_conveyor_script = _conveyor_script_cached
 
 	set_notify_transform(true)
 
