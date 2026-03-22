@@ -210,7 +210,7 @@ func _create_outer_guard_mesh() -> void:
 	var lip_outward: float = 0.05
 	var lip_inward: float = 0.05
 	
-	var segments: int = int(guard_angle / 9.0)
+	var segments: int = maxi(1, int(guard_angle / 9.0))
 	var angle_radians: float = deg_to_rad(guard_angle)
 	
 	var vertices := PackedVector3Array()
@@ -553,7 +553,7 @@ func _create_inner_guard_mesh() -> void:
 	var lip_outward: float = 0.05
 	var lip_inward: float = 0.05
 	
-	var segments: int = int(guard_angle / 9.0)
+	var segments: int = maxi(1, int(guard_angle / 9.0))
 	var angle_radians: float = deg_to_rad(guard_angle)
 	
 	var vertices := PackedVector3Array()

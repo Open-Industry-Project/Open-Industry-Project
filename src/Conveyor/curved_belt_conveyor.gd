@@ -371,7 +371,7 @@ func _create_conveyor_mesh() -> void:
 	var radius_inner: float = inner_radius
 	var radius_outer: float = inner_radius + conveyor_width
 
-	var segments := int(conveyor_angle / 3.0)
+	var segments := maxi(1, int(conveyor_angle / 3.0))
 	const DEFAULT_HEIGHT_RATIO: float = 0.50
 	var height = DEFAULT_HEIGHT_RATIO * belt_height
 	const MESH_SCALE_FACTOR := 2.0
@@ -385,7 +385,6 @@ func _create_conveyor_mesh() -> void:
 	var all_vertices = _create_vertices(segments, angle_radians, radius_inner, radius_outer, height, MESH_SCALE_FACTOR)
 
 	_build_belt_surfaces(surfaces, edges, all_vertices, segments)
-	_build_belt_edges(edges, segments)
 
 	_add_surfaces_to_mesh(surfaces, mesh_instance)
 
@@ -710,13 +709,10 @@ func _add_double_sided_triangle(array_indices: PackedInt32Array, a: int, b: int,
 	array_indices.append_array([a, b, c, c, b, a])
 
 func _add_surfaces_to_mesh(surfaces: Dictionary, mesh_instance: ArrayMesh) -> void:
-	for pair in [["top", 0], ["bottom", 1], ["sides", 2]]:
-		var surface_name: String = pair[0]
-		var surface_index: int = pair[1]
+	for surface_name in ["top", "bottom", "sides"]:
 		var surface: Dictionary = surfaces[surface_name]
 
-
-		if surface.vertices.size() == 0:
+		if surface.vertices.size() == 0 or surface.indices.size() == 0:
 			continue
 
 		var arrays: Array = []
@@ -727,10 +723,11 @@ func _add_surfaces_to_mesh(surfaces: Dictionary, mesh_instance: ArrayMesh) -> vo
 		arrays[Mesh.ARRAY_INDEX] = surface.indices
 		mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
+		var actual_surface_index := mesh_instance.get_surface_count() - 1
 		var material_to_use = _belt_material
 		if surface_name == "sides":
 			material_to_use = _metal_material
-		mesh_instance.surface_set_material(surface_index, material_to_use)
+		mesh_instance.surface_set_material(actual_surface_index, material_to_use)
 
 func _setup_collision_shape() -> void:
 	var collision_shape: CollisionShape3D = $StaticBody3D.get_node_or_null("CollisionShape3D") as CollisionShape3D

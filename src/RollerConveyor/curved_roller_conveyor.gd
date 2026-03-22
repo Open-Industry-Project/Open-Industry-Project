@@ -467,7 +467,7 @@ func _create_conveyor_collision_shape() -> void:
 	if not collision_shape:
 		return
 
-	var segments: int = int(conveyor_angle / 3.0)
+	var segments: int = maxi(1, int(conveyor_angle / 3.0))
 	var angle_radians: float = deg_to_rad(conveyor_angle)
 	var radius_inner: float = BASE_INNER_RADIUS * size.x
 	var radius_outer: float = BASE_OUTER_RADIUS * size.x
@@ -580,7 +580,7 @@ func _create_inner_mesh() -> void:
 	var lip_inward: float = 0.049 * size.x / 0.97
 	var diagonal_height: float = top_lip_height * 0.03
 
-	var segments: int = int(conveyor_angle / 9.0)
+	var segments: int = maxi(1, int(conveyor_angle / 9.0))
 	var angle_radians: float = deg_to_rad(conveyor_angle)
 
 	var vertices := PackedVector3Array()
@@ -716,7 +716,7 @@ func _create_outer_mesh() -> void:
 	var diagonal_depth: float = 0.003
 	var diagonal_height: float = top_lip_height * 0.03
 
-	var segments: int = int(conveyor_angle / 9.0)
+	var segments: int = maxi(1, int(conveyor_angle / 9.0))
 	var angle_radians: float = deg_to_rad(conveyor_angle)
 
 	var vertices := PackedVector3Array()
