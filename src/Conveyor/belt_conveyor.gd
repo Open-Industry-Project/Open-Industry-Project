@@ -113,8 +113,8 @@ func _enter_tree() -> void:
 
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	EditorInterface.simulation_started.connect(_on_simulation_started)
+	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
@@ -138,11 +138,11 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if SimulationEvents.simulation_running:
+	if EditorInterface.is_simulation_running():
 		var local_left := _sb.global_transform.basis.x.normalized()
 		var velocity := local_left * speed
 		_sb.constant_linear_velocity = velocity
-		if not SimulationEvents.simulation_paused:
+		if not EditorInterface.is_simulation_paused():
 			_belt_position += speed * delta
 		if speed != 0:
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position * sign(speed))
@@ -151,8 +151,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 

@@ -769,14 +769,14 @@ func _enter_tree() -> void:
 
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	EditorInterface.simulation_started.connect(_on_simulation_started)
+	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
@@ -806,11 +806,11 @@ func _recalculate_speeds() -> void:
 		ce2.speed = _linear_speed
 
 func _physics_process(delta: float) -> void:
-	if SimulationEvents.simulation_running:
+	if EditorInterface.is_simulation_running():
 		var local_up = _sb.global_transform.basis.y.normalized()
 		var velocity = -local_up * _angular_speed
 		_sb.constant_angular_velocity = velocity
-		if not SimulationEvents.simulation_paused:
+		if not EditorInterface.is_simulation_paused():
 			belt_position += _linear_speed * delta
 		if _linear_speed != 0:
 

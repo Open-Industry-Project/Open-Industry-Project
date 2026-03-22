@@ -26,7 +26,7 @@ const BASE_LENGTH: float = 2.0
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
 	set(value):
 		speed = value
-		if SimulationEvents.simulation_running:
+		if EditorInterface.is_simulation_running():
 			_set_chain_speed(speed)
 
 ## When true, chains are raised to lift products off the main conveyor.
@@ -79,15 +79,15 @@ func _ready() -> void:
 	_rescale()
 
 func _enter_tree() -> void:
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	EditorInterface.simulation_started.connect(_on_simulation_started)
+	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	popup_tag_group_name = OIPCommsSetup.default_tag_group(popup_tag_group_name)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _validate_property(property: Dictionary) -> void:
@@ -136,7 +136,7 @@ func _spawn_chains(count: int) -> void:
 		chain_base.position = Vector3(0, 0, distance * chain_base.get_index())
 		chain_base.active = popup_chains
 		chain_base.speed = speed
-		if SimulationEvents.simulation_running:
+		if EditorInterface.is_simulation_running():
 			chain_base.turn_on()
 
 func _remove_chains(count: int) -> void:

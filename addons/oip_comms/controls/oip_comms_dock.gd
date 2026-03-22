@@ -34,8 +34,8 @@ func _ready() -> void:
 
 	last_tag_groups_data = tag_groups_data.duplicate(true)
 
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	EditorInterface.simulation_started.connect(_on_simulation_started)
+	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
 	OIPComms.comms_error.connect(_on_comms_error)
@@ -216,7 +216,7 @@ func _on_comms_error() -> void:
 	_show_comms_error.call_deferred()
 
 func _show_comms_error() -> void:
-	SimulationEvents.stop_simulation()
+	EditorInterface.stop_simulation()
 	var msg: String = OIPComms.get_comms_error()
 	var dialog := AcceptDialog.new()
 	dialog.title = "OIP Comms Error"

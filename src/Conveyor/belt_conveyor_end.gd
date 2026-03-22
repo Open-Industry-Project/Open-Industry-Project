@@ -32,8 +32,8 @@ func _init() -> void:
 
 func _enter_tree() -> void:
 	super._enter_tree()
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	EditorInterface.simulation_started.connect(_on_simulation_started)
+	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 
 
 func _ready() -> void:
@@ -44,8 +44,8 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if SimulationEvents.simulation_running:
-		if not SimulationEvents.simulation_paused:
+	if EditorInterface.is_simulation_running():
+		if not EditorInterface.is_simulation_paused():
 			_belt_position += speed * delta
 		if _belt_position >= 1.0:
 			_belt_position = 0.0
@@ -53,8 +53,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	super._exit_tree()
 
 
@@ -134,7 +134,7 @@ func _update_belt_velocity() -> void:
 	if not _static_body:
 		return
 		
-	if SimulationEvents.simulation_running or speed != 0:
+	if EditorInterface.is_simulation_running() or speed != 0:
 		var local_front: Vector3 = global_transform.basis.z.normalized()
 		var radius: float = size.x
 		var new_velocity: Vector3 = local_front * speed / radius

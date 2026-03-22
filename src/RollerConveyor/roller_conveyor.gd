@@ -77,10 +77,10 @@ func _enter_tree() -> void:
 
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	if SimulationEvents:
-		SimulationEvents.simulation_started.connect(_on_simulation_started)
-		SimulationEvents.simulation_ended.connect(_on_simulation_ended)
-		running = SimulationEvents.simulation_running
+	if Engine.is_editor_hint():
+		EditorInterface.simulation_started.connect(_on_simulation_started)
+		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+		running = EditorInterface.is_simulation_running()
 
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
@@ -92,11 +92,11 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func _exit_tree() -> void:
-	if SimulationEvents:
-		if SimulationEvents.simulation_started.is_connected(_on_simulation_started):
-			SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-		if SimulationEvents.simulation_ended.is_connected(_on_simulation_ended):
-			SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	if Engine.is_editor_hint():
+		if EditorInterface.simulation_started.is_connected(_on_simulation_started):
+			EditorInterface.simulation_started.disconnect(_on_simulation_started)
+		if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
+			EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 

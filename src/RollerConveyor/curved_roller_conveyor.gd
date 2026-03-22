@@ -202,13 +202,13 @@ func _ready() -> void:
 
 func _enter_tree() -> void:
 	super._enter_tree()
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
-	SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	EditorInterface.simulation_started.connect(_on_simulation_started)
+	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 
@@ -217,12 +217,12 @@ func _process(delta: float) -> void:
 		var effective_speed := speed * (-1.0 if reverse else 1.0)
 		var uv_speed = effective_speed / (2.0 * PI)
 		var uv_offset = roller_material.uv1_offset
-		if !SimulationEvents.simulation_paused:
+		if !EditorInterface.is_simulation_paused():
 			uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
 		roller_material.uv1_offset = uv_offset
 
 func _physics_process(delta: float) -> void:
-	if SimulationEvents.simulation_running and _sb:
+	if EditorInterface.is_simulation_running() and _sb:
 		var local_up = _sb.global_transform.basis.y.normalized()
 		var velocity = -local_up * _angular_speed
 		_sb.constant_angular_velocity = velocity

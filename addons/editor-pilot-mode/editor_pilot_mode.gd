@@ -125,11 +125,11 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent) -> int:
 
 	if pilot_active and event.is_pressed() and not event.is_echo():
 		if editor_settings.is_shortcut("Open Industry Project/Start Simulation", event):
-			SimulationEvents.start_simulation()
+			EditorInterface.start_simulation()
 		elif editor_settings.is_shortcut("Open Industry Project/Toggle Pause Simulation", event):
-			SimulationEvents.toggle_pause_simulation()
+			EditorInterface.toggle_pause_simulation()
 		elif editor_settings.is_shortcut("Open Industry Project/Stop Simulation", event):
-			SimulationEvents.stop_simulation()
+			EditorInterface.stop_simulation()
 
 	if event.is_pressed() and (editor_settings.is_shortcut(SHORTCUT_PATH, event) or (key != null and key.keycode == KEY_ESCAPE)):
 		cache_editor_ui(node3d_viewport)

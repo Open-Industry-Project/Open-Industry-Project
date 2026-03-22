@@ -145,18 +145,18 @@ func _enter_tree() -> void:
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	_setup_node_references()
 
-	if not SimulationEvents.simulation_started.is_connected(_on_simulation_started):
-		SimulationEvents.simulation_started.connect(_on_simulation_started)
-	if not SimulationEvents.simulation_ended.is_connected(_on_simulation_ended):
-		SimulationEvents.simulation_ended.connect(_on_simulation_ended)
+	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
+		EditorInterface.simulation_started.connect(_on_simulation_started)
+	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
+		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
-	if SimulationEvents.simulation_started.is_connected(_on_simulation_started):
-		SimulationEvents.simulation_started.disconnect(_on_simulation_started)
-	if SimulationEvents.simulation_ended.is_connected(_on_simulation_ended):
-		SimulationEvents.simulation_ended.disconnect(_on_simulation_ended)
+	if EditorInterface.simulation_started.is_connected(_on_simulation_started):
+		EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
+		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 

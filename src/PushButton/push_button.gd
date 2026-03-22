@@ -108,7 +108,7 @@ func _validate_property(property: Dictionary) -> void:
 func _enter_tree() -> void:
 	pushbutton_tag_group_name = OIPCommsSetup.default_tag_group(pushbutton_tag_group_name)
 	lamp_tag_group_name = OIPCommsSetup.default_tag_group(lamp_tag_group_name)
-	SimulationEvents.simulation_started.connect(_on_simulation_started)
+	EditorInterface.simulation_started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
@@ -134,7 +134,7 @@ func _ensure_unique_material() -> void:
 
 
 func _exit_tree() -> void:
-	SimulationEvents.simulation_started.disconnect(_on_simulation_started)
+	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 

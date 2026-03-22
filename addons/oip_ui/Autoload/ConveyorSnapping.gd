@@ -1,6 +1,30 @@
 @tool
 extends Node
 
+
+func _enter_tree() -> void:
+	if not Engine.is_editor_hint():
+		return
+
+	var editor_settings := EditorInterface.get_editor_settings()
+	var snap_shortcut := Shortcut.new()
+	var snap_key := InputEventKey.new()
+	snap_key.keycode = KEY_C
+	snap_key.ctrl_pressed = true
+	snap_key.shift_pressed = true
+	snap_shortcut.events.append(snap_key)
+	editor_settings.add_shortcut("Open Industry Project/Snap Conveyor", snap_shortcut)
+
+
+func _input(event: InputEvent) -> void:
+	if not Engine.is_editor_hint():
+		return
+
+	var editor_settings := EditorInterface.get_editor_settings()
+	if editor_settings.is_shortcut("Open Industry Project/Snap Conveyor", event) and event.is_pressed() and not event.is_echo():
+		snap_selected_conveyors()
+
+
 static func snap_selected_conveyors() -> void:
 	var selection := EditorInterface.get_selection()
 	var selected_conveyors: Array[Node3D] = []
