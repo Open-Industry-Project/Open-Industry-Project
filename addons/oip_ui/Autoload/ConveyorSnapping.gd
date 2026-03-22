@@ -787,6 +787,3 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		snap_transform.origin = connection_position + height_offset
 	
 	return snap_transform
-
-
-

@@ -32,6 +32,10 @@ func _enter_tree() -> void:
 	snap_shortcut.events.append(snap_key_stroke)
 	editor_settings.add_shortcut("Open Industry Project/Snap Conveyor", snap_shortcut)
 
+	EditorInterface.simulation_started.connect(_on_engine_simulation_started)
+	EditorInterface.simulation_stopped.connect(_on_engine_simulation_stopped)
+	EditorInterface.simulation_pause_toggled.connect(_on_engine_simulation_pause_toggled)
+
 
 func _ready() -> void:
 	if is_instance_valid(owner):
@@ -52,42 +56,54 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var editor_settings := EditorInterface.get_editor_settings()
-	
-	# Handle Use shortcut
+
 	if editor_settings.is_shortcut("Open Industry Project/Use", event) and event.is_pressed() and not event.is_echo():
 		var selection := EditorInterface.get_selection()
 		for node: Node in selection.get_selected_nodes():
 			if(node.has_method("use")):
 				node.call("use")
-	
-	# Handle Snap Conveyor shortcut
+
 	if editor_settings.is_shortcut("Open Industry Project/Snap Conveyor", event) and event.is_pressed() and not event.is_echo():
 		ConveyorSnapping.snap_selected_conveyors()
 
 
-func start_simulation() -> void:
+func _on_engine_simulation_started() -> void:
+	simulation_running = true
 	simulation_paused = false
+	PhysicsServer3D.set_active(true)
 	simulation_set_paused.emit(false)
 	simulation_started.emit()
-	if EditorInterface.has_method("set_simulation_started"):
-		EditorInterface.call("set_simulation_started", true)
+
+
+func _on_engine_simulation_stopped() -> void:
+	simulation_running = false
+	simulation_paused = false
+	PhysicsServer3D.set_active(false)
+	simulation_set_paused.emit(false)
+	simulation_ended.emit()
+
+
+func _on_engine_simulation_pause_toggled(paused: bool) -> void:
+	simulation_paused = paused
+	simulation_set_paused.emit(paused)
+	var root := get_tree().edited_scene_root
+	if root:
+		if simulation_paused:
+			root.process_mode = Node.PROCESS_MODE_DISABLED
+		else:
+			root.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 func stop_simulation() -> void:
-	simulation_paused = false
-	simulation_set_paused.emit(false)
-	simulation_ended.emit()
-	if EditorInterface.has_method("set_simulation_started"):
-		EditorInterface.call("set_simulation_started", false)
+	EditorInterface.stop_simulation()
 
 
-func toggle_pause_simulation(pressed: bool = !simulation_paused) -> void:
-	simulation_paused = pressed
-	simulation_set_paused.emit(pressed)
-	if simulation_paused:
-		get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_DISABLED
-	else:
-		get_tree().edited_scene_root.process_mode = Node.PROCESS_MODE_INHERIT
+func start_simulation() -> void:
+	EditorInterface.start_simulation()
+
+
+func toggle_pause_simulation() -> void:
+	EditorInterface.toggle_pause_simulation()
 
 
 func _on_selection_changed() -> void:
