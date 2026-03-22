@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/ConveyorAssembly/spiral_conveyor_assembly.gd" id="1_assembly"]
+[ext_resource type="PackedScene" path="res://parts/SpiralConveyor.tscn" id="2_conveyor"]
+
+[node name="SpiralConveyorAssembly" type="Node3D"]
+script = ExtResource("1_assembly")
+
+[node name="ConveyorCorner" parent="." instance=ExtResource("2_conveyor")]

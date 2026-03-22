@@ -208,7 +208,7 @@ static func _has_side_guards(conveyor: Node3D) -> bool:
 
 
 static func _is_conveyor(node: Node) -> bool:
-	if node is BeltConveyorAssembly or node is RollerConveyorAssembly or node is CurvedBeltConveyorAssembly or node is CurvedRollerConveyorAssembly:
+	if node is BeltConveyorAssembly or node is RollerConveyorAssembly or node is CurvedBeltConveyorAssembly or node is CurvedRollerConveyorAssembly or node is SpiralConveyorAssembly:
 		return true
 	
 	var node_script: Script = node.get_script()
@@ -218,14 +218,16 @@ static func _is_conveyor(node: Node) -> bool:
 	var conveyor_types := [
 		"BeltSpurConveyor", "SpurConveyorAssembly", "BeltConveyor", "RollerConveyor", 
 		"CurvedBeltConveyor", "CurvedRollerConveyor", "BeltConveyorAssembly", "RollerConveyorAssembly", 
-		"CurvedBeltConveyorAssembly", "CurvedRollerConveyorAssembly"
+		"CurvedBeltConveyorAssembly", "CurvedRollerConveyorAssembly",
+		"SpiralConveyor", "SpiralConveyorAssembly"
 	]
 	
 	return global_name in conveyor_types or node_class in conveyor_types
 
 
 static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
+	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor) \
+			or _is_spiral_conveyor(selected_conveyor) or _is_spiral_conveyor(target_conveyor):
 		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor)
 	
 	return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
@@ -453,6 +455,14 @@ static func _is_curved_roller_conveyor(conveyor: Node3D) -> bool:
 			("Curved" in node_name and "Roller" in node_name))
 
 
+static func _is_spiral_conveyor(conveyor: Node3D) -> bool:
+	var node_script: Script = conveyor.get_script()
+	var global_name: String = node_script.get_global_name() if node_script != null else ""
+	var node_class := conveyor.get_class()
+	var spiral_types := ["SpiralConveyor", "SpiralConveyorAssembly"]
+	return global_name in spiral_types or node_class in spiral_types
+
+
 static func _is_straight_conveyor_assembly(conveyor: Node3D) -> bool:
 	if conveyor is BeltConveyorAssembly or conveyor is RollerConveyorAssembly:
 		return true
@@ -530,8 +540,39 @@ static func _get_straight_end_info(conveyor: Node3D) -> Array[Dictionary]:
 	]
 
 
+## Returns both ends of a spiral conveyor in local (assembly) space.
+## Bottom end at Y=0, top end at Y=total_height.
+static func _get_spiral_end_info(conveyor: Node3D) -> Array[Dictionary]:
+	var corner = conveyor.get_node_or_null("ConveyorCorner")
+	var spiral: Node = corner if corner else conveyor
+	var cc_offset: Vector3 = corner.position if corner else Vector3.ZERO
+
+	var ir: float = spiral.inner_radius if "inner_radius" in spiral else 0.3
+	var cw: float = spiral.conveyor_width if "conveyor_width" in spiral else 0.6
+	var p: float = spiral.pitch if "pitch" in spiral else 0.5
+	var t: float = spiral.turns if "turns" in spiral else 1.5
+	var r := ir + cw / 2.0
+	var th := p * t
+	var total_angle := t * TAU
+
+	var bottom_pos: Vector3 = cc_offset + Vector3(0, 0, r)
+	var bottom_outward := Vector3(1, 0, 0)
+
+	var sa := sin(total_angle)
+	var ca := cos(total_angle)
+	var top_pos: Vector3 = cc_offset + Vector3(-sa * r, th, ca * r)
+	var top_outward := Vector3(-ca, 0, -sa)
+
+	return [
+		{"pos": bottom_pos, "outward": bottom_outward, "name": "bottom"},
+		{"pos": top_pos, "outward": top_outward, "name": "top"},
+	]
+
+
 ## Returns end info for any conveyor type.
 static func _get_end_info(conveyor: Node3D) -> Array[Dictionary]:
+	if _is_spiral_conveyor(conveyor):
+		return _get_spiral_end_info(conveyor)
 	if _is_curved_conveyor(conveyor):
 		return _get_curved_end_info(conveyor)
 	return _get_straight_end_info(conveyor)
@@ -787,6 +828,3 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		snap_transform.origin = connection_position + height_offset
 	
 	return snap_transform
-
-
-
