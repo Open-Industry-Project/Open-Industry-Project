@@ -280,9 +280,7 @@ func _connect_conveyor() -> void:
 		conveyor.size_changed.connect(_on_conveyor_size_changed)
 		_conveyor_connected = true
 		call_deferred("_on_conveyor_size_changed")
-		# Now is a good time to synchronize the state of the setters with the scene.
-		if is_physics_processing():
-			call_deferred("_physics_process", 0.0)
+		call_deferred("_physics_process", 0.0)
 	else:
 		_conveyor_connected = false
 	update_configuration_warnings()
