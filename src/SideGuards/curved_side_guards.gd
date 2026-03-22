@@ -9,7 +9,7 @@ const BASE_HEIGHT: float = 0.149
 const MIDDLE_THICKNESS: float = 0.02
 
 ## Angle of the curved guard section in degrees.
-@export_range(10.0, 90.0, 1.0, 'degrees') var guard_angle: float = 90.0:
+@export_range(10.0, 180.0, 1.0, 'degrees') var guard_angle: float = 90.0:
 	set(value):
 		if abs(guard_angle - value) < 0.001:
 			return
@@ -162,7 +162,8 @@ func _update_guard_end_pieces() -> void:
 	end2_x += outward_offset_x
 	end2_z += outward_offset_z
 	if is_roller:
-		end2_z += 0.12
+		end2_x += cos(radians) * 0.12
+		end2_z += sin(radians) * 0.12
 	var end2_scale_x: float
 	if is_roller:
 		end2_scale_x = 0.6 + (_current_conveyor_width - 1.0) * 0.01
@@ -175,7 +176,8 @@ func _update_guard_end_pieces() -> void:
 	inner_end2_x += outward_offset_x
 	inner_end2_z += outward_offset_z
 	if is_roller:
-		inner_end2_z += 0.12
+		inner_end2_x += cos(radians) * 0.12
+		inner_end2_z += sin(radians) * 0.12
 	var inner_end2_scale_x: float
 	if is_roller:
 		inner_end2_scale_x = 0.6 + (_current_conveyor_width - 1.0) * 0.01

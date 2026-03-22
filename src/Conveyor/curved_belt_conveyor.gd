@@ -77,8 +77,8 @@ func _update_calculated_size() -> void:
 			(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
 		set_belt_material_shader_params_on_ends()
 
-## Angle of the curved section in degrees (5-90).
-@export_range(5.0, 90.0, 1.0, "degrees") var conveyor_angle: float = 90.0:
+## Angle of the curved section in degrees (5-180).
+@export_range(5.0, 180.0, 1.0, "degrees") var conveyor_angle: float = 90.0:
 	set(value):
 		if conveyor_angle == value:
 			return

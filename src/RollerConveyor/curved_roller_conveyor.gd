@@ -10,6 +10,11 @@ const BASE_END_LENGTH = 2.0
 const BASE_MODEL_SIZE = Vector3(2, 0.5, 2)
 const ROLLER_INNER_END_RADIUS = 0.044587
 const ROLLER_OUTER_END_RADIUS = 0.12
+const ROLLER_CORNER_SCENE: PackedScene = preload("res://src/RollerConveyor/RollerCorner.tscn")
+const ROLLER_SPACING_LOW_DEG: float = 22.5
+const ROLLER_SPACING_MID_DEG: float = 10.0
+const ROLLER_SPACING_HIGH_DEG: float = 10.0
+const ROLLER_OFFSET_HIGH_DEG: float = 5.0
 
 enum Scales {LOW, MID, HIGH}
 
@@ -31,8 +36,8 @@ const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShader.
 		if value > 0.0 and is_inside_tree():
 			size = Vector3(value, size.y, size.z)
 
-## Angle of the curved section in degrees (10-90).
-@export_range(10.0, 90.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
+## Angle of the curved section in degrees (10-180).
+@export_range(10.0, 180.0, 1.0, 'degrees') var conveyor_angle: float = 90.0:
 	set(value):
 		if conveyor_angle == value:
 			return
@@ -251,14 +256,6 @@ func _on_size_changed() -> void:
 				end.position = Vector3(0, 0, center_radius)
 				end.scale = Vector3(0.5, 1, actual_conveyor_width / BASE_END_LENGTH)
 
-	for roller_group in [rollers_low, rollers_mid, rollers_high]:
-		if roller_group:
-			for roller_axis in roller_group.get_children():
-				var roller := roller_axis.get_child(0) as RollerCorner
-				if roller:
-					roller.position = Vector3(0, 0, center_radius)
-					roller.length = actual_conveyor_width
-
 	set_current_scale()
 	_recalculate_speeds()
 	
@@ -406,10 +403,7 @@ func _create_end_collision_shapes() -> void:
 		_end_static_bodies.append(static_body)
 
 func _update_mesh() -> void:
-	if not is_inside_tree() or not outer_mesh or not inner_mesh:
-		return
-
-	if _mesh_regeneration_needed:
+	if is_inside_tree() and outer_mesh and inner_mesh and _mesh_regeneration_needed:
 		_update_material_scale()
 		_create_conveyor_collision_shape()
 		_create_outer_mesh()
@@ -418,30 +412,49 @@ func _update_mesh() -> void:
 		_mesh_regeneration_needed = false
 		_last_size = size
 
-	var angle_proportion = conveyor_angle / 90.0
-
-	if rollers_low:
-		var visible_low_count = roundi(5 * angle_proportion)
-		for i in range(5):
-			var roller_axis = rollers_low.get_node_or_null("RollerAxis" + str(i + 1))
-			if roller_axis:
-				roller_axis.visible = i < visible_low_count
-
-	if rollers_mid:
-		var visible_mid_count = roundi(10 * angle_proportion)
-		for i in range(10):
-			var roller_axis = rollers_mid.get_node_or_null("RollerAxis" + str(i + 1))
-			if roller_axis:
-				roller_axis.visible = i < visible_mid_count
-
-	if rollers_high:
-		var visible_high_count = roundi(9 * angle_proportion)
-		for i in range(9):
-			var roller_axis = rollers_high.get_node_or_null("RollerAxis" + str(i + 1))
-			if roller_axis:
-				roller_axis.visible = i < visible_high_count
-
+	_update_roller_positions()
 	_update_end_axis_angle()
+
+
+func _update_roller_positions() -> void:
+	_update_roller_group(rollers_low, ROLLER_SPACING_LOW_DEG, 0.0)
+	_update_roller_group(rollers_mid, ROLLER_SPACING_MID_DEG, 0.0)
+	_update_roller_group(rollers_high, ROLLER_SPACING_HIGH_DEG, ROLLER_OFFSET_HIGH_DEG)
+
+
+func _update_roller_group(group: Node3D, spacing_deg: float, offset_deg: float) -> void:
+	if not group:
+		return
+
+	var needed_count: int
+	if offset_deg > 0.0:
+		needed_count = maxi(0, floori((conveyor_angle - offset_deg) / spacing_deg) + 1)
+	else:
+		needed_count = maxi(1, floori(conveyor_angle / spacing_deg) + 1)
+
+	while group.get_child_count() > needed_count:
+		var child = group.get_child(group.get_child_count() - 1)
+		group.remove_child(child)
+		child.queue_free()
+
+	while group.get_child_count() < needed_count:
+		var axis := Node3D.new()
+		axis.name = "RollerAxis%d" % (group.get_child_count() + 1)
+		var roller := ROLLER_CORNER_SCENE.instantiate() as RollerCorner
+		axis.add_child(roller)
+		group.add_child(axis)
+		if roller_material:
+			roller.set_override_material(roller_material)
+
+	for i in range(group.get_child_count()):
+		var axis := group.get_child(i)
+		var angle_deg := offset_deg + i * spacing_deg
+		var angle_rad := deg_to_rad(angle_deg)
+		axis.transform = Transform3D(Basis(Vector3.UP, -angle_rad), Vector3.ZERO)
+		var roller := axis.get_child(0) as RollerCorner
+		if roller:
+			roller.position = Vector3(0, 0, center_radius)
+			roller.length = actual_conveyor_width
 
 func _update_end_axis_angle() -> void:
 	if ends:

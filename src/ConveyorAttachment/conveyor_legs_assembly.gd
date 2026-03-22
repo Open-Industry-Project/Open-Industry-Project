@@ -54,7 +54,7 @@ var local_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 @export_group("Middle Legs", "middle_legs")
 ## If [code]true[/code], automatically generate conveyor legs under the conveyor spaced at a given interval.
 @export
-var middle_legs_enabled := false:
+var middle_legs_enabled := true:
 	set(value):
 		if middle_legs_enabled != value:
 			middle_legs_enabled = value
@@ -191,7 +191,7 @@ var _conveyors_transform_prev := Transform3D.IDENTITY
 var _transform_prev := Transform3D.IDENTITY
 var _target_width_prev := NAN
 var _middle_legs_enabled_prev := false
-var _middle_legs_spacing_prev: float
+var _middle_legs_spacing_prev: float = 2.0
 var _head_end_leg_enabled_prev := false
 var _tail_end_leg_enabled_prev := false
 var _head_end_leg_clearance_prev := 0.5
@@ -652,19 +652,14 @@ func _get_auto_conveyor_leg_position(index: int) -> float:
 
 func _get_interval_conveyor_leg_position(index: int) -> float:
 	assert(index >= 0)
-	# Don't allow negative clearance.
-	tail_end_leg_clearance = maxf(0.0, tail_end_leg_clearance)
-	var front_margin = tail_end_leg_clearance if tail_end_leg_enabled else 0.0
+	var front_margin = maxf(0.0, tail_end_leg_clearance) if tail_end_leg_enabled else 0.0
 	var first_position = ceili((_conveyor_leg_coverage_min + front_margin) / middle_legs_spacing) * middle_legs_spacing
 	return first_position + index * middle_legs_spacing
 
 
 func _get_desired_interval_conveyor_leg_count() -> int:
-	# Don't allow negative clearance.
-	head_end_leg_clearance = maxf(0.0, head_end_leg_clearance)
-	# Enforce a margin from fixed front and rear legs if they exist.
 	var first_position := _get_interval_conveyor_leg_position(0)
-	var rear_margin: float = head_end_leg_clearance if head_end_leg_enabled else 0.0
+	var rear_margin: float = maxf(0.0, head_end_leg_clearance) if head_end_leg_enabled else 0.0
 	var last_position: float = floorf((_conveyor_leg_coverage_max - rear_margin) / middle_legs_spacing) * middle_legs_spacing
 
 	var interval_conveyor_leg_count: int
