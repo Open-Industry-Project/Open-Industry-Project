@@ -293,13 +293,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.762, 0, 0, 1.143)
 mesh = ExtResource("3_o3bxo")
 
-[node name="CurvedEndMarker" type="Marker3D" parent="Ends/EndAxis1/ConvRollerEnd" unique_id=321185071]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.24371415, 0.25517163, 1)
-gizmo_extents = 0.0
-
-[node name="CurvedEndMarker2" type="Marker3D" parent="Ends/EndAxis1/ConvRollerEnd" unique_id=1564135708]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.24371415, 0.25517163, -1)
-gizmo_extents = 0.0
 
 [node name="StaticBody3D" type="StaticBody3D" parent="Ends/EndAxis1" unique_id=1054378200]
 
@@ -314,13 +307,6 @@ transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0.00
 transform = Transform3D(-0.5, 0, -1.150588e-07, 0, 1, 0, 7.54979e-08, 0, -0.762, 0, 0, 1.143)
 mesh = ExtResource("3_o3bxo")
 
-[node name="CurvedEndMarker" type="Marker3D" parent="Ends/EndAxis2/ConvRollerEnd2" unique_id=1411067504]
-transform = Transform3D(1, 0, -2.842171e-14, 0, 1, 0, 0, 0, 1, 0.24999994, 0.25928438, 1.0000002)
-gizmo_extents = 0.0
-
-[node name="CurvedEndMarker2" type="Marker3D" parent="Ends/EndAxis2/ConvRollerEnd2" unique_id=1741039407]
-transform = Transform3D(1, 0, -2.842171e-14, 0, 1, 0, 0, 0, 1, 0.24999997, 0.25928438, -1)
-gizmo_extents = 0.0
 
 [node name="StaticBody3D" type="StaticBody3D" parent="Ends/EndAxis2" unique_id=4571582]
 

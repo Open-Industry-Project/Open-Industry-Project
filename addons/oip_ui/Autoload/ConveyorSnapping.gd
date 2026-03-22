@@ -468,96 +468,221 @@ static func _is_straight_conveyor_assembly(conveyor: Node3D) -> bool:
 	return global_name in straight_assembly_types or node_class in straight_assembly_types
 
 
-static func _get_conveyor_markers(conveyor: Node3D) -> Array[Marker3D]:
-	var markers: Array[Marker3D] = []
-	
-	for child in conveyor.get_children():
-		if child is Marker3D and ("CurvedEndMarker" in child.name or "curved" in child.name.to_lower()):
-			markers.append(child as Marker3D)
-		_find_markers_recursive(child, markers)
-	
-	return markers
+
+static func _get_curved_conveyor_angle(conveyor: Node3D) -> float:
+	if "conveyor_angle" in conveyor:
+		return conveyor.conveyor_angle
+	var corner = conveyor.get_node_or_null("ConveyorCorner")
+	if corner and "conveyor_angle" in corner:
+		return corner.conveyor_angle
+	return 90.0
 
 
-static func _find_markers_recursive(node: Node, markers: Array[Marker3D]) -> void:
-	for child in node.get_children():
-		if child is Marker3D and ("CurvedEndMarker" in child.name or "curved" in child.name.to_lower()):
-			markers.append(child as Marker3D)
-		_find_markers_recursive(child, markers)
+static func _get_curved_conveyor_params(conveyor: Node3D) -> Dictionary:
+	var inner_radius := 0.5
+	var conveyor_width := 1.524
+	if "inner_radius" in conveyor:
+		inner_radius = conveyor.inner_radius
+	elif "inner_radius_f" in conveyor:
+		inner_radius = conveyor.inner_radius_f
+	if "conveyor_width" in conveyor:
+		conveyor_width = conveyor.conveyor_width
+	var corner = conveyor.get_node_or_null("ConveyorCorner")
+	if corner:
+		if "inner_radius" in corner:
+			inner_radius = corner.inner_radius
+		if "conveyor_width" in corner:
+			conveyor_width = corner.conveyor_width
+	return {"inner_radius": inner_radius, "conveyor_width": conveyor_width}
+
+
+## Returns both ends of a curved conveyor in local (assembly) space.
+## Each end has a position and an outward-facing direction (away from the conveyor).
+static func _get_curved_end_info(conveyor: Node3D) -> Array[Dictionary]:
+	var angle_deg := _get_curved_conveyor_angle(conveyor)
+	var angle_rad := deg_to_rad(angle_deg)
+	var params := _get_curved_conveyor_params(conveyor)
+	var avg_radius: float = params.inner_radius + params.conveyor_width / 2.0
+
+	var corner = conveyor.get_node_or_null("ConveyorCorner")
+	var cc_offset: Vector3 = corner.position if corner else Vector3.ZERO
+
+	# Tail end (0° side): position at (0, 0, avg_radius), outward = +X
+	var tail_pos: Vector3 = cc_offset + Vector3(0, 0, avg_radius)
+	var tail_outward := Vector3(1, 0, 0)
+
+	# Head end (angle° side): outward = flow direction at exit
+	var head_pos: Vector3 = cc_offset + Vector3(-sin(angle_rad) * avg_radius, 0, cos(angle_rad) * avg_radius)
+	var head_outward := Vector3(-cos(angle_rad), 0, -sin(angle_rad))
+
+	return [
+		{"pos": tail_pos, "outward": tail_outward, "name": "tail"},
+		{"pos": head_pos, "outward": head_outward, "name": "head"},
+	]
+
+
+## Returns both ends of a straight conveyor in local space.
+static func _get_straight_end_info(conveyor: Node3D) -> Array[Dictionary]:
+	var size := _get_conveyor_size(conveyor)
+	return [
+		{"pos": Vector3(size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": "front"},
+		{"pos": Vector3(-size.x / 2.0, 0, 0), "outward": Vector3(-1, 0, 0), "name": "back"},
+	]
+
+
+## Returns end info for any conveyor type.
+static func _get_end_info(conveyor: Node3D) -> Array[Dictionary]:
+	if _is_curved_conveyor(conveyor):
+		return _get_curved_end_info(conveyor)
+	return _get_straight_end_info(conveyor)
+
+
+## Computes a snap transform that aligns one end of the selected conveyor
+## to one end of the target conveyor, with outward directions facing each other.
+static func _snap_end_to_end(
+	selected_conveyor: Node3D,
+	sel_end: Dictionary,
+	target_conveyor: Node3D,
+	tgt_end: Dictionary,
+	gap: float
+) -> Transform3D:
+	var target_transform := target_conveyor.global_transform
+	var tgt_pos: Vector3 = tgt_end.pos
+	var tgt_out: Vector3 = tgt_end.outward
+	var tgt_end_world: Vector3 = target_transform * tgt_pos
+	var tgt_outward_world: Vector3 = (target_transform.basis * tgt_out).normalized()
+
+	# Selected's outward should face opposite to target's outward
+	var desired_outward: Vector3 = -tgt_outward_world
+	var sel_out: Vector3 = sel_end.outward
+	var sel_pos_local: Vector3 = sel_end.pos
+	var sel_heading := atan2(sel_out.x, sel_out.z)
+	var desired_heading := atan2(desired_outward.x, desired_outward.z)
+	var y_rotation := desired_heading - sel_heading
+
+	var new_basis := Basis(Vector3.UP, y_rotation)
+	var rotated_sel_end: Vector3 = new_basis * sel_pos_local
+	var snap_pos: Vector3 = tgt_end_world + tgt_outward_world * gap - rotated_sel_end
+	snap_pos.y = target_conveyor.global_position.y
+
+	return Transform3D(new_basis, snap_pos)
+
+
+## Returns the gap distance between two conveyors based on their types.
+static func _get_snap_gap(selected_conveyor: Node3D, target_conveyor: Node3D) -> float:
+	var sel_curved := _is_curved_conveyor(selected_conveyor)
+	var tgt_curved := _is_curved_conveyor(target_conveyor)
+
+	if sel_curved and tgt_curved:
+		var both_roller := _is_curved_roller_conveyor(selected_conveyor) and _is_curved_roller_conveyor(target_conveyor)
+		var both_belt := not _is_curved_roller_conveyor(selected_conveyor) and not _is_curved_roller_conveyor(target_conveyor)
+		if both_roller:
+			return 0.004
+		elif both_belt:
+			return 0.5
+		return 0.25
+	elif sel_curved or tgt_curved:
+		var curved := selected_conveyor if sel_curved else target_conveyor
+		if _is_curved_roller_conveyor(curved):
+			return 0.001
+		return 0.242
+	return 0.0
+
+
+## Finds the closest pair of ends between two conveyors and returns
+## [selected_end, target_end] dictionaries.
+static func _find_closest_end_pair(selected_conveyor: Node3D, target_conveyor: Node3D) -> Array[Dictionary]:
+	var sel_ends := _get_end_info(selected_conveyor)
+	var tgt_ends := _get_end_info(target_conveyor)
+	var sel_transform := selected_conveyor.global_transform
+	var tgt_transform := target_conveyor.global_transform
+
+	var best_dist := INF
+	var best_sel: Dictionary
+	var best_tgt: Dictionary
+
+	for se in sel_ends:
+		for te in tgt_ends:
+			var se_pos: Vector3 = se.pos
+			var te_pos: Vector3 = te.pos
+			var sel_world: Vector3 = sel_transform * se_pos
+			var tgt_world: Vector3 = tgt_transform * te_pos
+			var dist := sel_world.distance_to(tgt_world)
+			if dist < best_dist:
+				best_dist = dist
+				best_sel = se
+				best_tgt = te
+
+	return [best_sel, best_tgt]
+
+
+## Finds the resnap pair: keeps the same target end but flips which end
+## of the selected conveyor connects. This mirrors/flips the selected
+## conveyor's orientation at the same attachment point.
+static func _find_resnap_end_pair(selected_conveyor: Node3D, target_conveyor: Node3D) -> Array[Dictionary]:
+	var sel_ends := _get_end_info(selected_conveyor)
+	var tgt_ends := _get_end_info(target_conveyor)
+	var sel_transform := selected_conveyor.global_transform
+	var tgt_transform := target_conveyor.global_transform
+
+	var best_dist := INF
+	var snapped_sel_idx := 0
+	var snapped_tgt_idx := 0
+
+	for si in range(sel_ends.size()):
+		for ti in range(tgt_ends.size()):
+			var se_pos: Vector3 = sel_ends[si].pos
+			var te_pos: Vector3 = tgt_ends[ti].pos
+			var sel_world: Vector3 = sel_transform * se_pos
+			var tgt_world: Vector3 = tgt_transform * te_pos
+			var dist := sel_world.distance_to(tgt_world)
+			if dist < best_dist:
+				best_dist = dist
+				snapped_sel_idx = si
+				snapped_tgt_idx = ti
+
+	var other_sel_idx := 1 - snapped_sel_idx
+	return [sel_ends[other_sel_idx], tgt_ends[snapped_tgt_idx]]
+
+
+## Checks if any pair of ends is already aligned (close position + opposing outward).
+static func _is_any_end_pair_snapped(selected_conveyor: Node3D, target_conveyor: Node3D, position_tolerance: float = 1.0) -> bool:
+	var sel_ends := _get_end_info(selected_conveyor)
+	var tgt_ends := _get_end_info(target_conveyor)
+	var sel_transform := selected_conveyor.global_transform
+	var tgt_transform := target_conveyor.global_transform
+
+	for se in sel_ends:
+		for te in tgt_ends:
+			var se_pos: Vector3 = se.pos
+			var te_pos: Vector3 = te.pos
+			var sel_world: Vector3 = sel_transform * se_pos
+			var tgt_world: Vector3 = tgt_transform * te_pos
+			if sel_world.distance_to(tgt_world) > position_tolerance:
+				continue
+			var se_out: Vector3 = se.outward
+			var te_out: Vector3 = te.outward
+			var sel_out_world: Vector3 = (sel_transform.basis * se_out).normalized()
+			var tgt_out_world: Vector3 = (tgt_transform.basis * te_out).normalized()
+			if sel_out_world.dot(tgt_out_world) < -0.5:
+				return true
+	return false
 
 
 static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	var target_transform := target_conveyor.global_transform
-	var selected_transform := selected_conveyor.global_transform
-	
-	# Check conveyor types for different snapping scenarios
-	var is_target_belt_conveyor := _is_belt_conveyor(target_conveyor)
-	var is_selected_belt_conveyor := _is_belt_conveyor(selected_conveyor)
-	
-	if is_target_belt_conveyor and is_selected_belt_conveyor:
-		# BeltConveyor snapping to BeltConveyor (existing logic)
+	if _is_belt_conveyor(target_conveyor) and _is_belt_conveyor(selected_conveyor):
 		return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
-	elif is_target_belt_conveyor and not is_selected_belt_conveyor:
-		# CurvedBeltConveyor snapping to BeltConveyor
-		# Check if conveyor is already snapped (same position, perpendicular rotation)
-		var is_already_snapped := _is_conveyor_already_snapped(selected_conveyor, target_conveyor)
-		if is_already_snapped:
-			return _calculate_second_snap_transform(selected_conveyor, target_conveyor)
-		else:
-			return _calculate_curved_to_belt_snap_transform(selected_conveyor, target_conveyor)
-	elif not is_target_belt_conveyor and is_selected_belt_conveyor:
-		# BeltConveyor snapping to CurvedBeltConveyor
-		var is_already_snapped := _is_belt_to_curved_already_snapped(selected_conveyor, target_conveyor)
-		if is_already_snapped:
-			return _calculate_belt_to_curved_resnap_transform(selected_conveyor, target_conveyor)
-		else:
-			return _calculate_belt_to_curved_snap_transform(selected_conveyor, target_conveyor)
+
+	var gap := _get_snap_gap(selected_conveyor, target_conveyor)
+	var is_snapped := _is_any_end_pair_snapped(selected_conveyor, target_conveyor)
+
+	var pair: Array[Dictionary]
+	if is_snapped:
+		pair = _find_resnap_end_pair(selected_conveyor, target_conveyor)
 	else:
-		# CurvedBeltConveyor snapping to CurvedBeltConveyor
-		# Check if conveyor is already snapped (same position, perpendicular rotation)
-		var is_already_snapped := _is_conveyor_already_snapped(selected_conveyor, target_conveyor)
-		if is_already_snapped:
-			return _calculate_second_snap_transform(selected_conveyor, target_conveyor)
-		else:
-			return _calculate_curved_to_curved_snap_transform(selected_conveyor, target_conveyor)
+		pair = _find_closest_end_pair(selected_conveyor, target_conveyor)
 
-
-static func _is_conveyor_already_snapped(selected_conveyor: Node3D, target_conveyor: Node3D) -> bool:
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	
-	# Check if target is a BeltConveyor
-	var is_target_belt_conveyor := _is_belt_conveyor(target_conveyor)
-	
-	if is_target_belt_conveyor:
-		# CurvedBeltConveyor to BeltConveyor snapping detection
-		return _is_curved_to_belt_already_snapped(selected_conveyor, target_conveyor)
-	else:
-		# CurvedBeltConveyor to CurvedBeltConveyor snapping detection (existing logic)
-		return _is_curved_to_curved_already_snapped(selected_conveyor, target_conveyor)
-
-
-static func _calculate_second_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	var target_transform := target_conveyor.global_transform
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	var relative_pos := selected_pos - target_pos
-	
-	# Transform relative position to target's local space
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var right_component := relative_pos.dot(target_right)
-	var forward_component := relative_pos.dot(target_forward)
-	
-	# Check if target is a BeltConveyor
-	var is_target_belt_conveyor := _is_belt_conveyor(target_conveyor)
-	
-	if is_target_belt_conveyor:
-		# CurvedBeltConveyor resnapping to BeltConveyor
-		return _calculate_curved_to_belt_resnap_transform(selected_conveyor, target_conveyor)
-	else:
-		# CurvedBeltConveyor resnapping to CurvedBeltConveyor (existing logic)
-		return _calculate_curved_to_curved_resnap_transform(selected_conveyor, target_conveyor)
+	return _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
 
 
 static func _is_belt_conveyor(conveyor: Node3D) -> bool:
@@ -578,91 +703,6 @@ static func _is_belt_conveyor(conveyor: Node3D) -> bool:
 			("Roller" in node_name and "Curved" not in node_name))
 
 
-static func _calculate_curved_to_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	var target_transform := target_conveyor.global_transform
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	var relative_pos := selected_pos - target_pos
-	
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var right_component := relative_pos.dot(target_right)
-	var forward_component := relative_pos.dot(target_forward)
-	
-	var snap_position: Vector3
-	var snap_rotation: Vector3
-	
-	var target_inner_radius: float = 0.5
-	var selected_inner_radius: float = 0.5
-	if "inner_radius" in target_conveyor:
-		target_inner_radius = target_conveyor.inner_radius
-	if "inner_radius" in selected_conveyor:
-		selected_inner_radius = selected_conveyor.inner_radius
-	
-	var is_both_roller := _is_curved_roller_conveyor(selected_conveyor) and _is_curved_roller_conveyor(target_conveyor)
-	var is_both_belt := not _is_curved_roller_conveyor(selected_conveyor) and not _is_curved_roller_conveyor(target_conveyor)
-	var offset := 0.004 if is_both_roller else (0.5 if is_both_belt else 0.25)
-	
-	if abs(right_component) > abs(forward_component):
-		if right_component > 0:
-			var local_offset := Vector3(offset, 0, target_inner_radius - selected_inner_radius)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(90), 0)
-		else:
-			var local_offset := Vector3(-(target_inner_radius - selected_inner_radius), 0, -offset)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(-90), 0)
-	else:
-		if forward_component > 0:
-			var local_offset := Vector3(offset, 0, target_inner_radius - selected_inner_radius)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(90), 0)
-		else:
-			var local_offset := Vector3(-(target_inner_radius - selected_inner_radius), 0, -offset)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(-90), 0)
-	
-	var final_basis := Basis.from_euler(snap_rotation)
-	return Transform3D(final_basis, snap_position)
-
-
-static func _calculate_curved_to_belt_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	var target_transform := target_conveyor.global_transform
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	var relative_pos := selected_pos - target_pos
-	
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var forward_component := relative_pos.dot(target_forward)
-	
-	var snap_position: Vector3
-	var snap_rotation: Vector3
-	
-	var selected_inner_radius: float = 0.5
-	if "inner_radius" in selected_conveyor:
-		selected_inner_radius = selected_conveyor.inner_radius
-	
-	var selected_conveyor_width: float = 1.524
-	if "conveyor_width" in selected_conveyor:
-		selected_conveyor_width = selected_conveyor.conveyor_width
-	
-	var target_size := _get_conveyor_size(target_conveyor)
-	var is_roller := _is_curved_roller_conveyor(selected_conveyor)
-	var x_offset := target_size.x / 2.0 + (0.001 if is_roller else 0.242)
-	var z_offset := target_size.z / 2.0 + selected_inner_radius + 0.003
-	
-	if forward_component > 0:
-		var local_offset := Vector3(x_offset, 0, -z_offset)
-		snap_position = target_pos + target_transform.basis * local_offset
-		snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(90), 0)
-	else:
-		var local_offset := Vector3(-x_offset, 0, -z_offset)
-		snap_position = target_pos + target_transform.basis * local_offset
-		snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(0), 0)
-	
-	var final_basis := Basis.from_euler(snap_rotation)
-	return Transform3D(final_basis, snap_position)
 
 
 static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
@@ -749,480 +789,4 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 	return snap_transform
 
 
-static func _group_markers_by_ends(markers: Array[Marker3D]) -> Array[Array]:
-	if markers.size() != 4:
-		return []
-	
-	var conveyor: Node3D = null
-	for marker in markers:
-		var current_node: Node = marker
-		while current_node != null:
-			if current_node is Node3D and current_node.get_script() != null:
-				conveyor = current_node as Node3D
-				break
-			current_node = current_node.get_parent()
-		if conveyor != null:
-			break
-	
-	if conveyor == null:
-		var sorted_markers := markers.duplicate()
-		sorted_markers.sort_custom(func(a, b): return a.global_position.x < b.global_position.x)
-		var front_end: Array[Marker3D] = [sorted_markers[0], sorted_markers[1]]
-		var back_end: Array[Marker3D] = [sorted_markers[2], sorted_markers[3]]
-		return [front_end, back_end]
-	
-	var markers_with_local_pos: Array = []
-	for marker in markers:
-		var local_pos := conveyor.global_transform.affine_inverse() * marker.global_position
-		markers_with_local_pos.append({"marker": marker, "local_pos": local_pos})
-	
-	markers_with_local_pos.sort_custom(func(a, b): return a.local_pos.x < b.local_pos.x)
-	
-	var front_end: Array[Marker3D] = [markers_with_local_pos[0].marker, markers_with_local_pos[1].marker]
-	var back_end: Array[Marker3D] = [markers_with_local_pos[2].marker, markers_with_local_pos[3].marker]
-	
-	return [front_end, back_end]
 
-
-static func _would_cause_overlap(selected_conveyor: Node3D, target_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> bool:
-	if selected_end.is_empty() or target_end.is_empty():
-		return false
-	
-	# For now, use a simpler overlap detection focusing on end-to-end distance vs conveyor sizes
-	var target_end_center := _get_end_center_position(target_end)
-	var selected_end_center := _get_end_center_position(selected_end)
-	
-	# Get approximate conveyor lengths to check for overlap
-	var target_size := _get_conveyor_size(target_conveyor)
-	var selected_size := _get_conveyor_size(selected_conveyor)
-	
-	# Calculate centers and directions
-	var target_center := target_conveyor.global_position
-	var selected_center := selected_conveyor.global_position
-	
-	# Direction from target center to its end
-	var target_to_end := target_end_center - target_center
-	
-	# Estimate where selected center would be after snapping
-	var offset := selected_center - selected_end_center
-	var projected_selected_center := target_end_center + offset
-	
-	# Check if this would place the selected conveyor center very close to the target center
-	# This indicates potential overlap
-	var distance_to_target_center := projected_selected_center.distance_to(target_center)
-	var min_safe_distance := (target_size.x + selected_size.x) * 0.1  # More permissive threshold
-	
-	return distance_to_target_center < min_safe_distance
-
-
-static func _get_end_center_position(end: Array[Marker3D]) -> Vector3:
-	if end.is_empty():
-		return Vector3.ZERO
-	
-	var center := Vector3.ZERO
-	for marker in end:
-		center += marker.global_position
-	
-	return center / float(end.size())
-
-
-static func _calculate_end_alignment_transform(selected_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> Transform3D:
-	if selected_end.is_empty() or target_end.is_empty():
-		EditorInterface.get_editor_toaster().push_toast("Cannot align empty marker ends", EditorToaster.SEVERITY_ERROR)
-		return selected_conveyor.global_transform
-	
-	if selected_end.size() >= 2 and target_end.size() >= 2:
-		return _calculate_best_marker_pair_alignment(selected_conveyor, selected_end, target_end)
-	else:
-		return _calculate_single_marker_alignment(selected_conveyor, selected_end[0], target_end[0])
-
-
-static func _calculate_best_marker_pair_alignment(selected_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> Transform3D:
-	var min_distance := INF
-	var best_selected_marker: Marker3D = null
-	var best_target_marker: Marker3D = null
-	
-	for selected_marker in selected_end:
-		for target_marker in target_end:
-			var distance := selected_marker.global_position.distance_to(target_marker.global_position)
-			if distance < min_distance:
-				min_distance = distance
-				best_selected_marker = selected_marker
-				best_target_marker = target_marker
-	
-	var remaining_selected: Array[Marker3D] = []
-	var remaining_target: Array[Marker3D] = []
-	
-	for marker in selected_end:
-		if marker != best_selected_marker:
-			remaining_selected.append(marker)
-	
-	for marker in target_end:
-		if marker != best_target_marker:
-			remaining_target.append(marker)
-	
-	var second_selected_marker: Marker3D = null
-	var second_target_marker: Marker3D = null
-	
-	if remaining_selected.size() > 0 and remaining_target.size() > 0:
-		var second_min_distance := INF
-		for selected_marker in remaining_selected:
-			for target_marker in remaining_target:
-				var distance := selected_marker.global_position.distance_to(target_marker.global_position)
-				if distance < second_min_distance:
-					second_min_distance = distance
-					second_selected_marker = selected_marker
-					second_target_marker = target_marker
-		
-		var selected_pair: Array[Marker3D] = [best_selected_marker, second_selected_marker]
-		var target_pair: Array[Marker3D] = [best_target_marker, second_target_marker]
-		return _calculate_dual_marker_alignment(selected_conveyor, selected_pair, target_pair)
-	else:
-		return _calculate_single_marker_alignment(selected_conveyor, best_selected_marker, best_target_marker)
-
-
-static func _calculate_dual_marker_alignment(selected_conveyor: Node3D, selected_end: Array[Marker3D], target_end: Array[Marker3D]) -> Transform3D:
-	selected_end.sort_custom(func(a, b): return a.global_position.z < b.global_position.z)
-	target_end.sort_custom(func(a, b): return a.global_position.z < b.global_position.z)
-	
-	var selected_marker1 := selected_end[0]
-	var selected_marker2 := selected_end[1]
-	var target_marker1 := target_end[0]
-	var target_marker2 := target_end[1]
-	
-	var selected_spacing := selected_marker1.global_position.distance_to(selected_marker2.global_position)
-	var target_spacing := target_marker1.global_position.distance_to(target_marker2.global_position)
-	var spacings_match: bool = abs(selected_spacing - target_spacing) < 0.01
-	
-	if not spacings_match:
-		var swap_spacing_1_2: float = selected_marker1.global_position.distance_to(target_marker2.global_position)
-		var swap_spacing_2_1: float = selected_marker2.global_position.distance_to(target_marker1.global_position)
-		
-		if (swap_spacing_1_2 + swap_spacing_2_1) < (selected_marker1.global_position.distance_to(target_marker1.global_position) + selected_marker2.global_position.distance_to(target_marker2.global_position)):
-			var temp_marker := target_marker1
-			target_marker1 = target_marker2
-			target_marker2 = temp_marker
-	
-	var selected_marker1_local := selected_conveyor.global_transform.affine_inverse() * selected_marker1.global_position
-	var selected_marker2_local := selected_conveyor.global_transform.affine_inverse() * selected_marker2.global_position
-	
-	var snap_transform: Transform3D
-	
-	if spacings_match:
-		var target_direction := (target_marker2.global_position - target_marker1.global_position).normalized()
-		var selected_direction_local := (selected_marker2_local - selected_marker1_local).normalized()
-		var selected_direction_world := selected_conveyor.global_transform.basis * selected_direction_local
-		
-		var rotation_quat: Quaternion
-		if selected_direction_world.length_squared() > 0.001 and target_direction.length_squared() > 0.001:
-			rotation_quat = Quaternion(selected_direction_world, target_direction)
-		else:
-			rotation_quat = Quaternion.IDENTITY
-		
-		var new_basis := Basis(rotation_quat) * selected_conveyor.global_transform.basis
-		var rotated_marker1_local := new_basis * selected_marker1_local
-		var rotated_marker2_local := new_basis * selected_marker2_local
-		
-		var translation1 := target_marker1.global_position - rotated_marker1_local
-		var translation2 := target_marker2.global_position - rotated_marker2_local
-		var final_translation := (translation1 + translation2) * 0.5
-		
-		snap_transform = Transform3D(new_basis, final_translation)
-	else:
-		var selected_center_local := (selected_marker1_local + selected_marker2_local) * 0.5
-		var target_center := (target_marker1.global_position + target_marker2.global_position) * 0.5
-		var target_direction := (target_marker2.global_position - target_marker1.global_position).normalized()
-		var selected_direction_local := (selected_marker2_local - selected_marker1_local).normalized()
-		
-		var rotation_quat: Quaternion
-		if selected_direction_local.length_squared() > 0.001 and target_direction.length_squared() > 0.001:
-			rotation_quat = Quaternion(selected_direction_local, target_direction)
-			rotation_quat = rotation_quat.slerp(Quaternion.IDENTITY, 0.4)
-		else:
-			rotation_quat = Quaternion.IDENTITY
-		
-		var new_basis := Basis(rotation_quat) * selected_conveyor.global_transform.basis
-		var rotated_center_local := new_basis * selected_center_local
-		var translation := target_center - rotated_center_local
-		
-		snap_transform = Transform3D(new_basis, translation)
-	
-	return snap_transform
-
-
-static func _calculate_single_marker_alignment(selected_conveyor: Node3D, selected_marker: Marker3D, target_marker: Marker3D) -> Transform3D:
-	var target_marker_global := target_marker.global_transform
-	var selected_marker_local := selected_marker.transform
-	var selected_conveyor_to_marker := selected_marker_local
-	var marker_to_conveyor := selected_conveyor_to_marker.affine_inverse()
-	var snap_transform := target_marker_global * marker_to_conveyor
-	var selected_inclination := _get_z_inclination(selected_conveyor.global_transform)
-	snap_transform.basis = _apply_inclination_to_basis(snap_transform.basis, selected_inclination)
-	return snap_transform
-
-
-static func _calculate_curved_to_curved_resnap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	var target_transform := target_conveyor.global_transform
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	var relative_pos := selected_pos - target_pos
-	
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var right_component := relative_pos.dot(target_right)
-	var forward_component := relative_pos.dot(target_forward)
-	
-	var snap_position: Vector3
-	var snap_rotation: Vector3
-	
-	var target_inner_radius: float = 0.25
-	var selected_inner_radius: float = 0.25
-	var target_conveyor_width: float = 1.524
-	var selected_conveyor_width: float = 1.524
-	
-	if "inner_radius" in target_conveyor:
-		target_inner_radius = target_conveyor.inner_radius
-	if "inner_radius" in selected_conveyor:
-		selected_inner_radius = selected_conveyor.inner_radius
-	if "conveyor_width" in target_conveyor:
-		target_conveyor_width = target_conveyor.conveyor_width
-	if "conveyor_width" in selected_conveyor:
-		selected_conveyor_width = selected_conveyor.conveyor_width
-	
-	var is_both_roller := _is_curved_roller_conveyor(selected_conveyor) and _is_curved_roller_conveyor(target_conveyor)
-	var is_both_belt := not _is_curved_roller_conveyor(selected_conveyor) and not _is_curved_roller_conveyor(target_conveyor)
-	var offset := 0.004 if is_both_roller else (0.5 if is_both_belt else 0.25)
-	
-	# Calculate distance based on conveyor types
-	var distance: float
-	if is_both_belt:
-		distance = selected_conveyor_width + target_inner_radius + selected_inner_radius
-	elif is_both_roller:
-		distance = target_inner_radius + selected_inner_radius + 2.030
-	else:
-		distance = target_inner_radius + selected_inner_radius + 1.777
-	
-	if abs(right_component) > abs(forward_component):
-		if right_component > 0:
-			var local_offset := Vector3(offset, 0, distance)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(180), 0)
-		else:
-			var local_offset := Vector3(-distance, 0, -offset)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(180), 0)
-	else:
-		if forward_component < 0:
-			var local_offset := Vector3(-distance, 0, -offset)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(180), 0)
-		else:
-			var local_offset := Vector3(offset, 0, distance)
-			snap_position = target_pos + target_transform.basis * local_offset
-			snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(180), 0)
-	
-	var final_basis := Basis.from_euler(snap_rotation)
-	return Transform3D(final_basis, snap_position)
-
-
-static func _calculate_curved_to_belt_resnap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	var target_transform := target_conveyor.global_transform
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	var relative_pos := selected_pos - target_pos
-	
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var forward_component := relative_pos.dot(target_forward)
-	
-	var snap_position: Vector3
-	var snap_rotation: Vector3
-	
-	var selected_inner_radius: float = 0.5
-	if "inner_radius" in selected_conveyor:
-		selected_inner_radius = selected_conveyor.inner_radius
-	
-	var selected_conveyor_width: float = 1.524
-	if "conveyor_width" in selected_conveyor:
-		selected_conveyor_width = selected_conveyor.conveyor_width
-	
-	var target_size := _get_conveyor_size(target_conveyor)
-	var is_roller := _is_curved_roller_conveyor(selected_conveyor)
-	var x_offset := target_size.x / 2.0 + (0.001 if is_roller else 0.242)
-	var z_offset := target_size.z / 2.0 + selected_inner_radius + 0.002
-	
-	if forward_component > 0:
-		var local_offset := Vector3(x_offset, 0, z_offset)
-		snap_position = target_pos + target_transform.basis * local_offset
-		snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(180), 0)
-	else:
-		var local_offset := Vector3(-x_offset, 0, z_offset)
-		snap_position = target_pos + target_transform.basis * local_offset
-		snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(-90), 0)
-	
-	var final_basis := Basis.from_euler(snap_rotation)
-	return Transform3D(final_basis, snap_position)
-
-
-static func _calculate_belt_to_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	var target_transform := target_conveyor.global_transform
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	var relative_pos := selected_pos - target_pos
-	
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var forward_component := relative_pos.dot(target_forward)
-	var right_component := relative_pos.dot(target_right)
-	
-	var snap_position: Vector3
-	var snap_rotation: Vector3
-	
-	var target_inner_radius: float = 0.5
-	if "inner_radius" in target_conveyor:
-		target_inner_radius = target_conveyor.inner_radius
-	
-	var selected_size := _get_conveyor_size(selected_conveyor)
-	var is_roller := _is_curved_roller_conveyor(target_conveyor)
-	var offset := 0.001 if is_roller else 0.242
-	
-	var x_offset_front := -(1.265 + (target_inner_radius - 0.5))
-	var x_offset_back := selected_size.x / 2.0 + offset
-	var z_offset_front := selected_size.x / 2.0 + offset
-	var z_offset_back := 1.265 + (target_inner_radius - 0.5)
-	
-	# Calculate potential snap positions for both sides
-	var front_local_offset := Vector3(x_offset_front, 0, -z_offset_front)
-	var back_local_offset := Vector3(x_offset_back, 0, z_offset_back)
-	
-	var front_snap_pos := target_pos + target_transform.basis * front_local_offset
-	var back_snap_pos := target_pos + target_transform.basis * back_local_offset
-	
-	# Choose the side closest to the selected conveyor
-	var distance_to_front := selected_pos.distance_to(front_snap_pos)
-	var distance_to_back := selected_pos.distance_to(back_snap_pos)
-	var use_front_side := distance_to_front < distance_to_back
-	
-	if use_front_side:
-		var local_offset := Vector3(x_offset_front, 0, -z_offset_front)
-		snap_position = target_pos + target_transform.basis * local_offset
-		snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(90), 0)
-	else:
-		var local_offset := Vector3(x_offset_back, 0, z_offset_back)
-		snap_position = target_pos + target_transform.basis * local_offset
-		snap_rotation = target_transform.basis.get_euler() + Vector3(0, deg_to_rad(0), 0)
-	
-	var final_basis := Basis.from_euler(snap_rotation)
-	return Transform3D(final_basis, snap_position)
-
-
-static func _is_curved_to_curved_already_snapped(selected_conveyor: Node3D, target_conveyor: Node3D) -> bool:
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	
-	var target_inner_radius: float = 0.5
-	var selected_inner_radius: float = 0.5
-	if "inner_radius" in target_conveyor:
-		target_inner_radius = target_conveyor.inner_radius
-	if "inner_radius" in selected_conveyor:
-		selected_inner_radius = selected_conveyor.inner_radius
-	
-	var target_transform := target_conveyor.global_transform
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var relative_pos := selected_pos - target_pos
-	var right_component := relative_pos.dot(target_right)
-	var forward_component := relative_pos.dot(target_forward)
-	
-	var is_both_roller := _is_curved_roller_conveyor(selected_conveyor) and _is_curved_roller_conveyor(target_conveyor)
-	var is_both_belt := not _is_curved_roller_conveyor(selected_conveyor) and not _is_curved_roller_conveyor(target_conveyor)
-	var offset := 0.01 if is_both_roller else (0.5 if is_both_belt else 0.25)
-	
-	var expected_first_snap_pos: Vector3
-	if abs(right_component) > abs(forward_component):
-		if right_component > 0:
-			expected_first_snap_pos = target_pos + target_transform.basis * Vector3(offset, 0, target_inner_radius - selected_inner_radius)
-		else:
-			expected_first_snap_pos = target_pos + target_transform.basis * Vector3(-(target_inner_radius - selected_inner_radius), 0, -offset)
-	else:
-		if forward_component > 0:
-			expected_first_snap_pos = target_pos + target_transform.basis * Vector3(offset, 0, target_inner_radius - selected_inner_radius)
-		else:
-			expected_first_snap_pos = target_pos + target_transform.basis * Vector3(-(target_inner_radius - selected_inner_radius), 0, -offset)
-	
-	var position_tolerance := 0.1 if is_both_roller else 1.0  # Tighter tolerance for roller-to-roller
-	var position_distance := selected_pos.distance_to(expected_first_snap_pos)
-	if position_distance > position_tolerance:
-		return false
-	
-	var target_rotation := target_conveyor.global_transform.basis.get_euler()
-	var selected_rotation := selected_conveyor.global_transform.basis.get_euler()
-	
-	var y_diff: float = abs(target_rotation.y - selected_rotation.y)
-	y_diff = fmod(y_diff, 2 * PI)
-	var angle_tolerance := 0.1 if is_both_roller else 0.3  # Tighter tolerance for roller-to-roller
-	var is_perpendicular: bool = (abs(y_diff - PI/2) < angle_tolerance) or (abs(y_diff - 3*PI/2) < angle_tolerance)
-	
-	return is_perpendicular
-
-
-static func _is_curved_to_belt_already_snapped(selected_conveyor: Node3D, target_conveyor: Node3D) -> bool:
-	var target_pos := target_conveyor.global_position
-	var selected_pos := selected_conveyor.global_position
-	
-	var selected_inner_radius: float = 0.5
-	if "inner_radius" in selected_conveyor:
-		selected_inner_radius = selected_conveyor.inner_radius
-	
-	var target_size := _get_conveyor_size(target_conveyor)
-	var x_offset := target_size.x / 2.0 + 0.25
-	
-	var target_transform := target_conveyor.global_transform
-	var target_right := target_transform.basis.z.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var relative_pos := selected_pos - target_pos
-	var forward_component := relative_pos.dot(target_forward)
-	
-	var expected_first_snap_pos: Vector3
-	if forward_component > 0:
-		expected_first_snap_pos = target_pos + target_transform.basis * Vector3(x_offset, 0, -1.262 - (selected_inner_radius - 0.5))
-	else:
-		expected_first_snap_pos = target_pos + target_transform.basis * Vector3(-x_offset, 0, -1.262 - (selected_inner_radius - 0.5))
-	
-	var position_tolerance := 1.0
-	var position_distance := selected_pos.distance_to(expected_first_snap_pos)
-	if position_distance > position_tolerance:
-		return false
-	
-	var target_rotation := target_conveyor.global_transform.basis.get_euler()
-	var selected_rotation := selected_conveyor.global_transform.basis.get_euler()
-	
-	var y_diff: float = abs(target_rotation.y - selected_rotation.y)
-	y_diff = fmod(y_diff, 2 * PI)
-	var is_perpendicular: bool = (abs(y_diff - PI/2) < 0.3) or (abs(y_diff) < 0.3)
-	
-	return is_perpendicular
-
-
-static func _is_belt_to_curved_already_snapped(selected_conveyor: Node3D, target_conveyor: Node3D) -> bool:
-	# Simple distance check - if close to target, assume already snapped
-	var distance := selected_conveyor.global_position.distance_to(target_conveyor.global_position)
-	return distance < 3.0
-
-
-static func _calculate_belt_to_curved_resnap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
-	# Temporarily move the selected conveyor to the opposite side to force different snap logic
-	var original_pos := selected_conveyor.global_position
-	var target_pos := target_conveyor.global_position
-	var offset_direction := (original_pos - target_pos).normalized()
-	
-	# Move to opposite side temporarily
-	selected_conveyor.global_position = target_pos - offset_direction * 4.0
-	
-	# Use existing snap logic to find the new position
-	var result := _calculate_belt_to_curved_snap_transform(selected_conveyor, target_conveyor)
-	
-	# Restore original position
-	selected_conveyor.global_position = original_pos
-	
-	return result
