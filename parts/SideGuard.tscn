@@ -53,6 +53,9 @@ shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
 
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_sg"]
+friction = 0.0
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_mn2rf"]
 size = Vector3(1, 0.602947, 0.0693115)
 
@@ -66,6 +69,7 @@ length = 3.5
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=432297405]
 disable_mode = 1
 collision_mask = 8
+physics_material_override = SubResource("PhysicsMaterial_sg")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=871359227]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.296473, -1.09432)
