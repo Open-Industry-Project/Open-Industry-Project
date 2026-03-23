@@ -99,7 +99,7 @@ var _remove_collec_dialog: ConfirmationDialog = null
 
 var _save_timer: Timer = null
 
-var _thumb_grid_icon_size: int = 64
+var _thumb_grid_icon_size: int = 88
 var _thumb_list_icon_size: int = 16
 
 # INFO: May be required for debugging.
@@ -148,7 +148,7 @@ func _ready() -> void:
 
 	_asset_display_mode = get_or_create_editor_setting(EDITOR_SETTING_THUMBNAIL_MODE, DisplayMode.THUMBNAILS)
 
-	_thumb_grid_icon_size = get_or_create_editor_setting(EDITOR_SETTING_THUMBNAIL_GRID_SIZE, 64)
+	_thumb_grid_icon_size = get_or_create_editor_setting(EDITOR_SETTING_THUMBNAIL_GRID_SIZE, 88)
 	_thumb_list_icon_size = get_or_create_editor_setting(EDITOR_SETTING_THUMBNAIL_LIST_SIZE, 16)
 
 	_sort_mode = get_or_create_editor_setting(EDITOR_SETTING_SORT_MODE, SortMode.NAME)
