@@ -9,7 +9,6 @@
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_541io"]
 
 [node name="CurvedBeltConveyorAssembly" type="Node3D" unique_id=250519520]
-process_mode = 3
 script = ExtResource("1_5kj7c")
 inner_radius = 0.5
 conveyor_width = 1.5240000000048894
@@ -17,6 +16,7 @@ belt_height = 0.5
 belt_color = Color(1, 1, 1, 1)
 belt_texture = 0
 conveyor_angle = 90.0
+reverse_belt = false
 speed = 2.0
 reference_distance = 0.762
 belt_physics_material = SubResource("PhysicsMaterial_541io")
@@ -26,6 +26,7 @@ running_tag_name = ""
 metadata/hijack_scale = false
 
 [node name="ConveyorCorner" parent="." unique_id=2039835046 instance=ExtResource("3_a54t1")]
+belt_physics_material = SubResource("PhysicsMaterial_541io")
 
 [node name="ConveyorLegsAssembly" parent="ConveyorCorner" unique_id=557493280 instance=ExtResource("5_curved_legs")]
 unique_name_in_owner = true

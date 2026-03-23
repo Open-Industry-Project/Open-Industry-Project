@@ -9,13 +9,13 @@
 script = ExtResource("1_0vkx8")
 inner_radius_f = 0.5
 conveyor_width = 1.524
+conveyor_angle = 90.0
+reverse = false
 speed = 2.0
 reference_distance = 0.762
-conveyor_angle = 90.0
 enable_comms = false
 speed_tag_name = ""
 running_tag_name = ""
-metadata/_edit_group_ = null
 metadata/hijack_scale = true
 
 [node name="ConveyorCorner" parent="." unique_id=483308205 instance=ExtResource("2_1qr7y")]
