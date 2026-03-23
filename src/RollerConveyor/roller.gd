@@ -14,12 +14,16 @@ func _enter_tree() -> void:
 	_ensure_node_references_initialized()
 
 func set_length(length: float) -> void:
+	set_length_and_offset(length, 0.0)
+
+func set_length_and_offset(length: float, shaft_offset: float) -> void:
 	_ensure_node_references_initialized()
-	_left_end_mesh.position = Vector3(0, 0, -length / BASE_LENGTH)
-	_right_end_mesh.position = Vector3(0, 0, length / BASE_LENGTH)
+	_left_end_mesh.position = Vector3(0, 0, shaft_offset - length / BASE_LENGTH)
+	_right_end_mesh.position = Vector3(0, 0, shaft_offset + length / BASE_LENGTH)
 
 	var cylinder_margins := BASE_LENGTH - BASE_CYLINDER_LENGTH
 	var new_cylinder_length := length - cylinder_margins
+	_cylinder_mesh.position = Vector3(0, 0, shaft_offset)
 	_cylinder_mesh.scale = Vector3(1, 1, new_cylinder_length / BASE_CYLINDER_LENGTH)
 
 func set_roller_override_material(material: Material) -> void:

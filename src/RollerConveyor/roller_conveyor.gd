@@ -8,8 +8,8 @@ signal roller_skew_angle_changed(skew_angle_degrees: float)
 signal speed_changed(speed: float)
 signal roller_override_material_changed(material: Material)
 
-const RADIUS: float = 0.12
-const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
+const CIRCUMFERENCE: float = 2.0 * PI * Roller.RADIUS
+const ROLLERS_Y_OFFSET: float = -0.08
 ## Linear speed of the rollers in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
@@ -29,6 +29,7 @@ const CIRCUMFERENCE: float = 2.0 * PI * RADIUS
 			skew_angle = value
 			roller_skew_angle_changed.emit(skew_angle)
 			_update_conveyor_velocity()
+			_update_transfer_plates()
 
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.
@@ -65,6 +66,11 @@ var _rollers: Rollers
 var _ends: Node3D
 var _roller_material: BaseMaterial3D
 var _simple_conveyor_shape: StaticBody3D
+var _transfer_plate_discharge: MeshInstance3D
+var _transfer_plate_infeed: MeshInstance3D
+var _transfer_plate_discharge_opp: MeshInstance3D
+var _transfer_plate_infeed_opp: MeshInstance3D
+var _transfer_plate_material: StandardMaterial3D
 
 
 func _init() -> void:
@@ -108,12 +114,14 @@ func _ready() -> void:
 	_setup_collision_shape()
 	_setup_roller_initialization()
 	_setup_material()
+	_setup_transfer_plates()
 	_on_size_changed()
 
 
 func _physics_process(_delta: float) -> void:
 	if running and _roller_material:
-		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + speed * _delta / CIRCUMFERENCE, 1.0)
+		var roller_speed := speed / cos(deg_to_rad(skew_angle)) if absf(skew_angle) < 89.0 else speed
+		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + roller_speed * _delta / CIRCUMFERENCE, 1.0)
 
 
 func set_roller_override_material(material: Material) -> void:
@@ -212,7 +220,7 @@ func _update_component_positions() -> void:
 
 	var rollers_node := get_node_or_null("Rollers")
 	if rollers_node:
-		rollers_node.position = Vector3(-size.x / 2.0 + 0.2, -0.08, 0)
+		rollers_node.position = Vector3(-size.x / 2.0 + 0.2, ROLLERS_Y_OFFSET, 0)
 		rollers_node.scale = Vector3.ONE
 
 	var ends_node := get_node_or_null("Ends")
@@ -265,7 +273,9 @@ func _update_conveyor_velocity() -> void:
 		var local_x := _simple_conveyor_shape.global_transform.basis.x.normalized()
 		var local_y := _simple_conveyor_shape.global_transform.basis.y.normalized()
 		var angle_rad := deg_to_rad(skew_angle)
-		var velocity := local_x.rotated(local_y, angle_rad) * speed
+		var cos_a := cos(angle_rad)
+		var adjusted_speed := speed / cos_a if absf(cos_a) > 1e-3 else speed
+		var velocity := local_x.rotated(local_y, angle_rad) * adjusted_speed
 		_simple_conveyor_shape.constant_linear_velocity = velocity
 	else:
 		_simple_conveyor_shape.constant_linear_velocity = Vector3.ZERO
@@ -286,9 +296,10 @@ func _on_size_changed() -> void:
 		_update_length()
 		_update_metal_material_scale()
 		_update_component_positions()
+		_update_transfer_plates()
 
 		if _simple_conveyor_shape:
-			_simple_conveyor_shape.position = Vector3(0, -0.08, 0)
+			_simple_conveyor_shape.position = Vector3(0, ROLLERS_Y_OFFSET, 0)
 
 
 func _on_roller_added(roller: Roller) -> void:
@@ -325,3 +336,119 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 	if _speed_tag.matches_group(tag_group_name_param):
 		speed = _speed_tag.read_float32()
+
+
+func _setup_transfer_plates() -> void:
+	_transfer_plate_material = StandardMaterial3D.new()
+	_transfer_plate_material.albedo_color = Color(0.337, 0.655, 0.784)
+	_transfer_plate_material.albedo_texture = load("res://assets/3DModels/Textures/Metal.png")
+	_transfer_plate_material.metallic = 0.8
+	_transfer_plate_material.roughness = 0.3
+	_transfer_plate_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	_transfer_plate_discharge = _get_or_create_internal_child("TransferPlateDischarge")
+	_transfer_plate_discharge.material_override = _transfer_plate_material
+
+	_transfer_plate_infeed = _get_or_create_internal_child("TransferPlateInfeed")
+	_transfer_plate_infeed.material_override = _transfer_plate_material
+
+	_transfer_plate_discharge_opp = _get_or_create_internal_child("TransferPlateDischargeOpp")
+	_transfer_plate_discharge_opp.material_override = _transfer_plate_material
+
+	_transfer_plate_infeed_opp = _get_or_create_internal_child("TransferPlateInfeedOpp")
+	_transfer_plate_infeed_opp.material_override = _transfer_plate_material
+
+
+func _get_or_create_internal_child(child_name: String) -> MeshInstance3D:
+	var node := get_node_or_null(child_name) as MeshInstance3D
+	if not node:
+		node = MeshInstance3D.new()
+		node.name = child_name
+		add_child(node, false, Node.INTERNAL_MODE_FRONT)
+	return node
+
+
+func _update_transfer_plates() -> void:
+	var plates: Array[MeshInstance3D] = [
+		_transfer_plate_discharge, _transfer_plate_infeed,
+		_transfer_plate_discharge_opp, _transfer_plate_infeed_opp,
+	]
+
+	if plates.any(func(p: MeshInstance3D) -> bool: return p == null):
+		return
+
+	if absf(skew_angle) < 0.01:
+		for plate in plates:
+			plate.visible = false
+		return
+
+	var half_l := size.x / 2.0
+	var half_w := size.z / 2.0
+	var skew_rad := deg_to_rad(skew_angle)
+	var plate_y := ROLLERS_Y_OFFSET + Roller.RADIUS
+	var skew_zone := half_w * absf(tan(skew_rad))
+	var x_start := half_l - skew_zone
+	var z_sign := signf(skew_angle)
+	var skirt_depth := Roller.RADIUS * 2.0
+
+	for plate in plates:
+		plate.visible = true
+
+	_transfer_plate_discharge.mesh = _create_transfer_plate_mesh(
+		Vector3(x_start, plate_y, z_sign * half_w),
+		Vector3(half_l, plate_y, z_sign * half_w),
+		Vector3(half_l, plate_y, 0.0),
+		skirt_depth,
+	)
+
+	_transfer_plate_discharge_opp.mesh = _create_transfer_plate_mesh(
+		Vector3(x_start, plate_y, -z_sign * half_w),
+		Vector3(half_l, plate_y, -z_sign * half_w),
+		Vector3(half_l, plate_y, 0.0),
+		skirt_depth,
+	)
+
+	_transfer_plate_infeed.mesh = _create_transfer_plate_mesh(
+		Vector3(-x_start, plate_y, -z_sign * half_w),
+		Vector3(-half_l, plate_y, -z_sign * half_w),
+		Vector3(-half_l, plate_y, 0.0),
+		skirt_depth,
+	)
+
+	_transfer_plate_infeed_opp.mesh = _create_transfer_plate_mesh(
+		Vector3(-x_start, plate_y, z_sign * half_w),
+		Vector3(-half_l, plate_y, z_sign * half_w),
+		Vector3(-half_l, plate_y, 0.0),
+		skirt_depth,
+	)
+
+
+## Builds a transfer plate mesh: a horizontal triangle (v1-v2-v3) plus
+## vertical skirts to conceal shortened roller ends.
+## v1→v3: inner diagonal edge (facing rollers). v2→v3: end frame edge.
+static func _create_transfer_plate_mesh(
+	v1: Vector3, v2: Vector3, v3: Vector3, skirt_depth: float
+) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	var v1_bottom := v1 - Vector3(0, skirt_depth, 0)
+	var v2_bottom := v2 - Vector3(0, skirt_depth, 0)
+	var v3_bottom := v3 - Vector3(0, skirt_depth, 0)
+
+	_add_tri(st, v1, v3, v2)
+
+	_add_tri(st, v1, v1_bottom, v3_bottom)
+	_add_tri(st, v3_bottom, v3, v1)
+
+	_add_tri(st, v2, v2_bottom, v3_bottom)
+	_add_tri(st, v3_bottom, v3, v2)
+
+	st.generate_normals()
+	return st.commit()
+
+
+static func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	st.set_uv(Vector2(0, 0)); st.add_vertex(a)
+	st.set_uv(Vector2(1, 0)); st.add_vertex(b)
+	st.set_uv(Vector2(1, 1)); st.add_vertex(c)
