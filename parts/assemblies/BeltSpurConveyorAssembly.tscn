@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://blv116gh51acb"]
+
+[ext_resource type="Script" uid="uid://cysom64xi3tlg" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly_full.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="2_sg"]
+[ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="3_legs"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_spur"]
+friction = 0.5
+
+[node name="BeltSpurConveyorAssembly" type="Node3D" unique_id=890144113]
+script = ExtResource("1_script")
+_cached_properties = {
+&"belt_color": Color(1, 1, 1, 1),
+&"belt_physics_material": SubResource("PhysicsMaterial_spur"),
+&"belt_texture": 0,
+&"enable_comms": false,
+&"running_tag_group_name": "",
+&"running_tag_name": "",
+&"speed": 2.0,
+&"speed_tag_group_name": "",
+&"speed_tag_name": ""
+}
+angle_downstream = 0.5235987755982988
+conveyor_count = 8
+size = Vector3(2, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="SideGuardsAssembly" parent="." unique_id=995415694 instance=ExtResource("2_sg")]
+unique_name_in_owner = true
+
+[node name="ConveyorLegsAssembly" parent="." unique_id=929282483 instance=ExtResource("3_legs")]
+unique_name_in_owner = true
+middle_legs_enabled = false
+head_end_leg_enabled = false

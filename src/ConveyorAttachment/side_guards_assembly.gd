@@ -206,10 +206,45 @@ func _get_side_node_name(side: SideGuardsAssembly.Side) -> StringName:
 
 
 func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
-	# Assume side length equal to parent conveyor length dimension.
-	# FIXME: This assumption won't be valid for curved conveyors or spur conveyors.
-	var conveyor_length: float = get_parent().size.x
+	var conveyor = get_parent()
+
+	if "angle_downstream" in conveyor and "angle_upstream" in conveyor and "conveyor_count" in conveyor:
+		return _get_spur_side_extents(side, conveyor)
+
+	# FIXME: This assumption won't be valid for curved conveyors.
+	var conveyor_length: float = conveyor.size.x
 	return [-conveyor_length / 2.0, conveyor_length / 2.0]
+
+
+func _get_spur_side_extents(side: SideGuardsAssembly.Side, conveyor: Node3D) -> Array[float]:
+	var length: float = conveyor.size.x
+	var width: float = conveyor.size.z
+	var angle_ds: float = conveyor.angle_downstream
+	var angle_us: float = conveyor.angle_upstream
+	var count: int = conveyor.conveyor_count
+
+	var conv_width: float = width / count
+	var conv_half_width: float = 0.5 * conv_width
+
+	var index: int
+	match side:
+		Side.LEFT:
+			index = 0
+		Side.RIGHT:
+			index = count - 1
+		_:
+			index = 0
+
+	var conv_pos_z: float = -0.5 * width + conv_half_width + index * width / count
+	var ds_contact_z_offset: float = -conv_half_width if angle_ds > 0 else conv_half_width
+	var us_contact_z_offset: float = conv_half_width if angle_us > 0 else -conv_half_width
+	var ds_displacement_x: float = tan(angle_ds) * (conv_pos_z + ds_contact_z_offset)
+	var us_displacement_x: float = tan(angle_us) * (conv_pos_z + us_contact_z_offset)
+
+	var front_x: float = length / 2.0 + ds_displacement_x
+	var back_x: float = -length / 2.0 + us_displacement_x
+
+	return [back_x, front_x]
 
 
 ## Cut gaps into the conveyor extents list.
