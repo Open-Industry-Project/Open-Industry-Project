@@ -864,26 +864,32 @@ static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_con
 		return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
 
 	var side_outward: Vector3
-	var side_closest: Vector3
+	var side_edge_start: Vector3
+	var side_edge_end: Vector3
 	if dist_left < dist_right:
 		side_outward = Vector3(0, 0, -1)
-		side_closest = left_closest
+		side_edge_start = left_edge_start
+		side_edge_end = left_edge_end
 	else:
 		side_outward = Vector3(0, 0, 1)
-		side_closest = right_closest
-
-	var side_pos_local: Vector3 = tgt_transform.affine_inverse() * side_closest
-	var side_end := {"pos": side_pos_local, "outward": side_outward}
+		side_edge_start = right_edge_start
+		side_edge_end = right_edge_end
 
 	var sel_ends := _get_spur_end_info(selected_conveyor)
 	var best_sel: Dictionary = sel_ends[0]
 	var best_dist := INF
 	for se in sel_ends:
 		var se_world: Vector3 = sel_transform * (se.pos as Vector3)
+		var side_closest := _get_closest_point_on_line_segment(se_world, side_edge_start, side_edge_end)
 		var dist := se_world.distance_to(side_closest)
 		if dist < best_dist:
 			best_dist = dist
 			best_sel = se
+
+	var best_sel_world: Vector3 = sel_transform * (best_sel.pos as Vector3)
+	var side_contact := _get_closest_point_on_line_segment(best_sel_world, side_edge_start, side_edge_end)
+	var side_pos_local: Vector3 = tgt_transform.affine_inverse() * side_contact
+	var side_end := {"pos": side_pos_local, "outward": side_outward}
 
 	return _snap_end_to_end(selected_conveyor, best_sel, target_conveyor, side_end, 0.0)
 
