@@ -208,8 +208,10 @@ func _get_side_node_name(side: SideGuardsAssembly.Side) -> StringName:
 func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
 	var conveyor = get_parent()
 
-	if "angle_downstream" in conveyor and "angle_upstream" in conveyor and "conveyor_count" in conveyor:
-		return _get_spur_side_extents(side, conveyor)
+	if "angle_downstream" in conveyor and "angle_upstream" in conveyor:
+		if "conveyor_count" in conveyor:
+			return _get_spur_side_extents(side, conveyor)
+		return _get_single_conveyor_spur_side_extents(side, conveyor)
 
 	# FIXME: This assumption won't be valid for curved conveyors.
 	var conveyor_length: float = conveyor.size.x
@@ -243,6 +245,28 @@ func _get_spur_side_extents(side: SideGuardsAssembly.Side, conveyor: Node3D) -> 
 
 	var front_x: float = length / 2.0 + ds_displacement_x
 	var back_x: float = -length / 2.0 + us_displacement_x
+
+	return [back_x, front_x]
+
+
+func _get_single_conveyor_spur_side_extents(side: SideGuardsAssembly.Side, conveyor: Node3D) -> Array[float]:
+	var length: float = conveyor.size.x
+	var width: float = conveyor.size.z
+	var angle_ds: float = conveyor.angle_downstream
+	var angle_us: float = conveyor.angle_upstream
+	var half_w: float = width / 2.0
+
+	var side_z: float
+	match side:
+		Side.LEFT:
+			side_z = -half_w
+		Side.RIGHT:
+			side_z = half_w
+		_:
+			side_z = 0.0
+
+	var front_x: float = length / 2.0 + tan(angle_ds) * side_z
+	var back_x: float = -length / 2.0 + tan(angle_us) * side_z
 
 	return [back_x, front_x]
 

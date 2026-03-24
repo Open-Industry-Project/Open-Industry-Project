@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://c4kdexwsgqvlh"]
+
+[ext_resource type="Script" uid="uid://c5guegricgf4t" path="res://src/ConveyorAssembly/roller_spur_conveyor_assembly_full.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="2_conv"]
+[ext_resource type="PackedScene" uid="uid://cr8u3bta0skiy" path="res://parts/ConveyorLegBC.tscn" id="2_rqboq"]
+[ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="3_sg"]
+[ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="4_legs"]
+
+[node name="RollerSpurConveyorAssembly" type="Node3D" unique_id=1896784274]
+script = ExtResource("1_script")
+angle_downstream = 0.5235987755982988
+leg_model_scene = ExtResource("2_rqboq")
+leg_model_grabs_offset = 0.132
+speed = 2.0
+enable_comms = false
+speed_tag_group_name = ""
+speed_tag_name = ""
+running_tag_group_name = ""
+running_tag_name = ""
+size = Vector3(2, 0.24, 1.524)
+metadata/hijack_scale = true
+
+[node name="Conveyor" parent="." unique_id=509443107 instance=ExtResource("2_conv")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.21997046, 0, 0)
+speed = 2.0
+size = Vector3(2.439941, 0.24, 1.524)
+
+[node name="SideGuardsAssembly" parent="." unique_id=699343035 instance=ExtResource("3_sg")]
+unique_name_in_owner = true
+
+[node name="ConveyorLegsAssembly" parent="." unique_id=1757874174 instance=ExtResource("4_legs")]
+unique_name_in_owner = true
+middle_legs_enabled = false
+head_end_leg_enabled = false

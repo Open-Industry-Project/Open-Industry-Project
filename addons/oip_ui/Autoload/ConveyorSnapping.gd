@@ -170,17 +170,10 @@ static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Nod
 	
 	if is_perpendicular and _has_spur_angles(snapped_conveyor):
 		var spur_angles := _get_spur_angles(snapped_conveyor)
-		var connecting_downstream: bool = snapped_local_transform.origin.x > 0.0
-		var spur_angle: float = spur_angles.downstream if connecting_downstream else spur_angles.upstream
+		var spur_angle: float = spur_angles.downstream
 		if abs(spur_angle) > 0.001:
-			var left_extent: float
-			var right_extent: float
-			if connecting_downstream:
-				left_extent = snapped_half_length + tan(spur_angle) * (-snapped_half_width)
-				right_extent = snapped_half_length + tan(spur_angle) * snapped_half_width
-			else:
-				left_extent = -snapped_half_length + tan(spur_angle) * (-snapped_half_width)
-				right_extent = -snapped_half_length + tan(spur_angle) * snapped_half_width
+			var left_extent: float = snapped_half_length + tan(spur_angle) * (-snapped_half_width)
+			var right_extent: float = snapped_half_length + tan(spur_angle) * snapped_half_width
 			
 			var side_guard_thickness: float = 0.1
 			var edge_a: Vector3 = snapped_local_transform * Vector3(left_extent, 0, -snapped_half_width - side_guard_thickness)
@@ -264,6 +257,7 @@ static func _is_conveyor(node: Node) -> bool:
 	
 	var conveyor_types := [
 		"BeltSpurConveyor", "SpurConveyorAssembly", "BeltSpurConveyorAssembly",
+		"RollerSpurConveyor", "RollerSpurConveyorAssembly",
 		"BeltConveyor", "RollerConveyor", 
 		"CurvedBeltConveyor", "CurvedRollerConveyor", "BeltConveyorAssembly", "RollerConveyorAssembly", 
 		"CurvedBeltConveyorAssembly", "CurvedRollerConveyorAssembly"
@@ -388,7 +382,6 @@ static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_co
 	var snapped_half_width := snapped_size.z / 2.0
 	
 	var retractions := []
-	var retraction_margin := 0.2
 	
 	if is_perpendicular:
 		var target_center_local := target_local_transform.origin
@@ -402,15 +395,8 @@ static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_co
 		
 		if _has_spur_angles(snapped_conveyor):
 			var spur_angles := _get_spur_angles(snapped_conveyor)
-			var connecting_downstream: bool = target_belt_center > 0.0
-			var spur_angle: float = spur_angles.downstream if connecting_downstream else spur_angles.upstream
+			var spur_angle: float = spur_angles.downstream
 			if abs(spur_angle) > 0.001:
-				var left_extent: float = snapped_half_length + tan(spur_angle) * (-snapped_half_width)
-				var right_extent: float = snapped_half_length + tan(spur_angle) * snapped_half_width
-				if not connecting_downstream:
-					left_extent = -snapped_half_length + tan(spur_angle) * (-snapped_half_width)
-					right_extent = -snapped_half_length + tan(spur_angle) * snapped_half_width
-				
 				var corners: Array[Vector3] = []
 				corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width)
 				corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width)
@@ -420,18 +406,22 @@ static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_co
 				var left_x_range := _get_x_range_at_z(corners, -snapped_half_width)
 				var right_x_range := _get_x_range_at_z(corners, snapped_half_width)
 				
+				var has_left_spur_retraction := false
+				var has_right_spur_retraction := false
+
 				if left_x_range.size() == 2:
-					if connecting_downstream:
-						retractions.append({"side": "left", "start_position": left_x_range[0] - margin, "end_position": left_extent})
-					else:
-						retractions.append({"side": "left", "start_position": left_extent, "end_position": left_x_range[1] + margin})
-				
+					has_left_spur_retraction = true
+					retractions.append({"side": "left", "start_position": left_x_range[0] - margin, "end_position": left_x_range[1] + margin})
+
 				if right_x_range.size() == 2:
-					if connecting_downstream:
-						retractions.append({"side": "right", "start_position": right_x_range[0] - margin, "end_position": right_extent})
-					else:
-						retractions.append({"side": "right", "start_position": right_extent, "end_position": right_x_range[1] + margin})
-		
+					has_right_spur_retraction = true
+					retractions.append({"side": "right", "start_position": right_x_range[0] - margin, "end_position": right_x_range[1] + margin})
+
+				if not has_left_spur_retraction:
+					retractions.append({"side": "left", "start_position": recess_start, "end_position": recess_end})
+				if not has_right_spur_retraction:
+					retractions.append({"side": "right", "start_position": recess_start, "end_position": recess_end})
+
 		if retractions.is_empty():
 			retractions.append({
 				"side": "left",
@@ -439,7 +429,7 @@ static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_co
 				"end_position": recess_end
 			})
 			retractions.append({
-				"side": "right", 
+				"side": "right",
 				"start_position": recess_start,
 				"end_position": recess_end
 			})
@@ -519,9 +509,8 @@ static func _clear_side_guard_openings_for_inline_connection(undo_redo: EditorUn
 		var empty_left_openings: Array[SideGuardOpening] = []
 		var empty_right_openings: Array[SideGuardOpening] = []
 		
-		side_guards_assembly.set("left_side_guards_openings", empty_left_openings)
-		side_guards_assembly.set("right_side_guards_openings", empty_right_openings)
-		
+		undo_redo.add_do_property(side_guards_assembly, "left_side_guards_openings", empty_left_openings)
+		undo_redo.add_do_property(side_guards_assembly, "right_side_guards_openings", empty_right_openings)
 		undo_redo.add_undo_property(side_guards_assembly, "left_side_guards_openings", current_left_openings)
 		undo_redo.add_undo_property(side_guards_assembly, "right_side_guards_openings", current_right_openings)
 
@@ -578,7 +567,7 @@ static func _is_spur_conveyor(conveyor: Node3D) -> bool:
 	var node_script: Script = conveyor.get_script()
 	var global_name: String = node_script.get_global_name() if node_script != null else ""
 	var node_class := conveyor.get_class()
-	var spur_types := ["BeltSpurConveyor", "SpurConveyorAssembly", "BeltSpurConveyorAssembly"]
+	var spur_types := ["BeltSpurConveyor", "SpurConveyorAssembly", "BeltSpurConveyorAssembly", "RollerSpurConveyor", "RollerSpurConveyorAssembly"]
 	return global_name in spur_types or node_class in spur_types
 
 
@@ -891,7 +880,11 @@ static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_con
 	var side_pos_local: Vector3 = tgt_transform.affine_inverse() * side_contact
 	var side_end := {"pos": side_pos_local, "outward": side_outward}
 
-	return _snap_end_to_end(selected_conveyor, best_sel, target_conveyor, side_end, 0.0)
+	var spur_gap := 0.0
+	if not "conveyor_count" in selected_conveyor:
+		spur_gap = 0.12
+
+	return _snap_end_to_end(selected_conveyor, best_sel, target_conveyor, side_end, spur_gap)
 
 
 ## Computes a snap transform for a straight conveyor connecting to a spur target.
@@ -952,7 +945,8 @@ static func _is_belt_conveyor(conveyor: Node3D) -> bool:
 	# Check for belt conveyor types (straight conveyors)
 	var belt_types := [
 		"BeltConveyor", "BeltConveyorAssembly", "BeltSpurConveyor", "SpurConveyorAssembly", "BeltSpurConveyorAssembly",
-		"RollerConveyor", "RollerConveyorAssembly"  # Added RollerConveyor types
+		"RollerConveyor", "RollerConveyorAssembly",
+		"RollerSpurConveyor", "RollerSpurConveyorAssembly"
 	]
 	
 	return (global_name in belt_types or 
