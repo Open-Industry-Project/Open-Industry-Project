@@ -184,7 +184,7 @@ func _set_process_if_changed(cached_val: Variant, new_val: Variant) -> bool:
 
 func _get_first_conveyor() -> Node:
 	if _get_internal_child_count() > 0:
-		return get_child(0, true)
+		return get_child(get_child_count(), true)
 	return null
 
 

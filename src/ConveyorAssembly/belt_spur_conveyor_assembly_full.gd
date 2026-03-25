@@ -245,8 +245,9 @@ func _set_conveyor_properties(conveyor: Node) -> void:
 
 func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
 	var count := _get_internal_child_count()
+	var offset := get_child_count()
 	for i in range(count):
-		var conveyor: Node = get_child(i, true)
+		var conveyor: Node = get_child(i + offset, true)
 		conveyor.set(property, value)
 
 
@@ -357,7 +358,7 @@ func _property_get_revert(property: StringName) -> Variant:
 	if property not in _get_conveyor_forwarded_property_names():
 		return super._property_get_revert(property)
 	if _get_internal_child_count() > 0:
-		var conveyor: Node = get_child(0, true)
+		var conveyor: Node = get_child(get_child_count(), true)
 		if conveyor.has_method("property_can_revert") and conveyor.property_can_revert(property):
 			return conveyor.property_get_revert(property)
 		elif conveyor.scene_file_path:
@@ -385,7 +386,7 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	var has_seen_category_after_node3d: bool = false
 
 	if _get_internal_child_count() > 0:
-		var conveyor: Node = get_child(0, true)
+		var conveyor: Node = get_child(get_child_count(), true)
 		all_properties = conveyor.get_property_list()
 	else:
 		all_properties = _get_conveyor_script().get_script_property_list()

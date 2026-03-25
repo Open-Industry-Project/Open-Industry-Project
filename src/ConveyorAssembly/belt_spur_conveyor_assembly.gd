@@ -28,7 +28,6 @@ var _default_running_tag_name: String = ""
 
 func _init() -> void:
 	super()
-	# Initialize cached properties with default values
 	_cached_properties[&"speed"] = _default_speed
 	_cached_properties[&"belt_color"] = _default_belt_color
 	_cached_properties[&"belt_texture"] = _default_belt_texture
@@ -37,6 +36,12 @@ func _init() -> void:
 	_cached_properties[&"speed_tag_name"] = _default_speed_tag_name
 	_cached_properties[&"running_tag_group_name"] = _default_running_tag_group_name
 	_cached_properties[&"running_tag_name"] = _default_running_tag_name
+
+	if _conveyor_script_cached == null:
+		var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
+		var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
+		_conveyor_script_cached = load(class_details["path"]) as Script
+	_conveyor_script = _conveyor_script_cached
 
 
 func _enter_tree() -> void:
@@ -49,6 +54,7 @@ func _ready() -> void:
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
+	super._ready()
 
 
 func _exit_tree() -> void:
@@ -158,8 +164,9 @@ func _disable_collisions_recursive(node: Node) -> void:
 
 func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
 	var conveyor_count := _get_internal_child_count()
+	var offset := get_child_count()
 	for i in range(conveyor_count):
-		var conveyor: Node = get_child(i, true)
+		var conveyor: Node = get_child(i + offset, true)
 		conveyor.set(property, value)
 
 
@@ -214,29 +221,26 @@ func _property_get_revert(property: StringName) -> Variant:
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
 	if _get_internal_child_count() > 0:
-		var conveyor: Node = get_child(0, true)
+		var conveyor: Node = get_child(get_child_count(), true)
 		if conveyor.has_method("property_can_revert") and conveyor.property_can_revert(property):
 			return conveyor.property_get_revert(property)
 		elif conveyor.scene_file_path:
-			# Find the property's value in the PackedScene file.
 			var scene := load(conveyor.scene_file_path) as PackedScene
 			var scene_state := scene.get_state()
 			for prop_idx in range(scene_state.get_node_property_count(0)):
 				if scene_state.get_node_property_name(0, prop_idx) == property:
 					return scene_state.get_node_property_value(0, prop_idx)
-			# Try the script's default instead.
 			return conveyor.get_script().get_property_default_value(property)
 	return _conveyor_script.get_property_default_value(property)
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 	var all_properties: Array[Dictionary]
-	# Skip properties until we reach the category after the "Node3D" category.
 	var has_seen_node3d_category: bool = false
 	var has_seen_category_after_node3d: bool = false
 
 	if _get_internal_child_count() > 0:
-		var conveyor: Node = get_child(0, true)
+		var conveyor: Node = get_child(get_child_count(), true)
 		all_properties = conveyor.get_property_list()
 	else:
 		# The conveyor instance won't exist yet, so grab from the script class instead.
