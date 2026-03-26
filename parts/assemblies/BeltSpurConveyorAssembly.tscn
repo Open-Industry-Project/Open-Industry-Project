@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://blv116gh51acb"]
 
-[ext_resource type="Script" uid="uid://cysom64xi3tlg" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly_full.gd" id="1_script"]
+[ext_resource type="Script" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="2_sg"]
 [ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="3_legs"]
 

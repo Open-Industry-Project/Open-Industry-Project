@@ -47,6 +47,8 @@ extends ResizableNode3D
 			conveyor_scene = value
 			_add_or_remove_conveyors(0)
 
+var _conveyors: Array[Node3D] = []
+
 var DEFAULT_LENGTH: float = 2.0
 var DEFAULT_WIDTH: float = 1.524
 var DEFAULT_DEPTH: float = 0.5
@@ -98,36 +100,36 @@ func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 func _update_conveyors() -> void:
 	_add_or_remove_conveyors(conveyor_count)
-	for i in range(_get_internal_child_count()):
+	for i in range(_conveyors.size()):
 		_update_conveyor(i)
 
 
 func _add_or_remove_conveyors(count: int) -> void:
-	while _get_internal_child_count() > count and _get_internal_child_count() > 0:
-		_remove_last_child()
-	while _get_internal_child_count() < count and conveyor_scene != null:
+	while _conveyors.size() > count:
+		_remove_last_conveyor()
+	while _conveyors.size() < count and conveyor_scene != null:
 		_spawn_conveyor()
 
 
-func _get_internal_child_count() -> int:
-	return get_child_count(true) - get_child_count()
+func _get_conveyor_count() -> int:
+	return _conveyors.size()
 
 
-func _remove_last_child() -> void:
-	var child := get_child(get_child_count(true) - 1, true)
-	remove_child(child)
-	child.queue_free()
+func _remove_last_conveyor() -> void:
+	var conveyor := _conveyors.pop_back() as Node3D
+	remove_child(conveyor)
+	conveyor.queue_free()
 
 
 func _spawn_conveyor() -> void:
 	var conveyor := conveyor_scene.instantiate() as Node3D
 	add_child(conveyor, false, Node.INTERNAL_MODE_BACK)
 	conveyor.owner = null
+	_conveyors.append(conveyor)
 
 
 func _update_conveyor(index: int) -> void:
-	var child_3d := get_child(index + get_child_count(), true) as Node3D
-	assert(child_3d != null, "SpurConveyorAssembly child is wrong type or missing.")
+	var child_3d := _conveyors[index]
 	child_3d.transform = _get_new_transform_for_conveyor(index)
 	if "size" in child_3d:
 		child_3d.size = _get_new_size_for_conveyor(index)
@@ -183,8 +185,8 @@ func _set_process_if_changed(cached_val: Variant, new_val: Variant) -> bool:
 
 
 func _get_first_conveyor() -> Node:
-	if _get_internal_child_count() > 0:
-		return get_child(get_child_count(), true)
+	if _conveyors.size() > 0:
+		return _conveyors[0]
 	return null
 
 

@@ -11,9 +11,10 @@ script = ExtResource("1_upkoq")
 speed = 2.0
 skew_angle = 0.0
 enable_comms = false
+speed_tag_group_name = ""
 speed_tag_name = ""
+running_tag_group_name = ""
 running_tag_name = ""
-metadata/_edit_group_ = null
 size = Vector3(4, 0.24, 1.524)
 metadata/hijack_scale = true
 

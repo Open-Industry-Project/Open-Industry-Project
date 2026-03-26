@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c7e1r04ws0m1j"]
 
-[ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_pxi51"]
+[ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor.gd" id="1_pxi51"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
@@ -22,8 +22,11 @@ belt_texture = 0
 speed = 2.0
 belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
 enable_comms = false
+speed_tag_group_name = ""
 speed_tag_name = ""
+running_tag_group_name = ""
 running_tag_name = ""
 angle_downstream = -0.523599
+conveyor_count = 8
 size = Vector3(2, 0.5, 1.524)
 metadata/hijack_scale = true

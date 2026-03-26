@@ -15,9 +15,10 @@ belt_texture = 0
 speed = 2.0
 belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
 enable_comms = false
+speed_tag_group_name = ""
 speed_tag_name = ""
+running_tag_group_name = ""
 running_tag_name = ""
-metadata/_edit_group_ = null
 size = Vector3(4, 0.5, 1.524)
 metadata/hijack_scale = true
 
