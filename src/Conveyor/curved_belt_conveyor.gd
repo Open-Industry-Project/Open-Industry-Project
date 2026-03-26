@@ -815,8 +815,7 @@ func _physics_process(delta: float) -> void:
 		if _linear_speed != 0:
 
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(_linear_speed))
-		if belt_position >= 1.0:
-			belt_position = 0.0
+		belt_position = fmod(belt_position, 1.0)
 
 
 func _update_belt_material_scale() -> void:

@@ -47,8 +47,7 @@ func _physics_process(delta: float) -> void:
 	if EditorInterface.is_simulation_running():
 		if not EditorInterface.is_simulation_paused():
 			_belt_position += speed * delta
-		if _belt_position >= 1.0:
-			_belt_position = 0.0
+		_belt_position = fmod(_belt_position, 1.0)
 		_update_belt_material_position()
 
 

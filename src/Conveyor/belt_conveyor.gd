@@ -146,8 +146,7 @@ func _physics_process(delta: float) -> void:
 			_belt_position += speed * delta
 		if speed != 0:
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position * sign(speed))
-		if _belt_position >= 1.0:
-			_belt_position = 0.0
+		_belt_position = fmod(_belt_position, 1.0)
 
 
 func _exit_tree() -> void:
