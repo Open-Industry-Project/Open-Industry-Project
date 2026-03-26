@@ -157,7 +157,7 @@ func _ready() -> void:
 	self.add_theme_constant_override(&"margin_right", -get_theme_stylebox(&"BottomPanel", &"EditorStyles").get_margin(SIDE_RIGHT))
 	self.add_theme_constant_override(&"margin_top", -get_theme_stylebox(&"BottomPanel", &"EditorStyles").get_margin(SIDE_TOP))
 
-	self.set_custom_minimum_size(Vector2(0.0, 180.0))
+	self.set_custom_minimum_size(Vector2(0.0, 380.0))
 
 	# INFO: Required to create a tab pseudo-container background.
 	var tabbar_background := Panel.new()
