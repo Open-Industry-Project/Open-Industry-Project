@@ -72,41 +72,36 @@ static func snap_selected_conveyors() -> void:
 	
 	for conveyor in selected_conveyors:
 		var original_transform := conveyor.global_transform
-		var snap_transform := _calculate_snap_transform(conveyor, target_conveyor)
+		var snap_result := _calculate_snap_transform(conveyor, target_conveyor)
+		var snap_transform: Transform3D = snap_result.transform
+		var is_end_to_end: bool = snap_result.is_end_to_end
 		var original_side_guard_states: Dictionary = _store_side_guard_states([target_conveyor, conveyor])
-		
+
+		# Only create side guard openings for side connections, not end-to-end.
 		var intersection_info_target := Dictionary()
-		if _has_side_guards(target_conveyor):
+		if _has_side_guards(target_conveyor) and not is_end_to_end:
 			intersection_info_target = _calculate_conveyor_intersection_for_transform(conveyor, target_conveyor, snap_transform)
-		
+
 		var retraction_info_snapped := Dictionary()
 		if _has_side_guards(conveyor):
-			retraction_info_snapped = _calculate_side_guard_retraction(conveyor, target_conveyor, snap_transform)
-		
-		var snapped_forward := snap_transform.basis.x.normalized()
-		var target_forward := target_conveyor.global_transform.basis.x.normalized()
-		var dot_product: float = abs(snapped_forward.dot(target_forward))
-		var is_inline_connection: bool = dot_product > 0.7
-		
-		var target_right := target_conveyor.global_transform.basis.z.normalized()
-		var side_alignment: float = abs(snapped_forward.dot(target_right))
-		if side_alignment < 0.8:
-			is_inline_connection = true
-		
+			retraction_info_snapped = _calculate_side_guard_retraction(conveyor, target_conveyor, snap_transform, is_end_to_end)
+
 		undo_redo.add_do_property(conveyor, "global_transform", snap_transform)
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
-		
+
 		if not intersection_info_target.is_empty() and intersection_info_target.get("intersections", []).size() > 0:
 			var target_state: Dictionary = original_side_guard_states.get(target_conveyor.get_instance_id(), {})
 			_add_side_guard_undo_redo_operations(undo_redo, target_conveyor, intersection_info_target, target_state)
-		
+
 		if not retraction_info_snapped.is_empty() and retraction_info_snapped.get("retractions", []).size() > 0:
 			var snapped_state: Dictionary = original_side_guard_states.get(conveyor.get_instance_id(), {})
 			_add_side_guard_retraction_operations(undo_redo, conveyor, retraction_info_snapped, snapped_state)
-		elif is_inline_connection and _has_side_guards(conveyor):
+		elif is_end_to_end and _has_side_guards(conveyor):
 			var inline_state: Dictionary = original_side_guard_states.get(conveyor.get_instance_id(), {})
 			_clear_side_guard_openings_for_inline_connection(undo_redo, conveyor, inline_state)
-	
+
+		_add_curved_snap_extension_operations(undo_redo, conveyor, target_conveyor, snap_result)
+
 	undo_redo.commit_action()
 
 
@@ -151,57 +146,48 @@ static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Nod
 	min_bounds.x = max(min_bounds.x, -target_half_length)
 	max_bounds.x = min(max_bounds.x, target_half_length)
 	
+	# This function is only called for side connections (not end-to-end),
+	# so we always check for intersections with the target's side edges.
 	var intersections := []
 	var tolerance := 0.001
 	var side_guard_margin: float = 0.15 if _has_side_guards(snapped_conveyor) else 0.05
-	
-	var snapped_forward := snapped_transform.basis.x.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var dot_product: float = abs(snapped_forward.dot(target_forward))
-	var is_perpendicular: bool = dot_product < 0.7
-	
-	var target_right := target_transform.basis.z.normalized()
-	var side_alignment: float = abs(snapped_forward.dot(target_right))
-	if side_alignment > 0.3:
-		is_perpendicular = true
-	
+
 	var opening_position: float = (min_bounds.x + max_bounds.x) / 2.0
 	var opening_size: float = (max_bounds.x - min_bounds.x) + side_guard_margin
-	
-	if is_perpendicular and _has_spur_angles(snapped_conveyor):
+
+	if _has_spur_angles(snapped_conveyor):
 		var spur_angles := _get_spur_angles(snapped_conveyor)
 		var spur_angle: float = spur_angles.downstream
 		if abs(spur_angle) > 0.001:
 			var left_extent: float = snapped_half_length + tan(spur_angle) * (-snapped_half_width)
 			var right_extent: float = snapped_half_length + tan(spur_angle) * snapped_half_width
-			
+
 			var side_guard_thickness: float = 0.1
 			var edge_a: Vector3 = snapped_local_transform * Vector3(left_extent, 0, -snapped_half_width - side_guard_thickness)
 			var edge_b: Vector3 = snapped_local_transform * Vector3(right_extent, 0, snapped_half_width + side_guard_thickness)
-			
+
 			var edge_min_x: float = min(edge_a.x, edge_b.x)
 			var edge_max_x: float = max(edge_a.x, edge_b.x)
 			edge_min_x = max(edge_min_x, -target_half_length)
 			edge_max_x = min(edge_max_x, target_half_length)
-			
+
 			opening_position = (edge_min_x + edge_max_x) / 2.0
 			opening_size = (edge_max_x - edge_min_x) + side_guard_margin
-	
-	if is_perpendicular:
-		if max_bounds.z >= (-target_half_width - tolerance) and min_bounds.z <= (-target_half_width + tolerance):
-			intersections.append({
-				"side": "left",
-				"position": opening_position,
-				"size": opening_size
-			})
-		
-		if min_bounds.z <= (target_half_width + tolerance) and max_bounds.z >= (target_half_width - tolerance):
-			intersections.append({
-				"side": "right",
-				"position": opening_position,
-				"size": opening_size
-			})
-	
+
+	if max_bounds.z >= (-target_half_width - tolerance) and min_bounds.z <= (-target_half_width + tolerance):
+		intersections.append({
+			"side": "left",
+			"position": opening_position,
+			"size": opening_size
+		})
+
+	if min_bounds.z <= (target_half_width + tolerance) and max_bounds.z >= (target_half_width - tolerance):
+		intersections.append({
+			"side": "right",
+			"position": opening_position,
+			"size": opening_size
+		})
+
 	return {"intersections": intersections}
 
 
@@ -266,7 +252,20 @@ static func _is_conveyor(node: Node) -> bool:
 	return global_name in conveyor_types or node_class in conveyor_types
 
 
-static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+## Build a snap result dictionary that carries the transform and which ends connected.
+## [code]is_end_to_end[/code] is true when both connected ends are conveyor ends
+## (front/back/head/tail) rather than a side edge.
+static func _make_snap_result(snap_transform: Transform3D, snapped_end: Dictionary, target_end: Dictionary) -> Dictionary:
+	var end_names := [&"front", &"back", &"head", &"tail"]
+	return {
+		"transform": snap_transform,
+		"snapped_end": snapped_end,
+		"target_end": target_end,
+		"is_end_to_end": snapped_end.name in end_names and target_end.name in end_names,
+	}
+
+
+static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
 	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
 		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor)
 	
@@ -351,89 +350,77 @@ static func _get_bottom_edge_offset(conveyor_size: Vector3, inclination_angle: f
 	return -world_front_bottom
 
 
-static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D) -> Dictionary:
+static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D, is_end_to_end: bool) -> Dictionary:
 	if not _has_side_guards(snapped_conveyor):
 		return {}
-	
-	# Don't recess side guards when snapping straight conveyor assemblies to curved conveyors
-	if _is_straight_conveyor_assembly(snapped_conveyor) and _is_curved_conveyor(target_conveyor):
+
+	# End-to-end connections don't need retraction — guards naturally end at the conveyor edge.
+	if is_end_to_end:
 		return {}
-	
+
 	var snapped_size := _get_conveyor_size(snapped_conveyor)
 	var target_transform := target_conveyor.global_transform
 	var target_size := _get_conveyor_size(target_conveyor)
-	
-	var snapped_forward := snapped_transform.basis.x.normalized()
-	var target_forward := target_transform.basis.x.normalized()
-	var dot_product: float = abs(snapped_forward.dot(target_forward))
-	var is_perpendicular: bool = dot_product < 0.7
-	
-	var target_right := target_transform.basis.z.normalized()
-	var side_alignment: float = abs(snapped_forward.dot(target_right))
-	if side_alignment > 0.3:
-		is_perpendicular = true
-	
+
 	var snapped_inverse := snapped_transform.affine_inverse()
 	var target_local_transform := snapped_inverse * target_transform
-	
+
 	var target_half_length := target_size.x / 2.0
 	var target_half_width := target_size.z / 2.0
 	var snapped_half_length := snapped_size.x / 2.0
 	var snapped_half_width := snapped_size.z / 2.0
-	
+
 	var retractions := []
-	
-	if is_perpendicular:
-		var target_center_local := target_local_transform.origin
-		var target_belt_center := target_center_local.x
-		
-		var target_width := target_size.z
-		var margin := 0.15
-		var gap_size := target_width + margin
-		var recess_start := target_belt_center - gap_size / 2.0
-		var recess_end := target_belt_center + gap_size / 2.0
-		
-		if _has_spur_angles(snapped_conveyor):
-			var spur_angles := _get_spur_angles(snapped_conveyor)
-			var spur_angle: float = spur_angles.downstream
-			if abs(spur_angle) > 0.001:
-				var corners: Array[Vector3] = []
-				corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width)
-				corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width)
-				corners.append(target_local_transform.origin - target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width)
-				corners.append(target_local_transform.origin - target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width)
-				
-				var left_x_range := _get_x_range_at_z(corners, -snapped_half_width)
-				var right_x_range := _get_x_range_at_z(corners, snapped_half_width)
-				
-				var has_left_spur_retraction := false
-				var has_right_spur_retraction := false
+	var target_center_local := target_local_transform.origin
+	var target_belt_center := target_center_local.x
 
-				if left_x_range.size() == 2:
-					has_left_spur_retraction = true
-					retractions.append({"side": "left", "start_position": left_x_range[0] - margin, "end_position": left_x_range[1] + margin})
+	var target_width := target_size.z
+	var margin := 0.15
+	var gap_size := target_width + margin
+	var recess_start := target_belt_center - gap_size / 2.0
+	var recess_end := target_belt_center + gap_size / 2.0
 
-				if right_x_range.size() == 2:
-					has_right_spur_retraction = true
-					retractions.append({"side": "right", "start_position": right_x_range[0] - margin, "end_position": right_x_range[1] + margin})
+	if _has_spur_angles(snapped_conveyor):
+		var spur_angles := _get_spur_angles(snapped_conveyor)
+		var spur_angle: float = spur_angles.downstream
+		if abs(spur_angle) > 0.001:
+			var corners: Array[Vector3] = []
+			corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width)
+			corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width)
+			corners.append(target_local_transform.origin - target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width)
+			corners.append(target_local_transform.origin - target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width)
 
-				if not has_left_spur_retraction:
-					retractions.append({"side": "left", "start_position": recess_start, "end_position": recess_end})
-				if not has_right_spur_retraction:
-					retractions.append({"side": "right", "start_position": recess_start, "end_position": recess_end})
+			var left_x_range := _get_x_range_at_z(corners, -snapped_half_width)
+			var right_x_range := _get_x_range_at_z(corners, snapped_half_width)
 
-		if retractions.is_empty():
-			retractions.append({
-				"side": "left",
-				"start_position": recess_start,
-				"end_position": recess_end
-			})
-			retractions.append({
-				"side": "right",
-				"start_position": recess_start,
-				"end_position": recess_end
-			})
-	
+			var has_left_spur_retraction := false
+			var has_right_spur_retraction := false
+
+			if left_x_range.size() == 2:
+				has_left_spur_retraction = true
+				retractions.append({"side": "left", "start_position": left_x_range[0] - margin, "end_position": left_x_range[1] + margin})
+
+			if right_x_range.size() == 2:
+				has_right_spur_retraction = true
+				retractions.append({"side": "right", "start_position": right_x_range[0] - margin, "end_position": right_x_range[1] + margin})
+
+			if not has_left_spur_retraction:
+				retractions.append({"side": "left", "start_position": recess_start, "end_position": recess_end})
+			if not has_right_spur_retraction:
+				retractions.append({"side": "right", "start_position": recess_start, "end_position": recess_end})
+
+	if retractions.is_empty():
+		retractions.append({
+			"side": "left",
+			"start_position": recess_start,
+			"end_position": recess_end
+		})
+		retractions.append({
+			"side": "right",
+			"start_position": recess_start,
+			"end_position": recess_end
+		})
+
 	return {"retractions": retractions}
 
 
@@ -513,6 +500,63 @@ static func _clear_side_guard_openings_for_inline_connection(undo_redo: EditorUn
 		undo_redo.add_do_property(side_guards_assembly, "right_side_guards_openings", empty_right_openings)
 		undo_redo.add_undo_property(side_guards_assembly, "left_side_guards_openings", current_left_openings)
 		undo_redo.add_undo_property(side_guards_assembly, "right_side_guards_openings", current_right_openings)
+
+
+## When a straight conveyor connects end-to-end to a curved conveyor, extend
+## the straight conveyor's side guards to bridge the snap gap.
+static func _add_curved_snap_extension_operations(
+	undo_redo: EditorUndoRedoManager,
+	snapped_conveyor: Node3D,
+	target_conveyor: Node3D,
+	snap_result: Dictionary
+) -> void:
+	if not snap_result.is_end_to_end:
+		return
+
+	var sel_curved := _is_curved_conveyor(snapped_conveyor)
+	var tgt_curved := _is_curved_conveyor(target_conveyor)
+
+	# Only applies when exactly one side is curved.
+	if sel_curved == tgt_curved:
+		return
+
+	var straight := target_conveyor if not tgt_curved else snapped_conveyor
+	if not _has_side_guards(straight):
+		return
+
+	var gap := _get_snap_gap(snapped_conveyor, target_conveyor)
+	if gap < 0.01:
+		return
+
+	# Determine which end of the straight conveyor connects to the curve.
+	# The snap result tells us which end of each conveyor was used.
+	var straight_end_name: StringName
+	if straight == target_conveyor:
+		straight_end_name = snap_result.target_end.name
+	else:
+		straight_end_name = snap_result.snapped_end.name
+
+	var extend_front := straight_end_name == &"front"
+
+	# Extend past the gap with some overlap so the guards visually meet.
+	var extension := gap + 0.1
+
+	# Find the SideGuardsAssembly node directly to set the extension.
+	var side_guards_assembly: Node = null
+	if straight.has_node("%SideGuardsAssembly"):
+		side_guards_assembly = straight.get_node("%SideGuardsAssembly")
+	elif straight.has_node("Conveyor/SideGuardsAssembly"):
+		side_guards_assembly = straight.get_node("Conveyor/SideGuardsAssembly")
+	elif straight.has_node("%Conveyor/%SideGuardsAssembly"):
+		side_guards_assembly = straight.get_node("%Conveyor/%SideGuardsAssembly")
+
+	if not side_guards_assembly:
+		return
+
+	var prop := &"front_extension" if extend_front else &"back_extension"
+	var original: float = side_guards_assembly.get(prop)
+	undo_redo.add_do_property(side_guards_assembly, prop, extension)
+	undo_redo.add_undo_property(side_guards_assembly, prop, original)
 
 
 static func _is_curved_conveyor(conveyor: Node3D) -> bool:
@@ -804,7 +848,7 @@ static func _is_any_end_pair_snapped(selected_conveyor: Node3D, target_conveyor:
 	return false
 
 
-static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
 	if _is_belt_conveyor(target_conveyor) and _is_belt_conveyor(selected_conveyor):
 		return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
 
@@ -817,14 +861,15 @@ static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_c
 	else:
 		pair = _find_closest_end_pair(selected_conveyor, target_conveyor)
 
-	return _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
+	var snap_transform := _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
+	return _make_snap_result(snap_transform, pair[0], pair[1])
 
 
 ## Computes a snap transform for a spur conveyor connecting to a target.
 ## When the spur is near a target's side, the spur's angled edge outward is used
 ## so the spur connects at the angle defined by its downstream/upstream angles.
 ## When nearer to a target's end, falls back to regular (inline) snapping.
-static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
 	var sel_transform := selected_conveyor.global_transform
 	var tgt_transform := target_conveyor.global_transform
 	var tgt_size := _get_conveyor_size(target_conveyor)
@@ -878,20 +923,22 @@ static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_con
 	var best_sel_world: Vector3 = sel_transform * (best_sel.pos as Vector3)
 	var side_contact := _get_closest_point_on_line_segment(best_sel_world, side_edge_start, side_edge_end)
 	var side_pos_local: Vector3 = tgt_transform.affine_inverse() * side_contact
-	var side_end := {"pos": side_pos_local, "outward": side_outward}
+	var side_name: StringName = &"left_side" if dist_left < dist_right else &"right_side"
+	var side_end := {"pos": side_pos_local, "outward": side_outward, "name": side_name}
 
 	var spur_gap := 0.0
 	if not "conveyor_count" in selected_conveyor:
 		spur_gap = 0.12
 
-	return _snap_end_to_end(selected_conveyor, best_sel, target_conveyor, side_end, spur_gap)
+	var snap_transform := _snap_end_to_end(selected_conveyor, best_sel, target_conveyor, side_end, spur_gap)
+	return _make_snap_result(snap_transform, best_sel, side_end)
 
 
 ## Computes a snap transform for a straight conveyor connecting to a spur target.
 ## When the straight conveyor is near the spur's angled ends, the spur's angled
 ## outward vectors guide the straight conveyor's rotation so it aligns with the
 ## spur's edge angle. When nearer to the spur's sides, falls back to regular snap.
-static func _calculate_snap_to_spur_target_transform(selected_conveyor: Node3D, target_spur: Node3D) -> Transform3D:
+static func _calculate_snap_to_spur_target_transform(selected_conveyor: Node3D, target_spur: Node3D) -> Dictionary:
 	var sel_transform := selected_conveyor.global_transform
 	var tgt_transform := target_spur.global_transform
 	var tgt_size := _get_conveyor_size(target_spur)
@@ -933,7 +980,8 @@ static func _calculate_snap_to_spur_target_transform(selected_conveyor: Node3D, 
 			best_dist = dist
 			best_sel = se
 
-	return _snap_end_to_end(selected_conveyor, best_sel, target_spur, best_tgt, 0.0)
+	var snap_transform := _snap_end_to_end(selected_conveyor, best_sel, target_spur, best_tgt, 0.0)
+	return _make_snap_result(snap_transform, best_sel, best_tgt)
 
 
 static func _is_belt_conveyor(conveyor: Node3D) -> bool:
@@ -955,64 +1003,68 @@ static func _is_belt_conveyor(conveyor: Node3D) -> bool:
 			("Roller" in node_name and "Curved" not in node_name))
 
 
-
-
-static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Transform3D:
+static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
 	# This is the original snapping logic for non-curved conveyors
 	var target_transform := target_conveyor.global_transform
 	var selected_transform := selected_conveyor.global_transform
 	var selected_size := _get_conveyor_size(selected_conveyor)
 	var target_size := _get_conveyor_size(target_conveyor)
-	
+
 	var target_front_edge := target_transform.origin + target_transform.basis.x * (target_size.x / 2.0)
 	var target_back_edge := target_transform.origin - target_transform.basis.x * (target_size.x / 2.0)
 	var target_left_edge := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0)
 	var target_right_edge := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0)
-	
+
 	var selected_position := selected_transform.origin
 	var distance_to_front := selected_position.distance_to(target_front_edge)
 	var distance_to_back := selected_position.distance_to(target_back_edge)
 	var distance_to_left := selected_position.distance_to(target_left_edge)
 	var distance_to_right := selected_position.distance_to(target_right_edge)
-	
+
 	var selected_forward := selected_transform.basis.x.normalized()
 	var target_forward := target_transform.basis.x.normalized()
 	var dot_product: float = abs(selected_forward.dot(target_forward))
 	var is_perpendicular: bool = dot_product < 0.7
-	
+
 	var min_distance: float = min(distance_to_front, min(distance_to_back, min(distance_to_left, distance_to_right)))
 	var snap_transform := Transform3D()
-	
+
 	if is_perpendicular:
 		var min_side_distance: float = min(distance_to_left, distance_to_right)
 		var min_end_distance: float = min(distance_to_front, distance_to_back)
-		
+
 		if min_end_distance < 0.5 and min_end_distance < min_side_distance * 0.2:
 			min_distance = min_end_distance
 		else:
 			min_distance = min_side_distance
-	
+
 	var selected_inclination := _get_z_inclination(selected_transform)
-	
+	var snapped_end := {}
+	var target_end := {}
+
 	if min_distance == distance_to_front:
 		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
 		var connection_position := target_front_edge + target_transform.basis.x * (selected_size.x / 2.0)
 		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
 		snap_transform.basis = new_basis
 		snap_transform.origin = connection_position + height_offset
-		
+		snapped_end = {"pos": Vector3(-selected_size.x / 2.0, 0, 0), "outward": Vector3(-1, 0, 0), "name": &"back"}
+		target_end = {"pos": Vector3(target_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
+
 	elif min_distance == distance_to_back:
 		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
 		var connection_position := target_back_edge - target_transform.basis.x * (selected_size.x / 2.0)
 		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
 		snap_transform.basis = new_basis
 		snap_transform.origin = connection_position + height_offset
-		
+		snapped_end = {"pos": Vector3(selected_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
+		target_end = {"pos": Vector3(-target_size.x / 2.0, 0, 0), "outward": Vector3(-1, 0, 0), "name": &"back"}
+
 	elif min_distance == distance_to_left:
 		var edge_start := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
 		var edge_end := target_transform.origin - target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
 		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
-		
+
 		var perpendicular_basis := Basis()
 		perpendicular_basis.x = target_transform.basis.z
 		perpendicular_basis.y = target_transform.basis.y
@@ -1022,12 +1074,15 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
 		snap_transform.basis = new_basis
 		snap_transform.origin = connection_position + height_offset
-		
+		var edge_pos_local: Vector3 = target_transform.affine_inverse() * closest_point_on_edge
+		snapped_end = {"pos": Vector3(selected_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
+		target_end = {"pos": edge_pos_local, "outward": Vector3(0, 0, -1), "name": &"left_side"}
+
 	else:
 		var edge_start := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) - target_transform.basis.x * (target_size.x / 2.0)
 		var edge_end := target_transform.origin + target_transform.basis.z * (target_size.z / 2.0) + target_transform.basis.x * (target_size.x / 2.0)
 		var closest_point_on_edge := _get_closest_point_on_line_segment(selected_position, edge_start, edge_end)
-		
+
 		var perpendicular_basis := Basis()
 		perpendicular_basis.x = -target_transform.basis.z
 		perpendicular_basis.y = target_transform.basis.y
@@ -1037,5 +1092,8 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
 		snap_transform.basis = new_basis
 		snap_transform.origin = connection_position + height_offset
-	
-	return snap_transform
+		var edge_pos_local: Vector3 = target_transform.affine_inverse() * closest_point_on_edge
+		snapped_end = {"pos": Vector3(selected_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
+		target_end = {"pos": edge_pos_local, "outward": Vector3(0, 0, 1), "name": &"right_side"}
+
+	return _make_snap_result(snap_transform, snapped_end, target_end)

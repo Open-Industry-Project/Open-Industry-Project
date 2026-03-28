@@ -304,11 +304,6 @@ func _update_side_guards() -> void:
 	var parent_node = get_parent()
 	if parent_node:
 		var side_guards = parent_node.get_node_or_null("SideGuardsCBC")
-		if not side_guards:
-			side_guards = parent_node.get_node_or_null("SideGuardsAssembly")
-		if not side_guards:
-			side_guards = parent_node.get_node_or_null("%SideGuardsAssembly")
-
 		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
 			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
 

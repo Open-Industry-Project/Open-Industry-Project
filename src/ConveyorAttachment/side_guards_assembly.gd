@@ -97,6 +97,22 @@ enum Side
 		if is_inside_tree():
 			_on_opening_changed_left()
 
+## Extra length added to the front (+X) end of the side guards.
+## Used to bridge gaps when connected to a curved conveyor.
+@export_storage var front_extension: float = 0.0:
+	set(value):
+		front_extension = value
+		if is_inside_tree():
+			_update_side_guards()
+
+## Extra length added to the back (-X) end of the side guards.
+## Used to bridge gaps when connected to a curved conveyor.
+@export_storage var back_extension: float = 0.0:
+	set(value):
+		back_extension = value
+		if is_inside_tree():
+			_update_side_guards()
+
 var _conveyor_connected: bool = false
 
 
@@ -213,9 +229,9 @@ func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
 			return _get_spur_side_extents(side, conveyor)
 		return _get_single_conveyor_spur_side_extents(side, conveyor)
 
-	# FIXME: This assumption won't be valid for curved conveyors.
 	var conveyor_length: float = conveyor.size.x
-	return [-conveyor_length / 2.0, conveyor_length / 2.0]
+	var extents: Array[float] = [-conveyor_length / 2.0 - back_extension, conveyor_length / 2.0 + front_extension]
+	return extents
 
 
 func _get_spur_side_extents(side: SideGuardsAssembly.Side, conveyor: Node3D) -> Array[float]:
@@ -427,116 +443,3 @@ func _on_opening_changed_right() -> void:
 	_update_side(Side.RIGHT, right_side_guards_enabled)
 
 
-## Called by curved conveyor when inner_radius or conveyor_width changes
-func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
-	if not is_inside_tree():
-		return
-	
-	# For curved conveyors, we need to adjust the side guard positioning and length calculations
-	# The side guard extents need to follow the curved path instead of linear extents
-	_update_side_guards_for_curved_conveyor(inner_radius, conveyor_width, conveyor_size, conveyor_angle)
-
-
-func _update_side_guards_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
-	# Clear and regenerate side guards with curved conveyor geometry
-	transform = Transform3D()
-	_update_side_for_curved_conveyor(Side.LEFT, left_side_guards_enabled, inner_radius, conveyor_width, conveyor_size, conveyor_angle)
-	_update_side_for_curved_conveyor(Side.RIGHT, right_side_guards_enabled, inner_radius, conveyor_width, conveyor_size, conveyor_angle)
-
-
-func _update_side_for_curved_conveyor(side: SideGuardsAssembly.Side, side_enabled: bool, inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
-	if not side_enabled:
-		_clear_side(side)
-		return
-		
-	var side_node: Node3D = _ensure_side(side)
-	side_node.transform = _get_curved_side_node_transform(side, inner_radius, conveyor_width, conveyor_size)
-
-	# Create and arrange side guards for curved path
-	var side_extents: Array[float] = _get_curved_side_extents(side, inner_radius, conveyor_width, conveyor_size, conveyor_angle)
-	var side_guard_extents: Array = [side_extents]
-	_insert_openings_into_extents(side_guard_extents, side)
-	_add_or_remove_side_guards(side_node, side_guard_extents.size())
-	_adjust_curved_side_guards(side_node, side_guard_extents, side, inner_radius, conveyor_width, conveyor_angle)
-
-
-func _get_curved_side_node_transform(side: SideGuardsAssembly.Side, inner_radius: float, conveyor_width: float, conveyor_size: Vector3) -> Transform3D:
-	# For curved conveyors, position side nodes at the appropriate radius (now using absolute values)
-	var radius: float
-	match side:
-		Side.LEFT:
-			# Left side is at inner radius (absolute value)
-			radius = inner_radius
-			return Transform3D(Basis.IDENTITY, Vector3(0, 0, -radius))
-		Side.RIGHT:
-			# Right side is at outer radius (absolute value)
-			radius = inner_radius + conveyor_width
-			return Transform3D(Basis.IDENTITY, Vector3(0, 0, radius))
-		_:
-			assert(false, "Unknown side: " + str(side))
-			return Transform3D()
-
-
-func _get_curved_side_extents(side: SideGuardsAssembly.Side, inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> Array[float]:
-	var radius: float
-	match side:
-		Side.LEFT:
-			radius = inner_radius
-		Side.RIGHT:
-			radius = inner_radius + conveyor_width
-		_:
-			radius = inner_radius + (conveyor_width * 0.5)
-	
-	var angle_radians = deg_to_rad(conveyor_angle)
-	var arc_length = radius * angle_radians
-	
-	return [-arc_length / 2.0, arc_length / 2.0]
-
-
-func _adjust_curved_side_guards(side_node: Node3D, side_guard_extents: Array, side: SideGuardsAssembly.Side, inner_radius: float, conveyor_width: float, conveyor_angle: float) -> void:
-	const VERTICAL_OFFSET: float = -0.25
-	var angle_radians = deg_to_rad(conveyor_angle)
-	
-	for i in range(side_node.get_child_count()):
-		var guard: Node3D = side_node.get_child(i)
-		var extent: Array = side_guard_extents[i] as Array[float]
-		var ext_start: float = extent[0]
-		var ext_end: float = extent[1]
-		var ext_length = ext_end - ext_start
-		var ext_middle: float = ext_start + ext_length / 2.0
-
-		# For curved conveyors, position guards along the arc (using absolute values)
-		var radius: float
-		match side:
-			Side.LEFT:
-				radius = inner_radius
-			Side.RIGHT:
-				radius = inner_radius + conveyor_width
-			_:
-				radius = inner_radius + (conveyor_width * 0.5)
-		
-		# Convert linear position to angular position along the curve
-		var angle_position = ext_middle / radius if radius > 0 else 0
-		var mount_point := Vector3(-sin(angle_position) * radius, 0, cos(angle_position) * radius)
-		var mount_transform := Transform3D(Basis.IDENTITY, mount_point)
-		
-		# Rotate the guard to be tangent to the curve
-		var tangent_rotation = Transform3D().rotated(Vector3.UP, -angle_position)
-		
-		# Apply the same base transform adjustments
-		var guard_base_transform: Transform3D = Transform3D(Basis.IDENTITY, Vector3(0, 0, 1))
-		guard_base_transform.origin.y += VERTICAL_OFFSET
-		
-		# Face the correct direction for curved conveyor
-		var facing_transform := Transform3D()
-		match side:
-			Side.LEFT:
-				facing_transform = Transform3D().rotated(Vector3.UP, PI)
-			Side.RIGHT:
-				pass
-		
-		# Scale for length (adjust for curvature)
-		var guard_scale_x: float = max(0.01, ext_length - 0.5)
-		var length_adjustment := Transform3D().scaled(Vector3(guard_scale_x, 1, 1))
-		
-		guard.transform = mount_transform * tangent_rotation * facing_transform * guard_base_transform * length_adjustment

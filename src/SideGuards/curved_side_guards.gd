@@ -37,12 +37,6 @@ func _init() -> void:
 	set_notify_local_transform(true)
 
 func _ready() -> void:
-	if _current_inner_radius == 0.25 and _current_conveyor_width == 1.0:
-		var diameter = size.x - 0.036
-		var outer_radius = diameter / 2.0
-		_current_conveyor_width = 1.0
-		_current_inner_radius = outer_radius - _current_conveyor_width
-	
 	outer_mesh = find_child('OuterSideGuard') as MeshInstance3D
 	if not outer_mesh:
 		outer_mesh = MeshInstance3D.new()
