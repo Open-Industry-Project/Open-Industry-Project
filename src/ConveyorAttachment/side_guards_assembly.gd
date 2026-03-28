@@ -114,6 +114,10 @@ enum Side
 			_update_side_guards()
 
 var _conveyor_connected: bool = false
+var _prev_angle_downstream: float = 0.0
+var _prev_angle_upstream: float = 0.0
+var _spur_angles_initialized: bool = false
+var _clearing_openings: bool = false
 
 
 func _notification(what: int) -> void:
@@ -122,6 +126,7 @@ func _notification(what: int) -> void:
 			_connect_conveyor_signals()
 		NOTIFICATION_UNPARENTED:
 			_disconnect_conveyor_signals()
+			_spur_angles_initialized = false
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -152,9 +157,30 @@ func _on_conveyor_size_changed() -> void:
 	_update_side_guards()
 
 
+func _clear_openings_if_angles_changed() -> void:
+	var conveyor = get_parent()
+	if not ("angle_downstream" in conveyor and "angle_upstream" in conveyor):
+		return
+	var angle_ds: float = conveyor.angle_downstream
+	var angle_us: float = conveyor.angle_upstream
+	if not _spur_angles_initialized:
+		_prev_angle_downstream = angle_ds
+		_prev_angle_upstream = angle_us
+		_spur_angles_initialized = true
+		return
+	if angle_ds != _prev_angle_downstream or angle_us != _prev_angle_upstream:
+		_prev_angle_downstream = angle_ds
+		_prev_angle_upstream = angle_us
+		_clearing_openings = true
+		right_side_guards_openings = []
+		left_side_guards_openings = []
+		_clearing_openings = false
+
+
 func _update_side_guards() -> void:
 	if not is_inside_tree():
 		return
+	_clear_openings_if_angles_changed()
 	transform = Transform3D()
 	_update_side(Side.LEFT, left_side_guards_enabled)
 	_update_side(Side.RIGHT, right_side_guards_enabled)
@@ -225,9 +251,7 @@ func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
 	var conveyor = get_parent()
 
 	if "angle_downstream" in conveyor and "angle_upstream" in conveyor:
-		if "conveyor_count" in conveyor:
-			return _get_spur_side_extents(side, conveyor)
-		return _get_single_conveyor_spur_side_extents(side, conveyor)
+		return _get_spur_side_extents(side, conveyor)
 
 	var conveyor_length: float = conveyor.size.x
 	var extents: Array[float] = [-conveyor_length / 2.0 - back_extension, conveyor_length / 2.0 + front_extension]
@@ -235,37 +259,6 @@ func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
 
 
 func _get_spur_side_extents(side: SideGuardsAssembly.Side, conveyor: Node3D) -> Array[float]:
-	var length: float = conveyor.size.x
-	var width: float = conveyor.size.z
-	var angle_ds: float = conveyor.angle_downstream
-	var angle_us: float = conveyor.angle_upstream
-	var count: int = conveyor.conveyor_count
-
-	var conv_width: float = width / count
-	var conv_half_width: float = 0.5 * conv_width
-
-	var index: int
-	match side:
-		Side.LEFT:
-			index = 0
-		Side.RIGHT:
-			index = count - 1
-		_:
-			index = 0
-
-	var conv_pos_z: float = -0.5 * width + conv_half_width + index * width / count
-	var ds_contact_z_offset: float = -conv_half_width if angle_ds > 0 else conv_half_width
-	var us_contact_z_offset: float = conv_half_width if angle_us > 0 else -conv_half_width
-	var ds_displacement_x: float = tan(angle_ds) * (conv_pos_z + ds_contact_z_offset)
-	var us_displacement_x: float = tan(angle_us) * (conv_pos_z + us_contact_z_offset)
-
-	var front_x: float = length / 2.0 + ds_displacement_x
-	var back_x: float = -length / 2.0 + us_displacement_x
-
-	return [back_x, front_x]
-
-
-func _get_single_conveyor_spur_side_extents(side: SideGuardsAssembly.Side, conveyor: Node3D) -> Array[float]:
 	var length: float = conveyor.size.x
 	var width: float = conveyor.size.z
 	var angle_ds: float = conveyor.angle_downstream
@@ -433,12 +426,12 @@ func _adjust_side_guards(side_node: Node3D, side_guard_extents: Array, side: Sid
 		guard.transform = mount_transform * facing_transform * guard_base_transform * length_adjustment
 
 func _on_opening_changed_left() -> void:
-	if not is_inside_tree():
+	if _clearing_openings or not is_inside_tree():
 		return
 	_update_side(Side.LEFT, left_side_guards_enabled)
 
 func _on_opening_changed_right() -> void:
-	if not is_inside_tree():
+	if _clearing_openings or not is_inside_tree():
 		return
 	_update_side(Side.RIGHT, right_side_guards_enabled)
 
