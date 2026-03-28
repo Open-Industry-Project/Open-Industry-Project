@@ -61,7 +61,7 @@ This creates a new scene with the top node labelled "Simulation":
 
 Parts can be dragged into the viewport to instantiate them. Once they're in the scene they can be modified.
 
-https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/fc3dca44-ceab-4ecf-8c7d-cd5754fce558
+https://github.com/user-attachments/assets/217c93cd-0b2d-46b8-a333-32be3417f019
 
 Most parts have properties that can be configured to communicate with a PLC or OPC UA server (see [Communications](#communications)). In this example Ignition was used as an OPC server to write to the conveyor tag.
 
