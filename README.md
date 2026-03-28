@@ -21,11 +21,11 @@ Supported Communication Protocols:
 ## Table of Contents
 
 - [Demo](#demo)
-- [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
   - [Installation](#installation)
   - [Creating Your First Simulation](#creating-your-first-simulation)
 - [Communications](#communications)
+  - [OPC UA Browser](#opc-ua-browser)
   - [Tag Name Format](#tag-name-format)
 - [Importing Models](#importing-models)
 - [Help Wanted](#help-wanted)
@@ -43,29 +43,27 @@ https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/
 2. Extract the archive and open the included Godot editor.
 3. Use the Project Manager to open or create a new project.
 
-![image](https://github.com/user-attachments/assets/3de4a320-89bc-4088-86b7-a814da0e726d)
+<img width="1431" height="1031" alt="image" src="https://github.com/user-attachments/assets/db279d42-227f-4b7b-9105-24c6d2f7d4d9" />
 
 ### Creating Your First Simulation
 
 All objects used in a simulation scene will be in the Parts tab.
 
-![image](https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/fd0fd71c-e3fa-43cb-99b5-4b9d65d04727)
+<img width="1371" height="445" alt="image" src="https://github.com/user-attachments/assets/89603b9e-856a-4c50-ab85-60d3e319ce17" />
 
 A simulation can be created by adding a new scene and selecting "New Simulation".
 
-![image](https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/d28ec7a4-a3e2-4659-8b9a-3946c8baa528)
-
-![image](https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/2745376e-185a-4963-8c32-a416ca4174bc)
+<img width="353" height="365" alt="image" src="https://github.com/user-attachments/assets/091a03f0-0eeb-400b-85ea-75776e37b53c" />
 
 This creates a new scene with the top node labelled "Simulation":
 
-![image](https://github.com/user-attachments/assets/da960e60-cbb3-4a32-8630-a566ba8bb053)
+<img width="358" height="179" alt="image" src="https://github.com/user-attachments/assets/1bf57c22-c5b0-4304-b4d0-281a3b61b465" />
 
 Parts can be dragged into the viewport to instantiate them. Once they're in the scene they can be modified.
 
 https://github.com/Open-Industry-Project/Open-Industry-Project/assets/105675984/fc3dca44-ceab-4ecf-8c7d-cd5754fce558
 
-Most parts have properties that can be configured to communicate with a PLC or OPC server (see [Communications](#communications)). In this example Ignition was used as an OPC server to write to the conveyor tag.
+Most parts have properties that can be configured to communicate with a PLC or OPC UA server (see [Communications](#communications)). In this example Ignition was used as an OPC server to write to the conveyor tag.
 
 https://github.com/user-attachments/assets/6d72a15b-b1ff-4402-b7d5-1f1a3fbeb085
 
@@ -73,13 +71,13 @@ https://github.com/user-attachments/assets/6d72a15b-b1ff-4402-b7d5-1f1a3fbeb085
 
 Configure communication with PLCs or an OPC UA server via the "Comms" panel at the bottom of the editor:
 
-![image](https://github.com/user-attachments/assets/1582640d-fd9c-48e2-9c72-4f5c03e1cb3a)
+<img width="1374" height="314" alt="image" src="https://github.com/user-attachments/assets/4ef971fa-abd9-4a8a-a487-650ebd5f86a0" />
 
 The simulator will not communicate with any device until the "Enable Comms" checkbox is checked.
 
 Tag Groups are a logical way to organize sets of tags. Each Tag Group is associated with one PLC or one OPC UA client. When connecting to multiple PLCs or OPC UA endpoints, create a separate tag group for each one.
 
-The "Polling Rate" indicates how often OIPComms will read all the tags that are part of that tag group. The simulation does not read directly from the devices — it reads from a thread-safe data buffer that holds the value retained from the last poll. Writing values from the simulation occurs as soon as possible and is also thread-safe.
+The "Polling Rate" indicates how often OIPComms will read all the tags that are part of that tag group. The simulation does not read directly from the devices; it reads from a thread-safe data buffer that holds the value retained from the last poll. Writing values from the simulation occurs as soon as possible and is also thread-safe.
 
 In the event that a write operation is queued by the simulation and a poll is halfway through completing (for example 100 out of 200 tags in the group have been read), the write operation will not complete until the poll completes.
 
@@ -87,21 +85,25 @@ The "Gateway" is the IP address of the target controller, and the path is typica
 
 ![image](https://github.com/user-attachments/assets/c376d234-548f-41de-bada-fe27f6d00bd5)
 
-Selecting the Protocol dropdown provides three options:
+The Protocol dropdown provides three options:
 
 - `ab_eip` — Ethernet/IP communication via the libplctag library
 - `modbus_tcp` — Modbus TCP communication via the libplctag library
 - `opc_ua` — OPC UA communication via the open62541 library
 
-When changing the Protocol to `opc_ua`, the options change to reflect the connection parameters for an OPC UA endpoint:
-
-![image](https://github.com/user-attachments/assets/381969f0-d8e4-4033-93e4-88dc77920f69)
-
-The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server.
+When changing the Protocol to `opc_ua`, the options change to reflect the connection parameters for an OPC UA endpoint. The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server.
 
 Devices typically have these settings: Enable Comms, Tag Group, and Tag Name (Diffuse Sensor shown).
 
 ![image](https://github.com/user-attachments/assets/3475dffd-5ba8-4f55-8797-3758e3e5994c)
+
+### OPC UA Browser
+
+When using the `opc_ua` protocol, you can browse the server's address space directly from the editor using the built-in OPC UA Browser. To open it, select an OPC UA tag group and click `Browse` in the Comms panel. The browser dock will connect to the configured endpoint and display the server's node tree.
+
+<img width="1573" height="551" alt="image" src="https://github.com/user-attachments/assets/1de4fda0-10e0-43d6-b3f1-5fdcae59cd4a" />
+
+Expanding a node loads its children on demand, and selecting a node displays its details, including the NodeId, data type, current value, access level, and description. Use the **Copy Node ID** button to copy a node's ID to the clipboard for use as a tag name in your simulation parts.
 
 ### Tag Name Format
 
