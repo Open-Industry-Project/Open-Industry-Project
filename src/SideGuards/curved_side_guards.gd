@@ -59,15 +59,20 @@ func _ready() -> void:
 	
 	_update_mesh()
 
+static var _metal_texture: Texture2D = preload("res://assets/3DModels/Textures/Metal.png")
+
+
 func _setup_materials() -> void:
 	shader_material = ShaderMaterial.new()
 	shader_material.shader = load('res://assets/3DModels/Shaders/SideGuardShaderCBC.tres') as Shader
-	shader_material.set_shader_parameter('Color', Color('#56a7c8'))
-	
+	shader_material.set_shader_parameter("metal_texture", _metal_texture)
+	SensorBeamCache.register_material(shader_material)
+
 	inner_shader_material = ShaderMaterial.new()
 	inner_shader_material.shader = load('res://assets/3DModels/Shaders/SideGuardShaderCBC.tres') as Shader
-	inner_shader_material.set_shader_parameter('Color', Color('#56a7c8'))
-	
+	inner_shader_material.set_shader_parameter("metal_texture", _metal_texture)
+	SensorBeamCache.register_material(inner_shader_material)
+
 	_update_material_scale()
 
 func _ensure_unique_collision_shapes() -> void:

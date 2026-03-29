@@ -27,15 +27,12 @@ const CHAMFER_TAPER: float = 0.1
 		if length != 0:
 			if scale.x != length:
 				scale = Vector3(length, scale.y, scale.z)
-			if get_metal_material():
-				get_metal_material().set_shader_parameter("Scale", length)
+			set_instance_shader_parameter("Scale", length)
 			if l_end:
 				l_end.scale = Vector3(1 / length, 1, 1)
 			if r_end:
 				r_end.scale = Vector3(1 / length, 1, 1)
 			_update_collision_shape()
-
-var _metal_material: ShaderMaterial = null
 
 @onready var _l_end: Node3D = get_node("Ends/SideGuardEndL")
 @onready var _r_end: Node3D = get_node("Ends/SideGuardEndR")
@@ -48,13 +45,18 @@ var r_end: Node3D:
 	get:
 		return _r_end
 
+static var _shared_material: ShaderMaterial
+static var _metal_texture: Texture2D = preload("res://assets/3DModels/Textures/Metal.png")
+
 
 func _enter_tree() -> void:
 	set_notify_local_transform(true)
 
 
 func _ready() -> void:
-	get_metal_material()
+	_ensure_shared_material()
+	set_surface_override_material(0, _shared_material)
+	set_instance_shader_parameter("Scale", length if length != 0 else 1.0)
 	_setup_collision()
 
 
@@ -63,13 +65,20 @@ func _notification(what: int) -> void:
 		length = scale.x
 
 
-func get_metal_material() -> ShaderMaterial:
-	if _metal_material:
-		return _metal_material
+func _ensure_shared_material() -> void:
+	if _shared_material:
+		return
+	_shared_material = ShaderMaterial.new()
+	_shared_material.shader = load("res://assets/3DModels/Shaders/MetalShaderSideGuard.tres")
+	_shared_material.set_shader_parameter("metal_texture", _metal_texture)
+	_shared_material.set_shader_parameter("Metallic", 0.94)
+	_shared_material.set_shader_parameter("Roughness", 0.5)
+	_shared_material.set_shader_parameter("Specular", 0.5)
+	SensorBeamCache.register_material(_shared_material)
 
-	_metal_material = mesh.surface_get_material(0).duplicate() as ShaderMaterial
-	set_surface_override_material(0, _metal_material)
-	return _metal_material
+
+func get_metal_material() -> ShaderMaterial:
+	return get_surface_override_material(0) as ShaderMaterial
 
 
 var _collision_half_y: float = 0.301

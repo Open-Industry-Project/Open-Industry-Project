@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cnenk7khucv8s" path="res://src/SideGuards/side_guard.gd" id="2_1ah88"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="2_ydsd4"]
+[ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="5_metal"]
 [ext_resource type="PackedScene" uid="uid://vrqch763taww" path="res://src/SideGuards/SideGuardEndL.tscn" id="3_e6wdq"]
 [ext_resource type="PackedScene" uid="uid://dklutu2avwg7t" path="res://src/SideGuards/SideGuardEndR.tscn" id="4_e8bpb"]
 
@@ -12,6 +13,7 @@ shader_parameter/Scale = 3.5
 shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
+shader_parameter/metal_texture = ExtResource("5_metal")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_gn6s2"]
 _surfaces = [{
@@ -52,6 +54,7 @@ shader_parameter/Scale = 3.5
 shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
+shader_parameter/metal_texture = ExtResource("5_metal")
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_sg"]
 friction = 0.0

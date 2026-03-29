@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://b2f50dwn2r8w2" path="res://src/ConveyorAttachment/side_guards_assembly.gd" id="1_rsl22"]
 [ext_resource type="PackedScene" uid="uid://dvjrx5crpqs5f" path="res://parts/SideGuard.tscn" id="2_gw8aj"]
 [ext_resource type="Shader" uid="uid://wtu5yyfpdcgl" path="res://assets/3DModels/Shaders/MetalShaderSideGuard.tres" id="3_x5s3x"]
+[ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="4_metal"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_x5s3x"]
 render_priority = 0
@@ -11,6 +12,7 @@ shader_parameter/Scale = 3.5
 shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
+shader_parameter/metal_texture = ExtResource("4_metal")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_08v0o"]
 _surfaces = [{
@@ -35,6 +37,7 @@ shader_parameter/Scale = 3.5
 shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
+shader_parameter/metal_texture = ExtResource("4_metal")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_5ubf2"]
 render_priority = 0
@@ -43,6 +46,7 @@ shader_parameter/Scale = 3.5
 shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
+shader_parameter/metal_texture = ExtResource("4_metal")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_bfj65"]
 _surfaces = [{
@@ -67,6 +71,7 @@ shader_parameter/Scale = 3.5
 shader_parameter/Metallic = 0.94
 shader_parameter/Roughness = 0.5
 shader_parameter/Specular = 0.5
+shader_parameter/metal_texture = ExtResource("4_metal")
 
 [node name="SideGuardsAssembly" type="Node3D" unique_id=677856310]
 script = ExtResource("1_rsl22")

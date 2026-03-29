@@ -75,6 +75,7 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	RenderingServer.free_rid(_instance)
+	SensorBeamCache.clear_beam(get_instance_id())
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized)
 
@@ -101,8 +102,11 @@ func _physics_process(_delta: float) -> void:
 		distance = new_distance
 	
 	var current_transform = global_transform
-	if show_beam and (_beam_needs_update or new_distance != _last_distance or beam_color != _last_beam_color or current_transform != _last_transform):
-		_update_beam_mesh(start_pos, new_distance, beam_color)
+	var beam_end := start_pos + global_transform.basis.z * new_distance
+	if _beam_needs_update or new_distance != _last_distance or beam_color != _last_beam_color or current_transform != _last_transform:
+		if show_beam:
+			_update_beam_mesh(start_pos, new_distance, beam_color)
+		SensorBeamCache.set_beam(get_instance_id(), start_pos, beam_end)
 		_last_distance = new_distance
 		_last_beam_color = beam_color
 		_last_transform = current_transform
