@@ -249,13 +249,17 @@ func _get_custom_preview_node() -> Node3D:
 		side_guards.set_meta("is_preview", true)
 		side_guards.set_process_mode(Node.PROCESS_MODE_DISABLED)
 
+	var corner = preview_node.get_node_or_null("ConveyorCorner")
+	var arrow_size: Vector3 = corner.size if is_instance_valid(corner) else Vector3(2, 0.5, 1.5)
+	preview_node.add_child(FlowDirectionArrow.create(arrow_size))
+
 	return preview_node
 
 
 func _disable_collisions_recursive(node: Node) -> void:
 	if node is CollisionShape3D:
 		node.disabled = true
-	
+
 	if node is CollisionObject3D:
 		node.collision_layer = 0
 		node.collision_mask = 0
