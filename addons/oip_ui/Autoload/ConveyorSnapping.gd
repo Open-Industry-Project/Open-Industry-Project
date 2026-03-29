@@ -337,18 +337,6 @@ static func _apply_inclination_to_basis(basis: Basis, inclination: float) -> Bas
 	return new_basis 
 
 
-static func _get_bottom_edge_offset(conveyor_size: Vector3, inclination_angle: float, conveyor_basis: Basis) -> Vector3:
-	if abs(inclination_angle) < 0.001:
-		return Vector3.ZERO
-	
-	var half_height := conveyor_size.y / 2.0
-	var half_length := conveyor_size.x / 2.0
-	
-	var local_front_bottom := Vector3(half_length, -half_height, 0)
-	var world_front_bottom := conveyor_basis * local_front_bottom
-	
-	return -world_front_bottom
-
 
 static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D, is_end_to_end: bool) -> Dictionary:
 	if not _has_side_guards(snapped_conveyor):
@@ -1044,19 +1032,17 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 
 	if min_distance == distance_to_front:
 		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
-		var connection_position := target_front_edge + target_transform.basis.x * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		var connection_position := target_front_edge + new_basis.x * (selected_size.x / 2.0)
 		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
+		snap_transform.origin = connection_position
 		snapped_end = {"pos": Vector3(-selected_size.x / 2.0, 0, 0), "outward": Vector3(-1, 0, 0), "name": &"back"}
 		target_end = {"pos": Vector3(target_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
 
 	elif min_distance == distance_to_back:
 		var new_basis := _apply_inclination_to_basis(target_transform.basis, selected_inclination)
-		var connection_position := target_back_edge - target_transform.basis.x * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		var connection_position := target_back_edge - new_basis.x * (selected_size.x / 2.0)
 		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
+		snap_transform.origin = connection_position
 		snapped_end = {"pos": Vector3(selected_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
 		target_end = {"pos": Vector3(-target_size.x / 2.0, 0, 0), "outward": Vector3(-1, 0, 0), "name": &"back"}
 
@@ -1070,10 +1056,9 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		perpendicular_basis.y = target_transform.basis.y
 		perpendicular_basis.z = -target_transform.basis.x
 		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
-		var connection_position := closest_point_on_edge - target_transform.basis.z * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		var connection_position := closest_point_on_edge - new_basis.x * (selected_size.x / 2.0)
 		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
+		snap_transform.origin = connection_position
 		var edge_pos_local: Vector3 = target_transform.affine_inverse() * closest_point_on_edge
 		snapped_end = {"pos": Vector3(selected_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
 		target_end = {"pos": edge_pos_local, "outward": Vector3(0, 0, -1), "name": &"left_side"}
@@ -1088,10 +1073,9 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		perpendicular_basis.y = target_transform.basis.y
 		perpendicular_basis.z = target_transform.basis.x
 		var new_basis := _apply_inclination_to_basis(perpendicular_basis, selected_inclination)
-		var connection_position := closest_point_on_edge + target_transform.basis.z * (selected_size.x / 2.0)
-		var height_offset := _get_bottom_edge_offset(selected_size, selected_inclination, new_basis)
+		var connection_position := closest_point_on_edge - new_basis.x * (selected_size.x / 2.0)
 		snap_transform.basis = new_basis
-		snap_transform.origin = connection_position + height_offset
+		snap_transform.origin = connection_position
 		var edge_pos_local: Vector3 = target_transform.affine_inverse() * closest_point_on_edge
 		snapped_end = {"pos": Vector3(selected_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
 		target_end = {"pos": edge_pos_local, "outward": Vector3(0, 0, 1), "name": &"right_side"}
