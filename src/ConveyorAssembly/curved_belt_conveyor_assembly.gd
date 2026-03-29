@@ -249,9 +249,9 @@ func _get_custom_preview_node() -> Node3D:
 		side_guards.set_meta("is_preview", true)
 		side_guards.set_process_mode(Node.PROCESS_MODE_DISABLED)
 
-	var corner = preview_node.get_node_or_null("ConveyorCorner")
-	var arrow_size: Vector3 = corner.size if is_instance_valid(corner) else Vector3(2, 0.5, 1.5)
-	preview_node.add_child(FlowDirectionArrow.create(arrow_size))
+	var corner = preview_node.get_node("ConveyorCorner")
+	preview_node.add_child(FlowDirectionArrow.create_curved(
+		corner.inner_radius, corner.conveyor_width, corner.belt_height, corner.conveyor_angle))
 
 	return preview_node
 

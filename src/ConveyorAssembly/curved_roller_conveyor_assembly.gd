@@ -286,7 +286,9 @@ func _get_custom_preview_node() -> Node3D:
 		side_guards.set_meta("is_preview", true)
 		side_guards.set_process_mode(Node.PROCESS_MODE_DISABLED)
 
-	preview_node.add_child(FlowDirectionArrow.create(preview_node.size))
+	var corner = preview_node.get_node("ConveyorCorner")
+	preview_node.add_child(FlowDirectionArrow.create_curved(
+		corner.inner_radius, corner.conveyor_width, preview_node.size.y, corner.conveyor_angle))
 
 	return preview_node
 
