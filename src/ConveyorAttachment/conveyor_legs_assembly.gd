@@ -159,7 +159,7 @@ var tail_end_leg_clearance: float = 0.5:
 @export_group("Leg Model", "leg_model")
 ## The scene to instantiate for generated conveyor legs.
 @export
-var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
+var leg_model_scene: PackedScene = preload("res://parts/ConveyorLeg.tscn"):
 	set(value):
 		if leg_model_scene != value:
 			leg_model_scene = value
@@ -196,7 +196,7 @@ var _head_end_leg_enabled_prev := false
 var _tail_end_leg_enabled_prev := false
 var _head_end_leg_clearance_prev := 0.5
 var _tail_end_leg_clearance_prev := 0.5
-var _leg_model_scene_prev: PackedScene = preload("res://parts/ConveyorLegBC.tscn")
+var _leg_model_scene_prev: PackedScene = preload("res://parts/ConveyorLeg.tscn")
 
 var _conveyor_legs_path_changed := true
 
@@ -290,7 +290,8 @@ func _disconnect_conveyor_signals() -> void:
 	if not _conveyor_connected:
 		return
 	_conveyor_connected = false
-	conveyor.size_changed.disconnect(_on_conveyor_size_changed)
+	if conveyor and conveyor.size_changed.is_connected(_on_conveyor_size_changed):
+		conveyor.size_changed.disconnect(_on_conveyor_size_changed)
 
 
 func _get_configuration_warnings() -> PackedStringArray:

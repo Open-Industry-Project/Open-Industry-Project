@@ -122,7 +122,7 @@ var tail_end_leg_clearance: float = 0.5:
 
 @export_subgroup("Model", "leg_model")
 @export
-var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegBC.tscn"):
+var leg_model_scene: PackedScene = preload("res://parts/ConveyorLeg.tscn"):
 	get:
 		return _legs_property_cached_get(&"leg_model_scene", leg_model_scene)
 	set(value):

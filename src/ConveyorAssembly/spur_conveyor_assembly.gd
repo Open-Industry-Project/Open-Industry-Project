@@ -123,6 +123,9 @@ func _remove_last_conveyor() -> void:
 
 func _spawn_conveyor() -> void:
 	var conveyor := conveyor_scene.instantiate() as Node3D
+	# Tell the child conveyor that the assembly manages its frame.
+	if "frame_managed_externally" in conveyor:
+		conveyor.frame_managed_externally = true
 	add_child(conveyor, false, Node.INTERNAL_MODE_BACK)
 	conveyor.owner = null
 	_conveyors.append(conveyor)
@@ -131,6 +134,13 @@ func _spawn_conveyor() -> void:
 func _update_conveyor(index: int) -> void:
 	var child_3d := _conveyors[index]
 	child_3d.transform = _get_new_transform_for_conveyor(index)
+
+	# Set side wall flags before size so they're applied when the mesh rebuilds.
+	if "close_left_side" in child_3d:
+		child_3d.close_left_side = (index == 0)
+	if "close_right_side" in child_3d:
+		child_3d.close_right_side = (index == _conveyors.size() - 1)
+
 	if "size" in child_3d:
 		child_3d.size = _get_new_size_for_conveyor(index)
 

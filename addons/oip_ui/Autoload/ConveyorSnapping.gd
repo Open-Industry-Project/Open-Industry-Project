@@ -100,8 +100,6 @@ static func snap_selected_conveyors() -> void:
 			var inline_state: Dictionary = original_side_guard_states.get(conveyor.get_instance_id(), {})
 			_clear_side_guard_openings_for_inline_connection(undo_redo, conveyor, inline_state)
 
-		_add_curved_snap_extension_operations(undo_redo, conveyor, target_conveyor, snap_result)
-
 	undo_redo.commit_action()
 
 
@@ -490,63 +488,6 @@ static func _clear_side_guard_openings_for_inline_connection(undo_redo: EditorUn
 		undo_redo.add_undo_property(side_guards_assembly, "right_side_guards_openings", current_right_openings)
 
 
-## When a straight conveyor connects end-to-end to a curved conveyor, extend
-## the straight conveyor's side guards to bridge the snap gap.
-static func _add_curved_snap_extension_operations(
-	undo_redo: EditorUndoRedoManager,
-	snapped_conveyor: Node3D,
-	target_conveyor: Node3D,
-	snap_result: Dictionary
-) -> void:
-	if not snap_result.is_end_to_end:
-		return
-
-	var sel_curved := _is_curved_conveyor(snapped_conveyor)
-	var tgt_curved := _is_curved_conveyor(target_conveyor)
-
-	# Only applies when exactly one side is curved.
-	if sel_curved == tgt_curved:
-		return
-
-	var straight := target_conveyor if not tgt_curved else snapped_conveyor
-	if not _has_side_guards(straight):
-		return
-
-	var gap := _get_snap_gap(snapped_conveyor, target_conveyor)
-	if gap < 0.01:
-		return
-
-	# Determine which end of the straight conveyor connects to the curve.
-	# The snap result tells us which end of each conveyor was used.
-	var straight_end_name: StringName
-	if straight == target_conveyor:
-		straight_end_name = snap_result.target_end.name
-	else:
-		straight_end_name = snap_result.snapped_end.name
-
-	var extend_front := straight_end_name == &"front"
-
-	# Extend past the gap with some overlap so the guards visually meet.
-	var extension := gap + 0.1
-
-	# Find the SideGuardsAssembly node directly to set the extension.
-	var side_guards_assembly: Node = null
-	if straight.has_node("%SideGuardsAssembly"):
-		side_guards_assembly = straight.get_node("%SideGuardsAssembly")
-	elif straight.has_node("Conveyor/SideGuardsAssembly"):
-		side_guards_assembly = straight.get_node("Conveyor/SideGuardsAssembly")
-	elif straight.has_node("%Conveyor/%SideGuardsAssembly"):
-		side_guards_assembly = straight.get_node("%Conveyor/%SideGuardsAssembly")
-
-	if not side_guards_assembly:
-		return
-
-	var prop := &"front_extension" if extend_front else &"back_extension"
-	var original: float = side_guards_assembly.get(prop)
-	undo_redo.add_do_property(side_guards_assembly, prop, extension)
-	undo_redo.add_undo_property(side_guards_assembly, prop, original)
-
-
 static func _is_curved_conveyor(conveyor: Node3D) -> bool:
 	var node_script: Script = conveyor.get_script()
 	var global_name: String = node_script.get_global_name() if node_script != null else ""
@@ -752,7 +693,7 @@ static func _get_snap_gap(selected_conveyor: Node3D, target_conveyor: Node3D) ->
 		var curved := selected_conveyor if sel_curved else target_conveyor
 		if _is_curved_roller_conveyor(curved):
 			return 0.001
-		return 0.242
+		return 0.25
 	return 0.0
 
 
@@ -914,7 +855,8 @@ static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_con
 	var side_name: StringName = &"left_side" if dist_left < dist_right else &"right_side"
 	var side_end := {"pos": side_pos_local, "outward": side_outward, "name": side_name}
 
-	var spur_gap := 0.0
+	# Gap must clear the frame flange (0.02m) on both sides to prevent overlap.
+	var spur_gap := ConveyorFrameMesh.FLANGE_WIDTH * 2.0
 	if not "conveyor_count" in selected_conveyor:
 		spur_gap = 0.12
 

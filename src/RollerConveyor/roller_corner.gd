@@ -22,6 +22,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	if _mesh_instance:
+		_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_update_mesh_length()
 
 

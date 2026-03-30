@@ -50,7 +50,7 @@ var _default_running_tag_name: String = ""
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(2, 0.24, 1.524)
+	size_default = Vector3(2, 0.5, 1.524)
 
 	_cached_properties[&"speed"] = _default_speed
 	_cached_properties[&"enable_comms"] = _default_enable_comms
@@ -198,7 +198,6 @@ func _apply_spur_clipping() -> void:
 					var x_spur: float = %Conveyor.position.x + ends_node.position.x + end_child.position.x
 					var clip := _get_spur_clip(x_spur)
 					_apply_roller_clip(end_roller, clip)
-					_adjust_end_frame(end_child, clip)
 
 	_adjust_side_rails()
 	_update_collision_shape()
@@ -239,31 +238,6 @@ func _apply_roller_clip(roller: Roller, clip: Vector3) -> void:
 	roller.set_length_and_offset(clip.z, (clip.x + clip.y) / 2.0)
 
 
-func _adjust_end_frame(end: RollerConveyorEnd, clip: Vector3) -> void:
-	var frame_node := end.get_node_or_null("ConveyorRollerEnd")
-	if not frame_node:
-		return
-
-	if clip.z < 0.01:
-		frame_node.visible = false
-		return
-
-	frame_node.visible = true
-	var half_w := size.z / 2.0
-	var meshes: Array[MeshInstance3D] = []
-	for child in frame_node.get_children():
-		if child is MeshInstance3D:
-			meshes.append(child)
-
-	if meshes.size() >= 2:
-		var at_left_edge := absf(clip.x + half_w) < 0.01
-		var at_right_edge := absf(clip.y - half_w) < 0.01
-		meshes[0].visible = at_left_edge
-		meshes[1].visible = at_right_edge
-		meshes[0].position = Vector3(meshes[0].position.x, meshes[0].position.y, clip.x)
-		meshes[1].position = Vector3(meshes[1].position.x, meshes[1].position.y, clip.y)
-
-
 func _adjust_side_rails() -> void:
 	var conv_roller := %Conveyor.get_node_or_null("ConvRoller")
 	if not conv_roller:
@@ -272,6 +246,8 @@ func _adjust_side_rails() -> void:
 	var parent_scale_x: float = conv_roller.scale.x
 	if parent_scale_x < 0.001:
 		return
+
+	var conveyor_length: float = %Conveyor.size.x if "size" in %Conveyor else size.x
 
 	var half_w := size.z / 2.0
 	var tan_ds := tan(angle_downstream)
@@ -284,7 +260,7 @@ func _adjust_side_rails() -> void:
 		var rail_length: float = front_x - back_x
 		var center_conveyor: float = (front_x + back_x) / 2.0 - _conveyor_x_offset
 		left_side.position.x = center_conveyor / parent_scale_x
-		left_side.scale.x = rail_length / parent_scale_x
+		left_side.scale.x = rail_length / conveyor_length / parent_scale_x
 
 	var right_side := conv_roller.get_node_or_null("ConvRollerR")
 	if right_side:
@@ -293,7 +269,7 @@ func _adjust_side_rails() -> void:
 		var rail_length: float = front_x - back_x
 		var center_conveyor: float = (front_x + back_x) / 2.0 - _conveyor_x_offset
 		right_side.position.x = center_conveyor / parent_scale_x
-		right_side.scale.x = rail_length / parent_scale_x
+		right_side.scale.x = rail_length / conveyor_length / parent_scale_x
 
 func _update_collision_shape() -> void:
 	if not has_node("%Conveyor"):

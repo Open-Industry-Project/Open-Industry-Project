@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bnqnyx54dx1q8" path="res://src/ConveyorAssembly/curved_belt_conveyor_assembly.gd" id="1_5kj7c"]
 [ext_resource type="PackedScene" uid="uid://6vu4cx2v1ltg" path="res://parts/CurvedBeltConveyor.tscn" id="3_a54t1"]
-[ext_resource type="PackedScene" uid="uid://b2hnylsj67c5m" path="res://parts/ConveyorLegCBC.tscn" id="4_qnxuu"]
+[ext_resource type="PackedScene" uid="uid://b2hnylsj67c5m" path="res://parts/ConveyorLegC.tscn" id="4_qnxuu"]
 [ext_resource type="PackedScene" uid="uid://c1dcpxt5x65et" path="res://parts/SideGuardsCBC.tscn" id="4_wyu5c"]
 [ext_resource type="PackedScene" uid="uid://cidlpglw76h7j" path="res://parts/assemblies/CurvedConveyorLegsAssembly.tscn" id="5_curved_legs"]
 
@@ -21,7 +21,9 @@ speed = 2.0
 reference_distance = 0.762
 belt_physics_material = SubResource("PhysicsMaterial_541io")
 enable_comms = false
+speed_tag_group_name = ""
 speed_tag_name = ""
+running_tag_group_name = ""
 running_tag_name = ""
 metadata/hijack_scale = false
 
@@ -34,3 +36,4 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7486e-07, -2, 0)
 leg_model_scene = ExtResource("4_qnxuu")
 
 [node name="SideGuardsCBC" parent="." unique_id=1663559876 instance=ExtResource("4_wyu5c")]
+size = Vector3(4.048, 4, 1)

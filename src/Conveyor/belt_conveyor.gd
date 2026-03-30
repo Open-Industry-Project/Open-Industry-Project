@@ -30,7 +30,6 @@ enum ConvTexture {
 		if value == speed:
 			return
 		speed = value
-		_update_speed()
 		_update_belt_material_scale()
 		speed_changed.emit()
 
@@ -48,19 +47,24 @@ enum ConvTexture {
 		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			sb_node.physics_material_override = value
-		var sb_end1 := get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
-		if sb_end1:
-			sb_end1.physics_material_override = value
-		var sb_end2 := get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
-		if sb_end2:
-			sb_end2.physics_material_override = value
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
-@onready var _ce1: BeltConveyorEnd = get_node("BeltConveyorEnd")
-@onready var _ce2: BeltConveyorEnd = get_node("BeltConveyorEnd2")
 @onready var _mesh: MeshInstance3D = get_node("MeshInstance3D")
+## When true, the parent assembly handles frame and belt end generation.
+var frame_managed_externally: bool = false
+## Close the left side (-Z) of the belt mesh with a wall.
+var close_left_side: bool = false
+## Close the right side (+Z) of the belt mesh with a wall.
+var close_right_side: bool = false
+
 var _belt_material: Material
 var _metal_material: Material
+var _frame_left: MeshInstance3D
+var _frame_right: MeshInstance3D
+var _shadow_plate: MeshInstance3D
+
+static var _belt_texture: Texture2D = preload("res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg")
+static var _belt_texture_alt: Texture2D = preload("res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png")
 var _belt_position: float = 0.0
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
@@ -123,18 +127,7 @@ func _ready() -> void:
 	_setup_collision_shape()
 	_update_material_texture()
 	_update_material_color()
-	_update_speed()
-	_update_physics_material()
 	_on_size_changed()
-
-	if _ce1:
-		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
-		_ce1.update_belt_color(belt_color)
-		_ce1.disable_collision = true
-	if _ce2:
-		_ce2.update_belt_texture(belt_texture == ConvTexture.STANDARD)
-		_ce2.update_belt_color(belt_color)
-		_ce2.disable_collision = true
 
 
 func _physics_process(delta: float) -> void:
@@ -143,10 +136,9 @@ func _physics_process(delta: float) -> void:
 		var velocity := local_left * speed
 		_sb.constant_linear_velocity = velocity
 		if not EditorInterface.is_simulation_paused():
-			_belt_position += speed * delta
+			_belt_position = fmod(_belt_position + speed * delta, 1.0)
 		if speed != 0:
-			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position * sign(speed))
-		_belt_position = fmod(_belt_position, 1.0)
+			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
 
 
 func _exit_tree() -> void:
@@ -157,21 +149,37 @@ func _exit_tree() -> void:
 
 
 func fix_material_overrides() -> void:
-	# This is necessary because the editor's duplication action will overwrite our materials after we've initialized them.
+	if not _mesh or not _mesh.mesh or _mesh.mesh.get_surface_count() == 0:
+		return
 	if _mesh.get_surface_override_material(0) != _belt_material:
 		_mesh.set_surface_override_material(0, _belt_material)
-	if _mesh.get_surface_override_material(1) != _metal_material:
-		_mesh.set_surface_override_material(1, _metal_material)
-	if _mesh.get_surface_override_material(2) != _metal_material:
-		_mesh.set_surface_override_material(2, _metal_material)
 
 
 func _setup_materials() -> void:
-	_belt_material = _mesh.mesh.surface_get_material(0).duplicate() as Material
-	_metal_material = _mesh.mesh.surface_get_material(1).duplicate() as Material
-	_mesh.set_surface_override_material(0, _belt_material)
-	_mesh.set_surface_override_material(1, _metal_material)
-	_mesh.set_surface_override_material(2, _metal_material)
+	# Custom belt shader — we control the UV mapping.
+	_belt_material = ShaderMaterial.new()
+	_belt_material.shader = preload("res://src/Conveyor/belt_surface_shader.gdshader")
+	_belt_material.set_shader_parameter("belt_texture", _belt_texture)
+	_belt_material.set_shader_parameter("belt_texture_alt", _belt_texture_alt)
+
+	# Procedural frame rails.
+	_metal_material = ConveyorFrameMesh.create_material()
+	_frame_left = get_node_or_null("FrameLeft")
+	if not _frame_left:
+		_frame_left = MeshInstance3D.new()
+		_frame_left.name = "FrameLeft"
+		add_child(_frame_left)
+	_frame_right = get_node_or_null("FrameRight")
+	if not _frame_right:
+		_frame_right = MeshInstance3D.new()
+		_frame_right.name = "FrameRight"
+		add_child(_frame_right)
+	_shadow_plate = get_node_or_null("ShadowPlate")
+	if not _shadow_plate:
+		_shadow_plate = MeshInstance3D.new()
+		_shadow_plate.name = "ShadowPlate"
+		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		add_child(_shadow_plate)
 
 
 func _setup_collision_shape() -> void:
@@ -183,14 +191,8 @@ func _setup_collision_shape() -> void:
 func _update_material_texture() -> void:
 	if not _belt_material:
 		return
-	_belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
+	_belt_material.set_shader_parameter("use_alternate_texture", belt_texture == ConvTexture.ALTERNATE)
 	fix_material_overrides()
-	if _ce1:
-		_ce1.update_belt_texture(belt_texture == ConvTexture.STANDARD)
-		_ce1.fix_material_overrides()
-	if _ce2:
-		_ce2.update_belt_texture(belt_texture == ConvTexture.STANDARD)
-		_ce2.fix_material_overrides()
 
 
 func _update_material_color() -> void:
@@ -198,51 +200,17 @@ func _update_material_color() -> void:
 		return
 	_belt_material.set_shader_parameter("ColorMix", belt_color)
 	fix_material_overrides()
-	if _ce1:
-		_ce1.update_belt_color(belt_color)
-		_ce1.fix_material_overrides()
-	if _ce2:
-		_ce2.update_belt_color(belt_color)
-		_ce2.fix_material_overrides()
-
-
-func _update_speed() -> void:
-	if _ce1:
-		_ce1.speed = speed
-	if _ce2:
-		_ce2.speed = speed
-
-
-func _update_physics_material() -> void:
-	if not _sb:
-		return
-	if _ce1:
-		var sb1 := _ce1.get_node("StaticBody3D") as StaticBody3D
-		if sb1:
-			sb1.physics_material_override = _sb.physics_material_override
-	if _ce2:
-		var sb2 := _ce2.get_node("StaticBody3D") as StaticBody3D
-		if sb2:
-			sb2.physics_material_override = _sb.physics_material_override
 
 
 func _update_belt_material_scale() -> void:
-	if not _belt_material or not _sb or speed == 0:
+	if not _belt_material:
 		return
-	var BASE_RADIUS: float = clamp(round((size.y - 0.01) * 100.0) / 100.0, 0.01, 0.25)
-	var collision_shape := _sb.get_node("CollisionShape3D").shape as BoxShape3D
-	var middle_length := collision_shape.size.x
-	var BASE_BELT_LENGTH: float = PI * BASE_RADIUS
-	var belt_scale: float = middle_length / BASE_BELT_LENGTH
-	(_belt_material as ShaderMaterial).set_shader_parameter("Scale", belt_scale * sign(speed))
-	fix_material_overrides()
-
-
-func _update_metal_material_scale() -> void:
-	if not _metal_material or not _mesh:
-		return
-	(_metal_material as ShaderMaterial).set_shader_parameter("Scale", _mesh.scale.x)
-	(_metal_material as ShaderMaterial).set_shader_parameter("Scale2", _mesh.scale.y)
+	# Scale = texture repeats over the full belt loop.
+	var radius: float = size.y / 2.0
+	var middle_len: float = size.x - 2.0 * radius
+	var total_belt: float = 2.0 * PI * radius + 2.0 * middle_len
+	var scale_value: float = max(1.0, total_belt)
+	(_belt_material as ShaderMaterial).set_shader_parameter("Scale", scale_value)
 	fix_material_overrides()
 
 
@@ -251,40 +219,68 @@ func _on_size_changed() -> void:
 	var height := size.y
 	var width := size.z
 
-	var end1 := _ce1
-	var end2 := _ce2
 	var middle_body := _sb
 	var middle_mesh := _mesh
 	var middle_collision_shape := get_node_and_resource("StaticBody3D/CollisionShape3D:shape")[1] as BoxShape3D
-	if not (is_instance_valid(end1)
-			and is_instance_valid(end2)
-			and is_instance_valid(middle_body)
+	if not (is_instance_valid(middle_body)
 			and is_instance_valid(middle_mesh)
 			and is_instance_valid(middle_collision_shape)):
 		return
 
-	# Calculate dimensions of the components (when they don't match the ones above).
-	# Ends' length varies with height.
-	var end_length := height / 2.0
-	var middle_length := length - 2.0 * end_length
-
-	var middle_size := Vector3(middle_length, height, width)
-	var end_size := Vector3(end_length, height, width)
-	var middle_mesh_base_size := Vector3(1, 0.5, 2)
-	middle_mesh.scale = middle_size / middle_mesh_base_size
 	middle_collision_shape.size = Vector3(length, height, width)
-	end1.size = end_size
-	end2.size = end_size
+
+	# Unified procedural belt mesh.
+	# When frame is managed externally (spur assembly), always close both sides
+	# so adjacent belts aren't see-through. Outermost edges (close_* flags) get
+	# flat rectangular walls; inner sides between belts follow the belt contour.
+	var wall_left: bool = close_left_side or frame_managed_externally
+	var wall_right: bool = close_right_side or frame_managed_externally
+	middle_mesh.mesh = BeltConveyorMesh.create_belt(length, height, width,
+			wall_left, wall_right, close_left_side, close_right_side)
+	middle_mesh.scale = Vector3.ONE
+	middle_mesh.position = Vector3.ZERO
+	middle_mesh.set_surface_override_material(0, _belt_material)
+	if wall_left or wall_right:
+		middle_mesh.set_surface_override_material(1, _metal_material)
+	middle_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	if _shadow_plate:
+		var box := BoxMesh.new()
+		box.size = Vector3(length, 0.01, width)
+		_shadow_plate.mesh = box
+		_shadow_plate.position = Vector3(0, -height, 0)
 
 	_update_belt_material_scale()
-	_update_metal_material_scale()
 
-	var base_pos := Vector3(0, -height / 2.0, 0)
-	middle_mesh.position = base_pos
-	middle_body.position = base_pos
-	var end_offset_x := length / 2.0 - end_length
-	end1.position = Vector3(base_pos.x + end_offset_x, base_pos.y, base_pos.z)
-	end2.position = Vector3(base_pos.x + -end_offset_x, base_pos.y, base_pos.z)
+	middle_body.position = Vector3(0, -height / 2.0, 0)
+
+	# Procedural frame rails.
+	# For spur children, only generate on outermost edges (matching side wall flags).
+	if _frame_left and _frame_right:
+		var half_width := width / 2.0
+		var wt := ConveyorFrameMesh.WALL_THICKNESS
+		var show_left: bool = not frame_managed_externally or close_left_side
+		var show_right: bool = not frame_managed_externally or close_right_side
+
+		if show_left:
+			var frame_mesh_l := ConveyorFrameMesh.create(length, height)
+			if _metal_material:
+				frame_mesh_l.surface_set_material(0, _metal_material)
+			_frame_left.mesh = frame_mesh_l
+			_frame_left.position = Vector3(0, -height, -half_width - wt)
+			_frame_left.rotation = Vector3.ZERO
+		else:
+			_frame_left.mesh = null
+
+		if show_right:
+			var frame_mesh_r := ConveyorFrameMesh.create(length, height)
+			if _metal_material:
+				frame_mesh_r.surface_set_material(0, _metal_material)
+			_frame_right.mesh = frame_mesh_r
+			_frame_right.position = Vector3(0, -height, half_width + wt)
+			_frame_right.rotation = Vector3(0, PI, 0)
+		else:
+			_frame_right.mesh = null
 
 
 func _on_simulation_started() -> void:

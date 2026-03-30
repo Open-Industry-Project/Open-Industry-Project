@@ -6,7 +6,7 @@
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_og5kt"]
 resource_local_to_scene = true
-size = Vector3(2.43478, 0.2, 0.744)
+size = Vector3(2.4347825, 0.2, 0.744)
 
 [node name="ChainTransfer" type="Node3D" unique_id=1063223612]
 process_mode = 3

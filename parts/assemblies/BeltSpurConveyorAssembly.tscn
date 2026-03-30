@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://blv116gh51acb"]
 
-[ext_resource type="Script" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="2_sg"]
 [ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="3_legs"]
 
@@ -20,6 +20,15 @@ _cached_properties = {
 &"speed_tag_group_name": "",
 &"speed_tag_name": ""
 }
+belt_color = Color(1, 1, 1, 1)
+belt_texture = 0
+speed = 2.0
+belt_physics_material = SubResource("PhysicsMaterial_spur")
+enable_comms = false
+speed_tag_group_name = ""
+speed_tag_name = ""
+running_tag_group_name = ""
+running_tag_name = ""
 angle_downstream = 0.5235987755982988
 conveyor_count = 8
 size = Vector3(2, 0.5, 1.524)

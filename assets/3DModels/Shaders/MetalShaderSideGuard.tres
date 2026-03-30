@@ -9,15 +9,21 @@ uniform float Metallic = 0.94;
 uniform float Roughness = 0.5;
 uniform float Specular = 0.5;
 
-uniform int beam_count : hint_range(0, 4) = 0;
-uniform vec3 beam_start_0;
-uniform vec3 beam_end_0;
-uniform vec3 beam_start_1;
-uniform vec3 beam_end_1;
-uniform vec3 beam_start_2;
-uniform vec3 beam_end_2;
-uniform vec3 beam_start_3;
-uniform vec3 beam_end_3;
+instance uniform int beam_count = 0;
+instance uniform vec3 beam_start_0;
+instance uniform vec3 beam_end_0;
+instance uniform vec3 beam_start_1;
+instance uniform vec3 beam_end_1;
+instance uniform vec3 beam_start_2;
+instance uniform vec3 beam_end_2;
+instance uniform vec3 beam_start_3;
+instance uniform vec3 beam_end_3;
+instance uniform vec3 beam_start_4;
+instance uniform vec3 beam_end_4;
+instance uniform vec3 beam_start_5;
+instance uniform vec3 beam_end_5;
+instance uniform vec3 beam_start_6;
+instance uniform vec3 beam_end_6;
 uniform float beam_radius = 0.05;
 
 varying vec3 world_pos;
@@ -46,5 +52,8 @@ void fragment() {
 	if (beam_count > 1 && in_beam(world_pos, beam_start_1, beam_end_1)) { discard; }
 	if (beam_count > 2 && in_beam(world_pos, beam_start_2, beam_end_2)) { discard; }
 	if (beam_count > 3 && in_beam(world_pos, beam_start_3, beam_end_3)) { discard; }
+	if (beam_count > 4 && in_beam(world_pos, beam_start_4, beam_end_4)) { discard; }
+	if (beam_count > 5 && in_beam(world_pos, beam_start_5, beam_end_5)) { discard; }
+	if (beam_count > 6 && in_beam(world_pos, beam_start_6, beam_end_6)) { discard; }
 }
 "

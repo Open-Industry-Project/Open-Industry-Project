@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c7e1r04ws0m1j"]
 
-[ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor.gd" id="1_pxi51"]
+[ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_pxi51"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
@@ -13,8 +13,10 @@ _cached_properties = {
 &"belt_physics_material": SubResource("PhysicsMaterial_hcu6p"),
 &"belt_texture": 0,
 &"enable_comms": false,
+&"running_tag_group_name": "",
 &"running_tag_name": "",
 &"speed": 2.0,
+&"speed_tag_group_name": "",
 &"speed_tag_name": ""
 }
 belt_color = Color(1, 1, 1, 1)

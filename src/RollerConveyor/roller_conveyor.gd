@@ -58,7 +58,8 @@ var running: bool = false:
 
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
-var _last_size: Vector3 = Vector3(1.525, 0.24, 1.524)
+
+var _last_size: Vector3 = Vector3(1.525, 0.5, 1.524)
 var _last_length: float = 1.525
 var _last_width: float = 1.524
 var _metal_material: Material
@@ -71,11 +72,12 @@ var _transfer_plate_infeed: MeshInstance3D
 var _transfer_plate_discharge_opp: MeshInstance3D
 var _transfer_plate_infeed_opp: MeshInstance3D
 var _transfer_plate_material: StandardMaterial3D
+var _shadow_plate: MeshInstance3D
 
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(4, 0.24, 1.524)
+	size_default = Vector3(4, 0.5, 1.524)
 
 
 func _enter_tree() -> void:
@@ -114,7 +116,10 @@ func _ready() -> void:
 	_setup_collision_shape()
 	_setup_roller_initialization()
 	_setup_material()
+	_setup_shadow_plate()
 	_setup_transfer_plates()
+	# Force initial component update regardless of size change detection.
+	_last_size = Vector3.ZERO
 	_on_size_changed()
 
 
@@ -129,20 +134,17 @@ func set_roller_override_material(material: Material) -> void:
 	roller_override_material_changed.emit(material)
 
 
+func _setup_shadow_plate() -> void:
+	_shadow_plate = get_node_or_null("ShadowPlate")
+	if not _shadow_plate:
+		_shadow_plate = MeshInstance3D.new()
+		_shadow_plate.name = "ShadowPlate"
+		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		add_child(_shadow_plate)
+
+
 func _setup_material() -> void:
-	var metal_mesh_instance := get_node_or_null("ConvRoller/ConvRollerL") as MeshInstance3D
-	if metal_mesh_instance:
-		_metal_material = metal_mesh_instance.get_surface_override_material(0)
-
-		if not _metal_material:
-			_metal_material = metal_mesh_instance.mesh.surface_get_material(0)
-
-		if _metal_material:
-			_metal_material = _metal_material.duplicate()
-			var right_mesh_instance := get_node_or_null("ConvRoller/ConvRollerR") as MeshInstance3D
-			if metal_mesh_instance and right_mesh_instance:
-				metal_mesh_instance.set_surface_override_material(0, _metal_material)
-				right_mesh_instance.set_surface_override_material(0, _metal_material)
+	_metal_material = ConveyorFrameMesh.create_material()
 
 
 
@@ -206,17 +208,24 @@ func _setup_collision_shape() -> void:
 func _update_component_positions() -> void:
 	var conv_roller := get_node_or_null("ConvRoller")
 	if conv_roller:
-		var end_offset := 0.165
-		var target_length := size.x - (2 * end_offset)
-		conv_roller.scale = Vector3(target_length, 1, 1)
-		conv_roller.position = Vector3(0, -0.25, 0)
+		var frame_height := size.y
 
-		var left_side := conv_roller.get_node_or_null("ConvRollerL")
-		var right_side := conv_roller.get_node_or_null("ConvRollerR")
+		conv_roller.scale = Vector3.ONE
+		conv_roller.position = Vector3(0, -frame_height, 0)
+		var left_side := conv_roller.get_node_or_null("ConvRollerL") as MeshInstance3D
+		var right_side := conv_roller.get_node_or_null("ConvRollerR") as MeshInstance3D
 		if left_side and right_side:
+			var frame_mesh := ConveyorFrameMesh.create(size.x, frame_height)
+			if _metal_material:
+				frame_mesh.surface_set_material(0, _metal_material)
+			left_side.mesh = frame_mesh
+			right_side.mesh = frame_mesh
 			var half_width := size.z / 2.0
-			left_side.position = Vector3(left_side.position.x, left_side.position.y, -half_width)
-			right_side.position = Vector3(right_side.position.x, right_side.position.y, half_width)
+			var wt := ConveyorFrameMesh.WALL_THICKNESS
+			left_side.position = Vector3(0, 0, -half_width - wt)
+			left_side.rotation = Vector3.ZERO
+			right_side.position = Vector3(0, 0, half_width + wt)
+			right_side.rotation = Vector3(0, PI, 0)
 
 	var rollers_node := get_node_or_null("Rollers")
 	if rollers_node:
@@ -225,7 +234,7 @@ func _update_component_positions() -> void:
 
 	var ends_node := get_node_or_null("Ends")
 	if ends_node:
-		ends_node.position = Vector3(0, -0.25, 0)
+		ends_node.position = Vector3(0, ROLLERS_Y_OFFSET - 0.16, 0)
 
 		var end1 := ends_node.get_node_or_null("RollerConveyorEnd")
 		var end2 := ends_node.get_node_or_null("RollerConveyorEnd2")
@@ -255,14 +264,6 @@ func _update_length() -> void:
 		_last_length = new_length
 
 
-func _update_metal_material_scale() -> void:
-	if _metal_material is ShaderMaterial:
-		var end_offset := 0.165
-		var target_length := size.x - (2 * end_offset)
-		var scale_factor := target_length / 1.67
-		var scale_value: float = round(scale_factor)
-		scale_value = max(1.0, scale_value)
-		_metal_material.set_shader_parameter("Scale2", scale_value)
 
 
 func _update_conveyor_velocity() -> void:
@@ -294,12 +295,17 @@ func _on_size_changed() -> void:
 
 		_update_width()
 		_update_length()
-		_update_metal_material_scale()
 		_update_component_positions()
 		_update_transfer_plates()
 
 		if _simple_conveyor_shape:
-			_simple_conveyor_shape.position = Vector3(0, ROLLERS_Y_OFFSET, 0)
+			_simple_conveyor_shape.position = Vector3(0, -size.y / 2.0, 0)
+
+		if _shadow_plate:
+			var box := BoxMesh.new()
+			box.size = Vector3(size.x, 0.01, size.z)
+			_shadow_plate.mesh = box
+			_shadow_plate.position = Vector3(0, -size.y, 0)
 
 
 func _on_roller_added(roller: Roller) -> void:
@@ -323,6 +329,8 @@ func _on_simulation_started() -> void:
 func _on_simulation_ended() -> void:
 	running = false
 	_update_conveyor_velocity()
+	if _roller_material:
+		_roller_material.uv1_offset = Vector3.ZERO
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
@@ -364,6 +372,7 @@ func _get_or_create_internal_child(child_name: String) -> MeshInstance3D:
 	if not node:
 		node = MeshInstance3D.new()
 		node.name = child_name
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node, false, Node.INTERNAL_MODE_FRONT)
 	return node
 

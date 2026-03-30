@@ -97,22 +97,6 @@ enum Side
 		if is_inside_tree():
 			_on_opening_changed_left()
 
-## Extra length added to the front (+X) end of the side guards.
-## Used to bridge gaps when connected to a curved conveyor.
-@export_storage var front_extension: float = 0.0:
-	set(value):
-		front_extension = value
-		if is_inside_tree():
-			_update_side_guards()
-
-## Extra length added to the back (-X) end of the side guards.
-## Used to bridge gaps when connected to a curved conveyor.
-@export_storage var back_extension: float = 0.0:
-	set(value):
-		back_extension = value
-		if is_inside_tree():
-			_update_side_guards()
-
 var _conveyor_connected: bool = false
 var _prev_angle_downstream: float = 0.0
 var _prev_angle_upstream: float = 0.0
@@ -150,7 +134,8 @@ func _disconnect_conveyor_signals() -> void:
 		return
 	_conveyor_connected = false
 	var conveyor := get_parent()
-	conveyor.size_changed.disconnect(_on_conveyor_size_changed)
+	if conveyor and conveyor.has_signal("size_changed") and conveyor.size_changed.is_connected(_on_conveyor_size_changed):
+		conveyor.size_changed.disconnect(_on_conveyor_size_changed)
 
 
 func _on_conveyor_size_changed() -> void:
@@ -225,7 +210,8 @@ func _ensure_side(side: SideGuardsAssembly.Side) -> Node3D:
 func _get_side_node_transform(side: SideGuardsAssembly.Side) -> Transform3D:
 	var conveyor = get_parent()
 	var conveyor_width: float = conveyor.size.z
-	var offset_z: float = conveyor_width / 2.0
+	# Offset to align sideguard outer face with frame outer face.
+	var offset_z: float = conveyor_width / 2.0 + ConveyorFrameMesh.WALL_THICKNESS
 	match side:
 		Side.LEFT:
 			return Transform3D(Basis.IDENTITY, Vector3(0, 0, -offset_z))
@@ -254,7 +240,7 @@ func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
 		return _get_spur_side_extents(side, conveyor)
 
 	var conveyor_length: float = conveyor.size.x
-	var extents: Array[float] = [-conveyor_length / 2.0 - back_extension, conveyor_length / 2.0 + front_extension]
+	var extents: Array[float] = [-conveyor_length / 2.0, conveyor_length / 2.0]
 	return extents
 
 
@@ -385,45 +371,46 @@ func _remove_guard(side_node) -> void:
 	guard.queue_free()
 
 
-func _instantiate_guard() -> Node3D:
-	var guard: Node3D = _get_sideguard_scene().instantiate()
+func _instantiate_guard() -> SideGuard:
+	var guard := SideGuard.new()
 	guard.name = "SideGuard"
+	# Add collision body.
+	var body := StaticBody3D.new()
+	body.name = "StaticBody3D"
+	body.disable_mode = StaticBody3D.DISABLE_MODE_MAKE_STATIC
+	body.collision_mask = 8
+	body.ghost_collision_filtering_enabled = true
+	var physics_mat := PhysicsMaterial.new()
+	physics_mat.friction = 0.0
+	body.physics_material_override = physics_mat
+	var collision := CollisionShape3D.new()
+	collision.name = "CollisionShape3D"
+	collision.shape = BoxShape3D.new()
+	body.add_child(collision)
+	guard.add_child(body)
 	return guard
 
 
-func _get_sideguard_scene() -> PackedScene:
-	return load("res://parts/SideGuard.tscn")
-
-
 func _adjust_side_guards(side_node: Node3D, side_guard_extents: Array, side: SideGuardsAssembly.Side) -> void:
-	const VERTICAL_OFFSET: float = -0.25
 	for i in range(side_node.get_child_count()):
-		var guard: Node3D = side_node.get_child(i)
+		var guard = side_node.get_child(i)
 		var extent: Array = side_guard_extents[i] as Array[float]
 		var ext_start: float = extent[0]
 		var ext_end: float = extent[1]
-		var ext_length = ext_end - ext_start
-		var ext_middle: float = ext_start + ext_length / 2.0
+		var ext_length: float = ext_end - ext_start
 
-		var mount_point := Vector3(ext_middle, 0, 0)
-		var mount_transform := Transform3D(Basis.IDENTITY, mount_point)
-		# SideGuards aren't centered at the origin. This transform accounts for that by centering them on it.
-		var guard_base_transform: Transform3D = Transform3D(Basis.IDENTITY, Vector3(0, 0, 1))
-		# SideGuards are also slightly offset vertically. Adjust accoringly.
-		guard_base_transform.origin.y += VERTICAL_OFFSET
-		# Face the correct direction depending on the current side.
-		var facing_transform := Transform3D()
+		# Procedural sideguard: origin at bottom-center of outer face.
+		# Just position at the extent center. No offset hacks needed.
+		var pos := Vector3((ext_start + ext_end) / 2.0, 0, 0)
+
+		# Mirror for right side (flip Z so lip faces inward toward belt on both sides).
+		var basis := Basis.IDENTITY
 		match side:
-			Side.LEFT:
-				pass
 			Side.RIGHT:
-				facing_transform = Transform3D().rotated(Vector3.UP, PI)
-		# Set length via scaling.
-		# Account for the ends extending beyond the guard.
-		# TODO use a `length` property for side guards instead of `scale.x`.
-		var guard_scale_x: float = max(0.01, ext_length - 0.5)
-		var length_adjustment := Transform3D().scaled(Vector3(guard_scale_x, 1, 1))
-		guard.transform = mount_transform * facing_transform * guard_base_transform * length_adjustment
+				basis = Basis(Vector3.UP, PI)
+
+		guard.transform = Transform3D(basis, pos)
+		guard.length = max(0.01, ext_length)
 
 func _on_opening_changed_left() -> void:
 	if _clearing_openings or not is_inside_tree():

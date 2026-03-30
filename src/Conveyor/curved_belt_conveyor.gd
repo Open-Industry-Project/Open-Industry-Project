@@ -4,20 +4,12 @@ extends Node3D
 
 signal size_changed
 
-## Belt texture options for visual appearance.
-enum ConvTexture {
-	## Typical industrial belt texture.
-	STANDARD,
-	## Modern pattern with flow direction indicators.
-	ALTERNATE
-}
-
 const BASE_INNER_RADIUS: float = 0.5
 const BASE_CONVEYOR_WIDTH: float = 1.524
 const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
 
-const BELT_SHADER: Shader = preload("res://assets/3DModels/Shaders/BeltShader.tres")
-const METAL_SHADER: Shader = preload("res://assets/3DModels/Shaders/MetalShaderCorner.tres")
+const BELT_SHADER: Shader = preload("res://src/Conveyor/belt_surface_shader.gdshader")
+const MESH_SCALE_FACTOR := 2.0
 
 ## Radius of the inner curve edge in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var inner_radius: float = BASE_INNER_RADIUS:
@@ -67,15 +59,13 @@ func _update_calculated_size() -> void:
 		belt_color = value
 		if _belt_material:
 			(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
-		set_belt_material_shader_params_on_ends()
 
 ## The texture style of the belt (standard or alternate pattern).
-@export var belt_texture = ConvTexture.STANDARD:
+@export var belt_texture: BeltConveyor.ConvTexture = BeltConveyor.ConvTexture.STANDARD:
 	set(value):
 		belt_texture = value
 		if _belt_material:
-			(_belt_material as ShaderMaterial).set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-		set_belt_material_shader_params_on_ends()
+			(_belt_material as ShaderMaterial).set_shader_parameter("use_alternate_texture", belt_texture == BeltConveyor.ConvTexture.ALTERNATE)
 
 ## Angle of the curved section in degrees (5-180).
 @export_range(5.0, 180.0, 1.0, "degrees") var conveyor_angle: float = 90.0:
@@ -84,7 +74,6 @@ func _update_calculated_size() -> void:
 			return
 		conveyor_angle = value
 		_mesh_regeneration_needed = true
-		update_visible_meshes()
 		_update_all_components()
 
 ## When true, reverses the belt direction.
@@ -122,23 +111,23 @@ func _update_calculated_size() -> void:
 		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			sb_node.physics_material_override = value
-		var sb_end1 = get_node_or_null("BeltConveyorEnd/StaticBody3D") as StaticBody3D
-		if sb_end1:
-			sb_end1.physics_material_override = value
-		var sb_end2 = get_node_or_null("BeltConveyorEnd2/StaticBody3D") as StaticBody3D
-		if sb_end2:
-			sb_end2.physics_material_override = value
+		if _end_body1:
+			_end_body1.physics_material_override = value
+		if _end_body2:
+			_end_body2.physics_material_override = value
 
 var _belt_material: Material
 var _metal_material: Material
-var belt_position: float = 0.0
+var _frame_mesh_instance: MeshInstance3D
+var _shadow_plate: MeshInstance3D
+var _belt_position: float = 0.0
 var _angular_speed: float = 0.0
 var _linear_speed: float = 0.0
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var curved_mesh: MeshInstance3D = $MeshInstance3D
-@onready var _conveyor_end1: Node = get_node_or_null("BeltConveyorEnd")
-@onready var _conveyor_end2: Node = get_node_or_null("BeltConveyorEnd2")
+var _end_body1: StaticBody3D
+var _end_body2: StaticBody3D
 
 var _mesh_regeneration_needed: bool = true
 var _last_size: Vector3 = Vector3.ZERO
@@ -171,35 +160,6 @@ func _validate_property(property: Dictionary) -> void:
 	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
 
 
-func get_conveyor_end1() -> Node:
-	return _conveyor_end1
-
-
-func get_conveyor_end2() -> Node:
-	return _conveyor_end2
-
-
-func set_belt_material_shader_params_on_ends() -> void:
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
-
-	if ce1 and ce1 is BeltConveyorEnd:
-		var mesh_instance = ce1.get_node_or_null("MeshInstance3D")
-		if mesh_instance and mesh_instance is MeshInstance3D:
-			var material = mesh_instance.get_surface_override_material(0)
-			if material and material is ShaderMaterial:
-				material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-				material.set_shader_parameter("ColorMix", belt_color)
-
-	if ce2 and ce2 is BeltConveyorEnd:
-		var mesh_instance = ce2.get_node_or_null("MeshInstance3D")
-		if mesh_instance and mesh_instance is MeshInstance3D:
-			var material = mesh_instance.get_surface_override_material(0)
-			if material and material is ShaderMaterial:
-				material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-				material.set_shader_parameter("ColorMix", belt_color)
-
-
 func _init() -> void:
 	set_notify_local_transform(true)
 	_update_calculated_size()
@@ -214,51 +174,23 @@ func _ready() -> void:
 	if main_mesh_instance and main_mesh_instance.mesh:
 		main_mesh_instance.mesh = main_mesh_instance.mesh.duplicate()
 
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
+	# Create inline end collision bodies.
+	_end_body1 = _create_end_body("EndBody1")
+	_end_body2 = _create_end_body("EndBody2")
+	add_child(_end_body1)
+	add_child(_end_body2)
 
-	if ce1 and ce1 is BeltConveyorEnd:
-		var mesh_instance = ce1.get_node_or_null("MeshInstance3D")
-		if mesh_instance and mesh_instance is MeshInstance3D:
-			var material = mesh_instance.get_surface_override_material(0)
-			if material and material is ShaderMaterial:
-				material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
+	_frame_mesh_instance = MeshInstance3D.new()
+	_frame_mesh_instance.name = "FrameMesh"
+	add_child(_frame_mesh_instance)
 
-	if ce2 and ce2 is BeltConveyorEnd:
-		var mesh_instance = ce2.get_node_or_null("MeshInstance3D")
-		if mesh_instance and mesh_instance is MeshInstance3D:
-			var material = mesh_instance.get_surface_override_material(0)
-			if material and material is ShaderMaterial:
-				material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
-
-	if _belt_material:
-		(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
-
-	if ce1 and ce1 is BeltConveyorEnd:
-		var mesh_instance = ce1.get_node_or_null("MeshInstance3D")
-		if mesh_instance and mesh_instance is MeshInstance3D:
-			var material = mesh_instance.get_surface_override_material(0)
-			if material and material is ShaderMaterial:
-				material.set_shader_parameter("ColorMix", belt_color)
-
-	if ce2 and ce2 is BeltConveyorEnd:
-		var mesh_instance = ce2.get_node_or_null("MeshInstance3D")
-		if mesh_instance and mesh_instance is MeshInstance3D:
-			var material = mesh_instance.get_surface_override_material(0)
-			if material and material is ShaderMaterial:
-				material.set_shader_parameter("ColorMix", belt_color)
+	_shadow_plate = MeshInstance3D.new()
+	_shadow_plate.name = "ShadowPlate"
+	_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	add_child(_shadow_plate)
 
 	_recalculate_speeds()
-	_update_belt_ends_size()
-
-	if ce1:
-		var sb1 = ce1.get_node("StaticBody3D") as StaticBody3D
-		if sb1:
-			sb1.physics_material_override = _sb.physics_material_override
-	if ce2:
-		var sb2 = ce2.get_node("StaticBody3D") as StaticBody3D
-		if sb2:
-			sb2.physics_material_override = _sb.physics_material_override
+	_update_belt_ends()
 
 	_mesh_regeneration_needed = true
 	update_visible_meshes()
@@ -269,35 +201,68 @@ func _update_all_components() -> void:
 		return
 
 	update_visible_meshes()
-	_update_belt_ends_size()
+	_recalculate_speeds()
 	_update_side_guards()
 	_update_assembly_components()
 
 
-func _update_belt_ends_size() -> void:
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
+## Create a StaticBody3D with a CylinderShape3D for one belt end roller.
+func _create_end_body(body_name: String) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = body_name
+	body.collision_layer = 2
+	body.collision_mask = 0
+	body.axis_lock_linear_x = true
+	body.axis_lock_linear_y = true
+	body.axis_lock_linear_z = true
+	body.axis_lock_angular_x = true
+	body.axis_lock_angular_y = true
+	body.physics_material_override = _sb.physics_material_override
+	var col := CollisionShape3D.new()
+	col.name = "CollisionShape3D"
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = belt_height / 2.0
+	cylinder.height = conveyor_width
+	col.shape = cylinder
+	# Rotate cylinder to align axis with the radial direction (Z).
+	col.rotation.x = PI / 2.0
+	body.add_child(col)
+	return body
 
-	var end_roller_radius := SIZE_DEFAULT.y / 2.0
-	var end_size = Vector3(end_roller_radius, belt_height, conveyor_width)
 
-	var height_scale := belt_height / SIZE_DEFAULT.y
-	var collision_y_offset := -end_roller_radius * (height_scale - 1.0)
+## Update belt end collision positions, sizes, and angular velocities.
+func _update_belt_ends() -> void:
+	if not _end_body1 or not _end_body2:
+		return
 
-	if ce1:
-		ce1.size = end_size
-		ce1.speed = _linear_speed
-		_adjust_end_collision_position(ce1, collision_y_offset)
-	if ce2:
-		ce2.size = end_size
-		ce2.speed = _linear_speed
-		_adjust_end_collision_position(ce2, -collision_y_offset)
+	var radians := deg_to_rad(conveyor_angle)
+	var avg_radius := inner_radius + conveyor_width / 2.0
+	var roller_radius := belt_height / 2.0
 
+	# Position at arc endpoints.
+	_end_body1.position = Vector3(-sin(radians) * avg_radius, -size.y / 2.0, cos(radians) * avg_radius)
+	_end_body1.rotation.y = -radians
+	_end_body2.position = Vector3(0, -size.y / 2.0, avg_radius)
+	_end_body2.rotation.y = 0
 
-func _adjust_end_collision_position(end_node: Node, y_offset: float) -> void:
-	var static_body = end_node.get_node_or_null("StaticBody3D") as StaticBody3D
-	if static_body:
-		static_body.position.y = y_offset
+	# Update collision shape.
+	for body in [_end_body1, _end_body2]:
+		var col := body.get_node("CollisionShape3D") as CollisionShape3D
+		if col and col.shape is CylinderShape3D:
+			var cyl := col.shape as CylinderShape3D
+			cyl.radius = roller_radius
+			cyl.height = conveyor_width
+
+	# Set angular velocity for belt physics.
+	for body in [_end_body1, _end_body2]:
+		if not body:
+			continue
+		if EditorInterface.is_simulation_running() and _linear_speed != 0:
+			var local_front: Vector3 = body.global_transform.basis.z.normalized()
+			var vel: Vector3 = local_front * _linear_speed / roller_radius
+			body.constant_angular_velocity = vel
+		else:
+			body.constant_angular_velocity = Vector3.ZERO
 
 
 func _update_side_guards() -> void:
@@ -322,13 +287,11 @@ func _update_assembly_components() -> void:
 
 		if legs_assembly and legs_assembly.has_method("update_for_curved_conveyor"):
 			legs_assembly.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
-		# Removed aggressive fallback search that was updating legs from other assemblies
+
 
 func update_visible_meshes() -> void:
 	if not is_inside_tree():
 		return
-
-	_position_conveyor_ends()
 
 	if _mesh_regeneration_needed:
 		_create_conveyor_mesh()
@@ -337,392 +300,202 @@ func update_visible_meshes() -> void:
 		_last_size = size
 
 
-func update_conveyor_end_positions() -> void:
-	if not is_inside_tree():
-		return
-	_position_conveyor_ends()
-
-
-func _position_conveyor_ends() -> void:
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
-	assert(ce1 != null)
-	assert(ce2 != null)
-
-	var radians := deg_to_rad(conveyor_angle)
-	var radius_inner := inner_radius
-	var radius_outer := inner_radius + conveyor_width
-	var avg_radius := (radius_inner + radius_outer) / 2.0
-
-	ce1.position = Vector3(-sin(radians) * avg_radius, -size.y / 2.0, cos(radians) * avg_radius)
-	ce1.rotation.y = -radians
-
-	ce2.position = Vector3(0, -size.y / 2.0, avg_radius)
-	ce2.rotation.y = 0
-
-
 func _create_conveyor_mesh() -> void:
 	var angle_radians: float = deg_to_rad(conveyor_angle)
 	var radius_inner: float = inner_radius
 	var radius_outer: float = inner_radius + conveyor_width
 
-	var segments := maxi(1, int(conveyor_angle / 3.0))
+	var arc_segments := maxi(1, int(conveyor_angle / 3.0))
 	const DEFAULT_HEIGHT_RATIO: float = 0.50
-	var height = DEFAULT_HEIGHT_RATIO * belt_height
-	const MESH_SCALE_FACTOR := 2.0
+	var height: float = DEFAULT_HEIGHT_RATIO * belt_height
 
-	var mesh_instance := ArrayMesh.new()
+	var belt_mesh := ArrayMesh.new()
 
 	_setup_materials()
 
-	var surfaces = _create_surfaces()
-	var edges = _create_belt_edges()
-	var all_vertices = _create_vertices(segments, angle_radians, radius_inner, radius_outer, height, MESH_SCALE_FACTOR)
+	# Build belt as a single continuous loop (matching straight belt approach).
+	_build_belt_loop(belt_mesh, angle_radians, radius_inner, radius_outer,
+			height, arc_segments, MESH_SCALE_FACTOR)
 
-	_build_belt_surfaces(surfaces, edges, all_vertices, segments)
-
-	_add_surfaces_to_mesh(surfaces, mesh_instance)
-
-	curved_mesh.mesh = mesh_instance
+	curved_mesh.mesh = belt_mesh
+	curved_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var base_scale := 1.0 / MESH_SCALE_FACTOR
 	curved_mesh.scale = Vector3(base_scale, 1.0, base_scale)
 
+	# Frame rails on a separate mesh so they cast shadows (matching curved roller pattern).
+	if _frame_mesh_instance:
+		var frame_mesh := ArrayMesh.new()
+		_add_curved_frame_surface(frame_mesh, angle_radians, radius_inner, radius_outer,
+				height, arc_segments, MESH_SCALE_FACTOR)
+		_frame_mesh_instance.mesh = frame_mesh
+		_frame_mesh_instance.scale = Vector3(base_scale, 1.0, base_scale)
+
+	if _shadow_plate:
+		_shadow_plate.mesh = ConveyorFrameMesh.create_arc_shadow_mesh(angle_radians, radius_inner, radius_outer, arc_segments)
+		_shadow_plate.position.y = -height
+
+
+static var _belt_texture_res: Texture2D = preload("res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg")
+static var _belt_texture_alt: Texture2D = preload("res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png")
 
 func _setup_materials() -> void:
 	if not _belt_material:
 		_belt_material = ShaderMaterial.new()
 		_belt_material.shader = BELT_SHADER
+		_belt_material.set_shader_parameter("belt_texture", _belt_texture_res)
+		_belt_material.set_shader_parameter("belt_texture_alt", _belt_texture_alt)
 	_belt_material.set_shader_parameter("ColorMix", belt_color)
-	_belt_material.set_shader_parameter("BlackTextureOn", belt_texture == ConvTexture.STANDARD)
+	_belt_material.set_shader_parameter("use_alternate_texture", belt_texture == BeltConveyor.ConvTexture.ALTERNATE)
 	_update_belt_material_scale()
 
-	var avg_radius: float = size.x * (inner_radius + conveyor_width + inner_radius) / 2.0
-	var angle_portion = conveyor_angle / 360.0
-	var belt_length: float = 2.0 * PI * avg_radius * angle_portion
-	var belt_scale: float = belt_length / (PI * 1.0)
-	_belt_material.set_shader_parameter("EdgeScale", belt_scale * 1.2)
-
 	if not _metal_material:
-		_metal_material = ShaderMaterial.new()
-		_metal_material.shader = METAL_SHADER
-	_metal_material.set_shader_parameter("Color", Color("#56a7c8"))
-	_update_metal_material_scale()
+		_metal_material = ConveyorFrameMesh.create_material()
 
-func _create_surfaces() -> Dictionary:
-	var surfaces = {
-		"top": {
-			"vertices": PackedVector3Array(),
-			"normals": PackedVector3Array(),
-			"uvs": PackedVector2Array(),
-			"indices": PackedInt32Array(),
-		},
-		"bottom": {
-			"vertices": PackedVector3Array(),
-			"normals": PackedVector3Array(),
-			"uvs": PackedVector2Array(),
-			"indices": PackedInt32Array(),
-		},
-		"sides": {
-			"vertices": PackedVector3Array(),
-			"normals": PackedVector3Array(),
-			"uvs": PackedVector2Array(),
-			"indices": PackedInt32Array(),
-			"vertex_count": 0
-		}
-	}
-	return surfaces
+## Build the belt as a single continuous loop: back roller → top along arc →
+## front roller → bottom along arc (reversed). One surface, continuous UVs,
+## smooth normals at the rollers — matching how the straight belt is built.
+func _build_belt_loop(mesh_instance: ArrayMesh, angle_radians: float,
+		r_inner: float, r_outer: float, height: float,
+		arc_segments: int, sf: float) -> void:
+	const ROLLER_SEGS: int = 12
 
-func _create_belt_edges() -> Dictionary:
-	var edges = {
-		"top_inner": {
-			"vertices": PackedVector3Array(),
-			"normals": PackedVector3Array(),
-			"uvs": PackedVector2Array(),
-			"indices": PackedInt32Array(),
-		},
-		"top_outer": {
-			"vertices": PackedVector3Array(),
-			"normals": PackedVector3Array(),
-			"uvs": PackedVector2Array(),
-			"indices": PackedInt32Array(),
-		},
-		"bottom_inner": {
-			"vertices": PackedVector3Array(),
-			"normals": PackedVector3Array(),
-			"uvs": PackedVector2Array(),
-			"indices": PackedInt32Array(),
-		},
-		"bottom_outer": {
-			"vertices": PackedVector3Array(),
-			"normals": PackedVector3Array(),
-			"uvs": PackedVector2Array(),
-			"indices": PackedInt32Array(),
-		}
-	}
-	return edges
+	var y_radius: float = height / 2.0
+	var center_y: float = -y_radius
+	var fixed_roller_r: float = height / 2.0
+	var tangent_r: float = fixed_roller_r * 2.0  # XZ needs 2x to compensate mesh scale.
+	var hw: float = (r_outer - r_inner) / 2.0
+	var avg_r: float = (r_inner + r_outer) / 2.0
 
-func _create_vertices(segments: int, angle_radians: float, radius_inner: float, radius_outer: float, height: float, scale_factor: float) -> Array:
-	var all_vertices = []
-	for i in range(segments + 1):
-		var t = float(i) / segments
-		var angle: float = t * angle_radians
+	# Total belt loop distance for UV normalization.
+	var belt_arc: float = avg_r * angle_radians
+	var roller_arc: float = y_radius * PI
+	var total_belt: float = roller_arc + belt_arc + roller_arc + belt_arc
+
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var dist: float = 0.0
+
+	# Helper: add one row of vertices (inner + outer) at the given position.
+	var _add_row := func(pos_inner: Vector3, pos_outer: Vector3, normal: Vector3, belt_dist: float) -> void:
+		var u: float = belt_dist / total_belt
+		verts.append(pos_inner)
+		norms.append(normal)
+		uvs.append(Vector2(u, 1))
+		verts.append(pos_outer)
+		norms.append(normal)
+		uvs.append(Vector2(u, 0))
+
+	# --- 1. Back roller at arc start (angle=0). Sweeps bottom→top. ---
+	# At angle=0: belt travel direction is -X, so the back roller extends in +X.
+	# Tangent here is negated travel direction (points backward into roller).
+	var start_tangent := Vector3(-1, 0, 0)
+	var start_radial := Vector3(0, 0, 1)    # Radial at angle 0 = +Z.
+	var start_center_xz := Vector3(0, 0, avg_r)
+	for i in range(ROLLER_SEGS + 1):
+		var t: float = float(i) / ROLLER_SEGS
+		var cyl_angle: float = PI * (1.0 - t)  # PI (bottom) → 0 (top).
+		var y_off: float = center_y + cos(cyl_angle) * y_radius
+		var tang_off: float = -sin(cyl_angle) * tangent_r
+		var xz_ps: Vector3 = start_center_xz + start_tangent * tang_off
+		var norm := (start_tangent * (-sin(cyl_angle)) + Vector3(0, cos(cyl_angle), 0)).normalized()
+		var inner_xz: Vector3 = (xz_ps - start_radial * hw) * sf
+		var outer_xz: Vector3 = (xz_ps + start_radial * hw) * sf
+		_add_row.call(
+			Vector3(inner_xz.x, y_off * sf, inner_xz.z),
+			Vector3(outer_xz.x, y_off * sf, outer_xz.z),
+			norm, dist + t * roller_arc)
+	dist += roller_arc
+
+	# --- 2. Flat top surface along the arc. ---
+	for ai in range(arc_segments + 1):
+		var arc_t: float = float(ai) / arc_segments
+		var angle: float = arc_t * angle_radians
 		var sin_a: float = sin(angle)
 		var cos_a: float = cos(angle)
+		var inner_pos := Vector3(-sin_a * r_inner, 0.0, cos_a * r_inner) * sf
+		var outer_pos := Vector3(-sin_a * r_outer, 0.0, cos_a * r_outer) * sf
+		_add_row.call(inner_pos, outer_pos, Vector3.UP, dist + arc_t * belt_arc)
+	dist += belt_arc
 
-		# Modify vertical positioning to keep top surface at y=0
-		var inner_top = Vector3(-sin_a * radius_inner, 0 + 0.125, cos_a * radius_inner) * scale_factor
-		var outer_top = Vector3(-sin_a * radius_outer, 0+ 0.125, cos_a * radius_outer) * scale_factor
-		var inner_bottom = Vector3(-sin_a * radius_inner, -height+ 0.125, cos_a * radius_inner) * scale_factor
-		var outer_bottom = Vector3(-sin_a * radius_outer, -height+ 0.125, cos_a * radius_outer) * scale_factor
+	# --- 3. Front roller at arc end. Sweeps top→bottom. ---
+	var end_sin: float = sin(angle_radians)
+	var end_cos: float = cos(angle_radians)
+	var end_tangent := Vector3(-end_cos, 0, -end_sin)
+	var end_radial := Vector3(-end_sin, 0, end_cos)
+	var end_center_xz := Vector3(-end_sin * avg_r, 0, end_cos * avg_r)
+	for i in range(ROLLER_SEGS + 1):
+		var t: float = float(i) / ROLLER_SEGS
+		var cyl_angle: float = PI * t  # 0 (top) → PI (bottom).
+		var y_off: float = center_y + cos(cyl_angle) * y_radius
+		var tang_off: float = sin(cyl_angle) * tangent_r
+		var xz_ps: Vector3 = end_center_xz + end_tangent * tang_off
+		var norm := (end_tangent * sin(cyl_angle) + Vector3(0, cos(cyl_angle), 0)).normalized()
+		var inner_xz: Vector3 = (xz_ps - end_radial * hw) * sf
+		var outer_xz: Vector3 = (xz_ps + end_radial * hw) * sf
+		_add_row.call(
+			Vector3(inner_xz.x, y_off * sf, inner_xz.z),
+			Vector3(outer_xz.x, y_off * sf, outer_xz.z),
+			norm, dist + t * roller_arc)
+	dist += roller_arc
 
-		all_vertices.append({
-			"inner_top": inner_top,
-			"outer_top": outer_top,
-			"inner_bottom": inner_bottom,
-			"outer_bottom": outer_bottom,
-			"t": t
-		})
-	return all_vertices
+	# --- 4. Flat bottom surface along the arc (reversed direction). ---
+	var y_bottom: float = -height * sf
+	for ai in range(arc_segments + 1):
+		var arc_t: float = float(ai) / arc_segments
+		var angle: float = (1.0 - arc_t) * angle_radians  # Reversed direction.
+		var sin_a: float = sin(angle)
+		var cos_a: float = cos(angle)
+		var inner_pos := Vector3(-sin_a * r_inner * sf, y_bottom, cos_a * r_inner * sf)
+		var outer_pos := Vector3(-sin_a * r_outer * sf, y_bottom, cos_a * r_outer * sf)
+		_add_row.call(inner_pos, outer_pos, Vector3.DOWN, dist + arc_t * belt_arc)
+	dist += belt_arc
 
-func _build_belt_surfaces(surfaces: Dictionary, edges: Dictionary, all_vertices: Array, segments: int) -> void:
-	_build_top_and_bottom_surfaces(surfaces, all_vertices)
-	_create_surface_triangles(surfaces, segments)
-	_create_inner_walls(surfaces, edges, all_vertices, segments)
-	_create_outer_walls(surfaces, edges, all_vertices, segments)
-	_build_belt_edges(edges, segments)
-	_add_belt_edges_to_surfaces(surfaces, edges)
+	# Connect all adjacent rows with triangle strips.
+	var row_count: int = verts.size() / 2
+	for i in range(row_count - 1):
+		var idx: int = i * 2
+		_add_triangle(indices, idx, idx + 2, idx + 1)
+		_add_triangle(indices, idx + 1, idx + 2, idx + 3)
 
-func _build_top_and_bottom_surfaces(surfaces: Dictionary, all_vertices: Array) -> void:
-
-	for i in range(len(all_vertices)):
-		var vertex_data = all_vertices[i]
-		surfaces.top.vertices.append_array([vertex_data.inner_top, vertex_data.outer_top])
-		surfaces.top.normals.append_array([Vector3.UP, Vector3.UP])
-		surfaces.top.uvs.append_array([Vector2(1, 1-vertex_data.t), Vector2(0, 1-vertex_data.t)])
-
-	# Get the same UV mapping style for edges as for the main belt
-	var texture_scale_u = 1.0
-	var texture_scale_v = 2.0
-	var texture_offset_v = 0.0
-
-	surfaces.uvs_info = {
-		"scale_u": texture_scale_u,
-		"scale_v": texture_scale_v,
-		"offset_v": texture_offset_v
-	}
-
-
-	for i in range(len(all_vertices)):
-		var vertex_data = all_vertices[i]
-		surfaces.bottom.vertices.append_array([vertex_data.inner_bottom, vertex_data.outer_bottom])
-		surfaces.bottom.normals.append_array([Vector3.DOWN, Vector3.DOWN])
-		surfaces.bottom.uvs.append_array([Vector2(0, vertex_data.t), Vector2(1, vertex_data.t)])
-
-func _create_surface_triangles(surfaces: Dictionary, segments: int) -> void:
-
-	for i in range(segments):
-		var idx = i * 2
-		_add_double_sided_triangle(surfaces.top.indices, idx, idx + 1, idx + 3)
-		_add_double_sided_triangle(surfaces.top.indices, idx, idx + 3, idx + 2)
-
-		_add_double_sided_triangle(surfaces.bottom.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.bottom.indices, idx, idx + 3, idx + 1)
-
-func _create_inner_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: Array, segments: int) -> void:
-	# Calculate inset factor for wall geometry
-	var inset_factor: float = 0.038 * (size.x / SIZE_DEFAULT.x - 1)
-	inset_factor = max(inset_factor, 0.0)
-
-	var middle_vertices = []
-	var top_metal_lip_vertices = []
-	var bottom_metal_lip_vertices = []
-	var top_metal_to_flat_vertices = []
-	var bottom_flat_to_metal_vertices = []
-	var top_flat_vertices = []
-	var bottom_flat_vertices = []
-
-	for i in range(len(all_vertices)):
-		var vertex_data = all_vertices[i]
-		var normal: Vector3 = (vertex_data.inner_top - Vector3(0, 0, 0)).normalized()
-		normal.y = 0
-		normal = -normal.normalized()
-
-		var top_y: float = vertex_data.inner_top.y
-		var bottom_y: float = vertex_data.inner_bottom.y
-		var lip_height: float = (top_y - bottom_y) * 0.16
-		var half_lip_height: float = lip_height / 2
-		var horizontal_dir: Vector3 = (vertex_data.outer_top - vertex_data.inner_top).normalized()
-
-		# Top vertices
-		var inner_top: Vector3 = vertex_data.inner_top
-		var inner_top_belt_lip: Vector3 = Vector3(vertex_data.inner_top.x, top_y - half_lip_height, vertex_data.inner_top.z)
-		var inner_top_metal_lip: Vector3 = Vector3(vertex_data.inner_top.x, top_y - lip_height, vertex_data.inner_top.z)
-
-		# Diagonal and flat sections for top
-		var diagonal_height_top_total: float = (top_y - bottom_y) * 0.04
-		var inner_top_diagonal: Vector3 = Vector3(vertex_data.inner_top.x, top_y - lip_height - diagonal_height_top_total, vertex_data.inner_top.z)
-		var diagonal_offset: Vector3 = horizontal_dir * (0.03 + inset_factor)
-		var inner_top_diagonal_offset: Vector3 = inner_top_diagonal + diagonal_offset
-		var flat_offset: Vector3 = horizontal_dir * (0.047 + inset_factor)
-		var inner_top_flat: Vector3 = inner_top_diagonal_offset + flat_offset
-
-		# Bottom vertices
-		var inner_bottom: Vector3 = vertex_data.inner_bottom
-		var inner_bottom_belt_lip: Vector3 = Vector3(vertex_data.inner_bottom.x, bottom_y + half_lip_height, vertex_data.inner_bottom.z)
-		var inner_bottom_metal_lip: Vector3 = Vector3(vertex_data.inner_bottom.x, bottom_y + lip_height, vertex_data.inner_bottom.z)
-
-		# Diagonal and flat sections for bottom
-		var diagonal_height_bottom_total: float = (top_y - bottom_y) * 0.04
-		var inner_bottom_diagonal: Vector3 = Vector3(vertex_data.inner_bottom.x, bottom_y + lip_height + diagonal_height_bottom_total, vertex_data.inner_bottom.z)
-		var diagonal_offset_bottom: Vector3 = horizontal_dir * (0.03 + inset_factor)
-		var inner_bottom_diagonal_offset: Vector3 = inner_bottom_diagonal + diagonal_offset_bottom
-		var flat_offset_bottom: Vector3 = horizontal_dir * (0.047 + inset_factor)
-		var inner_bottom_inner: Vector3 = inner_bottom_diagonal_offset + flat_offset_bottom
-
-		var top_flat_normal: Vector3 = Vector3(normal.x * 0.8, -0.8, normal.z * 0.8).normalized()
-		var bottom_flat_normal: Vector3 = Vector3(normal.x * 0.8, 0.8, normal.z * 0.8).normalized()
-		var top_diag_normal: Vector3 = Vector3(normal.x * 0.8, -0.8, normal.z * 0.8).normalized()
-		var bottom_diag_normal: Vector3 = Vector3(normal.x * 0.8, 0.8, normal.z * 0.8).normalized()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh_instance.surface_set_material(mesh_instance.get_surface_count() - 1, _belt_material)
 
 
-		middle_vertices.append([inner_top_flat, inner_bottom_inner, normal, Vector2(vertex_data.t, 0), Vector2(vertex_data.t, 1.0)])
-		top_metal_lip_vertices.append([inner_top_belt_lip, inner_top_metal_lip, normal, Vector2(vertex_data.t, 0.8), Vector2(vertex_data.t, 1.0)])
-		bottom_metal_lip_vertices.append([inner_bottom_metal_lip, inner_bottom_belt_lip, normal, Vector2(vertex_data.t, 0.0), Vector2(vertex_data.t, 0.2)])
-		top_metal_to_flat_vertices.append([inner_top_metal_lip, inner_top_diagonal_offset, top_diag_normal, Vector2(vertex_data.t, 0.6), Vector2(vertex_data.t, 0.8)])
-		bottom_flat_to_metal_vertices.append([inner_bottom_diagonal_offset, inner_bottom_metal_lip, bottom_diag_normal, Vector2(vertex_data.t, 0.2), Vector2(vertex_data.t, 0.4)])
-		top_flat_vertices.append([inner_top_diagonal_offset, inner_top_flat, top_flat_normal, Vector2(vertex_data.t, 0.35), Vector2(vertex_data.t, 0.4)])
-		bottom_flat_vertices.append([inner_bottom_inner, inner_bottom_diagonal_offset, bottom_flat_normal, Vector2(vertex_data.t, 0.6), Vector2(vertex_data.t, 0.65)])
+## Add curved frame plates (inner + outer vertical walls) as a separate mesh surface.
+func _add_curved_frame_surface(mesh_instance: ArrayMesh, angle_radians: float,
+		r_inner: float, r_outer: float, height: float, segments: int, sf: float) -> void:
+	var y_top: float = 0.0
+	var y_bottom: float = -height * sf
 
-		var scale_factor = 0.5
+	# Curved frame plates (inner + outer walls).
+	var frame_mesh := ConveyorFrameMesh.create_curved(
+			r_inner, r_outer, y_top, y_bottom, angle_radians, segments, sf)
+	frame_mesh.surface_set_material(0, _metal_material)
 
-		edges.top_inner.vertices.append_array([inner_top, inner_top_belt_lip])
-		edges.top_inner.normals.append_array([normal, normal])
-		edges.top_inner.uvs.append_array([Vector2(0, 1 - vertex_data.t * scale_factor), Vector2(0.05, 1 - vertex_data.t * scale_factor)])
-		edges.bottom_inner.vertices.append_array([inner_bottom_belt_lip, inner_bottom])
-		edges.bottom_inner.normals.append_array([normal, normal])
-		edges.bottom_inner.uvs.append_array([Vector2(0.95, vertex_data.t * scale_factor), Vector2(1, vertex_data.t * scale_factor)])
+	# Copy frame surface into the combined mesh.
+	var frame_arrays := frame_mesh.surface_get_arrays(0)
+	mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, frame_arrays)
+	mesh_instance.surface_set_material(mesh_instance.get_surface_count() - 1, _metal_material)
 
-	_build_inner_wall_sections(surfaces, middle_vertices, top_metal_lip_vertices, bottom_metal_lip_vertices,
-							top_metal_to_flat_vertices, bottom_flat_to_metal_vertices, top_flat_vertices,
-							bottom_flat_vertices, segments)
-
-func _build_inner_wall_sections(surfaces: Dictionary, middle_vertices: Array, top_metal_lip_vertices: Array,
-							  bottom_metal_lip_vertices: Array, top_metal_to_flat_vertices: Array,
-							  bottom_flat_to_metal_vertices: Array, top_flat_vertices: Array,
-							  bottom_flat_vertices: Array, segments: int) -> void:
-
-	surfaces.sides.vertices.clear()
-	surfaces.sides.normals.clear()
-	surfaces.sides.uvs.clear()
-	surfaces.sides.indices.clear()
-
-	for data in middle_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = i * 2
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
+	# End side walls (close the inner/outer gaps at each arc endpoint).
+	var fixed_roller_r: float = height / 2.0
+	var tangent_r: float = fixed_roller_r * 2.0
+	ConveyorFrameMesh.add_curved_end_walls(mesh_instance,
+			r_inner, r_outer, y_top, y_bottom, angle_radians,
+			tangent_r, sf, _metal_material)
 
 
-	var top_lip_start_idx = surfaces.sides.vertices.size()
-	for data in top_metal_lip_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
+static func _add_triangle(array_indices: PackedInt32Array, a: int, b: int, c: int) -> void:
+	array_indices.append_array([a, b, c])
 
-	for i in range(segments):
-		var idx = top_lip_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var bottom_lip_start_idx = surfaces.sides.vertices.size()
-	for data in bottom_metal_lip_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = bottom_lip_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var top_metal_to_flat_start_idx = surfaces.sides.vertices.size()
-	for data in top_metal_to_flat_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = top_metal_to_flat_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var top_flat_start_idx = surfaces.sides.vertices.size()
-	for data in top_flat_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = top_flat_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var bottom_flat_start_idx = surfaces.sides.vertices.size()
-	for data in bottom_flat_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = bottom_flat_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var bottom_flat_to_metal_start_idx = surfaces.sides.vertices.size()
-	for data in bottom_flat_to_metal_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = bottom_flat_to_metal_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-	surfaces.sides.vertex_count = surfaces.sides.vertices.size()
-
-func _add_double_sided_triangle(array_indices: PackedInt32Array, a: int, b: int, c: int) -> void:
-	array_indices.append_array([a, b, c, c, b, a])
-
-func _add_surfaces_to_mesh(surfaces: Dictionary, mesh_instance: ArrayMesh) -> void:
-	for surface_name in ["top", "bottom", "sides"]:
-		var surface: Dictionary = surfaces[surface_name]
-
-		if surface.vertices.size() == 0 or surface.indices.size() == 0:
-			continue
-
-		var arrays: Array = []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = surface.vertices
-		arrays[Mesh.ARRAY_NORMAL] = surface.normals
-		arrays[Mesh.ARRAY_TEX_UV] = surface.uvs
-		arrays[Mesh.ARRAY_INDEX] = surface.indices
-		mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-
-		var actual_surface_index := mesh_instance.get_surface_count() - 1
-		var material_to_use = _belt_material
-		if surface_name == "sides":
-			material_to_use = _metal_material
-		mesh_instance.surface_set_material(actual_surface_index, material_to_use)
 
 func _setup_collision_shape() -> void:
 	var collision_shape: CollisionShape3D = $StaticBody3D.get_node_or_null("CollisionShape3D") as CollisionShape3D
@@ -750,14 +523,17 @@ func _setup_collision_shape() -> void:
 			all_verts[all_indices[i + 2]]
 		])
 
+	var inv_sf := 1.0 / MESH_SCALE_FACTOR
 	var scaled_verts = PackedVector3Array()
 	for vert in triangle_verts:
-		scaled_verts.append(Vector3(vert.x * 0.5, vert.y, vert.z * 0.5))
+		scaled_verts.append(Vector3(vert.x * inv_sf, vert.y, vert.z * inv_sf))
 
 	var shape: ConcavePolygonShape3D = collision_shape.shape
+	shape.backface_collision = true
 	shape.data = scaled_verts
 	collision_shape.position = Vector3.ZERO
 	collision_shape.scale = Vector3.ONE
+	_sb.position = Vector3.ZERO
 
 
 func _enter_tree() -> void:
@@ -788,17 +564,12 @@ func _recalculate_speeds() -> void:
 	var effective_speed := speed * direction
 	var outer_radius_val: float = inner_radius + conveyor_width
 	var reference_radius: float = outer_radius_val - reference_distance
-	_angular_speed = 0.0 if reference_radius == 0.0 else effective_speed / reference_radius
+	_angular_speed = 0.0 if absf(reference_radius) < 1e-6 else effective_speed / reference_radius
 
 	var center_radius: float = (inner_radius + outer_radius_val) / 2.0
 	_linear_speed = _angular_speed * center_radius
 
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
-	if ce1:
-		ce1.speed = _linear_speed
-	if ce2:
-		ce2.speed = _linear_speed
+	_update_belt_ends()
 
 func _physics_process(delta: float) -> void:
 	if EditorInterface.is_simulation_running():
@@ -806,31 +577,27 @@ func _physics_process(delta: float) -> void:
 		var velocity = -local_up * _angular_speed
 		_sb.constant_angular_velocity = velocity
 		if not EditorInterface.is_simulation_paused():
-			belt_position += _linear_speed * delta
+			_belt_position = fmod(_belt_position + _linear_speed * delta, 1.0)
 		if _linear_speed != 0:
-
-			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position * sign(_linear_speed))
-		belt_position = fmod(belt_position, 1.0)
+			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
 
 
 func _update_belt_material_scale() -> void:
 	if _belt_material:
-		(_belt_material as ShaderMaterial).set_shader_parameter("Scale", size.x * sign(speed))
-
-
-func _update_metal_material_scale() -> void:
-	if _metal_material:
-		(_metal_material as ShaderMaterial).set_shader_parameter("Scale", size.x)
-		(_metal_material as ShaderMaterial).set_shader_parameter("Scale2", 1.0)
+		# Scale based on total belt loop length so chevron size matches straight conveyors.
+		# UV now spans the full loop (roller + arc + roller + arc), not just one arc.
+		var avg_r: float = inner_radius + conveyor_width / 2.0
+		var belt_arc: float = avg_r * deg_to_rad(conveyor_angle)
+		const DEFAULT_HEIGHT_RATIO: float = 0.50
+		var y_radius: float = (DEFAULT_HEIGHT_RATIO * belt_height) / 2.0
+		var roller_arc: float = y_radius * PI
+		var total_belt: float = roller_arc + belt_arc + roller_arc + belt_arc
+		var scale_value: float = max(1.0, total_belt)
+		(_belt_material as ShaderMaterial).set_shader_parameter("Scale", scale_value)
 
 
 func _on_simulation_started() -> void:
-	var ce1 = get_conveyor_end1()
-	var ce2 = get_conveyor_end2()
-	if ce1:
-		ce1.speed = _linear_speed
-	if ce2:
-		ce2.speed = _linear_speed
+	_update_belt_ends()
 
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name)
@@ -838,15 +605,15 @@ func _on_simulation_started() -> void:
 
 
 func _on_simulation_ended() -> void:
-	belt_position = 0.0
+	_belt_position = 0.0
 	if _belt_material and _belt_material is ShaderMaterial:
-		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", belt_position)
+		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
 
 	if _sb:
-		for child in _sb.get_children():
-			if child is Node3D:
-				child.position = Vector3.ZERO
-				child.rotation = Vector3.ZERO
+		_sb.constant_angular_velocity = Vector3.ZERO
+	for body in [_end_body1, _end_body2]:
+		if body:
+			body.constant_angular_velocity = Vector3.ZERO
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
@@ -860,226 +627,3 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 	if _speed_tag.matches_group(tag_group_name_param):
 		speed = _speed_tag.read_float32()
-
-
-func _get_constrained_size(new_size: Vector3) -> Vector3:
-	new_size.z = new_size.x
-	return new_size
-
-
-func _on_size_changed() -> void:
-	if not is_inside_tree():
-		return
-
-	_recalculate_speeds()
-	size.z = size.x
-
-	if _last_size != size:
-		_mesh_regeneration_needed = true
-
-	_update_all_components()
-	_update_belt_material_scale()
-	_update_metal_material_scale()
-
-
-func _build_belt_edges(edges: Dictionary, segments: int) -> void:
-	for edge_name in edges.keys():
-		for i in range(segments):
-			var idx = i * 2
-			if idx + 3 < edges[edge_name].vertices.size():
-				_add_double_sided_triangle(edges[edge_name].indices, idx, idx + 1, idx + 3)
-				_add_double_sided_triangle(edges[edge_name].indices, idx, idx + 3, idx + 2)
-
-
-func _add_belt_edges_to_surfaces(surfaces: Dictionary, edges: Dictionary) -> void:
-	for edge_name in edges.keys():
-		var edge = edges[edge_name]
-		if edge.vertices.size() == 0:
-			continue
-
-		var target_surface = surfaces.top if edge_name.begins_with("top") else surfaces.bottom
-		var start_idx = target_surface.vertices.size()
-
-		target_surface.vertices.append_array(edge.vertices)
-		target_surface.normals.append_array(edge.normals)
-		target_surface.uvs.append_array(edge.uvs)
-
-		for i in range(0, edge.indices.size(), 3):
-			if i + 2 < edge.indices.size():
-				target_surface.indices.append_array([
-					start_idx + edge.indices[i],
-					start_idx + edge.indices[i + 1],
-					start_idx + edge.indices[i + 2]
-				])
-
-	surfaces.sides.vertex_count = surfaces.sides.vertices.size()
-
-
-func _create_outer_walls(surfaces: Dictionary, edges: Dictionary, all_vertices: Array, segments: int) -> void:
-	var inset_factor: float = 0.04 * (size.x / SIZE_DEFAULT.x - 1)
-	inset_factor = max(inset_factor, 0.0)
-
-	var outer_middle_vertices = []
-	var outer_top_metal_lip_vertices = []
-	var outer_bottom_metal_lip_vertices = []
-	var outer_top_metal_to_flat_vertices = []
-	var outer_bottom_flat_to_metal_vertices = []
-	var outer_top_flat_vertices = []
-	var outer_bottom_flat_vertices = []
-
-	for i in range(len(all_vertices)):
-		var vertex_data = all_vertices[i]
-		var normal: Vector3 = (vertex_data.outer_top - Vector3(0, 0, 0)).normalized()
-		normal.y = 0
-		normal = normal.normalized()
-
-		var top_y: float = vertex_data.outer_top.y
-		var bottom_y: float = vertex_data.outer_bottom.y
-		var lip_height: float = (top_y - bottom_y) * 0.16
-		var half_lip_height: float = lip_height / 2
-		var horizontal_dir: Vector3 = (vertex_data.inner_top - vertex_data.outer_top).normalized()
-
-		# Top vertices
-		var outer_top: Vector3 = vertex_data.outer_top
-		var outer_top_belt_lip: Vector3 = Vector3(vertex_data.outer_top.x, top_y - half_lip_height, vertex_data.outer_top.z)
-		var outer_top_metal_lip: Vector3 = Vector3(vertex_data.outer_top.x, top_y - lip_height, vertex_data.outer_top.z)
-
-		# Diagonal and flat sections
-		var diagonal_height_top_total: float = (top_y - bottom_y) * 0.04
-		var outer_top_diagonal: Vector3 = Vector3(vertex_data.outer_top.x, top_y - lip_height - diagonal_height_top_total, vertex_data.outer_top.z)
-		var diagonal_offset: Vector3 = horizontal_dir * (0.03 + inset_factor)
-		var outer_top_diagonal_offset: Vector3 = outer_top_diagonal + diagonal_offset
-		var flat_offset: Vector3 = horizontal_dir * (0.047 + inset_factor)
-		var outer_top_flat: Vector3 = outer_top_diagonal_offset + flat_offset
-
-		# Bottom vertices
-		var outer_bottom: Vector3 = vertex_data.outer_bottom
-		var outer_bottom_belt_lip: Vector3 = Vector3(vertex_data.outer_bottom.x, bottom_y + half_lip_height, vertex_data.outer_bottom.z)
-		var outer_bottom_metal_lip: Vector3 = Vector3(vertex_data.outer_bottom.x, bottom_y + lip_height, vertex_data.outer_bottom.z)
-
-		var diagonal_height_bottom_total: float = (top_y - bottom_y) * 0.04
-		var outer_bottom_diagonal: Vector3 = Vector3(vertex_data.outer_bottom.x, bottom_y + lip_height + diagonal_height_bottom_total, vertex_data.outer_bottom.z)
-		var diagonal_offset_bottom: Vector3 = horizontal_dir * (0.03 + inset_factor)
-		var outer_bottom_diagonal_offset: Vector3 = outer_bottom_diagonal + diagonal_offset_bottom
-		var flat_offset_bottom: Vector3 = horizontal_dir * (0.047 + inset_factor)
-		var outer_bottom_flat: Vector3 = outer_bottom_diagonal_offset + flat_offset_bottom
-		var outer_bottom_inner: Vector3 = outer_bottom_flat
-
-		var top_flat_normal: Vector3 = Vector3(normal.x * 0.8, -0.6, normal.z * 0.8).normalized()
-		var bottom_flat_normal: Vector3 = Vector3(normal.x * 0.8, 0.6, normal.z * 0.8).normalized()
-		var top_diag_normal: Vector3 = Vector3(normal.x * 0.8, -0.6, normal.z * 0.8).normalized()
-		var bottom_diag_normal: Vector3 = Vector3(normal.x * 0.8, 0.6, normal.z * 0.8).normalized()
-
-
-		outer_middle_vertices.append([outer_top_flat, outer_bottom_inner, normal, Vector2(vertex_data.t * size.x, 0), Vector2(vertex_data.t * size.x, 1)])
-		outer_top_metal_lip_vertices.append([outer_top_belt_lip, outer_top_metal_lip, normal, Vector2(vertex_data.t * size.x, 0.8), Vector2(vertex_data.t * size.x, 1.0)])
-		outer_bottom_metal_lip_vertices.append([outer_bottom_metal_lip, outer_bottom_belt_lip, normal, Vector2(vertex_data.t * size.x, 0.0), Vector2(vertex_data.t * size.x, 0.2)])
-		outer_top_metal_to_flat_vertices.append([outer_top_metal_lip, outer_top_diagonal_offset, top_diag_normal, Vector2(vertex_data.t * size.x, 0.6), Vector2(vertex_data.t * size.x, 0.8)])
-		outer_bottom_flat_to_metal_vertices.append([outer_bottom_diagonal_offset, outer_bottom_metal_lip, bottom_diag_normal, Vector2(vertex_data.t * size.x, 0.2), Vector2(vertex_data.t * size.x, 0.4)])
-		outer_top_flat_vertices.append([outer_top_diagonal_offset, outer_top_flat, top_flat_normal, Vector2(vertex_data.t, 0.35), Vector2(vertex_data.t, 0.4)])
-		outer_bottom_flat_vertices.append([outer_bottom_inner, outer_bottom_diagonal_offset, bottom_flat_normal, Vector2(vertex_data.t, 0.6), Vector2(vertex_data.t, 0.65)])
-
-		var scale_factor = 0.5
-
-		edges.top_outer.vertices.append_array([outer_top, outer_top_belt_lip])
-		edges.top_outer.normals.append_array([normal, normal])
-		edges.top_outer.uvs.append_array([Vector2(1, 1 - vertex_data.t * scale_factor), Vector2(0.95, 1 - vertex_data.t * scale_factor)])
-		edges.bottom_outer.vertices.append_array([outer_bottom_belt_lip, outer_bottom])
-		edges.bottom_outer.normals.append_array([normal, normal])
-		edges.bottom_outer.uvs.append_array([Vector2(0.05, vertex_data.t * scale_factor), Vector2(0, vertex_data.t * scale_factor)])
-
-	_build_outer_wall_sections(surfaces, outer_middle_vertices, outer_top_metal_lip_vertices,
-							   outer_bottom_metal_lip_vertices, outer_top_metal_to_flat_vertices,
-							   outer_bottom_flat_to_metal_vertices, outer_top_flat_vertices,
-							   outer_bottom_flat_vertices, segments)
-
-
-func _build_outer_wall_sections(surfaces: Dictionary, outer_middle_vertices: Array, outer_top_metal_lip_vertices: Array,
-							   outer_bottom_metal_lip_vertices: Array, outer_top_metal_to_flat_vertices: Array,
-							   outer_bottom_flat_to_metal_vertices: Array, outer_top_flat_vertices: Array,
-							   outer_bottom_flat_vertices: Array, segments: int) -> void:
-
-	var outer_middle_start_idx = surfaces.sides.vertices.size()
-	for data in outer_middle_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = outer_middle_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var outer_top_lip_start_idx = surfaces.sides.vertices.size()
-	for data in outer_top_metal_lip_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = outer_top_lip_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var outer_bottom_lip_start_idx = surfaces.sides.vertices.size()
-	for data in outer_bottom_metal_lip_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = outer_bottom_lip_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var outer_top_metal_to_flat_start_idx = surfaces.sides.vertices.size()
-	for data in outer_top_metal_to_flat_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = outer_top_metal_to_flat_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var outer_top_flat_start_idx = surfaces.sides.vertices.size()
-	for data in outer_top_flat_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = outer_top_flat_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var outer_bottom_flat_start_idx = surfaces.sides.vertices.size()
-	for data in outer_bottom_flat_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = outer_bottom_flat_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-
-	var outer_bottom_flat_to_metal_start_idx = surfaces.sides.vertices.size()
-	for data in outer_bottom_flat_to_metal_vertices:
-		surfaces.sides.vertices.append_array([data[0], data[1]])
-		surfaces.sides.normals.append_array([data[2], data[2]])
-		surfaces.sides.uvs.append_array([data[3], data[4]])
-
-	for i in range(segments):
-		var idx = outer_bottom_flat_to_metal_start_idx + (i * 2)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 2, idx + 3)
-		_add_double_sided_triangle(surfaces.sides.indices, idx, idx + 3, idx + 1)
-
-	surfaces.sides.vertex_count = surfaces.sides.vertices.size()

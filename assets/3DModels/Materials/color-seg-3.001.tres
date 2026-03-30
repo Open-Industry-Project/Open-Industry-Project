@@ -1,6 +1,0 @@
-[gd_resource type="StandardMaterial3D" format=3 uid="uid://bcks7e1v2emsx"]
-
-[resource]
-resource_name = "color-seg-3.001"
-metallic = 1.0
-roughness = 0.929289

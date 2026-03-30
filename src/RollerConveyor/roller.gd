@@ -35,7 +35,13 @@ func set_roller_override_material(material: Material) -> void:
 func _ensure_node_references_initialized() -> void:
 	if _left_end_mesh == null:
 		_left_end_mesh = get_node_or_null("RollerMeshes/RollerEndL") as MeshInstance3D
+		if _left_end_mesh:
+			_left_end_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if _right_end_mesh == null:
 		_right_end_mesh = get_node_or_null("RollerMeshes/RollerEndR") as MeshInstance3D
+		if _right_end_mesh:
+			_right_end_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if _cylinder_mesh == null:
 		_cylinder_mesh = get_node_or_null("RollerMeshes/RollerLength") as MeshInstance3D
+		if _cylinder_mesh:
+			_cylinder_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

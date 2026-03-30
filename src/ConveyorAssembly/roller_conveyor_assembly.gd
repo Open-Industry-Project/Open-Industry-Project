@@ -144,7 +144,7 @@ var tail_end_leg_clearance: float = 0.5:
 
 @export_subgroup("Model", "leg_model")
 @export
-var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegRC.tscn"):
+var leg_model_scene: PackedScene = preload("res://parts/ConveyorLeg.tscn"):
 	get:
 		return _legs_property_cached_get(&"leg_model_scene", leg_model_scene)
 	set(value):
@@ -170,7 +170,7 @@ var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(4, 0.24, 1.524)
+	size_default = Vector3(4, 0.5, 1.524)
 
 	if _conveyor_script_cached == null:
 		var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
