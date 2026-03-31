@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://blv116gh51acb"]
 
 [ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="2_sg"]
+[ext_resource type="Script" uid="uid://b2f50dwn2r8w2" path="res://src/ConveyorAttachment/side_guards_assembly.gd" id="2_sg"]
 [ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="3_legs"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_spur"]
@@ -34,8 +34,9 @@ conveyor_count = 8
 size = Vector3(2, 0.5, 1.524)
 metadata/hijack_scale = true
 
-[node name="SideGuardsAssembly" parent="." unique_id=995415694 instance=ExtResource("2_sg")]
+[node name="SideGuardsAssembly" type="Node3D" parent="." unique_id=995415694]
 unique_name_in_owner = true
+script = ExtResource("2_sg")
 
 [node name="ConveyorLegsAssembly" parent="." unique_id=929282483 instance=ExtResource("3_legs")]
 unique_name_in_owner = true

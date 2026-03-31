@@ -266,13 +266,13 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 				undo_redo.add_undo_property(guard, "back_anchored", true)
 			undo_redo.add_undo_property(guard, "length", _initial_state["length"])
 			undo_redo.add_undo_property(guard, "position", _initial_state["position"])
+			var sg_assembly: Node = _initial_state["side_node"].get_parent()
+			if sg_assembly and sg_assembly.has_method("save_guard_state"):
+				undo_redo.add_do_method(sg_assembly, "save_guard_state")
+				undo_redo.add_undo_method(sg_assembly, "save_guard_state")
 			undo_redo.add_do_method(node, "update_gizmos")
 			undo_redo.add_undo_method(node, "update_gizmos")
 			undo_redo.commit_action()
-			# Save after commit so properties have taken effect.
-			var sg_assembly: Node = _initial_state["side_node"].get_parent()
-			if sg_assembly and sg_assembly.has_method("save_guard_state"):
-				sg_assembly.save_guard_state()
 		_initial_state.clear()
 		return
 
@@ -282,15 +282,21 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 	var resizable_node = node as ResizableNode3D
 
 	if cancel:
-		resizable_node.size = _initial_state["size"]
 		node.position = _initial_state["position"]
+		resizable_node.size = _initial_state["size"]
 	else:
 		var undo_redo = EditorInterface.get_editor_undo_redo()
 		undo_redo.create_action("Resize Conveyor")
-		undo_redo.add_do_property(resizable_node, "size", resizable_node.size)
+		# Position must be set before size so the side-guard update chain
+		# sees the correct global transform (matches _set_handle order).
 		undo_redo.add_do_property(node, "position", node.position)
-		undo_redo.add_undo_property(resizable_node, "size", _initial_state["size"])
+		undo_redo.add_do_property(resizable_node, "size", resizable_node.size)
 		undo_redo.add_undo_property(node, "position", _initial_state["position"])
+		undo_redo.add_undo_property(resizable_node, "size", _initial_state["size"])
+		var sg_assembly: Node = _find_side_guards_assembly(node)
+		if sg_assembly:
+			undo_redo.add_do_method(sg_assembly, "save_guard_state")
+			undo_redo.add_undo_method(sg_assembly, "save_guard_state")
 		undo_redo.commit_action()
 
 	_initial_state.clear()
@@ -384,7 +390,8 @@ func _try_merge_guards(conveyor_node: Node3D, guard: SideGuard, side_node: Node3
 			nearest = other
 
 	if not nearest:
-		return false
+		# No adjacent guard — re-anchor this edge to the conveyor boundary if it's unanchored.
+		return _try_reanchor_guard(conveyor_node, guard, side_node, is_front)
 
 	# Merge: extend this guard to cover both, remove the other.
 	var other_front: float = nearest.position.x + nearest.length / 2.0
@@ -415,13 +422,63 @@ func _try_merge_guards(conveyor_node: Node3D, guard: SideGuard, side_node: Node3
 	undo_redo.add_do_method(side_node, "remove_child", nearest)
 	undo_redo.add_undo_method(side_node, "add_child", nearest)
 	undo_redo.add_undo_reference(nearest)
+	if sg_assembly and sg_assembly.has_method("save_guard_state"):
+		undo_redo.add_do_method(sg_assembly, "save_guard_state")
+		undo_redo.add_undo_method(sg_assembly, "save_guard_state")
 	undo_redo.add_do_method(conveyor_node, "update_gizmos")
 	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
 
 	undo_redo.commit_action()
+	return true
 
-	if sg_assembly and sg_assembly.has_method("save_guard_state"):
-		sg_assembly.save_guard_state()
+
+## Re-anchor a guard's edge to the conveyor boundary.
+## Called when shift+clicking a handle with no adjacent guard to merge with.
+## Returns true if the edge was re-anchored, false if it was already anchored.
+func _try_reanchor_guard(conveyor_node: Node3D, guard: SideGuard, side_node: Node3D, is_front: bool) -> bool:
+	var already_anchored: bool = guard.front_anchored if is_front else guard.back_anchored
+	if already_anchored:
+		return false
+
+	var sg_assembly: Node = side_node.get_parent()
+	if not sg_assembly or not sg_assembly.has_method("_get_side_extents"):
+		return false
+
+	var side: SideGuardsAssembly.Side = SideGuardsAssembly.Side.RIGHT
+	if side_node.name == "LeftSide":
+		side = SideGuardsAssembly.Side.LEFT
+
+	var extents: Array[float] = sg_assembly._get_side_extents(side)
+	var boundary: float = extents[1] if is_front else extents[0]
+
+	var guard_front: float = guard.position.x + guard.length / 2.0
+	var guard_back: float = guard.position.x - guard.length / 2.0
+	var old_length: float = guard.length
+	var old_pos: Vector3 = guard.position
+
+	var new_front: float = boundary if is_front else guard_front
+	var new_back: float = guard_back if is_front else boundary
+	var new_length: float = max(0.01, new_front - new_back)
+	var new_center: float = (new_front + new_back) / 2.0
+
+	var undo_redo := EditorInterface.get_editor_undo_redo()
+	undo_redo.create_action("Re-anchor Side Guard")
+	undo_redo.add_do_property(guard, "length", new_length)
+	undo_redo.add_do_property(guard, "position", Vector3(new_center, 0, 0))
+	if is_front:
+		undo_redo.add_do_property(guard, "front_anchored", true)
+		undo_redo.add_undo_property(guard, "front_anchored", false)
+	else:
+		undo_redo.add_do_property(guard, "back_anchored", true)
+		undo_redo.add_undo_property(guard, "back_anchored", false)
+	undo_redo.add_undo_property(guard, "length", old_length)
+	undo_redo.add_undo_property(guard, "position", old_pos)
+	if sg_assembly.has_method("save_guard_state"):
+		undo_redo.add_do_method(sg_assembly, "save_guard_state")
+		undo_redo.add_undo_method(sg_assembly, "save_guard_state")
+	undo_redo.add_do_method(conveyor_node, "update_gizmos")
+	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
+	undo_redo.commit_action()
 	return true
 
 
@@ -475,14 +532,22 @@ func _split_guard_at_center(conveyor_node: Node3D, guard: SideGuard, side_node: 
 	undo_redo.add_do_method(side_node, "add_child", new_guard)
 	undo_redo.add_do_reference(new_guard)
 	undo_redo.add_undo_method(side_node, "remove_child", new_guard)
+	if sg_assembly and sg_assembly.has_method("save_guard_state"):
+		undo_redo.add_do_method(sg_assembly, "save_guard_state")
+		undo_redo.add_undo_method(sg_assembly, "save_guard_state")
 	undo_redo.add_do_method(conveyor_node, "update_gizmos")
 	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
 
 	undo_redo.commit_action()
 
-	# Save state and refresh gizmos.
-	if sg_assembly and sg_assembly.has_method("save_guard_state"):
-		sg_assembly.save_guard_state()
+
+## Find the SideGuardsAssembly node on a conveyor assembly, or null.
+func _find_side_guards_assembly(node: Node3D) -> Node:
+	for path in ["%SideGuardsAssembly", "Conveyor/SideGuardsAssembly", "%Conveyor/%SideGuardsAssembly"]:
+		var sg := node.get_node_or_null(path)
+		if sg:
+			return sg
+	return null
 
 
 ## Find all SideGuard nodes on a conveyor assembly.
@@ -490,11 +555,7 @@ func _split_guard_at_center(conveyor_node: Node3D, guard: SideGuard, side_node: 
 ## Handle IDs are assigned sequentially starting at 100: 100/101 for first guard, 102/103 for second, etc.
 func _get_all_guards(node: Node3D) -> Array:
 	var result: Array = []
-	var sg_assembly: Node = null
-	for path in ["%SideGuardsAssembly", "Conveyor/SideGuardsAssembly", "%Conveyor/%SideGuardsAssembly"]:
-		sg_assembly = node.get_node_or_null(path)
-		if sg_assembly:
-			break
+	var sg_assembly: Node = _find_side_guards_assembly(node)
 	if not sg_assembly:
 		return result
 

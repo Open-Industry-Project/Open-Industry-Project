@@ -29,7 +29,11 @@ enum Side
 
 ## Stored last-known conveyor extents per side, used to detect resize deltas.
 var _last_extents: Dictionary = {}
+## Stored last-known global transform per side, used to maintain global positions of openings.
+var _last_side_global_transforms: Dictionary = {}
 var _conveyor_connected: bool = false
+## Persisted guard layout (forwarded to/from the assembly root for serialization).
+var _guard_state: Dictionary = {}
 
 
 func _notification(what: int) -> void:
@@ -84,7 +88,9 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 		_clear_side(side)
 		return
 	var side_node: Node3D = _ensure_side(side)
+	var old_side_global: Transform3D = _last_side_global_transforms.get(side, Transform3D.IDENTITY)
 	side_node.transform = _get_side_node_transform(side)
+	var new_side_global: Transform3D = side_node.global_transform
 
 	var extents: Array[float] = _get_side_extents(side)
 	if side_node.get_child_count() == 0:
@@ -94,10 +100,12 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 			_spawn_default_guard(side_node, side, extents)
 	else:
 		# Resize: adjust guards that are anchored to conveyor edges.
-		_adjust_anchored_guards(side_node, side, extents)
+		# Pass old/new global transforms so non-anchored edges maintain their world position.
+		_adjust_anchored_guards(side_node, side, extents, old_side_global, new_side_global)
 
-	# Store extents for next resize delta.
+	# Store extents and global transform for next resize delta.
 	_last_extents[side] = extents
+	_last_side_global_transforms[side] = side_node.global_transform
 
 
 func _clear_side(side: SideGuardsAssembly.Side) -> void:
@@ -202,13 +210,16 @@ func _spawn_default_guard(side_node: Node3D, side: SideGuardsAssembly.Side, exte
 
 
 ## Adjust guards whose edges are anchored to the conveyor boundary.
-## Non-anchored edges (user-adjusted or snapping-adjusted) stay fixed.
-func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, extents: Array[float]) -> void:
+## Non-anchored edges maintain their global position using the old/new side-node transforms.
+func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, extents: Array[float], old_side_global: Transform3D, new_side_global: Transform3D) -> void:
 	var old_extents: Array = _last_extents.get(side, extents)
 	var old_back: float = old_extents[0]
 	var old_front: float = old_extents[1]
 	var new_back: float = extents[0]
 	var new_front: float = extents[1]
+
+	# Converts old local positions to new local positions that keep the same global position.
+	var global_remap: Transform3D = new_side_global.affine_inverse() * old_side_global
 
 	for child in side_node.get_children():
 		if not child is SideGuard:
@@ -217,10 +228,16 @@ func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, e
 		var g_front: float = guard.position.x + guard.length / 2.0
 		var g_back: float = guard.position.x - guard.length / 2.0
 
-		# If this edge was at the old conveyor boundary, move it to the new one.
-		if guard.front_anchored and abs(g_front - old_front) < 0.01:
+		# Non-anchored edges: remap to maintain global position.
+		# Anchored edges at boundary: track to new boundary.
+		if not guard.front_anchored:
+			g_front = (global_remap * Vector3(g_front, 0, 0)).x
+		elif abs(g_front - old_front) < 0.01:
 			g_front = new_front
-		if guard.back_anchored and abs(g_back - old_back) < 0.01:
+
+		if not guard.back_anchored:
+			g_back = (global_remap * Vector3(g_back, 0, 0)).x
+		elif abs(g_back - old_back) < 0.01:
 			g_back = new_back
 
 		var new_length: float = max(0.01, g_front - g_back)
@@ -237,17 +254,8 @@ func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, e
 		guard.transform = Transform3D(guard_basis, guard.position)
 
 
-## Get the node that owns this SideGuardsAssembly for persisting guard state.
-## This is always the direct parent (the conveyor or assembly node).
-func _get_assembly_root() -> Node:
-	return get_parent()
-
-
-## Save the current guard state to the assembly root's persisted metadata.
+## Save the current guard state so the assembly root can serialize it.
 func save_guard_state() -> void:
-	var conveyor := _get_assembly_root()
-	if not conveyor:
-		return
 	var state: Dictionary = {}
 	for side_name in ["LeftSide", "RightSide"]:
 		var side_node := get_node_or_null(side_name) as Node3D
@@ -265,23 +273,21 @@ func save_guard_state() -> void:
 					"back_anchored": guard.back_anchored,
 				}
 				idx += 1
-	conveyor.set_meta("_guard_state", state)
+	_guard_state = state
 
 
-## Restore guards from the parent conveyor's persisted state. Returns true if state was restored.
+## Restore guards from persisted state. Returns true if state was restored.
 func _restore_guard_state(side_node: Node3D, side: SideGuardsAssembly.Side) -> bool:
-	var conveyor := _get_assembly_root()
-	if not conveyor or not conveyor.has_meta("_guard_state"):
+	if _guard_state.is_empty():
 		return false
 
-	var state: Dictionary = conveyor.get_meta("_guard_state")
 	var side_name: String = _get_side_node_name(side)
 
 	# Collect entries for this side.
 	var entries: Array[Dictionary] = []
 	var idx := 0
-	while state.has(side_name + "_" + str(idx)):
-		entries.append(state[side_name + "_" + str(idx)])
+	while _guard_state.has(side_name + "_" + str(idx)):
+		entries.append(_guard_state[side_name + "_" + str(idx)])
 		idx += 1
 
 	if entries.is_empty():

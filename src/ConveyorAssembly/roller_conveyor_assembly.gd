@@ -45,6 +45,12 @@ var roller_physics_material: PhysicsMaterial:
 		return _side_guards_property_cached_get(&"left_side_guards_enabled", left_side_guards_enabled)
 	set(value):
 		left_side_guards_enabled = _side_guards_property_cached_set(&"left_side_guards_enabled", value, left_side_guards_enabled)
+@export_storage
+var _guard_state: Dictionary = {}:
+	get:
+		return _side_guards_property_cached_get(&"_guard_state", _guard_state)
+	set(value):
+		_guard_state = _side_guards_property_cached_set(&"_guard_state", value, _guard_state)
 #endregion
 
 #region ConveyorLegsAssembly properties
