@@ -48,6 +48,8 @@ extends ResizableNode3D
 			_add_or_remove_conveyors(0)
 
 var _conveyors: Array[Node3D] = []
+var _frame_left: FrameRail
+var _frame_right: FrameRail
 
 var DEFAULT_LENGTH: float = 2.0
 var DEFAULT_WIDTH: float = 1.524
@@ -60,12 +62,14 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	_ensure_frame_rails()
 	_process(0.0)
 
 
 func _process(_delta: float) -> void:
 	set_process(false)
 	_update_conveyors()
+	_update_frame_rails()
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -203,3 +207,59 @@ func _get_first_conveyor() -> Node:
 func _on_size_changed() -> void:
 	set_process(true)
 	super._on_size_changed()
+
+
+#region Frame rails
+
+func _ensure_frame_rails() -> void:
+	if not _frame_left:
+		_frame_left = FrameRail.new()
+		_frame_left.name = "FrameLeft"
+		add_child(_frame_left)
+	if not _frame_right:
+		_frame_right = FrameRail.new()
+		_frame_right.name = "FrameRight"
+		add_child(_frame_right)
+
+
+func _update_frame_rails() -> void:
+	if not _frame_left or not _frame_right:
+		return
+
+	var half_w := width / 2.0
+	var wt := ConveyorFrameMesh.WALL_THICKNESS
+	var height := depth
+
+	# Compute extents for left (-Z) and right (+Z) rails using spur angle math.
+	var left_extents := _get_frame_rail_extents(-half_w)
+	var right_extents := _get_frame_rail_extents(half_w)
+
+	_apply_frame_rail(_frame_left, left_extents, height, -half_w - wt, false)
+	_apply_frame_rail(_frame_right, right_extents, height, half_w + wt, true)
+
+
+func _get_frame_rail_extents(side_z: float) -> Array[float]:
+	var slope_ds := tan(angle_downstream)
+	var slope_us := tan(angle_upstream)
+	var front_x: float = length / 2.0 + slope_ds * side_z
+	var back_x: float = -length / 2.0 + slope_us * side_z
+	return [back_x, front_x]
+
+
+func _apply_frame_rail(rail: FrameRail, extents: Array[float], height: float, z_pos: float, flipped: bool) -> void:
+	var back_x: float = extents[0]
+	var front_x: float = extents[1]
+	var rail_length: float = max(0.01, front_x - back_x)
+	var center_x: float = (front_x + back_x) / 2.0
+
+	rail.height = height
+	if rail.front_anchored and rail.back_anchored:
+		rail.length = rail_length
+		rail.position = Vector3(center_x, -height, z_pos)
+	else:
+		rail.position.y = -height
+		rail.position.z = z_pos
+	rail.rotation = Vector3(0, PI, 0) if flipped else Vector3.ZERO
+	rail.visible = true
+
+#endregion

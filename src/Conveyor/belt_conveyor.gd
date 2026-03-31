@@ -59,8 +59,8 @@ var close_right_side: bool = false
 
 var _belt_material: Material
 var _metal_material: Material
-var _frame_left: MeshInstance3D
-var _frame_right: MeshInstance3D
+var _frame_left: FrameRail
+var _frame_right: FrameRail
 var _shadow_plate: MeshInstance3D
 
 static var _belt_texture: Texture2D = preload("res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg")
@@ -162,16 +162,13 @@ func _setup_materials() -> void:
 	_belt_material.set_shader_parameter("belt_texture", _belt_texture)
 	_belt_material.set_shader_parameter("belt_texture_alt", _belt_texture_alt)
 
-	# Procedural frame rails.
+	# Procedural frame rails — skip when the parent assembly owns the rails.
 	_metal_material = ConveyorFrameMesh.create_material()
-	_frame_left = get_node_or_null("FrameLeft")
-	if not _frame_left:
-		_frame_left = MeshInstance3D.new()
+	if not frame_managed_externally:
+		_frame_left = FrameRail.new()
 		_frame_left.name = "FrameLeft"
 		add_child(_frame_left)
-	_frame_right = get_node_or_null("FrameRight")
-	if not _frame_right:
-		_frame_right = MeshInstance3D.new()
+		_frame_right = FrameRail.new()
 		_frame_right.name = "FrameRight"
 		add_child(_frame_right)
 	_shadow_plate = get_node_or_null("ShadowPlate")
@@ -254,33 +251,28 @@ func _on_size_changed() -> void:
 
 	middle_body.position = Vector3(0, -height / 2.0, 0)
 
-	# Procedural frame rails.
-	# For spur children, only generate on outermost edges (matching side wall flags).
+	# Procedural frame rails (only exist when not externally managed).
 	if _frame_left and _frame_right:
 		var half_width := width / 2.0
 		var wt := ConveyorFrameMesh.WALL_THICKNESS
-		var show_left: bool = not frame_managed_externally or close_left_side
-		var show_right: bool = not frame_managed_externally or close_right_side
 
-		if show_left:
-			var frame_mesh_l := ConveyorFrameMesh.create(length, height)
-			if _metal_material:
-				frame_mesh_l.surface_set_material(0, _metal_material)
-			_frame_left.mesh = frame_mesh_l
+		_frame_left.height = height
+		if _frame_left.front_anchored and _frame_left.back_anchored:
+			_frame_left.length = length
 			_frame_left.position = Vector3(0, -height, -half_width - wt)
-			_frame_left.rotation = Vector3.ZERO
 		else:
-			_frame_left.mesh = null
+			_frame_left.position.y = -height
+			_frame_left.position.z = -half_width - wt
+		_frame_left.rotation = Vector3.ZERO
 
-		if show_right:
-			var frame_mesh_r := ConveyorFrameMesh.create(length, height)
-			if _metal_material:
-				frame_mesh_r.surface_set_material(0, _metal_material)
-			_frame_right.mesh = frame_mesh_r
+		_frame_right.height = height
+		if _frame_right.front_anchored and _frame_right.back_anchored:
+			_frame_right.length = length
 			_frame_right.position = Vector3(0, -height, half_width + wt)
-			_frame_right.rotation = Vector3(0, PI, 0)
 		else:
-			_frame_right.mesh = null
+			_frame_right.position.y = -height
+			_frame_right.position.z = half_width + wt
+		_frame_right.rotation = Vector3(0, PI, 0)
 
 
 func _on_simulation_started() -> void:

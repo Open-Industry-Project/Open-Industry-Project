@@ -5,6 +5,7 @@ code = "shader_type spatial;
 
 uniform sampler2D metal_texture : source_color, filter_linear_mipmap, repeat_enable;
 instance uniform float Scale = 1.0;
+uniform vec3 color_tint : source_color = vec3(1.8, 1.8, 1.8);
 uniform float Metallic = 0.94;
 uniform float Roughness = 0.5;
 uniform float Specular = 0.5;
@@ -43,7 +44,7 @@ bool in_beam(vec3 pos, vec3 beam_start, vec3 beam_end) {
 
 void fragment() {
 	vec2 scaled_uv = UV * vec2(1.0, round(Scale));
-	ALBEDO = texture(metal_texture, scaled_uv).rgb;
+	ALBEDO = texture(metal_texture, scaled_uv).rgb * color_tint;
 	METALLIC = Metallic;
 	ROUGHNESS = Roughness;
 	SPECULAR = Specular;

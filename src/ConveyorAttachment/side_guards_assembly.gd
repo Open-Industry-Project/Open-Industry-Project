@@ -87,7 +87,6 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 	side_node.transform = _get_side_node_transform(side)
 
 	var extents: Array[float] = _get_side_extents(side)
-
 	if side_node.get_child_count() == 0:
 		# Try restoring from saved state first.
 		if not _restore_guard_state(side_node, side):
@@ -238,16 +237,10 @@ func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, e
 		guard.transform = Transform3D(guard_basis, guard.position)
 
 
-## Get the conveyor assembly root (the node that gets saved with the scene).
-## SideGuardsAssembly → Conveyor → BeltConveyorAssembly (the root we want).
+## Get the node that owns this SideGuardsAssembly for persisting guard state.
+## This is always the direct parent (the conveyor or assembly node).
 func _get_assembly_root() -> Node:
-	var parent := get_parent()
-	if not parent:
-		return null
-	var grandparent := parent.get_parent()
-	# If grandparent exists and is the actual assembly, use it.
-	# Otherwise fall back to parent.
-	return grandparent if grandparent else parent
+	return get_parent()
 
 
 ## Save the current guard state to the assembly root's persisted metadata.

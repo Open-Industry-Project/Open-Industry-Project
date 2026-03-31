@@ -72,6 +72,7 @@ func _ensure_material() -> void:
 	_shared_material = ShaderMaterial.new()
 	_shared_material.shader = load("res://assets/3DModels/Shaders/MetalShaderSideGuard.tres")
 	_shared_material.set_shader_parameter("metal_texture", _metal_texture)
+	_shared_material.set_shader_parameter("color_tint", Color(1.8, 1.8, 1.8))
 	_shared_material.set_shader_parameter("Metallic", 0.94)
 	_shared_material.set_shader_parameter("Roughness", 0.5)
 	_shared_material.set_shader_parameter("Specular", 0.5)
