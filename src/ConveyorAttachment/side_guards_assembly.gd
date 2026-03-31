@@ -16,42 +16,7 @@ enum Side
 		if not is_inside_tree():
 			return
 		_update_side(Side.RIGHT, right_side_guards_enabled)
-## A list of locations on the right-hand side to be kept clear of generated side guards.
-@export var right_side_guards_openings: Array[SideGuardOpening]:
-	set(value):
-		# Unsubscribe from previous openings. They may be replaced with new ones.
-		for opening in right_side_guards_openings:
-			# Shouldn't be null since all nulls should have been replaced by instances.
-			assert(opening != null, "Opening is null.")
-			opening.changed.disconnect(_on_opening_changed_right)
 
-		# Workaround for faulty duplicate behavior in the editor.
-		# See issue #74918.
-		if right_side_guards_openings.size() == 0:
-			# Assume that we're initializing for the first time if existing Array is empty.
-			for opening in value:
-				# Any openings we see in the new Array possibly came from an original that this instance is a duplicate of.
-				# There's no way to know for sure.
-				# Make all the openings unique to this instance to prevent editing the originals.
-				if opening != null:
-					opening = opening.duplicate(true)
-				right_side_guards_openings.append(opening)
-		else:
-			# If we're not initializing, avoid making unnecessary duplicates.
-			right_side_guards_openings.assign(value)
-
-		# Replace null with a new gap so users don't have to do this by hand.
-		for i in range(right_side_guards_openings.size()):
-			if right_side_guards_openings[i] == null:
-				right_side_guards_openings[i] = SideGuardOpening.new()
-
-		# Subscribe to ensure that side guards update whenever openings change.
-		for opening in right_side_guards_openings:
-			opening.changed.connect(_on_opening_changed_right)
-
-		# Update side guards to account for added or removed gaps.
-		if is_inside_tree():
-			_on_opening_changed_right()
 @export_subgroup("Left Side Guards", "left_side_guards_")
 ## If [code]true[/code], automatically generate side guards on the left-hand side of the conveyor.
 @export var left_side_guards_enabled: bool = true:
@@ -60,48 +25,11 @@ enum Side
 		if not is_inside_tree():
 			return
 		_update_side(Side.LEFT, left_side_guards_enabled)
-## A list of locations on the left-hand side to be kept clear of generated side guards.
-@export var left_side_guards_openings: Array[SideGuardOpening]:
-	set(value):
-		# Unsubscribe from previous openings. They may be replaced with new ones.
-		for opening in left_side_guards_openings:
-			# Shouldn't be null since all nulls should have been replaced by instances.
-			assert(opening != null, "Opening is null.")
-			opening.changed.disconnect(_on_opening_changed_left)
 
-		# Workaround for faulty duplicate behavior in the editor.
-		# See issue #74918.
-		if left_side_guards_openings.size() == 0:
-			# Assume that we're initializing for the first time if existing Array is empty.
-			for opening in value:
-				# Any openings we see in the new Array possibly came from an original that this instance is a duplicate of.
-				# There's no way to know for sure.
-				# Make all the openings unique to this instance to prevent editing the originals.
-				if opening != null:
-					opening = opening.duplicate(true)
-				left_side_guards_openings.append(opening)
-		else:
-			# If we're not initializing, avoid making unnecessary duplicates.
-			left_side_guards_openings.assign(value)
 
-		# Replace null with a new gap so users don't have to do this by hand.
-		for i in range(left_side_guards_openings.size()):
-			if left_side_guards_openings[i] == null:
-				left_side_guards_openings[i] = SideGuardOpening.new()
-
-		# Subscribe to ensure that side guards update whenever openings change.
-		for opening in left_side_guards_openings:
-			opening.changed.connect(_on_opening_changed_left)
-
-		# Update side guards to account for added or removed gaps.
-		if is_inside_tree():
-			_on_opening_changed_left()
-
+## Stored last-known conveyor extents per side, used to detect resize deltas.
+var _last_extents: Dictionary = {}
 var _conveyor_connected: bool = false
-var _prev_angle_downstream: float = 0.0
-var _prev_angle_upstream: float = 0.0
-var _spur_angles_initialized: bool = false
-var _clearing_openings: bool = false
 
 
 func _notification(what: int) -> void:
@@ -110,7 +38,6 @@ func _notification(what: int) -> void:
 			_connect_conveyor_signals()
 		NOTIFICATION_UNPARENTED:
 			_disconnect_conveyor_signals()
-			_spur_angles_initialized = false
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -142,30 +69,9 @@ func _on_conveyor_size_changed() -> void:
 	_update_side_guards()
 
 
-func _clear_openings_if_angles_changed() -> void:
-	var conveyor = get_parent()
-	if not ("angle_downstream" in conveyor and "angle_upstream" in conveyor):
-		return
-	var angle_ds: float = conveyor.angle_downstream
-	var angle_us: float = conveyor.angle_upstream
-	if not _spur_angles_initialized:
-		_prev_angle_downstream = angle_ds
-		_prev_angle_upstream = angle_us
-		_spur_angles_initialized = true
-		return
-	if angle_ds != _prev_angle_downstream or angle_us != _prev_angle_upstream:
-		_prev_angle_downstream = angle_ds
-		_prev_angle_upstream = angle_us
-		_clearing_openings = true
-		right_side_guards_openings = []
-		left_side_guards_openings = []
-		_clearing_openings = false
-
-
 func _update_side_guards() -> void:
 	if not is_inside_tree():
 		return
-	_clear_openings_if_angles_changed()
 	transform = Transform3D()
 	_update_side(Side.LEFT, left_side_guards_enabled)
 	_update_side(Side.RIGHT, right_side_guards_enabled)
@@ -180,12 +86,19 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 	var side_node: Node3D = _ensure_side(side)
 	side_node.transform = _get_side_node_transform(side)
 
-	# Create and arrange side guards
-	var side_extents: Array[float] = _get_side_extents(side)
-	var side_guard_extents: Array = [side_extents]
-	_insert_openings_into_extents(side_guard_extents, side)
-	_add_or_remove_side_guards(side_node, side_guard_extents.size())
-	_adjust_side_guards(side_node, side_guard_extents, side)
+	var extents: Array[float] = _get_side_extents(side)
+
+	if side_node.get_child_count() == 0:
+		# Try restoring from saved state first.
+		if not _restore_guard_state(side_node, side):
+			# No saved state: spawn a full-length guard.
+			_spawn_default_guard(side_node, side, extents)
+	else:
+		# Resize: adjust guards that are anchored to conveyor edges.
+		_adjust_anchored_guards(side_node, side, extents)
+
+	# Store extents for next resize delta.
+	_last_extents[side] = extents
 
 
 func _clear_side(side: SideGuardsAssembly.Side) -> void:
@@ -204,6 +117,7 @@ func _ensure_side(side: SideGuardsAssembly.Side) -> Node3D:
 		side_node = Node3D.new()
 		side_node.name = side_name
 		add_child(side_node)
+
 	return side_node
 
 
@@ -217,9 +131,9 @@ func _get_side_node_transform(side: SideGuardsAssembly.Side) -> Transform3D:
 			return Transform3D(Basis.IDENTITY, Vector3(0, 0, -offset_z))
 		Side.RIGHT:
 			return Transform3D(Basis.IDENTITY, Vector3(0, 0, offset_z))
-		_:  # Default case for any unexpected values
+		_:
 			assert(false, "Unknown side: " + str(side))
-			return Transform3D()  # Return default transform if assertion doesn't trigger
+			return Transform3D()
 
 
 func _get_side_node_name(side: SideGuardsAssembly.Side) -> StringName:
@@ -228,9 +142,9 @@ func _get_side_node_name(side: SideGuardsAssembly.Side) -> StringName:
 			return "LeftSide"
 		Side.RIGHT:
 			return "RightSide"
-		_:  # Default case for any unexpected values
+		_:
 			assert(false, "Unknown side: " + str(side))
-			return &""  # Return empty StringName if assertion doesn't trigger
+			return &""
 
 
 func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
@@ -262,113 +176,137 @@ func _get_spur_side_extents(side: SideGuardsAssembly.Side, conveyor: Node3D) -> 
 
 	var front_x: float = length / 2.0 + tan(angle_ds) * side_z
 	var back_x: float = -length / 2.0 + tan(angle_us) * side_z
-
 	return [back_x, front_x]
 
 
-## Cut gaps into the conveyor extents list.
-##
-## Shrink or remove conveyor extents to make room for side guard gaps.
-##
-## @param extent_pairs The list of conveyor extents to cut gaps into.
-func _insert_openings_into_extents(extent_pairs: Array, side: SideGuardsAssembly.Side) -> void:
-	var side_guards_gaps: Array
+#region Guard spawning and anchored resize
+
+## Spawn a single full-length guard for the given side.
+func _spawn_default_guard(side_node: Node3D, side: SideGuardsAssembly.Side, extents: Array[float]) -> void:
+	var guard := _instantiate_guard()
+	var ext_start: float = extents[0]
+	var ext_end: float = extents[1]
+	var guard_length: float = ext_end - ext_start
+	var pos := Vector3((ext_start + ext_end) / 2.0, 0, 0)
+
+	var guard_basis := Basis.IDENTITY
 	match side:
 		Side.RIGHT:
-			side_guards_gaps = right_side_guards_openings
-		Side.LEFT:
-			side_guards_gaps = left_side_guards_openings
-	
-	var gaps: Array = []
-	for gap in side_guards_gaps:
-		var extent_front = gap.position - abs(gap.size) / 2.0
-		var extent_rear = gap.position + abs(gap.size) / 2.0
-		gaps.append([extent_front, extent_rear])
+			guard_basis = Basis(Vector3.UP, PI)
 
-	gaps.sort_custom(func(a, b): return a[0] < b[0])
-
-	var merged_gaps: Array = []
-	for gap in gaps:
-		if merged_gaps.is_empty():
-			merged_gaps.append(gap)
-			continue
-
-		var extent_front = gap[0]
-		var extent_rear = gap[1]
-		var last_gap = merged_gaps[-1]
-		var last_extent_front = last_gap[0]
-		var last_extent_rear = last_gap[1]
-
-		if last_extent_rear < extent_front:
-			merged_gaps.append(gap)
-		elif last_extent_rear < extent_rear:
-			merged_gaps[-1] = [last_extent_front, extent_rear] as Array[float]
-
-	var i = 0
-	while i < extent_pairs.size():
-		var extent = extent_pairs[i]
-		var extent_front = extent[0]
-		var extent_rear = extent[1]
-
-		if extent_rear < extent_front:
-			extent_front = extent[1]
-			extent_rear = extent[0]
-			extent_pairs[i] = [extent_front, extent_rear] as Array[float]
-
-		if extent_front == extent_rear:
-			extent_pairs.remove_at(i)
-			continue
-
-		for gap in merged_gaps:
-			var gap_front = gap[0]
-			var gap_rear = gap[1]
-
-			if extent_rear <= gap_front:
-				continue
-
-			if extent_front < gap_front and gap_rear < extent_rear:
-				extent_pairs.insert(i + 1, [gap_rear, extent_rear])
-				extent_pairs[i] = [extent_front, gap_front] as Array[float]
-				break
-
-			if gap_front < extent_front and extent_rear < gap_rear:
-				extent_pairs.remove_at(i)
-				i -= 1
-				break
-
-			if extent_front < gap_front and gap_front < extent_rear:
-				extent_pairs[i] = [extent_front, gap_front] as Array[float]
-				break
-
-			if extent_front < gap_rear and gap_rear < extent_rear:
-				extent_pairs[i] = [gap_rear, extent_rear] as Array[float]
-				extent = extent_pairs[i]
-				extent_front = extent[0]
-				extent_rear = extent[1]
-
-		i += 1
-
-
-#region Adding and removing instances
-func _add_or_remove_side_guards(side_node: Node3D, desired_side_guard_count: int) -> void:
-	var guard_count: int = side_node.get_child_count()
-	while guard_count < desired_side_guard_count:
-		_add_guard(side_node)
-		guard_count += 1
-	while guard_count > desired_side_guard_count:
-		_remove_guard(side_node)
-		guard_count -= 1
-
-
-func _add_guard(side_node: Node) -> void:
-	var guard: Node3D = _instantiate_guard()
+	guard.transform = Transform3D(guard_basis, pos)
+	guard.length = max(0.01, guard_length)
+	guard.front_anchored = true
+	guard.back_anchored = true
 	side_node.add_child(guard)
 
 
-func _remove_guard(side_node) -> void:
-	var guard: Node3D = side_node.get_child(side_node.get_child_count() - 1)
-	side_node.remove_child(guard)
-	guard.queue_free()
+
+## Adjust guards whose edges are anchored to the conveyor boundary.
+## Non-anchored edges (user-adjusted or snapping-adjusted) stay fixed.
+func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, extents: Array[float]) -> void:
+	var old_extents: Array = _last_extents.get(side, extents)
+	var old_back: float = old_extents[0]
+	var old_front: float = old_extents[1]
+	var new_back: float = extents[0]
+	var new_front: float = extents[1]
+
+	for child in side_node.get_children():
+		if not child is SideGuard:
+			continue
+		var guard := child as SideGuard
+		var g_front: float = guard.position.x + guard.length / 2.0
+		var g_back: float = guard.position.x - guard.length / 2.0
+
+		# If this edge was at the old conveyor boundary, move it to the new one.
+		if guard.front_anchored and abs(g_front - old_front) < 0.01:
+			g_front = new_front
+		if guard.back_anchored and abs(g_back - old_back) < 0.01:
+			g_back = new_back
+
+		var new_length: float = max(0.01, g_front - g_back)
+		var new_center: float = (g_front + g_back) / 2.0
+
+		guard.position = Vector3(new_center, guard.position.y, guard.position.z)
+		guard.length = new_length
+
+		# Preserve the basis (right side is rotated 180°).
+		var guard_basis := Basis.IDENTITY
+		match side:
+			Side.RIGHT:
+				guard_basis = Basis(Vector3.UP, PI)
+		guard.transform = Transform3D(guard_basis, guard.position)
+
+
+## Get the conveyor assembly root (the node that gets saved with the scene).
+## SideGuardsAssembly → Conveyor → BeltConveyorAssembly (the root we want).
+func _get_assembly_root() -> Node:
+	var parent := get_parent()
+	if not parent:
+		return null
+	var grandparent := parent.get_parent()
+	# If grandparent exists and is the actual assembly, use it.
+	# Otherwise fall back to parent.
+	return grandparent if grandparent else parent
+
+
+## Save the current guard state to the assembly root's persisted metadata.
+func save_guard_state() -> void:
+	var conveyor := _get_assembly_root()
+	if not conveyor:
+		return
+	var state: Dictionary = {}
+	for side_name in ["LeftSide", "RightSide"]:
+		var side_node := get_node_or_null(side_name) as Node3D
+		if not side_node:
+			continue
+		var idx := 0
+		for child in side_node.get_children():
+			if child is SideGuard:
+				var guard := child as SideGuard
+				var key: String = side_name + "_" + str(idx)
+				state[key] = {
+					"pos_x": guard.position.x,
+					"length": guard.length,
+					"front_anchored": guard.front_anchored,
+					"back_anchored": guard.back_anchored,
+				}
+				idx += 1
+	conveyor.set_meta("_guard_state", state)
+
+
+## Restore guards from the parent conveyor's persisted state. Returns true if state was restored.
+func _restore_guard_state(side_node: Node3D, side: SideGuardsAssembly.Side) -> bool:
+	var conveyor := _get_assembly_root()
+	if not conveyor or not conveyor.has_meta("_guard_state"):
+		return false
+
+	var state: Dictionary = conveyor.get_meta("_guard_state")
+	var side_name: String = _get_side_node_name(side)
+
+	# Collect entries for this side.
+	var entries: Array[Dictionary] = []
+	var idx := 0
+	while state.has(side_name + "_" + str(idx)):
+		entries.append(state[side_name + "_" + str(idx)])
+		idx += 1
+
+	if entries.is_empty():
+		return false
+
+	# Recreate guards from saved state.
+	for entry in entries:
+		var guard := _instantiate_guard()
+		var guard_basis := Basis.IDENTITY
+		match side:
+			Side.RIGHT:
+				guard_basis = Basis(Vector3.UP, PI)
+		guard.transform = Transform3D(guard_basis, Vector3(float(entry["pos_x"]), 0, 0))
+		guard.length = float(entry["length"])
+		guard.front_anchored = bool(entry["front_anchored"])
+		guard.back_anchored = bool(entry["back_anchored"])
+		side_node.add_child(guard)
+	return true
 
 
 func _instantiate_guard() -> SideGuard:
@@ -391,35 +329,4 @@ func _instantiate_guard() -> SideGuard:
 	return guard
 
 
-func _adjust_side_guards(side_node: Node3D, side_guard_extents: Array, side: SideGuardsAssembly.Side) -> void:
-	for i in range(side_node.get_child_count()):
-		var guard = side_node.get_child(i)
-		var extent: Array = side_guard_extents[i] as Array[float]
-		var ext_start: float = extent[0]
-		var ext_end: float = extent[1]
-		var ext_length: float = ext_end - ext_start
-
-		# Procedural sideguard: origin at bottom-center of outer face.
-		# Just position at the extent center. No offset hacks needed.
-		var pos := Vector3((ext_start + ext_end) / 2.0, 0, 0)
-
-		# Mirror for right side (flip Z so lip faces inward toward belt on both sides).
-		var basis := Basis.IDENTITY
-		match side:
-			Side.RIGHT:
-				basis = Basis(Vector3.UP, PI)
-
-		guard.transform = Transform3D(basis, pos)
-		guard.length = max(0.01, ext_length)
-
-func _on_opening_changed_left() -> void:
-	if _clearing_openings or not is_inside_tree():
-		return
-	_update_side(Side.LEFT, left_side_guards_enabled)
-
-func _on_opening_changed_right() -> void:
-	if _clearing_openings or not is_inside_tree():
-		return
-	_update_side(Side.RIGHT, right_side_guards_enabled)
-
-
+#endregion

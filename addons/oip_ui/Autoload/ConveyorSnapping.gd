@@ -75,43 +75,23 @@ static func snap_selected_conveyors() -> void:
 		var snap_result := _calculate_snap_transform(conveyor, target_conveyor)
 		var snap_transform: Transform3D = snap_result.transform
 		var is_end_to_end: bool = snap_result.is_end_to_end
-		var original_side_guard_states: Dictionary = _store_side_guard_states([target_conveyor, conveyor])
-
-		# Only create side guard openings for side connections, not end-to-end.
-		var intersection_info_target := Dictionary()
-		if _has_side_guards(target_conveyor) and not is_end_to_end:
-			intersection_info_target = _calculate_conveyor_intersection_for_transform(conveyor, target_conveyor, snap_transform)
-
-		var retraction_info_snapped := Dictionary()
-		if _has_side_guards(conveyor):
-			retraction_info_snapped = _calculate_side_guard_retraction(conveyor, target_conveyor, snap_transform, is_end_to_end)
-
 		undo_redo.add_do_property(conveyor, "global_transform", snap_transform)
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
 
-		if not intersection_info_target.is_empty() and intersection_info_target.get("intersections", []).size() > 0:
-			var target_state: Dictionary = original_side_guard_states.get(target_conveyor.get_instance_id(), {})
-			_add_side_guard_undo_redo_operations(undo_redo, target_conveyor, intersection_info_target, target_state)
-
-		if not retraction_info_snapped.is_empty() and retraction_info_snapped.get("retractions", []).size() > 0:
-			var snapped_state: Dictionary = original_side_guard_states.get(conveyor.get_instance_id(), {})
-			_add_side_guard_retraction_operations(undo_redo, conveyor, retraction_info_snapped, snapped_state)
-		elif is_end_to_end and _has_side_guards(conveyor):
-			var inline_state: Dictionary = original_side_guard_states.get(conveyor.get_instance_id(), {})
-			_clear_side_guard_openings_for_inline_connection(undo_redo, conveyor, inline_state)
+		# For side connections, directly shrink target guards to create gap.
+		if not is_end_to_end:
+			var intersection_info := _calculate_conveyor_intersection_for_transform(conveyor, target_conveyor, snap_transform)
+			if not intersection_info.is_empty():
+				_shrink_guards_for_gap(undo_redo, target_conveyor, intersection_info)
 
 	undo_redo.commit_action()
 
-
-static func _store_side_guard_states(conveyors: Array[Node3D]) -> Dictionary:
-	var states: Dictionary = {}
-	for conveyor in conveyors:
-		if _has_side_guards(conveyor):
-			states[conveyor.get_instance_id()] = {
-				"left_openings": conveyor.left_side_guards_openings.duplicate(true),
-				"right_openings": conveyor.right_side_guards_openings.duplicate(true)
-			}
-	return states
+	# Save guard state after commit so all property changes have taken effect.
+	for conveyor in selected_conveyors:
+		var sg := _find_side_guards_assembly(target_conveyor)
+		if sg and sg.has_method("save_guard_state"):
+			sg.save_guard_state()
+			break
 
 
 static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D) -> Dictionary:
@@ -189,46 +169,110 @@ static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Nod
 	return {"intersections": intersections}
 
 
-static func _add_side_guard_undo_redo_operations(undo_redo: EditorUndoRedoManager, conveyor: Node3D, intersection_info: Dictionary, original_state: Dictionary) -> void:
+## Directly shrink/split guard nodes on the target conveyor to create a gap
+## where the snapped conveyor intersects.
+static func _shrink_guards_for_gap(undo_redo: EditorUndoRedoManager, conveyor: Node3D, intersection_info: Dictionary) -> void:
 	if not intersection_info.has("intersections"):
 		return
-	
+
+	var sg_assembly: Node = _find_side_guards_assembly(conveyor)
+	if not sg_assembly:
+		return
+
 	var intersections := intersection_info["intersections"] as Array
-	
+
 	for intersection in intersections:
-		var side := intersection["side"] as String
-		var position := intersection["position"] as float
-		var size := intersection["size"] as float
-		var new_opening := SideGuardOpening.new(position, size)
-		
-		if side == "left" and conveyor.left_side_guards_enabled:
-			var left_openings: Array = original_state.get("left_openings", [])
-			_add_opening_to_side(undo_redo, conveyor, "left_side_guards_openings", new_opening, left_openings)
-		elif side == "right" and conveyor.right_side_guards_enabled:
-			var right_openings: Array = original_state.get("right_openings", [])
-			_add_opening_to_side(undo_redo, conveyor, "right_side_guards_openings", new_opening, right_openings)
+		var side_str: String = intersection["side"]
+		var gap_center: float = intersection["position"]
+		var gap_size: float = intersection["size"]
+		var gap_start: float = gap_center - gap_size / 2.0
+		var gap_end: float = gap_center + gap_size / 2.0
+
+		var side_name: String = "LeftSide" if side_str == "left" else "RightSide"
+		var side_node := sg_assembly.get_node_or_null(side_name) as Node3D
+		if not side_node:
+			continue
+
+		# Find guards that overlap with the gap region and shrink/split them.
+		for child in side_node.get_children():
+			if not child is SideGuard:
+				continue
+			var guard := child as SideGuard
+			var g_front: float = guard.position.x + guard.length / 2.0
+			var g_back: float = guard.position.x - guard.length / 2.0
+
+			# No overlap with gap.
+			if g_front <= gap_start or g_back >= gap_end:
+				continue
+
+			var old_length: float = guard.length
+			var old_pos: Vector3 = guard.position
+
+			if g_back < gap_start and g_front > gap_end:
+				# Gap is entirely inside this guard — split into two.
+				# Shrink this guard to the back portion.
+				var back_length: float = gap_start - g_back
+				var back_center: float = (g_back + gap_start) / 2.0
+				undo_redo.add_do_property(guard, "length", back_length)
+				undo_redo.add_do_property(guard, "position", Vector3(back_center, 0, 0))
+				undo_redo.add_do_property(guard, "front_anchored", false)
+				undo_redo.add_undo_property(guard, "length", old_length)
+				undo_redo.add_undo_property(guard, "position", old_pos)
+				undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
+
+				# Create a new guard for the front portion.
+				var front_length: float = g_front - gap_end
+				var front_center: float = (gap_end + g_front) / 2.0
+				var new_guard: SideGuard = sg_assembly._instantiate_guard()
+				new_guard.back_anchored = false
+				var guard_basis := Basis.IDENTITY
+				if side_str == "right":
+					guard_basis = Basis(Vector3.UP, PI)
+				new_guard.transform = Transform3D(guard_basis, Vector3(front_center, 0, 0))
+				new_guard.length = front_length
+				undo_redo.add_do_method(side_node, "add_child", new_guard)
+				undo_redo.add_do_reference(new_guard)
+				undo_redo.add_undo_method(side_node, "remove_child", new_guard)
+
+			elif g_back >= gap_start:
+				# Gap overlaps the back — shrink from back.
+				var new_length: float = g_front - gap_end
+				if new_length < 0.01:
+					new_length = 0.01
+				var new_center: float = (gap_end + g_front) / 2.0
+				undo_redo.add_do_property(guard, "length", new_length)
+				undo_redo.add_do_property(guard, "position", Vector3(new_center, 0, 0))
+				undo_redo.add_do_property(guard, "back_anchored", false)
+				undo_redo.add_undo_property(guard, "length", old_length)
+				undo_redo.add_undo_property(guard, "position", old_pos)
+				undo_redo.add_undo_property(guard, "back_anchored", guard.back_anchored)
+
+			elif g_front <= gap_end:
+				# Gap overlaps the front — shrink from front.
+				var new_length: float = gap_start - g_back
+				if new_length < 0.01:
+					new_length = 0.01
+				var new_center: float = (g_back + gap_start) / 2.0
+				undo_redo.add_do_property(guard, "length", new_length)
+				undo_redo.add_do_property(guard, "position", Vector3(new_center, 0, 0))
+				undo_redo.add_do_property(guard, "front_anchored", false)
+				undo_redo.add_undo_property(guard, "length", old_length)
+				undo_redo.add_undo_property(guard, "position", old_pos)
+				undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
 
 
-static func _add_opening_to_side(undo_redo: EditorUndoRedoManager, conveyor: Node3D, property_name: String, new_opening: SideGuardOpening, original_openings: Array) -> void:
-	var new_openings := original_openings.duplicate(true)
-	
-	var duplicate_found := false
-	for existing_opening in new_openings:
-		if existing_opening != null and abs(existing_opening.position - new_opening.position) < 0.1 and abs(existing_opening.size - new_opening.size) < 0.1:
-			duplicate_found = true
-			break
-	
-	if not duplicate_found:
-		new_openings.append(new_opening)
-		undo_redo.add_do_property(conveyor, property_name, new_openings)
-		undo_redo.add_undo_property(conveyor, property_name, original_openings)
+## Find the SideGuardsAssembly node on a conveyor.
+static func _find_side_guards_assembly(conveyor: Node3D) -> Node:
+	for path in ["%SideGuardsAssembly", "Conveyor/SideGuardsAssembly", "%Conveyor/%SideGuardsAssembly"]:
+		var node := conveyor.get_node_or_null(path)
+		if node:
+			return node
+	return null
 
 
 static func _has_side_guards(conveyor: Node3D) -> bool:
-	return ("right_side_guards_enabled" in conveyor and 
-			"left_side_guards_enabled" in conveyor and
-			"right_side_guards_openings" in conveyor and
-			"left_side_guards_openings" in conveyor)
+	return ("right_side_guards_enabled" in conveyor and
+			"left_side_guards_enabled" in conveyor)
 
 
 static func _is_conveyor(node: Node) -> bool:
@@ -334,158 +378,6 @@ static func _apply_inclination_to_basis(basis: Basis, inclination: float) -> Bas
 	
 	return new_basis 
 
-
-
-static func _calculate_side_guard_retraction(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D, is_end_to_end: bool) -> Dictionary:
-	if not _has_side_guards(snapped_conveyor):
-		return {}
-
-	# End-to-end connections don't need retraction — guards naturally end at the conveyor edge.
-	if is_end_to_end:
-		return {}
-
-	var snapped_size := _get_conveyor_size(snapped_conveyor)
-	var target_transform := target_conveyor.global_transform
-	var target_size := _get_conveyor_size(target_conveyor)
-
-	var snapped_inverse := snapped_transform.affine_inverse()
-	var target_local_transform := snapped_inverse * target_transform
-
-	var target_half_length := target_size.x / 2.0
-	var target_half_width := target_size.z / 2.0
-	var snapped_half_length := snapped_size.x / 2.0
-	var snapped_half_width := snapped_size.z / 2.0
-
-	var retractions := []
-	var target_center_local := target_local_transform.origin
-	var target_belt_center := target_center_local.x
-
-	var target_width := target_size.z
-	var margin := 0.15
-	var gap_size := target_width + margin
-	var recess_start := target_belt_center - gap_size / 2.0
-	var recess_end := target_belt_center + gap_size / 2.0
-
-	if _has_spur_angles(snapped_conveyor):
-		var spur_angles := _get_spur_angles(snapped_conveyor)
-		var spur_angle: float = spur_angles.downstream
-		if abs(spur_angle) > 0.001:
-			var corners: Array[Vector3] = []
-			corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width)
-			corners.append(target_local_transform.origin + target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width)
-			corners.append(target_local_transform.origin - target_local_transform.basis.x * target_half_length - target_local_transform.basis.z * target_half_width)
-			corners.append(target_local_transform.origin - target_local_transform.basis.x * target_half_length + target_local_transform.basis.z * target_half_width)
-
-			var left_x_range := _get_x_range_at_z(corners, -snapped_half_width)
-			var right_x_range := _get_x_range_at_z(corners, snapped_half_width)
-
-			var has_left_spur_retraction := false
-			var has_right_spur_retraction := false
-
-			if left_x_range.size() == 2:
-				has_left_spur_retraction = true
-				retractions.append({"side": "left", "start_position": left_x_range[0] - margin, "end_position": left_x_range[1] + margin})
-
-			if right_x_range.size() == 2:
-				has_right_spur_retraction = true
-				retractions.append({"side": "right", "start_position": right_x_range[0] - margin, "end_position": right_x_range[1] + margin})
-
-			if not has_left_spur_retraction:
-				retractions.append({"side": "left", "start_position": recess_start, "end_position": recess_end})
-			if not has_right_spur_retraction:
-				retractions.append({"side": "right", "start_position": recess_start, "end_position": recess_end})
-
-	if retractions.is_empty():
-		retractions.append({
-			"side": "left",
-			"start_position": recess_start,
-			"end_position": recess_end
-		})
-		retractions.append({
-			"side": "right",
-			"start_position": recess_start,
-			"end_position": recess_end
-		})
-
-	return {"retractions": retractions}
-
-
-static func _add_side_guard_retraction_operations(undo_redo: EditorUndoRedoManager, conveyor: Node3D, retraction_info: Dictionary, original_state: Dictionary) -> void:
-	if not retraction_info.has("retractions"):
-		return
-	
-	var retractions := retraction_info["retractions"] as Array
-	
-	for retraction in retractions:
-		var side := retraction["side"] as String
-		var start_pos := retraction["start_position"] as float
-		var end_pos := retraction["end_position"] as float
-		
-		if side == "left" and conveyor.left_side_guards_enabled:
-			var left_openings: Array = original_state.get("left_openings", [])
-			var new_openings := _add_retraction_opening(left_openings, start_pos, end_pos)
-			undo_redo.add_do_property(conveyor, "left_side_guards_openings", new_openings)
-			undo_redo.add_undo_property(conveyor, "left_side_guards_openings", left_openings)
-		
-		elif side == "right" and conveyor.right_side_guards_enabled:
-			var right_openings: Array = original_state.get("right_openings", [])
-			var new_openings := _add_retraction_opening(right_openings, start_pos, end_pos)
-			undo_redo.add_do_property(conveyor, "right_side_guards_openings", new_openings)
-			undo_redo.add_undo_property(conveyor, "right_side_guards_openings", right_openings)
-
-
-static func _add_retraction_opening(original_openings: Array, start_pos: float, end_pos: float) -> Array[SideGuardOpening]:
-	var new_openings := original_openings.duplicate(true)
-	var center_pos := (start_pos + end_pos) / 2.0
-	var opening_size := end_pos - start_pos
-	var new_opening := SideGuardOpening.new(center_pos, opening_size)
-	
-	var merged := false
-	for i in range(new_openings.size()):
-		var existing := new_openings[i] as SideGuardOpening
-		if existing != null:
-			var existing_start := existing.position - existing.size / 2.0
-			var existing_end := existing.position + existing.size / 2.0
-			
-			if (start_pos <= existing_end + 0.1) and (end_pos >= existing_start - 0.1):
-				var merged_start: float = min(start_pos, existing_start)
-				var merged_end: float = max(end_pos, existing_end)
-				new_openings[i] = SideGuardOpening.new((merged_start + merged_end) / 2.0, merged_end - merged_start)
-				merged = true
-				break
-	
-	if not merged:
-		new_openings.append(new_opening)
-	
-	return new_openings
-
-
-static func _clear_side_guard_openings_for_inline_connection(undo_redo: EditorUndoRedoManager, conveyor: Node3D, original_state: Dictionary) -> void:
-	if not _has_side_guards(conveyor):
-		return
-	
-	var side_guards_assembly: Node = null
-	if conveyor.has_node("%SideGuardsAssembly"):
-		side_guards_assembly = conveyor.get_node("%SideGuardsAssembly")
-	elif conveyor.has_node("Conveyor/SideGuardsAssembly"):
-		side_guards_assembly = conveyor.get_node("Conveyor/SideGuardsAssembly")
-	elif conveyor.has_node("%Conveyor/%SideGuardsAssembly"):
-		side_guards_assembly = conveyor.get_node("%Conveyor/%SideGuardsAssembly")
-	
-	if not side_guards_assembly:
-		return
-		
-	var current_left_openings: Variant = side_guards_assembly.left_side_guards_openings
-	var current_right_openings: Variant = side_guards_assembly.right_side_guards_openings
-	
-	if current_left_openings.size() > 0 or current_right_openings.size() > 0:
-		var empty_left_openings: Array[SideGuardOpening] = []
-		var empty_right_openings: Array[SideGuardOpening] = []
-		
-		undo_redo.add_do_property(side_guards_assembly, "left_side_guards_openings", empty_left_openings)
-		undo_redo.add_do_property(side_guards_assembly, "right_side_guards_openings", empty_right_openings)
-		undo_redo.add_undo_property(side_guards_assembly, "left_side_guards_openings", current_left_openings)
-		undo_redo.add_undo_property(side_guards_assembly, "right_side_guards_openings", current_right_openings)
 
 
 static func _is_curved_conveyor(conveyor: Node3D) -> bool:

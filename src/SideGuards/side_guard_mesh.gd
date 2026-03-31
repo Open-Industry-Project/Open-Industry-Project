@@ -17,7 +17,8 @@ static var _metal_texture: Texture2D = preload("res://assets/3DModels/Textures/M
 
 ## Create a flat wall sideguard mesh.
 ## [param length] Length along the conveyor X axis.
-static func create(length: float) -> ArrayMesh:
+## [param cap_front] If false, suppresses the front (+X) end cap.
+static func create(length: float, cap_front: bool = true) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
@@ -78,7 +79,8 @@ static func create(length: float) -> ArrayMesh:
 		])
 
 	# Front cap (+X)
-	_add_cap(verts, norms, uvs, indices, profile, half_l, Vector3(1, 0, 0))
+	if cap_front:
+		_add_cap(verts, norms, uvs, indices, profile, half_l, Vector3(1, 0, 0))
 	# Back cap (-X)
 	_add_cap(verts, norms, uvs, indices, profile, -half_l, Vector3(-1, 0, 0))
 

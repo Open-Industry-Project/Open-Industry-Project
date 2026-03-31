@@ -54,22 +54,12 @@ var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 		return _side_guards_property_cached_get(&"right_side_guards_enabled", right_side_guards_enabled)
 	set(value):
 		right_side_guards_enabled = _side_guards_property_cached_set(&"right_side_guards_enabled", value, right_side_guards_enabled)
-@export var right_side_guards_openings: Array[SideGuardOpening] = []:
-	get:
-		return _side_guards_property_cached_get(&"right_side_guards_openings", right_side_guards_openings)
-	set(value):
-		right_side_guards_openings = _side_guards_property_cached_set(&"right_side_guards_openings", value, right_side_guards_openings)
 @export_group("Left Side Guards", "left_side_guards_")
 @export var left_side_guards_enabled: bool = true:
 	get:
 		return _side_guards_property_cached_get(&"left_side_guards_enabled", left_side_guards_enabled)
 	set(value):
 		left_side_guards_enabled = _side_guards_property_cached_set(&"left_side_guards_enabled", value, left_side_guards_enabled)
-@export var left_side_guards_openings: Array[SideGuardOpening] = []:
-	get:
-		return _side_guards_property_cached_get(&"left_side_guards_openings", left_side_guards_openings)
-	set(value):
-		left_side_guards_openings = _side_guards_property_cached_set(&"left_side_guards_openings", value, left_side_guards_openings)
 #endregion
 
 #region ConveyorLegsAssembly properties

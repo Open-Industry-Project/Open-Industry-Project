@@ -8,6 +8,19 @@ extends MeshInstance3D
 		length = value
 		_rebuild()
 
+## Whether to generate a cap at the front (+X) end.
+var cap_front: bool = true:
+	set(value):
+		cap_front = value
+		_rebuild()
+
+## When true, the front (+X) edge tracks the conveyor edge on resize.
+## Set to false when the user manually adjusts this edge via gizmo or snapping.
+@export_storage var front_anchored: bool = true
+
+## When true, the back (-X) edge tracks the conveyor edge on resize.
+@export_storage var back_anchored: bool = true
+
 static var _shared_material: ShaderMaterial
 
 
@@ -24,7 +37,7 @@ func _rebuild() -> void:
 	if length <= 0 or not is_inside_tree():
 		return
 	_ensure_shared_material()
-	mesh = SideGuardMesh.create(length)
+	mesh = SideGuardMesh.create(length, cap_front)
 	set_surface_override_material(0, _shared_material)
 	set_instance_shader_parameter("Scale", 1.0)
 	_update_collision_shape()
