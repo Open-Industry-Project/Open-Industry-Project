@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://xvxpq3ms1hsh" path="res://src/ConveyorAssembly/roller_conveyor_assembly.gd" id="1_upkoq"]
 [ext_resource type="PackedScene" uid="uid://b2hnylsj67c5m" path="res://parts/ConveyorLegC.tscn" id="2_a0feq"]
 [ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="2_rxjsx"]
-[ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="3_rxjsx"]
+[ext_resource type="PackedScene" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="3_rxjsx"]
 [ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="4_xgosv"]
 
 [node name="RollerConveyorAssembly" type="Node3D" unique_id=1360212875]

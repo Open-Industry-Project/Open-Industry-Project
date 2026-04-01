@@ -9,6 +9,15 @@ friction = 0.5
 
 [node name="BeltSpurConveyorAssembly" type="Node3D" unique_id=890144113]
 script = ExtResource("1_script")
+belt_color = Color(1, 1, 1, 1)
+belt_texture = 0
+speed = 2.0
+belt_physics_material = SubResource("PhysicsMaterial_spur")
+enable_comms = false
+speed_tag_group_name = ""
+speed_tag_name = ""
+running_tag_group_name = ""
+running_tag_name = ""
 _cached_properties = {
 &"belt_color": Color(1, 1, 1, 1),
 &"belt_physics_material": SubResource("PhysicsMaterial_spur"),

@@ -2,12 +2,18 @@
 
 [ext_resource type="Script" uid="uid://cjubipslu5e08" path="res://src/ConveyorAssembly/roller_spur_conveyor_assembly.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="2_conv"]
-[ext_resource type="PackedScene" uid="uid://pf3t2vk7fmn" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="3_sg"]
+[ext_resource type="PackedScene" path="res://parts/assemblies/SideGuardsAssembly.tscn" id="3_sg"]
 [ext_resource type="PackedScene" uid="uid://cg4ii4p426pqb" path="res://parts/assemblies/ConveyorLegsAssembly.tscn" id="4_legs"]
 
 [node name="RollerSpurConveyorAssembly" type="Node3D" unique_id=1896784274]
 script = ExtResource("1_script")
 leg_model_grabs_offset = 0.132
+speed = 2.0
+enable_comms = false
+speed_tag_group_name = ""
+speed_tag_name = ""
+running_tag_group_name = ""
+running_tag_name = ""
 angle_downstream = 0.5235987755982988
 _cached_properties = {
 &"enable_comms": false,
