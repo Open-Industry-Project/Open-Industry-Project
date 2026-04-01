@@ -6,6 +6,7 @@ const HANDLE_COLOR = Color(1, 0.5, 0, 1)
 const HANDLE_COLOR_HOVER = Color(1, 0.8, 0, 1)
 
 var _initial_state = {}
+var sideguard_mode := false
 
 func _get_gizmo_name():
 	return "ConveyorGizmo"
@@ -65,36 +66,38 @@ func _redraw(gizmo: EditorNode3DGizmo):
 		Vector3(0, 0, -size.z/2)
 	]
 
-	for i in range(all_handles.size()):
-		handles.append(all_handles[i])
-		handle_ids.append(i)
+	if not sideguard_mode:
+		for i in range(all_handles.size()):
+			handles.append(all_handles[i])
+			handle_ids.append(i)
 
-	if handles.size() > 0:
-		gizmo.add_handles(handles, get_material("handles", gizmo), handle_ids)
+		if handles.size() > 0:
+			gizmo.add_handles(handles, get_material("handles", gizmo), handle_ids)
 
-	# Add sideguard edge handles on the assembly level.
-	# Handle IDs: 100=left front, 101=left back, 102=right front, 103=right back.
-	var sg_guards := _get_all_guards(node)
-	if not sg_guards.is_empty():
-		var sg_handles := PackedVector3Array()
-		var sg_ids := PackedInt32Array()
-		for entry in sg_guards:
-			var guard: SideGuard = entry["guard"]
-			var side_node: Node3D = entry["side_node"]
-			var front_x: float = guard.position.x + guard.length / 2.0
-			var back_x: float = guard.position.x - guard.length / 2.0
-			var y_mid: float = SideGuardMesh.WALL_HEIGHT / 2.0
-			# Transform from side-node space to assembly space.
-			var sg_assembly: Node3D = side_node.get_parent()
-			var to_assembly: Transform3D = Transform3D.IDENTITY
-			if sg_assembly:
-				to_assembly = sg_assembly.transform
-			var side_xform: Transform3D = to_assembly * side_node.transform
-			sg_handles.append(side_xform * Vector3(front_x, y_mid, 0))
-			sg_ids.append(entry["front_id"])
-			sg_handles.append(side_xform * Vector3(back_x, y_mid, 0))
-			sg_ids.append(entry["back_id"])
-		gizmo.add_handles(sg_handles, get_material("handles", gizmo), sg_ids)
+	if sideguard_mode:
+		# Add sideguard edge handles on the assembly level.
+		# Handle IDs: 100=left front, 101=left back, 102=right front, 103=right back.
+		var sg_guards := _get_all_guards(node)
+		if not sg_guards.is_empty():
+			var sg_handles := PackedVector3Array()
+			var sg_ids := PackedInt32Array()
+			for entry in sg_guards:
+				var guard: SideGuard = entry["guard"]
+				var side_node: Node3D = entry["side_node"]
+				var front_x: float = guard.position.x + guard.length / 2.0
+				var back_x: float = guard.position.x - guard.length / 2.0
+				var y_mid: float = SideGuardMesh.WALL_HEIGHT / 2.0
+				# Transform from side-node space to assembly space.
+				var sg_assembly: Node3D = side_node.get_parent()
+				var to_assembly: Transform3D = Transform3D.IDENTITY
+				if sg_assembly:
+					to_assembly = sg_assembly.transform
+				var side_xform: Transform3D = to_assembly * side_node.transform
+				sg_handles.append(side_xform * Vector3(front_x, y_mid, 0))
+				sg_ids.append(entry["front_id"])
+				sg_handles.append(side_xform * Vector3(back_x, y_mid, 0))
+				sg_ids.append(entry["back_id"])
+			gizmo.add_handles(sg_handles, get_material("handles", gizmo), sg_ids)
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool):
 	if handle_id >= 100:
@@ -263,6 +266,8 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 				undo_redo.add_undo_property(guard, "back_anchored", true)
 			undo_redo.add_undo_property(guard, "length", _initial_state["length"])
 			undo_redo.add_undo_property(guard, "position", _initial_state["position"])
+			undo_redo.add_do_method(node, "update_gizmos")
+			undo_redo.add_undo_method(node, "update_gizmos")
 			undo_redo.commit_action()
 			# Save after commit so properties have taken effect.
 			var sg_assembly: Node = _initial_state["side_node"].get_parent()
@@ -410,12 +415,13 @@ func _try_merge_guards(conveyor_node: Node3D, guard: SideGuard, side_node: Node3
 	undo_redo.add_do_method(side_node, "remove_child", nearest)
 	undo_redo.add_undo_method(side_node, "add_child", nearest)
 	undo_redo.add_undo_reference(nearest)
+	undo_redo.add_do_method(conveyor_node, "update_gizmos")
+	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
 
 	undo_redo.commit_action()
 
 	if sg_assembly and sg_assembly.has_method("save_guard_state"):
 		sg_assembly.save_guard_state()
-	conveyor_node.update_gizmos()
 	return true
 
 
@@ -469,13 +475,14 @@ func _split_guard_at_center(conveyor_node: Node3D, guard: SideGuard, side_node: 
 	undo_redo.add_do_method(side_node, "add_child", new_guard)
 	undo_redo.add_do_reference(new_guard)
 	undo_redo.add_undo_method(side_node, "remove_child", new_guard)
+	undo_redo.add_do_method(conveyor_node, "update_gizmos")
+	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
 
 	undo_redo.commit_action()
 
 	# Save state and refresh gizmos.
 	if sg_assembly and sg_assembly.has_method("save_guard_state"):
 		sg_assembly.save_guard_state()
-	conveyor_node.update_gizmos()
 
 
 ## Find all SideGuard nodes on a conveyor assembly.
