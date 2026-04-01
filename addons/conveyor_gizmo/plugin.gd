@@ -12,7 +12,7 @@ func _enter_tree():
 
 	_toggle_button = CheckButton.new()
 	_toggle_button.text = "Sideguards"
-	_toggle_button.tooltip_text = "Toggle sideguard editing handles"
+	_toggle_button.tooltip_text = "Toggle sideguard editing handles.\n\nDrag a handle to resize a guard and create an opening.\nCtrl+Click to split a guard into two halves.\nShift+Click to merge with an adjacent guard, or re-anchor to the conveyor edge."
 	_toggle_button.toggled.connect(_on_sideguard_toggle)
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _toggle_button)
 
