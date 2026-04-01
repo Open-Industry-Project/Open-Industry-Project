@@ -13,28 +13,6 @@ var _has_instantiated: bool = false
 var _cached_side_guards_property_values: Dictionary[StringName, Variant] = {}
 var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
-#region SideGuardsAssembly properties
-@export_category(SIDE_GUARDS_SCRIPT_FILENAME)
-@export_group("Right Side Guards", "right_side_guards_")
-@export var right_side_guards_enabled: bool = true:
-	get:
-		return _side_guards_property_cached_get(&"right_side_guards_enabled", right_side_guards_enabled)
-	set(value):
-		right_side_guards_enabled = _side_guards_property_cached_set(&"right_side_guards_enabled", value, right_side_guards_enabled)
-@export_group("Left Side Guards", "left_side_guards_")
-@export var left_side_guards_enabled: bool = true:
-	get:
-		return _side_guards_property_cached_get(&"left_side_guards_enabled", left_side_guards_enabled)
-	set(value):
-		left_side_guards_enabled = _side_guards_property_cached_set(&"left_side_guards_enabled", value, left_side_guards_enabled)
-@export_storage
-var _guard_state: Dictionary = {}:
-	get:
-		return _side_guards_property_cached_get(&"_guard_state", _guard_state)
-	set(value):
-		_guard_state = _side_guards_property_cached_set(&"_guard_state", value, _guard_state)
-#endregion
-
 #region ConveyorLegsAssembly properties
 @export_category(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME)
 @export_group("Conveyor Legs", "")
@@ -131,6 +109,28 @@ var leg_model_grabs_offset: float = 0.392:
 		leg_model_grabs_offset = _legs_property_cached_set(&"leg_model_grabs_offset", value, leg_model_grabs_offset)
 #endregion
 
+#region SideGuardsAssembly properties
+@export_category(SIDE_GUARDS_SCRIPT_FILENAME)
+@export_group("Right Side Guards", "right_side_guards_")
+@export var right_side_guards_enabled: bool = true:
+	get:
+		return _side_guards_property_cached_get(&"right_side_guards_enabled", right_side_guards_enabled)
+	set(value):
+		right_side_guards_enabled = _side_guards_property_cached_set(&"right_side_guards_enabled", value, right_side_guards_enabled)
+@export_group("Left Side Guards", "left_side_guards_")
+@export var left_side_guards_enabled: bool = true:
+	get:
+		return _side_guards_property_cached_get(&"left_side_guards_enabled", left_side_guards_enabled)
+	set(value):
+		left_side_guards_enabled = _side_guards_property_cached_set(&"left_side_guards_enabled", value, left_side_guards_enabled)
+@export_storage
+var _guard_state: Dictionary = {}:
+	get:
+		return _side_guards_property_cached_get(&"_guard_state", _guard_state)
+	set(value):
+		_guard_state = _side_guards_property_cached_set(&"_guard_state", value, _guard_state)
+#endregion
+
 
 func _ready() -> void:
 	if has_node("%SideGuardsAssembly"):
@@ -185,6 +185,37 @@ func _collision_repositioned(collision_point: Vector3, collision_normal: Vector3
 func _collision_repositioned_undo(saved_data: Variant) -> void:
 	if saved_data is Plane and _has_instantiated and has_node("%ConveyorLegsAssembly"):
 		%ConveyorLegsAssembly.restore_floor_plane(saved_data)
+
+
+func _get_property_list() -> Array[Dictionary]:
+	var props: Array[Dictionary] = []
+	# Dynamic sideguard guard properties — sideguards are the last @export
+	# category, so these naturally extend that section.
+	if _has_instantiated and has_node("%SideGuardsAssembly"):
+		props.append_array(%SideGuardsAssembly._get_property_list())
+	props.append_array(super._get_property_list())
+	return props
+
+
+func _set(property: StringName, value: Variant) -> bool:
+	if _is_side_guard_detail_property(property):
+		if _has_instantiated and has_node("%SideGuardsAssembly"):
+			%SideGuardsAssembly.set(property, value)
+		return true
+	return super._set(property, value)
+
+
+func _get(property: StringName) -> Variant:
+	if _is_side_guard_detail_property(property):
+		if _has_instantiated and has_node("%SideGuardsAssembly"):
+			return %SideGuardsAssembly.get(property)
+		return null
+	return super._get(property)
+
+
+static func _is_side_guard_detail_property(property: StringName) -> bool:
+	var p := str(property)
+	return p.begins_with("left_side_guards_guard_") or p.begins_with("right_side_guards_guard_")
 
 
 func _validate_property(property: Dictionary) -> void:

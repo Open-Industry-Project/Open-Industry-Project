@@ -34,6 +34,8 @@ var _last_side_global_transforms: Dictionary = {}
 var _conveyor_connected: bool = false
 ## Persisted guard layout (forwarded to/from the assembly root for serialization).
 var _guard_state: Dictionary = {}
+## Cached guard count per side — used to detect when property list needs refresh.
+var _last_guard_count: Dictionary = {}
 
 
 func _notification(what: int) -> void:
@@ -106,6 +108,7 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 	# Store extents and global transform for next resize delta.
 	_last_extents[side] = extents
 	_last_side_global_transforms[side] = side_node.global_transform
+	_check_guard_count_changed()
 
 
 func _clear_side(side: SideGuardsAssembly.Side) -> void:
@@ -274,6 +277,7 @@ func save_guard_state() -> void:
 				}
 				idx += 1
 	_guard_state = state
+	_check_guard_count_changed()
 
 
 ## Restore guards from persisted state. Returns true if state was restored.
@@ -327,5 +331,129 @@ func _instantiate_guard() -> SideGuard:
 	guard.add_child(body)
 	return guard
 
+
+#endregion
+
+
+#region Dynamic inspector properties
+
+func _get_property_list() -> Array[Dictionary]:
+	var props: Array[Dictionary] = []
+	for side_data in _get_side_data():
+		var guards := _get_guards_for_side(side_data["side"])
+		if guards.is_empty():
+			continue
+		props.append({
+			"name": side_data["label"],
+			"type": TYPE_NIL,
+			"usage": PROPERTY_USAGE_GROUP,
+			"hint_string": side_data["prefix"],
+		})
+		for idx in guards.size():
+			var p: String = side_data["prefix"] + "guard_%d_" % (idx + 1)
+			props.append({
+				"name": p + "start",
+				"type": TYPE_FLOAT,
+				"usage": PROPERTY_USAGE_EDITOR,
+				"hint": PROPERTY_HINT_NONE,
+				"hint_string": "suffix:m",
+			})
+			props.append({
+				"name": p + "end",
+				"type": TYPE_FLOAT,
+				"usage": PROPERTY_USAGE_EDITOR,
+				"hint": PROPERTY_HINT_NONE,
+				"hint_string": "suffix:m",
+			})
+	return props
+
+
+func _set(property: StringName, value: Variant) -> bool:
+	var parsed := _parse_guard_property(property)
+	if parsed.is_empty():
+		return false
+	var guard: SideGuard = parsed["guard"]
+	var side: SideGuardsAssembly.Side = parsed["side"]
+	var origin: float = _get_side_extents(side)[0]
+	var front: float = guard.position.x + guard.length / 2.0
+	var back: float = guard.position.x - guard.length / 2.0
+	var val: float = value
+	match parsed["field"]:
+		"end":
+			front = val + origin
+		"start":
+			back = val + origin
+	var new_length: float = max(0.01, front - back)
+	var new_center: float = (front + back) / 2.0
+	guard.length = new_length
+	guard.position = Vector3(new_center, guard.position.y, guard.position.z)
+	save_guard_state()
+	return true
+
+
+func _get(property: StringName) -> Variant:
+	var parsed := _parse_guard_property(property)
+	if parsed.is_empty():
+		return null
+	var guard: SideGuard = parsed["guard"]
+	var side: SideGuardsAssembly.Side = parsed["side"]
+	var origin: float = _get_side_extents(side)[0]
+	match parsed["field"]:
+		"end":
+			return guard.position.x + guard.length / 2.0 - origin
+		"start":
+			return guard.position.x - guard.length / 2.0 - origin
+	return null
+
+
+func _get_side_data() -> Array[Dictionary]:
+	return [
+		{"side": Side.LEFT, "prefix": "left_side_guards_", "label": "Left Side Guards"},
+		{"side": Side.RIGHT, "prefix": "right_side_guards_", "label": "Right Side Guards"},
+	]
+
+
+func _get_guards_for_side(side: SideGuardsAssembly.Side) -> Array[SideGuard]:
+	var result: Array[SideGuard] = []
+	var side_node := get_node_or_null(NodePath(_get_side_node_name(side))) as Node3D
+	if not side_node:
+		return result
+	for child in side_node.get_children():
+		if child is SideGuard:
+			result.append(child)
+	return result
+
+
+func _parse_guard_property(property: StringName) -> Dictionary:
+	var prop := str(property)
+	for side_data in _get_side_data():
+		var prefix: String = side_data["prefix"] + "guard_"
+		if not prop.begins_with(prefix):
+			continue
+		var remainder: String = prop.substr(prefix.length())
+		var sep := remainder.find("_")
+		if sep < 0:
+			return {}
+		var idx := int(remainder.left(sep)) - 1
+		var field: String = remainder.substr(sep + 1)
+		if field not in ["start", "end"]:
+			return {}
+		var side: SideGuardsAssembly.Side = side_data["side"]
+		var guards := _get_guards_for_side(side)
+		if idx < 0 or idx >= guards.size():
+			return {}
+		return {"guard": guards[idx], "field": field, "side": side}
+	return {}
+
+
+func _check_guard_count_changed() -> void:
+	var changed := false
+	for side in [Side.LEFT, Side.RIGHT]:
+		var count := _get_guards_for_side(side).size()
+		if _last_guard_count.get(side, -1) != count:
+			_last_guard_count[side] = count
+			changed = true
+	if changed:
+		notify_property_list_changed()
 
 #endregion
