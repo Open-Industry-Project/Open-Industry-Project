@@ -408,6 +408,9 @@ func _set(property: StringName, value: Variant) -> bool:
 	guard.length = new_length
 	guard.position = Vector3(new_center, guard.position.y, guard.position.z)
 	save_guard_state()
+	var parent := get_parent()
+	if parent:
+		parent.update_gizmos()
 	return true
 
 

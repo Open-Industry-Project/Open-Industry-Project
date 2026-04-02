@@ -152,6 +152,7 @@ func _ready() -> void:
 		_cached_legs_property_values.clear()
 
 	_has_instantiated = true
+	update_gizmos()
 	call_deferred("_ensure_side_guards_updated")
 	super._ready()
 
@@ -201,6 +202,7 @@ func _set(property: StringName, value: Variant) -> bool:
 	if _is_side_guard_detail_property(property):
 		if _has_instantiated and has_node("%SideGuardsAssembly"):
 			%SideGuardsAssembly.set(property, value)
+			update_gizmos()
 		return true
 	return super._set(property, value)
 

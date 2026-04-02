@@ -251,6 +251,7 @@ func _set(property: StringName, value: Variant) -> bool:
 	if _is_side_guard_detail_property(property):
 		if _has_instantiated and is_instance_valid(%SideGuardsAssembly):
 			%SideGuardsAssembly.set(property, value)
+			update_gizmos()
 		return true
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
