@@ -175,19 +175,27 @@ func _ready() -> void:
 		main_mesh_instance.mesh = main_mesh_instance.mesh.duplicate()
 
 	# Create inline end collision bodies.
-	_end_body1 = _create_end_body("EndBody1")
-	_end_body2 = _create_end_body("EndBody2")
-	add_child(_end_body1)
-	add_child(_end_body2)
+	_end_body1 = get_node_or_null("EndBody1") as StaticBody3D
+	if not _end_body1:
+		_end_body1 = _create_end_body("EndBody1")
+		add_child(_end_body1)
+	_end_body2 = get_node_or_null("EndBody2") as StaticBody3D
+	if not _end_body2:
+		_end_body2 = _create_end_body("EndBody2")
+		add_child(_end_body2)
 
-	_frame_mesh_instance = MeshInstance3D.new()
-	_frame_mesh_instance.name = "FrameMesh"
-	add_child(_frame_mesh_instance)
+	_frame_mesh_instance = get_node_or_null("FrameMesh") as MeshInstance3D
+	if not _frame_mesh_instance:
+		_frame_mesh_instance = MeshInstance3D.new()
+		_frame_mesh_instance.name = "FrameMesh"
+		add_child(_frame_mesh_instance)
 
-	_shadow_plate = MeshInstance3D.new()
-	_shadow_plate.name = "ShadowPlate"
-	_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-	add_child(_shadow_plate)
+	_shadow_plate = get_node_or_null("ShadowPlate") as MeshInstance3D
+	if not _shadow_plate:
+		_shadow_plate = MeshInstance3D.new()
+		_shadow_plate.name = "ShadowPlate"
+		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		add_child(_shadow_plate)
 
 	_recalculate_speeds()
 	_update_belt_ends()

@@ -161,14 +161,18 @@ func _ready() -> void:
 
 	# Create frame mesh node.
 	_metal_material = ConveyorFrameMesh.create_material()
-	_frame_mesh_instance = MeshInstance3D.new()
-	_frame_mesh_instance.name = "FrameMesh"
-	add_child(_frame_mesh_instance)
+	_frame_mesh_instance = get_node_or_null("FrameMesh") as MeshInstance3D
+	if not _frame_mesh_instance:
+		_frame_mesh_instance = MeshInstance3D.new()
+		_frame_mesh_instance.name = "FrameMesh"
+		add_child(_frame_mesh_instance)
 
-	_shadow_plate = MeshInstance3D.new()
-	_shadow_plate.name = "ShadowPlate"
-	_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-	add_child(_shadow_plate)
+	_shadow_plate = get_node_or_null("ShadowPlate") as MeshInstance3D
+	if not _shadow_plate:
+		_shadow_plate = MeshInstance3D.new()
+		_shadow_plate.name = "ShadowPlate"
+		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		add_child(_shadow_plate)
 
 	_mesh_regeneration_needed = true
 	_update_all_components()
