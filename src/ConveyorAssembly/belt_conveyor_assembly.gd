@@ -192,6 +192,9 @@ func _ready() -> void:
 		%SideGuardsAssembly.set(property, value)
 	_cached_side_guards_property_values.clear()
 
+	if is_instance_valid(%Conveyor) and "size" in %Conveyor:
+		%Conveyor.size = size
+
 	if not %ConveyorLegsAssembly.property_list_changed.is_connected(notify_property_list_changed):
 		%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
 
@@ -201,8 +204,7 @@ func _ready() -> void:
 	_cached_legs_property_values.clear()
 
 	_has_instantiated = true
-	if is_instance_valid(%Conveyor) and "size" in %Conveyor:
-		%Conveyor.size = size
+	update_gizmos()
 	call_deferred("_ensure_side_guards_updated")
 
 

@@ -13,18 +13,14 @@ enum Side
 @export var right_side_guards_enabled: bool = true:
 	set(value):
 		right_side_guards_enabled = value
-		if not is_inside_tree():
-			return
-		_update_side(Side.RIGHT, right_side_guards_enabled)
+		_request_update()
 
 @export_subgroup("Left Side Guards", "left_side_guards_")
 ## If [code]true[/code], automatically generate side guards on the left-hand side of the conveyor.
 @export var left_side_guards_enabled: bool = true:
 	set(value):
 		left_side_guards_enabled = value
-		if not is_inside_tree():
-			return
-		_update_side(Side.LEFT, left_side_guards_enabled)
+		_request_update()
 
 
 ## Stored last-known conveyor extents per side, used to detect resize deltas.
@@ -36,6 +32,11 @@ var _conveyor_connected: bool = false
 var _guard_state: Dictionary = {}
 ## Cached guard count per side — used to detect when property list needs refresh.
 var _last_guard_count: Dictionary = {}
+
+
+func _ready() -> void:
+	_last_extents = {}
+	_last_side_global_transforms = {}
 
 
 func _notification(what: int) -> void:
@@ -71,6 +72,20 @@ func _disconnect_conveyor_signals() -> void:
 		conveyor.size_changed.disconnect(_on_conveyor_size_changed)
 
 
+var _update_pending: bool = false
+
+
+func _request_update() -> void:
+	if not _update_pending and is_inside_tree():
+		_update_pending = true
+		call_deferred("_deferred_update")
+
+
+func _deferred_update() -> void:
+	_update_pending = false
+	_update_side_guards()
+
+
 func _on_conveyor_size_changed() -> void:
 	_update_side_guards()
 
@@ -78,9 +93,11 @@ func _on_conveyor_size_changed() -> void:
 func _update_side_guards() -> void:
 	if not is_inside_tree():
 		return
+	_update_pending = false
 	transform = Transform3D()
 	_update_side(Side.LEFT, left_side_guards_enabled)
 	_update_side(Side.RIGHT, right_side_guards_enabled)
+	save_guard_state()
 
 
 func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
@@ -90,9 +107,9 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 		_clear_side(side)
 		return
 	var side_node: Node3D = _ensure_side(side)
-	var old_side_global: Transform3D = _last_side_global_transforms.get(side, Transform3D.IDENTITY)
 	side_node.transform = _get_side_node_transform(side)
 	var new_side_global: Transform3D = side_node.global_transform
+	var old_side_global: Transform3D = _last_side_global_transforms.get(side, new_side_global)
 
 	var extents: Array[float] = _get_side_extents(side)
 	if side_node.get_child_count() == 0:
@@ -242,6 +259,9 @@ func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, e
 			g_back = (global_remap * Vector3(g_back, 0, 0)).x
 		elif abs(g_back - old_back) < 0.01:
 			g_back = new_back
+
+		g_front = minf(g_front, new_front)
+		g_back = maxf(g_back, new_back)
 
 		var new_length: float = max(0.01, g_front - g_back)
 		var new_center: float = (g_front + g_back) / 2.0

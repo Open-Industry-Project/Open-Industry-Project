@@ -62,6 +62,7 @@ var _metal_material: Material
 var _frame_left: FrameRail
 var _frame_right: FrameRail
 var _shadow_plate: MeshInstance3D
+var _prev_global_transform: Transform3D
 
 static var _belt_texture: Texture2D = preload("res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg")
 static var _belt_texture_alt: Texture2D = preload("res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png")
@@ -123,6 +124,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	_prev_global_transform = global_transform
 	_setup_materials()
 	_setup_collision_shape()
 	_update_material_texture()
@@ -165,12 +167,16 @@ func _setup_materials() -> void:
 	# Procedural frame rails — skip when the parent assembly owns the rails.
 	_metal_material = ConveyorFrameMesh.create_material()
 	if not frame_managed_externally:
-		_frame_left = FrameRail.new()
-		_frame_left.name = "FrameLeft"
-		add_child(_frame_left)
-		_frame_right = FrameRail.new()
-		_frame_right.name = "FrameRight"
-		add_child(_frame_right)
+		_frame_left = get_node_or_null("FrameLeft") as FrameRail
+		if not _frame_left:
+			_frame_left = FrameRail.new()
+			_frame_left.name = "FrameLeft"
+			add_child(_frame_left)
+		_frame_right = get_node_or_null("FrameRight") as FrameRail
+		if not _frame_right:
+			_frame_right = FrameRail.new()
+			_frame_right.name = "FrameRight"
+			add_child(_frame_right)
 	_shadow_plate = get_node_or_null("ShadowPlate")
 	if not _shadow_plate:
 		_shadow_plate = MeshInstance3D.new()
@@ -255,24 +261,31 @@ func _on_size_changed() -> void:
 	if _frame_left and _frame_right:
 		var half_width := width / 2.0
 		var wt := ConveyorFrameMesh.WALL_THICKNESS
+		var remap: Transform3D = global_transform.affine_inverse() * _prev_global_transform
 
-		_frame_left.height = height
-		if _frame_left.front_anchored and _frame_left.back_anchored:
-			_frame_left.length = length
-			_frame_left.position = Vector3(0, -height, -half_width - wt)
-		else:
-			_frame_left.position.y = -height
-			_frame_left.position.z = -half_width - wt
-		_frame_left.rotation = Vector3.ZERO
+		_update_frame_rail(_frame_left, length, height, -half_width - wt, Vector3.ZERO, remap)
+		_update_frame_rail(_frame_right, length, height, half_width + wt, Vector3(0, PI, 0), remap)
+		_prev_global_transform = global_transform
 
-		_frame_right.height = height
-		if _frame_right.front_anchored and _frame_right.back_anchored:
-			_frame_right.length = length
-			_frame_right.position = Vector3(0, -height, half_width + wt)
-		else:
-			_frame_right.position.y = -height
-			_frame_right.position.z = half_width + wt
-		_frame_right.rotation = Vector3(0, PI, 0)
+
+func _update_frame_rail(rail: FrameRail, conveyor_length: float, h: float, z: float, rot: Vector3, remap: Transform3D) -> void:
+	rail.height = h
+	var half_length: float = conveyor_length / 2.0
+	var rail_front: float = rail.position.x + rail.length / 2.0
+	var rail_back: float = rail.position.x - rail.length / 2.0
+	if rail.front_anchored:
+		rail_front = half_length
+	else:
+		rail_front = minf((remap * Vector3(rail_front, 0, 0)).x, half_length)
+	if rail.back_anchored:
+		rail_back = -half_length
+	else:
+		rail_back = maxf((remap * Vector3(rail_back, 0, 0)).x, -half_length)
+	var new_length: float = max(0.01, rail_front - rail_back)
+	var new_center: float = (rail_front + rail_back) / 2.0
+	rail.length = new_length
+	rail.position = Vector3(new_center, -h, z)
+	rail.rotation = rot
 
 
 func _on_simulation_started() -> void:

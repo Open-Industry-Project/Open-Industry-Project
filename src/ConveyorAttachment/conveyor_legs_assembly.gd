@@ -215,6 +215,14 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	for child in get_children():
+		if child is ConveyorLeg and _get_auto_conveyor_leg_index(child.name) == LegIndex.NON_AUTO:
+			remove_child(child)
+			child.queue_free()
+
+	_conveyor_legs_path_changed = true
+	_conveyor_legs_coverage_changed = true
+	_set_needs_update(true)
 	call_deferred("_sync_floor_plane_after_load")
 
 
@@ -301,6 +309,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 #endregion
 
 func _on_conveyor_size_changed() -> void:
+	_conveyor_legs_path_changed = true
 	_update_conveyor_leg_coverage()
 	_update_conveyor_legs_height_and_visibility()
 	_update_all_conveyor_legs_width()
@@ -438,16 +447,9 @@ func _update_conveyor_legs() -> void:
 	if leg_model_scene != _leg_model_scene_prev:
 		_delete_all_auto_conveyor_legs()
 
-	# Only bother repositioning conveyor legs if the user could manually edit them.
-	# All the conveyor legs that we generated should already be in the right spots.
-	var edited_root = get_tree().get_edited_scene_root() if is_inside_tree() else null
-	var conveyor_legs_assembly_is_editable = false
-	if not has_meta("is_preview"):
-		conveyor_legs_assembly_is_editable = edited_root != null and owner != null and (edited_root == owner or edited_root.is_editable_instance(owner))
-	if conveyor_legs_assembly_is_editable or _conveyor_legs_path_changed:
+	if _conveyor_legs_path_changed:
 		_snap_all_conveyor_legs_to_path()
-
-	_conveyor_legs_path_changed = false
+		_conveyor_legs_path_changed = false
 
 	_update_all_conveyor_legs_width()
 
