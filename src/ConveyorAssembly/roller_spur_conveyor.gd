@@ -438,6 +438,9 @@ func _get_custom_preview_node() -> Node3D:
 	preview_node._apply_spur_clipping()
 
 	_disable_collisions_recursive(preview_node)
+
+	preview_node.add_child(FlowDirectionArrow.create(preview_node.size))
+
 	preview_node.set_process_mode(Node.PROCESS_MODE_DISABLED)
 
 	return preview_node

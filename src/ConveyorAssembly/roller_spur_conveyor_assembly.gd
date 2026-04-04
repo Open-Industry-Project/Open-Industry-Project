@@ -301,6 +301,8 @@ func _get_custom_preview_node() -> Node3D:
 		side_guards.set_meta("is_preview", true)
 		side_guards.set_process_mode(Node.PROCESS_MODE_DISABLED)
 
+	preview_node.add_child(FlowDirectionArrow.create(preview_node.size))
+
 	preview_node.set_process_mode(Node.PROCESS_MODE_DISABLED)
 
 	return preview_node
