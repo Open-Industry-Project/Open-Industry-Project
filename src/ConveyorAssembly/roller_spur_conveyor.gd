@@ -316,7 +316,16 @@ func _update_collision_shape() -> void:
 
 #region Conveyor property forwarding
 
+var _forwarded_properties_managed_by_subclass: bool = false
+
+
 func _get_property_list() -> Array[Dictionary]:
+	if _forwarded_properties_managed_by_subclass:
+		return []
+	return _get_forwarded_property_list()
+
+
+func _get_forwarded_property_list() -> Array[Dictionary]:
 	var conveyor_properties := _get_conveyor_forwarded_properties()
 	var filtered_properties: Array[Dictionary] = []
 	var found_categories: Array = []

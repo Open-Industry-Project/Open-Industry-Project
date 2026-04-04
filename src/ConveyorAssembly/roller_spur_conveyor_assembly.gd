@@ -132,6 +132,11 @@ var _guard_state: Dictionary = {}:
 #endregion
 
 
+func _init() -> void:
+	super._init()
+	_forwarded_properties_managed_by_subclass = true
+
+
 func _ready() -> void:
 	if has_node("%SideGuardsAssembly"):
 		if not %SideGuardsAssembly.property_list_changed.is_connected(notify_property_list_changed):
@@ -194,7 +199,7 @@ func _get_property_list() -> Array[Dictionary]:
 	# category, so these naturally extend that section.
 	if _has_instantiated and has_node("%SideGuardsAssembly"):
 		props.append_array(%SideGuardsAssembly._get_property_list())
-	props.append_array(super._get_property_list())
+	props.append_array(_get_forwarded_property_list())
 	return props
 
 
