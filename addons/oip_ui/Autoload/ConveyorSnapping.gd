@@ -84,12 +84,15 @@ static func snap_selected_conveyors() -> void:
 
 	undo_redo.commit_action()
 
-	# Save guard state after commit.
+	# Save guard and frame rail state after commit.
 	for conveyor in selected_conveyors:
 		for node in [target_conveyor, conveyor]:
 			var sg := _find_side_guards_assembly(node)
 			if sg and sg.has_method("save_guard_state"):
 				sg.save_guard_state()
+			if node.has_method("_save_frame_rail_state"):
+				node._save_frame_rail_state()
+			_save_child_frame_rail_states(node)
 
 
 static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D) -> Dictionary:
@@ -346,9 +349,11 @@ static func _connect_side_guards(
 		undo_redo.add_do_property(best_guard, "length", new_length)
 		undo_redo.add_do_property(best_guard, "position", Vector3(new_center_x, 0, 0))
 		undo_redo.add_do_property(best_guard, "front_anchored", false)
+		undo_redo.add_do_property(best_guard, "front_boundary_tracking", true)
 		undo_redo.add_undo_property(best_guard, "length", old_length)
 		undo_redo.add_undo_property(best_guard, "position", old_pos)
 		undo_redo.add_undo_property(best_guard, "front_anchored", best_guard.front_anchored)
+		undo_redo.add_undo_property(best_guard, "front_boundary_tracking", false)
 
 		# Record where B's opening edge should be.
 		var hit_in_target: Vector3 = target_inverse * hit_point
@@ -404,9 +409,18 @@ static func _connect_side_guards(
 			undo_redo.add_do_property(fr, "length", t_f)
 			undo_redo.add_do_property(fr, "position", Vector3(new_pos_x, old_pos.y, old_pos.z))
 			undo_redo.add_do_property(fr, "front_anchored", false)
+			undo_redo.add_do_property(fr, "front_boundary_tracking", true)
 			undo_redo.add_undo_property(fr, "length", old_length)
 			undo_redo.add_undo_property(fr, "position", old_pos)
 			undo_redo.add_undo_property(fr, "front_anchored", fr.front_anchored)
+			undo_redo.add_undo_property(fr, "front_boundary_tracking", false)
+
+
+static func _save_child_frame_rail_states(node: Node) -> void:
+	for child in node.get_children():
+		if child.has_method("_save_frame_rail_state"):
+			child._save_frame_rail_state()
+		_save_child_frame_rail_states(child)
 
 
 ## Recursively find all FrameRail nodes under a conveyor.

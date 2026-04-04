@@ -20,6 +20,10 @@ var height: float = 0.5:
 ## When true, the back (-X) edge tracks the conveyor edge on resize.
 @export_storage var back_anchored: bool = true
 
+@export_storage var front_boundary_tracking: bool = false
+
+@export_storage var back_boundary_tracking: bool = false
+
 static var _shared_material: ShaderMaterial
 
 
