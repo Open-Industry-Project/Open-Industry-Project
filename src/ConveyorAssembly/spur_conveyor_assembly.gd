@@ -50,6 +50,7 @@ extends ResizableNode3D
 var _conveyors: Array[Node3D] = []
 var _frame_left: FrameRail
 var _frame_right: FrameRail
+@export_storage var _frame_rail_state: Dictionary = {}
 
 var DEFAULT_LENGTH: float = 2.0
 var DEFAULT_WIDTH: float = 1.524
@@ -220,6 +221,7 @@ func _ensure_frame_rails() -> void:
 		_frame_right = FrameRail.new()
 		_frame_right.name = "FrameRight"
 		add_child(_frame_right)
+	_restore_frame_rail_state()
 
 
 func _update_frame_rails() -> void:
@@ -236,6 +238,7 @@ func _update_frame_rails() -> void:
 
 	_apply_frame_rail(_frame_left, left_extents, height, -half_w - wt, false)
 	_apply_frame_rail(_frame_right, right_extents, height, half_w + wt, true)
+	_save_frame_rail_state()
 
 
 func _get_frame_rail_extents(side_z: float) -> Array[float]:
@@ -252,6 +255,15 @@ func _apply_frame_rail(rail: FrameRail, extents: Array[float], height: float, z_
 	var rail_length: float = max(0.01, front_x - back_x)
 	var center_x: float = (front_x + back_x) / 2.0
 
+	var old_front: float = rail.position.x + rail.length / 2.0
+	var old_back: float = rail.position.x - rail.length / 2.0
+	if rail.front_boundary_tracking and front_x > old_front + 0.001:
+		rail.front_anchored = true
+		rail.front_boundary_tracking = false
+	if rail.back_boundary_tracking and back_x < old_back - 0.001:
+		rail.back_anchored = true
+		rail.back_boundary_tracking = false
+
 	rail.height = height
 	if rail.front_anchored and rail.back_anchored:
 		rail.length = rail_length
@@ -261,5 +273,38 @@ func _apply_frame_rail(rail: FrameRail, extents: Array[float], height: float, z_
 		rail.position.z = z_pos
 	rail.rotation = Vector3(0, PI, 0) if flipped else Vector3.ZERO
 	rail.visible = true
+
+
+func _save_frame_rail_state() -> void:
+	var state: Dictionary = {}
+	for entry in [["left", _frame_left], ["right", _frame_right]]:
+		var rail: FrameRail = entry[1]
+		if not rail:
+			continue
+		state[entry[0]] = {
+			"pos_x": rail.position.x,
+			"length": rail.length,
+			"front_anchored": rail.front_anchored,
+			"back_anchored": rail.back_anchored,
+			"front_boundary_tracking": rail.front_boundary_tracking,
+			"back_boundary_tracking": rail.back_boundary_tracking,
+		}
+	_frame_rail_state = state
+
+
+func _restore_frame_rail_state() -> void:
+	if _frame_rail_state.is_empty():
+		return
+	for entry in [["left", _frame_left], ["right", _frame_right]]:
+		var rail: FrameRail = entry[1]
+		if not rail or not _frame_rail_state.has(entry[0]):
+			continue
+		var s: Dictionary = _frame_rail_state[entry[0]]
+		rail.position.x = float(s["pos_x"])
+		rail.length = float(s["length"])
+		rail.front_anchored = bool(s["front_anchored"])
+		rail.back_anchored = bool(s["back_anchored"])
+		rail.front_boundary_tracking = bool(s["front_boundary_tracking"])
+		rail.back_boundary_tracking = bool(s["back_boundary_tracking"])
 
 #endregion

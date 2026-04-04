@@ -84,12 +84,15 @@ static func snap_selected_conveyors() -> void:
 
 	undo_redo.commit_action()
 
-	# Save guard state after commit.
+	# Save guard and frame rail state after commit.
 	for conveyor in selected_conveyors:
 		for node in [target_conveyor, conveyor]:
 			var sg := _find_side_guards_assembly(node)
 			if sg and sg.has_method("save_guard_state"):
 				sg.save_guard_state()
+			if node.has_method("_save_frame_rail_state"):
+				node._save_frame_rail_state()
+			_save_child_frame_rail_states(node)
 
 
 static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Node3D, target_conveyor: Node3D, snapped_transform: Transform3D) -> Dictionary:
@@ -346,9 +349,11 @@ static func _connect_side_guards(
 		undo_redo.add_do_property(best_guard, "length", new_length)
 		undo_redo.add_do_property(best_guard, "position", Vector3(new_center_x, 0, 0))
 		undo_redo.add_do_property(best_guard, "front_anchored", false)
+		undo_redo.add_do_property(best_guard, "front_boundary_tracking", true)
 		undo_redo.add_undo_property(best_guard, "length", old_length)
 		undo_redo.add_undo_property(best_guard, "position", old_pos)
 		undo_redo.add_undo_property(best_guard, "front_anchored", best_guard.front_anchored)
+		undo_redo.add_undo_property(best_guard, "front_boundary_tracking", false)
 
 		# Record where B's opening edge should be.
 		var hit_in_target: Vector3 = target_inverse * hit_point
@@ -404,9 +409,18 @@ static func _connect_side_guards(
 			undo_redo.add_do_property(fr, "length", t_f)
 			undo_redo.add_do_property(fr, "position", Vector3(new_pos_x, old_pos.y, old_pos.z))
 			undo_redo.add_do_property(fr, "front_anchored", false)
+			undo_redo.add_do_property(fr, "front_boundary_tracking", true)
 			undo_redo.add_undo_property(fr, "length", old_length)
 			undo_redo.add_undo_property(fr, "position", old_pos)
 			undo_redo.add_undo_property(fr, "front_anchored", fr.front_anchored)
+			undo_redo.add_undo_property(fr, "front_boundary_tracking", false)
+
+
+static func _save_child_frame_rail_states(node: Node) -> void:
+	for child in node.get_children():
+		if child.has_method("_save_frame_rail_state"):
+			child._save_frame_rail_state()
+		_save_child_frame_rail_states(child)
 
 
 ## Recursively find all FrameRail nodes under a conveyor.
@@ -540,33 +554,24 @@ static func _is_curved_conveyor(conveyor: Node3D) -> bool:
 	var node_script: Script = conveyor.get_script()
 	var global_name: String = node_script.get_global_name() if node_script != null else ""
 	var node_class := conveyor.get_class()
-	var node_name := conveyor.name
-	
-	# Check for curved conveyor types
+
 	var curved_types := [
 		"CurvedBeltConveyor", "CurvedRollerConveyor", "CurvedBeltConveyorAssembly", "CurvedRollerConveyorAssembly"
 	]
-	
-	return (global_name in curved_types or 
-			node_class in curved_types or 
-			"Curved" in node_name or
-			"curved" in node_name.to_lower())
+
+	return global_name in curved_types or node_class in curved_types
 
 
 static func _is_curved_roller_conveyor(conveyor: Node3D) -> bool:
 	var node_script: Script = conveyor.get_script()
 	var global_name: String = node_script.get_global_name() if node_script != null else ""
 	var node_class := conveyor.get_class()
-	var node_name := conveyor.name
-	
-	# Check for curved roller conveyor types
+
 	var curved_roller_types := [
 		"CurvedRollerConveyor", "CurvedRollerConveyorAssembly"
 	]
-	
-	return (global_name in curved_roller_types or 
-			node_class in curved_roller_types or 
-			("Curved" in node_name and "Roller" in node_name))
+
+	return global_name in curved_roller_types or node_class in curved_roller_types
 
 
 static func _is_straight_conveyor_assembly(conveyor: Node3D) -> bool:
@@ -826,7 +831,7 @@ static func _is_any_end_pair_snapped(selected_conveyor: Node3D, target_conveyor:
 
 
 static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
-	if _is_belt_conveyor(target_conveyor) and _is_belt_conveyor(selected_conveyor):
+	if _is_straight_conveyor(target_conveyor) and _is_straight_conveyor(selected_conveyor):
 		return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
 
 	var gap := _get_snap_gap(selected_conveyor, target_conveyor)
@@ -962,23 +967,18 @@ static func _calculate_snap_to_spur_target_transform(selected_conveyor: Node3D, 
 	return _make_snap_result(snap_transform, best_sel, best_tgt)
 
 
-static func _is_belt_conveyor(conveyor: Node3D) -> bool:
+static func _is_straight_conveyor(conveyor: Node3D) -> bool:
 	var node_script: Script = conveyor.get_script()
 	var global_name: String = node_script.get_global_name() if node_script != null else ""
 	var node_class := conveyor.get_class()
-	var node_name := conveyor.name
-	
-	# Check for belt conveyor types (straight conveyors)
-	var belt_types := [
+
+	var straight_types := [
 		"BeltConveyor", "BeltConveyorAssembly", "BeltSpurConveyor", "SpurConveyorAssembly", "BeltSpurConveyorAssembly",
 		"RollerConveyor", "RollerConveyorAssembly",
 		"RollerSpurConveyor", "RollerSpurConveyorAssembly"
 	]
-	
-	return (global_name in belt_types or 
-			node_class in belt_types or 
-			("Belt" in node_name and "Curved" not in node_name) or
-			("Roller" in node_name and "Curved" not in node_name))
+
+	return global_name in straight_types or node_class in straight_types
 
 
 static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:

@@ -306,7 +306,7 @@ func _update_collision(mesh_node: MeshInstance3D, radius: float, wall_height: fl
 	# Generate a thicker wall mesh for collision to prevent tunneling.
 	# Centered on the visual wall — extends equally inward and outward.
 	var segments: int = maxi(4, int(guard_angle / 5.0))
-	var roller_tangent: float = (CurvedBeltConveyor.SIZE_DEFAULT.y / 4.0) * 2.0
+	var roller_tangent: float = 0.5 * _current_belt_height
 	var direction: float = 1.0 if radius > _current_inner_radius else -1.0
 	var collision_mesh: ArrayMesh = _create_contour_wall(
 		radius, wall_height, SideGuardMesh.COLLISION_THICKNESS, angle_rad, segments, direction, roller_tangent)

@@ -5,6 +5,14 @@ extends Node3D
 
 signal size_changed
 
+## The axis index and direction of the handle used for the last resize.
+## -1 means no specific handle (inspector or programmatic change).
+## 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z.
+var _resize_handle: int = -1
+## The size before the current resize. Only valid during _on_size_changed.
+var _resize_old_size: Vector3 = Vector3.ZERO
+var _resize_context_active: bool = false
+
 ## The dimensions of this node in meters (X=length, Y=height, Z=width).
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var size: Vector3 = Vector3.ZERO:
 	set(value):
@@ -13,6 +21,10 @@ signal size_changed
 				size = size_default
 				return
 			value = size_default
+		if not _resize_context_active:
+			_resize_handle = -1
+			_resize_old_size = size
+		_resize_context_active = false
 		var clamped_size: Vector3 = size_min.max(value)
 		var constrained_size := _get_constrained_size(clamped_size)
 		var has_changed := size != constrained_size
@@ -21,6 +33,15 @@ signal size_changed
 			update_gizmos()
 			_on_size_changed()
 			size_changed.emit()
+
+
+## Resize with explicit handle context. Use this instead of setting size
+## directly when the resize is from a specific handle direction.
+func resize(new_size: Vector3, handle_id: int) -> void:
+	_resize_handle = handle_id
+	_resize_old_size = size
+	_resize_context_active = true
+	size = new_size
 
 var size_min: Vector3 = Vector3(0.01, 0.01, 0.01)
 var size_default: Vector3 = Vector3.ONE

@@ -153,7 +153,9 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, secondary: b
 	_initial_state = {
 		"size": resizable_node.size,
 		"position": node.position,
-		"transform": node.transform
+		"transform": node.transform,
+		"rail_flags": _capture_rail_flags(node),
+		"guard_flags": _capture_guard_flags(node),
 	}
 
 
@@ -237,7 +239,7 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	var new_position = parent_transform.affine_inverse() * center_global
 	
 	node.position = new_position
-	resizable_node.size = new_size
+	resizable_node.resize(new_size, handle_id)
 
 func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, restore, cancel: bool):
 	var node = gizmo.get_node_3d()
@@ -284,6 +286,8 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 	if cancel:
 		node.position = _initial_state["position"]
 		resizable_node.size = _initial_state["size"]
+		_restore_rail_flags(node, _initial_state["rail_flags"])
+		_restore_guard_flags(node, _initial_state["guard_flags"])
 	else:
 		var undo_redo = EditorInterface.get_editor_undo_redo()
 		undo_redo.create_action("Resize Conveyor")
@@ -291,8 +295,13 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 		# sees the correct global transform (matches _set_handle order).
 		undo_redo.add_do_property(node, "position", node.position)
 		undo_redo.add_do_property(resizable_node, "size", resizable_node.size)
+		undo_redo.add_do_method(self, "_restore_rail_flags", node, _capture_rail_flags(node))
+		undo_redo.add_do_method(self, "_restore_guard_flags", node, _capture_guard_flags(node))
+		# Position/size first (triggers _on_size_changed), then restore overrides the result.
 		undo_redo.add_undo_property(node, "position", _initial_state["position"])
 		undo_redo.add_undo_property(resizable_node, "size", _initial_state["size"])
+		undo_redo.add_undo_method(self, "_restore_rail_flags", node, _initial_state["rail_flags"])
+		undo_redo.add_undo_method(self, "_restore_guard_flags", node, _initial_state["guard_flags"])
 		var sg_assembly: Node = _find_side_guards_assembly(node)
 		if sg_assembly:
 			undo_redo.add_do_method(sg_assembly, "save_guard_state")
@@ -539,6 +548,95 @@ func _split_guard_at_center(conveyor_node: Node3D, guard: SideGuard, side_node: 
 	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
 
 	undo_redo.commit_action()
+
+
+## Capture anchoring flags from all FrameRails under a node.
+## Uses node path instead of object reference for undo/redo safety.
+func _capture_rail_flags(node: Node) -> Array:
+	var result: Array = []
+	_collect_rail_flags(node, node, result)
+	return result
+
+
+static func _collect_rail_flags(root: Node, node: Node, result: Array) -> void:
+	if node is FrameRail:
+		var rail := node as FrameRail
+		result.append({
+			"path": str(root.get_path_to(rail)),
+			"position": rail.position,
+			"length": rail.length,
+			"front_anchored": rail.front_anchored,
+			"back_anchored": rail.back_anchored,
+			"front_boundary_tracking": rail.front_boundary_tracking,
+			"back_boundary_tracking": rail.back_boundary_tracking,
+		})
+	for child in node.get_children():
+		_collect_rail_flags(root, child, result)
+
+
+## Restore previously captured FrameRail state.
+func _restore_rail_flags(node: Node, flags: Array) -> void:
+	for entry in flags:
+		var rail := node.get_node_or_null(entry["path"]) as FrameRail
+		if not rail:
+			continue
+		rail.position = entry["position"]
+		rail.length = entry["length"]
+		rail.front_anchored = entry["front_anchored"]
+		rail.back_anchored = entry["back_anchored"]
+		rail.front_boundary_tracking = entry["front_boundary_tracking"]
+		rail.back_boundary_tracking = entry["back_boundary_tracking"]
+
+
+## Capture anchoring flags from all SideGuards under a node.
+func _capture_guard_flags(node: Node3D) -> Array:
+	var result: Array = []
+	var sg: Node = _find_side_guards_assembly(node)
+	if not sg:
+		return result
+	for side_name in ["LeftSide", "RightSide"]:
+		var side_node := sg.get_node_or_null(side_name) as Node3D
+		if not side_node:
+			continue
+		var idx := 0
+		for child in side_node.get_children():
+			if child is SideGuard:
+				var guard := child as SideGuard
+				result.append({
+					"side": side_name,
+					"index": idx,
+					"position": guard.position,
+					"length": guard.length,
+					"front_anchored": guard.front_anchored,
+					"back_anchored": guard.back_anchored,
+					"front_boundary_tracking": guard.front_boundary_tracking,
+					"back_boundary_tracking": guard.back_boundary_tracking,
+				})
+				idx += 1
+	return result
+
+
+## Restore previously captured SideGuard anchoring flags.
+func _restore_guard_flags(node: Node3D, flags: Array) -> void:
+	var sg: Node = _find_side_guards_assembly(node)
+	if not sg:
+		return
+	for entry in flags:
+		var side_node := sg.get_node_or_null(entry["side"]) as Node3D
+		if not side_node:
+			continue
+		var idx := 0
+		for child in side_node.get_children():
+			if child is SideGuard:
+				if idx == entry["index"]:
+					child.position = entry["position"]
+					child.length = entry["length"]
+					child.front_anchored = entry["front_anchored"]
+					child.back_anchored = entry["back_anchored"]
+					child.front_boundary_tracking = entry["front_boundary_tracking"]
+					child.back_boundary_tracking = entry["back_boundary_tracking"]
+					break
+				idx += 1
 
 
 ## Find the SideGuardsAssembly node on a conveyor assembly, or null.
