@@ -75,6 +75,29 @@ var _transfer_plate_material: StandardMaterial3D
 var _shadow_plate: MeshInstance3D
 
 
+func _get_custom_preview_node() -> Node3D:
+	var preview_scene := load("res://parts/RollerConveyor.tscn") as PackedScene
+	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+
+	_disable_collisions_recursive(preview_node)
+
+	preview_node.add_child(FlowDirectionArrow.create(preview_node.size))
+
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+
+	for child in node.get_children():
+		_disable_collisions_recursive(child)
+
+
 func _init() -> void:
 	super._init()
 	size_default = Vector3(4, 0.5, 1.524)

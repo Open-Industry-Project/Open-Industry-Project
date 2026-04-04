@@ -160,6 +160,30 @@ func _validate_property(property: Dictionary) -> void:
 	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
 
 
+func _get_custom_preview_node() -> Node3D:
+	var preview_scene := load("res://parts/CurvedBeltConveyor.tscn") as PackedScene
+	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+
+	_disable_collisions_recursive(preview_node)
+
+	preview_node.add_child(FlowDirectionArrow.create_curved(
+		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle))
+
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+
+	for child in node.get_children():
+		_disable_collisions_recursive(child)
+
+
 func _init() -> void:
 	set_notify_local_transform(true)
 	_update_calculated_size()
