@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c7e1r04ws0m1j"]
 
-[ext_resource type="Script" uid="uid://bci70e46w3t6k" path="res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd" id="1_pxi51"]
+[ext_resource type="Script" uid="uid://qgq0ruhbl0mq" path="res://src/ConveyorAssembly/belt_spur_conveyor.gd" id="1_pxi51"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
 friction = 0.5
@@ -8,6 +8,33 @@ friction = 0.5
 [node name="BeltSpurConveyor4" type="Node3D" unique_id=1342337511]
 process_mode = 3
 script = ExtResource("1_pxi51")
+belt_color = Color(1, 1, 1, 1)
+belt_texture = 0
+speed = 2.0
+belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
+_frame_rail_state = {
+"left": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 2.439941147155065,
+"pos_x": 0.21997057
+},
+"right": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 1.5600588528449348,
+"pos_x": -0.21997057
+}
+}
+enable_comms = false
+speed_tag_group_name = ""
+speed_tag_name = ""
+running_tag_group_name = ""
+running_tag_name = ""
 _cached_properties = {
 &"belt_color": Color(1, 1, 1, 1),
 &"belt_physics_material": SubResource("PhysicsMaterial_hcu6p"),
@@ -19,16 +46,25 @@ _cached_properties = {
 &"speed_tag_group_name": "",
 &"speed_tag_name": ""
 }
-belt_color = Color(1, 1, 1, 1)
-belt_texture = 0
-speed = 2.0
-belt_physics_material = SubResource("PhysicsMaterial_hcu6p")
-enable_comms = false
-speed_tag_group_name = ""
-speed_tag_name = ""
-running_tag_group_name = ""
-running_tag_name = ""
 angle_downstream = -0.523599
 conveyor_count = 8
+_frame_rail_state = {
+"left": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 2.439941147155065,
+"pos_x": 0.21997057
+},
+"right": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 1.5600588528449348,
+"pos_x": -0.21997057
+}
+}
 size = Vector3(2, 0.5, 1.524)
 metadata/hijack_scale = true
