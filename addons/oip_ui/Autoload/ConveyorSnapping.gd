@@ -346,9 +346,11 @@ static func _connect_side_guards(
 		undo_redo.add_do_property(best_guard, "length", new_length)
 		undo_redo.add_do_property(best_guard, "position", Vector3(new_center_x, 0, 0))
 		undo_redo.add_do_property(best_guard, "front_anchored", false)
+		undo_redo.add_do_property(best_guard, "front_boundary_tracking", true)
 		undo_redo.add_undo_property(best_guard, "length", old_length)
 		undo_redo.add_undo_property(best_guard, "position", old_pos)
 		undo_redo.add_undo_property(best_guard, "front_anchored", best_guard.front_anchored)
+		undo_redo.add_undo_property(best_guard, "front_boundary_tracking", false)
 
 		# Record where B's opening edge should be.
 		var hit_in_target: Vector3 = target_inverse * hit_point
@@ -404,9 +406,11 @@ static func _connect_side_guards(
 			undo_redo.add_do_property(fr, "length", t_f)
 			undo_redo.add_do_property(fr, "position", Vector3(new_pos_x, old_pos.y, old_pos.z))
 			undo_redo.add_do_property(fr, "front_anchored", false)
+			undo_redo.add_do_property(fr, "front_boundary_tracking", true)
 			undo_redo.add_undo_property(fr, "length", old_length)
 			undo_redo.add_undo_property(fr, "position", old_pos)
 			undo_redo.add_undo_property(fr, "front_anchored", fr.front_anchored)
+			undo_redo.add_undo_property(fr, "front_boundary_tracking", false)
 
 
 ## Recursively find all FrameRail nodes under a conveyor.

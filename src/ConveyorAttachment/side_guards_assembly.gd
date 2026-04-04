@@ -25,8 +25,6 @@ enum Side
 
 ## Stored last-known conveyor extents per side, used to detect resize deltas.
 var _last_extents: Dictionary = {}
-## Stored last-known global transform per side, used to maintain global positions of openings.
-var _last_side_global_transforms: Dictionary = {}
 var _conveyor_connected: bool = false
 ## Persisted guard layout (forwarded to/from the assembly root for serialization).
 var _guard_state: Dictionary = {}
@@ -36,7 +34,6 @@ var _last_guard_count: Dictionary = {}
 
 func _ready() -> void:
 	_last_extents = {}
-	_last_side_global_transforms = {}
 
 
 func _notification(what: int) -> void:
@@ -108,8 +105,6 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 		return
 	var side_node: Node3D = _ensure_side(side)
 	side_node.transform = _get_side_node_transform(side)
-	var new_side_global: Transform3D = side_node.global_transform
-	var old_side_global: Transform3D = _last_side_global_transforms.get(side, new_side_global)
 
 	var extents: Array[float] = _get_side_extents(side)
 	if side_node.get_child_count() == 0:
@@ -119,13 +114,24 @@ func _update_side(side: SideGuardsAssembly.Side, side_enabled: bool) -> void:
 			_spawn_default_guard(side_node, side, extents)
 	else:
 		# Resize: adjust guards that are anchored to conveyor edges.
-		# Pass old/new global transforms so non-anchored edges maintain their world position.
-		_adjust_anchored_guards(side_node, side, extents, old_side_global, new_side_global)
+		var offset_x := _get_resize_offset_x()
+		_adjust_anchored_guards(side_node, side, extents, offset_x)
 
-	# Store extents and global transform for next resize delta.
 	_last_extents[side] = extents
-	_last_side_global_transforms[side] = side_node.global_transform
 	_check_guard_count_changed()
+
+
+## Get the X offset for non-anchored edges from the parent conveyor's resize context.
+func _get_resize_offset_x() -> float:
+	var conveyor := get_parent()
+	if not conveyor or not "_resize_handle" in conveyor:
+		return 0.0
+	var handle: int = conveyor._resize_handle
+	if handle == 0:
+		return -(conveyor.size.x - conveyor._resize_old_size.x) / 2.0
+	elif handle == 1:
+		return (conveyor.size.x - conveyor._resize_old_size.x) / 2.0
+	return 0.0
 
 
 func _clear_side(side: SideGuardsAssembly.Side) -> void:
@@ -230,16 +236,18 @@ func _spawn_default_guard(side_node: Node3D, side: SideGuardsAssembly.Side, exte
 
 
 ## Adjust guards whose edges are anchored to the conveyor boundary.
-## Non-anchored edges maintain their global position using the old/new side-node transforms.
-func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, extents: Array[float], old_side_global: Transform3D, new_side_global: Transform3D) -> void:
+## Non-anchored edges shift by offset_x to maintain their global position.
+func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, extents: Array[float], offset_x: float) -> void:
 	var old_extents: Array = _last_extents.get(side, extents)
 	var old_back: float = old_extents[0]
 	var old_front: float = old_extents[1]
 	var new_back: float = extents[0]
 	var new_front: float = extents[1]
 
-	# Converts old local positions to new local positions that keep the same global position.
-	var global_remap: Transform3D = new_side_global.affine_inverse() * old_side_global
+	# Skip adjustment when extents haven't changed. This prevents repeated calls
+	# (e.g. from spur's deferred _ensure_side_guards_updated) from double-shifting.
+	if abs(new_front - old_front) < 0.001 and abs(new_back - old_back) < 0.001:
+		return
 
 	for child in side_node.get_children():
 		if not child is SideGuard:
@@ -248,15 +256,26 @@ func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, e
 		var g_front: float = guard.position.x + guard.length / 2.0
 		var g_back: float = guard.position.x - guard.length / 2.0
 
-		# Non-anchored edges: remap to maintain global position.
+		# Non-anchored edges: shift by offset_x to maintain global position.
 		# Anchored edges at boundary: track to new boundary.
+		# Boundary-tracking edges: re-anchor when the boundary on that side grows.
 		if not guard.front_anchored:
-			g_front = (global_remap * Vector3(g_front, 0, 0)).x
+			if guard.front_boundary_tracking and new_front > old_front + 0.001:
+				guard.front_anchored = true
+				guard.front_boundary_tracking = false
+				g_front = new_front
+			else:
+				g_front += offset_x
 		elif abs(g_front - old_front) < 0.01:
 			g_front = new_front
 
 		if not guard.back_anchored:
-			g_back = (global_remap * Vector3(g_back, 0, 0)).x
+			if guard.back_boundary_tracking and new_back < old_back - 0.001:
+				guard.back_anchored = true
+				guard.back_boundary_tracking = false
+				g_back = new_back
+			else:
+				g_back += offset_x
 		elif abs(g_back - old_back) < 0.01:
 			g_back = new_back
 
@@ -294,6 +313,8 @@ func save_guard_state() -> void:
 					"length": guard.length,
 					"front_anchored": guard.front_anchored,
 					"back_anchored": guard.back_anchored,
+					"front_boundary_tracking": guard.front_boundary_tracking,
+					"back_boundary_tracking": guard.back_boundary_tracking,
 				}
 				idx += 1
 	_guard_state = state
@@ -328,6 +349,8 @@ func _restore_guard_state(side_node: Node3D, side: SideGuardsAssembly.Side) -> b
 		guard.length = float(entry["length"])
 		guard.front_anchored = bool(entry["front_anchored"])
 		guard.back_anchored = bool(entry["back_anchored"])
+		guard.front_boundary_tracking = bool(entry["front_boundary_tracking"])
+		guard.back_boundary_tracking = bool(entry["back_boundary_tracking"])
 		side_node.add_child(guard)
 	return true
 

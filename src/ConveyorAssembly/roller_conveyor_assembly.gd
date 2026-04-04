@@ -474,7 +474,10 @@ func _get_constrained_size(new_size: Vector3) -> Vector3:
 
 func _on_size_changed() -> void:
 	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
-		%Conveyor.size = size
+		if _resize_handle >= 0:
+			%Conveyor.resize(size, _resize_handle)
+		else:
+			%Conveyor.size = size
 
 
 func _get_custom_preview_node() -> Node3D:

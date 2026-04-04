@@ -252,6 +252,15 @@ func _apply_frame_rail(rail: FrameRail, extents: Array[float], height: float, z_
 	var rail_length: float = max(0.01, front_x - back_x)
 	var center_x: float = (front_x + back_x) / 2.0
 
+	var old_front: float = rail.position.x + rail.length / 2.0
+	var old_back: float = rail.position.x - rail.length / 2.0
+	if rail.front_boundary_tracking and front_x > old_front + 0.001:
+		rail.front_anchored = true
+		rail.front_boundary_tracking = false
+	if rail.back_boundary_tracking and back_x < old_back - 0.001:
+		rail.back_anchored = true
+		rail.back_boundary_tracking = false
+
 	rail.height = height
 	if rail.front_anchored and rail.back_anchored:
 		rail.length = rail_length
