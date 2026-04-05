@@ -66,6 +66,7 @@ var _shadow_plate: MeshInstance3D
 
 static var _belt_texture: Texture2D = preload("res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg")
 static var _belt_texture_alt: Texture2D = preload("res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png")
+var _flow_arrow: Node3D
 var _belt_position: float = 0.0
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
@@ -152,6 +153,18 @@ func _ready() -> void:
 	_update_material_texture()
 	_update_material_color()
 	_on_size_changed()
+	_update_flow_arrow()
+
+
+func _update_flow_arrow() -> void:
+	if frame_managed_externally:
+		return
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
+		_flow_arrow.queue_free()
+	_flow_arrow = FlowDirectionArrow.create(size)
+	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
+	FlowDirectionArrow.register(_flow_arrow)
 
 
 func _physics_process(delta: float) -> void:
@@ -166,6 +179,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
@@ -298,6 +313,8 @@ func _on_size_changed() -> void:
 		_update_frame_rail(_frame_left, length, height, -half_width - wt, Vector3.ZERO, offset_x, old_hl)
 		_update_frame_rail(_frame_right, length, height, half_width + wt, Vector3(0, PI, 0), offset_x, old_hl)
 		_save_frame_rail_state()
+
+	_update_flow_arrow()
 
 
 func _update_frame_rail(rail: FrameRail, conveyor_length: float, h: float, z: float, rot: Vector3, offset_x: float, old_half_length: float) -> void:

@@ -89,6 +89,7 @@ var current_scale: int = Scales.MID
 var running: bool = false
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
+var _flow_arrow: Node3D
 var _frame_mesh_instance: MeshInstance3D
 var _shadow_plate: MeshInstance3D
 var _metal_material: Material
@@ -201,6 +202,17 @@ func _ready() -> void:
 	_mesh_regeneration_needed = true
 	_update_all_components()
 	size_changed.emit()
+	_update_flow_arrow()
+
+
+func _update_flow_arrow() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
+		_flow_arrow.queue_free()
+	_flow_arrow = FlowDirectionArrow.create_curved(
+		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle)
+	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
+	FlowDirectionArrow.register(_flow_arrow)
 
 
 func _enter_tree() -> void:
@@ -212,6 +224,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
@@ -266,6 +280,7 @@ func _update_all_components() -> void:
 	_recalculate_speeds()
 	_update_side_guards()
 	_update_assembly_components()
+	_update_flow_arrow()
 
 
 func _update_mesh() -> void:

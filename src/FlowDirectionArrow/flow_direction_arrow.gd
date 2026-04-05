@@ -1,6 +1,25 @@
 @tool
 class_name FlowDirectionArrow
 
+static var arrows_visible: bool = false
+static var _instances: Array[Node3D] = []
+
+
+static func register(arrow: Node3D) -> void:
+	_instances.append(arrow)
+	arrow.visible = arrows_visible
+
+
+static func unregister(arrow: Node3D) -> void:
+	_instances.erase(arrow)
+
+
+static func set_all_visible(visible: bool) -> void:
+	arrows_visible = visible
+	for arrow in _instances:
+		if is_instance_valid(arrow):
+			arrow.visible = visible
+
 
 static func create(conveyor_size: Vector3) -> Node3D:
 	var arrow := Node3D.new()

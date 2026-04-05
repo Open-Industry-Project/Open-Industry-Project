@@ -116,6 +116,7 @@ func _update_calculated_size() -> void:
 		if _end_body2:
 			_end_body2.physics_material_override = value
 
+var _flow_arrow: Node3D
 var _belt_material: Material
 var _metal_material: Material
 var _frame_mesh_instance: MeshInstance3D
@@ -227,6 +228,18 @@ func _ready() -> void:
 	_mesh_regeneration_needed = true
 	update_visible_meshes()
 	_update_belt_material_scale()
+	_update_flow_arrow()
+
+
+func _update_flow_arrow() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
+		_flow_arrow.queue_free()
+	_flow_arrow = FlowDirectionArrow.create_curved(
+		inner_radius, conveyor_width, belt_height, conveyor_angle)
+	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
+	FlowDirectionArrow.register(_flow_arrow)
+
 
 func _update_all_components() -> void:
 	if not is_inside_tree():
@@ -236,6 +249,7 @@ func _update_all_components() -> void:
 	_recalculate_speeds()
 	_update_side_guards()
 	_update_assembly_components()
+	_update_flow_arrow()
 
 
 ## Create a StaticBody3D with a CylinderShape3D for one belt end roller.
@@ -578,6 +592,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)

@@ -48,6 +48,7 @@ extends ResizableNode3D
 			_add_or_remove_conveyors(0)
 
 var _conveyors: Array[Node3D] = []
+var _flow_arrow: Node3D
 var _frame_left: FrameRail
 var _frame_right: FrameRail
 @export_storage var _frame_rail_state: Dictionary = {}
@@ -65,6 +66,7 @@ func _init() -> void:
 func _ready() -> void:
 	_ensure_frame_rails()
 	_process(0.0)
+	_update_flow_arrow()
 
 
 func _process(_delta: float) -> void:
@@ -207,7 +209,23 @@ func _get_first_conveyor() -> Node:
 
 func _on_size_changed() -> void:
 	set_process(true)
+	_update_flow_arrow()
 	super._on_size_changed()
+
+
+func _update_flow_arrow() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
+		_flow_arrow.queue_free()
+	_flow_arrow = FlowDirectionArrow.create(size)
+	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
+	FlowDirectionArrow.register(_flow_arrow)
+
+
+func _exit_tree() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
+	super._exit_tree()
 
 
 #region Frame rails

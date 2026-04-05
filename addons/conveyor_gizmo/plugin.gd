@@ -7,16 +7,22 @@ const SHORTCUT_PATH = "Open Industry Project/Toggle Sideguards"
 const TOOLTIP_TITLE = "Toggle Sideguards"
 const TOOLTIP_BODY = "Drag: Resize a guard and create an opening.\nCtrl+Click: Split a guard into two halves.\nShift+Click: Merge with an adjacent guard, or re-anchor to the conveyor edge."
 
+const ARROW_SHORTCUT_PATH = "Open Industry Project/Toggle Flow Arrows"
+
 var gizmo_plugin: ConveyorGizmoPlugin
 var _toggle_button: Button
 var _shortcut: Shortcut
+var _arrow_button: Button
+var _arrow_shortcut: Shortcut
 
 func _enter_tree():
 	gizmo_plugin = ConveyorGizmoPlugin.new()
 	add_node_3d_gizmo_plugin(gizmo_plugin)
 
-	_toggle_button = CheckButton.new()
-	_toggle_button.text = "Sideguards"
+	_toggle_button = Button.new()
+	_toggle_button.flat = true
+	_toggle_button.toggle_mode = true
+	_toggle_button.icon = EditorInterface.get_editor_theme().get_icon("MaterialPreviewQuad", "EditorIcons")
 	_toggle_button.toggled.connect(_on_sideguard_toggle)
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _toggle_button)
 
@@ -30,13 +36,34 @@ func _enter_tree():
 	_shortcut.changed.connect(_update_tooltip)
 	_update_tooltip()
 
+	_arrow_button = Button.new()
+	_arrow_button.flat = true
+	_arrow_button.toggle_mode = true
+	_arrow_button.icon = EditorInterface.get_editor_theme().get_icon("ArrowRight", "EditorIcons")
+	_arrow_button.toggled.connect(_on_flow_arrow_toggle)
+	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _arrow_button)
+
+	_arrow_shortcut = Shortcut.new()
+	var arrow_key := InputEventKey.new()
+	arrow_key.keycode = KEY_PERIOD
+	_arrow_shortcut.events.append(arrow_key)
+	editor_settings.add_shortcut(ARROW_SHORTCUT_PATH, _arrow_shortcut)
+	_arrow_shortcut = editor_settings.get_shortcut(ARROW_SHORTCUT_PATH)
+	_arrow_shortcut.changed.connect(_update_arrow_tooltip)
+	_update_arrow_tooltip()
+
 func _exit_tree():
 	if _shortcut and _shortcut.changed.is_connected(_update_tooltip):
 		_shortcut.changed.disconnect(_update_tooltip)
+	if _arrow_shortcut and _arrow_shortcut.changed.is_connected(_update_arrow_tooltip):
+		_arrow_shortcut.changed.disconnect(_update_arrow_tooltip)
 	remove_node_3d_gizmo_plugin(gizmo_plugin)
 	if _toggle_button:
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _toggle_button)
 		_toggle_button.queue_free()
+	if _arrow_button:
+		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _arrow_button)
+		_arrow_button.queue_free()
 
 func _update_tooltip() -> void:
 	var shortcut_text := _shortcut.get_as_text() if _shortcut else ""
@@ -50,6 +77,20 @@ func _shortcut_input(event: InputEvent) -> void:
 	var editor_settings := EditorInterface.get_editor_settings()
 	if editor_settings.is_shortcut(SHORTCUT_PATH, event) and event.is_pressed() and not event.is_echo():
 		_toggle_button.button_pressed = not _toggle_button.button_pressed
+	if editor_settings.is_shortcut(ARROW_SHORTCUT_PATH, event) and event.is_pressed() and not event.is_echo():
+		_arrow_button.button_pressed = not _arrow_button.button_pressed
+
+
+func _on_flow_arrow_toggle(pressed: bool) -> void:
+	FlowDirectionArrow.set_all_visible(pressed)
+
+
+func _update_arrow_tooltip() -> void:
+	var shortcut_text := _arrow_shortcut.get_as_text() if _arrow_shortcut else ""
+	var title := "Toggle Flow Arrows"
+	if not shortcut_text.is_empty() and shortcut_text != "None":
+		title += " (" + shortcut_text + ")"
+	_arrow_button.tooltip_text = title
 
 
 func _on_sideguard_toggle(pressed: bool) -> void:

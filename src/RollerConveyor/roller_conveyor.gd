@@ -59,6 +59,7 @@ var running: bool = false:
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
 
+var _flow_arrow: Node3D
 var _last_size: Vector3 = Vector3(1.525, 0.5, 1.524)
 var _last_length: float = 1.525
 var _last_width: float = 1.524
@@ -123,6 +124,8 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func _exit_tree() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
 	if Engine.is_editor_hint():
 		if EditorInterface.simulation_started.is_connected(_on_simulation_started):
 			EditorInterface.simulation_started.disconnect(_on_simulation_started)
@@ -144,6 +147,16 @@ func _ready() -> void:
 	# Force initial component update regardless of size change detection.
 	_last_size = Vector3.ZERO
 	_on_size_changed()
+	_update_flow_arrow()
+
+
+func _update_flow_arrow() -> void:
+	if _flow_arrow:
+		FlowDirectionArrow.unregister(_flow_arrow)
+		_flow_arrow.queue_free()
+	_flow_arrow = FlowDirectionArrow.create(size)
+	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
+	FlowDirectionArrow.register(_flow_arrow)
 
 
 func _physics_process(_delta: float) -> void:
@@ -329,6 +342,8 @@ func _on_size_changed() -> void:
 			box.size = Vector3(size.x, 0.01, size.z)
 			_shadow_plate.mesh = box
 			_shadow_plate.position = Vector3(0, -size.y, 0)
+
+		_update_flow_arrow()
 
 
 func _on_roller_added(roller: Roller) -> void:
