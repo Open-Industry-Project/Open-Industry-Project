@@ -64,7 +64,7 @@ static func create(conveyor_size: Vector3) -> Node3D:
 	return arrow
 
 
-static func create_curved(inner_radius: float, conveyor_width: float, belt_height: float, angle_degrees: float) -> Node3D:
+static func create_curved(inner_radius: float, conveyor_width: float, belt_height: float, angle_degrees: float, reversed: bool = false) -> Node3D:
 	var arrow := Node3D.new()
 	arrow.name = "FlowDirectionArrow"
 
@@ -108,8 +108,8 @@ static func create_curved(inner_radius: float, conveyor_width: float, belt_heigh
 		seg.rotation.z = PI / 2.0
 		arrow.add_child(seg)
 
-	# Arrowhead at the end of the arc (at angle angle_rad * 0.9)
-	var head_angle := shaft_start + shaft_arc
+	# Arrowhead – placed at end of arc normally, or start when reversed
+	var head_angle := shaft_start if reversed else shaft_start + shaft_arc
 	var head := MeshInstance3D.new()
 	var head_mesh := CylinderMesh.new()
 	head_mesh.top_radius = 0.0
@@ -119,8 +119,8 @@ static func create_curved(inner_radius: float, conveyor_width: float, belt_heigh
 	head.mesh = head_mesh
 
 	head.position = Vector3(-sin(head_angle) * center_radius, 0.0, cos(head_angle) * center_radius)
-	# Cone points tangent to arc (in the direction of increasing angle)
-	head.rotation.y = -head_angle
+	# Cone points tangent to arc; flip direction when reversed
+	head.rotation.y = -head_angle + (PI if reversed else 0.0)
 	head.rotation.z = PI / 2.0
 	arrow.add_child(head)
 

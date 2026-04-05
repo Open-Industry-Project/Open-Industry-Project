@@ -82,6 +82,7 @@ func _update_calculated_size() -> void:
 		reverse_belt = value
 		_recalculate_speeds()
 		_update_belt_material_scale()
+		_update_flow_arrow()
 
 ## Linear speed at the reference distance in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
@@ -236,7 +237,7 @@ func _update_flow_arrow() -> void:
 		FlowDirectionArrow.unregister(_flow_arrow)
 		_flow_arrow.queue_free()
 	_flow_arrow = FlowDirectionArrow.create_curved(
-		inner_radius, conveyor_width, belt_height, conveyor_angle)
+		inner_radius, conveyor_width, belt_height, conveyor_angle, reverse_belt)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 

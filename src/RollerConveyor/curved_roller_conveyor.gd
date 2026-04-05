@@ -46,6 +46,7 @@ enum Scales {LOW, MID, HIGH}
 	set(value):
 		reverse = value
 		_recalculate_speeds()
+		_update_flow_arrow()
 
 ## Linear speed at the reference distance in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
@@ -210,7 +211,7 @@ func _update_flow_arrow() -> void:
 		FlowDirectionArrow.unregister(_flow_arrow)
 		_flow_arrow.queue_free()
 	_flow_arrow = FlowDirectionArrow.create_curved(
-		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle)
+		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle, reverse)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 
