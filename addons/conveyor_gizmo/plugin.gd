@@ -4,10 +4,12 @@ extends EditorPlugin
 const ConveyorGizmoPlugin = preload("res://addons/conveyor_gizmo/conveyor_gizmo_plugin.gd")
 
 const SHORTCUT_PATH = "Open Industry Project/Toggle Sideguards"
+const SETTING_SIDEGUARD = "open_industry_project/sideguard_mode"
 const TOOLTIP_TITLE = "Toggle Sideguards"
 const TOOLTIP_BODY = "Drag: Resize a guard and create an opening.\nCtrl+Click: Split a guard into two halves.\nShift+Click: Merge with an adjacent guard, or re-anchor to the conveyor edge."
 
 const ARROW_SHORTCUT_PATH = "Open Industry Project/Toggle Flow Arrows"
+const SETTING_FLOW_ARROWS = "open_industry_project/flow_arrows_visible"
 
 var gizmo_plugin: ConveyorGizmoPlugin
 var _toggle_button: Button
@@ -27,6 +29,12 @@ func _enter_tree():
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _toggle_button)
 
 	var editor_settings := EditorInterface.get_editor_settings()
+
+	if not editor_settings.has_setting(SETTING_SIDEGUARD):
+		editor_settings.set_setting(SETTING_SIDEGUARD, false)
+	editor_settings.set_initial_value(SETTING_SIDEGUARD, false, false)
+	_toggle_button.button_pressed = editor_settings.get_setting(SETTING_SIDEGUARD)
+
 	_shortcut = Shortcut.new()
 	var key_stroke := InputEventKey.new()
 	key_stroke.keycode = KEY_G
@@ -42,6 +50,11 @@ func _enter_tree():
 	_arrow_button.icon = EditorInterface.get_editor_theme().get_icon("ArrowRight", "EditorIcons")
 	_arrow_button.toggled.connect(_on_flow_arrow_toggle)
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _arrow_button)
+
+	if not editor_settings.has_setting(SETTING_FLOW_ARROWS):
+		editor_settings.set_setting(SETTING_FLOW_ARROWS, false)
+	editor_settings.set_initial_value(SETTING_FLOW_ARROWS, false, false)
+	_arrow_button.button_pressed = editor_settings.get_setting(SETTING_FLOW_ARROWS)
 
 	_arrow_shortcut = Shortcut.new()
 	var arrow_key := InputEventKey.new()
@@ -82,6 +95,7 @@ func _shortcut_input(event: InputEvent) -> void:
 
 
 func _on_flow_arrow_toggle(pressed: bool) -> void:
+	EditorInterface.get_editor_settings().set_setting(SETTING_FLOW_ARROWS, pressed)
 	FlowDirectionArrow.set_all_visible(pressed)
 
 
@@ -94,6 +108,7 @@ func _update_arrow_tooltip() -> void:
 
 
 func _on_sideguard_toggle(pressed: bool) -> void:
+	EditorInterface.get_editor_settings().set_setting(SETTING_SIDEGUARD, pressed)
 	gizmo_plugin.sideguard_mode = pressed
 	# Force redraw on all gizmos so handles update immediately.
 	var selection := EditorInterface.get_selection().get_selected_nodes()
