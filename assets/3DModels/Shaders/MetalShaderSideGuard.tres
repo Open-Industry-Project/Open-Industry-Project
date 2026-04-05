@@ -2,6 +2,7 @@
 
 [resource]
 code = "shader_type spatial;
+render_mode shadows_disabled;
 
 uniform sampler2D metal_texture : source_color, filter_linear_mipmap, repeat_enable;
 instance uniform float Scale = 1.0;

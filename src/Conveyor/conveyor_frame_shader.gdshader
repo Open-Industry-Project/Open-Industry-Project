@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, shadows_disabled;
 
 uniform sampler2D metal_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform vec3 color : source_color = vec3(0.337, 0.655, 0.784);

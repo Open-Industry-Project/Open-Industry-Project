@@ -100,7 +100,7 @@ static func create_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://assets/3DModels/Shaders/MetalShaderSideGuard.tres")
 	mat.set_shader_parameter("metal_texture", _metal_texture)
-	mat.set_shader_parameter("color_tint", Color(1.8, 1.8, 1.8))
+	mat.set_shader_parameter("color_tint", Color(1.6, 1.6, 1.6))
 	mat.set_shader_parameter("Metallic", 0.94)
 	mat.set_shader_parameter("Roughness", 0.5)
 	mat.set_shader_parameter("Specular", 0.5)
