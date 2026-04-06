@@ -36,7 +36,8 @@ var global_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 	set(value):
 		assert(value.normal != Vector3.ZERO, "global_floor_plane: normal cannot be zero.")
 		global_floor_plane = value.normalized()
-		_update_floor_plane()
+		if not _suppress_floor_plane_sub_updates:
+			_update_floor_plane()
 ## The plane that represents the floor for the legs in the conveyor's space.
 ##
 ## A plane is defined by a normal vector and a distance from the origin.
@@ -199,6 +200,7 @@ var _tail_end_leg_clearance_prev := 0.5
 var _leg_model_scene_prev: PackedScene = preload("res://parts/ConveyorLeg.tscn")
 
 var _conveyor_legs_path_changed := true
+var _suppress_floor_plane_sub_updates := false
 
 # Fields / Conveyor leg coverage
 var _conveyor_leg_coverage_min: float
@@ -250,10 +252,22 @@ func _notification(what) -> void:
 
 
 var _collision_reposition_active: bool = false
+var _global_transform_update_pending: bool = false
+var _last_collision_plane: Plane
 
 
 func _on_global_transform_changed() -> void:
 	if _collision_reposition_active:
+		return
+	if not _global_transform_update_pending:
+		_global_transform_update_pending = true
+		call_deferred("_deferred_global_transform_update")
+
+
+func _deferred_global_transform_update() -> void:
+	_global_transform_update_pending = false
+	if _collision_reposition_active:
+		_collision_reposition_active = false
 		return
 	_update_floor_plane()
 	_update_conveyor_leg_coverage()
@@ -264,8 +278,17 @@ func collision_repositioned(collision_point: Vector3, collision_normal: Vector3)
 	if collision_normal == Vector3.ZERO:
 		return
 	_collision_reposition_active = true
-	_apply_floor_plane(Plane(collision_normal, collision_point))
-	call_deferred("_clear_collision_reposition_active")
+	if not _global_transform_update_pending:
+		call_deferred("_clear_collision_reposition_active")
+	var new_plane := Plane(collision_normal, collision_point)
+	if new_plane == _last_collision_plane:
+		return
+	_last_collision_plane = new_plane
+	_apply_floor_plane(new_plane)
+
+
+func _clear_collision_reposition_active() -> void:
+	_collision_reposition_active = false
 
 
 ## Restores the floor plane to a previously saved value (e.g. on undo).
@@ -274,13 +297,14 @@ func restore_floor_plane(plane: Plane) -> void:
 
 
 func _apply_floor_plane(plane: Plane) -> void:
+	_suppress_floor_plane_sub_updates = true
 	global_floor_plane = plane
-	_update_conveyor_leg_coverage()
-	_update_conveyor_legs_height_and_visibility()
-
-
-func _clear_collision_reposition_active() -> void:
-	_collision_reposition_active = false
+	_suppress_floor_plane_sub_updates = false
+	if is_inside_tree() and conveyor != null and not has_meta("is_preview"):
+		var cached_xform := conveyor.global_transform
+		_update_floor_plane(cached_xform)
+		_update_conveyor_leg_coverage()
+		_update_conveyor_legs_height_and_visibility()
 
 
 func _connect_conveyor() -> void:
@@ -335,6 +359,8 @@ func set_local_floor_plane(value: Plane) -> void:
 	var normal_changed = old_value.normal != value.normal
 	var distance_changed = old_value.d != value.d
 	_save_local_floor_plane_to_transform(value)
+	if _suppress_floor_plane_sub_updates:
+		return
 	if normal_changed:
 		_update_conveyor_leg_coverage()
 	if normal_changed or distance_changed:
@@ -416,26 +442,27 @@ func _get_conveyor_leg_coverage() -> Array[float]:
 	return [min_val, max_val]
 
 
-func _update_floor_plane() -> void:
+func _update_floor_plane(cached_conveyor_xform: Variant = null) -> void:
 	if not is_inside_tree() or conveyor == null:
 		return
 	if has_meta("is_preview"):
 		return
+	var conveyor_xform: Transform3D = cached_conveyor_xform if cached_conveyor_xform is Transform3D else conveyor.global_transform
 	# Legs must be constrained to the conveyor's Z plane, so we must project the floor normal onto it.
-	var legs_plane := Plane(conveyor.global_basis.z, conveyor.global_position)
+	var legs_plane := Plane(conveyor_xform.basis.z, conveyor_xform.origin)
 	assert(legs_plane.normal != Vector3.ZERO, "ConveyorLegsAssembly: conveyor's global Z basis vector must not be zero")
 	assert(global_floor_plane.normal != Vector3.ZERO, "ConveyorLegsAssembly: global_floor_plane normal is zero")
 	var adjusted_global_floor_plane_normal: Vector3 = global_floor_plane.normal.slide(legs_plane.normal).normalized()
 	assert(adjusted_global_floor_plane_normal != Vector3.ZERO, "ConveyorLegsAssembly: Legs and floor plane can't be parallel; the legs would never reach the floor.")
-	var adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, -adjusted_global_floor_plane_normal)
+	var adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor_xform.origin, -adjusted_global_floor_plane_normal)
 	if adjusted_global_floor_plane_point == null:
-		adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor.global_position, adjusted_global_floor_plane_normal)
+		adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor_xform.origin, adjusted_global_floor_plane_normal)
 	assert(adjusted_global_floor_plane_point != null, "ConveyorLegsAssembly: adjusted_global_floor_plane_point is null")
 	var adjusted_global_floor_plane := Plane(adjusted_global_floor_plane_normal, adjusted_global_floor_plane_point)
 
 	# Prevent infinite loop.
 	set_notify_transform(false)
-	set_local_floor_plane(conveyor.global_transform.affine_inverse() * adjusted_global_floor_plane)
+	set_local_floor_plane(conveyor_xform.affine_inverse() * adjusted_global_floor_plane)
 	set_notify_transform(true)
 
 
