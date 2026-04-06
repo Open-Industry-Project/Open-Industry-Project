@@ -23,6 +23,12 @@ var overlay: Control
 var _editor_camera: Camera3D
 var _canvas_viewport: Viewport
 var _node3d_viewport: Viewport
+var _pilot_button: Button
+
+var _last_camera: Camera3D
+var _last_canvas_viewport: Viewport
+var _last_node3d_viewport: Viewport
+var _cursor_position_before_pilot: Vector2i
 
 var _active_viewport_ui: Dictionary = {}
 
@@ -60,6 +66,25 @@ func _enter_tree() -> void:
 	})
 	set_input_event_forwarding_always_enabled()
 
+	_pilot_button = Button.new()
+	_pilot_button.flat = true
+	_pilot_button.toggle_mode = true
+	var icon := EditorInterface.get_editor_theme().get_icon("CharacterBody3D", "EditorIcons")
+	var img := icon.get_image().duplicate()
+	for x in img.get_width():
+		for y in img.get_height():
+			var pixel: Color = img.get_pixel(x, y)
+			if pixel.a > 0.0:
+				img.set_pixel(x, y, Color(1.0, 1.0, 1.0, pixel.a))
+	_pilot_button.icon = ImageTexture.create_from_image(img)
+	_pilot_button.toggled.connect(_on_pilot_button_toggled)
+	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _pilot_button)
+
+	var pilot_shortcut := editor_settings.get_shortcut(SHORTCUT_PATH)
+	if pilot_shortcut:
+		pilot_shortcut.changed.connect(_update_pilot_tooltip)
+	_update_pilot_tooltip()
+
 	overlay = Control.new()
 	overlay.name = "FullscreenOverlay"
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -68,8 +93,16 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	var pilot_shortcut := EditorInterface.get_editor_settings().get_shortcut(SHORTCUT_PATH)
+	if pilot_shortcut and pilot_shortcut.changed.is_connected(_update_pilot_tooltip):
+		pilot_shortcut.changed.disconnect(_update_pilot_tooltip)
+
 	if pilot_active:
 		exit_pilot_mode(_editor_camera, _canvas_viewport, _node3d_viewport)
+
+	if _pilot_button:
+		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _pilot_button)
+		_pilot_button.queue_free()
 
 	if is_instance_valid(overlay):
 		overlay.queue_free()
@@ -96,18 +129,25 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var key := event as InputEventKey
-	if key.keycode == KEY_ESCAPE:
-		return
-
 	var editor_settings := EditorInterface.get_editor_settings()
-	if editor_settings.is_shortcut(SHORTCUT_PATH, event):
-		return
-	if editor_settings.is_shortcut("Open Industry Project/Start Simulation", event):
-		return
-	if editor_settings.is_shortcut("Open Industry Project/Toggle Pause Simulation", event):
-		return
-	if editor_settings.is_shortcut("Open Industry Project/Stop Simulation", event):
-		return
+
+	if key.is_pressed() and not key.is_echo():
+		if key.keycode == KEY_ESCAPE or editor_settings.is_shortcut(SHORTCUT_PATH, event):
+			exit_pilot_mode(_editor_camera, _canvas_viewport, _node3d_viewport)
+			get_viewport().set_input_as_handled()
+			return
+		if editor_settings.is_shortcut("Open Industry Project/Start Simulation", event):
+			EditorInterface.start_simulation()
+			get_viewport().set_input_as_handled()
+			return
+		if editor_settings.is_shortcut("Open Industry Project/Toggle Pause Simulation", event):
+			EditorInterface.toggle_pause_simulation()
+			get_viewport().set_input_as_handled()
+			return
+		if editor_settings.is_shortcut("Open Industry Project/Stop Simulation", event):
+			EditorInterface.stop_simulation()
+			get_viewport().set_input_as_handled()
+			return
 
 	get_viewport().set_input_as_handled()
 
@@ -120,24 +160,17 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent) -> int:
 	var canvas_viewport := root.get_viewport()
 	var node3d_viewport := _camera.get_viewport()
 
-	var key := event as InputEventKey
+	if event is InputEventMouseButton and event.is_pressed():
+		_last_camera = _camera
+		_last_canvas_viewport = canvas_viewport
+		_last_node3d_viewport = node3d_viewport
+
 	var editor_settings := EditorInterface.get_editor_settings()
 
-	if pilot_active and event.is_pressed() and not event.is_echo():
-		if editor_settings.is_shortcut("Open Industry Project/Start Simulation", event):
-			EditorInterface.start_simulation()
-		elif editor_settings.is_shortcut("Open Industry Project/Toggle Pause Simulation", event):
-			EditorInterface.toggle_pause_simulation()
-		elif editor_settings.is_shortcut("Open Industry Project/Stop Simulation", event):
-			EditorInterface.stop_simulation()
-
-	if event.is_pressed() and (editor_settings.is_shortcut(SHORTCUT_PATH, event) or (key != null and key.keycode == KEY_ESCAPE)):
+	if not pilot_active and event.is_pressed() and not event.is_echo() and editor_settings.is_shortcut(SHORTCUT_PATH, event):
 		cache_editor_ui(node3d_viewport)
-
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			exit_pilot_mode(_camera, canvas_viewport, node3d_viewport)
-		elif key != null and key.keycode != KEY_ESCAPE:
-			enter_pilot_mode(_camera, canvas_viewport, node3d_viewport)
+		enter_pilot_mode(_camera, canvas_viewport, node3d_viewport)
+		return AfterGUIInput.AFTER_GUI_INPUT_STOP
 
 	if canvas_viewport.gui_disable_input:
 		return AfterGUIInput.AFTER_GUI_INPUT_PASS
@@ -183,6 +216,7 @@ func enter_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewp
 	_setup_action_from_shortcut(editor_settings, MOVE_RIGHT_PATH, "pilot_move_right")
 	_setup_action_from_shortcut(editor_settings, JUMP_PATH, "pilot_jump")
 
+	_cursor_position_before_pilot = DisplayServer.mouse_get_position()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 	var spawn_transform := _camera.global_transform
@@ -197,6 +231,7 @@ func enter_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewp
 
 	RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(), cam.get_camera_rid())
 	set_editor_ui_visible(false)
+	_sync_pilot_button(true)
 	pilot_mode_entered.emit()
 
 
@@ -215,6 +250,7 @@ func exit_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewpo
 
 	canvas_viewport.gui_disable_input = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	DisplayServer.warp_mouse(_cursor_position_before_pilot)
 	get_tree().edited_scene_root.remove_child(pilot_node)
 	pilot_node.queue_free()
 	pilot_node = null
@@ -226,6 +262,7 @@ func exit_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewpo
 
 	RenderingServer.viewport_attach_camera(node3d_viewport.get_viewport_rid(), _camera.get_camera_rid())
 	set_editor_ui_visible(true)
+	_sync_pilot_button(false)
 	pilot_mode_exited.emit()
 
 
@@ -343,6 +380,53 @@ func reset_camera_input() -> void:
 	var event := InputEventMouseMotion.new()
 	event.relative = Vector2.ZERO
 	Input.parse_input_event(event)
+
+
+func _on_pilot_button_toggled(pressed: bool) -> void:
+	if pressed and not pilot_active:
+		if not _last_camera:
+			_try_cache_default_viewport()
+		if not _last_camera:
+			push_warning("Pilot Mode: No 3D viewport available. Open a 3D scene first.")
+			_sync_pilot_button(false)
+			return
+		cache_editor_ui(_last_node3d_viewport)
+		enter_pilot_mode(_last_camera, _last_canvas_viewport, _last_node3d_viewport)
+		if not pilot_active:
+			_sync_pilot_button(false)
+	elif not pressed and pilot_active:
+		exit_pilot_mode(_editor_camera, _canvas_viewport, _node3d_viewport)
+
+
+func _try_cache_default_viewport() -> void:
+	var root := EditorInterface.get_edited_scene_root() as Node3D
+	if not root:
+		return
+	var vp := EditorInterface.get_editor_viewport_3d(0)
+	if not vp:
+		return
+	# The SubViewport's Camera3D child is the editor camera.
+	# get_camera_3d() returns the scene's active camera, not the editor's.
+	var cameras := vp.find_children("*", "Camera3D", false)
+	if cameras.is_empty():
+		return
+	_last_camera = cameras[0] as Camera3D
+	_last_canvas_viewport = root.get_viewport()
+	_last_node3d_viewport = vp
+
+
+func _update_pilot_tooltip() -> void:
+	var sc := EditorInterface.get_editor_settings().get_shortcut(SHORTCUT_PATH)
+	var shortcut_text := sc.get_as_text() if sc else ""
+	var title := "Spawn Pilot Character"
+	if not shortcut_text.is_empty() and shortcut_text != "None":
+		title += " (" + shortcut_text + ")"
+	_pilot_button.tooltip_text = title
+
+
+func _sync_pilot_button(active: bool) -> void:
+	if _pilot_button and _pilot_button.button_pressed != active:
+		_pilot_button.set_pressed_no_signal(active)
 
 
 func _on_overlay_draw() -> void:
