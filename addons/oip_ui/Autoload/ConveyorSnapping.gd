@@ -806,32 +806,14 @@ static func _find_resnap_end_pair(selected_conveyor: Node3D, target_conveyor: No
 	return [sel_ends[other_sel_idx], tgt_ends[snapped_tgt_idx]]
 
 
-## Checks if any pair of ends is already aligned (close position + opposing outward).
-static func _is_any_end_pair_snapped(selected_conveyor: Node3D, target_conveyor: Node3D, position_tolerance: float = 1.0) -> bool:
-	var sel_ends := _get_end_info(selected_conveyor)
-	var tgt_ends := _get_end_info(target_conveyor)
-	var sel_transform := selected_conveyor.global_transform
-	var tgt_transform := target_conveyor.global_transform
 
-	for se in sel_ends:
-		for te in tgt_ends:
-			var se_pos: Vector3 = se.pos
-			var te_pos: Vector3 = te.pos
-			var sel_world: Vector3 = sel_transform * se_pos
-			var tgt_world: Vector3 = tgt_transform * te_pos
-			if sel_world.distance_to(tgt_world) > position_tolerance:
-				continue
-			var se_out: Vector3 = se.outward
-			var te_out: Vector3 = te.outward
-			var sel_out_world: Vector3 = (sel_transform.basis * se_out).normalized()
-			var tgt_out_world: Vector3 = (tgt_transform.basis * te_out).normalized()
-			if sel_out_world.dot(tgt_out_world) < -0.5:
-				return true
-	return false
+static func _is_output_end(conveyor: Node3D, end_info: Dictionary) -> bool:
+	if _is_curved_conveyor(conveyor):
+		var reversed: bool = conveyor.get("reverse_belt") if "reverse_belt" in conveyor else false
+		return (end_info.name == "head") != reversed
+	return end_info.name == "front"
 
 
-## Returns the end pair whose snap moves the free (non-connecting) end the least,
-## preserving the curved conveyor's current bending direction.
 static func _find_direction_preserving_end_pair(
 	selected_conveyor: Node3D, target_conveyor: Node3D, gap: float
 ) -> Array[Dictionary]:
@@ -841,21 +823,30 @@ static func _find_direction_preserving_end_pair(
 
 	var best_pair: Array[Dictionary]
 	var best_free_dist := INF
+	var fallback_pair: Array[Dictionary]
+	var fallback_free_dist := INF
 
 	for se_idx in range(sel_ends.size()):
 		var se := sel_ends[se_idx]
 		var other_se := sel_ends[1 - se_idx]
 		var free_end_before: Vector3 = sel_transform * other_se.pos
+		var se_is_output := _is_output_end(selected_conveyor, se)
 
 		for te in tgt_ends:
 			var snap_t := _snap_end_to_end(selected_conveyor, se, target_conveyor, te, gap)
 			var free_end_after: Vector3 = snap_t * other_se.pos
 			var dist := free_end_before.distance_to(free_end_after)
-			if dist < best_free_dist:
-				best_free_dist = dist
-				best_pair = [se, te]
+			var flow_compatible := se_is_output != _is_output_end(target_conveyor, te)
 
-	return best_pair
+			if flow_compatible:
+				if dist < best_free_dist:
+					best_free_dist = dist
+					best_pair = [se, te]
+			elif dist < fallback_free_dist:
+				fallback_free_dist = dist
+				fallback_pair = [se, te]
+
+	return best_pair if not best_pair.is_empty() else fallback_pair
 
 
 static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
@@ -865,18 +856,11 @@ static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_c
 	var gap := _get_snap_gap(selected_conveyor, target_conveyor)
 
 	var pair: Array[Dictionary]
-	if _is_curved_conveyor(selected_conveyor):
-		pair = _find_direction_preserving_end_pair(selected_conveyor, target_conveyor, gap)
-		var snap_t := _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
-		var current := selected_conveyor.global_transform
-		if current.origin.distance_to(snap_t.origin) < 0.01 and current.basis.x.dot(snap_t.basis.x) > 0.999:
-			pair = _find_resnap_end_pair(selected_conveyor, target_conveyor)
-	else:
-		var is_snapped := _is_any_end_pair_snapped(selected_conveyor, target_conveyor)
-		if is_snapped:
-			pair = _find_resnap_end_pair(selected_conveyor, target_conveyor)
-		else:
-			pair = _find_closest_end_pair(selected_conveyor, target_conveyor)
+	pair = _find_direction_preserving_end_pair(selected_conveyor, target_conveyor, gap)
+	var snap_t := _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
+	var current := selected_conveyor.global_transform
+	if current.origin.distance_to(snap_t.origin) < 0.01 and current.basis.x.dot(snap_t.basis.x) > 0.999:
+		pair = _find_resnap_end_pair(selected_conveyor, target_conveyor)
 
 	var snap_transform := _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
 	return _make_snap_result(snap_transform, pair[0], pair[1])
