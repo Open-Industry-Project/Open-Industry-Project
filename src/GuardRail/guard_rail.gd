@@ -1,0 +1,94 @@
+@tool
+class_name GuardRail
+extends ResizableNode3D
+
+## OSHA-compliant safety guard rail. X = run length, Y = height, faces local +Z.
+
+@export var steel_color: Color = Color(0.85, 0.75, 0.15):
+	set(value):
+		steel_color = value
+		_update_material_color()
+
+@onready var _mesh_instance: MeshInstance3D = $MeshInstance3D
+@onready var _collision_body: StaticBody3D = $StaticBody3D
+@onready var _collision_shape: CollisionShape3D = $StaticBody3D/CollisionShape3D
+
+var _material: ShaderMaterial
+
+
+func _init() -> void:
+	super._init()
+	size_default = Vector3(4.0, GuardRailMesh.RAILING_HEIGHT, 0.04)
+	size_min = Vector3(0.5, 0.3, 0.04)
+
+
+func _ready() -> void:
+	if _collision_shape and _collision_shape.shape:
+		_collision_shape.shape = _collision_shape.shape.duplicate() as BoxShape3D
+	_setup_material()
+	_rebuild()
+
+
+func _setup_material() -> void:
+	_material = GuardRailMesh.create_material()
+	_update_material_color()
+
+
+func _update_material_color() -> void:
+	if _material:
+		var c := steel_color
+		_material.set_shader_parameter("color", Vector3(c.r, c.g, c.b))
+
+
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	new_size.x = maxf(new_size.x, 0.5)
+	new_size.y = maxf(new_size.y, 0.3)
+	new_size.z = 0.04
+	return new_size
+
+
+func _get_resize_local_bounds(for_size: Vector3) -> AABB:
+	var half_x := for_size.x * 0.5
+	return AABB(
+		Vector3(-half_x, 0, 0),
+		Vector3(for_size.x, for_size.y, 0))
+
+
+func _on_size_changed() -> void:
+	_rebuild()
+
+
+func _rebuild() -> void:
+	if not is_instance_valid(_mesh_instance):
+		return
+
+	var length := size.x
+	var height := size.y
+
+	_mesh_instance.mesh = GuardRailMesh.create(length, height)
+
+	if _mesh_instance.mesh and _mesh_instance.mesh.get_surface_count() > 0:
+		_mesh_instance.set_surface_override_material(0, _material)
+
+	if _collision_shape and _collision_shape.shape is BoxShape3D:
+		(_collision_shape.shape as BoxShape3D).size = Vector3(
+			length, height, GuardRailMesh.POST_SIZE)
+		_collision_shape.position = Vector3(
+			0, height / 2.0, GuardRailMesh.POST_SIZE / 2.0)
+
+
+func _get_custom_preview_node() -> Node3D:
+	var preview_scene := load("res://parts/GuardRail.tscn") as PackedScene
+	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	_disable_collisions_recursive(preview_node)
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+	for child in node.get_children():
+		_disable_collisions_recursive(child)

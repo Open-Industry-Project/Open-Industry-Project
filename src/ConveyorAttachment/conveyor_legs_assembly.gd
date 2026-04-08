@@ -216,6 +216,9 @@ func _init() -> void:
 	set_notify_transform(true)
 
 
+var _initial_load_pending: bool = true
+
+
 func _ready() -> void:
 	for child in get_children():
 		if child is ConveyorLeg and _get_auto_conveyor_leg_index(child.name) == LegIndex.NON_AUTO:
@@ -230,6 +233,7 @@ func _ready() -> void:
 
 func _sync_floor_plane_after_load() -> void:
 	if not is_inside_tree() or not conveyor:
+		_initial_load_pending = false
 		return
 
 	var current_local_plane = get_local_floor_plane()
@@ -237,6 +241,8 @@ func _sync_floor_plane_after_load() -> void:
 
 	if global_plane.normal != Vector3.ZERO:
 		global_floor_plane = global_plane
+
+	_initial_load_pending = false
 
 
 #region Managing connection to Conveyor's signals
@@ -257,7 +263,7 @@ var _last_collision_plane: Plane
 
 
 func _on_global_transform_changed() -> void:
-	if _collision_reposition_active:
+	if _collision_reposition_active or _initial_load_pending:
 		return
 	if not _global_transform_update_pending:
 		_global_transform_update_pending = true
@@ -268,6 +274,8 @@ func _deferred_global_transform_update() -> void:
 	_global_transform_update_pending = false
 	if _collision_reposition_active:
 		_collision_reposition_active = false
+		return
+	if _initial_load_pending:
 		return
 	_update_floor_plane()
 	_update_conveyor_leg_coverage()

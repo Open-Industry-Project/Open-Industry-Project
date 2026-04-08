@@ -23,6 +23,7 @@ run/scene_time_scale=1.0
 [autoload]
 
 ConveyorSnapping="*res://addons/oip_ui/Autoload/ConveyorSnapping.gd"
+StructureSnapping="*res://addons/oip_ui/Autoload/StructureSnapping.gd"
 
 [debug]
 

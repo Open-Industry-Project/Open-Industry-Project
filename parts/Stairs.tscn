@@ -1,0 +1,73 @@
+[gd_scene format=4 uid="uid://caperatvcocj7"]
+
+[ext_resource type="Script" uid="uid://qc67qurrrk7d" path="res://src/Stairs/stairs.gd" id="1_stairs"]
+[ext_resource type="Shader" uid="uid://cfcar2nye4ktk" path="res://src/Conveyor/conveyor_frame_shader.gdshader" id="2_g6ucp"]
+[ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="3_fdtx7"]
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_onjsa"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_d2h8r"]
+render_priority = 0
+shader = ExtResource("2_g6ucp")
+shader_parameter/metal_texture = ExtResource("3_fdtx7")
+shader_parameter/color = Color(0.337, 0.655, 0.784, 1)
+shader_parameter/metallic_value = 0.35
+shader_parameter/roughness_value = 0.7
+shader_parameter/specular_value = 0.4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hhwwb"]
+render_priority = 0
+shader = ExtResource("2_g6ucp")
+shader_parameter/metal_texture = ExtResource("3_fdtx7")
+shader_parameter/color = Color(0.337, 0.655, 0.784, 1)
+shader_parameter/metallic_value = 0.3
+shader_parameter/roughness_value = 0.6
+shader_parameter/specular_value = 0.5
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_i1mdf"]
+resource_local_to_scene = true
+size = Vector3(3.9373214, 0.15, 1.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pxtq0"]
+resource_local_to_scene = true
+size = Vector3(0.6, 0.05, 1.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_sideguard"]
+resource_local_to_scene = true
+size = Vector3(3.9373214, 1.07, 0.06)
+
+[node name="Stairs" type="Node3D" unique_id=937267779]
+script = ExtResource("1_stairs")
+size = Vector3(3.68, 2, 1.2)
+metadata/hijack_scale = true
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1832322661]
+mesh = SubResource("ArrayMesh_onjsa")
+surface_material_override/0 = SubResource("ShaderMaterial_d2h8r")
+surface_material_override/1 = SubResource("ShaderMaterial_hhwwb")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1639081266]
+
+[node name="StairCollision" type="CollisionShape3D" parent="StaticBody3D" unique_id=765307774]
+transform = Transform3D(0.64764845, -0.7619393, 0, 0.7619393, 0.64764845, 0, 0, 0, 1, -0.3, 0, 0)
+shape = SubResource("BoxShape3D_i1mdf")
+
+[node name="LandingCollision" type="CollisionShape3D" parent="StaticBody3D" unique_id=454995568]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2750001, 1.5, 0)
+shape = SubResource("BoxShape3D_pxtq0")
+
+[node name="LeftSlopeGuardCollision" type="CollisionShape3D" parent="StaticBody3D" unique_id=454995569]
+transform = Transform3D(0.64764845, -0.7619393, 0, 0.7619393, 0.64764845, 0, 0, 0, 1, -0.3, 0.535, -0.612)
+shape = SubResource("BoxShape3D_sideguard")
+
+[node name="RightSlopeGuardCollision" type="CollisionShape3D" parent="StaticBody3D" unique_id=454995570]
+transform = Transform3D(0.64764845, -0.7619393, 0, 0.7619393, 0.64764845, 0, 0, 0, 1, -0.3, 0.535, 0.612)
+shape = SubResource("BoxShape3D_sideguard")
+
+[node name="LeftLandingGuardCollision" type="CollisionShape3D" parent="StaticBody3D" unique_id=454995571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2750001, 2.035, -0.612)
+shape = SubResource("BoxShape3D_sideguard")
+
+[node name="RightLandingGuardCollision" type="CollisionShape3D" parent="StaticBody3D" unique_id=454995572]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2750001, 2.035, 0.612)
+shape = SubResource("BoxShape3D_sideguard")
