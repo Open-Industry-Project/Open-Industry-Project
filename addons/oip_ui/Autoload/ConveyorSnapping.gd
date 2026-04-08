@@ -41,7 +41,7 @@ static func snap_selected_conveyors() -> void:
 		return
 	
 	for node in selection.get_selected_nodes():
-		if (_is_conveyor(node) or _is_diverter(node) or _is_chain_transfer(node)) and node != target_conveyor:
+		if (_is_conveyor(node) or _is_diverter(node) or _is_chain_transfer(node) or _is_blade_stop(node)) and node != target_conveyor:
 			selected_conveyors.append(node as Node3D)
 
 	if selected_conveyors.is_empty():
@@ -49,8 +49,9 @@ static func snap_selected_conveyors() -> void:
 		return
 
 	for node in selected_conveyors:
-		if _is_chain_transfer(node) and not _is_roller_conveyor(target_conveyor):
-			EditorInterface.get_editor_toaster().push_toast("Chain transfers can only be snapped onto a roller conveyor", EditorToaster.SEVERITY_WARNING)
+		if (_is_chain_transfer(node) or _is_blade_stop(node)) and not _is_roller_conveyor(target_conveyor):
+			var label := "Chain transfers" if _is_chain_transfer(node) else "Blade stops"
+			EditorInterface.get_editor_toaster().push_toast("%s can only be snapped onto a roller conveyor" % label, EditorToaster.SEVERITY_WARNING)
 			return
 	
 	var undo_redo := EditorInterface.get_editor_undo_redo()
@@ -60,6 +61,7 @@ static func snap_selected_conveyors() -> void:
 	var has_side_guards := false
 	var has_diverter := false
 	var has_chain_transfer := false
+	var has_blade_stop := false
 
 	for conveyor in selected_conveyors:
 		if _is_curved_conveyor(conveyor) or _is_curved_conveyor(target_conveyor):
@@ -70,9 +72,13 @@ static func snap_selected_conveyors() -> void:
 			has_diverter = true
 		if _is_chain_transfer(conveyor):
 			has_chain_transfer = true
+		if _is_blade_stop(conveyor):
+			has_blade_stop = true
 
 	var action_name: String
-	if has_chain_transfer:
+	if has_blade_stop:
+		action_name = "Snap Blade Stop Between Rollers"
+	elif has_chain_transfer:
 		action_name = "Snap Chain Transfer Between Rollers"
 	elif has_diverter:
 		action_name = "Snap Diverter with Side Guard Openings" if has_side_guards else "Snap Diverter"
@@ -96,8 +102,8 @@ static func snap_selected_conveyors() -> void:
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
 
 		# For side connections, connect sideguards at the T-junction. Chain
-		# transfers sit on top of the conveyor and never form a T-junction.
-		if not is_end_to_end and not _is_chain_transfer(conveyor):
+		# transfers and blade stops sit between rollers and never form one.
+		if not is_end_to_end and not _is_chain_transfer(conveyor) and not _is_blade_stop(conveyor):
 			if _is_diverter(conveyor):
 				_open_side_guards_for_diverter(undo_redo, snap_transform, conveyor, target_conveyor)
 			else:
@@ -518,6 +524,9 @@ static func _make_snap_result(snap_transform: Transform3D, snapped_end: Dictiona
 static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
 	if _is_chain_transfer(selected_conveyor):
 		return _calculate_chain_transfer_snap_transform(selected_conveyor, target_conveyor)
+
+	if _is_blade_stop(selected_conveyor):
+		return _calculate_blade_stop_snap_transform(selected_conveyor, target_conveyor)
 
 	if _is_diverter(selected_conveyor):
 		return _calculate_diverter_snap_transform(selected_conveyor, target_conveyor)
@@ -1168,6 +1177,10 @@ static func _is_chain_transfer(node: Node) -> bool:
 	return node is ChainTransfer
 
 
+static func _is_blade_stop(node: Node) -> bool:
+	return node is BladeStop
+
+
 static func _is_roller_conveyor(node: Node) -> bool:
 	return node is RollerConveyor or node is RollerConveyorAssembly
 
@@ -1202,6 +1215,44 @@ static func _calculate_chain_transfer_snap_transform(chain_transfer: Node3D, tar
 		-tgt_basis.z * ct.scale.x,
 		tgt_basis.y * ct.scale.y,
 		tgt_basis.x * ct.scale.z,
+	)
+
+	return {
+		"transform": Transform3D(new_basis, target_xform * local_origin),
+		"is_end_to_end": false,
+	}
+
+
+## Snap a blade stop into a roller gap so its blade can pop up between rollers.
+static func _calculate_blade_stop_snap_transform(blade_stop: Node3D, target_conveyor: Node3D) -> Dictionary:
+	const BLADE_X_OFFSET := 0.103
+
+	var bs := blade_stop as BladeStop
+	var target_xform := target_conveyor.global_transform
+	var target_size := _get_conveyor_size(target_conveyor)
+
+	var rd := Rollers.ROLLERS_DISTANCE
+	var first_roller_x := -target_size.x / 2.0 + Rollers.ROLLERS_START_OFFSET + rd
+	var gap_phase := first_roller_x + rd / 2.0
+
+	var blade_world := bs.global_transform * Vector3(BLADE_X_OFFSET, 0, 0)
+	var blade_x := (target_xform.affine_inverse() * blade_world).x
+	var usable_half := target_size.x / 2.0 - Rollers.ROLLERS_START_OFFSET
+	var n_min := ceili((-usable_half - gap_phase) / rd)
+	var n_max := floori((usable_half - gap_phase) / rd)
+	var n := roundi((blade_x - gap_phase) / rd)
+	if n_max >= n_min:
+		n = clampi(n, n_min, n_max)
+	var snapped_blade_x := gap_phase + n * rd
+
+	var y_target := -0.27
+	var local_origin := Vector3(snapped_blade_x - BLADE_X_OFFSET, y_target, 0.0)
+
+	var tgt_basis := target_xform.basis.orthonormalized()
+	var new_basis := Basis(
+		tgt_basis.x * bs.scale.x,
+		tgt_basis.y * bs.scale.y,
+		tgt_basis.z * bs.scale.z,
 	)
 
 	return {
