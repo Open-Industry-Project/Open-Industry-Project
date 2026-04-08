@@ -324,7 +324,12 @@ static func _connect_side_guards(
 	# Compute delta transform for A's post-snap positions.
 	var delta_xform := snap_transform * snapped_conveyor.global_transform.affine_inverse()
 
-	# For each of A's front guards, ray-cast to B's plane.
+	# Determine which end of A faces the target. snap.basis.x may point either toward
+	# or away from B depending on whether the user's pre-snap direction was preserved.
+	var snap_x_world: Vector3 = snap_transform.basis.x.normalized()
+	var dir_sign: float = -1.0 if snap_x_world.dot(plane_normal) > 0.0 else 1.0
+
+	# For each of A's target-facing guards, ray-cast to B's plane.
 	var opening_x_values: Array[float] = []  # X positions in B's local space
 
 	for side_name in ["LeftSide", "RightSide"]:
@@ -332,23 +337,24 @@ static func _connect_side_guards(
 		if not side_node:
 			continue
 
-		# Find the front-most guard.
+		# Find the guard whose target-facing edge sits furthest toward the target.
 		var best_guard: SideGuard = null
-		var best_front_x := -INF
+		var best_score := -INF
 		for child in side_node.get_children():
 			if child is SideGuard:
 				var guard := child as SideGuard
-				var fx: float = guard.position.x + guard.length / 2.0
-				if fx > best_front_x:
-					best_front_x = fx
+				var leading_edge_x: float = guard.position.x + dir_sign * guard.length / 2.0
+				var score: float = dir_sign * leading_edge_x
+				if score > best_score:
+					best_score = score
 					best_guard = guard
 		if not best_guard:
 			continue
 
-		var back_x: float = best_guard.position.x - best_guard.length / 2.0
+		var trailing_edge_x: float = best_guard.position.x - dir_sign * best_guard.length / 2.0
 		var side_global: Transform3D = delta_xform * side_node.global_transform
-		var ray_origin: Vector3 = side_global * Vector3(back_x, 0, 0)
-		var ray_dir: Vector3 = (side_global.basis.x).normalized()
+		var ray_origin: Vector3 = side_global * Vector3(trailing_edge_x, 0, 0)
+		var ray_dir: Vector3 = (side_global.basis.x * dir_sign).normalized()
 
 		# Ray-plane intersection.
 		var denom: float = ray_dir.dot(plane_normal)
@@ -357,24 +363,30 @@ static func _connect_side_guards(
 
 		var t: float = (plane_point - ray_origin).dot(plane_normal) / denom
 		if t < 0.01:
-			continue  # Hit is behind back edge.
+			continue  # Hit is behind trailing edge.
 
 		var hit_point: Vector3 = ray_origin + ray_dir * t
 
-		# Trim A's guard: new length = t (back edge to hit point).
+		# Trim A's guard: keep its trailing edge fixed, move the leading edge to the hit.
 		var new_length: float = t
-		var new_center_x: float = back_x + new_length / 2.0
+		var new_center_x: float = trailing_edge_x + dir_sign * new_length / 2.0
 		var old_length: float = best_guard.length
 		var old_pos: Vector3 = best_guard.position
 
 		undo_redo.add_do_property(best_guard, "length", new_length)
 		undo_redo.add_do_property(best_guard, "position", Vector3(new_center_x, 0, 0))
-		undo_redo.add_do_property(best_guard, "front_anchored", false)
-		undo_redo.add_do_property(best_guard, "front_boundary_tracking", true)
+		if dir_sign > 0.0:
+			undo_redo.add_do_property(best_guard, "front_anchored", false)
+			undo_redo.add_do_property(best_guard, "front_boundary_tracking", true)
+			undo_redo.add_undo_property(best_guard, "front_anchored", best_guard.front_anchored)
+			undo_redo.add_undo_property(best_guard, "front_boundary_tracking", false)
+		else:
+			undo_redo.add_do_property(best_guard, "back_anchored", false)
+			undo_redo.add_do_property(best_guard, "back_boundary_tracking", true)
+			undo_redo.add_undo_property(best_guard, "back_anchored", best_guard.back_anchored)
+			undo_redo.add_undo_property(best_guard, "back_boundary_tracking", false)
 		undo_redo.add_undo_property(best_guard, "length", old_length)
 		undo_redo.add_undo_property(best_guard, "position", old_pos)
-		undo_redo.add_undo_property(best_guard, "front_anchored", best_guard.front_anchored)
-		undo_redo.add_undo_property(best_guard, "front_boundary_tracking", false)
 
 		# Record where B's opening edge should be.
 		var hit_in_target: Vector3 = target_inverse * hit_point
@@ -397,7 +409,7 @@ static func _connect_side_guards(
 
 	# Trim frame rails. Find ALL visible FrameRail nodes across all child
 	# conveyors (spurs have multiple child belts, each with their own frames).
-	var conveyor_dir: Vector3 = (snap_transform.basis.x).normalized()
+	var conveyor_dir: Vector3 = snap_x_world * dir_sign
 	var frame_denom: float = conveyor_dir.dot(plane_normal)
 	if abs(frame_denom) > 0.001:
 		var all_frames: Array[FrameRail] = []
@@ -411,30 +423,35 @@ static func _connect_side_guards(
 			var fr_dir: Vector3 = (fr_global.basis.x).normalized()
 			var is_flipped: bool = fr_dir.dot(conveyor_dir) < 0
 
-			# Ray from conveyor-space back edge to target plane.
-			var back_local_x: float = -fr.length / 2.0 if not is_flipped else fr.length / 2.0
-			var back_world: Vector3 = fr_global * Vector3(back_local_x, 0, 0)
+			# Ray from the rail's trailing edge (away from target) toward the target plane.
+			var trailing_local_x: float = -fr.length / 2.0 if not is_flipped else fr.length / 2.0
+			var trailing_world: Vector3 = fr_global * Vector3(trailing_local_x, 0, 0)
 
-			var t_f: float = (plane_point - back_world).dot(plane_normal) / frame_denom
+			var t_f: float = (plane_point - trailing_world).dot(plane_normal) / frame_denom
 			if t_f < 0.01:
 				continue
 
 			var old_length: float = fr.length
 			var old_pos: Vector3 = fr.position
 
-			# Keep the upstream (back, -X) edge fixed in parent space.
-			# This is always at pos.x - length/2 regardless of rail flip.
-			var back_parent_x: float = old_pos.x - old_length / 2.0
-			var new_pos_x: float = back_parent_x + t_f / 2.0
+			# Keep the trailing edge fixed in parent space; trim the leading edge.
+			var trailing_parent_x: float = old_pos.x - dir_sign * old_length / 2.0
+			var new_pos_x: float = trailing_parent_x + dir_sign * t_f / 2.0
 
 			undo_redo.add_do_property(fr, "length", t_f)
 			undo_redo.add_do_property(fr, "position", Vector3(new_pos_x, old_pos.y, old_pos.z))
-			undo_redo.add_do_property(fr, "front_anchored", false)
-			undo_redo.add_do_property(fr, "front_boundary_tracking", true)
+			if dir_sign > 0.0:
+				undo_redo.add_do_property(fr, "front_anchored", false)
+				undo_redo.add_do_property(fr, "front_boundary_tracking", true)
+				undo_redo.add_undo_property(fr, "front_anchored", fr.front_anchored)
+				undo_redo.add_undo_property(fr, "front_boundary_tracking", false)
+			else:
+				undo_redo.add_do_property(fr, "back_anchored", false)
+				undo_redo.add_do_property(fr, "back_boundary_tracking", true)
+				undo_redo.add_undo_property(fr, "back_anchored", fr.back_anchored)
+				undo_redo.add_undo_property(fr, "back_boundary_tracking", false)
 			undo_redo.add_undo_property(fr, "length", old_length)
 			undo_redo.add_undo_property(fr, "position", old_pos)
-			undo_redo.add_undo_property(fr, "front_anchored", fr.front_anchored)
-			undo_redo.add_undo_property(fr, "front_boundary_tracking", false)
 
 
 static func _save_child_frame_rail_states(node: Node) -> void:
@@ -1116,7 +1133,31 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		snapped_end = {"pos": Vector3(selected_size.x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
 		target_end = {"pos": edge_pos_local, "outward": Vector3(0, 0, 1), "name": &"right_side"}
 
+	if selected_transform.basis.x.dot(snap_transform.basis.x) < 0.0:
+		var flipped := _flip_snap_around_local_y(snap_transform, snapped_end)
+		snap_transform = flipped[0]
+		snapped_end = flipped[1]
+
+	var current := selected_conveyor.global_transform
+	if current.origin.distance_to(snap_transform.origin) < 0.01 and current.basis.x.dot(snap_transform.basis.x) > 0.999:
+		var flipped := _flip_snap_around_local_y(snap_transform, snapped_end)
+		snap_transform = flipped[0]
+		snapped_end = flipped[1]
+
 	return _make_snap_result(snap_transform, snapped_end, target_end)
+
+
+static func _flip_snap_around_local_y(snap_transform: Transform3D, snapped_end: Dictionary) -> Array:
+	var flipped_transform := snap_transform
+	flipped_transform.basis = Basis(-snap_transform.basis.x, snap_transform.basis.y, -snap_transform.basis.z)
+	var flipped_name_map := {&"front": &"back", &"back": &"front"}
+	var new_name: StringName = flipped_name_map.get(snapped_end.name, snapped_end.name)
+	var flipped_end := {
+		"pos": -(snapped_end.pos as Vector3),
+		"outward": -(snapped_end.outward as Vector3),
+		"name": new_name,
+	}
+	return [flipped_transform, flipped_end]
 
 
 static func _is_diverter(node: Node) -> bool:
