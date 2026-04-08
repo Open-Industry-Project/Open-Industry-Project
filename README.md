@@ -17,6 +17,7 @@ Supported Communication Protocols:
 - OPC UA via open62541
 - Ethernet/IP via libplctag
 - Modbus TCP via libplctag
+- Siemens S7 1200 & 1500 Put/Get protocol
 
 ## Table of Contents
 
@@ -85,11 +86,12 @@ The "Gateway" is the IP address of the target controller, and the path is typica
 
 ![image](https://github.com/user-attachments/assets/c376d234-548f-41de-bada-fe27f6d00bd5)
 
-The Protocol dropdown provides three options:
+The Protocol dropdown provides four options:
 
 - `ab_eip` — Ethernet/IP communication via the libplctag library
 - `modbus_tcp` — Modbus TCP communication via the libplctag library
 - `opc_ua` — OPC UA communication via the open62541 library
+- `siemens put/get` — S7 communication 
 
 When changing the Protocol to `opc_ua`, the options change to reflect the connection parameters for an OPC UA endpoint. The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server.
 
@@ -112,6 +114,7 @@ The Tag Name format depends on the protocol selected for the tag group:
 - **EtherNet/IP (`ab_eip`)**: The CIP tag name as defined in the PLC program, e.g. `MyTag`, `Program:MainProgram.MyTag`, `myUDT.field`, `myArray[0]`.
 - **Modbus TCP (`modbus_tcp`)**: A register type prefix followed by the register number. Prefixes: `co` (coil), `di` (discrete input), `hr` (holding register), `ir` (input register). For example: `hr0`, `co21`, `ir64000`.
 - **OPC UA (`opc_ua`)**: The full NodeId. For example, `ns=2;s=MyVariable` or `ns=2;i=12345`.
+- **Siemens S7 (`s7`)**: Register identifier `Ix.y, Qx.y, Mx.y` (coil), `IBx, QBx, MB.x` (byte), `IWx, MDx, QLx, ...` (word, double word, and non standard L notation quad word). The Input memory space can be written if they do not overlap the rack & Profinet inputs. The Output space can be written also under the same condition.
 
 The communication API ([OIPComms](https://github.com/Open-Industry-Project/oip-comms)) is contained within a separate GDExtension plugin. Instructions to build and update it are located in its own repository.
 

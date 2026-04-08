@@ -83,6 +83,15 @@ func update_protocol(_index: int, from_ready := false) -> void:
 		if not from_ready:
 			gateway.text = "localhost"
 			path.text = "1"
+	elif _index == 3:  # siemens s7 put/get
+		cpu_row.hide()
+		browse_opc_ua.hide()
+		path_label.hide()
+		path.hide()
+		gateway_label.text = "PLC IP address"
+
+		if not from_ready:
+			gateway.text = ""
 	else:  # ab_eip
 		cpu_row.show()
 		browse_opc_ua.hide()

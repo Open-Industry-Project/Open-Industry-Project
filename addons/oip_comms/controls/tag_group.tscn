@@ -29,13 +29,15 @@ text = "Protocol"
 layout_mode = 2
 custom_minimum_size = Vector2(110, 0)
 selected = 0
-item_count = 3
+item_count = 4
 popup/item_0/text = "ab_eip"
 popup/item_0/id = 0
 popup/item_1/text = "modbus_tcp"
 popup/item_1/id = 1
 popup/item_2/text = "opc_ua"
 popup/item_2/id = 2
+popup/item_3/text = "siemens put/get"
+popup/item_3/id = 3
 
 [node name="PollingRateLabel" type="Label" parent="Row1"]
 layout_mode = 2
