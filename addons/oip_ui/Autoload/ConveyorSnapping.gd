@@ -1,6 +1,8 @@
 @tool
 extends Node
 
+const DIVERTER_Y_OFFSET: float = 0.2
+
 
 func _enter_tree() -> void:
 	if not Engine.is_editor_hint():
@@ -39,7 +41,7 @@ static func snap_selected_conveyors() -> void:
 		return
 	
 	for node in selection.get_selected_nodes():
-		if _is_conveyor(node) and node != target_conveyor:
+		if (_is_conveyor(node) or _is_diverter(node)) and node != target_conveyor:
 			selected_conveyors.append(node as Node3D)
 	
 	if selected_conveyors.is_empty():
@@ -51,15 +53,20 @@ static func snap_selected_conveyors() -> void:
 	# Determine appropriate action name based on conveyor types and side guards
 	var has_curved := false
 	var has_side_guards := false
-	
+	var has_diverter := false
+
 	for conveyor in selected_conveyors:
 		if _is_curved_conveyor(conveyor) or _is_curved_conveyor(target_conveyor):
 			has_curved = true
 		if _has_side_guards(conveyor) or _has_side_guards(target_conveyor):
 			has_side_guards = true
-	
+		if _is_diverter(conveyor):
+			has_diverter = true
+
 	var action_name: String
-	if has_curved and has_side_guards:
+	if has_diverter:
+		action_name = "Snap Diverter with Side Guard Openings" if has_side_guards else "Snap Diverter"
+	elif has_curved and has_side_guards:
 		action_name = "Snap Curved Conveyors with Side Guard Openings"
 	elif has_curved:
 		action_name = "Snap Curved Conveyors"
@@ -80,7 +87,10 @@ static func snap_selected_conveyors() -> void:
 
 		# For side connections, connect sideguards at the T-junction.
 		if not is_end_to_end:
-			_connect_side_guards(undo_redo, conveyor, target_conveyor, snap_transform)
+			if _is_diverter(conveyor):
+				_open_side_guards_for_diverter(undo_redo, snap_transform, conveyor, target_conveyor)
+			else:
+				_connect_side_guards(undo_redo, conveyor, target_conveyor, snap_transform)
 
 	undo_redo.commit_action()
 
@@ -478,9 +488,12 @@ static func _make_snap_result(snap_transform: Transform3D, snapped_end: Dictiona
 
 
 static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
+	if _is_diverter(selected_conveyor):
+		return _calculate_diverter_snap_transform(selected_conveyor, target_conveyor)
+
 	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
 		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor)
-	
+
 	if _has_spur_angles(selected_conveyor):
 		return _calculate_spur_snap_transform(selected_conveyor, target_conveyor)
 	
@@ -1090,3 +1103,51 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		target_end = {"pos": edge_pos_local, "outward": Vector3(0, 0, 1), "name": &"right_side"}
 
 	return _make_snap_result(snap_transform, snapped_end, target_end)
+
+
+static func _is_diverter(node: Node) -> bool:
+	return node is Diverter
+
+
+static func _calculate_diverter_snap_transform(diverter: Node3D, target_conveyor: Node3D) -> Dictionary:
+	var target_transform := target_conveyor.global_transform
+	var diverter_pos := diverter.global_transform.origin
+	var diverter_size := _get_conveyor_size(diverter)
+	var target_size := _get_conveyor_size(target_conveyor)
+	var target_half_width := target_size.z / 2.0
+
+	var target_left_edge := target_transform.origin - target_transform.basis.z * target_half_width
+	var target_right_edge := target_transform.origin + target_transform.basis.z * target_half_width
+
+	var snap_to_left := diverter_pos.distance_to(target_left_edge) <= diverter_pos.distance_to(target_right_edge)
+	var side_sign := -1.0 if snap_to_left else 1.0
+	var target_edge := target_left_edge if snap_to_left else target_right_edge
+
+	var edge_start := target_edge - target_transform.basis.x * (target_size.x / 2.0)
+	var edge_end := target_edge + target_transform.basis.x * (target_size.x / 2.0)
+	var closest_point := _get_closest_point_on_line_segment(diverter_pos, edge_start, edge_end)
+
+	var new_basis := Basis()
+	new_basis.x = target_transform.basis.x.normalized()
+	new_basis.z = side_sign * target_transform.basis.z.normalized()
+	new_basis.y = new_basis.z.cross(new_basis.x).normalized()
+
+	var snap_transform := Transform3D(
+		new_basis,
+		closest_point + new_basis.z * (diverter_size.z / 2.0) - new_basis.y * DIVERTER_Y_OFFSET
+	)
+
+	var edge_pos_local: Vector3 = target_transform.affine_inverse() * closest_point
+	var snapped_end := {"pos": Vector3(0, 0, -diverter_size.z / 2.0), "outward": Vector3(0, 0, -1), "name": &"push_side"}
+	var target_end := {
+		"pos": edge_pos_local,
+		"outward": Vector3(0, 0, side_sign),
+		"name": (&"left_side" if snap_to_left else &"right_side"),
+	}
+
+	return _make_snap_result(snap_transform, snapped_end, target_end)
+
+
+static func _open_side_guards_for_diverter(undo_redo: EditorUndoRedoManager, snap_transform: Transform3D, diverter: Node3D, target_conveyor: Node3D) -> void:
+	var intersection_info := _calculate_conveyor_intersection_for_transform(diverter, target_conveyor, snap_transform)
+	_shrink_guards_for_gap(undo_redo, target_conveyor, intersection_info)

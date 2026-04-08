@@ -9,6 +9,8 @@ extends Node3D
 ## Distance the diverter arm travels during activation.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var divert_distance: float = 0.75
 
+var size: Vector3 = Vector3(0.722, 1.2, 2.127)
+
 var _fire_divert: bool = false:
 	set(value):
 		_fire_divert = value
