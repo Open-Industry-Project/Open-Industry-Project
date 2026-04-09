@@ -1,12 +1,8 @@
 import os
 
-# These models are being imported directly as Scenes.
-# (Importing as Scene allows Godot to generate LODs.)
-KEEP = [
-    "ConveyorRollerBaseSplit",
-    "ConveyorRollerEndSplit",
-    "ConveyorRollerRollerSplit",
-]
+# Filenames (without extension) of glbs to spare from trimming.
+# Add a glb here only if a scene loads it directly as a PackedScene at runtime.
+KEEP = []
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
