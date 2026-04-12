@@ -7,6 +7,30 @@ const SHAPE_Y_OFFSET: float = -0.094
 const SHAPE_HEIGHT: float = 0.2
 const SHAPE_EDGE_MARGIN: float = 0.042
 const SHAPE_END_CAP: float = 0.25
+## Visual Z width at scale.z = 1, calibrated from the scene's 0.575 → 1.524 m belt match.
+const SNAP_NATIVE_Z_WIDTH: float = 1.524 / 0.575
+
+
+func get_snap_features() -> Array:
+	var ct_center_offset: float = (chains - 1) * distance / 2.0
+	var anchor_kind: StringName = (
+		&"chain_transfer_anchor_gap" if chains % 2 == 1
+		else &"chain_transfer_anchor_on"
+	)
+	return [
+		{
+			"shape": ConveyorSnapFeatures.Shape.POINT,
+			"kind": anchor_kind,
+			"local_pos": Vector3(ct_center_offset, 0, 0),
+			"local_outward": Vector3(0, 1, 0),
+			"target_local_y": ConveyorSnapFeatures.CHAIN_TRANSFER_TARGET_LOCAL_Y,
+			"track_extent": ct_center_offset,
+			# Loose threshold so drops near a roller conveyor still catch.
+			"visible_threshold": 2.0,
+			"auto_fit_target_width": true,
+			"native_z_width": SNAP_NATIVE_Z_WIDTH,
+		},
+	]
 
 ## Number of chain lanes (2-6).
 @export var chains: int = 3:
@@ -67,13 +91,15 @@ func _init() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
 		if scale != _prev_scale:
-			_lock_scale_to_x_axis()
+			_lock_scale_to_z_axis()
 
 func _ready() -> void:
 	_sync_chain_count()
-	_lock_scale_to_x_axis()
+	_lock_scale_to_z_axis()
 
 func _enter_tree() -> void:
+	if has_meta("is_preview"):
+		return
 	EditorInterface.simulation_started.connect(_on_simulation_started)
 	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
@@ -81,6 +107,8 @@ func _enter_tree() -> void:
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _exit_tree() -> void:
+	if has_meta("is_preview"):
+		return
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
@@ -93,16 +121,17 @@ func _validate_property(property: Dictionary) -> void:
 func use() -> void:
 	popup_chains = not popup_chains
 
-func _lock_scale_to_x_axis() -> void:
-	_prev_scale = Vector3(scale.x, 1, 1)
+func _lock_scale_to_z_axis() -> void:
+	_prev_scale = Vector3(1, 1, scale.z)
 	scale = _prev_scale
 	_update_simple_shape()
 
 func _position_bases() -> void:
 	if not chain_transfer_bases:
 		return
+	var base_basis: Basis = Basis(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0))
 	for base: ChainTransferBase in chain_transfer_bases.get_children():
-		base.position = Vector3(0, 0, distance * base.get_index())
+		base.transform = Transform3D(base_basis, Vector3(distance * base.get_index(), 0, 0))
 
 func _sync_chain_count() -> void:
 	var bases := chain_transfer_bases
@@ -138,6 +167,7 @@ func _on_simulation_ended() -> void:
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/ChainTransfer.tscn") as PackedScene
 	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	preview_node.set_meta("is_preview", true)
 
 	_disable_collisions_recursive(preview_node)
 
@@ -168,13 +198,13 @@ func _update_simple_shape() -> void:
 	var simple_conveyor_shape_node := simple_conveyor_shape_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if not simple_conveyor_shape_node:
 		return
-	simple_conveyor_shape_node.position = Vector3(0, SHAPE_Y_OFFSET, (chains - 1) * distance / 2.0)
+	simple_conveyor_shape_node.position = Vector3((chains - 1) * distance / 2.0, SHAPE_Y_OFFSET, 0)
 	var simple_conveyor_shape := simple_conveyor_shape_node.shape as BoxShape3D
 	if simple_conveyor_shape:
 		simple_conveyor_shape.size = Vector3(
-			BASE_LENGTH + SHAPE_END_CAP / scale.x,
-			SHAPE_HEIGHT,
 			(chains - 1) * distance + SHAPE_EDGE_MARGIN * 2.0,
+			SHAPE_HEIGHT,
+			BASE_LENGTH + SHAPE_END_CAP / scale.z,
 		)
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:

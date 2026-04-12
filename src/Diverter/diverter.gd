@@ -39,13 +39,48 @@ func _validate_property(property: Dictionary) -> void:
 	OIPCommsSetup.validate_tag_property(property)
 
 func _enter_tree() -> void:
+	if has_meta("is_preview"):
+		return
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	EditorInterface.simulation_started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _exit_tree() -> void:
+	if has_meta("is_preview"):
+		return
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
+
+func get_snap_features() -> Array:
+	return [
+		{
+			"shape": ConveyorSnapFeatures.Shape.POINT,
+			"kind": &"diverter_push_side",
+			"local_pos": Vector3(0, 0, -size.z / 2.0),
+			"local_outward": Vector3(0, 0, -1),
+			"y_offset": ConveyorSnapFeatures.DIVERTER_Y_OFFSET,
+			"outward_offset": ConveyorSnapFeatures.DIVERTER_SIDE_OFFSET,
+			"end_name": &"push_side",
+		},
+	]
+
+
+func _get_custom_preview_node() -> Node3D:
+	var preview_scene := load("res://parts/Diverter.tscn") as PackedScene
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	preview_node.set_meta("is_preview", true)
+	_disable_collisions_recursive(preview_node)
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+	for child in node.get_children():
+		_disable_collisions_recursive(child)
 
 func use() -> void:
 	divert()

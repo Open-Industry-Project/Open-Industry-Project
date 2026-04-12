@@ -22,6 +22,22 @@ func _init() -> void:
 	size_min = Vector3(0.5, 0.3, 0.04)
 
 
+static var instances: Array[GuardRail] = []
+
+
+func _enter_tree() -> void:
+	super._enter_tree()
+	if has_meta("is_preview"):
+		return
+	if not instances.has(self):
+		instances.append(self)
+
+
+func _exit_tree() -> void:
+	super._exit_tree()
+	instances.erase(self)
+
+
 func _ready() -> void:
 	if _collision_shape and _collision_shape.shape:
 		_collision_shape.shape = _collision_shape.shape.duplicate() as BoxShape3D
@@ -80,6 +96,7 @@ func _rebuild() -> void:
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/GuardRail.tscn") as PackedScene
 	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	preview_node.set_meta("is_preview", true)
 	_disable_collisions_recursive(preview_node)
 	return preview_node
 

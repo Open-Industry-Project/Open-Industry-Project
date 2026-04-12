@@ -4,9 +4,14 @@ extends EditorPlugin
 
 const ICON: Texture2D = preload("res://assets/png/OIP-LOGO-RGB_ICON.svg")
 
+const LIVE_SNAP_SHORTCUT_PATH := "Open Industry Project/Toggle Live Snap"
+const SETTING_LIVE_SNAP := "open_industry_project/live_snap_enabled"
+
 var _editor_node: Node
 var _create_root_vbox: VBoxContainer
 var _selected_nodes: Array[Node]
+var _live_snap_button: Button
+var _live_snap_shortcut: Shortcut
 
 
 func _enter_tree() -> void:
@@ -19,6 +24,28 @@ func _enter_tree() -> void:
 	key_stroke.keycode = KEY_C
 	use_shortcut.events.append(key_stroke)
 	editor_settings.add_shortcut("Open Industry Project/Use", use_shortcut)
+
+	_live_snap_button = Button.new()
+	_live_snap_button.flat = true
+	_live_snap_button.toggle_mode = true
+	_live_snap_button.icon = EditorInterface.get_editor_theme().get_icon("SnapGrid", "EditorIcons")
+	_live_snap_button.toggled.connect(_on_live_snap_toggle)
+	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _live_snap_button)
+
+	if not editor_settings.has_setting(SETTING_LIVE_SNAP):
+		editor_settings.set_setting(SETTING_LIVE_SNAP, true)
+	editor_settings.set_initial_value(SETTING_LIVE_SNAP, true, false)
+	_live_snap_button.button_pressed = editor_settings.get_setting(SETTING_LIVE_SNAP)
+	ConveyorSnapping.live_snap_enabled = _live_snap_button.button_pressed
+
+	_live_snap_shortcut = Shortcut.new()
+	var live_snap_key := InputEventKey.new()
+	live_snap_key.keycode = KEY_N
+	_live_snap_shortcut.events.append(live_snap_key)
+	editor_settings.add_shortcut(LIVE_SNAP_SHORTCUT_PATH, _live_snap_shortcut)
+	_live_snap_shortcut = editor_settings.get_shortcut(LIVE_SNAP_SHORTCUT_PATH)
+	_live_snap_shortcut.changed.connect(_update_live_snap_tooltip)
+	_update_live_snap_tooltip()
 
 	EditorInterface.get_selection().selection_changed.connect(_on_selection_changed)
 
@@ -54,6 +81,31 @@ func _shortcut_input(event: InputEvent) -> void:
 		for node: Node in EditorInterface.get_selection().get_selected_nodes():
 			if node.has_method("use"):
 				node.call("use")
+	if editor_settings.is_shortcut(LIVE_SNAP_SHORTCUT_PATH, event) and event.is_pressed() and not event.is_echo():
+		_live_snap_button.button_pressed = not _live_snap_button.button_pressed
+
+
+func _exit_tree() -> void:
+	if _live_snap_shortcut and _live_snap_shortcut.changed.is_connected(_update_live_snap_tooltip):
+		_live_snap_shortcut.changed.disconnect(_update_live_snap_tooltip)
+	if _live_snap_button:
+		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _live_snap_button)
+		_live_snap_button.queue_free()
+
+
+func _on_live_snap_toggle(pressed: bool) -> void:
+	EditorInterface.get_editor_settings().set_setting(SETTING_LIVE_SNAP, pressed)
+	ConveyorSnapping.live_snap_enabled = pressed
+
+
+func _update_live_snap_tooltip() -> void:
+	if not _live_snap_button:
+		return
+	var shortcut_text := _live_snap_shortcut.get_as_text() if _live_snap_shortcut else ""
+	var title := "Toggle Live Snap"
+	if not shortcut_text.is_empty() and shortcut_text != "None":
+		title += " (" + shortcut_text + ")"
+	_live_snap_button.tooltip_text = title + "\nWhen on, parts snap to neighbours during gizmo drags and drop hover.\nHold Alt to escape snap for a single drag."
 
 
 func _on_selection_changed() -> void:

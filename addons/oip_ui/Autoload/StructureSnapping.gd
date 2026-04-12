@@ -1,7 +1,8 @@
 @tool
 extends Node
 
-## One-shot and live (Alt-held) snapping for platforms, stairs, and guard rails.
+## One-shot (keyboard shortcut) and live (always-on while selected, Alt to
+## escape) snapping for platforms, stairs, and guard rails.
 
 const SEARCH_RADIUS: float = 8.0
 const LIVE_VISIBLE_THRESHOLD: float = 3.0
@@ -13,12 +14,12 @@ func _enter_tree() -> void:
 	if not Engine.is_editor_hint():
 		return
 
-	if get_node_or_null("StructureSnapPreview") == null:
-		var preview_script: GDScript = load("res://addons/oip_ui/Autoload/StructureSnapPreview.gd")
-		if preview_script:
-			var preview: Node = preview_script.new()
-			preview.name = "StructureSnapPreview"
-			add_child(preview)
+	if get_node_or_null("StructureLiveSnap") == null:
+		var live_snap_script: GDScript = load("res://addons/oip_ui/Autoload/StructureLiveSnap.gd")
+		if live_snap_script:
+			var live_snap: Node = live_snap_script.new()
+			live_snap.name = "StructureLiveSnap"
+			add_child(live_snap)
 
 
 func snap_selected_structures() -> void:
@@ -125,6 +126,46 @@ static func _calculate_snap_transform_for_intent(selected: Node3D, target: Platf
 	if selected is Platform:
 		return _compute_platform_to_platform_transform(selected as Platform, target, intent)
 	return null
+
+
+static func find_snap_to_specific_guardrail(selected: Node3D, target: GuardRail, intent: Transform3D) -> Dictionary:
+	if selected == null or not is_instance_valid(selected) or target == null or not is_instance_valid(target):
+		return {}
+	if target == selected or not (selected is GuardRail):
+		return {}
+	if _horizontal_distance(target.global_position, intent.origin) > SEARCH_RADIUS:
+		return {}
+
+	var candidate_transform: Transform3D = _compute_guardrail_to_guardrail_transform(selected as GuardRail, target, intent)
+	var horizontal_delta := _horizontal_distance(intent.origin, candidate_transform.origin)
+	if horizontal_delta > LIVE_VISIBLE_THRESHOLD:
+		return {}
+	var height_delta := absf(intent.origin.y - candidate_transform.origin.y)
+	if height_delta > LIVE_HEIGHT_TOLERANCE:
+		return {}
+	var score := horizontal_delta + height_delta * 0.2
+	return {"transform": candidate_transform, "target": target, "distance": score}
+
+
+static func find_best_snap_to_guardrail(selected: Node3D, intent: Transform3D) -> Dictionary:
+	if selected == null or not is_instance_valid(selected) or not (selected is GuardRail):
+		return {}
+
+	var best_result: Dictionary = {}
+	var best_dist := INF
+
+	for target in GuardRail.instances:
+		if not is_instance_valid(target):
+			continue
+		var r := find_snap_to_specific_guardrail(selected, target, intent)
+		if r.is_empty():
+			continue
+		var d: float = r.distance
+		if d < best_dist:
+			best_dist = d
+			best_result = r
+
+	return best_result
 
 
 static func _closest_point_on_segment_xz(point: Vector3, a: Vector3, b: Vector3) -> Vector3:

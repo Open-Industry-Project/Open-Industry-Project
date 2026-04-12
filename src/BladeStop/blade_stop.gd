@@ -25,6 +25,10 @@ extends Node3D
 		_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 		_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)
 
+const SNAP_BLADE_X_OFFSET: float = 0.103
+## Visual Z width at scale.z = 1, calibrated from the scene's 0.448 → 1.524 m belt match.
+const SNAP_NATIVE_Z_WIDTH: float = 1.524 / 0.448
+
 var _active_pos: float = 0.24
 var _tag := OIPCommsTag.new()
 @onready var _blade: StaticBody3D = $Blade
@@ -50,18 +54,59 @@ func _validate_property(property: Dictionary) -> void:
 	OIPCommsSetup.validate_tag_property(property)
 
 
+func get_snap_features() -> Array:
+	return [
+		{
+			"shape": ConveyorSnapFeatures.Shape.POINT,
+			"kind": &"blade_anchor",
+			"local_pos": Vector3(SNAP_BLADE_X_OFFSET, 0, 0),
+			"local_outward": Vector3(0, 1, 0),
+			"target_local_y": ConveyorSnapFeatures.BLADE_STOP_TARGET_LOCAL_Y,
+			# Loose threshold so drops near a roller conveyor still catch.
+			"visible_threshold": 2.0,
+			"auto_fit_target_width": true,
+			"native_z_width": SNAP_NATIVE_Z_WIDTH,
+		},
+	]
+
+
+# Required so the editor's _sanitize_preview_node doesn't strip the script.
+func _get_custom_preview_node() -> Node3D:
+	var preview_scene := load("res://parts/BladeStop.tscn") as PackedScene
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	preview_node.set_meta("is_preview", true)
+	_disable_collisions_recursive(preview_node)
+	return preview_node
+
+
+func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		node.disabled = true
+	if node is CollisionObject3D:
+		node.collision_layer = 0
+		node.collision_mask = 0
+	for child in node.get_children():
+		_disable_collisions_recursive(child)
+
+
 func _enter_tree() -> void:
+	if has_meta("is_preview"):
+		return
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	EditorInterface.simulation_started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
+	if has_meta("is_preview"):
+		return
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _ready() -> void:
+	if has_meta("is_preview"):
+		return
 	_blade.position = Vector3(_blade.position.x, air_pressure_height, _blade.position.z)
 	_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 	_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)
