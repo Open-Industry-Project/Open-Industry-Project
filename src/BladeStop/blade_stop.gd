@@ -25,7 +25,21 @@ extends Node3D
 		_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 		_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)
 
+const SNAP_BLADE_X_OFFSET: float = 0.103
+
 var _active_pos: float = 0.24
+
+
+func get_snap_features() -> Array:
+	return [
+		{
+			"shape": ConveyorSnapFeatures.Shape.POINT,
+			"kind": &"blade_anchor",
+			"local_pos": Vector3(SNAP_BLADE_X_OFFSET, 0, 0),
+			"local_outward": Vector3(0, 1, 0),
+			"target_local_y": ConveyorSnapFeatures.BLADE_STOP_TARGET_LOCAL_Y,
+		},
+	]
 var _tag := OIPCommsTag.new()
 @onready var _blade: StaticBody3D = $Blade
 @onready var _air_pressure_r: MeshInstance3D = $Corners/AirPressureR

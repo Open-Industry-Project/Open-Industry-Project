@@ -4,6 +4,26 @@ extends Node3D
 
 const BASE_LENGTH: float = 2.0
 
+
+func get_snap_features() -> Array:
+	var ct_center_offset: float = (chains - 1) * distance / 2.0
+	var anchor_kind: StringName = (
+		&"chain_transfer_anchor_gap" if chains % 2 == 1
+		else &"chain_transfer_anchor_on"
+	)
+	var rotation := Basis(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0))
+	return [
+		{
+			"shape": ConveyorSnapFeatures.Shape.POINT,
+			"kind": anchor_kind,
+			"local_pos": Vector3(0, 0, ct_center_offset),
+			"local_outward": Vector3(0, 1, 0),
+			"target_local_y": ConveyorSnapFeatures.CHAIN_TRANSFER_TARGET_LOCAL_Y,
+			"track_extent": ct_center_offset,
+			"local_basis_rotation": rotation,
+		},
+	]
+
 ## Number of chain lanes (2-6).
 @export var chains: int = 3:
 	set(value):

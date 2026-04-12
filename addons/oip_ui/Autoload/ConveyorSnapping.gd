@@ -3,6 +3,22 @@ extends Node
 
 const DIVERTER_Y_OFFSET: float = 0.2
 
+## POC flag: route diverter snapping through the generic feature matcher in
+## ConveyorSnapFeatures instead of _calculate_diverter_snap_transform. Toggle
+## off to instantly fall back to the legacy path for A/B comparison.
+const USE_FEATURE_MATCHER: bool = true
+
+## Override for selected_conveyor.global_transform. When set (non-null), all
+## snap calculations read this instead of the node's actual transform. This
+## avoids the expensive global_transform write + descendant notification
+## cascade on complex assemblies (spurs) during live snap preview.
+static var selected_xform_override: Variant = null
+
+static func get_selected_xform(selected: Node3D) -> Transform3D:
+	if selected_xform_override != null:
+		return selected_xform_override
+	return selected.global_transform
+
 
 func _enter_tree() -> void:
 	if not Engine.is_editor_hint():
@@ -16,6 +32,14 @@ func _enter_tree() -> void:
 	snap_key.shift_pressed = true
 	snap_shortcut.events.append(snap_key)
 	editor_settings.add_shortcut("Open Industry Project/Snap Conveyor", snap_shortcut)
+
+	# Live snap handler. Lives as a child of this autoload so it never enters
+	# the edited scene tree. Loaded by path because autoloads parse before
+	# sibling class_names are registered.
+	var preview_script: GDScript = load("res://addons/oip_ui/Autoload/ConveyorSnapPreview.gd")
+	var preview: Node = preview_script.new()
+	preview.name = "ConveyorSnapPreview"
+	add_child(preview)
 
 
 func _input(event: InputEvent) -> void:
@@ -197,15 +221,27 @@ static func _calculate_conveyor_intersection_for_transform(snapped_conveyor: Nod
 	return {"intersections": intersections}
 
 
-## Directly shrink/split guard nodes on the target conveyor to create a gap
-## where the snapped conveyor intersects.
-static func _shrink_guards_for_gap(undo_redo: EditorUndoRedoManager, conveyor: Node3D, intersection_info: Dictionary) -> void:
+## Pure planner: walks the target's sideguards and computes the per-guard
+## changes needed to open a gap matching [code]intersection_info[/code], without
+## mutating the scene or touching undo_redo. Returns a list of plan entries
+## consumed by both [code]_shrink_guards_for_gap[/code] (which applies them
+## through undo_redo) and the live preview (which renders them as ghosts).
+##
+## Plan entries:
+##   {action: &"modify", side_node, side_str, guard, new_length, new_position,
+##    set_front_anchored: Variant, set_back_anchored: Variant}
+##   {action: &"create", side_node, side_str, sg_assembly, new_length,
+##    new_position, back_anchored}
+##
+## set_front_anchored / set_back_anchored use null to mean "leave unchanged".
+static func _plan_guard_changes(conveyor: Node3D, intersection_info: Dictionary) -> Array:
+	var plan: Array = []
 	if not intersection_info.has("intersections"):
-		return
+		return plan
 
 	var sg_assembly: Node = _find_side_guards_assembly(conveyor)
 	if not sg_assembly:
-		return
+		return plan
 
 	var intersections := intersection_info["intersections"] as Array
 
@@ -221,9 +257,12 @@ static func _shrink_guards_for_gap(undo_redo: EditorUndoRedoManager, conveyor: N
 		if not side_node:
 			continue
 
-		# Find guards that overlap with the gap region and shrink/split them.
 		for child in side_node.get_children():
 			if not child is SideGuard:
+				continue
+			# Skip guards created by the live preview — they aren't part of
+			# the original scene and shouldn't participate in planning.
+			if child.has_meta(&"_live_preview_guard"):
 				continue
 			var guard := child as SideGuard
 			var g_front: float = guard.position.x + guard.length / 2.0
@@ -233,76 +272,115 @@ static func _shrink_guards_for_gap(undo_redo: EditorUndoRedoManager, conveyor: N
 			if g_front <= gap_start or g_back >= gap_end:
 				continue
 
-			var old_length: float = guard.length
-			var old_pos: Vector3 = guard.position
-
 			if g_back < gap_start and g_front > gap_end:
-				# Gap is entirely inside this guard — split into two.
-				# Shrink this guard to the back portion.
+				# Gap entirely inside guard — shrink existing to back portion,
+				# create a new guard for the front portion.
 				var back_length: float = gap_start - g_back
 				var back_center: float = (g_back + gap_start) / 2.0
-				undo_redo.add_do_property(guard, "length", back_length)
-				undo_redo.add_do_property(guard, "position", Vector3(back_center, 0, 0))
-				undo_redo.add_do_property(guard, "front_anchored", false)
-				undo_redo.add_undo_property(guard, "length", old_length)
-				undo_redo.add_undo_property(guard, "position", old_pos)
-				undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
-
-				# Create a new guard for the front portion.
+				plan.append({
+					"action": &"modify",
+					"side_node": side_node,
+					"side_str": side_str,
+					"guard": guard,
+					"new_length": back_length,
+					"new_position": Vector3(back_center, 0, 0),
+					"set_front_anchored": false,
+					"set_back_anchored": null,
+				})
 				var front_length: float = g_front - gap_end
 				var front_center: float = (gap_end + g_front) / 2.0
+				plan.append({
+					"action": &"create",
+					"side_node": side_node,
+					"side_str": side_str,
+					"sg_assembly": sg_assembly,
+					"new_length": front_length,
+					"new_position": Vector3(front_center, 0, 0),
+					"back_anchored": false,
+				})
+			elif g_back >= gap_start:
+				# Gap overlaps the back — shrink from back.
+				var new_length: float = maxf(0.01, g_front - gap_end)
+				var new_center: float = (gap_end + g_front) / 2.0
+				plan.append({
+					"action": &"modify",
+					"side_node": side_node,
+					"side_str": side_str,
+					"guard": guard,
+					"new_length": new_length,
+					"new_position": Vector3(new_center, 0, 0),
+					"set_front_anchored": null,
+					"set_back_anchored": false,
+				})
+			elif g_front <= gap_end:
+				# Gap overlaps the front — shrink from front.
+				var new_length: float = maxf(0.01, gap_start - g_back)
+				var new_center: float = (g_back + gap_start) / 2.0
+				plan.append({
+					"action": &"modify",
+					"side_node": side_node,
+					"side_str": side_str,
+					"guard": guard,
+					"new_length": new_length,
+					"new_position": Vector3(new_center, 0, 0),
+					"set_front_anchored": false,
+					"set_back_anchored": null,
+				})
+
+	return plan
+
+
+## Apply a guard-change plan through undo_redo. The plan itself is computed
+## by [code]_plan_guard_changes[/code]; this function only translates each
+## entry into add_do_property / add_do_method calls.
+static func _shrink_guards_for_gap(undo_redo: EditorUndoRedoManager, conveyor: Node3D, intersection_info: Dictionary) -> void:
+	var plan := _plan_guard_changes(conveyor, intersection_info)
+	for change in plan:
+		match change.action:
+			&"modify":
+				var guard: SideGuard = change.guard
+				undo_redo.add_do_property(guard, "length", change.new_length)
+				undo_redo.add_do_property(guard, "position", change.new_position)
+				undo_redo.add_undo_property(guard, "length", guard.length)
+				undo_redo.add_undo_property(guard, "position", guard.position)
+				if change.set_front_anchored != null:
+					undo_redo.add_do_property(guard, "front_anchored", change.set_front_anchored)
+					undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
+				if change.set_back_anchored != null:
+					undo_redo.add_do_property(guard, "back_anchored", change.set_back_anchored)
+					undo_redo.add_undo_property(guard, "back_anchored", guard.back_anchored)
+			&"create":
+				var side_node: Node3D = change.side_node
+				var sg_assembly: Node = change.sg_assembly
 				var new_guard: SideGuard = sg_assembly._instantiate_guard()
-				new_guard.back_anchored = false
+				new_guard.back_anchored = change.back_anchored
 				var guard_basis := Basis.IDENTITY
-				if side_str == "right":
+				if change.side_str == "right":
 					guard_basis = Basis(Vector3.UP, PI)
-				new_guard.transform = Transform3D(guard_basis, Vector3(front_center, 0, 0))
-				new_guard.length = front_length
+				new_guard.transform = Transform3D(guard_basis, change.new_position)
+				new_guard.length = change.new_length
 				undo_redo.add_do_method(side_node, "add_child", new_guard)
 				undo_redo.add_do_reference(new_guard)
 				undo_redo.add_undo_method(side_node, "remove_child", new_guard)
 
-			elif g_back >= gap_start:
-				# Gap overlaps the back — shrink from back.
-				var new_length: float = g_front - gap_end
-				if new_length < 0.01:
-					new_length = 0.01
-				var new_center: float = (gap_end + g_front) / 2.0
-				undo_redo.add_do_property(guard, "length", new_length)
-				undo_redo.add_do_property(guard, "position", Vector3(new_center, 0, 0))
-				undo_redo.add_do_property(guard, "back_anchored", false)
-				undo_redo.add_undo_property(guard, "length", old_length)
-				undo_redo.add_undo_property(guard, "position", old_pos)
-				undo_redo.add_undo_property(guard, "back_anchored", guard.back_anchored)
 
-			elif g_front <= gap_end:
-				# Gap overlaps the front — shrink from front.
-				var new_length: float = gap_start - g_back
-				if new_length < 0.01:
-					new_length = 0.01
-				var new_center: float = (g_back + gap_start) / 2.0
-				undo_redo.add_do_property(guard, "length", new_length)
-				undo_redo.add_do_property(guard, "position", Vector3(new_center, 0, 0))
-				undo_redo.add_do_property(guard, "front_anchored", false)
-				undo_redo.add_undo_property(guard, "length", old_length)
-				undo_redo.add_undo_property(guard, "position", old_pos)
-				undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
-
-
-## Connect sideguards at a T-junction using ray-plane intersection.
-## For each of A's front guards, ray-cast from its back edge along its direction
-## to B's sideguard plane. The hit point determines:
-##   - A's guard trimmed length (distance from back to hit)
-##   - B's opening edge position (hit point's X in B's local space)
-static func _connect_side_guards(
-	undo_redo: EditorUndoRedoManager,
+## Pure planner for T-junction side-guard connection. Computes all property
+## changes needed to extend A's guards to B's sideguard plane, open the gap
+## on B, and trim A's frame rails — without touching undo_redo.
+##
+## Returns an Array of {node: Node, props: Dictionary} entries. Each props
+## Dictionary maps property names to their new values. Consumed by both
+## _connect_side_guards (undo_redo path) and the live preview (direct apply).
+static func _plan_connection(
 	snapped_conveyor: Node3D, target_conveyor: Node3D,
 	snap_transform: Transform3D
-) -> void:
+) -> Array:
+	var plan: Array = []
+
 	var snapped_sg := _find_side_guards_assembly(snapped_conveyor)
 	var target_sg := _find_side_guards_assembly(target_conveyor)
 	if not snapped_sg or not target_sg:
-		return
+		return plan
 
 	var target_xform := target_conveyor.global_transform
 	var target_inverse := target_xform.affine_inverse()
@@ -311,7 +389,6 @@ static func _connect_side_guards(
 	var target_half_width := target_size.z / 2.0
 	var target_half_length := target_size.x / 2.0
 
-	# Determine which side of B the snap lands on.
 	var snapped_center_in_target: Vector3 = target_inverse * snap_transform.origin
 	var side_str: String
 	if abs(snapped_center_in_target.z + target_half_width) < abs(snapped_center_in_target.z - target_half_width):
@@ -319,35 +396,28 @@ static func _connect_side_guards(
 	else:
 		side_str = "right"
 
-	# B's sideguard plane in world space.
 	var side_z: float = (target_half_width + frame_wt) if side_str == "right" else -(target_half_width + frame_wt)
 	var plane_point: Vector3 = target_xform * Vector3(0, 0, side_z)
 	var plane_normal: Vector3 = (target_xform.basis.z).normalized()
-	# Normal should point away from the belt (outward).
 	if side_str == "left":
 		plane_normal = -plane_normal
 
-	# Compute delta transform for A's post-snap positions.
 	var delta_xform := snap_transform * snapped_conveyor.global_transform.affine_inverse()
-
-	# Determine which end of A faces the target. snap.basis.x may point either toward
-	# or away from B depending on whether the user's pre-snap direction was preserved.
 	var snap_x_world: Vector3 = snap_transform.basis.x.normalized()
 	var dir_sign: float = -1.0 if snap_x_world.dot(plane_normal) > 0.0 else 1.0
 
-	# For each of A's target-facing guards, ray-cast to B's plane.
-	var opening_x_values: Array[float] = []  # X positions in B's local space
+	# --- Extend A's guards toward B's plane ---------------------------------
+	var opening_x_values: Array[float] = []
 
 	for side_name in ["LeftSide", "RightSide"]:
 		var side_node := snapped_sg.get_node_or_null(side_name) as Node3D
 		if not side_node:
 			continue
 
-		# Find the guard whose target-facing edge sits furthest toward the target.
 		var best_guard: SideGuard = null
 		var best_score := -INF
 		for child in side_node.get_children():
-			if child is SideGuard:
+			if child is SideGuard and not child.has_meta(&"_live_preview_guard"):
 				var guard := child as SideGuard
 				var leading_edge_x: float = guard.position.x + dir_sign * guard.length / 2.0
 				var score: float = dir_sign * leading_edge_x
@@ -362,43 +432,34 @@ static func _connect_side_guards(
 		var ray_origin: Vector3 = side_global * Vector3(trailing_edge_x, 0, 0)
 		var ray_dir: Vector3 = (side_global.basis.x * dir_sign).normalized()
 
-		# Ray-plane intersection.
 		var denom: float = ray_dir.dot(plane_normal)
 		if abs(denom) < 0.001:
-			continue  # Nearly parallel — skip.
+			continue
 
 		var t: float = (plane_point - ray_origin).dot(plane_normal) / denom
 		if t < 0.01:
-			continue  # Hit is behind trailing edge.
+			continue
 
 		var hit_point: Vector3 = ray_origin + ray_dir * t
-
-		# Trim A's guard: keep its trailing edge fixed, move the leading edge to the hit.
 		var new_length: float = t
 		var new_center_x: float = trailing_edge_x + dir_sign * new_length / 2.0
-		var old_length: float = best_guard.length
-		var old_pos: Vector3 = best_guard.position
 
-		undo_redo.add_do_property(best_guard, "length", new_length)
-		undo_redo.add_do_property(best_guard, "position", Vector3(new_center_x, 0, 0))
+		var props: Dictionary = {
+			"length": new_length,
+			"position": Vector3(new_center_x, 0, 0),
+		}
 		if dir_sign > 0.0:
-			undo_redo.add_do_property(best_guard, "front_anchored", false)
-			undo_redo.add_do_property(best_guard, "front_boundary_tracking", true)
-			undo_redo.add_undo_property(best_guard, "front_anchored", best_guard.front_anchored)
-			undo_redo.add_undo_property(best_guard, "front_boundary_tracking", false)
+			props["front_anchored"] = false
+			props["front_boundary_tracking"] = true
 		else:
-			undo_redo.add_do_property(best_guard, "back_anchored", false)
-			undo_redo.add_do_property(best_guard, "back_boundary_tracking", true)
-			undo_redo.add_undo_property(best_guard, "back_anchored", best_guard.back_anchored)
-			undo_redo.add_undo_property(best_guard, "back_boundary_tracking", false)
-		undo_redo.add_undo_property(best_guard, "length", old_length)
-		undo_redo.add_undo_property(best_guard, "position", old_pos)
+			props["back_anchored"] = false
+			props["back_boundary_tracking"] = true
+		plan.append({"node": best_guard, "props": props})
 
-		# Record where B's opening edge should be.
 		var hit_in_target: Vector3 = target_inverse * hit_point
 		opening_x_values.append(hit_in_target.x)
 
-	# Cut B's guard using the computed opening edges.
+	# --- Open gap on B ------------------------------------------------------
 	if opening_x_values.size() >= 2:
 		var gap_start: float = opening_x_values.min()
 		var gap_end: float = opening_x_values.max()
@@ -411,10 +472,10 @@ static func _connect_side_guards(
 				"position": (gap_start + gap_end) / 2.0,
 				"size": gap_end - gap_start,
 			}]}
-			_shrink_guards_for_gap(undo_redo, target_conveyor, intersection_info)
+			# Append the target guard plan entries directly.
+			plan.append({"gap_plan": _plan_guard_changes(target_conveyor, intersection_info)})
 
-	# Trim frame rails. Find ALL visible FrameRail nodes across all child
-	# conveyors (spurs have multiple child belts, each with their own frames).
+	# --- Trim frame rails ---------------------------------------------------
 	var conveyor_dir: Vector3 = snap_x_world * dir_sign
 	var frame_denom: float = conveyor_dir.dot(plane_normal)
 	if abs(frame_denom) > 0.001:
@@ -429,7 +490,6 @@ static func _connect_side_guards(
 			var fr_dir: Vector3 = (fr_global.basis.x).normalized()
 			var is_flipped: bool = fr_dir.dot(conveyor_dir) < 0
 
-			# Ray from the rail's trailing edge (away from target) toward the target plane.
 			var trailing_local_x: float = -fr.length / 2.0 if not is_flipped else fr.length / 2.0
 			var trailing_world: Vector3 = fr_global * Vector3(trailing_local_x, 0, 0)
 
@@ -437,27 +497,70 @@ static func _connect_side_guards(
 			if t_f < 0.01:
 				continue
 
-			var old_length: float = fr.length
 			var old_pos: Vector3 = fr.position
-
-			# Keep the trailing edge fixed in parent space; trim the leading edge.
-			var trailing_parent_x: float = old_pos.x - dir_sign * old_length / 2.0
+			var trailing_parent_x: float = old_pos.x - dir_sign * fr.length / 2.0
 			var new_pos_x: float = trailing_parent_x + dir_sign * t_f / 2.0
 
-			undo_redo.add_do_property(fr, "length", t_f)
-			undo_redo.add_do_property(fr, "position", Vector3(new_pos_x, old_pos.y, old_pos.z))
+			var props: Dictionary = {
+				"length": t_f,
+				"position": Vector3(new_pos_x, old_pos.y, old_pos.z),
+			}
 			if dir_sign > 0.0:
-				undo_redo.add_do_property(fr, "front_anchored", false)
-				undo_redo.add_do_property(fr, "front_boundary_tracking", true)
-				undo_redo.add_undo_property(fr, "front_anchored", fr.front_anchored)
-				undo_redo.add_undo_property(fr, "front_boundary_tracking", false)
+				props["front_anchored"] = false
+				props["front_boundary_tracking"] = true
 			else:
-				undo_redo.add_do_property(fr, "back_anchored", false)
-				undo_redo.add_do_property(fr, "back_boundary_tracking", true)
-				undo_redo.add_undo_property(fr, "back_anchored", fr.back_anchored)
-				undo_redo.add_undo_property(fr, "back_boundary_tracking", false)
-			undo_redo.add_undo_property(fr, "length", old_length)
-			undo_redo.add_undo_property(fr, "position", old_pos)
+				props["back_anchored"] = false
+				props["back_boundary_tracking"] = true
+			plan.append({"node": fr, "props": props})
+
+	return plan
+
+
+## Apply a connection plan through undo_redo.
+static func _connect_side_guards(
+	undo_redo: EditorUndoRedoManager,
+	snapped_conveyor: Node3D, target_conveyor: Node3D,
+	snap_transform: Transform3D
+) -> void:
+	var plan := _plan_connection(snapped_conveyor, target_conveyor, snap_transform)
+	for entry in plan:
+		if entry.has("gap_plan"):
+			# Nested guard-change plan for the target's gap opening.
+			var gap_plan: Array = entry.gap_plan
+			for change in gap_plan:
+				match change.action:
+					&"modify":
+						var guard: SideGuard = change.guard
+						undo_redo.add_do_property(guard, "length", change.new_length)
+						undo_redo.add_do_property(guard, "position", change.new_position)
+						undo_redo.add_undo_property(guard, "length", guard.length)
+						undo_redo.add_undo_property(guard, "position", guard.position)
+						if change.set_front_anchored != null:
+							undo_redo.add_do_property(guard, "front_anchored", change.set_front_anchored)
+							undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
+						if change.set_back_anchored != null:
+							undo_redo.add_do_property(guard, "back_anchored", change.set_back_anchored)
+							undo_redo.add_undo_property(guard, "back_anchored", guard.back_anchored)
+					&"create":
+						var side_node: Node3D = change.side_node
+						var sg_assembly: Node = change.sg_assembly
+						var new_guard: SideGuard = sg_assembly._instantiate_guard()
+						new_guard.back_anchored = change.back_anchored
+						var guard_basis := Basis.IDENTITY
+						if change.side_str == "right":
+							guard_basis = Basis(Vector3.UP, PI)
+						new_guard.transform = Transform3D(guard_basis, change.new_position)
+						new_guard.length = change.new_length
+						undo_redo.add_do_method(side_node, "add_child", new_guard)
+						undo_redo.add_do_reference(new_guard)
+						undo_redo.add_undo_method(side_node, "remove_child", new_guard)
+		elif entry.has("node"):
+			var node: Node = entry.node
+			var props: Dictionary = entry.props
+			for prop in props:
+				undo_redo.add_do_property(node, prop, props[prop])
+				undo_redo.add_undo_property(node, prop, node.get(prop))
+
 
 
 static func _save_child_frame_rail_states(node: Node) -> void:
@@ -521,14 +624,26 @@ static func _make_snap_result(snap_transform: Transform3D, snapped_end: Dictiona
 	}
 
 
-static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
+static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D, live_mode: bool = false) -> Dictionary:
 	if _is_chain_transfer(selected_conveyor):
+		if USE_FEATURE_MATCHER:
+			var feature_result := ConveyorSnapFeatures.try_snap(selected_conveyor, target_conveyor, live_mode)
+			if not feature_result.is_empty():
+				return feature_result
 		return _calculate_chain_transfer_snap_transform(selected_conveyor, target_conveyor)
 
 	if _is_blade_stop(selected_conveyor):
+		if USE_FEATURE_MATCHER:
+			var feature_result := ConveyorSnapFeatures.try_snap(selected_conveyor, target_conveyor, live_mode)
+			if not feature_result.is_empty():
+				return feature_result
 		return _calculate_blade_stop_snap_transform(selected_conveyor, target_conveyor)
 
 	if _is_diverter(selected_conveyor):
+		if USE_FEATURE_MATCHER:
+			var feature_result := ConveyorSnapFeatures.try_snap(selected_conveyor, target_conveyor, live_mode)
+			if not feature_result.is_empty():
+				return feature_result
 		return _calculate_diverter_snap_transform(selected_conveyor, target_conveyor)
 
 	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
@@ -536,10 +651,14 @@ static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor
 
 	if _has_spur_angles(selected_conveyor):
 		return _calculate_spur_snap_transform(selected_conveyor, target_conveyor)
-	
+
 	if _has_spur_angles(target_conveyor):
 		return _calculate_snap_to_spur_target_transform(selected_conveyor, target_conveyor)
-	
+
+	if USE_FEATURE_MATCHER:
+		var feature_result := ConveyorSnapFeatures.try_snap(selected_conveyor, target_conveyor, live_mode)
+		if not feature_result.is_empty():
+			return feature_result
 	return _calculate_regular_snap_transform(selected_conveyor, target_conveyor)
 
 
@@ -808,7 +927,7 @@ static func _get_snap_gap(selected_conveyor: Node3D, target_conveyor: Node3D) ->
 static func _find_closest_end_pair(selected_conveyor: Node3D, target_conveyor: Node3D) -> Array[Dictionary]:
 	var sel_ends := _get_end_info(selected_conveyor)
 	var tgt_ends := _get_end_info(target_conveyor)
-	var sel_transform := selected_conveyor.global_transform
+	var sel_transform := get_selected_xform(selected_conveyor)
 	var tgt_transform := target_conveyor.global_transform
 
 	var best_dist := INF
@@ -836,7 +955,7 @@ static func _find_closest_end_pair(selected_conveyor: Node3D, target_conveyor: N
 static func _find_resnap_end_pair(selected_conveyor: Node3D, target_conveyor: Node3D) -> Array[Dictionary]:
 	var sel_ends := _get_end_info(selected_conveyor)
 	var tgt_ends := _get_end_info(target_conveyor)
-	var sel_transform := selected_conveyor.global_transform
+	var sel_transform := get_selected_xform(selected_conveyor)
 	var tgt_transform := target_conveyor.global_transform
 
 	var best_dist := INF
@@ -872,7 +991,7 @@ static func _find_direction_preserving_end_pair(
 ) -> Array[Dictionary]:
 	var sel_ends := _get_end_info(selected_conveyor)
 	var tgt_ends := _get_end_info(target_conveyor)
-	var sel_transform := selected_conveyor.global_transform
+	var sel_transform := get_selected_xform(selected_conveyor)
 
 	var best_pair: Array[Dictionary]
 	var best_free_dist := INF
@@ -911,7 +1030,7 @@ static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_c
 	var pair: Array[Dictionary]
 	pair = _find_direction_preserving_end_pair(selected_conveyor, target_conveyor, gap)
 	var snap_t := _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
-	var current := selected_conveyor.global_transform
+	var current := get_selected_xform(selected_conveyor)
 	if current.origin.distance_to(snap_t.origin) < 0.01 and current.basis.x.dot(snap_t.basis.x) > 0.999:
 		pair = _find_resnap_end_pair(selected_conveyor, target_conveyor)
 
@@ -924,7 +1043,7 @@ static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_c
 ## so the spur connects at the angle defined by its downstream/upstream angles.
 ## When nearer to a target's end, falls back to regular (inline) snapping.
 static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
-	var sel_transform := selected_conveyor.global_transform
+	var sel_transform := get_selected_xform(selected_conveyor)
 	var tgt_transform := target_conveyor.global_transform
 	var tgt_size := _get_conveyor_size(target_conveyor)
 	var selected_position := sel_transform.origin
@@ -994,7 +1113,7 @@ static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_con
 ## outward vectors guide the straight conveyor's rotation so it aligns with the
 ## spur's edge angle. When nearer to the spur's sides, falls back to regular snap.
 static func _calculate_snap_to_spur_target_transform(selected_conveyor: Node3D, target_spur: Node3D) -> Dictionary:
-	var sel_transform := selected_conveyor.global_transform
+	var sel_transform := get_selected_xform(selected_conveyor)
 	var tgt_transform := target_spur.global_transform
 	var tgt_size := _get_conveyor_size(target_spur)
 	var selected_position := sel_transform.origin
@@ -1056,7 +1175,7 @@ static func _is_straight_conveyor(conveyor: Node3D) -> bool:
 static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D) -> Dictionary:
 	# This is the original snapping logic for non-curved conveyors
 	var target_transform := target_conveyor.global_transform
-	var selected_transform := selected_conveyor.global_transform
+	var selected_transform := get_selected_xform(selected_conveyor)
 	var selected_size := _get_conveyor_size(selected_conveyor)
 	var target_size := _get_conveyor_size(target_conveyor)
 
@@ -1147,7 +1266,7 @@ static func _calculate_regular_snap_transform(selected_conveyor: Node3D, target_
 		snap_transform = flipped[0]
 		snapped_end = flipped[1]
 
-	var current := selected_conveyor.global_transform
+	var current := get_selected_xform(selected_conveyor)
 	if current.origin.distance_to(snap_transform.origin) < 0.01 and current.basis.x.dot(snap_transform.basis.x) > 0.999:
 		var flipped := _flip_snap_around_local_y(snap_transform, snapped_end)
 		snap_transform = flipped[0]
@@ -1279,10 +1398,14 @@ static func _calculate_diverter_snap_transform(diverter: Node3D, target_conveyor
 	var edge_end := target_edge + target_transform.basis.x * (target_size.x / 2.0)
 	var closest_point := _get_closest_point_on_line_segment(diverter_pos, edge_start, edge_end)
 
+	# Build a proper right-handed rotation. Flipping only Z produces a
+	# reflection (negative determinant) which inverts Y and makes the diverter
+	# appear upside down on the left side. Flipping X and Z together is a
+	# 180° rotation around Y, keeping the part upright on both sides.
 	var new_basis := Basis()
-	new_basis.x = target_transform.basis.x.normalized()
+	new_basis.x = side_sign * target_transform.basis.x.normalized()
 	new_basis.z = side_sign * target_transform.basis.z.normalized()
-	new_basis.y = new_basis.z.cross(new_basis.x).normalized()
+	new_basis.y = target_transform.basis.y.normalized()
 
 	var snap_transform := Transform3D(
 		new_basis,

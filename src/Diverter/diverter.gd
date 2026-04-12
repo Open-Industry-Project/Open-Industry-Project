@@ -47,6 +47,19 @@ func _exit_tree() -> void:
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
+func get_snap_features() -> Array:
+	return [
+		{
+			"shape": ConveyorSnapFeatures.Shape.POINT,
+			"kind": &"diverter_push_side",
+			"local_pos": Vector3(0, 0, -size.z / 2.0),
+			"local_outward": Vector3(0, 0, -1),
+			"y_offset": ConveyorSnapFeatures.DIVERTER_Y_OFFSET,
+			"end_name": &"push_side",
+		},
+	]
+
+
 func use() -> void:
 	divert()
 

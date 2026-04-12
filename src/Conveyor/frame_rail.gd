@@ -25,6 +25,7 @@ var height: float = 0.5:
 @export_storage var back_boundary_tracking: bool = false
 
 static var _shared_material: ShaderMaterial
+static var suppress_rebuild: bool = false
 
 
 func _ready() -> void:
@@ -33,7 +34,7 @@ func _ready() -> void:
 
 
 func _rebuild() -> void:
-	if length <= 0 or height <= 0 or not is_inside_tree():
+	if suppress_rebuild or length <= 0 or height <= 0 or not is_inside_tree():
 		return
 	_ensure_shared_material()
 	mesh = ConveyorFrameMesh.create(length, height)
