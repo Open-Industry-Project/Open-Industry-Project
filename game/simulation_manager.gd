@@ -1,3 +1,4 @@
+@tool
 ## Autoload singleton that provides simulation state management.
 ##
 ## Manages simulation state directly via _running and _paused flags.

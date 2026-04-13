@@ -11,7 +11,7 @@ var _selected_nodes: Array[Node]
 
 func _enter_tree() -> void:
 	_editor_node = get_tree().root.get_child(0)
-	_editor_node.editor_layout_loaded.connect(_editor_layout_loaded)
+	call_deferred("_editor_layout_loaded")
 
 	var editor_settings := EditorInterface.get_editor_settings()
 	var use_shortcut := Shortcut.new()
