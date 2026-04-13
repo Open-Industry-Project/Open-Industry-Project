@@ -1,4 +1,31 @@
-Ich bekomme in der Datei conveyorSnapping.gd die Fehlermeldung:
-Zeile 33:Static function "get_active_node_3d()" not found in base "GDScriptNativeClass".
-Zeile 33:Cannot infer the type of "target_conveyor" variable because the value doesn't have a set type.
-Bitte behebe das ganze und überprüfe ob es noch weitere Logik und Programmierfehler beim Umschreiben durch den vorletzen merge gibt.
+Ich bekomme in der Datei resizable_node_3d.gd die Fehlermeldungen:
+Zeile 74:Cannot find member "transform_requested" in base "EditorInterface".
+Zeile 75:Cannot find member "transform_requested" in base "EditorInterface".
+Zeile 76:Cannot find member "transform_commited" in base "EditorInterface".
+Zeile 77:Cannot find member "transform_commited" in base "EditorInterface".
+Zeile 81:Cannot find member "transform_requested" in base "EditorInterface".
+Zeile 82:Cannot find member "transform_requested" in base "EditorInterface".
+Zeile 83:Cannot find member "transform_commited" in base "EditorInterface".
+Zeile 84:Cannot find member "transform_commited" in base "EditorInterface".
+
+und in der Datei belt_conveyor_assembler.gd:Zeile 2:Could not resolve class "ResizableNode3D".
+
+Zeile 2: Could not resolve class "ResizableNode3d"
+
+Das ist jetzt schon einer von vielen Fehlern und ich bekomme das Programm nichteinmal soweit um deine Umsstrukturierung wirklich auszuprobieren. Behebe bitte zuerst die oben genannten Fehlern und überprüfe anschließend bitte nocheinmal alle Dateien und das Projekt, sodass es sich ohne Probleme ausführen lässt. Die Originalprompt des umschreibens war folgende:
+
+Bei folgendem Projekt handelt es sich um einen Fork von Open Industry Projekt, welcher umgebaut werden soll.
+Das Projekt nutzt derzeit eine eigene Version von Godot und kombiniert den Spielaspekt in der Simulation und das erstellen der Simualtion findet über ein Godot Interface statt.
+Im Godot interface gibt es die Reiter Parts und Comms. In Parts lassen sich per Drag and Drop die Objekte in das Simulationsfenster ziehen.
+Das Projekt soll nun wie folgt umgebaut werden:
+Derzeit sieht die Oberfläche aus wie Godot, das soll geändert werden. Ich möchte dass die Simulation als eigentständiges Spiel läuft. Anstelle der Godot 
+möglichkeit die Parts reinzuziehen möchte ich, dass man direkt in dem eigenständigen Spiel die Möglichkeit erhält ein Menü zu öffnen, in welchem per Drag and Drop das Quipment bzw. die Assets in
+die Simulation gezogen werden. Ich möchte weg vom Godot Interface und hin zu einem eigenständigen spiel, in welchem die features die derzeit mit godot-like Interface möglich sind
+in dem spiel funktionieren.
+Anforderungsgrund hierfür ist nämlich, dass die Simulation für einsteiger sehr einfach und intuitiv funktionieren soll und das Godot Interface dem nicht entspricht.
+Deine Aufgabe ist es, das ganze nämlich genau so umzusetzen wie ich mir das vorstelle. Dafür muss die Struktur und Funktion der derzeitgen Anwendung
+natürlich verändert werden um als Produkt nur noch ein einzelnes spiel enthält wie oben beschrieben!
+
+
+
+
