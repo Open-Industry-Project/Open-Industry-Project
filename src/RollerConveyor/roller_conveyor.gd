@@ -110,9 +110,9 @@ func _enter_tree() -> void:
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
 	if Engine.is_editor_hint():
-		EditorInterface.simulation_started.connect(_on_simulation_started)
-		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
-		running = EditorInterface.is_simulation_running()
+		SimulationManager.simulation_started.connect(_on_simulation_started)
+		SimulationManager.simulation_stopped.connect(_on_simulation_ended)
+		running = SimulationManager.is_simulation_running()
 
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
@@ -127,10 +127,10 @@ func _exit_tree() -> void:
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
 	if Engine.is_editor_hint():
-		if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-			EditorInterface.simulation_started.disconnect(_on_simulation_started)
-		if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-			EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+		if SimulationManager.simulation_started.is_connected(_on_simulation_started):
+			SimulationManager.simulation_started.disconnect(_on_simulation_started)
+		if SimulationManager.simulation_stopped.is_connected(_on_simulation_ended):
+			SimulationManager.simulation_stopped.disconnect(_on_simulation_ended)
 
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
