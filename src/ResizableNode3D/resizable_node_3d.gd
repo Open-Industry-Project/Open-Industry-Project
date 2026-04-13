@@ -69,48 +69,6 @@ func _notification(what: int) -> void:
 						_scale_notification_cooldown = false
 					)
 
-func _enter_tree() -> void:
-	if Engine.is_editor_hint():
-		if not EditorInterface.transform_requested.is_connected(_transform_requested):
-			EditorInterface.transform_requested.connect(_transform_requested)
-		if not EditorInterface.transform_commited.is_connected(_transform_commited):
-			EditorInterface.transform_commited.connect(_transform_commited)
-
-func _exit_tree() -> void:
-	if Engine.is_editor_hint():
-		if EditorInterface.transform_requested.is_connected(_transform_requested):
-			EditorInterface.transform_requested.disconnect(_transform_requested)
-		if EditorInterface.transform_commited.is_connected(_transform_commited):
-			EditorInterface.transform_commited.disconnect(_transform_commited)
-
-func _transform_requested(data) -> void:
-	if not Engine.is_editor_hint():
-		return
-	if not EditorInterface.get_selection().get_selected_nodes().has(self):
-		return
-
-	if data.has("motion"):
-		var motion := Vector3(data["motion"][0], data["motion"][1], data["motion"][2])
-
-		if not transform_in_progress:
-			original_size = size
-			transform_in_progress = true
-
-		var new_size := original_size + motion
-		new_size = _get_constrained_size(new_size)
-		size = new_size
-
-func _transform_commited() -> void:
-	if transform_in_progress:
-		if size != original_size and Engine.is_editor_hint():
-			var undo_redo := EditorInterface.get_editor_undo_redo()
-			undo_redo.create_action("Scale", UndoRedo.MERGE_ALL)
-			undo_redo.add_do_property(self, "size", size)
-			undo_redo.add_undo_property(self, "size", original_size)
-			undo_redo.commit_action()
-
-		transform_in_progress = false
-
 func _on_size_changed() -> void:
 	pass
 
