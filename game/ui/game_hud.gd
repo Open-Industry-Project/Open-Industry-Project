@@ -255,7 +255,7 @@ func _on_part_clicked(index: int, _at_position: Vector2, _button: int) -> void:
 	var path: String = _parts_list.get_item_metadata(index)
 	if path:
 		part_selected.emit(path)
-		set_status("Placing: %s  (Left-click = place, R = rotate, Right-click = cancel)" % _parts_list.get_item_text(index))
+		set_status("Placing: %s (Left-click = place, R = rotate, Right-click = cancel)" % _parts_list.get_item_text(index))
 
 
 # ── Public API ───────────────────────────────────────────────────────────────

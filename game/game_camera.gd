@@ -10,6 +10,9 @@ extends Camera3D
 @export var min_pitch: float = -89.0
 @export var max_pitch: float = -5.0
 
+const _ZOOM_SCALE_DIVISOR := 20.0   ## Zoom scales proportionally to distance.
+const _PAN_SCALE_DIVISOR := 40.0    ## Mouse pan scales proportionally to distance.
+
 ## Current orbit state.
 var _distance: float = 30.0
 var _yaw_deg: float = -45.0
@@ -34,11 +37,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				_panning_mouse = mb.pressed
 			MOUSE_BUTTON_WHEEL_UP:
 				if mb.pressed:
-					_distance = max(_distance - zoom_speed * (_distance / 20.0), min_distance)
+					_distance = max(_distance - zoom_speed * (_distance / _ZOOM_SCALE_DIVISOR), min_distance)
 					_update_transform()
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if mb.pressed:
-					_distance = min(_distance + zoom_speed * (_distance / 20.0), max_distance)
+					_distance = min(_distance + zoom_speed * (_distance / _ZOOM_SCALE_DIVISOR), max_distance)
 					_update_transform()
 
 	elif event is InputEventMouseMotion:
@@ -53,7 +56,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _panning_mouse:
 			var right := global_transform.basis.x
 			var forward := Vector3(-global_transform.basis.z.x, 0, -global_transform.basis.z.z).normalized()
-			var factor := _distance / 40.0
+			var factor := _distance / _PAN_SCALE_DIVISOR
 			_target -= right * mm.relative.x * 0.05 * factor
 			_target -= forward * mm.relative.y * 0.05 * factor
 			_update_transform()
