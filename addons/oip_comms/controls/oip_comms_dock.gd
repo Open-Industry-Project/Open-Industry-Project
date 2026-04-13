@@ -34,8 +34,9 @@ func _ready() -> void:
 
 	last_tag_groups_data = tag_groups_data.duplicate(true)
 
-	SimulationManager.simulation_started.connect(_on_simulation_started)
-	SimulationManager.simulation_stopped.connect(_on_simulation_ended)
+	if SimulationManager.has_signal("simulation_started"):
+		SimulationManager.simulation_started.connect(_on_simulation_started)
+		SimulationManager.simulation_stopped.connect(_on_simulation_ended)
 
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
 	OIPComms.comms_error.connect(_on_comms_error)
