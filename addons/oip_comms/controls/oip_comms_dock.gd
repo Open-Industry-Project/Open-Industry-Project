@@ -36,6 +36,7 @@ func _ready() -> void:
 
 	if SimulationManager.has_signal("simulation_started"):
 		SimulationManager.simulation_started.connect(_on_simulation_started)
+	if SimulationManager.has_signal("simulation_stopped"):
 		SimulationManager.simulation_stopped.connect(_on_simulation_ended)
 
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
