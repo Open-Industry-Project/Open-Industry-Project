@@ -30,17 +30,20 @@ func _input(event: InputEvent) -> void:
 static func snap_selected_conveyors() -> void:
 	var selection := EditorInterface.get_selection()
 	var selected_conveyors: Array[Node3D] = []
-	var target_conveyor := EditorInterface.get_active_node_3d()
+	var selected_nodes := selection.get_selected_nodes()
 	
-	if not target_conveyor:
+	if selected_nodes.is_empty():
 		EditorInterface.get_editor_toaster().push_toast("No active node found - please click on a target conveyor first", EditorToaster.SEVERITY_WARNING)
 		return
 	
-	if not _is_conveyor(target_conveyor):
+	# The last selected node acts as the snap target (the one shown in the inspector).
+	var target_conveyor: Node3D = selected_nodes.back() as Node3D
+	
+	if not target_conveyor or not _is_conveyor(target_conveyor):
 		EditorInterface.get_editor_toaster().push_toast("Active node is not a conveyor - please select a conveyor as target", EditorToaster.SEVERITY_WARNING)
 		return
 	
-	for node in selection.get_selected_nodes():
+	for node in selected_nodes:
 		if (_is_conveyor(node) or _is_diverter(node) or _is_chain_transfer(node) or _is_blade_stop(node)) and node != target_conveyor:
 			selected_conveyors.append(node as Node3D)
 
