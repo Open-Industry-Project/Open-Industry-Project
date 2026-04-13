@@ -149,18 +149,18 @@ func _enter_tree() -> void:
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	_setup_node_references()
 
-	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.connect(_on_simulation_started)
-	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	if not SimulationManager.simulation_started.is_connected(_on_simulation_started):
+		SimulationManager.simulation_started.connect(_on_simulation_started)
+	if not SimulationManager.simulation_stopped.is_connected(_on_simulation_ended):
+		SimulationManager.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
-	if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	if SimulationManager.simulation_started.is_connected(_on_simulation_started):
+		SimulationManager.simulation_started.disconnect(_on_simulation_started)
+	if SimulationManager.simulation_stopped.is_connected(_on_simulation_ended):
+		SimulationManager.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
@@ -614,7 +614,8 @@ func move_to_position(target_angles: Array, instant: bool = false) -> void:
 			max_diff = max(max_diff, abs(adjusted_targets[i] - current[i]))
 		
 		var duration: float = max(max_diff / motion_speed, 0.1)
-		EditorInterface.mark_scene_as_unsaved()
+		if Engine.is_editor_hint():
+			EditorInterface.mark_scene_as_unsaved()
 		_motion_tween = create_tween()
 		_motion_tween.set_parallel(true)
 		_motion_tween.tween_property(self, "j1_angle", adjusted_targets[0], duration)
