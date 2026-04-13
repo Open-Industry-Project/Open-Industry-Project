@@ -1,0 +1,13 @@
+Bei dem folgenden Projekt handelt es sich um einen Fork des Open-Industry-Projekts, welcher umgebaut werden soll.
+
+Das Projekt nutzt derzeit eine eigene Version von Godot und kombiniert den Simulationsaspekt mit einem spielerischen Ansatz. Die Erstellung der Simulation findet aktuell über ein Godot-Interface statt. In diesem Interface gibt es die Reiter „Parts“ und „Comms“. Unter „Parts“ lassen sich die Objekte per Drag-and-Drop in das Simulationsfenster ziehen.
+
+Das Projekt soll nun wie folgt umgebaut werden:
+Derzeit entspricht die Benutzeroberfläche dem Standard-Layout von Godot; dies soll geändert werden. 
+Ich möchte, dass die Simulation als eigenständiges Spiel läuft. Anstelle der Godot-typischen Editor-Funktionen sollen die Nutzer direkt im Spiel die Möglichkeit erhalten, ein Menü zu öffnen.
+Aus diesem Menü heraus sollen das Equipment bzw. die Assets per Drag-and-Drop in die Simulation gezogen werden können, ähnlich wie bei Factory IO. Weg von einer "modifizierten Editor-Umgebung" hin zu einer "Native In-Game Experience"
+
+Das Ziel ist es, weg vom Godot-Interface und hin zu einer eigenständigen Anwendung zu gelangen, in der die bisherigen Features innerhalb der Spielwelt funktionieren. 
+Der Grund für diese Anforderung ist, dass die Simulation für Einsteiger sehr einfach und intuitiv bedienbar sein soll – das aktuelle Godot-Interface entspricht diesem Anspruch nicht.
+
+Deine Aufgabe ist es, das Projekt genau nach diesen Vorstellungen umzusetzen. Dafür müssen die Struktur und die Funktion der derzeitigen Anwendung so angepasst werden, dass als Endprodukt nur noch ein einzelnes, in sich geschlossenes Spiel entsteht.
