@@ -78,4 +78,4 @@ func _create_new_simulation() -> void:
 func _remove_new_simulation() -> void:
 	var root := get_tree().edited_scene_root
 	if root:
-		root.queue_free()
+		root.free()
