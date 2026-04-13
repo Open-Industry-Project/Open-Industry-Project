@@ -138,7 +138,7 @@ func _get_property_list() -> Array:
 
 
 func _enter_tree() -> void:
-	EditorInterface.simulation_started.connect(_on_simulation_started)
+	SimulationManager.simulation_started.connect(_on_simulation_started)
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
 	OIPCommsSetup.connect_comms(self, Callable(), _tag_group_polled)
 
@@ -177,7 +177,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	SimulationManager.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, Callable(), _tag_group_polled)
 	if _segments_container:
 		for i in range(_segments_container.get_child_count()):

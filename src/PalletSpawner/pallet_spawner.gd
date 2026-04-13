@@ -26,16 +26,16 @@ var scan_interval: float = 0.0
 func _enter_tree() -> void:
 	set_notify_local_transform(true)
 	scan_interval = spawn_interval
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	SimulationManager.simulation_started.connect(_on_simulation_started)
+	SimulationManager.simulation_stopped.connect(_on_simulation_ended)
 
 func _ready() -> void:
-	set_physics_process(EditorInterface.is_simulation_running())
+	set_physics_process(SimulationManager.is_simulation_running())
 	_change_texture()
 
 func _exit_tree() -> void:
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	SimulationManager.simulation_started.disconnect(_on_simulation_started)
+	SimulationManager.simulation_stopped.disconnect(_on_simulation_ended)
 
 func _physics_process(delta: float) -> void:
 	if disable:

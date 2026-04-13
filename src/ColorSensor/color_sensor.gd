@@ -85,14 +85,14 @@ func _enter_tree() -> void:
 	_ray_query.collision_mask = 8
 
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
+	SimulationManager.simulation_started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized)
 
 
 func _exit_tree() -> void:
 	RenderingServer.free_rid(_instance)
 	SensorBeamCache.clear_beam(get_instance_id())
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	SimulationManager.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized)
 
 
