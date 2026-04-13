@@ -1,8 +1,8 @@
 ## Autoload singleton that provides simulation state management.
 ##
-## In the Godot editor, it proxies signals from the custom EditorInterface.
-## In a standalone game, it manages simulation state directly and starts the
-## simulation automatically once the scene tree is ready.
+## Manages simulation state directly via _running and _paused flags.
+## In a standalone game, the simulation starts automatically once the
+## scene tree is ready.
 extends Node
 
 signal simulation_started
@@ -14,15 +14,7 @@ var _paused: bool = false
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
-		# Proxy the custom EditorInterface simulation signals so that
-		# equipment scripts only need to reference SimulationManager.
-		EditorInterface.simulation_started.connect(func() -> void: simulation_started.emit())
-		EditorInterface.simulation_stopped.connect(func() -> void: simulation_stopped.emit())
-		EditorInterface.simulation_pause_toggled.connect(
-			func(p: bool) -> void: simulation_pause_toggled.emit(p)
-		)
-	else:
+	if not Engine.is_editor_hint():
 		# In the standalone game the simulation should begin once every
 		# equipment node has finished _enter_tree / _ready, so we defer
 		# the start signal by one frame.
@@ -35,14 +27,10 @@ func _start_game_simulation() -> void:
 
 
 func is_simulation_running() -> bool:
-	if Engine.is_editor_hint():
-		return EditorInterface.is_simulation_running()
 	return _running
 
 
 func is_simulation_paused() -> bool:
-	if Engine.is_editor_hint():
-		return EditorInterface.is_simulation_paused()
 	return _paused
 
 
