@@ -161,12 +161,13 @@ func _build_ui() -> void:
 	panel_style.corner_radius_top_right = 6
 	panel_style.corner_radius_bottom_right = 6
 	_parts_panel.add_theme_stylebox_override("panel", panel_style)
-	_parts_panel.offset_top = 50
-	_parts_panel.offset_left = 0
-	_parts_panel.offset_bottom = -40
+	_parts_panel.anchor_top = 0.0
 	_parts_panel.anchor_bottom = 1.0
-	_parts_panel.custom_minimum_size.x = 240
-	_parts_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_parts_panel.anchor_left = 0.0
+	_parts_panel.anchor_right = 0.0
+	_parts_panel.offset_top = 50
+	_parts_panel.offset_bottom = -40
+	_parts_panel.offset_right = 250
 	add_child(_parts_panel)
 
 	var vbox := VBoxContainer.new()

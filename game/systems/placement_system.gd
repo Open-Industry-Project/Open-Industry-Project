@@ -23,7 +23,8 @@ func setup(camera: Camera3D, simulation_root: Node3D) -> void:
 
 
 func activate(scene_path: String) -> void:
-	deactivate()
+	# Quietly clear any existing preview (without emitting cancelled signal).
+	_clear_preview()
 	_scene_path = scene_path
 	_rotation_y = 0.0
 	_active = true
@@ -39,12 +40,26 @@ func activate(scene_path: String) -> void:
 
 
 func deactivate() -> void:
+	var was_active := _active
+	_clear_preview()
+	_active = false
+	_scene_path = ""
+	if was_active:
+		placement_cancelled.emit()
+
+
+## Stop placing without emitting the cancelled signal (e.g. when switching
+## toolbar modes).
+func cancel_silently() -> void:
+	_clear_preview()
+	_active = false
+	_scene_path = ""
+
+
+func _clear_preview() -> void:
 	if _preview:
 		_preview.queue_free()
 		_preview = null
-	_active = false
-	_scene_path = ""
-	placement_cancelled.emit()
 
 
 func is_active() -> bool:

@@ -60,6 +60,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	# Skip keyboard panning when a UI control (e.g. search bar) has focus.
+	if get_viewport().gui_get_focus_owner() is LineEdit:
+		return
+
 	# Keyboard panning (WASD / arrow keys).
 	var dir := Vector3.ZERO
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):

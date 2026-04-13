@@ -107,8 +107,8 @@ func _on_part_selected(scene_path: String) -> void:
 
 
 func _on_mode_changed(mode: String) -> void:
-	if mode != "place":
-		_placement.deactivate()
+	if mode != "place" and _placement.is_active():
+		_placement.cancel_silently()
 
 
 func _on_object_placed(_instance: Node3D) -> void:

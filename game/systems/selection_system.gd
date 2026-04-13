@@ -183,30 +183,26 @@ func _clear_highlight() -> void:
 
 
 func _get_combined_aabb(node: Node3D) -> AABB:
-	var result := AABB()
-	var first := true
-	_collect_aabb(node, node.global_transform, result, first)
-	# Convert to local space of node.
+	var meshes: Array[MeshInstance3D] = []
+	_collect_meshes(node, meshes)
+
+	if meshes.is_empty():
+		return AABB()
+
 	var inv := node.global_transform.inverse()
-	result.position = inv * result.position
+	var first_mesh := meshes[0]
+	var result := inv * (first_mesh.global_transform * first_mesh.get_aabb())
+
+	for i in range(1, meshes.size()):
+		var mi := meshes[i]
+		var world_aabb := mi.global_transform * mi.get_aabb()
+		result = result.merge(inv * world_aabb)
+
 	return result
 
 
-func _collect_aabb(node: Node, root_xform: Transform3D, result: AABB, first: bool) -> AABB:
+func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:
 	if node is MeshInstance3D:
-		var mi := node as MeshInstance3D
-		var mesh_aabb := mi.get_aabb()
-		var world_aabb := mi.global_transform * mesh_aabb
-		if first:
-			result = world_aabb
-			first = false
-		else:
-			result = result.merge(world_aabb)
-
+		out.append(node as MeshInstance3D)
 	for child in node.get_children():
-		var r := _collect_aabb(child, root_xform, result, first)
-		result = r
-		if result.size.length() > 0:
-			first = false
-
-	return result
+		_collect_meshes(child, out)
