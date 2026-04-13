@@ -137,15 +137,15 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		if editor_settings.is_shortcut("Open Industry Project/Start Simulation", event):
-			EditorInterface.start_simulation()
+			SimulationManager.start_simulation()
 			get_viewport().set_input_as_handled()
 			return
 		if editor_settings.is_shortcut("Open Industry Project/Toggle Pause Simulation", event):
-			EditorInterface.toggle_pause_simulation()
+			SimulationManager.toggle_pause()
 			get_viewport().set_input_as_handled()
 			return
 		if editor_settings.is_shortcut("Open Industry Project/Stop Simulation", event):
-			EditorInterface.stop_simulation()
+			SimulationManager.stop_simulation()
 			get_viewport().set_input_as_handled()
 			return
 
