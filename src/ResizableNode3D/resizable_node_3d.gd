@@ -69,6 +69,12 @@ func _notification(what: int) -> void:
 						_scale_notification_cooldown = false
 					)
 
+func _enter_tree() -> void:
+	pass
+
+func _exit_tree() -> void:
+	pass
+
 func _on_size_changed() -> void:
 	pass
 

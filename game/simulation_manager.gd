@@ -3,6 +3,7 @@
 ## Manages simulation state directly via _running and _paused flags.
 ## In a standalone game, the simulation starts automatically once the
 ## scene tree is ready.
+class_name SimulationManager
 extends Node
 
 signal simulation_started

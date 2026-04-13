@@ -37,7 +37,6 @@ func _editor_layout_loaded() -> void:
 
 	if get_tree().edited_scene_root == null:
 		_create_new_simulation()
-		EditorInterface.mark_scene_as_saved()
 
 
 func _process(_delta: float) -> void:
@@ -77,4 +76,6 @@ func _create_new_simulation() -> void:
 
 
 func _remove_new_simulation() -> void:
-	EditorInterface.remove_root_node()
+	var root := get_tree().edited_scene_root
+	if root:
+		root.queue_free()
