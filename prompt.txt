@@ -1,8 +1,4 @@
-Ich bekomme in der Datei "simulation_manager" beim ausführen die Fehlermeldungen:
-Zeile 20:Cannot find member "simulation_started" in base "EditorInterface".
-Zeile 21:Cannot find member "simulation_stopped" in base "EditorInterface".
-Zeile 22:Cannot find member "simulation_pause_toggled" in base "EditorInterface".
-Zeile 39:Static function "is_simulation_running()" not found in base "GDScriptNativeClass".
-Zeile 45:Static function "is_simulation_paused()" not found in base "GDScriptNativeClass".
-
-Bitte behebe das ganze
+Ich bekomme in der Datei conveyorSnapping.gd die Fehlermeldung:
+Zeile 33:Static function "get_active_node_3d()" not found in base "GDScriptNativeClass".
+Zeile 33:Cannot infer the type of "target_conveyor" variable because the value doesn't have a set type.
+Bitte behebe das ganze und überprüfe ob es noch weitere Logik und Programmierfehler beim Umschreiben durch den vorletzen merge gibt.
