@@ -15,6 +15,12 @@ var _move_origin: Vector3 = Vector3.ZERO
 var _floor_y: float = 0.0
 var _highlight_box: MeshInstance3D = null
 
+# Deferred selection: store click position so the raycast runs in
+# _physics_process where direct_space_state is guaranteed to be valid
+# (required when physics runs on a separate thread).
+var _pending_select: bool = false
+var _pending_select_pos: Vector2 = Vector2.ZERO
+
 
 func setup(camera: Camera3D, simulation_root: Node3D) -> void:
 	_camera = camera
@@ -43,6 +49,12 @@ func is_moving() -> bool:
 
 # ── Input ────────────────────────────────────────────────────────────────────
 
+func _physics_process(_delta: float) -> void:
+	if _pending_select:
+		_pending_select = false
+		_try_select(_pending_select_pos)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
@@ -52,8 +64,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_moving = false
 				get_viewport().set_input_as_handled()
 				return
-			# Try to select under cursor.
-			_try_select(mb.position)
+			# Defer the raycast to _physics_process so that
+			# direct_space_state is available (threaded physics).
+			_pending_select = true
+			_pending_select_pos = mb.position
 
 	elif event is InputEventMouseMotion:
 		if _moving and _selected:
@@ -93,6 +107,9 @@ func _try_select(screen_pos: Vector2) -> void:
 	var to := from + _camera.project_ray_normal(screen_pos) * 500.0
 
 	var space := _camera.get_world_3d().direct_space_state
+	if not space:
+		return
+
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = 0xFFFFFFFF
 	var result := space.intersect_ray(query)
