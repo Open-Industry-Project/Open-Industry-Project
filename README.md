@@ -62,6 +62,8 @@ This creates a new scene with the top node labelled "Simulation":
 
 Parts can be dragged into the viewport to instantiate them. Once they're in the scene they can be modified.
 
+To snap parts together, select the parts you want to move, then Ctrl+Click the target part (making it the active selection) and press **Ctrl+Shift+C**. The selected parts will snap to the target.
+
 https://github.com/user-attachments/assets/217c93cd-0b2d-46b8-a333-32be3417f019
 
 Most parts have properties that can be configured to communicate with a PLC or OPC UA server (see [Communications](#communications)). In this example Ignition was used as an OPC server to write to the conveyor tag.
