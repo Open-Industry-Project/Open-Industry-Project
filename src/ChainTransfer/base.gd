@@ -10,7 +10,6 @@ extends Node3D
 		active = value
 		_set_vertical_position(_active_pos if active else _inactive_pos)
 
-var speed: float = 0.0
 var running: bool = false
 var _inactive_pos: float = 0.0
 var _active_pos: float = 0.095
@@ -58,10 +57,12 @@ func _ready() -> void:
 		_scale_children(_container)
 		_scale_children(_chain)
 
+	_set_vertical_position(_active_pos if active else _inactive_pos)
+
 func _physics_process(delta: float) -> void:
 	if running:
 		var local_left := _sb.global_transform.basis.x.normalized()
-		_sb.constant_linear_velocity = local_left * speed
+		_sb.constant_linear_velocity = local_left * owner.speed
 		_sb.position = _sb_active_position
 		_sb.rotation = Vector3.ZERO
 
@@ -69,9 +70,9 @@ func _physics_process(delta: float) -> void:
 			var chain_meters: float = owner.scale.x * _chain_base_length
 			var chain_links_per_meter: float = round(owner.scale.x * _chain_scale) / chain_meters
 			if not EditorInterface.is_simulation_paused():
-				_chain_position += speed / chain_meters * delta
+				_chain_position += owner.speed / chain_meters * delta
 			_chain_position = fmod((fmod(_chain_position, 1) + 1.0), 1)
-			_chain_end_position += speed * chain_links_per_meter / _chain_end_scale * delta
+			_chain_end_position += owner.speed * chain_links_per_meter / _chain_end_scale * delta
 			_chain_end_position = fmod((fmod(_chain_end_position, 1) + 1.0), 1)
 			_set_all_chain_positions(_chain_position, _chain_end_position)
 
@@ -121,6 +122,8 @@ func _scale_children(nodes_container: Node3D) -> void:
 			child.scale = Vector3(1 / owner.scale.x, 1, 1)
 
 func _set_vertical_position(target_y: float) -> void:
+	if not is_node_ready():
+		return
 	if is_inside_tree():
 		var tween := create_tween().set_parallel()
 		for node: Node3D in [_container_body, _container, _chain]:
