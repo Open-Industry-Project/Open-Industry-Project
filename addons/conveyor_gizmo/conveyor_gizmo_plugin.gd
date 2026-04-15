@@ -29,6 +29,9 @@ func _has_gizmo(node):
 		"res://src/ConveyorAssembly/roller_conveyor_assembly.gd",
 		"res://src/ConveyorAssembly/spur_conveyor_assembly.gd",
 		"res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd",
+		"res://src/Platform/platform.gd",
+		"res://src/Stairs/stairs.gd",
+		"res://src/GuardRail/guard_rail.gd",
 	]
 
 	return script_path in valid_scripts
@@ -51,24 +54,22 @@ func _redraw(gizmo: EditorNode3DGizmo):
 	if not node is ResizableNode3D:
 		return
 
+	if node.has_meta("is_preview"):
+		return
+
 	var resizable_node = node as ResizableNode3D
-	var size = resizable_node.size
 
 	var handles = PackedVector3Array()
 	var handle_ids = PackedInt32Array()
 
-	var all_handles = [
-		Vector3(size.x/2, 0, 0),
-		Vector3(-size.x/2, 0, 0),
-		Vector3(0, size.y/2, 0),
-		Vector3(0, -size.y/2, 0),
-		Vector3(0, 0, size.z/2),
-		Vector3(0, 0, -size.z/2)
-	]
-
 	if not sideguard_mode:
-		for i in range(all_handles.size()):
-			handles.append(all_handles[i])
+		var active_ids: PackedInt32Array
+		if resizable_node.has_method("_get_active_resize_handle_ids"):
+			active_ids = resizable_node._get_active_resize_handle_ids()
+		else:
+			active_ids = PackedInt32Array([0, 1, 2, 3, 4, 5])
+		for i in active_ids:
+			handles.append(resizable_node.get_resize_handle_local_position(i, resizable_node.size))
 			handle_ids.append(i)
 
 		if handles.size() > 0:
@@ -194,14 +195,14 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	
 	var axis_index = int(handle_id / 2)
 	var is_positive = (handle_id % 2) == 0
+	var opposite_handle_id: int = handle_id + 1 if is_positive else handle_id - 1
 	
 	var parent_transform = node.get_parent_node_3d().global_transform if node.get_parent_node_3d() else Transform3D.IDENTITY
 	var initial_global_transform = parent_transform * _initial_state["transform"]
 	var initial_size = _initial_state["size"]
 	
 	# Calculate the fixed edge (the one that shouldn't move)
-	var fixed_edge_local = Vector3.ZERO
-	fixed_edge_local[axis_index] = initial_size[axis_index] / 2.0 * (-1 if is_positive else 1)
+	var fixed_edge_local := resizable_node.get_resize_handle_local_position(opposite_handle_id, initial_size)
 	var fixed_edge_global = initial_global_transform * fixed_edge_local
 	
 	var axis_local = Vector3.ZERO
@@ -230,13 +231,15 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	var distance_along_axis = t1
 	
 	var new_size = initial_size
-	new_size[axis_index] = abs(distance_along_axis)
+	new_size[axis_index] = absf(distance_along_axis)
 	
-	new_size[axis_index] = max(new_size[axis_index], resizable_node.size_min[axis_index])
+	new_size = resizable_node.size_min.max(new_size)
+	new_size = resizable_node._get_constrained_size(new_size)
 	
-	var actual_distance = new_size[axis_index] * (1 if distance_along_axis >= 0 else -1)
-	var center_global = fixed_edge_global + axis_global * (actual_distance / 2.0)
-	var new_position = parent_transform.affine_inverse() * center_global
+	# Keep the opposite handle fixed in world-space even for non-centered pivots.
+	var new_fixed_local := resizable_node.get_resize_handle_local_position(opposite_handle_id, new_size)
+	var new_origin_global: Vector3 = fixed_edge_global - (initial_global_transform.basis * new_fixed_local)
+	var new_position: Vector3 = parent_transform.affine_inverse() * new_origin_global
 	
 	node.position = new_position
 	resizable_node.resize(new_size, handle_id)

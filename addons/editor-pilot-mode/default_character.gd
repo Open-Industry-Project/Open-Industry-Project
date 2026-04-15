@@ -6,6 +6,8 @@ extends CharacterBody3D
 @export var sprint_speed: float = 8.0
 @export var mouse_sensitivity: float = 0.1
 @export var jump_velocity: float = 4.5
+@export_range(20.0, 85.0, 0.5, "degrees") var floor_max_angle_degrees: float = 58.0
+@export_range(0.0, 2.0, 0.01) var floor_snap_distance: float = 0.35
 
 var _head: Node3D
 var _camera: Camera3D
@@ -32,6 +34,9 @@ func _ready() -> void:
 	_head.rotation.y = rotation.y
 	_head.rotation.x = clamp(rotation.x, deg_to_rad(-90), deg_to_rad(90))
 	rotation = Vector3.ZERO
+	floor_max_angle = deg_to_rad(floor_max_angle_degrees)
+	floor_snap_length = floor_snap_distance
+	floor_stop_on_slope = true
 
 	var editor_settings := EditorInterface.get_editor_settings()
 	var interact_sc := editor_settings.get_shortcut("Pilot Mode/Interact")

@@ -112,3 +112,35 @@ func _on_size_changed() -> void:
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return new_size
+
+## Returns the local-space handle position for a given resize handle id.
+## Override [_get_resize_local_bounds] to customize where handles sit.
+func get_resize_handle_local_position(handle_id: int, for_size: Vector3 = size) -> Vector3:
+	var bounds := _get_resize_local_bounds(for_size)
+	var min_v: Vector3 = bounds.position
+	var max_v: Vector3 = bounds.position + bounds.size
+
+	match handle_id:
+		0:
+			return Vector3(max_v.x, 0, 0)
+		1:
+			return Vector3(min_v.x, 0, 0)
+		2:
+			return Vector3(0, max_v.y, 0)
+		3:
+			return Vector3(0, min_v.y, 0)
+		4:
+			return Vector3(0, 0, max_v.z)
+		5:
+			return Vector3(0, 0, min_v.z)
+		_:
+			return Vector3.ZERO
+
+## Local bounds used by resize handles and fixed-edge anchoring logic.
+## Default behavior assumes geometry centered on the node origin.
+func _get_resize_local_bounds(for_size: Vector3) -> AABB:
+	return AABB(-for_size * 0.5, for_size)
+
+
+func _get_active_resize_handle_ids() -> PackedInt32Array:
+	return PackedInt32Array([0, 1, 2, 3, 4, 5])

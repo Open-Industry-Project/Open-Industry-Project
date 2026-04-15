@@ -24,7 +24,17 @@ func _input(event: InputEvent) -> void:
 
 	var editor_settings := EditorInterface.get_editor_settings()
 	if editor_settings.is_shortcut("Open Industry Project/Snap Conveyor", event) and event.is_pressed() and not event.is_echo():
-		snap_selected_conveyors()
+		if _selection_has_structures():
+			StructureSnapping.snap_selected_structures()
+		else:
+			snap_selected_conveyors()
+
+
+static func _selection_has_structures() -> bool:
+	for node in EditorInterface.get_selection().get_selected_nodes():
+		if node is Platform or node is Stairs or node is GuardRail:
+			return true
+	return false
 
 
 static func snap_selected_conveyors() -> void:
