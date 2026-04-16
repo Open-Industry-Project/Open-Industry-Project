@@ -32,6 +32,7 @@ func _has_gizmo(node):
 		"res://src/Platform/platform.gd",
 		"res://src/Stairs/stairs.gd",
 		"res://src/GuardRail/guard_rail.gd",
+		"res://src/Rack/rack.gd",
 	]
 
 	return script_path in valid_scripts

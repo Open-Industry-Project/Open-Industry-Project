@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dnfh8k7yxm3vo"]
+
+[ext_resource type="Script" path="res://src/Rack/rack.gd" id="1_rack"]
+
+[node name="Rack" type="Node3D"]
+script = ExtResource("1_rack")
+size = Vector3(2.4, 6.0, 1.2)
+metadata/hijack_scale = true
