@@ -80,3 +80,18 @@ jolt_physics_3d/simulation/position_steps=20
 jolt_physics_3d/simulation/penetration_slop=0.002
 jolt_physics_3d/simulation/speculative_contact_distance=0.02
 jolt_physics_3d/collisions/collision_margin_fraction=0.0
+
+[shader_globals]
+
+trailer_hole_center={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+trailer_hole_half_extents={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+trailer_hole_active={
+"type": "float",
+"value": 0.0
+}

@@ -9,7 +9,8 @@
 [ext_resource type="Script" uid="uid://bk8xa4ge41ixj" path="res://src/AGV/conveyor_stop_sensor.gd" id="9_stoplink"]
 [ext_resource type="PackedScene" uid="uid://dnfh8k7yxm3vo" path="res://parts/Rack.tscn" id="10_rack"]
 [ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="11_building"]
-[ext_resource type="Script" path="res://src/AGV/agv_waypoint.gd" id="12_waypoint"]
+[ext_resource type="PackedScene" uid="uid://btrailer3scnx" path="res://parts/Trailer.tscn" id="11_wjadr"]
+[ext_resource type="Script" uid="uid://cigem4v1r58nb" path="res://src/AGV/agv_waypoint.gd" id="12_waypoint"]
 
 [sub_resource type="StandardMaterial3D" id="mat_pickup"]
 albedo_color = Color(0.15, 0.65, 0.25, 1)
@@ -22,12 +23,10 @@ size = Vector3(2.6, 0.02, 2.6)
 [sub_resource type="Resource" id="wp_pickup_clear"]
 script = ExtResource("12_waypoint")
 position = Vector3(0, 0, -4)
-yaw_deg = 0.0
 
 [sub_resource type="Resource" id="wp_pickup"]
 script = ExtResource("12_waypoint")
 position = Vector3(0, 0, -8.5)
-yaw_deg = 0.0
 
 [sub_resource type="Resource" id="wp_rack_approach"]
 script = ExtResource("12_waypoint")
@@ -40,11 +39,6 @@ position = Vector3(0, 0, 5.3)
 yaw_deg = 180.0
 
 [node name="AGVDemo" type="Node3D" unique_id=2122258962]
-
-[node name="Sun" type="DirectionalLight3D" parent="." unique_id=839596064]
-transform = Transform3D(0.7071, 0.5, -0.5, 0, 0.7071, 0.7071, 0.7071, -0.5, 0.5, 4, 8, 0)
-light_energy = 1.1
-shadow_enabled = true
 
 [node name="Building" parent="." unique_id=433424509 instance=ExtResource("11_building")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
@@ -363,3 +357,7 @@ agv = NodePath("../AGV")
 end_sensor = NodePath("../EndSensor")
 conveyor_lift = 0.5
 travel_lift = 0.55
+
+[node name="Trailer" parent="." unique_id=1726448277 instance=ExtResource("11_wjadr")]
+transform = Transform3D(-4.649123e-07, 0, -1, 0, 1, 0, 1, 0, -4.649123e-07, 3.9918313, 0, -21.46751)
+hole_margin = 0.0
