@@ -87,8 +87,9 @@ mesh = SubResource("ArrayMesh_qbj2v")
 transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, 0, 0, 1)
 mesh = SubResource("ArrayMesh_qbj2v")
 
-[node name="LegsBar" parent="LegsBars" parent_id_path=PackedInt32Array(315501628) index="0" unique_id=114698961]
-mesh = SubResource("ArrayMesh_11l6m")
+[node name="LegsBars" parent="." parent_id_path=PackedInt32Array(315501628) unique_id=315501628]
+bar_mesh = SubResource("ArrayMesh_11l6m")
+bar_material = SubResource("ShaderMaterial_5swr6")
 
 [node name="LegsTop1" parent="Ends" parent_id_path=PackedInt32Array(1831636979) index="0" unique_id=1707676469]
 mesh = ExtResource("4_w11cr")

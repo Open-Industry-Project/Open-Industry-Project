@@ -4,7 +4,6 @@
 [ext_resource type="Material" uid="uid://bhsy5iqi7rvp" path="res://assets/3DModels/Materials/LegsStandMaterial.tres" id="2_ggjff"]
 [ext_resource type="Script" uid="uid://c5s7a6txla6w" path="res://src/ConveyorLeg/legs_bars.gd" id="3_4d0x6"]
 [ext_resource type="ArrayMesh" uid="uid://dtrn761bti77o" path="res://assets/3DModels/Meshes/LegsBottom_Bottom.res" id="4_5hnfi"]
-[ext_resource type="PackedScene" uid="uid://di0tdk31gf2cj" path="res://src/ConveyorLeg/LegBar.tscn" id="4_kogpx"]
 [ext_resource type="Shader" uid="uid://b6uso6bqiurpv" path="res://assets/3DModels/Shaders/MetalShaderLegsBar.tres" id="5_vjkus"]
 [ext_resource type="ArrayMesh" uid="uid://cmn68cn6wtklk" path="res://assets/3DModels/Meshes/LegsGrab_Top.res" id="6_ef0e1"]
 [ext_resource type="ArrayMesh" uid="uid://bv81koohc3tyu" path="res://assets/3DModels/Meshes/LegsTop_Side_001.res" id="6_r6cyh"]
@@ -97,11 +96,8 @@ mesh = SubResource("ArrayMesh_5dlna")
 
 [node name="LegsBars" type="Node3D" parent="." unique_id=315501628]
 script = ExtResource("3_4d0x6")
-legs_bar_scene = ExtResource("4_kogpx")
-
-[node name="LegsBar" parent="LegsBars" unique_id=114698961 instance=ExtResource("4_kogpx")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-mesh = SubResource("ArrayMesh_mr6od")
+bar_mesh = SubResource("ArrayMesh_mr6od")
+bar_material = SubResource("ShaderMaterial_qrmub")
 
 [node name="Ends" type="Node3D" parent="." unique_id=1831636979]
 

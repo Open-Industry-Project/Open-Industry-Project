@@ -52,6 +52,23 @@ var local_floor_plane: Plane = DEFAULT_FLOOR_PLANE:
 	get = get_local_floor_plane, set = set_local_floor_plane
 
 
+@export_group("Leg Exclusion Zone", "exclusion_")
+## Distance from the tail end where the zone begins (metres).[br]
+## Legs will not be placed between [b]Start[/b] and [b]End[/b]. Set both to [code]0[/code] to disable.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var exclusion_start: float = 0.0:
+	set(value):
+		if exclusion_start != value:
+			exclusion_start = value
+			_exclusion_dirty = true
+			_set_needs_update(true)
+## Distance from the tail end where the zone ends (metres).
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var exclusion_end: float = 0.0:
+	set(value):
+		if exclusion_end != value:
+			exclusion_end = value
+			_exclusion_dirty = true
+			_set_needs_update(true)
+
 @export_group("Middle Legs", "middle_legs")
 ## If [code]true[/code], automatically generate conveyor legs under the conveyor spaced at a given interval.
 @export
@@ -198,6 +215,7 @@ var _tail_end_leg_enabled_prev := false
 var _head_end_leg_clearance_prev := 0.5
 var _tail_end_leg_clearance_prev := 0.5
 var _leg_model_scene_prev: PackedScene = preload("res://parts/ConveyorLeg.tscn")
+var _exclusion_dirty := false
 
 var _conveyor_legs_path_changed := true
 var _suppress_floor_plane_sub_updates := false
@@ -502,6 +520,7 @@ func _update_conveyor_legs() -> void:
 		or head_end_leg_clearance != _head_end_leg_clearance_prev \
 		or tail_end_leg_clearance != _tail_end_leg_clearance_prev \
 		or leg_model_scene != _leg_model_scene_prev \
+		or _exclusion_dirty \
 		or _conveyor_legs_coverage_changed
 
 	var number_of_conveyor_legs_adjusted: int = 0
@@ -529,6 +548,7 @@ func _update_conveyor_legs() -> void:
 	_head_end_leg_clearance_prev = head_end_leg_clearance
 	_tail_end_leg_clearance_prev = tail_end_leg_clearance
 	_leg_model_scene_prev = leg_model_scene
+	_exclusion_dirty = false
 	_conveyor_leg_coverage_min_prev = _conveyor_leg_coverage_min
 	_conveyor_leg_coverage_max_prev = _conveyor_leg_coverage_max
 
@@ -678,6 +698,13 @@ static func _get_auto_conveyor_leg_index(name: StringName) -> int:
 	return LegIndex.NON_AUTO
 
 
+func _is_position_excluded(pos: float) -> bool:
+	if exclusion_start == 0.0 and exclusion_end == 0.0:
+		return false
+	var origin := _conveyor_leg_coverage_min
+	return pos >= (origin + exclusion_start) and pos <= (origin + exclusion_end)
+
+
 func _get_auto_conveyor_leg_position(index: int) -> float:
 	if index == LegIndex.FRONT:
 		return _conveyor_leg_coverage_min
@@ -730,23 +757,22 @@ func _create_and_remove_auto_conveyor_legs(interval_conveyor_leg_count=null) -> 
 				# Only manage auto conveyor legs.
 				pass
 			LegIndex.FRONT:
-				if tail_end_leg_enabled:
+				if tail_end_leg_enabled and not _is_position_excluded(_conveyor_leg_coverage_min):
 					has_front_leg = true
 				else:
 					remove_child(child)
 					child.queue_free()
 			LegIndex.REAR:
-				if head_end_leg_enabled:
+				if head_end_leg_enabled and not _is_position_excluded(_conveyor_leg_coverage_max):
 					has_rear_leg = true
 				else:
 					remove_child(child)
 					child.queue_free()
 			_:
-				# Mark existing conveyor legs that are in the new interval.
-				if conveyor_leg_index < interval_conveyor_leg_count and middle_legs_enabled:
+				var pos := _get_interval_conveyor_leg_position(conveyor_leg_index)
+				if conveyor_leg_index < interval_conveyor_leg_count and middle_legs_enabled and not _is_position_excluded(pos):
 					conveyor_legs_inventory[conveyor_leg_index] = true
 				else:
-					# Delete conveyor legs that are outside the new interval.
 					remove_child(child)
 					child.queue_free()
 					changed = true
@@ -755,16 +781,18 @@ func _create_and_remove_auto_conveyor_legs(interval_conveyor_leg_count=null) -> 
 	if leg_model_scene == null:
 		return changed
 
-	if not has_front_leg and tail_end_leg_enabled:
+	if not has_front_leg and tail_end_leg_enabled and not _is_position_excluded(_conveyor_leg_coverage_min):
 		_add_conveyor_leg_at_index(LegIndex.FRONT)
 		changed = true
 
 	for i in interval_conveyor_leg_count:
 		if not conveyor_legs_inventory[i]:
-			_add_conveyor_leg_at_index(i)
-			changed = true
+			var pos := _get_interval_conveyor_leg_position(i)
+			if not _is_position_excluded(pos):
+				_add_conveyor_leg_at_index(i)
+				changed = true
 
-	if not has_rear_leg and head_end_leg_enabled:
+	if not has_rear_leg and head_end_leg_enabled and not _is_position_excluded(_conveyor_leg_coverage_max):
 		_add_conveyor_leg_at_index(LegIndex.REAR)
 		changed = true
 

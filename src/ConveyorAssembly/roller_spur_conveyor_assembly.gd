@@ -34,6 +34,18 @@ var local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAU
 	set(value):
 		local_floor_plane = _legs_property_cached_set(&"local_floor_plane", value, local_floor_plane)
 
+@export_subgroup("Leg Exclusion Zone", "exclusion_")
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var exclusion_start: float = 0.0:
+	get:
+		return _legs_property_cached_get(&"exclusion_start", exclusion_start)
+	set(value):
+		exclusion_start = _legs_property_cached_set(&"exclusion_start", value, exclusion_start)
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var exclusion_end: float = 0.0:
+	get:
+		return _legs_property_cached_get(&"exclusion_end", exclusion_end)
+	set(value):
+		exclusion_end = _legs_property_cached_set(&"exclusion_end", value, exclusion_end)
+
 @export_subgroup("Middle Legs", "middle_legs")
 @export
 var middle_legs_enabled: bool = false:
