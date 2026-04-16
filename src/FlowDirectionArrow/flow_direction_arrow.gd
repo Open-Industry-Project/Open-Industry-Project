@@ -77,6 +77,78 @@ static func update(arrow: Node3D, conveyor_size: Vector3) -> void:
 	arrow.position.y = conveyor_size.y / 2.0 + 0.2
 
 
+static func create_path(points: Array) -> Node3D:
+	var arrow_root := Node3D.new()
+	arrow_root.name = "FlowDirectionArrow"
+
+	if points.size() < 2:
+		return arrow_root
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.0, 1.0, 0.0, 0.9)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+
+	for i in range(points.size() - 1):
+		_add_path_segment(arrow_root, points[i], points[i + 1], mat)
+
+	return arrow_root
+
+
+static func _add_path_segment(parent: Node3D, from_point: Vector3, to_point: Vector3, mat: StandardMaterial3D) -> void:
+	var y_offset := 0.2
+	var from_lifted := from_point + Vector3(0, y_offset, 0)
+	var to_lifted := to_point + Vector3(0, y_offset, 0)
+
+	var delta := to_lifted - from_lifted
+	var length := delta.length()
+	if length < 0.3:
+		return
+
+	var direction := delta.normalized()
+	var world_up := Vector3.UP
+	if absf(direction.dot(world_up)) > 0.99:
+		world_up = Vector3.FORWARD
+	var right_z := direction.cross(world_up).normalized()
+	var true_up_y := right_z.cross(direction).normalized()
+
+	var segment_root := Node3D.new()
+	segment_root.position = from_lifted
+	segment_root.basis = Basis(direction, true_up_y, right_z)
+
+	var shaft_radius := 0.05
+	var head_radius := 0.15
+	var head_height := 0.25
+	var shaft_length := length - head_height
+	if shaft_length < 0.1:
+		return
+
+	var shaft := MeshInstance3D.new()
+	var shaft_mesh := CylinderMesh.new()
+	shaft_mesh.top_radius = shaft_radius
+	shaft_mesh.bottom_radius = shaft_radius
+	shaft_mesh.height = shaft_length
+	shaft_mesh.material = mat
+	shaft.mesh = shaft_mesh
+	shaft.rotation.z = PI / 2.0
+	shaft.position.x = shaft_length / 2.0
+	segment_root.add_child(shaft)
+
+	var head := MeshInstance3D.new()
+	var head_mesh := CylinderMesh.new()
+	head_mesh.top_radius = 0.0
+	head_mesh.bottom_radius = head_radius
+	head_mesh.height = head_height
+	head_mesh.material = mat
+	head.mesh = head_mesh
+	head.rotation.z = -PI / 2.0
+	head.position.x = shaft_length + head_height / 2.0
+	segment_root.add_child(head)
+
+	parent.add_child(segment_root)
+
+
 static func create_curved(inner_radius: float, conveyor_width: float, belt_height: float, angle_degrees: float, reversed: bool = false) -> Node3D:
 	var arrow := Node3D.new()
 	arrow.name = "FlowDirectionArrow"

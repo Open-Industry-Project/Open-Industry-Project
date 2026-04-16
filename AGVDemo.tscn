@@ -1,0 +1,365 @@
+[gd_scene format=3 uid="uid://cagvdemoscn01"]
+
+[ext_resource type="PackedScene" uid="uid://cagvpjdemo001" path="res://parts/AGV.tscn" id="1_agv"]
+[ext_resource type="PackedScene" uid="uid://rqr8ymsl2cph" path="res://parts/PalletSpawner.tscn" id="2_spawner"]
+[ext_resource type="Script" uid="uid://gvx6coss5cyd" path="res://src/AGV/agv_demo_driver.gd" id="4_driver"]
+[ext_resource type="PackedScene" uid="uid://co2mqmdwpn57w" path="res://parts/BoxSpawner.tscn" id="5_boxspawner"]
+[ext_resource type="PackedScene" uid="uid://i8xb8locnhi5" path="res://parts/assemblies/RollerConveyorAssembly.tscn" id="7_conveyor"]
+[ext_resource type="PackedScene" uid="uid://kdpe7o4ec1fa" path="res://parts/DiffuseSensor.tscn" id="8_sensor"]
+[ext_resource type="Script" uid="uid://bk8xa4ge41ixj" path="res://src/AGV/conveyor_stop_sensor.gd" id="9_stoplink"]
+[ext_resource type="PackedScene" uid="uid://dnfh8k7yxm3vo" path="res://parts/Rack.tscn" id="10_rack"]
+[ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="11_building"]
+[ext_resource type="Script" path="res://src/AGV/agv_waypoint.gd" id="12_waypoint"]
+
+[sub_resource type="StandardMaterial3D" id="mat_pickup"]
+albedo_color = Color(0.15, 0.65, 0.25, 1)
+metallic = 0.1
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="mesh_zone"]
+size = Vector3(2.6, 0.02, 2.6)
+
+[sub_resource type="Resource" id="wp_pickup_clear"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, -4)
+yaw_deg = 0.0
+
+[sub_resource type="Resource" id="wp_pickup"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, -8.5)
+yaw_deg = 0.0
+
+[sub_resource type="Resource" id="wp_rack_approach"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, 2)
+yaw_deg = 180.0
+
+[sub_resource type="Resource" id="wp_rack"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, 5.3)
+yaw_deg = 180.0
+
+[node name="AGVDemo" type="Node3D" unique_id=2122258962]
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=839596064]
+transform = Transform3D(0.7071, 0.5, -0.5, 0, 0.7071, 0.7071, 0.7071, -0.5, 0.5, 4, 8, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="Building" parent="." unique_id=433424509 instance=ExtResource("11_building")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+
+[node name="RollerConveyor" parent="." unique_id=1950346063 instance=ExtResource("7_conveyor")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0.49999988, -11)
+floor_plane = Plane(0, 1, 0, 0)
+local_floor_plane = Plane(0, 1, 0, -0.49999988)
+_guard_state = {
+"LeftSide_0": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 6.0,
+"pos_x": 0.0
+},
+"RightSide_0": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 6.0,
+"pos_x": 0.0
+}
+}
+speed = 0.5
+size = Vector3(6, 0.5, 2.6)
+
+[node name="EndSensor" parent="." unique_id=1099009400 instance=ExtResource("8_sensor")]
+transform = Transform3D(4.371139e-08, 0, -1, 0, 1, 0, 1, 0, 4.371139e-08, 1.9462368, 0.368311, -8.161089)
+max_range = 2.914
+tag_group_name = "TagGroup0"
+
+[node name="ConveyorStopLink" type="Node3D" parent="." unique_id=777357148 node_paths=PackedStringArray("sensor", "conveyor")]
+script = ExtResource("9_stoplink")
+sensor = NodePath("../EndSensor")
+conveyor = NodePath("../RollerConveyor/Conveyor")
+
+[node name="PickupZone" type="MeshInstance3D" parent="." unique_id=44152207]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011, -6.5)
+material_override = SubResource("mat_pickup")
+mesh = SubResource("mesh_zone")
+
+[node name="PalletSpawner" parent="." unique_id=321591499 instance=ExtResource("2_spawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5225178, -13)
+spawn_initial_linear_velocity = Vector3(0, 0, 0.5)
+pallets_per_minute = 3
+
+[node name="BoxSpawners" type="Node3D" parent="." unique_id=1708875717]
+
+[node name="S00_B" parent="BoxSpawners" unique_id=591378144 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.0203085, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S01_B" parent="BoxSpawners" unique_id=1103889462 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.0203085, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S02_B" parent="BoxSpawners" unique_id=257461735 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.0203085, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S03_B" parent="BoxSpawners" unique_id=1983280803 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.0203085, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S10_B" parent="BoxSpawners" unique_id=458553509 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.0203085, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S11_B" parent="BoxSpawners" unique_id=1472529111 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.0203085, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S12_B" parent="BoxSpawners" unique_id=526065827 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.0203085, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S13_B" parent="BoxSpawners" unique_id=312516536 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.0203085, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S20_B" parent="BoxSpawners" unique_id=1739011583 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.0203085, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S21_B" parent="BoxSpawners" unique_id=964414562 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.0203085, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S22_B" parent="BoxSpawners" unique_id=1798165786 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.0203085, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S23_B" parent="BoxSpawners" unique_id=1273457114 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.0203085, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S30_B" parent="BoxSpawners" unique_id=244603740 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.0203085, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S31_B" parent="BoxSpawners" unique_id=1747665247 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.0203085, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S32_B" parent="BoxSpawners" unique_id=1972663969 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.0203085, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S33_B" parent="BoxSpawners" unique_id=1347889846 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.0203085, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S00_M" parent="BoxSpawners" unique_id=1752634321 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.5703084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S01_M" parent="BoxSpawners" unique_id=545412141 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.5703084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S02_M" parent="BoxSpawners" unique_id=245265163 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.5703084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S03_M" parent="BoxSpawners" unique_id=2110682065 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 1.5703084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S10_M" parent="BoxSpawners" unique_id=1343563522 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.5703084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S11_M" parent="BoxSpawners" unique_id=1240021725 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.5703084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S12_M" parent="BoxSpawners" unique_id=1241977580 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.5703084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S13_M" parent="BoxSpawners" unique_id=1368971930 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 1.5703084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S20_M" parent="BoxSpawners" unique_id=317282445 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.5703084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S21_M" parent="BoxSpawners" unique_id=727446035 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.5703084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S22_M" parent="BoxSpawners" unique_id=142537650 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.5703084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S23_M" parent="BoxSpawners" unique_id=1498926709 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 1.5703084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S30_M" parent="BoxSpawners" unique_id=669704574 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.5703084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S31_M" parent="BoxSpawners" unique_id=1596261596 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.5703084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S32_M" parent="BoxSpawners" unique_id=1216707579 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.5703084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S33_M" parent="BoxSpawners" unique_id=1271023165 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 1.5703084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S00_T" parent="BoxSpawners" unique_id=853888529 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 2.1203084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S01_T" parent="BoxSpawners" unique_id=286804098 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 2.1203084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S02_T" parent="BoxSpawners" unique_id=211175330 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 2.1203084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S03_T" parent="BoxSpawners" unique_id=47765377 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.825, 2.1203084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S10_T" parent="BoxSpawners" unique_id=676692276 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 2.1203084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S11_T" parent="BoxSpawners" unique_id=1905248443 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 2.1203084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S12_T" parent="BoxSpawners" unique_id=1139641905 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 2.1203084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S13_T" parent="BoxSpawners" unique_id=1803548796 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.275, 2.1203084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S20_T" parent="BoxSpawners" unique_id=1224472901 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 2.1203084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S21_T" parent="BoxSpawners" unique_id=1237842189 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 2.1203084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S22_T" parent="BoxSpawners" unique_id=1625042293 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 2.1203084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S23_T" parent="BoxSpawners" unique_id=843294312 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.275, 2.1203084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S30_T" parent="BoxSpawners" unique_id=1300224829 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 2.1203084, -13.825)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S31_T" parent="BoxSpawners" unique_id=1552147289 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 2.1203084, -13.275)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S32_T" parent="BoxSpawners" unique_id=1321037062 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 2.1203084, -12.725)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="S33_T" parent="BoxSpawners" unique_id=226213461 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 0.825, 2.1203084, -12.175)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+
+[node name="Rack" parent="." unique_id=1557751010 instance=ExtResource("10_rack")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
+num_shelves = 3
+pole_interval = 3.0
+size = Vector3(3, 6, 2.5)
+
+[node name="AGV" parent="." unique_id=1806352077 instance=ExtResource("1_agv")]
+transform = Transform3D(0.99994874, 0, -1.7483659e-07, 0, 1, 0, 1.7483659e-07, 0, 0.99994874, 0, 0, -4)
+waypoints = {
+"1: PickupClear": SubResource("wp_pickup_clear"),
+"2: Pickup": SubResource("wp_pickup"),
+"3: RackApproach": SubResource("wp_rack_approach"),
+"4: Rack": SubResource("wp_rack")
+}
+selected_waypoint = "2: Pickup"
+drive_speed = 1.6
+turn_speed = 150.0
+lift_speed = 1.8
+max_lift_height = 6.5
+tag_group_name = "TagGroup0"
+
+[node name="Driver" type="Node3D" parent="." unique_id=217676938 node_paths=PackedStringArray("agv", "end_sensor")]
+script = ExtResource("4_driver")
+agv = NodePath("../AGV")
+end_sensor = NodePath("../EndSensor")
+conveyor_lift = 0.5
+travel_lift = 0.55
