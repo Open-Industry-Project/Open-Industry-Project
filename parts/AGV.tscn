@@ -1,0 +1,209 @@
+[gd_scene format=3 uid="uid://cagvpjdemo001"]
+
+[ext_resource type="Script" path="res://src/AGV/agv.gd" id="1_agv"]
+
+[sub_resource type="StandardMaterial3D" id="mat_body"]
+albedo_color = Color(0.9, 0.55, 0.1, 1)
+metallic = 0.4
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="mat_dark"]
+albedo_color = Color(0.2, 0.2, 0.22, 1)
+metallic = 0.5
+roughness = 0.4
+
+[sub_resource type="StandardMaterial3D" id="mat_fork"]
+albedo_color = Color(0.75, 0.75, 0.78, 1)
+metallic = 0.8
+roughness = 0.25
+
+[sub_resource type="StandardMaterial3D" id="mat_beacon"]
+albedo_color = Color(1.0, 0.45, 0.05, 1)
+emission_enabled = true
+emission = Color(1.0, 0.4, 0.0, 1)
+emission_energy_multiplier = 4.0
+metallic = 0.2
+roughness = 0.15
+
+[sub_resource type="StandardMaterial3D" id="mat_bumper"]
+albedo_color = Color(0.08, 0.08, 0.09, 1)
+metallic = 0.0
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="mat_lidar"]
+albedo_color = Color(0.15, 0.18, 0.22, 1)
+metallic = 0.6
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="mesh_chassis"]
+size = Vector3(1.8, 1.5, 1.9)
+
+[sub_resource type="BoxMesh" id="mesh_mast_rail"]
+size = Vector3(0.15, 7.0, 0.18)
+
+[sub_resource type="CylinderMesh" id="mesh_cyl_body"]
+top_radius = 0.1
+bottom_radius = 0.1
+height = 2.5
+
+[sub_resource type="CylinderMesh" id="mesh_piston_rod"]
+top_radius = 0.06
+bottom_radius = 0.06
+height = 1.0
+
+[sub_resource type="CylinderMesh" id="mesh_wheel"]
+top_radius = 0.25
+bottom_radius = 0.25
+height = 0.18
+
+[sub_resource type="BoxMesh" id="mesh_fork"]
+size = Vector3(0.2, 0.1, 2.6)
+
+[sub_resource type="BoxMesh" id="mesh_carriage"]
+size = Vector3(1.0, 0.9, 0.06)
+
+[sub_resource type="CylinderMesh" id="mesh_lidar"]
+top_radius = 0.09
+bottom_radius = 0.09
+height = 0.1
+
+[sub_resource type="CylinderMesh" id="mesh_beacon_base"]
+top_radius = 0.06
+bottom_radius = 0.06
+height = 0.08
+
+[sub_resource type="CylinderMesh" id="mesh_beacon_dome"]
+top_radius = 0.08
+bottom_radius = 0.08
+height = 0.14
+
+[sub_resource type="BoxMesh" id="mesh_bumper_fb"]
+size = Vector3(1.9, 0.25, 0.08)
+
+[sub_resource type="BoxMesh" id="mesh_bumper_lr"]
+size = Vector3(0.08, 0.25, 2.0)
+
+[sub_resource type="BoxShape3D" id="shape_pickup"]
+size = Vector3(2.0, 2.5, 2.4)
+
+[node name="AGV" type="Node3D"]
+script = ExtResource("1_agv")
+
+[node name="Chassis" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 1.7)
+material_override = SubResource("mat_body")
+mesh = SubResource("mesh_chassis")
+
+[node name="BumperFront" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 0.71)
+material_override = SubResource("mat_bumper")
+mesh = SubResource("mesh_bumper_fb")
+
+[node name="BumperBack" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 2.69)
+material_override = SubResource("mat_bumper")
+mesh = SubResource("mesh_bumper_fb")
+
+[node name="BumperLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.94, 0.375, 1.7)
+material_override = SubResource("mat_bumper")
+mesh = SubResource("mesh_bumper_lr")
+
+[node name="BumperRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.94, 0.375, 1.7)
+material_override = SubResource("mat_bumper")
+mesh = SubResource("mesh_bumper_lr")
+
+[node name="LidarFL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.6, 0.78)
+material_override = SubResource("mat_lidar")
+mesh = SubResource("mesh_lidar")
+
+[node name="LidarFR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.6, 0.78)
+material_override = SubResource("mat_lidar")
+mesh = SubResource("mesh_lidar")
+
+[node name="LidarRear" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 2.68)
+material_override = SubResource("mat_lidar")
+mesh = SubResource("mesh_lidar")
+
+[node name="Beacon" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 1.9)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_beacon_base")
+
+[node name="BeaconDome" type="MeshInstance3D" parent="Beacon"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.11, 0)
+material_override = SubResource("mat_beacon")
+mesh = SubResource("mesh_beacon_dome")
+
+[node name="MastRailLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 3.5, 0.65)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_mast_rail")
+
+[node name="MastRailRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 3.5, 0.65)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_mast_rail")
+
+[node name="CylinderBody" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0.65)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_cyl_body")
+
+[node name="PistonRod" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.3, 0, 0, 0, 1, 0, 3.75, 0.65)
+
+[node name="PistonRodMesh" type="MeshInstance3D" parent="PistonRod"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("mat_fork")
+mesh = SubResource("mesh_piston_rod")
+
+[node name="WheelFL" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -0.9, 0.25, 1.0)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_wheel")
+
+[node name="WheelFR" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.9, 0.25, 1.0)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_wheel")
+
+[node name="WheelBL" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -0.9, 0.25, 2.4)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_wheel")
+
+[node name="WheelBR" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.9, 0.25, 2.4)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_wheel")
+
+[node name="LiftGroup" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0.3)
+
+[node name="Carriage" type="MeshInstance3D" parent="LiftGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0.3)
+material_override = SubResource("mat_dark")
+mesh = SubResource("mesh_carriage")
+
+[node name="ForkLeft" type="MeshInstance3D" parent="LiftGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, -1.0)
+material_override = SubResource("mat_fork")
+mesh = SubResource("mesh_fork")
+
+[node name="ForkRight" type="MeshInstance3D" parent="LiftGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, -1.0)
+material_override = SubResource("mat_fork")
+mesh = SubResource("mesh_fork")
+
+[node name="PickupArea" type="Area3D" parent="LiftGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -1.0)
+collision_layer = 0
+collision_mask = 10
+
+[node name="PickupCollision" type="CollisionShape3D" parent="LiftGroup/PickupArea"]
+shape = SubResource("shape_pickup")
