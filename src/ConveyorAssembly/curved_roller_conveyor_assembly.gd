@@ -4,16 +4,39 @@ extends Node3D
 
 const CONVEYOR_CLASS_NAME = "CurvedRollerConveyor"
 const PREVIEW_SCENE_PATH: String = "res://parts/assemblies/CurvedRollerConveyorAssembly.tscn"
+const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH: String = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
 
 static var _conveyor_script_cached: Script
 
 var _conveyor_script: Script
 var _has_instantiated := false
 var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
+var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 var _attachment_update_needed: bool = true
 var _last_conveyor_angle: float = 0.0
 var _last_conveyor_size: Vector3 = Vector3.ZERO
+
+#region ConveyorLegsAssembly properties
+@export_group("Conveyor Legs")
+@export_custom(PROPERTY_HINT_NONE, "suffix:m")
+var floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
+	get:
+		return _legs_property_cached_get(&"floor_plane", floor_plane)
+	set(value):
+		floor_plane = _legs_property_cached_set(&"floor_plane", value, floor_plane)
+var global_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
+	get:
+		return _legs_property_cached_get(&"global_floor_plane", global_floor_plane)
+	set(value):
+		global_floor_plane = _legs_property_cached_set(&"global_floor_plane", value, global_floor_plane)
+@export_storage
+var local_floor_plane: Plane = preload(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH).DEFAULT_FLOOR_PLANE:
+	get:
+		return _legs_property_cached_get(&"local_floor_plane", local_floor_plane)
+	set(value):
+		local_floor_plane = _legs_property_cached_set(&"local_floor_plane", value, local_floor_plane)
+#endregion
 
 
 func _init() -> void:
@@ -44,6 +67,14 @@ func _ready() -> void:
 		var value: Variant = _cached_conveyor_property_values[property]
 		$ConveyorCorner.set(property, value)
 	_cached_conveyor_property_values.clear()
+
+	if not %ConveyorLegsAssembly.property_list_changed.is_connected(notify_property_list_changed):
+		%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
+
+	for property: StringName in _cached_legs_property_values:
+		var value: Variant = _cached_legs_property_values[property]
+		%ConveyorLegsAssembly.set(property, value)
+	_cached_legs_property_values.clear()
 
 	_has_instantiated = true
 	_update_attachments()
@@ -146,6 +177,23 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					and usage & PROPERTY_USAGE_STORAGE
 					and not prop_name.begins_with("metadata/")))
 			.map(func(property): return property[&"name"] as String))
+
+
+func _legs_property_cached_set(property: StringName, value: Variant, existing_backing_field_value: Variant) -> Variant:
+	if _has_instantiated:
+		%ConveyorLegsAssembly.set(property, value)
+		return value
+	else:
+		_cached_legs_property_values[property] = value
+		return value
+
+
+func _legs_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
+	if _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
+		var value: Variant = %ConveyorLegsAssembly.get(property)
+		if value != null:
+			return value
+	return backing_field_value
 
 
 func _conveyor_property_cached_set(property: StringName, value: Variant) -> void:

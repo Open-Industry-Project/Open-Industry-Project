@@ -189,34 +189,7 @@ func _update_all_conveyor_legs_width() -> void:
 
 
 func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: ConveyorLeg, conveyor_plane: Plane) -> void:
-	var grabs_offset = leg_model_grabs_offset
-	if conveyor and conveyor.get_script() and conveyor.get_script().get_global_name() == "CurvedRollerConveyor":
-		grabs_offset = 0.115
-
-	var intersection = conveyor_plane.intersects_ray(
-		conveyor_leg.position + conveyor_leg.basis.y.normalized(),
-		conveyor_leg.basis.y.normalized()
-	)
-
-	if not intersection:
-		conveyor_leg.visible = false
-		var assembly_scale = _get_leg_scale_for_assembly_size()
-		conveyor_leg.scale = Vector3(assembly_scale.x, 1.0, assembly_scale.z)
-		return
-
-	var leg_height = intersection.distance_to(conveyor_leg.position)
-	var adjusted_height = leg_height - grabs_offset
-	var assembly_scale = _get_leg_scale_for_assembly_size()
-	
-	conveyor_leg.scale = Vector3(
-		assembly_scale.x, 
-		adjusted_height, 
-		assembly_scale.z
-	)
-	conveyor_leg.grabs_rotation = rad_to_deg(conveyor_leg.basis.y.signed_angle_to(
-		conveyor_plane.normal.slide(conveyor_leg.basis.z.normalized()),
-		conveyor_leg.basis.z
-	))
+	super._update_individual_conveyor_leg_height_and_visibility(conveyor_leg, conveyor_plane)
 
 	# End legs bypass the coverage visibility check to avoid floating-point edge cases
 	# where the tip position lands just outside the coverage boundary.
@@ -225,9 +198,6 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 		conveyor_leg.visible = true
 	elif leg_index == LegIndex.REAR and head_end_leg_enabled:
 		conveyor_leg.visible = true
-	else:
-		var tip_position = _get_position_on_conveyor_legs_path(conveyor_leg.position + conveyor_leg.basis.y)
-		conveyor_leg.visible = _conveyor_leg_coverage_min <= tip_position and tip_position <= _conveyor_leg_coverage_max
 
 
 func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:

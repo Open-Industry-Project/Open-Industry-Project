@@ -867,11 +867,11 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 	if not intersection:
 		conveyor_leg.visible = false
 		# Set scale to minimum height.
-		conveyor_leg.scale = Vector3(1.0, 1.0, conveyor_leg.scale.z)
+		conveyor_leg.scale = Vector3(conveyor_leg.scale.x, 1.0, conveyor_leg.scale.z)
 		return
 
 	var leg_height = intersection.distance_to(conveyor_leg.position)
-	conveyor_leg.scale = Vector3(1.0, leg_height, conveyor_leg.scale.z)
+	conveyor_leg.scale = Vector3(conveyor_leg.scale.x, leg_height, conveyor_leg.scale.z)
 	conveyor_leg.grabs_rotation = rad_to_deg(conveyor_leg.basis.y.signed_angle_to(
 		conveyor_plane.normal.slide(conveyor_leg.basis.z.normalized()),
 		conveyor_leg.basis.z
