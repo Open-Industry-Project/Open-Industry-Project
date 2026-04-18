@@ -673,7 +673,7 @@ func _detect_stair_connection(stair: Stairs, openings: Array, holes: Array) -> v
 	var stair_top_local := my_inv * (stair_xform * Vector3(0, 0, 0))
 	var stair_y_min := minf(stair_bot_local.y, stair_top_local.y)
 	var stair_y_max := maxf(stair_bot_local.y, stair_top_local.y)
-	var intersects_deck_plane := stair_y_min <= tol and stair_y_max >= -tol
+	var intersects_deck_plane := stair_y_min < -tol and stair_y_max >= -tol
 	if intersects_deck_plane:
 		var corners: Array[Vector3] = [
 			my_inv * (stair_xform * Vector3(-s_hl, 0, -s_hw)),
