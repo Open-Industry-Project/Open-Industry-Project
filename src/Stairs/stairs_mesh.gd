@@ -207,8 +207,8 @@ static func _add_handrail_surface(mesh: ArrayMesh, run_length: float, rise_heigh
 		var sh := STRINGER_HEIGHT
 		var sw := STRINGER_WIDTH
 
-		var stringer_bottom := Vector3(base_x, base_y - STRINGER_HEIGHT * 0.3, z_offset)
-		var stringer_top := Vector3(landing_x_start, landing_y - STRINGER_HEIGHT * 0.3, z_offset)
+		var stringer_bottom := Vector3(base_x, base_y, z_offset)
+		var stringer_top := Vector3(landing_x_start, landing_y, z_offset)
 		var inner_offset := Vector3(0, 0, -side * sw)
 
 		_add_quad(verts, norms, uvs, indices,
@@ -225,8 +225,8 @@ static func _add_handrail_surface(mesh: ArrayMesh, run_length: float, rise_heigh
 			-stringer_normal)
 
 		if hl > landing_x_start + 0.01:
-			var landing_stringer_start := Vector3(landing_x_start, landing_y - STRINGER_HEIGHT * 0.3, z_offset)
-			var landing_stringer_end := Vector3(hl, landing_y - STRINGER_HEIGHT * 0.3, z_offset)
+			var landing_stringer_start := Vector3(landing_x_start, landing_y, z_offset)
+			var landing_stringer_end := Vector3(hl, landing_y, z_offset)
 			var landing_stringer_inner_start := landing_stringer_start + inner_offset
 			var landing_stringer_inner_end := landing_stringer_end + inner_offset
 			var landing_stringer_top_start := landing_stringer_start + Vector3(0, sh, 0)
