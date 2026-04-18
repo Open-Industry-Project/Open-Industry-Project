@@ -214,7 +214,7 @@ func _create_shelves() -> void:
 func _create_horizontal_supports() -> void:
 	for i in range(num_shelves + 1):
 		var y_pos := i * shelf_height
-		var support_size := Vector3(width - FRAME_THICKNESS * 2, FRAME_THICKNESS, FRAME_THICKNESS)
+		var support_size := Vector3(width - FRAME_THICKNESS, FRAME_THICKNESS, FRAME_THICKNESS)
 
 		_add_frame_box(Vector3(width / 2, y_pos, 0), support_size)
 		_add_frame_box(Vector3(width / 2, y_pos, depth), support_size)
