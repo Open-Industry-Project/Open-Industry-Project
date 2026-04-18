@@ -63,7 +63,12 @@ func _redraw(gizmo: EditorNode3DGizmo):
 	var handles = PackedVector3Array()
 	var handle_ids = PackedInt32Array()
 
-	if not sideguard_mode:
+	# Sideguard mode replaces size handles with guard handles, but only for
+	# nodes that actually have guards. Others fall through to size handles.
+	var sg_guards := _get_all_guards(node) if sideguard_mode else []
+	var use_size_handles := not sideguard_mode or sg_guards.is_empty()
+
+	if use_size_handles:
 		var active_ids: PackedInt32Array
 		if resizable_node.has_method("_get_active_resize_handle_ids"):
 			active_ids = resizable_node._get_active_resize_handle_ids()
@@ -76,29 +81,27 @@ func _redraw(gizmo: EditorNode3DGizmo):
 		if handles.size() > 0:
 			gizmo.add_handles(handles, get_material("handles", gizmo), handle_ids)
 
-	if sideguard_mode:
+	if sideguard_mode and not sg_guards.is_empty():
 		# Add sideguard edge handles on the assembly level.
 		# Handle IDs: 100=left front, 101=left back, 102=right front, 103=right back.
-		var sg_guards := _get_all_guards(node)
-		if not sg_guards.is_empty():
-			var sg_handles := PackedVector3Array()
-			var sg_ids := PackedInt32Array()
-			for entry in sg_guards:
-				var guard: SideGuard = entry["guard"]
-				var side_node: Node3D = entry["side_node"]
-				var front_x: float = guard.position.x + guard.length / 2.0
-				var back_x: float = guard.position.x - guard.length / 2.0
-				var y_mid: float = SideGuardMesh.WALL_HEIGHT / 2.0
-				# Transform from side-node space to assembly space.
-				var sg_assembly: Node3D = side_node.get_parent()
-				var to_assembly: Transform3D = Transform3D.IDENTITY
-				if sg_assembly:
-					to_assembly = sg_assembly.transform
-				var side_xform: Transform3D = to_assembly * side_node.transform
-				sg_handles.append(side_xform * Vector3(front_x, y_mid, 0))
-				sg_ids.append(entry["front_id"])
-				sg_handles.append(side_xform * Vector3(back_x, y_mid, 0))
-				sg_ids.append(entry["back_id"])
+		var sg_handles := PackedVector3Array()
+		var sg_ids := PackedInt32Array()
+		for entry in sg_guards:
+			var guard: SideGuard = entry["guard"]
+			var side_node: Node3D = entry["side_node"]
+			var front_x: float = guard.position.x + guard.length / 2.0
+			var back_x: float = guard.position.x - guard.length / 2.0
+			var y_mid: float = SideGuardMesh.WALL_HEIGHT / 2.0
+			# Transform from side-node space to assembly space.
+			var sg_assembly: Node3D = side_node.get_parent()
+			var to_assembly: Transform3D = Transform3D.IDENTITY
+			if sg_assembly:
+				to_assembly = sg_assembly.transform
+			var side_xform: Transform3D = to_assembly * side_node.transform
+			sg_handles.append(side_xform * Vector3(front_x, y_mid, 0))
+			sg_ids.append(entry["front_id"])
+			sg_handles.append(side_xform * Vector3(back_x, y_mid, 0))
+			sg_ids.append(entry["back_id"])
 			gizmo.add_handles(sg_handles, get_material("handles", gizmo), sg_ids)
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool):
