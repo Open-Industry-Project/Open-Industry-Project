@@ -6,3 +6,12 @@
 script = ExtResource("1_rack")
 size = Vector3(2.4, 6.0, 1.2)
 metadata/hijack_scale = true
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 15
+
+[node name="FrameMesh" type="MeshInstance3D" parent="StaticBody3D"]
+
+[node name="ShelfMesh" type="MeshInstance3D" parent="StaticBody3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]

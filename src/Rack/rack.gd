@@ -49,13 +49,17 @@ var shelf_height: float:
 const FRAME_THICKNESS = 0.08
 const SHELF_THICKNESS = 0.04
 
-var _static_body: StaticBody3D
+@onready var _static_body: StaticBody3D = $StaticBody3D
+@onready var _frame_mi: MeshInstance3D = $StaticBody3D/FrameMesh
+@onready var _shelf_mi: MeshInstance3D = $StaticBody3D/ShelfMesh
+@onready var _collision_shape: CollisionShape3D = $StaticBody3D/CollisionShape3D
+
 var _frame_material: StandardMaterial3D
 var _shelf_material: StandardMaterial3D
-var _frame_mm_inst: MultiMeshInstance3D
-var _shelf_meshes: Array[MeshInstance3D] = []
-var _collision_shape: CollisionShape3D
-var _frame_xforms: Array[Transform3D] = []
+var _frame_verts: PackedVector3Array = PackedVector3Array()
+var _frame_normals: PackedVector3Array = PackedVector3Array()
+var _shelf_verts: PackedVector3Array = PackedVector3Array()
+var _shelf_normals: PackedVector3Array = PackedVector3Array()
 var _collision_faces: PackedVector3Array = PackedVector3Array()
 
 
@@ -70,6 +74,9 @@ func _ready() -> void:
 	_frame_material.albedo_color = frame_color
 	_shelf_material = StandardMaterial3D.new()
 	_shelf_material.albedo_color = shelf_color
+
+	_collision_shape.shape = ConcavePolygonShape3D.new()
+
 	_rebuild_rack()
 
 
@@ -97,57 +104,35 @@ func _rebuild_rack() -> void:
 	if not is_node_ready():
 		return
 
-	_ensure_static_body()
 	_static_body.position = Vector3(-width / 2, 0, -depth / 2)
 
-	_frame_xforms.clear()
+	_frame_verts.clear()
+	_frame_normals.clear()
+	_shelf_verts.clear()
+	_shelf_normals.clear()
 	_collision_faces.clear()
 
 	_create_vertical_frames()
 	_create_shelves()
 	_create_horizontal_supports()
 
-	_apply_multimesh(_frame_mm_inst, _frame_xforms, _frame_material)
+	_frame_mi.mesh = _build_mesh(_frame_verts, _frame_normals, _frame_material)
+	_shelf_mi.mesh = _build_mesh(_shelf_verts, _shelf_normals, _shelf_material)
 
 	(_collision_shape.shape as ConcavePolygonShape3D).set_faces(_collision_faces)
 
 
-func _ensure_static_body() -> void:
-	if is_instance_valid(_frame_mm_inst):
-		return
-
-	_static_body = get_node_or_null("StaticBody3D") as StaticBody3D
-	if _static_body:
-		for child in _static_body.get_children():
-			child.free()
-		_shelf_meshes.clear()
-	else:
-		_static_body = StaticBody3D.new()
-		_static_body.name = "StaticBody3D"
-		_static_body.collision_layer = 1
-		_static_body.collision_mask = 15
-		add_child(_static_body)
-		_static_body.owner = self
-
-	var unit_box := BoxMesh.new()
-	_frame_mm_inst = MultiMeshInstance3D.new()
-	_frame_mm_inst.multimesh = MultiMesh.new()
-	_frame_mm_inst.multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	_frame_mm_inst.multimesh.mesh = unit_box
-	_static_body.add_child(_frame_mm_inst)
-	_frame_mm_inst.owner = self
-
-	_collision_shape = CollisionShape3D.new()
-	_collision_shape.shape = ConcavePolygonShape3D.new()
-	_static_body.add_child(_collision_shape)
-	_collision_shape.owner = self
-
-
-func _apply_multimesh(inst: MultiMeshInstance3D, xforms: Array[Transform3D], material: StandardMaterial3D) -> void:
-	inst.material_override = material
-	inst.multimesh.instance_count = xforms.size()
-	for i in xforms.size():
-		inst.multimesh.set_instance_transform(i, xforms[i])
+func _build_mesh(verts: PackedVector3Array, normals: PackedVector3Array, material: Material) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	if verts.is_empty():
+		return mesh
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, material)
+	return mesh
 
 
 func _get_axis_positions(length: float, interval: float) -> Array[float]:
@@ -187,28 +172,13 @@ func _create_shelves() -> void:
 	for i in range(num_shelves):
 		var y_pos := (i + 1) * shelf_height
 		var shelf_size := Vector3(width, SHELF_THICKNESS, depth)
+		var pos := Vector3(width / 2, y_pos, depth / 2)
 
-		var mesh_inst: MeshInstance3D
-		if i < _shelf_meshes.size():
-			mesh_inst = _shelf_meshes[i]
-		else:
-			mesh_inst = MeshInstance3D.new()
-			mesh_inst.mesh = BoxMesh.new()
-			_static_body.add_child(mesh_inst)
-			mesh_inst.owner = self
-			_shelf_meshes.append(mesh_inst)
-
-		(mesh_inst.mesh as BoxMesh).size = shelf_size
-		(mesh_inst.mesh as BoxMesh).material = _shelf_material
-		mesh_inst.position = Vector3(width / 2, y_pos, depth / 2)
-
-		_add_collision_box(Vector3(width / 2, y_pos, depth / 2), shelf_size)
+		_append_box_verts(_shelf_verts, _shelf_normals, pos, shelf_size)
+		_add_collision_box(pos, shelf_size)
 
 		if enable_auto_poles:
 			_create_load_distribution_beams(y_pos)
-
-	while _shelf_meshes.size() > num_shelves:
-		_shelf_meshes.pop_back().free()
 
 
 func _create_horizontal_supports() -> void:
@@ -243,8 +213,34 @@ func _create_load_distribution_beams(y_pos: float) -> void:
 
 
 func _add_frame_box(pos: Vector3, box_size: Vector3) -> void:
-	_frame_xforms.append(Transform3D(Basis.from_scale(box_size), pos))
+	_append_box_verts(_frame_verts, _frame_normals, pos, box_size)
 	_add_collision_box(pos, box_size)
+
+
+const BOX_FACES = [
+	[Vector3.UP, [4, 5, 6, 4, 6, 7]],
+	[Vector3.DOWN, [3, 2, 1, 3, 1, 0]],
+	[Vector3.RIGHT, [1, 2, 6, 1, 6, 5]],
+	[Vector3.LEFT, [3, 0, 4, 3, 4, 7]],
+	[Vector3.BACK, [2, 3, 7, 2, 7, 6]],
+	[Vector3.FORWARD, [0, 1, 5, 0, 5, 4]],
+]
+
+
+func _append_box_verts(verts: PackedVector3Array, normals: PackedVector3Array, pos: Vector3, box_size: Vector3) -> void:
+	var h := box_size / 2
+	var corners := [
+		Vector3(-h.x, -h.y, -h.z), Vector3(h.x, -h.y, -h.z),
+		Vector3(h.x, -h.y, h.z), Vector3(-h.x, -h.y, h.z),
+		Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z),
+		Vector3(h.x, h.y, h.z), Vector3(-h.x, h.y, h.z),
+	]
+	for face in BOX_FACES:
+		var normal: Vector3 = face[0]
+		var indices: Array = face[1]
+		for idx in indices:
+			verts.append(pos + corners[idx])
+			normals.append(normal)
 
 
 func _add_collision_box(pos: Vector3, box_size: Vector3) -> void:
@@ -255,16 +251,10 @@ func _add_collision_box(pos: Vector3, box_size: Vector3) -> void:
 		Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z),
 		Vector3(h.x, h.y, h.z), Vector3(-h.x, h.y, h.z),
 	]
-	var tris := [
-		4,5,6, 4,6,7,
-		3,2,1, 3,1,0,
-		1,2,6, 1,6,5,
-		3,0,4, 3,4,7,
-		2,3,7, 2,7,6,
-		0,1,5, 0,5,4,
-	]
-	for idx in tris:
-		_collision_faces.append(pos + corners[idx])
+	for face in BOX_FACES:
+		var indices: Array = face[1]
+		for idx in indices:
+			_collision_faces.append(pos + corners[idx])
 
 
 func _get_custom_preview_node() -> Node3D:
