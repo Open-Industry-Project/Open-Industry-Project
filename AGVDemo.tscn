@@ -10,7 +10,9 @@
 [ext_resource type="PackedScene" uid="uid://dnfh8k7yxm3vo" path="res://parts/Rack.tscn" id="10_rack"]
 [ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="11_building"]
 [ext_resource type="PackedScene" uid="uid://btrailer3scnx" path="res://parts/Trailer.tscn" id="11_wjadr"]
+[ext_resource type="PackedScene" uid="uid://dwvkxiwuxu3im" path="res://parts/Platform.tscn" id="12_okxyb"]
 [ext_resource type="Script" uid="uid://cigem4v1r58nb" path="res://src/AGV/agv_waypoint.gd" id="12_waypoint"]
+[ext_resource type="PackedScene" uid="uid://caperatvcocj7" path="res://parts/Stairs.tscn" id="13_hj7qf"]
 
 [sub_resource type="StandardMaterial3D" id="mat_pickup"]
 albedo_color = Color(0.15, 0.65, 0.25, 1)
@@ -91,292 +93,292 @@ pallets_per_minute = 3
 [node name="BoxSpawners" type="Node3D" parent="." unique_id=1708875717]
 
 [node name="S00_B" parent="BoxSpawners" unique_id=591378144 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.0203085, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S01_B" parent="BoxSpawners" unique_id=1103889462 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.0203085, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S02_B" parent="BoxSpawners" unique_id=257461735 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.0203085, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S03_B" parent="BoxSpawners" unique_id=1983280803 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.0203085, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S10_B" parent="BoxSpawners" unique_id=458553509 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.0203085, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S11_B" parent="BoxSpawners" unique_id=1472529111 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.0203085, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S12_B" parent="BoxSpawners" unique_id=526065827 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.0203085, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S13_B" parent="BoxSpawners" unique_id=312516536 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.0203085, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S20_B" parent="BoxSpawners" unique_id=1739011583 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.0203085, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S21_B" parent="BoxSpawners" unique_id=964414562 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.0203085, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S22_B" parent="BoxSpawners" unique_id=1798165786 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.0203085, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S23_B" parent="BoxSpawners" unique_id=1273457114 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.0203085, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S30_B" parent="BoxSpawners" unique_id=244603740 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.0203085, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S31_B" parent="BoxSpawners" unique_id=1747665247 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.0203085, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S32_B" parent="BoxSpawners" unique_id=1972663969 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.0203085, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S33_B" parent="BoxSpawners" unique_id=1347889846 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.0203085, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S00_M" parent="BoxSpawners" unique_id=1752634321 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.5703084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S01_M" parent="BoxSpawners" unique_id=545412141 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.5703084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S02_M" parent="BoxSpawners" unique_id=245265163 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.5703084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S03_M" parent="BoxSpawners" unique_id=2110682065 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 1.5703084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S10_M" parent="BoxSpawners" unique_id=1343563522 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.5703084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S11_M" parent="BoxSpawners" unique_id=1240021725 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.5703084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S12_M" parent="BoxSpawners" unique_id=1241977580 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.5703084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S13_M" parent="BoxSpawners" unique_id=1368971930 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 1.5703084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S20_M" parent="BoxSpawners" unique_id=317282445 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.5703084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S21_M" parent="BoxSpawners" unique_id=727446035 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.5703084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S22_M" parent="BoxSpawners" unique_id=142537650 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.5703084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S23_M" parent="BoxSpawners" unique_id=1498926709 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 1.5703084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S30_M" parent="BoxSpawners" unique_id=669704574 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.5703084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S31_M" parent="BoxSpawners" unique_id=1596261596 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.5703084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S32_M" parent="BoxSpawners" unique_id=1216707579 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.5703084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S33_M" parent="BoxSpawners" unique_id=1271023165 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 1.5703084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S00_T" parent="BoxSpawners" unique_id=853888529 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 2.1203084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S01_T" parent="BoxSpawners" unique_id=286804098 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 2.1203084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S02_T" parent="BoxSpawners" unique_id=211175330 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 2.1203084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S03_T" parent="BoxSpawners" unique_id=47765377 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.825, 2.1203084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S10_T" parent="BoxSpawners" unique_id=676692276 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 2.1203084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S11_T" parent="BoxSpawners" unique_id=1905248443 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 2.1203084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S12_T" parent="BoxSpawners" unique_id=1139641905 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 2.1203084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S13_T" parent="BoxSpawners" unique_id=1803548796 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 2.1203084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S20_T" parent="BoxSpawners" unique_id=1224472901 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 2.1203084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S21_T" parent="BoxSpawners" unique_id=1237842189 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 2.1203084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S22_T" parent="BoxSpawners" unique_id=1625042293 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 2.1203084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S23_T" parent="BoxSpawners" unique_id=843294312 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 2.1203084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S30_T" parent="BoxSpawners" unique_id=1300224829 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 2.1203084, -13.825)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S31_T" parent="BoxSpawners" unique_id=1552147289 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 2.1203084, -13.275)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S32_T" parent="BoxSpawners" unique_id=1321037062 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 2.1203084, -12.725)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="S33_T" parent="BoxSpawners" unique_id=226213461 instance=ExtResource("5_boxspawner")]
-size = Vector3(0.48, 0.48, 0.48)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.825, 2.1203084, -12.175)
 initial_linear_velocity = Vector3(0, 0, 0.5)
 boxes_per_minute = 3
+size = Vector3(0.48, 0.48, 0.48)
 
 [node name="Rack" parent="." unique_id=1557751010 instance=ExtResource("10_rack")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
@@ -409,3 +411,12 @@ travel_lift = 0.55
 [node name="Trailer" parent="." unique_id=1726448277 instance=ExtResource("11_wjadr")]
 transform = Transform3D(-4.649123e-07, 0, -1, 0, 1, 0, 1, 0, -4.649123e-07, 3.9918313, 0, -21.46751)
 hole_margin = 0.0
+
+[node name="Platform" parent="." unique_id=793067781 instance=ExtResource("12_okxyb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.1640806, 2.005001, -1.1540442)
+floor_y = 0.005001068
+size = Vector3(4, 2, 12.610654)
+
+[node name="Stairs" parent="." unique_id=937267779 instance=ExtResource("13_hj7qf")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 9.004081, 2.005001, -1.1707191)
+size = Vector3(3.68, 2.005, 1.2)
