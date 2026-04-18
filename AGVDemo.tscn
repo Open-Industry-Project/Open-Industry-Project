@@ -49,14 +49,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0.49999988, -11)
 floor_plane = Plane(0, 1, 0, 0)
 local_floor_plane = Plane(0, 1, 0, -0.49999988)
+middle_legs_enabled = false
+head_end_leg_enabled = false
+tail_end_leg_enabled = false
 _guard_state = {
 "LeftSide_0": {
-"back_anchored": true,
+"back_anchored": false,
 "back_boundary_tracking": false,
 "front_anchored": true,
 "front_boundary_tracking": false,
-"length": 6.0,
-"pos_x": 0.0
+"length": 3.092583395150463,
+"pos_x": 1.4537083
 },
 "RightSide_0": {
 "back_anchored": true,
@@ -67,7 +70,7 @@ _guard_state = {
 "pos_x": 0.0
 }
 }
-speed = 0.5
+speed = 0.0
 size = Vector3(6, 0.5, 2.6)
 
 [node name="EndSensor" parent="." unique_id=1099009400 instance=ExtResource("8_sensor")]
@@ -381,13 +384,31 @@ boxes_per_minute = 3
 size = Vector3(0.48, 0.48, 0.48)
 
 [node name="Rack" parent="." unique_id=1557751010 instance=ExtResource("10_rack")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.987226, 0, 6)
 num_shelves = 3
 pole_interval = 3.0
-size = Vector3(3, 6, 2.5)
+size = Vector3(20.974451, 6, 2.5)
+
+[node name="Rack3" parent="." unique_id=1838390599 instance=ExtResource("10_rack")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.987226, 0, 6)
+num_shelves = 3
+pole_interval = 3.0
+size = Vector3(20.974451, 6, 2.5)
+
+[node name="Rack2" parent="." unique_id=1938719743 instance=ExtResource("10_rack")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.987226, 0, 13.74078)
+num_shelves = 3
+pole_interval = 3.0
+size = Vector3(20.974451, 6, 2.5)
+
+[node name="Rack4" parent="." unique_id=2062981015 instance=ExtResource("10_rack")]
+transform = Transform3D(7.54979e-08, 0, 1, 0, 1, 0, -1, 0, 7.54979e-08, 25.78195, 0.040000953, 0.17711735)
+num_shelves = 3
+pole_interval = 3.0
+size = Vector3(20.974451, 6, 2.5)
 
 [node name="AGV" parent="." unique_id=1806352077 instance=ExtResource("1_agv")]
-transform = Transform3D(0.99994874, 0, -1.7483659e-07, 0, 1, 0, 1.7483659e-07, 0, 0.99994874, 0, 0, -4)
+transform = Transform3D(0.99993217, 0, -1.7483369e-07, 0, 1, 0, 1.7483369e-07, 0, 0.99993217, 0, 0, -8.018123)
 waypoints = {
 "1: PickupClear": SubResource("wp_pickup_clear"),
 "2: Pickup": SubResource("wp_pickup"),
@@ -413,10 +434,27 @@ transform = Transform3D(-4.649123e-07, 0, -1, 0, 1, 0, 1, 0, -4.649123e-07, 3.99
 hole_margin = 0.0
 
 [node name="Platform" parent="." unique_id=793067781 instance=ExtResource("12_okxyb")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.1640806, 2.005001, -1.1540442)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.178771, 2.005001, 1.4464269)
 floor_y = 0.005001068
-size = Vector3(4, 2, 12.610654)
+size = Vector3(4, 2, 17.811596)
 
 [node name="Stairs" parent="." unique_id=937267779 instance=ExtResource("13_hj7qf")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 9.004081, 2.005001, -1.1707191)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 14.018772, 2.005001, -1.1707191)
 size = Vector3(3.68, 2.005, 1.2)
+
+[node name="Platform2" parent="." unique_id=1899360493 instance=ExtResource("12_okxyb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8429699, 2.005, 21.954445)
+size = Vector3(41.341534, 2.005, 3.47302)
+
+[node name="Stairs2" parent="." unique_id=1163562534 instance=ExtResource("13_hj7qf")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 23.353737, 2.005, 20.827282)
+size = Vector3(3.68, 2.0049992, 1.2)
+
+[node name="Stairs3" parent="." unique_id=1417003909 instance=ExtResource("13_hj7qf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.560032, 4.3627124, 7.2170506)
+floor_y = 2.0150008
+size = Vector3(3.8763304, 2.3477116, 1.2)
+
+[node name="Platform4" parent="." unique_id=1824433393 instance=ExtResource("12_okxyb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.498197, 4.3627124, 7.708344)
+size = Vector3(4, 4.362712, 4)
