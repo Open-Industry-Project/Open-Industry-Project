@@ -123,6 +123,8 @@ albedo_texture = ExtResource("6_xxu0y")
 transform = Transform3D(1, 2.30012e-09, -9.31322e-10, -2.30012e-09, 1, 8.84756e-09, 9.31322e-10, -8.84756e-09, 1, 0, 0, 0)
 script = ExtResource("1_hb8rk")
 scene = ExtResource("2_2xggy")
+size = Vector3(1, 1, 1)
+metadata/hijack_scale = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1653744283]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)

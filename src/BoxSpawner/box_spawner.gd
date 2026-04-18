@@ -1,6 +1,6 @@
 @tool
 class_name BoxSpawner
-extends Node3D
+extends ResizableNode3D
 
 ## The box scene to spawn (must be a Box-derived PackedScene).
 @export var scene: PackedScene
@@ -49,16 +49,33 @@ var _next_spawn_time: float = 0.0
 var _spawn_counter: int = 0
 var _first_spawn_done: bool = false
 
+@onready var _preview_mesh: MeshInstance3D = $MeshInstance3D
 @onready var disabled_box_texture: MeshInstance3D = $MeshInstance3D2
+@onready var _preview_collision: CollisionShape3D = $Area3D/CollisionShape3D
+
+func _init() -> void:
+	super._init()
+	size_default = Vector3.ONE
 
 func _enter_tree() -> void:
-	set_notify_local_transform(true)
+	super._enter_tree()
 	_reset_spawn_cycle()
 
 func _ready() -> void:
 	EditorInterface.simulation_started.connect(_on_simulation_started)
 	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	_on_size_changed()
 	_change_texture()
+
+func _on_size_changed() -> void:
+	if is_instance_valid(_preview_mesh):
+		_preview_mesh.scale = size * 0.5
+	if is_instance_valid(disabled_box_texture):
+		disabled_box_texture.scale = size * 0.501
+	if is_instance_valid(_preview_collision):
+		var box_shape := _preview_collision.shape as BoxShape3D
+		if box_shape:
+			box_shape.size = size
 
 func _physics_process(delta: float) -> void:
 	if conveyor and EditorInterface.is_simulation_running() and &"speed" in conveyor:
@@ -98,7 +115,7 @@ func _spawn_box() -> void:
 		var z := randf_range(random_size_min.z, random_size_max.z)
 		box.size = Vector3(x, y, z)
 	else:
-		box.size = scale
+		box.size = size
 
 	box.rotation = rotation
 	box.position = position
