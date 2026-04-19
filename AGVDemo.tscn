@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" uid="uid://dwvkxiwuxu3im" path="res://parts/Platform.tscn" id="12_okxyb"]
 [ext_resource type="Script" uid="uid://cigem4v1r58nb" path="res://src/AGV/agv_waypoint.gd" id="12_waypoint"]
 [ext_resource type="PackedScene" uid="uid://caperatvcocj7" path="res://parts/Stairs.tscn" id="13_hj7qf"]
+[ext_resource type="PackedScene" uid="uid://btrlrdoorpart" path="res://src/TrailerDoor/TrailerDoor.tscn" id="14_xxxjs"]
 
 [sub_resource type="StandardMaterial3D" id="mat_pickup"]
 albedo_color = Color(0.15, 0.65, 0.25, 1)
@@ -71,6 +72,25 @@ _guard_state = {
 }
 }
 speed = 0.0
+speed = 0.0
+_frame_rail_state = {
+"left": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 6.0,
+"pos_x": 0.0
+},
+"right": {
+"back_anchored": true,
+"back_boundary_tracking": false,
+"front_anchored": true,
+"front_boundary_tracking": false,
+"length": 6.0,
+"pos_x": 0.0
+}
+}
 size = Vector3(6, 0.5, 2.6)
 
 [node name="EndSensor" parent="." unique_id=1099009400 instance=ExtResource("8_sensor")]
@@ -430,8 +450,7 @@ conveyor_lift = 0.5
 travel_lift = 0.55
 
 [node name="Trailer" parent="." unique_id=1726448277 instance=ExtResource("11_wjadr")]
-transform = Transform3D(-4.649123e-07, 0, -1, 0, 1, 0, 1, 0, -4.649123e-07, 3.9918313, 0, -21.46751)
-hole_margin = 0.0
+transform = Transform3D(-4.649123e-07, 0, -1, 0, 1, 0, 1, 0, -4.649123e-07, 3.9918313, 0, -21.464325)
 
 [node name="Platform" parent="." unique_id=793067781 instance=ExtResource("12_okxyb")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.178771, 2.005001, 1.4464269)
@@ -458,3 +477,7 @@ size = Vector3(3.8763304, 2.3477116, 1.2)
 [node name="Platform4" parent="." unique_id=1824433393 instance=ExtResource("12_okxyb")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.498197, 4.3627124, 7.708344)
 size = Vector3(4, 4.362712, 4)
+
+[node name="TrailerDoor" parent="." unique_id=7002377 instance=ExtResource("14_xxxjs")]
+transform = Transform3D(7.54979e-08, 0, -1, 0, 1, 0, 1, 0, 7.54979e-08, 3.9587307, 0.017639637, -15.424324)
+open = false

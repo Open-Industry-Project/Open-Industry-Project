@@ -20,22 +20,9 @@ extends Node3D
 		wall_thickness = value
 		_rebuild()
 
-@export_group("Hole Cutter")
-## Cuts a hole through building walls at the rear opening using a global shader.
-@export var cut_wall_hole: bool = true:
-	set(value):
-		cut_wall_hole = value
-		_update_hole_params()
-## Extra depth (m) the hole reaches into the wall, in case the wall is thick.
-@export_range(0.0, 4.0, 0.1) var hole_depth: float = 1.5:
-	set(value):
-		hole_depth = value
-		_update_hole_params()
-## Extra margin (m) around the opening when cutting the hole.
-@export_range(0.0, 1.0, 0.05) var hole_margin: float = 0.1:
-	set(value):
-		hole_margin = value
-		_update_hole_params()
+@export_group("Snapping")
+@export var auto_snap_to_door: bool = true
+@export_range(0.5, 10.0, 0.1) var snap_distance: float = 3.0
 
 @export_group("Appearance")
 @export var body_color: Color = Color(0.85, 0.85, 0.88):
@@ -51,6 +38,7 @@ var _body: Node3D
 var _static_body: StaticBody3D
 var _body_mat: StandardMaterial3D
 var _interior_mat: StandardMaterial3D
+var _snapping: bool = false
 
 
 func _enter_tree() -> void:
@@ -67,17 +55,13 @@ func _ready() -> void:
 	_interior_mat.roughness = 0.9
 	_update_colors()
 	_rebuild()
-	_update_hole_params()
-
-
-func _exit_tree() -> void:
-	if not has_meta("is_preview"):
-		_clear_hole_params()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
-		_update_hole_params()
+		if Engine.is_editor_hint() and auto_snap_to_door \
+				and not _snapping and not has_meta("is_preview"):
+			_try_snap()
 
 
 func _rebuild() -> void:
@@ -85,7 +69,6 @@ func _rebuild() -> void:
 		return
 	_build_body()
 	_build_collisions()
-	_update_hole_params()
 
 
 func _update_colors() -> void:
@@ -170,35 +153,71 @@ func _add_collision(nm: String, size: Vector3, pos: Vector3) -> void:
 	_static_body.add_child(cs)
 
 
-func _update_hole_params() -> void:
-	if not is_node_ready():
-		return
-	if has_meta("is_preview"):
-		return
-	if not cut_wall_hole:
-		_clear_hole_params()
-		return
-	# Rear opening sits at +X end of trailer in local space.
-	var rear_local := Vector3(length * 0.5, height * 0.5, 0.0)
-	var center_world := global_transform * rear_local
-	var half := Vector3(hole_depth * 0.5, height * 0.5 + hole_margin, width * 0.5 + hole_margin)
-	var basis_abs := Basis(
-		global_transform.basis.x.abs(),
-		global_transform.basis.y.abs(),
-		global_transform.basis.z.abs()
-	)
-	var world_half := basis_abs * half
-	RenderingServer.global_shader_parameter_set("trailer_hole_center", center_world)
-	RenderingServer.global_shader_parameter_set("trailer_hole_half_extents", world_half)
-	RenderingServer.global_shader_parameter_set("trailer_hole_active", 1.0)
-
-
-func _clear_hole_params() -> void:
-	RenderingServer.global_shader_parameter_set("trailer_hole_active", 0.0)
-
-
 func use() -> void:
-	cut_wall_hole = not cut_wall_hole
+	snap_to_nearest_door()
+
+
+func snap_to_nearest_door() -> void:
+	var door := _find_best_snap_door()
+	if door == null:
+		return
+	var target := _snap_transform_for_door(door)
+	_snapping = true
+	global_transform = target
+	_snapping = false
+
+
+func _try_snap() -> void:
+	var door := _find_best_snap_door()
+	if door == null:
+		return
+	var target := _snap_transform_for_door(door)
+	if target.origin.distance_to(global_transform.origin) < 0.001 \
+			and target.basis.is_equal_approx(global_transform.basis):
+		return
+	_snapping = true
+	global_transform = target
+	_snapping = false
+
+
+func _snap_transform_for_door(door: TrailerDoor) -> Transform3D:
+	var anchor := door.dock_anchor()
+	var outward := door.dock_outward_axis()
+	# Project outward to horizontal plane so the trailer stays upright even if the door is tilted.
+	var horiz := Vector3(outward.x, 0.0, outward.z)
+	if horiz.length_squared() < 0.0001:
+		horiz = Vector3.FORWARD
+	else:
+		horiz = horiz.normalized()
+	# Trailer's +X is its rear; rear faces the door, so trailer.basis.x = -horiz.
+	var x_axis := -horiz
+	var z_axis := x_axis.cross(Vector3.UP).normalized()
+	var basis := Basis(x_axis, Vector3.UP, z_axis)
+	var origin := anchor + horiz * (length * 0.5)
+	return Transform3D(basis, origin)
+
+
+func _find_best_snap_door() -> TrailerDoor:
+	var tree := get_tree()
+	if tree == null:
+		return null
+	var root: Node = tree.edited_scene_root if Engine.is_editor_hint() else tree.current_scene
+	if root == null:
+		return null
+	var best: TrailerDoor = null
+	var best_dist := snap_distance
+	var search_stack: Array[Node] = [root]
+	while not search_stack.is_empty():
+		var node: Node = search_stack.pop_back()
+		if node is TrailerDoor:
+			var target := _snap_transform_for_door(node)
+			var d := target.origin.distance_to(global_transform.origin)
+			if d < best_dist:
+				best_dist = d
+				best = node
+		for child in node.get_children():
+			search_stack.push_back(child)
+	return best
 
 
 func _get_custom_preview_node() -> Node3D:
