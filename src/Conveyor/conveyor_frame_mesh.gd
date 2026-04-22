@@ -22,6 +22,7 @@ const FLANGE_WIDTH: float = 0.02
 const FLANGE_THICKNESS: float = 0.005
 
 static var _metal_texture: Texture2D = preload("res://assets/3DModels/Textures/Metal.png")
+static var _shared_material: ShaderMaterial
 
 
 ## Create a frame rail mesh with outward flange.
@@ -245,10 +246,12 @@ static func add_curved_end_walls(mesh: ArrayMesh, r_inner: float, r_outer: float
 
 ## Create a metal ShaderMaterial for frame meshes.
 static func create_material() -> ShaderMaterial:
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://src/Conveyor/conveyor_frame_shader.gdshader")
-	mat.set_shader_parameter("metal_texture", _metal_texture)
-	return mat
+	if _shared_material:
+		return _shared_material
+	_shared_material = ShaderMaterial.new()
+	_shared_material.shader = preload("res://src/Conveyor/conveyor_frame_shader.gdshader")
+	_shared_material.set_shader_parameter("metal_texture", _metal_texture)
+	return _shared_material
 
 
 static func _add_cap(
