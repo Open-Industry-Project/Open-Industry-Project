@@ -30,8 +30,10 @@ func _notification(what: int) -> void:
 
 func setup_references() -> void:
 	if legs_sides_material == null and legs_sides_mesh1:
-		legs_sides_material = legs_sides_mesh1.mesh.surface_get_material(0) as ShaderMaterial
-		legs_sides_mesh1.mesh.surface_set_material(0, legs_sides_material)
+		legs_sides_material = (legs_sides_mesh1.mesh.surface_get_material(0) as ShaderMaterial).duplicate() as ShaderMaterial
+		legs_sides_mesh1.set_surface_override_material(0, legs_sides_material)
+		if legs_sides_mesh2:
+			legs_sides_mesh2.set_surface_override_material(0, legs_sides_material)
 
 func constrain_scale() -> Vector3:
 	var node_scale_y: float = max(1.0, scale.y)
