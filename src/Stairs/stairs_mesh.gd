@@ -296,6 +296,10 @@ static func _add_handrail_surface(mesh: ArrayMesh, run_length: float, rise_heigh
 					landing_stringer_inner_end,
 					Vector3(1, 0, 0))
 
+		var rail_start_y := base_y + step_rise + HANDRAIL_HEIGHT
+		var rail_end_y := landing_y + HANDRAIL_HEIGHT
+		var rail_run := landing_x_start - base_x
+
 		for i in range(step_count + 1):
 			var post_x: float
 			var post_y: float
@@ -306,12 +310,19 @@ static func _add_handrail_surface(mesh: ArrayMesh, run_length: float, rise_heigh
 				post_x = landing_x_start + 0.05
 				post_y = landing_y
 
+			var post_top_y: float
+			if i < step_count and rail_run > 0.0001:
+				var f: float = (post_x - base_x) / rail_run
+				post_top_y = rail_start_y + f * (rail_end_y - rail_start_y)
+			else:
+				post_top_y = landing_y + HANDRAIL_HEIGHT
+
 			var post_bottom := Vector3(post_x, post_y, z_offset)
-			var post_top := Vector3(post_x, post_y + HANDRAIL_HEIGHT, z_offset)
+			var post_top := Vector3(post_x, post_top_y, z_offset)
 			_add_box_tube(verts, norms, uvs, indices, post_bottom, post_top, POST_SIZE)
 
-		var rail_bottom := Vector3(base_x, base_y + step_rise + HANDRAIL_HEIGHT, z_offset)
-		var rail_top := Vector3(landing_x_start, landing_y + HANDRAIL_HEIGHT, z_offset)
+		var rail_bottom := Vector3(base_x, rail_start_y, z_offset)
+		var rail_top := Vector3(landing_x_start, rail_end_y, z_offset)
 		_add_box_tube(verts, norms, uvs, indices, rail_bottom, rail_top, HANDRAIL_SIZE)
 
 		var mid_bottom := Vector3(base_x, base_y + step_rise + MID_RAIL_HEIGHT, z_offset)
