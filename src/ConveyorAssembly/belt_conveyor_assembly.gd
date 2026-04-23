@@ -1,12 +1,8 @@
 @tool
 class_name BeltConveyorAssembly
-extends ResizableNode3D
+extends ConveyorAssemblyBase
 
 const CONVEYOR_CLASS_NAME: String = "BeltConveyor"
-const SIDE_GUARDS_SCRIPT_PATH: String = "res://src/ConveyorAttachment/side_guards_assembly.gd"
-const SIDE_GUARDS_SCRIPT_FILENAME: String = "side_guards_assembly.gd"
-const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH: String = "res://src/ConveyorAttachment/conveyor_legs_assembly.gd"
-const CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME: String = "conveyor_legs_assembly.gd"
 const PREVIEW_SCENE_PATH: String = "res://parts/assemblies/BeltConveyorAssembly.tscn"
 
 ## Conveyor speed in meters per second.
@@ -37,14 +33,6 @@ var belt_physics_material: PhysicsMaterial:
 		return _conveyor_property_cached_get(&"belt_physics_material")
 	set(value):
 		_conveyor_property_cached_set(&"belt_physics_material", value)
-
-static var _conveyor_script_cached: Script
-
-var _conveyor_script: Script
-var _has_instantiated: bool = false
-var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
-var _cached_side_guards_property_values: Dictionary[StringName, Variant] = {}
-var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
 #region ConveyorLegsAssembly properties
 @export_category(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME)
@@ -177,343 +165,24 @@ var _guard_state: Dictionary = {}:
 #endregion
 
 
-func _init() -> void:
-	super._init()
-
-	if _conveyor_script_cached == null:
-		var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
-		var class_details: Dictionary = class_list[class_list.find_custom(func (item: Dictionary) -> bool: return item["class"] == CONVEYOR_CLASS_NAME)]
-		_conveyor_script_cached = load(class_details["path"]) as Script
-	_conveyor_script = _conveyor_script_cached
+func _get_conveyor_class_name() -> String:
+	return CONVEYOR_CLASS_NAME
 
 
-func _ready() -> void:
-	if not %Conveyor.property_list_changed.is_connected(notify_property_list_changed):
-		%Conveyor.property_list_changed.connect(notify_property_list_changed)
-
-	for property: StringName in _cached_conveyor_property_values:
-		var value: Variant = _cached_conveyor_property_values[property]
-		%Conveyor.set(property, value)
-	_cached_conveyor_property_values.clear()
-
-	if not %SideGuardsAssembly.property_list_changed.is_connected(notify_property_list_changed):
-		%SideGuardsAssembly.property_list_changed.connect(notify_property_list_changed)
-
-	for property: StringName in _cached_side_guards_property_values:
-		var value: Variant = _cached_side_guards_property_values[property]
-		%SideGuardsAssembly.set(property, value)
-	_cached_side_guards_property_values.clear()
-
-	if is_instance_valid(%Conveyor) and "size" in %Conveyor:
-		%Conveyor.size = size
-
-	if not %ConveyorLegsAssembly.property_list_changed.is_connected(notify_property_list_changed):
-		%ConveyorLegsAssembly.property_list_changed.connect(notify_property_list_changed)
-
-	for property: StringName in _cached_legs_property_values:
-		var value: Variant = _cached_legs_property_values[property]
-		%ConveyorLegsAssembly.set(property, value)
-	_cached_legs_property_values.clear()
-
-	_has_instantiated = true
-	update_gizmos()
-	call_deferred("_ensure_side_guards_updated")
+func _get_preview_scene_path() -> String:
+	return PREVIEW_SCENE_PATH
 
 
+# Godot attributes _get_property_list entries to the declaring class; this
+# override keeps the forwarded entries under the leaf's inspector category.
 func _get_property_list() -> Array[Dictionary]:
-	var filtered_properties: Array[Dictionary] = []
+	return super._get_property_list()
 
-	# Dynamic sideguard guard properties — sideguards are the last @export
-	# category, so these naturally extend that section.
-	if _has_instantiated and is_instance_valid(%SideGuardsAssembly):
-		filtered_properties.append_array(%SideGuardsAssembly._get_property_list())
 
-	var conveyor_properties := _get_conveyor_forwarded_properties()
-	var found_categories: Array = []
-
-	for prop in conveyor_properties:
-		var prop_name := prop[&"name"] as String
-		var usage := prop[&"usage"] as int
-
-		if usage & PROPERTY_USAGE_CATEGORY:
-			if prop_name == "ResizableNode3D" or prop_name in found_categories:
-				continue
-			found_categories.append(prop_name)
-
-		if prop_name == "size" or prop_name == "hijack_scale" or prop_name.begins_with("metadata/hijack_scale"):
-			continue
-
-		filtered_properties.append(prop)
-
-	return filtered_properties
-
-
-func _validate_property(property: Dictionary) -> void:
-	if property[&"name"] == SIDE_GUARDS_SCRIPT_FILENAME \
-			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
-		assert(SIDE_GUARDS_SCRIPT_PATH.get_file() == SIDE_GUARDS_SCRIPT_FILENAME, "SIDE_GUARDS_SCRIPT_PATH doesn't match SIDE_GUARDS_SCRIPT_FILENAME")
-		property[&"hint_string"] = SIDE_GUARDS_SCRIPT_PATH
-	elif property[&"name"] == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME \
-			and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
-		assert(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH.get_file() == CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME, "CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH doesn't match CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME")
-		property[&"hint_string"] = CONVEYOR_LEGS_ASSEMBLY_SCRIPT_PATH
-
-
-func _set(property: StringName, value: Variant) -> bool:
-	if _is_side_guard_detail_property(property):
-		if _has_instantiated and is_instance_valid(%SideGuardsAssembly):
-			%SideGuardsAssembly.set(property, value)
-			update_gizmos()
-		return true
-	if property not in _get_conveyor_forwarded_property_names():
-		return false
-	_conveyor_property_cached_set(property, value)
-	return true
-
-
-func _get(property: StringName) -> Variant:
-	if _is_side_guard_detail_property(property):
-		if _has_instantiated and is_instance_valid(%SideGuardsAssembly):
-			return %SideGuardsAssembly.get(property)
-		return null
-	if property not in _get_conveyor_forwarded_property_names():
-		return null
-	return _conveyor_property_cached_get(property)
-
-
-func _property_can_revert(property: StringName) -> bool:
-	return property in _get_conveyor_forwarded_property_names()
-
-
-func _property_get_revert(property: StringName) -> Variant:
-	if property not in _get_conveyor_forwarded_property_names():
-		return null
-	if _has_instantiated:
-		if %Conveyor.property_can_revert(property):
-			return %Conveyor.property_get_revert(property)
-		elif %Conveyor.scene_file_path:
-			var scene := load(%Conveyor.scene_file_path) as PackedScene
-			var scene_state := scene.get_state()
-			for prop_idx in range(scene_state.get_node_property_count(0)):
-				if scene_state.get_node_property_name(0, prop_idx) == property:
-					return scene_state.get_node_property_value(0, prop_idx)
-			return %Conveyor.get_script().get_property_default_value(property)
-	return _conveyor_script.get_property_default_value(property)
-
-
-func _collision_repositioned_save() -> Variant:
-	return floor_plane
-
-
-func _collision_repositioned(collision_point: Vector3, collision_normal: Vector3) -> void:
-	if _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
-		%ConveyorLegsAssembly.collision_repositioned(collision_point, collision_normal)
-
-
-func _collision_repositioned_undo(saved_data: Variant) -> void:
-	if saved_data is Plane and _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
-		%ConveyorLegsAssembly.restore_floor_plane(saved_data)
-
-
-func _get_constrained_size(new_size: Vector3) -> Vector3:
-	# No constraints for belt conveyor assemblies
-	return new_size
-
-
-func _on_size_changed() -> void:
-	if _has_instantiated and is_instance_valid(%Conveyor) and "size" in %Conveyor:
-		if _resize_handle >= 0:
-			%Conveyor.resize(size, _resize_handle)
-		else:
-			%Conveyor.size = size
-
-func _get_custom_preview_node() -> Node3D:
-	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
-
-	_disable_collisions_recursive(preview_node)
-
-	var legs_assembly = preview_node.get_node_or_null("%ConveyorLegsAssembly")
-	if is_instance_valid(legs_assembly):
-		legs_assembly.set_meta("is_preview", true)
-		legs_assembly.set_process_mode(Node.PROCESS_MODE_DISABLED)
-
-	var side_guards = preview_node.get_node_or_null("%SideGuardsAssembly")
-	if is_instance_valid(side_guards):
-		side_guards.set_meta("is_preview", true)
-		side_guards.set_process_mode(Node.PROCESS_MODE_DISABLED)
-
-	preview_node.add_child(FlowDirectionArrow.create(preview_node.size))
-
-	return preview_node
-
-
-func _disable_collisions_recursive(node: Node) -> void:
-	if node is CollisionShape3D:
-		node.disabled = true
-
-	if node is CollisionObject3D:
-		node.collision_layer = 0
-		node.collision_mask = 0
-
-	for child in node.get_children():
-		_disable_collisions_recursive(child)
-
-
-func _ensure_side_guards_updated() -> void:
-	%SideGuardsAssembly._on_conveyor_size_changed()
-
-
-func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
-	var all_properties: Array[Dictionary]
-	# Skip properties until we reach the category after the "Node3D" category.
-	var has_seen_node3d_category: bool = false
-	var has_seen_category_after_node3d: bool = false
-	# Avoid duplicating ResizableNode3D properties
-	var has_seen_resizable_node_3d_category: bool = false
-
-	if _has_instantiated:
-		all_properties = %Conveyor.get_property_list()
-	else:
-		# The conveyor instance won't exist yet, so grab from the script class instead.
-		all_properties = _conveyor_script.get_script_property_list()
-		# List doesn't include built-in properties, so we don't have to skip them.
-		has_seen_node3d_category = true
-
-	var filtered_properties: Array[Dictionary] = []
-	for property in all_properties:
-		# Skip ResizableNode3D properties completely since we already have them from our parent class
-		if property[&"name"] == "ResizableNode3D" and property[&"usage"] == PROPERTY_USAGE_CATEGORY:
-			has_seen_resizable_node_3d_category = true
-			continue
-
-		if has_seen_resizable_node_3d_category:
-			# Skip all properties until we find the next category
-			if property[&"usage"] == PROPERTY_USAGE_CATEGORY:
-				has_seen_resizable_node_3d_category = false
-			else:
-				continue
-
-		if not has_seen_node3d_category:
-			has_seen_node3d_category = (property[&"name"] == "Node3D"
-					and property[&"usage"] == PROPERTY_USAGE_CATEGORY)
-			continue
-		if not has_seen_category_after_node3d:
-			has_seen_category_after_node3d = property[&"usage"] == PROPERTY_USAGE_CATEGORY
-		if not has_seen_category_after_node3d:
-			continue
-		filtered_properties.append(property)
-	return filtered_properties
-
-
-func _get_conveyor_forwarded_property_names() -> Array:
-	var result: Array = (_get_conveyor_forwarded_properties()
-			.filter(func(property):
-				var prop_name := property[&"name"] as String
-				var usage := property[&"usage"] as int
-				if prop_name in ["size", "original_size", "transform_in_progress", "size_min", "size_default", "hijack_scale"]:
-					return false
-				if prop_name.begins_with("metadata/hijack_scale"):
-					return false
-				return (not (usage & PROPERTY_USAGE_CATEGORY
-					or usage & PROPERTY_USAGE_GROUP
-					or usage & PROPERTY_USAGE_SUBGROUP)
-					and usage & PROPERTY_USAGE_STORAGE
-					and not prop_name.begins_with("metadata/")))
-			.map(func(property): return property[&"name"] as String))
-	return result
-
-
-static func _is_side_guard_detail_property(property: StringName) -> bool:
-	var p := str(property)
-	return p.begins_with("left_side_guards_guard_") or p.begins_with("right_side_guards_guard_")
-
-
-## Forward the property value to the Conveyor node; cache it if that child isn't present.
-func _conveyor_property_cached_set(property: StringName, value: Variant) -> void:
-	if _has_instantiated:
-		%Conveyor.set(property, value)
-	else:
-		# The instance won't exist yet, so cache the values to apply them later.
-		_cached_conveyor_property_values[property] = value
-
-
-## Forward the property value to the SideGuardsAssembly node; cache it if that child isn't present.
-##
-## The return value is to be used by the property's setter to update its backing field.
-func _side_guards_property_cached_set(property: StringName, value: Variant, existing_backing_field_value: Variant) -> Variant:
-	if _has_instantiated:
-		%SideGuardsAssembly.set(property, value)
-		return value
-	else:
-		# The instance won't exist yet, so cache the values to apply them later.
-		_cached_side_guards_property_values[property] = value
-		return value
-
-
-## Forward the property value to the ConveyorLegsAssembly node; cache it if that child isn't present.
-##
-## The return value is to be used by the property's setter to update its backing field.
-func _legs_property_cached_set(property: StringName, value: Variant, existing_backing_field_value: Variant) -> Variant:
-	if _has_instantiated:
-		%ConveyorLegsAssembly.set(property, value)
-		return value
-	else:
-		# The instance won't exist yet, so cache the values to apply them later.
-		_cached_legs_property_values[property] = value
-		return value
-
-
-## Get the property value from the Conveyor node; use a cached value if that child isn't present.
-func _conveyor_property_cached_get(property: StringName) -> Variant:
-	if _has_instantiated and is_instance_valid(%Conveyor):
-		var value: Variant = %Conveyor.get(property)
-		if value != null:
-			return value
-
-	# Return cached value or look up default from cache
-	if property in _cached_conveyor_property_values:
-		return _cached_conveyor_property_values[property]
-
-	# Return script default as final fallback
-	if _conveyor_script:
-		return _conveyor_script.get_property_default_value(property)
-
-	return null
-
-
-## Get the property value from the SideGuardsAssembly node; use a cached value if that child isn't present.
-##
-## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
-func _side_guards_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
-	if _has_instantiated and is_instance_valid(%SideGuardsAssembly):
-		var value: Variant = %SideGuardsAssembly.get(property)
-		if value != null:
-			return value
-
-	# Return backing field value as fallback (this maintains the typed defaults)
-	return backing_field_value
-
-
-## Get the property value from the ConveyorLegsAssembly node; use a cached value if that child isn't present.
-##
-## [param backing_field_value] should be provided by the property's getter (where it can be accessed directly).
-func _legs_property_cached_get(property: StringName, backing_field_value: Variant) -> Variant:
-	if _has_instantiated and is_instance_valid(%ConveyorLegsAssembly):
-		var value: Variant = %ConveyorLegsAssembly.get(property)
-		if value != null:
-			return value
-
-	# Return backing field value as fallback (this maintains the typed defaults)
-	return backing_field_value
-
-
-## Called by curved conveyor when inner_radius or conveyor_width changes
 func update_attachments_for_curved_conveyor(inner_radius: float, conveyor_width: float, conveyor_size: Vector3, conveyor_angle: float) -> void:
 	if not _has_instantiated:
 		return
 
-	# Update legs for curved conveyor
 	var legs_assembly = get_node_or_null("ConveyorLegsAssembly")
 	if not legs_assembly:
 		legs_assembly = get_node_or_null("%ConveyorLegsAssembly")

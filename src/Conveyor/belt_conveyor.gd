@@ -51,7 +51,13 @@ enum ConvTexture {
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var _mesh: MeshInstance3D = get_node("MeshInstance3D")
 ## When true, the parent assembly handles frame and belt end generation.
-var frame_managed_externally: bool = false
+var frame_managed_externally: bool = false:
+	set(value):
+		if frame_managed_externally == value:
+			return
+		frame_managed_externally = value
+		if is_node_ready():
+			_refresh_frame_management()
 ## Close the left side (-Z) of the belt mesh with a wall.
 var close_left_side: bool = false
 ## Close the right side (+Z) of the belt mesh with a wall.
@@ -165,6 +171,23 @@ func _update_flow_arrow() -> void:
 	_flow_arrow = FlowDirectionArrow.create(size)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
+
+
+# Runs when `frame_managed_externally` flips after `_ready`; drops rails/flow
+# arrow built by `_setup_materials` and rebuilds the mesh with the new flag.
+func _refresh_frame_management() -> void:
+	if frame_managed_externally:
+		if _frame_left:
+			_frame_left.queue_free()
+			_frame_left = null
+		if _frame_right:
+			_frame_right.queue_free()
+			_frame_right = null
+		if _flow_arrow:
+			FlowDirectionArrow.unregister(_flow_arrow)
+			_flow_arrow.queue_free()
+			_flow_arrow = null
+	_on_size_changed()
 
 
 func _physics_process(delta: float) -> void:

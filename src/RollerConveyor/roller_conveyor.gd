@@ -59,6 +59,17 @@ var running: bool = false:
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
 
+## When true, a parent assembly owns the outer frame rails and flow arrow;
+## `ConvRollerL`/`ConvRollerR` are hidden and the child's flow arrow is freed.
+var frame_managed_externally: bool = false:
+	set(value):
+		if frame_managed_externally == value:
+			return
+		frame_managed_externally = value
+		if is_node_ready():
+			_update_component_positions()
+			_update_flow_arrow()
+
 var _flow_arrow: Node3D
 var _last_size: Vector3 = Vector3(1.525, 0.5, 1.524)
 var _last_length: float = 1.525
@@ -154,6 +165,9 @@ func _update_flow_arrow() -> void:
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
 		_flow_arrow.queue_free()
+		_flow_arrow = null
+	if frame_managed_externally:
+		return
 	_flow_arrow = FlowDirectionArrow.create(size)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
@@ -251,17 +265,23 @@ func _update_component_positions() -> void:
 		var left_side := conv_roller.get_node_or_null("ConvRollerL") as MeshInstance3D
 		var right_side := conv_roller.get_node_or_null("ConvRollerR") as MeshInstance3D
 		if left_side and right_side:
-			var frame_mesh := ConveyorFrameMesh.create(size.x, frame_height)
-			if _metal_material:
-				frame_mesh.surface_set_material(0, _metal_material)
-			left_side.mesh = frame_mesh
-			right_side.mesh = frame_mesh
-			var half_width := size.z / 2.0
-			var wt := ConveyorFrameMesh.WALL_THICKNESS
-			left_side.position = Vector3(0, 0, -half_width - wt)
-			left_side.rotation = Vector3.ZERO
-			right_side.position = Vector3(0, 0, half_width + wt)
-			right_side.rotation = Vector3(0, PI, 0)
+			if frame_managed_externally:
+				left_side.visible = false
+				right_side.visible = false
+			else:
+				left_side.visible = true
+				right_side.visible = true
+				var frame_mesh := ConveyorFrameMesh.create(size.x, frame_height)
+				if _metal_material:
+					frame_mesh.surface_set_material(0, _metal_material)
+				left_side.mesh = frame_mesh
+				right_side.mesh = frame_mesh
+				var half_width := size.z / 2.0
+				var wt := ConveyorFrameMesh.WALL_THICKNESS
+				left_side.position = Vector3(0, 0, -half_width - wt)
+				left_side.rotation = Vector3.ZERO
+				right_side.position = Vector3(0, 0, half_width + wt)
+				right_side.rotation = Vector3(0, PI, 0)
 
 	var rollers_node := get_node_or_null("Rollers")
 	if rollers_node:

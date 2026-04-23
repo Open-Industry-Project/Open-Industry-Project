@@ -1,6 +1,6 @@
 @tool
 class_name RollerSpurConveyor
-extends ResizableNode3D
+extends ConveyorAttachmentsAssembly
 
 const CONVEYOR_CLASS_NAME = "RollerConveyor"
 const CONVEYOR_SCRIPT_PATH = "res://src/RollerConveyor/roller_conveyor.gd"
@@ -73,6 +73,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	super._ready()
 	if not has_node("%Conveyor"):
 		return
 	_apply_conveyor_properties()
@@ -82,6 +83,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
 		OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	super._exit_tree()
 
 
 func _process(_delta: float) -> void:
@@ -127,6 +129,8 @@ func _validate_property(property: Dictionary) -> void:
 	elif property[&"name"] == "running_tag_name":
 		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
 
+	super._validate_property(property)
+
 
 func _property_can_revert(property: StringName) -> bool:
 	if property in ["length", "width", "depth"]:
@@ -168,7 +172,16 @@ func _update_spur() -> void:
 		%Conveyor.size = Vector3(max_length, size.y, size.z)
 	%Conveyor.position = Vector3(_conveyor_x_offset, 0, 0)
 
+	_update_frame_rails()
 	call_deferred("_apply_spur_clipping")
+
+
+func _get_frame_rail_extents(side_z: float) -> Array[float]:
+	var slope_ds := tan(angle_downstream)
+	var slope_us := tan(angle_upstream)
+	var front_x: float = size.x / 2.0 + slope_ds * side_z
+	var back_x: float = -size.x / 2.0 + slope_us * side_z
+	return [back_x, front_x]
 
 
 func _apply_conveyor_properties() -> void:
@@ -348,6 +361,8 @@ func _get_forwarded_property_list() -> Array[Dictionary]:
 
 
 func _set(property: StringName, value: Variant) -> bool:
+	if super._set(property, value):
+		return true
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
 	_cached_properties[property] = value
@@ -359,6 +374,8 @@ func _set(property: StringName, value: Variant) -> bool:
 
 
 func _get(property: StringName) -> Variant:
+	if _is_side_guard_detail_property(property):
+		return super._get(property)
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
 	if has_node("%Conveyor"):
@@ -408,11 +425,11 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 
 func _get_conveyor_forwarded_property_names() -> Array:
-	var result: Array = (_get_conveyor_forwarded_properties()
+	return (_get_conveyor_forwarded_properties()
 			.filter(func(property):
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
-				if prop_name in ["size", "skew_angle", "original_size", "transform_in_progress", "size_min", "size_default", "hijack_scale"]:
+				if prop_name in EXCLUDED_FORWARDED_PROPERTIES or prop_name == "skew_angle":
 					return false
 				if prop_name.begins_with("metadata/hijack_scale"):
 					return false
@@ -422,7 +439,6 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					and usage & PROPERTY_USAGE_STORAGE
 					and not prop_name.begins_with("metadata/")))
 			.map(func(property): return property[&"name"] as String))
-	return result
 
 #endregion
 
@@ -431,30 +447,11 @@ func _get_conveyor_forwarded_property_names() -> Array:
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
 	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
-
 	preview_node.set_meta("is_preview", true)
-
 	preview_node._update_spur()
 	preview_node._apply_spur_clipping()
-
-	_disable_collisions_recursive(preview_node)
-
-	preview_node.add_child(FlowDirectionArrow.create(preview_node.size))
-
+	_apply_preview_common(preview_node)
 	preview_node.set_process_mode(Node.PROCESS_MODE_DISABLED)
-
 	return preview_node
-
-
-func _disable_collisions_recursive(node: Node) -> void:
-	if node is CollisionShape3D:
-		node.disabled = true
-
-	if node is CollisionObject3D:
-		node.collision_layer = 0
-		node.collision_mask = 0
-
-	for child in node.get_children(true):
-		_disable_collisions_recursive(child)
 
 #endregion

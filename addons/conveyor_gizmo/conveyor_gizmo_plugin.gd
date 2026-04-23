@@ -29,6 +29,8 @@ func _has_gizmo(node):
 		"res://src/ConveyorAssembly/roller_conveyor_assembly.gd",
 		"res://src/ConveyorAssembly/spur_conveyor_assembly.gd",
 		"res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd",
+		"res://src/ConveyorAssembly/roller_spur_conveyor.gd",
+		"res://src/ConveyorAssembly/roller_spur_conveyor_assembly.gd",
 		"res://src/Platform/platform.gd",
 		"res://src/Stairs/stairs.gd",
 		"res://src/GuardRail/guard_rail.gd",

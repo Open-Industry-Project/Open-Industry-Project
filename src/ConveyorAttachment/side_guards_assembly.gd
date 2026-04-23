@@ -26,8 +26,19 @@ enum Side
 ## Stored last-known conveyor extents per side, used to detect resize deltas.
 var _last_extents: Dictionary = {}
 var _conveyor_connected: bool = false
+var _applying_guard_save: bool = false
+
 ## Persisted guard layout (forwarded to/from the assembly root for serialization).
-var _guard_state: Dictionary = {}
+## External assignment rebuilds the guards, overriding any defaults spawned by
+## earlier size signals during scene load.
+var _guard_state: Dictionary = {}:
+	set(value):
+		_guard_state = value
+		if _applying_guard_save:
+			return
+		if is_inside_tree() and not value.is_empty():
+			call_deferred("_rebuild_from_guard_state")
+
 ## Cached guard count per side — used to detect when property list needs refresh.
 var _last_guard_count: Dictionary = {}
 
@@ -317,8 +328,23 @@ func save_guard_state() -> void:
 					"back_boundary_tracking": guard.back_boundary_tracking,
 				}
 				idx += 1
+	_applying_guard_save = true
 	_guard_state = state
+	_applying_guard_save = false
 	_check_guard_count_changed()
+
+
+func _rebuild_from_guard_state() -> void:
+	if not is_inside_tree() or _guard_state.is_empty():
+		return
+	for side_name in ["LeftSide", "RightSide"]:
+		var side_node := get_node_or_null(side_name) as Node3D
+		if not side_node:
+			continue
+		for child in side_node.get_children():
+			side_node.remove_child(child)
+			child.queue_free()
+	_update_side_guards()
 
 
 ## Restore guards from persisted state. Returns true if state was restored.

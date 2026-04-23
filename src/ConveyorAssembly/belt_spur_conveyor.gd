@@ -57,6 +57,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
 		OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
+	super._exit_tree()
 
 
 var _forwarded_properties_managed_by_subclass: bool = false
@@ -176,6 +177,8 @@ func _set_for_all_conveyors(property: StringName, value: Variant) -> void:
 
 
 func _set(property: StringName, value: Variant) -> bool:
+	if super._set(property, value):
+		return true
 	if property not in _get_conveyor_forwarded_property_names():
 		return false
 	_cached_properties[property] = value
@@ -187,6 +190,8 @@ func _set(property: StringName, value: Variant) -> bool:
 
 
 func _get(property: StringName) -> Variant:
+	if _is_side_guard_detail_property(property):
+		return super._get(property)
 	if property not in _get_conveyor_forwarded_property_names():
 		return null
 	# Get the property from the first child conveyor if available
@@ -269,11 +274,11 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 
 func _get_conveyor_forwarded_property_names() -> Array:
-	var result: Array = (_get_conveyor_forwarded_properties()
+	return (_get_conveyor_forwarded_properties()
 			.filter(func(property):
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
-				if prop_name in ["size", "original_size", "transform_in_progress", "size_min", "size_default", "hijack_scale"]:
+				if prop_name in EXCLUDED_FORWARDED_PROPERTIES:
 					return false
 				if prop_name.begins_with("metadata/hijack_scale"):
 					return false
@@ -283,4 +288,3 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					and usage & PROPERTY_USAGE_STORAGE
 					and not prop_name.begins_with("metadata/")))
 			.map(func(property): return property[&"name"] as String))
-	return result
