@@ -37,7 +37,7 @@ const SHAPE_END_CAP: float = 0.25
 @export var enable_comms: bool = false
 @export var speed_tag_group_name: String
 ## The tag group for reading speed values from external systems.
-@export_custom(0, "tag_group_enum") var speed_tag_groups:
+@export_custom(0, "tag_group_enum") var speed_tag_groups: String:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
@@ -45,7 +45,7 @@ const SHAPE_END_CAP: float = 0.25
 @export var speed_tag_name: String = ""
 @export var popup_tag_group_name: String
 ## The tag group for reading popup state from external systems.
-@export_custom(0, "tag_group_enum") var popup_tag_groups:
+@export_custom(0, "tag_group_enum") var popup_tag_groups: String:
 	set(value):
 		popup_tag_group_name = value
 		popup_tag_groups = value
@@ -137,11 +137,11 @@ func _on_simulation_ended() -> void:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/ChainTransfer.tscn") as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 
 	_disable_collisions_recursive(preview_node)
 
-	var chain_bases_node = preview_node.get_node_or_null("ChainBases")
+	var chain_bases_node := preview_node.get_node_or_null("ChainBases")
 	if chain_bases_node:
 		for base in chain_bases_node.get_children():
 			base.set_process_mode(Node.PROCESS_MODE_DISABLED)

@@ -136,14 +136,14 @@ func _get_conveyor_script() -> Script:
 
 func _set_conveyor_properties(conveyor: Node) -> void:
 	# Apply all cached properties to the new conveyor
-	for property_name in _cached_properties:
+	for property_name: StringName in _cached_properties:
 		if conveyor.has_method("set"):
 			conveyor.set(property_name, _cached_properties[property_name])
 
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as SpurConveyorAssembly
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as SpurConveyorAssembly
 
 	preview_node.set_meta("is_preview", true)
 
@@ -275,7 +275,7 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 func _get_conveyor_forwarded_property_names() -> Array:
 	return (_get_conveyor_forwarded_properties()
-			.filter(func(property):
+			.filter(func(property: Dictionary) -> bool:
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
 				if prop_name in EXCLUDED_FORWARDED_PROPERTIES:
@@ -287,4 +287,4 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					or usage & PROPERTY_USAGE_SUBGROUP)
 					and usage & PROPERTY_USAGE_STORAGE
 					and not prop_name.begins_with("metadata/")))
-			.map(func(property): return property[&"name"] as String))
+			.map(func(property: Dictionary) -> String: return property[&"name"] as String))

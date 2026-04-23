@@ -160,8 +160,8 @@ func _create_vertical_frames() -> void:
 					Vector3(FRAME_THICKNESS, total_height, FRAME_THICKNESS),
 				)
 	else:
-		for x in [0.0, width]:
-			for z in [0.0, depth]:
+		for x: float in [0.0, width]:
+			for z: float in [0.0, depth]:
 				_add_frame_box(
 					Vector3(x, total_height / 2, z),
 					Vector3(FRAME_THICKNESS, total_height, FRAME_THICKNESS),
@@ -235,10 +235,10 @@ func _append_box_verts(verts: PackedVector3Array, normals: PackedVector3Array, p
 		Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z),
 		Vector3(h.x, h.y, h.z), Vector3(-h.x, h.y, h.z),
 	]
-	for face in BOX_FACES:
+	for face: Array in BOX_FACES:
 		var normal: Vector3 = face[0]
 		var indices: Array = face[1]
-		for idx in indices:
+		for idx: int in indices:
 			verts.append(pos + corners[idx])
 			normals.append(normal)
 
@@ -251,9 +251,9 @@ func _add_collision_box(pos: Vector3, box_size: Vector3) -> void:
 		Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z),
 		Vector3(h.x, h.y, h.z), Vector3(-h.x, h.y, h.z),
 	]
-	for face in BOX_FACES:
+	for face: Array in BOX_FACES:
 		var indices: Array = face[1]
-		for idx in indices:
+		for idx: int in indices:
 			_collision_faces.append(pos + corners[idx])
 
 

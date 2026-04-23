@@ -110,7 +110,7 @@ var _running_tag := OIPCommsTag.new()
 @export var enable_comms := false
 @export var speed_tag_group_name: String
 ## The tag group for reading speed values from external systems.
-@export_custom(0, "tag_group_enum") var speed_tag_groups:
+@export_custom(0, "tag_group_enum") var speed_tag_groups: String:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
@@ -118,7 +118,7 @@ var _running_tag := OIPCommsTag.new()
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.
-@export_custom(0, "tag_group_enum") var running_tag_groups:
+@export_custom(0, "tag_group_enum") var running_tag_groups: String:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
@@ -144,7 +144,7 @@ func _update_calculated_size() -> void:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/CurvedRollerConveyor.tscn") as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 
 	_disable_collisions_recursive(preview_node)
 
@@ -463,7 +463,7 @@ func _takeover_roller_material() -> StandardMaterial3D:
 	if rollers_low.get_child_count() == 0 or rollers_low.get_child(0).get_child_count() == 0:
 		return null
 	var dup_material: StandardMaterial3D = rollers_low.get_child(0).get_child(0).get_material().duplicate()
-	for roller_group in [rollers_low, rollers_mid, rollers_high]:
+	for roller_group: Node3D in [rollers_low, rollers_mid, rollers_high]:
 		if not roller_group:
 			continue
 		for roller_axis in roller_group.get_children():

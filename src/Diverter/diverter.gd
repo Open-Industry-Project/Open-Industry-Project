@@ -3,7 +3,7 @@ class_name Diverter
 extends Node3D
 
 ## Button to trigger a divert action in the editor.
-@export_tool_button("Divert") var divert_action = divert
+@export_tool_button("Divert") var divert_action: Callable = divert
 ## Time in seconds for the diverter to complete its motion.
 @export_custom(PROPERTY_HINT_NONE, "suffix:s") var divert_time: float = 0.25
 ## Distance the diverter arm travels during activation.
@@ -28,7 +28,7 @@ var _tag := OIPCommsTag.new()
 @export var enable_comms: bool = false
 @export var tag_group_name: String
 ## The tag group for reading divert commands from external systems.
-@export_custom(0, "tag_group_enum") var tag_groups:
+@export_custom(0, "tag_group_enum") var tag_groups: String:
 	set(value):
 		tag_group_name = value
 		tag_groups = value

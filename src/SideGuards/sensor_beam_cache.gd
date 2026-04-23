@@ -17,12 +17,12 @@ static func register_instance(mesh: MeshInstance3D) -> void:
 
 static func unregister_instance(mesh: MeshInstance3D) -> void:
 	_instances.erase(mesh)
-	for hits in _beam_hits.values():
+	for hits: Array in _beam_hits.values():
 		hits.erase(mesh)
 
 
 static func set_beam(id: int, start: Vector3, end: Vector3) -> void:
-	var existing = _beams.get(id)
+	var existing: Variant = _beams.get(id)
 	if existing and existing[0] == start and existing[1] == end:
 		return
 	_beams[id] = [start, end]
@@ -35,7 +35,7 @@ static func clear_beam(id: int) -> void:
 	# Re-apply only the instances this beam previously affected.
 	var prev_hits: Array = _beam_hits.get(id, [])
 	_beam_hits.erase(id)
-	for mesh in prev_hits:
+	for mesh: MeshInstance3D in prev_hits:
 		if is_instance_valid(mesh):
 			_apply_instance(mesh)
 
@@ -64,10 +64,10 @@ static func _refresh_beam(id: int) -> void:
 
 	# Re-apply instances that were or are affected by this beam.
 	var dirty: Array = new_hits.duplicate()
-	for mesh in prev_hits:
+	for mesh: MeshInstance3D in prev_hits:
 		if is_instance_valid(mesh) and mesh not in dirty:
 			dirty.append(mesh)
-	for mesh in dirty:
+	for mesh: MeshInstance3D in dirty:
 		_apply_instance(mesh)
 
 
@@ -81,7 +81,7 @@ static func _apply_instance(mesh: MeshInstance3D) -> void:
 	var inv := mesh.global_transform.affine_inverse()
 
 	var count := 0
-	for id in _beams:
+	for id: int in _beams:
 		if count >= MAX_BEAMS_PER_INSTANCE:
 			break
 		var beam: Array = _beams[id]

@@ -129,7 +129,7 @@ func _on_size_changed() -> void:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load(_get_preview_scene_path()) as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 	_apply_preview_common(preview_node)
 	return preview_node
 
@@ -174,7 +174,7 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 func _get_conveyor_forwarded_property_names() -> Array:
 	return (_get_conveyor_forwarded_properties()
-			.filter(func(property):
+			.filter(func(property: Dictionary) -> bool:
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
 				if prop_name in EXCLUDED_FORWARDED_PROPERTIES:
@@ -186,7 +186,7 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					or usage & PROPERTY_USAGE_SUBGROUP)
 					and usage & PROPERTY_USAGE_STORAGE
 					and not prop_name.begins_with("metadata/")))
-			.map(func(property): return property[&"name"] as String))
+			.map(func(property: Dictionary) -> String: return property[&"name"] as String))
 
 
 func _conveyor_property_cached_set(property: StringName, value: Variant) -> void:

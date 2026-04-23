@@ -38,7 +38,7 @@ var _tag := OIPCommsTag.new()
 @export var enable_comms: bool = false
 @export var tag_group_name: String
 ## The tag group for reading/writing the active state.
-@export_custom(0, "tag_group_enum") var tag_groups:
+@export_custom(0, "tag_group_enum") var tag_groups: String:
 	set(value):
 		tag_group_name = value
 		tag_groups = value

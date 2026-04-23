@@ -204,7 +204,7 @@ static func add_curved_end_walls(mesh: ArrayMesh, r_inner: float, r_outer: float
 	var uvs_arr := PackedVector2Array()
 	var indices := PackedInt32Array()
 
-	for end_data in [[0.0, -1.0], [angle_radians, 1.0]]:
+	for end_data: Array in [[0.0, -1.0], [angle_radians, 1.0]]:
 		var ea: float = end_data[0]
 		var ts: float = end_data[1]
 		var sa_e: float = sin(ea)
@@ -213,7 +213,7 @@ static func add_curved_end_walls(mesh: ArrayMesh, r_inner: float, r_outer: float
 		var rad := Vector3(-sa_e, 0, ca_e)
 		var max_tang_xz := tang * tangent_extent
 
-		for side_sign in [-1.0, 1.0]:
+		for side_sign: float in [-1.0, 1.0]:
 			var side_normal: Vector3 = rad * side_sign
 			var r_edge: float = r_outer_frame if side_sign > 0 else r_inner_frame
 			var edge_xz := Vector3(-sa_e * r_edge, 0, ca_e * r_edge)

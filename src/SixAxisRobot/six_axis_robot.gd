@@ -17,11 +17,11 @@ const JOINT_LIMITS_MAX := [180.0, 135.0, 160.0, 180.0, 120.0, 360.0]
 const JOINT_ANGLE_PROPS := ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
 const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 
-@export_tool_button("Set Home") var action_set_home = set_home_action
-@export_tool_button("Go Home") var action_go_home = go_home_action
-@export_tool_button("Train Waypoint") var action_train = train_waypoint_action
-@export_tool_button("Go To Waypoint") var action_go_to = go_to_waypoint_action
-@export_tool_button("Delete Waypoint") var action_delete = delete_waypoint_action
+@export_tool_button("Set Home") var action_set_home: Callable = set_home_action
+@export_tool_button("Go Home") var action_go_home: Callable = go_home_action
+@export_tool_button("Train Waypoint") var action_train: Callable = train_waypoint_action
+@export_tool_button("Go To Waypoint") var action_go_to: Callable = go_to_waypoint_action
+@export_tool_button("Delete Waypoint") var action_delete: Callable = delete_waypoint_action
 
 @export var home_position: Array[float] = [0.0, -45.0, 90.0, 25.0, 75.0, 0.0]
 @export var waypoints: Dictionary = {}
@@ -95,7 +95,7 @@ const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 @export_category("Communications")
 @export var enable_comms: bool = false
 @export var tag_group_name: String
-@export_custom(0, "tag_group_enum") var tag_groups:
+@export_custom(0, "tag_group_enum") var tag_groups: String:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
@@ -301,7 +301,7 @@ func _create_material(color: Color, metallic: float, roughness: float) -> Standa
 
 
 func _apply_material(meshes: Array, mat: Material) -> void:
-	for mesh in meshes:
+	for mesh: MeshInstance3D in meshes:
 		if mesh:
 			mesh.material_override = mat
 

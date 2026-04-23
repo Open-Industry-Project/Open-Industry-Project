@@ -36,7 +36,7 @@ const ROLLERS_Y_OFFSET: float = -0.08
 @export var enable_comms: bool = false
 @export var speed_tag_group_name: String
 ## The tag group for reading speed values from external systems.
-@export_custom(0, "tag_group_enum") var speed_tag_groups:
+@export_custom(0, "tag_group_enum") var speed_tag_groups: String:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
@@ -44,7 +44,7 @@ const ROLLERS_Y_OFFSET: float = -0.08
 @export var speed_tag_name: String = ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.
-@export_custom(0, "tag_group_enum") var running_tag_groups:
+@export_custom(0, "tag_group_enum") var running_tag_groups: String:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
@@ -89,7 +89,7 @@ var _shadow_plate: MeshInstance3D
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/RollerConveyor.tscn") as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 
 	_disable_collisions_recursive(preview_node)
 

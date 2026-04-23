@@ -187,7 +187,7 @@ func _get_frame_rail_extents(side_z: float) -> Array[float]:
 func _apply_conveyor_properties() -> void:
 	if not has_node("%Conveyor"):
 		return
-	for property_name in _cached_properties:
+	for property_name: StringName in _cached_properties:
 		%Conveyor.set(property_name, _cached_properties[property_name])
 
 
@@ -426,7 +426,7 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 func _get_conveyor_forwarded_property_names() -> Array:
 	return (_get_conveyor_forwarded_properties()
-			.filter(func(property):
+			.filter(func(property: Dictionary) -> bool:
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
 				if prop_name in EXCLUDED_FORWARDED_PROPERTIES or prop_name == "skew_angle":
@@ -438,7 +438,7 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					or usage & PROPERTY_USAGE_SUBGROUP)
 					and usage & PROPERTY_USAGE_STORAGE
 					and not prop_name.begins_with("metadata/")))
-			.map(func(property): return property[&"name"] as String))
+			.map(func(property: Dictionary) -> String: return property[&"name"] as String))
 
 #endregion
 
@@ -446,7 +446,7 @@ func _get_conveyor_forwarded_property_names() -> Array:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load(PREVIEW_SCENE_PATH) as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 	preview_node.set_meta("is_preview", true)
 	preview_node._update_spur()
 	preview_node._apply_spur_clipping()

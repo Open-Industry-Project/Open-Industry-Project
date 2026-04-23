@@ -172,7 +172,7 @@ func _clear_collision_reposition_active() -> void:
 	_collision_reposition_active = false
 
 
-func _transform_requested(data) -> void:
+func _transform_requested(data: Dictionary) -> void:
 	if not EditorInterface.get_selection().get_selected_nodes().has(self):
 		return
 	if data.has("motion"):
@@ -296,7 +296,7 @@ func _clear_dynamic_deck_collisions() -> void:
 func _update_side_guard_collisions(length: float, width: float, openings: Array) -> void:
 	_clear_dynamic_guard_collisions()
 
-	for collision in [_side_guard_left_collision, _side_guard_right_collision, _side_guard_front_collision, _side_guard_back_collision]:
+	for collision: CollisionShape3D in [_side_guard_left_collision, _side_guard_right_collision, _side_guard_front_collision, _side_guard_back_collision]:
 		if collision:
 			collision.disabled = true
 	if not show_railings or not is_instance_valid(_collision_body):
@@ -343,7 +343,7 @@ func _update_side_guard_collisions(length: float, width: float, openings: Array)
 
 func _get_edge_openings(edge_id: int, openings: Array) -> Array:
 	var edge_openings: Array = []
-	for opening in openings:
+	for opening: Dictionary in openings:
 		if int(opening.get("edge", -1)) == edge_id:
 			edge_openings.append(opening)
 	return edge_openings
@@ -352,7 +352,7 @@ func _get_edge_openings(edge_id: int, openings: Array) -> Array:
 func _build_solid_railing_segments(edge_length: float, edge_openings: Array) -> Array[Vector2]:
 	var half_edge := edge_length * 0.5
 	var open_ranges: Array[Vector2] = []
-	for opening in edge_openings:
+	for opening: Dictionary in edge_openings:
 		var o_start := clampf(float(opening.get("start", 0.0)) + half_edge, 0.0, edge_length)
 		var o_end := clampf(float(opening.get("end", 0.0)) + half_edge, 0.0, edge_length)
 		if o_start > o_end:
@@ -455,7 +455,7 @@ func _detect_platform_connection(other: Platform, openings: Array) -> void:
 
 	const OPPOSING_DOT_MAX := -0.65
 	const PARALLEL_DOT_MIN := 0.965
-	for my_edge in my_edges:
+	for my_edge: Dictionary in my_edges:
 		var my_point: Vector3 = my_edge["point"]
 		var my_run_dir: Vector3 = my_edge["run_dir"]
 		var my_outward: Vector3 = my_edge["outward"]
@@ -463,7 +463,7 @@ func _detect_platform_connection(other: Platform, openings: Array) -> void:
 		var sec_max: float = my_edge["sec_max"]
 		var use_z_axis: bool = my_edge["use_z"]
 
-		for other_edge in other_edges:
+		for other_edge: Dictionary in other_edges:
 			var other_outward: Vector3 = other_edge["outward"]
 			if my_outward.dot(other_outward) > OPPOSING_DOT_MAX:
 				continue
@@ -511,7 +511,7 @@ func _detect_platform_overlap_footprint(
 		{"id": 3, "a": Vector2(-my_hl, -my_hw), "b": Vector2(my_hl, -my_hw), "use_z": false},
 	]
 
-	for edge in edge_defs:
+	for edge: Dictionary in edge_defs:
 		var a: Vector2 = edge["a"]
 		var b: Vector2 = edge["b"]
 		var range: Array = _segment_overlap_range_against_polygon(a, b, other_poly, tol)
@@ -542,7 +542,7 @@ func _segment_overlap_range_against_polygon(
 	for i in range(poly.size()):
 		var p0 := poly[i]
 		var p1 := poly[(i + 1) % poly.size()]
-		var inter = Geometry2D.segment_intersects_segment(a, b, p0, p1)
+		var inter: Variant = Geometry2D.segment_intersects_segment(a, b, p0, p1)
 		if inter == null:
 			continue
 		var t: float
@@ -606,7 +606,7 @@ func _get_local_edges(hl: float, hw: float) -> Array:
 
 func _normalize_openings(openings: Array) -> Array:
 	var grouped := {}
-	for entry in openings:
+	for entry: Dictionary in openings:
 		var edge := int(entry.get("edge", -1))
 		if edge < 0:
 			continue
@@ -625,7 +625,7 @@ func _normalize_openings(openings: Array) -> Array:
 	var result: Array = []
 	var edges: Array = grouped.keys()
 	edges.sort()
-	for edge in edges:
+	for edge: int in edges:
 		var ranges: Array = grouped[edge]
 		if ranges.is_empty():
 			continue
@@ -711,7 +711,7 @@ func _build_stair_hole_polygon(corners: Array[Vector3], half_length: float, half
 
 	var best := PackedVector2Array()
 	var best_area := 0.0
-	for poly_variant in clipped:
+	for poly_variant: Variant in clipped:
 		var poly := poly_variant as PackedVector2Array
 		if poly.size() > 1 and poly[0].distance_to(poly[poly.size() - 1]) <= 0.0001:
 			poly.remove_at(poly.size() - 1)
@@ -759,7 +759,7 @@ func _polygon_area(poly: PackedVector2Array) -> float:
 
 func _openings_signature(openings: Array) -> int:
 	var parts: Array[String] = []
-	for opening in openings:
+	for opening: Dictionary in openings:
 		var edge := int(opening.get("edge", -1))
 		var start := snappedf(float(opening.get("start", 0.0)), 0.001)
 		var end := snappedf(float(opening.get("end", 0.0)), 0.001)
@@ -770,7 +770,7 @@ func _openings_signature(openings: Array) -> int:
 
 func _holes_signature(holes: Array) -> int:
 	var parts: Array[String] = []
-	for hole in holes:
+	for hole: Variant in holes:
 		if hole is Rect2:
 			var r := hole as Rect2
 			parts.append(

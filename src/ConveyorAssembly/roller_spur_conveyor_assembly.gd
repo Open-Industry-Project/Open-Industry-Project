@@ -164,7 +164,7 @@ func _get_property_list() -> Array[Dictionary]:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load(ASSEMBLY_PREVIEW_SCENE_PATH) as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 	preview_node.set_meta("is_preview", true)
 	if preview_node.has_method("_update_spur"):
 		preview_node._update_spur()

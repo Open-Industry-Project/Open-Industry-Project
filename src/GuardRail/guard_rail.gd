@@ -79,7 +79,7 @@ func _rebuild() -> void:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/GuardRail.tscn") as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 	_disable_collisions_recursive(preview_node)
 	return preview_node
 

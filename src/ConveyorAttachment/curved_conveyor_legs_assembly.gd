@@ -21,26 +21,26 @@ func _get_leg_scale_for_assembly_size() -> Vector3:
 	if not conveyor:
 		return DEFAULT_LEG_SCALE
 	
-	var conveyor_width = 1.0
-	var belt_height = 0.5
-	
+	var conveyor_width := 1.0
+	var belt_height := 0.5
+
 	if "conveyor_width" in conveyor:
 		conveyor_width = conveyor.conveyor_width
 	if "belt_height" in conveyor:
 		belt_height = conveyor.belt_height
-		
+
 	if conveyor.get_script() and conveyor.get_script().get_global_name() == "CurvedRollerConveyor":
-		var base_margin = 1.08
-		var size_scale = conveyor.size.x / DEFAULT_ASSEMBLY_SIZE.x
-		var additional_margin = 1.0 + (size_scale - 1.0) * -0.01
+		var base_margin := 1.08
+		var size_scale: float = conveyor.size.x / DEFAULT_ASSEMBLY_SIZE.x
+		var additional_margin := 1.0 + (size_scale - 1.0) * -0.01
 		conveyor_width *= base_margin * additional_margin
-		
-	var base_conveyor_width = 1.0
-	var width_scale_factor = conveyor_width / base_conveyor_width
-	
-	var base_belt_height = 0.5
-	var height_difference = belt_height - base_belt_height
-	var height_scale_factor = 1.0 - (height_difference * 0.75)
+
+	var base_conveyor_width := 1.0
+	var width_scale_factor := conveyor_width / base_conveyor_width
+
+	var base_belt_height := 0.5
+	var height_difference := belt_height - base_belt_height
+	var height_scale_factor := 1.0 - (height_difference * 0.75)
 	height_scale_factor = clamp(height_scale_factor, 0.7, 1.3)
 	
 	return Vector3(
@@ -67,8 +67,8 @@ func _ready() -> void:
 
 ## For curved assemblies, this is the angle from +Z toward -X around the Y axis in degrees,
 ## matching the conveyor's angle parameterization (0° at the tail end, increasing toward head).
-func _get_position_on_conveyor_legs_path(position: Vector3) -> float:
-	return rad_to_deg(atan2(-position.x, position.z))
+func _get_position_on_conveyor_legs_path(point: Vector3) -> float:
+	return rad_to_deg(atan2(-point.x, point.z))
 
 
 func _on_conveyor_size_changed() -> void:
@@ -83,7 +83,7 @@ func _on_conveyor_size_changed() -> void:
 
 func _update_all_leg_scales() -> void:
 	for child in get_children():
-		var conveyor_leg = child as ConveyorLeg
+		var conveyor_leg := child as ConveyorLeg
 		if conveyor_leg:
 			_apply_assembly_scale(conveyor_leg)
 
@@ -164,14 +164,14 @@ func _get_desired_interval_conveyor_leg_count() -> int:
 	return int((last_position - first_position) / angular_spacing) + 1
 
 
-func _add_or_get_conveyor_leg_instance(name: StringName) -> Node:
-	var conveyor_leg := get_node_or_null(NodePath(name))
+func _add_or_get_conveyor_leg_instance(leg_name: StringName) -> Node:
+	var conveyor_leg := get_node_or_null(NodePath(leg_name))
 	if conveyor_leg != null:
 		_apply_assembly_scale(conveyor_leg)
 		return conveyor_leg
 
 	conveyor_leg = leg_model_scene.instantiate()
-	conveyor_leg.name = name
+	conveyor_leg.name = leg_name
 	add_child(conveyor_leg)
 	conveyor_leg.scale = _get_leg_scale_for_assembly_size()
 	return conveyor_leg
@@ -183,7 +183,7 @@ func _update_conveyor_leg_width(conveyor_leg: Node3D) -> void:
 
 func _update_all_conveyor_legs_width() -> void:
 	for child in get_children():
-		var conveyor_leg = child as ConveyorLeg
+		var conveyor_leg := child as ConveyorLeg
 		if conveyor_leg:
 			_apply_assembly_scale(conveyor_leg)
 
@@ -193,7 +193,7 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 
 	# End legs bypass the coverage visibility check to avoid floating-point edge cases
 	# where the tip position lands just outside the coverage boundary.
-	var leg_index = _get_auto_conveyor_leg_index(conveyor_leg.name)
+	var leg_index := _get_auto_conveyor_leg_index(conveyor_leg.name)
 	if leg_index == LegIndex.FRONT and tail_end_leg_enabled:
 		conveyor_leg.visible = true
 	elif leg_index == LegIndex.REAR and head_end_leg_enabled:

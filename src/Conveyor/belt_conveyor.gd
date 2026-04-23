@@ -81,7 +81,7 @@ var _running_tag := OIPCommsTag.new()
 @export var enable_comms: bool = false
 @export var speed_tag_group_name: String
 ## The tag group for reading speed values from external systems.
-@export_custom(0, "tag_group_enum") var speed_tag_groups:
+@export_custom(0, "tag_group_enum") var speed_tag_groups: String:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
@@ -89,7 +89,7 @@ var _running_tag := OIPCommsTag.new()
 @export var speed_tag_name: String = ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.
-@export_custom(0, "tag_group_enum") var running_tag_groups:
+@export_custom(0, "tag_group_enum") var running_tag_groups: String:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
@@ -105,7 +105,7 @@ func _validate_property(property: Dictionary) -> void:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/BeltConveyor.tscn") as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 
 	_disable_collisions_recursive(preview_node)
 
@@ -372,7 +372,7 @@ func _update_frame_rail(rail: FrameRail, conveyor_length: float, h: float, z: fl
 
 func _save_frame_rail_state() -> void:
 	var state: Dictionary = {}
-	for entry in [["left", _frame_left], ["right", _frame_right]]:
+	for entry: Array in [["left", _frame_left], ["right", _frame_right]]:
 		var rail: FrameRail = entry[1]
 		if not rail:
 			continue
@@ -390,7 +390,7 @@ func _save_frame_rail_state() -> void:
 func _restore_frame_rail_state() -> void:
 	if _frame_rail_state.is_empty():
 		return
-	for entry in [["left", _frame_left], ["right", _frame_right]]:
+	for entry: Array in [["left", _frame_left], ["right", _frame_right]]:
 		var rail: FrameRail = entry[1]
 		if not rail or not _frame_rail_state.has(entry[0]):
 			continue

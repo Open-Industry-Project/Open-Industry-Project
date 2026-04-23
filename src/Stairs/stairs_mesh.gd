@@ -200,7 +200,7 @@ static func _add_handrail_surface(mesh: ArrayMesh, run_length: float, rise_heigh
 	var landing_x_start := base_x + float(step_count) * step_run
 	var landing_y := base_y + rise_height
 
-	for side_val in [-1.0, 1.0]:
+	for side_val: float in [-1.0, 1.0]:
 		var side: float = side_val
 		var z_offset: float = side * (hw + STRINGER_WIDTH / 2.0)
 		var stringer_normal := Vector3(0, 0, side)

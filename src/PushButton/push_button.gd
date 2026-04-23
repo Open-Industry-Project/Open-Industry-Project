@@ -53,7 +53,7 @@ extends Node3D
 		lamp = value
 		if _button_mesh:
 			_ensure_unique_material()
-			var mat = _button_mesh.get_surface_override_material(0)
+			var mat := _button_mesh.get_surface_override_material(0)
 			if value:
 				mat.emission_energy_multiplier = 1.0
 			else:
@@ -65,7 +65,7 @@ extends Node3D
 		button_color = value
 		if _button_mesh:
 			_ensure_unique_material()
-			var mat = _button_mesh.get_surface_override_material(0)
+			var mat := _button_mesh.get_surface_override_material(0)
 			mat.albedo_color = value
 			mat.emission = value
 
@@ -82,7 +82,7 @@ var _material_made_unique: bool = false
 @export var enable_comms: bool = false
 @export var pushbutton_tag_group_name: String
 ## The tag group for writing button output state.
-@export_custom(0, "tag_group_enum") var pushbutton_tag_groups:
+@export_custom(0, "tag_group_enum") var pushbutton_tag_groups: String:
 	set(value):
 		pushbutton_tag_group_name = value
 		pushbutton_tag_groups = value
@@ -90,7 +90,7 @@ var _material_made_unique: bool = false
 @export var pushbutton_tag_name: String = ""
 @export var lamp_tag_group_name: String
 ## The tag group for reading lamp control signals.
-@export_custom(0, "tag_group_enum") var lamp_tag_groups:
+@export_custom(0, "tag_group_enum") var lamp_tag_groups: String:
 	set(value):
 		lamp_tag_group_name = value
 		lamp_tag_groups = value
@@ -122,9 +122,9 @@ func _ensure_unique_material() -> void:
 	if not _button_mesh or _material_made_unique:
 		return
 		
-	var current_override = _button_mesh.get_surface_override_material(0)
+	var current_override := _button_mesh.get_surface_override_material(0)
 	if current_override:
-		var unique_mat = current_override.duplicate()
+		var unique_mat := current_override.duplicate() as Material
 		_button_mesh.set_surface_override_material(0, unique_mat)
 	else:
 		var mat: StandardMaterial3D = _button_mesh.mesh.surface_get_material(0).duplicate()

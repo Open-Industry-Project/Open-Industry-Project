@@ -166,7 +166,7 @@ func _ensure_side(side: SideGuardsAssembly.Side) -> Node3D:
 
 
 func _get_side_node_transform(side: SideGuardsAssembly.Side) -> Transform3D:
-	var conveyor = get_parent()
+	var conveyor := get_parent()
 	var conveyor_width: float = conveyor.size.z
 	# Offset to align sideguard outer face with frame outer face.
 	var offset_z: float = conveyor_width / 2.0 + ConveyorFrameMesh.WALL_THICKNESS
@@ -192,7 +192,7 @@ func _get_side_node_name(side: SideGuardsAssembly.Side) -> StringName:
 
 
 func _get_side_extents(side: SideGuardsAssembly.Side) -> Array[float]:
-	var conveyor = get_parent()
+	var conveyor := get_parent()
 
 	if "angle_downstream" in conveyor and "angle_upstream" in conveyor:
 		return _get_spur_side_extents(side, conveyor)
@@ -310,7 +310,7 @@ func _adjust_anchored_guards(side_node: Node3D, side: SideGuardsAssembly.Side, e
 ## Save the current guard state so the assembly root can serialize it.
 func save_guard_state() -> void:
 	var state: Dictionary = {}
-	for side_name in ["LeftSide", "RightSide"]:
+	for side_name: String in ["LeftSide", "RightSide"]:
 		var side_node := get_node_or_null(side_name) as Node3D
 		if not side_node:
 			continue
@@ -337,7 +337,7 @@ func save_guard_state() -> void:
 func _rebuild_from_guard_state() -> void:
 	if not is_inside_tree() or _guard_state.is_empty():
 		return
-	for side_name in ["LeftSide", "RightSide"]:
+	for side_name: String in ["LeftSide", "RightSide"]:
 		var side_node := get_node_or_null(side_name) as Node3D
 		if not side_node:
 			continue
@@ -520,7 +520,7 @@ func _parse_guard_property(property: StringName) -> Dictionary:
 
 func _check_guard_count_changed() -> void:
 	var changed := false
-	for side in [Side.LEFT, Side.RIGHT]:
+	for side: SideGuardsAssembly.Side in [Side.LEFT, Side.RIGHT]:
 		var count := _get_guards_for_side(side).size()
 		if _last_guard_count.get(side, -1) != count:
 			_last_guard_count[side] = count

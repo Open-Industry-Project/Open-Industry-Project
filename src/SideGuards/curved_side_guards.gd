@@ -79,7 +79,7 @@ func _ensure_material() -> void:
 
 
 func _ensure_collision_shapes() -> void:
-	for mesh_node in [outer_mesh, inner_mesh]:
+	for mesh_node: MeshInstance3D in [outer_mesh, inner_mesh]:
 		if not mesh_node:
 			continue
 		var body := mesh_node.get_node_or_null("StaticBody3D") as StaticBody3D
@@ -201,7 +201,7 @@ static func _create_contour_wall(radius: float, wall_height: float, wall_thickne
 	var r_outer: float = radius + wall_thickness / 2.0 * direction
 	var r_inner: float = radius - wall_thickness / 2.0 * direction
 
-	for point in points:
+	for point: Dictionary in points:
 		var p: Vector3 = point["pos"]
 		var n: Vector3 = point["normal"]
 		var d: float = point["dist"]
@@ -223,7 +223,7 @@ static func _create_contour_wall(radius: float, wall_height: float, wall_thickne
 
 	# Inner face.
 	var inner_base_idx: int = verts.size()
-	for point in points:
+	for point: Dictionary in points:
 		var p: Vector3 = point["pos"]
 		var n: Vector3 = point["normal"]
 		var d: float = point["dist"]
@@ -243,7 +243,7 @@ static func _create_contour_wall(radius: float, wall_height: float, wall_thickne
 
 	# Top face.
 	var top_base_idx: int = verts.size()
-	for point in points:
+	for point: Dictionary in points:
 		var p: Vector3 = point["pos"]
 		var d: float = point["dist"]
 		var p_outer: Vector3 = p * (r_outer / radius) if radius > 0 else p
@@ -261,7 +261,7 @@ static func _create_contour_wall(radius: float, wall_height: float, wall_thickne
 		indices.append_array([base, base + 2, base + 1, base + 1, base + 2, base + 3])
 
 	# End caps.
-	for end_i in [0, outer_count - 1]:
+	for end_i: int in [0, outer_count - 1]:
 		var p: Vector3 = points[end_i]["pos"]
 		var p_outer: Vector3 = p * (r_outer / radius) if radius > 0 else p
 		var p_inner: Vector3 = p * (r_inner / radius) if radius > 0 else p
@@ -340,7 +340,7 @@ func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conv
 	# Position guard at conveyor top surface regardless of scene transform.
 	position = Vector3(position.x, 0, position.z)
 
-	var tolerance = 0.0001
+	var tolerance := 0.0001
 	if abs(_current_inner_radius - inner_radius) < tolerance and \
 	   abs(_current_conveyor_width - conveyor_width) < tolerance and \
 	   abs(_current_belt_height - conveyor_size.y) < tolerance and \
@@ -352,7 +352,7 @@ func update_for_curved_conveyor(inner_radius: float, conveyor_width: float, conv
 	_current_belt_height = conveyor_size.y
 	guard_angle = conveyor_angle
 
-	var outer_radius = inner_radius + conveyor_width
+	var outer_radius := inner_radius + conveyor_width
 	size = Vector3(outer_radius * 2.0, size.y, size.z)
 
 	_update_mesh()

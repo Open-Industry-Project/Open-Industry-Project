@@ -38,7 +38,7 @@ var _tag := OIPCommsTag.new()
 @export_category("Communications")
 @export var enable_comms: bool = false
 @export var tag_group_name: String
-@export_custom(0, "tag_group_enum") var tag_groups:
+@export_custom(0, "tag_group_enum") var tag_groups: String:
 	set(value):
 		tag_group_name = value
 		tag_groups = value

@@ -135,8 +135,8 @@ func _disable_collisions_recursive(node: Node) -> void:
 
 func _apply_preview_common(preview_node: Node3D) -> void:
 	_disable_collisions_recursive(preview_node)
-	for unique_name in ["%ConveyorLegsAssembly", "%SideGuardsAssembly"]:
-		var attachment = preview_node.get_node_or_null(unique_name)
+	for unique_name: String in ["%ConveyorLegsAssembly", "%SideGuardsAssembly"]:
+		var attachment := preview_node.get_node_or_null(unique_name)
 		if is_instance_valid(attachment):
 			attachment.set_meta("is_preview", true)
 			attachment.set_process_mode(Node.PROCESS_MODE_DISABLED)
@@ -242,7 +242,7 @@ func _apply_frame_rail(rail: FrameRail, extents: Array[float], height: float, z_
 func _save_frame_rail_state() -> void:
 	var state: Dictionary = {}
 	var rails := {"left": _frame_left, "right": _frame_right}
-	for key in rails:
+	for key: String in rails:
 		var rail: FrameRail = rails[key]
 		if not rail:
 			continue
@@ -261,7 +261,7 @@ func _restore_frame_rail_state() -> void:
 	if _frame_rail_state.is_empty():
 		return
 	var rails := {"left": _frame_left, "right": _frame_right}
-	for key in rails:
+	for key: String in rails:
 		var rail: FrameRail = rails[key]
 		if not rail or not _frame_rail_state.has(key):
 			continue

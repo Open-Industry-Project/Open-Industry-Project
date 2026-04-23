@@ -183,7 +183,7 @@ func update_attachments_for_curved_conveyor(inner_radius: float, conveyor_width:
 	if not _has_instantiated:
 		return
 
-	var legs_assembly = get_node_or_null("ConveyorLegsAssembly")
+	var legs_assembly := get_node_or_null("ConveyorLegsAssembly")
 	if not legs_assembly:
 		legs_assembly = get_node_or_null("%ConveyorLegsAssembly")
 

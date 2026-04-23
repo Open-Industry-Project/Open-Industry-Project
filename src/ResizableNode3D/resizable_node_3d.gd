@@ -65,7 +65,7 @@ func _notification(what: int) -> void:
 						"Please use the 'size' property instead of scale.",
 						EditorToaster.SEVERITY_WARNING
 					)
-					get_tree().create_timer(1.0).timeout.connect(func():
+					get_tree().create_timer(1.0).timeout.connect(func() -> void:
 						_scale_notification_cooldown = false
 					)
 
@@ -81,7 +81,7 @@ func _exit_tree() -> void:
 	if EditorInterface.transform_commited.is_connected(_transform_commited):
 		EditorInterface.transform_commited.disconnect(_transform_commited)
 
-func _transform_requested(data) -> void:
+func _transform_requested(data: Dictionary) -> void:
 	if not EditorInterface.get_selection().get_selected_nodes().has(self):
 		return
 

@@ -189,7 +189,7 @@ static func _add_hole_polygon_walls(
 
 static func _collect_hole_polygons(holes: Array, deck_poly: PackedVector2Array) -> Array[PackedVector2Array]:
 	var collected: Array[PackedVector2Array] = []
-	for entry in holes:
+	for entry: Variant in holes:
 		var raw_poly := _hole_entry_to_polygon(entry)
 		if raw_poly.size() < 3:
 			continue
@@ -201,7 +201,7 @@ static func _collect_hole_polygons(holes: Array, deck_poly: PackedVector2Array) 
 				if inside_poly.size() >= 3 and absf(_polygon_signed_area(inside_poly)) > 0.0001:
 					collected.append(inside_poly)
 			continue
-		for poly_variant in clipped:
+		for poly_variant: Variant in clipped:
 			var poly := _sanitize_polygon(poly_variant as PackedVector2Array)
 			if poly.size() >= 3 and absf(_polygon_signed_area(poly)) > 0.0001:
 				collected.append(poly)
@@ -293,7 +293,7 @@ static func _hole_entry_to_polygon(entry: Variant) -> PackedVector2Array:
 				return _sanitize_polygon(raw as PackedVector2Array)
 			if raw is Array:
 				var pts := PackedVector2Array()
-				for v in raw:
+				for v: Variant in raw:
 					if v is Vector2:
 						pts.append(v)
 				return _sanitize_polygon(pts)
@@ -405,14 +405,14 @@ static func _add_railing_surface(mesh: ArrayMesh, length: float, width: float, o
 		[Vector3(-hl, 0, -hw), Vector3(hl, 0, -hw), 3, Vector3(0, 0, -1)],
 	]
 
-	for edge_data in edges:
+	for edge_data: Array in edges:
 		var start: Vector3 = edge_data[0]
 		var end: Vector3 = edge_data[1]
 		var edge_id: int = edge_data[2]
 		var outward: Vector3 = edge_data[3]
 
 		var edge_openings: Array = []
-		for opening in openings:
+		for opening: Dictionary in openings:
 			if opening["edge"] == edge_id:
 				edge_openings.append(opening)
 
@@ -451,7 +451,7 @@ static func _generate_railing_edge(
 	var half_edge := edge_length / 2.0
 
 	var open_ranges: Array = []
-	for opening in openings:
+	for opening: Dictionary in openings:
 		var o_start: float = clampf(float(opening["start"]) + half_edge, 0.0, edge_length)
 		var o_end: float = clampf(float(opening["end"]) + half_edge, 0.0, edge_length)
 		if o_start > o_end:

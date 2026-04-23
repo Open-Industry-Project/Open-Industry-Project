@@ -105,7 +105,7 @@ var _middle_legs_instance_count: int = 0:
 		_create_and_remove_auto_conveyor_legs(value)
 	get:
 		# Count middle legs.
-		return get_children().reduce(func(acc, child):
+		return get_children().reduce(func(acc: int, child: Node) -> int:
 				return acc + (1 if child.name.begins_with(AUTO_CONVEYOR_LEG_NAME_PREFIX_MIDDLE) else 0), 0)
 
 
@@ -198,7 +198,7 @@ var leg_model_grabs_offset: float = 0.132:
 ## If this assembly is not the child of a compatible Node, returns [code]null[/code].
 var conveyor: Node3D:
 	get:
-		var parent = get_parent() as Node3D
+		var parent := get_parent() as Node3D
 		if parent != null and parent.has_signal("size_changed") and "size" in parent and parent.size is Vector3:
 			return parent
 		return null
@@ -254,8 +254,8 @@ func _sync_floor_plane_after_load() -> void:
 		_initial_load_pending = false
 		return
 
-	var current_local_plane = get_local_floor_plane()
-	var global_plane = conveyor.global_transform * current_local_plane
+	var current_local_plane := get_local_floor_plane()
+	var global_plane := conveyor.global_transform * current_local_plane
 
 	if global_plane.normal != Vector3.ZERO:
 		global_floor_plane = global_plane
@@ -264,7 +264,7 @@ func _sync_floor_plane_after_load() -> void:
 
 
 #region Managing connection to Conveyor's signals
-func _notification(what) -> void:
+func _notification(what: int) -> void:
 	if what == NOTIFICATION_PARENTED:
 		_connect_conveyor()
 	elif what == NOTIFICATION_UNPARENTED:
@@ -365,7 +365,7 @@ func _on_conveyor_size_changed() -> void:
 	_update_all_conveyor_legs_width()
 
 
-func _physics_process(_delta) -> void:
+func _physics_process(_delta: float) -> void:
 	_update_conveyor_legs()
 	_set_needs_update(false)
 
@@ -376,14 +376,14 @@ func _set_needs_update(value: bool) -> void:
 
 func get_local_floor_plane() -> Plane:
 	var floor_normal: Vector3 = transform.basis.y.normalized()
-	var floor_offset = transform.origin.dot(floor_normal)
+	var floor_offset := transform.origin.dot(floor_normal)
 	return Plane(floor_normal, floor_offset)
 
 
 func set_local_floor_plane(value: Plane) -> void:
-	var old_value = get_local_floor_plane()
-	var normal_changed = old_value.normal != value.normal
-	var distance_changed = old_value.d != value.d
+	var old_value := get_local_floor_plane()
+	var normal_changed := old_value.normal != value.normal
+	var distance_changed := old_value.d != value.d
 	_save_local_floor_plane_to_transform(value)
 	if _suppress_floor_plane_sub_updates:
 		return
@@ -398,20 +398,20 @@ func _save_local_floor_plane_to_transform(new_local_floor_plane: Plane) -> void:
 
 
 func _save_properties_to_local_transform(new_local_floor_plane: Plane, new_middle_legs_initial_leg_position: float) -> void:
-	var floor_offset = new_local_floor_plane.d
-	var floor_normal = new_local_floor_plane.normal
+	var floor_offset := new_local_floor_plane.d
+	var floor_normal := new_local_floor_plane.normal
 
-	var offset_x = new_middle_legs_initial_leg_position
-	var offset_y = floor_offset
-	var normal_y = floor_normal
-	var normal_z = transform.basis.z.normalized()
-	var normal_x = normal_y.cross(normal_z).normalized()
-	var origin = normal_x * offset_x + normal_y * offset_y
+	var offset_x := new_middle_legs_initial_leg_position
+	var offset_y := floor_offset
+	var normal_y := floor_normal
+	var normal_z := transform.basis.z.normalized()
+	var normal_x := normal_y.cross(normal_z).normalized()
+	var origin := normal_x * offset_x + normal_y * offset_y
 	transform = Transform3D(normal_x, normal_y, normal_z, origin)
 
 
 func get_middle_legs_initial_leg_position() -> float:
-	var normal_x = transform.basis.x.normalized()
+	var normal_x := transform.basis.x.normalized()
 	return transform.origin.dot(normal_x)
 
 
@@ -427,7 +427,7 @@ func _save_middle_legs_initial_leg_position_to_transform(new_middle_legs_initial
 
 
 func _update_conveyor_leg_coverage() -> void:
-	var coverage = _get_conveyor_leg_coverage()
+	var coverage := _get_conveyor_leg_coverage()
 	_conveyor_leg_coverage_min = coverage[0]
 	_conveyor_leg_coverage_max = coverage[1]
 	_conveyor_legs_coverage_changed = _conveyor_leg_coverage_min != _conveyor_leg_coverage_min_prev \
@@ -456,7 +456,7 @@ func _get_conveyor_leg_coverage() -> Array[float]:
 	# The tip of the conveyor leg has a rotating grab model that isn't counted towards its height.
 	# Because the grab will rotate towards the conveyor, we account for its reach here.
 	# Grab the bottom of the conveyor.
-	var conveyor_depth = conveyor.size.y
+	var conveyor_depth: float = conveyor.size.y
 	var grab_offset := Vector3(0.0, -leg_model_grabs_offset - conveyor_depth, 0.0)
 
 	var leg_grab_point_front := local_conveyor_transform.orthonormalized() * (conveyor_extent_front + margin_offset_front + grab_offset)
@@ -480,7 +480,7 @@ func _update_floor_plane(cached_conveyor_xform: Variant = null) -> void:
 	assert(global_floor_plane.normal != Vector3.ZERO, "ConveyorLegsAssembly: global_floor_plane normal is zero")
 	var adjusted_global_floor_plane_normal: Vector3 = global_floor_plane.normal.slide(legs_plane.normal).normalized()
 	assert(adjusted_global_floor_plane_normal != Vector3.ZERO, "ConveyorLegsAssembly: Legs and floor plane can't be parallel; the legs would never reach the floor.")
-	var adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor_xform.origin, -adjusted_global_floor_plane_normal)
+	var adjusted_global_floor_plane_point: Variant = global_floor_plane.intersects_ray(conveyor_xform.origin, -adjusted_global_floor_plane_normal)
 	if adjusted_global_floor_plane_point == null:
 		adjusted_global_floor_plane_point = global_floor_plane.intersects_ray(conveyor_xform.origin, adjusted_global_floor_plane_normal)
 	assert(adjusted_global_floor_plane_point != null, "ConveyorLegsAssembly: adjusted_global_floor_plane_point is null")
@@ -582,8 +582,8 @@ func _snap_all_conveyor_legs_to_path() -> void:
 
 
 func _update_all_conveyor_legs_width() -> void:
-	var target_width_new = _get_conveyor_leg_target_width()
-	var target_width_changed = _target_width_prev != target_width_new
+	var target_width_new := _get_conveyor_leg_target_width()
+	var target_width_changed := _target_width_prev != target_width_new
 	_target_width_prev = target_width_new
 	if not target_width_changed:
 		return
@@ -632,8 +632,8 @@ func _snap_to_conveyor_legs_path(conveyor_leg: Node3D) -> void:
 ## The path position is a linear representation of where a point is on the conveyor legs path.
 ## For straight assemblies, this is the X coordinate of the point.
 ## For curved assemblies, this is an angle of the point around the conveyor legs Y axis in degrees.
-func _get_position_on_conveyor_legs_path(position: Vector3) -> float:
-	return position.x
+func _get_position_on_conveyor_legs_path(point: Vector3) -> float:
+	return point.x
 
 
 ## Move a conveyor leg to a given position on the conveyor legs path.
@@ -685,13 +685,13 @@ func _adjust_auto_conveyor_leg_positions() -> int:
 	return change_count
 
 
-static func _get_auto_conveyor_leg_index(name: StringName) -> int:
-	if name == AUTO_CONVEYOR_LEG_NAME_FRONT:
+static func _get_auto_conveyor_leg_index(leg_name: StringName) -> int:
+	if leg_name == AUTO_CONVEYOR_LEG_NAME_FRONT:
 		return LegIndex.FRONT
-	if name == AUTO_CONVEYOR_LEG_NAME_REAR:
+	if leg_name == AUTO_CONVEYOR_LEG_NAME_REAR:
 		return LegIndex.REAR
-	if name.begins_with(AUTO_CONVEYOR_LEG_NAME_PREFIX_MIDDLE):
-		var index_str = name.substr(AUTO_CONVEYOR_LEG_NAME_PREFIX_MIDDLE.length())
+	if leg_name.begins_with(AUTO_CONVEYOR_LEG_NAME_PREFIX_MIDDLE):
+		var index_str := leg_name.substr(AUTO_CONVEYOR_LEG_NAME_PREFIX_MIDDLE.length())
 		if index_str.is_valid_int():
 			# Names start at 1, but indices start at 0.
 			return index_str.to_int() - 1
@@ -715,8 +715,8 @@ func _get_auto_conveyor_leg_position(index: int) -> float:
 
 func _get_interval_conveyor_leg_position(index: int) -> float:
 	assert(index >= 0)
-	var front_margin = maxf(0.0, tail_end_leg_clearance) if tail_end_leg_enabled else 0.0
-	var first_position = ceili((_conveyor_leg_coverage_min + front_margin) / middle_legs_spacing) * middle_legs_spacing
+	var front_margin := maxf(0.0, tail_end_leg_clearance) if tail_end_leg_enabled else 0.0
+	var first_position := ceili((_conveyor_leg_coverage_min + front_margin) / middle_legs_spacing) * middle_legs_spacing
 	return first_position + index * middle_legs_spacing
 
 
@@ -736,7 +736,7 @@ func _get_desired_interval_conveyor_leg_count() -> int:
 	return interval_conveyor_leg_count
 
 
-func _create_and_remove_auto_conveyor_legs(interval_conveyor_leg_count=null) -> bool:
+func _create_and_remove_auto_conveyor_legs(interval_conveyor_leg_count: Variant = null) -> bool:
 	if interval_conveyor_leg_count == null:
 		interval_conveyor_leg_count = _get_desired_interval_conveyor_leg_count()
 	var changed := false
@@ -785,7 +785,7 @@ func _create_and_remove_auto_conveyor_legs(interval_conveyor_leg_count=null) -> 
 		_add_conveyor_leg_at_index(LegIndex.FRONT)
 		changed = true
 
-	for i in interval_conveyor_leg_count:
+	for i: int in interval_conveyor_leg_count:
 		if not conveyor_legs_inventory[i]:
 			var pos := _get_interval_conveyor_leg_position(i)
 			if not _is_position_excluded(pos):
@@ -800,20 +800,20 @@ func _create_and_remove_auto_conveyor_legs(interval_conveyor_leg_count=null) -> 
 
 
 func _add_conveyor_leg_at_index(index: int) -> ConveyorLeg:
-	var position: float = _get_auto_conveyor_leg_position(index)
-	var name: StringName
+	var path_position: float = _get_auto_conveyor_leg_position(index)
+	var leg_name: StringName
 
 	match index:
 		LegIndex.FRONT:
-			name = &"ConveyorLegTail"
+			leg_name = &"ConveyorLegTail"
 		LegIndex.REAR:
-			name = &"ConveyorLegHead"
+			leg_name = &"ConveyorLegHead"
 		_:
 			# Indices start at 0, but names start at 1.
-			name = &"ConveyorLegMiddle%d" % (index + 1)
+			leg_name = &"ConveyorLegMiddle%d" % (index + 1)
 
-	var conveyor_leg := _add_or_get_conveyor_leg_instance(name) as ConveyorLeg
-	_move_conveyor_leg_to_path_position(conveyor_leg, position)
+	var conveyor_leg := _add_or_get_conveyor_leg_instance(leg_name) as ConveyorLeg
+	_move_conveyor_leg_to_path_position(conveyor_leg, path_position)
 	_update_conveyor_leg_width(conveyor_leg)
 
 	# It probably doesn't matter, but let's try to keep conveyor legs in order.
@@ -832,13 +832,13 @@ func _add_conveyor_leg_at_index(index: int) -> ConveyorLeg:
 	return conveyor_leg
 
 
-func _add_or_get_conveyor_leg_instance(name: StringName) -> Node:
-	var conveyor_leg := get_node_or_null(NodePath(name))
+func _add_or_get_conveyor_leg_instance(leg_name: StringName) -> Node:
+	var conveyor_leg := get_node_or_null(NodePath(leg_name))
 	if conveyor_leg != null:
 		return conveyor_leg
 
 	conveyor_leg = leg_model_scene.instantiate()
-	conveyor_leg.name = name
+	conveyor_leg.name = leg_name
 	add_child(conveyor_leg)
 	return conveyor_leg
 
@@ -848,18 +848,18 @@ func _update_conveyor_legs_height_and_visibility() -> void:
 		return
 
 	# Plane transformed from conveyors space into local space.
-	var conveyor_plane = Plane(Vector3.UP, Vector3(0, -leg_model_grabs_offset - conveyor.size.y, 0)) \
+	var conveyor_plane := Plane(Vector3.UP, Vector3(0, -leg_model_grabs_offset - conveyor.size.y, 0)) \
 		* transform
 
 	for child in get_children():
-		var conveyor_leg = child as ConveyorLeg
+		var conveyor_leg := child as ConveyorLeg
 		if conveyor_leg:
 			_update_individual_conveyor_leg_height_and_visibility(conveyor_leg, conveyor_plane)
 
 
 func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: ConveyorLeg, conveyor_plane: Plane) -> void:
 	# Raycast from the minimum-height tip of the conveyor leg to the conveyor plane.
-	var intersection = conveyor_plane.intersects_ray(
+	var intersection: Variant = conveyor_plane.intersects_ray(
 		conveyor_leg.position + conveyor_leg.basis.y.normalized(),
 		conveyor_leg.basis.y.normalized()
 	)
@@ -870,7 +870,7 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 		conveyor_leg.scale = Vector3(conveyor_leg.scale.x, 1.0, conveyor_leg.scale.z)
 		return
 
-	var leg_height = intersection.distance_to(conveyor_leg.position)
+	var leg_height: float = intersection.distance_to(conveyor_leg.position)
 	conveyor_leg.scale = Vector3(conveyor_leg.scale.x, leg_height, conveyor_leg.scale.z)
 	conveyor_leg.grabs_rotation = rad_to_deg(conveyor_leg.basis.y.signed_angle_to(
 		conveyor_plane.normal.slide(conveyor_leg.basis.z.normalized()),
@@ -878,7 +878,7 @@ func _update_individual_conveyor_leg_height_and_visibility(conveyor_leg: Conveyo
 	))
 
 	# Only show conveyor legs that touch a conveyor.
-	var tip_position = _get_position_on_conveyor_legs_path(conveyor_leg.position + conveyor_leg.basis.y)
+	var tip_position := _get_position_on_conveyor_legs_path(conveyor_leg.position + conveyor_leg.basis.y)
 	conveyor_leg.visible = _conveyor_leg_coverage_min <= tip_position and tip_position <= _conveyor_leg_coverage_max
 
 

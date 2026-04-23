@@ -52,7 +52,7 @@ var _beam_needs_update: bool = true
 @export var enable_comms: bool = false
 @export var tag_group_name: String
 ## The tag group for writing output state to external systems.
-@export_custom(0, "tag_group_enum") var tag_groups:
+@export_custom(0, "tag_group_enum") var tag_groups: String:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
@@ -114,7 +114,7 @@ func _physics_process(_delta: float) -> void:
 		detected = false
 		beam_color = Color.GREEN
 
-	var current_transform = global_transform
+	var current_transform := global_transform
 	var beam_end := start_pos + global_transform.basis.z * result_distance
 	if _beam_needs_update or result_distance != _last_result_distance or beam_color != _last_beam_color or current_transform != _last_transform:
 		if show_beam:

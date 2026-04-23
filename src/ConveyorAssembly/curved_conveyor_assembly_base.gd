@@ -166,7 +166,7 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 func _get_conveyor_forwarded_property_names() -> Array:
 	return (_get_conveyor_forwarded_properties()
-			.filter(func(property):
+			.filter(func(property: Dictionary) -> bool:
 				var prop_name := property[&"name"] as String
 				var usage := property[&"usage"] as int
 				if prop_name in ConveyorAttachmentsAssembly.EXCLUDED_FORWARDED_PROPERTIES:
@@ -178,7 +178,7 @@ func _get_conveyor_forwarded_property_names() -> Array:
 					or usage & PROPERTY_USAGE_SUBGROUP)
 					and usage & PROPERTY_USAGE_STORAGE
 					and not prop_name.begins_with("metadata/")))
-			.map(func(property): return property[&"name"] as String))
+			.map(func(property: Dictionary) -> String: return property[&"name"] as String))
 
 
 func _legs_property_cached_set(property: StringName, value: Variant, _existing_backing_field_value: Variant) -> Variant:
@@ -254,7 +254,7 @@ func _get_custom_preview_node() -> Node3D:
 
 	_disable_collisions_recursive(preview_node)
 
-	var legs_assembly = preview_node.get_node_or_null("ConveyorCorner/ConveyorLegsAssembly")
+	var legs_assembly := preview_node.get_node_or_null("ConveyorCorner/ConveyorLegsAssembly")
 	if legs_assembly == null:
 		legs_assembly = preview_node.get_node_or_null("%ConveyorLegsAssembly")
 	if is_instance_valid(legs_assembly):

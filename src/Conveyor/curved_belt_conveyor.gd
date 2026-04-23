@@ -45,9 +45,9 @@ var size: Vector3:
 var _calculated_size: Vector3 = SIZE_DEFAULT
 
 func _update_calculated_size() -> void:
-	var outer_radius = inner_radius + conveyor_width
-	var diameter = outer_radius * 2.0
-	var old_size = _calculated_size
+	var outer_radius := inner_radius + conveyor_width
+	var diameter := outer_radius * 2.0
+	var old_size := _calculated_size
 	_calculated_size = Vector3(diameter, belt_height, diameter)
 
 	if old_size != _calculated_size:
@@ -104,12 +104,12 @@ func _update_calculated_size() -> void:
 ## The physics material applied to the belt surface for friction control.
 @export var belt_physics_material: PhysicsMaterial:
 	get:
-		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
+		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			return sb_node.physics_material_override
 		return null
 	set(value):
-		var sb_node = get_node_or_null("StaticBody3D") as StaticBody3D
+		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
 		if sb_node:
 			sb_node.physics_material_override = value
 		if _end_body1:
@@ -141,7 +141,7 @@ var _running_tag := OIPCommsTag.new()
 @export var enable_comms := false
 @export var speed_tag_group_name: String
 ## The tag group for reading speed values from external systems.
-@export_custom(0, "tag_group_enum") var speed_tag_groups:
+@export_custom(0, "tag_group_enum") var speed_tag_groups: String:
 	set(value):
 		speed_tag_group_name = value
 		speed_tag_groups = value
@@ -149,7 +149,7 @@ var _running_tag := OIPCommsTag.new()
 @export var speed_tag_name := ""
 @export var running_tag_group_name: String
 ## The tag group for the running state signal.
-@export_custom(0, "tag_group_enum") var running_tag_groups:
+@export_custom(0, "tag_group_enum") var running_tag_groups: String:
 	set(value):
 		running_tag_group_name = value
 		running_tag_groups = value
@@ -164,7 +164,7 @@ func _validate_property(property: Dictionary) -> void:
 
 func _get_custom_preview_node() -> Node3D:
 	var preview_scene := load("res://parts/CurvedBeltConveyor.tscn") as PackedScene
-	var preview_node = preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 
 	_disable_collisions_recursive(preview_node)
 
@@ -192,11 +192,11 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	var collision_shape = _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var collision_shape := _sb.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if collision_shape and collision_shape.shape:
 		collision_shape.shape = collision_shape.shape.duplicate()
 
-	var main_mesh_instance = get_node_or_null("MeshInstance3D") as MeshInstance3D
+	var main_mesh_instance := get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if main_mesh_instance and main_mesh_instance.mesh:
 		main_mesh_instance.mesh = main_mesh_instance.mesh.duplicate()
 
@@ -293,7 +293,7 @@ func _update_belt_ends() -> void:
 	_end_body2.rotation.y = 0
 
 	# Update collision shape.
-	for body in [_end_body1, _end_body2]:
+	for body: StaticBody3D in [_end_body1, _end_body2]:
 		var col := body.get_node("CollisionShape3D") as CollisionShape3D
 		if col and col.shape is CylinderShape3D:
 			var cyl := col.shape as CylinderShape3D
@@ -301,7 +301,7 @@ func _update_belt_ends() -> void:
 			cyl.height = conveyor_width
 
 	# Set angular velocity for belt physics.
-	for body in [_end_body1, _end_body2]:
+	for body: StaticBody3D in [_end_body1, _end_body2]:
 		if not body:
 			continue
 		if EditorInterface.is_simulation_running() and _linear_speed != 0:
@@ -313,22 +313,22 @@ func _update_belt_ends() -> void:
 
 
 func _update_side_guards() -> void:
-	var parent_node = get_parent()
+	var parent_node := get_parent()
 	if parent_node:
-		var side_guards = parent_node.get_node_or_null("SideGuardsCBC")
+		var side_guards := parent_node.get_node_or_null("SideGuardsCBC")
 		if side_guards and side_guards.has_method("update_for_curved_conveyor"):
 			side_guards.update_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
 
 
 func _update_assembly_components() -> void:
-	var parent_node = get_parent()
+	var parent_node := get_parent()
 	if not parent_node:
 		return
 
 	if parent_node.has_method("update_attachments_for_curved_conveyor"):
 		parent_node.update_attachments_for_curved_conveyor(inner_radius, conveyor_width, size, conveyor_angle)
 	else:
-		var legs_assembly = parent_node.get_node_or_null("ConveyorLegsAssembly")
+		var legs_assembly := parent_node.get_node_or_null("ConveyorLegsAssembly")
 		if not legs_assembly:
 			legs_assembly = parent_node.get_node_or_null("%ConveyorLegsAssembly")
 
@@ -500,7 +500,7 @@ func _build_belt_loop(mesh_instance: ArrayMesh, angle_radians: float,
 	dist += belt_arc
 
 	# Connect all adjacent rows with triangle strips.
-	var row_count: int = verts.size() / 2
+	var row_count: int = floori(verts.size() / 2.0)
 	for i in range(row_count - 1):
 		var idx: int = i * 2
 		_add_triangle(indices, idx, idx + 2, idx + 1)
@@ -551,13 +551,13 @@ func _setup_collision_shape() -> void:
 	var all_verts: PackedVector3Array = PackedVector3Array()
 	var all_indices: PackedInt32Array = PackedInt32Array()
 
-	var mesh_instance = curved_mesh.mesh
+	var mesh_instance := curved_mesh.mesh
 	for surface_idx in range(mesh_instance.get_surface_count()):
-		var surface = mesh_instance.surface_get_arrays(surface_idx)
-		var base_index = all_verts.size()
+		var surface := mesh_instance.surface_get_arrays(surface_idx)
+		var base_index := all_verts.size()
 		all_verts.append_array(surface[Mesh.ARRAY_VERTEX])
 
-		for i in surface[Mesh.ARRAY_INDEX]:
+		for i: int in surface[Mesh.ARRAY_INDEX]:
 			all_indices.append(base_index + i)
 
 	var triangle_verts: PackedVector3Array = PackedVector3Array()
@@ -571,7 +571,7 @@ func _setup_collision_shape() -> void:
 		])
 
 	var inv_sf := 1.0 / MESH_SCALE_FACTOR
-	var scaled_verts = PackedVector3Array()
+	var scaled_verts := PackedVector3Array()
 	for vert in triangle_verts:
 		scaled_verts.append(Vector3(vert.x * inv_sf, vert.y, vert.z * inv_sf))
 
@@ -622,8 +622,8 @@ func _recalculate_speeds() -> void:
 
 func _physics_process(delta: float) -> void:
 	if EditorInterface.is_simulation_running():
-		var local_up = _sb.global_transform.basis.y.normalized()
-		var velocity = -local_up * _angular_speed
+		var local_up := _sb.global_transform.basis.y.normalized()
+		var velocity := -local_up * _angular_speed
 		_sb.constant_angular_velocity = velocity
 		if not EditorInterface.is_simulation_paused():
 			_belt_position = fmod(_belt_position + _linear_speed * delta, 1.0)
@@ -660,7 +660,7 @@ func _on_simulation_ended() -> void:
 
 	if _sb:
 		_sb.constant_angular_velocity = Vector3.ZERO
-	for body in [_end_body1, _end_body2]:
+	for body: StaticBody3D in [_end_body1, _end_body2]:
 		if body:
 			body.constant_angular_velocity = Vector3.ZERO
 

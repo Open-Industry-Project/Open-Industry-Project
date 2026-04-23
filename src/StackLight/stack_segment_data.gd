@@ -2,8 +2,8 @@
 class_name StackSegmentData
 extends Resource
 
-signal active_changed(value)
-signal color_changed(value)
+signal active_changed(value: bool)
+signal color_changed(value: Color)
 
 ## When true, the segment light is illuminated.
 @export var active: bool = false:

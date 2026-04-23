@@ -162,7 +162,7 @@ func _clear_collision_reposition_active() -> void:
 	_collision_reposition_active = false
 
 
-func _transform_requested(data) -> void:
+func _transform_requested(data: Dictionary) -> void:
 	if not EditorInterface.get_selection().get_selected_nodes().has(self):
 		return
 	if data.has("motion"):
@@ -271,10 +271,10 @@ func _update_side_guard_collisions(
 	var slope_enabled := show_handrails
 	# Match mesh generation: landing railing is only present for meaningful landing depth.
 	var landing_enabled := show_handrails and landing_length > 0.05
-	for collision in [_left_slope_guard_collision, _right_slope_guard_collision]:
+	for collision: CollisionShape3D in [_left_slope_guard_collision, _right_slope_guard_collision]:
 		if collision:
 			collision.disabled = not slope_enabled
-	for collision in [_left_landing_guard_collision, _right_landing_guard_collision]:
+	for collision: CollisionShape3D in [_left_landing_guard_collision, _right_landing_guard_collision]:
 		if collision:
 			collision.disabled = not landing_enabled
 	if not slope_enabled and not landing_enabled:
