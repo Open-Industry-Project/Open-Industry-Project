@@ -48,8 +48,8 @@ func _on_size_changed() -> void:
 
 func _update_flow_arrow() -> void:
 	if _flow_arrow:
-		FlowDirectionArrow.unregister(_flow_arrow)
-		_flow_arrow.queue_free()
+		FlowDirectionArrow.update(_flow_arrow, size)
+		return
 	_flow_arrow = FlowDirectionArrow.create(size)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)

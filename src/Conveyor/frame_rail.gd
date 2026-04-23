@@ -5,12 +5,16 @@ extends MeshInstance3D
 ## Length of the frame rail in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 1.0:
 	set(value):
+		if length == value:
+			return
 		length = value
 		_rebuild()
 
 ## Height of the frame wall in meters.
 var height: float = 0.5:
 	set(value):
+		if height == value:
+			return
 		height = value
 		_rebuild()
 

@@ -21,6 +21,9 @@ static func set_all_visible(visible: bool) -> void:
 			arrow.visible = visible
 
 
+const _HEAD_HEIGHT: float = 0.25
+
+
 static func create(conveyor_size: Vector3) -> Node3D:
 	var arrow := Node3D.new()
 	arrow.name = "FlowDirectionArrow"
@@ -34,7 +37,6 @@ static func create(conveyor_size: Vector3) -> Node3D:
 	var arrow_length := conveyor_size.x * 0.6
 	var shaft_radius := 0.05
 	var head_radius := 0.15
-	var head_height := 0.25
 
 	# Shaft (cylinder rotated to lie along X)
 	var shaft := MeshInstance3D.new()
@@ -52,16 +54,27 @@ static func create(conveyor_size: Vector3) -> Node3D:
 	var head_mesh := CylinderMesh.new()
 	head_mesh.top_radius = 0.0
 	head_mesh.bottom_radius = head_radius
-	head_mesh.height = head_height
+	head_mesh.height = _HEAD_HEIGHT
 	head_mesh.material = mat
 	head.mesh = head_mesh
 	head.rotation.z = -PI / 2.0
-	head.position.x = arrow_length / 2.0 + head_height / 2.0
+	head.position.x = arrow_length / 2.0 + _HEAD_HEIGHT / 2.0
 	arrow.add_child(head)
 
 	arrow.position.y = conveyor_size.y / 2.0 + 0.2
 
 	return arrow
+
+
+static func update(arrow: Node3D, conveyor_size: Vector3) -> void:
+	var arrow_length: float = conveyor_size.x * 0.6
+	var shaft := arrow.get_child(0) as MeshInstance3D
+	if shaft and shaft.mesh is CylinderMesh:
+		(shaft.mesh as CylinderMesh).height = arrow_length
+	var head := arrow.get_child(1) as MeshInstance3D
+	if head:
+		head.position.x = arrow_length / 2.0 + _HEAD_HEIGHT / 2.0
+	arrow.position.y = conveyor_size.y / 2.0 + 0.2
 
 
 static func create_curved(inner_radius: float, conveyor_width: float, belt_height: float, angle_degrees: float, reversed: bool = false) -> Node3D:

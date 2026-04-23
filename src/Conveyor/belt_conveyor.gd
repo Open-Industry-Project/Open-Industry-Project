@@ -309,9 +309,11 @@ func _on_size_changed() -> void:
 	middle_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	if _shadow_plate:
-		var box := BoxMesh.new()
-		box.size = Vector3(length, 0.01, width)
-		_shadow_plate.mesh = box
+		var shadow_mesh := _shadow_plate.mesh as BoxMesh
+		if not shadow_mesh:
+			shadow_mesh = BoxMesh.new()
+			_shadow_plate.mesh = shadow_mesh
+		shadow_mesh.size = Vector3(length, 0.01, width)
 		_shadow_plate.position = Vector3(0, -height, 0)
 
 	_update_belt_material_scale()
