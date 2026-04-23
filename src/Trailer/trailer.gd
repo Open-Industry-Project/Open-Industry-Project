@@ -113,8 +113,8 @@ func _add_wheels() -> void:
 	var wheel_mat := StandardMaterial3D.new()
 	wheel_mat.albedo_color = Color(0.08, 0.08, 0.09)
 	wheel_mat.roughness = 0.9
-	for ax in axle_offsets:
-		for z in [-side_z, side_z]:
+	for ax: float in axle_offsets:
+		for z: float in [-side_z, side_z]:
 			var mi := MeshInstance3D.new()
 			mi.name = "Wheel"
 			var cyl := CylinderMesh.new()
@@ -192,9 +192,9 @@ func _snap_transform_for_door(door: TrailerDoor) -> Transform3D:
 	# Trailer's +X is its rear; rear faces the door, so trailer.basis.x = -horiz.
 	var x_axis := -horiz
 	var z_axis := x_axis.cross(Vector3.UP).normalized()
-	var basis := Basis(x_axis, Vector3.UP, z_axis)
+	var snap_basis := Basis(x_axis, Vector3.UP, z_axis)
 	var origin := anchor + horiz * (length * 0.5)
-	return Transform3D(basis, origin)
+	return Transform3D(snap_basis, origin)
 
 
 func _find_best_snap_door() -> TrailerDoor:

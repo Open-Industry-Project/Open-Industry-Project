@@ -99,7 +99,7 @@ func _build_frame(hardware_mat: Material) -> void:
 
 	var t := wall_thickness
 	var door_w := width - 0.04
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var guide := MeshInstance3D.new()
 		guide.name = "Guide" + ("L" if side < 0 else "R")
 		var gm := BoxMesh.new()
@@ -161,7 +161,7 @@ func _build_panels(door_mat: Material, hardware_mat: Material) -> void:
 	handle.position = Vector3(t * 0.5 + 0.04, -height * 0.15, 0)
 	_panels.add_child(handle)
 
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var bracket := MeshInstance3D.new()
 		bracket.name = "HandleBracket" + ("L" if side < 0 else "R")
 		var brm := BoxMesh.new()
