@@ -9,11 +9,11 @@ const WHEEL_RADIUS := 0.25
 const PISTON_LIFT_RATIO := 0.5
 const AGVWaypointScript := preload("res://src/AGV/agv_waypoint.gd")
 
-@export_tool_button("Set Home") var action_set_home = set_home_action
-@export_tool_button("Go Home") var action_go_home = go_home_action
-@export_tool_button("Train Waypoint") var action_train = train_waypoint_action
-@export_tool_button("Go To Waypoint") var action_go_to = go_to_waypoint_action
-@export_tool_button("Delete Waypoint") var action_delete = delete_waypoint_action
+@export_tool_button("Set Home") var action_set_home: Callable = set_home_action
+@export_tool_button("Go Home") var action_go_home: Callable = go_home_action
+@export_tool_button("Train Waypoint") var action_train: Callable = train_waypoint_action
+@export_tool_button("Go To Waypoint") var action_go_to: Callable = go_to_waypoint_action
+@export_tool_button("Delete Waypoint") var action_delete: Callable = delete_waypoint_action
 
 @export var home_position: Vector3 = Vector3.ZERO:
 	set(value):
@@ -64,7 +64,7 @@ const AGVWaypointScript := preload("res://src/AGV/agv_waypoint.gd")
 @export_category("Communications")
 @export var enable_comms: bool = false
 @export var tag_group_name: String
-@export_custom(0, "tag_group_enum") var tag_groups:
+@export_custom(0, "tag_group_enum") var tag_groups: String:
 	set(value):
 		tag_group_name = value
 		tag_groups = value
@@ -181,7 +181,7 @@ func _align_to_surface() -> void:
 		origin + Vector3(0, -4, 0)
 	)
 	var excludes: Array[RID] = []
-	for entry in _held_bodies:
+	for entry: Dictionary in _held_bodies:
 		if is_instance_valid(entry.rb):
 			excludes.append(entry.rb.get_rid())
 	if excludes.size() > 0:
@@ -439,7 +439,7 @@ func go_to_waypoint(waypoint_name: String) -> void:
 	if not waypoints.has(waypoint_name):
 		push_warning("AGV: Waypoint '%s' not found" % waypoint_name)
 		return
-	var wp = waypoints[waypoint_name]
+	var wp: Variant = waypoints[waypoint_name]
 	var local_xform := _pose_to_xform(wp.position, deg_to_rad(wp.yaw_deg))
 	move_to_transform(_parent_xform() * local_xform)
 
@@ -497,7 +497,7 @@ func _find_held_entry(rb: RigidBody3D) -> int:
 
 
 func _release_object() -> void:
-	for entry in _held_bodies:
+	for entry: Dictionary in _held_bodies:
 		var rb: RigidBody3D = entry.rb
 		if rb and is_instance_valid(rb):
 			rb.gravity_scale = 1
@@ -511,7 +511,7 @@ func _update_held_object() -> void:
 	if _held_bodies.is_empty() or not _pickup_area:
 		return
 	var area_xform := _pickup_area.global_transform
-	for entry in _held_bodies:
+	for entry: Dictionary in _held_bodies:
 		var rb: RigidBody3D = entry.rb
 		if not is_instance_valid(rb):
 			continue

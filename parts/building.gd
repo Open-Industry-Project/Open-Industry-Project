@@ -216,7 +216,7 @@ func _apply_wall_hole_materials() -> void:
 	var lib := walls_grid.mesh_library.duplicate() as MeshLibrary
 	for item_id in lib.get_item_list():
 		var mesh := lib.get_item_mesh(item_id).duplicate()
-		for surface_idx in mesh.get_surface_count():
+		for surface_idx: int in mesh.get_surface_count():
 			var mat: Material = mesh.surface_get_material(surface_idx)
 			if mat is StandardMaterial3D:
 				var std_mat := mat as StandardMaterial3D
