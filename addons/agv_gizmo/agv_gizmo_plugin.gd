@@ -44,6 +44,9 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 	if not node.get("show_gizmos"):
 		return
 
+	if not EditorInterface.get_selection().get_selected_nodes().has(node):
+		return
+
 	var home_pos: Vector3 = node.get("home_position")
 	var waypoints: Dictionary = node.get("waypoints")
 
