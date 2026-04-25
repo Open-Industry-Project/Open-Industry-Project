@@ -40,7 +40,7 @@ var _conveyor_x_offset: float = 0.0
 
 @export_storage var _cached_properties: Dictionary = {}
 
-var _default_speed: float = 2.0
+var _default_speed: float = 1.0
 var _default_enable_comms: bool = false
 var _default_speed_tag_group_name: String = ""
 var _default_speed_tag_name: String = ""

@@ -49,7 +49,7 @@ enum Scales {LOW, MID, HIGH}
 		_update_flow_arrow()
 
 ## Linear speed at the reference distance in meters per second.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		if value == speed:
 			return

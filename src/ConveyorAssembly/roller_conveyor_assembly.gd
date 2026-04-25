@@ -7,7 +7,7 @@ const PREVIEW_SCENE_PATH: String = "res://parts/assemblies/RollerConveyorAssembl
 
 ## Conveyor speed in meters per second.
 ## Negative values will reverse the direction of the conveyor.
-var speed: float = 2:
+var speed: float = 1.0:
 	get:
 		return _conveyor_property_cached_get(&"speed")
 	set(value):

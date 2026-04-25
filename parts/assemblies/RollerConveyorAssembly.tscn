@@ -10,7 +10,7 @@
 script = ExtResource("1_upkoq")
 leg_model_scene = ExtResource("2_a0feq")
 leg_model_grabs_offset = 0.132
-speed = 2.0
+speed = 1.0
 skew_angle = 0.0
 enable_comms = false
 speed_tag_group_name = ""
@@ -22,7 +22,7 @@ metadata/hijack_scale = true
 
 [node name="Conveyor" parent="." unique_id=193664504 instance=ExtResource("2_rxjsx")]
 unique_name_in_owner = true
-speed = 2.0
+speed = 1.0
 
 [node name="SideGuardsAssembly" parent="Conveyor" unique_id=691358305 instance=ExtResource("3_rxjsx")]
 unique_name_in_owner = true

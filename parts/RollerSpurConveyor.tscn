@@ -11,11 +11,11 @@ _cached_properties = {
 &"enable_comms": false,
 &"running_tag_group_name": "",
 &"running_tag_name": "",
-&"speed": 2.0,
+&"speed": 1.0,
 &"speed_tag_group_name": "",
 &"speed_tag_name": ""
 }
-speed = 2.0
+speed = 1.0
 enable_comms = false
 speed_tag_group_name = ""
 speed_tag_name = ""
@@ -27,5 +27,5 @@ metadata/hijack_scale = true
 [node name="Conveyor" parent="." unique_id=1450149606 instance=ExtResource("2_conv")]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.21997057, 0, 0)
-speed = 2.0
+speed = 1.0
 size = Vector3(2.4399412, 0.5, 1.524)
