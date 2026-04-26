@@ -5,28 +5,6 @@ extends ConveyorAssemblyBase
 const CONVEYOR_CLASS_NAME: String = "RollerConveyor"
 const PREVIEW_SCENE_PATH: String = "res://parts/assemblies/RollerConveyorAssembly.tscn"
 
-## Conveyor speed in meters per second.
-## Negative values will reverse the direction of the conveyor.
-var speed: float = 1.0:
-	get:
-		return _conveyor_property_cached_get(&"speed")
-	set(value):
-		_conveyor_property_cached_set(&"speed", value)
-
-## The color of the conveyor rollers.
-var roller_color: Color = Color(1, 1, 1, 1):
-	get:
-		return _conveyor_property_cached_get(&"roller_color")
-	set(value):
-		_conveyor_property_cached_set(&"roller_color", value)
-
-## Physics material for the conveyor rollers surface.
-var roller_physics_material: PhysicsMaterial:
-	get:
-		return _conveyor_property_cached_get(&"roller_physics_material")
-	set(value):
-		_conveyor_property_cached_set(&"roller_physics_material", value)
-
 #region ConveyorLegsAssembly properties
 @export_category(CONVEYOR_LEGS_ASSEMBLY_SCRIPT_FILENAME)
 @export_group("Conveyor Legs", "")
