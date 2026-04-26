@@ -62,8 +62,8 @@ func _enter_tree() -> void:
 	_reset_spawn_cycle()
 
 func _ready() -> void:
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	SimRuntime.simulation_started.connect(_on_simulation_started)
+	SimRuntime.simulation_stopped.connect(_on_simulation_ended)
 	_on_size_changed()
 	_change_texture()
 
@@ -78,10 +78,10 @@ func _on_size_changed() -> void:
 			box_shape.size = size
 
 func _physics_process(delta: float) -> void:
-	if conveyor and EditorInterface.is_simulation_running() and &"speed" in conveyor:
+	if conveyor and SimRuntime.is_simulation_running() and &"speed" in conveyor:
 		_conveyor_stopped = conveyor.speed == 0
 
-	if disable or _conveyor_stopped or not EditorInterface.is_simulation_running():
+	if disable or _conveyor_stopped or not SimRuntime.is_simulation_running():
 		return
 	
 	_scan_interval += delta

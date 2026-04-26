@@ -180,23 +180,7 @@ func _on_AddTagGroup_pressed() -> void:
 	mark_changes_present()
 
 func register_tag_groups() -> void:
-	OIPComms.clear_tag_groups()
-	for tag_group_data: Dictionary in tag_groups_data:
-		var n: String = tag_group_data.name
-		var pr: String = tag_group_data.polling_rate
-
-		var pt_num: String = tag_group_data.protocol
-		var pt := ""
-		if pt_num == "0": pt = "ab_eip"
-		elif pt_num == "1": pt = "modbus_tcp"
-		elif pt_num == "2": pt = "opc_ua"
-		elif pt_num == "3": pt = "s7"
-
-		var g: String = tag_group_data.gateway
-		var p: String = tag_group_data.path
-		var c: String = tag_group_data.cpu
-		OIPComms.register_tag_group(n, int(pr), pt, g, p, c)
-	OIPComms.tag_groups_registered.emit()
+	OIPCommsRegistration.register_tag_groups(tag_groups_data)
 
 func _on_EnableComms_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_comms(toggled_on)

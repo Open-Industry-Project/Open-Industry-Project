@@ -30,27 +30,27 @@ var _enable_initial_transform: bool = false
 @onready var _mesh_instance_3d: MeshInstance3D = $RigidBody3D/MeshInstance3D
 
 func _enter_tree() -> void:
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
-	EditorInterface.simulation_pause_toggled.connect(_on_simulation_set_paused)
+	SimRuntime.simulation_started.connect(_on_simulation_started)
+	SimRuntime.simulation_stopped.connect(_on_simulation_ended)
+	SimRuntime.simulation_pause_toggled.connect(_on_simulation_set_paused)
 
 func _ready() -> void:
-	_rigid_body.freeze = not EditorInterface.is_simulation_running()
-	if EditorInterface.is_simulation_running():
+	_rigid_body.freeze = not SimRuntime.is_simulation_running()
+	if SimRuntime.is_simulation_running():
 		instanced = true
 		_rigid_body.linear_velocity = initial_linear_velocity
 	if color != Color.WHITE:
 		set("color", color)
 
 func _exit_tree() -> void:
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
-	EditorInterface.simulation_pause_toggled.disconnect(_on_simulation_set_paused)
+	SimRuntime.simulation_started.disconnect(_on_simulation_started)
+	SimRuntime.simulation_stopped.disconnect(_on_simulation_ended)
+	SimRuntime.simulation_pause_toggled.disconnect(_on_simulation_set_paused)
 	if instanced:
 		queue_free()
 
 func selected() -> void:
-	if _paused or not EditorInterface.is_simulation_running():
+	if _paused or not SimRuntime.is_simulation_running():
 		return
 	
 	if _rigid_body.freeze:

@@ -70,16 +70,16 @@ func _notification(what: int) -> void:
 					)
 
 func _enter_tree() -> void:
-	if not EditorInterface.transform_requested.is_connected(_transform_requested):
-		EditorInterface.transform_requested.connect(_transform_requested)
-	if not EditorInterface.transform_commited.is_connected(_transform_commited):
-		EditorInterface.transform_commited.connect(_transform_commited)
+	if not SimRuntime.transform_requested.is_connected(_transform_requested):
+		SimRuntime.transform_requested.connect(_transform_requested)
+	if not SimRuntime.transform_commited.is_connected(_transform_commited):
+		SimRuntime.transform_commited.connect(_transform_commited)
 
 func _exit_tree() -> void:
-	if EditorInterface.transform_requested.is_connected(_transform_requested):
-		EditorInterface.transform_requested.disconnect(_transform_requested)
-	if EditorInterface.transform_commited.is_connected(_transform_commited):
-		EditorInterface.transform_commited.disconnect(_transform_commited)
+	if SimRuntime.transform_requested.is_connected(_transform_requested):
+		SimRuntime.transform_requested.disconnect(_transform_requested)
+	if SimRuntime.transform_commited.is_connected(_transform_commited):
+		SimRuntime.transform_commited.disconnect(_transform_commited)
 
 func _transform_requested(data: Dictionary) -> void:
 	if not EditorInterface.get_selection().get_selected_nodes().has(self):

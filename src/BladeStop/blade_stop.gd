@@ -93,14 +93,14 @@ func _enter_tree() -> void:
 	if has_meta("is_preview"):
 		return
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
+	SimRuntime.simulation_started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
 	if has_meta("is_preview"):
 		return
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	SimRuntime.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 

@@ -229,16 +229,16 @@ func _update_flow_arrow() -> void:
 func _enter_tree() -> void:
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	SimRuntime.simulation_started.connect(_on_simulation_started)
+	SimRuntime.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	SimRuntime.simulation_started.disconnect(_on_simulation_started)
+	SimRuntime.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
@@ -255,13 +255,13 @@ func _process(delta: float) -> void:
 		var effective_speed := speed * (-1.0 if reverse else 1.0)
 		var uv_speed := effective_speed / (2.0 * PI)
 		var uv_offset := roller_material.uv1_offset
-		if not EditorInterface.is_simulation_paused():
+		if not SimRuntime.is_simulation_paused():
 			uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
 		roller_material.uv1_offset = uv_offset
 
 
 func _physics_process(delta: float) -> void:
-	if EditorInterface.is_simulation_running() and _sb:
+	if SimRuntime.is_simulation_running() and _sb:
 		var local_up := _sb.global_transform.basis.y.normalized()
 		_sb.constant_angular_velocity = -local_up * _angular_speed
 

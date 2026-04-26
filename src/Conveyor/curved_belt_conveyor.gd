@@ -314,7 +314,7 @@ func _update_belt_ends() -> void:
 	for body: StaticBody3D in [_end_body1, _end_body2]:
 		if not body:
 			continue
-		if EditorInterface.is_simulation_running() and _linear_speed != 0:
+		if SimRuntime.is_simulation_running() and _linear_speed != 0:
 			var local_front: Vector3 = body.global_transform.basis.z.normalized()
 			var vel: Vector3 = local_front * _linear_speed / roller_radius
 			body.constant_angular_velocity = vel
@@ -597,16 +597,16 @@ func _enter_tree() -> void:
 
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	SimRuntime.simulation_started.connect(_on_simulation_started)
+	SimRuntime.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	SimRuntime.simulation_started.disconnect(_on_simulation_started)
+	SimRuntime.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
@@ -631,11 +631,11 @@ func _recalculate_speeds() -> void:
 	_update_belt_ends()
 
 func _physics_process(delta: float) -> void:
-	if EditorInterface.is_simulation_running():
+	if SimRuntime.is_simulation_running():
 		var local_up := _sb.global_transform.basis.y.normalized()
 		var velocity := -local_up * _angular_speed
 		_sb.constant_angular_velocity = velocity
-		if not EditorInterface.is_simulation_paused():
+		if not SimRuntime.is_simulation_paused():
 			_belt_position = fmod(_belt_position + _linear_speed * delta, 1.0)
 		if _linear_speed != 0:
 			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
