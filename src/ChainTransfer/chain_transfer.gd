@@ -32,10 +32,10 @@ func get_snap_features() -> Array:
 		},
 	]
 
-## Number of chain lanes (2-6).
+## Number of chain lanes (1-10).
 @export var chains: int = 3:
 	set(value):
-		chains = clamp(value, 2, 6)
+		chains = clamp(value, 1, 10)
 		_sync_chain_count()
 
 ## Distance between chain lanes in meters.
