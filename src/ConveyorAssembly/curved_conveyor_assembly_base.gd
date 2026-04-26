@@ -43,10 +43,6 @@ func _get_attachment_trigger_properties() -> Array[StringName]:
 	return [&"conveyor_angle", &"size"]
 
 
-func _get_corner_belt_height(corner: Node) -> float:
-	return corner.size.y
-
-
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		if _has_instantiated and is_inside_tree() and _attachment_update_needed:
@@ -271,6 +267,21 @@ func _get_custom_preview_node() -> Node3D:
 		corner.inner_radius, corner.conveyor_width, _get_corner_belt_height(corner), corner.conveyor_angle))
 
 	return preview_node
+
+
+func _rebuild_preview_flow_arrow(reversed: bool) -> void:
+	var existing := get_node_or_null("FlowDirectionArrow")
+	if existing:
+		# queue_free is deferred; rename so the new arrow can claim the name this frame.
+		existing.name = &"_dead_overlay_arrow"
+		existing.queue_free()
+	var corner := get_node("ConveyorCorner")
+	add_child(FlowDirectionArrow.create_curved(
+		corner.inner_radius, corner.conveyor_width, _get_corner_belt_height(corner), corner.conveyor_angle, reversed))
+
+
+func _get_corner_belt_height(corner: Node) -> float:
+	return corner.size.y
 
 
 func _disable_collisions_recursive(node: Node) -> void:

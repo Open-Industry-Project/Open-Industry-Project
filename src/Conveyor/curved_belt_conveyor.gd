@@ -174,6 +174,16 @@ func _get_custom_preview_node() -> Node3D:
 	return preview_node
 
 
+func _rebuild_preview_flow_arrow(reversed: bool) -> void:
+	var existing := get_node_or_null("FlowDirectionArrow")
+	if existing:
+		# queue_free is deferred; rename so the new arrow can claim the name this frame.
+		existing.name = &"_dead_overlay_arrow"
+		existing.queue_free()
+	add_child(FlowDirectionArrow.create_curved(
+		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle, reversed))
+
+
 func _disable_collisions_recursive(node: Node) -> void:
 	if node is CollisionShape3D:
 		node.disabled = true

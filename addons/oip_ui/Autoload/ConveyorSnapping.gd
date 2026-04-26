@@ -896,9 +896,21 @@ static func _find_resnap_end_pair(selected_conveyor: Node3D, target_conveyor: No
 
 static func _is_output_end(conveyor: Node3D, end_info: Dictionary) -> bool:
 	if _is_curved_conveyor(conveyor):
-		var reversed: bool = conveyor.get("reverse_belt") if "reverse_belt" in conveyor else false
+		var prop := get_reverse_property_name(conveyor)
+		var reversed: bool = bool(conveyor.get(prop)) if prop != &"" else false
 		return (end_info.name == "head") != reversed
 	return end_info.name == "front"
+
+
+## Belt curves expose `reverse_belt`; roller curves expose `reverse`.
+static func get_reverse_property_name(conveyor: Node3D) -> StringName:
+	if conveyor == null:
+		return &""
+	if "reverse_belt" in conveyor:
+		return &"reverse_belt"
+	if "reverse" in conveyor:
+		return &"reverse"
+	return &""
 
 
 static func _find_direction_preserving_end_pair(
