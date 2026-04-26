@@ -153,37 +153,5 @@ func _get_property_list() -> Array[Dictionary]:
 	return _get_forwarded_property_list()
 
 
-func _ready() -> void:
-	super._ready()
-	if not OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
-		OIPComms.enable_comms_changed.connect(notify_property_list_changed)
-
-
-func _exit_tree() -> void:
-	if OIPComms.enable_comms_changed.is_connected(notify_property_list_changed):
-		OIPComms.enable_comms_changed.disconnect(notify_property_list_changed)
-	super._exit_tree()
-
-
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return Vector3(new_size.x, size_default.y, new_size.z)
-
-
-func _validate_property(property: Dictionary) -> void:
-	super._validate_property(property)
-	if property[&"name"] == "Communications" and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
-		property[&"usage"] = PROPERTY_USAGE_CATEGORY if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property[&"name"] == "enable_comms":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "speed_tag_group_name":
-		property[&"usage"] = PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "speed_tag_groups":
-		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property[&"name"] == "speed_tag_name":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "running_tag_group_name":
-		property[&"usage"] = PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "running_tag_groups":
-		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property[&"name"] == "running_tag_name":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE

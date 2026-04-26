@@ -9,7 +9,10 @@ static func validate_tag_property(
 ) -> bool:
 	var comms_enabled := OIPComms.get_enable_comms()
 
-	if property.name == "enable_comms":
+	if property.name == "Communications" and property.usage & PROPERTY_USAGE_CATEGORY:
+		property.usage = PROPERTY_USAGE_CATEGORY if comms_enabled else PROPERTY_USAGE_NONE
+		return true
+	elif property.name == "enable_comms":
 		property.usage = PROPERTY_USAGE_DEFAULT if comms_enabled else PROPERTY_USAGE_STORAGE
 		return true
 	elif property.name == group_name:

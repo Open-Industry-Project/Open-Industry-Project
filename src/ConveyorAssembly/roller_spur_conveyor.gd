@@ -112,22 +112,11 @@ func _validate_property(property: Dictionary) -> void:
 		assert(CONVEYOR_SCRIPT_PATH.get_file() == CONVEYOR_SCRIPT_FILENAME, "CONVEYOR_SCRIPT_PATH doesn't match CONVEYOR_SCRIPT_FILENAME")
 		property[&"hint_string"] = CONVEYOR_SCRIPT_PATH
 		return
-	elif property[&"name"] == "Communications" and property[&"usage"] & PROPERTY_USAGE_CATEGORY:
-		property[&"usage"] = PROPERTY_USAGE_CATEGORY if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property[&"name"] == "enable_comms":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "speed_tag_group_name":
-		property[&"usage"] = PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "speed_tag_groups":
-		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property[&"name"] == "speed_tag_name":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "running_tag_group_name":
-		property[&"usage"] = PROPERTY_USAGE_STORAGE
-	elif property[&"name"] == "running_tag_groups":
-		property[&"usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NO_INSTANCE_STATE if OIPComms.get_enable_comms() else PROPERTY_USAGE_NONE
-	elif property[&"name"] == "running_tag_name":
-		property[&"usage"] = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
+
+	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
+		return
+	if OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name"):
+		return
 
 	super._validate_property(property)
 
