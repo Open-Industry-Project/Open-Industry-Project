@@ -48,7 +48,7 @@ func _ready() -> void:
 	_update_frame_rails()
 
 
-func _get_property_list() -> Array[Dictionary]:
+func _get_forwarded_property_list() -> Array[Dictionary]:
 	var filtered_properties: Array[Dictionary] = []
 
 	# Side-guards is the last @export category, so its dynamic guard entries

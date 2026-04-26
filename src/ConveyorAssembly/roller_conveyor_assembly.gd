@@ -171,10 +171,8 @@ func _get_preview_scene_path() -> String:
 	return PREVIEW_SCENE_PATH
 
 
-# Godot attributes _get_property_list entries to the declaring class; this
-# override keeps the forwarded entries under the leaf's inspector category.
 func _get_property_list() -> Array[Dictionary]:
-	return super._get_property_list()
+	return _get_forwarded_property_list()
 
 
 func _ready() -> void:
