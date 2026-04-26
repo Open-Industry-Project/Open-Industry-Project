@@ -181,13 +181,17 @@ func _ensure_frame_rails() -> void:
 	if has_node("%Conveyor") and "frame_managed_externally" in %Conveyor:
 		%Conveyor.frame_managed_externally = true
 	if not _frame_left:
-		_frame_left = FrameRail.new()
-		_frame_left.name = "FrameLeft"
-		add_child(_frame_left)
+		_frame_left = get_node_or_null("FrameLeft") as FrameRail
+		if not _frame_left:
+			_frame_left = FrameRail.new()
+			_frame_left.name = "FrameLeft"
+			add_child(_frame_left)
 	if not _frame_right:
-		_frame_right = FrameRail.new()
-		_frame_right.name = "FrameRight"
-		add_child(_frame_right)
+		_frame_right = get_node_or_null("FrameRight") as FrameRail
+		if not _frame_right:
+			_frame_right = FrameRail.new()
+			_frame_right.name = "FrameRight"
+			add_child(_frame_right)
 	_restore_frame_rail_state()
 
 
