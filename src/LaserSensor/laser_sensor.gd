@@ -127,9 +127,8 @@ func _physics_process(_delta: float) -> void:
 		new_distance = max_range
 		beam_color = Color.GREEN
 
-	if new_distance != distance:
-		distance = new_distance
-	
+	distance = new_distance
+
 	var current_transform := global_transform
 	var beam_end := start_pos + global_transform.basis.z * new_distance
 	if _beam_needs_update or new_distance != _last_distance or beam_color != _last_beam_color or current_transform != _last_transform:
