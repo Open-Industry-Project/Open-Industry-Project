@@ -15,7 +15,7 @@ class TagGroupOptionButtonPlugin extends EditorInspectorPlugin:
 		return true
 	
 	func _parse_property(object: Object, type: Variant.Type, name: String, hint_type: PropertyHint, hint_string: String, usage_flags: int, wide: bool) -> bool:
-		if type == TYPE_NIL and hint_string == "tag_group_enum":
+		if hint_string == "tag_group_enum" and type in [TYPE_NIL, TYPE_STRING]:
 			add_property_editor(name, TagGroupOptionButton.new())
 			return true
 		return false
