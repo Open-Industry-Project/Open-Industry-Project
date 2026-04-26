@@ -3,7 +3,11 @@ class_name ColorSensor
 extends Node3D
 
 ## Maximum detection range of the color sensor in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var max_range: float = 1.524
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var max_range: float = 1.524:
+	set(value):
+		value = clamp(value, 0, 100)
+		max_range = value
+
 ## Toggle visibility of the sensor beam visualization.
 @export var show_beam: bool = true:
 	set(value):
@@ -17,21 +21,17 @@ extends Node3D
 @export var color_detected: Color = Color.BLACK:
 	set(value):
 		color_detected = value
-
-		if color_map.has(value):
-			color_value = color_map[value]
-		else:
-			color_value = 0
-
-		if _tag.is_ready():
-			_tag.write_int32(color_value)
+		_update_color_value()
 
 ## Maps detected colors to integer values for PLC communication.
 @export var color_map: Dictionary[Color, int] = {
 	Color.RED: 1,
 	Color.GREEN: 2,
 	Color.BLUE: 3
-}
+}:
+	set(value):
+		color_map = value
+		_update_color_value()
 
 ## Integer value corresponding to detected color from color_map (read-only).
 @export var color_value: int = 0:
@@ -65,7 +65,9 @@ var _beam_needs_update: bool = true
 
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name == "color_value":
+	if property.name == "color_detected":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
+	elif property.name == "color_value":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 	else:
 		OIPCommsSetup.validate_tag_property(property)
@@ -105,26 +107,22 @@ func _physics_process(_delta: float) -> void:
 	var space_state := get_world_3d().direct_space_state
 	var result := space_state.intersect_ray(_ray_query)
 	var result_distance := max_range
-	var new_color: Color
 	var has_detection := result.size() > 0
 
 	if has_detection:
 		result_distance = start_pos.distance_to(result["position"])
 		var collider: CollisionObject3D = result["collider"]
 		var mesh_instance: MeshInstance3D = collider.get_node("MeshInstance3D")
-		
+
 		var material: StandardMaterial3D = mesh_instance.get_surface_override_material(0)
 		if not material:
 			material = mesh_instance.mesh.surface_get_material(0)
-		
-		new_color = material.albedo_color
+
+		color_detected = material.albedo_color
 	else:
-		new_color = Color.TRANSPARENT
+		color_detected = Color.TRANSPARENT
 
-	if new_color != color_detected:
-		color_detected = new_color
-
-	var beam_color := new_color if new_color != Color.TRANSPARENT else Color.GREEN
+	var beam_color := color_detected if color_detected != Color.TRANSPARENT else Color.GREEN
 	var current_transform := global_transform
 	var beam_end := start_pos + global_transform.basis.z * result_distance
 	if _beam_needs_update or result_distance != _last_result_distance or beam_color != _last_beam_color or current_transform != _last_transform:
@@ -149,6 +147,13 @@ func _update_beam_mesh(start_pos: Vector3, result_distance: float, beam_color: C
 
 func use() -> void:
 	show_beam = not show_beam
+
+
+func _update_color_value() -> void:
+	if color_map.has(color_detected):
+		color_value = color_map[color_detected]
+	else:
+		color_value = 0
 
 
 func _on_simulation_started() -> void:
