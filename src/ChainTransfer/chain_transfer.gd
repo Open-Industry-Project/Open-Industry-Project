@@ -100,8 +100,8 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	if has_meta("is_preview"):
 		return
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	SimRuntime.simulation_started.connect(_on_simulation_started)
+	SimRuntime.simulation_stopped.connect(_on_simulation_ended)
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	popup_tag_group_name = OIPCommsSetup.default_tag_group(popup_tag_group_name)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
@@ -109,8 +109,8 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if has_meta("is_preview"):
 		return
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	SimRuntime.simulation_started.disconnect(_on_simulation_started)
+	SimRuntime.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _validate_property(property: Dictionary) -> void:
@@ -145,7 +145,7 @@ func _sync_chain_count() -> void:
 		var chain_base := _chain_transfer_base_scene.instantiate() as ChainTransferBase
 		bases.add_child(chain_base, true)
 		chain_base.active = popup_chains
-		if EditorInterface.is_simulation_running():
+		if SimRuntime.is_simulation_running():
 			chain_base.turn_on()
 	_position_bases()
 	_update_simple_shape()

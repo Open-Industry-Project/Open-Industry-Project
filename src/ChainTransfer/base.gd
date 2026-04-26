@@ -69,7 +69,7 @@ func _physics_process(delta: float) -> void:
 		if _chain_material and owner:
 			var chain_meters: float = owner.scale.x * _chain_base_length
 			var chain_links_per_meter: float = round(owner.scale.x * _chain_scale) / chain_meters
-			if not EditorInterface.is_simulation_paused():
+			if not SimRuntime.is_simulation_paused():
 				_chain_position += owner.speed / chain_meters * delta
 			_chain_position = fmod((fmod(_chain_position, 1) + 1.0), 1)
 			_chain_end_position += owner.speed * chain_links_per_meter / _chain_end_scale * delta

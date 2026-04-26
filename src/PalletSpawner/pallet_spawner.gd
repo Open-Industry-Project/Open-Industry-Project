@@ -32,19 +32,19 @@ var _first_spawn_done: bool = false
 func _enter_tree() -> void:
 	set_notify_local_transform(true)
 	_reset_spawn_cycle()
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	SimRuntime.simulation_started.connect(_on_simulation_started)
+	SimRuntime.simulation_stopped.connect(_on_simulation_ended)
 
 func _ready() -> void:
-	set_physics_process(EditorInterface.is_simulation_running())
+	set_physics_process(SimRuntime.is_simulation_running())
 	_change_texture()
 
 func _exit_tree() -> void:
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	SimRuntime.simulation_started.disconnect(_on_simulation_started)
+	SimRuntime.simulation_stopped.disconnect(_on_simulation_ended)
 
 func _physics_process(delta: float) -> void:
-	if disable or not EditorInterface.is_simulation_running():
+	if disable or not SimRuntime.is_simulation_running():
 		return
 
 	_scan_interval += delta
