@@ -361,14 +361,19 @@ func _commit() -> void:
 	_committing = false
 
 
+## Multi-select skips snap; otherwise the hooked node oscillates against
+## siblings the gizmo moves in lockstep.
 static func _pick_snappable() -> Node3D:
 	var selection := EditorInterface.get_selection()
 	if selection == null:
 		return null
+	var found: Node3D = null
 	for n in selection.get_selected_nodes():
 		if n is Node3D and _is_snappable(n):
-			return n
-	return null
+			if found != null:
+				return null
+			found = n
+	return found
 
 
 static func _is_snappable(node: Node3D) -> bool:
