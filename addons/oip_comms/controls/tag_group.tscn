@@ -29,7 +29,7 @@ text = "Protocol"
 layout_mode = 2
 custom_minimum_size = Vector2(110, 0)
 selected = 0
-item_count = 4
+item_count = 5
 popup/item_0/text = "ab_eip"
 popup/item_0/id = 0
 popup/item_1/text = "modbus_tcp"
@@ -38,6 +38,8 @@ popup/item_2/text = "opc_ua"
 popup/item_2/id = 2
 popup/item_3/text = "siemens put/get"
 popup/item_3/id = 3
+popup/item_4/text = "ads"
+popup/item_4/id = 4
 
 [node name="PollingRateLabel" type="Label" parent="Row1"]
 layout_mode = 2
@@ -108,6 +110,20 @@ popup/item_5/id = 5
 popup/item_6/text = "Omron"
 popup/item_6/id = 6
 
+[node name="PortRow" type="HBoxContainer" parent="Row2"]
+visible = false
+layout_mode = 2
+
+[node name="PortLabel" type="Label" parent="Row2/PortRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(30, 0)
+text = "Port"
+
+[node name="Port" type="LineEdit" parent="Row2/PortRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+select_all_on_focus = true
+
 [node name="BrowseOpcUa" type="Button" parent="Row2"]
 layout_mode = 2
 text = "Browse"
@@ -123,4 +139,5 @@ layout_mode = 2
 [connection signal="text_changed" from="Row2/Gateway" to="." method="_on_Gateway_text_changed"]
 [connection signal="text_changed" from="Row2/Path" to="." method="_on_Path_text_changed"]
 [connection signal="item_selected" from="Row2/CPURow/CPU" to="." method="_on_item_selected"]
+[connection signal="text_changed" from="Row2/PortRow/Port" to="." method="_on_text_changed"]
 [connection signal="pressed" from="Row2/BrowseOpcUa" to="." method="_on_browse_opc_ua_pressed"]

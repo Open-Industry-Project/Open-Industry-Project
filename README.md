@@ -8,7 +8,7 @@
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/ACRPr6sBpH)
 [![Latest Release](https://img.shields.io/github/v/release/Open-Industry-Project/Open-Industry-Project)](https://github.com/Open-Industry-Project/Open-Industry-Project/releases)
 
-Free and open-source warehouse/manufacturing development framework and simulator built with [open62541](https://github.com/open62541/open62541), [libplctag](https://github.com/libplctag/libplctag), and [Godot](https://github.com/godotengine).
+Free and open-source warehouse/manufacturing development framework and simulator built with [open62541](https://github.com/open62541/open62541), [libplctag](https://github.com/libplctag/libplctag), [Beckhoff ADS](https://github.com/Beckhoff/ADS), and [Godot](https://github.com/godotengine).
 
 The goal is to provide an open framework to create software and simulations using industrial equipment/devices and for people to be able to test their ideas or simply educate themselves while using standard industrial platforms.
 
@@ -18,6 +18,7 @@ Supported Communication Protocols:
 - Ethernet/IP via libplctag
 - Modbus TCP via libplctag
 - Siemens S7 1200 & 1500 Put/Get protocol
+- Beckhoff ADS via the Beckhoff ADS library (TwinCAT 2 & 3)
 
 ## Table of Contents
 
@@ -88,12 +89,13 @@ The "Gateway" is the IP address of the target controller, and the path is typica
 
 ![image](https://github.com/user-attachments/assets/c376d234-548f-41de-bada-fe27f6d00bd5)
 
-The Protocol dropdown provides four options:
+The Protocol dropdown provides five options:
 
 - `ab_eip` — Ethernet/IP communication via the libplctag library
 - `modbus_tcp` — Modbus TCP communication via the libplctag library
 - `opc_ua` — OPC UA communication via the open62541 library
-- `siemens put/get` — S7 communication 
+- `siemens put/get` — S7 communication
+- `ads` — Beckhoff ADS communication for TwinCAT 2 & 3 runtimes
 
 When changing the Protocol to `opc_ua`, the options change to reflect the connection parameters for an OPC UA endpoint. The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server.
 
@@ -117,6 +119,7 @@ The Tag Name format depends on the protocol selected for the tag group:
 - **Modbus TCP (`modbus_tcp`)**: A register type prefix followed by the register number. Prefixes: `co` (coil), `di` (discrete input), `hr` (holding register), `ir` (input register). For example: `hr0`, `co21`, `ir64000`.
 - **OPC UA (`opc_ua`)**: The full NodeId. For example, `ns=2;s=MyVariable` or `ns=2;i=12345`.
 - **Siemens S7 (`s7`)**: Register identifier `Ix.y, Qx.y, Mx.y` (coil), `IBx, QBx, MB.x` (byte), `IWx, MDx, QLx, ...` (word, double word, and non standard L notation quad word). The Input memory space can be written if they do not overlap the rack & Profinet inputs. The Output space can be written also under the same condition.
+- **Beckhoff ADS (`ads`)**: A symbol path as it appears in the TwinCAT runtime, e.g. `MAIN.fbMotor.bRunning` or `GVL_IO.iCounter`.
 
 The communication API ([OIPComms](https://github.com/Open-Industry-Project/oip-comms)) is contained within a separate GDExtension plugin. Instructions to build and update it are located in its own repository.
 

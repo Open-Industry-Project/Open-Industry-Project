@@ -17,6 +17,8 @@ var save_data := {}
 @onready var path_label: Label = $Row2/PathLabel
 @onready var gateway_label: Label = $Row2/GatewayLabel
 @onready var browse_opc_ua: Button = $Row2/BrowseOpcUa
+@onready var port: LineEdit = $Row2/PortRow/Port
+@onready var port_row: HBoxContainer = $Row2/PortRow
 
 var loading_complete := false
 
@@ -30,7 +32,11 @@ func save() -> void:
 	save_data["protocol"] = str(protocol.selected)
 	save_data["gateway"] = gateway.text
 	save_data["path"] = path.text
-	save_data["cpu"] = cpu.text
+	# For ADS, the cpu slot carries the AMS port (a free-form number).
+	if protocol.selected == 4:
+		save_data["cpu"] = port.text
+	else:
+		save_data["cpu"] = cpu.text
 
 func lock_name() -> void:
 	if _name:
@@ -45,7 +51,10 @@ func _load() -> void:
 		protocol.select(int(save_data["protocol"]))
 		gateway.text = save_data["gateway"]
 		path.text = save_data["path"]
-		cpu.text = save_data["cpu"]
+		if int(save_data["protocol"]) == 4:
+			port.text = save_data["cpu"]
+		else:
+			cpu.text = save_data["cpu"]
 		loading_complete = true
 
 func _on_Delete_pressed() -> void:
@@ -65,6 +74,7 @@ func _on_Path_text_changed(_new_text: String) -> void:
 func update_protocol(_index: int, from_ready := false) -> void:
 	if _index == 2:  # opc_ua
 		cpu_row.hide()
+		port_row.hide()
 		path_label.hide()
 		path.hide()
 		browse_opc_ua.show()
@@ -74,6 +84,7 @@ func update_protocol(_index: int, from_ready := false) -> void:
 			gateway.text = "opc.tcp://localhost:4840"
 	elif _index == 1:  # modbus_tcp
 		cpu_row.hide()
+		port_row.hide()
 		browse_opc_ua.hide()
 		path_label.show()
 		path.show()
@@ -85,6 +96,7 @@ func update_protocol(_index: int, from_ready := false) -> void:
 			path.text = "1"
 	elif _index == 3:  # siemens s7 put/get
 		cpu_row.hide()
+		port_row.hide()
 		browse_opc_ua.hide()
 		path_label.hide()
 		path.hide()
@@ -92,8 +104,22 @@ func update_protocol(_index: int, from_ready := false) -> void:
 
 		if not from_ready:
 			gateway.text = ""
+	elif _index == 4:  # ads
+		cpu_row.hide()
+		port_row.show()
+		browse_opc_ua.hide()
+		path_label.show()
+		path.show()
+		path_label.text = "AmsNetId"
+		gateway_label.text = "PLC IP address"
+
+		if not from_ready:
+			gateway.text = ""
+			path.text = ""
+			port.text = "851"
 	else:  # ab_eip
 		cpu_row.show()
+		port_row.hide()
 		browse_opc_ua.hide()
 		path_label.show()
 		path.show()
