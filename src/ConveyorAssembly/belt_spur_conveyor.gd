@@ -62,6 +62,11 @@ func _exit_tree() -> void:
 
 var _forwarded_properties_managed_by_subclass: bool = false
 
+var _forwarded_properties_cache: Array[Dictionary] = []
+var _forwarded_property_names_cache: Array[String] = []
+var _forwarded_cache_valid: bool = false
+var _forwarded_cache_conveyor: Node = null
+
 
 func _get_property_list() -> Array[Dictionary]:
 	if _forwarded_properties_managed_by_subclass:
@@ -226,20 +231,42 @@ func _property_get_revert(property: StringName) -> Variant:
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
+	_ensure_forwarded_cache()
+	return _forwarded_properties_cache
+
+
+func _get_conveyor_forwarded_property_names() -> Array:
+	_ensure_forwarded_cache()
+	return _forwarded_property_names_cache
+
+
+func _ensure_forwarded_cache() -> void:
+	var conveyor := _get_first_conveyor()
+	if conveyor != _forwarded_cache_conveyor:
+		if _forwarded_cache_conveyor != null and is_instance_valid(_forwarded_cache_conveyor):
+			if _forwarded_cache_conveyor.property_list_changed.is_connected(_invalidate_forwarded_cache):
+				_forwarded_cache_conveyor.property_list_changed.disconnect(_invalidate_forwarded_cache)
+		_forwarded_cache_conveyor = conveyor
+		if conveyor != null:
+			conveyor.property_list_changed.connect(_invalidate_forwarded_cache)
+		_forwarded_cache_valid = false
+
+	if _forwarded_cache_valid:
+		return
+
 	var all_properties: Array[Dictionary]
 	var has_seen_node3d_category: bool = false
 	var has_seen_category_after_node3d: bool = false
 
-	var conveyor := _get_first_conveyor()
 	if conveyor:
 		all_properties = conveyor.get_property_list()
 	else:
-		# The conveyor instance won't exist yet, so grab from the script class instead.
+		# Script list skips Node/Node3D categories, so short-circuit the gate.
 		all_properties = _get_conveyor_script().get_script_property_list()
-		# List doesn't include built-in properties, so we don't have to skip them.
 		has_seen_node3d_category = true
 
 	var filtered_properties: Array[Dictionary] = []
+	var names: Array[String] = []
 	for property in all_properties:
 		if not has_seen_node3d_category:
 			has_seen_node3d_category = (property[&"name"] == "Node3D"
@@ -249,23 +276,25 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 			has_seen_category_after_node3d = property[&"usage"] == PROPERTY_USAGE_CATEGORY
 		if not has_seen_category_after_node3d:
 			continue
-		# Take all successive properties.
 		filtered_properties.append(property)
-	return filtered_properties
+
+		var prop_name := property[&"name"] as String
+		var usage := property[&"usage"] as int
+		if prop_name in EXCLUDED_FORWARDED_PROPERTIES:
+			continue
+		if prop_name.begins_with("metadata/"):
+			continue
+		if usage & (PROPERTY_USAGE_CATEGORY | PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
+			continue
+		if not (usage & PROPERTY_USAGE_STORAGE):
+			continue
+		names.append(prop_name)
+
+	_forwarded_properties_cache = filtered_properties
+	_forwarded_property_names_cache = names
+	_forwarded_cache_valid = true
 
 
-func _get_conveyor_forwarded_property_names() -> Array:
-	return (_get_conveyor_forwarded_properties()
-			.filter(func(property: Dictionary) -> bool:
-				var prop_name := property[&"name"] as String
-				var usage := property[&"usage"] as int
-				if prop_name in EXCLUDED_FORWARDED_PROPERTIES:
-					return false
-				if prop_name.begins_with("metadata/hijack_scale"):
-					return false
-				return (not (usage & PROPERTY_USAGE_CATEGORY
-					or usage & PROPERTY_USAGE_GROUP
-					or usage & PROPERTY_USAGE_SUBGROUP)
-					and usage & PROPERTY_USAGE_STORAGE
-					and not prop_name.begins_with("metadata/")))
-			.map(func(property: Dictionary) -> String: return property[&"name"] as String))
+func _invalidate_forwarded_cache() -> void:
+	_forwarded_cache_valid = false
+	notify_property_list_changed()

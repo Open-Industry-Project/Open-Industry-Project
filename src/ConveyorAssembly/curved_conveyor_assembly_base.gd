@@ -14,6 +14,11 @@ var _has_instantiated: bool = false
 var _cached_conveyor_property_values: Dictionary[StringName, Variant] = {}
 var _cached_legs_property_values: Dictionary[StringName, Variant] = {}
 
+var _forwarded_properties_cache: Array[Dictionary] = []
+var _forwarded_property_names_cache: Array[String] = []
+var _forwarded_cache_valid: bool = false
+var _forwarded_cache_was_fallback: bool = false
+
 var _attachment_update_needed: bool = true
 var _last_conveyor_angle: float = 0.0
 var _last_conveyor_size: Vector3 = Vector3.ZERO
@@ -54,8 +59,8 @@ func _notification(what: int) -> void:
 
 
 func _ready() -> void:
-	if not $ConveyorCorner.property_list_changed.is_connected(notify_property_list_changed):
-		$ConveyorCorner.property_list_changed.connect(notify_property_list_changed)
+	if not $ConveyorCorner.property_list_changed.is_connected(_on_conveyor_property_list_changed):
+		$ConveyorCorner.property_list_changed.connect(_on_conveyor_property_list_changed)
 	for property: StringName in _cached_conveyor_property_values:
 		$ConveyorCorner.set(property, _cached_conveyor_property_values[property])
 	_cached_conveyor_property_values.clear()
@@ -123,6 +128,19 @@ func _property_get_revert(property: StringName) -> Variant:
 
 
 func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
+	_ensure_forwarded_cache()
+	return _forwarded_properties_cache
+
+
+func _get_conveyor_forwarded_property_names() -> Array:
+	_ensure_forwarded_cache()
+	return _forwarded_property_names_cache
+
+
+func _ensure_forwarded_cache() -> void:
+	if _forwarded_cache_valid and not (_forwarded_cache_was_fallback and _has_instantiated):
+		return
+
 	var all_properties: Array[Dictionary]
 	var has_seen_node3d_category := false
 	var has_seen_category_after_node3d := false
@@ -130,13 +148,15 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 
 	if _has_instantiated:
 		all_properties = $ConveyorCorner.get_property_list()
+		_forwarded_cache_was_fallback = false
 	else:
-		# %Conveyor doesn't exist yet; fall back to the script's property list,
-		# which skips the built-in Node/Node3D categories entirely.
+		# Script list skips Node/Node3D categories, so short-circuit the gate.
 		all_properties = _conveyor_script.get_script_property_list()
 		has_seen_node3d_category = true
+		_forwarded_cache_was_fallback = true
 
 	var filtered_properties: Array[Dictionary] = []
+	var names: Array[String] = []
 	for property in all_properties:
 		# Drop ResizableNode3D's properties — we inherit them already.
 		if property[&"name"] == "ResizableNode3D" and property[&"usage"] == PROPERTY_USAGE_CATEGORY:
@@ -157,24 +177,27 @@ func _get_conveyor_forwarded_properties() -> Array[Dictionary]:
 		if not has_seen_category_after_node3d:
 			continue
 		filtered_properties.append(property)
-	return filtered_properties
+
+		var prop_name := property[&"name"] as String
+		var usage := property[&"usage"] as int
+		if prop_name in ConveyorAttachmentsAssembly.EXCLUDED_FORWARDED_PROPERTIES:
+			continue
+		if prop_name.begins_with("metadata/"):
+			continue
+		if usage & (PROPERTY_USAGE_CATEGORY | PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
+			continue
+		if not (usage & PROPERTY_USAGE_STORAGE):
+			continue
+		names.append(prop_name)
+
+	_forwarded_properties_cache = filtered_properties
+	_forwarded_property_names_cache = names
+	_forwarded_cache_valid = true
 
 
-func _get_conveyor_forwarded_property_names() -> Array:
-	return (_get_conveyor_forwarded_properties()
-			.filter(func(property: Dictionary) -> bool:
-				var prop_name := property[&"name"] as String
-				var usage := property[&"usage"] as int
-				if prop_name in ConveyorAttachmentsAssembly.EXCLUDED_FORWARDED_PROPERTIES:
-					return false
-				if prop_name.begins_with("metadata/hijack_scale"):
-					return false
-				return (not (usage & PROPERTY_USAGE_CATEGORY
-					or usage & PROPERTY_USAGE_GROUP
-					or usage & PROPERTY_USAGE_SUBGROUP)
-					and usage & PROPERTY_USAGE_STORAGE
-					and not prop_name.begins_with("metadata/")))
-			.map(func(property: Dictionary) -> String: return property[&"name"] as String))
+func _on_conveyor_property_list_changed() -> void:
+	_forwarded_cache_valid = false
+	notify_property_list_changed()
 
 
 func _legs_property_cached_set(property: StringName, value: Variant, _existing_backing_field_value: Variant) -> Variant:
