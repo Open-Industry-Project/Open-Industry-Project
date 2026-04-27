@@ -317,7 +317,21 @@ func get_pilot_camera() -> Camera3D:
 
 
 func cache_editor_ui(node3d_viewport: Viewport) -> void:
-	var ui := node3d_viewport.get_parent().get_parent().get_child(1) as Control
+	_active_viewport_ui = {}
+	var spatial_editor_viewport := node3d_viewport.get_parent().get_parent()
+	if not spatial_editor_viewport:
+		return
+
+	var ui: Control
+	for child in spatial_editor_viewport.get_children():
+		if child.get_class() == "Control" and child.get_child_count() >= 7:
+			ui = child
+			break
+
+	if not ui:
+		push_warning("Pilot Mode: Could not locate editor viewport surface UI.")
+		return
+
 	_active_viewport_ui = {
 		"rotation_gizmo": ui.get_child(6).get_child(0),
 		"menu": ui.get_child(0).get_child(0).get_child(0),
