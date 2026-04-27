@@ -13,6 +13,7 @@ const FACING_PRESERVED_DOT: float = 0.85
 const SNAP_DISABLE_MODIFIER: Key = KEY_ALT
 const _PREVIEW_REVERSE_META := &"_snap_preview_reverse_default"
 const _PREVIEW_FLIP_LOCKED_META := &"_snap_preview_flip_locked"
+const _PREVIEW_FLOOR_META := &"_snap_preview_floor_default"
 
 var _selected: Node3D = null
 var _target: Node3D = null
@@ -106,11 +107,13 @@ func _clear_preview_pending_if_match(node: Node) -> void:
 func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Transform3D:
 	if not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER):
 		_restore_preview_reverse(node)
+		_restore_preview_floor(node)
 		_preview_snap_pending = {}
 		return proposed
 	var found := _find_snap(node, proposed)
 	if found.is_empty():
 		_restore_preview_reverse(node)
+		_restore_preview_floor(node)
 		_preview_snap_pending = {}
 		return proposed
 	# Side-effect scale: fork orthonormalizes the returned basis on drop hover.
@@ -119,6 +122,7 @@ func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Transform3D:
 		if not node.scale.is_equal_approx(target_scale):
 			node.scale = target_scale
 	_apply_preview_reverse_flip(node, found.result)
+	_apply_preview_floor(node, found.result.transform)
 	found["preview"] = node
 	_preview_snap_pending = found
 	return found.result.transform
@@ -163,6 +167,56 @@ static func _sync_preview_overlay_arrow(node: Node3D, reversed: bool) -> void:
 		node.call(&"_rebuild_preview_flow_arrow", reversed)
 
 
+static func _apply_preview_floor(node: Node3D, snap_xform: Transform3D) -> void:
+	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
+	if legs == null:
+		return
+	if not (&"floor_plane" in node):
+		return
+	if not legs.has_meta(_PREVIEW_FLOOR_META):
+		legs.set_meta(_PREVIEW_FLOOR_META, {
+			"xform": legs.transform,
+			"global": node.get("floor_plane"),
+		})
+	# No RID exclusion: preview collisions are pre-disabled by _apply_preview_common.
+	var floor_plane := _detect_floor_below(node, snap_xform.origin)
+	if (node.get("floor_plane") as Plane) != floor_plane:
+		_write_preview_floor(legs, floor_plane, snap_xform)
+
+
+## Direct transform write; cascading default global re-derives local from the
+## current conveyor pos and stretches legs instead.
+static func _restore_preview_floor(node: Node3D) -> void:
+	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
+	if legs == null or not legs.has_meta(_PREVIEW_FLOOR_META):
+		return
+	var saved: Dictionary = legs.get_meta(_PREVIEW_FLOOR_META)
+	var saved_xform: Transform3D = saved["xform"] as Transform3D
+	var saved_global: Plane = saved["global"] as Plane
+	var changed: bool = false
+	if (node.get("floor_plane") as Plane) != saved_global:
+		# is_preview gates sub-updates, so this resets the cached global only.
+		legs.restore_floor_plane(saved_global)
+		changed = true
+	if not legs.transform.is_equal_approx(saved_xform):
+		legs.transform = saved_xform
+		changed = true
+	if changed:
+		legs.call(&"_update_conveyor_legs_height_and_visibility")
+
+
+## Local recompute uses the explicit snap pose; conveyor.global_transform is
+## still at the pre-snap cursor during the engine's snap callback.
+static func _write_preview_floor(legs: Node3D, plane: Plane, snap_xform: Transform3D) -> void:
+	legs.restore_floor_plane(plane)
+	var had_meta: bool = legs.has_meta("is_preview")
+	if had_meta:
+		legs.remove_meta("is_preview")
+	legs.call(&"_update_floor_plane", snap_xform)
+	if had_meta:
+		legs.set_meta("is_preview", true)
+
+
 func _commit_preview_snap_guards(pending: Dictionary) -> void:
 	var target: Node3D = pending.get("target")
 	var result: Dictionary = pending.get("result", {})
@@ -182,7 +236,16 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 	if reverse_prop != &"" and is_instance_valid(preview):
 		reverse_value = bool(preview.get(reverse_prop))
 		should_apply_reverse = reverse_value != bool(new_node.get(reverse_prop))
-	if not should_apply_scale and not should_open_guards and not should_apply_reverse:
+	# Detect the actual floor beneath the snap pose so legs reach it; snap
+	# bypasses _collision_repositioned, and target.floor_plane may be stale.
+	var should_apply_floor: bool = false
+	var floor_value: Plane
+	if &"floor_plane" in new_node:
+		var exclude_rids: Array = []
+		_collect_collision_rids(new_node, exclude_rids)
+		floor_value = _detect_floor_below(new_node, result.transform.origin, exclude_rids)
+		should_apply_floor = floor_value != (new_node.get("floor_plane") as Plane)
+	if not should_apply_scale and not should_open_guards and not should_apply_reverse and not should_apply_floor:
 		return
 
 	var undo_redo := EditorInterface.get_editor_undo_redo()
@@ -194,6 +257,9 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 
 	if should_apply_reverse:
 		undo_redo.add_do_property(new_node, reverse_prop, reverse_value)
+
+	if should_apply_floor:
+		undo_redo.add_do_property(new_node, "floor_plane", floor_value)
 
 	if should_open_guards:
 		var is_diverter := ConveyorSnapping._is_diverter(new_node)
@@ -460,17 +526,19 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 		var alignment: float = intent.basis.x.normalized().dot(snap_xform.basis.x.normalized())
 		var rotation_penalty: float = (1.0 - alignment) * 2.0
 		var preserves_facing: bool = alignment >= FACING_PRESERVED_DOT
-		var base_dist: float
+		var rank_dist: float = intent.origin.distance_to(snap_xform.origin)
+		# XZ-only gate so an elevated end engages from the floor; 3D ranking
+		# still prefers a floor end over an elevated one at equal XZ.
+		var gate_dist: float
 		if override_threshold:
-			base_dist = intent.origin.distance_to(snap_xform.origin)
+			gate_dist = rank_dist
 		else:
-			base_dist = _snap_interface_distance(result, selected, intent, tgt, entry.xform)
-		# Rotating snaps require precise aim even when body-overlap fires.
-		if not preserves_facing and base_dist > VISIBLE_THRESHOLD:
+			gate_dist = _snap_interface_xz_distance(result, selected, intent, tgt, entry.xform)
+		if not preserves_facing and gate_dist > VISIBLE_THRESHOLD:
 			continue
-		if not override_threshold and base_dist > threshold:
+		if not override_threshold and gate_dist > threshold:
 			continue
-		var dist: float = base_dist + rotation_penalty
+		var dist: float = rank_dist + rotation_penalty
 		if override_threshold and not best_is_override:
 			best_is_override = true
 			best_dist = INF
@@ -640,11 +708,11 @@ static func _distance_to_target_box_cached(point: Vector3, entry: Dictionary) ->
 
 
 ## End-to-end mins over all end pairs; side snaps use the result's pair.
-static func _snap_interface_distance(result: Dictionary, selected: Node3D, intent: Transform3D, target: Node3D, tgt_xform: Transform3D) -> float:
+static func _snap_interface_xz_distance(result: Dictionary, selected: Node3D, intent: Transform3D, target: Node3D, tgt_xform: Transform3D) -> float:
 	var sel_end: Dictionary = result.get("snapped_end", {})
 	var tgt_end: Dictionary = result.get("target_end", {})
 	if not sel_end.has("pos") or not tgt_end.has("pos"):
-		return intent.origin.distance_to((result["transform"] as Transform3D).origin)
+		return _xz_distance(intent.origin, (result["transform"] as Transform3D).origin)
 
 	if result.get("is_end_to_end", false):
 		var sel_ends: Array = ConveyorSnapping._get_end_info(selected)
@@ -654,14 +722,45 @@ static func _snap_interface_distance(result: Dictionary, selected: Node3D, inten
 			var se_world: Vector3 = intent * (se.pos as Vector3)
 			for te in tgt_ends:
 				var te_world: Vector3 = tgt_xform * (te.pos as Vector3)
-				var d: float = se_world.distance_to(te_world)
+				var d: float = _xz_distance(se_world, te_world)
 				if d < min_dist:
 					min_dist = d
 		return min_dist
 
 	var sel_end_world: Vector3 = intent * (sel_end["pos"] as Vector3)
 	var tgt_end_world: Vector3 = tgt_xform * (tgt_end["pos"] as Vector3)
-	return sel_end_world.distance_to(tgt_end_world)
+	return _xz_distance(sel_end_world, tgt_end_world)
+
+
+static func _xz_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Falls back to world Y=0 if the ray misses; the saved scene's default floor
+## plane sits at Y=-2, which is below typical OIP ground.
+static func _detect_floor_below(node: Node3D, origin: Vector3, exclude_rids: Array = []) -> Plane:
+	var fallback := Plane(Vector3.UP, 0.0)
+	if not node.is_inside_tree():
+		return fallback
+	var world := node.get_world_3d()
+	if world == null or world.direct_space_state == null:
+		return fallback
+	var query := PhysicsRayQueryParameters3D.new()
+	query.from = origin + Vector3.UP * 0.01
+	query.to = origin + Vector3.DOWN * 100.0
+	if not exclude_rids.is_empty():
+		query.exclude = exclude_rids
+	var hit := world.direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return fallback
+	return Plane(hit.normal, hit.position)
+
+
+static func _collect_collision_rids(node: Node, out: Array) -> void:
+	if node is CollisionObject3D:
+		out.append((node as CollisionObject3D).get_rid())
+	for child in node.get_children():
+		_collect_collision_rids(child, out)
 
 
 static func _collect_candidates(node: Node, selected: Node3D, out: Array[Node3D]) -> void:
