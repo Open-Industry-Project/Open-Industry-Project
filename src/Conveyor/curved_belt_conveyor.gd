@@ -83,6 +83,7 @@ func _update_calculated_size() -> void:
 		_recalculate_speeds()
 		_update_belt_material_scale()
 		_update_flow_arrow()
+		_sync_preview_overlay_arrow(value)
 
 ## Linear speed at the reference distance in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
@@ -176,12 +177,22 @@ func _get_custom_preview_node() -> Node3D:
 
 func _rebuild_preview_flow_arrow(reversed: bool) -> void:
 	var existing := get_node_or_null("FlowDirectionArrow")
-	if existing:
-		# queue_free is deferred; rename so the new arrow can claim the name this frame.
-		existing.name = &"_dead_overlay_arrow"
-		existing.queue_free()
+	if existing == null:
+		return
+	# queue_free is deferred; rename so the new arrow can claim the name this frame.
+	existing.name = &"_dead_overlay_arrow"
+	existing.queue_free()
 	add_child(FlowDirectionArrow.create_curved(
 		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle, reversed))
+
+
+## Rebuilds preview-overlay arrows on self and on the parent assembly when
+## reverse_belt changes. Both methods no-op when no overlay child exists.
+func _sync_preview_overlay_arrow(reversed: bool) -> void:
+	_rebuild_preview_flow_arrow(reversed)
+	var parent := get_parent()
+	if parent and parent.has_method(&"_rebuild_preview_flow_arrow"):
+		parent.call(&"_rebuild_preview_flow_arrow", reversed)
 
 
 func _disable_collisions_recursive(node: Node) -> void:

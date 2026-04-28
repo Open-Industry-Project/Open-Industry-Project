@@ -294,10 +294,11 @@ func _get_custom_preview_node() -> Node3D:
 
 func _rebuild_preview_flow_arrow(reversed: bool) -> void:
 	var existing := get_node_or_null("FlowDirectionArrow")
-	if existing:
-		# queue_free is deferred; rename so the new arrow can claim the name this frame.
-		existing.name = &"_dead_overlay_arrow"
-		existing.queue_free()
+	if existing == null:
+		return
+	# queue_free is deferred; rename so the new arrow can claim the name this frame.
+	existing.name = &"_dead_overlay_arrow"
+	existing.queue_free()
 	var corner := get_node("ConveyorCorner")
 	add_child(FlowDirectionArrow.create_curved(
 		corner.inner_radius, corner.conveyor_width, _get_corner_belt_height(corner), corner.conveyor_angle, reversed))

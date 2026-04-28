@@ -70,12 +70,14 @@ func _on_node_added_for_preview(node: Node) -> void:
 	node.set_meta(&"_snap_transform", _on_preview_snap.bind(node))
 
 
-func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Transform3D:
+## Returning `null` instead of `proposed` lets the fork distinguish "snap
+## engaged" from "no opinion" so it can bypass the bounds-derived offset.
+func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 	if not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER):
-		return proposed
+		return null
 	var found := _find_snap(node, proposed)
 	if found.is_empty():
-		return proposed
+		return null
 	# Equality guard: size setter triggers a full mesh rebuild.
 	if found.has("size") and node is ResizableNode3D:
 		var resizable := node as ResizableNode3D

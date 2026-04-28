@@ -11,9 +11,12 @@ const VISIBLE_THRESHOLD: float = 0.3
 ## within VISIBLE_THRESHOLD regardless of body-overlap.
 const FACING_PRESERVED_DOT: float = 0.85
 const SNAP_DISABLE_MODIFIER: Key = KEY_ALT
-const _PREVIEW_REVERSE_META := &"_snap_preview_reverse_default"
-const _PREVIEW_FLIP_LOCKED_META := &"_snap_preview_flip_locked"
-const _PREVIEW_FLOOR_META := &"_snap_preview_floor_default"
+const _BASELINE_REVERSE_META := &"_snap_baseline_reverse"
+const _BASELINE_FLOOR_META := &"_snap_baseline_floor_plane"
+const _BASELINE_LEGS_XFORM_META := &"_snap_baseline_legs_xform"
+## Locks the flip decision on first engage so pair shifts mid-hover don't
+## oscillate `reverse_belt` as the snap result's `needs_reverse_belt` flips.
+const _FLIP_DECISION_META := &"_snap_flip_decision"
 
 var _selected: Node3D = null
 var _target: Node3D = null
@@ -104,100 +107,93 @@ func _clear_preview_pending_if_match(node: Node) -> void:
 		_preview_snap_pending = {}
 
 
-func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Transform3D:
-	if not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER):
-		_restore_preview_reverse(node)
-		_restore_preview_floor(node)
-		_preview_snap_pending = {}
-		return proposed
-	var found := _find_snap(node, proposed)
+## Returns the snap pose when engaged, `null` otherwise. `null` makes the fork
+## fall back to bounds-offset placement so non-snap drops still rest on the surface.
+func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
+	_snapshot_baselines(node)
+	var snap_disabled := not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER)
+	var found: Dictionary = {} if snap_disabled else _find_snap(node, proposed)
+
 	if found.is_empty():
-		_restore_preview_reverse(node)
-		_restore_preview_floor(node)
 		_preview_snap_pending = {}
-		return proposed
+		_restore_preview_state(node)
+		return null
+
 	# Side-effect scale: fork orthonormalizes the returned basis on drop hover.
 	if found.result.has("scale"):
 		var target_scale: Vector3 = found.result.scale
 		if not node.scale.is_equal_approx(target_scale):
 			node.scale = target_scale
 	_apply_preview_reverse_flip(node, found.result)
-	_apply_preview_floor(node, found.result.transform)
+	_apply_preview_floor(node, found.result.transform, found.target)
 	found["preview"] = node
 	_preview_snap_pending = found
 	return found.result.transform
 
 
-## Lock-once per preview hover; same oscillation rationale as the gizmo path.
-static func _apply_preview_reverse_flip(node: Node3D, result: Dictionary) -> void:
-	if node.has_meta(_PREVIEW_FLIP_LOCKED_META):
-		return
-	node.set_meta(_PREVIEW_FLIP_LOCKED_META, true)
-	var prop := ConveyorSnapping.get_reverse_property_name(node)
-	if prop == &"":
-		return
-	if not node.has_meta(_PREVIEW_REVERSE_META):
-		node.set_meta(_PREVIEW_REVERSE_META, bool(node.get(prop)))
-	if not result.get("needs_reverse_belt", false):
-		return
-	var original: bool = bool(node.get_meta(_PREVIEW_REVERSE_META))
-	var target_value: bool = not original
-	if bool(node.get(prop)) != target_value:
-		node.set(prop, target_value)
-		_sync_preview_overlay_arrow(node, target_value)
-
-
-static func _restore_preview_reverse(node: Node3D) -> void:
-	if node.has_meta(_PREVIEW_FLIP_LOCKED_META):
-		node.remove_meta(_PREVIEW_FLIP_LOCKED_META)
-	if not node.has_meta(_PREVIEW_REVERSE_META):
-		return
-	var prop := ConveyorSnapping.get_reverse_property_name(node)
-	if prop != &"":
-		var original: bool = bool(node.get_meta(_PREVIEW_REVERSE_META))
-		if bool(node.get(prop)) != original:
-			node.set(prop, original)
-			_sync_preview_overlay_arrow(node, original)
-
-
-## The corner's setter only flips its own internal arrow; the unregistered
-## preview-overlay arrow has to be rebuilt separately to stay in sync.
-static func _sync_preview_overlay_arrow(node: Node3D, reversed: bool) -> void:
-	if node.has_method(&"_rebuild_preview_flow_arrow"):
-		node.call(&"_rebuild_preview_flow_arrow", reversed)
-
-
-static func _apply_preview_floor(node: Node3D, snap_xform: Transform3D) -> void:
+static func _snapshot_baselines(node: Node3D) -> void:
+	var reverse_prop := ConveyorSnapping.get_reverse_property_name(node)
+	if reverse_prop != &"" and not node.has_meta(_BASELINE_REVERSE_META):
+		node.set_meta(_BASELINE_REVERSE_META, bool(node.get(reverse_prop)))
 	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
 	if legs == null:
 		return
-	if not (&"floor_plane" in node):
+	if &"floor_plane" in node and not node.has_meta(_BASELINE_FLOOR_META):
+		node.set_meta(_BASELINE_FLOOR_META, node.get(&"floor_plane"))
+	if not legs.has_meta(_BASELINE_LEGS_XFORM_META):
+		legs.set_meta(_BASELINE_LEGS_XFORM_META, legs.transform)
+
+
+static func _apply_preview_reverse_flip(node: Node3D, result: Dictionary) -> void:
+	var prop := ConveyorSnapping.get_reverse_property_name(node)
+	if prop == &"":
 		return
-	if not legs.has_meta(_PREVIEW_FLOOR_META):
-		legs.set_meta(_PREVIEW_FLOOR_META, {
-			"xform": legs.transform,
-			"global": node.get("floor_plane"),
-		})
-	# No RID exclusion: preview collisions are pre-disabled by _apply_preview_common.
-	var floor_plane := _detect_floor_below(node, snap_xform.origin)
-	if (node.get("floor_plane") as Plane) != floor_plane:
-		_write_preview_floor(legs, floor_plane, snap_xform)
+	if not node.has_meta(_FLIP_DECISION_META):
+		node.set_meta(_FLIP_DECISION_META, bool(result.get("needs_reverse_belt", false)))
+	var baseline: bool = bool(node.get_meta(_BASELINE_REVERSE_META))
+	var should_flip: bool = bool(node.get_meta(_FLIP_DECISION_META))
+	var target_value: bool = (not baseline) if should_flip else baseline
+	if bool(node.get(prop)) != target_value:
+		node.set(prop, target_value)
 
 
-## Direct transform write; cascading default global re-derives local from the
-## current conveyor pos and stretches legs instead.
-static func _restore_preview_floor(node: Node3D) -> void:
+## Drives the legs through the inherited target floor with the explicit snap
+## pose; `is_preview` gates `_update_floor_plane` on preview legs, so we mask
+## the meta around the explicit recompute call.
+static func _apply_preview_floor(node: Node3D, snap_xform: Transform3D, target: Node3D) -> void:
 	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
-	if legs == null or not legs.has_meta(_PREVIEW_FLOOR_META):
+	if legs == null or not (&"floor_plane" in node):
 		return
-	var saved: Dictionary = legs.get_meta(_PREVIEW_FLOOR_META)
-	var saved_xform: Transform3D = saved["xform"] as Transform3D
-	var saved_global: Plane = saved["global"] as Plane
+	var floor_plane := _resolve_target_floor_plane(node, snap_xform.origin, target)
+	legs.restore_floor_plane(floor_plane)
+	var had_meta: bool = legs.has_meta("is_preview")
+	if had_meta:
+		legs.remove_meta("is_preview")
+	legs.call(&"_update_floor_plane", snap_xform)
+	if had_meta:
+		legs.set_meta("is_preview", true)
+
+
+static func _restore_preview_state(node: Node3D) -> void:
+	if node.has_meta(_FLIP_DECISION_META):
+		node.remove_meta(_FLIP_DECISION_META)
+	var reverse_prop := ConveyorSnapping.get_reverse_property_name(node)
+	if reverse_prop != &"" and node.has_meta(_BASELINE_REVERSE_META):
+		var baseline_reverse: bool = bool(node.get_meta(_BASELINE_REVERSE_META))
+		if bool(node.get(reverse_prop)) != baseline_reverse:
+			node.set(reverse_prop, baseline_reverse)
+	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
+	if legs == null or not legs.has_meta(_BASELINE_LEGS_XFORM_META):
+		return
+	var saved_xform: Transform3D = legs.get_meta(_BASELINE_LEGS_XFORM_META) as Transform3D
 	var changed: bool = false
-	if (node.get("floor_plane") as Plane) != saved_global:
-		# is_preview gates sub-updates, so this resets the cached global only.
-		legs.restore_floor_plane(saved_global)
-		changed = true
+	if node.has_meta(_BASELINE_FLOOR_META):
+		var saved_global: Plane = node.get_meta(_BASELINE_FLOOR_META) as Plane
+		if (node.get(&"floor_plane") as Plane) != saved_global:
+			# is_preview gates the legs.transform sub-update inside `_apply_floor_plane`,
+			# so this just resets the cached global plane.
+			legs.restore_floor_plane(saved_global)
+			changed = true
 	if not legs.transform.is_equal_approx(saved_xform):
 		legs.transform = saved_xform
 		changed = true
@@ -205,16 +201,25 @@ static func _restore_preview_floor(node: Node3D) -> void:
 		legs.call(&"_update_conveyor_legs_height_and_visibility")
 
 
-## Local recompute uses the explicit snap pose; conveyor.global_transform is
-## still at the pre-snap cursor during the engine's snap callback.
-static func _write_preview_floor(legs: Node3D, plane: Plane, snap_xform: Transform3D) -> void:
-	legs.restore_floor_plane(plane)
-	var had_meta: bool = legs.has_meta("is_preview")
-	if had_meta:
-		legs.remove_meta("is_preview")
-	legs.call(&"_update_floor_plane", snap_xform)
-	if had_meta:
-		legs.set_meta("is_preview", true)
+static func _resolve_target_floor_plane(node: Node3D, origin: Vector3, target: Node3D) -> Plane:
+	# Walk up to the closest ancestor that exposes floor_plane — snap targets
+	# are often the inner corner (which lacks the property) wrapped in an
+	# assembly (which has it).
+	var floor_source: Node3D = target
+	while is_instance_valid(floor_source) and not (&"floor_plane" in floor_source):
+		floor_source = floor_source.get_parent() as Node3D
+	if is_instance_valid(floor_source):
+		var inherited: Plane = floor_source.get(&"floor_plane")
+		if inherited.normal != Vector3.ZERO:
+			return inherited
+	# Exclude both source and target so the ray skips the live new-node body
+	# (commit path) and the target's own collider top.
+	var exclude_rids: Array = []
+	if is_instance_valid(node):
+		_collect_collision_rids(node, exclude_rids)
+	if is_instance_valid(target):
+		_collect_collision_rids(target, exclude_rids)
+	return _detect_floor_below(node, origin, exclude_rids)
 
 
 func _commit_preview_snap_guards(pending: Dictionary) -> void:
@@ -236,14 +241,12 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 	if reverse_prop != &"" and is_instance_valid(preview):
 		reverse_value = bool(preview.get(reverse_prop))
 		should_apply_reverse = reverse_value != bool(new_node.get(reverse_prop))
-	# Detect the actual floor beneath the snap pose so legs reach it; snap
-	# bypasses _collision_repositioned, and target.floor_plane may be stale.
+	# Snap bypasses _collision_repositioned, so a fresh node would otherwise
+	# keep its saved-scene default floor instead of the target's.
 	var should_apply_floor: bool = false
 	var floor_value: Plane
 	if &"floor_plane" in new_node:
-		var exclude_rids: Array = []
-		_collect_collision_rids(new_node, exclude_rids)
-		floor_value = _detect_floor_below(new_node, result.transform.origin, exclude_rids)
+		floor_value = _resolve_target_floor_plane(new_node, result.transform.origin, target)
 		should_apply_floor = floor_value != (new_node.get("floor_plane") as Plane)
 	if not should_apply_scale and not should_open_guards and not should_apply_reverse and not should_apply_floor:
 		return
@@ -456,6 +459,11 @@ static func _accepts_target(selected: Node3D, target: Node3D) -> bool:
 		return false
 	if not ConveyorSnapping._is_conveyor(target):
 		return false
+	# Inner conveyor inside an assembly: defer to the assembly so floor_plane
+	# inheritance and end-info come from the canonical wrapper.
+	var parent := target.get_parent() as Node3D
+	if is_instance_valid(parent) and ConveyorSnapping._is_conveyor(parent):
+		return false
 	if ConveyorSnapping._is_chain_transfer(selected) or ConveyorSnapping._is_blade_stop(selected):
 		return ConveyorSnapping._is_roller_conveyor(target)
 	return true
@@ -498,7 +506,9 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 		var tgt: Node3D = entry.node
 		if not is_instance_valid(tgt):
 			continue
-		if _distance_to_target_box_cached(intent.origin, entry) > SEARCH_RADIUS + sel_reach:
+		# XZ-only to match the gate, so an elevated end stays in scope when
+		# the cursor sits at floor Y (the gate is also XZ-only for that case).
+		if _xz_distance_to_target_box_cached(intent.origin, entry) > SEARCH_RADIUS + sel_reach:
 			continue
 		var override_threshold: bool = (
 			not on_top_attachment
@@ -692,19 +702,17 @@ func _populate_node_caches(node: Node3D) -> Dictionary:
 
 
 ## Orthonormalized inverse: conveyor bases carry scale; transpose alone would skew.
-static func _distance_to_target_box_cached(point: Vector3, entry: Dictionary) -> float:
+static func _xz_distance_to_target_box_cached(point: Vector3, entry: Dictionary) -> float:
 	var xform: Transform3D = entry.xform
 	var size: Variant = entry.size
 	if size == null:
-		return xform.origin.distance_to(point)
+		var d := xform.origin - point
+		return Vector2(d.x, d.z).length()
 	var half: Vector3 = (size as Vector3) * 0.5
 	var local: Vector3 = xform.basis.orthonormalized().transposed() * (point - xform.origin)
-	var clamped := Vector3(
-		clampf(local.x, -half.x, half.x),
-		clampf(local.y, -half.y, half.y),
-		clampf(local.z, -half.z, half.z),
-	)
-	return (local - clamped).length()
+	var clamped_x: float = clampf(local.x, -half.x, half.x)
+	var clamped_z: float = clampf(local.z, -half.z, half.z)
+	return Vector2(local.x - clamped_x, local.z - clamped_z).length()
 
 
 ## End-to-end mins over all end pairs; side snaps use the result's pair.
