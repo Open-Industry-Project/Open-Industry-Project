@@ -8,17 +8,17 @@
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/ACRPr6sBpH)
 [![Latest Release](https://img.shields.io/github/v/release/Open-Industry-Project/Open-Industry-Project)](https://github.com/Open-Industry-Project/Open-Industry-Project/releases)
 
-Free and open-source warehouse/manufacturing development framework and simulator built with [open62541](https://github.com/open62541/open62541), [libplctag](https://github.com/libplctag/libplctag), [Beckhoff ADS](https://github.com/Beckhoff/ADS), and [Godot](https://github.com/godotengine).
+Free and open-source warehouse/manufacturing development framework and simulator built on Godot.
 
 The goal is to provide an open framework to create software and simulations using industrial equipment/devices and for people to be able to test their ideas or simply educate themselves while using standard industrial platforms.
 
 Supported Communication Protocols:
 
-- OPC UA via open62541
-- Ethernet/IP via libplctag
+- OPC UA via [open62541](https://github.com/open62541/open62541)
+- EtherNet/IP via [libplctag](https://github.com/libplctag/libplctag)
 - Modbus TCP via libplctag
 - Siemens S7 1200 & 1500 Put/Get protocol
-- Beckhoff ADS via the Beckhoff ADS library (TwinCAT 2 & 3)
+- Beckhoff ADS via the [Beckhoff ADS](https://github.com/Beckhoff/ADS) library (TwinCAT 2 & 3)
 
 ## Table of Contents
 
