@@ -6,11 +6,26 @@ static var _instances: Array[Node3D] = []
 
 
 static func register(arrow: Node3D) -> void:
+	if arrow in _instances:
+		arrow.visible = arrows_visible
+		return
 	_instances.append(arrow)
 	arrow.visible = arrows_visible
+	arrow.tree_entered.connect(_on_arrow_entered.bind(arrow))
+	arrow.tree_exiting.connect(_on_arrow_exited.bind(arrow))
 
 
 static func unregister(arrow: Node3D) -> void:
+	_instances.erase(arrow)
+
+
+static func _on_arrow_entered(arrow: Node3D) -> void:
+	if arrow not in _instances:
+		_instances.append(arrow)
+	arrow.visible = arrows_visible
+
+
+static func _on_arrow_exited(arrow: Node3D) -> void:
 	_instances.erase(arrow)
 
 

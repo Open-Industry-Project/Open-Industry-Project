@@ -286,22 +286,26 @@ func _get_custom_preview_node() -> Node3D:
 		side_guards.set_process_mode(Node.PROCESS_MODE_DISABLED)
 
 	var corner := preview_node.get_node("ConveyorCorner")
-	preview_node.add_child(FlowDirectionArrow.create_curved(
-		corner.inner_radius, corner.conveyor_width, _get_corner_belt_height(corner), corner.conveyor_angle))
+	var preview_arrow := FlowDirectionArrow.create_curved(
+		corner.inner_radius, corner.conveyor_width, _get_corner_belt_height(corner), corner.conveyor_angle)
+	preview_arrow.name = &"PreviewFlowDirectionArrow"
+	preview_node.add_child(preview_arrow)
 
 	return preview_node
 
 
 func _rebuild_preview_flow_arrow(reversed: bool) -> void:
-	var existing := get_node_or_null("FlowDirectionArrow")
+	var existing := get_node_or_null("PreviewFlowDirectionArrow")
 	if existing == null:
 		return
 	# queue_free is deferred; rename so the new arrow can claim the name this frame.
 	existing.name = &"_dead_overlay_arrow"
 	existing.queue_free()
 	var corner := get_node("ConveyorCorner")
-	add_child(FlowDirectionArrow.create_curved(
-		corner.inner_radius, corner.conveyor_width, _get_corner_belt_height(corner), corner.conveyor_angle, reversed))
+	var preview_arrow := FlowDirectionArrow.create_curved(
+		corner.inner_radius, corner.conveyor_width, _get_corner_belt_height(corner), corner.conveyor_angle, reversed)
+	preview_arrow.name = &"PreviewFlowDirectionArrow"
+	add_child(preview_arrow)
 
 
 func _get_corner_belt_height(corner: Node) -> float:
