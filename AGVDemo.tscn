@@ -25,12 +25,12 @@ size = Vector3(2.6, 0.02, 2.6)
 
 [sub_resource type="Resource" id="wp_pickup_clear"]
 script = ExtResource("12_waypoint")
-position = Vector3(0, 0, -0.7)
+position = Vector3(0, 0, -1.7)
 yaw_deg = 180.0
 
 [sub_resource type="Resource" id="wp_pickup"]
 script = ExtResource("12_waypoint")
-position = Vector3(0, 0, -6.1)
+position = Vector3(0, 0, -7)
 yaw_deg = 180.0
 
 [sub_resource type="Resource" id="wp_rack_approach"]
@@ -39,7 +39,7 @@ position = Vector3(0, 0, -0.1)
 
 [sub_resource type="Resource" id="wp_rack"]
 script = ExtResource("12_waypoint")
-position = Vector3(0, 0, 2.9)
+position = Vector3(0, 0, 3.7)
 
 [node name="AGVDemo" type="Node3D" unique_id=2122258962]
 
@@ -71,7 +71,7 @@ _guard_state = {
 "pos_x": 0.0
 }
 }
-speed = 0.5
+speed = 0.0
 speed_tag_group_name = "Xplanar"
 running_tag_group_name = "Xplanar"
 _frame_rail_state = {
@@ -429,7 +429,7 @@ pole_interval = 3.0
 size = Vector3(20.974451, 6, 2.5)
 
 [node name="AGV" parent="." unique_id=1806352077 instance=ExtResource("1_agv")]
-transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, 0, 0, -0.7)
+transform = Transform3D(0.9999987, 0, -1.7484533e-07, 0, 1, 0, 1.7484533e-07, 0, 0.9999987, 0, 0, -0.1)
 waypoints = {
 "1: PickupClear": SubResource("wp_pickup_clear"),
 "2: Pickup": SubResource("wp_pickup"),
@@ -440,7 +440,7 @@ selected_waypoint = "2: Pickup"
 drive_speed = 1.6
 turn_speed = 45.0
 lift_speed = 1.8
-max_lift_height = 6.5
+max_lift_height = 8.0
 tag_group_name = "TagGroup0"
 
 [node name="Driver" type="Node3D" parent="." unique_id=217676938 node_paths=PackedStringArray("agv", "end_sensor")]

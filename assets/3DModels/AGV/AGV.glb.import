@@ -3,7 +3,7 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://btg4mwsh4c8ft"
+uid="uid://bfb888na84l2g"
 path="res://.godot/imported/AGV.glb-0aec32bccc97f5b824849aab19bc1dbb.scn"
 
 [deps]
@@ -39,7 +39,15 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"materials": {
+"M_AGV_Basemat": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/3DModels/AGV/Materials/M_AGV_Basemat.tres",
+"use_external/path": "uid://cq8fobt5pvbxy"
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1
