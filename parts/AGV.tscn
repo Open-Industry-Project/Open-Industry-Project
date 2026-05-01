@@ -90,47 +90,47 @@ size = Vector3(2.0, 2.5, 2.4)
 script = ExtResource("1_agv")
 
 [node name="Chassis" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0.7)
 material_override = SubResource("mat_body")
 mesh = SubResource("mesh_chassis")
 
 [node name="BumperFront" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 0.71)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, -0.29)
 material_override = SubResource("mat_bumper")
 mesh = SubResource("mesh_bumper_fb")
 
 [node name="BumperBack" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 2.69)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 1.69)
 material_override = SubResource("mat_bumper")
 mesh = SubResource("mesh_bumper_fb")
 
 [node name="BumperLeft" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.94, 0.375, 1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.94, 0.375, 0.7)
 material_override = SubResource("mat_bumper")
 mesh = SubResource("mesh_bumper_lr")
 
 [node name="BumperRight" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.94, 0.375, 1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.94, 0.375, 0.7)
 material_override = SubResource("mat_bumper")
 mesh = SubResource("mesh_bumper_lr")
 
 [node name="LidarFL" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.6, 0.78)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.6, -0.22)
 material_override = SubResource("mat_lidar")
 mesh = SubResource("mesh_lidar")
 
 [node name="LidarFR" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.6, 0.78)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.6, -0.22)
 material_override = SubResource("mat_lidar")
 mesh = SubResource("mesh_lidar")
 
 [node name="LidarRear" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 2.68)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 1.68)
 material_override = SubResource("mat_lidar")
 mesh = SubResource("mesh_lidar")
 
 [node name="Beacon" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 1.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 0.9)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_beacon_base")
 
@@ -140,22 +140,22 @@ material_override = SubResource("mat_beacon")
 mesh = SubResource("mesh_beacon_dome")
 
 [node name="MastRailLeft" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 3.5, 0.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 3.5, 1.75)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_mast_rail")
 
 [node name="MastRailRight" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 3.5, 0.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 3.5, 1.75)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_mast_rail")
 
 [node name="CylinderBody" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 1.75)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_cyl_body")
 
 [node name="PistonRod" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.3, 0, 0, 0, 1, 0, 3.75, 0.65)
+transform = Transform3D(1, 0, 0, 0, 0.3, 0, 0, 0, 1, 0, 3.75, 1.75)
 
 [node name="PistonRodMesh" type="MeshInstance3D" parent="PistonRod"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
@@ -163,45 +163,45 @@ material_override = SubResource("mat_fork")
 mesh = SubResource("mesh_piston_rod")
 
 [node name="WheelFL" type="MeshInstance3D" parent="."]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -0.9, 0.25, 1.0)
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -0.9, 0.25, 0)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_wheel")
 
 [node name="WheelFR" type="MeshInstance3D" parent="."]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.9, 0.25, 1.0)
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.9, 0.25, 0)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_wheel")
 
 [node name="WheelBL" type="MeshInstance3D" parent="."]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -0.9, 0.25, 2.4)
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -0.9, 0.25, 1.4)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_wheel")
 
 [node name="WheelBR" type="MeshInstance3D" parent="."]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.9, 0.25, 2.4)
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.9, 0.25, 1.4)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_wheel")
 
 [node name="LiftGroup" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 2.1)
 
 [node name="Carriage" type="MeshInstance3D" parent="LiftGroup"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, -0.3)
 material_override = SubResource("mat_dark")
 mesh = SubResource("mesh_carriage")
 
 [node name="ForkLeft" type="MeshInstance3D" parent="LiftGroup"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, -1.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, 1.0)
 material_override = SubResource("mat_fork")
 mesh = SubResource("mesh_fork")
 
 [node name="ForkRight" type="MeshInstance3D" parent="LiftGroup"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, -1.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, 1.0)
 material_override = SubResource("mat_fork")
 mesh = SubResource("mesh_fork")
 
 [node name="PickupArea" type="Area3D" parent="LiftGroup"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -1.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 1.0)
 collision_layer = 0
 collision_mask = 10
 

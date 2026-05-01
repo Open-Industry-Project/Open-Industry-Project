@@ -98,13 +98,6 @@ var _motion_tween: Tween = null
 var _is_moving: bool = false
 var _lift_tween: Tween = null
 
-var _arc_from: Vector3
-var _arc_to: Vector3
-var _arc_from_yaw: float
-var _arc_travel_yaw: float
-var _arc_to_yaw: float
-var _arc_progress: float
-var _arc_duration: float
 
 
 func _enter_tree() -> void:
@@ -254,7 +247,7 @@ func move_to_transform(target_xform: Transform3D, instant: bool = false) -> void
 
 	var fwd := Vector3(-sin(current_yaw), 0, -cos(current_yaw))
 	var alignment := dir.dot(fwd) / dir_len if dir_len > 0.01 else 0.0
-	var reversing := alignment < -0.5 and absf(wrapf(target_yaw - current_yaw, -PI, PI)) < 0.3
+	var reversing := alignment < -0.95 and absf(wrapf(target_yaw - current_yaw, -PI, PI)) < 0.3
 
 	EditorInterface.mark_scene_as_unsaved()
 
@@ -280,40 +273,22 @@ func _drive_arc(from_pos: Vector3, to_pos: Vector3, from_yaw: float, to_yaw: flo
 		return
 
 	var travel_yaw := atan2(-dir.x, -dir.z)
-	var dyaw_start := absf(wrapf(travel_yaw - from_yaw, -PI, PI))
-	var dyaw_end := absf(wrapf(to_yaw - travel_yaw, -PI, PI))
-	var turn_dist := (dyaw_start + dyaw_end) * 1.0
-	var total_dist := dist + turn_dist
-	var duration := maxf(total_dist / drive_speed, 0.1)
+	var travel_yaw_rel := from_yaw + wrapf(travel_yaw - from_yaw, -PI, PI)
+	var to_yaw_rel := travel_yaw_rel + wrapf(to_yaw - travel_yaw, -PI, PI)
+	var dyaw_start := absf(travel_yaw_rel - from_yaw)
+	var dyaw_end := absf(to_yaw_rel - travel_yaw_rel)
 
-	_arc_from = from_pos
-	_arc_to = to_pos
-	_arc_from_yaw = from_yaw
-	_arc_travel_yaw = from_yaw + wrapf(travel_yaw - from_yaw, -PI, PI)
-	_arc_to_yaw = _arc_travel_yaw + wrapf(to_yaw - travel_yaw, -PI, PI)
-	_arc_progress = 0.0
-	_arc_duration = duration
+	var drive_dur := maxf(dist / drive_speed, 0.01)
+	var start_turn_dur := dyaw_start / drive_speed
+	var end_turn_dur := dyaw_end / drive_speed
 
 	_motion_tween = create_tween()
-	_motion_tween.tween_method(_update_arc, 0.0, 1.0, duration)
+	if start_turn_dur > 0.001:
+		_motion_tween.tween_property(self, "rotation:y", travel_yaw_rel, start_turn_dur)
+	_motion_tween.tween_property(self, "global_position", to_pos, drive_dur)
+	if end_turn_dur > 0.001:
+		_motion_tween.tween_property(self, "rotation:y", to_yaw_rel, end_turn_dur)
 	_motion_tween.tween_callback(_on_motion_complete)
-
-
-func _update_arc(t: float) -> void:
-	var ease_t := _smooth(t)
-	global_position = _arc_from.lerp(_arc_to, ease_t)
-	if t < 0.3:
-		var yaw_t := _smooth(t / 0.3)
-		rotation.y = lerpf(_arc_from_yaw, _arc_travel_yaw, yaw_t)
-	elif t > 0.7:
-		var yaw_t := _smooth((t - 0.7) / 0.3)
-		rotation.y = lerpf(_arc_travel_yaw, _arc_to_yaw, yaw_t)
-	else:
-		rotation.y = _arc_travel_yaw
-
-
-func _smooth(t: float) -> float:
-	return t * t * (3.0 - 2.0 * t)
 
 
 func _on_motion_complete() -> void:
