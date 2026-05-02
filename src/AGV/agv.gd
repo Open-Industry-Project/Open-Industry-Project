@@ -98,6 +98,11 @@ var _motion_tween: Tween = null
 var _is_moving: bool = false
 var _lift_tween: Tween = null
 
+var _initial_transform: Transform3D
+var _initial_lift_height: float = 0.0
+var _initial_forks_raised: bool = false
+var _has_initial_state: bool = false
+
 
 
 func _enter_tree() -> void:
@@ -522,6 +527,11 @@ func _validate_property(property: Dictionary) -> void:
 # --- Simulation / Comms ---
 
 func _on_simulation_started() -> void:
+	if not _has_initial_state:
+		_initial_transform = global_transform
+		_initial_lift_height = lift_height
+		_initial_forks_raised = forks_raised
+		_has_initial_state = true
 	if not enable_comms or tag_group_name.is_empty():
 		return
 	_last_execute = false
@@ -540,8 +550,12 @@ func _on_simulation_ended() -> void:
 	if not _held_bodies.is_empty():
 		_release_object()
 	_objects_in_range.clear()
-	forks_raised = false
 	_last_execute = false
+	if _has_initial_state:
+		global_transform = _initial_transform
+		forks_raised = _initial_forks_raised
+		lift_height = _initial_lift_height
+		_has_initial_state = false
 
 
 func _tag_group_initialized(group_name: String) -> void:
