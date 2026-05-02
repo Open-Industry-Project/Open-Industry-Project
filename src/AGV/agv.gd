@@ -5,7 +5,7 @@ extends Node3D
 ## A pallet-jack style AGV that drives between waypoints and lifts pallets
 ## with its forks. Forward is -Z in local space.
 
-const WHEEL_RADIUS := 0.25
+const WHEEL_RADIUS := 0.125
 const PISTON_LIFT_RATIO := 0.5
 const AGVWaypointScript := preload("res://src/AGV/agv_waypoint.gd")
 
@@ -42,7 +42,7 @@ const AGVWaypointScript := preload("res://src/AGV/agv_waypoint.gd")
 		if _lift_group:
 			_lift_group.position.y = _lift_base_y + lift_height
 		if _piston_rod:
-			_piston_rod.scale.y = _piston_base_scale_y + lift_height * PISTON_LIFT_RATIO
+			_piston_rod.position.y = _piston_base_y + lift_height * PISTON_LIFT_RATIO
 
 @export var forks_raised: bool = false:
 	set(value):
@@ -86,7 +86,7 @@ var _last_execute: bool = false
 var _lift_group: Node3D
 var _lift_base_y: float = 0.0
 var _piston_rod: Node3D
-var _piston_base_scale_y: float = 0.3
+var _piston_base_y: float = 0.0
 var _pickup_area: Area3D
 var _wheels: Array[Node3D] = []
 var _last_pos: Vector3 = Vector3.ZERO
@@ -98,6 +98,11 @@ var _motion_tween: Tween = null
 var _is_moving: bool = false
 var _lift_tween: Tween = null
 
+var _initial_transform: Transform3D
+var _initial_lift_height: float = 0.0
+var _initial_forks_raised: bool = false
+var _has_initial_state: bool = false
+
 
 
 func _enter_tree() -> void:
@@ -108,7 +113,7 @@ func _enter_tree() -> void:
 		_lift_base_y = _lift_group.position.y - lift_height
 	_piston_rod = get_node_or_null("PistonRod")
 	if _piston_rod:
-		_piston_base_scale_y = _piston_rod.scale.y - lift_height * PISTON_LIFT_RATIO
+		_piston_base_y = _piston_rod.position.y - lift_height * PISTON_LIFT_RATIO
 	_pickup_area = get_node_or_null("LiftGroup/PickupArea")
 
 	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
@@ -129,10 +134,10 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	new_waypoint_name = _get_next_waypoint_name()
 	_wheels = [
-		get_node_or_null("WheelFL") as Node3D,
-		get_node_or_null("WheelFR") as Node3D,
-		get_node_or_null("WheelBL") as Node3D,
-		get_node_or_null("WheelBR") as Node3D,
+		get_node_or_null("Wheel_LF") as Node3D,
+		get_node_or_null("Wheel_LR") as Node3D,
+		get_node_or_null("Wheel_RF") as Node3D,
+		get_node_or_null("Wheel_RR") as Node3D,
 	]
 	if is_inside_tree():
 		_last_pos = global_position
@@ -222,7 +227,7 @@ func _update_wheels() -> void:
 	var angle := signed_dist / WHEEL_RADIUS
 	for w in _wheels:
 		if w:
-			w.rotate_object_local(Vector3.UP, angle)
+			w.rotate_object_local(Vector3.LEFT, angle)
 
 
 # --- Motion ---
@@ -522,6 +527,11 @@ func _validate_property(property: Dictionary) -> void:
 # --- Simulation / Comms ---
 
 func _on_simulation_started() -> void:
+	if not _has_initial_state:
+		_initial_transform = global_transform
+		_initial_lift_height = lift_height
+		_initial_forks_raised = forks_raised
+		_has_initial_state = true
 	if not enable_comms or tag_group_name.is_empty():
 		return
 	_last_execute = false
@@ -540,8 +550,12 @@ func _on_simulation_ended() -> void:
 	if not _held_bodies.is_empty():
 		_release_object()
 	_objects_in_range.clear()
-	forks_raised = false
 	_last_execute = false
+	if _has_initial_state:
+		global_transform = _initial_transform
+		forks_raised = _initial_forks_raised
+		lift_height = _initial_lift_height
+		_has_initial_state = false
 
 
 func _tag_group_initialized(group_name: String) -> void:
