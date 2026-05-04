@@ -27,7 +27,7 @@ var _paused: bool = false
 var _enable_initial_transform: bool = false
 
 @onready var _rigid_body: RigidBody3D = $RigidBody3D
-@onready var _mesh_instance_3d: MeshInstance3D = $RigidBody3D/MeshInstance3D
+@onready var _mesh_instance_3d: MeshInstance3D = $RigidBody3D/WoodPallet
 
 func _enter_tree() -> void:
 	EditorInterface.simulation_started.connect(_on_simulation_started)
