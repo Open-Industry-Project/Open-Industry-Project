@@ -117,6 +117,16 @@ func update_protocol(_index: int, from_ready := false) -> void:
 			gateway.text = ""
 			path.text = ""
 			port.text = "851"
+	elif _index == 5:  # rtde (Universal Robots)
+		cpu_row.hide()
+		port_row.hide()
+		browse_opc_ua.hide()
+		path_label.hide()
+		path.hide()
+		gateway_label.text = "Robot IP"
+
+		if not from_ready:
+			gateway.text = ""
 	else:  # ab_eip
 		cpu_row.show()
 		port_row.hide()

@@ -16,9 +16,10 @@ Supported Communication Protocols:
 
 - OPC UA via [open62541](https://github.com/open62541/open62541)
 - EtherNet/IP via [libplctag](https://github.com/libplctag/libplctag)
-- Modbus TCP via libplctag
+- Modbus TCP via [libplctag](https://github.com/libplctag/libplctag)
 - Siemens S7 1200 & 1500 Put/Get protocol
 - Beckhoff ADS via the [Beckhoff ADS](https://github.com/Beckhoff/ADS) library (TwinCAT 2 & 3)
+- Universal Robots RTDE (Real-Time Data Exchange v2): see the [official RTDE guide](https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html)
 
 ## Table of Contents
 
@@ -89,13 +90,14 @@ The "Gateway" is the IP address of the target controller, and the path is typica
 
 ![image](https://github.com/user-attachments/assets/c376d234-548f-41de-bada-fe27f6d00bd5)
 
-The Protocol dropdown provides five options:
+The Protocol dropdown provides six options:
 
 - `ab_eip` — Ethernet/IP communication via the libplctag library
 - `modbus_tcp` — Modbus TCP communication via the libplctag library
 - `opc_ua` — OPC UA communication via the open62541 library
 - `siemens put/get` — S7 communication
 - `ads` — Beckhoff ADS communication for TwinCAT 2 & 3 runtimes
+- `rtde` — Universal Robots Real-Time Data Exchange (port 30004) for UR cobots and URSim
 
 When changing the Protocol to `opc_ua`, the options change to reflect the connection parameters for an OPC UA endpoint. The "Endpoint" is the OPC UA protocol address which includes the IP address and port of the server.
 
@@ -120,6 +122,7 @@ The Tag Name format depends on the protocol selected for the tag group:
 - **OPC UA (`opc_ua`)**: The full NodeId. For example, `ns=2;s=MyVariable` or `ns=2;i=12345`.
 - **Siemens S7 (`s7`)**: Register identifier `Ix.y, Qx.y, Mx.y` (coil), `IBx, QBx, MB.x` (byte), `IWx, MDx, QLx, ...` (word, double word, and non standard L notation quad word). The Input memory space can be written if they do not overlap the rack & Profinet inputs. The Output space can be written also under the same condition.
 - **Beckhoff ADS (`ads`)**: A symbol path as it appears in the TwinCAT runtime, e.g. `MAIN.fbMotor.bRunning` or `GVL_IO.iCounter`.
+- **Universal Robots RTDE (`rtde`)**: A UR RTDE variable name (e.g. `actual_q[0]`, `runtime_state`, `input_int_register_0`). Vector fields use `name[index]` syntax. See the [official UR RTDE guide](https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html) for the full variable vocabulary.
 
 The communication API ([OIPComms](https://github.com/Open-Industry-Project/oip-comms)) is contained within a separate GDExtension plugin. Instructions to build and update it are located in its own repository.
 

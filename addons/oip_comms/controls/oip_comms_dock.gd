@@ -192,6 +192,7 @@ func register_tag_groups() -> void:
 		elif pt_num == "2": pt = "opc_ua"
 		elif pt_num == "3": pt = "s7"
 		elif pt_num == "4": pt = "ads"
+		elif pt_num == "5": pt = "rtde"
 
 		var g: String = tag_group_data.gateway
 		var p: String = tag_group_data.path
