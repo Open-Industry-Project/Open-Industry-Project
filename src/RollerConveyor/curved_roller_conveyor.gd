@@ -454,7 +454,7 @@ func _update_roller_group(group: Node3D, spacing_deg: float, offset_deg: float) 
 		axis.transform = Transform3D(Basis(Vector3.UP, -angle_rad), Vector3.ZERO)
 		var roller := axis.get_child(0) as RollerCorner
 		if roller:
-			roller.position = Vector3(0, -0.08, center_r)
+			roller.position = Vector3(0, -Roller.RADIUS, center_r)
 			roller.length = conveyor_width
 
 
@@ -506,7 +506,7 @@ func _update_end_positions() -> void:
 	for end_axis in ends.get_children():
 		var roller := end_axis.get_child(0) as RollerCorner
 		if roller:
-			roller.position = Vector3(0, -0.08, center_r)
+			roller.position = Vector3(0, -Roller.RADIUS, center_r)
 			roller.length = conveyor_width
 			if roller_material:
 				roller.set_override_material(roller_material)

@@ -9,7 +9,7 @@ signal speed_changed(speed: float)
 signal roller_override_material_changed(material: Material)
 
 const CIRCUMFERENCE: float = 2.0 * PI * Roller.RADIUS
-const ROLLERS_Y_OFFSET: float = -0.08
+const ROLLERS_Y_OFFSET: float = -0.12
 ## Linear speed of the rollers in meters per second.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
