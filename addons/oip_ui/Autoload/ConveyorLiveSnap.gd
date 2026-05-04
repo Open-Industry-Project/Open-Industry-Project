@@ -614,7 +614,10 @@ func _build_candidate_cache(selected: Node3D) -> void:
 	_collect_candidates(root, selected, nodes)
 	_populate_node_caches(selected)
 	_cache_sel_end_info = ConveyorSnapping._get_end_info(selected)
+	var sel_xform: Transform3D = selected.global_transform
 	for n in nodes:
+		if n.global_transform.is_equal_approx(sel_xform):
+			continue
 		var size: Variant = n.size if &"size" in n else null
 		var flags: Dictionary = _populate_node_caches(n)
 		_candidate_cache.append({
