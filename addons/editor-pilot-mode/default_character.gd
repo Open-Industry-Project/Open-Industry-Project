@@ -2,8 +2,7 @@
 extends CharacterBody3D
 
 @export_category("Default Character")
-@export var move_speed: float = 5.0
-@export var sprint_speed: float = 8.0
+@export var move_speed: float = 3.5
 @export var mouse_sensitivity: float = 0.1
 @export var jump_velocity: float = 4.5
 @export_range(20.0, 85.0, 0.5, "degrees") var floor_max_angle_degrees: float = 58.0
@@ -81,8 +80,6 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_velocity
 
 	var current_speed := move_speed
-	if InputMap.has_action("sprint") and Input.is_action_pressed("sprint"):
-		current_speed = sprint_speed
 	if held_pallet:
 		current_speed = move_speed * 0.6
 
