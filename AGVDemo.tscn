@@ -1,0 +1,261 @@
+[gd_scene format=3 uid="uid://cow45mutk4yef"]
+
+[ext_resource type="PackedScene" uid="uid://cagvpjdemo001" path="res://parts/AGV.tscn" id="1_agv"]
+[ext_resource type="PackedScene" uid="uid://rqr8ymsl2cph" path="res://parts/PalletSpawner.tscn" id="2_spawner"]
+[ext_resource type="Script" uid="uid://gvx6coss5cyd" path="res://src/AGV/agv_demo_driver.gd" id="4_driver"]
+[ext_resource type="PackedScene" uid="uid://co2mqmdwpn57w" path="res://parts/BoxSpawner.tscn" id="5_boxspawner"]
+[ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="7_conveyor"]
+[ext_resource type="PackedScene" uid="uid://kdpe7o4ec1fa" path="res://parts/DiffuseSensor.tscn" id="8_sensor"]
+[ext_resource type="Script" uid="uid://bk8xa4ge41ixj" path="res://src/AGV/conveyor_stop_sensor.gd" id="9_stoplink"]
+[ext_resource type="PackedScene" uid="uid://dnfh8k7yxm3vo" path="res://parts/Rack.tscn" id="10_rack"]
+[ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="11_building"]
+[ext_resource type="PackedScene" uid="uid://dwvkxiwuxu3im" path="res://parts/Platform.tscn" id="12_okxyb"]
+[ext_resource type="Script" uid="uid://cigem4v1r58nb" path="res://src/AGV/agv_waypoint.gd" id="12_waypoint"]
+[ext_resource type="PackedScene" uid="uid://caperatvcocj7" path="res://parts/Stairs.tscn" id="13_hj7qf"]
+[ext_resource type="PackedScene" uid="uid://btrailer3scnx" path="res://parts/Trailer.tscn" id="13_xxxjs"]
+[ext_resource type="PackedScene" uid="uid://btrlrdoorpart" path="res://src/TrailerDoor/TrailerDoor.tscn" id="14_quafa"]
+
+[sub_resource type="StandardMaterial3D" id="mat_pickup"]
+albedo_color = Color(0.15, 0.65, 0.25, 1)
+metallic = 0.1
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="mesh_zone"]
+size = Vector3(2.6, 0.02, 2.6)
+
+[sub_resource type="Resource" id="wp_pickup_clear"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, -1.7)
+yaw_deg = 180.0
+
+[sub_resource type="Resource" id="wp_pickup"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, -7)
+yaw_deg = 180.0
+
+[sub_resource type="Resource" id="wp_rack_approach"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, -0.1)
+
+[sub_resource type="Resource" id="wp_rack"]
+script = ExtResource("12_waypoint")
+position = Vector3(0, 0, 3.7)
+
+[node name="AGVDemo" type="Node3D" unique_id=2122258962]
+
+[node name="Building" parent="." unique_id=433424509 instance=ExtResource("11_building")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+
+[node name="RollerConveyor" parent="." unique_id=1950346063 instance=ExtResource("7_conveyor")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0.49999988, -14)
+speed = 0.0
+floor_plane = Plane(0, 1, 0, 0)
+tail_end_leg_enabled = false
+head_end_leg_enabled = false
+middle_legs_enabled = false
+speed_tag_group_name = "Xplanar"
+running_tag_group_name = "Xplanar"
+size = Vector3(6, 0.5, 1.805)
+metadata/hijack_scale = true
+metadata/_snap_transform = Callable()
+
+[node name="EndSensor" parent="." unique_id=1099009400 instance=ExtResource("8_sensor")]
+transform = Transform3D(4.371139e-08, 0, -1, 0, 1, 0, 1, 0, 4.371139e-08, 1.3562368, 0.368311, -8.161089)
+max_range = 1.934
+tag_group_name = "TagGroup0"
+
+[node name="ConveyorStopLink" type="Node3D" parent="." unique_id=777357148 node_paths=PackedStringArray("sensor", "conveyor")]
+script = ExtResource("9_stoplink")
+sensor = NodePath("../EndSensor")
+conveyor = NodePath("../RollerConveyor")
+
+[node name="PickupZone" type="MeshInstance3D" parent="." unique_id=44152207]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011, -6.5)
+material_override = SubResource("mat_pickup")
+mesh = SubResource("mesh_zone")
+
+[node name="PalletSpawner" parent="." unique_id=321591499 instance=ExtResource("2_spawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5225178, -13)
+spawn_initial_linear_velocity = Vector3(0, 0, 0.5)
+pallets_per_minute = 3
+
+[node name="BoxSpawners" type="Node3D" parent="." unique_id=1708875717]
+
+[node name="L1_H1" parent="BoxSpawners" unique_id=900100001 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.79, -12.7)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L1_H2" parent="BoxSpawners" unique_id=900100002 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.79, -12.7)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L1_V1" parent="BoxSpawners" unique_id=900100003 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -0.4, 0.79, -13.2)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L1_V2" parent="BoxSpawners" unique_id=900100004 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0.79, -13.2)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L1_V3" parent="BoxSpawners" unique_id=900100005 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.4, 0.79, -13.2)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L2_V1" parent="BoxSpawners" unique_id=900100006 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -0.4, 1.19, -12.8)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L2_V2" parent="BoxSpawners" unique_id=900100007 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.19, -12.8)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L2_V3" parent="BoxSpawners" unique_id=900100008 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.4, 1.19, -12.8)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L2_H1" parent="BoxSpawners" unique_id=900100009 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.19, -13.3)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L2_H2" parent="BoxSpawners" unique_id=900100010 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.19, -13.3)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L3_H1" parent="BoxSpawners" unique_id=900100011 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.59, -12.7)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L3_H2" parent="BoxSpawners" unique_id=900100012 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.59, -12.7)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L3_V1" parent="BoxSpawners" unique_id=900100013 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -0.4, 1.59, -13.2)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L3_V2" parent="BoxSpawners" unique_id=900100014 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.59, -13.2)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="L3_V3" parent="BoxSpawners" unique_id=900100015 instance=ExtResource("5_boxspawner")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.4, 1.59, -13.2)
+initial_linear_velocity = Vector3(0, 0, 0.5)
+boxes_per_minute = 3
+metadata/hijack_scale = true
+
+[node name="Rack" parent="." unique_id=1557751010 instance=ExtResource("10_rack")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5.37787)
+num_shelves = 3
+pole_interval = 1.5
+size = Vector3(10.5, 4.8, 1.2)
+metadata/hijack_scale = true
+
+[node name="Rack2" parent="." unique_id=1925755335 instance=ExtResource("10_rack")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10.047186)
+num_shelves = 3
+pole_interval = 1.5
+size = Vector3(10.5, 4.8, 1.2)
+metadata/hijack_scale = true
+
+[node name="Rack3" parent="." unique_id=1598295231 instance=ExtResource("10_rack")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 14.79595)
+num_shelves = 3
+pole_interval = 1.5
+size = Vector3(10.5, 4.8, 1.2)
+metadata/hijack_scale = true
+
+[node name="Rack4" parent="." unique_id=2062981015 instance=ExtResource("10_rack")]
+transform = Transform3D(7.54979e-08, 0, 1, 0, 1, 0, -1, 0, 7.54979e-08, 25.78195, 0.040000953, 0.17711735)
+num_shelves = 3
+pole_interval = 1.5
+size = Vector3(10.5, 4.8, 1.2)
+metadata/hijack_scale = true
+
+[node name="AGV" parent="." unique_id=1806352077 instance=ExtResource("1_agv")]
+transform = Transform3D(0.9999987, 0, -1.7484533e-07, 0, 1, 0, 1.7484533e-07, 0, 0.9999987, 0, 0, 0)
+waypoints = {
+"1: PickupClear": SubResource("wp_pickup_clear"),
+"2: Pickup": SubResource("wp_pickup"),
+"3: RackApproach": SubResource("wp_rack_approach"),
+"4: Rack": SubResource("wp_rack")
+}
+selected_waypoint = "2: Pickup"
+drive_speed = 1.6
+turn_speed = 45.0
+lift_speed = 1.8
+max_lift_height = 8.0
+tag_group_name = "TagGroup0"
+
+[node name="Driver" type="Node3D" parent="." unique_id=217676938 node_paths=PackedStringArray("agv", "end_sensor")]
+script = ExtResource("4_driver")
+agv = NodePath("../AGV")
+end_sensor = NodePath("../EndSensor")
+shelf_heights = Array[float]([1.7, 3.3, 4.9])
+conveyor_lift = 0.5
+travel_lift = 0.55
+
+[node name="Platform" parent="." unique_id=793067781 instance=ExtResource("12_okxyb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.178771, 2.005001, 1.4464269)
+floor_y = 0.005001068
+size = Vector3(4, 2, 17.811596)
+metadata/hijack_scale = true
+
+[node name="Stairs" parent="." unique_id=937267779 instance=ExtResource("13_hj7qf")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 14.018772, 2.005001, -1.1707191)
+size = Vector3(3.68, 2.005, 1.2)
+metadata/hijack_scale = true
+
+[node name="Platform2" parent="." unique_id=1899360493 instance=ExtResource("12_okxyb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8429699, 2.005, 21.954445)
+size = Vector3(41.341534, 2.005, 3.47302)
+metadata/hijack_scale = true
+
+[node name="Stairs2" parent="." unique_id=1163562534 instance=ExtResource("13_hj7qf")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 23.353737, 2.005, 20.827282)
+size = Vector3(3.68, 2.0049992, 1.2)
+metadata/hijack_scale = true
+
+[node name="Stairs3" parent="." unique_id=1417003909 instance=ExtResource("13_hj7qf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.560032, 4.3627124, 7.2170506)
+floor_y = 2.0150008
+size = Vector3(3.8763304, 2.3477116, 1.2)
+metadata/hijack_scale = true
+
+[node name="Platform4" parent="." unique_id=1824433393 instance=ExtResource("12_okxyb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.498197, 4.3627124, 7.708344)
+size = Vector3(4, 4.362712, 4)
+metadata/hijack_scale = true
+
+[node name="Trailer" parent="." unique_id=209487958 instance=ExtResource("13_xxxjs")]
+transform = Transform3D(7.54979e-08, 0, -1, 0, 1, 0, 1, 0, 7.54979e-08, 3.8550189, 0.13913989, -21.578312)
+
+[node name="TrailerDoor" parent="." unique_id=407560325 instance=ExtResource("14_quafa")]
+transform = Transform3D(7.54979e-08, 0, -1, 0, 1, 0, 1, 0, 7.54979e-08, 3.8106396, 0.07999992, -15.550509)
