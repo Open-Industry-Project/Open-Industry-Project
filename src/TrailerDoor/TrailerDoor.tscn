@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://btrlrdoorpart"]
+
+[ext_resource type="Script" path="res://src/TrailerDoor/trailer_door.gd" id="1_tdr01"]
+
+[node name="TrailerDoor" type="Node3D"]
+script = ExtResource("1_tdr01")
