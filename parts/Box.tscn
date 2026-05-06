@@ -10,6 +10,7 @@ friction = 0.5
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_h4we7"]
 resource_local_to_scene = true
+size = Vector3(0.6, 0.4, 0.4)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ekrlf"]
 resource_name = "Material.001"
@@ -116,7 +117,7 @@ shadow_mesh = SubResource("ArrayMesh_jl6cr")
 [node name="Box" type="Node3D" unique_id=1373682946]
 top_level = true
 script = ExtResource("1_jl6cr")
-size = Vector3(1, 1, 1)
+size = Vector3(0.6, 0.4, 0.4)
 metadata/hijack_scale = true
 
 [node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=1929949017]
@@ -133,5 +134,5 @@ ghost_collision_filtering_enabled = true
 shape = SubResource("BoxShape3D_h4we7")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=519485523]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(0.3, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, 0, 0)
 mesh = SubResource("ArrayMesh_edno1")

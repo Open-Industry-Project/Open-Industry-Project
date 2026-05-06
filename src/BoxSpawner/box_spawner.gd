@@ -23,9 +23,9 @@ extends ResizableNode3D
 ## Enable random sizing for spawned boxes within min/max range.
 @export var random_size: bool = false
 ## Minimum size for randomly sized boxes (X, Y, Z dimensions).
-@export var random_size_min: Vector3 = Vector3(0.5, 0.5, 0.5)
+@export var random_size_min: Vector3 = Vector3(0.4, 0.3, 0.3)
 ## Maximum size for randomly sized boxes (X, Y, Z dimensions).
-@export var random_size_max: Vector3 = Vector3(1, 1, 1)
+@export var random_size_max: Vector3 = Vector3(0.8, 0.5, 0.5)
 ## Initial velocity applied to spawned boxes.
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
 ## Number of boxes spawned per minute (0-1000).
@@ -55,7 +55,7 @@ var _first_spawn_done: bool = false
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3.ONE
+	size_default = Vector3(0.6, 0.4, 0.4)
 
 func _enter_tree() -> void:
 	super._enter_tree()

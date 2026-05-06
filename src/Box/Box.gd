@@ -32,7 +32,7 @@ var instanced: bool = false
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(1, 1, 1)
+	size_default = Vector3(0.6, 0.4, 0.4)
 
 
 func _enter_tree() -> void:
