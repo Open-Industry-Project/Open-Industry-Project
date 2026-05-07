@@ -44,6 +44,14 @@ func write_float32(value: float) -> void:
 	OIPComms.write_float32(tag_group_name, tag_name, value)
 
 
+func read_float64() -> float:
+	return OIPComms.read_float64(tag_group_name, tag_name)
+
+
+func write_float64(value: float) -> void:
+	OIPComms.write_float64(tag_group_name, tag_name, value)
+
+
 func read_int16() -> int:
 	return OIPComms.read_int16(tag_group_name, tag_name)
 
