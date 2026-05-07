@@ -10,6 +10,10 @@ extends VBoxContainer
 var comms: Object
 var connected := false
 var current_endpoint := ""
+var _liveness_timer: Timer
+var _restoring := false
+
+const LIVENESS_POLL_SEC := 2.0
 
 func _ready() -> void:
 	copy_button.pressed.connect(_on_copy_pressed)
@@ -20,6 +24,13 @@ func _ready() -> void:
 	browse_tree.item_collapsed.connect(_on_item_collapsed)
 	browse_tree.item_selected.connect(_on_item_selected)
 	browse_tree.columns = 1
+
+	_liveness_timer = Timer.new()
+	_liveness_timer.wait_time = LIVENESS_POLL_SEC
+	_liveness_timer.one_shot = false
+	_liveness_timer.autostart = true
+	_liveness_timer.timeout.connect(_on_liveness_tick)
+	add_child(_liveness_timer)
 
 func _get_comms() -> Object:
 	if comms == null:
@@ -63,6 +74,8 @@ func _load_root() -> void:
 	_load_children(root)
 
 func _on_item_collapsed(item: TreeItem) -> void:
+	if _restoring:
+		return
 	if item.collapsed:
 		return
 	if item.get_child_count() == 1 and item.get_first_child().get_text(0) == "":
@@ -98,6 +111,7 @@ func _load_children(parent_item: TreeItem) -> void:
 func _add_placeholder(item: TreeItem) -> void:
 	var placeholder := browse_tree.create_item(item)
 	placeholder.set_text(0, "")
+	placeholder.set_selectable(0, false)
 
 func _on_item_selected() -> void:
 	var selected := browse_tree.get_selected()
@@ -135,10 +149,97 @@ func _on_item_selected() -> void:
 
 	details_label.text = text
 
-func _on_refresh_pressed() -> void:
+func _on_liveness_tick() -> void:
 	if not connected:
 		return
-	_load_root()
+	var c := _get_comms()
+	if c == null:
+		return
+	if c.browse_is_alive():
+		return
+	push_warning("OPC UA browse session lost, auto-reconnecting to " + current_endpoint)
+	_on_refresh_pressed()
+
+func _on_refresh_pressed() -> void:
+	if current_endpoint.is_empty():
+		return
+	var c := _get_comms()
+	if c == null:
+		return
+	var endpoint := current_endpoint
+	var expanded_snapshot := _snapshot_expanded_node_ids()
+	var selected_snapshot := _snapshot_selected_node_id()
+	if connected:
+		c.browse_disconnect()
+		connected = false
+		current_endpoint = ""
+	browse_tree.clear()
+	connect_to_endpoint(endpoint)
+	if connected:
+		_restore_tree_state(expanded_snapshot, selected_snapshot)
+
+func _snapshot_expanded_node_ids() -> PackedStringArray:
+	var out: PackedStringArray = []
+	var root := browse_tree.get_root()
+	if root == null:
+		return out
+	_collect_expanded(root, out)
+	return out
+
+func _collect_expanded(item: TreeItem, out: PackedStringArray) -> void:
+	if item.get_text(0) == "":
+		return
+	if not item.collapsed:
+		var nid: String = item.get_metadata(0)
+		if nid != "":
+			out.append(nid)
+	var child := item.get_first_child()
+	while child != null:
+		_collect_expanded(child, out)
+		child = child.get_next()
+
+func _snapshot_selected_node_id() -> String:
+	var sel := browse_tree.get_selected()
+	if sel == null:
+		return ""
+	return sel.get_metadata(0)
+
+func _restore_tree_state(expanded: PackedStringArray, selected_node_id: String) -> void:
+	var root := browse_tree.get_root()
+	if root == null:
+		return
+	_restoring = true
+	_expand_matches(root, expanded)
+	_restoring = false
+	if selected_node_id != "":
+		_select_by_node_id(root, selected_node_id)
+
+func _expand_matches(item: TreeItem, expanded: PackedStringArray) -> void:
+	if item.get_text(0) == "":
+		return
+	var nid: String = item.get_metadata(0)
+	if nid != "" and expanded.has(nid):
+		if item.collapsed:
+			item.collapsed = false
+		if item.get_child_count() == 1 and item.get_first_child().get_text(0) == "":
+			_load_children(item)
+	var child := item.get_first_child()
+	while child != null:
+		_expand_matches(child, expanded)
+		child = child.get_next()
+
+func _select_by_node_id(item: TreeItem, node_id: String) -> bool:
+	if item.get_text(0) == "":
+		return false
+	if item.get_metadata(0) == node_id:
+		item.select(0)
+		return true
+	var child := item.get_first_child()
+	while child != null:
+		if _select_by_node_id(child, node_id):
+			return true
+		child = child.get_next()
+	return false
 
 func _on_copy_pressed() -> void:
 	var selected := browse_tree.get_selected()
