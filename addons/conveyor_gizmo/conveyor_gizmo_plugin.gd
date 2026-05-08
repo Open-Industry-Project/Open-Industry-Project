@@ -12,25 +12,19 @@ func _get_gizmo_name():
 	return "ConveyorGizmo"
 
 func _has_gizmo(node):
-	if not node is ResizableNode3D:
-		return false
-
 	var node_script = node.get_script()
 	if node_script == null:
 		return false
 
 	var script_path = node_script.resource_path
+	# Path-based BeltConveyor owns its size gizmo elsewhere; here only for sideguard handles.
 	var valid_scripts = [
 		"res://src/Conveyor/belt_conveyor.gd",
+		"res://src/Conveyor/belt_spur_conveyor.gd",
 		"res://src/Conveyor/curved_belt_conveyor.gd",
 		"res://src/RollerConveyor/roller_conveyor.gd",
-		"res://parts/curved_roller_conveyor.gd",
-		"res://src/ConveyorAssembly/belt_conveyor_assembly.gd",
-		"res://src/ConveyorAssembly/roller_conveyor_assembly.gd",
-		"res://src/ConveyorAssembly/spur_conveyor_assembly.gd",
-		"res://src/ConveyorAssembly/belt_spur_conveyor_assembly.gd",
-		"res://src/ConveyorAssembly/roller_spur_conveyor.gd",
-		"res://src/ConveyorAssembly/roller_spur_conveyor_assembly.gd",
+		"res://src/RollerConveyor/roller_spur_conveyor.gd",
+		"res://src/RollerConveyor/curved_roller_conveyor.gd",
 		"res://src/Platform/platform.gd",
 		"res://src/Stairs/stairs.gd",
 		"res://src/GuardRail/guard_rail.gd",
@@ -54,23 +48,16 @@ func _redraw(gizmo: EditorNode3DGizmo):
 
 	var node = gizmo.get_node_3d()
 
-	if not node is ResizableNode3D:
-		return
-
 	if node.has_meta("is_preview"):
 		return
 
-	var resizable_node = node as ResizableNode3D
-
-	var handles = PackedVector3Array()
-	var handle_ids = PackedInt32Array()
-
-	# Sideguard mode replaces size handles with guard handles, but only for
-	# nodes that actually have guards. Others fall through to size handles.
 	var sg_guards := _get_all_guards(node) if sideguard_mode else []
 	var use_size_handles := not sideguard_mode or sg_guards.is_empty()
 
-	if use_size_handles:
+	if use_size_handles and node is ResizableNode3D:
+		var resizable_node = node as ResizableNode3D
+		var handles = PackedVector3Array()
+		var handle_ids = PackedInt32Array()
 		var active_ids: PackedInt32Array
 		if resizable_node.has_method("_get_active_resize_handle_ids"):
 			active_ids = resizable_node._get_active_resize_handle_ids()
@@ -84,27 +71,26 @@ func _redraw(gizmo: EditorNode3DGizmo):
 			gizmo.add_handles(handles, get_material("handles", gizmo), handle_ids)
 
 	if sideguard_mode and not sg_guards.is_empty():
-		# Add sideguard edge handles on the assembly level.
-		# Handle IDs: 100=left front, 101=left back, 102=right front, 103=right back.
 		var sg_handles := PackedVector3Array()
 		var sg_ids := PackedInt32Array()
+		var sig: Dictionary = _significant_edges_per_side(node, sg_guards)
 		for entry in sg_guards:
 			var guard: SideGuard = entry["guard"]
-			var side_node: Node3D = entry["side_node"]
-			var front_x: float = guard.position.x + guard.length / 2.0
-			var back_x: float = guard.position.x - guard.length / 2.0
 			var y_mid: float = SideGuardMesh.WALL_HEIGHT / 2.0
-			# Transform from side-node space to assembly space.
-			var sg_assembly: Node3D = side_node.get_parent()
-			var to_assembly: Transform3D = Transform3D.IDENTITY
-			if sg_assembly:
-				to_assembly = sg_assembly.transform
-			var side_xform: Transform3D = to_assembly * side_node.transform
-			sg_handles.append(side_xform * Vector3(front_x, y_mid, 0))
-			sg_ids.append(entry["front_id"])
-			sg_handles.append(side_xform * Vector3(back_x, y_mid, 0))
-			sg_ids.append(entry["back_id"])
-			gizmo.add_handles(sg_handles, get_material("handles", gizmo), sg_ids)
+			# Skip internal run boundaries so handles don't cluster at bends.
+			var side: String = entry["side"]
+			var pos: Vector3 = guard.position
+			var arc_back: float = _guard_arc_back(guard)
+			var arc_front: float = _guard_arc_front(guard)
+			var significant: Array = sig[side] as Array
+			if _arc_is_significant(arc_front, significant):
+				sg_handles.append(Vector3(pos.x + guard.length / 2.0, pos.y + y_mid, pos.z))
+				sg_ids.append(entry["front_id"])
+			if _arc_is_significant(arc_back, significant):
+				sg_handles.append(Vector3(pos.x - guard.length / 2.0, pos.y + y_mid, pos.z))
+				sg_ids.append(entry["back_id"])
+		# Single batched call: per-iteration calls would register duplicate IDs.
+		gizmo.add_handles(sg_handles, get_material("handles", gizmo), sg_ids)
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool):
 	if handle_id >= 100:
@@ -123,32 +109,16 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, secondary: b
 		var guards := _get_all_guards(node)
 		for entry in guards:
 			if handle_id == entry["front_id"] or handle_id == entry["back_id"]:
-				var guard: SideGuard = entry["guard"]
-				var side_node: Node3D = entry["side_node"]
-				var front_x: float = guard.position.x + guard.length / 2.0
-				var back_x: float = guard.position.x - guard.length / 2.0
-
-				# Shift+click: merge with adjacent guard.
+				var is_front: bool = (handle_id == entry["front_id"])
 				if Input.is_key_pressed(KEY_SHIFT):
-					var is_front: bool = (handle_id == entry["front_id"])
-					_try_merge_guards(node, guard, side_node, is_front)
+					_merge_procedural_opening(node, entry, is_front)
 					_initial_state = {"split": true}
 					return
-
-				# Ctrl+click: split guard at center.
 				if Input.is_key_pressed(KEY_CTRL):
-					_split_guard_at_center(node, guard, side_node)
+					_split_procedural_guard(node, entry)
 					_initial_state = {"split": true}
 					return
-
-				_initial_state = {
-					"guard": guard,
-					"side_node": side_node,
-					"length": guard.length,
-					"position": guard.position,
-					"front_x": front_x,
-					"back_x": back_x,
-				}
+				_initial_state = _capture_procedural_initial(node, entry)
 				break
 		return
 
@@ -162,7 +132,6 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, secondary: b
 		"position": node.position,
 		"transform": node.transform,
 		"rail_flags": _capture_rail_flags(node),
-		"guard_flags": _capture_guard_flags(node),
 	}
 
 
@@ -186,11 +155,10 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 
 	if handle_id >= 100:
 		if _initial_state.has("split"):
-			return  # Split/merge already handled in _begin_handle_action.
-		if _initial_state.has("guard"):
-			var guard: SideGuard = _initial_state["guard"]
+			return
+		if _initial_state.has("procedural"):
 			var is_front := (handle_id % 2) == 0
-			_set_side_guard_handle(guard, 100 if is_front else 101, camera, point)
+			_set_procedural_handle(node, is_front, camera, point)
 			node.update_gizmos()
 		return
 
@@ -206,19 +174,17 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	var parent_transform = node.get_parent_node_3d().global_transform if node.get_parent_node_3d() else Transform3D.IDENTITY
 	var initial_global_transform = parent_transform * _initial_state["transform"]
 	var initial_size = _initial_state["size"]
-	
-	# Calculate the fixed edge (the one that shouldn't move)
+
 	var fixed_edge_local := resizable_node.get_resize_handle_local_position(opposite_handle_id, initial_size)
 	var fixed_edge_global = initial_global_transform * fixed_edge_local
-	
+
 	var axis_local = Vector3.ZERO
 	axis_local[axis_index] = 1.0
 	var axis_global = (initial_global_transform.basis * axis_local).normalized()
-	
+
 	var ray_from = camera.project_ray_origin(point)
 	var ray_dir = camera.project_ray_normal(point)
-	
-	# Find closest point between mouse ray and resize axis
+
 	var v1 = axis_global
 	var v2 = ray_dir
 	var v3 = fixed_edge_global - ray_from
@@ -241,8 +207,8 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	
 	new_size = resizable_node.size_min.max(new_size)
 	new_size = resizable_node._get_constrained_size(new_size)
-	
-	# Keep the opposite handle fixed in world-space even for non-centered pivots.
+
+	# Pin opposite handle in world-space for non-centered pivots.
 	var new_fixed_local := resizable_node.get_resize_handle_local_position(opposite_handle_id, new_size)
 	var new_origin_global: Vector3 = fixed_edge_global - (initial_global_transform.basis * new_fixed_local)
 	var new_position: Vector3 = parent_transform.affine_inverse() * new_origin_global
@@ -257,30 +223,14 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 		_initial_state.clear()
 		return
 
-	if handle_id >= 100 and _initial_state.has("guard"):
-		var guard: SideGuard = _initial_state["guard"]
+	if handle_id >= 100 and _initial_state.has("procedural"):
 		if cancel:
-			guard.length = _initial_state["length"]
-			guard.position = _initial_state["position"]
+			node.set(&"side_guard_openings", _initial_state["openings_before"])
 		else:
-			# Mark the dragged edge as no longer anchored to the conveyor edge.
-			var is_front := (handle_id % 2) == 0
 			var undo_redo = EditorInterface.get_editor_undo_redo()
-			undo_redo.create_action("Resize Side Guard")
-			undo_redo.add_do_property(guard, "length", guard.length)
-			undo_redo.add_do_property(guard, "position", guard.position)
-			if is_front:
-				undo_redo.add_do_property(guard, "front_anchored", false)
-				undo_redo.add_undo_property(guard, "front_anchored", true)
-			else:
-				undo_redo.add_do_property(guard, "back_anchored", false)
-				undo_redo.add_undo_property(guard, "back_anchored", true)
-			undo_redo.add_undo_property(guard, "length", _initial_state["length"])
-			undo_redo.add_undo_property(guard, "position", _initial_state["position"])
-			var sg_assembly: Node = _initial_state["side_node"].get_parent()
-			if sg_assembly and sg_assembly.has_method("save_guard_state"):
-				undo_redo.add_do_method(sg_assembly, "save_guard_state")
-				undo_redo.add_undo_method(sg_assembly, "save_guard_state")
+			undo_redo.create_action("Resize Spur Side Guard")
+			undo_redo.add_do_property(node, "side_guard_openings", _initial_state["openings_after"])
+			undo_redo.add_undo_property(node, "side_guard_openings", _initial_state["openings_before"])
 			undo_redo.add_do_method(node, "update_gizmos")
 			undo_redo.add_undo_method(node, "update_gizmos")
 			undo_redo.commit_action()
@@ -296,271 +246,242 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 		node.position = _initial_state["position"]
 		resizable_node.size = _initial_state["size"]
 		_restore_rail_flags(node, _initial_state["rail_flags"])
-		_restore_guard_flags(node, _initial_state["guard_flags"])
 	else:
 		var undo_redo = EditorInterface.get_editor_undo_redo()
 		undo_redo.create_action("Resize Conveyor")
-		# Position must be set before size so the side-guard update chain
-		# sees the correct global transform (matches _set_handle order).
+		# Position before size so the side-guard update sees the correct transform.
 		undo_redo.add_do_property(node, "position", node.position)
 		undo_redo.add_do_property(resizable_node, "size", resizable_node.size)
 		undo_redo.add_do_method(self, "_restore_rail_flags", node, _capture_rail_flags(node))
-		undo_redo.add_do_method(self, "_restore_guard_flags", node, _capture_guard_flags(node))
-		# Position/size first (triggers _on_size_changed), then restore overrides the result.
+		# Position/size first (triggers _on_size_changed), then restore overrides.
 		undo_redo.add_undo_property(node, "position", _initial_state["position"])
 		undo_redo.add_undo_property(resizable_node, "size", _initial_state["size"])
 		undo_redo.add_undo_method(self, "_restore_rail_flags", node, _initial_state["rail_flags"])
-		undo_redo.add_undo_method(self, "_restore_guard_flags", node, _initial_state["guard_flags"])
-		var sg_assembly: Node = _find_side_guards_assembly(node)
-		if sg_assembly:
-			undo_redo.add_do_method(sg_assembly, "save_guard_state")
-			undo_redo.add_undo_method(sg_assembly, "save_guard_state")
 		undo_redo.commit_action()
 
 	_initial_state.clear()
 
 
-## Drag a SideGuard handle in side-node space (no 180° rotation issues).
-func _set_side_guard_handle(_guard: SideGuard, handle_id: int, camera: Camera3D, point: Vector2) -> void:
-	var is_front := (handle_id % 2) == 0
-	var guard: SideGuard = _initial_state["guard"]
-	var side_node: Node3D = _initial_state["side_node"]
+#region Procedural-guard helpers (BeltSpurConveyor)
 
-	# Fixed edge in side-node space.
-	var fixed_x: float = _initial_state["back_x"] if is_front else _initial_state["front_x"]
-	var side_global: Transform3D = side_node.global_transform
-	var fixed_edge_global: Vector3 = side_global * Vector3(fixed_x, 0, 0)
+func _capture_procedural_initial(node: Node3D, entry: Dictionary) -> Dictionary:
+	var openings_before: Array = (node.get(&"side_guard_openings") as Array).duplicate(true)
+	var side: String = entry["side"]
+	var guard: SideGuard = entry["guard"]
+	var front_arc: float = _guard_arc_front(guard)
+	var back_arc: float = _guard_arc_back(guard)
+	var natural_back: float = 0.0
+	var natural_front: float = 0.0
+	var per_side: Array = []
+	for e in _get_procedural_guards(node):
+		if e["side"] == side:
+			per_side.append(e["guard"])
+	if not per_side.is_empty():
+		var first_g: SideGuard = per_side[0]
+		var last_g: SideGuard = per_side[-1]
+		natural_back = _guard_arc_back(first_g)
+		natural_front = _guard_arc_front(last_g)
+	return {
+		"procedural": true,
+		"side": side,
+		"front_x": front_arc,
+		"back_x": back_arc,
+		"openings_before": openings_before,
+		"openings_after": openings_before.duplicate(true),
+		"natural_back": natural_back,
+		"natural_front": natural_front,
+	}
 
-	var axis_global: Vector3 = (side_global.basis.x).normalized()
 
-	var ray_from := camera.project_ray_origin(point)
-	var ray_dir := camera.project_ray_normal(point)
+func _set_procedural_handle(node: Node3D, is_front: bool, camera: Camera3D, point: Vector2) -> void:
+	var side: String = _initial_state["side"]
+	var natural_back: float = _initial_state["natural_back"]
+	var natural_front: float = _initial_state["natural_front"]
+	var edge_x: float = _initial_state["front_x"] if is_front else _initial_state["back_x"]
+	var merged: Array = _spur_merged_openings_from_array(_initial_state["openings_before"], side)
 
-	var v1 := axis_global
-	var v2 := ray_dir
-	var v3 := fixed_edge_global - ray_from
-
-	var dot11 := v1.dot(v1)
-	var dot12 := v1.dot(v2)
-	var dot13 := v1.dot(v3)
-	var dot22 := v2.dot(v2)
-	var dot23 := v2.dot(v3)
-
-	var denom := dot11 * dot22 - dot12 * dot12
-	if abs(denom) < 0.0001:
+	var drag_x: float = _project_mouse_to_spur_x(node, camera, point)
+	if is_nan(drag_x):
 		return
 
-	var t1: float = (dot12 * dot23 - dot22 * dot13) / denom
-
-	# Compute new extents in side-node space.
-	var new_front_x: float
-	var new_back_x: float
 	if is_front:
-		new_back_x = fixed_x
-		new_front_x = fixed_x + t1
-		if new_front_x < new_back_x + 0.01:
-			new_front_x = new_back_x + 0.01
-	else:
-		new_front_x = fixed_x
-		new_back_x = fixed_x + t1
-		if new_back_x > new_front_x - 0.01:
-			new_back_x = new_front_x - 0.01
-
-	var new_length: float = new_front_x - new_back_x
-	var new_center_x: float = (new_front_x + new_back_x) / 2.0
-	guard.position = Vector3(new_center_x, guard.position.y, guard.position.z)
-	guard.length = new_length
-
-
-## Try to merge this guard with an adjacent guard across a gap.
-## Returns true if a merge was performed, false if no adjacent guard found.
-func _try_merge_guards(conveyor_node: Node3D, guard: SideGuard, side_node: Node3D, is_front: bool) -> bool:
-	var guard_front: float = guard.position.x + guard.length / 2.0
-	var guard_back: float = guard.position.x - guard.length / 2.0
-	var edge_x: float = guard_front if is_front else guard_back
-
-	# Find the nearest guard in the correct direction across the gap.
-	# If clicking the front handle, look for guards ahead (+X).
-	# If clicking the back handle, look for guards behind (-X).
-	var nearest: SideGuard = null
-	var nearest_dist := INF
-	for child in side_node.get_children():
-		if not child is SideGuard or child == guard:
-			continue
-		var other := child as SideGuard
-		var other_front: float = other.position.x + other.length / 2.0
-		var other_back: float = other.position.x - other.length / 2.0
-
-		# The other guard's facing edge must be in the right direction.
-		var other_edge: float = other_back if is_front else other_front
-		var direction_ok: bool
-		if is_front:
-			direction_ok = other_edge > edge_x - 0.01  # Other is ahead
+		var op_index: int = _find_opening_by_edge(merged, edge_x, true)
+		if op_index >= 0:
+			var op: Vector2 = merged[op_index]
+			op.x = clampf(drag_x, -INF, op.y - 0.01)
+			merged[op_index] = op
+		elif absf(edge_x - natural_front) < 0.01:
+			var clamped: float = clampf(drag_x, natural_back + 0.01, natural_front - 0.001)
+			merged.append(Vector2(clamped, natural_front + 0.001))
+			merged.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
 		else:
-			direction_ok = other_edge < edge_x + 0.01  # Other is behind
-
-		if not direction_ok:
-			continue
-
-		var dist: float = abs(other_edge - edge_x)
-		if dist < nearest_dist:
-			nearest_dist = dist
-			nearest = other
-
-	if not nearest:
-		# No adjacent guard — re-anchor this edge to the conveyor boundary if it's unanchored.
-		return _try_reanchor_guard(conveyor_node, guard, side_node, is_front)
-
-	# Merge: extend this guard to cover both, remove the other.
-	var other_front: float = nearest.position.x + nearest.length / 2.0
-	var other_back: float = nearest.position.x - nearest.length / 2.0
-	var merged_front: float = max(guard_front, other_front)
-	var merged_back: float = min(guard_back, other_back)
-	var merged_length: float = merged_front - merged_back
-	var merged_center: float = (merged_front + merged_back) / 2.0
-
-	var old_length: float = guard.length
-	var old_pos: Vector3 = guard.position
-
-	var sg_assembly: Node = side_node.get_parent()
-	var undo_redo := EditorInterface.get_editor_undo_redo()
-	undo_redo.create_action("Merge Side Guards")
-
-	# Expand this guard to cover the merged area.
-	undo_redo.add_do_property(guard, "length", merged_length)
-	undo_redo.add_do_property(guard, "position", Vector3(merged_center, 0, 0))
-	undo_redo.add_do_property(guard, "front_anchored", guard.front_anchored or nearest.front_anchored)
-	undo_redo.add_do_property(guard, "back_anchored", guard.back_anchored or nearest.back_anchored)
-	undo_redo.add_undo_property(guard, "length", old_length)
-	undo_redo.add_undo_property(guard, "position", old_pos)
-	undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
-	undo_redo.add_undo_property(guard, "back_anchored", guard.back_anchored)
-
-	# Remove the other guard.
-	undo_redo.add_do_method(side_node, "remove_child", nearest)
-	undo_redo.add_undo_method(side_node, "add_child", nearest)
-	undo_redo.add_undo_reference(nearest)
-	if sg_assembly and sg_assembly.has_method("save_guard_state"):
-		undo_redo.add_do_method(sg_assembly, "save_guard_state")
-		undo_redo.add_undo_method(sg_assembly, "save_guard_state")
-	undo_redo.add_do_method(conveyor_node, "update_gizmos")
-	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
-
-	undo_redo.commit_action()
-	return true
-
-
-## Re-anchor a guard's edge to the conveyor boundary.
-## Called when shift+clicking a handle with no adjacent guard to merge with.
-## Returns true if the edge was re-anchored, false if it was already anchored.
-func _try_reanchor_guard(conveyor_node: Node3D, guard: SideGuard, side_node: Node3D, is_front: bool) -> bool:
-	var already_anchored: bool = guard.front_anchored if is_front else guard.back_anchored
-	if already_anchored:
-		return false
-
-	var sg_assembly: Node = side_node.get_parent()
-	if not sg_assembly or not sg_assembly.has_method("_get_side_extents"):
-		return false
-
-	var side: SideGuardsAssembly.Side = SideGuardsAssembly.Side.RIGHT
-	if side_node.name == "LeftSide":
-		side = SideGuardsAssembly.Side.LEFT
-
-	var extents: Array[float] = sg_assembly._get_side_extents(side)
-	var boundary: float = extents[1] if is_front else extents[0]
-
-	var guard_front: float = guard.position.x + guard.length / 2.0
-	var guard_back: float = guard.position.x - guard.length / 2.0
-	var old_length: float = guard.length
-	var old_pos: Vector3 = guard.position
-
-	var new_front: float = boundary if is_front else guard_front
-	var new_back: float = guard_back if is_front else boundary
-	var new_length: float = max(0.01, new_front - new_back)
-	var new_center: float = (new_front + new_back) / 2.0
-
-	var undo_redo := EditorInterface.get_editor_undo_redo()
-	undo_redo.create_action("Re-anchor Side Guard")
-	undo_redo.add_do_property(guard, "length", new_length)
-	undo_redo.add_do_property(guard, "position", Vector3(new_center, 0, 0))
-	if is_front:
-		undo_redo.add_do_property(guard, "front_anchored", true)
-		undo_redo.add_undo_property(guard, "front_anchored", false)
+			return
 	else:
-		undo_redo.add_do_property(guard, "back_anchored", true)
-		undo_redo.add_undo_property(guard, "back_anchored", false)
-	undo_redo.add_undo_property(guard, "length", old_length)
-	undo_redo.add_undo_property(guard, "position", old_pos)
-	if sg_assembly.has_method("save_guard_state"):
-		undo_redo.add_do_method(sg_assembly, "save_guard_state")
-		undo_redo.add_undo_method(sg_assembly, "save_guard_state")
-	undo_redo.add_do_method(conveyor_node, "update_gizmos")
-	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
+		var op_index: int = _find_opening_by_edge(merged, edge_x, false)
+		if op_index >= 0:
+			var op: Vector2 = merged[op_index]
+			op.y = clampf(drag_x, op.x + 0.01, INF)
+			merged[op_index] = op
+		elif absf(edge_x - natural_back) < 0.01:
+			var clamped: float = clampf(drag_x, natural_back - 0.001, natural_front - 0.01)
+			merged.insert(0, Vector2(natural_back - 0.001, clamped))
+		else:
+			return
+
+	var new_openings: Array = _spur_replace_side_openings(_initial_state["openings_before"], side, merged)
+	var typed: Array[SideGuardOpening] = []
+	for op: SideGuardOpening in new_openings:
+		typed.append(op)
+	_initial_state["openings_after"] = typed
+	node.set(&"side_guard_openings", typed)
+
+
+func _find_opening_by_edge(merged: Array, edge_x: float, edge_is_start: bool) -> int:
+	for i in range(merged.size()):
+		var op: Vector2 = merged[i]
+		var op_edge: float = op.x if edge_is_start else op.y
+		if absf(op_edge - edge_x) < 0.01:
+			return i
+	return -1
+
+
+func _significant_edges_per_side(node: Node3D, sg_guards: Array) -> Dictionary:
+	var by_side: Dictionary = {"left": [], "right": []}
+	var per_side_guards: Dictionary = {"left": [], "right": []}
+	for e in sg_guards:
+		if e.get("procedural", false):
+			(per_side_guards[e["side"]] as Array).append(e["guard"])
+	for side: String in ["left", "right"]:
+		var guards: Array = per_side_guards[side]
+		var significant: Array = []
+		if not guards.is_empty():
+			var first_g: SideGuard = guards[0]
+			var last_g: SideGuard = guards[-1]
+			significant.append(_guard_arc_back(first_g))
+			significant.append(_guard_arc_front(last_g))
+		var openings: Array = _spur_merged_openings_from_array(
+				node.get(&"side_guard_openings") as Array, side)
+		for op in openings:
+			var v: Vector2 = op
+			significant.append(v.x)
+			significant.append(v.y)
+		by_side[side] = significant
+	return by_side
+
+
+func _arc_is_significant(arc_x: float, significant_arcs: Array) -> bool:
+	for s in significant_arcs:
+		if absf(float(s) - arc_x) < 0.01:
+			return true
+	return false
+
+
+func _guard_arc_back(guard: SideGuard) -> float:
+	return guard.arc_back
+
+
+func _guard_arc_front(guard: SideGuard) -> float:
+	return guard.arc_front
+
+
+func _project_mouse_to_spur_x(node: Node3D, camera: Camera3D, point: Vector2) -> float:
+	var node_xform: Transform3D = node.global_transform
+	var axis_global: Vector3 = node_xform.basis.x.normalized()
+	var ray_from: Vector3 = camera.project_ray_origin(point)
+	var ray_dir: Vector3 = camera.project_ray_normal(point)
+	var v3: Vector3 = node_xform.origin - ray_from
+	var dot11: float = axis_global.dot(axis_global)
+	var dot12: float = axis_global.dot(ray_dir)
+	var dot13: float = axis_global.dot(v3)
+	var dot22: float = ray_dir.dot(ray_dir)
+	var dot23: float = ray_dir.dot(v3)
+	var denom: float = dot11 * dot22 - dot12 * dot12
+	if absf(denom) < 0.0001:
+		return NAN
+	return (dot12 * dot23 - dot22 * dot13) / denom
+
+
+func _split_procedural_guard(node: Node3D, entry: Dictionary) -> void:
+	const GAP := 0.15
+	var side: String = entry["side"]
+	var guard: SideGuard = entry["guard"]
+	var sub_back: float = _guard_arc_back(guard)
+	var sub_front: float = _guard_arc_front(guard)
+	if sub_front - sub_back <= GAP + 0.02:
+		return
+	var center: float = (sub_back + sub_front) * 0.5
+	var openings_before: Array = (node.get(&"side_guard_openings") as Array).duplicate(true)
+	var merged: Array = _spur_merged_openings_from_array(openings_before, side)
+	merged.append(Vector2(center - GAP * 0.5, center + GAP * 0.5))
+	merged.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+	var new_openings: Array = _spur_replace_side_openings(openings_before, side, merged)
+	var typed: Array[SideGuardOpening] = []
+	for op: SideGuardOpening in new_openings:
+		typed.append(op)
+	var undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
+	undo_redo.create_action("Split Side Guard Opening")
+	undo_redo.add_do_property(node, "side_guard_openings", typed)
+	undo_redo.add_undo_property(node, "side_guard_openings", openings_before)
+	undo_redo.add_do_method(node, "update_gizmos")
+	undo_redo.add_undo_method(node, "update_gizmos")
 	undo_redo.commit_action()
-	return true
 
 
-## Split a guard into two halves with a small gap at the center.
-## Creates an undo/redo action and saves guard state.
-func _split_guard_at_center(conveyor_node: Node3D, guard: SideGuard, side_node: Node3D) -> void:
-	const GAP := 0.15  # Gap size in meters at the split point.
-	var old_length: float = guard.length
-	var old_pos: Vector3 = guard.position
-	var g_front: float = guard.position.x + old_length / 2.0
-	var g_back: float = guard.position.x - old_length / 2.0
-	var mid: float = guard.position.x
-
-	if old_length < GAP + 0.02:
-		return  # Guard too short to split.
-
-	# Back half: from g_back to mid - gap/2.
-	var back_front: float = mid - GAP / 2.0
-	var back_length: float = back_front - g_back
-	var back_center: float = (g_back + back_front) / 2.0
-
-	# Front half: from mid + gap/2 to g_front.
-	var front_back: float = mid + GAP / 2.0
-	var front_length: float = g_front - front_back
-	var front_center: float = (front_back + g_front) / 2.0
-
-	# Determine side for basis.
-	var guard_basis := Basis.IDENTITY
-	if side_node.name == "RightSide":
-		guard_basis = Basis(Vector3.UP, PI)
-
-	var sg_assembly: Node = side_node.get_parent()
-
-	var undo_redo := EditorInterface.get_editor_undo_redo()
-	undo_redo.create_action("Split Side Guard")
-
-	# Shrink original guard to back half.
-	undo_redo.add_do_property(guard, "length", back_length)
-	undo_redo.add_do_property(guard, "position", Vector3(back_center, 0, 0))
-	undo_redo.add_do_property(guard, "front_anchored", false)
-	undo_redo.add_undo_property(guard, "length", old_length)
-	undo_redo.add_undo_property(guard, "position", old_pos)
-	undo_redo.add_undo_property(guard, "front_anchored", guard.front_anchored)
-
-	# Create new guard for front half.
-	var new_guard: SideGuard = sg_assembly._instantiate_guard()
-	new_guard.back_anchored = false
-	new_guard.front_anchored = guard.front_anchored
-	new_guard.transform = Transform3D(guard_basis, Vector3(front_center, 0, 0))
-	new_guard.length = front_length
-	undo_redo.add_do_method(side_node, "add_child", new_guard)
-	undo_redo.add_do_reference(new_guard)
-	undo_redo.add_undo_method(side_node, "remove_child", new_guard)
-	if sg_assembly and sg_assembly.has_method("save_guard_state"):
-		undo_redo.add_do_method(sg_assembly, "save_guard_state")
-		undo_redo.add_undo_method(sg_assembly, "save_guard_state")
-	undo_redo.add_do_method(conveyor_node, "update_gizmos")
-	undo_redo.add_undo_method(conveyor_node, "update_gizmos")
-
+func _merge_procedural_opening(node: Node3D, entry: Dictionary, is_front: bool) -> void:
+	var side: String = entry["side"]
+	var guard: SideGuard = entry["guard"]
+	var edge_x: float = _guard_arc_front(guard) if is_front else _guard_arc_back(guard)
+	var openings_before: Array = (node.get(&"side_guard_openings") as Array).duplicate(true)
+	var merged: Array = _spur_merged_openings_from_array(openings_before, side)
+	var op_index: int = _find_opening_by_edge(merged, edge_x, is_front)
+	if op_index < 0:
+		return
+	merged.remove_at(op_index)
+	var new_openings: Array = _spur_replace_side_openings(openings_before, side, merged)
+	var typed: Array[SideGuardOpening] = []
+	for op: SideGuardOpening in new_openings:
+		typed.append(op)
+	var undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
+	undo_redo.create_action("Merge Side Guard Opening")
+	undo_redo.add_do_property(node, "side_guard_openings", typed)
+	undo_redo.add_undo_property(node, "side_guard_openings", openings_before)
+	undo_redo.add_do_method(node, "update_gizmos")
+	undo_redo.add_undo_method(node, "update_gizmos")
 	undo_redo.commit_action()
 
 
-## Capture anchoring flags from all FrameRails under a node.
-## Uses node path instead of object reference for undo/redo safety.
+func _spur_merged_openings_from_array(openings: Array, side: String) -> Array:
+	var ranges: Array = []
+	for o: SideGuardOpening in openings:
+		if o == null or o.side != side:
+			continue
+		if o.arc_front <= o.arc_back:
+			continue
+		ranges.append(Vector2(o.arc_back, o.arc_front))
+	ranges.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+	var merged: Array = []
+	for r: Vector2 in ranges:
+		if merged.is_empty() or r.x > merged[-1].y:
+			merged.append(r)
+		else:
+			merged[-1] = Vector2(merged[-1].x, maxf(merged[-1].y, r.y))
+	return merged
+
+
+func _spur_replace_side_openings(openings: Array, side: String, new_ranges: Array) -> Array:
+	var result: Array = []
+	for o: SideGuardOpening in openings:
+		if o != null and o.side != side:
+			result.append(o)
+	for r in new_ranges:
+		var v: Vector2 = r
+		result.append(SideGuardOpening.make(v.x, v.y, side))
+	return result
+
+#endregion
+
+
+## Captures FrameRail flags by node path (object refs aren't undo/redo-safe).
 func _capture_rail_flags(node: Node) -> Array:
 	var result: Array = []
 	_collect_rail_flags(node, node, result)
@@ -583,7 +504,6 @@ static func _collect_rail_flags(root: Node, node: Node, result: Array) -> void:
 		_collect_rail_flags(root, child, result)
 
 
-## Restore previously captured FrameRail state.
 func _restore_rail_flags(node: Node, flags: Array) -> void:
 	for entry in flags:
 		var rail := node.get_node_or_null(entry["path"]) as FrameRail
@@ -597,87 +517,50 @@ func _restore_rail_flags(node: Node, flags: Array) -> void:
 		rail.back_boundary_tracking = entry["back_boundary_tracking"]
 
 
-## Capture anchoring flags from all SideGuards under a node.
-func _capture_guard_flags(node: Node3D) -> Array:
-	var result: Array = []
-	var sg: Node = _find_side_guards_assembly(node)
-	if not sg:
-		return result
-	for side_name in ["LeftSide", "RightSide"]:
-		var side_node := sg.get_node_or_null(side_name) as Node3D
-		if not side_node:
-			continue
-		var idx := 0
-		for child in side_node.get_children():
-			if child is SideGuard:
-				var guard := child as SideGuard
-				result.append({
-					"side": side_name,
-					"index": idx,
-					"position": guard.position,
-					"length": guard.length,
-					"front_anchored": guard.front_anchored,
-					"back_anchored": guard.back_anchored,
-					"front_boundary_tracking": guard.front_boundary_tracking,
-					"back_boundary_tracking": guard.back_boundary_tracking,
-				})
-				idx += 1
-	return result
-
-
-## Restore previously captured SideGuard anchoring flags.
-func _restore_guard_flags(node: Node3D, flags: Array) -> void:
-	var sg: Node = _find_side_guards_assembly(node)
-	if not sg:
-		return
-	for entry in flags:
-		var side_node := sg.get_node_or_null(entry["side"]) as Node3D
-		if not side_node:
-			continue
-		var idx := 0
-		for child in side_node.get_children():
-			if child is SideGuard:
-				if idx == entry["index"]:
-					child.position = entry["position"]
-					child.length = entry["length"]
-					child.front_anchored = entry["front_anchored"]
-					child.back_anchored = entry["back_anchored"]
-					child.front_boundary_tracking = entry["front_boundary_tracking"]
-					child.back_boundary_tracking = entry["back_boundary_tracking"]
-					break
-				idx += 1
-
-
-## Find the SideGuardsAssembly node on a conveyor assembly, or null.
-func _find_side_guards_assembly(node: Node3D) -> Node:
-	for path in ["%SideGuardsAssembly", "Conveyor/SideGuardsAssembly", "%Conveyor/%SideGuardsAssembly"]:
-		var sg := node.get_node_or_null(path)
-		if sg:
-			return sg
-	return null
-
-
-## Find all SideGuard nodes on a conveyor assembly.
-## Returns array of {"guard": SideGuard, "side_node": Node3D, "front_id": int, "back_id": int}.
-## Handle IDs are assigned sequentially starting at 100: 100/101 for first guard, 102/103 for second, etc.
 func _get_all_guards(node: Node3D) -> Array:
-	var result: Array = []
-	var sg_assembly: Node = _find_side_guards_assembly(node)
-	if not sg_assembly:
-		return result
+	if node.has_method("request_side_guard_opening"):
+		return _get_procedural_guards(node)
+	return []
 
-	var handle_idx := 100
-	for side_name in ["LeftSide", "RightSide"]:
-		var side_node := sg_assembly.get_node_or_null(side_name) as Node3D
-		if not side_node:
+
+func _get_procedural_guards(node: Node3D) -> Array:
+	var left_pairs: Array = []
+	var right_pairs: Array = []
+	for child in node.get_children(true):
+		if not (child is SideGuard):
 			continue
-		for child in side_node.get_children():
-			if child is SideGuard:
-				result.append({
-					"guard": child as SideGuard,
-					"side_node": side_node,
-					"front_id": handle_idx,
-					"back_id": handle_idx + 1,
-				})
-				handle_idx += 2
+		var n: String = child.name
+		if n.begins_with("SideGuardLeft_"):
+			left_pairs.append([_parse_guard_index(n, "SideGuardLeft_"), child])
+		elif n.begins_with("SideGuardRight_"):
+			right_pairs.append([_parse_guard_index(n, "SideGuardRight_"), child])
+	left_pairs.sort_custom(func(a, b): return a[0] < b[0])
+	right_pairs.sort_custom(func(a, b): return a[0] < b[0])
+
+	var result: Array = []
+	var handle_idx := 100
+	for entry: Array in [["left", left_pairs], ["right", right_pairs]]:
+		var side: String = entry[0]
+		var pairs: Array = entry[1]
+		for k in range(pairs.size()):
+			result.append({
+				"guard": pairs[k][1] as SideGuard,
+				"side_node": node,
+				"front_id": handle_idx,
+				"back_id": handle_idx + 1,
+				"procedural": true,
+				"side": side,
+			})
+			handle_idx += 2
 	return result
+
+
+# Packs `<run>_<sub>` into one sort key; plain int(substr) collapses `0_*` to 0.
+static func _parse_guard_index(name: String, prefix: String) -> int:
+	var tail: String = name.substr(prefix.length())
+	var parts: PackedStringArray = tail.split("_", false)
+	if parts.is_empty():
+		return 0
+	var run_idx: int = int(parts[0])
+	var sub_idx: int = int(parts[1]) if parts.size() > 1 else 0
+	return run_idx * 10000 + sub_idx

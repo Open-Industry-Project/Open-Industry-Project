@@ -2,6 +2,7 @@
 extends EditorPlugin
 
 const ConveyorGizmoPlugin = preload("res://addons/conveyor_gizmo/conveyor_gizmo_plugin.gd")
+const PathBeltGizmoPlugin = preload("res://addons/conveyor_gizmo/path_belt_gizmo_plugin.gd")
 
 const SHORTCUT_PATH = "Open Industry Project/Toggle Sideguards"
 const SETTING_SIDEGUARD = "open_industry_project/sideguard_mode"
@@ -12,6 +13,7 @@ const ARROW_SHORTCUT_PATH = "Open Industry Project/Toggle Flow Arrows"
 const SETTING_FLOW_ARROWS = "open_industry_project/flow_arrows_visible"
 
 var gizmo_plugin: ConveyorGizmoPlugin
+var path_belt_gizmo_plugin: PathBeltGizmoPlugin
 var _toggle_button: Button
 var _shortcut: Shortcut
 var _arrow_button: Button
@@ -20,6 +22,9 @@ var _arrow_shortcut: Shortcut
 func _enter_tree():
 	gizmo_plugin = ConveyorGizmoPlugin.new()
 	add_node_3d_gizmo_plugin(gizmo_plugin)
+
+	path_belt_gizmo_plugin = PathBeltGizmoPlugin.new()
+	add_node_3d_gizmo_plugin(path_belt_gizmo_plugin)
 
 	_toggle_button = Button.new()
 	_toggle_button.flat = true
@@ -71,6 +76,8 @@ func _exit_tree():
 	if _arrow_shortcut and _arrow_shortcut.changed.is_connected(_update_arrow_tooltip):
 		_arrow_shortcut.changed.disconnect(_update_arrow_tooltip)
 	remove_node_3d_gizmo_plugin(gizmo_plugin)
+	if path_belt_gizmo_plugin:
+		remove_node_3d_gizmo_plugin(path_belt_gizmo_plugin)
 	if _toggle_button:
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _toggle_button)
 		_toggle_button.queue_free()
@@ -110,7 +117,9 @@ func _update_arrow_tooltip() -> void:
 func _on_sideguard_toggle(pressed: bool) -> void:
 	EditorInterface.get_editor_settings().set_setting(SETTING_SIDEGUARD, pressed)
 	gizmo_plugin.sideguard_mode = pressed
-	# Force redraw on all gizmos so handles update immediately.
+	# Suppress path-belt resize handles so they don't fight sideguard handles.
+	if path_belt_gizmo_plugin:
+		path_belt_gizmo_plugin.sideguard_mode = pressed
 	var selection := EditorInterface.get_selection().get_selected_nodes()
 	for node in selection:
 		if node is Node3D:

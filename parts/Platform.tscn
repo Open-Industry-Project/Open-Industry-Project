@@ -81,7 +81,6 @@ size = Vector3(4, 0.01, 4)
 [node name="Platform" type="Node3D" unique_id=793067781]
 script = ExtResource("1_platform")
 size = Vector3(4, 2, 4)
-metadata/hijack_scale = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=298531202]
 mesh = SubResource("ArrayMesh_ofcjw")

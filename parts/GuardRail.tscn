@@ -22,7 +22,6 @@ size = Vector3(4, 1.07, 0.04)
 [node name="GuardRail" type="Node3D" unique_id=1476938650]
 script = ExtResource("1_guardrail")
 size = Vector3(4, 1.07, 0.04)
-metadata/hijack_scale = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2112366453]
 mesh = SubResource("ArrayMesh_lgyts")

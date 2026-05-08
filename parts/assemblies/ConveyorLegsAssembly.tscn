@@ -1,7 +1,0 @@
-[gd_scene format=3 uid="uid://cg4ii4p426pqb"]
-
-[ext_resource type="Script" uid="uid://dxaug2s6x4otb" path="res://src/ConveyorAttachment/conveyor_legs_assembly.gd" id="1_vbjla"]
-
-[node name="ConveyorLegsAssembly" type="Node3D" unique_id=517478431]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
-script = ExtResource("1_vbjla")

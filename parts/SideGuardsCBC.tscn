@@ -1,6 +1,0 @@
-[gd_scene format=4 uid="uid://c1dcpxt5x65et"]
-
-[ext_resource type="Script" uid="uid://c1eeo0688a1j5" path="res://src/SideGuards/curved_side_guards.gd" id="1_0jshe"]
-
-[node name="SideGuardsCBC" type="Node3D"]
-script = ExtResource("1_0jshe")

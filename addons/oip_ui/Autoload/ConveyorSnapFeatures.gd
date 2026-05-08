@@ -5,7 +5,6 @@ extends RefCounted
 ## Generic snap-feature matcher. Parts opt in via [code]get_snap_features()[/code].
 
 const DIVERTER_Y_OFFSET: float = 0.2
-## Recess from belt edge so the push face stays out of the flow path.
 const DIVERTER_SIDE_OFFSET: float = 0.05
 const BLADE_STOP_TARGET_LOCAL_Y: float = -0.27
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
@@ -13,7 +12,6 @@ const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
 enum Shape { POINT, SEGMENT, TRACK }
 
 
-## [code]live_mode[/code] makes try_snap idempotent for per-frame preview calls.
 static func try_snap(
 	selected: Node3D, target: Node3D, live_mode: bool = false,
 	sel_features_in: Variant = null, tgt_features_in: Variant = null,
@@ -63,49 +61,72 @@ static func _find_by_kind(features: Array, kind: StringName) -> Dictionary:
 	return {}
 
 
+static func _find_closest_segment_by_kind(features: Array, kind: StringName,
+		tgt_xform: Transform3D, point_world: Vector3) -> Dictionary:
+	var best: Dictionary = {}
+	var best_dist: float = INF
+	for f in features:
+		if f.kind != kind:
+			continue
+		var seg_start_world: Vector3 = tgt_xform * (f.seg_start as Vector3)
+		var seg_end_world: Vector3 = tgt_xform * (f.seg_end as Vector3)
+		var closest: Vector3 = _closest_point_on_segment(point_world, seg_start_world, seg_end_world)
+		var d: float = point_world.distance_to(closest)
+		if d < best_dist:
+			best_dist = d
+			best = f
+	return best
+
+
 static func _compute_features_for(node: Node3D) -> Array:
 	if not (&"size" in node):
 		return []
 	var size: Vector3 = node.size
-	var hl: float = size.x / 2.0
 	var hw: float = size.z / 2.0
+	# Reading local_bbox works for both origin-centered and origin-at-tail conveyors.
+	var back_x: float = -size.x / 2.0
+	var front_x: float = size.x / 2.0
+	if &"local_bbox" in node:
+		var bbox: AABB = node.local_bbox
+		back_x = bbox.position.x
+		front_x = bbox.end.x
 	var features: Array = [
 		{
 			"shape": Shape.POINT,
 			"kind": &"straight_end_front",
-			"local_pos": Vector3(hl, 0, 0),
+			"local_pos": Vector3(front_x, 0, 0),
 			"local_outward": Vector3(1, 0, 0),
 			"end_name": &"front",
 		},
 		{
 			"shape": Shape.POINT,
 			"kind": &"straight_end_back",
-			"local_pos": Vector3(-hl, 0, 0),
+			"local_pos": Vector3(back_x, 0, 0),
 			"local_outward": Vector3(-1, 0, 0),
 			"end_name": &"back",
 		},
 		{
 			"shape": Shape.SEGMENT,
 			"kind": &"straight_sideguard_left",
-			"seg_start": Vector3(-hl, 0, -hw),
-			"seg_end": Vector3(hl, 0, -hw),
+			"seg_start": Vector3(back_x, 0, -hw),
+			"seg_end": Vector3(front_x, 0, -hw),
 			"seg_outward_local": Vector3(0, 0, -1),
 		},
 		{
 			"shape": Shape.SEGMENT,
 			"kind": &"straight_sideguard_right",
-			"seg_start": Vector3(-hl, 0, hw),
-			"seg_end": Vector3(hl, 0, hw),
+			"seg_start": Vector3(back_x, 0, hw),
+			"seg_end": Vector3(front_x, 0, hw),
 			"seg_outward_local": Vector3(0, 0, 1),
 		},
 	]
 
-	# Roller-specific tracks: gap_track lands between rollers, on_track on centers.
-	if node is RollerConveyor or node is RollerConveyorAssembly:
+	# Roller tracks: gap_track between rollers, on_track on centers.
+	if node is RollerConveyor:
 		var rd: float = Rollers.ROLLERS_DISTANCE
-		var first_roller_x: float = -hl + Rollers.ROLLERS_START_OFFSET + rd
+		var first_roller_x: float = back_x + Rollers.ROLLERS_START_OFFSET + rd
 		var gap_phase: float = first_roller_x + rd / 2.0
-		var usable_half: float = hl - Rollers.ROLLERS_START_OFFSET
+		var usable_half: float = front_x - Rollers.ROLLERS_START_OFFSET
 		features.append({
 			"shape": Shape.TRACK,
 			"kind": &"roller_gap_track",
@@ -147,7 +168,6 @@ static func _score_pair(selected: Node3D, target: Node3D, sf: Dictionary, tf: Di
 	if tf.shape == Shape.TRACK:
 		var anchor_world: Vector3 = ConveyorSnapping.get_selected_xform(selected) * (sf.local_pos as Vector3)
 		var anchor_local: Vector3 = target.global_transform.affine_inverse() * anchor_world
-		# Track lies at Y=0, Z=0 in target local frame.
 		var perp: Vector2 = Vector2(anchor_local.y, anchor_local.z)
 		return perp.length()
 	return INF
@@ -173,7 +193,7 @@ static func _align_point_to_segment(selected: Node3D, target: Node3D, sf: Dictio
 	if side_sign == 0.0:
 		side_sign = 1.0
 
-	# Flip both X and Z (180° around Y); flipping Z alone would reflect/invert Y.
+	# Flip both X and Z (180° around Y); Z alone would invert Y.
 	var new_basis: Basis = Basis()
 	new_basis.x = side_sign * target_xform.basis.x.normalized()
 	new_basis.z = side_sign * target_xform.basis.z.normalized()
@@ -239,7 +259,7 @@ static func _align_point_to_track(selected: Node3D, target: Node3D, sf: Dictiona
 
 	var tgt_basis: Basis = target_xform.basis.orthonormalized() * local_basis_rotation
 	var sel_scale: Vector3 = selected.scale
-	# Auto-fit Z to target belt width. native_z_width is the part's extent at scale.z=1.
+	# Auto-fit Z to target belt width; native_z_width is the part's extent at scale.z=1.
 	if sf.get(&"auto_fit_target_width", false) and &"size" in target:
 		var native_z_width: float = float(sf.get(&"native_z_width", 1.0))
 		if native_z_width > 0.0:
@@ -256,7 +276,7 @@ static func _align_point_to_track(selected: Node3D, target: Node3D, sf: Dictiona
 		"transform": Transform3D(new_basis, origin_world),
 		"is_end_to_end": false,
 	}
-	# Scale must be a side effect: fork orthonormalizes the returned basis on drop hover.
+	# Scale is a side effect: fork orthonormalizes the returned basis on drop hover.
 	if sf.get(&"auto_fit_target_width", false):
 		result["scale"] = sel_scale
 	if sf.has(&"visible_threshold"):
@@ -275,11 +295,14 @@ static func _align_straight_to_straight(
 
 	var tgt_front: Dictionary = _find_by_kind(tgt_features, &"straight_end_front")
 	var tgt_back: Dictionary = _find_by_kind(tgt_features, &"straight_end_back")
-	var tgt_left: Dictionary = _find_by_kind(tgt_features, &"straight_sideguard_left")
-	var tgt_right: Dictionary = _find_by_kind(tgt_features, &"straight_sideguard_right")
+	# Multi-segment belts expose one side-guard segment per run; pick the closest.
+	var tgt_left: Dictionary = _find_closest_segment_by_kind(tgt_features, &"straight_sideguard_left", tgt_xform, sel_origin)
+	var tgt_right: Dictionary = _find_closest_segment_by_kind(tgt_features, &"straight_sideguard_right", tgt_xform, sel_origin)
 	var sel_front: Dictionary = _find_by_kind(sel_features, &"straight_end_front")
 	var sel_back: Dictionary = _find_by_kind(sel_features, &"straight_end_back")
 	if tgt_front.is_empty() or tgt_back.is_empty() or sel_front.is_empty() or sel_back.is_empty():
+		return {}
+	if tgt_left.is_empty() or tgt_right.is_empty():
 		return {}
 
 	var tgt_front_world: Vector3 = tgt_xform * (tgt_front.local_pos as Vector3)
@@ -288,16 +311,16 @@ static func _align_straight_to_straight(
 	var left_end_world: Vector3 = tgt_xform * (tgt_left.seg_end as Vector3)
 	var right_start_world: Vector3 = tgt_xform * (tgt_right.seg_start as Vector3)
 	var right_end_world: Vector3 = tgt_xform * (tgt_right.seg_end as Vector3)
-	var left_center_world: Vector3 = (left_start_world + left_end_world) * 0.5
-	var right_center_world: Vector3 = (right_start_world + right_end_world) * 0.5
+	# Use closest-point-on-segment so long segments aren't penalized vs short ones.
+	var left_closest: Vector3 = _closest_point_on_segment(sel_origin, left_start_world, left_end_world)
+	var right_closest: Vector3 = _closest_point_on_segment(sel_origin, right_start_world, right_end_world)
 
 	var dist_front: float = sel_origin.distance_to(tgt_front_world)
 	var dist_back: float = sel_origin.distance_to(tgt_back_world)
-	var dist_left: float = sel_origin.distance_to(left_center_world)
-	var dist_right: float = sel_origin.distance_to(right_center_world)
+	var dist_left: float = sel_origin.distance_to(left_closest)
+	var dist_right: float = sel_origin.distance_to(right_closest)
 
 	# Prefer the mode that preserves facing unless the other is much closer.
-	# Perpendicular: side preserves facing. Parallel: end preserves facing.
 	var sel_forward: Vector3 = sel_xform.basis.x.normalized()
 	var tgt_forward: Vector3 = tgt_xform.basis.x.normalized()
 	var dot_product: float = absf(sel_forward.dot(tgt_forward))
@@ -318,7 +341,11 @@ static func _align_straight_to_straight(
 			min_distance = min_end
 
 	var sel_inclination: float = _z_inclination(sel_xform)
-	var sel_size_x: float = _conveyor_size_x(selected)
+	# Feature-supplied positions cover both origin-centered and origin-at-tail conveyors.
+	var sel_back_pos: Vector3 = sel_back.local_pos
+	var sel_front_pos: Vector3 = sel_front.local_pos
+	var sel_back_outward: Vector3 = sel_back.get(&"local_outward", Vector3(-1, 0, 0))
+	var sel_front_outward: Vector3 = sel_front.get(&"local_outward", Vector3(1, 0, 0))
 
 	var snap_transform: Transform3D = Transform3D()
 	var snapped_end: Dictionary = {}
@@ -327,53 +354,82 @@ static func _align_straight_to_straight(
 	if min_distance == dist_front:
 		var new_basis: Basis = _apply_inclination(tgt_xform.basis, sel_inclination)
 		snap_transform.basis = new_basis
-		snap_transform.origin = tgt_front_world + new_basis.x * (sel_size_x / 2.0)
-		snapped_end = {"pos": Vector3(-sel_size_x / 2.0, 0, 0), "outward": Vector3(-1, 0, 0), "name": &"back"}
+		snap_transform.origin = tgt_front_world - new_basis * sel_back_pos
+		snapped_end = {"pos": sel_back_pos, "outward": sel_back_outward, "name": &"back"}
 		target_end = {"pos": tgt_front.local_pos, "outward": Vector3(1, 0, 0), "name": &"front"}
 	elif min_distance == dist_back:
 		var new_basis: Basis = _apply_inclination(tgt_xform.basis, sel_inclination)
 		snap_transform.basis = new_basis
-		snap_transform.origin = tgt_back_world - new_basis.x * (sel_size_x / 2.0)
-		snapped_end = {"pos": Vector3(sel_size_x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
+		snap_transform.origin = tgt_back_world - new_basis * sel_front_pos
+		snapped_end = {"pos": sel_front_pos, "outward": sel_front_outward, "name": &"front"}
 		target_end = {"pos": tgt_back.local_pos, "outward": Vector3(-1, 0, 0), "name": &"back"}
 	elif min_distance == dist_left:
 		var contact: Vector3 = _closest_point_on_segment(sel_origin, left_start_world, left_end_world)
+		# Pick the closer end so dragging tail-first doesn't flip the conveyor.
+		var sel_front_world: Vector3 = sel_xform * sel_front_pos
+		var sel_back_world: Vector3 = sel_xform * sel_back_pos
+		var use_front: bool = sel_front_world.distance_to(contact) <= sel_back_world.distance_to(contact)
+		var sel_end_pos: Vector3 = sel_front_pos if use_front else sel_back_pos
+		var sel_end_outward: Vector3 = sel_front_outward if use_front else sel_back_outward
+		var sel_end_name: StringName = &"front" if use_front else &"back"
+		# Basis is chosen so the conveyor body extends OUTWARD from the target.
 		var perp_basis: Basis = Basis()
-		perp_basis.x = tgt_xform.basis.z
+		if use_front:
+			perp_basis.x = tgt_xform.basis.z
+			perp_basis.z = -tgt_xform.basis.x
+		else:
+			perp_basis.x = -tgt_xform.basis.z
+			perp_basis.z = tgt_xform.basis.x
 		perp_basis.y = tgt_xform.basis.y
-		perp_basis.z = -tgt_xform.basis.x
 		var new_basis: Basis = _apply_inclination(perp_basis, sel_inclination)
 		snap_transform.basis = new_basis
-		snap_transform.origin = contact - new_basis.x * (sel_size_x / 2.0)
+		snap_transform.origin = contact - new_basis * sel_end_pos
+		# Y tracks the contact so elevated segments (Z-frame top, walk-thru hump) work.
+		snap_transform.origin.y = contact.y
 		var contact_local: Vector3 = tgt_xform.affine_inverse() * contact
-		snapped_end = {"pos": Vector3(sel_size_x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
+		snapped_end = {"pos": sel_end_pos, "outward": sel_end_outward, "name": sel_end_name}
 		target_end = {"pos": contact_local, "outward": Vector3(0, 0, -1), "name": &"left_side"}
 	else:
 		var contact: Vector3 = _closest_point_on_segment(sel_origin, right_start_world, right_end_world)
+		var sel_front_world: Vector3 = sel_xform * sel_front_pos
+		var sel_back_world: Vector3 = sel_xform * sel_back_pos
+		var use_front: bool = sel_front_world.distance_to(contact) <= sel_back_world.distance_to(contact)
+		var sel_end_pos: Vector3 = sel_front_pos if use_front else sel_back_pos
+		var sel_end_outward: Vector3 = sel_front_outward if use_front else sel_back_outward
+		var sel_end_name: StringName = &"front" if use_front else &"back"
 		var perp_basis: Basis = Basis()
-		perp_basis.x = -tgt_xform.basis.z
+		if use_front:
+			perp_basis.x = -tgt_xform.basis.z
+			perp_basis.z = tgt_xform.basis.x
+		else:
+			perp_basis.x = tgt_xform.basis.z
+			perp_basis.z = -tgt_xform.basis.x
 		perp_basis.y = tgt_xform.basis.y
-		perp_basis.z = tgt_xform.basis.x
 		var new_basis: Basis = _apply_inclination(perp_basis, sel_inclination)
 		snap_transform.basis = new_basis
-		snap_transform.origin = contact - new_basis.x * (sel_size_x / 2.0)
+		snap_transform.origin = contact - new_basis * sel_end_pos
+		snap_transform.origin.y = contact.y
 		var contact_local: Vector3 = tgt_xform.affine_inverse() * contact
-		snapped_end = {"pos": Vector3(sel_size_x / 2.0, 0, 0), "outward": Vector3(1, 0, 0), "name": &"front"}
+		snapped_end = {"pos": sel_end_pos, "outward": sel_end_outward, "name": sel_end_name}
 		target_end = {"pos": contact_local, "outward": Vector3(0, 0, 1), "name": &"right_side"}
 
-	# Flow-flip: preserve forward direction by rotating 180° around Y if inverted.
-	if sel_xform.basis.x.dot(snap_transform.basis.x) < 0.0:
-		var flipped: Array = _flip_around_local_y(snap_transform, snapped_end)
-		snap_transform = flipped[0]
-		snapped_end = flipped[1]
-
-	# No-op flip: visible feedback when snap matches current pose. Suppressed in live (oscillates).
-	if not live_mode:
-		var current: Transform3D = sel_xform
-		if current.origin.distance_to(snap_transform.origin) < 0.01 and current.basis.x.dot(snap_transform.basis.x) > 0.999:
+	# Flow-flip and no-op flip apply to end-to-end snaps only.
+	# Side snaps' basis is geometrically determined to keep the body OUTSIDE the target.
+	var is_side_snap: bool = target_end.name == &"left_side" or target_end.name == &"right_side"
+	if not is_side_snap:
+		# Flow-flip: rotate 180° around Y if forward direction inverted.
+		if sel_xform.basis.x.dot(snap_transform.basis.x) < 0.0:
 			var flipped: Array = _flip_around_local_y(snap_transform, snapped_end)
 			snap_transform = flipped[0]
 			snapped_end = flipped[1]
+
+		# No-op flip: visible feedback when snap matches current pose. Suppressed in live (oscillates).
+		if not live_mode:
+			var current: Transform3D = sel_xform
+			if current.origin.distance_to(snap_transform.origin) < 0.01 and current.basis.x.dot(snap_transform.basis.x) > 0.999:
+				var flipped: Array = _flip_around_local_y(snap_transform, snapped_end)
+				snap_transform = flipped[0]
+				snapped_end = flipped[1]
 
 	var end_names: Array = [&"front", &"back", &"head", &"tail"]
 	return {

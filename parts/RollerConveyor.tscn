@@ -40,7 +40,6 @@ size = Vector3(4, 0.5, 1.524)
 [node name="RollerConveyor" type="Node3D" unique_id=75041265]
 script = ExtResource("1_vnty6")
 size = Vector3(4, 0.5, 1.524)
-metadata/hijack_scale = true
 
 [node name="ConvRoller" type="Node3D" parent="." unique_id=1108873219]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)

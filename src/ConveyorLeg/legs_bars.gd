@@ -33,7 +33,6 @@ func _ensure_multimesh() -> void:
 	if _mm_instance:
 		return
 
-	# Remove any legacy individual bar children
 	for child in get_children():
 		child.queue_free()
 
@@ -51,8 +50,7 @@ func _ensure_multimesh() -> void:
 
 
 func _update() -> void:
-	if not is_node_ready():
-		return
+	# No is_node_ready() guard: parent scale assigns can arrive pre-_ready in drag previews.
 	_ensure_multimesh()
 
 	var bar_count: int = maxi(floori(parent_scale.y), 1)

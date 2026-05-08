@@ -5,32 +5,20 @@ extends Node
 ## Live snap for conveyors during gizmo drags and drop-hover. Hold Alt to escape.
 
 const SEARCH_RADIUS: float = 3.0
-## Per-feature `visible_threshold` overrides this (e.g. BladeStop = 2.0).
 const VISIBLE_THRESHOLD: float = 0.3
-## Below this dot product, the snap rotates the part and requires aim
-## within VISIBLE_THRESHOLD regardless of body-overlap.
 const FACING_PRESERVED_DOT: float = 0.85
 const SNAP_DISABLE_MODIFIER: Key = KEY_ALT
 const _BASELINE_REVERSE_META := &"_snap_baseline_reverse"
 const _BASELINE_FLOOR_META := &"_snap_baseline_floor_plane"
-const _BASELINE_LEGS_XFORM_META := &"_snap_baseline_legs_xform"
-## Locks the flip decision on first engage so pair shifts mid-hover don't
-## oscillate `reverse_belt` as the snap result's `needs_reverse_belt` flips.
 const _FLIP_DECISION_META := &"_snap_flip_decision"
 
 var _selected: Node3D = null
-var _target: Node3D = null
 var _snap_result: Dictionary = {}
-var _mode_locked: bool = false
-var _mode_is_end_to_end: bool = false
-## Variant so null means "not yet captured".
 var _pre_snap_transform: Variant = null
 var _pre_snap_reverse: Variant = null
-## Lock the flip decision until snap fully disengages — the setter's side effects
-## and pair-shift-induced flips would otherwise oscillate `reverse_belt`.
 var _flip_locked: bool = false
 var _active_snap: bool = false
-## Re-entry guard for our own commit_action firing history_changed.
+# Re-entry guard for our own commit_action firing history_changed.
 var _committing: bool = false
 var _candidate_cache: Array[Dictionary] = []
 var _candidate_cache_node: Node3D = null
@@ -39,10 +27,14 @@ var _cache_sel_end_info: Array = []
 var _active_preview_count: int = 0
 var _preview_snap_pending: Dictionary = {}
 
+## Singleton so BeltConveyor._ready can reach this autoload without walking the SceneTree.
+static var instance: ConveyorLiveSnap
+
 
 func _enter_tree() -> void:
 	if not Engine.is_editor_hint():
 		return
+	instance = self
 	set_process(true)
 	EditorInterface.get_editor_undo_redo().history_changed.connect(_on_undo_history_changed)
 	get_tree().node_added.connect(_on_node_added_for_preview)
@@ -70,7 +62,7 @@ func _on_undo_history_changed() -> void:
 	if _active_snap and _pre_snap_transform != null:
 		_commit()
 	if not _preview_snap_pending.is_empty():
-		# Defer: dropped scene's SideGuard children don't exist until next idle.
+		# Deferred: dropped scene's SideGuard children don't exist until next idle.
 		var pending := _preview_snap_pending
 		_preview_snap_pending = {}
 		_commit_preview_snap_guards.call_deferred(pending)
@@ -88,8 +80,6 @@ func _on_node_added_for_preview(node: Node) -> void:
 	# Drop previews live outside the edited root.
 	if edited_root == node or edited_root.is_ancestor_of(node):
 		return
-	if node.has_meta(&"_snap_transform"):
-		return
 	_preview_snap_pending = {}
 	_active_preview_count += 1
 	node.set_meta(&"_snap_transform", _on_preview_snap.bind(node))
@@ -102,13 +92,14 @@ func _on_preview_exiting(node: Node) -> void:
 	_clear_preview_pending_if_match.call_deferred(node)
 
 
-func _clear_preview_pending_if_match(node: Node) -> void:
+func _clear_preview_pending_if_match(node: Variant) -> void:
+	if not is_instance_valid(node):
+		return
 	if _preview_snap_pending.get("preview") == node:
 		_preview_snap_pending = {}
 
 
-## Returns the snap pose when engaged, `null` otherwise. `null` makes the fork
-## fall back to bounds-offset placement so non-snap drops still rest on the surface.
+## Returns the snap pose when engaged, `null` to fall back to bounds-offset placement.
 func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 	_snapshot_baselines(node)
 	var snap_disabled := not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER)
@@ -119,7 +110,7 @@ func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 		_restore_preview_state(node)
 		return null
 
-	# Side-effect scale: fork orthonormalizes the returned basis on drop hover.
+	# Scale is a side effect: fork orthonormalizes the returned basis on drop hover.
 	if found.result.has("scale"):
 		var target_scale: Vector3 = found.result.scale
 		if not node.scale.is_equal_approx(target_scale):
@@ -135,13 +126,8 @@ static func _snapshot_baselines(node: Node3D) -> void:
 	var reverse_prop := ConveyorSnapping.get_reverse_property_name(node)
 	if reverse_prop != &"" and not node.has_meta(_BASELINE_REVERSE_META):
 		node.set_meta(_BASELINE_REVERSE_META, bool(node.get(reverse_prop)))
-	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
-	if legs == null:
-		return
 	if &"floor_plane" in node and not node.has_meta(_BASELINE_FLOOR_META):
 		node.set_meta(_BASELINE_FLOOR_META, node.get(&"floor_plane"))
-	if not legs.has_meta(_BASELINE_LEGS_XFORM_META):
-		legs.set_meta(_BASELINE_LEGS_XFORM_META, legs.transform)
 
 
 static func _apply_preview_reverse_flip(node: Node3D, result: Dictionary) -> void:
@@ -157,21 +143,11 @@ static func _apply_preview_reverse_flip(node: Node3D, result: Dictionary) -> voi
 		node.set(prop, target_value)
 
 
-## Drives the legs through the inherited target floor with the explicit snap
-## pose; `is_preview` gates `_update_floor_plane` on preview legs, so we mask
-## the meta around the explicit recompute call.
 static func _apply_preview_floor(node: Node3D, snap_xform: Transform3D, target: Node3D) -> void:
-	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
-	if legs == null or not (&"floor_plane" in node):
+	if not (&"floor_plane" in node):
 		return
 	var floor_plane := _resolve_target_floor_plane(node, snap_xform.origin, target)
-	legs.restore_floor_plane(floor_plane)
-	var had_meta: bool = legs.has_meta("is_preview")
-	if had_meta:
-		legs.remove_meta("is_preview")
-	legs.call(&"_update_floor_plane", snap_xform)
-	if had_meta:
-		legs.set_meta("is_preview", true)
+	node.set(&"floor_plane", floor_plane)
 
 
 static func _restore_preview_state(node: Node3D) -> void:
@@ -182,29 +158,14 @@ static func _restore_preview_state(node: Node3D) -> void:
 		var baseline_reverse: bool = bool(node.get_meta(_BASELINE_REVERSE_META))
 		if bool(node.get(reverse_prop)) != baseline_reverse:
 			node.set(reverse_prop, baseline_reverse)
-	var legs := node.get_node_or_null("%ConveyorLegsAssembly")
-	if legs == null or not legs.has_meta(_BASELINE_LEGS_XFORM_META):
-		return
-	var saved_xform: Transform3D = legs.get_meta(_BASELINE_LEGS_XFORM_META) as Transform3D
-	var changed: bool = false
-	if node.has_meta(_BASELINE_FLOOR_META):
+	if &"floor_plane" in node and node.has_meta(_BASELINE_FLOOR_META):
 		var saved_global: Plane = node.get_meta(_BASELINE_FLOOR_META) as Plane
 		if (node.get(&"floor_plane") as Plane) != saved_global:
-			# is_preview gates the legs.transform sub-update inside `_apply_floor_plane`,
-			# so this just resets the cached global plane.
-			legs.restore_floor_plane(saved_global)
-			changed = true
-	if not legs.transform.is_equal_approx(saved_xform):
-		legs.transform = saved_xform
-		changed = true
-	if changed:
-		legs.call(&"_update_conveyor_legs_height_and_visibility")
+			node.set(&"floor_plane", saved_global)
 
 
 static func _resolve_target_floor_plane(node: Node3D, origin: Vector3, target: Node3D) -> Plane:
-	# Walk up to the closest ancestor that exposes floor_plane — snap targets
-	# are often the inner corner (which lacks the property) wrapped in an
-	# assembly (which has it).
+	# Snap targets may be inner corners; the floor_plane lives on the assembly wrapper.
 	var floor_source: Node3D = target
 	while is_instance_valid(floor_source) and not (&"floor_plane" in floor_source):
 		floor_source = floor_source.get_parent() as Node3D
@@ -212,8 +173,7 @@ static func _resolve_target_floor_plane(node: Node3D, origin: Vector3, target: N
 		var inherited: Plane = floor_source.get(&"floor_plane")
 		if inherited.normal != Vector3.ZERO:
 			return inherited
-	# Exclude both source and target so the ray skips the live new-node body
-	# (commit path) and the target's own collider top.
+	# Exclude source and target so the ray skips their own colliders.
 	var exclude_rids: Array = []
 	if is_instance_valid(node):
 		_collect_collision_rids(node, exclude_rids)
@@ -241,8 +201,7 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 	if reverse_prop != &"" and is_instance_valid(preview):
 		reverse_value = bool(preview.get(reverse_prop))
 		should_apply_reverse = reverse_value != bool(new_node.get(reverse_prop))
-	# Snap bypasses _collision_repositioned, so a fresh node would otherwise
-	# keep its saved-scene default floor instead of the target's.
+	# Snap bypasses _collision_repositioned, so a fresh node keeps its saved-scene floor.
 	var should_apply_floor: bool = false
 	var floor_value: Plane
 	if &"floor_plane" in new_node:
@@ -269,13 +228,20 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 		if is_diverter:
 			ConveyorSnapping._open_side_guards_for_diverter(undo_redo, result.transform, new_node, target)
 		else:
-			ConveyorSnapping._connect_side_guards(undo_redo, new_node, target, result.transform, true)
+			ConveyorSnapping._connect_side_guards(undo_redo, new_node, target, result, true)
 		# Skip undo on new_node: its subtree is removed on Create Node undo.
 		ConveyorSnapping._register_state_sync(undo_redo, [target])
 		ConveyorSnapping._register_state_sync(undo_redo, [new_node], true)
 
 	undo_redo.commit_action()
 	_committing = false
+
+
+## Bind [code]_snap_transform[/code] meta now so Ctrl+D'd duplicates work from frame 1.
+func bind_snap_meta(node: Node3D) -> void:
+	if not is_instance_valid(node):
+		return
+	node.set_meta(&"_snap_transform", _on_gizmo_transform.bind(node))
 
 
 func _ensure_hook() -> bool:
@@ -293,7 +259,7 @@ func _ensure_hook() -> bool:
 		_reset()
 
 	_selected = selected
-	# Always rebind: Ctrl+D copies meta, so the duplicate would stay bound to the original.
+	# Always rebind: Ctrl+D copies the meta bound to the original.
 	selected.set_meta(&"_snap_transform", _on_gizmo_transform.bind(selected))
 	return true
 
@@ -305,10 +271,7 @@ func _unhook() -> void:
 
 func _reset() -> void:
 	_selected = null
-	_target = null
 	_snap_result = {}
-	_mode_locked = false
-	_mode_is_end_to_end = false
 	_pre_snap_transform = null
 	_pre_snap_reverse = null
 	_flip_locked = false
@@ -319,30 +282,37 @@ func _reset() -> void:
 	_cache_sel_end_info = []
 	ConveyorSnapping.live_type_cache.clear()
 	ConveyorSnapping.live_end_info_cache.clear()
-	# _preview_snap_pending belongs to the drop-hover flow, not this gizmo flow.
 
 
-func _on_gizmo_transform(proposed: Transform3D, selected: Node3D) -> Transform3D:
+## Returns Variant so null (no snap) lets the editor fall back to AABB surface offset.
+func _on_gizmo_transform(proposed: Transform3D, selected: Node3D) -> Variant:
+	# Self-heal stale state when meta fires before _ensure_hook catches up (Ctrl+D case).
+	if _selected != selected:
+		_selected = selected
+		_snap_result = {}
+		_pre_snap_transform = null
+		_pre_snap_reverse = null
+		_flip_locked = false
+		_active_snap = false
+		_candidate_cache.clear()
+		_candidate_cache_node = null
+		_cache_sel_features = null
+		_cache_sel_end_info = []
+
 	if not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER):
 		_restore_pre_snap_reverse()
 		_active_snap = false
-		return proposed
+		return null
 
 	var found := _find_snap(selected, proposed)
 	if found.is_empty():
 		_restore_pre_snap_reverse()
 		_active_snap = false
-		return proposed
-
-	var is_end: bool = found.result.get("is_end_to_end", false)
-	if _mode_locked and is_end != _mode_is_end_to_end:
-		_restore_pre_snap_reverse()
-		_active_snap = false
-		return proposed
+		return null
 
 	if _pre_snap_transform == null:
 		_pre_snap_transform = proposed
-	_accept(found)
+	_snap_result = found.result
 	_apply_live_reverse_flip()
 	_active_snap = true
 	return _snap_result.transform
@@ -375,14 +345,6 @@ func _restore_pre_snap_reverse() -> void:
 		_selected.set(prop, bool(_pre_snap_reverse))
 
 
-func _accept(found: Dictionary) -> void:
-	_target = found.target
-	_snap_result = found.result
-	if not _mode_locked:
-		_mode_locked = true
-		_mode_is_end_to_end = _snap_result.get("is_end_to_end", false)
-
-
 static func _should_skip_guards(selected: Node3D, result: Dictionary) -> bool:
 	return (
 		result.get("is_end_to_end", false)
@@ -391,13 +353,19 @@ static func _should_skip_guards(selected: Node3D, result: Dictionary) -> bool:
 	)
 
 
+## Re-derives the snap from the final pose so drag-time stale state can't leak in.
 func _commit() -> void:
-	if _snap_result.is_empty() \
-			or not is_instance_valid(_selected) \
-			or not is_instance_valid(_target):
+	if not is_instance_valid(_selected) or _pre_snap_transform == null:
 		return
 
-	var skip_guards := _should_skip_guards(_selected, _snap_result)
+	var found: Dictionary = _find_snap(_selected, _selected.global_transform)
+	if found.is_empty():
+		_restore_pre_snap_reverse()
+		return
+
+	var snap_result: Dictionary = found.result
+	var target: Node3D = found.target
+	var skip_guards := _should_skip_guards(_selected, snap_result)
 	var reverse_prop := ConveyorSnapping.get_reverse_property_name(_selected)
 	var has_reverse_flip: bool = (
 		_pre_snap_reverse != null
@@ -412,26 +380,25 @@ func _commit() -> void:
 	var action_name := "Snap Diverter" if is_diverter else "Snap Conveyor"
 	_committing = true
 	undo_redo.create_action(action_name)
-	# Bundle transform with guard opening so one Ctrl+Z reverts both.
-	if not skip_guards and _pre_snap_transform != null:
-		undo_redo.add_do_property(_selected, "global_transform", _snap_result.transform)
+	# Bundle transform + guard opening so one Ctrl+Z reverts both.
+	if not skip_guards:
+		undo_redo.add_do_property(_selected, "global_transform", snap_result.transform)
 		undo_redo.add_undo_property(_selected, "global_transform", _pre_snap_transform)
 	if has_reverse_flip:
 		undo_redo.add_do_property(_selected, reverse_prop, bool(_selected.get(reverse_prop)))
 		undo_redo.add_undo_property(_selected, reverse_prop, bool(_pre_snap_reverse))
 	if not skip_guards:
 		if is_diverter:
-			ConveyorSnapping._open_side_guards_for_diverter(undo_redo, _snap_result.transform, _selected, _target)
+			ConveyorSnapping._open_side_guards_for_diverter(undo_redo, snap_result.transform, _selected, target)
 		else:
-			ConveyorSnapping._connect_side_guards(undo_redo, _selected, _target, _snap_result.transform)
-	var nodes_to_sync: Array[Node3D] = [_target, _selected]
+			ConveyorSnapping._connect_side_guards(undo_redo, _selected, target, snap_result)
+	var nodes_to_sync: Array[Node3D] = [target, _selected]
 	ConveyorSnapping._register_state_sync(undo_redo, nodes_to_sync)
 	undo_redo.commit_action()
 	_committing = false
 
 
-## Multi-select skips snap; otherwise the hooked node oscillates against
-## siblings the gizmo moves in lockstep.
+## Multi-select skips snap; otherwise the hooked node oscillates against siblings.
 static func _pick_snappable() -> Node3D:
 	var selection := EditorInterface.get_selection()
 	if selection == null:
@@ -459,8 +426,7 @@ static func _accepts_target(selected: Node3D, target: Node3D) -> bool:
 		return false
 	if not ConveyorSnapping._is_conveyor(target):
 		return false
-	# Inner conveyor inside an assembly: defer to the assembly so floor_plane
-	# inheritance and end-info come from the canonical wrapper.
+	# Inner conveyor inside an assembly: defer to the assembly wrapper.
 	var parent := target.get_parent() as Node3D
 	if is_instance_valid(parent) and ConveyorSnapping._is_conveyor(parent):
 		return false
@@ -469,8 +435,7 @@ static func _accepts_target(selected: Node3D, target: Node3D) -> bool:
 	return true
 
 
-## Reads the proposed pose via selected_xform_override to avoid the
-## descendant transform-notification cascade on assemblies.
+## Reads proposed pose via selected_xform_override to avoid descendant xform cascade.
 func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 	if _candidate_cache.is_empty() or _candidate_cache_node != selected:
 		_build_candidate_cache(selected)
@@ -488,16 +453,19 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 	var sel_is_curved: bool = ConveyorSnapping._is_curved_conveyor(selected)
 	var sel_has_spur: bool = ConveyorSnapping._has_spur_angles(selected)
 
-	# Widen the pre-filter by selected's reach so a long conveyor whose
-	# body extends into a target isn't dropped just because its origin sits
-	# past SEARCH_RADIUS.
+	# Widen pre-filter by selected's reach so long bodies aren't dropped past SEARCH_RADIUS.
 	var sel_reach: float = 0.0
-	if &"size" in selected:
+	if &"local_bbox" in selected:
+		var bb: AABB = selected.get(&"local_bbox")
+		if bb.size != Vector3.ZERO:
+			sel_reach = maxf(
+					maxf(absf(bb.position.x), absf(bb.end.x)),
+					maxf(absf(bb.position.z), absf(bb.end.z)))
+	if sel_reach == 0.0 and &"size" in selected:
 		var sel_size: Vector3 = selected.size
 		sel_reach = maxf(absf(sel_size.x), absf(sel_size.z)) * 0.5
 
-	# Body-overlap candidates categorically beat interface-only ones;
-	# tracked separately since the two ranking metrics aren't comparable.
+	# Body-overlap candidates beat interface-only ones; ranked separately.
 	var best: Dictionary = {}
 	var best_target: Node3D = null
 	var best_dist := INF
@@ -506,8 +474,7 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 		var tgt: Node3D = entry.node
 		if not is_instance_valid(tgt):
 			continue
-		# XZ-only to match the gate, so an elevated end stays in scope when
-		# the cursor sits at floor Y (the gate is also XZ-only for that case).
+		# XZ-only so elevated ends stay in scope when the cursor sits at floor Y.
 		if _xz_distance_to_target_box_cached(intent.origin, entry) > SEARCH_RADIUS + sel_reach:
 			continue
 		var override_threshold: bool = (
@@ -516,8 +483,6 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 		)
 		if best_is_override and not override_threshold:
 			continue
-		# Bypasses the discriminator chain in _calculate_snap_transform and
-		# spares callees from walking the parent chain on each tgt xform read.
 		ConveyorSnapping.target_xform_override = entry.xform
 		var result: Dictionary
 		if sel_is_curved or entry.is_curved:
@@ -537,8 +502,7 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 		var rotation_penalty: float = (1.0 - alignment) * 2.0
 		var preserves_facing: bool = alignment >= FACING_PRESERVED_DOT
 		var rank_dist: float = intent.origin.distance_to(snap_xform.origin)
-		# XZ-only gate so an elevated end engages from the floor; 3D ranking
-		# still prefers a floor end over an elevated one at equal XZ.
+		# XZ-only gate so elevated ends engage from the floor; 3D ranking still prefers floor.
 		var gate_dist: float
 		if override_threshold:
 			gate_dist = rank_dist
@@ -565,42 +529,74 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 	return {"result": best, "target": best_target}
 
 
+static func _local_bbox_corners(node: Node3D, fallback_size: Variant) -> Array:
+	# Prefers local_bbox (non-centered, path-based); falls back to size (origin-centered).
+	if node and &"local_bbox" in node:
+		var bbox: AABB = node.get(&"local_bbox")
+		if bbox.size != Vector3.ZERO:
+			var p: Vector3 = bbox.position
+			var e: Vector3 = bbox.end
+			return [
+				Vector3(p.x, 0, p.z),
+				Vector3(e.x, 0, p.z),
+				Vector3(p.x, 0, e.z),
+				Vector3(e.x, 0, e.z),
+			]
+	if fallback_size != null:
+		var s: Vector3 = fallback_size
+		var hx: float = s.x * 0.5
+		var hz: float = s.z * 0.5
+		return [
+			Vector3(-hx, 0, -hz),
+			Vector3(hx, 0, -hz),
+			Vector3(-hx, 0, hz),
+			Vector3(hx, 0, hz),
+		]
+	return []
+
+
 static func _selected_body_overlaps_target(intent: Transform3D, selected: Node3D, entry: Dictionary) -> bool:
-	var tgt_size: Variant = entry.size
-	if tgt_size == null:
+	var tgt_corners: Array = _local_bbox_corners(entry.node, entry.size)
+	if tgt_corners.is_empty():
 		return false
 	var tgt_xform: Transform3D = entry.xform
-	var tgt_half: Vector3 = (tgt_size as Vector3) * 0.5
 	var tgt_inv_basis: Basis = tgt_xform.basis.orthonormalized().transposed()
+	var tgt_min_x: float = INF
+	var tgt_max_x: float = -INF
+	var tgt_min_z: float = INF
+	var tgt_max_z: float = -INF
+	for c: Vector3 in tgt_corners:
+		tgt_min_x = minf(tgt_min_x, c.x)
+		tgt_max_x = maxf(tgt_max_x, c.x)
+		tgt_min_z = minf(tgt_min_z, c.z)
+		tgt_max_z = maxf(tgt_max_z, c.z)
 
 	var sel_size: Variant = selected.size if &"size" in selected else null
-	if sel_size == null:
+	var sel_corners: Array = _local_bbox_corners(selected, sel_size)
+	if sel_corners.is_empty():
 		var local: Vector3 = tgt_inv_basis * (intent.origin - tgt_xform.origin)
-		return absf(local.x) < tgt_half.x and absf(local.z) < tgt_half.z
+		return (local.x > tgt_min_x and local.x < tgt_max_x
+				and local.z > tgt_min_z and local.z < tgt_max_z)
 
-	var sel_half: Vector3 = (sel_size as Vector3) * 0.5
 	var sel_min_x: float = INF
 	var sel_max_x: float = -INF
 	var sel_min_z: float = INF
 	var sel_max_z: float = -INF
-	for sx in [-sel_half.x, sel_half.x]:
-		for sz in [-sel_half.z, sel_half.z]:
-			var world_corner: Vector3 = intent * Vector3(sx, 0, sz)
-			var local_corner: Vector3 = tgt_inv_basis * (world_corner - tgt_xform.origin)
-			sel_min_x = minf(sel_min_x, local_corner.x)
-			sel_max_x = maxf(sel_max_x, local_corner.x)
-			sel_min_z = minf(sel_min_z, local_corner.z)
-			sel_max_z = maxf(sel_max_z, local_corner.z)
+	for sc: Vector3 in sel_corners:
+		var world_corner: Vector3 = intent * sc
+		var local_corner: Vector3 = tgt_inv_basis * (world_corner - tgt_xform.origin)
+		sel_min_x = minf(sel_min_x, local_corner.x)
+		sel_max_x = maxf(sel_max_x, local_corner.x)
+		sel_min_z = minf(sel_min_z, local_corner.z)
+		sel_max_z = maxf(sel_max_z, local_corner.z)
 
 	return (
-		sel_min_x < tgt_half.x and sel_max_x > -tgt_half.x
-		and sel_min_z < tgt_half.z and sel_max_z > -tgt_half.z
+		sel_min_x < tgt_max_x and sel_max_x > tgt_min_x
+		and sel_min_z < tgt_max_z and sel_max_z > tgt_min_z
 	)
 
 
-## Targets don't move during a drag, so cache xform/size/type once. Features and
-## curved end-pair geometry are deferred — most candidates fail the per-tick
-## distance check and never need them.
+## Caches target xform/size/type once per drag; features computed lazily.
 func _build_candidate_cache(selected: Node3D) -> void:
 	_candidate_cache.clear()
 	ConveyorSnapping.live_type_cache.clear()
@@ -614,16 +610,15 @@ func _build_candidate_cache(selected: Node3D) -> void:
 	_collect_candidates(root, selected, nodes)
 	_populate_node_caches(selected)
 	_cache_sel_end_info = ConveyorSnapping._get_end_info(selected)
-	var sel_xform: Transform3D = selected.global_transform
 	for n in nodes:
-		if n.global_transform.is_equal_approx(sel_xform):
-			continue
 		var size: Variant = n.size if &"size" in n else null
+		var local_bbox: Variant = n.get(&"local_bbox") if &"local_bbox" in n else null
 		var flags: Dictionary = _populate_node_caches(n)
 		_candidate_cache.append({
 			"node": n,
 			"xform": n.global_transform,
 			"size": size,
+			"local_bbox": local_bbox,
 			"is_curved": flags.is_curved,
 			"has_spur": flags.has_spur,
 		})
@@ -670,8 +665,7 @@ func _build_curved_snap_pairs(selected: Node3D, target: Node3D, sel_ends: Array,
 	return pairs
 
 
-## Closest pair wins regardless of flow; an opposite-flow winner is tagged so the
-## apply step flips `reverse_belt` instead of rotating the conveyor 180°.
+## Closest pair wins; opposite-flow winners flip reverse_belt instead of rotating 180°.
 static func _select_curved_snap(intent: Transform3D, pairs: Array) -> Dictionary:
 	var best: Dictionary = {}
 	var best_dist: float = INF
@@ -707,18 +701,23 @@ func _populate_node_caches(node: Node3D) -> Dictionary:
 ## Orthonormalized inverse: conveyor bases carry scale; transpose alone would skew.
 static func _xz_distance_to_target_box_cached(point: Vector3, entry: Dictionary) -> float:
 	var xform: Transform3D = entry.xform
+	var local: Vector3 = xform.basis.orthonormalized().transposed() * (point - xform.origin)
+	var local_bbox: Variant = entry.get("local_bbox")
+	if local_bbox is AABB and (local_bbox as AABB).size != Vector3.ZERO:
+		var bb: AABB = local_bbox
+		var clamped_x: float = clampf(local.x, bb.position.x, bb.end.x)
+		var clamped_z: float = clampf(local.z, bb.position.z, bb.end.z)
+		return Vector2(local.x - clamped_x, local.z - clamped_z).length()
 	var size: Variant = entry.size
 	if size == null:
 		var d := xform.origin - point
 		return Vector2(d.x, d.z).length()
 	var half: Vector3 = (size as Vector3) * 0.5
-	var local: Vector3 = xform.basis.orthonormalized().transposed() * (point - xform.origin)
-	var clamped_x: float = clampf(local.x, -half.x, half.x)
-	var clamped_z: float = clampf(local.z, -half.z, half.z)
-	return Vector2(local.x - clamped_x, local.z - clamped_z).length()
+	var clamped_x_c: float = clampf(local.x, -half.x, half.x)
+	var clamped_z_c: float = clampf(local.z, -half.z, half.z)
+	return Vector2(local.x - clamped_x_c, local.z - clamped_z_c).length()
 
 
-## End-to-end mins over all end pairs; side snaps use the result's pair.
 static func _snap_interface_xz_distance(result: Dictionary, selected: Node3D, intent: Transform3D, target: Node3D, tgt_xform: Transform3D) -> float:
 	var sel_end: Dictionary = result.get("snapped_end", {})
 	var tgt_end: Dictionary = result.get("target_end", {})
@@ -747,8 +746,7 @@ static func _xz_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
-## Falls back to world Y=0 if the ray misses; the saved scene's default floor
-## plane sits at Y=-2, which is below typical OIP ground.
+## Falls back to world Y=0; saved-scene default floor sits at Y=-2, below OIP ground.
 static func _detect_floor_below(node: Node3D, origin: Vector3, exclude_rids: Array = []) -> Plane:
 	var fallback := Plane(Vector3.UP, 0.0)
 	if not node.is_inside_tree():
@@ -775,7 +773,7 @@ static func _collect_collision_rids(node: Node, out: Array) -> void:
 
 
 static func _collect_candidates(node: Node, selected: Node3D, out: Array[Node3D]) -> void:
-	# Skip the selected's whole subtree; assembly children aren't valid targets.
+	# Skip selected's whole subtree: assembly children aren't valid targets.
 	if node == selected:
 		return
 	if node is Node3D and _accepts_target(selected, node):

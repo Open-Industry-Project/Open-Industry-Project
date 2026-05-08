@@ -39,7 +39,6 @@ size = Vector3(3.9373214, 1.07, 0.06)
 [node name="Stairs" type="Node3D" unique_id=937267779]
 script = ExtResource("1_stairs")
 size = Vector3(3.68, 2, 1.2)
-metadata/hijack_scale = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1832322661]
 mesh = SubResource("ArrayMesh_onjsa")
