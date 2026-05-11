@@ -434,11 +434,6 @@ func _create_end_body(body_name: String) -> StaticBody3D:
 	body.name = body_name
 	body.collision_layer = 2
 	body.collision_mask = 0
-	body.axis_lock_linear_x = true
-	body.axis_lock_linear_y = true
-	body.axis_lock_linear_z = true
-	body.axis_lock_angular_x = true
-	body.axis_lock_angular_y = true
 	body.physics_material_override = _sb.physics_material_override
 	var col := CollisionShape3D.new()
 	col.name = "CollisionShape3D"
@@ -470,16 +465,6 @@ func _update_belt_ends() -> void:
 			var cyl := col.shape as CylinderShape3D
 			cyl.radius = roller_radius
 			cyl.height = conveyor_width
-
-	for body: StaticBody3D in [_end_body1, _end_body2]:
-		if not body:
-			continue
-		if EditorInterface.is_simulation_running() and _linear_speed != 0:
-			var local_front: Vector3 = body.global_transform.basis.z.normalized()
-			var vel: Vector3 = local_front * _linear_speed / roller_radius
-			body.constant_angular_velocity = vel
-		else:
-			body.constant_angular_velocity = Vector3.ZERO
 
 
 func _update_side_guards() -> void:
@@ -1008,8 +993,16 @@ func _recalculate_speeds() -> void:
 func _physics_process(delta: float) -> void:
 	if EditorInterface.is_simulation_running():
 		var local_up := _sb.global_transform.basis.y.normalized()
-		var velocity := -local_up * _angular_speed
-		_sb.constant_angular_velocity = velocity
+		_sb.constant_angular_velocity = -local_up * _angular_speed
+		var roller_radius: float = belt_height / 2.0
+		for body: StaticBody3D in [_end_body1, _end_body2]:
+			if not body:
+				continue
+			if _linear_speed != 0:
+				var local_front: Vector3 = body.global_transform.basis.z.normalized()
+				body.constant_angular_velocity = local_front * _linear_speed / roller_radius
+			else:
+				body.constant_angular_velocity = Vector3.ZERO
 		if not EditorInterface.is_simulation_paused():
 			_belt_position = fmod(_belt_position + _linear_speed * delta, 1.0)
 		if _linear_speed != 0:

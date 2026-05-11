@@ -429,14 +429,10 @@ func _physics_process(delta: float) -> void:
 		_sb.constant_angular_velocity = -local_up * _angular_speed
 
 		var effective_speed := speed * (-1.0 if reverse else 1.0)
-		var angle_radians := deg_to_rad(conveyor_angle)
 		for static_body in _end_static_bodies:
-			var velocity_dir: Vector3
-			if static_body.get_parent().name == "EndAxis2":
-				velocity_dir = global_transform.basis * Vector3(cos(angle_radians), 0, -sin(angle_radians)).normalized()
-			else:
-				velocity_dir = global_transform.basis * Vector3(-1, 0, 0)
-			static_body.constant_linear_velocity = velocity_dir * effective_speed
+			var end_axis: Node3D = static_body.get_parent() as Node3D
+			var velocity_dir: Vector3 = end_axis.global_transform.basis * Vector3(-1, 0, 0)
+			static_body.constant_linear_velocity = velocity_dir.normalized() * effective_speed
 	else:
 		if _sb:
 			_sb.constant_angular_velocity = Vector3.ZERO
