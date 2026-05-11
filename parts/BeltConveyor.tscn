@@ -115,9 +115,6 @@ shader_parameter/Scale = 8.0
 shader_parameter/BeltPosition = 0.0
 shader_parameter/ColorMix = Color(1, 1, 1, 1)
 
-[sub_resource type="BoxMesh" id="BoxMesh_aj17g"]
-size = Vector3(0.001, 2, 0.001)
-
 [node name="BeltConveyor" type="Node3D" unique_id=360974384]
 script = ExtResource("1_belt")
 segments = Array[ExtResource("2_seg")]([SubResource("Resource_18mos")])
@@ -159,8 +156,3 @@ length = 4.5
 cast_shadow = 2
 mesh = SubResource("ArrayMesh_aj17g")
 surface_material_override/0 = SubResource("ShaderMaterial_vtd2i")
-
-[node name="AabbAnchor" type="MeshInstance3D" parent="." unique_id=1119502766]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
-visible = false
-mesh = SubResource("BoxMesh_aj17g")

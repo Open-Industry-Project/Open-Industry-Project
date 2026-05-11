@@ -350,12 +350,8 @@ func _segments_total_length() -> float:
 ## The tag name for the running state in the selected tag group.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var running_tag_name: String = ""
 
-# Pads the visual AABB downwards so editor drop-offset leaves room for legs.
-const _DEFAULT_LEG_HEIGHT: float = 1.5
-
 var _path: BeltPath
 var _mesh_instance: MeshInstance3D
-var _aabb_anchor: MeshInstance3D
 var _bodies: Array[StaticBody3D] = []
 var _frame_rail_meshes: Array[MeshInstance3D] = []
 var _legs: Array[Node3D] = []
@@ -675,25 +671,6 @@ func _ensure_internal_nodes() -> void:
 			_mesh_instance.owner = self
 		_mesh_instance.transform = Transform3D.IDENTITY
 		_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
-	_ensure_aabb_anchor()
-
-
-# Invisible mesh padding the AABB downward so editor drops leave room for legs.
-func _ensure_aabb_anchor() -> void:
-	var span: float = height + _DEFAULT_LEG_HEIGHT
-	if not is_instance_valid(_aabb_anchor):
-		_aabb_anchor = get_node_or_null("AabbAnchor") as MeshInstance3D
-		if not is_instance_valid(_aabb_anchor):
-			_aabb_anchor = MeshInstance3D.new()
-			_aabb_anchor.name = "AabbAnchor"
-			add_child(_aabb_anchor, false, Node.INTERNAL_MODE_FRONT)
-			_aabb_anchor.owner = self
-		_aabb_anchor.visible = false
-	# Fresh BoxMesh: the packed-scene one is resource-cached across instances.
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(0.001, span, 0.001)
-	_aabb_anchor.mesh = box_mesh
-	_aabb_anchor.position = Vector3(0, -span * 0.5, 0)
 
 
 func _rebuild_collision() -> void:

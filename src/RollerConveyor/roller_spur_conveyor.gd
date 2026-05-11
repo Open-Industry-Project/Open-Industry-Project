@@ -5,7 +5,6 @@ extends ResizableNode3D
 ## Diverging roller-spur conveyor — rollers clipped to a splayed footprint.
 
 const _MIN_GUARD_LEN: float = 0.05
-const _DEFAULT_LEG_HEIGHT: float = 1.5
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
@@ -210,7 +209,6 @@ var _frame_right: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
 var _legs: Array[Node3D] = []
 var _flow_arrow: Node3D
-var _aabb_anchor: MeshInstance3D
 var _roller_material: BaseMaterial3D
 var _frame_material: ShaderMaterial
 var _rebuild_pending: bool = false
@@ -365,22 +363,6 @@ func _collision_repositioned_undo(saved: Variant) -> void:
 		floor_plane = saved
 
 
-func _ensure_aabb_anchor() -> void:
-	var span: float = size.y + _DEFAULT_LEG_HEIGHT
-	if not is_instance_valid(_aabb_anchor):
-		_aabb_anchor = get_node_or_null("AabbAnchor") as MeshInstance3D
-		if not is_instance_valid(_aabb_anchor):
-			_aabb_anchor = MeshInstance3D.new()
-			_aabb_anchor.name = "AabbAnchor"
-			add_child(_aabb_anchor, false, Node.INTERNAL_MODE_FRONT)
-		_aabb_anchor.visible = false
-	# Fresh BoxMesh: the packed-scene one is resource-cached across instances.
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(0.001, span, 0.001)
-	_aabb_anchor.mesh = box_mesh
-	_aabb_anchor.position = Vector3(0, -span * 0.5, 0)
-
-
 func _ensure_internal_nodes() -> void:
 	if _roller_material == null:
 		_roller_material = load("res://assets/3DModels/Materials/Metall2.tres").duplicate(true) as BaseMaterial3D
@@ -389,7 +371,6 @@ func _ensure_internal_nodes() -> void:
 	_ensure_simple_collision()
 	_ensure_rollers_node()
 	_ensure_ends_node()
-	_ensure_aabb_anchor()
 
 
 func _ensure_simple_collision() -> void:

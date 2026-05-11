@@ -232,8 +232,6 @@ const _MIN_SLOT_LENGTH: float = 0.05
 @export var running_tag_name: String = ""
 
 
-const _DEFAULT_LEG_HEIGHT: float = 1.5
-
 const _SIZE_DEFAULT: Vector3 = Vector3(2.0, 0.5, 1.524)
 const _SIZE_MIN: Vector3 = Vector3(0.1, 0.05, 0.1)
 
@@ -243,7 +241,6 @@ var _frame_rail_meshes: Array[MeshInstance3D] = []
 var _side_guards: Array[SideGuard] = []
 var _legs: Array[Node3D] = []
 var _flow_arrow: Node3D
-var _aabb_anchor: MeshInstance3D
 var _belt_material: ShaderMaterial
 var _belt_position: float = 0.0
 var _rebuild_pending: bool = false
@@ -436,23 +433,6 @@ func _rebuild() -> void:
 func _ensure_internal_nodes() -> void:
 	if _belt_material == null:
 		_belt_material = BeltSurface.create_material(belt_color, belt_texture)
-	_ensure_aabb_anchor()
-
-
-func _ensure_aabb_anchor() -> void:
-	var span: float = depth + _DEFAULT_LEG_HEIGHT
-	if not is_instance_valid(_aabb_anchor):
-		_aabb_anchor = get_node_or_null("AabbAnchor") as MeshInstance3D
-		if not is_instance_valid(_aabb_anchor):
-			_aabb_anchor = MeshInstance3D.new()
-			_aabb_anchor.name = "AabbAnchor"
-			add_child(_aabb_anchor, false, Node.INTERNAL_MODE_FRONT)
-			_aabb_anchor.visible = false
-	# Fresh BoxMesh: the packed-scene one is resource-cached across instances.
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(0.001, span, 0.001)
-	_aabb_anchor.mesh = box_mesh
-	_aabb_anchor.position = Vector3(0, -span * 0.5, 0)
 
 
 func _get_slot_geometry(index: int) -> Array[Vector3]:

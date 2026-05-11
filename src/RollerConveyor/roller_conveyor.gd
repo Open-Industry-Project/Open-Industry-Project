@@ -182,11 +182,9 @@ var _transfer_plate_material: StandardMaterial3D
 var _shadow_plate: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
 var _legs: Array[Node3D] = []
-var _aabb_anchor: MeshInstance3D
 var _side_guard_rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
 const _MIN_GUARD_LEN: float = 0.05
-const _DEFAULT_LEG_HEIGHT: float = 1.5
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
@@ -263,7 +261,6 @@ func _ready() -> void:
 	_setup_material()
 	_setup_shadow_plate()
 	_setup_transfer_plates()
-	_ensure_aabb_anchor()
 	_last_size = Vector3.ZERO
 	_on_size_changed()
 	_update_flow_arrow()
@@ -332,23 +329,6 @@ func _collision_repositioned_save() -> Variant:
 func _collision_repositioned_undo(saved: Variant) -> void:
 	if saved is Plane:
 		floor_plane = saved
-
-
-func _ensure_aabb_anchor() -> void:
-	# Drag-from-FileSystem uses AABB to lift the node; pad it so legs fit.
-	var span: float = size.y + _DEFAULT_LEG_HEIGHT
-	if not is_instance_valid(_aabb_anchor):
-		_aabb_anchor = get_node_or_null("AabbAnchor") as MeshInstance3D
-		if not is_instance_valid(_aabb_anchor):
-			_aabb_anchor = MeshInstance3D.new()
-			_aabb_anchor.name = "AabbAnchor"
-			add_child(_aabb_anchor, false, Node.INTERNAL_MODE_FRONT)
-		_aabb_anchor.visible = false
-	# Fresh BoxMesh: the packed-scene one is resource-cached across instances.
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(0.001, span, 0.001)
-	_aabb_anchor.mesh = box_mesh
-	_aabb_anchor.position = Vector3(0, -span * 0.5, 0)
 
 
 func _update_flow_arrow() -> void:
@@ -548,7 +528,6 @@ func _on_size_changed() -> void:
 			_shadow_plate.position = Vector3(0, -size.y, 0)
 
 		_update_flow_arrow()
-		_ensure_aabb_anchor()
 		_rebuild_side_guards()
 		_rebuild_legs()
 
