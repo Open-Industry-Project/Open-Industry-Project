@@ -388,6 +388,7 @@ func _ensure_simple_collision() -> void:
 			_simple_conveyor_shape = StaticBody3D.new()
 			_simple_conveyor_shape.name = "SimpleConveyorShape"
 			add_child(_simple_conveyor_shape, false, Node.INTERNAL_MODE_FRONT)
+			_simple_conveyor_shape.owner = self
 			var phys := PhysicsMaterial.new()
 			phys.friction = 0.8
 			phys.rough = true
@@ -397,6 +398,7 @@ func _ensure_simple_collision() -> void:
 			cs = CollisionShape3D.new()
 			cs.name = "CollisionShape3D"
 			_simple_conveyor_shape.add_child(cs)
+			cs.owner = self
 
 
 func _ensure_rollers_node() -> void:
@@ -407,6 +409,7 @@ func _ensure_rollers_node() -> void:
 			_rollers.name = "Rollers"
 			_rollers.roller_scene = load("res://src/RollerConveyor/Roller.tscn") as PackedScene
 			add_child(_rollers, false, Node.INTERNAL_MODE_FRONT)
+			_rollers.owner = self
 
 
 func _ensure_ends_node() -> void:
@@ -416,6 +419,7 @@ func _ensure_ends_node() -> void:
 			_ends = Node3D.new()
 			_ends.name = "Ends"
 			add_child(_ends, false, Node.INTERNAL_MODE_FRONT)
+			_ends.owner = self
 		var end_scene: PackedScene = load("res://src/RollerConveyor/RollerConveyorEnd.tscn") as PackedScene
 		for n: String in ["RollerConveyorEnd", "RollerConveyorEnd2"]:
 			var existing := _ends.get_node_or_null(n)
@@ -557,6 +561,7 @@ func _reconcile_frame_rail(rail_name: String, extents: Vector2,
 		mi = MeshInstance3D.new()
 		mi.name = rail_name
 		add_child(mi, false, Node.INTERNAL_MODE_FRONT)
+		mi.owner = self
 	mi.mesh = ConveyorFrameMesh.create(rail_length, size.y)
 	mi.set_surface_override_material(0, _frame_material)
 	var rail_basis: Basis = Basis(Vector3.UP, PI) if flipped else Basis.IDENTITY
@@ -667,6 +672,7 @@ func _emit_side_guard(guard_name: String, sub_start: float, sub_end: float,
 		sg = SideGuard.new()
 		sg.name = guard_name
 		add_child(sg, false, Node.INTERNAL_MODE_FRONT)
+		sg.owner = self
 	sg.length = sub_len
 	sg.transform = Transform3D(guard_basis, origin)
 	sg.arc_back = sub_start

@@ -502,6 +502,7 @@ func _rebuild_belt_slots() -> void:
 			mesh_instance = MeshInstance3D.new()
 			mesh_instance.name = mesh_name
 			add_child(mesh_instance, false, Node.INTERNAL_MODE_FRONT)
+			mesh_instance.owner = self
 			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 		var arr_mesh: ArrayMesh = BeltConveyorMesh.create_belt(
 				slot_length, slot_height, slot_width,
@@ -519,11 +520,13 @@ func _rebuild_belt_slots() -> void:
 			body = StaticBody3D.new()
 			body.name = body_name
 			add_child(body, false, Node.INTERNAL_MODE_FRONT)
+			body.owner = self
 		var cs: CollisionShape3D = body.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if cs == null:
 			cs = CollisionShape3D.new()
 			cs.name = "CollisionShape3D"
 			body.add_child(cs)
+			cs.owner = self
 		# Fresh BoxShape3D: the packed-scene one is resource-cached across instances.
 		var box := BoxShape3D.new()
 		box.size = Vector3(slot_length, slot_height, slot_width)
@@ -559,6 +562,7 @@ func _reconcile_frame_rail(rail_name: String, extents: Vector2,
 		mi = MeshInstance3D.new()
 		mi.name = rail_name
 		add_child(mi, false, Node.INTERNAL_MODE_FRONT)
+		mi.owner = self
 	mi.mesh = ConveyorFrameMesh.create(rail_length, depth)
 	mi.set_surface_override_material(0, ConveyorFrameMesh.create_material())
 	var rail_basis: Basis = Basis(Vector3.UP, PI) if flipped else Basis.IDENTITY
@@ -658,6 +662,7 @@ func _emit_side_guard(guard_name: String, sub_start: float, sub_end: float,
 		sg = SideGuard.new()
 		sg.name = guard_name
 		add_child(sg, false, Node.INTERNAL_MODE_FRONT)
+		sg.owner = self
 	sg.length = sub_len
 	sg.transform = Transform3D(guard_basis, origin)
 	sg.arc_back = sub_start
