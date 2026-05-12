@@ -88,8 +88,8 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_STORAGE
 
 
-func _get_property_list() -> Array:
-	var properties: Array = []
+func _get_property_list() -> Array[Dictionary]:
+	var properties: Array[Dictionary] = []
 	properties.append({
 		"name": "light_value",
 		"type": TYPE_INT,
