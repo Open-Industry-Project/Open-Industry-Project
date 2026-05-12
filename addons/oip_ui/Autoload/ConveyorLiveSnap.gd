@@ -228,10 +228,8 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 		if is_diverter:
 			ConveyorSnapping._open_side_guards_for_diverter(undo_redo, result.transform, new_node, target)
 		else:
+			# Skip undo on new_node: its subtree is removed on Create Node undo.
 			ConveyorSnapping._connect_side_guards(undo_redo, new_node, target, result, true)
-		# Skip undo on new_node: its subtree is removed on Create Node undo.
-		ConveyorSnapping._register_state_sync(undo_redo, [target])
-		ConveyorSnapping._register_state_sync(undo_redo, [new_node], true)
 
 	undo_redo.commit_action()
 	_committing = false
@@ -392,8 +390,6 @@ func _commit() -> void:
 			ConveyorSnapping._open_side_guards_for_diverter(undo_redo, snap_result.transform, _selected, target)
 		else:
 			ConveyorSnapping._connect_side_guards(undo_redo, _selected, target, snap_result)
-	var nodes_to_sync: Array[Node3D] = [target, _selected]
-	ConveyorSnapping._register_state_sync(undo_redo, nodes_to_sync)
 	undo_redo.commit_action()
 	_committing = false
 

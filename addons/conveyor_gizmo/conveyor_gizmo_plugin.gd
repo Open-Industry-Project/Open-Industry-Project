@@ -131,7 +131,6 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, secondary: b
 		"size": resizable_node.size,
 		"position": node.position,
 		"transform": node.transform,
-		"rail_flags": _capture_rail_flags(node),
 	}
 
 
@@ -245,18 +244,14 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 	if cancel:
 		node.position = _initial_state["position"]
 		resizable_node.size = _initial_state["size"]
-		_restore_rail_flags(node, _initial_state["rail_flags"])
 	else:
 		var undo_redo = EditorInterface.get_editor_undo_redo()
 		undo_redo.create_action("Resize Conveyor")
 		# Position before size so the side-guard update sees the correct transform.
 		undo_redo.add_do_property(node, "position", node.position)
 		undo_redo.add_do_property(resizable_node, "size", resizable_node.size)
-		undo_redo.add_do_method(self, "_restore_rail_flags", node, _capture_rail_flags(node))
-		# Position/size first (triggers _on_size_changed), then restore overrides.
 		undo_redo.add_undo_property(node, "position", _initial_state["position"])
 		undo_redo.add_undo_property(resizable_node, "size", _initial_state["size"])
-		undo_redo.add_undo_method(self, "_restore_rail_flags", node, _initial_state["rail_flags"])
 		undo_redo.commit_action()
 
 	_initial_state.clear()
@@ -480,41 +475,6 @@ func _spur_replace_side_openings(openings: Array, side: String, new_ranges: Arra
 
 #endregion
 
-
-## Captures FrameRail flags by node path (object refs aren't undo/redo-safe).
-func _capture_rail_flags(node: Node) -> Array:
-	var result: Array = []
-	_collect_rail_flags(node, node, result)
-	return result
-
-
-static func _collect_rail_flags(root: Node, node: Node, result: Array) -> void:
-	if node is FrameRail:
-		var rail := node as FrameRail
-		result.append({
-			"path": str(root.get_path_to(rail)),
-			"position": rail.position,
-			"length": rail.length,
-			"front_anchored": rail.front_anchored,
-			"back_anchored": rail.back_anchored,
-			"front_boundary_tracking": rail.front_boundary_tracking,
-			"back_boundary_tracking": rail.back_boundary_tracking,
-		})
-	for child in node.get_children():
-		_collect_rail_flags(root, child, result)
-
-
-func _restore_rail_flags(node: Node, flags: Array) -> void:
-	for entry in flags:
-		var rail := node.get_node_or_null(entry["path"]) as FrameRail
-		if not rail:
-			continue
-		rail.position = entry["position"]
-		rail.length = entry["length"]
-		rail.front_anchored = entry["front_anchored"]
-		rail.back_anchored = entry["back_anchored"]
-		rail.front_boundary_tracking = entry["front_boundary_tracking"]
-		rail.back_boundary_tracking = entry["back_boundary_tracking"]
 
 
 func _get_all_guards(node: Node3D) -> Array:

@@ -22,4 +22,7 @@ void fragment() {
 	METALLIC = metallic_value;
 	ROUGHNESS = roughness_value;
 	SPECULAR = specular_value;
+	if (!FRONT_FACING) {
+		NORMAL = -NORMAL;
+	}
 }

@@ -110,7 +110,8 @@ const _MIN_SLOT_LENGTH: float = 0.05
 		side_guard_openings = value
 		_request_rebuild()
 
-## Per-side end overrides written by snap. Keys: [code]"left_front"[/code],
+## Per-side end overrides for frame and side guard. Snap uses this to extend the rails
+## and guards up to the target's wall plane. Keys: [code]"left_front"[/code],
 ## [code]"left_back"[/code], [code]"right_front"[/code], [code]"right_back"[/code].
 @export_storage var side_guard_snap_extents: Dictionary = {}:
 	set(value):

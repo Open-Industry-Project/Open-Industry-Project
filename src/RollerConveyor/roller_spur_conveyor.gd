@@ -82,6 +82,14 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		side_guard_openings = value
 		_request_side_guard_rebuild()
 
+## Per-side end overrides for frame and side guard. Snap uses this to extend the rails
+## and guards up to the target's wall plane. Keys: [code]"left_front"[/code],
+## [code]"left_back"[/code], [code]"right_front"[/code], [code]"right_back"[/code].
+@export_storage var side_guard_snap_extents: Dictionary = {}:
+	set(value):
+		side_guard_snap_extents = value
+		_request_rebuild()
+
 
 @export_group("Legs")
 @export var legs_enabled: bool = true:
@@ -512,12 +520,25 @@ func _apply_roller_clip(roller: Roller, clip: Vector3) -> void:
 func _side_extents(side_z: float) -> Vector2:
 	var front_x: float = size.x / 2.0 + tan(angle_downstream) * side_z
 	var back_x: float = -size.x / 2.0 + tan(angle_upstream) * side_z
+	var side_key: String = "left" if side_z < 0.0 else "right"
+	if side_guard_snap_extents.has(side_key + "_front"):
+		front_x = float(side_guard_snap_extents[side_key + "_front"])
+	if side_guard_snap_extents.has(side_key + "_back"):
+		back_x = float(side_guard_snap_extents[side_key + "_back"])
 	return Vector2(back_x, front_x)
+
+
+func clear_side_guard_snap_extents() -> void:
+	if side_guard_snap_extents.is_empty():
+		return
+	side_guard_snap_extents = {}
 
 
 func _rebuild_frame_rails() -> void:
 	if not frame_rails_enabled:
 		_remove_named_if_present(["FrameLeft", "FrameRight"])
+		_frame_left = null
+		_frame_right = null
 		return
 	var half_w: float = size.z * 0.5
 	var wt: float = ConveyorFrameMesh.WALL_THICKNESS

@@ -131,12 +131,7 @@ static func snap_selected_conveyors() -> void:
 	
 	undo_redo.create_action(action_name)
 
-	var nodes_to_sync: Array[Node3D] = [target_conveyor]
-
 	for conveyor in selected_conveyors:
-		if not nodes_to_sync.has(conveyor):
-			nodes_to_sync.append(conveyor)
-
 		var original_transform := conveyor.global_transform
 		var snap_result := _calculate_snap_transform(conveyor, target_conveyor)
 		var snap_transform: Transform3D = snap_result.transform
@@ -150,8 +145,6 @@ static func snap_selected_conveyors() -> void:
 				_open_side_guards_for_diverter(undo_redo, snap_transform, conveyor, target_conveyor)
 			else:
 				_connect_side_guards(undo_redo, conveyor, target_conveyor, snap_result)
-
-	_register_state_sync(undo_redo, nodes_to_sync)
 
 	undo_redo.commit_action()
 
@@ -275,6 +268,8 @@ static func _connect_side_guards_path_based(
 		else:
 			side_str = "right"
 
+	# Ray target = target's outer wall plane. Spur stops at the belt's outer face so its
+	# frame doesn't intrude into the belt's slot interior.
 	var side_z_local: float = (target_half_width + frame_wt) if side_str == "right" else -(target_half_width + frame_wt)
 	var plane_point: Vector3 = target_xform * Vector3(0, 0, side_z_local)
 	var plane_normal: Vector3 = target_xform.basis.z.normalized()
@@ -293,11 +288,12 @@ static func _connect_side_guards_path_based(
 		"right": a_half_w + frame_wt,
 	}
 
-	# Spurs override splayed extent; path-based belts emit mid-guard openings.
-	var snapped_is_spur: bool = &"side_guard_snap_extents" in snapped_conveyor
 	# Full Vector3 hits: stripping Y mis-attributes hits on elevated runs.
 	var hits_in_target_local: Array[Vector3] = []
 	var pending_openings: Array[SideGuardOpening] = []
+	# For spurs only: per-side endpoint overrides that EXTEND the side guard up to
+	# the target's wall plane (openings can only trim, not extend).
+	var snapped_is_spur: bool = &"side_guard_snap_extents" in snapped_conveyor
 	var pending_extents: Dictionary = {}
 	var end_key_suffix: String = "_front" if dir_sign > 0.0 else "_back"
 
@@ -308,7 +304,6 @@ static func _connect_side_guards_path_based(
 	for side: String in ["left", "right"]:
 		var bounds: Vector2 = _snapped_side_x_bounds(snapped_conveyor, side)
 		var trailing_x: float = bounds.x if dir_sign > 0.0 else bounds.y
-		var leading_x: float = bounds.y if dir_sign > 0.0 else bounds.x
 		var z_off: float = a_lateral_offsets[side]
 		var ray_origin_world: Vector3 = a_xform * Vector3(trailing_x, 0, z_off)
 		var ray_dir: Vector3 = snap_x_world * dir_sign
@@ -323,10 +318,10 @@ static func _connect_side_guards_path_based(
 		var hit_local: Vector3 = a_xform.affine_inverse() * hit_world
 		var hit_x: float = hit_local.x
 		if snapped_is_spur:
-			# Override splayed extent to meet the target's plane.
+			# Override the side guard's natural extent to land on the target's wall plane.
 			pending_extents[side + end_key_suffix] = hit_x
 		else:
-			# Path-based belt: trim from leading edge to hit (in arc-length space).
+			# Path-based belt: trim from leading edge to hit (arc-length space).
 			var hit_arc: float = _local_pos_to_arc(snapped_conveyor, hit_local)
 			var open_start: float
 			var open_end: float
@@ -336,20 +331,20 @@ static func _connect_side_guards_path_based(
 			else:
 				open_start = snapped_arc_leading - 0.001
 				open_end = hit_arc
-			if open_end > open_start:
+			if open_end - open_start > 0.001:
 				pending_openings.append(SideGuardOpening.make(open_start, open_end, side))
 
 	if pending_openings.is_empty() and pending_extents.is_empty() and hits_in_target_local.size() < 2:
 		return
 
 	if not pending_openings.is_empty():
-		var old_openings: Array[SideGuardOpening] = (snapped_conveyor.get(&"side_guard_openings") as Array).duplicate(true)
-		var new_openings: Array[SideGuardOpening] = old_openings.duplicate(true)
+		var old_guard_openings: Array[SideGuardOpening] = (snapped_conveyor.get(&"side_guard_openings") as Array).duplicate(true)
+		var new_guard_openings: Array[SideGuardOpening] = old_guard_openings.duplicate(true)
 		for op: SideGuardOpening in pending_openings:
-			new_openings.append(op)
-		undo_redo.add_do_property(snapped_conveyor, "side_guard_openings", new_openings)
+			new_guard_openings.append(op)
+		undo_redo.add_do_property(snapped_conveyor, "side_guard_openings", new_guard_openings)
 		if not skip_snapped_undo:
-			undo_redo.add_undo_property(snapped_conveyor, "side_guard_openings", old_openings)
+			undo_redo.add_undo_property(snapped_conveyor, "side_guard_openings", old_guard_openings)
 
 	if not pending_extents.is_empty():
 		var old_extents: Dictionary = (snapped_conveyor.get(&"side_guard_snap_extents") as Dictionary).duplicate(true)
@@ -360,36 +355,14 @@ static func _connect_side_guards_path_based(
 		if not skip_snapped_undo:
 			undo_redo.add_undo_property(snapped_conveyor, "side_guard_snap_extents", old_extents)
 
-	# B-side opening spans snapped's width, centered on contact, in target's arc-length space.
+	# B-side opening: prefer the actual ray hits (spur's outer-face corners on the target
+	# plane) so splayed spurs land symmetric on their own footprint instead of centered on
+	# the centerline. Shrink each side by sg_wt so the opening matches the INNER-face
+	# footprint — that's where the spur's inner face meets the target's wall.
 	var has_contact: bool = target_end_dict.has("pos") and target_conveyor.has_method(&"local_to_arc_length")
 	var contact_local: Vector3 = target_end_dict.get("pos", Vector3.ZERO) as Vector3
-	if has_contact:
-		var center_arc: float = _local_pos_to_arc(target_conveyor, contact_local)
-		var snapped_width: float = float(snapped_conveyor.get(&"width")) if &"width" in snapped_conveyor else _get_conveyor_size(snapped_conveyor).z
-		# Clear snapped's full footprint including its own side guards.
-		var half_open: float = snapped_width * 0.5 + frame_wt
-		# Tilted-segment correction: arc-length range = raw width / cos(angle).
-		if target_conveyor.has_method(&"tangent_at_local_pos"):
-			var tangent_local: Vector3 = target_conveyor.call(&"tangent_at_local_pos", contact_local)
-			var tangent_world: Vector3 = (target_xform.basis * tangent_local).normalized()
-			var snap_z_world: Vector3 = snap_transform.basis.z.normalized()
-			var cos_angle: float = absf(tangent_world.dot(snap_z_world))
-			# Floor at cos(60°) so near-parallel edge cases don't blow up.
-			cos_angle = maxf(cos_angle, 0.5)
-			half_open = half_open / cos_angle
-		var gap_start: float = center_arc - half_open
-		var gap_end: float = center_arc + half_open
-		var arc_bounds: Vector2 = _get_conveyor_arc_bounds(target_conveyor)
-		gap_start = maxf(gap_start, arc_bounds.x)
-		gap_end = minf(gap_end, arc_bounds.y)
-		if gap_end - gap_start > 0.01:
-			var b_old: Array[SideGuardOpening] = (target_conveyor.get(&"side_guard_openings") as Array).duplicate(true)
-			var b_new: Array[SideGuardOpening] = b_old.duplicate(true)
-			b_new.append(SideGuardOpening.make(gap_start, gap_end, side_str))
-			undo_redo.add_do_property(target_conveyor, "side_guard_openings", b_new)
-			undo_redo.add_undo_property(target_conveyor, "side_guard_openings", b_old)
-	elif hits_in_target_local.size() >= 2:
-		# Full Vector3 hits → arc-length so elevated runs attribute correctly.
+	var sg_wt: float = SideGuardMesh.WALL_THICKNESS
+	if hits_in_target_local.size() >= 2:
 		var arc_min: float = INF
 		var arc_max: float = -INF
 		for h: Vector3 in hits_in_target_local:
@@ -397,14 +370,37 @@ static func _connect_side_guards_path_based(
 			arc_min = minf(arc_min, arc)
 			arc_max = maxf(arc_max, arc)
 		var arc_bounds := _get_conveyor_arc_bounds(target_conveyor)
-		var gap_start: float = maxf(arc_min, arc_bounds.x)
-		var gap_end: float = minf(arc_max, arc_bounds.y)
+		var gap_start: float = maxf(arc_min + sg_wt, arc_bounds.x)
+		var gap_end: float = minf(arc_max - sg_wt, arc_bounds.y)
 		if gap_end - gap_start > 0.01:
-			var b_old: Array[SideGuardOpening] = (target_conveyor.get(&"side_guard_openings") as Array).duplicate(true)
-			var b_new: Array[SideGuardOpening] = b_old.duplicate(true)
-			b_new.append(SideGuardOpening.make(gap_start, gap_end, side_str))
-			undo_redo.add_do_property(target_conveyor, "side_guard_openings", b_new)
-			undo_redo.add_undo_property(target_conveyor, "side_guard_openings", b_old)
+			_append_target_opening(undo_redo, target_conveyor, &"side_guard_openings", gap_start, gap_end, side_str)
+	elif has_contact:
+		# Fallback: contact-centered with nominal width (used when ray hits don't fire,
+		# e.g. shallow grazing approach or diverter snap).
+		var center_arc: float = _local_pos_to_arc(target_conveyor, contact_local)
+		var snapped_width: float = float(snapped_conveyor.get(&"width")) if &"width" in snapped_conveyor else _get_conveyor_size(snapped_conveyor).z
+		var half_open: float = snapped_width * 0.5 + frame_wt - sg_wt
+		if target_conveyor.has_method(&"tangent_at_local_pos"):
+			var tangent_local: Vector3 = target_conveyor.call(&"tangent_at_local_pos", contact_local)
+			var tangent_world: Vector3 = (target_xform.basis * tangent_local).normalized()
+			var snap_z_world: Vector3 = snap_transform.basis.z.normalized()
+			var cos_angle: float = absf(tangent_world.dot(snap_z_world))
+			cos_angle = maxf(cos_angle, 0.5)
+			half_open = half_open / cos_angle
+		var arc_bounds: Vector2 = _get_conveyor_arc_bounds(target_conveyor)
+		var gap_start: float = maxf(center_arc - half_open, arc_bounds.x)
+		var gap_end: float = minf(center_arc + half_open, arc_bounds.y)
+		if gap_end - gap_start > 0.01:
+			_append_target_opening(undo_redo, target_conveyor, &"side_guard_openings", gap_start, gap_end, side_str)
+
+
+static func _append_target_opening(undo_redo: EditorUndoRedoManager, target: Node3D, prop: StringName,
+		gap_start: float, gap_end: float, side: String) -> void:
+	var old: Array[SideGuardOpening] = (target.get(prop) as Array).duplicate(true)
+	var new_arr: Array[SideGuardOpening] = old.duplicate(true)
+	new_arr.append(SideGuardOpening.make(gap_start, gap_end, side))
+	undo_redo.add_do_property(target, prop, new_arr)
+	undo_redo.add_undo_property(target, prop, old)
 
 
 ## [back_x, front_x] of side guard in conveyor-local cartesian space.
@@ -438,28 +434,6 @@ static func _connect_side_guards(
 ) -> void:
 	_connect_side_guards_path_based(undo_redo, snapped_conveyor, target_conveyor,
 			snap_result, skip_snapped_undo)
-
-
-## Re-sync @export_storage frame-rail dicts after per-property edits.
-static func _register_state_sync(undo_redo: EditorUndoRedoManager, nodes: Array[Node3D], skip_undo: bool = false) -> void:
-	for node in nodes:
-		_register_frame_rail_sync(undo_redo, node, skip_undo)
-
-
-static func _register_frame_rail_sync(undo_redo: EditorUndoRedoManager, node: Node, skip_undo: bool = false) -> void:
-	if node.has_method("_save_frame_rail_state"):
-		undo_redo.add_do_method(node, "_save_frame_rail_state")
-		if not skip_undo:
-			undo_redo.add_undo_method(node, "_save_frame_rail_state")
-	for child in node.get_children():
-		_register_frame_rail_sync(undo_redo, child, skip_undo)
-
-
-static func _find_frame_rails(node: Node, result: Array[FrameRail]) -> void:
-	if node is FrameRail:
-		result.append(node as FrameRail)
-	for child in node.get_children():
-		_find_frame_rails(child, result)
 
 
 static func _has_side_guards(conveyor: Node3D) -> bool:
@@ -983,7 +957,8 @@ static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_con
 	var side_name: StringName = &"left_side" if dist_left < dist_right else &"right_side"
 	var side_end := {"pos": side_pos_local, "outward": side_outward, "name": side_name}
 
-	# Clear the frame flange on both sides.
+	# Belt spurs clear the belt's frame flange (FLANGE_WIDTH * 2). Roller spurs need more
+	# room for the end pulley.
 	var spur_gap := ConveyorFrameMesh.FLANGE_WIDTH * 2.0
 	if not "conveyor_count" in selected_conveyor:
 		spur_gap = 0.12
