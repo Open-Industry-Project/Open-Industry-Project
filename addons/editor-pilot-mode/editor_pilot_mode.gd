@@ -120,7 +120,7 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouse:
-		if _canvas_viewport and not _canvas_viewport.gui_disable_input:
+		if _canvas_viewport:
 			_canvas_viewport.push_input(event)
 		get_viewport().set_input_as_handled()
 		return
@@ -172,7 +172,7 @@ func _forward_3d_gui_input(_camera: Camera3D, event: InputEvent) -> int:
 		enter_pilot_mode(_camera, canvas_viewport, node3d_viewport)
 		return AfterGUIInput.AFTER_GUI_INPUT_STOP
 
-	if canvas_viewport.gui_disable_input:
+	if not pilot_active:
 		return AfterGUIInput.AFTER_GUI_INPUT_PASS
 
 	canvas_viewport.push_input(event)
@@ -205,7 +205,6 @@ func enter_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewp
 		pilot_node = null
 		return
 
-	canvas_viewport.gui_disable_input = false
 	InputMap.load_from_project_settings()
 
 	var editor_settings := EditorInterface.get_editor_settings()
@@ -248,7 +247,6 @@ func exit_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewpo
 	if cam:
 		_camera.global_transform = cam.global_transform
 
-	canvas_viewport.gui_disable_input = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	DisplayServer.warp_mouse(_cursor_position_before_pilot)
 	get_tree().edited_scene_root.remove_child(pilot_node)
