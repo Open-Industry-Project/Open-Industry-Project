@@ -19,6 +19,7 @@ var save_data := {}
 @onready var browse_opc_ua: Button = $Row2/BrowseOpcUa
 @onready var port: LineEdit = $Row2/PortRow/Port
 @onready var port_row: HBoxContainer = $Row2/PortRow
+@onready var port_label: Label = $Row2/PortRow/PortLabel
 
 var loading_complete := false
 
@@ -32,8 +33,9 @@ func save() -> void:
 	save_data["protocol"] = str(protocol.selected)
 	save_data["gateway"] = gateway.text
 	save_data["path"] = path.text
-	# For ADS, the cpu slot carries the AMS port (a free-form number).
-	if protocol.selected == 4:
+	# ADS and MQTT both keep their cpu-slot value in the free-form Port LineEdit
+	# (ADS: AMS port; MQTT: user:password). Other protocols use the CPU enum.
+	if protocol.selected == 4 or protocol.selected == 6:
 		save_data["cpu"] = port.text
 	else:
 		save_data["cpu"] = cpu.text
@@ -51,7 +53,7 @@ func _load() -> void:
 		protocol.select(int(save_data["protocol"]))
 		gateway.text = save_data["gateway"]
 		path.text = save_data["path"]
-		if int(save_data["protocol"]) == 4:
+		if int(save_data["protocol"]) == 4 or int(save_data["protocol"]) == 6:
 			port.text = save_data["cpu"]
 		else:
 			cpu.text = save_data["cpu"]
@@ -112,6 +114,7 @@ func update_protocol(_index: int, from_ready := false) -> void:
 		path.show()
 		path_label.text = "AmsNetId"
 		gateway_label.text = "PLC IP address"
+		port_label.text = "Port"
 
 		if not from_ready:
 			gateway.text = ""
@@ -127,6 +130,22 @@ func update_protocol(_index: int, from_ready := false) -> void:
 
 		if not from_ready:
 			gateway.text = ""
+	elif _index == 6:  # mqtt
+		# Port LineEdit is reused for "user:password" credentials; the existing
+		# CPU OptionButton is for ab_eip processor types and doesn't apply.
+		cpu_row.hide()
+		port_row.show()
+		browse_opc_ua.hide()
+		path_label.show()
+		path.show()
+		path_label.text = "Client ID"
+		gateway_label.text = "Broker"
+		port_label.text = "Auth"
+
+		if not from_ready:
+			gateway.text = "localhost:1883"
+			path.text = ""
+			port.text = ""
 	else:  # ab_eip
 		cpu_row.show()
 		port_row.hide()
