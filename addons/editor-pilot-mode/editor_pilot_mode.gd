@@ -330,11 +330,20 @@ func cache_editor_ui(node3d_viewport: Viewport) -> void:
 		push_warning("Pilot Mode: Could not locate editor viewport surface UI.")
 		return
 
+	var chrome: Array = []
+	for child in ui.get_children():
+		if not (child is TextureRect):
+			chrome.append(child)
+
+	if chrome.size() < 7:
+		push_warning("Pilot Mode: Could not locate editor viewport surface UI.")
+		return
+
 	_active_viewport_ui = {
-		"rotation_gizmo": ui.get_child(6).get_child(0),
-		"menu": ui.get_child(0).get_child(0).get_child(0),
-		"right_nav": ui.get_child(5),
-		"left_nav": ui.get_child(4),
+		"rotation_gizmo": chrome[6].get_child(0),
+		"menu": chrome[0].get_child(0).get_child(0),
+		"right_nav": chrome[5],
+		"left_nav": chrome[4],
 	}
 
 
