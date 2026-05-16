@@ -3,8 +3,8 @@ render_mode cull_disabled, shadows_disabled;
 
 uniform sampler2D metal_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform vec3 color : source_color = vec3(0.337, 0.655, 0.784);
-uniform float metallic_value : hint_range(0.0, 1.0) = 0.3;
-uniform float roughness_value : hint_range(0.0, 1.0) = 0.7;
+uniform float metallic_value : hint_range(0.0, 1.0) = 0.8;
+uniform float roughness_value : hint_range(0.0, 1.0) = 0.4;
 uniform float specular_value : hint_range(0.0, 1.0) = 0.5;
 
 void fragment() {
