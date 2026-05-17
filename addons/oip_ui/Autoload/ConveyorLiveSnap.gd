@@ -26,6 +26,7 @@ var _cache_sel_features: Variant = null
 var _cache_sel_end_info: Array = []
 var _active_preview_count: int = 0
 var _preview_snap_pending: Dictionary = {}
+var _candidate_excludes: Dictionary = {}
 
 ## Singleton so BeltConveyor._ready can reach this autoload without walking the SceneTree.
 static var instance: ConveyorLiveSnap
@@ -264,7 +265,7 @@ func _ensure_hook() -> bool:
 
 func _unhook() -> void:
 	if _selected != null and is_instance_valid(_selected):
-		_selected.remove_meta(&"_snap_transform")
+		_selected.set_meta(&"_snap_transform", _on_gizmo_transform.bind(_selected))
 
 
 func _reset() -> void:
@@ -278,12 +279,30 @@ func _reset() -> void:
 	_candidate_cache_node = null
 	_cache_sel_features = null
 	_cache_sel_end_info = []
+	_candidate_excludes = {}
 	ConveyorSnapping.live_type_cache.clear()
 	ConveyorSnapping.live_end_info_cache.clear()
 
 
 ## Returns Variant so null (no snap) lets the editor fall back to AABB surface offset.
 func _on_gizmo_transform(proposed: Transform3D, selected: Node3D) -> Variant:
+	var snap_disabled := not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER)
+	var sel := EditorInterface.get_selection()
+	var top_count: int = sel.get_top_selected_nodes().size() if sel != null else 0
+	if top_count > 1:
+		return _group_snap(proposed, selected, snap_disabled)
+	if not _is_snappable(selected):
+		_restore_pre_snap_reverse()
+		_active_snap = false
+		return null
+	return _single_snap(proposed, selected, snap_disabled)
+
+
+func _single_snap(proposed: Transform3D, selected: Node3D, snap_disabled: bool) -> Variant:
+	if not _candidate_excludes.is_empty():
+		_candidate_excludes = {}
+		_candidate_cache.clear()
+		_candidate_cache_node = null
 	# Self-heal stale state when meta fires before _ensure_hook catches up (Ctrl+D case).
 	if _selected != selected:
 		_selected = selected
@@ -297,7 +316,7 @@ func _on_gizmo_transform(proposed: Transform3D, selected: Node3D) -> Variant:
 		_cache_sel_features = null
 		_cache_sel_end_info = []
 
-	if not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER):
+	if snap_disabled:
 		_restore_pre_snap_reverse()
 		_active_snap = false
 		return null
@@ -314,6 +333,72 @@ func _on_gizmo_transform(proposed: Transform3D, selected: Node3D) -> Variant:
 	_apply_live_reverse_flip()
 	_active_snap = true
 	return _snap_result.transform
+
+
+func _group_snap(proposed: Transform3D, selected: Node3D, snap_disabled: bool) -> Variant:
+	if snap_disabled:
+		return null
+	if not proposed.basis.is_equal_approx(selected.global_transform.basis):
+		return null
+
+	var anchor := _get_active_anchor()
+	if anchor == null:
+		return null
+
+	var anchor_proposed: Transform3D = anchor.global_transform
+	anchor_proposed.origin += proposed.origin - selected.global_transform.origin
+
+	var new_excludes := _build_group_exclude_set()
+	if not _excludes_equal(_candidate_excludes, new_excludes):
+		_candidate_cache.clear()
+		_candidate_cache_node = null
+		_candidate_excludes = new_excludes
+
+	var found := _find_snap(anchor, anchor_proposed)
+	if found.is_empty():
+		return null
+
+	var snap_xform: Transform3D = found.result.transform
+	if not snap_xform.basis.is_equal_approx(anchor_proposed.basis):
+		return null
+	if found.result.get("needs_reverse", false):
+		return null
+
+	var result := proposed
+	result.origin += snap_xform.origin - anchor_proposed.origin
+	return result
+
+
+static func _build_group_exclude_set() -> Dictionary:
+	var out: Dictionary = {}
+	var sel := EditorInterface.get_selection()
+	if sel == null:
+		return out
+	for n in sel.get_top_selected_nodes():
+		out[n] = true
+	return out
+
+
+static func _excludes_equal(a: Dictionary, b: Dictionary) -> bool:
+	if a.size() != b.size():
+		return false
+	for k in a:
+		if not b.has(k):
+			return false
+	return true
+
+
+static func _get_active_anchor() -> Node3D:
+	var sel := EditorInterface.get_selection()
+	if sel == null:
+		return null
+	var top: Array[Node] = sel.get_top_selected_nodes()
+	if top.is_empty():
+		return null
+	for n in top:
+		if not (n is Node3D and _is_snappable(n as Node3D)):
+			return null
+	return top[-1] as Node3D
 
 
 func _apply_live_reverse_flip() -> void:
@@ -603,7 +688,7 @@ func _build_candidate_cache(selected: Node3D) -> void:
 	if root == null:
 		return
 	var nodes: Array[Node3D] = []
-	_collect_candidates(root, selected, nodes)
+	_collect_candidates(root, selected, nodes, _candidate_excludes)
 	_populate_node_caches(selected)
 	_cache_sel_end_info = ConveyorSnapping._get_end_info(selected)
 	for n in nodes:
@@ -768,11 +853,11 @@ static func _collect_collision_rids(node: Node, out: Array) -> void:
 		_collect_collision_rids(child, out)
 
 
-static func _collect_candidates(node: Node, selected: Node3D, out: Array[Node3D]) -> void:
+static func _collect_candidates(node: Node, selected: Node3D, out: Array[Node3D], excludes: Dictionary = {}) -> void:
 	# Skip selected's whole subtree: assembly children aren't valid targets.
-	if node == selected:
+	if node == selected or excludes.has(node):
 		return
 	if node is Node3D and _accepts_target(selected, node):
 		out.append(node)
 	for child in node.get_children():
-		_collect_candidates(child, selected, out)
+		_collect_candidates(child, selected, out, excludes)
