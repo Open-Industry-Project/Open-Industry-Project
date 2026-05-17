@@ -5,8 +5,6 @@
 [ext_resource type="Texture2D" uid="uid://cg1nwuou5ysi2" path="res://assets/3DModels/Textures/ConvBox_Conv_text__arrows_1024.png" id="3_imrqm"]
 [ext_resource type="Texture2D" uid="uid://jtx05javgbe5" path="res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg" id="4_488nh"]
 
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_541io"]
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_imrqm"]
 render_priority = 0
 shader = ExtResource("2_6arjl")
@@ -37,7 +35,6 @@ backface_collision = true
 
 [node name="CurvedBeltConveyor" type="Node3D" unique_id=576074511]
 script = ExtResource("1_541io")
-belt_physics_material = SubResource("PhysicsMaterial_541io")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=28115465]
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0, 0)
@@ -45,7 +42,6 @@ cast_shadow = 0
 mesh = SubResource("ArrayMesh_488nh")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1397409146]
-physics_material_override = SubResource("PhysicsMaterial_541io")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1500964594]
 shape = SubResource("ConcavePolygonShape3D_fyasu")

@@ -164,7 +164,7 @@ static func _add_path_segment(parent: Node3D, from_point: Vector3, to_point: Vec
 	parent.add_child(segment_root)
 
 
-static func create_curved(inner_radius: float, conveyor_width: float, belt_height: float, angle_degrees: float, reversed: bool = false) -> Node3D:
+static func create_curved(inner_radius: float, width: float, height: float, angle_degrees: float, reversed: bool = false) -> Node3D:
 	var arrow := Node3D.new()
 	arrow.name = "FlowDirectionArrow"
 
@@ -174,7 +174,7 @@ static func create_curved(inner_radius: float, conveyor_width: float, belt_heigh
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.no_depth_test = true
 
-	var center_radius := inner_radius + conveyor_width / 2.0
+	var center_radius := inner_radius + width / 2.0
 	var angle_rad := deg_to_rad(angle_degrees)
 	var shaft_radius := 0.05
 	var head_radius := 0.15
@@ -224,6 +224,6 @@ static func create_curved(inner_radius: float, conveyor_width: float, belt_heigh
 	head.rotation.z = PI / 2.0
 	arrow.add_child(head)
 
-	arrow.position.y = belt_height / 2.0 + 0.2
+	arrow.position.y = height / 2.0 + 0.2
 
 	return arrow

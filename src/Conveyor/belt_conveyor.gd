@@ -1,6 +1,6 @@
 @tool
 class_name BeltConveyor
-extends Node3D
+extends ResizableNode3D
 
 ## Multi-segment belt conveyor. Origin sits at the START of segment 0; +X is
 ## segment 0's tangent, +Z is across the belt.
@@ -29,6 +29,8 @@ enum ShapePreset {
 		# Skip stamping during scene load so the saved segments aren't overwritten.
 		if changed and is_inside_tree() and value != ShapePreset.CUSTOM:
 			_apply_shape_preset(value)
+		if changed:
+			notify_property_list_changed()
 
 const _DEFAULT_SEGMENT_LENGTH: float = 4.0
 const _PRESET_INCLINE_DEG: float = 12.0
@@ -46,9 +48,20 @@ const _PRESET_WALK_THRU_LEG_KEEP: float = 1.0
 		for i in patched.size():
 			if patched[i] == null:
 				patched[i] = _make_default_segment()
+		var prev_count: int = segments.size()
 		segments = patched
 		_connect_segment_signals()
 		_request_rebuild()
+		if prev_count != patched.size():
+			notify_property_list_changed()
+
+## Length of the only segment, when this conveyor has exactly one segment.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = _DEFAULT_SEGMENT_LENGTH:
+	get:
+		return segments[0].length if segments.size() > 0 else 0.0
+	set(value):
+		if segments.size() > 0:
+			segments[0].length = maxf(_MIN_RUN_LENGTH, value)
 
 
 static func _make_default_segment() -> BeltSegment:
@@ -119,6 +132,14 @@ func _maybe_drift_to_custom() -> void:
 			shape_preset = ShapePreset.CUSTOM
 			return
 
+@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
+	set(value):
+		var clamped: float = maxf(0.1, value)
+		if clamped == width:
+			return
+		width = clamped
+		_request_rebuild()
+
 ## Belt height in meters. Also sets end-pulley radius (= height / 2).
 @export_range(0.05, 5.0, 0.01, "or_greater", "suffix:m") var height: float = 0.5:
 	set(value):
@@ -155,9 +176,69 @@ var local_bbox: AABB:
 				Vector3(aabb.position.x, aabb.position.y - height, -width * 0.5),
 				Vector3(aabb.size.x, aabb.size.y + height, width))
 
-var size: Vector3:
-	get:
-		return local_bbox.size
+func _get_constrained_size(_new_size: Vector3) -> Vector3:
+	return local_bbox.size
+
+
+func _get_active_resize_handle_ids() -> PackedInt32Array:
+	return PackedInt32Array()
+
+
+func _get_scale_warning_text() -> String:
+	return "Use `length` / `width` / `height` / segment lengths instead of scale."
+
+
+var _drag_initial_width: float = 0.0
+var _drag_initial_height: float = 0.0
+var _drag_initial_seg_length: float = 0.0
+
+
+func _transform_requested(data: Dictionary) -> void:
+	if not EditorInterface.get_selection().get_selected_nodes().has(self):
+		return
+	if not data.has("motion"):
+		return
+	var motion := Vector3(data["motion"][0], data["motion"][1], data["motion"][2])
+
+	if not transform_in_progress:
+		_drag_initial_width = width
+		_drag_initial_height = height
+		var tail_seg: BeltSegment = segments[-1] if not segments.is_empty() else null
+		_drag_initial_seg_length = tail_seg.length if tail_seg else 0.0
+		transform_in_progress = true
+
+	if not is_zero_approx(motion.z):
+		width = maxf(0.1, _drag_initial_width + motion.z)
+	if not is_zero_approx(motion.y):
+		height = maxf(0.05, _drag_initial_height + motion.y)
+	if not is_zero_approx(motion.x):
+		var tail_seg: BeltSegment = segments[-1] if not segments.is_empty() else null
+		if tail_seg:
+			tail_seg.length = maxf(_MIN_RUN_LENGTH, _drag_initial_seg_length + motion.x)
+
+
+func _transform_commited() -> void:
+	if not transform_in_progress:
+		return
+	transform_in_progress = false
+	var tail_seg: BeltSegment = segments[-1] if not segments.is_empty() else null
+	var width_changed := absf(width - _drag_initial_width) > 1e-4
+	var height_changed := absf(height - _drag_initial_height) > 1e-4
+	var length_changed := tail_seg != null and absf(tail_seg.length - _drag_initial_seg_length) > 1e-4
+	if not (width_changed or height_changed or length_changed):
+		return
+	var undo_redo := EditorInterface.get_editor_undo_redo()
+	undo_redo.create_action("Resize BeltConveyor", UndoRedo.MERGE_ALL)
+	if width_changed:
+		undo_redo.add_do_property(self, "width", width)
+		undo_redo.add_undo_property(self, "width", _drag_initial_width)
+	if height_changed:
+		undo_redo.add_do_property(self, "height", height)
+		undo_redo.add_undo_property(self, "height", _drag_initial_height)
+	if length_changed:
+		undo_redo.add_do_property(tail_seg, "length", tail_seg.length)
+		undo_redo.add_undo_property(tail_seg, "length", _drag_initial_seg_length)
+	undo_redo.commit_action()
 
 
 func _segments_total_length() -> float:
@@ -166,14 +247,6 @@ func _segments_total_length() -> float:
 		if seg:
 			total += seg.length
 	return total
-
-@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
-	set(value):
-		var clamped: float = maxf(0.1, value)
-		if clamped == width:
-			return
-		width = clamped
-		_request_rebuild()
 
 ## Belt linear speed in m/s.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
@@ -198,10 +271,10 @@ func _segments_total_length() -> float:
 		if _belt_material:
 			_belt_material.set_shader_parameter("use_alternate_texture", belt_texture == BeltTexture.ALTERNATE)
 
-## Physics material applied to per-run bodies. Defaults to friction = 0.5 if null.
-@export var belt_physics_material: PhysicsMaterial:
+## Physics material applied to per-run bodies.
+@export var physics_material: PhysicsMaterial = preload("res://parts/BeltSurfaceMaterial.tres"):
 	set(value):
-		belt_physics_material = value
+		physics_material = value
 		_apply_physics_material()
 
 
@@ -362,7 +435,6 @@ var _belt_material: ShaderMaterial
 var _belt_position: float = 0.0
 var _rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
-var _default_physics_material: PhysicsMaterial
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
 
@@ -370,7 +442,14 @@ var _running_tag := OIPCommsTag.new()
 func _validate_property(property: Dictionary) -> void:
 	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
 		return
-	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
+	if OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name"):
+		return
+	if property.name == "length":
+		property.usage = PROPERTY_USAGE_EDITOR if shape_preset == ShapePreset.STRAIGHT else PROPERTY_USAGE_NONE
+	elif property.name == "segments":
+		property.usage = PROPERTY_USAGE_DEFAULT if shape_preset != ShapePreset.STRAIGHT else PROPERTY_USAGE_STORAGE
+	elif property.name == "size":
+		property.usage = PROPERTY_USAGE_STORAGE
 
 
 func get_snap_features() -> Array:
@@ -468,12 +547,14 @@ func _collision_repositioned_undo(saved: Variant) -> void:
 
 
 func _init() -> void:
+	super._init()
 	if segments.is_empty():
 		segments = [_make_default_segment()]
-	set_notify_transform(true)
+	size = local_bbox.size
 
 
 func _notification(what: int) -> void:
+	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
 
@@ -493,6 +574,7 @@ func _refresh_legs_for_transform() -> void:
 
 
 func _enter_tree() -> void:
+	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
 	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
@@ -601,6 +683,7 @@ func _exit_tree() -> void:
 	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
 		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
+	super._exit_tree()
 
 
 func _on_simulation_started() -> void:
@@ -654,6 +737,7 @@ func _rebuild() -> void:
 	_rebuild_side_guards()
 	_rebuild_legs()
 	_update_flow_arrow()
+	size = local_bbox.size
 	if Engine.is_editor_hint():
 		update_gizmos()
 		_maybe_drift_to_custom()
@@ -680,7 +764,7 @@ func _rebuild_collision() -> void:
 		return
 	var descriptors: Array = _BeltPathCollisionScript.build(_path, height, width, _MIN_RUN_LENGTH)
 	var keep: PackedStringArray = PackedStringArray()
-	var phys: PhysicsMaterial = _resolved_physics_material()
+	var phys: PhysicsMaterial = physics_material
 	# Bend subdivisions share a run_index; per-joint counter gives them unique names.
 	var bend_sub_counts: Dictionary = {}
 	for d: _BeltPathCollisionScript.BoxDescriptor in descriptors:
@@ -1093,15 +1177,15 @@ static func _emit_flow_arrow_shaft(parent: Node3D, a: Transform3D, b: Transform3
 	var from_p: Vector3 = a.origin + a.basis.y * _ARROW_LIFT
 	var to_p: Vector3 = b.origin + b.basis.y * _ARROW_LIFT
 	var delta: Vector3 = to_p - from_p
-	var length: float = delta.length()
-	if length < 0.01:
+	var seg_length: float = delta.length()
+	if seg_length < 0.01:
 		return
-	var dir: Vector3 = delta / length
+	var dir: Vector3 = delta / seg_length
 	var seg := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = _ARROW_SHAFT_RADIUS
 	mesh.bottom_radius = _ARROW_SHAFT_RADIUS
-	mesh.height = length
+	mesh.height = seg_length
 	mesh.material = mat
 	seg.mesh = mesh
 	seg.transform = Transform3D(_basis_with_y_along(dir), (from_p + to_p) * 0.5)
@@ -1269,20 +1353,10 @@ func _is_s_excluded(s: float) -> bool:
 	return s >= exclusion_start and s <= exclusion_end
 
 
-func _resolved_physics_material() -> PhysicsMaterial:
-	if belt_physics_material:
-		return belt_physics_material
-	if not _default_physics_material:
-		_default_physics_material = PhysicsMaterial.new()
-		_default_physics_material.friction = 0.5
-	return _default_physics_material
-
-
 func _apply_physics_material() -> void:
-	var mat: PhysicsMaterial = _resolved_physics_material()
 	for body: StaticBody3D in _bodies:
 		if is_instance_valid(body):
-			body.physics_material_override = mat
+			body.physics_material_override = physics_material
 
 
 func _physics_process(delta: float) -> void:

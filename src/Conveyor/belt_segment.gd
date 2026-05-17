@@ -10,7 +10,7 @@ func _init() -> void:
 	resource_local_to_scene = true
 
 ## Nominal length, before tangent-fillet inset is deducted.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 1.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 4.0:
 	set(value):
 		if value == length:
 			return

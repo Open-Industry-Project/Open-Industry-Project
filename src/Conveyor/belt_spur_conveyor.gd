@@ -8,21 +8,21 @@ extends ResizableNode3D
 const _MIN_SLOT_LENGTH: float = 0.05
 
 ## Spur length along the flow axis in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
 	set(value):
 		size = Vector3(value, size.y, size.z)
 	get:
 		return size.x
 
 ## Spur width across the flow axis in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float:
+@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
 	set(value):
 		size = Vector3(size.x, size.y, value)
 	get:
 		return size.z
 
-## Belt height; drives end-pulley diameter ([code]depth / 2[/code]).
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var depth: float:
+## Belt height; drives end-pulley diameter ([code]height / 2[/code]).
+@export_range(0.05, 5.0, 0.01, "or_greater", "suffix:m") var height: float = 0.5:
 	set(value):
 		size = Vector3(size.x, value, size.z)
 	get:
@@ -69,16 +69,17 @@ const _MIN_SLOT_LENGTH: float = 0.05
 		if _belt_material:
 			_belt_material.set_shader_parameter("ColorMix", belt_color)
 
-@export var belt_texture: BeltSurface.Pattern = BeltSurface.Pattern.STANDARD:
+@export var belt_texture: BeltConveyor.BeltTexture = BeltConveyor.BeltTexture.STANDARD:
 	set(value):
 		belt_texture = value
 		if _belt_material:
 			_belt_material.set_shader_parameter("use_alternate_texture",
-					belt_texture == BeltSurface.Pattern.ALTERNATE)
+					belt_texture == BeltConveyor.BeltTexture.ALTERNATE)
 
-@export var belt_physics_material: PhysicsMaterial:
+## Physics material applied to per-strip bodies.
+@export var physics_material: PhysicsMaterial = preload("res://parts/BeltSurfaceMaterial.tres"):
 	set(value):
-		belt_physics_material = value
+		physics_material = value
 		_apply_physics_material()
 
 
@@ -104,7 +105,7 @@ const _MIN_SLOT_LENGTH: float = 0.05
 		right_side_guards_enabled = value
 		_request_rebuild()
 
-## Openings in conveyor-local X (origin-centered). arc-length == X (single-segment).
+## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
 @export_storage var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
 		side_guard_openings = value
@@ -236,25 +237,21 @@ const _MIN_SLOT_LENGTH: float = 0.05
 const _SIZE_DEFAULT: Vector3 = Vector3(2.0, 0.5, 1.524)
 const _SIZE_MIN: Vector3 = Vector3(0.1, 0.05, 0.1)
 
-var _belt_meshes: Array[MeshInstance3D] = []
 var _bodies: Array[StaticBody3D] = []
-var _frame_rail_meshes: Array[MeshInstance3D] = []
-var _side_guards: Array[SideGuard] = []
 var _legs: Array[Node3D] = []
 var _flow_arrow: Node3D
 var _belt_material: ShaderMaterial
 var _belt_position: float = 0.0
 var _rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
-var _default_physics_material: PhysicsMaterial
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
 
 
 func _validate_property(property: Dictionary) -> void:
-	# `length`/`width`/`depth` are inspector facades; only `size` is serialized.
+	# `length`/`width`/`height` are inspector facades; only `size` is serialized.
 	var prop_name: String = property["name"]
-	if prop_name in ["length", "width", "depth"]:
+	if prop_name in ["length", "width", "height"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
 		return
 	if prop_name == "size":
@@ -278,16 +275,25 @@ func _on_size_changed() -> void:
 
 
 func _get_resize_local_bounds(for_size: Vector3) -> AABB:
-	# Belt occupies Y=[-depth, 0], not centered.
+	# Origin at the tail (back) end — geometry spans [0, size.x]. Belt occupies Y=[-height, 0].
 	return AABB(
-			Vector3(-for_size.x * 0.5, -for_size.y, -for_size.z * 0.5),
+			Vector3(0, -for_size.y, -for_size.z * 0.5),
 			for_size)
+
+
+var local_bbox: AABB:
+	get:
+		return _get_resize_local_bounds(size)
 
 
 func _notification(what: int) -> void:
 	super(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
+
+
+func _get_scale_warning_text() -> String:
+	return "Use `length` / `width` / `height` instead of scale."
 
 
 func _enter_tree() -> void:
@@ -309,6 +315,7 @@ func _exit_tree() -> void:
 	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
 		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
+	super._exit_tree()
 
 
 func _ready() -> void:
@@ -444,15 +451,16 @@ func _get_slot_geometry(index: int) -> Array[Vector3]:
 	var us_contact_z_offset: float = conv_half_width if angle_upstream > 0.0 else -conv_half_width
 	var ds_displacement_x: float = tan(angle_downstream) * (conv_pos_z + ds_contact_z_offset)
 	var us_displacement_x: float = tan(angle_upstream) * (conv_pos_z + us_contact_z_offset)
-	var conv_pos_x: float = (ds_displacement_x + us_displacement_x) / 2.0
+	# Origin at tail: slot spans [0 + us_disp, length + ds_disp]; center is the midpoint.
+	var conv_pos_x: float = length * 0.5 + (ds_displacement_x + us_displacement_x) / 2.0
 	var conv_length: float = length + ds_displacement_x - us_displacement_x
 	return [Vector3(conv_pos_x, 0.0, conv_pos_z),
-			Vector3(conv_length, depth, conv_width)]
+			Vector3(conv_length, height, conv_width)]
 
 
 func _side_extents(side_z: float) -> Vector2:
-	var front_x: float = length / 2.0 + tan(angle_downstream) * side_z
-	var back_x: float = -length / 2.0 + tan(angle_upstream) * side_z
+	var front_x: float = length + tan(angle_downstream) * side_z
+	var back_x: float = tan(angle_upstream) * side_z
 	var side_key: String = "left" if side_z < 0.0 else "right"
 	if side_guard_snap_extents.has(side_key + "_front"):
 		front_x = float(side_guard_snap_extents[side_key + "_front"])
@@ -468,7 +476,7 @@ func clear_side_guard_snap_extents() -> void:
 
 
 func _approximate_loop_length() -> float:
-	var radius: float = depth * 0.5
+	var radius: float = height * 0.5
 	var max_loop: float = 0.0
 	for i in range(conveyor_count):
 		var geom: Array[Vector3] = _get_slot_geometry(i)
@@ -482,10 +490,9 @@ func _approximate_loop_length() -> float:
 
 
 func _rebuild_belt_slots() -> void:
-	_belt_meshes.clear()
 	_bodies.clear()
 	var keep := PackedStringArray()
-	var phys: PhysicsMaterial = _resolved_physics_material()
+	var phys: PhysicsMaterial = physics_material
 	for i in range(conveyor_count):
 		var geom: Array[Vector3] = _get_slot_geometry(i)
 		var slot_pos: Vector3 = geom[0]
@@ -504,14 +511,13 @@ func _rebuild_belt_slots() -> void:
 			add_child(mesh_instance, false, Node.INTERNAL_MODE_FRONT)
 			mesh_instance.owner = self
 			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
-		var arr_mesh: ArrayMesh = BeltConveyorMesh.create_belt(
+		mesh_instance.mesh = BeltConveyorMesh.create_belt(
 				slot_length, slot_height, slot_width,
-				i == 0, i == conveyor_count - 1, true, true)
-		mesh_instance.mesh = arr_mesh
-		if arr_mesh != null and arr_mesh.get_surface_count() > 0:
-			mesh_instance.set_surface_override_material(0, _belt_material)
+				true, true,
+				i == 0, i == conveyor_count - 1)
+		mesh_instance.set_surface_override_material(0, _belt_material)
+		mesh_instance.set_surface_override_material(1, ConveyorFrameMesh.create_material())
 		mesh_instance.transform = Transform3D(Basis.IDENTITY, slot_pos)
-		_belt_meshes.append(mesh_instance)
 
 		var body_name: String = "BeltBody_%d" % i
 		keep.append(body_name)
@@ -541,7 +547,6 @@ func _rebuild_belt_slots() -> void:
 
 
 func _rebuild_frame_rails() -> void:
-	_frame_rail_meshes.clear()
 	if not frame_rails_enabled:
 		_remove_named_if_present(["FrameLeft", "FrameRight"])
 		return
@@ -563,11 +568,10 @@ func _reconcile_frame_rail(rail_name: String, extents: Vector2,
 		mi.name = rail_name
 		add_child(mi, false, Node.INTERNAL_MODE_FRONT)
 		mi.owner = self
-	mi.mesh = ConveyorFrameMesh.create(rail_length, depth)
+	mi.mesh = ConveyorFrameMesh.create(rail_length, height)
 	mi.set_surface_override_material(0, ConveyorFrameMesh.create_material())
 	var rail_basis: Basis = Basis(Vector3.UP, PI) if flipped else Basis.IDENTITY
-	mi.transform = Transform3D(rail_basis, Vector3(center_x, -depth, z_pos))
-	_frame_rail_meshes.append(mi)
+	mi.transform = Transform3D(rail_basis, Vector3(center_x, -height, z_pos))
 
 
 func request_side_guard_opening(arc_back: float, arc_front: float, side: String) -> void:
@@ -607,7 +611,6 @@ func _openings_for_side(side: String) -> Array[Vector2]:
 
 
 func _rebuild_side_guards() -> void:
-	_side_guards.clear()
 	var keep := PackedStringArray()
 	var half_w: float = width * 0.5
 	var wt: float = ConveyorFrameMesh.WALL_THICKNESS
@@ -667,7 +670,6 @@ func _emit_side_guard(guard_name: String, sub_start: float, sub_end: float,
 	sg.transform = Transform3D(guard_basis, origin)
 	sg.arc_back = sub_start
 	sg.arc_front = sub_end
-	_side_guards.append(sg)
 
 
 const _LEG_TAIL_NAME := "Leg_Tail"
@@ -696,7 +698,7 @@ func _rebuild_legs() -> void:
 	for spec: Dictionary in specs:
 		var leg_name: String = spec["name"]
 		var x: float = spec["x"]
-		var belt_bottom_local: Vector3 = Vector3(x, -depth, 0.0)
+		var belt_bottom_local: Vector3 = Vector3(x, -height, 0.0)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
 		var foot_v: Variant = floor_plane.intersects_ray(belt_bottom_world, -legs_normal_world)
 		if foot_v == null:
@@ -749,7 +751,7 @@ func _reposition_existing_legs() -> void:
 		if leg == null:
 			continue
 		var x: float = spec["x"]
-		var belt_bottom_local: Vector3 = Vector3(x, -depth, 0.0)
+		var belt_bottom_local: Vector3 = Vector3(x, -height, 0.0)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
 		var foot_v: Variant = floor_plane.intersects_ray(belt_bottom_world, -legs_normal_world)
 		if foot_v == null:
@@ -770,10 +772,9 @@ func _reposition_existing_legs() -> void:
 
 func _compute_leg_specs(top_len: float) -> Array:
 	var specs: Array = []
-	var half_l: float = top_len * 0.5
-	var coverage_min: float = -half_l + tail_end_attachment_offset if tail_end_leg_enabled else -half_l
-	var coverage_max: float = half_l - head_end_attachment_offset if head_end_leg_enabled else half_l
-	if tail_end_leg_enabled and coverage_min <= half_l and not _is_x_excluded(coverage_min, -half_l):
+	var coverage_min: float = tail_end_attachment_offset if tail_end_leg_enabled else 0.0
+	var coverage_max: float = top_len - head_end_attachment_offset if head_end_leg_enabled else top_len
+	if tail_end_leg_enabled and coverage_min <= top_len and not _is_x_excluded(coverage_min):
 		specs.append({"name": _LEG_TAIL_NAME, "x": coverage_min})
 	if middle_legs_enabled and middle_legs_spacing > 0.0:
 		var tail_clear: float = tail_end_leg_clearance if tail_end_leg_enabled else 0.0
@@ -783,36 +784,26 @@ func _compute_leg_specs(top_len: float) -> Array:
 		var idx: int = 1
 		var pos: float = first
 		while pos <= last + 1.0e-6:
-			if pos >= -half_l and pos <= half_l and not _is_x_excluded(pos, -half_l):
+			if pos >= 0.0 and pos <= top_len and not _is_x_excluded(pos):
 				specs.append({"name": "%s%d" % [_LEG_MIDDLE_PREFIX, idx], "x": pos})
 				idx += 1
 			pos += middle_legs_spacing
-	if head_end_leg_enabled and coverage_max >= -half_l and coverage_max <= half_l \
-			and not _is_x_excluded(coverage_max, -half_l):
+	if head_end_leg_enabled and coverage_max >= 0.0 and coverage_max <= top_len \
+			and not _is_x_excluded(coverage_max):
 		specs.append({"name": _LEG_HEAD_NAME, "x": coverage_max})
 	return specs
 
 
-func _is_x_excluded(x: float, tail_x: float) -> bool:
+func _is_x_excluded(x: float) -> bool:
 	if exclusion_start == 0.0 and exclusion_end == 0.0:
 		return false
-	return x >= tail_x + exclusion_start and x <= tail_x + exclusion_end
-
-
-func _resolved_physics_material() -> PhysicsMaterial:
-	if belt_physics_material:
-		return belt_physics_material
-	if not _default_physics_material:
-		_default_physics_material = PhysicsMaterial.new()
-		_default_physics_material.friction = 0.5
-	return _default_physics_material
+	return x >= exclusion_start and x <= exclusion_end
 
 
 func _apply_physics_material() -> void:
-	var mat: PhysicsMaterial = _resolved_physics_material()
 	for body: StaticBody3D in _bodies:
 		if is_instance_valid(body):
-			body.physics_material_override = mat
+			body.physics_material_override = physics_material
 
 
 func _update_flow_arrow() -> void:
@@ -825,7 +816,7 @@ func _update_flow_arrow() -> void:
 	if length <= 0.0:
 		return
 	_flow_arrow = FlowDirectionArrow.create(Vector3(length, 0.0, width))
-	_flow_arrow.position = Vector3(0.0, 0.2, 0.0)
+	_flow_arrow.position = Vector3(length * 0.5, 0.2, 0.0)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 	if has_meta("is_preview"):

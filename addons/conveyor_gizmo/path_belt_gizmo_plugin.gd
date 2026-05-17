@@ -8,6 +8,8 @@ const PATH_BELT_SCRIPT_PATH := "res://src/Conveyor/belt_conveyor.gd"
 const TAIL_HANDLE_ID := 1500
 const WIDTH_LEFT_ID := 2000
 const WIDTH_RIGHT_ID := 2001
+const HEIGHT_TOP_ID := 2002
+const HEIGHT_BOTTOM_ID := 2003
 
 ## When true, suppress own handles so sideguard handles don't compete.
 var sideguard_mode := false
@@ -57,11 +59,16 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 		handles.append(ends[i])
 		handle_ids.append(i)
 	var half_w: float = float(node.width) * 0.5
+	var height_value: float = float(node.height)
 	var mid: Vector3 = _conveyor_midpoint_local(node)
 	handles.append(mid + Vector3(0.0, 0.0, -half_w))
 	handle_ids.append(WIDTH_LEFT_ID)
 	handles.append(mid + Vector3(0.0, 0.0, half_w))
 	handle_ids.append(WIDTH_RIGHT_ID)
+	handles.append(mid)
+	handle_ids.append(HEIGHT_TOP_ID)
+	handles.append(mid + Vector3(0.0, -height_value, 0.0))
+	handle_ids.append(HEIGHT_BOTTOM_ID)
 	gizmo.add_handles(handles, get_material("path_belt_handles", gizmo), handle_ids)
 
 
@@ -70,6 +77,10 @@ func _get_handle_name(_gizmo: EditorNode3DGizmo, handle_id: int, _secondary: boo
 		return "Width (-Z)"
 	if handle_id == WIDTH_RIGHT_ID:
 		return "Width (+Z)"
+	if handle_id == HEIGHT_TOP_ID:
+		return "Height (+Y)"
+	if handle_id == HEIGHT_BOTTOM_ID:
+		return "Height (-Y)"
 	if handle_id == TAIL_HANDLE_ID:
 		return "Tail length"
 	return "Segment %d length" % handle_id
@@ -79,6 +90,8 @@ func _get_handle_value(gizmo: EditorNode3DGizmo, handle_id: int, _secondary: boo
 	var node := gizmo.get_node_3d()
 	if handle_id == WIDTH_LEFT_ID or handle_id == WIDTH_RIGHT_ID:
 		return float(node.width)
+	if handle_id == HEIGHT_TOP_ID or handle_id == HEIGHT_BOTTOM_ID:
+		return float(node.height)
 	if handle_id == TAIL_HANDLE_ID:
 		var seg: BeltSegment = _get_segment(node, 0)
 		return seg.length if seg else 0.0
@@ -92,6 +105,13 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, _secondary: 
 		# Width drag shifts origin to keep the untouched edge put.
 		_initial_state = {
 			"width": float(node.width),
+			"position": node.position,
+			"global_transform": node.global_transform,
+		}
+		return
+	if handle_id == HEIGHT_TOP_ID or handle_id == HEIGHT_BOTTOM_ID:
+		_initial_state = {
+			"height": float(node.height),
 			"position": node.position,
 			"global_transform": node.global_transform,
 		}
@@ -122,6 +142,8 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, _secondary: bool,
 	var node := gizmo.get_node_3d()
 	if handle_id == WIDTH_LEFT_ID or handle_id == WIDTH_RIGHT_ID:
 		_drag_width(node, handle_id, camera, screen_point)
+	elif handle_id == HEIGHT_TOP_ID or handle_id == HEIGHT_BOTTOM_ID:
+		_drag_height(node, handle_id, camera, screen_point)
 	elif handle_id == TAIL_HANDLE_ID:
 		_drag_tail(node, camera, screen_point)
 	else:
@@ -150,6 +172,21 @@ func _commit_handle(_gizmo: EditorNode3DGizmo, handle_id: int, _secondary: bool,
 			undo_redo.add_do_property(node, "width", node.width)
 			undo_redo.add_undo_property(node, "position", _initial_state["position"])
 			undo_redo.add_undo_property(node, "width", _initial_state["width"])
+			undo_redo.add_do_method(node, "update_gizmos")
+			undo_redo.add_undo_method(node, "update_gizmos")
+			undo_redo.commit_action()
+		_initial_state.clear()
+		return
+	if handle_id == HEIGHT_TOP_ID or handle_id == HEIGHT_BOTTOM_ID:
+		if cancel:
+			node.height = _initial_state["height"]
+			node.position = _initial_state["position"]
+		else:
+			undo_redo.create_action("Resize Height", UndoRedo.MERGE_DISABLE, node)
+			undo_redo.add_do_property(node, "position", node.position)
+			undo_redo.add_do_property(node, "height", node.height)
+			undo_redo.add_undo_property(node, "position", _initial_state["position"])
+			undo_redo.add_undo_property(node, "height", _initial_state["height"])
 			undo_redo.add_do_method(node, "update_gizmos")
 			undo_redo.add_undo_method(node, "update_gizmos")
 			undo_redo.commit_action()
@@ -281,6 +318,40 @@ func _drag_width(node: Node3D, handle_id: int, camera: Camera3D, screen_point: V
 			if parent_node else Transform3D.IDENTITY
 	node.position = parent_inv * (initial_xform.origin + shift_world)
 	node.width = new_half_w * 2.0
+
+
+func _drag_height(node: Node3D, handle_id: int, camera: Camera3D, screen_point: Vector2) -> void:
+	var initial_xform: Transform3D = _initial_state["global_transform"]
+	var initial_height: float = _initial_state["height"]
+	var y_world: Vector3 = initial_xform.basis.y.normalized()
+	var anchor_local: Vector3 = _conveyor_midpoint_local(node)
+	if handle_id == HEIGHT_BOTTOM_ID:
+		anchor_local.y -= initial_height
+	var anchor_world: Vector3 = initial_xform * anchor_local
+
+	var ray_from: Vector3 = camera.project_ray_origin(screen_point)
+	var ray_dir: Vector3 = camera.project_ray_normal(screen_point)
+	var v3: Vector3 = anchor_world - ray_from
+	var dot11: float = y_world.dot(y_world)
+	var dot12: float = y_world.dot(ray_dir)
+	var dot13: float = y_world.dot(v3)
+	var dot22: float = ray_dir.dot(ray_dir)
+	var dot23: float = ray_dir.dot(v3)
+	var denom: float = dot11 * dot22 - dot12 * dot12
+	if absf(denom) < 1.0e-4:
+		return
+	var distance_along_axis: float = (dot12 * dot23 - dot22 * dot13) / denom
+
+	if handle_id == HEIGHT_TOP_ID:
+		var new_height: float = maxf(0.05, initial_height + distance_along_axis)
+		var shift_world: Vector3 = y_world * (new_height - initial_height)
+		var parent_node: Node3D = node.get_parent_node_3d()
+		var parent_inv: Transform3D = parent_node.global_transform.affine_inverse() \
+				if parent_node else Transform3D.IDENTITY
+		node.position = parent_inv * (initial_xform.origin + shift_world)
+		node.height = new_height
+	else:
+		node.height = maxf(0.05, initial_height - distance_along_axis)
 
 
 static func _conveyor_midpoint_local(node: Node3D) -> Vector3:

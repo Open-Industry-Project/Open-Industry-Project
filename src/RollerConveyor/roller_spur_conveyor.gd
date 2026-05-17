@@ -10,19 +10,19 @@ const _LEG_HEAD_NAME := "Leg_Head"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
 	set(value):
 		size = Vector3(value, size.y, size.z)
 	get:
 		return size.x
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var width: float:
+@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
 	set(value):
 		size = Vector3(size.x, size.y, value)
 	get:
 		return size.z
 
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var depth: float:
+@export_range(0.05, 5.0, 0.01, "or_greater", "suffix:m") var height: float = 0.5:
 	set(value):
 		size = Vector3(size.x, value, size.z)
 	get:
@@ -53,6 +53,12 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		if _running_tag.is_ready():
 			_running_tag.write_bit(value != 0.0)
 
+## Physics material applied to the conveyor body.
+@export var physics_material: PhysicsMaterial = preload("res://parts/RollerSurfaceMaterial.tres"):
+	set(value):
+		physics_material = value
+		_apply_physics_material()
+
 
 @export_group("Frame & Side Guards")
 @export var frame_rails_enabled: bool = true:
@@ -76,7 +82,7 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		right_side_guards_enabled = value
 		_request_side_guard_rebuild()
 
-## Openings in conveyor-local X (origin-centered). arc-length == X (single-segment).
+## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
 @export_storage var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
 		side_guard_openings = value
@@ -235,7 +241,7 @@ func _init() -> void:
 
 func _validate_property(property: Dictionary) -> void:
 	var prop_name: String = property["name"]
-	if prop_name in ["length", "width", "depth"]:
+	if prop_name in ["length", "width", "height"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
 		return
 	if prop_name == "size":
@@ -246,9 +252,14 @@ func _validate_property(property: Dictionary) -> void:
 	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
 
 
-func _get_constrained_size(new_size: Vector3) -> Vector3:
-	# Depth is fixed by roller geometry.
-	return Vector3(new_size.x, size_default.y, new_size.z)
+# Origin at the tail (back) end — geometry spans [0, size.x] along +X.
+func _get_resize_local_bounds(for_size: Vector3) -> AABB:
+	return AABB(Vector3(0, -for_size.y * 0.5, -for_size.z * 0.5), for_size)
+
+
+var local_bbox: AABB:
+	get:
+		return _get_resize_local_bounds(size)
 
 
 func _enter_tree() -> void:
@@ -298,6 +309,10 @@ func _notification(what: int) -> void:
 	super(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
+
+
+func _get_scale_warning_text() -> String:
+	return "Use `length` / `width` / `height` instead of scale."
 
 
 func _on_size_changed() -> void:
@@ -389,16 +404,18 @@ func _ensure_simple_collision() -> void:
 			_simple_conveyor_shape.name = "SimpleConveyorShape"
 			add_child(_simple_conveyor_shape, false, Node.INTERNAL_MODE_FRONT)
 			_simple_conveyor_shape.owner = self
-			var phys := PhysicsMaterial.new()
-			phys.friction = 0.8
-			phys.rough = true
-			_simple_conveyor_shape.physics_material_override = phys
+		_apply_physics_material()
 		var cs: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if cs == null:
 			cs = CollisionShape3D.new()
 			cs.name = "CollisionShape3D"
 			_simple_conveyor_shape.add_child(cs)
 			cs.owner = self
+
+
+func _apply_physics_material() -> void:
+	if _simple_conveyor_shape:
+		_simple_conveyor_shape.physics_material_override = physics_material
 
 
 func _ensure_rollers_node() -> void:
@@ -458,7 +475,7 @@ func _rebuild() -> void:
 func _rebuild_rollers() -> void:
 	if _rollers == null:
 		return
-	_rollers.position = Vector3(-size.x / 2.0 + 0.2, RollerConveyor.ROLLERS_Y_OFFSET, 0)
+	_rollers.position = Vector3(0.2, RollerConveyor.ROLLERS_Y_OFFSET, 0)
 	_rollers.scale = Vector3.ONE
 	_rollers.set_width(size.z)
 	_rollers.set_length(size.x)
@@ -472,10 +489,10 @@ func _rebuild_rollers() -> void:
 		var end1 := _ends.get_node_or_null("RollerConveyorEnd") as Node3D
 		var end2 := _ends.get_node_or_null("RollerConveyorEnd2") as Node3D
 		if end1:
-			end1.position = Vector3(size.x / 2.0 - end_offset, 0, 0)
+			end1.position = Vector3(size.x - end_offset, 0, 0)
 			end1.rotation_degrees = Vector3.ZERO
 		if end2:
-			end2.position = Vector3(-size.x / 2.0 + end_offset, 0, 0)
+			end2.position = Vector3(end_offset, 0, 0)
 			end2.rotation_degrees = Vector3(0, 180, 0)
 
 
@@ -499,13 +516,15 @@ func _get_spur_clip(x_spur: float) -> Vector3:
 	var z_min := -half_w
 	var z_max := half_w
 	if absf(angle_downstream) > 0.001:
-		var z_ds := (x_spur - size.x / 2.0) / tan(angle_downstream)
+		# Downstream (head) edge at x = size.x + tan(angle_downstream) * z.
+		var z_ds: float = (x_spur - size.x) / tan(angle_downstream)
 		if angle_downstream > 0:
 			z_min = maxf(z_min, z_ds)
 		else:
 			z_max = minf(z_max, z_ds)
 	if absf(angle_upstream) > 0.001:
-		var z_us := (x_spur + size.x / 2.0) / tan(angle_upstream)
+		# Upstream (tail) edge at x = 0 + tan(angle_upstream) * z.
+		var z_us: float = x_spur / tan(angle_upstream)
 		if angle_upstream > 0:
 			z_max = minf(z_max, z_us)
 		else:
@@ -522,8 +541,8 @@ func _apply_roller_clip(roller: Roller, clip: Vector3) -> void:
 
 
 func _side_extents(side_z: float) -> Vector2:
-	var front_x: float = size.x / 2.0 + tan(angle_downstream) * side_z
-	var back_x: float = -size.x / 2.0 + tan(angle_upstream) * side_z
+	var front_x: float = size.x + tan(angle_downstream) * side_z
+	var back_x: float = tan(angle_upstream) * side_z
 	var side_key: String = "left" if side_z < 0.0 else "right"
 	if side_guard_snap_extents.has(side_key + "_front"):
 		front_x = float(side_guard_snap_extents[side_key + "_front"])
@@ -751,10 +770,9 @@ func _remove_orphan_legs(keep: Dictionary) -> void:
 
 func _compute_leg_specs(top_len: float) -> Array:
 	var specs: Array = []
-	var half_l: float = top_len * 0.5
-	var coverage_min: float = -half_l + tail_end_attachment_offset if tail_end_leg_enabled else -half_l
-	var coverage_max: float = half_l - head_end_attachment_offset if head_end_leg_enabled else half_l
-	if tail_end_leg_enabled and coverage_min <= half_l and not _is_x_excluded(coverage_min, -half_l):
+	var coverage_min: float = tail_end_attachment_offset if tail_end_leg_enabled else 0.0
+	var coverage_max: float = top_len - head_end_attachment_offset if head_end_leg_enabled else top_len
+	if tail_end_leg_enabled and coverage_min <= top_len and not _is_x_excluded(coverage_min):
 		specs.append({"name": _LEG_TAIL_NAME, "x": coverage_min})
 	if middle_legs_enabled and middle_legs_spacing > 0.0:
 		var tail_clear: float = tail_end_leg_clearance if tail_end_leg_enabled else 0.0
@@ -764,20 +782,20 @@ func _compute_leg_specs(top_len: float) -> Array:
 		var idx: int = 1
 		var pos: float = first
 		while pos <= last + 1.0e-6:
-			if pos >= -half_l and pos <= half_l and not _is_x_excluded(pos, -half_l):
+			if pos >= 0.0 and pos <= top_len and not _is_x_excluded(pos):
 				specs.append({"name": "%s%d" % [_LEG_MIDDLE_PREFIX, idx], "x": pos})
 				idx += 1
 			pos += middle_legs_spacing
-	if head_end_leg_enabled and coverage_max >= -half_l and coverage_max <= half_l \
-			and not _is_x_excluded(coverage_max, -half_l):
+	if head_end_leg_enabled and coverage_max >= 0.0 and coverage_max <= top_len \
+			and not _is_x_excluded(coverage_max):
 		specs.append({"name": _LEG_HEAD_NAME, "x": coverage_max})
 	return specs
 
 
-func _is_x_excluded(x: float, tail_x: float) -> bool:
+func _is_x_excluded(x: float) -> bool:
 	if exclusion_start == 0.0 and exclusion_end == 0.0:
 		return false
-	return x >= tail_x + exclusion_start and x <= tail_x + exclusion_end
+	return x >= exclusion_start and x <= exclusion_end
 
 
 ## Convex shape matching the splayed footprint.
@@ -791,10 +809,10 @@ func _rebuild_collision() -> void:
 	var half_y: float = size.y / 2.0
 	var tan_ds: float = tan(angle_downstream)
 	var tan_us: float = tan(angle_upstream)
-	var ds_left_x: float = size.x / 2.0 - half_w * tan_ds
-	var ds_right_x: float = size.x / 2.0 + half_w * tan_ds
-	var us_right_x: float = -size.x / 2.0 + half_w * tan_us
-	var us_left_x: float = -size.x / 2.0 - half_w * tan_us
+	var ds_left_x: float = size.x - half_w * tan_ds
+	var ds_right_x: float = size.x + half_w * tan_ds
+	var us_right_x: float = half_w * tan_us
+	var us_left_x: float = -half_w * tan_us
 	var points := PackedVector3Array([
 		Vector3(ds_left_x, half_y, -half_w),
 		Vector3(ds_right_x, half_y, half_w),
@@ -809,7 +827,7 @@ func _rebuild_collision() -> void:
 	var convex_shape := ConvexPolygonShape3D.new()
 	convex_shape.points = points
 	collision.shape = convex_shape
-	_simple_conveyor_shape.position = Vector3(0, -size.y * 0.5, 0)
+	_simple_conveyor_shape.position = Vector3(size.x * 0.5, -size.y * 0.5, 0)
 
 
 func _update_conveyor_velocity() -> void:
@@ -861,7 +879,7 @@ func _update_flow_arrow() -> void:
 	if size.x <= 0.0:
 		return
 	_flow_arrow = FlowDirectionArrow.create(Vector3(size.x, 0.0, size.z))
-	_flow_arrow.position = Vector3(0.0, 0.2, 0.0)
+	_flow_arrow.position = Vector3(size.x * 0.5, 0.2, 0.0)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 	if has_meta("is_preview"):

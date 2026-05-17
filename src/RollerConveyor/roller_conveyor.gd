@@ -2,14 +2,42 @@
 class_name RollerConveyor
 extends ResizableNode3D
 
-signal width_changed(width: float)
-signal length_changed(length: float)
+signal width_changed(new_width: float)
+signal length_changed(new_length: float)
 signal roller_skew_angle_changed(skew_angle_degrees: float)
-signal speed_changed(speed: float)
+signal speed_changed(new_speed: float)
 signal roller_override_material_changed(material: Material)
 
 const CIRCUMFERENCE: float = 2.0 * PI * Roller.RADIUS
 const ROLLERS_Y_OFFSET: float = -0.12
+
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 4.0:
+	set(value):
+		size = Vector3(value, size.y, size.z)
+	get:
+		return size.x
+
+@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
+	set(value):
+		size = Vector3(size.x, size.y, value)
+	get:
+		return size.z
+
+@export_range(0.05, 5.0, 0.01, "or_greater", "suffix:m") var height: float = 0.5:
+	set(value):
+		size = Vector3(size.x, value, size.z)
+	get:
+		return size.y
+
+## Roller skew angle for angled product movement.
+@export_range(-60, 60, 1, "degrees") var skew_angle: float = 0.0:
+	set(value):
+		if skew_angle != value:
+			skew_angle = value
+			roller_skew_angle_changed.emit(skew_angle)
+			_update_conveyor_velocity()
+			_update_transfer_plates()
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		if value == speed:
@@ -21,31 +49,11 @@ const ROLLERS_Y_OFFSET: float = -0.12
 		if _running_tag.is_ready():
 			_running_tag.write_bit(value != 0.0)
 
-## Roller skew angle for angled product movement.
-@export_range(-60, 60, 1, "degrees") var skew_angle: float = 0.0:
+## Physics material applied to the conveyor body.
+@export var physics_material: PhysicsMaterial = preload("res://parts/RollerSurfaceMaterial.tres"):
 	set(value):
-		if skew_angle != value:
-			skew_angle = value
-			roller_skew_angle_changed.emit(skew_angle)
-			_update_conveyor_velocity()
-			_update_transfer_plates()
-
-@export_category("Communications")
-@export var enable_comms: bool = false
-@export var speed_tag_group_name: String
-@export_custom(0, "tag_group_enum") var speed_tag_groups: String:
-	set(value):
-		speed_tag_group_name = value
-		speed_tag_groups = value
-## The tag name for the speed value in the selected tag group.[br]Datatype: [code]REAL[/code] (32-bit float)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
-@export var speed_tag_name: String = ""
-@export var running_tag_group_name: String
-@export_custom(0, "tag_group_enum") var running_tag_groups: String:
-	set(value):
-		running_tag_group_name = value
-		running_tag_groups = value
-## The tag name for the running state in the selected tag group.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
-@export var running_tag_name: String = ""
+		physics_material = value
+		_apply_physics_material()
 
 
 @export_group("Frame & Side Guards")
@@ -61,7 +69,7 @@ const ROLLERS_Y_OFFSET: float = -0.12
 			return
 		right_side_guards_enabled = value
 		_request_side_guard_rebuild()
-## Openings in conveyor-local X (origin-centered). arc-length == X (single-segment).
+## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
 @export_storage var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
 		side_guard_openings = value
@@ -157,6 +165,24 @@ const ROLLERS_Y_OFFSET: float = -0.12
 		_request_legs_refresh()
 
 
+@export_category("Communications")
+@export var enable_comms: bool = false
+@export var speed_tag_group_name: String
+@export_custom(0, "tag_group_enum") var speed_tag_groups: String:
+	set(value):
+		speed_tag_group_name = value
+		speed_tag_groups = value
+## The tag name for the speed value in the selected tag group.[br]Datatype: [code]REAL[/code] (32-bit float)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+@export var speed_tag_name: String = ""
+@export var running_tag_group_name: String
+@export_custom(0, "tag_group_enum") var running_tag_groups: String:
+	set(value):
+		running_tag_group_name = value
+		running_tag_groups = value
+## The tag name for the running state in the selected tag group.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+@export var running_tag_name: String = ""
+
+
 var running: bool = false:
 	set(value):
 		running = value
@@ -197,7 +223,10 @@ func _get_custom_preview_node() -> Node3D:
 
 	_disable_collisions_recursive(preview_node)
 
-	preview_node.add_child(FlowDirectionArrow.create(preview_node.size))
+	var preview_size: Vector3 = (preview_node as RollerConveyor).size
+	var preview_arrow: Node3D = FlowDirectionArrow.create(preview_size)
+	preview_arrow.position.x = preview_size.x / 2.0
+	preview_node.add_child(preview_arrow)
 
 	return preview_node
 
@@ -233,9 +262,26 @@ func _enter_tree() -> void:
 
 
 func _validate_property(property: Dictionary) -> void:
+	var prop_name: String = property["name"]
+	if prop_name in ["length", "width", "height"]:
+		property["usage"] = PROPERTY_USAGE_EDITOR
+		return
+	if prop_name == "size":
+		property["usage"] = PROPERTY_USAGE_STORAGE
+		return
 	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
 		return
 	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
+
+
+# Origin at the tail (back) end — geometry spans [0, size.x] along +X.
+func _get_resize_local_bounds(for_size: Vector3) -> AABB:
+	return AABB(Vector3(0, -for_size.y * 0.5, -for_size.z * 0.5), for_size)
+
+
+var local_bbox: AABB:
+	get:
+		return _get_resize_local_bounds(size)
 
 
 func _exit_tree() -> void:
@@ -280,8 +326,13 @@ func _reset_preview_holder_transform() -> void:
 
 
 func _notification(what: int) -> void:
+	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
+
+
+func _get_scale_warning_text() -> String:
+	return "Use `length` / `width` / `height` instead of scale."
 
 
 func _clear_stale_snap_metas() -> void:
@@ -337,6 +388,7 @@ func _update_flow_arrow() -> void:
 		_flow_arrow.queue_free()
 		_flow_arrow = null
 	_flow_arrow = FlowDirectionArrow.create(size)
+	_flow_arrow.position.x = size.x / 2.0
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 
@@ -401,19 +453,20 @@ func _setup_roller_container(container: AbstractRollerContainer) -> void:
 
 func _setup_conveyor_physics() -> void:
 	_simple_conveyor_shape = get_node_or_null("SimpleConveyorShape") as StaticBody3D
-	
+
 	if _simple_conveyor_shape:
 		var collision_shape := _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if collision_shape and collision_shape.shape is BoxShape3D:
 			var box_shape := collision_shape.shape as BoxShape3D
 			box_shape.size = size
-		
-		var physics_material := PhysicsMaterial.new()
-		physics_material.friction = 0.8
-		physics_material.rough = true
-		_simple_conveyor_shape.physics_material_override = physics_material
 
+		_apply_physics_material()
 		_update_conveyor_velocity()
+
+
+func _apply_physics_material() -> void:
+	if _simple_conveyor_shape:
+		_simple_conveyor_shape.physics_material_override = physics_material
 
 
 func _setup_collision_shape() -> void:
@@ -442,14 +495,15 @@ func _update_component_positions() -> void:
 			right_side.mesh = frame_mesh
 			var half_width := size.z / 2.0
 			var wt := ConveyorFrameMesh.WALL_THICKNESS
-			left_side.position = Vector3(0, 0, -half_width - wt)
+			# Frame mesh is centered on its own origin — shift it to span [0, size.x].
+			left_side.position = Vector3(size.x / 2.0, 0, -half_width - wt)
 			left_side.rotation = Vector3.ZERO
-			right_side.position = Vector3(0, 0, half_width + wt)
+			right_side.position = Vector3(size.x / 2.0, 0, half_width + wt)
 			right_side.rotation = Vector3(0, PI, 0)
 
 	var rollers_node := get_node_or_null("Rollers")
 	if rollers_node:
-		rollers_node.position = Vector3(-size.x / 2.0 + 0.2, ROLLERS_Y_OFFSET, 0)
+		rollers_node.position = Vector3(0.2, ROLLERS_Y_OFFSET, 0)
 		rollers_node.scale = Vector3.ONE
 
 	var ends_node := get_node_or_null("Ends")
@@ -461,11 +515,11 @@ func _update_component_positions() -> void:
 
 		var end_offset := 0.165
 		if end1:
-			end1.position = Vector3(size.x / 2.0 - end_offset, 0, 0)
+			end1.position = Vector3(size.x - end_offset, 0, 0)
 			end1.rotation_degrees = Vector3(0, 0, 0)
 			end1.scale = Vector3.ONE
 		if end2:
-			end2.position = Vector3(-size.x / 2.0 + end_offset, 0, 0)
+			end2.position = Vector3(end_offset, 0, 0)
 			end2.rotation_degrees = Vector3(0, 180, 0)
 			end2.scale = Vector3.ONE
 
@@ -519,13 +573,13 @@ func _on_size_changed() -> void:
 		_update_transfer_plates()
 
 		if _simple_conveyor_shape:
-			_simple_conveyor_shape.position = Vector3(0, -size.y / 2.0, 0)
+			_simple_conveyor_shape.position = Vector3(size.x / 2.0, -size.y / 2.0, 0)
 
 		if _shadow_plate:
 			var box := BoxMesh.new()
 			box.size = Vector3(size.x, 0.01, size.z)
 			_shadow_plate.mesh = box
-			_shadow_plate.position = Vector3(0, -size.y, 0)
+			_shadow_plate.position = Vector3(size.x / 2.0, -size.y, 0)
 
 		_update_flow_arrow()
 		_rebuild_side_guards()
@@ -615,12 +669,15 @@ func _update_transfer_plates() -> void:
 			plate.visible = false
 		return
 
-	var half_l := size.x / 2.0
+	var head_x: float = size.x
+	var tail_x: float = 0.0
 	var half_w := size.z / 2.0
 	var skew_rad := deg_to_rad(skew_angle)
 	var plate_y := ROLLERS_Y_OFFSET + Roller.RADIUS
 	var skew_zone := half_w * absf(tan(skew_rad))
-	var x_start := half_l - skew_zone
+	# Inset toward the conveyor center from each end where the angled rollers reach full length.
+	var head_inset: float = head_x - skew_zone
+	var tail_inset: float = tail_x + skew_zone
 	var z_sign := signf(skew_angle)
 	var skirt_depth := Roller.RADIUS * 2.0
 
@@ -628,30 +685,30 @@ func _update_transfer_plates() -> void:
 		plate.visible = true
 
 	_transfer_plate_discharge.mesh = _create_transfer_plate_mesh(
-		Vector3(x_start, plate_y, z_sign * half_w),
-		Vector3(half_l, plate_y, z_sign * half_w),
-		Vector3(half_l, plate_y, 0.0),
+		Vector3(head_inset, plate_y, z_sign * half_w),
+		Vector3(head_x, plate_y, z_sign * half_w),
+		Vector3(head_x, plate_y, 0.0),
 		skirt_depth,
 	)
 
 	_transfer_plate_discharge_opp.mesh = _create_transfer_plate_mesh(
-		Vector3(x_start, plate_y, -z_sign * half_w),
-		Vector3(half_l, plate_y, -z_sign * half_w),
-		Vector3(half_l, plate_y, 0.0),
+		Vector3(head_inset, plate_y, -z_sign * half_w),
+		Vector3(head_x, plate_y, -z_sign * half_w),
+		Vector3(head_x, plate_y, 0.0),
 		skirt_depth,
 	)
 
 	_transfer_plate_infeed.mesh = _create_transfer_plate_mesh(
-		Vector3(-x_start, plate_y, -z_sign * half_w),
-		Vector3(-half_l, plate_y, -z_sign * half_w),
-		Vector3(-half_l, plate_y, 0.0),
+		Vector3(tail_inset, plate_y, -z_sign * half_w),
+		Vector3(tail_x, plate_y, -z_sign * half_w),
+		Vector3(tail_x, plate_y, 0.0),
 		skirt_depth,
 	)
 
 	_transfer_plate_infeed_opp.mesh = _create_transfer_plate_mesh(
-		Vector3(-x_start, plate_y, z_sign * half_w),
-		Vector3(-half_l, plate_y, z_sign * half_w),
-		Vector3(-half_l, plate_y, 0.0),
+		Vector3(tail_inset, plate_y, z_sign * half_w),
+		Vector3(tail_x, plate_y, z_sign * half_w),
+		Vector3(tail_x, plate_y, 0.0),
 		skirt_depth,
 	)
 
@@ -754,20 +811,19 @@ func _rebuild_side_guards() -> void:
 		return
 	_side_guards.clear()
 	var keep := PackedStringArray()
-	var half_l: float = size.x * 0.5
 	var half_w: float = size.z * 0.5
 	var wt: float = ConveyorFrameMesh.WALL_THICKNESS
 	var ft: float = ConveyorFrameMesh.FLANGE_THICKNESS
 	var guard_y: float = ft
 	if left_side_guards_enabled:
-		var subs: Array[Vector2] = _subdivide_around_openings(-half_l, half_l, _openings_for_side("left"))
+		var subs: Array[Vector2] = _subdivide_around_openings(0.0, size.x, _openings_for_side("left"))
 		for k in range(subs.size()):
 			var sub: Vector2 = subs[k]
 			var n: String = "SideGuardLeft_%d" % k
 			keep.append(n)
 			_emit_side_guard(n, sub.x, sub.y, false, -half_w - wt, guard_y)
 	if right_side_guards_enabled:
-		var subs: Array[Vector2] = _subdivide_around_openings(-half_l, half_l, _openings_for_side("right"))
+		var subs: Array[Vector2] = _subdivide_around_openings(0.0, size.x, _openings_for_side("right"))
 		for k in range(subs.size()):
 			var sub: Vector2 = subs[k]
 			var n: String = "SideGuardRight_%d" % k
@@ -899,34 +955,32 @@ func _reposition_existing_legs() -> void:
 
 func _compute_leg_specs(top_len: float) -> Array:
 	var specs: Array = []
-	var half_l: float = top_len * 0.5
-	var coverage_min: float = -half_l + tail_end_attachment_offset if tail_end_leg_enabled else -half_l
-	var coverage_max: float = half_l - head_end_attachment_offset if head_end_leg_enabled else half_l
-	if tail_end_leg_enabled and coverage_min <= half_l and not _is_x_excluded(coverage_min, -half_l):
+	var coverage_min: float = tail_end_attachment_offset if tail_end_leg_enabled else 0.0
+	var coverage_max: float = top_len - head_end_attachment_offset if head_end_leg_enabled else top_len
+	if tail_end_leg_enabled and coverage_min <= top_len and not _is_x_excluded(coverage_min):
 		specs.append({"name": _LEG_TAIL_NAME, "x": coverage_min})
 	if middle_legs_enabled and middle_legs_spacing > 0.0:
 		var tail_clear: float = tail_end_leg_clearance if tail_end_leg_enabled else 0.0
 		var head_clear: float = head_end_leg_clearance if head_end_leg_enabled else 0.0
-		# Snap to origin-centered grid so legs land at x=0 for symmetric lengths.
 		var first: float = ceil((coverage_min + tail_clear) / middle_legs_spacing) * middle_legs_spacing
 		var last: float = floor((coverage_max - head_clear) / middle_legs_spacing) * middle_legs_spacing
 		var idx: int = 1
 		var pos: float = first
 		while pos <= last + 1.0e-6:
-			if pos >= -half_l and pos <= half_l and not _is_x_excluded(pos, -half_l):
+			if pos >= 0.0 and pos <= top_len and not _is_x_excluded(pos):
 				specs.append({"name": "%s%d" % [_LEG_MIDDLE_PREFIX, idx], "x": pos})
 				idx += 1
 			pos += middle_legs_spacing
-	if head_end_leg_enabled and coverage_max >= -half_l and coverage_max <= half_l \
-			and not _is_x_excluded(coverage_max, -half_l):
+	if head_end_leg_enabled and coverage_max >= 0.0 and coverage_max <= top_len \
+			and not _is_x_excluded(coverage_max):
 		specs.append({"name": _LEG_HEAD_NAME, "x": coverage_max})
 	return specs
 
 
-func _is_x_excluded(x: float, tail_x: float) -> bool:
+func _is_x_excluded(x: float) -> bool:
 	if exclusion_start == 0.0 and exclusion_end == 0.0:
 		return false
-	return x >= tail_x + exclusion_start and x <= tail_x + exclusion_end
+	return x >= exclusion_start and x <= exclusion_end
 
 
 func _remove_orphans_with_prefix(prefixes: Array, keep: PackedStringArray) -> void:

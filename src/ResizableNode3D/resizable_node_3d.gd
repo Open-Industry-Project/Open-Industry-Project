@@ -62,12 +62,16 @@ func _notification(what: int) -> void:
 				if not _scale_notification_cooldown:
 					_scale_notification_cooldown = true
 					EditorInterface.get_editor_toaster().push_toast(
-						"Please use the 'size' property instead of scale.",
+						_get_scale_warning_text(),
 						EditorToaster.SEVERITY_WARNING
 					)
 					get_tree().create_timer(1.0).timeout.connect(func() -> void:
 						_scale_notification_cooldown = false
 					)
+
+
+func _get_scale_warning_text() -> String:
+	return "Please use the 'size' property instead of scale."
 
 func _enter_tree() -> void:
 	if not EditorInterface.transform_requested.is_connected(_transform_requested):
@@ -119,20 +123,23 @@ func get_resize_handle_local_position(handle_id: int, for_size: Vector3 = size) 
 	var bounds := _get_resize_local_bounds(for_size)
 	var min_v: Vector3 = bounds.position
 	var max_v: Vector3 = bounds.position + bounds.size
+	var mid_x: float = (min_v.x + max_v.x) * 0.5
+	var mid_y: float = (min_v.y + max_v.y) * 0.5
+	var mid_z: float = (min_v.z + max_v.z) * 0.5
 
 	match handle_id:
 		0:
-			return Vector3(max_v.x, 0, 0)
+			return Vector3(max_v.x, mid_y, mid_z)
 		1:
-			return Vector3(min_v.x, 0, 0)
+			return Vector3(min_v.x, mid_y, mid_z)
 		2:
-			return Vector3(0, max_v.y, 0)
+			return Vector3(mid_x, max_v.y, mid_z)
 		3:
-			return Vector3(0, min_v.y, 0)
+			return Vector3(mid_x, min_v.y, mid_z)
 		4:
-			return Vector3(0, 0, max_v.z)
+			return Vector3(mid_x, mid_y, max_v.z)
 		5:
-			return Vector3(0, 0, min_v.z)
+			return Vector3(mid_x, mid_y, min_v.z)
 		_:
 			return Vector3.ZERO
 

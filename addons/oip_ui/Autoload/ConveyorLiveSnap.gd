@@ -135,7 +135,7 @@ static func _apply_preview_reverse_flip(node: Node3D, result: Dictionary) -> voi
 	if prop == &"":
 		return
 	if not node.has_meta(_FLIP_DECISION_META):
-		node.set_meta(_FLIP_DECISION_META, bool(result.get("needs_reverse_belt", false)))
+		node.set_meta(_FLIP_DECISION_META, bool(result.get("needs_reverse", false)))
 	var baseline: bool = bool(node.get_meta(_BASELINE_REVERSE_META))
 	var should_flip: bool = bool(node.get_meta(_FLIP_DECISION_META))
 	var target_value: bool = (not baseline) if should_flip else baseline
@@ -320,7 +320,7 @@ func _apply_live_reverse_flip() -> void:
 	if _flip_locked:
 		return
 	_flip_locked = true
-	if not _snap_result.get("needs_reverse_belt", false):
+	if not _snap_result.get("needs_reverse", false):
 		return
 	var prop := ConveyorSnapping.get_reverse_property_name(_selected)
 	if prop == &"":
@@ -661,7 +661,7 @@ func _build_curved_snap_pairs(selected: Node3D, target: Node3D, sel_ends: Array,
 	return pairs
 
 
-## Closest pair wins; opposite-flow winners flip reverse_belt instead of rotating 180°.
+## Closest pair wins; opposite-flow winners flip `reverse` instead of rotating 180°.
 static func _select_curved_snap(intent: Transform3D, pairs: Array) -> Dictionary:
 	var best: Dictionary = {}
 	var best_dist: float = INF
@@ -676,7 +676,7 @@ static func _select_curved_snap(intent: Transform3D, pairs: Array) -> Dictionary
 	if best.is_empty():
 		return {}
 	var result: Dictionary = best.duplicate()
-	result["needs_reverse_belt"] = not best_compatible
+	result["needs_reverse"] = not best_compatible
 	return result
 
 

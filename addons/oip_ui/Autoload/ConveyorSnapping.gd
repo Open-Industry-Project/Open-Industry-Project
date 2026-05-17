@@ -642,27 +642,27 @@ static func _get_curved_conveyor_angle(conveyor: Node3D) -> float:
 
 static func _get_curved_conveyor_params(conveyor: Node3D) -> Dictionary:
 	var inner_radius := 0.5
-	var conveyor_width := 1.524
+	var width := 1.524
 	if "inner_radius" in conveyor:
 		inner_radius = conveyor.inner_radius
 	elif "inner_radius_f" in conveyor:
 		inner_radius = conveyor.inner_radius_f
-	if "conveyor_width" in conveyor:
-		conveyor_width = conveyor.conveyor_width
+	if "width" in conveyor:
+		width = conveyor.width
 	var corner = conveyor.get_node_or_null("ConveyorCorner")
 	if corner:
 		if "inner_radius" in corner:
 			inner_radius = corner.inner_radius
-		if "conveyor_width" in corner:
-			conveyor_width = corner.conveyor_width
-	return {"inner_radius": inner_radius, "conveyor_width": conveyor_width}
+		if "width" in corner:
+			width = corner.width
+	return {"inner_radius": inner_radius, "width": width}
 
 
 static func _get_curved_end_info(conveyor: Node3D) -> Array[Dictionary]:
 	var angle_deg := _get_curved_conveyor_angle(conveyor)
 	var angle_rad := deg_to_rad(angle_deg)
 	var params := _get_curved_conveyor_params(conveyor)
-	var avg_radius: float = params.inner_radius + params.conveyor_width / 2.0
+	var avg_radius: float = params.inner_radius + params.width / 2.0
 
 	var corner = conveyor.get_node_or_null("ConveyorCorner")
 	var cc_offset: Vector3 = corner.position if corner else Vector3.ZERO
@@ -709,8 +709,8 @@ static func _get_spur_end_info(conveyor: Node3D) -> Array[Dictionary]:
 	var ds_outward := Vector3(cos(angles.downstream), 0, -sin(angles.downstream))
 	var us_outward := Vector3(-cos(angles.upstream), 0, sin(angles.upstream))
 	return [
-		{"pos": Vector3(size.x / 2.0, 0, 0), "outward": ds_outward, "name": "front"},
-		{"pos": Vector3(-size.x / 2.0, 0, 0), "outward": us_outward, "name": "back"},
+		{"pos": Vector3(size.x, 0, 0), "outward": ds_outward, "name": "front"},
+		{"pos": Vector3(0, 0, 0), "outward": us_outward, "name": "back"},
 	]
 
 
@@ -834,13 +834,8 @@ static func _is_output_end(conveyor: Node3D, end_info: Dictionary) -> bool:
 	return end_info.name == "front"
 
 
-## Belt curves expose `reverse_belt`; roller curves expose `reverse`.
 static func get_reverse_property_name(conveyor: Node3D) -> StringName:
-	if conveyor == null:
-		return &""
-	if "reverse_belt" in conveyor:
-		return &"reverse_belt"
-	if "reverse" in conveyor:
+	if conveyor != null and "reverse" in conveyor:
 		return &"reverse"
 	return &""
 

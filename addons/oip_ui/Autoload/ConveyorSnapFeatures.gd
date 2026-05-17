@@ -126,15 +126,16 @@ static func _compute_features_for(node: Node3D) -> Array:
 		var rd: float = Rollers.ROLLERS_DISTANCE
 		var first_roller_x: float = back_x + Rollers.ROLLERS_START_OFFSET + rd
 		var gap_phase: float = first_roller_x + rd / 2.0
-		var usable_half: float = front_x - Rollers.ROLLERS_START_OFFSET
+		var track_x_min: float = back_x + Rollers.ROLLERS_START_OFFSET
+		var track_x_max: float = front_x - Rollers.ROLLERS_START_OFFSET
 		features.append({
 			"shape": Shape.TRACK,
 			"kind": &"roller_gap_track",
 			"axis_local": Vector3(1, 0, 0),
 			"phase": gap_phase,
 			"step": rd,
-			"x_min": -usable_half,
-			"x_max": usable_half,
+			"x_min": track_x_min,
+			"x_max": track_x_max,
 		})
 		features.append({
 			"shape": Shape.TRACK,
@@ -142,8 +143,8 @@ static func _compute_features_for(node: Node3D) -> Array:
 			"axis_local": Vector3(1, 0, 0),
 			"phase": first_roller_x,
 			"step": rd,
-			"x_min": -usable_half,
-			"x_max": usable_half,
+			"x_min": track_x_min,
+			"x_max": track_x_max,
 		})
 	return features
 

@@ -2,17 +2,7 @@
 
 [ext_resource type="Script" uid="uid://qgq0ruhbl0mq" path="res://src/Conveyor/belt_spur_conveyor.gd" id="1_pxi51"]
 
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_hcu6p"]
-friction = 0.5
-
 [node name="BeltSpurConveyor" type="Node3D"]
 script = ExtResource("1_pxi51")
-length = 2.0
-width = 1.524
-depth = 0.5
 angle_downstream = -0.523599
 conveyor_count = 8
-speed = 2.0
-belt_color = Color(1, 1, 1, 1)
-belt_texture = 0
-belt_physics_material = SubResource("PhysicsMaterial_hcu6p")

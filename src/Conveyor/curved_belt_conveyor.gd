@@ -1,73 +1,72 @@
 @tool
 class_name CurvedBeltConveyor
-extends Node3D
-
-signal size_changed
+extends ResizableNode3D
 
 const BASE_INNER_RADIUS: float = 0.5
 const BASE_CONVEYOR_WIDTH: float = 1.524
-const SIZE_DEFAULT: Vector3 = Vector3(1.524, 0.5, 1.524)
+const BASE_HEIGHT: float = 0.5
 
 const BELT_SHADER: Shader = preload("res://src/Conveyor/belt_surface_shader.gdshader")
 const MESH_SCALE_FACTOR := 2.0
 
-enum ConvTexture {
-	STANDARD,
-	ALTERNATE,
-}
-
 ## Inner curve edge radius in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var inner_radius: float = BASE_INNER_RADIUS:
 	set(value):
-		inner_radius = max(0.1, value)
-		_mesh_regeneration_needed = true
-		_update_calculated_size()
-		_update_all_components()
+		var clamped: float = max(0.1, value)
+		if inner_radius == clamped:
+			return
+		inner_radius = clamped
+		_sync_size_from_dimensions()
 
-## Belt width in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var conveyor_width: float = BASE_CONVEYOR_WIDTH:
+@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = BASE_CONVEYOR_WIDTH:
 	set(value):
-		conveyor_width = max(0.1, value)
-		_mesh_regeneration_needed = true
-		_update_calculated_size()
-		_update_all_components()
+		var clamped: float = max(0.1, value)
+		if width == clamped:
+			return
+		width = clamped
+		_sync_size_from_dimensions()
 
-## Belt frame height in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var belt_height: float = 0.5:
+@export_range(0.05, 5.0, 0.01, "or_greater", "suffix:m") var height: float = BASE_HEIGHT:
 	set(value):
-		belt_height = max(0.1, value)
-		_mesh_regeneration_needed = true
-		_update_calculated_size()
-		_update_all_components()
+		var clamped: float = max(0.1, value)
+		if height == clamped:
+			return
+		height = clamped
+		_sync_size_from_dimensions()
 
-var size: Vector3:
-	get:
-		return _calculated_size
-	set(_value):
-		pass
 
-var _calculated_size: Vector3 = SIZE_DEFAULT
+func _sync_size_from_dimensions() -> void:
+	var d: float = 2.0 * (inner_radius + width)
+	size = Vector3(d, height, d)
 
-func _update_calculated_size() -> void:
-	var outer_radius := inner_radius + conveyor_width
-	var diameter := outer_radius * 2.0
-	var old_size := _calculated_size
-	_calculated_size = Vector3(diameter, belt_height, diameter)
 
-	if old_size != _calculated_size:
-		size_changed.emit()
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	var d: float
+	match _resize_handle:
+		0, 1:
+			d = new_size.x
+		4, 5:
+			d = new_size.z
+		_:
+			d = maxf(new_size.x, new_size.z)
+	d = maxf(2.0 * (0.1 + 0.1), d)
+	return Vector3(d, new_size.y, d)
 
-@export var belt_color: Color = Color(1, 1, 1, 1):
-	set(value):
-		belt_color = value
-		if _belt_material:
-			(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
 
-@export var belt_texture: ConvTexture = ConvTexture.STANDARD:
-	set(value):
-		belt_texture = value
-		if _belt_material:
-			(_belt_material as ShaderMaterial).set_shader_parameter("use_alternate_texture", belt_texture == ConvTexture.ALTERNATE)
+# Curved geometry has four parameters (inner_radius / width / height / conveyor_angle);
+# the rectangular 6-handle model doesn't fit. Edit via the inspector.
+func _get_active_resize_handle_ids() -> PackedInt32Array:
+	return PackedInt32Array()
+
+
+func _on_size_changed() -> void:
+	var derived_width: float = maxf(0.1, size.x * 0.5 - inner_radius)
+	if not is_equal_approx(width, derived_width):
+		width = derived_width
+	if not is_equal_approx(height, size.y):
+		height = size.y
+	_mesh_regeneration_needed = true
+	_update_all_components()
 
 ## Curve section angle (5-180 degrees).
 @export_range(5.0, 180.0, 1.0, "degrees") var conveyor_angle: float = 90.0:
@@ -78,16 +77,19 @@ func _update_calculated_size() -> void:
 		_mesh_regeneration_needed = true
 		_update_all_components()
 
-@export var reverse_belt: bool = false:
+## Hidden from the inspector — flipped by the snap system to reverse flow when
+## a curved conveyor can't be rotated 180° (would swap inner/outer). Users
+## should reverse direction via negative [member speed] instead.
+@export_storage var reverse: bool = false:
 	set(value):
-		reverse_belt = value
+		reverse = value
 		_recalculate_speeds()
 		_update_belt_material_scale()
 		_update_flow_arrow()
 		_sync_preview_overlay_arrow(value)
 
 ## Linear speed at [member reference_distance] in m/s.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
 	set(value):
 		if value == speed:
 			return
@@ -98,25 +100,37 @@ func _update_calculated_size() -> void:
 			_running_tag.write_bit(value != 0.0)
 
 ## Distance from outer edge where [member speed] is measured.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = SIZE_DEFAULT.x/2:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = BASE_CONVEYOR_WIDTH / 2.0:
 	set(value):
 		reference_distance = value
 		_recalculate_speeds()
 
-@export var belt_physics_material: PhysicsMaterial:
-	get:
-		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
-		if sb_node:
-			return sb_node.physics_material_override
-		return null
+@export var belt_color: Color = Color.WHITE:
 	set(value):
-		var sb_node := get_node_or_null("StaticBody3D") as StaticBody3D
-		if sb_node:
-			sb_node.physics_material_override = value
-		if _end_body1:
-			_end_body1.physics_material_override = value
-		if _end_body2:
-			_end_body2.physics_material_override = value
+		belt_color = value
+		if _belt_material:
+			(_belt_material as ShaderMaterial).set_shader_parameter("ColorMix", belt_color)
+
+@export var belt_texture: BeltConveyor.BeltTexture = BeltConveyor.BeltTexture.STANDARD:
+	set(value):
+		belt_texture = value
+		if _belt_material:
+			(_belt_material as ShaderMaterial).set_shader_parameter("use_alternate_texture", belt_texture == BeltConveyor.BeltTexture.ALTERNATE)
+
+## Physics material applied to the conveyor bodies.
+@export var physics_material: PhysicsMaterial = preload("res://parts/BeltSurfaceMaterial.tres"):
+	set(value):
+		physics_material = value
+		_apply_physics_material()
+
+
+func _apply_physics_material() -> void:
+	if _sb:
+		_sb.physics_material_override = physics_material
+	if _end_body1:
+		_end_body1.physics_material_override = physics_material
+	if _end_body2:
+		_end_body2.physics_material_override = physics_material
 
 
 @export_group("Side Guards")
@@ -271,7 +285,6 @@ var _end_body1: StaticBody3D
 var _end_body2: StaticBody3D
 
 var _mesh_regeneration_needed: bool = true
-var _last_size: Vector3 = Vector3.ZERO
 
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
@@ -293,6 +306,9 @@ var _running_tag := OIPCommsTag.new()
 @export var running_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:
+	if property.name == "size":
+		property.usage = PROPERTY_USAGE_STORAGE
+		return
 	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
 		return
 	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
@@ -305,8 +321,8 @@ func _get_custom_preview_node() -> Node3D:
 
 	_disable_collisions_recursive(preview_node)
 
-	var preview_arrow := FlowDirectionArrow.create_curved(
-		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle)
+	var preview_arrow: Node3D = FlowDirectionArrow.create_curved(
+		inner_radius, width, height, conveyor_angle)
 	preview_arrow.name = &"PreviewFlowDirectionArrow"
 	preview_node.add_child(preview_arrow)
 
@@ -320,8 +336,8 @@ func _rebuild_preview_flow_arrow(reversed: bool) -> void:
 	# queue_free is deferred; rename so the new arrow can claim the name this frame.
 	existing.name = &"_dead_overlay_arrow"
 	existing.queue_free()
-	var preview_arrow := FlowDirectionArrow.create_curved(
-		inner_radius, conveyor_width, SIZE_DEFAULT.y, conveyor_angle, reversed)
+	var preview_arrow: Node3D = FlowDirectionArrow.create_curved(
+		inner_radius, width, height, conveyor_angle, reversed)
 	preview_arrow.name = &"PreviewFlowDirectionArrow"
 	add_child(preview_arrow)
 
@@ -356,9 +372,11 @@ func _reset_preview_holder_transform() -> void:
 
 
 func _init() -> void:
-	set_notify_local_transform(true)
-	set_notify_transform(true)
-	_update_calculated_size()
+	super._init()
+	var default_diameter: float = 2.0 * (BASE_INNER_RADIUS + BASE_CONVEYOR_WIDTH)
+	size_default = Vector3(default_diameter, BASE_HEIGHT, default_diameter)
+	if size == Vector3.ZERO:
+		size = size_default
 
 
 func _ready() -> void:
@@ -379,6 +397,7 @@ func _ready() -> void:
 	if not _end_body2:
 		_end_body2 = _create_end_body("EndBody2")
 		add_child(_end_body2)
+	_apply_physics_material()
 
 	_frame_mesh_instance = get_node_or_null("FrameMesh") as MeshInstance3D
 	if not _frame_mesh_instance:
@@ -413,7 +432,7 @@ func _update_flow_arrow() -> void:
 		FlowDirectionArrow.unregister(_flow_arrow)
 		_flow_arrow.queue_free()
 	_flow_arrow = FlowDirectionArrow.create_curved(
-		inner_radius, conveyor_width, belt_height, conveyor_angle, reverse_belt)
+		inner_radius, width, height, conveyor_angle, reverse)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 
@@ -434,12 +453,12 @@ func _create_end_body(body_name: String) -> StaticBody3D:
 	body.name = body_name
 	body.collision_layer = 2
 	body.collision_mask = 0
-	body.physics_material_override = _sb.physics_material_override
+	body.physics_material_override = physics_material
 	var col := CollisionShape3D.new()
 	col.name = "CollisionShape3D"
 	var cylinder := CylinderShape3D.new()
-	cylinder.radius = belt_height / 2.0
-	cylinder.height = conveyor_width
+	cylinder.radius = height / 2.0
+	cylinder.height = width
 	col.shape = cylinder
 	col.rotation.x = PI / 2.0
 	body.add_child(col)
@@ -451,8 +470,8 @@ func _update_belt_ends() -> void:
 		return
 
 	var radians := deg_to_rad(conveyor_angle)
-	var avg_radius := inner_radius + conveyor_width / 2.0
-	var roller_radius := belt_height / 2.0
+	var avg_radius := inner_radius + width / 2.0
+	var roller_radius := height / 2.0
 
 	_end_body1.position = Vector3(-sin(radians) * avg_radius, -size.y / 2.0, cos(radians) * avg_radius)
 	_end_body1.rotation.y = -radians
@@ -464,7 +483,7 @@ func _update_belt_ends() -> void:
 		if col and col.shape is CylinderShape3D:
 			var cyl := col.shape as CylinderShape3D
 			cyl.radius = roller_radius
-			cyl.height = conveyor_width
+			cyl.height = width
 
 
 func _update_side_guards() -> void:
@@ -496,11 +515,11 @@ func clear_side_guard_openings() -> void:
 
 
 func _avg_radius() -> float:
-	return inner_radius + conveyor_width * 0.5
+	return inner_radius + width * 0.5
 
 
 func _natural_arc_total() -> float:
-	return _avg_radius() * deg_to_rad(conveyor_angle) + 2.0 * (belt_height * 0.5)
+	return _avg_radius() * deg_to_rad(conveyor_angle) + 2.0 * (height * 0.5)
 
 
 func _openings_for_side(side: String) -> Array[Vector2]:
@@ -552,14 +571,14 @@ func _rebuild_side_guards() -> void:
 		return
 	var avg_r: float = _avg_radius()
 	var conveyor_angle_rad: float = deg_to_rad(conveyor_angle)
-	var tangent_ext: float = belt_height * 0.5
+	var tangent_ext: float = height * 0.5
 	var natural_back_arc: float = 0.0
 	var natural_front_arc: float = avg_r * conveyor_angle_rad + 2.0 * tangent_ext
 	var arc_back_inset: float = tangent_ext
 	var arc_front_inset: float = tangent_ext + avg_r * conveyor_angle_rad
 	var frame_wt: float = ConveyorFrameMesh.WALL_THICKNESS
 	var inner_radius_guard: float = inner_radius - frame_wt
-	var outer_radius_guard: float = inner_radius + conveyor_width + frame_wt
+	var outer_radius_guard: float = inner_radius + width + frame_wt
 
 	if inner_side_guards_enabled:
 		var subs: Array[Vector2] = _subdivide_around_openings(natural_back_arc, natural_front_arc, _openings_for_side(_SIDE_INNER))
@@ -633,12 +652,12 @@ func _rebuild_legs() -> void:
 	if legs_normal_world.length_squared() < 1.0e-6:
 		_remove_orphan_legs(keep)
 		return
-	var leg_z_scale: float = maxf(0.1, conveyor_width * 0.5)
+	var leg_z_scale: float = maxf(0.1, width * 0.5)
 	for spec: Dictionary in specs:
 		var leg_name: String = spec["name"]
 		var angle_deg: float = spec["angle_deg"]
 		var angle_rad: float = deg_to_rad(angle_deg)
-		var belt_bottom_local := Vector3(-sin(angle_rad) * avg_r, -belt_height, cos(angle_rad) * avg_r)
+		var belt_bottom_local := Vector3(-sin(angle_rad) * avg_r, -height, cos(angle_rad) * avg_r)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
 		var foot_v: Variant = floor_plane.intersects_ray(belt_bottom_world, -legs_normal_world)
 		if foot_v == null:
@@ -731,24 +750,23 @@ func update_visible_meshes() -> void:
 		_create_conveyor_mesh()
 		_setup_collision_shape()
 		_mesh_regeneration_needed = false
-		_last_size = size
 
 
 func _create_conveyor_mesh() -> void:
 	var angle_radians: float = deg_to_rad(conveyor_angle)
 	var radius_inner: float = inner_radius
-	var radius_outer: float = inner_radius + conveyor_width
+	var radius_outer: float = inner_radius + width
 
 	var arc_segments := maxi(1, int(conveyor_angle / 3.0))
 	const DEFAULT_HEIGHT_RATIO: float = 0.50
-	var height: float = DEFAULT_HEIGHT_RATIO * belt_height
+	var mesh_height: float = DEFAULT_HEIGHT_RATIO * height
 
 	var belt_mesh := ArrayMesh.new()
 
 	_setup_materials()
 
 	_build_belt_loop(belt_mesh, angle_radians, radius_inner, radius_outer,
-			height, arc_segments, MESH_SCALE_FACTOR)
+			mesh_height, arc_segments, MESH_SCALE_FACTOR)
 
 	curved_mesh.mesh = belt_mesh
 	curved_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -758,13 +776,13 @@ func _create_conveyor_mesh() -> void:
 	if _frame_mesh_instance:
 		var frame_mesh := ArrayMesh.new()
 		_add_curved_frame_surface(frame_mesh, angle_radians, radius_inner, radius_outer,
-				height, arc_segments, MESH_SCALE_FACTOR)
+				mesh_height, arc_segments, MESH_SCALE_FACTOR)
 		_frame_mesh_instance.mesh = frame_mesh
 		_frame_mesh_instance.scale = Vector3(base_scale, 1.0, base_scale)
 
 	if _shadow_plate:
 		_shadow_plate.mesh = ConveyorFrameMesh.create_arc_shadow_mesh(angle_radians, radius_inner, radius_outer, arc_segments)
-		_shadow_plate.position.y = -height
+		_shadow_plate.position.y = -mesh_height
 
 
 static var _belt_texture_res: Texture2D = preload("res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg")
@@ -777,20 +795,20 @@ func _setup_materials() -> void:
 		_belt_material.set_shader_parameter("belt_texture", _belt_texture_res)
 		_belt_material.set_shader_parameter("belt_texture_alt", _belt_texture_alt)
 	_belt_material.set_shader_parameter("ColorMix", belt_color)
-	_belt_material.set_shader_parameter("use_alternate_texture", belt_texture == ConvTexture.ALTERNATE)
+	_belt_material.set_shader_parameter("use_alternate_texture", belt_texture == BeltConveyor.BeltTexture.ALTERNATE)
 	_update_belt_material_scale()
 
 	if not _metal_material:
 		_metal_material = ConveyorFrameMesh.create_material()
 
 func _build_belt_loop(mesh_instance: ArrayMesh, angle_radians: float,
-		r_inner: float, r_outer: float, height: float,
+		r_inner: float, r_outer: float, mesh_height: float,
 		arc_segments: int, sf: float) -> void:
 	const ROLLER_SEGS: int = 12
 
-	var y_radius: float = height / 2.0
+	var y_radius: float = mesh_height / 2.0
 	var center_y: float = -y_radius
-	var fixed_roller_r: float = height / 2.0
+	var fixed_roller_r: float = mesh_height / 2.0
 	var tangent_r: float = fixed_roller_r * 2.0  # XZ 2x to compensate mesh scale.
 	var hw: float = (r_outer - r_inner) / 2.0
 	var avg_r: float = (r_inner + r_outer) / 2.0
@@ -862,7 +880,7 @@ func _build_belt_loop(mesh_instance: ArrayMesh, angle_radians: float,
 			norm, dist + t * roller_arc)
 	dist += roller_arc
 
-	var y_bottom: float = -height * sf
+	var y_bottom: float = -mesh_height * sf
 	for ai in range(arc_segments + 1):
 		var arc_t: float = float(ai) / arc_segments
 		var angle: float = (1.0 - arc_t) * angle_radians
@@ -890,9 +908,9 @@ func _build_belt_loop(mesh_instance: ArrayMesh, angle_radians: float,
 
 
 func _add_curved_frame_surface(mesh_instance: ArrayMesh, angle_radians: float,
-		r_inner: float, r_outer: float, height: float, segments: int, sf: float) -> void:
+		r_inner: float, r_outer: float, mesh_height: float, segments: int, sf: float) -> void:
 	var y_top: float = 0.0
-	var y_bottom: float = -height * sf
+	var y_bottom: float = -mesh_height * sf
 
 	var frame_mesh := ConveyorFrameMesh.create_curved(
 			r_inner, r_outer, y_top, y_bottom, angle_radians, segments, sf)
@@ -902,7 +920,7 @@ func _add_curved_frame_surface(mesh_instance: ArrayMesh, angle_radians: float,
 	mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, frame_arrays)
 	mesh_instance.surface_set_material(mesh_instance.get_surface_count() - 1, _metal_material)
 
-	var fixed_roller_r: float = height / 2.0
+	var fixed_roller_r: float = mesh_height / 2.0
 	var tangent_r: float = fixed_roller_r * 2.0
 	ConveyorFrameMesh.add_curved_end_walls(mesh_instance,
 			r_inner, r_outer, y_top, y_bottom, angle_radians,
@@ -953,7 +971,7 @@ func _setup_collision_shape() -> void:
 
 
 func _enter_tree() -> void:
-
+	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
 	EditorInterface.simulation_started.connect(_on_simulation_started)
@@ -967,21 +985,22 @@ func _exit_tree() -> void:
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
+	super._exit_tree()
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
-		set_notify_local_transform(false)
-		if scale != Vector3(scale.x, 1, scale.x):
-			scale = Vector3(scale.x, 1, scale.x)
-		set_notify_local_transform(true)
-	elif what == NOTIFICATION_TRANSFORM_CHANGED:
+	super._notification(what)
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_rebuild_legs()
 
+
+func _get_scale_warning_text() -> String:
+	return "Use `inner_radius` / `width` / `height` / `conveyor_angle` instead of scale."
+
 func _recalculate_speeds() -> void:
-	var direction := -1.0 if reverse_belt else 1.0
+	var direction := -1.0 if reverse else 1.0
 	var effective_speed := speed * direction
-	var outer_radius_val: float = inner_radius + conveyor_width
+	var outer_radius_val: float = inner_radius + width
 	var reference_radius: float = outer_radius_val - reference_distance
 	_angular_speed = 0.0 if absf(reference_radius) < 1e-6 else effective_speed / reference_radius
 
@@ -994,7 +1013,7 @@ func _physics_process(delta: float) -> void:
 	if EditorInterface.is_simulation_running():
 		var local_up := _sb.global_transform.basis.y.normalized()
 		_sb.constant_angular_velocity = -local_up * _angular_speed
-		var roller_radius: float = belt_height / 2.0
+		var roller_radius: float = height / 2.0
 		for body: StaticBody3D in [_end_body1, _end_body2]:
 			if not body:
 				continue
@@ -1011,10 +1030,10 @@ func _physics_process(delta: float) -> void:
 
 func _update_belt_material_scale() -> void:
 	if _belt_material:
-		var avg_r: float = inner_radius + conveyor_width / 2.0
+		var avg_r: float = inner_radius + width / 2.0
 		var belt_arc: float = avg_r * deg_to_rad(conveyor_angle)
 		const DEFAULT_HEIGHT_RATIO: float = 0.50
-		var y_radius: float = (DEFAULT_HEIGHT_RATIO * belt_height) / 2.0
+		var y_radius: float = (DEFAULT_HEIGHT_RATIO * height) / 2.0
 		var roller_arc: float = y_radius * PI
 		var total_belt: float = roller_arc + belt_arc + roller_arc + belt_arc
 		var scale_value: float = max(1.0, total_belt)
