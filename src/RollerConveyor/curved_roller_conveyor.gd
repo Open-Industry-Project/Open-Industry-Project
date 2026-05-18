@@ -142,7 +142,7 @@ func _apply_physics_material() -> void:
 ## Openings in arc-length (m) along average radius. Side: [code]"inner"[/code]/[code]"outer"[/code].
 @export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
-		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _rebuild_side_guards)
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _rebuild_side_guards, true, _guard_arc_bounds())
 		side_guard_openings = value
 		_rebuild_side_guards()
 
@@ -407,7 +407,7 @@ func _ready() -> void:
 		add_child(_shadow_plate)
 
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
-	SideGuardOpening.sync_change_listeners([], side_guard_openings, _rebuild_side_guards)
+	SideGuardOpening.sync_change_listeners([], side_guard_openings, _rebuild_side_guards, true)
 
 	_mesh_regeneration_needed = true
 	_update_all_components()
@@ -434,9 +434,11 @@ func _enter_tree() -> void:
 	EditorInterface.simulation_started.connect(_on_simulation_started)
 	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _exit_tree() -> void:
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
@@ -494,6 +496,7 @@ func _update_all_components() -> void:
 	_update_side_guards()
 	_update_assembly_components()
 	_update_flow_arrow()
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _update_mesh() -> void:
@@ -776,10 +779,16 @@ func _avg_radius() -> float:
 	return inner_radius + width * 0.5
 
 
+## Side-guard arc extent for a new opening's default span. arc 0 is the back tangent, not the body start.
+func _guard_arc_bounds() -> Vector2:
+	return Vector2(0.0, _avg_radius() * deg_to_rad(conveyor_angle) + height)
+
+
 func _openings_for_side(side: String) -> Array[Vector2]:
 	var ranges: Array[Vector2] = []
 	for o: SideGuardOpening in side_guard_openings:
-		if o == null or o.side != side:
+		# subtract openings are keep-closed overrides, not cutters; ignore them here.
+		if o == null or o.side != side or o.subtract:
 			continue
 		var s: float = o.arc_back
 		var e: float = o.arc_front

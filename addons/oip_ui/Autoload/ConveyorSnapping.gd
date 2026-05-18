@@ -8,9 +8,24 @@ static var target_xform_override: Variant = null
 
 static var live_snap_enabled: bool = true
 
+## Live-preview ghost (drag-from-library). Lives under the editor's preview holder, outside
+## the edited scene, so geometry scans must be told about it explicitly (see [method _candidates_near]).
+static var preview_ghost: Node3D = null
+
 ## Live-snap memoization, keyed by instance_id; empty in the manual snap path.
 static var live_type_cache: Dictionary = {}
 static var live_end_info_cache: Dictionary = {}
+
+## Broadphase spatial hash (XZ uniform grid) over port nodes, kept current incrementally via
+## [method grid_update] — called on every move AND every geometry rebuild, so a stationary
+## conveyor's footprint can't lag its length. Stale entries (a removed/freed node lingering)
+## are evicted on the next query in [method _candidates_near]; the dangerous false negative (a
+## moved node at the wrong cell) can't happen because every move re-places the mover
+## synchronously before its contacts derive.
+const _GRID_CELL_SIZE: float = 4.0
+static var _grid: Dictionary = {}            # Vector2i -> Array[Node3D]
+static var _node_cells: Dictionary = {}      # instance_id -> Array[Vector2i]
+static var _grid_built: bool = false
 
 static func get_selected_xform(selected: Node3D) -> Transform3D:
 	if selected_xform_override != null:
@@ -135,7 +150,6 @@ static func snap_selected_conveyors() -> void:
 		var original_transform := conveyor.global_transform
 		var snap_result := _calculate_snap_transform(conveyor, target_conveyor)
 		var snap_transform: Transform3D = snap_result.transform
-		var is_end_to_end: bool = snap_result.is_end_to_end
 		undo_redo.add_do_property(conveyor, "global_transform", snap_transform)
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
 
@@ -145,13 +159,6 @@ static func snap_selected_conveyors() -> void:
 				var current_reverse: bool = bool(conveyor.get(reverse_prop))
 				undo_redo.add_do_property(conveyor, reverse_prop, not current_reverse)
 				undo_redo.add_undo_property(conveyor, reverse_prop, current_reverse)
-
-		# Chain transfers / blade stops sit between rollers; never T-junction.
-		if not is_end_to_end and not _is_chain_transfer(conveyor) and not _is_blade_stop(conveyor):
-			if _is_diverter(conveyor):
-				_open_side_guards_for_diverter(undo_redo, snap_transform, conveyor, target_conveyor)
-			else:
-				_connect_side_guards(undo_redo, conveyor, target_conveyor, snap_result)
 
 	undo_redo.commit_action()
 
@@ -222,58 +229,281 @@ static func _calculate_diverter_intersection_for_transform(snapped_conveyor: Nod
 	return {"intersections": intersections}
 
 
-## Opens a gap in the target's side guards via the declarative openings array.
-static func _shrink_guards_for_gap(undo_redo: EditorUndoRedoManager, conveyor: Node3D, intersection_info: Dictionary) -> void:
-	if not intersection_info.has("intersections"):
-		return
-	if not conveyor.has_method("request_side_guard_opening"):
-		return
-	var intersections := intersection_info["intersections"] as Array
-	var b_old: Array[SideGuardOpening] = (conveyor.get(&"side_guard_openings") as Array).duplicate(true)
-	var b_new: Array[SideGuardOpening] = b_old.duplicate(true)
-	for intersection: Dictionary in intersections:
-		var side_str: String = intersection["side"]
-		var gap_center: float = intersection["position"]
-		var gap_size: float = intersection["size"]
-		var gap_start: float = gap_center - gap_size / 2.0
-		var gap_end: float = gap_center + gap_size / 2.0
-		if gap_end - gap_start < 0.01:
+## Derive [param local]'s side-guard openings from geometry: open the guard wherever another
+## conveyor's end — or a diverter's push side — physically meets [param local]'s side.
+static func derive_openings_by_geometry(local: Node3D) -> Array[SideGuardOpening]:
+	var result: Array[SideGuardOpening] = []
+	if not local.is_inside_tree():
+		return result
+	for other: Node3D in _candidates_near(local, 0.3):
+		if other == local or not is_instance_valid(other) or not other.is_inside_tree():
 			continue
-		b_new.append(SideGuardOpening.make(gap_start, gap_end, side_str))
-	if b_new.size() == b_old.size():
+		var push_wp: Vector3 = _world_pos_for_port(other, &"push_side")
+		if push_wp != Vector3.INF and (
+			_world_pos_near_side_plane(push_wp, local, &"left_side", 0.15)
+			or _world_pos_near_side_plane(push_wp, local, &"right_side", 0.15)
+		):
+			var info: Dictionary = _calculate_diverter_intersection_for_transform(other, local, other.global_transform)
+			if info.has("intersections"):
+				for intersection: Dictionary in info["intersections"]:
+					var gap_size: float = intersection["size"]
+					if gap_size < 0.01:
+						continue
+					var gap_center: float = intersection["position"]
+					result.append(SideGuardOpening.make(
+						gap_center - gap_size * 0.5, gap_center + gap_size * 0.5, intersection["side"]
+					))
+			continue
+		for end_port: StringName in [&"front", &"back"]:
+			var wp: Vector3 = _world_pos_for_port(other, end_port)
+			if wp == Vector3.INF:
+				continue
+			for side_port: StringName in [&"left_side", &"right_side"]:
+				if not _world_pos_near_side_plane(wp, local, side_port, 0.15):
+					continue
+				var side_str: String = "left" if side_port == &"left_side" else "right"
+				# Contact point feeds _compute_side_snap_geometry's fallback opening, used when
+				# the rays miss (e.g. snapping toward the discharge half).
+				var contact_local: Vector3 = local.global_transform.affine_inverse() * wp
+				var geo: Dictionary = _compute_side_snap_geometry(
+					other.global_transform, other, local, side_str, contact_local
+				)
+				var op: SideGuardOpening = geo.target_opening
+				if op != null:
+					result.append(op)
+	return result
+
+
+## Spur counterpart of [method derive_openings_by_geometry]: derive [param local]'s frame/guard
+## extents by extending its own end to the wall plane of whatever conveyor it lands against.
+static func derive_extents_by_geometry(local: Node3D) -> Dictionary:
+	var result: Dictionary = {}
+	if not local.is_inside_tree():
+		return result
+	for other: Node3D in _candidates_near(local, 0.3):
+		if other == local or not is_instance_valid(other) or not other.is_inside_tree():
+			continue
+		for end_port: StringName in [&"front", &"back"]:
+			var wp: Vector3 = _world_pos_for_port(local, end_port)
+			if wp == Vector3.INF:
+				continue
+			for side_port: StringName in [&"left_side", &"right_side"]:
+				if not _world_pos_near_side_plane(wp, other, side_port, 0.15):
+					continue
+				var side_str: String = "left" if side_port == &"left_side" else "right"
+				var geo: Dictionary = _compute_side_snap_geometry(
+					local.global_transform, local, other, side_str, Vector3.INF
+				)
+				var extents: Dictionary = geo.snapped_extents
+				for k: String in extents:
+					result[k] = extents[k]
+	return result
+
+
+static func _collect_port_nodes(local: Node3D) -> Array[Node3D]:
+	var nodes: Array[Node3D] = []
+	var root: Node = null
+	var tree := local.get_tree()
+	if tree != null:
+		root = tree.get_current_scene()
+	if root == null:
+		root = local.owner
+	if root == null:
+		root = local
+	_gather_port_nodes(root, nodes)
+	# The ghost lives outside the edited scene, so the walk above misses it.
+	if preview_ghost != null and is_instance_valid(preview_ghost) \
+			and preview_ghost.is_inside_tree() and not nodes.has(preview_ghost):
+		nodes.append(preview_ghost)
+	return nodes
+
+
+static func _gather_port_nodes(node: Node, out: Array[Node3D]) -> void:
+	if node is Node3D and (node.has_method(&"_openings_for_side") or node.has_method(&"get_snap_features")):
+		out.append(node)
+	for child: Node in node.get_children():
+		_gather_port_nodes(child, out)
+
+
+## One-time seed for nodes already in the tree before this autoload observed their enter
+## (plugin reload / editor restart). Only adds untracked nodes — never clears, so it can't
+## discard the incremental data that enters already populate.
+static func _grid_seed_existing(local: Node3D) -> void:
+	for n: Node3D in _collect_port_nodes(local):
+		if is_instance_valid(n) and n.is_inside_tree() and not _node_cells.has(n.get_instance_id()):
+			_grid_insert(n)
+	_grid_built = true
+
+
+## The ghost is never gridded (it's appended live in [method _candidates_near]), so skip it.
+static func _grid_insert(node: Node3D) -> void:
+	if node == preview_ghost:
 		return
-	undo_redo.add_do_property(conveyor, "side_guard_openings", b_new)
-	undo_redo.add_undo_property(conveyor, "side_guard_openings", b_old)
+	var cells: Array[Vector2i] = _cells_for_aabb(_world_aabb(node).grow(0.3))
+	_node_cells[node.get_instance_id()] = cells
+	for cell: Vector2i in cells:
+		if not _grid.has(cell):
+			_grid[cell] = [] as Array[Node3D]
+		(_grid[cell] as Array[Node3D]).append(node)
 
 
-## Trims snapped conveyor's guards and opens target's guards by writing openings arrays.
-static func _connect_side_guards_path_based(
-	undo_redo: EditorUndoRedoManager,
-	snapped_conveyor: Node3D, target_conveyor: Node3D,
-	snap_result: Dictionary,
-	skip_snapped_undo: bool
-) -> void:
-	var snap_transform: Transform3D = snap_result.transform
+static func _grid_remove(id: int) -> void:
+	var cells: Array = _node_cells.get(id, [])
+	for cell: Vector2i in cells:
+		if not _grid.has(cell):
+			continue
+		var arr: Array[Node3D] = _grid[cell]
+		for i: int in range(arr.size() - 1, -1, -1):
+			# Untyped read: arr[i] may be a freed instance; a typed bind would throw here.
+			var e = arr[i]
+			if not is_instance_valid(e) or e.get_instance_id() == id:
+				arr.remove_at(i)
+		if arr.is_empty():
+			_grid.erase(cell)
+	_node_cells.erase(id)
+
+
+## Re-places a single port node after it moved/entered/left. An exit/free leaves it removed
+## (insert is gated on tree).
+static func grid_update(node: Node3D) -> void:
+	if node == preview_ghost:
+		return
+	_grid_remove(node.get_instance_id())
+	if is_instance_valid(node) and node.is_inside_tree() and not node.is_queued_for_deletion():
+		_grid_insert(node)
+
+
+static func _cells_for_aabb(aabb: AABB) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var min_cx: int = int(floor(aabb.position.x / _GRID_CELL_SIZE))
+	var max_cx: int = int(floor((aabb.position.x + aabb.size.x) / _GRID_CELL_SIZE))
+	var min_cz: int = int(floor(aabb.position.z / _GRID_CELL_SIZE))
+	var max_cz: int = int(floor((aabb.position.z + aabb.size.z) / _GRID_CELL_SIZE))
+	for cx: int in range(min_cx, max_cx + 1):
+		for cz: int in range(min_cz, max_cz + 1):
+			out.append(Vector2i(cx, cz))
+	return out
+
+
+static func _candidates_near(node: Node3D, grow: float) -> Array[Node3D]:
+	if not _grid_built:
+		_grid_seed_existing(node)
+	var out: Array[Node3D] = []
+	var seen: Dictionary = {}
+	var stale: Array[int] = []
+	for cell: Vector2i in _cells_for_aabb(_world_aabb(node).grow(grow)):
+		# Untyped: a freed node may linger in the grid (a free that bypassed grid_update);
+		# binding it to a Node3D-typed loop var throws before is_instance_valid can skip it.
+		for n in _grid.get(cell, [] as Array[Node3D]):
+			if not is_instance_valid(n):
+				continue
+			var id: int = n.get_instance_id()
+			if not (n as Node3D).is_inside_tree():
+				if not stale.has(id):
+					stale.append(id)
+				continue
+			if seen.has(id):
+				continue
+			seen[id] = true
+			out.append(n)
+	for id: int in stale:
+		_grid_remove(id)
+	# Ghost is never gridded (it moves every frame without a transform notify) — append it directly.
+	if preview_ghost != null and is_instance_valid(preview_ghost) and preview_ghost.is_inside_tree() \
+			and not seen.has(preview_ghost.get_instance_id()):
+		out.append(preview_ghost)
+	return out
+
+
+## Last-known near-neighbor set per mover (instance_id -> Array[Node3D]), so a part
+## dragged out of contact can still ping the neighbor it left.
+static var _contact_neighbors: Dictionary = {}
+
+
+## Ping every port-node near [param mover] — plus those it was near last call — to re-derive
+## from current contact.
+static func notify_contacts_rebuild(mover: Node3D) -> void:
+	var id: int = mover.get_instance_id()
+	# Re-place the mover before pinging, so its new cell is live for neighbors deriving this
+	# frame — what keeps multi-move frames stale-free.
+	grid_update(mover)
+	var prev: Array = _contact_neighbors.get(id, [])
+	var current: Array[Node3D] = []
+	if mover.get_tree() != null:
+		current = _find_near_port_nodes(mover)
+	var seen: Dictionary = {}
+	for n: Node3D in current:
+		seen[n.get_instance_id()] = true
+		_ping_rebuild(n)
+	for n: Variant in prev:
+		if n is Node3D and is_instance_valid(n) and not seen.has((n as Node3D).get_instance_id()):
+			_ping_rebuild(n)
+	if current.is_empty():
+		_contact_neighbors.erase(id)
+	else:
+		_contact_neighbors[id] = current
+
+
+static func _find_near_port_nodes(mover: Node3D) -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	# Bounding-box overlap, not center distance: a long thin belt's far (discharge)
+	# end is nowhere near its center, so a radius test would miss neighbors there.
+	var m_aabb: AABB = _world_aabb(mover).grow(0.3)
+	for other: Node3D in _candidates_near(mover, 0.3):
+		if other == mover or not is_instance_valid(other) or not other.is_inside_tree():
+			continue
+		if m_aabb.intersects(_world_aabb(other)):
+			result.append(other)
+	return result
+
+
+static func _world_aabb(node: Node3D) -> AABB:
+	if not node.is_inside_tree():
+		return AABB()
+	var local: AABB = AABB()
+	if &"local_bbox" in node:
+		local = node.get(&"local_bbox") as AABB
+	if local.size == Vector3.ZERO:
+		var s: Vector3 = _get_conveyor_size(node)
+		local = AABB(-s * 0.5, s)
+	var xform: Transform3D = node.global_transform
+	var world := AABB(xform * local.position, Vector3.ZERO)
+	for i in range(1, 8):
+		world = world.expand(xform * (local.position + Vector3(
+			local.size.x if (i & 1) else 0.0,
+			local.size.y if (i & 2) else 0.0,
+			local.size.z if (i & 4) else 0.0)))
+	return world
+
+
+static func _ping_rebuild(n: Node3D) -> void:
+	if not is_instance_valid(n) or not n.is_inside_tree() or n.is_queued_for_deletion():
+		return
+	if n.has_method(&"_request_connection_rebuild"):
+		n.call_deferred(&"_request_connection_rebuild")
+	elif n.has_method(&"_request_rebuild"):
+		n.call_deferred(&"_request_rebuild")
+
+
+## Side-guard geometry for a snapped conveyor whose end meets [param target_conveyor]'s
+## [param side_str]. [param target_contact_local] drives the fallback opening when ray hits
+## don't fire; pass Vector3.INF to disable it.
+static func _compute_side_snap_geometry(
+	snapped_xform: Transform3D, snapped_conveyor: Node3D,
+	target_conveyor: Node3D, side_str: String,
+	target_contact_local: Vector3
+) -> Dictionary:
+	var result: Dictionary = {
+		"snapped_openings": [] as Array[SideGuardOpening],
+		"snapped_extents": {} as Dictionary,
+		"target_opening": null,
+	}
+
 	var target_xform := target_conveyor.global_transform
 	var target_inverse := target_xform.affine_inverse()
 	var target_size := _get_conveyor_size(target_conveyor)
 	var frame_wt := ConveyorFrameMesh.WALL_THICKNESS
 	var target_half_width: float = target_size.z * 0.5
-
-	# Prefer snap result's recorded side; bbox test is fallback.
-	var target_end_dict: Dictionary = snap_result.get("target_end", {}) as Dictionary
-	var target_end_name: StringName = target_end_dict.get("name", &"") as StringName
-	var side_str: String
-	if target_end_name == &"left_side":
-		side_str = "left"
-	elif target_end_name == &"right_side":
-		side_str = "right"
-	else:
-		var snapped_center_in_target: Vector3 = target_inverse * snap_transform.origin
-		if abs(snapped_center_in_target.z + target_half_width) < abs(snapped_center_in_target.z - target_half_width):
-			side_str = "left"
-		else:
-			side_str = "right"
 
 	# Ray target = target's outer wall plane. Spur stops at the belt's outer face so its
 	# frame doesn't intrude into the belt's slot interior.
@@ -283,9 +513,8 @@ static func _connect_side_guards_path_based(
 	if side_str == "left":
 		plane_normal = -plane_normal
 
-	var a_xform := snap_transform
 	# dir_sign>0: A's FRONT approaches B's plane (trim front); <0: BACK approaches.
-	var snap_x_world: Vector3 = a_xform.basis.x.normalized()
+	var snap_x_world: Vector3 = snapped_xform.basis.x.normalized()
 	var dir_sign: float = -1.0 if snap_x_world.dot(plane_normal) > 0.0 else 1.0
 
 	var a_width: float = float(snapped_conveyor.get(&"width")) if &"width" in snapped_conveyor else 1.524
@@ -297,14 +526,11 @@ static func _connect_side_guards_path_based(
 
 	# Full Vector3 hits: stripping Y mis-attributes hits on elevated runs.
 	var hits_in_target_local: Array[Vector3] = []
-	var pending_openings: Array[SideGuardOpening] = []
-	# For spurs only: per-side endpoint overrides that EXTEND the side guard up to
-	# the target's wall plane (openings can only trim, not extend).
+	var snapped_openings: Array[SideGuardOpening] = []
 	var snapped_is_spur: bool = &"side_guard_snap_extents" in snapped_conveyor
 	var pending_extents: Dictionary = {}
 	var end_key_suffix: String = "_front" if dir_sign > 0.0 else "_back"
 
-	# Leading edge as arc-length: head (arc_bounds.y) if front-snap, tail (.x) if back-snap.
 	var sn_arc_bounds: Vector2 = _get_conveyor_arc_bounds(snapped_conveyor)
 	var snapped_arc_leading: float = sn_arc_bounds.y if dir_sign > 0.0 else sn_arc_bounds.x
 
@@ -312,7 +538,7 @@ static func _connect_side_guards_path_based(
 		var bounds: Vector2 = _snapped_side_x_bounds(snapped_conveyor, side)
 		var trailing_x: float = bounds.x if dir_sign > 0.0 else bounds.y
 		var z_off: float = a_lateral_offsets[side]
-		var ray_origin_world: Vector3 = a_xform * Vector3(trailing_x, 0, z_off)
+		var ray_origin_world: Vector3 = snapped_xform * Vector3(trailing_x, 0, z_off)
 		var ray_dir: Vector3 = snap_x_world * dir_sign
 		var denom: float = ray_dir.dot(plane_normal)
 		if absf(denom) < 0.001:
@@ -322,13 +548,11 @@ static func _connect_side_guards_path_based(
 			continue
 		var hit_world: Vector3 = ray_origin_world + ray_dir * t_hit
 		hits_in_target_local.append(target_inverse * hit_world)
-		var hit_local: Vector3 = a_xform.affine_inverse() * hit_world
+		var hit_local: Vector3 = snapped_xform.affine_inverse() * hit_world
 		var hit_x: float = hit_local.x
 		if snapped_is_spur:
-			# Override the side guard's natural extent to land on the target's wall plane.
 			pending_extents[side + end_key_suffix] = hit_x
 		else:
-			# Path-based belt: trim from leading edge to hit (arc-length space).
 			var hit_arc: float = _local_pos_to_arc(snapped_conveyor, hit_local)
 			var open_start: float
 			var open_end: float
@@ -339,35 +563,13 @@ static func _connect_side_guards_path_based(
 				open_start = snapped_arc_leading - 0.001
 				open_end = hit_arc
 			if open_end - open_start > 0.001:
-				pending_openings.append(SideGuardOpening.make(open_start, open_end, side))
+				snapped_openings.append(SideGuardOpening.make(open_start, open_end, side))
 
-	if pending_openings.is_empty() and pending_extents.is_empty() and hits_in_target_local.size() < 2:
-		return
+	result.snapped_openings = snapped_openings
+	result.snapped_extents = pending_extents
 
-	if not pending_openings.is_empty():
-		var old_guard_openings: Array[SideGuardOpening] = (snapped_conveyor.get(&"side_guard_openings") as Array).duplicate(true)
-		var new_guard_openings: Array[SideGuardOpening] = old_guard_openings.duplicate(true)
-		for op: SideGuardOpening in pending_openings:
-			new_guard_openings.append(op)
-		undo_redo.add_do_property(snapped_conveyor, "side_guard_openings", new_guard_openings)
-		if not skip_snapped_undo:
-			undo_redo.add_undo_property(snapped_conveyor, "side_guard_openings", old_guard_openings)
-
-	if not pending_extents.is_empty():
-		var old_extents: Dictionary = (snapped_conveyor.get(&"side_guard_snap_extents") as Dictionary).duplicate(true)
-		var new_extents: Dictionary = old_extents.duplicate(true)
-		for k: String in pending_extents:
-			new_extents[k] = pending_extents[k]
-		undo_redo.add_do_property(snapped_conveyor, "side_guard_snap_extents", new_extents)
-		if not skip_snapped_undo:
-			undo_redo.add_undo_property(snapped_conveyor, "side_guard_snap_extents", old_extents)
-
-	# B-side opening: prefer the actual ray hits (spur's outer-face corners on the target
-	# plane) so splayed spurs land symmetric on their own footprint instead of centered on
-	# the centerline. Shrink each side by sg_wt so the opening matches the INNER-face
-	# footprint — that's where the spur's inner face meets the target's wall.
-	var has_contact: bool = target_end_dict.has("pos") and target_conveyor.has_method(&"local_to_arc_length")
-	var contact_local: Vector3 = target_end_dict.get("pos", Vector3.ZERO) as Vector3
+	# Target opening: prefer actual ray hits (matches spur's true footprint); fall back
+	# to contact-centered + nominal width when hits don't fire.
 	var sg_wt: float = SideGuardMesh.WALL_THICKNESS
 	if hits_in_target_local.size() >= 2:
 		var arc_min: float = INF
@@ -380,17 +582,15 @@ static func _connect_side_guards_path_based(
 		var gap_start: float = maxf(arc_min + sg_wt, arc_bounds.x)
 		var gap_end: float = minf(arc_max - sg_wt, arc_bounds.y)
 		if gap_end - gap_start > 0.01:
-			_append_target_opening(undo_redo, target_conveyor, &"side_guard_openings", gap_start, gap_end, side_str)
-	elif has_contact:
-		# Fallback: contact-centered with nominal width (used when ray hits don't fire,
-		# e.g. shallow grazing approach or diverter snap).
-		var center_arc: float = _local_pos_to_arc(target_conveyor, contact_local)
+			result.target_opening = SideGuardOpening.make(gap_start, gap_end, side_str)
+	elif target_contact_local != Vector3.INF and target_conveyor.has_method(&"local_to_arc_length"):
+		var center_arc: float = _local_pos_to_arc(target_conveyor, target_contact_local)
 		var snapped_width: float = float(snapped_conveyor.get(&"width")) if &"width" in snapped_conveyor else _get_conveyor_size(snapped_conveyor).z
 		var half_open: float = snapped_width * 0.5 + frame_wt - sg_wt
 		if target_conveyor.has_method(&"tangent_at_local_pos"):
-			var tangent_local: Vector3 = target_conveyor.call(&"tangent_at_local_pos", contact_local)
+			var tangent_local: Vector3 = target_conveyor.call(&"tangent_at_local_pos", target_contact_local)
 			var tangent_world: Vector3 = (target_xform.basis * tangent_local).normalized()
-			var snap_z_world: Vector3 = snap_transform.basis.z.normalized()
+			var snap_z_world: Vector3 = snapped_xform.basis.z.normalized()
 			var cos_angle: float = absf(tangent_world.dot(snap_z_world))
 			cos_angle = maxf(cos_angle, 0.5)
 			half_open = half_open / cos_angle
@@ -398,16 +598,9 @@ static func _connect_side_guards_path_based(
 		var gap_start: float = maxf(center_arc - half_open, arc_bounds.x)
 		var gap_end: float = minf(center_arc + half_open, arc_bounds.y)
 		if gap_end - gap_start > 0.01:
-			_append_target_opening(undo_redo, target_conveyor, &"side_guard_openings", gap_start, gap_end, side_str)
+			result.target_opening = SideGuardOpening.make(gap_start, gap_end, side_str)
 
-
-static func _append_target_opening(undo_redo: EditorUndoRedoManager, target: Node3D, prop: StringName,
-		gap_start: float, gap_end: float, side: String) -> void:
-	var old: Array[SideGuardOpening] = (target.get(prop) as Array).duplicate(true)
-	var new_arr: Array[SideGuardOpening] = old.duplicate(true)
-	new_arr.append(SideGuardOpening.make(gap_start, gap_end, side))
-	undo_redo.add_do_property(target, prop, new_arr)
-	undo_redo.add_undo_property(target, prop, old)
+	return result
 
 
 ## [back_x, front_x] of side guard in conveyor-local cartesian space.
@@ -429,18 +622,6 @@ static func _snapped_side_x_bounds(conveyor: Node3D, side: String) -> Vector2:
 	if conveyor.has_method(&"arc_bounds"):
 		return conveyor.call(&"arc_bounds") as Vector2
 	return Vector2(-2.0, 2.0)
-
-
-## T-junction sideguard connection via ray-plane intersection.
-## [param skip_snapped_undo]: caller removes snapped's subtree on undo, so skip undo ops.
-static func _connect_side_guards(
-	undo_redo: EditorUndoRedoManager,
-	snapped_conveyor: Node3D, target_conveyor: Node3D,
-	snap_result: Dictionary,
-	skip_snapped_undo: bool = false
-) -> void:
-	_connect_side_guards_path_based(undo_redo, snapped_conveyor, target_conveyor,
-			snap_result, skip_snapped_undo)
 
 
 static func _has_side_guards(conveyor: Node3D) -> bool:
@@ -1049,6 +1230,34 @@ static func _is_roller_conveyor(node: Node) -> bool:
 	return node is RollerConveyor
 
 
-static func _open_side_guards_for_diverter(undo_redo: EditorUndoRedoManager, snap_transform: Transform3D, diverter: Node3D, target_conveyor: Node3D) -> void:
-	var intersection_info := _calculate_diverter_intersection_for_transform(diverter, target_conveyor, snap_transform)
-	_shrink_guards_for_gap(undo_redo, target_conveyor, intersection_info)
+static func _world_pos_for_port(node: Node3D, port: StringName) -> Vector3:
+	for end_info: Dictionary in _get_end_info(node):
+		if (end_info.name as StringName) == port:
+			return node.global_transform * (end_info.pos as Vector3)
+	# A diverter's "push_side" lives in get_snap_features(), not _get_end_info.
+	if node.has_method(&"get_snap_features"):
+		for feature: Dictionary in node.call(&"get_snap_features"):
+			if (feature.get(&"end_name", &"") as StringName) == port:
+				return node.global_transform * (feature.get(&"local_pos", Vector3.ZERO) as Vector3)
+	return Vector3.INF
+
+
+static func _world_pos_near_side_plane(point: Vector3, node: Node3D, side_port: StringName, tolerance: float) -> bool:
+	var xform := node.global_transform
+	var size := _get_conveyor_size(node)
+	var frame_wt := ConveyorFrameMesh.WALL_THICKNESS
+	var half_width: float = size.z * 0.5
+	var side_z_local: float = (half_width + frame_wt) if side_port == &"right_side" else -(half_width + frame_wt)
+	var plane_point: Vector3 = xform * Vector3(0, 0, side_z_local)
+	var plane_normal: Vector3 = xform.basis.z.normalized()
+	if side_port == &"left_side":
+		plane_normal = -plane_normal
+	if absf((point - plane_point).dot(plane_normal)) >= tolerance:
+		return false
+	# Contact must also land within the side's length. Use the RAW local X, not
+	# _local_pos_to_arc — that clamps to the run extent, so it never rejects a point
+	# past the belt's end, letting a spur's end falsely match a far conveyor whose
+	# infinite side-plane it merely grazes.
+	var local_x: float = (xform.affine_inverse() * point).x
+	var x_bounds: Vector2 = _get_conveyor_x_bounds(node)
+	return local_x >= x_bounds.x - tolerance and local_x <= x_bounds.y + tolerance

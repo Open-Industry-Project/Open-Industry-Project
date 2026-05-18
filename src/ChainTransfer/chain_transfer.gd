@@ -32,6 +32,7 @@ func get_snap_features() -> Array:
 		},
 	]
 
+
 ## Number of chain lanes (1-10).
 @export var chains: int = 3:
 	set(value):

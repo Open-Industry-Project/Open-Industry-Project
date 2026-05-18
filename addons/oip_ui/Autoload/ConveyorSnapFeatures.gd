@@ -6,7 +6,7 @@ extends RefCounted
 
 const DIVERTER_Y_OFFSET: float = 0.2
 const DIVERTER_SIDE_OFFSET: float = 0.05
-const BLADE_STOP_TARGET_LOCAL_Y: float = -0.27
+const BLADE_STOP_TARGET_LOCAL_Y: float = -0.5
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
 
 enum Shape { POINT, SEGMENT, TRACK }

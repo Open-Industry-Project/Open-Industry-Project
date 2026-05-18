@@ -15,7 +15,7 @@ extends Node3D
 			_down()
 
 ## Vertical offset for the blade's base position (adjusts mounting height).
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var air_pressure_height: float = 0.0:
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var air_pressure_height: float = 0.15:
 	set(value):
 		air_pressure_height = value
 		if not is_inside_tree():
@@ -105,8 +105,6 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
-	if has_meta("is_preview"):
-		return
 	_blade.position = Vector3(_blade.position.x, air_pressure_height, _blade.position.z)
 	_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 	_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)

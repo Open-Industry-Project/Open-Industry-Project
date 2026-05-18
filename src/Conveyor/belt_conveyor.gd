@@ -304,10 +304,9 @@ func _segments_total_length() -> float:
 ## including bend arcs). Use [method request_side_guard_opening] to add.
 @export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
-		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_rebuild)
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_rebuild, false, _guard_arc_bounds())
 		side_guard_openings = value
 		_request_rebuild()
-
 
 @export_group("Legs")
 @export var legs_enabled: bool = true:
@@ -432,10 +431,12 @@ var _legs: Array[Node3D] = []
 var _legs_state: Dictionary = {}
 var _side_guards: Array[SideGuard] = []
 var _bend_side_guard_meshes: Array[MeshInstance3D] = []
+var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _flow_arrow: Node3D
 var _belt_material: ShaderMaterial
 var _belt_position: float = 0.0
 var _rebuild_pending: bool = false
+var _connection_rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
@@ -559,6 +560,8 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
+		_request_connection_rebuild()
+		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _request_legs_refresh() -> void:
@@ -584,6 +587,7 @@ func _enter_tree() -> void:
 	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
 		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 # Children matching these names/prefixes are auto-managed; others are left alone.
@@ -678,6 +682,7 @@ func _ensure_unique_segments() -> void:
 
 
 func _exit_tree() -> void:
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	_disconnect_segment_signals()
 	if is_instance_valid(_flow_arrow):
 		FlowDirectionArrow.unregister(_flow_arrow)
@@ -725,6 +730,22 @@ func _request_rebuild() -> void:
 	call_deferred("_rebuild")
 
 
+## Side-guards-only rebuild, skipping the belt-surface mesh regen that's too heavy per frame.
+func _request_connection_rebuild() -> void:
+	if _connection_rebuild_pending or not is_inside_tree():
+		return
+	_connection_rebuild_pending = true
+	_do_connection_rebuild.call_deferred()
+
+
+func _do_connection_rebuild() -> void:
+	_connection_rebuild_pending = false
+	if not is_inside_tree() or _path == null:
+		return
+	_derive_side_guard_openings()
+	_rebuild_side_guards()
+
+
 func _rebuild() -> void:
 	_rebuild_pending = false
 	if not is_inside_tree():
@@ -739,10 +760,12 @@ func _rebuild() -> void:
 		_belt_material.set_shader_parameter("Scale", maxf(1.0, _path.loop_length))
 	_rebuild_collision()
 	_rebuild_frame_rails()
+	_derive_side_guard_openings()
 	_rebuild_side_guards()
 	_rebuild_legs()
 	_update_flow_arrow()
 	size = local_bbox.size
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	if Engine.is_editor_hint():
 		update_gizmos()
 		_maybe_drift_to_custom()
@@ -875,6 +898,12 @@ func arc_bounds() -> Vector2:
 	return p.arc_bounds(pulley_radius)
 
 
+## Guard-relative span (0 == guard start) for a new manual opening's default.
+func _guard_arc_bounds() -> Vector2:
+	var b: Vector2 = arc_bounds()
+	return Vector2(0.0, b.y - b.x)
+
+
 ## Conveyor-local point → arc-length at the closest path point.
 func local_to_arc_length(local_pos: Vector3) -> float:
 	var info: Dictionary = _closest_path_point(local_pos)
@@ -899,21 +928,13 @@ func _closest_path_point(local_pos: Vector3) -> Dictionary:
 
 
 func _openings_for_side(side: String) -> Array[Vector2]:
-	var ranges: Array[Vector2] = []
-	for o: SideGuardOpening in side_guard_openings:
-		if o == null or o.side != side:
-			continue
-		if o.arc_front <= o.arc_back:
-			continue
-		ranges.append(Vector2(o.arc_back, o.arc_front))
-	ranges.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
-	var merged: Array[Vector2] = []
-	for r: Vector2 in ranges:
-		if merged.is_empty() or r.x > merged[-1].y:
-			merged.append(r)
-		else:
-			merged[-1] = Vector2(merged[-1].x, maxf(merged[-1].y, r.y))
-	return merged
+	# Manual openings are guard-relative (arc 0 == guard start); the guard wraps the
+	# end pulley, so that start sits at conveyor-arc arc_bounds().x.
+	return SideGuardOpening.merge_openings_for_side(side, side_guard_openings, arc_bounds().x, _derived_side_guard_openings)
+
+
+func _derive_side_guard_openings() -> void:
+	_derived_side_guard_openings = ConveyorSnapping.derive_openings_by_geometry(self)
 
 
 func _rebuild_side_guards() -> void:

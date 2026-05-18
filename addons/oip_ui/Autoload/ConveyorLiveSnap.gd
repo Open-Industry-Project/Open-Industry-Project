@@ -27,6 +27,7 @@ var _cache_sel_features: Variant = null
 var _cache_sel_end_info: Array = []
 var _active_preview_count: int = 0
 var _preview_snap_pending: Dictionary = {}
+var _preview_target: Node3D = null
 var _candidate_excludes: Dictionary = {}
 var _floor_request: Dictionary = {}
 var _floor_cache: Dictionary = {}
@@ -109,6 +110,11 @@ func _on_node_added_for_preview(node: Node) -> void:
 
 func _on_preview_exiting(node: Node) -> void:
 	_active_preview_count = maxi(0, _active_preview_count - 1)
+	if ConveyorSnapping.preview_ghost == node:
+		ConveyorSnapping.preview_ghost = null
+	if _preview_target != null:
+		ConveyorSnapping._ping_rebuild(_preview_target)
+		_preview_target = null
 	_clear_preview_pending_if_match.call_deferred(node)
 	_floor_cache.erase(node.get_instance_id())
 
@@ -126,6 +132,10 @@ func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 	var found: Dictionary = {} if snap_disabled else _find_snap(node, proposed)
 
 	if found.is_empty():
+		ConveyorSnapping.preview_ghost = null
+		if _preview_target != null:
+			ConveyorSnapping._ping_rebuild(_preview_target)
+			_preview_target = null
 		var no_snap_xform: Variant = _try_no_snap_floor_drop(node, proposed)
 		if no_snap_xform is Transform3D:
 			return no_snap_xform
@@ -141,6 +151,14 @@ func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 	_apply_preview_floor(node, found.result.transform, found.target)
 	found["preview"] = node
 	_preview_snap_pending = found
+	ConveyorSnapping.preview_ghost = node
+	# The ghost's preview bbox is degenerate, so it can't ping neighbors itself — ping the target.
+	var tgt: Node3D = found.target
+	if _preview_target != null and _preview_target != tgt:
+		ConveyorSnapping._ping_rebuild(_preview_target)
+	_preview_target = tgt
+	if tgt != null:
+		ConveyorSnapping._ping_rebuild(tgt)
 	return found.result.transform
 
 
@@ -237,8 +255,6 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 		return
 
 	var should_apply_scale: bool = result.has("scale")
-	var should_open_guards: bool = (target != null and is_instance_valid(target)
-			and not _should_skip_guards(new_node, result))
 	var reverse_prop := ConveyorSnapping.get_reverse_property_name(new_node)
 	var should_apply_reverse: bool = false
 	var reverse_value: bool = false
@@ -254,7 +270,7 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 		else:
 			floor_value = _resolve_target_floor_plane(new_node, result.transform.origin, target)
 		should_apply_floor = floor_value != (new_node.get("floor_plane") as Plane)
-	if not should_apply_scale and not should_open_guards and not should_apply_reverse and not should_apply_floor:
+	if not should_apply_scale and not should_apply_reverse and not should_apply_floor:
 		return
 
 	var undo_redo := EditorInterface.get_editor_undo_redo()
@@ -269,13 +285,6 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 
 	if should_apply_floor:
 		undo_redo.add_do_property(new_node, "floor_plane", floor_value)
-
-	if should_open_guards:
-		var is_diverter := ConveyorSnapping._is_diverter(new_node)
-		if is_diverter:
-			ConveyorSnapping._open_side_guards_for_diverter(undo_redo, result.transform, new_node, target)
-		else:
-			ConveyorSnapping._connect_side_guards(undo_redo, new_node, target, result, true)
 
 	undo_redo.commit_action()
 	_committing = false
@@ -405,6 +414,18 @@ func _group_snap(proposed: Transform3D, selected: Node3D, snap_disabled: bool) -
 	if found.result.get("needs_reverse", false):
 		return null
 
+	# Stash the anchor's snap state so _commit() runs on drag-end; otherwise a group snap
+	# moves transforms without ever committing the action.
+	if _selected != anchor:
+		_selected = anchor
+		_pre_snap_transform = null
+		_cache_sel_features = null
+		_cache_sel_end_info = []
+	if _pre_snap_transform == null:
+		_pre_snap_transform = anchor.global_transform
+	_snap_result = found.result
+	_active_snap = true
+
 	var result := proposed
 	result.origin += snap_xform.origin - anchor_proposed.origin
 	return result
@@ -478,7 +499,7 @@ static func _should_skip_guards(selected: Node3D, result: Dictionary) -> bool:
 
 
 func _commit() -> void:
-	if not is_instance_valid(_selected) or _pre_snap_transform == null:
+	if not is_instance_valid(_selected) or not _selected.is_inside_tree() or _pre_snap_transform == null:
 		return
 
 	var found: Dictionary = _find_snap(_selected, _selected.global_transform)
@@ -487,7 +508,6 @@ func _commit() -> void:
 		return
 
 	var snap_result: Dictionary = found.result
-	var target: Node3D = found.target
 	var skip_guards := _should_skip_guards(_selected, snap_result)
 	var reverse_prop := ConveyorSnapping.get_reverse_property_name(_selected)
 	var has_reverse_flip: bool = (
@@ -509,11 +529,6 @@ func _commit() -> void:
 	if has_reverse_flip:
 		undo_redo.add_do_property(_selected, reverse_prop, bool(_selected.get(reverse_prop)))
 		undo_redo.add_undo_property(_selected, reverse_prop, bool(_pre_snap_reverse))
-	if not skip_guards:
-		if is_diverter:
-			ConveyorSnapping._open_side_guards_for_diverter(undo_redo, snap_result.transform, _selected, target)
-		else:
-			ConveyorSnapping._connect_side_guards(undo_redo, _selected, target, snap_result)
 	undo_redo.commit_action()
 	_committing = false
 

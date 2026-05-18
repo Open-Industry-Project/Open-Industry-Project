@@ -108,7 +108,7 @@ const _MIN_SLOT_LENGTH: float = 0.05
 ## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
 @export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
-		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_rebuild)
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_rebuild, false, _guard_arc_bounds())
 		side_guard_openings = value
 		_request_rebuild()
 
@@ -241,10 +241,12 @@ const _SIZE_MIN: Vector3 = Vector3(0.1, 0.05, 0.1)
 var _bodies: Array[StaticBody3D] = []
 var _legs: Array[Node3D] = []
 var _legs_state: Dictionary = {}
+var _derived_side_guard_snap_extents: Dictionary = {}
 var _flow_arrow: Node3D
 var _belt_material: ShaderMaterial
 var _belt_position: float = 0.0
 var _rebuild_pending: bool = false
+var _connection_rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
@@ -292,6 +294,8 @@ func _notification(what: int) -> void:
 	super(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
+		_request_connection_rebuild()
+		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _get_scale_warning_text() -> String:
@@ -311,9 +315,11 @@ func _enter_tree() -> void:
 	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
 		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _exit_tree() -> void:
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	if is_instance_valid(_flow_arrow):
 		FlowDirectionArrow.unregister(_flow_arrow)
 	if EditorInterface.simulation_started.is_connected(_on_simulation_started):
@@ -417,6 +423,23 @@ func _request_rebuild() -> void:
 	call_deferred("_rebuild")
 
 
+## Frame-rails + side-guards-only rebuild, skipping the belt-slot mesh regen.
+func _request_connection_rebuild() -> void:
+	if _connection_rebuild_pending or not is_inside_tree():
+		return
+	_connection_rebuild_pending = true
+	_do_connection_rebuild.call_deferred()
+
+
+func _do_connection_rebuild() -> void:
+	_connection_rebuild_pending = false
+	if not is_inside_tree():
+		return
+	_derive_side_guard_extents()
+	_rebuild_frame_rails()
+	_rebuild_side_guards()
+
+
 func _request_legs_refresh() -> void:
 	if _legs_refresh_pending or not is_inside_tree():
 		return
@@ -436,11 +459,13 @@ func _rebuild() -> void:
 	if not is_inside_tree():
 		return
 	_ensure_internal_nodes()
+	_derive_side_guard_extents()
 	_rebuild_belt_slots()
 	_rebuild_frame_rails()
 	_rebuild_side_guards()
 	_rebuild_legs()
 	_update_flow_arrow()
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	if Engine.is_editor_hint():
 		update_gizmos()
 
@@ -465,14 +490,25 @@ func _get_slot_geometry(index: int) -> Array[Vector3]:
 			Vector3(conv_length, height, conv_width)]
 
 
+## True arc extent of the side guard (origin at tail), default span for a new opening.
+func _guard_arc_bounds() -> Vector2:
+	return Vector2(0.0, length)
+
+
 func _side_extents(side_z: float) -> Vector2:
 	var front_x: float = length + tan(angle_downstream) * side_z
 	var back_x: float = tan(angle_upstream) * side_z
 	var side_key: String = "left" if side_z < 0.0 else "right"
-	if side_guard_snap_extents.has(side_key + "_front"):
-		front_x = float(side_guard_snap_extents[side_key + "_front"])
-	if side_guard_snap_extents.has(side_key + "_back"):
-		back_x = float(side_guard_snap_extents[side_key + "_back"])
+	var front_key: String = side_key + "_front"
+	var back_key: String = side_key + "_back"
+	if _derived_side_guard_snap_extents.has(front_key):
+		front_x = float(_derived_side_guard_snap_extents[front_key])
+	elif side_guard_snap_extents.has(front_key):
+		front_x = float(side_guard_snap_extents[front_key])
+	if _derived_side_guard_snap_extents.has(back_key):
+		back_x = float(_derived_side_guard_snap_extents[back_key])
+	elif side_guard_snap_extents.has(back_key):
+		back_x = float(side_guard_snap_extents[back_key])
 	return Vector2(back_x, front_x)
 
 
@@ -480,6 +516,10 @@ func clear_side_guard_snap_extents() -> void:
 	if side_guard_snap_extents.is_empty():
 		return
 	side_guard_snap_extents = {}
+
+
+func _derive_side_guard_extents() -> void:
+	_derived_side_guard_snap_extents = ConveyorSnapping.derive_extents_by_geometry(self)
 
 
 func _approximate_loop_length() -> float:
@@ -600,7 +640,8 @@ func clear_side_guard_openings() -> void:
 func _openings_for_side(side: String) -> Array[Vector2]:
 	var ranges: Array[Vector2] = []
 	for o: SideGuardOpening in side_guard_openings:
-		if o == null or o.side != side:
+		# subtract openings are keep-closed overrides, not cutters; ignore them here.
+		if o == null or o.side != side or o.subtract:
 			continue
 		var s: float = o.arc_back
 		var e: float = o.arc_front

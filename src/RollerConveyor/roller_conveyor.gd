@@ -72,7 +72,7 @@ const ROLLERS_Y_OFFSET: float = -0.12
 ## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
 @export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
-		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_side_guard_rebuild)
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_side_guard_rebuild, false, _guard_arc_bounds())
 		side_guard_openings = value
 		_request_side_guard_rebuild()
 
@@ -209,6 +209,7 @@ var _transfer_plate_infeed_opp: MeshInstance3D
 var _transfer_plate_material: StandardMaterial3D
 var _shadow_plate: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
+var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _legs: Array[Node3D] = []
 var _side_guard_rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
@@ -261,6 +262,7 @@ func _enter_tree() -> void:
 		running = EditorInterface.is_simulation_running()
 
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -287,6 +289,7 @@ var local_bbox: AABB:
 
 
 func _exit_tree() -> void:
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
 	if Engine.is_editor_hint():
@@ -332,6 +335,8 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
+		_request_side_guard_rebuild()
+		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _get_scale_warning_text() -> String:
@@ -594,6 +599,7 @@ func _on_size_changed() -> void:
 		_update_flow_arrow()
 		_rebuild_side_guards()
 		_rebuild_legs()
+		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _on_roller_added(roller: Roller) -> void:
@@ -777,24 +783,25 @@ func _request_side_guard_rebuild() -> void:
 	call_deferred("_rebuild_side_guards")
 
 
+## Intentionally narrow: connections only drive side guards here. If a future
+## change makes them drive legs/rollers/frame, broaden this to a full rebuild.
+func _request_rebuild() -> void:
+	_request_side_guard_rebuild()
+
+
+## True arc extent of the side guard (origin at tail), default span for a new opening.
+func _guard_arc_bounds() -> Vector2:
+	return Vector2(0.0, size.x)
+
+
 func _openings_for_side(side: String) -> Array[Vector2]:
-	var ranges: Array[Vector2] = []
-	for o: SideGuardOpening in side_guard_openings:
-		if o == null or o.side != side:
-			continue
-		var s: float = o.arc_back
-		var e: float = o.arc_front
-		if e <= s:
-			continue
-		ranges.append(Vector2(s, e))
-	ranges.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
-	var merged: Array[Vector2] = []
-	for r: Vector2 in ranges:
-		if merged.is_empty() or r.x > merged[-1].y:
-			merged.append(r)
-		else:
-			merged[-1] = Vector2(merged[-1].x, maxf(merged[-1].y, r.y))
-	return merged
+	# Single segment, origin at tail: manual and derived openings share conveyor-local X,
+	# so no manual offset.
+	return SideGuardOpening.merge_openings_for_side(side, side_guard_openings, 0.0, _derived_side_guard_openings)
+
+
+func _derive_side_guard_openings() -> void:
+	_derived_side_guard_openings = ConveyorSnapping.derive_openings_by_geometry(self)
 
 
 func _subdivide_around_openings(start_x: float, end_x: float, openings: Array[Vector2]) -> Array[Vector2]:
@@ -821,6 +828,7 @@ func _rebuild_side_guards() -> void:
 	_side_guard_rebuild_pending = false
 	if not is_inside_tree():
 		return
+	_derive_side_guard_openings()
 	_side_guards.clear()
 	var keep := PackedStringArray()
 	var half_w: float = size.z * 0.5
