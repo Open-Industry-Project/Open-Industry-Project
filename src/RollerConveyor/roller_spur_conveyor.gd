@@ -212,7 +212,8 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 var running: bool = false:
 	set(value):
 		running = value
-		set_physics_process(running)
+
+var _legs_state: Dictionary = {}
 
 
 var _rollers: Rollers
@@ -732,9 +733,7 @@ func _rebuild_legs() -> void:
 		var x: float = spec["x"]
 		var belt_bottom_local: Vector3 = Vector3(x, -size.y, 0.0)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
-		var foot_v: Variant = floor_plane.intersects_ray(belt_bottom_world, -legs_normal_world)
-		if foot_v == null:
-			foot_v = floor_plane.intersects_ray(belt_bottom_world, legs_normal_world)
+		var foot_v: Variant = ConveyorLeg.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			continue
 		var foot_world: Vector3 = foot_v
@@ -841,7 +840,9 @@ func _update_conveyor_velocity() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	pass
+	if ConveyorLeg.legs_state_changed(self, _legs_state):
+		_rebuild_legs()
+		_legs_state = ConveyorLeg.capture_leg_state(self)
 
 
 func _on_simulation_started() -> void:

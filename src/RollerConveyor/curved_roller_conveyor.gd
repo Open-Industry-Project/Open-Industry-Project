@@ -269,6 +269,7 @@ var running: bool = false
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 var _flow_arrow: Node3D
+var _legs_state: Dictionary = {}
 var _frame_mesh_instance: MeshInstance3D
 var _shadow_plate: MeshInstance3D
 var _metal_material: Material
@@ -463,6 +464,9 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if ConveyorLeg.legs_state_changed(self, _legs_state):
+		_rebuild_legs()
+		_legs_state = ConveyorLeg.capture_leg_state(self)
 	if EditorInterface.is_simulation_running() and _sb:
 		var local_up := _sb.global_transform.basis.y.normalized()
 		_sb.constant_angular_velocity = -local_up * _angular_speed
@@ -906,9 +910,7 @@ func _rebuild_legs() -> void:
 		var angle_rad: float = deg_to_rad(angle_deg)
 		var belt_bottom_local: Vector3 = Vector3(-sin(angle_rad) * avg_r, -height, cos(angle_rad) * avg_r)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
-		var foot_v: Variant = floor_plane.intersects_ray(belt_bottom_world, -legs_normal_world)
-		if foot_v == null:
-			foot_v = floor_plane.intersects_ray(belt_bottom_world, legs_normal_world)
+		var foot_v: Variant = ConveyorLeg.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			continue
 		var foot_world: Vector3 = foot_v
