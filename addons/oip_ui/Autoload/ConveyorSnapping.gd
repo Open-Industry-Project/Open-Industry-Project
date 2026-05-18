@@ -139,6 +139,13 @@ static func snap_selected_conveyors() -> void:
 		undo_redo.add_do_property(conveyor, "global_transform", snap_transform)
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
 
+		if snap_result.get("needs_reverse", false):
+			var reverse_prop := get_reverse_property_name(conveyor)
+			if reverse_prop != &"":
+				var current_reverse: bool = bool(conveyor.get(reverse_prop))
+				undo_redo.add_do_property(conveyor, reverse_prop, not current_reverse)
+				undo_redo.add_undo_property(conveyor, reverse_prop, current_reverse)
+
 		# Chain transfers / blade stops sit between rollers; never T-junction.
 		if not is_end_to_end and not _is_chain_transfer(conveyor) and not _is_blade_stop(conveyor):
 			if _is_diverter(conveyor):
@@ -840,17 +847,16 @@ static func get_reverse_property_name(conveyor: Node3D) -> StringName:
 	return &""
 
 
-static func _find_direction_preserving_end_pair(
+static func _find_closest_free_end_pair(
 	selected_conveyor: Node3D, target_conveyor: Node3D, gap: float
-) -> Array[Dictionary]:
+) -> Dictionary:
 	var sel_ends := _get_end_info(selected_conveyor)
 	var tgt_ends := _get_end_info(target_conveyor)
 	var sel_transform := get_selected_xform(selected_conveyor)
 
 	var best_pair: Array[Dictionary]
-	var best_free_dist := INF
-	var fallback_pair: Array[Dictionary]
-	var fallback_free_dist := INF
+	var best_compatible: bool = false
+	var best_dist := INF
 
 	for se_idx in range(sel_ends.size()):
 		var se := sel_ends[se_idx]
@@ -862,17 +868,12 @@ static func _find_direction_preserving_end_pair(
 			var snap_t := _snap_end_to_end(selected_conveyor, se, target_conveyor, te, gap)
 			var free_end_after: Vector3 = snap_t * other_se.pos
 			var dist := free_end_before.distance_to(free_end_after)
-			var flow_compatible := se_is_output != _is_output_end(target_conveyor, te)
+			if dist < best_dist:
+				best_dist = dist
+				best_pair = [se, te]
+				best_compatible = se_is_output != _is_output_end(target_conveyor, te)
 
-			if flow_compatible:
-				if dist < best_free_dist:
-					best_free_dist = dist
-					best_pair = [se, te]
-			elif dist < fallback_free_dist:
-				fallback_free_dist = dist
-				fallback_pair = [se, te]
-
-	return best_pair if not best_pair.is_empty() else fallback_pair
+	return {"pair": best_pair, "needs_reverse": not best_compatible}
 
 
 static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D, live_mode: bool = false) -> Dictionary:
@@ -881,17 +882,22 @@ static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_c
 
 	var gap := _get_snap_gap(selected_conveyor, target_conveyor)
 
-	var pair: Array[Dictionary]
-	pair = _find_direction_preserving_end_pair(selected_conveyor, target_conveyor, gap)
+	var info := _find_closest_free_end_pair(selected_conveyor, target_conveyor, gap)
+	var pair: Array[Dictionary] = info.pair
+	var needs_reverse: bool = info.needs_reverse
 	# No-op flip cycles end pair when snap matches current pose; suppressed in live (oscillates).
 	if not live_mode:
 		var snap_t := _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
 		var current := get_selected_xform(selected_conveyor)
 		if current.origin.distance_to(snap_t.origin) < 0.01 and current.basis.x.dot(snap_t.basis.x) > 0.999:
 			pair = _find_resnap_end_pair(selected_conveyor, target_conveyor)
+			var se_is_output := _is_output_end(selected_conveyor, pair[0])
+			needs_reverse = se_is_output == _is_output_end(target_conveyor, pair[1])
 
 	var snap_transform := _snap_end_to_end(selected_conveyor, pair[0], target_conveyor, pair[1], gap)
-	return _make_snap_result(snap_transform, pair[0], pair[1])
+	var result := _make_snap_result(snap_transform, pair[0], pair[1])
+	result["needs_reverse"] = needs_reverse
+	return result
 
 
 static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D, live_mode: bool = false) -> Dictionary:
