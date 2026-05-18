@@ -302,8 +302,9 @@ func _segments_total_length() -> float:
 
 ## Side-guard cutouts in conveyor-arc (cumulative top-surface arc from tail,
 ## including bend arcs). Use [method request_side_guard_opening] to add.
-@export_storage var side_guard_openings: Array[SideGuardOpening] = []:
+@export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_rebuild)
 		side_guard_openings = value
 		_request_rebuild()
 
@@ -603,6 +604,7 @@ func _ready() -> void:
 	_ensure_internal_nodes()
 	_ensure_unique_segments()
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
+	SideGuardOpening.sync_change_listeners([], side_guard_openings, _request_rebuild)
 	_connect_segment_signals()
 	_rebuild()
 	_bind_snap_meta_now()

@@ -70,8 +70,9 @@ const ROLLERS_Y_OFFSET: float = -0.12
 		right_side_guards_enabled = value
 		_request_side_guard_rebuild()
 ## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
-@export_storage var side_guard_openings: Array[SideGuardOpening] = []:
+@export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_side_guard_rebuild)
 		side_guard_openings = value
 		_request_side_guard_rebuild()
 
@@ -312,6 +313,7 @@ func _ready() -> void:
 	_on_size_changed()
 	_update_flow_arrow()
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
+	SideGuardOpening.sync_change_listeners([], side_guard_openings, _request_side_guard_rebuild)
 	_rebuild_side_guards()
 	_rebuild_legs()
 	_bind_snap_meta_now()

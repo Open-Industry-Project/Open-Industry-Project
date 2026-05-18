@@ -106,8 +106,9 @@ const _MIN_SLOT_LENGTH: float = 0.05
 		_request_rebuild()
 
 ## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
-@export_storage var side_guard_openings: Array[SideGuardOpening] = []:
+@export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_rebuild)
 		side_guard_openings = value
 		_request_rebuild()
 
@@ -324,6 +325,7 @@ func _ready() -> void:
 	_reset_preview_holder_transform()
 	_ensure_internal_nodes()
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
+	SideGuardOpening.sync_change_listeners([], side_guard_openings, _request_rebuild)
 	_rebuild()
 	_bind_snap_meta_now()
 

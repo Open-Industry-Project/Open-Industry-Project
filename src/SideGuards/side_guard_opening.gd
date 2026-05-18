@@ -6,12 +6,21 @@ extends Resource
 ## `arc_front` are 1D parameters along the side-guard axis (see SideGuard).
 
 
-@export var arc_back: float = 0.0
+@export var arc_back: float = 0.0:
+	set(value):
+		arc_back = value
+		emit_changed()
 
-@export var arc_front: float = 0.0
+@export var arc_front: float = 0.0:
+	set(value):
+		arc_front = value
+		emit_changed()
 
 ## "left"/"right" for straight conveyors; "inner"/"outer" for curved.
-@export var side: String = "left"
+@export var side: String = "left":
+	set(value):
+		side = value
+		emit_changed()
 
 
 func _init() -> void:
@@ -25,6 +34,18 @@ static func make(p_arc_back: float, p_arc_front: float, p_side: String) -> SideG
 	op.arc_front = p_arc_front
 	op.side = p_side
 	return op
+
+
+static func sync_change_listeners(old_array: Array, new_array: Array, callback: Callable) -> void:
+	for op: SideGuardOpening in old_array:
+		if op != null and op.changed.is_connected(callback):
+			op.changed.disconnect(callback)
+	for i in range(new_array.size()):
+		if new_array[i] == null:
+			new_array[i] = SideGuardOpening.new()
+		var op: SideGuardOpening = new_array[i]
+		if not op.changed.is_connected(callback):
+			op.changed.connect(callback)
 
 
 ## Deep-duplicates openings whose owner doesn't match `owner_id` (unbreaks duplicated conveyors).

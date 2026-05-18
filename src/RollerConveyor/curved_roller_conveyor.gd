@@ -140,8 +140,9 @@ func _apply_physics_material() -> void:
 		_rebuild_side_guards()
 
 ## Openings in arc-length (m) along average radius. Side: [code]"inner"[/code]/[code]"outer"[/code].
-@export_storage var side_guard_openings: Array[SideGuardOpening] = []:
+@export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _rebuild_side_guards)
 		side_guard_openings = value
 		_rebuild_side_guards()
 
@@ -406,6 +407,7 @@ func _ready() -> void:
 		add_child(_shadow_plate)
 
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
+	SideGuardOpening.sync_change_listeners([], side_guard_openings, _rebuild_side_guards)
 
 	_mesh_regeneration_needed = true
 	_update_all_components()
