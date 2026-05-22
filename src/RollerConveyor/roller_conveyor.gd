@@ -338,6 +338,10 @@ func _get_scale_warning_text() -> String:
 	return "Use `length` / `width` / `height` instead of scale."
 
 
+func _get_active_resize_handle_ids() -> PackedInt32Array:
+	return PackedInt32Array([0, 1, 4, 5])
+
+
 func _clear_stale_snap_metas() -> void:
 	if not Engine.is_editor_hint():
 		return

@@ -298,6 +298,10 @@ func _get_scale_warning_text() -> String:
 	return "Use `length` / `width` / `height` instead of scale."
 
 
+func _get_active_resize_handle_ids() -> PackedInt32Array:
+	return PackedInt32Array([0, 1, 4, 5])
+
+
 func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
