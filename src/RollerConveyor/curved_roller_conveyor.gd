@@ -1002,6 +1002,8 @@ func _on_simulation_started() -> void:
 
 func _on_simulation_ended() -> void:
 	running = false
+	if _running_tag.is_ready():
+		_running_tag.write_bit(false)
 	if _sb:
 		_sb.constant_angular_velocity = Vector3.ZERO
 	for static_body in _end_static_bodies:

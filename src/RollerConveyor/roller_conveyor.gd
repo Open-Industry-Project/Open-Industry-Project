@@ -616,6 +616,8 @@ func _on_simulation_started() -> void:
 
 func _on_simulation_ended() -> void:
 	running = false
+	if _running_tag.is_ready():
+		_running_tag.write_bit(false)
 	_update_conveyor_velocity()
 	if _roller_material:
 		_roller_material.uv1_offset = Vector3.ZERO
