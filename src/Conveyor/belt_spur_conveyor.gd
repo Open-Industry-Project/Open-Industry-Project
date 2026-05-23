@@ -846,6 +846,8 @@ func _on_simulation_started() -> void:
 
 
 func _on_simulation_ended() -> void:
+	if _running_tag.is_ready():
+		_running_tag.write_bit(false)
 	_belt_position = 0.0
 	if _belt_material:
 		_belt_material.set_shader_parameter("BeltPosition", _belt_position)

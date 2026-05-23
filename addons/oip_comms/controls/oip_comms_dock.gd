@@ -35,7 +35,10 @@ func _ready() -> void:
 	last_tag_groups_data = tag_groups_data.duplicate(true)
 
 	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	# Deferred so per-part `_on_simulation_ended` handlers can flush final
+	# tag writes (e.g. `running = false`) before the native singleton tears
+	# down tag handles.
+	EditorInterface.simulation_stopped.connect(_on_simulation_ended, CONNECT_DEFERRED)
 
 	OIPComms.set_enable_comms(enable_comms.button_pressed)
 	OIPComms.comms_error.connect(_on_comms_error)
