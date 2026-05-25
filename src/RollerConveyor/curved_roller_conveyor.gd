@@ -6,13 +6,8 @@ const BASE_INNER_RADIUS: float = 0.5
 const BASE_CONVEYOR_WIDTH: float = 1.524
 const BASE_HEIGHT: float = 0.5
 
-const ROLLER_CORNER_SCENE: PackedScene = preload("res://src/RollerConveyor/RollerCorner.tscn")
-const ROLLER_SPACING_LOW_DEG: float = 22.5
-const ROLLER_SPACING_MID_DEG: float = 10.0
-const ROLLER_SPACING_HIGH_DEG: float = 10.0
-const ROLLER_OFFSET_HIGH_DEG: float = 5.0
-
-enum Scales {LOW, MID, HIGH}
+const CORNER_MESH_PATH := "res://assets/3DModels/Meshes/ConveyorRollerRollerCorner_Cylinder_002.res"
+const TARGET_OUTER_GAP: float = 0.42
 
 ## Inner curve edge radius in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var inner_radius: float = BASE_INNER_RADIUS:
@@ -265,7 +260,6 @@ func _collision_repositioned_undo(saved: Variant) -> void:
 var _mesh_regeneration_needed: bool = true
 var _angular_speed: float = 0.0
 
-var current_scale: int = Scales.MID
 var running: bool = false
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
@@ -275,10 +269,9 @@ var _frame_mesh_instance: MeshInstance3D
 var _shadow_plate: MeshInstance3D
 var _metal_material: Material
 
-var rollers_low: Node3D
-var rollers_mid: Node3D
-var rollers_high: Node3D
+var _rollers_mm: MultiMeshInstance3D
 var roller_material: StandardMaterial3D
+var _corner_mesh: ArrayMesh
 var ends: Node3D
 
 var _end_static_bodies: Array[StaticBody3D] = []
@@ -383,12 +376,10 @@ func _ready() -> void:
 	if collision_shape and collision_shape.shape:
 		collision_shape.shape = collision_shape.shape.duplicate()
 
-	rollers_low = get_node_or_null("RollersLow")
-	rollers_mid = get_node_or_null("RollersMid")
-	rollers_high = get_node_or_null("RollersHigh")
+	_rollers_mm = get_node_or_null("Rollers")
 
-	if rollers_low:
-		roller_material = _takeover_roller_material()
+	roller_material = _takeover_roller_material()
+	_ensure_roller_multimeshes()
 
 	ends = get_node_or_null("Ends")
 
@@ -460,7 +451,7 @@ func _get_scale_warning_text() -> String:
 func _process(delta: float) -> void:
 	if running and roller_material:
 		var effective_speed := speed * (-1.0 if reverse else 1.0)
-		var uv_speed := effective_speed / (2.0 * PI)
+		var uv_speed := effective_speed / RollerConveyor.CIRCUMFERENCE
 		var uv_offset := roller_material.uv1_offset
 		if not EditorInterface.is_simulation_paused():
 			uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
@@ -497,6 +488,8 @@ func _update_all_components() -> void:
 	_update_assembly_components()
 	_update_flow_arrow()
 	ConveyorSnapping.notify_contacts_rebuild(self)
+	if Engine.is_editor_hint():
+		update_gizmos()
 
 
 func _update_mesh() -> void:
@@ -510,7 +503,7 @@ func _update_mesh() -> void:
 		_apply_physics_material()
 		_mesh_regeneration_needed = false
 
-	_update_roller_positions()
+	_update_rollers()
 	_update_end_positions()
 	_update_end_axis_angle()
 
@@ -594,91 +587,43 @@ func _create_collision_shape() -> void:
 	_sb.position.y = -0.25
 
 
-func _update_roller_positions() -> void:
-	_update_roller_group(rollers_low, ROLLER_SPACING_LOW_DEG, 0.0)
-	_update_roller_group(rollers_mid, ROLLER_SPACING_MID_DEG, 0.0)
-	_update_roller_group(rollers_high, ROLLER_SPACING_HIGH_DEG, ROLLER_OFFSET_HIGH_DEG)
-
-
-func _update_roller_group(group: Node3D, spacing_deg: float, offset_deg: float) -> void:
-	if not group:
+func _update_rollers() -> void:
+	if _rollers_mm == null or _rollers_mm.multimesh == null:
 		return
-
-	# Scale spacing by radius so arc-length gap stays consistent (constants are calibrated at BASE_INNER_RADIUS).
-	var base_center_r: float = BASE_INNER_RADIUS + BASE_CONVEYOR_WIDTH / 2.0
 	var center_r: float = inner_radius + width / 2.0
-	var radius_ratio: float = base_center_r / center_r if center_r > 1e-6 else 1.0
-	var actual_spacing: float = spacing_deg * radius_ratio
-	var actual_offset: float = offset_deg * radius_ratio
+	var r_outer: float = inner_radius + width
+	var angle_rad: float = deg_to_rad(conveyor_angle)
+	var dtheta: float = TARGET_OUTER_GAP / maxf(r_outer, 0.01)
+	var count: int = maxi(2, ceili(angle_rad / dtheta) + 1)
 
-	var needed_count: int
-	if actual_offset > 0.0:
-		needed_count = maxi(0, floori((conveyor_angle - actual_offset) / actual_spacing) + 1)
-	else:
-		needed_count = maxi(1, floori(conveyor_angle / actual_spacing) + 1)
-
-	while group.get_child_count() > needed_count:
-		var child := group.get_child(group.get_child_count() - 1)
-		group.remove_child(child)
-		child.queue_free()
-
-	while group.get_child_count() < needed_count:
-		var axis := Node3D.new()
-		axis.name = "RollerAxis%d" % (group.get_child_count() + 1)
-		var roller := ROLLER_CORNER_SCENE.instantiate() as RollerCorner
-		axis.add_child(roller)
-		group.add_child(axis)
-		if roller_material:
-			roller.set_override_material(roller_material)
-
-	for i in range(group.get_child_count()):
-		var axis := group.get_child(i)
-		var angle_deg := actual_offset + i * actual_spacing
-		var angle_rad := deg_to_rad(angle_deg)
-		axis.transform = Transform3D(Basis(Vector3.UP, -angle_rad), Vector3.ZERO)
-		var roller := axis.get_child(0) as RollerCorner
-		if roller:
-			roller.position = Vector3(0, -Roller.RADIUS, center_r)
-			roller.length = width
-
-
-func set_current_scale() -> void:
-	var new_scale: int
-	if width < 1.45:
-		new_scale = Scales.LOW
-	elif width < 3.2:
-		new_scale = Scales.MID
-	else:
-		new_scale = Scales.HIGH
-
-	if new_scale != current_scale:
-		current_scale = new_scale
-		match current_scale:
-			Scales.LOW:
-				if rollers_low: rollers_low.visible = true
-				if rollers_mid: rollers_mid.visible = false
-				if rollers_high: rollers_high.visible = false
-			Scales.MID:
-				if rollers_low: rollers_low.visible = false
-				if rollers_mid: rollers_mid.visible = true
-				if rollers_high: rollers_high.visible = false
-			Scales.HIGH:
-				if rollers_low: rollers_low.visible = false
-				if rollers_mid: rollers_mid.visible = true
-				if rollers_high: rollers_high.visible = true
+	var z_scale: float = width / RollerCorner.MODEL_BASE_LENGTH
+	var radial := Transform3D(Basis.IDENTITY, Vector3(0, -Roller.RADIUS, center_r))
+	var scale_xform := Transform3D(Basis.from_scale(Vector3(1, 1, z_scale)), Vector3.ZERO)
+	var mm := _rollers_mm.multimesh
+	mm.instance_count = count
+	for i in count:
+		var a := angle_rad * float(i) / float(count - 1)
+		var axis := Transform3D(Basis(Vector3.UP, -a), Vector3.ZERO)
+		mm.set_instance_transform(i, axis * radial * scale_xform)
 
 
 func _takeover_roller_material() -> StandardMaterial3D:
-	if rollers_low.get_child_count() == 0 or rollers_low.get_child(0).get_child_count() == 0:
-		return null
-	var dup_material: StandardMaterial3D = rollers_low.get_child(0).get_child(0).get_material().duplicate()
-	for roller_group: Node3D in [rollers_low, rollers_mid, rollers_high]:
-		if not roller_group:
-			continue
-		for roller_axis in roller_group.get_children():
-			var roller := roller_axis.get_child(0) as RollerCorner
-			roller.set_override_material(dup_material)
-	return dup_material
+	return load("res://assets/3DModels/Materials/Metall2.tres").duplicate(true) as StandardMaterial3D
+
+
+func _ensure_roller_multimeshes() -> void:
+	if _corner_mesh == null:
+		_corner_mesh = (load(CORNER_MESH_PATH) as ArrayMesh).duplicate() as ArrayMesh
+		if roller_material and _corner_mesh.get_surface_count() > 0:
+			_corner_mesh.surface_set_material(0, roller_material)
+	if _rollers_mm == null:
+		return
+	_rollers_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if _rollers_mm.multimesh == null:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = _corner_mesh
+		_rollers_mm.multimesh = mm
 
 
 func _update_end_positions() -> void:
@@ -752,7 +697,6 @@ func _update_side_guards() -> void:
 
 func _update_assembly_components() -> void:
 	_rebuild_legs()
-	set_current_scale()
 
 
 const _SIDE_INNER := "inner"
@@ -895,6 +839,7 @@ func _emit_curved_guard(guard_name: String, sub_back_arc: float, sub_front_arc: 
 
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
+const _LEG_CENTER_NAME := "Leg_Center"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 
 func _rebuild_legs() -> void:
@@ -965,6 +910,10 @@ func _compute_curved_leg_specs(avg_r: float, conveyor_angle_deg: float) -> Array
 				specs.append({"name": "%s%d" % [_LEG_MIDDLE_PREFIX, idx], "angle_deg": pos})
 				idx += 1
 			pos += spacing_deg
+	elif avg_r * deg_to_rad(conveyor_angle_deg) > middle_legs_spacing:
+		var center: float = conveyor_angle_deg * 0.5
+		if not _is_angle_excluded_deg(center, avg_r):
+			specs.append({"name": _LEG_CENTER_NAME, "angle_deg": center})
 	if head_end_leg_enabled and coverage_max >= 0.0 and coverage_max <= conveyor_angle_deg \
 			and not _is_angle_excluded_deg(coverage_max, avg_r):
 		specs.append({"name": _LEG_HEAD_NAME, "angle_deg": coverage_max})

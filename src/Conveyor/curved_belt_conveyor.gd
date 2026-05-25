@@ -642,6 +642,7 @@ func _emit_curved_guard(guard_name: String, sub_back_arc: float, sub_front_arc: 
 
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
+const _LEG_CENTER_NAME := "Leg_Center"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 
 func _rebuild_legs() -> void:
@@ -713,6 +714,10 @@ func _compute_curved_leg_specs(avg_r: float, conveyor_angle_deg: float) -> Array
 				specs.append({"name": "%s%d" % [_LEG_MIDDLE_PREFIX, idx], "angle_deg": pos})
 				idx += 1
 			pos += spacing_deg
+	elif avg_r * deg_to_rad(conveyor_angle_deg) > middle_legs_spacing:
+		var center: float = conveyor_angle_deg * 0.5
+		if not _is_angle_excluded_deg(center, avg_r):
+			specs.append({"name": _LEG_CENTER_NAME, "angle_deg": center})
 	if head_end_leg_enabled and coverage_max >= 0.0 and coverage_max <= conveyor_angle_deg \
 			and not _is_angle_excluded_deg(coverage_max, avg_r):
 		specs.append({"name": _LEG_HEAD_NAME, "angle_deg": coverage_max})

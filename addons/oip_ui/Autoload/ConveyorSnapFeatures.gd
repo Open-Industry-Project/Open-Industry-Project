@@ -123,11 +123,11 @@ static func _compute_features_for(node: Node3D) -> Array:
 
 	# Roller tracks: gap_track between rollers, on_track on centers.
 	if node is RollerConveyor:
-		var rd: float = Rollers.ROLLERS_DISTANCE
-		var first_roller_x: float = back_x + Rollers.ROLLERS_START_OFFSET + rd
+		var rd: float = AbstractRollerContainer.ROLLERS_DISTANCE
+		var first_roller_x: float = back_x + AbstractRollerContainer.ROLLERS_START_OFFSET + rd
 		var gap_phase: float = first_roller_x + rd / 2.0
-		var track_x_min: float = back_x + Rollers.ROLLERS_START_OFFSET
-		var track_x_max: float = front_x - Rollers.ROLLERS_START_OFFSET
+		var track_x_min: float = back_x + AbstractRollerContainer.ROLLERS_START_OFFSET
+		var track_x_max: float = front_x - AbstractRollerContainer.ROLLERS_START_OFFSET
 		features.append({
 			"shape": Shape.TRACK,
 			"kind": &"roller_gap_track",

@@ -217,7 +217,7 @@ var running: bool = false:
 var _legs_state: Dictionary = {}
 
 
-var _rollers: Rollers
+var _rollers: MultiMeshRollers
 var _ends: Node3D
 var _simple_conveyor_shape: StaticBody3D
 var _frame_left: MeshInstance3D
@@ -433,9 +433,9 @@ func _apply_physics_material() -> void:
 
 func _ensure_rollers_node() -> void:
 	if not is_instance_valid(_rollers):
-		_rollers = get_node_or_null("Rollers") as Rollers
+		_rollers = get_node_or_null("Rollers") as MultiMeshRollers
 		if not is_instance_valid(_rollers):
-			_rollers = Rollers.new()
+			_rollers = MultiMeshRollers.new()
 			_rollers.name = "Rollers"
 			_rollers.roller_scene = load("res://src/RollerConveyor/Roller.tscn") as PackedScene
 			add_child(_rollers, false, Node.INTERNAL_MODE_FRONT)
@@ -509,12 +509,11 @@ func _rebuild_rollers() -> void:
 		return
 	_rollers.position = Vector3(0.2, RollerConveyor.ROLLERS_Y_OFFSET, 0)
 	_rollers.scale = Vector3.ONE
+	_rollers.set_roller_override_material(_roller_material)
+	_rollers.set_clip_override(_get_spur_clip)
 	_rollers.set_width(size.z)
 	_rollers.set_length(size.x)
 	_rollers.setup_existing_rollers()
-	for child in _rollers.get_children():
-		if child is Roller:
-			child.set_roller_override_material(_roller_material)
 	if _ends != null:
 		_ends.position = Vector3(0, RollerConveyor.ROLLERS_Y_OFFSET - 0.16, 0)
 		var end_offset := 0.165
@@ -529,12 +528,6 @@ func _rebuild_rollers() -> void:
 
 
 func _apply_spur_clipping() -> void:
-	if _rollers == null:
-		return
-	for child in _rollers.get_children():
-		if child is Roller:
-			var x_spur: float = _rollers.position.x + child.position.x
-			_apply_roller_clip(child as Roller, _get_spur_clip(x_spur))
 	if _ends != null:
 		for end_child in _ends.get_children():
 			var end_roller: Roller = end_child.get_node_or_null("Roller") as Roller

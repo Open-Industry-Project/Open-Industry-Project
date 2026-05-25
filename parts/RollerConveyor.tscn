@@ -4,7 +4,7 @@
 [ext_resource type="Shader" uid="uid://cfcar2nye4ktk" path="res://src/Conveyor/conveyor_frame_shader.gdshader" id="2_sau1a"]
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]
 [ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="3_enukr"]
-[ext_resource type="Script" uid="uid://cux2ryj2tvgtk" path="res://src/RollerConveyor/rollers.gd" id="3_peu56"]
+[ext_resource type="Script" uid="uid://bvq8mmr0llerz" path="res://src/RollerConveyor/multi_mesh_rollers.gd" id="3_peu56"]
 [ext_resource type="PackedScene" uid="uid://bmpev1pqmbmhb" path="res://src/RollerConveyor/RollerConveyorEnd.tscn" id="6_fn5jx"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sau1a"]
@@ -52,36 +52,6 @@ mesh = SubResource("ArrayMesh_enukr")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8, -0.12, 0)
 script = ExtResource("3_peu56")
 roller_scene = ExtResource("2_v7a13")
-
-[node name="Roller" parent="Rollers" unique_id=1786579768 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0, 0)
-
-[node name="Roller2" parent="Rollers" unique_id=510758708 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.66, 0, 0)
-
-[node name="Roller3" parent="Rollers" unique_id=828516088 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0, 0)
-
-[node name="Roller4" parent="Rollers" unique_id=1875236040 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.32, 0, 0)
-
-[node name="Roller5" parent="Rollers" unique_id=1193050180 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.65, 0, 0)
-
-[node name="Roller6" parent="Rollers" unique_id=52740567 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.98, 0, 0)
-
-[node name="Roller7" parent="Rollers" unique_id=758836741 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.31, 0, 0)
-
-[node name="Roller8" parent="Rollers" unique_id=80197935 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.64, 0, 0)
-
-[node name="Roller9" parent="Rollers" unique_id=1095809868 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.97, 0, 0)
-
-[node name="Roller10" parent="Rollers" unique_id=566102172 instance=ExtResource("2_v7a13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3, 0, 0)
 
 [node name="Ends" type="Node3D" parent="." unique_id=703333791]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.28, 0)

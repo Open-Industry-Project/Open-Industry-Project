@@ -9,6 +9,9 @@ signal roller_rotation_changed(rotation_degrees: Vector3)
 signal roller_added(roller: Roller)
 signal roller_removed(roller: Roller)
 
+const ROLLERS_DISTANCE: float = 0.33
+const ROLLERS_START_OFFSET: float = 0.2
+
 var _width: float = 2.0
 var _length: float = 1.0
 var _roller_length: float = 2.0

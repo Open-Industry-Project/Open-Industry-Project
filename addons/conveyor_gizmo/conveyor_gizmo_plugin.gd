@@ -52,6 +52,8 @@ func _redraw(gizmo: EditorNode3DGizmo):
 	if node.has_meta("is_preview"):
 		return
 
+	_add_roller_selection_collision(gizmo, node)
+
 	var sg_guards := _get_all_guards(node) if sideguard_mode else []
 	var use_size_handles := not sideguard_mode or sg_guards.is_empty()
 
@@ -514,6 +516,95 @@ func _get_procedural_guards(node: Node3D) -> Array:
 			})
 			handle_idx += 2
 	return result
+
+
+#region Roller selection collision
+
+const _ROLLER_BED_SCRIPTS := [
+	"res://src/RollerConveyor/roller_conveyor.gd",
+	"res://src/RollerConveyor/roller_spur_conveyor.gd",
+]
+const _CURVED_ROLLER_SCRIPT := "res://src/RollerConveyor/curved_roller_conveyor.gd"
+
+
+func _add_roller_selection_collision(gizmo: EditorNode3DGizmo, node: Node3D) -> void:
+	var node_script = node.get_script()
+	if node_script == null:
+		return
+	var path: String = node_script.resource_path
+	var faces: PackedVector3Array
+	if path == _CURVED_ROLLER_SCRIPT:
+		faces = _curved_bed_faces(node)
+	elif path in _ROLLER_BED_SCRIPTS:
+		faces = _box_faces((node as ResizableNode3D)._get_resize_local_bounds(node.size))
+	else:
+		return
+	if faces.size() < 3:
+		return
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = faces
+	var arr_mesh := ArrayMesh.new()
+	arr_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var tri_mesh := arr_mesh.generate_triangle_mesh()
+	if tri_mesh:
+		gizmo.add_collision_triangles(tri_mesh)
+
+
+static func _add_quad(f: PackedVector3Array, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	f.append(a); f.append(b); f.append(c)
+	f.append(a); f.append(c); f.append(d)
+
+
+static func _box_faces(b: AABB) -> PackedVector3Array:
+	var mn := b.position
+	var mx := b.position + b.size
+	var c000 := Vector3(mn.x, mn.y, mn.z)
+	var c100 := Vector3(mx.x, mn.y, mn.z)
+	var c110 := Vector3(mx.x, mx.y, mn.z)
+	var c010 := Vector3(mn.x, mx.y, mn.z)
+	var c001 := Vector3(mn.x, mn.y, mx.z)
+	var c101 := Vector3(mx.x, mn.y, mx.z)
+	var c111 := Vector3(mx.x, mx.y, mx.z)
+	var c011 := Vector3(mn.x, mx.y, mx.z)
+	var f := PackedVector3Array()
+	_add_quad(f, c000, c100, c110, c010)
+	_add_quad(f, c001, c011, c111, c101)
+	_add_quad(f, c000, c010, c011, c001)
+	_add_quad(f, c100, c101, c111, c110)
+	_add_quad(f, c000, c001, c101, c100)
+	_add_quad(f, c010, c110, c111, c011)
+	return f
+
+
+func _curved_bed_faces(node: Node3D) -> PackedVector3Array:
+	var inner: float = node.inner_radius
+	var outer: float = node.inner_radius + node.width
+	var ang: float = deg_to_rad(node.conveyor_angle)
+	var y_top := 0.05
+	var y_bot := -0.30
+	var segs: int = maxi(2, int(node.conveyor_angle / 5.0))
+	var f := PackedVector3Array()
+	for i in segs:
+		var a0 := ang * float(i) / float(segs)
+		var a1 := ang * float(i + 1) / float(segs)
+		var s0 := sin(a0); var c0 := cos(a0)
+		var s1 := sin(a1); var c1 := cos(a1)
+		var in0_t := Vector3(-s0 * inner, y_top, c0 * inner)
+		var out0_t := Vector3(-s0 * outer, y_top, c0 * outer)
+		var in1_t := Vector3(-s1 * inner, y_top, c1 * inner)
+		var out1_t := Vector3(-s1 * outer, y_top, c1 * outer)
+		var in0_b := Vector3(-s0 * inner, y_bot, c0 * inner)
+		var out0_b := Vector3(-s0 * outer, y_bot, c0 * outer)
+		var in1_b := Vector3(-s1 * inner, y_bot, c1 * inner)
+		var out1_b := Vector3(-s1 * outer, y_bot, c1 * outer)
+		_add_quad(f, in0_t, out0_t, out1_t, in1_t)
+		_add_quad(f, in0_b, in1_b, out1_b, out0_b)
+		_add_quad(f, out0_t, out0_b, out1_b, out1_t)
+		_add_quad(f, in0_t, in1_t, in1_b, in0_b)
+	return f
+
+#endregion
 
 
 # Packs `<run>_<sub>` into one sort key; plain int(substr) collapses `0_*` to 0.

@@ -198,7 +198,7 @@ var _last_size: Vector3 = Vector3(1.525, 0.5, 1.524)
 var _last_length: float = 1.525
 var _last_width: float = 1.524
 var _metal_material: Material
-var _rollers: Rollers
+var _rollers: AbstractRollerContainer
 var _ends: Node3D
 var _roller_material: BaseMaterial3D
 var _simple_conveyor_shape: StaticBody3D
@@ -411,7 +411,7 @@ func _physics_process(_delta: float) -> void:
 		_legs_state = ConveyorLeg.capture_leg_state(self)
 	if running and _roller_material:
 		var roller_speed := speed / cos(deg_to_rad(skew_angle)) if absf(skew_angle) < 89.0 else speed
-		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + roller_speed * _delta / CIRCUMFERENCE, 1.0)
+		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x - roller_speed * _delta / CIRCUMFERENCE, 1.0)
 
 
 func set_roller_override_material(material: Material) -> void:
@@ -459,6 +459,11 @@ func _setup_roller_container(container: AbstractRollerContainer) -> void:
 	roller_skew_angle_changed.connect(container.set_roller_skew_angle)
 	width_changed.connect(container.set_width)
 	length_changed.connect(container.set_length)
+
+	if container is MultiMeshRollers:
+		var mm: MultiMeshRollers = container
+		roller_override_material_changed.connect(mm.set_roller_override_material)
+		mm.set_roller_override_material(_roller_material)
 
 	container.setup_existing_rollers()
 	container.set_roller_skew_angle(skew_angle)
@@ -600,6 +605,8 @@ func _on_size_changed() -> void:
 		_rebuild_side_guards()
 		_rebuild_legs()
 		ConveyorSnapping.notify_contacts_rebuild(self)
+		if Engine.is_editor_hint():
+			update_gizmos()
 
 
 func _on_roller_added(roller: Roller) -> void:
