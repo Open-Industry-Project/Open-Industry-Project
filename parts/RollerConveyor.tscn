@@ -5,7 +5,6 @@
 [ext_resource type="PackedScene" uid="uid://d4bf4if1fpy0t" path="res://src/RollerConveyor/Roller.tscn" id="2_v7a13"]
 [ext_resource type="Texture2D" uid="uid://b4rg48iqr8l2g" path="res://assets/3DModels/Textures/Metal.png" id="3_enukr"]
 [ext_resource type="Script" uid="uid://bvq8mmr0llerz" path="res://src/RollerConveyor/multi_mesh_rollers.gd" id="3_peu56"]
-[ext_resource type="PackedScene" uid="uid://bmpev1pqmbmhb" path="res://src/RollerConveyor/RollerConveyorEnd.tscn" id="6_fn5jx"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sau1a"]
 render_priority = 0
@@ -52,16 +51,6 @@ mesh = SubResource("ArrayMesh_enukr")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8, -0.12, 0)
 script = ExtResource("3_peu56")
 roller_scene = ExtResource("2_v7a13")
-
-[node name="Ends" type="Node3D" parent="." unique_id=703333791]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.28, 0)
-
-[node name="RollerConveyorEnd" parent="Ends" unique_id=1818052133 instance=ExtResource("6_fn5jx")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.835, 0, 0)
-
-[node name="RollerConveyorEnd2" parent="Ends" unique_id=1187052160 instance=ExtResource("6_fn5jx")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -1.835, 0, 0)
-flipped = true
 
 [node name="SimpleConveyorShape" type="StaticBody3D" parent="." unique_id=399847013]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)

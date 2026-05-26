@@ -7,7 +7,16 @@ const BASE_CONVEYOR_WIDTH: float = 1.524
 const BASE_HEIGHT: float = 0.5
 
 const CORNER_MESH_PATH := "res://assets/3DModels/Meshes/ConveyorRollerRollerCorner_Cylinder_002.res"
-const TARGET_OUTER_GAP: float = 0.42
+
+## Roller tube size, as a matched real-world duty class.
+@export var roller_class: RollerSpec.DutyClass = RollerSpec.DutyClass.HEAVY:
+	set(value):
+		if roller_class == value:
+			return
+		roller_class = value
+		if is_inside_tree():
+			_update_rollers()
+			_update_end_positions()
 
 ## Inner curve edge radius in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var inner_radius: float = BASE_INNER_RADIUS:
@@ -109,6 +118,14 @@ func _on_size_changed() -> void:
 	set(value):
 		physics_material = value
 		_apply_physics_material()
+
+
+func _roller_radius() -> float:
+	return RollerSpec.radius(roller_class)
+
+
+func _radial_scale() -> float:
+	return RollerSpec.radial_scale(roller_class)
 
 
 func _apply_physics_material() -> void:
@@ -266,7 +283,6 @@ var running: bool = false
 var _flow_arrow: Node3D
 var _legs_state: Dictionary = {}
 var _frame_mesh_instance: MeshInstance3D
-var _shadow_plate: MeshInstance3D
 var _metal_material: Material
 
 var _rollers_mm: MultiMeshInstance3D
@@ -390,12 +406,10 @@ func _ready() -> void:
 		_frame_mesh_instance.name = "FrameMesh"
 		add_child(_frame_mesh_instance)
 
-	_shadow_plate = get_node_or_null("ShadowPlate") as MeshInstance3D
-	if not _shadow_plate:
-		_shadow_plate = MeshInstance3D.new()
-		_shadow_plate.name = "ShadowPlate"
-		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		add_child(_shadow_plate)
+	# Rollers cast their own shadows now; drop the solid shadow slab a saved scene may still carry.
+	var existing_shadow := get_node_or_null("ShadowPlate")
+	if existing_shadow:
+		existing_shadow.queue_free()
 
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
 	SideGuardOpening.sync_change_listeners([], side_guard_openings, _rebuild_side_guards, true)
@@ -451,7 +465,9 @@ func _get_scale_warning_text() -> String:
 func _process(delta: float) -> void:
 	if running and roller_material:
 		var effective_speed := speed * (-1.0 if reverse else 1.0)
-		var uv_speed := effective_speed / RollerConveyor.CIRCUMFERENCE
+		# uv1_offset is in tiled-UV units; scale by tiles-per-wrap for true no-slip speed.
+		var bands: float = roller_material.uv1_scale.x
+		var uv_speed := bands * effective_speed / (2.0 * PI * _roller_radius())
 		var uv_offset := roller_material.uv1_offset
 		if not EditorInterface.is_simulation_paused():
 			uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
@@ -532,9 +548,6 @@ func _create_frame_mesh() -> void:
 	_frame_mesh_instance.mesh = mesh
 	_frame_mesh_instance.scale = Vector3(1.0 / MESH_SCALE_FACTOR, 1.0, 1.0 / MESH_SCALE_FACTOR)
 
-	if _shadow_plate:
-		_shadow_plate.mesh = ConveyorFrameMesh.create_arc_shadow_mesh(angle_radians, inner_radius, r_outer, segments)
-		_shadow_plate.position.y = -mesh_height
 	_frame_mesh_instance.position.y = -0.25
 
 
@@ -593,12 +606,13 @@ func _update_rollers() -> void:
 	var center_r: float = inner_radius + width / 2.0
 	var r_outer: float = inner_radius + width
 	var angle_rad: float = deg_to_rad(conveyor_angle)
-	var dtheta: float = TARGET_OUTER_GAP / maxf(r_outer, 0.01)
+	# Space by duty-class pitch along the outer edge, so density matches a straight conveyor.
+	var dtheta: float = RollerSpec.pitch(roller_class) / maxf(r_outer, 0.01)
 	var count: int = maxi(2, ceili(angle_rad / dtheta) + 1)
 
 	var z_scale: float = width / RollerCorner.MODEL_BASE_LENGTH
-	var radial := Transform3D(Basis.IDENTITY, Vector3(0, -Roller.RADIUS, center_r))
-	var scale_xform := Transform3D(Basis.from_scale(Vector3(1, 1, z_scale)), Vector3.ZERO)
+	var radial := Transform3D(Basis.IDENTITY, Vector3(0, -_roller_radius(), center_r))
+	var scale_xform := Transform3D(Basis.from_scale(Vector3(_radial_scale(), _radial_scale(), z_scale)), Vector3.ZERO)
 	var mm := _rollers_mm.multimesh
 	mm.instance_count = count
 	for i in count:
@@ -618,7 +632,7 @@ func _ensure_roller_multimeshes() -> void:
 			_corner_mesh.surface_set_material(0, roller_material)
 	if _rollers_mm == null:
 		return
-	_rollers_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_rollers_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	if _rollers_mm.multimesh == null:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -633,7 +647,8 @@ func _update_end_positions() -> void:
 	for end_axis in ends.get_children():
 		var roller := end_axis.get_child(0) as RollerCorner
 		if roller:
-			roller.position = Vector3(0, -Roller.RADIUS, center_r)
+			roller.radial_scale = _radial_scale()
+			roller.position = Vector3(0, -_roller_radius(), center_r)
 			roller.length = width
 			if roller_material:
 				roller.set_override_material(roller_material)

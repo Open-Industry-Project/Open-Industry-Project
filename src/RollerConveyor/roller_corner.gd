@@ -11,6 +11,12 @@ const MODEL_BASE_LENGTH: float = 2.0
 		if _mesh_instance:
 			_update_mesh_length()
 
+var radial_scale: float = RollerSpec.radial_scale(RollerSpec.DutyClass.HEAVY):
+	set(value):
+		radial_scale = value
+		if _mesh_instance:
+			_update_mesh_length()
+
 var angular_speed: float = 0.0
 var _prev_global_basis: Basis = Basis.IDENTITY
 
@@ -23,7 +29,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	if _mesh_instance:
-		_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_update_mesh_length()
 
 
@@ -43,4 +49,4 @@ func set_override_material(material: Material) -> void:
 
 
 func _update_mesh_length() -> void:
-	_mesh_instance.scale.z = length / MODEL_BASE_LENGTH
+	_mesh_instance.scale = Vector3(radial_scale, radial_scale, length / MODEL_BASE_LENGTH)

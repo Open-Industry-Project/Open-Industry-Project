@@ -536,7 +536,10 @@ func _add_roller_selection_collision(gizmo: EditorNode3DGizmo, node: Node3D) -> 
 	if path == _CURVED_ROLLER_SCRIPT:
 		faces = _curved_bed_faces(node)
 	elif path in _ROLLER_BED_SCRIPTS:
-		faces = _box_faces((node as ResizableNode3D)._get_resize_local_bounds(node.size))
+		var bounds: AABB = (node as ResizableNode3D)._get_resize_local_bounds(node.size)
+		# Cap the box top at the roller surface (y = 0) so it doesn't steal clicks from items on the bed.
+		bounds.position.y = -bounds.size.y
+		faces = _box_faces(bounds)
 	else:
 		return
 	if faces.size() < 3:
@@ -581,7 +584,7 @@ func _curved_bed_faces(node: Node3D) -> PackedVector3Array:
 	var inner: float = node.inner_radius
 	var outer: float = node.inner_radius + node.width
 	var ang: float = deg_to_rad(node.conveyor_angle)
-	var y_top := 0.05
+	var y_top := 0.0
 	var y_bot := -0.30
 	var segs: int = maxi(2, int(node.conveyor_angle / 5.0))
 	var f := PackedVector3Array()

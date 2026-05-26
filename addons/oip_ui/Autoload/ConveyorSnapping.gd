@@ -429,7 +429,8 @@ static func notify_contacts_rebuild(mover: Node3D) -> void:
 	grid_update(mover)
 	var prev: Array = _contact_neighbors.get(id, [])
 	var current: Array[Node3D] = []
-	if mover.get_tree() != null:
+	# is_inside_tree() avoids the error get_tree() logs when the mover is out of tree.
+	if mover.is_inside_tree():
 		current = _find_near_port_nodes(mover)
 	var seen: Dictionary = {}
 	for n: Node3D in current:

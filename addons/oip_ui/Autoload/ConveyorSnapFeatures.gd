@@ -121,11 +121,15 @@ static func _compute_features_for(node: Node3D) -> Array:
 		},
 	]
 
-	# Roller tracks: gap_track between rollers, on_track on centers.
+	# Phase the roller tracks to the same world-space grid MultiMeshRollers places rollers on.
 	if node is RollerConveyor:
-		var rd: float = AbstractRollerContainer.ROLLERS_DISTANCE
-		var first_roller_x: float = back_x + AbstractRollerContainer.ROLLERS_START_OFFSET + rd
-		var gap_phase: float = first_roller_x + rd / 2.0
+		var rd: float = (node as RollerConveyor).roller_pitch()
+		var axis_w: Vector3 = node.global_transform.basis.x
+		var axis_len: float = axis_w.length()
+		var on_phase: float = 0.0
+		if axis_len > 1e-6:
+			on_phase = fposmod(-node.global_transform.origin.dot(axis_w / axis_len), rd)
+		var gap_phase: float = on_phase + rd / 2.0
 		var track_x_min: float = back_x + AbstractRollerContainer.ROLLERS_START_OFFSET
 		var track_x_max: float = front_x - AbstractRollerContainer.ROLLERS_START_OFFSET
 		features.append({
@@ -141,7 +145,7 @@ static func _compute_features_for(node: Node3D) -> Array:
 			"shape": Shape.TRACK,
 			"kind": &"roller_on_track",
 			"axis_local": Vector3(1, 0, 0),
-			"phase": first_roller_x,
+			"phase": on_phase,
 			"step": rd,
 			"x_min": track_x_min,
 			"x_max": track_x_max,

@@ -12,6 +12,8 @@ var _mesh_end_r: ArrayMesh
 var _mesh_cyl: ArrayMesh
 var _override_material: Material
 var _clip_override: Callable
+var _clip_span_start: float = 0.0
+var _clip_span_end: float = 0.0
 
 
 func setup_existing_rollers() -> void:
@@ -38,6 +40,16 @@ func set_roller_skew_angle(skew_angle_degrees: float) -> void:
 	_rebuild()
 
 
+func set_roller_radius(value: float) -> void:
+	super(value)
+	_rebuild()
+
+
+func set_roller_pitch(value: float) -> void:
+	super(value)
+	_rebuild()
+
+
 func set_roller_override_material(material: Material) -> void:
 	_override_material = material
 	_ensure_source_meshes()
@@ -46,6 +58,12 @@ func set_roller_override_material(material: Material) -> void:
 
 func set_clip_override(provider: Callable) -> void:
 	_clip_override = provider
+	_rebuild()
+
+
+func set_clip_span(start_x: float, end_x: float) -> void:
+	_clip_span_start = start_x
+	_clip_span_end = end_x
 	_rebuild()
 
 
@@ -85,7 +103,7 @@ func _ensure_mm(node_name: String, mesh: ArrayMesh, existing: MultiMesh) -> Mult
 	if mmi == null:
 		mmi = MultiMeshInstance3D.new()
 		mmi.name = node_name
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		add_child(mmi, false, Node.INTERNAL_MODE_FRONT)
 	if owner != null:
 		mmi.owner = owner
@@ -104,9 +122,33 @@ func _apply_material() -> void:
 			m.surface_set_material(0, _override_material)
 
 
-func _roller_count() -> int:
-	var available: float = _length - ROLLERS_START_OFFSET - ROLLERS_DISTANCE
-	return maxi(0, int(floor(available / ROLLERS_DISTANCE)))
+## Roller center X positions (node-local) laid on a shared world-space pitch grid, so collinear
+## conveyors stay continuous across a join regardless of length, snap position, or facing.
+func _roller_local_xs() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	if roller_pitch <= 0.0 or not is_inside_tree():
+		return out
+	var lo: float = _clip_span_start if _clip_span_end > _clip_span_start else -position.x
+	var hi: float = _clip_span_end if _clip_span_end > _clip_span_start else _length - position.x
+	if hi <= lo:
+		return out
+	var axis: Vector3 = global_transform.basis.x
+	var axis_len: float = axis.length()
+	if axis_len < 1e-6:
+		return out
+	axis /= axis_len
+	var phase: float = fposmod(-global_transform.origin.dot(axis), roller_pitch)
+	var x: float = phase + ceil((lo - phase) / roller_pitch) * roller_pitch
+	# Half-open [lo, hi) leaves the head-edge grid point to the neighbour so a butt join can't double up.
+	while x < hi:
+		if x >= lo:
+			out.append(x)
+		x += roller_pitch
+	# Nudge only the boundary rollers in so their outer face sits on the edge, not past it.
+	if not out.is_empty() and roller_radius > 0.0:
+		out[0] = maxf(out[0], lo + roller_radius)
+		out[out.size() - 1] = minf(out[out.size() - 1], hi - roller_radius)
+	return out
 
 
 func _rebuild() -> void:
@@ -115,18 +157,19 @@ func _rebuild() -> void:
 	_ensure_multimeshes()
 	if _mm_cyl == null or _mesh_cyl == null:
 		return
-	var count: int = _roller_count()
+	var local_xs := _roller_local_xs()
+	var count: int = local_xs.size()
 	_mm_end_l.instance_count = count
 	_mm_end_r.instance_count = count
 	_mm_cyl.instance_count = count
 
 	var skew_rad: float = deg_to_rad(_roller_skew_angle_degrees)
 	var half_len: float = _effective_conveyor_half_length()
-	var cyl_margin: float = Roller.BASE_LENGTH - Roller.BASE_CYLINDER_LENGTH
-
+	var rs: float = roller_radius / RollerSpec.MODEL_RADIUS
+	var cyl_margin: float = (Roller.BASE_LENGTH - Roller.BASE_CYLINDER_LENGTH) * rs
 	var has_clip := _clip_override.is_valid()
 	for i in count:
-		var local_x: float = ROLLERS_DISTANCE * (i + 1)
+		var local_x: float = local_xs[i]
 		var clipped: float
 		var offset: float
 		if has_clip:
@@ -137,7 +180,7 @@ func _rebuild() -> void:
 				_hide_instance(i)
 				continue
 		else:
-			var conveyor_x: float = -_length / 2.0 + ROLLERS_START_OFFSET + local_x
+			var conveyor_x: float = position.x + local_x - _length / 2.0
 			var result := AbstractRollerContainer.calculate_clipped_roller(
 					conveyor_x, half_len, _roller_length, skew_rad)
 			clipped = result.x
@@ -146,13 +189,14 @@ func _rebuild() -> void:
 				_hide_instance(i)
 				continue
 		var roller_xform := Transform3D(Basis(Vector3.UP, skew_rad), Vector3(local_x, 0.0, 0.0))
+		var end_basis := Basis.from_scale(Vector3(rs, rs, rs))
 		_mm_end_l.set_instance_transform(i,
-				roller_xform * Transform3D(Basis.IDENTITY, Vector3(0, 0, offset - clipped / Roller.BASE_LENGTH)))
+				roller_xform * Transform3D(end_basis, Vector3(0, 0, offset - clipped / Roller.BASE_LENGTH)))
 		_mm_end_r.set_instance_transform(i,
-				roller_xform * Transform3D(Basis.IDENTITY, Vector3(0, 0, offset + clipped / Roller.BASE_LENGTH)))
-		var cyl_scale: float = (clipped - cyl_margin) / Roller.BASE_CYLINDER_LENGTH
+				roller_xform * Transform3D(end_basis, Vector3(0, 0, offset + clipped / Roller.BASE_LENGTH)))
+		var cyl_scale: float = maxf(0.0, clipped - cyl_margin) / Roller.BASE_CYLINDER_LENGTH
 		_mm_cyl.set_instance_transform(i,
-				roller_xform * Transform3D(Basis.from_scale(Vector3(1, 1, cyl_scale)), Vector3(0, 0, offset)))
+				roller_xform * Transform3D(Basis.from_scale(Vector3(rs, rs, cyl_scale)), Vector3(0, 0, offset)))
 
 
 func _hide_instance(i: int) -> void:

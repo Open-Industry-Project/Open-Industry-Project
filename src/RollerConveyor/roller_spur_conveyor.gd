@@ -10,6 +10,14 @@ const _LEG_HEAD_NAME := "Leg_Head"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 
 
+## Roller tube size and pitch, as a matched real-world duty class.
+@export var roller_class: RollerSpec.DutyClass = RollerSpec.DutyClass.HEAVY:
+	set(value):
+		if roller_class == value:
+			return
+		roller_class = value
+		_request_rebuild()
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
 	set(value):
 		size = Vector3(value, size.y, size.z)
@@ -34,6 +42,8 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		if value == angle_downstream:
 			return
 		angle_downstream = value
+		if is_node_ready():
+			_front_snap_released = true
 		_request_rebuild()
 
 ## Splay angle of the upstream (-X) end. Positive splays outward.
@@ -42,6 +52,8 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		if value == angle_upstream:
 			return
 		angle_upstream = value
+		if is_node_ready():
+			_back_snap_released = true
 		_request_rebuild()
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
@@ -218,12 +230,14 @@ var _legs_state: Dictionary = {}
 
 
 var _rollers: MultiMeshRollers
-var _ends: Node3D
 var _simple_conveyor_shape: StaticBody3D
 var _frame_left: MeshInstance3D
 var _frame_right: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
 var _derived_side_guard_snap_extents: Dictionary = {}
+# Per-end snap release: set when the user edits that end's angle, cleared on a move so it re-snaps.
+var _front_snap_released: bool = false
+var _back_snap_released: bool = false
 var _legs: Array[Node3D] = []
 var _flow_arrow: Node3D
 var _roller_material: BaseMaterial3D
@@ -315,6 +329,9 @@ func _reset_preview_holder_transform() -> void:
 func _notification(what: int) -> void:
 	super(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if is_node_ready():
+			_front_snap_released = false
+			_back_snap_released = false
 		_request_legs_refresh()
 		_request_connection_rebuild()
 		ConveyorSnapping.notify_contacts_rebuild(self)
@@ -406,7 +423,6 @@ func _ensure_internal_nodes() -> void:
 		_frame_material = ConveyorFrameMesh.create_material()
 	_ensure_simple_collision()
 	_ensure_rollers_node()
-	_ensure_ends_node()
 
 
 func _ensure_simple_collision() -> void:
@@ -442,25 +458,6 @@ func _ensure_rollers_node() -> void:
 			_rollers.owner = self
 
 
-func _ensure_ends_node() -> void:
-	if not is_instance_valid(_ends):
-		_ends = get_node_or_null("Ends") as Node3D
-		if not is_instance_valid(_ends):
-			_ends = Node3D.new()
-			_ends.name = "Ends"
-			add_child(_ends, false, Node.INTERNAL_MODE_FRONT)
-			_ends.owner = self
-		var end_scene: PackedScene = load("res://src/RollerConveyor/RollerConveyorEnd.tscn") as PackedScene
-		for n: String in ["RollerConveyorEnd", "RollerConveyorEnd2"]:
-			var existing := _ends.get_node_or_null(n)
-			if existing == null and end_scene != null:
-				var end := end_scene.instantiate() as Node3D
-				end.name = n
-				if n == "RollerConveyorEnd2" and "flipped" in end:
-					end.flipped = true
-				_ends.add_child(end)
-
-
 func _request_rebuild() -> void:
 	if not is_inside_tree() or _rebuild_pending:
 		return
@@ -468,7 +465,7 @@ func _request_rebuild() -> void:
 	call_deferred("_rebuild")
 
 
-## Frame-rails + side-guards-only rebuild, skipping the roller regen.
+## Rebuilds only what follows the snap extents (frame, guards, rollers); skips legs/collision/flow-arrow.
 func _request_connection_rebuild() -> void:
 	if _connection_rebuild_pending or not is_inside_tree():
 		return
@@ -481,6 +478,7 @@ func _do_connection_rebuild() -> void:
 	if not is_inside_tree():
 		return
 	_derive_side_guard_extents()
+	_rebuild_rollers()
 	_rebuild_frame_rails()
 	_rebuild_side_guards()
 
@@ -497,88 +495,89 @@ func _rebuild() -> void:
 	_rebuild_legs()
 	_rebuild_collision()
 	_update_flow_arrow()
-	_apply_spur_clipping()
 	_update_conveyor_velocity()
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if Engine.is_editor_hint():
 		update_gizmos()
 
 
+func _roller_radius() -> float:
+	return RollerSpec.radius(roller_class)
+
+func roller_pitch() -> float:
+	return RollerSpec.pitch(roller_class)
+
+
 func _rebuild_rollers() -> void:
 	if _rollers == null:
 		return
-	_rollers.position = Vector3(0.2, RollerConveyor.ROLLERS_Y_OFFSET, 0)
+	_rollers.position = Vector3(0.0, -_roller_radius(), 0)
 	_rollers.scale = Vector3.ONE
+	_rollers.roller_radius = _roller_radius()
+	_rollers.roller_pitch = roller_pitch()
 	_rollers.set_roller_override_material(_roller_material)
 	_rollers.set_clip_override(_get_spur_clip)
+	var fx := _footprint_x_range()
+	_rollers.set_clip_span(fx.x, fx.y)
 	_rollers.set_width(size.z)
 	_rollers.set_length(size.x)
 	_rollers.setup_existing_rollers()
-	if _ends != null:
-		_ends.position = Vector3(0, RollerConveyor.ROLLERS_Y_OFFSET - 0.16, 0)
-		var end_offset := 0.165
-		var end1 := _ends.get_node_or_null("RollerConveyorEnd") as Node3D
-		var end2 := _ends.get_node_or_null("RollerConveyorEnd2") as Node3D
-		if end1:
-			end1.position = Vector3(size.x - end_offset, 0, 0)
-			end1.rotation_degrees = Vector3.ZERO
-		if end2:
-			end2.position = Vector3(end_offset, 0, 0)
-			end2.rotation_degrees = Vector3(0, 180, 0)
 
 
-func _apply_spur_clipping() -> void:
-	if _ends != null:
-		for end_child in _ends.get_children():
-			var end_roller: Roller = end_child.get_node_or_null("Roller") as Roller
-			if end_roller:
-				var x_spur: float = _ends.position.x + end_child.position.x
-				_apply_roller_clip(end_roller, _get_spur_clip(x_spur))
+## Conveyor-local X extent of the footprint from the snap-aware side extents (matches the frame).
+func _footprint_x_range() -> Vector2:
+	var hw0: float = size.z / 2.0
+	var left := _side_extents(-hw0)
+	var right := _side_extents(hw0)
+	return Vector2(minf(left.x, right.x), maxf(left.y, right.y))
 
 
+## Z span of the roller at x_spur, clipped to the splayed head/tail edges and inset by the end cap.
 func _get_spur_clip(x_spur: float) -> Vector3:
-	var half_w := size.z / 2.0
-	var z_min := -half_w
-	var z_max := half_w
-	if absf(angle_downstream) > 0.001:
-		# Downstream (head) edge at x = size.x + tan(angle_downstream) * z.
-		var z_ds: float = (x_spur - size.x) / tan(angle_downstream)
-		if angle_downstream > 0:
-			z_min = maxf(z_min, z_ds)
+	var hw0 := size.z / 2.0
+	var z_min := -hw0
+	var z_max := hw0
+	var left := _side_extents(-hw0)
+	var right := _side_extents(hw0)
+	# Head edge: line through the front corners.
+	var slope_f := (right.y - left.y) / size.z
+	if absf(slope_f) > 1e-6:
+		var z_f: float = (x_spur - left.y) / slope_f - hw0
+		if slope_f > 0.0:
+			z_min = maxf(z_min, z_f)
 		else:
-			z_max = minf(z_max, z_ds)
-	if absf(angle_upstream) > 0.001:
-		# Upstream (tail) edge at x = 0 + tan(angle_upstream) * z.
-		var z_us: float = x_spur / tan(angle_upstream)
-		if angle_upstream > 0:
-			z_max = minf(z_max, z_us)
+			z_max = minf(z_max, z_f)
+	# Tail edge: line through the back corners.
+	var slope_b := (right.x - left.x) / size.z
+	if absf(slope_b) > 1e-6:
+		var z_b: float = (x_spur - left.x) / slope_b - hw0
+		if slope_b > 0.0:
+			z_max = minf(z_max, z_b)
 		else:
-			z_min = maxf(z_min, z_us)
+			z_min = maxf(z_min, z_b)
+	var cap: float = Roller.END_CAP_PROTRUSION * RollerSpec.radial_scale(roller_class)
+	z_min += cap
+	z_max -= cap
 	return Vector3(z_min, z_max, maxf(0.0, z_max - z_min))
 
 
-func _apply_roller_clip(roller: Roller, clip: Vector3) -> void:
-	if clip.z < 0.01:
-		roller.visible = false
-		return
-	roller.visible = true
-	roller.set_length_and_offset(clip.z, (clip.x + clip.y) / 2.0)
-
-
+## Edge X at side_z: from the splay angle, overridden by a snapped end's extent unless released.
 func _side_extents(side_z: float) -> Vector2:
 	var front_x: float = size.x + tan(angle_downstream) * side_z
 	var back_x: float = tan(angle_upstream) * side_z
 	var side_key: String = "left" if side_z < 0.0 else "right"
-	var front_key: String = side_key + "_front"
-	var back_key: String = side_key + "_back"
-	if _derived_side_guard_snap_extents.has(front_key):
-		front_x = float(_derived_side_guard_snap_extents[front_key])
-	elif side_guard_snap_extents.has(front_key):
-		front_x = float(side_guard_snap_extents[front_key])
-	if _derived_side_guard_snap_extents.has(back_key):
-		back_x = float(_derived_side_guard_snap_extents[back_key])
-	elif side_guard_snap_extents.has(back_key):
-		back_x = float(side_guard_snap_extents[back_key])
+	if not _front_snap_released:
+		var front_key: String = side_key + "_front"
+		if _derived_side_guard_snap_extents.has(front_key):
+			front_x = float(_derived_side_guard_snap_extents[front_key])
+		elif side_guard_snap_extents.has(front_key):
+			front_x = float(side_guard_snap_extents[front_key])
+	if not _back_snap_released:
+		var back_key: String = side_key + "_back"
+		if _derived_side_guard_snap_extents.has(back_key):
+			back_x = float(_derived_side_guard_snap_extents[back_key])
+		elif side_guard_snap_extents.has(back_key):
+			back_x = float(side_guard_snap_extents[back_key])
 	return Vector2(back_x, front_x)
 
 
@@ -866,7 +865,8 @@ func _rebuild_collision() -> void:
 	var convex_shape := ConvexPolygonShape3D.new()
 	convex_shape.points = points
 	collision.shape = convex_shape
-	_simple_conveyor_shape.position = Vector3(size.x * 0.5, -size.y * 0.5, 0)
+	# Points carry absolute local X ([0, size.x]); only Y is centered, so offset Y alone.
+	_simple_conveyor_shape.position = Vector3(0, -size.y * 0.5, 0)
 
 
 func _update_conveyor_velocity() -> void:

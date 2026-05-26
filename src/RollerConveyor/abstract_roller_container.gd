@@ -9,13 +9,14 @@ signal roller_rotation_changed(rotation_degrees: Vector3)
 signal roller_added(roller: Roller)
 signal roller_removed(roller: Roller)
 
-const ROLLERS_DISTANCE: float = 0.33
-const ROLLERS_START_OFFSET: float = 0.2
+const ROLLERS_START_OFFSET: float = 0.165
 
 var _width: float = 2.0
 var _length: float = 1.0
 var _roller_length: float = 2.0
 var _roller_skew_angle_degrees: float = 0.0
+var roller_radius: float = RollerSpec.radius(RollerSpec.DutyClass.HEAVY)
+var roller_pitch: float = RollerSpec.pitch(RollerSpec.DutyClass.HEAVY)
 
 func _init() -> void:
 	roller_added.connect(self._handle_roller_added)
@@ -40,6 +41,15 @@ func set_length(length: float) -> void:
 		length_changed.emit(_length)
 		_update_all_roller_lengths()
 
+func set_roller_radius(value: float) -> void:
+	if roller_radius == value:
+		return
+	roller_radius = value
+	_update_all_roller_lengths()
+
+func set_roller_pitch(value: float) -> void:
+	roller_pitch = value
+
 func set_roller_skew_angle(skew_angle_degrees: float) -> void:
 	var changed := fmod(_roller_skew_angle_degrees, 360.0) != fmod(skew_angle_degrees, 360.0)
 	_roller_skew_angle_degrees = skew_angle_degrees
@@ -57,7 +67,7 @@ func _update_roller_length() -> void:
 		_update_all_roller_lengths()
 
 func _effective_conveyor_half_length() -> float:
-	return _length / 2.0 - Roller.RADIUS * absf(cos(deg_to_rad(_roller_skew_angle_degrees)))
+	return _length / 2.0 - roller_radius * absf(cos(deg_to_rad(_roller_skew_angle_degrees)))
 
 func _update_all_roller_lengths() -> void:
 	for roller in _get_rollers():
@@ -65,6 +75,7 @@ func _update_all_roller_lengths() -> void:
 
 # Virtual: subclasses override to apply per-roller clipping.
 func _apply_roller_length(roller: Roller) -> void:
+	roller.radius = roller_radius
 	roller.set_length(_roller_length)
 
 # Virtual method to be overridden

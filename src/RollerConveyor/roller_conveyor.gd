@@ -8,8 +8,13 @@ signal roller_skew_angle_changed(skew_angle_degrees: float)
 signal speed_changed(new_speed: float)
 signal roller_override_material_changed(material: Material)
 
-const CIRCUMFERENCE: float = 2.0 * PI * Roller.RADIUS
-const ROLLERS_Y_OFFSET: float = -0.12
+## Roller tube size and pitch, as a matched real-world duty class.
+@export var roller_class: RollerSpec.DutyClass = RollerSpec.DutyClass.HEAVY:
+	set(value):
+		if roller_class == value:
+			return
+		roller_class = value
+		_apply_roller_class()
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 4.0:
 	set(value):
@@ -199,7 +204,6 @@ var _last_length: float = 1.525
 var _last_width: float = 1.524
 var _metal_material: Material
 var _rollers: AbstractRollerContainer
-var _ends: Node3D
 var _roller_material: BaseMaterial3D
 var _simple_conveyor_shape: StaticBody3D
 var _transfer_plate_discharge: MeshInstance3D
@@ -207,7 +211,6 @@ var _transfer_plate_infeed: MeshInstance3D
 var _transfer_plate_discharge_opp: MeshInstance3D
 var _transfer_plate_infeed_opp: MeshInstance3D
 var _transfer_plate_material: StandardMaterial3D
-var _shadow_plate: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
 var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _legs: Array[Node3D] = []
@@ -310,7 +313,7 @@ func _ready() -> void:
 	_setup_collision_shape()
 	_setup_roller_initialization()
 	_setup_material()
-	_setup_shadow_plate()
+	_remove_legacy_shadow_plate()
 	_setup_transfer_plates()
 	_last_size = Vector3.ZERO
 	_on_size_changed()
@@ -336,6 +339,9 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
 		_request_side_guard_rebuild()
+		# Re-phase rollers onto the world grid so a move stays continuous with neighbours.
+		if _rollers is MultiMeshRollers:
+			_rollers.setup_existing_rollers()
 		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
@@ -411,7 +417,10 @@ func _physics_process(_delta: float) -> void:
 		_legs_state = ConveyorLeg.capture_leg_state(self)
 	if running and _roller_material:
 		var roller_speed := speed / cos(deg_to_rad(skew_angle)) if absf(skew_angle) < 89.0 else speed
-		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x - roller_speed * _delta / CIRCUMFERENCE, 1.0)
+		var circumference := 2.0 * PI * _roller_radius()
+		# Multiply by tiles-per-wrap (uv1_scale.x) so the surface tracks the belt at no-slip speed.
+		var bands: float = _roller_material.uv1_scale.x
+		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + bands * roller_speed * _delta / circumference, 1.0)
 
 
 func set_roller_override_material(material: Material) -> void:
@@ -419,13 +428,10 @@ func set_roller_override_material(material: Material) -> void:
 	roller_override_material_changed.emit(material)
 
 
-func _setup_shadow_plate() -> void:
-	_shadow_plate = get_node_or_null("ShadowPlate")
-	if not _shadow_plate:
-		_shadow_plate = MeshInstance3D.new()
-		_shadow_plate.name = "ShadowPlate"
-		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		add_child(_shadow_plate)
+func _remove_legacy_shadow_plate() -> void:
+	var existing := get_node_or_null("ShadowPlate")
+	if existing:
+		existing.queue_free()
 
 
 func _setup_material() -> void:
@@ -438,15 +444,9 @@ func _setup_roller_initialization() -> void:
 	set_roller_override_material(load("res://assets/3DModels/Materials/Metall2.tres").duplicate(true))
 
 	_rollers = get_node_or_null("Rollers")
-	_ends = get_node_or_null("Ends")
 
 	if _rollers:
 		_setup_roller_container(_rollers)
-
-	if _ends:
-		for end in _ends.get_children():
-			if end is RollerConveyorEnd:
-				_setup_roller_container(end)
 
 
 func _setup_roller_container(container: AbstractRollerContainer) -> void:
@@ -465,10 +465,32 @@ func _setup_roller_container(container: AbstractRollerContainer) -> void:
 		roller_override_material_changed.connect(mm.set_roller_override_material)
 		mm.set_roller_override_material(_roller_material)
 
+	container.roller_radius = _roller_radius()
+	container.roller_pitch = roller_pitch()
 	container.setup_existing_rollers()
 	container.set_roller_skew_angle(skew_angle)
 	container.set_width(size.z)
 	container.set_length(size.x)
+
+
+func _roller_radius() -> float:
+	return RollerSpec.radius(roller_class)
+
+func roller_pitch() -> float:
+	return RollerSpec.pitch(roller_class)
+
+
+func _apply_roller_class() -> void:
+	if not is_inside_tree():
+		return
+	if _rollers:
+		_rollers.set_roller_radius(_roller_radius())
+		_rollers.set_roller_pitch(roller_pitch())
+	_update_component_positions()
+	_update_transfer_plates()
+	ConveyorSnapping.notify_contacts_rebuild(self)
+	if Engine.is_editor_hint():
+		update_gizmos()
 
 
 func _setup_conveyor_physics() -> void:
@@ -523,25 +545,11 @@ func _update_component_positions() -> void:
 
 	var rollers_node := get_node_or_null("Rollers")
 	if rollers_node:
-		rollers_node.position = Vector3(0.2, ROLLERS_Y_OFFSET, 0)
+		rollers_node.position = Vector3(0, -_roller_radius(), 0)
 		rollers_node.scale = Vector3.ONE
-
-	var ends_node := get_node_or_null("Ends")
-	if ends_node:
-		ends_node.position = Vector3(0, ROLLERS_Y_OFFSET - 0.16, 0)
-
-		var end1 := ends_node.get_node_or_null("RollerConveyorEnd")
-		var end2 := ends_node.get_node_or_null("RollerConveyorEnd2")
-
-		var end_offset := 0.165
-		if end1:
-			end1.position = Vector3(size.x - end_offset, 0, 0)
-			end1.rotation_degrees = Vector3(0, 0, 0)
-			end1.scale = Vector3.ONE
-		if end2:
-			end2.position = Vector3(end_offset, 0, 0)
-			end2.rotation_degrees = Vector3(0, 180, 0)
-			end2.scale = Vector3.ONE
+		# Drive coverage explicitly so the roller layout never depends on node-position timing.
+		if rollers_node is MultiMeshRollers:
+			rollers_node.set_clip_span(0.0, size.x)
 
 
 func _update_width() -> void:
@@ -594,12 +602,6 @@ func _on_size_changed() -> void:
 
 		if _simple_conveyor_shape:
 			_simple_conveyor_shape.position = Vector3(size.x / 2.0, -size.y / 2.0, 0)
-
-		if _shadow_plate:
-			var box := BoxMesh.new()
-			box.size = Vector3(size.x, 0.01, size.z)
-			_shadow_plate.mesh = box
-			_shadow_plate.position = Vector3(size.x / 2.0, -size.y, 0)
 
 		_update_flow_arrow()
 		_rebuild_side_guards()
@@ -698,13 +700,13 @@ func _update_transfer_plates() -> void:
 	var tail_x: float = 0.0
 	var half_w := size.z / 2.0
 	var skew_rad := deg_to_rad(skew_angle)
-	var plate_y := ROLLERS_Y_OFFSET + Roller.RADIUS
+	var plate_y := 0.0
 	var skew_zone := half_w * absf(tan(skew_rad))
 	# Inset toward the conveyor center from each end where the angled rollers reach full length.
 	var head_inset: float = head_x - skew_zone
 	var tail_inset: float = tail_x + skew_zone
 	var z_sign := signf(skew_angle)
-	var skirt_depth := Roller.RADIUS * 2.0
+	var skirt_depth := _roller_radius() * 2.0
 
 	for plate in plates:
 		plate.visible = true
