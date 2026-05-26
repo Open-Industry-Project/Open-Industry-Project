@@ -6,5 +6,5 @@
 resource_name = "Metall2"
 albedo_texture = ExtResource("1_eqj3y")
 metallic = 0.905
-roughness = 0.654
+roughness = 0.35
 uv1_scale = Vector3(5, 1, 1)

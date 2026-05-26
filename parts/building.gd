@@ -7,52 +7,206 @@ const _ROT_BACK := 10
 const _ROT_LEFT := 16
 const _ROT_RIGHT := 22
 
-const _WALL_BIG := 0
-const _WALL_CORNER_L := 2
-const _WALL_CORNER_R := 3
-const _WALL_MID := 4
-const _WALL_TOP := 5
+const _WALL_C := 2
 
-const _ROOF_CURVED := 0
-const _ROOF_STRAIGHT := 1
-const _ROOF_FADE_SHADER: Shader = preload("res://addons/oip_ui/roof_fade.gdshader")
+const _ROOF_TRANSITION := 0
+const _ROOF_TILE := 1
+const _ROOF_HIDE_PITCH := 80.0
 
-## Number of wall segments along the building width (each segment is 8 m).
+const SECTION_SIZE := 10.0
+const FULL_WALL_HEIGHT := 12.0
+const HALF_WALL_HEIGHT := 6.0
+
+## Number of wall segments along the building width (each segment is 10 m).
 @export_range(2, 50) var width_sections: int = 8:
 	set(value):
 		width_sections = value
 		_generate_building()
 
-## Number of wall segments along the building length (each segment is 8 m).
+## Number of wall segments along the building length (each segment is 10 m).
 @export_range(2, 50) var length_sections: int = 5:
 	set(value):
 		length_sections = value
 		_generate_building()
 
-## Number of WallBig layers stacked vertically (each layer adds ~8 m of height).
+## Number of layers stacked vertically (each layer adds ~6 m of height).
 @export_range(1, 10) var height_sections: int = 1:
 	set(value):
 		height_sections = value
 		_generate_building()
 
-@export_range(0, 20, 0.1) var brightness: float = 6:
+@export_group("Wall Pattern")
+
+## Wall used for every full-wall segment that no rule overrides.
+@export var default_wall: BuildingWallRule.Wall = BuildingWallRule.Wall.A:
+	set(value):
+		default_wall = value
+		_generate_building()
+
+## Pattern rules painted over the default, in order. Later rules win where they overlap.
+@export var rules: Array[BuildingWallRule] = []:
+	set(value):
+		_disconnect_rules()
+		rules = value
+		for i in rules.size():
+			if rules[i] == null:
+				rules[i] = BuildingWallRule.new()
+		_connect_rules()
+		_generate_building()
+
+@export_group("Visibility")
+
+## Show the floor sections.
+@export var floor_visible: bool = true:
+	set(value):
+		floor_visible = value
+		if is_node_ready():
+			floor_grid.visible = value
+
+## Show the wall sections.
+@export var walls_visible: bool = true:
+	set(value):
+		walls_visible = value
+		if is_node_ready():
+			for grid in _wall_grids:
+				grid.visible = value
+
+## Show the roof sections. The roof may still auto-hide when the camera looks down from above.
+@export var roof_visible: bool = true:
+	set(value):
+		roof_visible = value
+		if is_node_ready():
+			roof_grid.visible = value
+
+@export_group("Lighting")
+
+enum ShadowQuality { LOW, MEDIUM, HIGH, VERY_HIGH }
+const _SHADOW_ATLAS_SIZE := {
+	ShadowQuality.LOW: 2048,
+	ShadowQuality.MEDIUM: 4096,
+	ShadowQuality.HIGH: 8192,
+	ShadowQuality.VERY_HIGH: 16384,
+}
+@export var shadow_quality: ShadowQuality = ShadowQuality.MEDIUM:
+	set(value):
+		shadow_quality = value
+		if is_node_ready():
+			_apply_shadow_quality()
+
+## Solid background color shown behind the building (visible when walls/roof are hidden)
+@export var background_color: Color = Color(0.5, 0.5, 0.5):
+	set(value):
+		background_color = value
+		if is_node_ready():
+			_apply_background()
+
+## Overall lighting brightness. Scales the key, fill and ambient together (1.0 = authored).
+@export_range(0.0, 3.0, 0.05) var brightness: float = 1.0:
 	set(value):
 		brightness = value
-		if not is_node_ready():
-			return
-		for light: OmniLight3D in lights.get_children():
-			light.light_energy = brightness
+		if is_node_ready():
+			_apply_brightness()
 
 @onready var floor_grid: GridMap = $Floor
-@onready var walls_grid: GridMap = $Walls
+@onready var walls_a_grid: GridMap = $WallsA
+@onready var walls_b_grid: GridMap = $WallsB
 @onready var roof_grid: GridMap = $Roof
-@onready var lights: Node3D = $Lights
+@onready var world_env: WorldEnvironment = $WorldEnvironment
+@onready var key_light: DirectionalLight3D = $DirectionalLight3D
+@onready var fill_light: DirectionalLight3D = $DirectionalFill
+@onready var _wall_grids: Array[GridMap] = [walls_a_grid, walls_b_grid]
+@onready var _wall_lights: Array[DirectionalLight3D] = [
+	$DirectionalWallA, $DirectionalWallB,
+]
+
+var _base_key_energy: float
+var _base_fill_energy: float
+var _base_wall_energy: float
+var _base_ambient_energy: float
 
 
 func _ready() -> void:
-	_apply_roof_fade_materials()
-	if not Engine.is_editor_hint():
-		_generate_building()
+	_apply_structure_shadows()
+	floor_grid.visible = floor_visible
+	for grid in _wall_grids:
+		grid.visible = walls_visible
+	roof_grid.visible = roof_visible
+	_base_key_energy = key_light.light_energy
+	_base_fill_energy = fill_light.light_energy
+	_base_wall_energy = _wall_lights[0].light_energy
+	if world_env.environment:
+		_base_ambient_energy = world_env.environment.ambient_light_energy
+	_apply_background()
+	_apply_brightness()
+	_apply_shadow_quality()
+	_connect_rules()
+	_generate_building()
+
+
+func _connect_rules() -> void:
+	for rule in rules:
+		if rule and not rule.changed.is_connected(_generate_building):
+			rule.changed.connect(_generate_building)
+
+
+func _disconnect_rules() -> void:
+	for rule in rules:
+		if rule and rule.changed.is_connected(_generate_building):
+			rule.changed.disconnect(_generate_building)
+
+
+func _apply_shadow_quality() -> void:
+	RenderingServer.directional_shadow_atlas_set_size(_SHADOW_ATLAS_SIZE[shadow_quality], false)
+
+
+func _apply_background() -> void:
+	if world_env.environment == null:
+		return
+	world_env.environment.background_mode = Environment.BG_COLOR
+	world_env.environment.background_color = background_color
+
+
+func _apply_brightness() -> void:
+	key_light.light_energy = _base_key_energy * brightness
+	fill_light.light_energy = _base_fill_energy * brightness
+	for light in _wall_lights:
+		light.light_energy = _base_wall_energy * brightness
+	if world_env.environment:
+		world_env.environment.ambient_light_energy = _base_ambient_energy * brightness
+
+
+func _apply_structure_shadows() -> void:
+	_set_grid_cast_shadow(floor_grid, RenderingServer.SHADOW_CASTING_SETTING_OFF)
+	_set_grid_cast_shadow(roof_grid, RenderingServer.SHADOW_CASTING_SETTING_OFF)
+	for grid in _wall_grids:
+		_set_grid_cast_shadow(grid, RenderingServer.SHADOW_CASTING_SETTING_ON)
+
+
+func _set_grid_cast_shadow(grid: GridMap, setting: RenderingServer.ShadowCastingSetting) -> void:
+	var lib := grid.mesh_library
+	if lib == null:
+		return
+	for id in lib.get_item_list():
+		lib.set_item_mesh_cast_shadow(id, setting)
+
+
+func _process(_delta: float) -> void:
+	var cam: Camera3D = _active_camera()
+	if cam == null:
+		return
+	var pitch_down: float = rad_to_deg(asin(clampf(cam.global_transform.basis.z.y, -1.0, 1.0)))
+	var ceiling_y: float = roof_grid.to_global(Vector3(0.0, FULL_WALL_HEIGHT * height_sections + HALF_WALL_HEIGHT, 0.0)).y
+	var auto_hide: bool = cam.global_position.y > ceiling_y and pitch_down >= _ROOF_HIDE_PITCH
+	var should_show: bool = roof_visible and not auto_hide
+	if should_show != roof_grid.visible:
+		roof_grid.visible = should_show
+
+
+func _active_camera() -> Camera3D:
+	if Engine.is_editor_hint():
+		var ed_viewport: SubViewport = EditorInterface.get_editor_viewport_3d(0)
+		return ed_viewport.get_camera_3d() if ed_viewport else null
+	return get_viewport().get_camera_3d()
 
 
 func _get_wall_bounds() -> Array[int]:
@@ -69,142 +223,162 @@ func _generate_building() -> void:
 	_generate_floor()
 	_generate_walls()
 	_generate_roof()
-	_update_lights()
+	_apply_shadow_distance()
+
+
+func _apply_shadow_distance() -> void:
+	var width := width_sections * SECTION_SIZE
+	var length := length_sections * SECTION_SIZE
+	var height := FULL_WALL_HEIGHT * height_sections + HALF_WALL_HEIGHT
+	var diagonal := sqrt(width * width + length * length + height * height)
+	var lights: Array[DirectionalLight3D] = [key_light, fill_light]
+	lights.append_array(_wall_lights)
+	for light in lights:
+		light.directional_shadow_max_distance = diagonal
 
 
 func _generate_floor() -> void:
 	floor_grid.clear()
 	var b := _get_wall_bounds()
-	var x_start: int = b[0] * 2
-	var z_start: int = b[2] * 2
-	var fw: int = width_sections * 2
-	var fl: int = length_sections * 2
+	var x0: int = b[0]
+	var x1: int = b[1]
+	var z0: int = b[2]
+	var z1: int = b[3]
 
-	for x in range(fw):
-		for z in range(fl):
-			floor_grid.set_cell_item(
-				Vector3i(x_start + x, -1, z_start + z), 0
-			)
+	for x in range(x0, x1):
+		for z in range(z0, z1):
+			floor_grid.set_cell_item(Vector3i(x, 0, z), 0)
+
+
+func _place_wall(pos: Vector3i, item: int, rot: int) -> void:
+	match rot:
+		_ROT_FRONT, _ROT_RIGHT:
+			walls_a_grid.set_cell_item(pos, item, rot)
+		_ROT_BACK, _ROT_LEFT:
+			walls_b_grid.set_cell_item(pos, item, rot)
 
 
 func _generate_walls() -> void:
-	walls_grid.clear()
+	for grid in _wall_grids:
+		grid.clear()
 	var b := _get_wall_bounds()
 	var x0: int = b[0]
 	var x1: int = b[1]
 	var z0: int = b[2]
 	var z1: int = b[3]
 
+	# Full wall layers: each full wall uses every other 6 m row
 	for h in range(height_sections):
-		_place_wall_ring(x0, x1, z0, z1, -1 + h * 2, _WALL_BIG)
+		var full_wall_y := h * 2
+		_place_full_wall_ring_mixed(x0, x1, z0, z1, full_wall_y)
 
-	var top_y := -1 + height_sections * 2
-	_place_wall_ring(x0, x1, z0, z1, top_y, _WALL_TOP)
-
-	var mid_y := top_y + 1
-	for x in range(x0, x1):
-		walls_grid.set_cell_item(Vector3i(x, mid_y, z0), _WALL_MID, _ROT_FRONT)
-	for x in range(x0 + 1, x1 + 1):
-		walls_grid.set_cell_item(Vector3i(x, mid_y, z1), _WALL_MID, _ROT_BACK)
-
-	walls_grid.set_cell_item(Vector3i(x0, mid_y, z0 + 1), _WALL_CORNER_R, _ROT_RIGHT)
-	walls_grid.set_cell_item(Vector3i(x0, mid_y, z1), _WALL_CORNER_L, _ROT_LEFT)
-	for z in range(z0 + 2, z1):
-		walls_grid.set_cell_item(Vector3i(x0, mid_y, z), _WALL_BIG, _ROT_LEFT)
-
-	walls_grid.set_cell_item(Vector3i(x1, mid_y, z0), _WALL_CORNER_L, _ROT_RIGHT)
-	walls_grid.set_cell_item(Vector3i(x1, mid_y, z1 - 1), _WALL_CORNER_R, _ROT_LEFT)
-	for z in range(z0 + 1, z1 - 1):
-		walls_grid.set_cell_item(Vector3i(x1, mid_y, z), _WALL_BIG, _ROT_RIGHT)
-
+	# Top half-wall ring above the last full wall layer
+	var top_half_wall_y := height_sections * 2
+	_place_wall_ring(x0, x1, z0, z1, top_half_wall_y, _WALL_C)
 
 func _place_wall_ring(x0: int, x1: int, z0: int, z1: int, y: int, item: int) -> void:
+	# -Z side
 	for x in range(x0, x1):
-		walls_grid.set_cell_item(Vector3i(x, y, z0), item, _ROT_FRONT)
-	for x in range(x0 + 1, x1 + 1):
-		walls_grid.set_cell_item(Vector3i(x, y, z1), item, _ROT_BACK)
-	for z in range(z0 + 1, z1 + 1):
-		walls_grid.set_cell_item(Vector3i(x0, y, z), item, _ROT_LEFT)
-	for z in range(z0, z1):
-		walls_grid.set_cell_item(Vector3i(x1, y, z), item, _ROT_RIGHT)
+		_place_wall(Vector3i(x, y, z0), item, _ROT_FRONT)
 
+	# +Z side
+	for x in range(x0 + 1, x1 + 1):
+		_place_wall(Vector3i(x, y, z1), item, _ROT_BACK)
+
+	# -X side
+	for z in range(z0 + 1, z1 + 1):
+		_place_wall(Vector3i(x0, y, z), item, _ROT_LEFT)
+
+	# +X side
+	for z in range(z0, z1):
+		_place_wall(Vector3i(x1, y, z), item, _ROT_RIGHT)
+
+func _get_full_wall_item(perimeter_index: int, perimeter_length: int) -> int:
+	var item := default_wall as int
+	for rule in rules:
+		if rule and rule.matches(perimeter_index, perimeter_length):
+			item = rule.wall as int
+	return item
+
+func _place_full_wall_ring_mixed(x0: int, x1: int, z0: int, z1: int, y: int) -> void:
+	var side_neg_z := x1 - x0
+	var side_pos_z := x1 - x0
+	var side_neg_x := z1 - z0
+	var side_pos_x := z1 - z0
+	var perimeter_length := side_neg_z + side_pos_z + side_neg_x + side_pos_x
+
+	var perimeter_index := 0
+
+	# -Z side
+	for x in range(x0, x1):
+		var item := _get_full_wall_item(perimeter_index, perimeter_length)
+		_place_wall(Vector3i(x, y, z0), item, _ROT_FRONT)
+		perimeter_index += 1
+
+	# +Z side
+	for x in range(x0 + 1, x1 + 1):
+		var item := _get_full_wall_item(perimeter_index, perimeter_length)
+		_place_wall(Vector3i(x, y, z1), item, _ROT_BACK)
+		perimeter_index += 1
+
+	# -X side
+	for z in range(z0 + 1, z1 + 1):
+		var item := _get_full_wall_item(perimeter_index, perimeter_length)
+		_place_wall(Vector3i(x0, y, z), item, _ROT_LEFT)
+		perimeter_index += 1
+
+	# +X side
+	for z in range(z0, z1):
+		var item := _get_full_wall_item(perimeter_index, perimeter_length)
+		_place_wall(Vector3i(x1, y, z), item, _ROT_RIGHT)
+		perimeter_index += 1
+
+func _get_matching_wall_y_for_roof(roof_y: int) -> int:
+	var roof_local_y := roof_grid.map_to_local(Vector3i(0, roof_y, 0)).y
+	var wall_cell_h := walls_a_grid.cell_size.y
+
+	if is_zero_approx(wall_cell_h):
+		return roof_y
+	return roundi(roof_local_y / wall_cell_h)
 
 func _generate_roof() -> void:
 	roof_grid.clear()
+
 	var b := _get_wall_bounds()
 	var x0: int = b[0]
 	var x1: int = b[1]
 	var z0: int = b[2]
 	var z1: int = b[3]
 
-	var roof_edge_y := -1 + height_sections * 2 + 2
-	var roof_mid_y := roof_edge_y + 1
+	# Walls now step in 6 m increments, so the top half wall is at height_sections * 2.
+	# Roof grid still uses its own vertical spacing, so keep its own simpler level index.
+	var lower_half_wall_y := height_sections * 2
+	var upper_half_wall_y := lower_half_wall_y + 1
+	var roof_y := height_sections + 1
 
+	# Roof transitions on -Z and +Z
 	for x in range(x0, x1):
-		roof_grid.set_cell_item(Vector3i(x, roof_edge_y, z0), _ROOF_CURVED, _ROT_RIGHT)
+		roof_grid.set_cell_item(Vector3i(x, roof_y, z0), _ROOF_TRANSITION, _ROT_FRONT)
+
 	for x in range(x0 + 1, x1 + 1):
-		roof_grid.set_cell_item(Vector3i(x, roof_edge_y, z1), _ROOF_CURVED, _ROT_LEFT)
-	for x in range(x0 + 1, x1 + 1):
-		for z in range(z0 + 2, z1):
-			roof_grid.set_cell_item(Vector3i(x, roof_mid_y, z), _ROOF_STRAIGHT, _ROT_BACK)
+		roof_grid.set_cell_item(Vector3i(x, roof_y, z1), _ROOF_TRANSITION, _ROT_BACK)
 
+	# Flat roof tiles between them
+	for x in range(x0, x1):
+		for z in range(z0 + 1, z1 - 1):
+			roof_grid.set_cell_item(Vector3i(x, roof_y, z), _ROOF_TILE)
 
-func _update_lights() -> void:
-	var b := _get_wall_bounds()
-	var cs := 8.0
-	var width_m := float(b[1] - b[0]) * cs
-	var length_m := float(b[3] - b[2]) * cs
+	# Side half walls on the ends that do not have roof transitions
+	# Lower 6 m band
+	for z in range(z0 + 1, z1 + 1):
+		_place_wall(Vector3i(x0, lower_half_wall_y, z), _WALL_C, _ROT_LEFT)
 
-	var cols := clampi(ceili(width_m / 24.0), 1, 6)
-	var rows := clampi(ceili(length_m / 24.0), 1, 6)
-	var needed := cols * rows
+	for z in range(z0, z1):
+		_place_wall(Vector3i(x1, lower_half_wall_y, z), _WALL_C, _ROT_RIGHT)
 
-	while lights.get_child_count() < needed:
-		var new_light := OmniLight3D.new()
-		new_light.shadow_enabled = true
-		lights.add_child(new_light)
-		if Engine.is_editor_hint() and get_tree():
-			new_light.owner = get_tree().edited_scene_root
+	# Upper 6 m band
+	for z in range(z0 + 1, z1 + 1):
+		_place_wall(Vector3i(x0, upper_half_wall_y, z), _WALL_C, _ROT_LEFT)
 
-	while lights.get_child_count() > needed:
-		var old := lights.get_child(lights.get_child_count() - 1)
-		lights.remove_child(old)
-		old.queue_free()
-
-	var x_start := b[0] * cs
-	var z_start := b[2] * cs
-	var zone_w := width_m / cols
-	var zone_l := length_m / rows
-
-	var light_y := 2.0 + (2.0 * height_sections) * 4.0 - 1.0
-	var zone_diag := sqrt(zone_w * zone_w + zone_l * zone_l)
-
-	for i in range(needed):
-		var col := i % cols
-		var row := floori(float(i) / cols)
-		var light := lights.get_child(i) as OmniLight3D
-		light.position = Vector3(
-			x_start + zone_w * (col + 0.5),
-			light_y,
-			z_start + zone_l * (row + 0.5)
-		)
-		light.light_energy = brightness
-		light.omni_range = zone_diag * 1.2
-		light.shadow_enabled = true
-
-
-func _apply_roof_fade_materials() -> void:
-	var lib := roof_grid.mesh_library.duplicate() as MeshLibrary
-	for item_id in lib.get_item_list():
-		var mesh := lib.get_item_mesh(item_id).duplicate()
-		for surface_idx: int in mesh.get_surface_count():
-			var mat: Material = mesh.surface_get_material(surface_idx)
-			if mat is StandardMaterial3D:
-				var std_mat := mat as StandardMaterial3D
-				var shader_mat := ShaderMaterial.new()
-				shader_mat.shader = _ROOF_FADE_SHADER
-				shader_mat.set_shader_parameter("albedo_texture", std_mat.albedo_texture)
-				shader_mat.set_shader_parameter("roughness", std_mat.roughness)
-				mesh.surface_set_material(surface_idx, shader_mat)
-		lib.set_item_mesh(item_id, mesh)
-	roof_grid.mesh_library = lib
+	for z in range(z0, z1):
+		_place_wall(Vector3i(x1, upper_half_wall_y, z), _WALL_C, _ROT_RIGHT)

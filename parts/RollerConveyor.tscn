@@ -11,8 +11,8 @@ render_priority = 0
 shader = ExtResource("2_sau1a")
 shader_parameter/metal_texture = ExtResource("3_enukr")
 shader_parameter/color = Color(0.337, 0.655, 0.784, 1)
-shader_parameter/metallic_value = 0.3
-shader_parameter/roughness_value = 0.7
+shader_parameter/metallic_value = 0.8
+shader_parameter/roughness_value = 0.4
 shader_parameter/specular_value = 0.5
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_enukr"]
