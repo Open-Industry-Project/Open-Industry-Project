@@ -47,10 +47,11 @@ static func create_material_yellow() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/Conveyor/conveyor_frame_shader.gdshader")
 	mat.set_shader_parameter("metal_texture", _metal_texture)
-	mat.set_shader_parameter("color", Vector3(0.85, 0.75, 0.15))
-	mat.set_shader_parameter("metallic_value", 0.3)
-	mat.set_shader_parameter("roughness_value", 0.6)
-	mat.set_shader_parameter("specular_value", 0.5)
+	mat.set_shader_parameter("color", Color(0.95, 0.74, 0.06))
+	mat.set_shader_parameter("metallic_value", 0.0)
+	mat.set_shader_parameter("roughness_value", 0.35)
+	mat.set_shader_parameter("specular_value", 0.55)
+	mat.set_shader_parameter("texture_influence", 0.5)
 	return mat
 
 

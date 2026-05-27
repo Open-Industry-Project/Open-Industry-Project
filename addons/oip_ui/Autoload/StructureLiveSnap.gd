@@ -2,7 +2,7 @@
 class_name StructureLiveSnap
 extends Node
 
-## Live snap for Platform / Stairs / GuardRail. Hold Alt to escape.
+## Live snap for Platform / Stairs / GuardRail / Fence. Hold Alt to escape.
 
 const SNAP_DISABLE_MODIFIER: Key = KEY_ALT
 const SNAP_MIN_SWITCH_MS: int = 140
@@ -13,6 +13,8 @@ var _snap_result: Dictionary = {}
 ## Variant so null means "not yet captured".
 var _pre_snap_transform: Variant = null
 var _pre_snap_size: Variant = null
+## [start, end] omit-post flags; null = not yet captured.
+var _pre_snap_omit: Variant = null
 var _active_snap: bool = false
 ## Re-entry guard for our own commit_action firing history_changed.
 var _committing: bool = false
@@ -83,6 +85,7 @@ func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 		var resizable := node as ResizableNode3D
 		if not resizable.size.is_equal_approx(found.size):
 			resizable.size = found.size
+	_apply_barrier_omit(node, found)
 	return found.transform
 
 
@@ -117,6 +120,7 @@ func _reset() -> void:
 	_snap_result = {}
 	_pre_snap_transform = null
 	_pre_snap_size = null
+	_pre_snap_omit = null
 	_active_snap = false
 	_locked_target = null
 	_last_applied = Transform3D.IDENTITY
@@ -126,25 +130,50 @@ func _reset() -> void:
 func _on_gizmo_transform(proposed: Transform3D, selected: Node3D) -> Transform3D:
 	if not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER):
 		_active_snap = false
+		_restore_barrier_omit(selected)
 		return proposed
 
 	var found := _find_snap(selected, proposed)
 	if found.is_empty():
 		_active_snap = false
+		_restore_barrier_omit(selected)
 		return proposed
 
 	if _pre_snap_transform == null:
 		_pre_snap_transform = proposed
 		if selected is ResizableNode3D:
 			_pre_snap_size = (selected as ResizableNode3D).size
+		if StructureSnapping._is_barrier(selected):
+			_pre_snap_omit = [selected.get("omit_post_start"), selected.get("omit_post_end")]
 	_target = found.target if found.has("target") else null
 	_snap_result = found
 	if found.has("size") and selected is ResizableNode3D:
 		var resizable := selected as ResizableNode3D
 		if not resizable.size.is_equal_approx(found.size):
 			resizable.size = found.size
+	_apply_barrier_omit(selected, found)
 	_active_snap = true
 	return found.transform
+
+
+func _apply_barrier_omit(node: Node3D, found: Dictionary) -> void:
+	if not StructureSnapping._is_barrier(node):
+		return
+	var os: bool = found.get("omit_post_start", false)
+	var oe: bool = found.get("omit_post_end", false)
+	if node.get("omit_post_start") != os:
+		node.set("omit_post_start", os)
+	if node.get("omit_post_end") != oe:
+		node.set("omit_post_end", oe)
+
+
+func _restore_barrier_omit(node: Node3D) -> void:
+	if not StructureSnapping._is_barrier(node) or _pre_snap_omit == null:
+		return
+	if node.get("omit_post_start") != _pre_snap_omit[0]:
+		node.set("omit_post_start", _pre_snap_omit[0])
+	if node.get("omit_post_end") != _pre_snap_omit[1]:
+		node.set("omit_post_end", _pre_snap_omit[1])
 
 
 func _commit() -> void:
@@ -157,6 +186,11 @@ func _commit() -> void:
 	if _snap_result.has("size") and _selected is ResizableNode3D and _pre_snap_size != null:
 		undo_redo.add_do_property(_selected, "size", _snap_result.size)
 		undo_redo.add_undo_property(_selected, "size", _pre_snap_size)
+	if StructureSnapping._is_barrier(_selected) and _pre_snap_omit != null:
+		undo_redo.add_do_property(_selected, "omit_post_start", _snap_result.get("omit_post_start", false))
+		undo_redo.add_undo_property(_selected, "omit_post_start", _pre_snap_omit[0])
+		undo_redo.add_do_property(_selected, "omit_post_end", _snap_result.get("omit_post_end", false))
+		undo_redo.add_undo_property(_selected, "omit_post_end", _pre_snap_omit[1])
 	if _pre_snap_transform != null:
 		undo_redo.add_do_property(_selected, "global_transform", _snap_result.transform)
 		undo_redo.add_undo_property(_selected, "global_transform", _pre_snap_transform)
@@ -185,7 +219,7 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 
 	if found.has("target"):
 		var tgt = found.target
-		if tgt is Platform or tgt is GuardRail:
+		if tgt is Platform or tgt is GuardRail or tgt is Fence:
 			_locked_target = tgt as Node3D
 	return _record_applied(found)
 
@@ -201,22 +235,22 @@ func _record_applied(found: Dictionary) -> Dictionary:
 func _snap_to_locked(selected: Node3D, intent: Transform3D) -> Dictionary:
 	if _locked_target is Platform:
 		return StructureSnapping.find_snap_to_specific_platform(selected, _locked_target as Platform, intent)
-	if _locked_target is GuardRail and selected is GuardRail:
-		return StructureSnapping.find_snap_to_specific_guardrail(selected, _locked_target as GuardRail, intent)
+	if StructureSnapping._is_barrier(_locked_target) and StructureSnapping._is_barrier(selected):
+		return StructureSnapping.find_snap_to_specific_barrier(selected, _locked_target, intent)
 	return {}
 
 
 ## Platforms are always eligible; a GuardRail can also snap to another GuardRail.
 func _best_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 	var platform_best := StructureSnapping.find_best_snap_to_platform(selected, intent)
-	if not (selected is GuardRail):
+	if not StructureSnapping._is_barrier(selected):
 		return platform_best
-	var rail_best := StructureSnapping.find_best_snap_to_guardrail(selected, intent)
+	var barrier_best := StructureSnapping.find_best_snap_to_barrier(selected, intent)
 	if platform_best.is_empty():
-		return rail_best
-	if rail_best.is_empty():
+		return barrier_best
+	if barrier_best.is_empty():
 		return platform_best
-	return rail_best if float(rail_best.distance) < float(platform_best.distance) else platform_best
+	return barrier_best if float(barrier_best.distance) < float(platform_best.distance) else platform_best
 
 
 ## Multi-select skips snap; otherwise the hooked node oscillates against
@@ -235,4 +269,4 @@ static func _pick_snappable() -> Node3D:
 
 
 static func _is_snappable(node: Node3D) -> bool:
-	return node is Platform or node is Stairs or node is GuardRail
+	return node is Platform or node is Stairs or node is GuardRail or node is Fence

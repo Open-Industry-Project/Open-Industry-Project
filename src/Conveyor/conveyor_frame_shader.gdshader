@@ -6,6 +6,7 @@ uniform vec3 color : source_color = vec3(0.337, 0.655, 0.784);
 uniform float metallic_value : hint_range(0.0, 1.0) = 0.8;
 uniform float roughness_value : hint_range(0.0, 1.0) = 0.4;
 uniform float specular_value : hint_range(0.0, 1.0) = 0.5;
+uniform float texture_influence : hint_range(0.0, 1.0) = 1.0;
 
 void fragment() {
 	vec3 tex = texture(metal_texture, UV).rgb;
@@ -18,7 +19,7 @@ void fragment() {
 			blended[i] = 1.0 - 2.0 * (1.0 - tex[i]) * (1.0 - color[i]);
 		}
 	}
-	ALBEDO = blended;
+	ALBEDO = mix(color, blended, texture_influence);
 	METALLIC = metallic_value;
 	ROUGHNESS = roughness_value;
 	SPECULAR = specular_value;

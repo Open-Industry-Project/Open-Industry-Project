@@ -28,6 +28,7 @@ func _has_gizmo(node):
 		"res://src/Platform/platform.gd",
 		"res://src/Stairs/stairs.gd",
 		"res://src/GuardRail/guard_rail.gd",
+		"res://src/Fence/fence.gd",
 		"res://src/Rack/rack.gd",
 		"res://src/FloorMarking/floor_marking.gd",
 	]
@@ -52,7 +53,7 @@ func _redraw(gizmo: EditorNode3DGizmo):
 	if node.has_meta("is_preview"):
 		return
 
-	_add_roller_selection_collision(gizmo, node)
+	_add_selection_collision(gizmo, node)
 
 	var sg_guards := _get_all_guards(node) if sideguard_mode else []
 	var use_size_handles := not sideguard_mode or sg_guards.is_empty()
@@ -527,7 +528,7 @@ const _ROLLER_BED_SCRIPTS := [
 const _CURVED_ROLLER_SCRIPT := "res://src/RollerConveyor/curved_roller_conveyor.gd"
 
 
-func _add_roller_selection_collision(gizmo: EditorNode3DGizmo, node: Node3D) -> void:
+func _add_selection_collision(gizmo: EditorNode3DGizmo, node: Node3D) -> void:
 	var node_script = node.get_script()
 	if node_script == null:
 		return
@@ -539,6 +540,12 @@ func _add_roller_selection_collision(gizmo: EditorNode3DGizmo, node: Node3D) -> 
 		var bounds: AABB = (node as ResizableNode3D)._get_resize_local_bounds(node.size)
 		# Cap the box top at the roller surface (y = 0) so it doesn't steal clicks from items on the bed.
 		bounds.position.y = -bounds.size.y
+		faces = _box_faces(bounds)
+	elif path == "res://src/Fence/fence.gd":
+		# Resize bounds are flat in Z; give the pick box the post's real depth.
+		var bounds: AABB = (node as ResizableNode3D)._get_resize_local_bounds(node.size)
+		bounds.position.z = -FenceMesh.POST_SIZE * 0.5
+		bounds.size.z = FenceMesh.POST_SIZE
 		faces = _box_faces(bounds)
 	else:
 		return

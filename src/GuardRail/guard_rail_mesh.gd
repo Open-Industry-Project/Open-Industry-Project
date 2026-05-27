@@ -9,12 +9,15 @@ const MID_RAIL_HEIGHT: float = 0.54       # 21 inches OSHA standard
 const TOE_BOARD_HEIGHT: float = 0.10      # 4 inches OSHA standard
 const POST_SIZE: float = 0.04
 const RAIL_SIZE: float = 0.032
+## Keep under POST_SIZE/2 so the corner rail end stays hidden inside the post.
+const CORNER_RAIL_EXT: float = RAIL_SIZE * 0.5
 const MAX_POST_SPACING: float = 2.4       # 8 feet OSHA max
 
 static var _metal_texture: Texture2D = preload("res://assets/3DModels/Textures/Metal.png")
 
 
-static func create(length: float, height: float = RAILING_HEIGHT) -> ArrayMesh:
+static func create(length: float, height: float = RAILING_HEIGHT,
+		omit_start_post: bool = false, omit_end_post: bool = false) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
@@ -25,7 +28,7 @@ static func create(length: float, height: float = RAILING_HEIGHT) -> ArrayMesh:
 	var ps := POST_SIZE
 	var rs := RAIL_SIZE
 	var outward := Vector3(0, 0, 1)
-	var offset := outward * (ps / 2.0)
+	var tb_off := outward * (ps * 0.25)
 
 	var mrh: float = height * (MID_RAIL_HEIGHT / RAILING_HEIGHT)
 	var tbh: float = minf(TOE_BOARD_HEIGHT, height * 0.15)
@@ -36,28 +39,35 @@ static func create(length: float, height: float = RAILING_HEIGHT) -> ArrayMesh:
 	for span_idx in range(num_spans):
 		var t0 := float(span_idx) * span_length
 		var t1 := float(span_idx + 1) * span_length
-		var sp0 := Vector3(-hl + t0, 0, 0) + offset
-		var sp1 := Vector3(-hl + t1, 0, 0) + offset
+		var sp0 := Vector3(-hl + t0, 0, 0)
+		var sp1 := Vector3(-hl + t1, 0, 0)
 
-		_add_box_tube(verts, norms, uvs, indices,
-			sp0, sp0 + Vector3(0, height, 0), ps)
-		if span_idx == num_spans - 1:
+		if not (span_idx == 0 and omit_start_post):
+			_add_box_tube(verts, norms, uvs, indices,
+				sp0, sp0 + Vector3(0, height, 0), ps)
+		if span_idx == num_spans - 1 and not omit_end_post:
 			_add_box_tube(verts, norms, uvs, indices,
 				sp1, sp1 + Vector3(0, height, 0), ps)
 
+		var rsp0 := sp0
+		var rsp1 := sp1
+		if span_idx == 0 and omit_start_post:
+			rsp0 += Vector3(-CORNER_RAIL_EXT, 0, 0)
+		if span_idx == num_spans - 1 and omit_end_post:
+			rsp1 += Vector3(CORNER_RAIL_EXT, 0, 0)
+
 		_add_box_tube(verts, norms, uvs, indices,
-			sp0 + Vector3(0, height, 0), sp1 + Vector3(0, height, 0), rs)
+			rsp0 + Vector3(0, height, 0), rsp1 + Vector3(0, height, 0), rs)
 		_add_box_tube(verts, norms, uvs, indices,
-			sp0 + Vector3(0, mrh, 0), sp1 + Vector3(0, mrh, 0), rs)
+			rsp0 + Vector3(0, mrh, 0), rsp1 + Vector3(0, mrh, 0), rs)
 
 		_add_quad(verts, norms, uvs, indices,
-			sp0, sp1,
-			sp1 + Vector3(0, tbh, 0), sp0 + Vector3(0, tbh, 0),
+			rsp0 + tb_off, rsp1 + tb_off,
+			rsp1 + tb_off + Vector3(0, tbh, 0), rsp0 + tb_off + Vector3(0, tbh, 0),
 			outward)
-		var tb_in := -outward * (ps * 0.5)
 		_add_quad(verts, norms, uvs, indices,
-			sp1 + tb_in, sp0 + tb_in,
-			sp0 + tb_in + Vector3(0, tbh, 0), sp1 + tb_in + Vector3(0, tbh, 0),
+			rsp1 - tb_off, rsp0 - tb_off,
+			rsp0 - tb_off + Vector3(0, tbh, 0), rsp1 - tb_off + Vector3(0, tbh, 0),
 			-outward)
 
 	if verts.is_empty():
@@ -75,10 +85,11 @@ static func create_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/Conveyor/conveyor_frame_shader.gdshader")
 	mat.set_shader_parameter("metal_texture", _metal_texture)
-	mat.set_shader_parameter("color", Vector3(0.85, 0.75, 0.15))
-	mat.set_shader_parameter("metallic_value", 0.3)
-	mat.set_shader_parameter("roughness_value", 0.6)
-	mat.set_shader_parameter("specular_value", 0.5)
+	mat.set_shader_parameter("color", Color(0.95, 0.74, 0.06))
+	mat.set_shader_parameter("metallic_value", 0.0)
+	mat.set_shader_parameter("roughness_value", 0.35)
+	mat.set_shader_parameter("specular_value", 0.55)
+	mat.set_shader_parameter("texture_influence", 0.5)
 	return mat
 
 

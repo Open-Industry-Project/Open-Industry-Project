@@ -17,7 +17,7 @@ const SNAP_TOLERANCE: float = 0.15
 		show_middle_supports = value
 		_rebuild()
 
-@export var steel_color: Color = Color(0.85, 0.75, 0.15):
+@export var steel_color: Color = Color(0.95, 0.74, 0.06):
 	set(value):
 		steel_color = value
 		_update_yellow_material_color()
@@ -201,8 +201,7 @@ func _setup_materials() -> void:
 
 func _update_yellow_material_color() -> void:
 	if _yellow_material:
-		var c := steel_color
-		_yellow_material.set_shader_parameter("color", Vector3(c.r, c.g, c.b))
+		_yellow_material.set_shader_parameter("color", steel_color)
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:

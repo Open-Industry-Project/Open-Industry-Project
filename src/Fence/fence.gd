@@ -1,12 +1,16 @@
 @tool
-class_name GuardRail
+class_name Fence
 extends ResizableNode3D
 
-## OSHA-compliant safety guard rail. X = run length, Y = height, faces local +Z.
 
-@export var steel_color: Color = Color(0.95, 0.74, 0.06):
+@export var post_color: Color = Color(0.95, 0.74, 0.06):
 	set(value):
-		steel_color = value
+		post_color = value
+		_update_material_color()
+
+@export var mesh_color: Color = Color(0.05, 0.05, 0.05):
+	set(value):
+		mesh_color = value
 		_update_material_color()
 
 @export var omit_post_start: bool = false:
@@ -25,16 +29,17 @@ extends ResizableNode3D
 @onready var _collision_body: StaticBody3D = $StaticBody3D
 @onready var _collision_shape: CollisionShape3D = $StaticBody3D/CollisionShape3D
 
-var _material: ShaderMaterial
+var _post_material: ShaderMaterial
+var _mesh_material: ShaderMaterial
 
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(4.0, GuardRailMesh.RAILING_HEIGHT, 0.04)
-	size_min = Vector3(0.5, 0.3, 0.04)
+	size_default = Vector3(4.0, FenceMesh.FENCE_HEIGHT, FenceMesh.POST_SIZE)
+	size_min = Vector3(0.5, 0.5, FenceMesh.POST_SIZE)
 
 
-static var instances: Array[GuardRail] = []
+static var instances: Array[Fence] = []
 
 
 func _enter_tree() -> void:
@@ -58,19 +63,21 @@ func _ready() -> void:
 
 
 func _setup_material() -> void:
-	_material = GuardRailMesh.create_material()
-	_update_material_color()
+	_post_material = FenceMesh.create_material(post_color)
+	_mesh_material = FenceMesh.create_material(mesh_color)
 
 
 func _update_material_color() -> void:
-	if _material:
-		_material.set_shader_parameter("color", steel_color)
+	if _post_material:
+		_post_material.set_shader_parameter("color", post_color)
+	if _mesh_material:
+		_mesh_material.set_shader_parameter("color", mesh_color)
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	new_size.x = maxf(new_size.x, 0.5)
-	new_size.y = maxf(new_size.y, 0.3)
-	new_size.z = 0.04
+	new_size.y = maxf(new_size.y, 0.5)
+	new_size.z = FenceMesh.POST_SIZE
 	return new_size
 
 
@@ -92,19 +99,20 @@ func _rebuild() -> void:
 	var length := size.x
 	var height := size.y
 
-	_mesh_instance.mesh = GuardRailMesh.create(length, height, omit_post_start, omit_post_end)
+	_mesh_instance.mesh = FenceMesh.create(length, height, omit_post_start, omit_post_end)
 
-	if _mesh_instance.mesh and _mesh_instance.mesh.get_surface_count() > 0:
-		_mesh_instance.set_surface_override_material(0, _material)
+	if _mesh_instance.mesh and _mesh_instance.mesh.get_surface_count() >= 2:
+		_mesh_instance.set_surface_override_material(0, _post_material)
+		_mesh_instance.set_surface_override_material(1, _mesh_material)
 
 	if _collision_shape and _collision_shape.shape is BoxShape3D:
 		(_collision_shape.shape as BoxShape3D).size = Vector3(
-			length, height, GuardRailMesh.POST_SIZE)
+			length, height, FenceMesh.POST_SIZE)
 		_collision_shape.position = Vector3(0, height / 2.0, 0)
 
 
 func _get_custom_preview_node() -> Node3D:
-	var preview_scene := load("res://parts/GuardRail.tscn") as PackedScene
+	var preview_scene := load("res://parts/Fence.tscn") as PackedScene
 	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
 	preview_node.set_meta("is_preview", true)
 	_disable_collisions_recursive(preview_node)
