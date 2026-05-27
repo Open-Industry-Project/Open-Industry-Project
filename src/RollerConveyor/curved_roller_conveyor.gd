@@ -604,10 +604,9 @@ func _update_rollers() -> void:
 	if _rollers_mm == null or _rollers_mm.multimesh == null:
 		return
 	var center_r: float = inner_radius + width / 2.0
-	var r_outer: float = inner_radius + width
 	var angle_rad: float = deg_to_rad(conveyor_angle)
-	# Space by duty-class pitch along the outer edge, so density matches a straight conveyor.
-	var dtheta: float = RollerSpec.pitch(roller_class) / maxf(r_outer, 0.01)
+	# Centerline pitch, so density matches a straight conveyor a snapped one can stay continuous with.
+	var dtheta: float = RollerSpec.pitch(roller_class) / maxf(center_r, 0.01)
 	var count: int = maxi(2, ceili(angle_rad / dtheta) + 1)
 
 	var z_scale: float = width / RollerCorner.MODEL_BASE_LENGTH

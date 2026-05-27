@@ -216,6 +216,8 @@ var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _legs: Array[Node3D] = []
 var _side_guard_rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
+var _roller_refresh_pending: bool = false
+var _last_grid_anchor: Variant = null
 const _MIN_GUARD_LEN: float = 0.05
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
@@ -322,6 +324,7 @@ func _ready() -> void:
 	SideGuardOpening.sync_change_listeners([], side_guard_openings, _request_side_guard_rebuild)
 	_rebuild_side_guards()
 	_rebuild_legs()
+	_request_roller_refresh()
 	_bind_snap_meta_now()
 
 
@@ -339,9 +342,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
 		_request_side_guard_rebuild()
-		# Re-phase rollers onto the world grid so a move stays continuous with neighbours.
-		if _rollers is MultiMeshRollers:
-			_rollers.setup_existing_rollers()
+		_request_roller_refresh()
 		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
@@ -547,7 +548,6 @@ func _update_component_positions() -> void:
 	if rollers_node:
 		rollers_node.position = Vector3(0, -_roller_radius(), 0)
 		rollers_node.scale = Vector3.ONE
-		# Drive coverage explicitly so the roller layout never depends on node-position timing.
 		if rollers_node is MultiMeshRollers:
 			rollers_node.set_clip_span(0.0, size.x)
 
@@ -792,10 +792,42 @@ func _request_side_guard_rebuild() -> void:
 	call_deferred("_rebuild_side_guards")
 
 
-## Intentionally narrow: connections only drive side guards here. If a future
-## change makes them drive legs/rollers/frame, broaden this to a full rebuild.
 func _request_rebuild() -> void:
 	_request_side_guard_rebuild()
+	_request_roller_refresh()
+
+
+func _request_roller_refresh() -> void:
+	if _roller_refresh_pending or not is_inside_tree():
+		return
+	_roller_refresh_pending = true
+	call_deferred("_refresh_rollers")
+
+
+func _refresh_rollers() -> void:
+	_roller_refresh_pending = false
+	if not (_rollers is MultiMeshRollers) or not is_inside_tree():
+		return
+	var mm: MultiMeshRollers = _rollers
+	var grid: Dictionary = ConveyorSnapping.resolve_roller_grid(self)
+	var anchor: Variant = grid.anchor
+	mm.set_grid(anchor, not bool(grid.back_butt), not bool(grid.front_butt))
+	# On anchor change, re-ping so the curve's phase propagates down the chain; gated so it settles.
+	if _grid_anchor_changed(anchor, _last_grid_anchor):
+		_last_grid_anchor = anchor
+		ConveyorSnapping.notify_contacts_rebuild(self)
+
+
+func get_roller_grid_anchor() -> Variant:
+	return _last_grid_anchor
+
+
+static func _grid_anchor_changed(a: Variant, b: Variant) -> bool:
+	var a_vec: bool = a is Vector3
+	var b_vec: bool = b is Vector3
+	if a_vec and b_vec:
+		return not (a as Vector3).is_equal_approx(b as Vector3)
+	return a_vec != b_vec
 
 
 ## True arc extent of the side guard (origin at tail), default span for a new opening.

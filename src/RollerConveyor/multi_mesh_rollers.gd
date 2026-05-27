@@ -14,6 +14,9 @@ var _override_material: Material
 var _clip_override: Callable
 var _clip_span_start: float = 0.0
 var _clip_span_end: float = 0.0
+var _grid_anchor: Variant = null
+var _nudge_lo: bool = true
+var _nudge_hi: bool = true
 
 
 func setup_existing_rollers() -> void:
@@ -64,6 +67,13 @@ func set_clip_override(provider: Callable) -> void:
 func set_clip_span(start_x: float, end_x: float) -> void:
 	_clip_span_start = start_x
 	_clip_span_end = end_x
+	_rebuild()
+
+
+func set_grid(anchor: Variant, nudge_lo: bool, nudge_hi: bool) -> void:
+	_grid_anchor = anchor
+	_nudge_lo = nudge_lo
+	_nudge_hi = nudge_hi
 	_rebuild()
 
 
@@ -122,8 +132,8 @@ func _apply_material() -> void:
 			m.surface_set_material(0, _override_material)
 
 
-## Roller center X positions (node-local) laid on a shared world-space pitch grid, so collinear
-## conveyors stay continuous across a join regardless of length, snap position, or facing.
+## Roller center X positions (node-local) on a shared world-space pitch grid through _grid_anchor
+## (else world origin), so collinear conveyors stay continuous across a join.
 func _roller_local_xs() -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	if roller_pitch <= 0.0 or not is_inside_tree():
@@ -137,17 +147,20 @@ func _roller_local_xs() -> PackedFloat32Array:
 	if axis_len < 1e-6:
 		return out
 	axis /= axis_len
-	var phase: float = fposmod(-global_transform.origin.dot(axis), roller_pitch)
+	var has_anchor: bool = _grid_anchor != null
+	var anchor: Vector3 = _grid_anchor if has_anchor else Vector3.ZERO
+	var to_anchor: float = (anchor - global_transform.origin).dot(axis)
+	var phase: float = fposmod(to_anchor, roller_pitch)
 	var x: float = phase + ceil((lo - phase) / roller_pitch) * roller_pitch
-	# Half-open [lo, hi) leaves the head-edge grid point to the neighbour so a butt join can't double up.
 	while x < hi:
-		if x >= lo:
+		if x >= lo and not (has_anchor and absf(x - to_anchor) < roller_pitch * 0.5):
 			out.append(x)
 		x += roller_pitch
-	# Nudge only the boundary rollers in so their outer face sits on the edge, not past it.
 	if not out.is_empty() and roller_radius > 0.0:
-		out[0] = maxf(out[0], lo + roller_radius)
-		out[out.size() - 1] = minf(out[out.size() - 1], hi - roller_radius)
+		if _nudge_lo:
+			out[0] = maxf(out[0], lo + roller_radius)
+		if _nudge_hi:
+			out[out.size() - 1] = minf(out[out.size() - 1], hi - roller_radius)
 	return out
 
 

@@ -300,6 +300,41 @@ static func derive_extents_by_geometry(local: Node3D) -> Dictionary:
 	return result
 
 
+## Returns [param local]'s roller-grid inputs from its butted neighbours: {anchor: world point the
+## grid passes through — a curve's end roller, or a collinear straight's inherited anchor, else null
+## (world origin); front_butt/back_butt: whether that end abuts a collinear neighbour}.
+static func resolve_roller_grid(local: Node3D) -> Dictionary:
+	var result: Dictionary = {"anchor": null, "front_butt": false, "back_butt": false}
+	if not local.is_inside_tree():
+		return result
+	var local_ends := _get_end_info(local)
+	var local_xform := local.global_transform
+	var local_axis: Vector3 = local_xform.basis.x.normalized()
+	for other: Node3D in _candidates_near(local, 0.3):
+		if other == local or not is_instance_valid(other) or not other.is_inside_tree():
+			continue
+		var is_curve: bool = _is_curved_roller_conveyor(other)
+		var is_straight: bool = _is_roller_conveyor(other)
+		if not is_curve and not is_straight:
+			continue
+		var other_xform := other.global_transform
+		var collinear: bool = absf(other_xform.basis.x.normalized().dot(local_axis)) > 0.99
+		for oe: Dictionary in _get_end_info(other):
+			var oe_world: Vector3 = other_xform * (oe.pos as Vector3)
+			for le: Dictionary in local_ends:
+				if (local_xform * (le.pos as Vector3)).distance_to(oe_world) >= 0.15:
+					continue
+				if collinear:
+					result[String(le.name) + "_butt"] = true
+				if is_curve:
+					result.anchor = oe_world
+				elif collinear and result.anchor == null and other.has_method(&"get_roller_grid_anchor"):
+					var a: Variant = other.get_roller_grid_anchor()
+					if a != null:
+						result.anchor = a
+	return result
+
+
 static func _collect_port_nodes(local: Node3D) -> Array[Node3D]:
 	var nodes: Array[Node3D] = []
 	var root: Node = null
