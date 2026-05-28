@@ -1007,6 +1007,7 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_rebuild_legs()
+		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _get_scale_warning_text() -> String:
