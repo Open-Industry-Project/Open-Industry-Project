@@ -4,9 +4,9 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fy1ij"]
 resource_name = "color"
-albedo_color = Color(0, 0.784314, 1, 1)
-metallic = 1.0
-roughness = 0.929289
+albedo_color = Color(0, 0.4, 0.5, 1)
+metallic = 0.0
+roughness = 0.55
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_vi0ms"]
 _surfaces = [{
@@ -44,9 +44,9 @@ shadow_mesh = SubResource("ArrayMesh_vi0ms")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yefps"]
 resource_name = "color-2"
-albedo_color = Color(0.904365, 0.918013, 0.971896, 1)
-metallic = 1.0
-roughness = 0.929289
+albedo_color = Color(0.03, 0.03, 0.03, 1)
+metallic = 0.0
+roughness = 0.55
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_1laa0"]
 _surfaces = [{
@@ -84,9 +84,9 @@ shadow_mesh = SubResource("ArrayMesh_1laa0")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gf384"]
 resource_name = "color-4"
-albedo_color = Color(1, 0, 0, 1)
-metallic = 1.0
-roughness = 0.929289
+albedo_color = Color(0.45, 0, 0, 1)
+metallic = 0.0
+roughness = 0.55
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_n8c4j"]
 _surfaces = [{
@@ -124,9 +124,9 @@ shadow_mesh = SubResource("ArrayMesh_n8c4j")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r32eh"]
 resource_name = "color-3"
-albedo_color = Color(0.538065, 0.538065, 0.538065, 1)
-metallic = 1.0
-roughness = 0.929289
+albedo_color = Color(0.03, 0.03, 0.03, 1)
+metallic = 0.0
+roughness = 0.55
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_0umne"]
 _surfaces = [{
@@ -169,6 +169,7 @@ size = Vector3(0.26, 0.715, 0.425)
 size = Vector3(0.185, 0.225, 0.185)
 
 [node name="ColorSensor" type="Node3D" unique_id=2040135411]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 0, 0)
 script = ExtResource("1_dr6em")
 color_detected = Color(1, 1, 1, 0)
 
