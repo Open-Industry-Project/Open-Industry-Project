@@ -156,8 +156,8 @@ func _update_output() -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_pushbutton_tag.register(pushbutton_tag_group_name, pushbutton_tag_name)
-		_lamp_tag.register(lamp_tag_group_name, lamp_tag_name)
+		_pushbutton_tag.register(pushbutton_tag_group_name, pushbutton_tag_name, OIPComms.TAG_TYPE_BOOL)
+		_lamp_tag.register(lamp_tag_group_name, lamp_tag_name, OIPComms.TAG_TYPE_BOOL)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:

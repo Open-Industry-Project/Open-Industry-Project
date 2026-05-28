@@ -7,10 +7,10 @@ var _register_ok: bool = false
 var _group_init: bool = false
 
 
-func register(group: String, tag: String, count: int = 1) -> void:
+func register(group: String, tag: String, data_type: int = OIPComms.TAG_TYPE_BOOL) -> void:
 	tag_group_name = group
 	tag_name = tag
-	_register_ok = OIPComms.register_tag(tag_group_name, tag_name, count)
+	_register_ok = OIPComms.register_tag(tag_group_name, tag_name, data_type)
 
 
 func on_group_initialized(group: String) -> bool:

@@ -31,7 +31,9 @@ enum Datatype {
 					_tag.write_bit(value)
 				Datatype.FLOAT:
 					_tag.write_float32(value)
-				Datatype.DOUBLE, Datatype.INT:
+				Datatype.DOUBLE:
+					_tag.write_float64(value)
+				Datatype.INT:
 					_tag.write_int32(value)
 
 var _tag := OIPCommsTag.new()
@@ -82,7 +84,21 @@ func _property_get_revert(property: StringName) -> Variant:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_tag.register(tag_group_name, tag_name)
+		_tag.register(tag_group_name, tag_name, _oip_data_type())
+
+
+# Maps the editor-facing Datatype to the OIPComms tag type so modbus_tcp sizes
+# the register span correctly (FLOAT32/INT32 = 2 registers, FLOAT64 = 4).
+func _oip_data_type() -> int:
+	match data_type:
+		Datatype.FLOAT:
+			return OIPComms.TAG_TYPE_FLOAT32
+		Datatype.DOUBLE:
+			return OIPComms.TAG_TYPE_FLOAT64
+		Datatype.INT:
+			return OIPComms.TAG_TYPE_INT32
+		_:
+			return OIPComms.TAG_TYPE_BOOL
 
 
 func _tag_group_initialized(group: String) -> void:
@@ -98,6 +114,8 @@ func _tag_group_polled(group: String) -> void:
 			converted = _tag.read_bit()
 		Datatype.FLOAT:
 			converted = _tag.read_float32()
-		Datatype.DOUBLE, Datatype.INT:
+		Datatype.DOUBLE:
+			converted = _tag.read_float64()
+		Datatype.INT:
 			converted = _tag.read_int32()
 	tag_value = converted

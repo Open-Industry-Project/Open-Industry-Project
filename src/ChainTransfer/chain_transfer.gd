@@ -157,8 +157,8 @@ func _on_simulation_started() -> void:
 			base.turn_on()
 
 	if enable_comms:
-		_speed_tag.register(speed_tag_group_name, speed_tag_name)
-		_popup_tag.register(popup_tag_group_name, popup_tag_name)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_FLOAT32)
+		_popup_tag.register(popup_tag_group_name, popup_tag_name, OIPComms.TAG_TYPE_BOOL)
 
 func _on_simulation_ended() -> void:
 	if chain_transfer_bases:

@@ -889,8 +889,8 @@ func _on_simulation_started() -> void:
 	running = true
 	_update_conveyor_velocity()
 	if enable_comms:
-		_speed_tag.register(speed_tag_group_name, speed_tag_name)
-		_running_tag.register(running_tag_group_name, running_tag_name)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_FLOAT32)
+		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
 
 
 func _on_simulation_ended() -> void:

@@ -663,13 +663,13 @@ func _on_simulation_started() -> void:
 	_last_execute = false
 
 	if not command_tag.is_empty():
-		_command_tag.register(tag_group_name, command_tag)
+		_command_tag.register(tag_group_name, command_tag, OIPComms.TAG_TYPE_INT16)
 	if not execute_tag.is_empty():
-		_execute_tag.register(tag_group_name, execute_tag)
+		_execute_tag.register(tag_group_name, execute_tag, OIPComms.TAG_TYPE_BOOL)
 	if not done_tag.is_empty():
-		_done_tag.register(tag_group_name, done_tag)
+		_done_tag.register(tag_group_name, done_tag, OIPComms.TAG_TYPE_BOOL)
 	if not vacuum_tag.is_empty():
-		_vacuum_tag.register(tag_group_name, vacuum_tag)
+		_vacuum_tag.register(tag_group_name, vacuum_tag, OIPComms.TAG_TYPE_BOOL)
 
 
 func _tag_group_initialized(group_name: String) -> void:

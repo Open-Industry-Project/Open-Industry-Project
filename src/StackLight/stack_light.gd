@@ -298,7 +298,7 @@ func _on_segment_state_changed(index: int, active: bool) -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_tag.register(tag_group_name, tag_name)
+		_tag.register(tag_group_name, tag_name, OIPComms.TAG_TYPE_UINT8)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
