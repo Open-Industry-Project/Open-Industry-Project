@@ -36,6 +36,7 @@ func snap_selected_structures() -> void:
 	var platforms: Array[Platform] = []
 	var stairs_list: Array[Stairs] = []
 	var barriers: Array[ResizableNode3D] = []
+	var markings: Array[FloorMarking] = []
 
 	for node in selected_nodes:
 		if node is Platform:
@@ -44,6 +45,8 @@ func snap_selected_structures() -> void:
 			stairs_list.append(node as Stairs)
 		elif _is_barrier(node):
 			barriers.append(node as ResizableNode3D)
+		elif node is FloorMarking:
+			markings.append(node as FloorMarking)
 
 	if stairs_list.size() > 0 and platforms.size() > 0:
 		_snap_stairs_to_platform(stairs_list[0], platforms[0])
@@ -53,9 +56,11 @@ func snap_selected_structures() -> void:
 		_snap_barrier_to_platform(barriers[0], platforms[0])
 	elif platforms.size() >= 2:
 		_snap_platform_to_platform(platforms[0], platforms[1])
+	elif markings.size() >= 2:
+		_snap_marking_to_marking(markings[0], markings[1])
 	else:
 		EditorInterface.get_editor_toaster().push_toast(
-			"Select Platform+Stairs, Platform+Barrier, Barrier+Barrier, or Platform+Platform.",
+			"Select Platform+Stairs, Platform+Barrier, Barrier+Barrier, Platform+Platform, or Marking+Marking.",
 			EditorToaster.SEVERITY_WARNING)
 
 
@@ -152,6 +157,148 @@ static func find_snap_to_specific_barrier(selected: Node3D, target: Node3D, inte
 		result["omit_post_start"] = computed.omit_post_start
 		result["omit_post_end"] = computed.omit_post_end
 	return result
+
+
+func _snap_marking_to_marking(moving: FloorMarking, target: FloorMarking) -> void:
+	var undo_redo := EditorInterface.get_editor_undo_redo()
+	undo_redo.create_action("Snap Marking to Marking")
+
+	var new_transform: Transform3D = _compute_marking_to_marking_transform(moving, target, moving.global_transform)
+	undo_redo.add_do_property(moving, "global_transform", new_transform)
+	undo_redo.add_undo_property(moving, "global_transform", moving.global_transform)
+	undo_redo.commit_action()
+
+
+static func find_snap_to_specific_marking(selected: Node3D, target: FloorMarking, intent: Transform3D) -> Dictionary:
+	if selected == null or not is_instance_valid(selected) or target == null or not is_instance_valid(target):
+		return {}
+	if target == selected or not (selected is FloorMarking):
+		return {}
+	if _horizontal_distance(target.global_position, intent.origin) > SEARCH_RADIUS:
+		return {}
+
+	var candidate_transform: Transform3D = _compute_marking_to_marking_transform(selected as FloorMarking, target, intent)
+	var horizontal_delta := _horizontal_distance(intent.origin, candidate_transform.origin)
+	if horizontal_delta > LIVE_VISIBLE_THRESHOLD:
+		return {}
+	var height_delta := absf(intent.origin.y - candidate_transform.origin.y)
+	if height_delta > LIVE_HEIGHT_TOLERANCE:
+		return {}
+	var score := horizontal_delta + height_delta * 0.2
+	return {"transform": candidate_transform, "target": target, "distance": score}
+
+
+static func find_best_snap_to_marking(selected: Node3D, intent: Transform3D) -> Dictionary:
+	if selected == null or not is_instance_valid(selected) or not (selected is FloorMarking):
+		return {}
+
+	var best_result: Dictionary = {}
+	var best_dist := INF
+
+	for target in FloorMarking.instances:
+		if not is_instance_valid(target):
+			continue
+		var r := find_snap_to_specific_marking(selected, target, intent)
+		if r.is_empty():
+			continue
+		var d: float = r.distance
+		if d < best_dist:
+			best_dist = d
+			best_result = r
+
+	return best_result
+
+
+static func _compute_marking_to_marking_transform(moving: FloorMarking, target: FloorMarking, intent: Transform3D) -> Transform3D:
+	var m_pos := intent.origin
+	var current_basis := intent.basis
+	var m_hl := moving.size.x / 2.0
+	var m_hw := moving.size.z / 2.0
+
+	var target_edges := _get_marking_edges(target)
+
+	var m_edge_centers_local: Array[Vector3] = [
+		Vector3(m_hl, 0, 0),
+		Vector3(-m_hl, 0, 0),
+		Vector3(0, 0, m_hw),
+		Vector3(0, 0, -m_hw),
+	]
+	var m_edge_outwards_local: Array[Vector3] = [
+		Vector3.RIGHT,
+		Vector3.LEFT,
+		Vector3.BACK,
+		Vector3.FORWARD,
+	]
+	# Half-length of each moving edge along its own run direction (local).
+	var m_edge_along_halves: Array[float] = [m_hw, m_hw, m_hl, m_hl]
+
+	var current_forward := _horizontal_dir(current_basis.x, Vector3.RIGHT)
+	var current_yaw := atan2(current_forward.z, current_forward.x)
+	var target_basis := target.global_transform.basis.orthonormalized()
+
+	var best_transform := intent
+	var best_cost := INF
+
+	for te in target_edges:
+		var t_seg_start: Vector3 = te[0]
+		var t_seg_end: Vector3 = te[1]
+		var t_outward: Vector3 = _horizontal_dir(te[2], Vector3.RIGHT)
+		var t_edge_vec := t_seg_end - t_seg_start
+		var t_edge_len := t_edge_vec.length()
+		var t_edge_dir: Vector3 = t_edge_vec / t_edge_len if t_edge_len > 0.0001 else Vector3.RIGHT
+
+		for me_idx in range(4):
+			var local_outward := m_edge_outwards_local[me_idx]
+			var m_along_half := m_edge_along_halves[me_idx]
+			var desired_outward := -t_outward
+
+			var best_basis_for_pair := target_basis
+			var best_dot := -INF
+			for k in range(4):
+				var candidate_basis := target_basis * Basis(Vector3.UP, float(k) * (PI * 0.5))
+				var out_world := _horizontal_dir(candidate_basis * local_outward, Vector3.RIGHT)
+				var d := out_world.dot(desired_outward)
+				if d > best_dot:
+					best_dot = d
+					best_basis_for_pair = candidate_basis
+
+			var candidate_basis := best_basis_for_pair
+			var rotated_center := candidate_basis * m_edge_centers_local[me_idx]
+			var yaw := atan2(_horizontal_dir(candidate_basis.x, Vector3.RIGHT).z, _horizontal_dir(candidate_basis.x, Vector3.RIGHT).x)
+			var center_guess := m_pos + rotated_center
+			var closest_clamped := _closest_point_on_segment_xz(center_guess, t_seg_start, t_seg_end)
+
+			# Center-clamp lets the user slide; the two corner-flush candidates make
+			# the moving's corner coincide with the target's corner near either end.
+			var edge_positions: Array[Vector3] = [closest_clamped]
+			if t_edge_len > 0.0001:
+				edge_positions.append(t_seg_start + t_edge_dir * m_along_half)
+				edge_positions.append(t_seg_end - t_edge_dir * m_along_half)
+
+			for edge_pos in edge_positions:
+				var candidate_pos := edge_pos - rotated_center
+				candidate_pos.y = target.global_position.y
+
+				var move_cost := Vector2(candidate_pos.x - m_pos.x, candidate_pos.z - m_pos.z).length()
+				var rot_cost := absf(wrapf(yaw - current_yaw, -PI, PI))
+				var total_cost := move_cost + rot_cost * 0.35
+				if total_cost < best_cost:
+					best_cost = total_cost
+					best_transform = Transform3D(candidate_basis, candidate_pos)
+
+	return best_transform
+
+
+static func _get_marking_edges(m: FloorMarking) -> Array:
+	var xf := m.global_transform
+	var hl := m.size.x / 2.0
+	var hw := m.size.z / 2.0
+	return [
+		[xf * Vector3(hl, 0, -hw), xf * Vector3(hl, 0, hw), (xf.basis * Vector3.RIGHT).normalized()],
+		[xf * Vector3(-hl, 0, hw), xf * Vector3(-hl, 0, -hw), (xf.basis * Vector3.LEFT).normalized()],
+		[xf * Vector3(-hl, 0, hw), xf * Vector3(hl, 0, hw), (xf.basis * Vector3.BACK).normalized()],
+		[xf * Vector3(hl, 0, -hw), xf * Vector3(-hl, 0, -hw), (xf.basis * Vector3.FORWARD).normalized()],
+	]
 
 
 static func find_best_snap_to_barrier(selected: Node3D, intent: Transform3D) -> Dictionary:

@@ -45,11 +45,26 @@ var _mesh_instance: MeshInstance3D
 var _plane_mesh: PlaneMesh
 var _material: ShaderMaterial
 
+static var instances: Array[FloorMarking] = []
+
 
 func _init() -> void:
 	super._init()
 	size_default = Vector3(2.0, 0.02, 8.0)
 	size_min = Vector3(0.1, 0.01, 0.1)
+
+
+func _enter_tree() -> void:
+	super._enter_tree()
+	if has_meta("is_preview"):
+		return
+	if not instances.has(self):
+		instances.append(self)
+
+
+func _exit_tree() -> void:
+	super._exit_tree()
+	instances.erase(self)
 
 
 func _ready() -> void:

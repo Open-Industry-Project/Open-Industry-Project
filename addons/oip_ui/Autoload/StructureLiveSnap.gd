@@ -2,7 +2,7 @@
 class_name StructureLiveSnap
 extends Node
 
-## Live snap for Platform / Stairs / GuardRail / Fence. Hold Alt to escape.
+## Live snap for Platform / Stairs / GuardRail / Fence / FloorMarking. Hold Alt to escape.
 
 const SNAP_DISABLE_MODIFIER: Key = KEY_ALT
 const SNAP_MIN_SWITCH_MS: int = 140
@@ -219,7 +219,7 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 
 	if found.has("target"):
 		var tgt = found.target
-		if tgt is Platform or tgt is GuardRail or tgt is Fence:
+		if tgt is Platform or tgt is GuardRail or tgt is Fence or tgt is FloorMarking:
 			_locked_target = tgt as Node3D
 	return _record_applied(found)
 
@@ -237,11 +237,16 @@ func _snap_to_locked(selected: Node3D, intent: Transform3D) -> Dictionary:
 		return StructureSnapping.find_snap_to_specific_platform(selected, _locked_target as Platform, intent)
 	if StructureSnapping._is_barrier(_locked_target) and StructureSnapping._is_barrier(selected):
 		return StructureSnapping.find_snap_to_specific_barrier(selected, _locked_target, intent)
+	if _locked_target is FloorMarking and selected is FloorMarking:
+		return StructureSnapping.find_snap_to_specific_marking(selected, _locked_target as FloorMarking, intent)
 	return {}
 
 
 ## Platforms are always eligible; a GuardRail can also snap to another GuardRail.
+## A FloorMarking only snaps to other FloorMarkings (edge-to-edge chaining).
 func _best_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
+	if selected is FloorMarking:
+		return StructureSnapping.find_best_snap_to_marking(selected, intent)
 	var platform_best := StructureSnapping.find_best_snap_to_platform(selected, intent)
 	if not StructureSnapping._is_barrier(selected):
 		return platform_best
@@ -269,4 +274,4 @@ static func _pick_snappable() -> Node3D:
 
 
 static func _is_snappable(node: Node3D) -> bool:
-	return node is Platform or node is Stairs or node is GuardRail or node is Fence
+	return node is Platform or node is Stairs or node is GuardRail or node is Fence or node is FloorMarking
