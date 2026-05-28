@@ -231,10 +231,11 @@ func _apply_shadow_distance() -> void:
 	var length := length_sections * SECTION_SIZE
 	var height := FULL_WALL_HEIGHT * height_sections + HALF_WALL_HEIGHT
 	var diagonal := sqrt(width * width + length * length + height * height)
-	var lights: Array[DirectionalLight3D] = [key_light, fill_light]
-	lights.append_array(_wall_lights)
-	for light in lights:
-		light.directional_shadow_max_distance = diagonal
+	key_light.directional_shadow_max_distance = diagonal
+	fill_light.directional_shadow_max_distance = diagonal
+	var wall_distance := maxf(width, length)
+	for light in _wall_lights:
+		light.directional_shadow_max_distance = wall_distance
 
 
 func _generate_floor() -> void:

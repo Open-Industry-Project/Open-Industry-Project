@@ -89,8 +89,9 @@ light_specular = 0.2
 light_cull_mask = 2
 shadow_enabled = true
 shadow_opacity = 0.6
-shadow_blur = 2.0
+shadow_blur = 0.5
 shadow_caster_mask = 2
+directional_shadow_mode = 0
 directional_shadow_max_distance = 66.51315
 sky_mode = 1
 
@@ -102,8 +103,9 @@ light_specular = 0.2
 light_cull_mask = 4
 shadow_enabled = true
 shadow_opacity = 0.6
-shadow_blur = 2.0
+shadow_blur = 0.5
 shadow_caster_mask = 4
+directional_shadow_mode = 0
 directional_shadow_max_distance = 66.51315
 sky_mode = 1
 
