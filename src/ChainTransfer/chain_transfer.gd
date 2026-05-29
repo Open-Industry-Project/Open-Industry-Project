@@ -7,6 +7,8 @@ const SHAPE_Y_OFFSET: float = -0.094
 const SHAPE_HEIGHT: float = 0.2
 const SHAPE_EDGE_MARGIN: float = 0.042
 const SHAPE_END_CAP: float = 0.25
+const LANE_NATIVE_THICKNESS: float = 0.087
+const LANE_FIT_THICKNESS: float = 0.04
 ## Visual Z width at scale.z = 1, calibrated from the scene's 0.575 → 1.524 m belt match.
 const SNAP_NATIVE_Z_WIDTH: float = 1.524 / 0.575
 
@@ -25,6 +27,8 @@ func get_snap_features() -> Array:
 			"local_outward": Vector3(0, 1, 0),
 			"target_local_y": ConveyorSnapFeatures.CHAIN_TRANSFER_TARGET_LOCAL_Y,
 			"track_extent": ct_center_offset,
+			"match_step_property": &"distance",
+			"step_array_count": chains,
 			# Loose threshold so drops near a roller conveyor still catch.
 			"visible_threshold": 2.0,
 			"auto_fit_target_width": true,
@@ -34,7 +38,7 @@ func get_snap_features() -> Array:
 
 
 ## Number of chain lanes (1-10).
-@export var chains: int = 3:
+@export var chains: int = 5:
 	set(value):
 		chains = clamp(value, 1, 10)
 		_sync_chain_count()
@@ -130,7 +134,9 @@ func _lock_scale_to_z_axis() -> void:
 func _position_bases() -> void:
 	if not chain_transfer_bases:
 		return
-	var base_basis: Basis = Basis(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0))
+	# Base-local Z maps to the conveyor flow axis; scaling it thins each lane.
+	var lane_scale: float = LANE_FIT_THICKNESS / LANE_NATIVE_THICKNESS
+	var base_basis: Basis = Basis(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(lane_scale, 0, 0))
 	for base: ChainTransferBase in chain_transfer_bases.get_children():
 		base.transform = Transform3D(base_basis, Vector3(distance * base.get_index(), 0, 0))
 

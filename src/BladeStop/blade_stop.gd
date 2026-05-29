@@ -29,6 +29,11 @@ const SNAP_BLADE_X_OFFSET: float = 0.103
 ## Visual Z width at scale.z = 1, calibrated from the scene's 0.448 → 1.524 m belt match.
 const SNAP_NATIVE_Z_WIDTH: float = 1.524 / 0.448
 
+const NATIVE_BLADE_WIDTH: float = 0.052
+const BLADE_FIT_WIDTH: float = 0.022
+const BLADE_LOCAL_X: float = 0.1036
+const BLADE_CORNER_LOCAL_X: float = 0.1048
+
 var _active_pos: float = 0.24
 var _tag := OIPCommsTag.new()
 @onready var _blade: StaticBody3D = $Blade
@@ -105,9 +110,22 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
+	_fit_blade_to_rollers()
 	_blade.position = Vector3(_blade.position.x, air_pressure_height, _blade.position.z)
 	_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 	_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)
+
+
+func _fit_blade_to_rollers() -> void:
+	var s: float = BLADE_FIT_WIDTH / NATIVE_BLADE_WIDTH
+	_thin_segment_x(_blade, BLADE_LOCAL_X, s)
+	_thin_segment_x(_blade_corner_r, BLADE_CORNER_LOCAL_X, s)
+	_thin_segment_x(_blade_corner_l, BLADE_CORNER_LOCAL_X, s)
+
+
+func _thin_segment_x(node: Node3D, local_x: float, s: float) -> void:
+	node.scale = Vector3(s, node.scale.y, node.scale.z)
+	node.position = Vector3(local_x * (1.0 - s), node.position.y, node.position.z)
 
 
 func use() -> void:

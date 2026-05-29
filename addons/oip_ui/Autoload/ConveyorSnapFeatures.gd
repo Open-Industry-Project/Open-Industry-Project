@@ -6,7 +6,7 @@ extends RefCounted
 
 const DIVERTER_Y_OFFSET: float = 0.2
 const DIVERTER_SIDE_OFFSET: float = 0.05
-const BLADE_STOP_TARGET_LOCAL_Y: float = -0.5
+const BLADE_STOP_TARGET_LOCAL_Y: float = -0.42
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
 
 enum Shape { POINT, SEGMENT, TRACK }
@@ -121,14 +121,19 @@ static func _compute_features_for(node: Node3D) -> Array:
 		},
 	]
 
-	# Phase the roller tracks to the same world-space grid MultiMeshRollers places rollers on.
+	# Phase the roller tracks (incl. grid anchor) onto the grid MultiMeshRollers uses.
 	if node is RollerConveyor:
 		var rd: float = (node as RollerConveyor).roller_pitch()
 		var axis_w: Vector3 = node.global_transform.basis.x
 		var axis_len: float = axis_w.length()
 		var on_phase: float = 0.0
 		if axis_len > 1e-6:
-			on_phase = fposmod(-node.global_transform.origin.dot(axis_w / axis_len), rd)
+			var axis_norm: Vector3 = axis_w / axis_len
+			var anchor: Vector3 = Vector3.ZERO
+			var anchor_var: Variant = (node as RollerConveyor).get_roller_grid_anchor()
+			if anchor_var is Vector3:
+				anchor = anchor_var
+			on_phase = fposmod((anchor - node.global_transform.origin).dot(axis_norm), rd)
 		var gap_phase: float = on_phase + rd / 2.0
 		var track_x_min: float = back_x + AbstractRollerContainer.ROLLERS_START_OFFSET
 		var track_x_max: float = front_x - AbstractRollerContainer.ROLLERS_START_OFFSET
@@ -238,13 +243,22 @@ static func _align_point_to_track(selected: Node3D, target: Node3D, sf: Dictiona
 	var target_xform: Transform3D = target.global_transform
 	var local_pos: Vector3 = sf.local_pos
 	var local_basis_rotation: Basis = sf.get(&"local_basis_rotation", Basis())
+	var step: float = tf.step
+	var track_extent: float = float(sf.get(&"track_extent", 0.0))
+
+	var override_props: Dictionary = {}
+	if sf.has(&"match_step_property"):
+		override_props[String(sf.match_step_property)] = step
+		if sf.has(&"step_array_count"):
+			var center_off: float = float(int(sf.step_array_count) - 1) * step / 2.0
+			local_pos = Vector3(center_off, local_pos.y, local_pos.z)
+			track_extent = center_off
+
 	var anchor_world: Vector3 = ConveyorSnapping.get_selected_xform(selected) * local_pos
 	var anchor_local: Vector3 = target_xform.affine_inverse() * anchor_world
 
 	var axis: Vector3 = (tf.axis_local as Vector3).normalized()
 	var phase: float = tf.phase
-	var step: float = tf.step
-	var track_extent: float = float(sf.get(&"track_extent", 0.0))
 	var x_min: float = tf.x_min + track_extent
 	var x_max: float = tf.x_max - track_extent
 
@@ -284,6 +298,8 @@ static func _align_point_to_track(selected: Node3D, target: Node3D, sf: Dictiona
 	# Scale is a side effect: fork orthonormalizes the returned basis on drop hover.
 	if sf.get(&"auto_fit_target_width", false):
 		result["scale"] = sel_scale
+	if not override_props.is_empty():
+		result["property_overrides"] = override_props
 	if sf.has(&"visible_threshold"):
 		result["visible_threshold"] = sf.visible_threshold
 	return result

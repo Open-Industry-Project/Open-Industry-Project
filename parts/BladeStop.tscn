@@ -31,8 +31,10 @@ size = Vector3(0.42, 0.91, 2.895)
 [node name="BladeStop" type="Node3D" unique_id=1831714670]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.448, 0, 0, 0)
 script = ExtResource("1_tokfa")
+metadata/_snap_transform = Callable()
 
 [node name="Blade" type="StaticBody3D" parent="." unique_id=1543170829]
+transform = Transform3D(0.42307693, 0, 0, 0, 1, 0, 0, 0, 1, 0.05976923, 0.15, 0)
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Blade" unique_id=646551998]
@@ -56,10 +58,11 @@ mesh = ExtResource("3_phkgk")
 [node name="Corners" type="Node3D" parent="." unique_id=689768199]
 
 [node name="AirPressureR" type="MeshInstance3D" parent="Corners" unique_id=850792996]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, -1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0.15, -1)
 mesh = ExtResource("6_y8bb3")
 
 [node name="BladeCornerR" type="MeshInstance3D" parent="Corners/AirPressureR" unique_id=1024072587]
+transform = Transform3D(0.42307693, 0, 0, 0, 1, 0, 0, 0, 1, 0.06046154, 0, 0)
 mesh = ExtResource("3_dm566")
 
 [node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureR/BladeCornerR" unique_id=1331705948]
@@ -71,10 +74,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.104848, 0.123261, -0.056549
 shape = SubResource("BoxShape3D_objeq")
 
 [node name="AirPressureL" type="MeshInstance3D" parent="Corners" unique_id=1909080282]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.23214, 0, 0.15, 1)
 mesh = ExtResource("4_tinri")
 
 [node name="BladeCornerL" type="MeshInstance3D" parent="Corners/AirPressureL" unique_id=1038601249]
+transform = Transform3D(0.42307693, 0, 0, 0, 1, 0, 0, 0, 1, 0.06046154, 0, 0)
 mesh = ExtResource("5_qmqyj")
 
 [node name="StaticBody" type="StaticBody3D" parent="Corners/AirPressureL/BladeCornerL" unique_id=1430092770]

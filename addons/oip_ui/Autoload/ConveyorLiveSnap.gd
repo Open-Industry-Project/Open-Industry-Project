@@ -147,6 +147,11 @@ func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 		var target_scale: Vector3 = found.result.scale
 		if not node.scale.is_equal_approx(target_scale):
 			node.scale = target_scale
+	if found.result.has("property_overrides"):
+		var overrides: Dictionary = found.result.property_overrides
+		for prop: String in overrides:
+			if not is_equal_approx(float(node.get(prop)), float(overrides[prop])):
+				node.set(prop, overrides[prop])
 	_apply_preview_reverse_flip(node, found.result)
 	_apply_preview_floor(node, found.result.transform, found.target)
 	found["preview"] = node
@@ -255,6 +260,7 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 		return
 
 	var should_apply_scale: bool = result.has("scale")
+	var property_overrides: Dictionary = result.get("property_overrides", {})
 	var reverse_prop := ConveyorSnapping.get_reverse_property_name(new_node)
 	var should_apply_reverse: bool = false
 	var reverse_value: bool = false
@@ -270,7 +276,7 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 		else:
 			floor_value = _resolve_target_floor_plane(new_node, result.transform.origin, target)
 		should_apply_floor = floor_value != (new_node.get("floor_plane") as Plane)
-	if not should_apply_scale and not should_apply_reverse and not should_apply_floor:
+	if not should_apply_scale and not should_apply_reverse and not should_apply_floor and property_overrides.is_empty():
 		return
 
 	var undo_redo := EditorInterface.get_editor_undo_redo()
@@ -279,6 +285,9 @@ func _commit_preview_snap_guards(pending: Dictionary) -> void:
 
 	if should_apply_scale:
 		undo_redo.add_do_property(new_node, "scale", result.scale as Vector3)
+
+	for prop: String in property_overrides:
+		undo_redo.add_do_property(new_node, prop, property_overrides[prop])
 
 	if should_apply_reverse:
 		undo_redo.add_do_property(new_node, reverse_prop, reverse_value)
