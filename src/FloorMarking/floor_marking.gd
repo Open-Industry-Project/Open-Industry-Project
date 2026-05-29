@@ -84,6 +84,7 @@ func _ensure_nodes() -> void:
 	if _mesh_instance == null:
 		_mesh_instance = MeshInstance3D.new()
 		_mesh_instance.name = "MarkingMesh"
+		_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(_mesh_instance, false)
 	if _material == null:
 		_material = ShaderMaterial.new()

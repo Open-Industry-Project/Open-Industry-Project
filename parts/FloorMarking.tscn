@@ -24,4 +24,5 @@ metadata/hijack_scale = true
 [node name="MarkingMesh" type="MeshInstance3D" parent="." unique_id=1845411136]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
 material_override = SubResource("ShaderMaterial_6y07s")
+cast_shadow = 0
 mesh = SubResource("PlaneMesh_lbosk")

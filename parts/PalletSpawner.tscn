@@ -78,6 +78,7 @@ scene = ExtResource("2_g1ntt")
 
 [node name="WoodPallet" type="MeshInstance3D" parent="." unique_id=1424918213]
 transparency = 0.7
+cast_shadow = 0
 mesh = SubResource("ArrayMesh_roc35")
 
 [node name="Disabled_Pallet" type="MeshInstance3D" parent="." unique_id=341540179]
