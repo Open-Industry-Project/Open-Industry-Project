@@ -11,7 +11,7 @@ extends Node3D
 ## - J5: Wrist pitch (horizontal axis)
 ## - J6: Tool rotation (end effector roll)
 
-const BASE_SCALE := 3.0
+const BASE_SCALE := 1.0
 const JOINT_LIMITS_MIN := [-180.0, -135.0, -160.0, -180.0, -120.0, -360.0]
 const JOINT_LIMITS_MAX := [180.0, 135.0, 160.0, 180.0, 120.0, 360.0]
 const JOINT_ANGLE_PROPS := ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
@@ -50,25 +50,25 @@ const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 		j1_angle = value
 		_update_joints()
 
-## Shoulder angle
-@export_range(-135, 135, 0.1, "suffix:°") var j2_angle: float = -45.0:
+## J2 angle
+@export_range(-75, 90, 0.1, "suffix:°") var j2_angle: float = -45.0:
 	set(value):
 		j2_angle = value
 		_update_joints()
 
-## Elbow angle
-@export_range(-160, 160, 0.1, "suffix:°") var j3_angle: float = 90.0:
+## J3 angle
+@export_range(-145, 160, 0.1, "suffix:°") var j3_angle: float = 90.0:
 	set(value):
 		j3_angle = value
 		_update_joints()
 
-## Wrist rotation
+## J4 rotation
 @export_range(-180, 180, 0.1, "suffix:°") var j4_angle: float = 25.0:
 	set(value):
 		j4_angle = value
 		_update_joints()
 
-## Wrist pitch
+## J5 pitch
 @export_range(-120, 120, 0.1, "suffix:°") var j5_angle: float = 75.0:
 	set(value):
 		j5_angle = value
@@ -82,7 +82,7 @@ const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 
 @export_category("Settings")
 ## Scale factor for the entire robot
-@export_range(0.1, 10.0, 0.1) var robot_scale: float = 3.0:
+@export_range(0.1, 10.0, 0.1) var robot_scale: float = 1.0:
 	set(value):
 		robot_scale = value
 		_update_scale()

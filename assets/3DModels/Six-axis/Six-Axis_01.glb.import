@@ -1,0 +1,129 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://61ypg2ao2cx1"
+path="res://.godot/imported/Six-Axis_01.glb-7446cd1be271ebc23cc1ec3a3730bc08.scn"
+
+[deps]
+
+source_file="res://assets/3DModels/Six-axis/Six-Axis_01.glb"
+dest_files=["res://.godot/imported/Six-Axis_01.glb-7446cd1be271ebc23cc1ec3a3730bc08.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"meshes": {
+"Six-Axis_01_Mesh_012": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Base.res",
+"save_to_file/path": "uid://bs0h6evf5xy18"
+},
+"Six-Axis_01_Six-Axis_Hydraulic_01": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Hydraulic_01.res",
+"save_to_file/path": "uid://bo2kahymc7gey"
+},
+"Six-Axis_01_Six-Axis_Hydraulic_02": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Hydraulic_02.res",
+"save_to_file/path": "uid://c3ypbpwu3iiv0"
+},
+"Six-Axis_01_Six-Axis_Linkage_01": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Linkage_01.res",
+"save_to_file/path": "uid://4ajdkd1vb8m6"
+},
+"Six-Axis_01_Six-Axis_Linkage_02": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Linkage_02.res",
+"save_to_file/path": "uid://cnfc805joiwsl"
+},
+"Six-Axis_01_Six-Axis_Linkage_03": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Linkage_03.res",
+"save_to_file/path": "uid://1mvsehbqwm2h"
+},
+"Six-Axis_01_Six-Axis_Linkage_04": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Linkage_04.res",
+"save_to_file/path": "uid://cr11dtm5g6yrx"
+},
+"Six-Axis_01_Six-Axis_Linkage_05": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Linkage_05.res",
+"save_to_file/path": "uid://ify8sx0svmxy"
+},
+"Six-Axis_01_Six-Axis_Tool_Suction": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Six-axis/Meshes/Tool_Suction.res",
+"save_to_file/path": "uid://chtbrx6fhctay"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1
+gltf/texture_map_mode=1

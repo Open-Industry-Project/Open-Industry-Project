@@ -1,158 +1,106 @@
 [gd_scene format=3 uid="uid://dc6o7qkwd60ha"]
 
 [ext_resource type="Script" uid="uid://ckqgkrr7rm7gl" path="res://src/SixAxisRobot/six_axis_robot.gd" id="1_robot"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kvc56"]
-albedo_color = Color(0.3, 0.3, 0.35, 1)
-metallic = 0.3
-roughness = 0.7
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_f7oox"]
-top_radius = 0.45
-bottom_radius = 0.45
-height = 0.9
-
-[sub_resource type="BoxMesh" id="BoxMesh_rk2k5"]
-size = Vector3(0.36, 0.45, 0.36)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f7oox"]
-albedo_color = Color(0.9, 0.5, 0.1, 1)
-metallic = 0.4
-roughness = 0.5
-
-[sub_resource type="SphereMesh" id="SphereMesh_m7o1o"]
-radius = 0.21
-height = 0.42
-
-[sub_resource type="BoxMesh" id="BoxMesh_1ejrl"]
-size = Vector3(0.3, 1.5, 0.3)
-
-[sub_resource type="SphereMesh" id="SphereMesh_de851"]
-radius = 0.18
-height = 0.36
-
-[sub_resource type="BoxMesh" id="BoxMesh_8pfwo"]
-size = Vector3(0.24, 1.2, 0.24)
-
-[sub_resource type="SphereMesh" id="SphereMesh_42jvh"]
-radius = 0.144
-height = 0.288
-
-[sub_resource type="BoxMesh" id="BoxMesh_m82ma"]
-size = Vector3(0.18, 0.45, 0.18)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rk2k5"]
-albedo_color = Color(0.2, 0.2, 0.25, 1)
-metallic = 0.5
-roughness = 0.4
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_444kt"]
-top_radius = 0.12
-bottom_radius = 0.12
-height = 0.3
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ndts0"]
-albedo_color = Color(0.15, 0.15, 0.15, 1)
-metallic = 0.1
-roughness = 0.9
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_du1kw"]
-top_radius = 0.18
-bottom_radius = 0.18
-height = 0.09
-
-[sub_resource type="TorusMesh" id="TorusMesh_dade1"]
-inner_radius = 0.15
-outer_radius = 0.195
+[ext_resource type="ArrayMesh" uid="uid://4ajdkd1vb8m6" path="res://assets/3DModels/Six-axis/Meshes/Linkage_01.res" id="2_m82ma"]
+[ext_resource type="ArrayMesh" uid="uid://cnfc805joiwsl" path="res://assets/3DModels/Six-axis/Meshes/Linkage_02.res" id="3_hhxcp"]
+[ext_resource type="ArrayMesh" uid="uid://1mvsehbqwm2h" path="res://assets/3DModels/Six-axis/Meshes/Linkage_03.res" id="4_444kt"]
+[ext_resource type="ArrayMesh" uid="uid://cr11dtm5g6yrx" path="res://assets/3DModels/Six-axis/Meshes/Linkage_04.res" id="5_spw26"]
+[ext_resource type="ArrayMesh" uid="uid://ify8sx0svmxy" path="res://assets/3DModels/Six-axis/Meshes/Linkage_05.res" id="6_du1kw"]
+[ext_resource type="ArrayMesh" uid="uid://chtbrx6fhctay" path="res://assets/3DModels/Six-axis/Meshes/Tool_Suction.res" id="7_dade1"]
+[ext_resource type="ArrayMesh" uid="uid://bs0h6evf5xy18" path="res://assets/3DModels/Six-axis/Meshes/Base.res" id="8_wqi2b"]
+[ext_resource type="ArrayMesh" uid="uid://bo2kahymc7gey" path="res://assets/3DModels/Six-axis/Meshes/Hydraulic_01.res" id="9_7r2jy"]
+[ext_resource type="ArrayMesh" uid="uid://c3ypbpwu3iiv0" path="res://assets/3DModels/Six-axis/Meshes/Hydraulic_02.res" id="10_mfsyp"]
+[ext_resource type="Script" uid="uid://da1uytuijoetf" path="res://parts/hydraulic_controller.gd" id="11_hhxcp"]
+[ext_resource type="Material" uid="uid://34n2h21bulxr" path="res://assets/3DModels/Six-axis/Six-axis.tres" id="12_mat"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_wqi2b"]
 radius = 0.45
 
 [node name="SixAxisRobot" type="Node3D" unique_id=508298280]
 script = ExtResource("1_robot")
-j4_angle = 0.0
+
+[node name="Base" type="MeshInstance3D" parent="." unique_id=184477472]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0, 0, 0)
+mesh = ExtResource("8_wqi2b")
+surface_material_override/0 = ExtResource("12_mat")
 
 [node name="BasePivot" type="Node3D" parent="." unique_id=2083458254]
 
-[node name="BaseMesh" type="MeshInstance3D" parent="BasePivot" unique_id=646258752]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
-material_override = SubResource("StandardMaterial3D_kvc56")
-mesh = SubResource("CylinderMesh_f7oox")
+[node name="HydraulicBaseAnchor" type="Node3D" parent="BasePivot" unique_id=364132300]
+transform = Transform3D(-0.0036329387, -0.15156513, -0.9884406, 0, 0.9884471, -0.15156613, 0.9999934, -0.00055063044, -0.0035909677, 0.31569114, 0.5505995, -0.22799234)
+
+[node name="Hydraulic_01" type="MeshInstance3D" parent="BasePivot/HydraulicBaseAnchor" unique_id=1569491271]
+mesh = ExtResource("9_7r2jy")
+surface_material_override/0 = ExtResource("12_mat")
+
+[node name="Linkage01" type="MeshInstance3D" parent="BasePivot" unique_id=1691815953]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0, 0.23, 0)
+mesh = ExtResource("2_m82ma")
+surface_material_override/0 = ExtResource("12_mat")
 
 [node name="ShoulderPivot" type="Node3D" parent="BasePivot" unique_id=1657548593]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 
-[node name="ShoulderMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot" unique_id=842920421]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.225, 0)
-material_override = SubResource("StandardMaterial3D_kvc56")
-mesh = SubResource("BoxMesh_rk2k5")
-
-[node name="ShoulderJointMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot" unique_id=65136980]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
-material_override = SubResource("StandardMaterial3D_f7oox")
-mesh = SubResource("SphereMesh_m7o1o")
-
 [node name="UpperArmPivot" type="Node3D" parent="BasePivot/ShoulderPivot" unique_id=1866091379]
-transform = Transform3D(0.7071067, 0.7071067, 0, -0.7071067, 0.7071067, 0, 0, 0, 1, 0, 0.45, 0)
+transform = Transform3D(0.7071067, 0.7071067, 0, -0.7071067, 0.7071067, 0, 0, 0, 1.0000002, -0.72657037, -0.34717786, -0.0024254583)
 
-[node name="UpperArmMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot" unique_id=1976920913]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
-material_override = SubResource("StandardMaterial3D_f7oox")
-mesh = SubResource("BoxMesh_1ejrl")
+[node name="HydraulicRodAnchor" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot" unique_id=185090114]
+transform = Transform3D(0.0060681487, -0.8060916, 0.5917597, 0, 0.5917706, 0.80610645, -0.9999816, -0.004891574, 0.003590952, 0.19884515, 0.00020599365, -0.228842)
+
+[node name="Hydraulic_02" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/HydraulicRodAnchor" unique_id=1545841516]
+transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 0.99999976, 0, 0, 0)
+mesh = ExtResource("10_mfsyp")
+surface_material_override/0 = ExtResource("12_mat")
+
+[node name="Linkage02" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot" unique_id=923559127]
+transform = Transform3D(1.3113414e-07, 1.0000002, 3.821372e-15, -4.3711385e-08, 1.9106859e-15, 1.0000004, 0.99999994, -1.3113419e-07, 4.3711402e-08, 0, 0, 0)
+mesh = ExtResource("3_hhxcp")
+surface_material_override/0 = ExtResource("12_mat")
 
 [node name="ElbowPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot" unique_id=2025901694]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
-
-[node name="ElbowMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot" unique_id=1665302845]
-material_override = SubResource("StandardMaterial3D_f7oox")
-mesh = SubResource("SphereMesh_de851")
+transform = Transform3D(1, -1.7462298e-08, 0, -1.7462298e-08, 1, 0, 0, 0, 0.9999999, 0.014725149, 1.3262625, -0.00687705)
 
 [node name="ForearmPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot" unique_id=1512831150]
-transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -0.018255234, 0.018255234, -0.09700517)
 
-[node name="ForearmMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot" unique_id=1925357079]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
-material_override = SubResource("StandardMaterial3D_f7oox")
-mesh = SubResource("BoxMesh_8pfwo")
-
-[node name="WristJointMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot" unique_id=1414724925]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
-material_override = SubResource("StandardMaterial3D_f7oox")
-mesh = SubResource("SphereMesh_42jvh")
+[node name="Linkage03" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot" unique_id=747942251]
+transform = Transform3D(-4.3711374e-08, 0.9999999, 4.3711363e-08, 0, -4.3711385e-08, 0.99999946, 0.9999997, 4.3711385e-08, 1.9106844e-15, 0, 0, 0)
+mesh = ExtResource("4_444kt")
+surface_material_override/0 = ExtResource("12_mat")
 
 [node name="WristRotPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot" unique_id=688228556]
-transform = Transform3D(0.99999994, 0, 0, 0, 1, 0, 0, 0, 0.99999994, 0, 1.2, 0)
+transform = Transform3D(0.9063077, 0, 0.42261836, 0, 1, 0, -0.42261824, 0, 0.906308, 0.11355525, 0.87549424, 0.09818761)
+
+[node name="Linkage04" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot" unique_id=430140233]
+transform = Transform3D(-4.371139e-08, 0.9999999, 4.3711385e-08, 0, -4.3711385e-08, 0.9999999, 1, 4.3711385e-08, 1.9106853e-15, 0, 0, 0)
+mesh = ExtResource("5_spw26")
+surface_material_override/0 = ExtResource("12_mat")
 
 [node name="WristPitchPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot" unique_id=255795822]
-transform = Transform3D(0.25881907, -0.9659258, 0, 0.9659258, 0.25881907, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(0.25881907, -0.9659258, 0, 0.9659258, 0.25881907, 0, 0, 0, 1, 0, 0.33123374, 0)
 
-[node name="WristMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot" unique_id=1803694636]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.225, 0)
-material_override = SubResource("StandardMaterial3D_f7oox")
-mesh = SubResource("BoxMesh_m82ma")
+[node name="Linkage05" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot" unique_id=974073175]
+transform = Transform3D(-6.117369e-08, -1, 6.1173665e-08, -3.4924597e-08, -6.117369e-08, -0.99999964, 1, -6.117369e-08, -3.492458e-08, 0, 0, 0)
+mesh = ExtResource("6_du1kw")
+surface_material_override/0 = ExtResource("12_mat")
 
 [node name="ToolPivot" type="Node3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot" unique_id=971647312]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.21365428, 0)
 
-[node name="ToolMesh" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1456117724]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
-material_override = SubResource("StandardMaterial3D_rk2k5")
-mesh = SubResource("CylinderMesh_444kt")
-
-[node name="VacuumCup" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=2052352918]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.345, 0)
-material_override = SubResource("StandardMaterial3D_ndts0")
-mesh = SubResource("CylinderMesh_du1kw")
-
-[node name="VacuumCupRim" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1001921841]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
-material_override = SubResource("StandardMaterial3D_ndts0")
-mesh = SubResource("TorusMesh_dade1")
+[node name="ToolSuction" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=2141289489]
+transform = Transform3D(1, -7.633013e-16, -1.7462291e-08, -1.7462298e-08, -4.371139e-08, -0.99999964, 3.4924597e-08, 1, -4.3711374e-08, 0, 0.02553463, 0)
+mesh = ExtResource("7_dade1")
+surface_material_override/0 = ExtResource("12_mat")
 
 [node name="VacuumArea" type="Area3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1959107220]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.031837463, 0)
 collision_layer = 0
 collision_mask = 10
 
 [node name="VacuumCollision" type="CollisionShape3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot/VacuumArea" unique_id=344399739]
 shape = SubResource("SphereShape3D_wqi2b")
+
+[node name="HydraulicController" type="Node3D" parent="." unique_id=195649137 node_paths=PackedStringArray("hydraulic_base_anchor", "hydraulic_rod_anchor")]
+script = ExtResource("11_hhxcp")
+hydraulic_base_anchor = NodePath("../BasePivot/HydraulicBaseAnchor")
+hydraulic_rod_anchor = NodePath("../BasePivot/ShoulderPivot/UpperArmPivot/HydraulicRodAnchor")
