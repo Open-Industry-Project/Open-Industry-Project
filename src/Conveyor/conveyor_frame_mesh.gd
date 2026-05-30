@@ -547,24 +547,3 @@ static func _add_cap(
 		]
 	for idx: int in tris:
 		indices.append(base + idx)
-
-
-## Flat arc shadow-only plate beneath curved conveyors.
-static func create_arc_shadow_mesh(angle_radians: float, r_inner: float, r_outer: float, segments: int) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-
-	for i in range(segments):
-		var t0: float = float(i) / segments * angle_radians
-		var t1: float = float(i + 1) / segments * angle_radians
-
-		var inner0 := Vector3(-sin(t0) * r_inner, 0, cos(t0) * r_inner)
-		var inner1 := Vector3(-sin(t1) * r_inner, 0, cos(t1) * r_inner)
-		var outer0 := Vector3(-sin(t0) * r_outer, 0, cos(t0) * r_outer)
-		var outer1 := Vector3(-sin(t1) * r_outer, 0, cos(t1) * r_outer)
-
-		st.add_vertex(inner0); st.add_vertex(outer0); st.add_vertex(outer1)
-		st.add_vertex(inner0); st.add_vertex(outer1); st.add_vertex(inner1)
-
-	st.generate_normals()
-	return st.commit()

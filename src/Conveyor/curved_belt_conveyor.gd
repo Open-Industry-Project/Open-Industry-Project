@@ -276,7 +276,6 @@ var _legs_state: Dictionary = {}
 var _belt_material: Material
 var _metal_material: Material
 var _frame_mesh_instance: MeshInstance3D
-var _shadow_plate: MeshInstance3D
 var _belt_position: float = 0.0
 var _angular_speed: float = 0.0
 var _linear_speed: float = 0.0
@@ -406,13 +405,6 @@ func _ready() -> void:
 		_frame_mesh_instance = MeshInstance3D.new()
 		_frame_mesh_instance.name = "FrameMesh"
 		add_child(_frame_mesh_instance)
-
-	_shadow_plate = get_node_or_null("ShadowPlate") as MeshInstance3D
-	if not _shadow_plate:
-		_shadow_plate = MeshInstance3D.new()
-		_shadow_plate.name = "ShadowPlate"
-		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		add_child(_shadow_plate)
 
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
 	SideGuardOpening.sync_change_listeners([], side_guard_openings, _rebuild_side_guards, true)
@@ -782,7 +774,7 @@ func _create_conveyor_mesh() -> void:
 			mesh_height, arc_segments, MESH_SCALE_FACTOR)
 
 	curved_mesh.mesh = belt_mesh
-	curved_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	curved_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	var base_scale := 1.0 / MESH_SCALE_FACTOR
 	curved_mesh.scale = Vector3(base_scale, 1.0, base_scale)
 
@@ -792,10 +784,6 @@ func _create_conveyor_mesh() -> void:
 				mesh_height, arc_segments, MESH_SCALE_FACTOR)
 		_frame_mesh_instance.mesh = frame_mesh
 		_frame_mesh_instance.scale = Vector3(base_scale, 1.0, base_scale)
-
-	if _shadow_plate:
-		_shadow_plate.mesh = ConveyorFrameMesh.create_arc_shadow_mesh(angle_radians, radius_inner, radius_outer, arc_segments)
-		_shadow_plate.position.y = -mesh_height
 
 
 static var _belt_texture_res: Texture2D = preload("res://assets/3DModels/Textures/4K-fabric_39-diffuse.jpg")
