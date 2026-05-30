@@ -2,24 +2,25 @@
 class_name Rack
 extends ResizableNode3D
 
-## Storage rack. Size: X = width, Y = total height, Z = depth.
-## Bottom level is left open for forklift access.
+## Storage rack. Size: X = width, Z = depth. Height (Y) is num_shelves × shelf_spacing.
+## Bottom level is left open.
 
 var width: float:
 	get: return size.x
 var depth: float:
 	get: return size.z
-var shelf_height: float:
-	get: return size.y / num_shelves
 
 @export_group("Rack Configuration")
 @export_range(1, 10, 1) var num_shelves: int = 4:
 	set(value):
-		var old_shelf_h := shelf_height
 		num_shelves = value
-		if is_node_ready():
-			size = Vector3(size.x, old_shelf_h * num_shelves, size.z)
-			update_gizmos()
+		_apply_shelf_spacing()
+
+## Vertical distance between shelves.
+@export_range(0.5, 3.0, 0.05, "suffix:m") var shelf_spacing: float = 1.6:
+	set(value):
+		shelf_spacing = value
+		_apply_shelf_spacing()
 
 @export var shelf_color: Color = Color(0.8, 0.5, 0.2):
 	set(value):
@@ -40,7 +41,8 @@ var shelf_height: float:
 		if is_node_ready():
 			_rebuild_rack()
 
-@export_range(0.5, 3.0, 0.1) var pole_interval: float = 1.2:
+## Center-to-center spacing of the vertical uprights along width and depth.
+@export_range(0.5, 3.0, 0.1) var pole_interval: float = 1.4:
 	set(value):
 		pole_interval = value
 		if is_node_ready():
@@ -52,7 +54,6 @@ const SHELF_THICKNESS = 0.04
 @onready var _static_body: StaticBody3D = $StaticBody3D
 @onready var _frame_mi: MeshInstance3D = $StaticBody3D/FrameMesh
 @onready var _shelf_mi: MeshInstance3D = $StaticBody3D/ShelfMesh
-@onready var _collision_shape: CollisionShape3D = $StaticBody3D/CollisionShape3D
 
 var _frame_material: StandardMaterial3D
 var _shelf_material: StandardMaterial3D
@@ -60,13 +61,14 @@ var _frame_verts: PackedVector3Array = PackedVector3Array()
 var _frame_normals: PackedVector3Array = PackedVector3Array()
 var _shelf_verts: PackedVector3Array = PackedVector3Array()
 var _shelf_normals: PackedVector3Array = PackedVector3Array()
-var _collision_faces: PackedVector3Array = PackedVector3Array()
+var _collision_shapes: Array[CollisionShape3D] = []
 
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(2.4, 6.0, 1.2)
-	size_min = Vector3(0.5, 1.0, 0.5)
+	size_default = Vector3(2.8, num_shelves * shelf_spacing, 1.2)
+	# Y is governed by _get_constrained_size (num_shelves × shelf_spacing), not this floor.
+	size_min = Vector3(0.5, 0.0, 0.5)
 
 
 func _ready() -> void:
@@ -75,13 +77,21 @@ func _ready() -> void:
 	_shelf_material = StandardMaterial3D.new()
 	_shelf_material.albedo_color = shelf_color
 
-	_collision_shape.shape = ConcavePolygonShape3D.new()
-
 	_rebuild_rack()
 
 
 func _on_size_changed() -> void:
 	_rebuild_rack()
+
+
+func _apply_shelf_spacing() -> void:
+	if is_node_ready():
+		size = Vector3(size.x, num_shelves * shelf_spacing, size.z)
+
+
+func _get_constrained_size(new_size: Vector3) -> Vector3:
+	new_size.y = num_shelves * shelf_spacing
+	return new_size
 
 
 func _update_materials() -> void:
@@ -97,7 +107,8 @@ func _get_resize_local_bounds(for_size: Vector3) -> AABB:
 
 
 func _get_active_resize_handle_ids() -> PackedInt32Array:
-	return PackedInt32Array([0, 1, 2, 4, 5])
+	# Y is num_shelves × shelf_spacing, so no vertical resize handle.
+	return PackedInt32Array([0, 1, 4, 5])
 
 
 func _rebuild_rack() -> void:
@@ -110,7 +121,7 @@ func _rebuild_rack() -> void:
 	_frame_normals.clear()
 	_shelf_verts.clear()
 	_shelf_normals.clear()
-	_collision_faces.clear()
+	_clear_collision_shapes()
 
 	_create_vertical_frames()
 	_create_shelves()
@@ -118,8 +129,6 @@ func _rebuild_rack() -> void:
 
 	_frame_mi.mesh = _build_mesh(_frame_verts, _frame_normals, _frame_material)
 	_shelf_mi.mesh = _build_mesh(_shelf_verts, _shelf_normals, _shelf_material)
-
-	(_collision_shape.shape as ConcavePolygonShape3D).set_faces(_collision_faces)
 
 
 func _build_mesh(verts: PackedVector3Array, normals: PackedVector3Array, material: Material) -> ArrayMesh:
@@ -170,7 +179,7 @@ func _create_vertical_frames() -> void:
 
 func _create_shelves() -> void:
 	for i in range(num_shelves):
-		var y_pos := (i + 1) * shelf_height
+		var y_pos := (i + 1) * shelf_spacing
 		var shelf_size := Vector3(width, SHELF_THICKNESS, depth)
 		var pos := Vector3(width / 2, y_pos, depth / 2)
 
@@ -183,7 +192,7 @@ func _create_shelves() -> void:
 
 func _create_horizontal_supports() -> void:
 	for i in range(num_shelves + 1):
-		var y_pos := i * shelf_height
+		var y_pos := i * shelf_spacing
 		var support_size := Vector3(width - FRAME_THICKNESS, FRAME_THICKNESS, FRAME_THICKNESS)
 
 		_add_frame_box(Vector3(width / 2, y_pos, 0), support_size)
@@ -244,17 +253,20 @@ func _append_box_verts(verts: PackedVector3Array, normals: PackedVector3Array, p
 
 
 func _add_collision_box(pos: Vector3, box_size: Vector3) -> void:
-	var h := box_size / 2
-	var corners := [
-		Vector3(-h.x, -h.y, -h.z), Vector3(h.x, -h.y, -h.z),
-		Vector3(h.x, -h.y, h.z), Vector3(-h.x, -h.y, h.z),
-		Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z),
-		Vector3(h.x, h.y, h.z), Vector3(-h.x, h.y, h.z),
-	]
-	for face: Array in BOX_FACES:
-		var indices: Array = face[1]
-		for idx: int in indices:
-			_collision_faces.append(pos + corners[idx])
+	var shape := BoxShape3D.new()
+	shape.size = box_size
+	var col := CollisionShape3D.new()
+	col.shape = shape
+	col.position = pos
+	_static_body.add_child(col, false, Node.INTERNAL_MODE_FRONT)
+	_collision_shapes.append(col)
+
+
+func _clear_collision_shapes() -> void:
+	for col in _collision_shapes:
+		if is_instance_valid(col):
+			col.free()
+	_collision_shapes.clear()
 
 
 func _get_custom_preview_node() -> Node3D:
