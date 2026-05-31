@@ -94,7 +94,7 @@ const _SHADOW_ATLAS_SIZE := {
 			_apply_shadow_quality()
 
 ## Solid background color shown behind the building (visible when walls/roof are hidden)
-@export var background_color: Color = Color(0.5, 0.5, 0.5):
+@export var background_color: Color = Color(0, 0, 0):
 	set(value):
 		background_color = value
 		if is_node_ready():
