@@ -15,12 +15,22 @@ const ARC_RADIUS_SCALE = 1.5
 const EE_COLOR = Color(0.2, 0.9, 0.9)
 const EE_SUBGIZMO_ID = 0
 
+const EOAT_HANDLE_POS_X = 10
+const EOAT_HANDLE_NEG_X = 11
+const EOAT_HANDLE_POS_Z = 12
+const EOAT_HANDLE_NEG_Z = 13
+const EOAT_FOAM_SUBGIZMO_ID = 1
+
 var _drag_joint_idx: int = -1
 var _initial_joint_angle: float = 0.0
 var _drag_start_mouse_angle: float = 0.0
 var _pivot_screen_pos: Vector2 = Vector2.ZERO
 
 var _initial_joint_angles: Array = []
+
+var _eoat_mode: bool = false
+var _eoat_initial_length: float = 0.0
+var _eoat_initial_width: float = 0.0
 
 
 func _get_gizmo_name() -> String:
@@ -64,51 +74,72 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 		return
 
 	if not EditorInterface.get_selection().get_selected_nodes().has(node):
+		_eoat_mode = false
 		return
-	
-	var pivots = [
-		node.get("_base_pivot"),
-		node.get("_upper_arm_pivot"),
-		node.get("_forearm_pivot"),
-		node.get("_wrist_rot_pivot"),
-		node.get("_wrist_pitch_pivot"),
-		node.get("_tool_pivot"),
-	]
-	
-	var robot_scale: float = node.get("robot_scale") if node.get("robot_scale") else 3.0
-	
-	var all_handles = PackedVector3Array()
-	var all_handle_ids = PackedInt32Array()
-	
-	for i in range(6):
-		var pivot = pivots[i]
-		if pivot == null:
-			continue
-		
-		var arc_radius: float = _get_arc_radius(i, robot_scale)
-		var arc_data := _generate_arc_with_handle(i, pivot, node, arc_radius)
-		
-		if arc_data.lines.size() > 0:
-			gizmo.add_lines(arc_data.lines, get_material("joint_%d" % i, gizmo), false)
-		
-		all_handles.append(arc_data.handle_pos)
-		all_handle_ids.append(i)
-	
-	if all_handles.size() > 0:
-		gizmo.add_handles(all_handles, get_material("handles", gizmo), all_handle_ids)
-	
-	var tip_global: Vector3 = node.call("get_tool_tip_position")
-	var tip_local: Vector3 = node.to_local(tip_global)
-	
-	var ee_lines = PackedVector3Array()
-	var cross_size: float = 0.08 * robot_scale
-	ee_lines.append(tip_local + Vector3(-cross_size, 0, 0))
-	ee_lines.append(tip_local + Vector3(cross_size, 0, 0))
-	ee_lines.append(tip_local + Vector3(0, -cross_size, 0))
-	ee_lines.append(tip_local + Vector3(0, cross_size, 0))
-	ee_lines.append(tip_local + Vector3(0, 0, -cross_size))
-	ee_lines.append(tip_local + Vector3(0, 0, cross_size))
-	gizmo.add_lines(ee_lines, get_material("ee_line", gizmo), false)
+
+	if not _eoat_mode:
+		var pivots = [
+			node.get("_base_pivot"), node.get("_upper_arm_pivot"),
+			node.get("_forearm_pivot"), node.get("_wrist_rot_pivot"),
+			node.get("_wrist_pitch_pivot"), node.get("_tool_pivot"),
+		]
+		var robot_scale: float = node.get("robot_scale") if node.get("robot_scale") else 3.0
+		var all_handles := PackedVector3Array()
+		var all_handle_ids := PackedInt32Array()
+		for i in range(6):
+			var pivot = pivots[i]
+			if pivot == null:
+				continue
+			var arc_radius: float = _get_arc_radius(i, robot_scale)
+			var arc_data := _generate_arc_with_handle(i, pivot, node, arc_radius)
+			if arc_data.lines.size() > 0:
+				gizmo.add_lines(arc_data.lines, get_material("joint_%d" % i, gizmo), false)
+			all_handles.append(arc_data.handle_pos)
+			all_handle_ids.append(i)
+		if all_handles.size() > 0:
+			gizmo.add_handles(all_handles, get_material("handles", gizmo), all_handle_ids)
+		var tip_global: Vector3 = node.call("get_tool_tip_position")
+		var tip_local: Vector3 = node.to_local(tip_global)
+		var ee_lines := PackedVector3Array()
+		var cross_size: float = 0.08 * robot_scale
+		ee_lines.append(tip_local + Vector3(-cross_size, 0, 0))
+		ee_lines.append(tip_local + Vector3(cross_size, 0, 0))
+		ee_lines.append(tip_local + Vector3(0, -cross_size, 0))
+		ee_lines.append(tip_local + Vector3(0, cross_size, 0))
+		ee_lines.append(tip_local + Vector3(0, 0, -cross_size))
+		ee_lines.append(tip_local + Vector3(0, 0, cross_size))
+		gizmo.add_lines(ee_lines, get_material("ee_line", gizmo), false)
+	else:
+		var cup_mesh: MeshInstance3D = node.get("_vacuum_cup_mesh")
+		if cup_mesh:
+			var eoat_length: float = node.get("eoat_length")
+			var eoat_width: float = node.get("eoat_width")
+			var c: Vector3 = node.to_local(cup_mesh.global_position)
+			var b: Basis = node.global_transform.affine_inverse().basis * cup_mesh.global_transform.basis
+			var ax: Vector3 = b.x.normalized()
+			var ay: Vector3 = b.y.normalized()
+			var az: Vector3 = b.z.normalized()
+			var hx: float = eoat_length * 0.5
+			var hy: float = 0.04
+			var hz: float = eoat_width * 0.5
+			var corners: Array[Vector3] = [
+				c + ax*hx + ay*hy + az*hz, c + ax*hx + ay*hy - az*hz,
+				c + ax*hx - ay*hy + az*hz, c + ax*hx - ay*hy - az*hz,
+				c - ax*hx + ay*hy + az*hz, c - ax*hx + ay*hy - az*hz,
+				c - ax*hx - ay*hy + az*hz, c - ax*hx - ay*hy - az*hz,
+			]
+			var box_lines := PackedVector3Array()
+			for edge: Array in [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]]:
+				box_lines.append(corners[edge[0]])
+				box_lines.append(corners[edge[1]])
+			gizmo.add_lines(box_lines, get_material("ee_line", gizmo), false)
+			var eoat_handles := PackedVector3Array()
+			eoat_handles.append(c + ax * hx)
+			eoat_handles.append(c - ax * hx)
+			eoat_handles.append(c + az * hz)
+			eoat_handles.append(c - az * hz)
+			gizmo.add_handles(eoat_handles, get_material("handles", gizmo),
+					PackedInt32Array([EOAT_HANDLE_POS_X, EOAT_HANDLE_NEG_X, EOAT_HANDLE_POS_Z, EOAT_HANDLE_NEG_Z]))
 
 
 func _get_arc_radius(joint_idx: int, robot_scale: float) -> float:
@@ -160,18 +191,25 @@ func _generate_arc_with_handle(joint_idx: int, pivot: Node3D, robot: Node3D, rad
 	return {"lines": lines, "handle_pos": handle_pos}
 
 
-# --- Joint handle methods ---
-
-
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool) -> String:
-	return "J%d" % (handle_id + 1)
+	if handle_id < 10:
+		return "J%d" % (handle_id + 1)
+	match handle_id:
+		EOAT_HANDLE_POS_X: return "EOAT Width +X"
+		EOAT_HANDLE_NEG_X: return "EOAT Width -X"
+		EOAT_HANDLE_POS_Z: return "EOAT Depth +Z"
+		EOAT_HANDLE_NEG_Z: return "EOAT Depth -Z"
+	return ""
 
 
 func _get_handle_value(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool) -> Variant:
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return 0.0
-	
+	if handle_id >= 10:
+		if handle_id in [EOAT_HANDLE_POS_X, EOAT_HANDLE_NEG_X]:
+			return node.get("eoat_length")
+		return node.get("eoat_width")
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
 	return node.get(angle_props[handle_id])
 
@@ -180,7 +218,13 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, secondary: b
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
+	if handle_id >= 10:
+		_eoat_initial_length = node.get("eoat_length")
+		_eoat_initial_width = node.get("eoat_width")
+		return
+	if _eoat_mode:
+		_eoat_mode = false
+		node.update_gizmos()
 	_drag_joint_idx = handle_id
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
 	_initial_joint_angle = node.get(angle_props[handle_id])
@@ -192,7 +236,27 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
+
+	if handle_id >= 10:
+		var cup_mesh: MeshInstance3D = node.get("_vacuum_cup_mesh")
+		if cup_mesh == null:
+			return
+		var center_world := cup_mesh.global_position
+		var xform := cup_mesh.global_transform
+		var axis_world: Vector3
+		match handle_id:
+			EOAT_HANDLE_POS_X: axis_world = xform.basis.x.normalized()
+			EOAT_HANDLE_NEG_X: axis_world = -xform.basis.x.normalized()
+			EOAT_HANDLE_POS_Z: axis_world = xform.basis.z.normalized()
+			EOAT_HANDLE_NEG_Z: axis_world = -xform.basis.z.normalized()
+		var new_dim: float = maxf(0.1, _ray_to_axis_t(center_world, axis_world, camera.global_position, camera.project_ray_normal(screen_pos)) * 2.0)
+		if handle_id in [EOAT_HANDLE_POS_X, EOAT_HANDLE_NEG_X]:
+			node.set("eoat_length", new_dim)
+		else:
+			node.set("eoat_width", new_dim)
+		node.update_gizmos()
+		return
+
 	var pivots = [
 		node.get("_base_pivot"),
 		node.get("_upper_arm_pivot"),
@@ -241,9 +305,24 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
+
+	if handle_id >= 10:
+		if cancel:
+			node.set("eoat_length", _eoat_initial_length)
+			node.set("eoat_width", _eoat_initial_width)
+		else:
+			var undo_redo := EditorInterface.get_editor_undo_redo()
+			undo_redo.create_action("Resize EOAT")
+			undo_redo.add_do_property(node, "eoat_length", node.get("eoat_length"))
+			undo_redo.add_do_property(node, "eoat_width", node.get("eoat_width"))
+			undo_redo.add_undo_property(node, "eoat_length", _eoat_initial_length)
+			undo_redo.add_undo_property(node, "eoat_width", _eoat_initial_width)
+			undo_redo.commit_action()
+		node.update_gizmos()
+		return
+
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
-	
+
 	if cancel:
 		node.set(angle_props[handle_id], _initial_joint_angle)
 	else:
@@ -252,50 +331,59 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 		undo_redo.add_do_property(node, angle_props[handle_id], node.get(angle_props[handle_id]))
 		undo_redo.add_undo_property(node, angle_props[handle_id], _initial_joint_angle)
 		undo_redo.commit_action()
-	
+
 	_drag_joint_idx = -1
 	_drag_start_mouse_angle = 0.0
 	_pivot_screen_pos = Vector2.ZERO
-	
+
 	if node:
 		node.update_gizmos()
 
 
-# --- End effector subgizmo methods ---
-
-
 func _subgizmos_intersect_ray(gizmo: EditorNode3DGizmo, camera: Camera3D, point: Vector2) -> int:
 	var node = gizmo.get_node_3d()
-	if node == null:
+	if node == null or not node.get("show_gizmos"):
 		return -1
-	
-	if not node.get("show_gizmos"):
-		return -1
-	
+
+	# Foam pad takes priority — IK tip sits on the pad face so must be checked first
+	var cup_mesh: MeshInstance3D = node.get("_vacuum_cup_mesh")
+	if cup_mesh:
+		var eoat_length: float = node.get("eoat_length")
+		var eoat_width: float = node.get("eoat_width")
+		var ray_o := camera.global_position
+		var ray_d := camera.project_ray_normal(point)
+		var hit := _ray_hits_foam_pad(ray_o, ray_d, cup_mesh, eoat_length, eoat_width)
+		if hit:
+			_eoat_mode = true
+			_initial_joint_angles = Array(node.call("get_joint_angles"))
+			node.update_gizmos()
+			return EOAT_FOAM_SUBGIZMO_ID
+
 	var tip_global: Vector3 = node.call("get_tool_tip_position")
 	var tip_screen := camera.unproject_position(tip_global)
-	
 	if tip_screen.distance_to(point) < 20.0:
 		_initial_joint_angles = Array(node.call("get_joint_angles"))
+		if _eoat_mode:
+			_eoat_mode = false
+			node.update_gizmos()
 		return EE_SUBGIZMO_ID
-	
+
+	if _eoat_mode:
+		_eoat_mode = false
+		node.update_gizmos()
 	return -1
 
 
 func _subgizmos_intersect_frustum(gizmo: EditorNode3DGizmo, camera: Camera3D, frustum: Array[Plane]) -> PackedInt32Array:
 	var node = gizmo.get_node_3d()
-	if node == null:
+	if node == null or not node.get("show_gizmos"):
 		return PackedInt32Array()
-	
-	if not node.get("show_gizmos"):
-		return PackedInt32Array()
-	
+
 	var tip_global: Vector3 = node.call("get_tool_tip_position")
-	
 	for plane: Plane in frustum:
 		if not plane.is_point_over(tip_global):
 			return PackedInt32Array()
-	
+
 	_initial_joint_angles = Array(node.call("get_joint_angles"))
 	return PackedInt32Array([EE_SUBGIZMO_ID])
 
@@ -304,7 +392,11 @@ func _get_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int) -> Tran
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return Transform3D()
-	
+	if subgizmo_id == EOAT_FOAM_SUBGIZMO_ID:
+		var cup_mesh: MeshInstance3D = node.get("_vacuum_cup_mesh")
+		if cup_mesh:
+			return node.global_transform.affine_inverse() * cup_mesh.global_transform
+		return Transform3D()
 	var tip_global: Transform3D = node.call("get_tool_tip_transform")
 	return node.global_transform.affine_inverse() * tip_global
 
@@ -313,7 +405,6 @@ func _set_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int, xform: 
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
 	var global_target: Vector3 = node.global_transform * xform.origin
 	node.call("solve_ik", global_target)
 	node.update_gizmos()
@@ -323,13 +414,15 @@ func _commit_subgizmos(gizmo: EditorNode3DGizmo, ids: PackedInt32Array, restores
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
+
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
-	
+
 	if cancel:
 		for i in range(6):
 			if i < _initial_joint_angles.size():
 				node.set(angle_props[i], _initial_joint_angles[i])
+		if EOAT_FOAM_SUBGIZMO_ID in ids:
+			_eoat_mode = false
 	else:
 		var undo_redo = EditorInterface.get_editor_undo_redo()
 		undo_redo.create_action("Move Robot End Effector")
@@ -338,8 +431,36 @@ func _commit_subgizmos(gizmo: EditorNode3DGizmo, ids: PackedInt32Array, restores
 			if i < _initial_joint_angles.size():
 				undo_redo.add_undo_property(node, angle_props[i], _initial_joint_angles[i])
 		undo_redo.commit_action()
-	
+
 	_initial_joint_angles = []
-	
-	if node:
-		node.update_gizmos()
+	node.update_gizmos()
+
+
+func _ray_hits_foam_pad(ray_o: Vector3, ray_d: Vector3, cup_mesh: MeshInstance3D, length: float, width: float) -> bool:
+	var xf_inv := cup_mesh.global_transform.affine_inverse()
+	var lo: Vector3 = xf_inv * ray_o
+	var ld: Vector3 = xf_inv.basis * ray_d
+	var hs := Vector3(length * 0.5 + 0.05, 0.1, width * 0.5 + 0.05)
+	var t0 := Vector3(-1e38, -1e38, -1e38)
+	var t1 := Vector3(1e38, 1e38, 1e38)
+	for i in 3:
+		if abs(ld[i]) < 1e-8:
+			if lo[i] < -hs[i] or lo[i] > hs[i]:
+				return false
+		else:
+			var a: float = (-hs[i] - lo[i]) / ld[i]
+			var b: float = (hs[i] - lo[i]) / ld[i]
+			t0[i] = minf(a, b)
+			t1[i] = maxf(a, b)
+	var t_enter: float = maxf(maxf(t0.x, t0.y), t0.z)
+	var t_exit: float = minf(minf(t1.x, t1.y), t1.z)
+	return t_enter <= t_exit and t_exit >= 0.0
+
+
+func _ray_to_axis_t(line_origin: Vector3, line_dir: Vector3, ray_origin: Vector3, ray_dir: Vector3) -> float:
+	var b := line_dir.dot(ray_dir)
+	var denom := 1.0 - b * b
+	if abs(denom) < 1e-6:
+		return 0.0
+	var w := ray_origin - line_origin
+	return (line_dir.dot(w) - b * ray_dir.dot(w)) / denom

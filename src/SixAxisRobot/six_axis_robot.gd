@@ -41,7 +41,21 @@ const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 	set(value):
 		holding_object = value
 	get:
-		return _held_object != null
+		return not _held_objects.is_empty()
+
+## Foam pad length (X axis)
+@export_range(0.1, 5.0, 0.01, "suffix:m") var eoat_length: float = 1.1:
+	set(value):
+		eoat_length = maxf(0.1, value)
+		_update_eoat_geometry()
+		update_gizmos()
+
+## Foam pad width (Z axis)
+@export_range(0.1, 5.0, 0.01, "suffix:m") var eoat_width: float = 0.7:
+	set(value):
+		eoat_width = maxf(0.1, value)
+		_update_eoat_geometry()
+		update_gizmos()
 
 @export_category("Joint Angles")
 ## Base rotation
@@ -131,12 +145,12 @@ var _wrist_joint_mesh: MeshInstance3D
 var _wrist_mesh: MeshInstance3D
 var _tool_mesh: MeshInstance3D
 var _vacuum_cup_mesh: MeshInstance3D
-var _vacuum_cup_rim: MeshInstance3D
+var _vacuum_cup_meshes: Array[MeshInstance3D] = []
 
 var _vacuum_area: Area3D
-var _held_object: Node3D = null
-var _held_rigid_body: RigidBody3D = null
-var _held_object_basis: Basis = Basis.IDENTITY
+var _held_objects: Array[Node3D] = []
+var _held_rigid_bodies: Array[RigidBody3D] = []
+var _held_local_transforms: Array[Transform3D] = []
 var _objects_in_range: Array[Node3D] = []
 
 var _motion_tween: Tween = null
@@ -154,6 +168,9 @@ func _enter_tree() -> void:
 	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
 		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
+	var sel := EditorInterface.get_selection()
+	if not sel.selection_changed.is_connected(update_gizmos):
+		sel.selection_changed.connect(update_gizmos)
 
 
 func _exit_tree() -> void:
@@ -162,14 +179,18 @@ func _exit_tree() -> void:
 	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
 		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
+	var sel := EditorInterface.get_selection()
+	if sel.selection_changed.is_connected(update_gizmos):
+		sel.selection_changed.disconnect(update_gizmos)
 
 
 func _ready() -> void:
 	_update_scale()
 	_update_joints()
 	_update_materials()
+	_update_eoat_geometry()
 	new_waypoint_name = _get_next_waypoint_name()
-	
+
 	if _vacuum_area:
 		if not _vacuum_area.body_entered.is_connected(_on_vacuum_area_body_entered):
 			_vacuum_area.body_entered.connect(_on_vacuum_area_body_entered)
@@ -185,19 +206,19 @@ func _setup_node_references() -> void:
 	_base_pivot = get_node_or_null("BasePivot")
 	if not _base_pivot:
 		return
-	
+
 	_initialized = true
-	
+
 	var shoulder_pivot := _base_pivot.get_node_or_null("ShoulderPivot")
 	_upper_arm_pivot = shoulder_pivot.get_node_or_null("UpperArmPivot") if shoulder_pivot else null
-	
+
 	var elbow_pivot := _upper_arm_pivot.get_node_or_null("ElbowPivot") if _upper_arm_pivot else null
 	_forearm_pivot = elbow_pivot.get_node_or_null("ForearmPivot") if elbow_pivot else null
-	
+
 	_wrist_rot_pivot = _forearm_pivot.get_node_or_null("WristRotPivot") if _forearm_pivot else null
 	_wrist_pitch_pivot = _wrist_rot_pivot.get_node_or_null("WristPitchPivot") if _wrist_rot_pivot else null
 	_tool_pivot = _wrist_pitch_pivot.get_node_or_null("ToolPivot") if _wrist_pitch_pivot else null
-	
+
 	_base_mesh = _base_pivot.get_node_or_null("BaseMesh")
 	_shoulder_mesh = shoulder_pivot.get_node_or_null("ShoulderMesh") if shoulder_pivot else null
 	_shoulder_joint_mesh = shoulder_pivot.get_node_or_null("ShoulderJointMesh") if shoulder_pivot else null
@@ -208,43 +229,40 @@ func _setup_node_references() -> void:
 	_wrist_mesh = _wrist_pitch_pivot.get_node_or_null("WristMesh") if _wrist_pitch_pivot else null
 	_tool_mesh = _tool_pivot.get_node_or_null("ToolMesh") if _tool_pivot else null
 	_vacuum_cup_mesh = _tool_pivot.get_node_or_null("VacuumCup") if _tool_pivot else null
-	_vacuum_cup_rim = _tool_pivot.get_node_or_null("VacuumCupRim") if _tool_pivot else null
 	_vacuum_area = _tool_pivot.get_node_or_null("VacuumArea") if _tool_pivot else null
+
+	_vacuum_cup_meshes.clear()
+	if _tool_pivot:
+		for child in _tool_pivot.get_children():
+			if child is MeshInstance3D and child.name.begins_with("Vacuum"):
+				_vacuum_cup_meshes.append(child)
 
 
 func _update_held_object(_delta: float) -> void:
-	if not _held_rigid_body or not is_instance_valid(_held_rigid_body):
+	if _held_rigid_bodies.is_empty() or not _vacuum_area:
 		return
-	if not _vacuum_area or not _vacuum_cup_mesh:
-		return
-	
-	var tip_pos := _vacuum_area.global_position
-	var cup_dir := _vacuum_cup_mesh.global_transform.basis.y.normalized()
-	
-	var box_offset := 0.1
-	if _held_object and "size" in _held_object:
-		box_offset = _held_object.size.y * 0.5
-	
-	var target_pos := tip_pos + cup_dir * box_offset
-	_held_rigid_body.global_position = target_pos
-	var cup_basis := _vacuum_cup_mesh.global_transform.basis.orthonormalized()
-	_held_rigid_body.global_transform.basis = cup_basis * _held_object_basis
+
+	var area_xform := _vacuum_area.global_transform
+
+	for i in range(_held_rigid_bodies.size()):
+		var rb := _held_rigid_bodies[i]
+		if not is_instance_valid(rb):
+			continue
+		rb.global_transform = area_xform * _held_local_transforms[i]
 
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "holding_object":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-	
+
 	if property.name == "selected_waypoint":
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(waypoints.keys()) if waypoints.size() > 0 else "(no waypoints)"
-	
+
 	if OIPCommsSetup.validate_tag_property(property):
 		return
 	if property.name in ["command_tag", "execute_tag", "done_tag", "vacuum_tag"]:
 		property.usage = PROPERTY_USAGE_DEFAULT if OIPComms.get_enable_comms() else PROPERTY_USAGE_STORAGE
-
-
 
 
 func _update_scale() -> void:
@@ -258,7 +276,7 @@ func _update_scale() -> void:
 func _update_joints() -> void:
 	if not _initialized:
 		return
-	
+
 	if _base_pivot:
 		_base_pivot.rotation.y = deg_to_rad(j1_angle)
 	if _upper_arm_pivot:
@@ -271,7 +289,7 @@ func _update_joints() -> void:
 		_wrist_pitch_pivot.rotation.z = deg_to_rad(j5_angle)
 	if _tool_pivot:
 		_tool_pivot.rotation.y = deg_to_rad(j6_angle)
-	
+
 	if not _solving_ik:
 		update_gizmos()
 
@@ -279,17 +297,17 @@ func _update_joints() -> void:
 func _update_materials() -> void:
 	if not _initialized:
 		return
-	
+
 	var base_mat := _create_material(Color(0.3, 0.3, 0.35), 0.3, 0.7)
 	var arm_mat := _create_material(Color(0.9, 0.5, 0.1), 0.4, 0.5)
 	var tool_mat := _create_material(Color(0.2, 0.2, 0.25), 0.5, 0.4)
 	var vacuum_color := Color(0.2, 0.6, 0.2) if vacuum_on else Color(0.15, 0.15, 0.15)
 	var vacuum_mat := _create_material(vacuum_color, 0.1, 0.9)
-	
+
 	_apply_material([_base_mesh, _shoulder_mesh], base_mat)
 	_apply_material([_shoulder_joint_mesh, _upper_arm_mesh, _elbow_mesh, _forearm_mesh, _wrist_joint_mesh, _wrist_mesh], arm_mat)
 	_apply_material([_tool_mesh], tool_mat)
-	_apply_material([_vacuum_cup_mesh, _vacuum_cup_rim], vacuum_mat)
+	_apply_material(_vacuum_cup_meshes, vacuum_mat)
 
 
 func _create_material(color: Color, metallic: float, roughness: float) -> StandardMaterial3D:
@@ -308,7 +326,7 @@ func _apply_material(meshes: Array, mat: Material) -> void:
 
 func get_tool_tip_position() -> Vector3:
 	if _vacuum_cup_mesh and is_inside_tree():
-		var cup_height: float = _vacuum_cup_mesh.mesh.height if _vacuum_cup_mesh.mesh else 0.09
+		var cup_height := _get_cup_height()
 		return _vacuum_cup_mesh.global_position + _vacuum_cup_mesh.global_transform.basis.y * (cup_height / 2.0)
 	return global_position if is_inside_tree() else position
 
@@ -316,10 +334,33 @@ func get_tool_tip_position() -> Vector3:
 func get_tool_tip_transform() -> Transform3D:
 	if _vacuum_cup_mesh and is_inside_tree():
 		var tip_transform := _vacuum_cup_mesh.global_transform
-		var cup_height: float = _vacuum_cup_mesh.mesh.height if _vacuum_cup_mesh.mesh else 0.09
-		tip_transform.origin += tip_transform.basis.y * (cup_height / 2.0)
+		tip_transform.origin += tip_transform.basis.y * (_get_cup_height() / 2.0)
 		return tip_transform
 	return global_transform if is_inside_tree() else transform
+
+
+func _update_eoat_geometry() -> void:
+	if not _initialized or not _vacuum_cup_mesh:
+		return
+	var pad := BoxMesh.new()
+	pad.size = Vector3(eoat_length, 0.08, eoat_width)
+	_vacuum_cup_mesh.mesh = pad
+	if _vacuum_area:
+		var col := _vacuum_area.get_node_or_null("VacuumCollision") as CollisionShape3D
+		if col:
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(eoat_length, 0.3, eoat_width)
+			col.shape = shape
+
+
+func _get_cup_height() -> float:
+	if not _vacuum_cup_mesh or not _vacuum_cup_mesh.mesh:
+		return 0.04
+	if _vacuum_cup_mesh.mesh is BoxMesh:
+		return (_vacuum_cup_mesh.mesh as BoxMesh).size.y
+	if _vacuum_cup_mesh.mesh is CylinderMesh:
+		return (_vacuum_cup_mesh.mesh as CylinderMesh).height
+	return 0.04
 
 
 func get_ik_pivots() -> Array[Node3D]:
@@ -329,51 +370,51 @@ func get_ik_pivots() -> Array[Node3D]:
 func solve_ik(target_pos: Vector3, max_iterations: int = 20, tolerance: float = 0.01) -> bool:
 	if not _initialized:
 		return false
-	
+
 	_solving_ik = true
 	var pivots := get_ik_pivots()
-	
+
 	for iteration in range(max_iterations):
 		var tip := get_tool_tip_position()
 		if tip.distance_to(target_pos) < tolerance:
 			_solving_ik = false
 			update_gizmos()
 			return true
-		
+
 		for j in range(4, -1, -1):
 			var pivot := pivots[j]
 			if pivot == null:
 				continue
-			
+
 			var pivot_pos := pivot.global_position
 			var to_tip := get_tool_tip_position() - pivot_pos
 			var to_target := target_pos - pivot_pos
-			
+
 			var axis: Vector3
 			if JOINT_IS_Y_AXIS[j]:
 				axis = pivot.global_transform.basis.y.normalized()
 			else:
 				axis = pivot.global_transform.basis.z.normalized()
-			
+
 			var proj_tip := to_tip - axis * to_tip.dot(axis)
 			var proj_target := to_target - axis * to_target.dot(axis)
-			
+
 			if proj_tip.length_squared() < 0.0001 or proj_target.length_squared() < 0.0001:
 				continue
-			
+
 			proj_tip = proj_tip.normalized()
 			proj_target = proj_target.normalized()
-			
+
 			var dot_val := clampf(proj_tip.dot(proj_target), -1.0, 1.0)
 			var angle := acos(dot_val)
 			var cross := proj_tip.cross(proj_target)
 			if cross.dot(axis) < 0:
 				angle = -angle
-			
+
 			var current_angle: float = get(JOINT_ANGLE_PROPS[j])
 			var new_angle := clampf(current_angle + rad_to_deg(angle), JOINT_LIMITS_MIN[j], JOINT_LIMITS_MAX[j])
 			set(JOINT_ANGLE_PROPS[j], new_angle)
-	
+
 	_solving_ik = false
 	update_gizmos()
 	return get_tool_tip_position().distance_to(target_pos) < tolerance * 10.0
@@ -381,7 +422,7 @@ func solve_ik(target_pos: Vector3, max_iterations: int = 20, tolerance: float = 
 
 func _update_vacuum_state() -> void:
 	_update_materials()
-	
+
 	if vacuum_on:
 		_try_pick_up()
 	else:
@@ -389,90 +430,57 @@ func _update_vacuum_state() -> void:
 
 
 func _try_pick_up() -> void:
-	if _held_object != null:
-		return
-	
-	var closest_obj: Node3D = null
-	var closest_dist: float = INF
-	var tip_pos := get_tool_tip_position()
-	
-	for obj in _objects_in_range:
-		if not is_instance_valid(obj):
-			continue
-		
-		var rigid_body: RigidBody3D = null
-		if obj is RigidBody3D:
-			rigid_body = obj
-		elif obj.has_node("RigidBody3D"):
-			rigid_body = obj.get_node("RigidBody3D")
-		
-		if rigid_body == null:
-			continue
-		
-		var dist := tip_pos.distance_to(obj.global_position)
-		if dist < closest_dist:
-			closest_dist = dist
-			closest_obj = obj
-	
-	if closest_obj:
-		_attach_object(closest_obj)
+	for obj: Node3D in _objects_in_range.duplicate():
+		if is_instance_valid(obj):
+			_attach_object(obj)
 
 
 func _attach_object(obj: Node3D) -> void:
-	if _held_object != null:
-		return
-	
 	var rigid_body: RigidBody3D = null
 	var target_node: Node3D = obj
-	
+
 	if obj is RigidBody3D:
 		rigid_body = obj
 		target_node = obj.get_parent() if obj.get_parent() is Node3D else obj
 	elif obj.has_node("RigidBody3D"):
 		rigid_body = obj.get_node("RigidBody3D")
 		target_node = obj
-	
-	_held_object = target_node
-	_held_rigid_body = rigid_body
-	
-	if rigid_body and _vacuum_cup_mesh:
-		var cup_basis := _vacuum_cup_mesh.global_transform.basis.orthonormalized()
-		var obj_basis := rigid_body.global_transform.basis.orthonormalized()
-		_held_object_basis = cup_basis.inverse() * obj_basis
-	else:
-		_held_object_basis = Basis.IDENTITY
-	
-	if rigid_body:
-		rigid_body.gravity_scale = 0
-	
+
+	if rigid_body == null or rigid_body in _held_rigid_bodies:
+		return
+
+	_held_objects.append(target_node)
+	_held_rigid_bodies.append(rigid_body)
+	_held_local_transforms.append(_vacuum_area.global_transform.affine_inverse() * rigid_body.global_transform)
+
+	rigid_body.gravity_scale = 0
+	rigid_body.linear_velocity = Vector3.ZERO
+	rigid_body.angular_velocity = Vector3.ZERO
+
 	holding_object = true
 
 
 func _release_object() -> void:
-	if _held_object == null:
+	if _held_objects.is_empty():
 		return
-	
-	if not is_instance_valid(_held_object):
-		_held_object = null
-		_held_rigid_body = null
-		holding_object = false
-		return
-	
-	if _held_rigid_body and is_instance_valid(_held_rigid_body):
-		_held_rigid_body.gravity_scale = 1
-		_held_rigid_body.linear_velocity = Vector3.ZERO
-		_held_rigid_body.angular_velocity = Vector3.ZERO
-	
-	_held_object = null
-	_held_rigid_body = null
+
+	for rb in _held_rigid_bodies:
+		if is_instance_valid(rb):
+			rb.gravity_scale = 1
+			rb.linear_velocity = Vector3.ZERO
+			rb.angular_velocity = Vector3.ZERO
+
+	_held_objects.clear()
+	_held_rigid_bodies.clear()
+	_held_local_transforms.clear()
 	holding_object = false
 
 
 func _on_vacuum_area_body_entered(body: Node3D) -> void:
 	if body not in _objects_in_range:
 		_objects_in_range.append(body)
-	if vacuum_on and _held_object == null:
-		_try_pick_up()
+	if vacuum_on:
+		_attach_object(body)
 
 
 func _on_vacuum_area_body_exited(body: Node3D) -> void:
@@ -576,7 +584,7 @@ func go_to_waypoint(waypoint_name: String) -> void:
 	if not waypoints.has(waypoint_name):
 		push_warning("SixAxisRobot: Waypoint '%s' not found" % waypoint_name)
 		return
-	
+
 	var target_angles: Array = waypoints[waypoint_name]
 	if target_angles.size() >= 6:
 		move_to_position(target_angles)
@@ -590,10 +598,10 @@ func move_to_position(target_angles: Array, instant: bool = false) -> void:
 	if target_angles.size() < 6:
 		push_warning("SixAxisRobot: Invalid target angles array")
 		return
-	
+
 	if _motion_tween and _motion_tween.is_valid():
 		_motion_tween.kill()
-	
+
 	if instant:
 		j1_angle = target_angles[0]
 		j2_angle = target_angles[1]
@@ -604,15 +612,15 @@ func move_to_position(target_angles: Array, instant: bool = false) -> void:
 	else:
 		_is_moving = true
 		var current := get_joint_angles()
-		
+
 		var adjusted_targets: Array[float] = []
 		for i in range(6):
 			adjusted_targets.append(_shortest_angle_path(current[i], target_angles[i]))
-		
+
 		var max_diff: float = 0.0
 		for i in range(6):
 			max_diff = max(max_diff, abs(adjusted_targets[i] - current[i]))
-		
+
 		var duration: float = max(max_diff / motion_speed, 0.1)
 		EditorInterface.mark_scene_as_unsaved()
 		_motion_tween = create_tween()
@@ -649,8 +657,7 @@ func stop_motion() -> void:
 
 func _on_simulation_ended() -> void:
 	stop_motion()
-	if _held_object != null:
-		_release_object()
+	_release_object()
 	_objects_in_range.clear()
 	vacuum_on = false
 	_last_execute = false

@@ -56,17 +56,11 @@ albedo_color = Color(0.15, 0.15, 0.15, 1)
 metallic = 0.1
 roughness = 0.9
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_du1kw"]
-top_radius = 0.18
-bottom_radius = 0.18
-height = 0.09
+[sub_resource type="BoxMesh" id="BoxMesh_vacplate"]
+size = Vector3(1.1, 0.08, 0.7)
 
-[sub_resource type="TorusMesh" id="TorusMesh_dade1"]
-inner_radius = 0.15
-outer_radius = 0.195
-
-[sub_resource type="SphereShape3D" id="SphereShape3D_wqi2b"]
-radius = 0.45
+[sub_resource type="BoxShape3D" id="BoxShape3D_vacarea"]
+size = Vector3(1.1, 0.3, 0.7)
 
 [node name="SixAxisRobot" type="Node3D" unique_id=508298280]
 script = ExtResource("1_robot")
@@ -142,17 +136,12 @@ mesh = SubResource("CylinderMesh_444kt")
 [node name="VacuumCup" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=2052352918]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.345, 0)
 material_override = SubResource("StandardMaterial3D_ndts0")
-mesh = SubResource("CylinderMesh_du1kw")
-
-[node name="VacuumCupRim" type="MeshInstance3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1001921841]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
-material_override = SubResource("StandardMaterial3D_ndts0")
-mesh = SubResource("TorusMesh_dade1")
+mesh = SubResource("BoxMesh_vacplate")
 
 [node name="VacuumArea" type="Area3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot" unique_id=1959107220]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
 collision_layer = 0
 collision_mask = 10
 
 [node name="VacuumCollision" type="CollisionShape3D" parent="BasePivot/ShoulderPivot/UpperArmPivot/ElbowPivot/ForearmPivot/WristRotPivot/WristPitchPivot/ToolPivot/VacuumArea" unique_id=344399739]
-shape = SubResource("SphereShape3D_wqi2b")
+shape = SubResource("BoxShape3D_vacarea")
