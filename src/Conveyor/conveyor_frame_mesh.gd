@@ -145,6 +145,11 @@ static func create_curved(r_inner: float, r_outer: float, y_top: float, y_bottom
 		var idx: int = outer_base + i * 2
 		indices.append_array([idx, idx + 1, idx + 2, idx + 1, idx + 3, idx + 2])
 
+	_append_curved_flange(verts, norms, uvs_arr, indices,
+			r_inner_frame, -1.0, y_top, angle_radians, segments, sf)
+	_append_curved_flange(verts, norms, uvs_arr, indices,
+			r_outer_frame, 1.0, y_top, angle_radians, segments, sf)
+
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -155,11 +160,85 @@ static func create_curved(r_inner: float, r_outer: float, y_top: float, y_bottom
 	return mesh
 
 
+static func _append_curved_flange(verts: PackedVector3Array, norms: PackedVector3Array,
+		uvs_arr: PackedVector2Array, indices: PackedInt32Array,
+		r_face: float, fdir: float, y_top: float,
+		angle_radians: float, segments: int, sf: float) -> void:
+	var ft: float = FLANGE_THICKNESS
+	var fw: float = FLANGE_WIDTH
+	var wt: float = WALL_THICKNESS
+	var r_in: float = r_face - fdir * wt
+	var r_out: float = r_face + fdir * fw
+	var y0: float = y_top
+	var y1: float = y_top + ft
+	var corner_r: Array = [r_in, r_in, r_out, r_out]
+	var corner_y: Array = [y0, y1, y1, y0]
+	var up := Vector3(0, 1, 0)
+	for s in range(segments):
+		var a0: float = (float(s) / segments) * angle_radians
+		var a1: float = (float(s + 1) / segments) * angle_radians
+		var sin0: float = sin(a0)
+		var cos0: float = cos(a0)
+		var sin1: float = sin(a1)
+		var cos1: float = cos(a1)
+		var rad0 := Vector3(-sin0, 0, cos0)
+		var rad1 := Vector3(-sin1, 0, cos1)
+		var u0: float = (float(s) / segments) * r_face * angle_radians
+		var u1: float = (float(s + 1) / segments) * r_face * angle_radians
+		for e in range(4):
+			var j: int = (e + 1) % 4
+			var ri: float = corner_r[e]
+			var yi: float = corner_y[e]
+			var rj: float = corner_r[j]
+			var yj: float = corner_y[j]
+			var n0: Vector3
+			var n1: Vector3
+			match e:
+				0:
+					n0 = -fdir * rad0
+					n1 = -fdir * rad1
+				1:
+					n0 = up
+					n1 = up
+				2:
+					n0 = fdir * rad0
+					n1 = fdir * rad1
+				_:
+					n0 = -up
+					n1 = -up
+			var base: int = verts.size()
+			verts.append_array([
+				Vector3(-sin0 * ri * sf, yi, cos0 * ri * sf),
+				Vector3(-sin0 * rj * sf, yj, cos0 * rj * sf),
+				Vector3(-sin1 * rj * sf, yj, cos1 * rj * sf),
+				Vector3(-sin1 * ri * sf, yi, cos1 * ri * sf),
+			])
+			norms.append_array([n0, n0, n1, n1])
+			uvs_arr.append_array([
+				Vector2(u0, 0), Vector2(u0, ft), Vector2(u1, ft), Vector2(u1, 0),
+			])
+			indices.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+	for end_idx in range(2):
+		var ea: float = 0.0 if end_idx == 0 else angle_radians
+		var sa: float = sin(ea)
+		var ca: float = cos(ea)
+		var cap_n := Vector3(-ca, 0, -sa) * (1.0 if end_idx == 1 else -1.0)
+		var base: int = verts.size()
+		for k in range(4):
+			var rr: float = corner_r[k]
+			verts.append(Vector3(-sa * rr * sf, corner_y[k], ca * rr * sf))
+			norms.append(cap_n)
+			uvs_arr.append(Vector2(rr, corner_y[k]))
+		indices.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+
+
 ## Close the inner/outer gap at each end of a curved frame arc.
 static func add_curved_end_walls(mesh: ArrayMesh, r_inner: float, r_outer: float,
 		y_top: float, y_bottom: float, angle_radians: float,
 		tangent_extent: float, scale_factor: float, material: Material) -> void:
 	var wt: float = WALL_THICKNESS
+	var ft: float = FLANGE_THICKNESS
+	var fw: float = FLANGE_WIDTH
 	var sf: float = scale_factor
 	var r_inner_frame: float = r_inner - wt
 	var r_outer_frame: float = r_outer + wt
@@ -200,6 +279,24 @@ static func add_curved_end_walls(mesh: ArrayMesh, r_inner: float, r_outer: float
 				sb, sb + 2, sb + 1, sb + 1, sb + 2, sb + 3,
 			])
 
+			var vec_in: Vector3 = -side_normal * wt * sf
+			var vec_out: Vector3 = side_normal * fw * sf
+			var a_in_bot := Vector3(arc_xz.x + vec_in.x, y_top, arc_xz.z + vec_in.z)
+			var a_in_top := Vector3(arc_xz.x + vec_in.x, y_top + ft, arc_xz.z + vec_in.z)
+			var a_out_top := Vector3(arc_xz.x + vec_out.x, y_top + ft, arc_xz.z + vec_out.z)
+			var a_out_bot := Vector3(arc_xz.x + vec_out.x, y_top, arc_xz.z + vec_out.z)
+			var b_in_bot := Vector3(ext_xz.x + vec_in.x, y_top, ext_xz.z + vec_in.z)
+			var b_in_top := Vector3(ext_xz.x + vec_in.x, y_top + ft, ext_xz.z + vec_in.z)
+			var b_out_top := Vector3(ext_xz.x + vec_out.x, y_top + ft, ext_xz.z + vec_out.z)
+			var b_out_bot := Vector3(ext_xz.x + vec_out.x, y_top, ext_xz.z + vec_out.z)
+			var up := Vector3(0, 1, 0)
+			_append_flat_quad(verts, norms, uvs_arr, indices, a_in_top, a_out_top, b_out_top, b_in_top, up)
+			_append_flat_quad(verts, norms, uvs_arr, indices, a_in_bot, b_in_bot, b_out_bot, a_out_bot, -up)
+			_append_flat_quad(verts, norms, uvs_arr, indices, a_out_bot, b_out_bot, b_out_top, a_out_top, side_normal)
+			_append_flat_quad(verts, norms, uvs_arr, indices, a_in_bot, a_in_top, b_in_top, b_in_bot, -side_normal)
+			_append_flat_quad(verts, norms, uvs_arr, indices, a_in_bot, a_in_top, a_out_top, a_out_bot, -tang)
+			_append_flat_quad(verts, norms, uvs_arr, indices, b_in_bot, b_out_bot, b_out_top, b_in_top, tang)
+
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -208,6 +305,19 @@ static func add_curved_end_walls(mesh: ArrayMesh, r_inner: float, r_outer: float
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(mesh.get_surface_count() - 1, material)
+
+
+static func _append_flat_quad(verts: PackedVector3Array, norms: PackedVector3Array,
+		uvs_arr: PackedVector2Array, indices: PackedInt32Array,
+		p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, n: Vector3) -> void:
+	var base: int = verts.size()
+	verts.append_array([p0, p1, p2, p3])
+	norms.append_array([n, n, n, n])
+	uvs_arr.append_array([
+		Vector2(p0.x + p0.z, p0.y), Vector2(p1.x + p1.z, p1.y),
+		Vector2(p2.x + p2.z, p2.y), Vector2(p3.x + p3.z, p3.y),
+	])
+	indices.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
 
 
 ## Continuous L-profile rail extruded along the entire path (runs + arcs).
