@@ -37,7 +37,6 @@ var _floor_y_initialized: bool = false
 @onready var _side_guard_right_collision: CollisionShape3D = get_node_or_null("StaticBody3D/SideGuardRightCollision") as CollisionShape3D
 @onready var _side_guard_front_collision: CollisionShape3D = get_node_or_null("StaticBody3D/SideGuardFrontCollision") as CollisionShape3D
 @onready var _side_guard_back_collision: CollisionShape3D = get_node_or_null("StaticBody3D/SideGuardBackCollision") as CollisionShape3D
-@onready var _shadow_plate: MeshInstance3D = $ShadowPlate
 
 var _deck_material: ShaderMaterial
 var _yellow_material: ShaderMaterial
@@ -65,10 +64,6 @@ static var instances: Array[Platform] = []
 
 func _enter_tree() -> void:
 	super._enter_tree()
-	if has_meta("is_preview"):
-		return
-	if not instances.has(self):
-		instances.append(self)
 
 
 func _exit_tree() -> void:
@@ -90,6 +85,8 @@ func _ready() -> void:
 	_rebuild()
 	if has_meta("is_preview"):
 		return
+	if get_owner() != null:
+		instances.append(self)
 	# Suppress until the engine's post-add_child set_transform has run.
 	set_notify_transform(false)
 	call_deferred("_initial_floor_sync")
@@ -120,6 +117,14 @@ func _notification(what: int) -> void:
 		if not _transform_update_pending:
 			_transform_update_pending = true
 			call_deferred("_deferred_transform_update")
+	elif what == NOTIFICATION_EDITOR_PRE_SAVE:
+		_computed_railing_openings = []
+		_computed_deck_holes = []
+		_prev_railing_hash = 0
+		_prev_hole_hash = 0
+		_rebuild()
+	elif what == NOTIFICATION_EDITOR_POST_SAVE:
+		call_deferred("_deferred_connection_update")
 
 
 func _deferred_transform_update() -> void:
@@ -189,8 +194,7 @@ func _notify_all_platforms() -> void:
 	if not is_inside_tree():
 		return
 	for platform in instances:
-		if is_instance_valid(platform):
-			platform.call_deferred("_deferred_connection_update")
+		platform.call_deferred("_deferred_connection_update")
 
 
 func _setup_materials() -> void:
@@ -255,11 +259,6 @@ func _rebuild() -> void:
 
 	_update_side_guard_collisions(length, width, all_openings)
 
-	if _shadow_plate:
-		var box := BoxMesh.new()
-		box.size = Vector3(length, 0.01, width)
-		_shadow_plate.mesh = box
-		_shadow_plate.position = Vector3(0, -height, 0)
 
 
 func _update_deck_collisions(length: float, width: float, holes: Array) -> void:
@@ -403,13 +402,11 @@ func _detect_connections() -> void:
 	var new_holes: Array = []
 
 	for other in instances:
-		if other == self or not is_instance_valid(other):
+		if other == self:
 			continue
 		_detect_platform_connection(other, new_openings)
 
 	for stairs in Stairs.instances:
-		if not is_instance_valid(stairs):
-			continue
 		_detect_stair_connection(stairs, new_openings, new_holes)
 
 	new_openings = _normalize_openings(new_openings)

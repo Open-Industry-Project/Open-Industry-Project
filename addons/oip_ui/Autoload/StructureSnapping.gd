@@ -103,10 +103,6 @@ static func find_best_snap_to_platform(selected: Node3D, intent: Transform3D) ->
 	var best_target: Platform = null
 	var best_dist := INF
 
-	var tree := selected.get_tree()
-	if tree == null:
-		return {}
-
 	for target in Platform.instances:
 		if not is_instance_valid(target):
 			continue

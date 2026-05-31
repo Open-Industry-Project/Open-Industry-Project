@@ -49,12 +49,10 @@ static func create(run_length: float, rise_height: float, width: float, include_
 
 static func create_material_tread() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://src/Conveyor/conveyor_frame_shader.gdshader")
-	mat.set_shader_parameter("metal_texture", _metal_texture)
-	mat.set_shader_parameter("color", Vector3(0.7, 0.7, 0.72))
-	mat.set_shader_parameter("metallic_value", 0.35)
-	mat.set_shader_parameter("roughness_value", 0.7)
-	mat.set_shader_parameter("specular_value", 0.4)
+	mat.shader = preload("res://src/Conveyor/structure_floor_shader.gdshader")
+	mat.set_shader_parameter("base_color_texture", preload("res://assets/3DModels/WallsAndRoof/Textures/BuildingPart_Floor_A_BaseColor.png"))
+	mat.set_shader_parameter("normal_texture", preload("res://assets/3DModels/WallsAndRoof/Textures/BuildingPart_Floor_A_Normal.png"))
+	mat.set_shader_parameter("orm_texture", preload("res://assets/3DModels/WallsAndRoof/Textures/BuildingPart_Floor_A_ORM.png"))
 	return mat
 
 

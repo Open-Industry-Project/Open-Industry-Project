@@ -51,10 +51,6 @@ static var instances: Array[Stairs] = []
 
 func _enter_tree() -> void:
 	super._enter_tree()
-	if has_meta("is_preview"):
-		return
-	if not instances.has(self):
-		instances.append(self)
 
 
 func _exit_tree() -> void:
@@ -78,6 +74,8 @@ func _ready() -> void:
 	_on_size_changed()
 	if has_meta("is_preview"):
 		return
+	if get_owner() != null:
+		Stairs.instances.append(self)
 	# Suppress until the engine's post-add_child set_transform has run.
 	set_notify_transform(false)
 	call_deferred("_initial_floor_sync")
@@ -117,8 +115,7 @@ func _deferred_transform_update() -> void:
 	_sync_height_to_floor()
 	if is_inside_tree():
 		for platform in Platform.instances:
-			if is_instance_valid(platform):
-				platform.call_deferred("_deferred_connection_update")
+			platform.call_deferred("_deferred_connection_update")
 
 
 func _sync_height_to_floor() -> void:
@@ -228,8 +225,7 @@ func _on_size_changed() -> void:
 
 	if is_inside_tree():
 		for platform in Platform.instances:
-			if is_instance_valid(platform):
-				platform.call_deferred("_deferred_connection_update")
+			platform.call_deferred("_deferred_connection_update")
 
 
 func _update_collision() -> void:
