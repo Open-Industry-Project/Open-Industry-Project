@@ -6,6 +6,7 @@ extends ResizableNode3D
 ## [member angle_downstream] / [member angle_upstream].
 
 const _MIN_SLOT_LENGTH: float = 0.05
+const _GAP_FILL_DEPTH: float = 0.05
 
 ## Spur length along the flow axis in meters.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
@@ -29,7 +30,7 @@ const _MIN_SLOT_LENGTH: float = 0.05
 		return size.y
 
 ## Splay angle of the downstream (+X) end. Positive splays outward.
-@export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = 0.0:
+@export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = deg_to_rad(30.0):
 	set(value):
 		if value == angle_downstream:
 			return
@@ -45,7 +46,7 @@ const _MIN_SLOT_LENGTH: float = 0.05
 		_request_rebuild()
 
 ## Number of parallel belt strips.
-@export_range(1, 20, 1) var conveyor_count: int = 4:
+@export_range(1, 20, 1) var conveyor_count: int = 20:
 	set(value):
 		var clamped: int = maxi(1, value)
 		if clamped == conveyor_count:
@@ -69,14 +70,21 @@ const _MIN_SLOT_LENGTH: float = 0.05
 		if _belt_material:
 			_belt_material.set_shader_parameter("ColorMix", belt_color)
 
+@export var frame_color: Color = Color.WHITE:
+	set(value):
+		frame_color = value
+		if _frame_material:
+			_frame_material.set_shader_parameter("color", frame_color)
+
 @export var belt_texture: BeltConveyor.BeltTexture = BeltConveyor.BeltTexture.STANDARD:
 	set(value):
 		belt_texture = value
 		if _belt_material:
 			_belt_material.set_shader_parameter("use_alternate_texture",
 					belt_texture == BeltConveyor.BeltTexture.ALTERNATE)
+		_request_rebuild()
 
-## Physics material applied to per-strip bodies.
+## Physics material applied to the conveyor surface.
 @export var physics_material: PhysicsMaterial = preload("res://parts/BeltSurfaceMaterial.tres"):
 	set(value):
 		physics_material = value
@@ -238,12 +246,13 @@ const _MIN_SLOT_LENGTH: float = 0.05
 const _SIZE_DEFAULT: Vector3 = Vector3(2.0, 0.5, 1.524)
 const _SIZE_MIN: Vector3 = Vector3(0.1, 0.05, 0.1)
 
-var _bodies: Array[StaticBody3D] = []
+var _simple_conveyor_shape: StaticBody3D
 var _legs: Array[Node3D] = []
 var _legs_state: Dictionary = {}
 var _derived_side_guard_snap_extents: Dictionary = {}
 var _flow_arrow: Node3D
 var _belt_material: ShaderMaterial
+var _frame_material: ShaderMaterial
 var _belt_position: float = 0.0
 var _rebuild_pending: bool = false
 var _connection_rebuild_pending: bool = false
@@ -279,7 +288,6 @@ func _on_size_changed() -> void:
 
 
 func _get_resize_local_bounds(for_size: Vector3) -> AABB:
-	# Origin at the tail (back) end — geometry spans [0, size.x]. Belt occupies Y=[-height, 0].
 	return AABB(
 			Vector3(0, -for_size.y, -for_size.z * 0.5),
 			for_size)
@@ -307,6 +315,7 @@ func _get_active_resize_handle_ids() -> PackedInt32Array:
 
 
 func _enter_tree() -> void:
+	set_meta("_edit_group_", true)
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
@@ -461,6 +470,8 @@ func _rebuild() -> void:
 	_ensure_internal_nodes()
 	_derive_side_guard_extents()
 	_rebuild_belt_slots()
+	_rebuild_collision()
+	_rebuild_gap_fill()
 	_rebuild_frame_rails()
 	_rebuild_side_guards()
 	_rebuild_legs()
@@ -473,17 +484,32 @@ func _rebuild() -> void:
 func _ensure_internal_nodes() -> void:
 	if _belt_material == null:
 		_belt_material = BeltSurface.create_material(belt_color, belt_texture)
+	if _frame_material == null:
+		_frame_material = ConveyorFrameMesh.create_material_colored(frame_color)
+	_ensure_simple_collision()
+
+
+func _ensure_simple_collision() -> void:
+	if not is_instance_valid(_simple_conveyor_shape):
+		_simple_conveyor_shape = get_node_or_null("SimpleConveyorShape") as StaticBody3D
+		if not is_instance_valid(_simple_conveyor_shape):
+			_simple_conveyor_shape = StaticBody3D.new()
+			_simple_conveyor_shape.name = "SimpleConveyorShape"
+			add_child(_simple_conveyor_shape, false, Node.INTERNAL_MODE_FRONT)
+		_apply_physics_material()
+		var cs: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if cs == null:
+			cs = CollisionShape3D.new()
+			cs.name = "CollisionShape3D"
+			_simple_conveyor_shape.add_child(cs)
 
 
 func _get_slot_geometry(index: int) -> Array[Vector3]:
 	var conv_width: float = width / float(conveyor_count)
 	var conv_half_width: float = 0.5 * conv_width
 	var conv_pos_z: float = -0.5 * width + conv_half_width + index * conv_width
-	var ds_contact_z_offset: float = -conv_half_width if angle_downstream > 0.0 else conv_half_width
-	var us_contact_z_offset: float = conv_half_width if angle_upstream > 0.0 else -conv_half_width
-	var ds_displacement_x: float = tan(angle_downstream) * (conv_pos_z + ds_contact_z_offset)
-	var us_displacement_x: float = tan(angle_upstream) * (conv_pos_z + us_contact_z_offset)
-	# Origin at tail: slot spans [0 + us_disp, length + ds_disp]; center is the midpoint.
+	var ds_displacement_x: float = tan(angle_downstream) * conv_pos_z
+	var us_displacement_x: float = tan(angle_upstream) * conv_pos_z
 	var conv_pos_x: float = length * 0.5 + (ds_displacement_x + us_displacement_x) / 2.0
 	var conv_length: float = length + ds_displacement_x - us_displacement_x
 	return [Vector3(conv_pos_x, 0.0, conv_pos_z),
@@ -537,9 +563,8 @@ func _approximate_loop_length() -> float:
 
 
 func _rebuild_belt_slots() -> void:
-	_bodies.clear()
-	var keep := PackedStringArray()
-	var phys: PhysicsMaterial = physics_material
+	var belt := _MergeSurface.new()
+	var caps := _MergeSurface.new()
 	for i in range(conveyor_count):
 		var geom: Array[Vector3] = _get_slot_geometry(i)
 		var slot_pos: Vector3 = geom[0]
@@ -549,48 +574,145 @@ func _rebuild_belt_slots() -> void:
 		var slot_width: float = slot_size.z
 		if slot_length <= _MIN_SLOT_LENGTH:
 			continue
-		var mesh_name: String = "BeltMesh_%d" % i
-		keep.append(mesh_name)
-		var mesh_instance: MeshInstance3D = get_node_or_null(NodePath(mesh_name)) as MeshInstance3D
-		if mesh_instance == null:
-			mesh_instance = MeshInstance3D.new()
-			mesh_instance.name = mesh_name
-			add_child(mesh_instance, false, Node.INTERNAL_MODE_FRONT)
-			mesh_instance.owner = self
-			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
-		mesh_instance.mesh = BeltConveyorMesh.create_belt(
-				slot_length, slot_height, slot_width,
+		var inner_gap: float = ConveyorFrameMesh.WALL_THICKNESS
+		var left_gap: float = inner_gap * 0.5 if i > 0 else 0.0
+		var right_gap: float = inner_gap * 0.5 if i < conveyor_count - 1 else 0.0
+		var mesh_width: float = slot_width - left_gap - right_gap
+		var mesh_pos: Vector3 = Vector3(slot_pos.x, slot_pos.y,
+				slot_pos.z + (left_gap - right_gap) * 0.5)
+		var uv_y_left: float
+		var uv_y_right: float
+		if belt_texture == BeltConveyor.BeltTexture.ALTERNATE:
+			uv_y_left = 0.0
+			uv_y_right = 1.0
+		else:
+			uv_y_left = float(i) / conveyor_count
+			uv_y_right = float(i + 1) / conveyor_count
+		var strip: ArrayMesh = BeltConveyorMesh.create_belt(
+				slot_length, slot_height, mesh_width,
 				true, true,
-				i == 0, i == conveyor_count - 1)
-		mesh_instance.set_surface_override_material(0, _belt_material)
-		mesh_instance.set_surface_override_material(1, ConveyorFrameMesh.create_material())
-		mesh_instance.transform = Transform3D(Basis.IDENTITY, slot_pos)
+				i == 0, i == conveyor_count - 1,
+				uv_y_left, uv_y_right)
+		belt.append_surface(strip, 0, mesh_pos)
+		if strip.get_surface_count() > 1:
+			caps.append_surface(strip, 1, mesh_pos)
 
-		var body_name: String = "BeltBody_%d" % i
-		keep.append(body_name)
-		var body: StaticBody3D = get_node_or_null(NodePath(body_name)) as StaticBody3D
-		if body == null:
-			body = StaticBody3D.new()
-			body.name = body_name
-			add_child(body, false, Node.INTERNAL_MODE_FRONT)
-			body.owner = self
-		var cs: CollisionShape3D = body.get_node_or_null("CollisionShape3D") as CollisionShape3D
-		if cs == null:
-			cs = CollisionShape3D.new()
-			cs.name = "CollisionShape3D"
-			body.add_child(cs)
-			cs.owner = self
-		# Fresh BoxShape3D: the packed-scene one is resource-cached across instances.
-		var box := BoxShape3D.new()
-		box.size = Vector3(slot_length, slot_height, slot_width)
-		cs.shape = box
-		body.physics_material_override = phys
-		body.transform = Transform3D(Basis.IDENTITY,
-				Vector3(slot_pos.x, slot_pos.y - slot_height * 0.5, slot_pos.z))
-		_bodies.append(body)
-	_remove_orphans_with_prefix(["BeltMesh_", "BeltBody_"], keep)
+	var mi: MeshInstance3D = get_node_or_null("BeltMesh") as MeshInstance3D
+	if mi == null:
+		mi = MeshInstance3D.new()
+		mi.name = "BeltMesh"
+		add_child(mi, false, Node.INTERNAL_MODE_FRONT)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	var mesh := ArrayMesh.new()
+	if belt.add_to(mesh):
+		mesh.surface_set_material(mesh.get_surface_count() - 1, _belt_material)
+	if caps.add_to(mesh):
+		mesh.surface_set_material(mesh.get_surface_count() - 1, _frame_material)
+	mi.mesh = mesh
+
+	_remove_orphans_with_prefix(["BeltMesh_", "BeltBody_"], PackedStringArray())
 	if _belt_material:
 		_belt_material.set_shader_parameter("Scale", maxf(1.0, _approximate_loop_length()))
+
+
+func _rebuild_collision() -> void:
+	if _simple_conveyor_shape == null:
+		return
+	var collision: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if collision == null:
+		return
+	var half_w: float = size.z * 0.5
+	var half_y: float = size.y * 0.5
+	var tan_ds: float = tan(angle_downstream)
+	var tan_us: float = tan(angle_upstream)
+	var ds_left_x: float = size.x - half_w * tan_ds
+	var ds_right_x: float = size.x + half_w * tan_ds
+	var us_right_x: float = half_w * tan_us
+	var us_left_x: float = -half_w * tan_us
+	var points := PackedVector3Array([
+		Vector3(ds_left_x, half_y, -half_w),
+		Vector3(ds_right_x, half_y, half_w),
+		Vector3(us_right_x, half_y, half_w),
+		Vector3(us_left_x, half_y, -half_w),
+		Vector3(ds_left_x, -half_y, -half_w),
+		Vector3(ds_right_x, -half_y, half_w),
+		Vector3(us_right_x, -half_y, half_w),
+		Vector3(us_left_x, -half_y, -half_w),
+	])
+	var convex_shape := ConvexPolygonShape3D.new()
+	convex_shape.points = points
+	collision.shape = convex_shape
+	_simple_conveyor_shape.position = Vector3(0, -size.y * 0.5, 0)
+
+
+func _rebuild_gap_fill() -> void:
+	var mi: MeshInstance3D = get_node_or_null("GapFillMesh") as MeshInstance3D
+	if mi == null:
+		mi = MeshInstance3D.new()
+		mi.name = "GapFillMesh"
+		add_child(mi, false, Node.INTERNAL_MODE_FRONT)
+		mi.owner = self
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var half_w: float = size.z * 0.5
+	var tan_ds: float = tan(angle_downstream)
+	var tan_us: float = tan(angle_upstream)
+	# Downstream: strips are rectangles ending at their center-line X; push the angled
+	# face out by one half-strip slope so each strip's inner corner stays enclosed.
+	var conv_half_width: float = 0.5 * size.z / float(conveyor_count)
+	var ds_shift: float = conv_half_width * absf(tan_ds)
+	var ds_left_x: float = size.x - half_w * tan_ds + ds_shift
+	var ds_right_x: float = size.x + half_w * tan_ds + ds_shift
+	var roller_radius: float = size.y * 0.5
+	var us_right_x: float = half_w * tan_us + roller_radius
+	var us_left_x: float = -half_w * tan_us + roller_radius
+	var ref_cos: float = cos(deg_to_rad(60.0))
+	var max_angle: float = maxf(absf(angle_upstream), absf(angle_downstream))
+	var y_top: float = -maxf(0.001, _GAP_FILL_DEPTH * cos(max_angle) / ref_cos)
+	var y_bot: float = -size.y - 0.005
+	var t0 := Vector3(us_left_x, y_top, -half_w)
+	var t1 := Vector3(us_right_x, y_top, half_w)
+	var t2 := Vector3(ds_right_x, y_top, half_w)
+	var t3 := Vector3(ds_left_x, y_top, -half_w)
+	var b0 := Vector3(us_left_x, y_bot, -half_w)
+	var b1 := Vector3(us_right_x, y_bot, half_w)
+	var b2 := Vector3(ds_right_x, y_bot, half_w)
+	var b3 := Vector3(ds_left_x, y_bot, -half_w)
+	var n_us := Vector3(-1.0, 0.0, tan_us).normalized()
+	var n_ds := Vector3(1.0, 0.0, -tan_ds).normalized()
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	_gap_fill_quad(verts, norms, uvs, indices, t0, t1, t2, t3, Vector3.UP)
+	_gap_fill_quad(verts, norms, uvs, indices, b0, b3, b2, b1, Vector3.DOWN)
+	_gap_fill_quad(verts, norms, uvs, indices, t0, b0, b3, t3, Vector3(0,0,-1))
+	_gap_fill_quad(verts, norms, uvs, indices, t1, t2, b2, b1, Vector3(0,0,1))
+	_gap_fill_quad(verts, norms, uvs, indices, t0, t1, b1, b0, n_us)
+	_gap_fill_quad(verts, norms, uvs, indices, t3, b3, b2, t2, n_ds)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mi.mesh = mesh
+	mi.set_surface_override_material(0, _frame_material)
+
+
+static func _gap_fill_quad(verts: PackedVector3Array, norms: PackedVector3Array,
+		uvs: PackedVector2Array, indices: PackedInt32Array,
+		p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, normal: Vector3) -> void:
+	var base: int = verts.size()
+	verts.append_array([p0, p1, p2, p3])
+	norms.append_array([normal, normal, normal, normal])
+	var u_dir: Vector3 = (p1 - p0).normalized()
+	var v_dir: Vector3 = (p3 - p0).normalized()
+	for p: Vector3 in [p0, p1, p2, p3]:
+		var d: Vector3 = p - p0
+		uvs.append(Vector2(d.dot(u_dir), d.dot(v_dir)))
+	indices.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
 
 
 func _rebuild_frame_rails() -> void:
@@ -845,9 +967,8 @@ func _is_x_excluded(x: float) -> bool:
 
 
 func _apply_physics_material() -> void:
-	for body: StaticBody3D in _bodies:
-		if is_instance_valid(body):
-			body.physics_material_override = physics_material
+	if is_instance_valid(_simple_conveyor_shape):
+		_simple_conveyor_shape.physics_material_override = physics_material
 
 
 func _update_flow_arrow() -> void:
@@ -873,8 +994,7 @@ func _physics_process(delta: float) -> void:
 		_legs_state = ConveyorLeg.capture_leg_state(self)
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
-	for body: StaticBody3D in _bodies:
-		BeltSurface.apply_velocity(body, speed)
+	BeltSurface.apply_velocity(_simple_conveyor_shape, speed)
 	_belt_position = BeltSurface.advance_belt_position(
 			_belt_material, speed, delta, _belt_position)
 
@@ -891,9 +1011,8 @@ func _on_simulation_ended() -> void:
 	_belt_position = 0.0
 	if _belt_material:
 		_belt_material.set_shader_parameter("BeltPosition", _belt_position)
-	for body: StaticBody3D in _bodies:
-		if is_instance_valid(body):
-			body.constant_linear_velocity = Vector3.ZERO
+	if is_instance_valid(_simple_conveyor_shape):
+		_simple_conveyor_shape.constant_linear_velocity = Vector3.ZERO
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
@@ -926,3 +1045,32 @@ func _remove_named_if_present(names: Array) -> void:
 		if is_instance_valid(c):
 			remove_child(c)
 			c.queue_free()
+
+
+class _MergeSurface:
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	func append_surface(src: ArrayMesh, surface: int, offset: Vector3) -> void:
+		var a: Array = src.surface_get_arrays(surface)
+		var base: int = verts.size()
+		for v: Vector3 in a[Mesh.ARRAY_VERTEX]:
+			verts.append(v + offset)
+		norms.append_array(a[Mesh.ARRAY_NORMAL])
+		uvs.append_array(a[Mesh.ARRAY_TEX_UV])
+		for idx: int in a[Mesh.ARRAY_INDEX]:
+			indices.append(base + idx)
+
+	func add_to(mesh: ArrayMesh) -> bool:
+		if indices.is_empty():
+			return false
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = verts
+		arr[Mesh.ARRAY_NORMAL] = norms
+		arr[Mesh.ARRAY_TEX_UV] = uvs
+		arr[Mesh.ARRAY_INDEX] = indices
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		return true

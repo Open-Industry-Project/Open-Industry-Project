@@ -9,7 +9,8 @@ const SEGMENTS: int = 16
 
 static func create_belt(length: float, height: float, width: float,
 		close_left: bool = false, close_right: bool = false,
-		flat_left: bool = false, flat_right: bool = false) -> ArrayMesh:
+		flat_left: bool = false, flat_right: bool = false,
+		uv_y_left: float = 0.0, uv_y_right: float = 1.0) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
@@ -31,13 +32,13 @@ static func create_belt(length: float, height: float, width: float,
 		var angle: float = PI * (1.0 - t)
 		var x: float = back_cx - sin(angle) * radius
 		var y: float = back_cy + cos(angle) * radius
-		_add_pair(verts, norms, uvs, x, y, half_width, -sin(angle), cos(angle), (dist + t * PI * radius) / total_belt)
+		_add_pair(verts, norms, uvs, x, y, half_width, -sin(angle), cos(angle), (dist + t * PI * radius) / total_belt, uv_y_left, uv_y_right)
 	_add_strip(indices, 0, SEGMENTS)
 	dist += PI * radius
 
 	var flat_top_base: int = verts.size()
-	_add_pair(verts, norms, uvs, -half_middle, 0, half_width, 0, 1, dist / total_belt)
-	_add_pair(verts, norms, uvs, half_middle, 0, half_width, 0, 1, (dist + middle_length) / total_belt)
+	_add_pair(verts, norms, uvs, -half_middle, 0, half_width, 0, 1, dist / total_belt, uv_y_left, uv_y_right)
+	_add_pair(verts, norms, uvs, half_middle, 0, half_width, 0, 1, (dist + middle_length) / total_belt, uv_y_left, uv_y_right)
 	_add_strip(indices, flat_top_base, 1)
 	dist += middle_length
 
@@ -49,13 +50,13 @@ static func create_belt(length: float, height: float, width: float,
 		var angle: float = PI * t
 		var x: float = front_cx + sin(angle) * radius
 		var y: float = front_cy + cos(angle) * radius
-		_add_pair(verts, norms, uvs, x, y, half_width, sin(angle), cos(angle), (dist + t * PI * radius) / total_belt)
+		_add_pair(verts, norms, uvs, x, y, half_width, sin(angle), cos(angle), (dist + t * PI * radius) / total_belt, uv_y_left, uv_y_right)
 	_add_strip(indices, front_base, SEGMENTS)
 	dist += PI * radius
 
 	var bot_base: int = verts.size()
-	_add_pair(verts, norms, uvs, half_middle, -height, half_width, 0, -1, dist / total_belt)
-	_add_pair(verts, norms, uvs, -half_middle, -height, half_width, 0, -1, (dist + middle_length) / total_belt)
+	_add_pair(verts, norms, uvs, half_middle, -height, half_width, 0, -1, dist / total_belt, uv_y_left, uv_y_right)
+	_add_pair(verts, norms, uvs, -half_middle, -height, half_width, 0, -1, (dist + middle_length) / total_belt, uv_y_left, uv_y_right)
 	_add_strip(indices, bot_base, 1)
 
 	var arrays := []
@@ -151,14 +152,15 @@ static func _add_pair(
 	verts: PackedVector3Array, norms: PackedVector3Array, uvs: PackedVector2Array,
 	x: float, y: float, half_width: float,
 	nx: float, ny: float, u: float,
+	v_left: float = 0.0, v_right: float = 1.0,
 ) -> void:
 	verts.append(Vector3(x, y, -half_width))
 	norms.append(Vector3(nx, ny, 0))
-	uvs.append(Vector2(u, 0))
+	uvs.append(Vector2(u, v_left))
 
 	verts.append(Vector3(x, y, half_width))
 	norms.append(Vector3(nx, ny, 0))
-	uvs.append(Vector2(u, 1))
+	uvs.append(Vector2(u, v_right))
 
 
 static func _add_strip(indices: PackedInt32Array, base: int, count: int) -> void:

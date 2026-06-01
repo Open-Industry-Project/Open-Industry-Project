@@ -626,6 +626,14 @@ static func create_material() -> ShaderMaterial:
 	return _shared_material
 
 
+static func create_material_colored(color: Color) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://src/Conveyor/conveyor_frame_shader.gdshader")
+	mat.set_shader_parameter("metal_texture", _metal_texture)
+	mat.set_shader_parameter("color", color)
+	return mat
+
+
 static func _add_cap(
 	verts: PackedVector3Array,
 	norms: PackedVector3Array,
