@@ -39,6 +39,7 @@ var depth: float:
 	set(value):
 		enable_auto_poles = value
 		if is_node_ready():
+			size = _get_constrained_size(size)
 			_rebuild_rack()
 
 ## Center-to-center spacing of the vertical uprights along width and depth.
@@ -46,6 +47,7 @@ var depth: float:
 	set(value):
 		pole_interval = value
 		if is_node_ready():
+			size = _get_constrained_size(size)
 			_rebuild_rack()
 
 const FRAME_THICKNESS = 0.08
@@ -66,7 +68,7 @@ var _collision_shapes: Array[CollisionShape3D] = []
 
 func _init() -> void:
 	super._init()
-	size_default = Vector3(2.8, num_shelves * shelf_spacing, 1.2)
+	size_default = Vector3(2.8, num_shelves * shelf_spacing, 1.4)
 	# Y is governed by _get_constrained_size (num_shelves × shelf_spacing), not this floor.
 	size_min = Vector3(0.5, 0.0, 0.5)
 
@@ -91,6 +93,9 @@ func _apply_shelf_spacing() -> void:
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	new_size.y = num_shelves * shelf_spacing
+	if enable_auto_poles:
+		new_size.x = maxf(pole_interval, roundf(new_size.x / pole_interval) * pole_interval)
+		new_size.z = maxf(pole_interval, roundf(new_size.z / pole_interval) * pole_interval)
 	return new_size
 
 
