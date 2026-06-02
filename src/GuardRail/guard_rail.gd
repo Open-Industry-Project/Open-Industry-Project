@@ -9,13 +9,13 @@ extends ResizableNode3D
 		steel_color = value
 		_update_material_color()
 
-@export var omit_post_start: bool = false:
+@export_storage var omit_post_start: bool = false:
 	set(value):
 		omit_post_start = value
 		if is_node_ready():
 			_rebuild()
 
-@export var omit_post_end: bool = false:
+@export_storage var omit_post_end: bool = false:
 	set(value):
 		omit_post_end = value
 		if is_node_ready():
