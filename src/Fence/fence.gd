@@ -74,6 +74,10 @@ func _update_material_color() -> void:
 		_mesh_material.set_shader_parameter("color", mesh_color)
 
 
+func _get_active_resize_handle_ids() -> PackedInt32Array:
+	return PackedInt32Array([0, 1, 2, 3])
+
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	new_size.x = maxf(new_size.x, 0.5)
 	new_size.y = maxf(new_size.y, 0.5)
