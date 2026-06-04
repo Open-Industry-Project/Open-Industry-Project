@@ -12,6 +12,7 @@ signal save_changes(value: bool)
 const TAG_GROUPS_FILE := "res://oip_data/tag_groups.cfg"
 const SETTINGS_FILE := "res://oip_data/comms_settings.cfg"
 const TAG_GROUP = preload("res://addons/oip_comms/controls/tag_group.tscn")
+const _SERVICE_SCRIPT: GDScript = preload("res://src/comms/oip_comms_service.gd")
 
 @onready var v_box_container: VBoxContainer = $Layout/ScrollContainer/TagGroupList
 @onready var enable_comms: CheckBox = $Layout/Toolbar/EnableComms
@@ -24,23 +25,20 @@ var last_tag_groups_data: Array = []
 var changes_present := false
 var settings_config: ConfigFile = ConfigFile.new()
 var tag_groups_config: ConfigFile = ConfigFile.new()
+var _service: Node
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute("res://oip_data")
 	load_tag_groups_data()
 	load_tag_groups_ui()
 	load_settings()
-	register_tag_groups()
+
+	_service = _SERVICE_SCRIPT.new()
+	add_child(_service)
+	_service.bootstrap()
 
 	last_tag_groups_data = tag_groups_data.duplicate(true)
 
-	Simulation.started.connect(_on_simulation_started)
-	# Deferred so per-part `_on_simulation_ended` handlers can flush final
-	# tag writes (e.g. `running = false`) before the native singleton tears
-	# down tag handles.
-	Simulation.stopped.connect(_on_simulation_ended, CONNECT_DEFERRED)
-
-	OIPComms.set_enable_comms(enable_comms.button_pressed)
 	OIPComms.comms_error.connect(_on_comms_error)
 
 	if is_instance_valid(save_comms_button):
@@ -132,7 +130,7 @@ func save_all() -> void:
 	for tag_group: _OIPCommsTagGroup in v_box_container.get_children():
 		tag_group.lock_name()
 
-	register_tag_groups()
+	_service.register_tag_groups()
 
 func save_tag_groups_ui() -> void:
 	tag_groups_data = []
@@ -182,28 +180,6 @@ func _on_AddTagGroup_pressed() -> void:
 	load_tag_groups_ui()
 	mark_changes_present()
 
-func register_tag_groups() -> void:
-	OIPComms.clear_tag_groups()
-	for tag_group_data: Dictionary in tag_groups_data:
-		var n: String = tag_group_data.name
-		var pr: String = tag_group_data.polling_rate
-
-		var pt_num: String = tag_group_data.protocol
-		var pt := ""
-		if pt_num == "0": pt = "ab_eip"
-		elif pt_num == "1": pt = "modbus_tcp"
-		elif pt_num == "2": pt = "opc_ua"
-		elif pt_num == "3": pt = "s7"
-		elif pt_num == "4": pt = "ads"
-		elif pt_num == "5": pt = "rtde"
-		elif pt_num == "6": pt = "mqtt"
-
-		var g: String = tag_group_data.gateway
-		var p: String = tag_group_data.path
-		var c: String = tag_group_data.cpu
-		OIPComms.register_tag_group(n, int(pr), pt, g, p, c)
-	OIPComms.tag_groups_registered.emit()
-
 func _on_EnableComms_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_comms(toggled_on)
 	OIPComms.enable_comms_changed.emit()
@@ -213,17 +189,10 @@ func _on_EnableLogging_toggled(toggled_on: bool) -> void:
 	OIPComms.set_enable_log(toggled_on)
 	save_settings()
 
-func _on_simulation_started() -> void:
-	OIPComms.set_sim_running(true)
-
-func _on_simulation_ended() -> void:
-	OIPComms.set_sim_running(false)
-
 func _on_comms_error() -> void:
 	_show_comms_error.call_deferred()
 
 func _show_comms_error() -> void:
-	Simulation.stop()
 	var msg: String = OIPComms.get_comms_error()
 	var dialog := AcceptDialog.new()
 	dialog.title = "OIP Comms Error"

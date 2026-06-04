@@ -24,6 +24,7 @@ run/scene_time_scale=1.0
 
 ConveyorSnapping="*res://addons/oip_ui/Autoload/ConveyorSnapping.gd"
 StructureSnapping="*res://addons/oip_ui/Autoload/StructureSnapping.gd"
+OIPCommsService="*res://src/comms/oip_comms_service.gd"
 
 [debug]
 
