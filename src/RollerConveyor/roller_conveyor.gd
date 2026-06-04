@@ -206,11 +206,7 @@ var _metal_material: Material
 var _rollers: AbstractRollerContainer
 var _roller_material: BaseMaterial3D
 var _simple_conveyor_shape: StaticBody3D
-var _transfer_plate_discharge: MeshInstance3D
-var _transfer_plate_infeed: MeshInstance3D
-var _transfer_plate_discharge_opp: MeshInstance3D
-var _transfer_plate_infeed_opp: MeshInstance3D
-var _transfer_plate_material: StandardMaterial3D
+var _transfer_plates: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
 var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _legs: Array[Node3D] = []
@@ -654,24 +650,15 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 
 func _setup_transfer_plates() -> void:
-	_transfer_plate_material = StandardMaterial3D.new()
-	_transfer_plate_material.albedo_color = Color(0.337, 0.655, 0.784)
-	_transfer_plate_material.albedo_texture = load("res://assets/3DModels/Textures/Metal.png")
-	_transfer_plate_material.metallic = 0.8
-	_transfer_plate_material.roughness = 0.3
-	_transfer_plate_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for legacy: String in ["TransferPlateDischarge", "TransferPlateInfeed",
+			"TransferPlateDischargeOpp", "TransferPlateInfeedOpp"]:
+		var old := get_node_or_null(legacy)
+		if old:
+			remove_child(old)
+			old.queue_free()
 
-	_transfer_plate_discharge = _get_or_create_internal_child("TransferPlateDischarge")
-	_transfer_plate_discharge.material_override = _transfer_plate_material
-
-	_transfer_plate_infeed = _get_or_create_internal_child("TransferPlateInfeed")
-	_transfer_plate_infeed.material_override = _transfer_plate_material
-
-	_transfer_plate_discharge_opp = _get_or_create_internal_child("TransferPlateDischargeOpp")
-	_transfer_plate_discharge_opp.material_override = _transfer_plate_material
-
-	_transfer_plate_infeed_opp = _get_or_create_internal_child("TransferPlateInfeedOpp")
-	_transfer_plate_infeed_opp.material_override = _transfer_plate_material
+	_transfer_plates = _get_or_create_internal_child("TransferPlates")
+	_transfer_plates.material_override = ConveyorFrameMesh.create_material_colored(Color.WHITE)
 
 
 func _get_or_create_internal_child(child_name: String) -> MeshInstance3D:
@@ -685,17 +672,11 @@ func _get_or_create_internal_child(child_name: String) -> MeshInstance3D:
 
 
 func _update_transfer_plates() -> void:
-	var plates: Array[MeshInstance3D] = [
-		_transfer_plate_discharge, _transfer_plate_infeed,
-		_transfer_plate_discharge_opp, _transfer_plate_infeed_opp,
-	]
-
-	if plates.any(func(p: MeshInstance3D) -> bool: return p == null):
+	if _transfer_plates == null:
 		return
 
 	if absf(skew_angle) < 0.01:
-		for plate in plates:
-			plate.visible = false
+		_transfer_plates.visible = false
 		return
 
 	var head_x: float = size.x
@@ -710,45 +691,37 @@ func _update_transfer_plates() -> void:
 	var z_sign := signf(skew_angle)
 	var skirt_depth := _roller_radius() * 2.0
 
-	for plate in plates:
-		plate.visible = true
-
-	_transfer_plate_discharge.mesh = _create_transfer_plate_mesh(
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_add_transfer_plate(st,
 		Vector3(head_inset, plate_y, z_sign * half_w),
 		Vector3(head_x, plate_y, z_sign * half_w),
 		Vector3(head_x, plate_y, 0.0),
-		skirt_depth,
-	)
-
-	_transfer_plate_discharge_opp.mesh = _create_transfer_plate_mesh(
+		skirt_depth)
+	_add_transfer_plate(st,
 		Vector3(head_inset, plate_y, -z_sign * half_w),
 		Vector3(head_x, plate_y, -z_sign * half_w),
 		Vector3(head_x, plate_y, 0.0),
-		skirt_depth,
-	)
-
-	_transfer_plate_infeed.mesh = _create_transfer_plate_mesh(
+		skirt_depth)
+	_add_transfer_plate(st,
 		Vector3(tail_inset, plate_y, -z_sign * half_w),
 		Vector3(tail_x, plate_y, -z_sign * half_w),
 		Vector3(tail_x, plate_y, 0.0),
-		skirt_depth,
-	)
-
-	_transfer_plate_infeed_opp.mesh = _create_transfer_plate_mesh(
+		skirt_depth)
+	_add_transfer_plate(st,
 		Vector3(tail_inset, plate_y, z_sign * half_w),
 		Vector3(tail_x, plate_y, z_sign * half_w),
 		Vector3(tail_x, plate_y, 0.0),
-		skirt_depth,
-	)
+		skirt_depth)
+	st.generate_normals()
+
+	_transfer_plates.mesh = st.commit()
+	_transfer_plates.visible = true
 
 
-## Triangle (v1-v2-v3) plus vertical skirts hiding shortened roller ends.
-static func _create_transfer_plate_mesh(
-	v1: Vector3, v2: Vector3, v3: Vector3, skirt_depth: float
-) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-
+static func _add_transfer_plate(
+	st: SurfaceTool, v1: Vector3, v2: Vector3, v3: Vector3, skirt_depth: float
+) -> void:
 	var v1_bottom := v1 - Vector3(0, skirt_depth, 0)
 	var v2_bottom := v2 - Vector3(0, skirt_depth, 0)
 	var v3_bottom := v3 - Vector3(0, skirt_depth, 0)
@@ -761,14 +734,13 @@ static func _create_transfer_plate_mesh(
 	_add_tri(st, v2, v2_bottom, v3_bottom)
 	_add_tri(st, v3_bottom, v3, v2)
 
-	st.generate_normals()
-	return st.commit()
-
 
 static func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
-	st.set_uv(Vector2(0, 0)); st.add_vertex(a)
-	st.set_uv(Vector2(1, 0)); st.add_vertex(b)
-	st.set_uv(Vector2(1, 1)); st.add_vertex(c)
+	var u_dir := (b - a).normalized()
+	var v_dir := (b - a).cross(c - a).normalized().cross(u_dir)
+	st.set_uv(Vector2(0.0, 0.0)); st.add_vertex(a)
+	st.set_uv(Vector2((b - a).dot(u_dir), (b - a).dot(v_dir))); st.add_vertex(b)
+	st.set_uv(Vector2((c - a).dot(u_dir), (c - a).dot(v_dir))); st.add_vertex(c)
 
 
 func request_side_guard_opening(arc_back: float, arc_front: float, side: String) -> void:
