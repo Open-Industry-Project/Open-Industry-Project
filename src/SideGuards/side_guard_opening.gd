@@ -39,7 +39,8 @@ func _init() -> void:
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "side":
-		property.hint_string = "inner,outer" if bool(get_meta(&"_curved_host", false)) else "left,right"
+		var curved_host: bool = get_meta(&"_curved_host", false)
+		property.hint_string = "inner,outer" if curved_host else "left,right"
 
 
 func _property_can_revert(property: StringName) -> bool:
@@ -50,7 +51,8 @@ func _property_get_revert(property: StringName) -> Variant:
 	# Revert to the host's first valid side, not the class default ("left"), so
 	# reverting on a curved conveyor doesn't land on an invalid value.
 	if property == &"side":
-		return "inner" if bool(get_meta(&"_curved_host", false)) else "left"
+		var curved_host: bool = get_meta(&"_curved_host", false)
+		return "inner" if curved_host else "left"
 	return null
 
 
@@ -142,7 +144,7 @@ static func claim_unique(openings: Array[SideGuardOpening], owner_id: int) -> vo
 		var op: SideGuardOpening = openings[i]
 		if op == null:
 			continue
-		var existing_id: int = int(op.get_meta(META, 0))
+		var existing_id: int = op.get_meta(META, 0)
 		if existing_id == 0 or existing_id == owner_id:
 			op.set_meta(META, owner_id)
 			op.resource_local_to_scene = true

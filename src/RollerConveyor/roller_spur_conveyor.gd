@@ -284,12 +284,11 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	if Engine.is_editor_hint():
-		if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
-			EditorInterface.simulation_started.connect(_on_simulation_started)
-		if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-			EditorInterface.simulation_stopped.connect(_on_simulation_ended)
-		running = EditorInterface.is_simulation_running()
+	if not Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.connect(_on_simulation_started)
+	if not Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.connect(_on_simulation_ended)
+	running = Simulation.is_running()
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 	ConveyorSnapping.notify_contacts_rebuild(self)
 
@@ -298,11 +297,10 @@ func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if is_instance_valid(_flow_arrow):
 		FlowDirectionArrow.unregister(_flow_arrow)
-	if Engine.is_editor_hint():
-		if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-			EditorInterface.simulation_started.disconnect(_on_simulation_started)
-		if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-			EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	if Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.disconnect(_on_simulation_started)
+	if Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 

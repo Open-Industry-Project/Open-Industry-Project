@@ -201,7 +201,8 @@ static func _collect_hole_polygons(holes: Array, deck_poly: PackedVector2Array) 
 					collected.append(inside_poly)
 			continue
 		for poly_variant: Variant in clipped:
-			var poly := _sanitize_polygon(poly_variant as PackedVector2Array)
+			var pv: PackedVector2Array = poly_variant
+			var poly := _sanitize_polygon(pv)
 			if poly.size() >= 3 and absf(_polygon_signed_area(poly)) > 0.0001:
 				collected.append(poly)
 	return collected
@@ -276,7 +277,7 @@ static func _build_solid_polygons(
 
 static func _hole_entry_to_polygon(entry: Variant) -> PackedVector2Array:
 	if entry is Rect2:
-		var rect := entry as Rect2
+		var rect: Rect2 = entry
 		return PackedVector2Array([
 			rect.position,
 			Vector2(rect.end.x, rect.position.y),
@@ -285,16 +286,18 @@ static func _hole_entry_to_polygon(entry: Variant) -> PackedVector2Array:
 		])
 
 	if entry is Dictionary:
-		var d := entry as Dictionary
+		var d: Dictionary = entry
 		if d.has("polygon"):
 			var raw: Variant = d.get("polygon")
 			if raw is PackedVector2Array:
-				return _sanitize_polygon(raw as PackedVector2Array)
+				var rawp: PackedVector2Array = raw
+				return _sanitize_polygon(rawp)
 			if raw is Array:
 				var pts := PackedVector2Array()
 				for v: Variant in raw:
 					if v is Vector2:
-						pts.append(v)
+						var vv: Vector2 = v
+						pts.append(vv)
 				return _sanitize_polygon(pts)
 
 	return PackedVector2Array()
@@ -451,8 +454,10 @@ static func _generate_railing_edge(
 
 	var open_ranges: Array = []
 	for opening: Dictionary in openings:
-		var o_start: float = clampf(float(opening["start"]) + half_edge, 0.0, edge_length)
-		var o_end: float = clampf(float(opening["end"]) + half_edge, 0.0, edge_length)
+		var raw_start: float = opening["start"]
+		var raw_end: float = opening["end"]
+		var o_start: float = clampf(raw_start + half_edge, 0.0, edge_length)
+		var o_end: float = clampf(raw_end + half_edge, 0.0, edge_length)
 		if o_start > o_end:
 			var tmp := o_start
 			o_start = o_end
@@ -476,9 +481,6 @@ static func _generate_railing_edge(
 		var seg_start: float = seg.x
 		var seg_end: float = seg.y
 		var seg_length: float = seg_end - seg_start
-
-		var p_start := start + edge_dir * seg_start + offset
-		var p_end := start + edge_dir * seg_end + offset
 
 		var num_spans := maxi(1, ceili(seg_length / MAX_POST_SPACING))
 		var span_length := seg_length / float(num_spans)
@@ -608,7 +610,8 @@ static func _add_box_tube(
 		hx = tube_size.x / 2.0
 		hz = tube_size.y / 2.0
 	else:
-		hx = float(tube_size) / 2.0
+		var ts: float = tube_size
+		hx = ts / 2.0
 		hz = hx
 
 	var up := Vector3.UP

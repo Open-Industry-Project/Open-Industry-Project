@@ -80,7 +80,8 @@ func _compute(head_pulley_radius: float, tail_pulley_radius: float,
 			first_non_null = i
 			break
 	if first_non_null >= 0:
-		tilt += deg_to_rad(segments[first_non_null].tilt_relative_deg)
+		var seg_tilt: float = segments[first_non_null].tilt_relative_deg
+		tilt += deg_to_rad(seg_tilt)
 		if first_non_null > 0:
 			insets[first_non_null] = 0.0
 	var tangent := _tangent_for_tilt(tilt)

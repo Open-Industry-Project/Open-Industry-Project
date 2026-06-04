@@ -372,7 +372,8 @@ static func _add_box_tube(
 		hx = tube_size.x / 2.0
 		hz = tube_size.y / 2.0
 	else:
-		hx = float(tube_size) / 2.0
+		var ts: float = tube_size
+		hx = ts / 2.0
 		hz = hx
 
 	var up := Vector3.UP

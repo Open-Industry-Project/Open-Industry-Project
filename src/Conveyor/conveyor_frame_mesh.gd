@@ -171,8 +171,8 @@ static func _append_curved_flange(verts: PackedVector3Array, norms: PackedVector
 	var r_out: float = r_face + fdir * fw
 	var y0: float = y_top
 	var y1: float = y_top + ft
-	var corner_r: Array = [r_in, r_in, r_out, r_out]
-	var corner_y: Array = [y0, y1, y1, y0]
+	var corner_r: Array[float] = [r_in, r_in, r_out, r_out]
+	var corner_y: Array[float] = [y0, y1, y1, y0]
 	var up := Vector3(0, 1, 0)
 	for s in range(segments):
 		var a0: float = (float(s) / segments) * angle_radians

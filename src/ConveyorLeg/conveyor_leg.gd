@@ -84,7 +84,8 @@ static func resolve_foot(conveyor: Node3D, belt_bottom_world: Vector3,
 			query.exclude = exclude_rids
 			var hit := world.direct_space_state.intersect_ray(query)
 			if not hit.is_empty():
-				return hit.position as Vector3
+				var foot: Vector3 = hit.position
+				return foot
 	var foot_v: Variant = fallback_plane.intersects_ray(belt_bottom_world, -legs_normal_world)
 	if foot_v == null:
 		foot_v = fallback_plane.intersects_ray(belt_bottom_world, legs_normal_world)

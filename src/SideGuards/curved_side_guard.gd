@@ -259,9 +259,13 @@ static func build_arc_wall(r: float, wall_height: float, wall_thickness: float,
 		var p_in: Vector3 = p * (r_inner / r)
 		var cap_normal: Vector3
 		if end_i == 0:
-			cap_normal = (points[0]["pos"] - points[1]["pos"]).normalized()
+			var a0: Vector3 = points[0]["pos"]
+			var a1: Vector3 = points[1]["pos"]
+			cap_normal = (a0 - a1).normalized()
 		else:
-			cap_normal = (points[pt_count - 1]["pos"] - points[pt_count - 2]["pos"]).normalized()
+			var b0: Vector3 = points[pt_count - 1]["pos"]
+			var b1: Vector3 = points[pt_count - 2]["pos"]
+			cap_normal = (b0 - b1).normalized()
 		cap_normal.y = 0
 		cap_normal = cap_normal.normalized()
 

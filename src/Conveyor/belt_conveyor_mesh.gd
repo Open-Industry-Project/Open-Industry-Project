@@ -293,7 +293,7 @@ static func _emit_arc_pair(
 	var theta: float = (1.0 - t) * jt.turning_angle if mirror_to_bottom else t * jt.turning_angle
 	var rot := Basis(Vector3(0, 0, 1), theta)
 	var top_pos: Vector3 = jt.center + rot * (jt.tangent_point_in - jt.center)
-	var top_norm: Vector3 = (signf(jt.turning_angle) * (jt.center - top_pos) / max(jt.radius, 1.0e-9)).normalized()
+	var top_norm: Vector3 = (signf(jt.turning_angle) * (jt.center - top_pos) / maxf(jt.radius, 1.0e-9)).normalized()
 	var pos: Vector3 = top_pos
 	var normal: Vector3 = top_norm
 	if mirror_to_bottom:

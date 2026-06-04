@@ -49,10 +49,11 @@ func _ready() -> void:
 	owner = get_parent().get_parent()
 
 	if owner:
+		var ct := owner as ChainTransfer
 		if _chain_material:
-			_chain_material.set_shader_parameter("Scale", owner.scale.x * _chain_scale)
+			_chain_material.set_shader_parameter("Scale", ct.scale.x * _chain_scale)
 		if _collision_shape:
-			_collision_shape.size.x = _chain_base_length * owner.scale.x
+			_collision_shape.size.x = _chain_base_length * ct.scale.x
 		_scale_children(_chain_base)
 		_scale_children(_container)
 		_scale_children(_chain)
@@ -60,28 +61,29 @@ func _ready() -> void:
 	_set_vertical_position(_active_pos if active else _inactive_pos)
 
 func _physics_process(delta: float) -> void:
+	var ct := owner as ChainTransfer
 	if running:
 		var local_left := _sb.global_transform.basis.x.normalized()
-		_sb.constant_linear_velocity = local_left * owner.speed
+		_sb.constant_linear_velocity = local_left * ct.speed
 		_sb.position = _sb_active_position
 		_sb.rotation = Vector3.ZERO
 
-		if _chain_material and owner:
-			var chain_meters: float = owner.scale.x * _chain_base_length
-			var chain_links_per_meter: float = round(owner.scale.x * _chain_scale) / chain_meters
-			if not EditorInterface.is_simulation_paused():
-				_chain_position += owner.speed / chain_meters * delta
+		if _chain_material and ct:
+			var chain_meters: float = ct.scale.x * _chain_base_length
+			var chain_links_per_meter: float = round(ct.scale.x * _chain_scale) / chain_meters
+			if not Simulation.is_paused():
+				_chain_position += ct.speed / chain_meters * delta
 			_chain_position = fmod((fmod(_chain_position, 1) + 1.0), 1)
-			_chain_end_position += owner.speed * chain_links_per_meter / _chain_end_scale * delta
+			_chain_end_position += ct.speed * chain_links_per_meter / _chain_end_scale * delta
 			_chain_end_position = fmod((fmod(_chain_end_position, 1) + 1.0), 1)
 			_set_all_chain_positions(_chain_position, _chain_end_position)
 
-	if owner and owner.scale.x != _prev_owner_scale_x:
-		_prev_owner_scale_x = owner.scale.x
+	if ct and ct.scale.x != _prev_owner_scale_x:
+		_prev_owner_scale_x = ct.scale.x
 		if _chain_material:
-			_chain_material.set_shader_parameter("Scale", owner.scale.x * _chain_scale)
+			_chain_material.set_shader_parameter("Scale", ct.scale.x * _chain_scale)
 		if _collision_shape:
-			_collision_shape.size.x = _chain_base_length * owner.scale.x
+			_collision_shape.size.x = _chain_base_length * ct.scale.x
 		_scale_children(_chain_base)
 		_scale_children(_container)
 		_scale_children(_chain)
@@ -114,12 +116,13 @@ func _set_all_chain_positions(chain_pos: float, chain_end_pos: float) -> void:
 	_set_chain_position(_chain_end_r_material, chain_end_pos)
 
 func _scale_children(nodes_container: Node3D) -> void:
-	if owner == null:
+	var ct := owner as ChainTransfer
+	if ct == null:
 		return
-	
+	var inv_scale_x: float = 1.0 / ct.scale.x
 	for child in nodes_container.get_children():
 		if child is Node3D:
-			child.scale = Vector3(1 / owner.scale.x, 1, 1)
+			(child as Node3D).scale = Vector3(inv_scale_x, 1, 1)
 
 func _set_vertical_position(target_y: float) -> void:
 	if not is_node_ready():

@@ -114,18 +114,18 @@ func _enter_tree() -> void:
 		_piston_base_y = _piston_rod.position.y - lift_height * PISTON_LIFT_RATIO
 	_pickup_area = get_node_or_null("LiftGroup/PickupArea")
 
-	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.connect(_on_simulation_started)
-	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	if not Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.connect(_on_simulation_started)
+	if not Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
-	if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	if Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.disconnect(_on_simulation_started)
+	if Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
@@ -252,7 +252,8 @@ func move_to_transform(target_xform: Transform3D, instant: bool = false) -> void
 	var alignment := dir.dot(fwd) / dir_len if dir_len > 0.01 else 0.0
 	var reversing := alignment < -0.95 and absf(wrapf(target_yaw - current_yaw, -PI, PI)) < 0.3
 
-	EditorInterface.mark_scene_as_unsaved()
+	if Engine.is_editor_hint():
+		EditorInterface.mark_scene_as_unsaved()
 
 	if reversing:
 		var drive_dur := maxf(dir_len / drive_speed, 0.01)
@@ -315,7 +316,8 @@ func drive_lift(target_height: float) -> void:
 	if _lift_tween and _lift_tween.is_valid():
 		_lift_tween.kill()
 	var duration: float = maxf(absf(h - lift_height) / lift_speed, 0.01)
-	EditorInterface.mark_scene_as_unsaved()
+	if Engine.is_editor_hint():
+		EditorInterface.mark_scene_as_unsaved()
 	_lift_tween = create_tween()
 	_lift_tween.tween_property(self, "lift_height", h, duration)
 

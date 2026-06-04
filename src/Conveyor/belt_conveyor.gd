@@ -109,7 +109,9 @@ func _apply_shape_preset(preset: ShapePreset) -> void:
 		return
 	var new_segs: Array[BeltSegment] = []
 	for entry: Array in template:
-		new_segs.append(_make_segment(entry[0], entry[1]))
+		var seg_len: float = entry[0]
+		var seg_angle: float = entry[1]
+		new_segs.append(_make_segment(seg_len, seg_angle))
 	segments = new_segs
 	if preset == ShapePreset.WALK_THRU:
 		var total_len: float = _PRESET_FLAT_LEN * 3.0 + _PRESET_RAMP_LEN * 2.0
@@ -198,7 +200,11 @@ func _transform_requested(data: Dictionary) -> void:
 		return
 	if not data.has("motion"):
 		return
-	var motion := Vector3(data["motion"][0], data["motion"][1], data["motion"][2])
+	var md: Array = data["motion"]
+	var mx: float = md[0]
+	var my: float = md[1]
+	var mz: float = md[2]
+	var motion := Vector3(mx, my, mz)
 
 	if not transform_in_progress:
 		_drag_initial_width = width
@@ -582,10 +588,10 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.connect(_on_simulation_started)
-	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	if not Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.connect(_on_simulation_started)
+	if not Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 	ConveyorSnapping.notify_contacts_rebuild(self)
 
@@ -666,7 +672,7 @@ func _ensure_unique_segments() -> void:
 		var seg: BeltSegment = segments[i]
 		if seg == null:
 			continue
-		var owner_id: int = int(seg.get_meta(META, 0))
+		var owner_id: int = seg.get_meta(META, 0)
 		if owner_id == 0 or owner_id == get_instance_id():
 			seg.set_meta(META, get_instance_id())
 			seg.resource_local_to_scene = true
@@ -686,10 +692,10 @@ func _exit_tree() -> void:
 	_disconnect_segment_signals()
 	if is_instance_valid(_flow_arrow):
 		FlowDirectionArrow.unregister(_flow_arrow)
-	if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	if Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.disconnect(_on_simulation_started)
+	if Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 
@@ -909,7 +915,8 @@ func local_to_arc_length(local_pos: Vector3) -> float:
 	var info: Dictionary = _closest_path_point(local_pos)
 	if info.is_empty():
 		return local_pos.x
-	return float(info.s)
+	var arc_s: float = info.s
+	return arc_s
 
 
 ## Forward tangent at the closest path point. Returns +X for empty paths.
@@ -917,7 +924,8 @@ func tangent_at_local_pos(local_pos: Vector3) -> Vector3:
 	var info: Dictionary = _closest_path_point(local_pos)
 	if info.is_empty():
 		return Vector3.RIGHT
-	return info.tangent as Vector3
+	var tangent: Vector3 = info.tangent
+	return tangent
 
 
 func _closest_path_point(local_pos: Vector3) -> Dictionary:
@@ -1033,7 +1041,7 @@ func _subdivide_arc_range_around_openings(arc_back: float, arc_front: float,
 
 
 func _emit_run_guard(guard_name: String, arc_back: float, arc_front: float,
-		run: BeltPath.Run, run_basis: Basis, guard_basis: Basis,
+		run: BeltPath.Run, _run_basis: Basis, guard_basis: Basis,
 		flange_offset: Vector3, lateral_offset: Vector3) -> void:
 	var arc_mid: float = (arc_back + arc_front) * 0.5
 	var sub_len: float = arc_front - arc_back
@@ -1324,10 +1332,12 @@ func _reposition_existing_legs() -> void:
 		return
 	legs_normal_world = legs_normal_world.normalized()
 	for spec: Dictionary in _compute_leg_specs(top_len):
-		var leg := get_node_or_null(NodePath(spec["name"])) as Node3D
+		var leg_name: String = spec["name"]
+		var leg := get_node_or_null(NodePath(leg_name)) as Node3D
 		if leg == null:
 			continue
-		var sample: Transform3D = _path.sample(spec["s"])
+		var s_val: float = spec["s"]
+		var sample: Transform3D = _path.sample(s_val)
 		var belt_bottom_local: Vector3 = sample.origin - sample.basis.y * height
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
 		var foot_v: Variant = ConveyorLeg.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
@@ -1385,13 +1395,12 @@ func _physics_process(delta: float) -> void:
 	if ConveyorLeg.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = ConveyorLeg.capture_leg_state(self)
-	if Engine.is_editor_hint() and not EditorInterface.is_simulation_running():
+	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	for body: StaticBody3D in _bodies:
 		BeltSurface.apply_velocity(body, speed)
-	if not (Engine.is_editor_hint() and EditorInterface.is_simulation_paused()):
-		_belt_position = BeltSurface.advance_belt_position(
-				_belt_material, speed, delta, _belt_position)
+	_belt_position = BeltSurface.advance_belt_position(
+			_belt_material, speed, delta, _belt_position)
 
 
 func _connect_segment_signals() -> void:

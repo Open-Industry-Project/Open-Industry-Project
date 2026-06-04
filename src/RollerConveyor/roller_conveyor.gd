@@ -241,11 +241,12 @@ func _get_custom_preview_node() -> Node3D:
 
 func _disable_collisions_recursive(node: Node) -> void:
 	if node is CollisionShape3D:
-		node.disabled = true
+		(node as CollisionShape3D).disabled = true
 
 	if node is CollisionObject3D:
-		node.collision_layer = 0
-		node.collision_mask = 0
+		var body := node as CollisionObject3D
+		body.collision_layer = 0
+		body.collision_mask = 0
 
 	for child in node.get_children():
 		_disable_collisions_recursive(child)
@@ -261,10 +262,11 @@ func _enter_tree() -> void:
 
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	if Engine.is_editor_hint():
-		EditorInterface.simulation_started.connect(_on_simulation_started)
-		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
-		running = EditorInterface.is_simulation_running()
+	if not Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.connect(_on_simulation_started)
+	if not Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.connect(_on_simulation_ended)
+	running = Simulation.is_running()
 
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 	ConveyorSnapping.notify_contacts_rebuild(self)
@@ -297,11 +299,10 @@ func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
-	if Engine.is_editor_hint():
-		if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-			EditorInterface.simulation_started.disconnect(_on_simulation_started)
-		if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-			EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	if Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.disconnect(_on_simulation_started)
+	if Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.disconnect(_on_simulation_ended)
 
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
@@ -442,7 +443,8 @@ func _setup_material() -> void:
 
 
 func _setup_roller_initialization() -> void:
-	set_roller_override_material(load("res://assets/3DModels/Materials/Metall2.tres").duplicate(true))
+	var roller_material: Material = load("res://assets/3DModels/Materials/Metall2.tres").duplicate(true)
+	set_roller_override_material(roller_material)
 
 	_rollers = get_node_or_null("Rollers")
 
@@ -520,7 +522,7 @@ func _setup_collision_shape() -> void:
 
 
 func _update_component_positions() -> void:
-	var conv_roller := get_node_or_null("ConvRoller")
+	var conv_roller := get_node_or_null("ConvRoller") as Node3D
 	if conv_roller:
 		var frame_height := size.y
 
@@ -544,12 +546,12 @@ func _update_component_positions() -> void:
 			right_side.position = Vector3(size.x / 2.0, 0, half_width + wt)
 			right_side.rotation = Vector3(0, PI, 0)
 
-	var rollers_node := get_node_or_null("Rollers")
+	var rollers_node := get_node_or_null("Rollers") as Node3D
 	if rollers_node:
 		rollers_node.position = Vector3(0, -_roller_radius(), 0)
 		rollers_node.scale = Vector3.ONE
 		if rollers_node is MultiMeshRollers:
-			rollers_node.set_clip_span(0.0, size.x)
+			(rollers_node as MultiMeshRollers).set_clip_span(0.0, size.x)
 
 
 func _update_width() -> void:
@@ -811,7 +813,9 @@ func _refresh_rollers() -> void:
 	var mm: MultiMeshRollers = _rollers
 	var grid: Dictionary = ConveyorSnapping.resolve_roller_grid(self)
 	var anchor: Variant = grid.anchor
-	mm.set_grid(anchor, not bool(grid.back_butt), not bool(grid.front_butt))
+	var back_butt: bool = grid.back_butt
+	var front_butt: bool = grid.front_butt
+	mm.set_grid(anchor, not back_butt, not front_butt)
 	# On anchor change, re-ping so the curve's phase propagates down the chain; gated so it settles.
 	if _grid_anchor_changed(anchor, _last_grid_anchor):
 		_last_grid_anchor = anchor
@@ -826,7 +830,9 @@ static func _grid_anchor_changed(a: Variant, b: Variant) -> bool:
 	var a_vec: bool = a is Vector3
 	var b_vec: bool = b is Vector3
 	if a_vec and b_vec:
-		return not (a as Vector3).is_equal_approx(b as Vector3)
+		var av: Vector3 = a
+		var bv: Vector3 = b
+		return not av.is_equal_approx(bv)
 	return a_vec != b_vec
 
 
@@ -989,7 +995,8 @@ func _reposition_existing_legs() -> void:
 		return
 	legs_normal_world = legs_normal_world.normalized()
 	for spec: Dictionary in _compute_leg_specs(size.x):
-		var leg: Node3D = get_node_or_null(NodePath(spec["name"])) as Node3D
+		var leg_name: String = spec["name"]
+		var leg: Node3D = get_node_or_null(NodePath(leg_name)) as Node3D
 		if leg == null:
 			continue
 		var x: float = spec["x"]

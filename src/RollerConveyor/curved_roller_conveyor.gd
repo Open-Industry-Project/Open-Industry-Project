@@ -436,8 +436,8 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	Simulation.started.connect(_on_simulation_started)
+	Simulation.stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 	ConveyorSnapping.notify_contacts_rebuild(self)
 
@@ -446,8 +446,8 @@ func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	Simulation.started.disconnect(_on_simulation_started)
+	Simulation.stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 
@@ -470,7 +470,7 @@ func _process(delta: float) -> void:
 		var bands: float = roller_material.uv1_scale.x
 		var uv_speed := bands * effective_speed / (2.0 * PI * _roller_radius())
 		var uv_offset := roller_material.uv1_offset
-		if not EditorInterface.is_simulation_paused():
+		if not Simulation.is_paused():
 			uv_offset.x = fmod(fmod(uv_offset.x, 1.0) + uv_speed * delta, 1.0)
 		roller_material.uv1_offset = uv_offset
 
@@ -479,7 +479,7 @@ func _physics_process(delta: float) -> void:
 	if ConveyorLeg.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = ConveyorLeg.capture_leg_state(self)
-	if EditorInterface.is_simulation_running() and _sb:
+	if Simulation.is_running() and _sb:
 		var local_up := _sb.global_transform.basis.y.normalized()
 		_sb.constant_angular_velocity = -local_up * _angular_speed
 

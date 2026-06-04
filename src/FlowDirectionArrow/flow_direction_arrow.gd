@@ -106,7 +106,9 @@ static func create_path(points: Array) -> Node3D:
 	mat.no_depth_test = true
 
 	for i in range(points.size() - 1):
-		_add_path_segment(arrow_root, points[i], points[i + 1], mat)
+		var p0: Vector3 = points[i]
+		var p1: Vector3 = points[i + 1]
+		_add_path_segment(arrow_root, p0, p1, mat)
 
 	return arrow_root
 
@@ -181,7 +183,6 @@ static func create_curved(inner_radius: float, width: float, height: float, angl
 	var head_height := 0.25
 
 	# Build curved shaft as a series of small cylinders along the arc
-	var arc_length := center_radius * angle_rad
 	var segment_count := maxi(8, int(angle_degrees / 5.0))
 	var shaft_arc := angle_rad * 0.8
 	var shaft_start := angle_rad * 0.1

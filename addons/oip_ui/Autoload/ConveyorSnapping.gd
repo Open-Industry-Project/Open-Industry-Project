@@ -231,7 +231,7 @@ static func _calculate_diverter_intersection_for_transform(snapped_conveyor: Nod
 
 ## Derive [param local]'s side-guard openings from geometry: open the guard wherever another
 ## conveyor's end — or a diverter's push side — physically meets [param local]'s side.
-static func derive_openings_by_geometry(local: Node3D) -> Array[SideGuardOpening]:
+func derive_openings_by_geometry(local: Node3D) -> Array[SideGuardOpening]:
 	var result: Array[SideGuardOpening] = []
 	if not local.is_inside_tree():
 		return result
@@ -303,7 +303,7 @@ static func derive_extents_by_geometry(local: Node3D) -> Dictionary:
 ## Returns [param local]'s roller-grid inputs from its butted neighbours: {anchor: world point the
 ## grid passes through — a curve's end roller, or a collinear straight's inherited anchor, else null
 ## (world origin); front_butt/back_butt: whether that end abuts a collinear neighbour}.
-static func resolve_roller_grid(local: Node3D) -> Dictionary:
+func resolve_roller_grid(local: Node3D) -> Dictionary:
 	var result: Dictionary = {"anchor": null, "front_butt": false, "back_butt": false}
 	if not local.is_inside_tree():
 		return result
@@ -457,7 +457,7 @@ static var _contact_neighbors: Dictionary = {}
 
 ## Ping every port-node near [param mover] — plus those it was near last call — to re-derive
 ## from current contact.
-static func notify_contacts_rebuild(mover: Node3D) -> void:
+func notify_contacts_rebuild(mover: Node3D) -> void:
 	var id: int = mover.get_instance_id()
 	# Re-place the mover before pinging, so its new cell is live for neighbors deriving this
 	# frame — what keeps multi-move frames stale-free.

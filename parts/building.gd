@@ -156,7 +156,8 @@ func _disconnect_rules() -> void:
 
 
 func _apply_shadow_quality() -> void:
-	RenderingServer.directional_shadow_atlas_set_size(_SHADOW_ATLAS_SIZE[shadow_quality], false)
+	var atlas_size: int = _SHADOW_ATLAS_SIZE[shadow_quality]
+	RenderingServer.directional_shadow_atlas_set_size(atlas_size, false)
 
 
 func _apply_background() -> void:

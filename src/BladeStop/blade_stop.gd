@@ -86,10 +86,11 @@ func _get_custom_preview_node() -> Node3D:
 
 func _disable_collisions_recursive(node: Node) -> void:
 	if node is CollisionShape3D:
-		node.disabled = true
+		(node as CollisionShape3D).disabled = true
 	if node is CollisionObject3D:
-		node.collision_layer = 0
-		node.collision_mask = 0
+		var body := node as CollisionObject3D
+		body.collision_layer = 0
+		body.collision_mask = 0
 	for child in node.get_children():
 		_disable_collisions_recursive(child)
 
@@ -98,14 +99,14 @@ func _enter_tree() -> void:
 	if has_meta("is_preview"):
 		return
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
+	Simulation.started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _exit_tree() -> void:
 	if has_meta("is_preview"):
 		return
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	Simulation.started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 

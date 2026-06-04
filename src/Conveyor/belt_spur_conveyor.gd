@@ -310,10 +310,10 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.connect(_on_simulation_started)
-	if not EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	if not Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.connect(_on_simulation_started)
+	if not Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 	ConveyorSnapping.notify_contacts_rebuild(self)
 
@@ -322,10 +322,10 @@ func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if is_instance_valid(_flow_arrow):
 		FlowDirectionArrow.unregister(_flow_arrow)
-	if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
-		EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	if Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.disconnect(_on_simulation_started)
+	if Simulation.stopped.is_connected(_on_simulation_ended):
+		Simulation.stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 
@@ -871,13 +871,12 @@ func _physics_process(delta: float) -> void:
 	if ConveyorLeg.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = ConveyorLeg.capture_leg_state(self)
-	if Engine.is_editor_hint() and not EditorInterface.is_simulation_running():
+	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	for body: StaticBody3D in _bodies:
 		BeltSurface.apply_velocity(body, speed)
-	if not (Engine.is_editor_hint() and EditorInterface.is_simulation_paused()):
-		_belt_position = BeltSurface.advance_belt_position(
-				_belt_material, speed, delta, _belt_position)
+	_belt_position = BeltSurface.advance_belt_position(
+			_belt_material, speed, delta, _belt_position)
 
 
 func _on_simulation_started() -> void:

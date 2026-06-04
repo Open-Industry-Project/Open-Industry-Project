@@ -310,9 +310,10 @@ func _get_custom_preview_node() -> Node3D:
 
 func _disable_collisions_recursive(node: Node) -> void:
 	if node is CollisionShape3D:
-		node.disabled = true
+		(node as CollisionShape3D).disabled = true
 	if node is CollisionObject3D:
-		node.collision_layer = 0
-		node.collision_mask = 0
+		var body := node as CollisionObject3D
+		body.collision_layer = 0
+		body.collision_mask = 0
 	for child in node.get_children():
 		_disable_collisions_recursive(child)

@@ -56,7 +56,9 @@ static func _refresh_beam(id: int) -> void:
 		if aabb.size != Vector3.ZERO:
 			var inv := mesh.global_transform.affine_inverse()
 			var expanded := aabb.grow(BEAM_RADIUS)
-			if expanded.intersects_segment(inv * beam[0], inv * beam[1]):
+			var b0: Vector3 = beam[0]
+			var b1: Vector3 = beam[1]
+			if expanded.intersects_segment(inv * b0, inv * b1):
 				new_hits.append(mesh)
 		i += 1
 
@@ -85,7 +87,9 @@ static func _apply_instance(mesh: MeshInstance3D) -> void:
 		if count >= MAX_BEAMS_PER_INSTANCE:
 			break
 		var beam: Array = _beams[id]
-		if expanded.intersects_segment(inv * beam[0], inv * beam[1]):
+		var b0: Vector3 = beam[0]
+		var b1: Vector3 = beam[1]
+		if expanded.intersects_segment(inv * b0, inv * b1):
 			mesh.set_instance_shader_parameter("beam_start_" + str(count), beam[0])
 			mesh.set_instance_shader_parameter("beam_end_" + str(count), beam[1])
 			count += 1

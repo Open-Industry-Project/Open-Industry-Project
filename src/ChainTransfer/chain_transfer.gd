@@ -105,8 +105,8 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	if has_meta("is_preview"):
 		return
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+	Simulation.started.connect(_on_simulation_started)
+	Simulation.stopped.connect(_on_simulation_ended)
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	popup_tag_group_name = OIPCommsSetup.default_tag_group(popup_tag_group_name)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
@@ -114,8 +114,8 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if has_meta("is_preview"):
 		return
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+	Simulation.started.disconnect(_on_simulation_started)
+	Simulation.stopped.disconnect(_on_simulation_ended)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 func _validate_property(property: Dictionary) -> void:
@@ -152,7 +152,7 @@ func _sync_chain_count() -> void:
 		var chain_base := _chain_transfer_base_scene.instantiate() as ChainTransferBase
 		bases.add_child(chain_base, true)
 		chain_base.active = popup_chains
-		if EditorInterface.is_simulation_running():
+		if Simulation.is_running():
 			chain_base.turn_on()
 	_position_bases()
 	_update_simple_shape()
@@ -188,11 +188,12 @@ func _get_custom_preview_node() -> Node3D:
 
 func _disable_collisions_recursive(node: Node) -> void:
 	if node is CollisionShape3D:
-		node.disabled = true
+		(node as CollisionShape3D).disabled = true
 
 	if node is CollisionObject3D:
-		node.collision_layer = 0
-		node.collision_mask = 0
+		var body := node as CollisionObject3D
+		body.collision_layer = 0
+		body.collision_mask = 0
 
 	for child in node.get_children():
 		_disable_collisions_recursive(child)
