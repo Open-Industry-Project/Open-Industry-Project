@@ -4,6 +4,12 @@ extends ResizableNode3D
 
 ## Initial velocity applied to this box when simulation starts.
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
+## Mass of the box in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var mass: float = 10.0:
+	set(value):
+		mass = value
+		if _rigid_body_3d:
+			_rigid_body_3d.mass = value
 ## The color of the box material.
 @export var color: Color = Color.WHITE:
 	set(value):
@@ -46,6 +52,7 @@ func _ready() -> void:
 	_on_size_changed()
 	if color != Color.WHITE:
 		set("color", color)
+	_rigid_body_3d.mass = mass
 	_rigid_body_3d.freeze = not Simulation.is_running()
 	if Simulation.is_running():
 		instanced = true

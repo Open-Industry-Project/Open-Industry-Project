@@ -15,19 +15,33 @@ extends ResizableNode3D
 			if not disable:
 				_reset_spawn_cycle()
 
+@export_group("Box")
 ## The color applied to spawned boxes.
 @export var box_color: Color = Color.WHITE:
 	set(value):
 		box_color = value
+## Mass applied to spawned boxes, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var mass: float = 10.0
+## Initial velocity applied to spawned boxes.
+@export var initial_linear_velocity: Vector3 = Vector3.ZERO
 
+@export_subgroup("Random Size")
 ## Enable random sizing for spawned boxes within min/max range.
 @export var random_size: bool = false
 ## Minimum size for randomly sized boxes (X, Y, Z dimensions).
 @export var random_size_min: Vector3 = Vector3(0.4, 0.3, 0.3)
 ## Maximum size for randomly sized boxes (X, Y, Z dimensions).
 @export var random_size_max: Vector3 = Vector3(0.8, 0.5, 0.5)
-## Initial velocity applied to spawned boxes.
-@export var initial_linear_velocity: Vector3 = Vector3.ZERO
+
+@export_subgroup("Random Mass")
+## Enable random mass for spawned boxes within min/max range.
+@export var random_mass: bool = false
+## Minimum mass for randomly massed boxes, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_min: float = 5.0
+## Maximum mass for randomly massed boxes, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_max: float = 15.0
+
+@export_group("Spawn Rate")
 ## Number of boxes spawned per minute (0-1000).
 @export var boxes_per_minute: int = 45:
 	set(value):
@@ -116,6 +130,11 @@ func _spawn_box() -> void:
 		box.size = Vector3(x, y, z)
 	else:
 		box.size = size
+
+	if random_mass:
+		box.mass = randf_range(random_mass_min, random_mass_max)
+	else:
+		box.mass = mass
 
 	box.rotation = rotation
 	box.position = position
