@@ -42,6 +42,12 @@ signal roller_override_material_changed(material: Material)
 			roller_skew_angle_changed.emit(skew_angle)
 			_update_conveyor_velocity()
 			_update_transfer_plates()
+			_update_guard_sensors()
+
+## How firmly skewed rollers square cargo against the side guards. 1.0 is the default
+## response; higher acts like a grippier rail, 0.0 disables squaring. The skew/speed-derived
+## limit still caps the maximum rate regardless of this value.
+@export_range(0.0, 4.0, 0.1, "or_greater") var cargo_align_strength: float = 1.0
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
@@ -215,6 +221,9 @@ var _legs_refresh_pending: bool = false
 var _roller_refresh_pending: bool = false
 var _last_grid_anchor: Variant = null
 const _MIN_GUARD_LEN: float = 0.05
+const CARGO_ALIGN_GAIN := 5.0
+const CARGO_ALIGN_MAX_SPEED := 2.5
+const CARGO_ALIGN_LENGTH := 0.3
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
@@ -419,6 +428,7 @@ func _physics_process(_delta: float) -> void:
 		# Multiply by tiles-per-wrap (uv1_scale.x) so the surface tracks the belt at no-slip speed.
 		var bands: float = _roller_material.uv1_scale.x
 		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + bands * roller_speed * _delta / circumference, 1.0)
+	_align_cargo_to_guards()
 
 
 func set_roller_override_material(material: Material) -> void:
@@ -886,7 +896,62 @@ func _emit_side_guard(guard_name: String, sub_start: float, sub_end: float,
 	sg.transform = Transform3D(guard_basis, origin)
 	sg.arc_back = sub_start
 	sg.arc_front = sub_end
+	sg.set_cargo_sensor_enabled(absf(skew_angle) > 0.01)
 	_side_guards.append(sg)
+
+
+func _update_guard_sensors() -> void:
+	var skewed := absf(skew_angle) > 0.01
+	for guard in _side_guards:
+		if is_instance_valid(guard):
+			guard.set_cargo_sensor_enabled(skewed)
+
+
+# Skewed rollers are faked as a flat driven plane that can't impart yaw, so the squaring a
+# real skewed-roller bed does against a rail is applied here instead.
+func _align_cargo_to_guards() -> void:
+	if not running or speed == 0.0 or absf(skew_angle) <= 0.01 or cargo_align_strength == 0.0:
+		return
+	var up: Vector3 = global_transform.basis.y.normalized()
+	var wall: Vector3 = global_transform.basis.x.slide(up)
+	if wall.length_squared() < 1e-4:
+		return
+	wall = wall.normalized()
+	var skew_rad := deg_to_rad(clampf(absf(skew_angle), 0.0, 80.0))
+	var cap: float = minf(absf(speed) * tan(skew_rad) / CARGO_ALIGN_LENGTH, CARGO_ALIGN_MAX_SPEED)
+	for guard in _side_guards:
+		if not is_instance_valid(guard):
+			continue
+		for body in guard.get_overlapping_cargo():
+			var rb := body as RigidBody3D
+			if rb != null and not rb.freeze:
+				_square_cargo(rb, up, wall, cap)
+
+
+func _square_cargo(rb: RigidBody3D, up: Vector3, wall: Vector3, cap: float) -> void:
+	var bx: Vector3 = rb.global_transform.basis.x.slide(up)
+	var bz: Vector3 = rb.global_transform.basis.z.slide(up)
+	if bx.length_squared() < 1e-4 or bz.length_squared() < 1e-4:
+		return
+	bx = bx.normalized()
+	bz = bz.normalized()
+	var axis: Vector3 = bx if absf(bx.dot(wall)) >= absf(bz.dot(wall)) else bz
+	var dir := signf(axis.dot(wall))
+	if dir == 0.0:
+		dir = 1.0
+	var target: Vector3 = wall * dir
+	var theta := atan2(axis.cross(target).dot(up), axis.dot(target))
+	var rate := clampf(theta * CARGO_ALIGN_GAIN * cargo_align_strength, -cap, cap)
+	if absf(rate) < 0.01:
+		return
+	var state := PhysicsServer3D.body_get_direct_state(rb.get_rid())
+	if state == null:
+		return
+	var denom: float = up.dot(state.inverse_inertia_tensor * up)
+	if denom < 1e-6:
+		return
+	var yaw_rate: float = rb.angular_velocity.dot(up)
+	rb.apply_torque_impulse(up * (rate - yaw_rate) / denom)
 
 
 func _request_legs_refresh() -> void:

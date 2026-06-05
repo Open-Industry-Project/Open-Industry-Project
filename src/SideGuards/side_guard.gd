@@ -23,6 +23,10 @@ extends MeshInstance3D
 
 @export_storage var arc_front: float = 0.0
 
+const SENSOR_INWARD_MARGIN := 0.04
+
+var _cargo_sensor: Area3D
+
 
 func _ready() -> void:
 	_rebuild()
@@ -77,3 +81,49 @@ func _update_collision_shape() -> void:
 	var ct := SideGuardMesh.COLLISION_THICKNESS
 	box.size = Vector3(length, wh, ct)
 	collision.position = Vector3(0, wh / 2.0, wt / 2.0)
+	_update_cargo_sensor_shape()
+
+
+func set_cargo_sensor_enabled(enabled: bool) -> void:
+	if enabled and _cargo_sensor == null:
+		_cargo_sensor = _build_cargo_sensor()
+	elif not enabled and _cargo_sensor != null:
+		_cargo_sensor.queue_free()
+		_cargo_sensor = null
+	_update_cargo_sensor_shape()
+
+
+func get_overlapping_cargo() -> Array[Node3D]:
+	if _cargo_sensor == null:
+		return []
+	return _cargo_sensor.get_overlapping_bodies()
+
+
+func _build_cargo_sensor() -> Area3D:
+	var area := Area3D.new()
+	area.name = "CargoSensor"
+	area.collision_layer = 0
+	area.collision_mask = 8
+	area.monitorable = false
+	var shape_node := CollisionShape3D.new()
+	shape_node.name = "CollisionShape3D"
+	area.add_child(shape_node)
+	add_child(area, false, Node.INTERNAL_MODE_FRONT)
+	return area
+
+
+func _update_cargo_sensor_shape() -> void:
+	if _cargo_sensor == null or length <= 0:
+		return
+	var shape_node := _cargo_sensor.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape_node == null:
+		return
+	var box := shape_node.shape as BoxShape3D
+	if box == null:
+		box = BoxShape3D.new()
+		shape_node.shape = box
+	var wh := SideGuardMesh.WALL_HEIGHT
+	var wt := SideGuardMesh.WALL_THICKNESS
+	var ct := SideGuardMesh.COLLISION_THICKNESS
+	box.size = Vector3(length, wh, ct + SENSOR_INWARD_MARGIN)
+	shape_node.position = Vector3(0, wh / 2.0, wt / 2.0 + SENSOR_INWARD_MARGIN / 2.0)
