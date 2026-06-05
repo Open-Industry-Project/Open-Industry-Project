@@ -2,20 +2,16 @@
 class_name Gantry
 extends Node3D
 
-## A 3-axis Cartesian gantry robot with vacuum gripper.
+## Art-driven 3-axis Cartesian gantry with vacuum gripper.
 ## Axis configuration:
-## - X: Longitudinal travel (along frame length)
-## - Y: Lateral travel (along frame width)
-## - Z: Vertical travel (up/down)
+## - X: travel along frame length
+## - Y: travel along frame width
+## - Z: vertical travel down from bridge
 
-const BEAM_THICKNESS := 0.08
-const RAIL_THICKNESS := 0.06
-const POST_RADIUS := 0.05
-const CARRIAGE_BLOCK_SIZE := 0.12
-const ACTUATOR_WIDTH := 0.08
-const TOOL_MOUNT_HEIGHT := 0.08
-const VACUUM_CUP_RADIUS := 0.15
-const VACUUM_CUP_HEIGHT := 0.06
+const DEFAULT_STRETCH_LENGTH := 4.0
+const CARRIAGE_SIZE := 0.12
+const TOOL_HEIGHT := 0.08
+const Z_ACTUATOR_VERTICAL_OFFSET := 0.25
 
 @export_tool_button("Set Home") var action_set_home: Callable = set_home_action
 @export_tool_button("Go Home") var action_go_home: Callable = go_home_action
@@ -30,45 +26,58 @@ const VACUUM_CUP_HEIGHT := 0.06
 @export var new_waypoint_name: String = "Point1"
 
 @export_category("Frame Size")
-## Length of the gantry frame along the X axis
-@export_range(0.5, 20.0, 0.01, "suffix:m") var frame_length: float = 2.0:
+@export_range(0.5, 20.0, 0.01, "suffix:m") var frame_length: float = 4.0:
 	set(value):
-		frame_length = value
+		frame_length = maxf(value, 0.5)
+		x_position = clampf(x_position, get_x_range().x, get_x_range().y)
 		_rebuild_geometry()
 
-## Width of the gantry frame along the Y axis
-@export_range(0.3, 10.0, 0.01, "suffix:m") var frame_width: float = 1.0:
+@export_range(0.3, 10.0, 0.01, "suffix:m") var frame_width: float = 2.0:
 	set(value):
-		frame_width = value
+		frame_width = maxf(value, 0.3)
+		y_position = clampf(y_position, get_y_range().x, get_y_range().y)
 		_rebuild_geometry()
 
-## Height of the gantry frame
-@export_range(0.5, 10.0, 0.01, "suffix:m") var frame_height: float = 1.5:
+@export_range(0.5, 10.0, 0.01, "suffix:m") var frame_height: float = 1.0:
 	set(value):
-		frame_height = value
+		frame_height = maxf(value, 0.5)
 		z_position = clampf(z_position, 0.0, _get_max_z_travel())
 		_rebuild_geometry()
 
 @export_category("Axis Positions")
-## X axis position (0 = center, range: -frame_length/2 to +frame_length/2)
 @export_range(-10.0, 10.0, 0.001, "suffix:m") var x_position: float = 0.0:
 	set(value):
-		var half := (frame_length - CARRIAGE_BLOCK_SIZE) / 2.0
-		x_position = clampf(value, -half, half)
+		x_position = clampf(value, get_x_range().x, get_x_range().y)
 		_update_axis_positions()
 
-## Y axis position (0 = center, range: -frame_width/2 to +frame_width/2)
-@export_range(-5.0, 5.0, 0.001, "suffix:m") var y_position: float = 0.0:
+@export_range(-10.0, 10.0, 0.001, "suffix:m") var y_position: float = 0.0:
 	set(value):
-		var half := (frame_width - CARRIAGE_BLOCK_SIZE) / 2.0
-		y_position = clampf(value, -half, half)
+		y_position = clampf(value, get_y_range().x, get_y_range().y)
 		_update_axis_positions()
 
-## Z axis position (0 = fully retracted, positive = extended down)
 @export_range(0.0, 10.0, 0.001, "suffix:m") var z_position: float = 0.0:
 	set(value):
 		z_position = clampf(value, 0.0, _get_max_z_travel())
 		_update_axis_positions()
+
+@export_category("Layout Offsets")
+@export var beam_front_offset: Vector3 = Vector3.ZERO
+@export var beam_back_offset: Vector3 = Vector3.ZERO
+@export var x_carriage_offset: Vector3 = Vector3(0.0, 0.15, 0.0)
+@export var beam_secondary_offset: Vector3 = Vector3.ZERO
+@export var secondary_followers_offset: Vector3 = Vector3.ZERO
+@export var y_carriage_offset: Vector3 = Vector3.ZERO
+@export var z_actuator_offset: Vector3 = Vector3.ZERO
+
+@export var leg_top_offset: Vector3 = Vector3.ZERO
+@export var leg_bottom_offset: Vector3 = Vector3.ZERO
+
+@export var beam_maincarriage_01_offset: Vector3 = Vector3.ZERO
+@export var beam_maincarriage_02_offset: Vector3 = Vector3.ZERO
+
+@export var beam_lift_offset: Vector3 = Vector3.ZERO
+@export var tool_offset: Vector3 = Vector3.ZERO
+@export var vacuum_area_offset: Vector3 = Vector3.ZERO
 
 @export_category("Vacuum Gripper")
 @export var vacuum_on: bool = false:
@@ -95,13 +104,14 @@ const VACUUM_CUP_HEIGHT := 0.06
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## Integer value selecting which waypoint to move to (0 = home, 1+ = waypoint by order).[br]Datatype: [code]INT[/code] (16-bit integer)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+
+## Integer value selecting which waypoint to move to (0 = home, 1+ = waypoint by order).
 @export var command_tag: String = ""
-## Rising edge triggers movement to command waypoint.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+## Rising edge triggers movement to command waypoint.
 @export var execute_tag: String = ""
-## True when gantry has reached target position.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+## True when gantry has reached target position.
 @export var done_tag: String = ""
-## Vacuum gripper control.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+## Vacuum gripper control.
 @export var vacuum_tag: String = ""
 
 var _command_tag := OIPCommsTag.new()
@@ -115,22 +125,41 @@ var _x_carriage: Node3D
 var _y_carriage: Node3D
 var _z_actuator: Node3D
 
-var _post_fl: MeshInstance3D
-var _post_fr: MeshInstance3D
-var _post_bl: MeshInstance3D
-var _post_br: MeshInstance3D
-var _beam_front: MeshInstance3D
-var _beam_back: MeshInstance3D
-var _rail_left: MeshInstance3D
-var _rail_right: MeshInstance3D
-var _cross_beam: MeshInstance3D
-var _carriage_block: MeshInstance3D
-var _actuator_rod: MeshInstance3D
-var _tool_mount: MeshInstance3D
-var _vacuum_cup_mesh: MeshInstance3D
-var _vacuum_cup_rim: MeshInstance3D
+var _leg_fl: Node3D
+var _leg_fr: Node3D
+var _leg_bl: Node3D
+var _leg_br: Node3D
 
+var _leg_main_fl: Node3D
+var _leg_main_fr: Node3D
+var _leg_main_bl: Node3D
+var _leg_main_br: Node3D
+
+var _leg_top_fl: Node3D
+var _leg_top_fr: Node3D
+var _leg_top_bl: Node3D
+var _leg_top_br: Node3D
+
+var _leg_bottom_fl: Node3D
+var _leg_bottom_fr: Node3D
+var _leg_bottom_bl: Node3D
+var _leg_bottom_br: Node3D
+
+var _beam_front: Node3D
+var _beam_back: Node3D
+var _beam_front_main: Node3D
+var _beam_back_main: Node3D
+
+var _beam_secondary: Node3D
+var _beam_secondary_followers: Node3D
+var _beam_maincarriage_01: Node3D
+var _beam_maincarriage_02: Node3D
+
+var _carriage: Node3D
+var _beam_lift: Node3D
+var _tool: Node3D
 var _vacuum_area: Area3D
+
 var _held_object: Node3D = null
 var _held_rigid_body: RigidBody3D = null
 var _held_object_basis: Basis = Basis.IDENTITY
@@ -161,8 +190,8 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
+	_setup_node_references()
 	_rebuild_geometry()
-	_update_materials()
 	new_waypoint_name = _get_next_waypoint_name()
 
 	if _vacuum_area:
@@ -178,100 +207,87 @@ func _process(_delta: float) -> void:
 
 func _setup_node_references() -> void:
 	_frame = get_node_or_null("Frame")
-	if not _frame:
+	_x_carriage = get_node_or_null("XCarriage")
+	_y_carriage = _x_carriage.get_node_or_null("YCarriage") if _x_carriage else null
+	_z_actuator = _y_carriage.get_node_or_null("ZActuator") if _y_carriage else null
+
+	if not _frame or not _x_carriage or not _y_carriage or not _z_actuator:
+		_initialized = false
 		return
 
+	_leg_fl = _frame.get_node_or_null("Leg_FL")
+	_leg_fr = _frame.get_node_or_null("Leg_FR")
+	_leg_bl = _frame.get_node_or_null("Leg_BL")
+	_leg_br = _frame.get_node_or_null("Leg_BR")
+
+	_leg_main_fl = _leg_fl.get_node_or_null("Leg_Main") if _leg_fl else null
+	_leg_main_fr = _leg_fr.get_node_or_null("Leg_Main") if _leg_fr else null
+	_leg_main_bl = _leg_bl.get_node_or_null("Leg_Main") if _leg_bl else null
+	_leg_main_br = _leg_br.get_node_or_null("Leg_Main") if _leg_br else null
+
+	_leg_top_fl = _leg_fl.get_node_or_null("Leg_Top") if _leg_fl else null
+	_leg_top_fr = _leg_fr.get_node_or_null("Leg_Top") if _leg_fr else null
+	_leg_top_bl = _leg_bl.get_node_or_null("Leg_Top") if _leg_bl else null
+	_leg_top_br = _leg_br.get_node_or_null("Leg_Top") if _leg_br else null
+
+	_leg_bottom_fl = _leg_fl.get_node_or_null("Leg_Bottom") if _leg_fl else null
+	_leg_bottom_fr = _leg_fr.get_node_or_null("Leg_Bottom") if _leg_fr else null
+	_leg_bottom_bl = _leg_bl.get_node_or_null("Leg_Bottom") if _leg_bl else null
+	_leg_bottom_br = _leg_br.get_node_or_null("Leg_Bottom") if _leg_br else null
+
+	_beam_front = _frame.get_node_or_null("Beam_Front")
+	_beam_back = _frame.get_node_or_null("Beam_Back")
+	_beam_front_main = _beam_front.get_node_or_null("Beam_Main") if _beam_front else null
+	_beam_back_main = _beam_back.get_node_or_null("Beam_Main") if _beam_back else null
+
+	_beam_secondary = _x_carriage.get_node_or_null("Beam_Secondary")
+	_beam_secondary_followers = _x_carriage.get_node_or_null("Beam_Secondary_Followers")
+	_beam_maincarriage_01 = _beam_secondary_followers.get_node_or_null("Beam_MainCarriage_01") if _beam_secondary_followers else null
+	_beam_maincarriage_02 = _beam_secondary_followers.get_node_or_null("Beam_MainCarriage_02") if _beam_secondary_followers else null
+
+	_carriage = _y_carriage.get_node_or_null("Carriage")
+	_beam_lift = _z_actuator.get_node_or_null("Beam_Lift")
+	_tool = _z_actuator.get_node_or_null("Tool")
+	_vacuum_area = _z_actuator.get_node_or_null("VacuumArea")
+
 	_initialized = true
-
-	_post_fl = _frame.get_node_or_null("PostFrontLeft")
-	_post_fr = _frame.get_node_or_null("PostFrontRight")
-	_post_bl = _frame.get_node_or_null("PostBackLeft")
-	_post_br = _frame.get_node_or_null("PostBackRight")
-	_beam_front = _frame.get_node_or_null("BeamFront")
-	_beam_back = _frame.get_node_or_null("BeamBack")
-	_rail_left = _frame.get_node_or_null("RailLeft")
-	_rail_right = _frame.get_node_or_null("RailRight")
-
-	_x_carriage = get_node_or_null("XCarriage")
-	_cross_beam = _x_carriage.get_node_or_null("CrossBeam") if _x_carriage else null
-	_y_carriage = _x_carriage.get_node_or_null("YCarriage") if _x_carriage else null
-	_carriage_block = _y_carriage.get_node_or_null("CarriageBlock") if _y_carriage else null
-	_z_actuator = _y_carriage.get_node_or_null("ZActuator") if _y_carriage else null
-	_actuator_rod = _z_actuator.get_node_or_null("ActuatorRod") if _z_actuator else null
-	_tool_mount = _z_actuator.get_node_or_null("ToolMount") if _z_actuator else null
-	_vacuum_cup_mesh = _z_actuator.get_node_or_null("VacuumCup") if _z_actuator else null
-	_vacuum_cup_rim = _z_actuator.get_node_or_null("VacuumCupRim") if _z_actuator else null
-	_vacuum_area = _z_actuator.get_node_or_null("VacuumArea") if _z_actuator else null
 
 
 func _rebuild_geometry() -> void:
 	if not _initialized:
 		return
 
-	var half_l := frame_length / 2.0
-	var half_w := frame_width / 2.0
+	var half_l := frame_length * 0.5
+	var half_w := frame_width * 0.5
 
-	# Posts (vertical cylinders at corners)
-	_set_cylinder_mesh(_post_fl, POST_RADIUS, frame_height)
-	_post_fl.position = Vector3(-half_l, frame_height / 2.0, -half_w)
+	if _leg_fl:
+		_leg_fl.position = Vector3(-half_l, 0.0, -half_w)
+	if _leg_fr:
+		_leg_fr.position = Vector3(half_l, 0.0, -half_w)
+	if _leg_bl:
+		_leg_bl.position = Vector3(-half_l, 0.0, half_w)
+	if _leg_br:
+		_leg_br.position = Vector3(half_l, 0.0, half_w)
 
-	_set_cylinder_mesh(_post_fr, POST_RADIUS, frame_height)
-	_post_fr.position = Vector3(half_l, frame_height / 2.0, -half_w)
+	_apply_stretch(_leg_main_fl, "y", frame_height)
+	_apply_stretch(_leg_main_fr, "y", frame_height)
+	_apply_stretch(_leg_main_bl, "y", frame_height)
+	_apply_stretch(_leg_main_br, "y", frame_height)
 
-	_set_cylinder_mesh(_post_bl, POST_RADIUS, frame_height)
-	_post_bl.position = Vector3(-half_l, frame_height / 2.0, half_w)
+	_position_leg_parts(_leg_top_fl, _leg_bottom_fl)
+	_position_leg_parts(_leg_top_fr, _leg_bottom_fr)
+	_position_leg_parts(_leg_top_bl, _leg_bottom_bl)
+	_position_leg_parts(_leg_top_br, _leg_bottom_br)
 
-	_set_cylinder_mesh(_post_br, POST_RADIUS, frame_height)
-	_post_br.position = Vector3(half_l, frame_height / 2.0, half_w)
+	if _beam_front:
+		_beam_front.position = Vector3(0.0, frame_height, -half_w) + beam_front_offset
+	if _beam_back:
+		_beam_back.position = Vector3(0.0, frame_height, half_w) + beam_back_offset
 
-	# Top beams along X (front and back)
-	_set_box_mesh(_beam_front, Vector3(frame_length, BEAM_THICKNESS, BEAM_THICKNESS))
-	_beam_front.position = Vector3(0, frame_height - BEAM_THICKNESS / 2.0, -half_w)
+	_apply_stretch(_beam_front_main, "x", frame_length)
+	_apply_stretch(_beam_back_main, "x", frame_length)
 
-	_set_box_mesh(_beam_back, Vector3(frame_length, BEAM_THICKNESS, BEAM_THICKNESS))
-	_beam_back.position = Vector3(0, frame_height - BEAM_THICKNESS / 2.0, half_w)
-
-	# Rails along X (where X carriage rides, slightly below top beams)
-	var rail_y := frame_height - BEAM_THICKNESS - RAIL_THICKNESS / 2.0
-	_set_box_mesh(_rail_left, Vector3(frame_length - POST_RADIUS * 2.0, RAIL_THICKNESS, RAIL_THICKNESS))
-	_rail_left.position = Vector3(0, rail_y, -half_w)
-
-	_set_box_mesh(_rail_right, Vector3(frame_length - POST_RADIUS * 2.0, RAIL_THICKNESS, RAIL_THICKNESS))
-	_rail_right.position = Vector3(0, rail_y, half_w)
-
-	# X carriage top position
-	var carriage_y := rail_y - RAIL_THICKNESS / 2.0
-	if _x_carriage:
-		_x_carriage.position.y = carriage_y
-
-	# Cross beam along Y (spans the width)
-	_set_box_mesh(_cross_beam, Vector3(BEAM_THICKNESS, BEAM_THICKNESS, frame_width))
-	_cross_beam.position = Vector3(0, 0, 0)
-
-	# Carriage block on Y axis
-	_set_box_mesh(_carriage_block, Vector3(CARRIAGE_BLOCK_SIZE, CARRIAGE_BLOCK_SIZE, CARRIAGE_BLOCK_SIZE))
-	_carriage_block.position = Vector3(0, -BEAM_THICKNESS / 2.0 - CARRIAGE_BLOCK_SIZE / 2.0, 0)
-
-	# Z actuator (fixed to carriage, does not move with z_position)
-	var actuator_top_y := -BEAM_THICKNESS / 2.0 - CARRIAGE_BLOCK_SIZE
-	if _z_actuator:
-		_z_actuator.position = Vector3(0, actuator_top_y, 0)
-
-	# Rod and tool sizes only — positions are set in _update_tool_position
-	_set_box_mesh(_tool_mount, Vector3(CARRIAGE_BLOCK_SIZE * 1.5, TOOL_MOUNT_HEIGHT, CARRIAGE_BLOCK_SIZE * 1.5))
-	_set_cylinder_mesh(_vacuum_cup_mesh, VACUUM_CUP_RADIUS, VACUUM_CUP_HEIGHT)
-
-	if _vacuum_cup_rim:
-		var rim_mesh := _vacuum_cup_rim.mesh as TorusMesh
-		if rim_mesh:
-			rim_mesh.inner_radius = VACUUM_CUP_RADIUS * 0.8
-			rim_mesh.outer_radius = VACUUM_CUP_RADIUS * 1.05
-
-	if _vacuum_area:
-		var col_shape := _vacuum_area.get_node_or_null("VacuumCollision") as CollisionShape3D
-		if col_shape and col_shape.shape is SphereShape3D:
-			(col_shape.shape as SphereShape3D).radius = VACUUM_CUP_RADIUS * 3.0
-
+	z_position = clampf(z_position, 0.0, _get_max_z_travel())
 	_update_axis_positions()
 	update_gizmos()
 
@@ -281,99 +297,117 @@ func _update_axis_positions() -> void:
 		return
 
 	if _x_carriage:
-		_x_carriage.position.x = x_position
+		_x_carriage.position = Vector3(x_position, frame_height, 0.0) + x_carriage_offset
+
+	if _beam_secondary:
+		_beam_secondary.position = beam_secondary_offset
+		_apply_stretch(_beam_secondary, "z", frame_width)
+
+	if _beam_secondary_followers:
+		_beam_secondary_followers.position = secondary_followers_offset
+
+	_position_secondary_parts()
 
 	if _y_carriage:
-		_y_carriage.position.z = y_position
+		_y_carriage.position = Vector3(0.0, 0.0, y_position) + y_carriage_offset
+
+	if _carriage:
+		_carriage.position = Vector3.ZERO
+
+	if _z_actuator:
+		_z_actuator.position = Vector3(0.0, frame_height - Z_ACTUATOR_VERTICAL_OFFSET, 0.0) + z_actuator_offset
 
 	_update_tool_position()
 	update_gizmos()
 
 
 func _update_tool_position() -> void:
-	# Rod extends like a piston; tool mount is always at the bottom tip
-	var rod_length := z_position + ACTUATOR_WIDTH
-	_set_box_mesh(_actuator_rod, Vector3(ACTUATOR_WIDTH, rod_length, ACTUATOR_WIDTH))
-	if _actuator_rod:
-		_actuator_rod.position = Vector3(0, -rod_length / 2.0, 0)
-
-	var tip_y := -rod_length
-	if _tool_mount:
-		_tool_mount.position = Vector3(0, tip_y - TOOL_MOUNT_HEIGHT / 2.0, 0)
-
-	var cup_y := tip_y - TOOL_MOUNT_HEIGHT - VACUUM_CUP_HEIGHT / 2.0
-	if _vacuum_cup_mesh:
-		_vacuum_cup_mesh.position = Vector3(0, cup_y, 0)
-
-	var rim_y := cup_y - VACUUM_CUP_HEIGHT / 2.0
-	if _vacuum_cup_rim:
-		_vacuum_cup_rim.position = Vector3(0, rim_y, 0)
-
-	if _vacuum_area:
-		_vacuum_area.position = Vector3(0, rim_y, 0)
-
-
-func _set_box_mesh(mesh_inst: MeshInstance3D, size: Vector3) -> void:
-	if not mesh_inst:
-		return
-	var box := mesh_inst.mesh as BoxMesh
-	if box:
-		box.size = size
-
-
-func _set_cylinder_mesh(mesh_inst: MeshInstance3D, radius: float, height: float) -> void:
-	if not mesh_inst:
-		return
-	var cyl := mesh_inst.mesh as CylinderMesh
-	if cyl:
-		cyl.top_radius = radius
-		cyl.bottom_radius = radius
-		cyl.height = height
-
-
-func _update_materials() -> void:
 	if not _initialized:
 		return
 
-	var frame_mat := _create_material(Color(0.35, 0.35, 0.4), 0.6, 0.4)
-	var rail_mat := _create_material(Color(0.7, 0.7, 0.75), 0.7, 0.3)
-	var carriage_mat := _create_material(Color(0.9, 0.5, 0.1), 0.4, 0.5)
-	var actuator_mat := _create_material(Color(0.2, 0.2, 0.25), 0.5, 0.4)
-	var vacuum_color := Color(0.2, 0.6, 0.2) if vacuum_on else Color(0.15, 0.15, 0.15)
-	var vacuum_mat := _create_material(vacuum_color, 0.1, 0.9)
+	var lift_length := frame_height
+	_apply_stretch(_beam_lift, "y", lift_length)
 
-	_apply_material([_post_fl, _post_fr, _post_bl, _post_br, _beam_front, _beam_back], frame_mat)
-	_apply_material([_rail_left, _rail_right], rail_mat)
-	_apply_material([_cross_beam, _carriage_block], carriage_mat)
-	_apply_material([_actuator_rod, _tool_mount], actuator_mat)
-	_apply_material([_vacuum_cup_mesh, _vacuum_cup_rim], vacuum_mat)
+	var lift_top_y := -z_position
+	if _beam_lift:
+		_beam_lift.position = Vector3(0.0, lift_top_y, 0.0) + beam_lift_offset
 
+	var tool_y := lift_top_y - lift_length
+	if _tool:
+		_tool.position = Vector3(0.0, tool_y, 0.0) + tool_offset
 
-func _create_material(color: Color, metallic: float, roughness: float) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.metallic = metallic
-	mat.roughness = roughness
-	return mat
+	if _vacuum_area:
+		_vacuum_area.position = Vector3(0.0, tool_y, 0.0) + vacuum_area_offset
 
 
-func _apply_material(meshes: Array, mat: Material) -> void:
-	for mesh: MeshInstance3D in meshes:
-		if mesh:
-			mesh.material_override = mat
+func _position_leg_parts(leg_top: Node3D, leg_bottom: Node3D) -> void:
+	if leg_top:
+		leg_top.position = Vector3(0.0, frame_height, 0.0) + leg_top_offset
+	if leg_bottom:
+		leg_bottom.position = leg_bottom_offset
+
+
+func _position_secondary_parts() -> void:
+	var half_w := frame_width * 0.5
+	if _beam_maincarriage_01:
+		_beam_maincarriage_01.position = Vector3(0.0, 0.0, half_w) + beam_maincarriage_01_offset
+	if _beam_maincarriage_02:
+		_beam_maincarriage_02.position = Vector3(0.0, 0.0, -half_w) + beam_maincarriage_02_offset
+
+
+func _apply_stretch(node: Node3D, axis: String, target_length: float) -> void:
+	if not node:
+		return
+
+	var ratio := maxf(target_length / DEFAULT_STRETCH_LENGTH, 0.001)
+	var s := node.scale
+
+	match axis:
+		"x":
+			s.x = ratio
+		"y":
+			s.y = ratio
+		"z":
+			s.z = ratio
+
+	node.scale = s
+	_push_uv_multiplier(node, ratio)
+
+
+func _push_uv_multiplier(node: Node, ratio: float) -> void:
+	if not node:
+		return
+
+	if node.has_method("set_u_tiling_multiplier"):
+		node.call("set_u_tiling_multiplier", ratio)
+		return
+
+	if "u_tiling_multiplier" in node:
+		node.set("u_tiling_multiplier", ratio)
+		return
+
+	for child in node.get_children():
+		if child.has_method("set_u_tiling_multiplier"):
+			child.call("set_u_tiling_multiplier", ratio)
+			return
+		if "u_tiling_multiplier" in child:
+			child.set("u_tiling_multiplier", ratio)
+			return
 
 
 func get_tool_tip_position() -> Vector3:
-	if _vacuum_cup_mesh and is_inside_tree():
-		return _vacuum_cup_mesh.global_position - _vacuum_cup_mesh.global_transform.basis.y * (VACUUM_CUP_HEIGHT / 2.0)
+	if _vacuum_area and is_inside_tree():
+		return _vacuum_area.global_position
+	if _tool and is_inside_tree():
+		return _tool.global_position
 	return global_position if is_inside_tree() else position
 
 
 func get_tool_tip_transform() -> Transform3D:
-	if _vacuum_cup_mesh and is_inside_tree():
-		var tip_transform := _vacuum_cup_mesh.global_transform
-		tip_transform.origin -= tip_transform.basis.y * (VACUUM_CUP_HEIGHT / 2.0)
-		return tip_transform
+	if _vacuum_area and is_inside_tree():
+		return _vacuum_area.global_transform
+	if _tool and is_inside_tree():
+		return _tool.global_transform
 	return global_transform if is_inside_tree() else transform
 
 
@@ -391,12 +425,12 @@ func set_axis_positions(positions: Array[float]) -> void:
 
 
 func get_x_range() -> Vector2:
-	var half := (frame_length - CARRIAGE_BLOCK_SIZE) / 2.0
+	var half := maxf((frame_length - CARRIAGE_SIZE) / 2.0, 0.0)
 	return Vector2(-half, half)
 
 
 func get_y_range() -> Vector2:
-	var half := (frame_width - CARRIAGE_BLOCK_SIZE) / 2.0
+	var half := maxf((frame_width - CARRIAGE_SIZE) / 2.0, 0.0)
 	return Vector2(-half, half)
 
 
@@ -405,18 +439,13 @@ func get_z_range() -> Vector2:
 
 
 func _get_max_z_travel() -> float:
-	# Carriage sits below the top beams and rails
-	var overhead := BEAM_THICKNESS + RAIL_THICKNESS + CARRIAGE_BLOCK_SIZE + BEAM_THICKNESS / 2.0
-	# Tool hangs below the rod
-	var tool_hang := TOOL_MOUNT_HEIGHT + VACUUM_CUP_HEIGHT
-	return maxf(frame_height - overhead - tool_hang, 0.1)
+	return maxf(frame_height - Z_ACTUATOR_VERTICAL_OFFSET + 0.025, 0.0)
 
 
 # --- Vacuum gripper ---
 
 
 func _update_vacuum_state() -> void:
-	_update_materials()
 	if vacuum_on:
 		_try_pick_up()
 	else:
@@ -426,11 +455,11 @@ func _update_vacuum_state() -> void:
 func _update_held_object() -> void:
 	if not _held_rigid_body or not is_instance_valid(_held_rigid_body):
 		return
-	if not _vacuum_area or not _vacuum_cup_mesh:
+	if not _vacuum_area:
 		return
 
 	var tip_pos := _vacuum_area.global_position
-	var cup_dir := -_vacuum_cup_mesh.global_transform.basis.y.normalized()
+	var cup_dir := -_vacuum_area.global_transform.basis.y.normalized()
 
 	var box_offset := 0.1
 	if _held_object and "size" in _held_object:
@@ -438,8 +467,8 @@ func _update_held_object() -> void:
 
 	var target_pos := tip_pos + cup_dir * box_offset
 	_held_rigid_body.global_position = target_pos
-	var cup_basis := _vacuum_cup_mesh.global_transform.basis.orthonormalized()
-	_held_rigid_body.global_transform.basis = cup_basis * _held_object_basis
+	var area_basis := _vacuum_area.global_transform.basis.orthonormalized()
+	_held_rigid_body.global_transform.basis = area_basis * _held_object_basis
 
 
 func _try_pick_up() -> void:
@@ -489,10 +518,10 @@ func _attach_object(obj: Node3D) -> void:
 	_held_object = target_node
 	_held_rigid_body = rigid_body
 
-	if rigid_body and _vacuum_cup_mesh:
-		var cup_basis := _vacuum_cup_mesh.global_transform.basis.orthonormalized()
+	if rigid_body and _vacuum_area:
+		var area_basis := _vacuum_area.global_transform.basis.orthonormalized()
 		var obj_basis := rigid_body.global_transform.basis.orthonormalized()
-		_held_object_basis = cup_basis.inverse() * obj_basis
+		_held_object_basis = area_basis.inverse() * obj_basis
 	else:
 		_held_object_basis = Basis.IDENTITY
 
