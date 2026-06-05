@@ -1,0 +1,138 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://es42yh63adr4"
+path="res://.godot/imported/Gantry.glb-53def6fea5b37775c76079098215d397.scn"
+
+[deps]
+
+source_file="res://assets/3DModels/Gantry/Gantry.glb"
+dest_files=["res://.godot/imported/Gantry.glb-53def6fea5b37775c76079098215d397.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"meshes": {
+"Gantry_Beam_Lift": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Beam_Lift.res",
+"save_to_file/path": "uid://dyrkuhosvdpf5"
+},
+"Gantry_Beam_Main": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Beam_Main.res",
+"save_to_file/path": "uid://blqmg43lv0n0x"
+},
+"Gantry_Beam_MainCarriage_01": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Beam_MainCarriage_01.res",
+"save_to_file/path": "uid://d0663jp2xbgq8"
+},
+"Gantry_Beam_MainCarriage_02": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Beam_MainCarriage_02.res",
+"save_to_file/path": "uid://d32rtjpg5fdyw"
+},
+"Gantry_Beam_Secondary": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Beam_Secondary.res",
+"save_to_file/path": "uid://dhmjbf6s6upj1"
+},
+"Gantry_Carriage": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Carriage.res",
+"save_to_file/path": "uid://b51dmy8japxdf"
+},
+"Gantry_Leg_Base": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Leg_Base.res",
+"save_to_file/path": "uid://dhkwg1f5nnww7"
+},
+"Gantry_Leg_Main": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Leg_Main.res",
+"save_to_file/path": "uid://b6w3250qnqk0o"
+},
+"Gantry_Leg_Top": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Leg_Top.res",
+"save_to_file/path": "uid://ehukh2yemj05"
+},
+"Gantry_Tool_01": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/Gantry/Meshes/Tool.res",
+"save_to_file/path": "uid://b2qnxgv66i0dd"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1
+gltf/texture_map_mode=1
