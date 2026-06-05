@@ -37,7 +37,7 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		return size.y
 
 ## Splay angle of the downstream (+X) end. Positive splays outward.
-@export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = 0.0:
+@export_range(-70, 70, 1, "radians_as_degrees") var angle_downstream: float = deg_to_rad(30.0):
 	set(value):
 		if value == angle_downstream:
 			return
