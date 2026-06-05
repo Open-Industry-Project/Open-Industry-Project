@@ -439,7 +439,7 @@ func get_z_range() -> Vector2:
 
 
 func _get_max_z_travel() -> float:
-	return maxf(frame_height - Z_ACTUATOR_VERTICAL_OFFSET, 0.0)
+	return maxf(frame_height - Z_ACTUATOR_VERTICAL_OFFSET + 0.025, 0.0)
 
 
 # --- Vacuum gripper ---
