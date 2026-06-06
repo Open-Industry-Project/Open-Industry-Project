@@ -193,7 +193,7 @@ func _collision_repositioned_undo(saved: Variant) -> void:
 		floor_plane = saved
 
 
-@export var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegC.tscn"):
+@export var leg_model_scene: PackedScene = preload("res://parts/StraightLeg.tscn"):
 	set(value):
 		leg_model_scene = value
 		_rebuild_legs()
@@ -476,9 +476,9 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if ConveyorLeg.legs_state_changed(self, _legs_state):
+	if LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
-		_legs_state = ConveyorLeg.capture_leg_state(self)
+		_legs_state = LegFooting.capture_leg_state(self)
 	if Simulation.is_running() and _sb:
 		var local_up := _sb.global_transform.basis.y.normalized()
 		_sb.constant_angular_velocity = -local_up * _angular_speed
@@ -881,7 +881,7 @@ func _rebuild_legs() -> void:
 		var angle_rad: float = deg_to_rad(angle_deg)
 		var belt_bottom_local: Vector3 = Vector3(-sin(angle_rad) * avg_r, -height, cos(angle_rad) * avg_r)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
-		var foot_v: Variant = ConveyorLeg.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
+		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			continue
 		var foot_world: Vector3 = foot_v

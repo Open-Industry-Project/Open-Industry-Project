@@ -145,7 +145,7 @@ const _GAP_FILL_DEPTH: float = 0.05
 		floor_plane = value
 		_request_legs_refresh()
 
-@export var leg_model_scene: PackedScene = preload("res://parts/ConveyorLeg.tscn"):
+@export var leg_model_scene: PackedScene = preload("res://parts/StraightLeg.tscn"):
 	set(value):
 		leg_model_scene = value
 		_request_rebuild()
@@ -737,7 +737,7 @@ func _reconcile_frame_rail(rail_name: String, extents: Vector2,
 		mi.name = rail_name
 		add_child(mi, false, Node.INTERNAL_MODE_FRONT)
 		mi.owner = self
-	mi.mesh = ConveyorFrameMesh.create(rail_length, height)
+	mi.mesh = ConveyorFrameMesh.create(rail_length, height, true, true, true)
 	mi.set_surface_override_material(0, ConveyorFrameMesh.create_material())
 	var rail_basis: Basis = Basis(Vector3.UP, PI) if flipped else Basis.IDENTITY
 	mi.transform = Transform3D(rail_basis, Vector3(center_x, -height, z_pos))
@@ -870,7 +870,7 @@ func _rebuild_legs() -> void:
 		var x: float = spec["x"]
 		var belt_bottom_local: Vector3 = Vector3(x, -height, 0.0)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
-		var foot_v: Variant = ConveyorLeg.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
+		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			continue
 		var foot_world: Vector3 = foot_v
@@ -921,7 +921,7 @@ func _reposition_existing_legs() -> void:
 		var x: float = spec["x"]
 		var belt_bottom_local: Vector3 = Vector3(x, -height, 0.0)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
-		var foot_v: Variant = ConveyorLeg.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
+		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			leg.visible = false
 			continue
@@ -989,9 +989,9 @@ func _update_flow_arrow() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if ConveyorLeg.legs_state_changed(self, _legs_state):
+	if LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
-		_legs_state = ConveyorLeg.capture_leg_state(self)
+		_legs_state = LegFooting.capture_leg_state(self)
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	BeltSurface.apply_velocity(_simple_conveyor_shape, speed)

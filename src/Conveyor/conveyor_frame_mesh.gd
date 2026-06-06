@@ -9,13 +9,20 @@ const WALL_THICKNESS: float = 0.01
 const FLANGE_WIDTH: float = 0.02
 const FLANGE_THICKNESS: float = 0.005
 
+const FRAME_BOLT_RADIUS: float = 0.012    # hex-head radius (centre to corner)
+const FRAME_BOLT_HEIGHT: float = 0.01     # protrusion from the web outer face
+const FRAME_BOLT_SPACING: float = 1.2     # station pitch along the rail (~idler bracket pitch)
+const FRAME_BOLT_PAIR_GAP: float = 0.08   # vertical gap between the two bolts at each station
+const FRAME_BOLT_INSET: float = 0.002     # base seated this far inside the wall face
+
 static var _metal_texture: Texture2D = preload("res://assets/3DModels/Textures/Metal.png")
 static var _shared_material: ShaderMaterial
+static var _bolt_material: ShaderMaterial
 
 
 ## Disable a cap when a bend rail abuts the end (avoids z-fighting).
 static func create(length: float, height: float,
-		cap_front: bool = true, cap_back: bool = true) -> ArrayMesh:
+		cap_front: bool = true, cap_back: bool = true, web_bolts: bool = false) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
@@ -88,12 +95,107 @@ static func create(length: float, height: float,
 	arrays[Mesh.ARRAY_INDEX] = indices
 
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	if web_bolts:
+		_add_bolt_surface(mesh, _web_bolt_placements(length, h))
 	return mesh
+
+
+static func create_bolt_material() -> ShaderMaterial:
+	if _bolt_material:
+		return _bolt_material
+	var src := load("res://assets/3DModels/Materials/LegsStandMaterial.tres") as ShaderMaterial
+	if src == null:
+		return null
+	var m := src.duplicate() as ShaderMaterial
+	m.set_shader_parameter("Scale", 1.0)
+	m.set_shader_parameter("Color", Color(0.9, 0.91, 0.93))
+	m.set_shader_parameter("Metallic", 0.85)
+	m.set_shader_parameter("Roughness", 0.28)
+	m.set_shader_parameter("Specular", 0.85)
+	_bolt_material = m
+	return _bolt_material
+
+
+# inv_scale pre-compensates a non-uniform instance scale so the bolts still render round.
+static func _add_bolt_surface(mesh: ArrayMesh, placements: Array, inv_scale: Vector3 = Vector3.ONE) -> void:
+	if placements.is_empty():
+		return
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	for p: Dictionary in placements:
+		_add_bolt_hex(verts, norms, uvs, indices, p["centre"], p["axis"],
+				FRAME_BOLT_RADIUS, FRAME_BOLT_HEIGHT, inv_scale)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(mesh.get_surface_count() - 1, create_bolt_material())
+
+
+# One row serves both rails: the right rail's 180° rotation flips -Z to its own outward side.
+static func _web_bolt_placements(length: float, h: float) -> Array:
+	var out: Array = []
+	var count: int = maxi(2, int(round(length / FRAME_BOLT_SPACING)))
+	var half_l: float = length / 2.0
+	var y_row: float = h * 0.5
+	var g: float = FRAME_BOLT_PAIR_GAP * 0.5
+	for i in count:
+		var x: float = -half_l + (float(i) + 0.5) / float(count) * length
+		for dy: float in [-g, g]:
+			out.append({"centre": Vector3(x, y_row + dy, FRAME_BOLT_INSET), "axis": Vector3(0, 0, -1)})
+	return out
+
+
+# Hex prism (winding/normals match the leg bolts); inv_scale survives a non-uniform instance scale.
+static func _add_bolt_hex(verts: PackedVector3Array, norms: PackedVector3Array,
+		uvs: PackedVector2Array, indices: PackedInt32Array,
+		base_centre: Vector3, axis: Vector3, radius: float, height: float,
+		inv_scale: Vector3 = Vector3.ONE) -> void:
+	var n: Vector3 = axis.normalized()
+	var u: Vector3 = n.cross(Vector3.UP)
+	if u.length_squared() < 1.0e-6:
+		u = n.cross(Vector3.RIGHT)
+	u = u.normalized()
+	var v: Vector3 = n.cross(u)
+	var norm_scale := Vector3(1.0 / inv_scale.x, 1.0 / inv_scale.y, 1.0 / inv_scale.z)
+	var dirs: Array[Vector3] = []
+	var bottom: Array[Vector3] = []
+	var top: Array[Vector3] = []
+	for i in 6:
+		var a: float = float(i) * (TAU / 6.0)
+		var d: Vector3 = u * cos(a) + v * sin(a)
+		dirs.append(d)
+		bottom.append(base_centre + (d * radius) * inv_scale)
+		top.append(base_centre + (d * radius + n * height) * inv_scale)
+	var centre_top := base_centre + (n * height) * inv_scale
+	var cap_n := (n * norm_scale).normalized()
+	for i in 6:
+		var j: int = (i + 1) % 6
+		var side_n: Vector3 = ((dirs[i] + dirs[j]).normalized() * norm_scale).normalized()
+		_bolt_tri(verts, norms, uvs, indices, centre_top, top[j], top[i], cap_n)
+		_bolt_tri(verts, norms, uvs, indices, bottom[i], top[j], bottom[j], side_n)
+		_bolt_tri(verts, norms, uvs, indices, bottom[i], top[i], top[j], side_n)
+
+
+static func _bolt_tri(verts: PackedVector3Array, norms: PackedVector3Array,
+		uvs: PackedVector2Array, indices: PackedInt32Array,
+		a: Vector3, b: Vector3, c: Vector3, n: Vector3) -> void:
+	var base: int = verts.size()
+	verts.append(a); verts.append(b); verts.append(c)
+	norms.append(n); norms.append(n); norms.append(n)
+	uvs.append(Vector2(a.x, a.z)); uvs.append(Vector2(b.x, b.z)); uvs.append(Vector2(c.x, c.z))
+	indices.append(base); indices.append(base + 1); indices.append(base + 2)
 
 
 ## Curved frame plates (inner + outer walls) following an arc.
 static func create_curved(r_inner: float, r_outer: float, y_top: float, y_bottom: float,
-		angle_radians: float, segments: int, scale_factor: float = 1.0) -> ArrayMesh:
+		angle_radians: float, segments: int, scale_factor: float = 1.0,
+		web_bolts: bool = false) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
@@ -157,7 +259,32 @@ static func create_curved(r_inner: float, r_outer: float, y_top: float, y_bottom
 	arrays[Mesh.ARRAY_TEX_UV] = uvs_arr
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	if web_bolts:
+		# Mesh is built at sf-scale in X/Z and the instance scales by 1/sf, so compensate.
+		_add_bolt_surface(mesh,
+				_curved_bolt_placements(r_inner_frame, r_outer_frame, y_top, y_bottom, angle_radians, sf),
+				Vector3(sf, 1.0, sf))
 	return mesh
+
+
+static func _curved_bolt_placements(r_inner_frame: float, r_outer_frame: float,
+		y_top: float, y_bottom: float, angle_radians: float, sf: float) -> Array:
+	var out: Array = []
+	var y_mid: float = (y_top + y_bottom) * 0.5
+	var g: float = FRAME_BOLT_PAIR_GAP * 0.5
+	for wall: Array in [[r_outer_frame, 1.0], [r_inner_frame, -1.0]]:
+		var r: float = wall[0]
+		var dir: float = wall[1]  # +1 outer wall faces +radial, -1 inner wall faces -radial
+		var count: int = maxi(2, int(round(r * angle_radians / FRAME_BOLT_SPACING)))
+		for i in count:
+			var angle: float = (float(i) + 0.5) / float(count) * angle_radians
+			var radial := Vector3(-sin(angle), 0, cos(angle))
+			for dy: float in [-g, g]:
+				out.append({
+					"centre": Vector3(radial.x * r * sf, y_mid + dy, radial.z * r * sf),
+					"axis": radial * dir,
+				})
+	return out
 
 
 static func _append_curved_flange(verts: PackedVector3Array, norms: PackedVector3Array,
@@ -325,7 +452,7 @@ static func _append_flat_quad(verts: PackedVector3Array, norms: PackedVector3Arr
 static func create_along_path(path: BeltPath, height: float, width: float,
 		side_sign: float,
 		head_overhang: float = 0.0, tail_overhang: float = 0.0,
-		arc_segments: int = 8) -> ArrayMesh:
+		web_bolts: bool = false, arc_segments: int = 8) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	if path == null or path.runs.is_empty() or height <= 0.0 or width <= 0.0:
 		return mesh
@@ -471,7 +598,39 @@ static func create_along_path(path: BeltPath, height: float, width: float,
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	if web_bolts:
+		_add_bolt_surface(mesh, _path_bolt_placements(
+				samples_pos, samples_norm, samples_s, h, half_w, wt, side_sign, cross_axis))
 	return mesh
+
+
+static func _path_bolt_placements(samples_pos: PackedVector3Array, samples_norm: PackedVector3Array,
+		samples_s: PackedFloat32Array, h: float, half_w: float, wt: float,
+		side_sign: float, cross_axis: Vector3) -> Array:
+	var out: Array = []
+	var n_samples: int = samples_pos.size()
+	if n_samples < 2:
+		return out
+	var total: float = samples_s[n_samples - 1] - samples_s[0]
+	if total <= 0.0:
+		return out
+	var count: int = maxi(2, int(round(total / FRAME_BOLT_SPACING)))
+	var axis: Vector3 = cross_axis * side_sign
+	var g: float = FRAME_BOLT_PAIR_GAP * 0.5
+	var seg: int = 0
+	for i in count:
+		var s_target: float = samples_s[0] + (float(i) + 0.5) / float(count) * total
+		while seg < n_samples - 2 and samples_s[seg + 1] < s_target:
+			seg += 1
+		var s0: float = samples_s[seg]
+		var s1: float = samples_s[seg + 1]
+		var t: float = 0.0 if s1 <= s0 else clampf((s_target - s0) / (s1 - s0), 0.0, 1.0)
+		var pos: Vector3 = samples_pos[seg].lerp(samples_pos[seg + 1], t)
+		var nrm: Vector3 = samples_norm[seg].lerp(samples_norm[seg + 1], t).normalized()
+		var base: Vector3 = pos - nrm * (h * 0.5) + cross_axis * (side_sign * (half_w + wt - FRAME_BOLT_INSET))
+		for dy: float in [-g, g]:
+			out.append({"centre": base + nrm * dy, "axis": axis})
+	return out
 
 
 static func _path_frame_vertex(top: Vector3, normal: Vector3, p: Vector2,
