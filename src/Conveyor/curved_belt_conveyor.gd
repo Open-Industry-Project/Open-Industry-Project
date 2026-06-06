@@ -918,9 +918,9 @@ func _add_curved_frame_surface(mesh_instance: ArrayMesh, angle_radians: float,
 			r_inner, r_outer, y_top, y_bottom, angle_radians, segments, sf, true)
 	frame_mesh.surface_set_material(0, _metal_material)
 
-	var frame_arrays := frame_mesh.surface_get_arrays(0)
-	mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, frame_arrays)
-	mesh_instance.surface_set_material(mesh_instance.get_surface_count() - 1, _metal_material)
+	for s: int in range(frame_mesh.get_surface_count()):
+		mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, frame_mesh.surface_get_arrays(s))
+		mesh_instance.surface_set_material(mesh_instance.get_surface_count() - 1, frame_mesh.surface_get_material(s))
 
 	var fixed_roller_r: float = mesh_height / 2.0
 	var tangent_r: float = fixed_roller_r * 2.0
