@@ -109,6 +109,24 @@ directional_shadow_mode = 0
 directional_shadow_max_distance = 66.51315
 sky_mode = 1
 
+[node name="DirectionalWallAFill" type="DirectionalLight3D" parent="." unique_id=1612400933]
+transform = Transform3D(-0.7071, -0.5, 0.5, 0, 0.7071, 0.7071, -0.7071, 0.5, -0.5, 0, 0, 0)
+light_energy = 0.3
+light_volumetric_fog_energy = 0.0
+light_specular = 0.2
+light_cull_mask = 2
+directional_shadow_max_distance = 66.51315
+sky_mode = 1
+
+[node name="DirectionalWallBFill" type="DirectionalLight3D" parent="." unique_id=1612400934]
+transform = Transform3D(0.70710677, 0.57921094, -0.40560412, 0, 0.57361084, 0.819128, 0.70710677, -0.57921094, 0.40560412, 0, 0, 0)
+light_energy = 0.3
+light_volumetric_fog_energy = 0.0
+light_specular = 0.2
+light_cull_mask = 4
+directional_shadow_max_distance = 66.51315
+sky_mode = 1
+
 [node name="Floor" type="GridMap" parent="." unique_id=1032330647]
 mesh_library = ExtResource("2_iohv4")
 cell_size = Vector3(10, 10, 10)
