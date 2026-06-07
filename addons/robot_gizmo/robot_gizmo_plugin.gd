@@ -14,6 +14,7 @@ const ARC_SEGMENTS = 32
 const ARC_RADIUS_SCALE = 1.5
 const EE_COLOR = Color(0.2, 0.9, 0.9)
 const EE_SUBGIZMO_ID = 0
+const TOOL_JOINT_INDEX = 5
 
 var _drag_joint_idx: int = -1
 var _initial_joint_angle: float = 0.0
@@ -84,7 +85,10 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 		var pivot = pivots[i]
 		if pivot == null:
 			continue
-		
+
+		if i == TOOL_JOINT_INDEX:
+			continue
+
 		var arc_radius: float = _get_arc_radius(i, robot_scale)
 		var arc_data := _generate_arc_with_handle(i, pivot, node, arc_radius)
 		
@@ -158,9 +162,6 @@ func _generate_arc_with_handle(joint_idx: int, pivot: Node3D, robot: Node3D, rad
 	lines.append(handle_pos)
 	
 	return {"lines": lines, "handle_pos": handle_pos}
-
-
-# --- Joint handle methods ---
 
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool) -> String:
@@ -261,9 +262,6 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 		node.update_gizmos()
 
 
-# --- End effector subgizmo methods ---
-
-
 func _subgizmos_intersect_ray(gizmo: EditorNode3DGizmo, camera: Camera3D, point: Vector2) -> int:
 	var node = gizmo.get_node_3d()
 	if node == null:
@@ -305,8 +303,9 @@ func _get_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int) -> Tran
 	if node == null:
 		return Transform3D()
 	
-	var tip_global: Transform3D = node.call("get_tool_tip_transform")
-	return node.global_transform.affine_inverse() * tip_global
+	var tip_global: Vector3 = node.call("get_tool_tip_position")
+	var local_origin: Vector3 = node.global_transform.affine_inverse() * tip_global
+	return Transform3D(Basis.IDENTITY, local_origin)
 
 
 func _set_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int, xform: Transform3D) -> void:
