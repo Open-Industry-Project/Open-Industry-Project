@@ -95,7 +95,7 @@ static func snap_selected_conveyors() -> void:
 		return
 	
 	for node in selection.get_selected_nodes():
-		if (_is_conveyor(node) or _is_diverter(node) or _is_chain_transfer(node) or _is_blade_stop(node)) and node != target_conveyor:
+		if (_is_conveyor(node) or _is_diverter(node) or _is_chain_transfer(node) or _is_blade_stop(node) or _is_sensor(node)) and node != target_conveyor:
 			selected_conveyors.append(node as Node3D)
 
 	if selected_conveyors.is_empty():
@@ -115,6 +115,7 @@ static func snap_selected_conveyors() -> void:
 	var has_diverter := false
 	var has_chain_transfer := false
 	var has_blade_stop := false
+	var has_sensor := false
 
 	for conveyor in selected_conveyors:
 		if _is_curved_conveyor(conveyor) or _is_curved_conveyor(target_conveyor):
@@ -127,12 +128,16 @@ static func snap_selected_conveyors() -> void:
 			has_chain_transfer = true
 		if _is_blade_stop(conveyor):
 			has_blade_stop = true
+		if _is_sensor(conveyor):
+			has_sensor = true
 
 	var action_name: String
 	if has_blade_stop:
 		action_name = "Snap Blade Stop Between Rollers"
 	elif has_chain_transfer:
 		action_name = "Snap Chain Transfer Between Rollers"
+	elif has_sensor:
+		action_name = "Snap Sensor to Side Guard"
 	elif has_diverter:
 		action_name = "Snap Diverter with Side Guard Openings" if has_side_guards else "Snap Diverter"
 	elif has_curved and has_side_guards:
@@ -149,6 +154,8 @@ static func snap_selected_conveyors() -> void:
 	for conveyor in selected_conveyors:
 		var original_transform := conveyor.global_transform
 		var snap_result := _calculate_snap_transform(conveyor, target_conveyor)
+		if snap_result.is_empty():
+			continue
 		var snap_transform: Transform3D = snap_result.transform
 		undo_redo.add_do_property(conveyor, "global_transform", snap_transform)
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
@@ -159,6 +166,11 @@ static func snap_selected_conveyors() -> void:
 				var current_reverse: bool = bool(conveyor.get(reverse_prop))
 				undo_redo.add_do_property(conveyor, reverse_prop, not current_reverse)
 				undo_redo.add_undo_property(conveyor, reverse_prop, current_reverse)
+
+		var overrides: Dictionary = snap_result.get("property_overrides", {})
+		for prop: String in overrides:
+			undo_redo.add_do_property(conveyor, prop, overrides[prop])
+			undo_redo.add_undo_property(conveyor, prop, conveyor.get(prop))
 
 	undo_redo.commit_action()
 
@@ -675,6 +687,7 @@ static func _is_conveyor(node: Node) -> bool:
 		"RollerSpurConveyor",
 		"BeltConveyor", "RollerConveyor",
 		"CurvedBeltConveyor", "CurvedRollerConveyor",
+		"TurntableConveyor",
 	]
 
 	return global_name in conveyor_types or node_class in conveyor_types
@@ -691,6 +704,10 @@ static func _make_snap_result(snap_transform: Transform3D, snapped_end: Dictiona
 
 
 static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D, live_mode: bool = false) -> Dictionary:
+	# Sensors snap to a side-guard segment regardless of the target's curvature/spur.
+	if _is_sensor(selected_conveyor):
+		return ConveyorSnapFeatures.try_snap(selected_conveyor, target_conveyor, live_mode)
+
 	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
 		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor, live_mode)
 
@@ -939,6 +956,9 @@ static func _get_spur_end_info(conveyor: Node3D) -> Array[Dictionary]:
 
 
 static func _get_end_info(conveyor: Node3D) -> Array[Dictionary]:
+	if _is_sensor(conveyor):
+		var no_ends: Array[Dictionary] = []
+		return no_ends
 	if not live_end_info_cache.is_empty():
 		var cached: Variant = live_end_info_cache.get(conveyor.get_instance_id())
 		if cached != null:
@@ -1244,7 +1264,8 @@ static func _is_straight_conveyor(conveyor: Node3D) -> bool:
 	var straight_types := [
 		"BeltConveyor", "BeltSpurConveyor",
 		"RollerConveyor",
-		"RollerSpurConveyor"
+		"RollerSpurConveyor",
+		"TurntableConveyor",
 	]
 
 	return global_name in straight_types or node_class in straight_types
@@ -1260,6 +1281,10 @@ static func _is_chain_transfer(node: Node) -> bool:
 
 static func _is_blade_stop(node: Node) -> bool:
 	return node is BladeStop
+
+
+static func _is_sensor(node: Node) -> bool:
+	return node is DiffuseSensor or node is LaserSensor or node is ColorSensor
 
 
 static func _is_roller_conveyor(node: Node) -> bool:

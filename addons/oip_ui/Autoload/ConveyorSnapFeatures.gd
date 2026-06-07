@@ -8,6 +8,8 @@ const DIVERTER_Y_OFFSET: float = 0.2
 const DIVERTER_SIDE_OFFSET: float = 0.05
 const BLADE_STOP_TARGET_LOCAL_Y: float = -0.42
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
+const SENSOR_GUARD_OFFSET: float = 0.02
+const SENSOR_SNAP_RANGE: float = 0.6
 
 enum Shape { POINT, SEGMENT, TRACK }
 
@@ -161,6 +163,8 @@ static func _compute_features_for(node: Node3D) -> Array:
 static func _kinds_compatible(sel_kind: StringName, tgt_kind: StringName) -> bool:
 	if sel_kind == &"diverter_push_side":
 		return tgt_kind == &"straight_sideguard_left" or tgt_kind == &"straight_sideguard_right"
+	if sel_kind == &"sensor_beam_mount":
+		return tgt_kind == &"straight_sideguard_left" or tgt_kind == &"straight_sideguard_right"
 	if sel_kind == &"blade_anchor":
 		return tgt_kind == &"roller_gap_track"
 	if sel_kind == &"chain_transfer_anchor_gap":
@@ -203,15 +207,24 @@ static func _align_point_to_segment(selected: Node3D, target: Node3D, sf: Dictio
 	if side_sign == 0.0:
 		side_sign = 1.0
 
+	# Orthonormal orientation: local +Z faces outward from the target's side.
 	# Flip both X and Z (180° around Y); Z alone would invert Y.
-	var new_basis: Basis = Basis()
-	new_basis.x = side_sign * target_xform.basis.x.normalized()
-	new_basis.z = side_sign * target_xform.basis.z.normalized()
-	new_basis.y = target_xform.basis.y.normalized()
+	var orient: Basis = Basis()
+	orient.x = side_sign * target_xform.basis.x.normalized()
+	orient.z = side_sign * target_xform.basis.z.normalized()
+	orient.y = target_xform.basis.y.normalized()
+	# Sensors mount facing inward so the beam (local +Z) shoots across the conveyor.
+	if sf.get(&"face_inward", false):
+		orient.x = -orient.x
+		orient.z = -orient.z
+
+	# Carry the part's own scale; the basis only sets orientation.
+	var sel_scale: Vector3 = selected.scale
+	var new_basis: Basis = Basis(orient.x * sel_scale.x, orient.y * sel_scale.y, orient.z * sel_scale.z)
 
 	var origin: Vector3 = contact - new_basis * (sf.local_pos as Vector3)
 	var y_offset: float = float(sf.get(&"y_offset", 0.0))
-	origin -= new_basis.y * y_offset
+	origin -= orient.y * y_offset
 	var outward_offset: float = float(sf.get(&"outward_offset", 0.0))
 	if outward_offset != 0.0:
 		var outward_world: Vector3 = (target_xform.basis * (tf.seg_outward_local as Vector3)).normalized()
@@ -231,12 +244,21 @@ static func _align_point_to_segment(selected: Node3D, target: Node3D, sf: Dictio
 		"name": (&"left_side" if side_sign < 0.0 else &"right_side"),
 	}
 	var end_names: Array = [&"front", &"back", &"head", &"tail"]
-	return {
+	var result: Dictionary = {
 		"transform": snap_transform,
 		"snapped_end": snapped_end,
 		"target_end": target_end,
 		"is_end_to_end": snapped_end.name in end_names and target_end.name in end_names,
 	}
+	# Fit the beam so it spans the belt and just reaches the far side guard.
+	# Half-width is the contact's offset from the conveyor centerline along its Z axis.
+	if sf.get(&"auto_fit_range", false):
+		var tgt_z: Vector3 = target_xform.basis.z.normalized()
+		var half_width: float = absf((contact - target_xform.origin).dot(tgt_z))
+		result["property_overrides"] = {"max_range": 2.0 * half_width + 2.0 * outward_offset}
+	if sf.has(&"visible_threshold"):
+		result["visible_threshold"] = sf.visible_threshold
+	return result
 
 
 static func _align_point_to_track(selected: Node3D, target: Node3D, sf: Dictionary, tf: Dictionary) -> Dictionary:

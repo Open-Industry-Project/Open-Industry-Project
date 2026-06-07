@@ -49,6 +49,15 @@ const MIN_DIM: float = 1.0e-3
 			_built_height = -1.0
 			_apply_scale()
 
+@export var single_post: bool = false:
+	set(value):
+		if single_post == value:
+			return
+		single_post = value
+		if is_node_ready():
+			_built_height = -1.0
+			_apply_scale()
+
 var _height: float = 0.0
 var _half_width: float = 0.0
 var _built_height: float = -1.0
@@ -121,36 +130,41 @@ func _rebuild() -> void:
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_post(st, -1.0)
 	_add_post(st, 1.0)
-	_add_collar(st, -1.0)
 	_add_collar(st, 1.0)
-	_add_foot_plate(st, -1.0)
 	_add_foot_plate(st, 1.0)
-	_add_sleeve(st, -1.0)
 	_add_sleeve(st, 1.0)
 	if clamp_enabled:
-		_add_clamp(st, -1.0)
 		_add_clamp(st, 1.0)
-	_add_braces(st)
+	if not single_post:
+		_add_post(st, -1.0)
+		_add_collar(st, -1.0)
+		_add_foot_plate(st, -1.0)
+		_add_sleeve(st, -1.0)
+		if clamp_enabled:
+			_add_clamp(st, -1.0)
+		_add_braces(st)
 	var mesh := st.commit()
 	if _material:
 		mesh.surface_set_material(0, _material)
 
 	var sb := SurfaceTool.new()
 	sb.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_foot_bolts(sb, -1.0)
 	_add_foot_bolts(sb, 1.0)
-	_add_sleeve_bolts(sb, -1.0)
 	_add_sleeve_bolts(sb, 1.0)
 	if clamp_enabled:
-		_add_clamp_bolts(sb, -1.0)
 		_add_clamp_bolts(sb, 1.0)
+	if not single_post:
+		_add_foot_bolts(sb, -1.0)
+		_add_sleeve_bolts(sb, -1.0)
+		if clamp_enabled:
+			_add_clamp_bolts(sb, -1.0)
 	mesh = sb.commit(mesh)
 	if _bolt_material and mesh.get_surface_count() > 1:
 		mesh.surface_set_material(1, _bolt_material)
 
 	_structure.mesh = mesh
+	_structure.position.z = -(_half_width + POST_EDGE_OVERHANG - _post_depth() * 0.5) if single_post else 0.0
 
 
 # Shrink the depth on narrow conveyors so the two posts keep a gap instead of merging.

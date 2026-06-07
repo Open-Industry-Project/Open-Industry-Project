@@ -217,3 +217,33 @@ func _hide_instance(i: int) -> void:
 	_mm_end_l.set_instance_transform(i, zero)
 	_mm_end_r.set_instance_transform(i, zero)
 	_mm_cyl.set_instance_transform(i, zero)
+
+
+func get_roller_placements() -> Array:
+	var out: Array = []
+	if not is_inside_tree() or roller_pitch <= 0.0:
+		return out
+	var local_xs := _roller_local_xs()
+	var skew_rad: float = deg_to_rad(_roller_skew_angle_degrees)
+	var half_len: float = _effective_conveyor_half_length()
+	var has_clip: bool = _clip_override.is_valid()
+	for i in local_xs.size():
+		var local_x: float = local_xs[i]
+		var clipped: float
+		var offset: float
+		if has_clip:
+			var clip: Vector3 = _clip_override.call(position.x + local_x)
+			clipped = clip.z
+			offset = (clip.x + clip.y) * 0.5
+			if clipped < 0.01:
+				continue
+		else:
+			var conveyor_x: float = position.x + local_x - _length / 2.0
+			var result: Vector2 = AbstractRollerContainer.calculate_clipped_roller(
+					conveyor_x, half_len, _roller_length, skew_rad)
+			clipped = result.x
+			offset = result.y
+			if clipped <= 0.0:
+				continue
+		out.append({"x": local_x, "z": offset, "length": clipped})
+	return out

@@ -7,9 +7,29 @@ uniform float metallic_value : hint_range(0.0, 1.0) = 0.8;
 uniform float roughness_value : hint_range(0.0, 1.0) = 0.4;
 uniform float specular_value : hint_range(0.0, 1.0) = 0.5;
 uniform float texture_influence : hint_range(0.0, 1.0) = 1.0;
+uniform bool triplanar = false;
+uniform float triplanar_scale = 1.0;
+
+varying vec3 obj_pos;
+varying vec3 obj_normal;
+
+void vertex() {
+	obj_pos = VERTEX;
+	obj_normal = NORMAL;
+}
 
 void fragment() {
-	vec3 tex = texture(metal_texture, UV).rgb;
+	vec3 tex;
+	if (triplanar) {
+		vec3 bw = abs(normalize(obj_normal));
+		bw /= (bw.x + bw.y + bw.z);
+		vec3 sx = texture(metal_texture, obj_pos.zy * triplanar_scale).rgb;
+		vec3 sy = texture(metal_texture, obj_pos.xz * triplanar_scale).rgb;
+		vec3 sz = texture(metal_texture, obj_pos.xy * triplanar_scale).rgb;
+		tex = sx * bw.x + sy * bw.y + sz * bw.z;
+	} else {
+		tex = texture(metal_texture, UV).rgb;
+	}
 	// Overlay blend to tint the metal texture.
 	vec3 blended;
 	for (int i = 0; i < 3; i++) {

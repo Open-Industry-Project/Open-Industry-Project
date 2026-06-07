@@ -529,7 +529,11 @@ func _commit() -> void:
 
 	var undo_redo := EditorInterface.get_editor_undo_redo()
 	var is_diverter := ConveyorSnapping._is_diverter(_selected)
-	var action_name := "Snap Diverter" if is_diverter else "Snap Conveyor"
+	var action_name := "Snap Conveyor"
+	if ConveyorSnapping._is_sensor(_selected):
+		action_name = "Snap Sensor to Side Guard"
+	elif is_diverter:
+		action_name = "Snap Diverter"
 	_committing = true
 	undo_redo.create_action(action_name)
 	if not skip_guards:
@@ -538,6 +542,13 @@ func _commit() -> void:
 	if has_reverse_flip:
 		undo_redo.add_do_property(_selected, reverse_prop, bool(_selected.get(reverse_prop)))
 		undo_redo.add_undo_property(_selected, reverse_prop, bool(_pre_snap_reverse))
+	var overrides: Dictionary = snap_result.get("property_overrides", {})
+	for prop: String in overrides:
+		var current: Variant = _selected.get(prop)
+		if current is float and is_equal_approx(float(current), float(overrides[prop])):
+			continue
+		undo_redo.add_do_property(_selected, prop, overrides[prop])
+		undo_redo.add_undo_property(_selected, prop, current)
 	undo_redo.commit_action()
 	_committing = false
 
@@ -560,6 +571,7 @@ static func _is_snappable(node: Node3D) -> bool:
 		ConveyorSnapping._is_diverter(node)
 		or ConveyorSnapping._is_blade_stop(node)
 		or ConveyorSnapping._is_chain_transfer(node)
+		or ConveyorSnapping._is_sensor(node)
 		or ConveyorSnapping._is_conveyor(node)
 	)
 
@@ -593,6 +605,7 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 	var sel_features: Array = _cache_sel_features
 	var sel_is_curved: bool = ConveyorSnapping._is_curved_conveyor(selected)
 	var sel_has_spur: bool = ConveyorSnapping._has_spur_angles(selected)
+	var sel_is_sensor: bool = ConveyorSnapping._is_sensor(selected)
 
 	var sel_reach: float = 0.0
 	if &"local_bbox" in selected:
@@ -623,7 +636,10 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 			continue
 		ConveyorSnapping.target_xform_override = entry.xform
 		var result: Dictionary
-		if sel_is_curved or entry.is_curved:
+		if sel_is_sensor:
+			result = ConveyorSnapFeatures.try_snap(
+					selected, tgt, true, sel_features, _ensure_entry_features(entry))
+		elif sel_is_curved or entry.is_curved:
 			result = _select_curved_snap(intent, _ensure_entry_curved_pairs(entry, selected))
 		elif sel_has_spur:
 			result = ConveyorSnapping._calculate_spur_snap_transform(selected, tgt, true)
@@ -645,7 +661,10 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 			gate_dist = rank_dist
 		else:
 			gate_dist = _snap_interface_xz_distance(result, selected, intent, tgt, entry.xform)
-		if not preserves_facing and gate_dist > VISIBLE_THRESHOLD:
+		var facing_threshold: float = VISIBLE_THRESHOLD
+		if sel_is_sensor:
+			facing_threshold = maxf(VISIBLE_THRESHOLD, threshold)
+		if not preserves_facing and gate_dist > facing_threshold:
 			continue
 		if not override_threshold and gate_dist > threshold:
 			continue
