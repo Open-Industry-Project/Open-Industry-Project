@@ -128,6 +128,42 @@ func use() -> void:
 	show_beam = not show_beam
 
 
+func get_snap_features() -> Array:
+	return [
+		{
+			"shape": ConveyorSnapFeatures.Shape.POINT,
+			"kind": &"sensor_beam_mount",
+			"local_pos": Vector3.ZERO,
+			"local_outward": Vector3(0, 0, 1),
+			"face_inward": true,
+			"y_offset": -ConveyorSnapFeatures.SENSOR_GUARD_LIFT,
+			"outward_offset": ConveyorSnapFeatures.SENSOR_GUARD_OFFSET,
+			"auto_fit_range": true,
+			"visible_threshold": ConveyorSnapFeatures.SENSOR_SNAP_RANGE,
+			"end_name": &"sensor",
+		},
+	]
+
+
+func _get_custom_preview_node() -> Node3D:
+	var preview_scene := load("res://parts/LaserSensor.tscn") as PackedScene
+	var preview_node := preview_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node3D
+	preview_node.set_meta("is_preview", true)
+	_disable_collisions_recursive(preview_node)
+	return preview_node
+
+
+static func _disable_collisions_recursive(node: Node) -> void:
+	if node is CollisionShape3D:
+		(node as CollisionShape3D).disabled = true
+	if node is CollisionObject3D:
+		var body := node as CollisionObject3D
+		body.collision_layer = 0
+		body.collision_mask = 0
+	for child in node.get_children():
+		_disable_collisions_recursive(child)
+
+
 func _on_simulation_started() -> void:
 	if enable_comms:
 		_tag.register(tag_group_name, tag_name, OIPComms.TAG_TYPE_FLOAT32)

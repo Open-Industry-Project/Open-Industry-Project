@@ -10,6 +10,7 @@ const BLADE_STOP_TARGET_LOCAL_Y: float = -0.42
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
 const SENSOR_GUARD_OFFSET: float = 0.02
 const SENSOR_SNAP_RANGE: float = 0.6
+const SENSOR_GUARD_LIFT: float = 0.06
 
 enum Shape { POINT, SEGMENT, TRACK }
 
