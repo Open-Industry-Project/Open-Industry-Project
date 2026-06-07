@@ -2,12 +2,13 @@
 class_name BuildingWallRule
 extends Resource
 
-enum Wall { A, B, C, D }
+enum Wall { A, B, C, D, DOCK_DOOR }
 
 ## Which wall this rule paints where it matches.
 @export var wall: Wall = Wall.B:
 	set(value):
 		wall = value
+		notify_property_list_changed()
 		emit_changed()
 
 ## Consecutive segments painted per run.
@@ -35,9 +36,33 @@ enum Wall { A, B, C, D }
 		start = value
 		emit_changed()
 
+@export_group("Dock Door")
+
+## Number of door openings per painted dock-door segment (only when wall is DOCK_DOOR).
+@export_range(1, 2) var door_count: int = 1:
+	set(value):
+		door_count = value
+		emit_changed()
+
+## Width of each door aperture.
+@export var opening_width: float = 4.0:
+	set(value):
+		opening_width = value
+		emit_changed()
+
+## Height of each door aperture.
+@export var opening_height: float = 4.5:
+	set(value):
+		opening_height = value
+		emit_changed()
+
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "gap" and count == 1:
+		property.usage &= ~PROPERTY_USAGE_EDITOR
+	if wall != Wall.DOCK_DOOR and property.name in [
+		"door_count", "opening_width", "opening_height",
+	]:
 		property.usage &= ~PROPERTY_USAGE_EDITOR
 
 

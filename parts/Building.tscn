@@ -176,6 +176,8 @@ data = {
 }
 metadata/_editor_floor_ = Vector3(0, 2, 0)
 
+[node name="DockDoors" type="Node3D" parent="." unique_id=299569443]
+
 [node name="ThumbnailMesh" type="MeshInstance3D" parent="." unique_id=299569442]
 transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
 visible = false

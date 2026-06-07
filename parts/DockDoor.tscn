@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dckdoor00part"]
+
+[ext_resource type="Script" path="res://parts/dock_door.gd" id="1_dckdr"]
+
+[node name="DockDoor" type="Node3D"]
+script = ExtResource("1_dckdr")

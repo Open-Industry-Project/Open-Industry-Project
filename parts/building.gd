@@ -9,6 +9,9 @@ const _ROT_RIGHT := 22
 
 const _WALL_C := 2
 
+const _DOCK_DOOR_SCENE := preload("res://parts/DockDoor.tscn")
+const _DOOR_FALLBACK_WALL := 0
+
 const _ROOF_TRANSITION := 0
 const _ROOF_TILE := 1
 const _ROOF_HIDE_PITCH := 80.0
@@ -111,6 +114,7 @@ const _SHADOW_ATLAS_SIZE := {
 @onready var walls_a_grid: GridMap = $WallsA
 @onready var walls_b_grid: GridMap = $WallsB
 @onready var roof_grid: GridMap = $Roof
+@onready var _door_holder: Node3D = $DockDoors
 @onready var world_env: WorldEnvironment = $WorldEnvironment
 @onready var key_light: DirectionalLight3D = $DirectionalLight3D
 @onready var fill_light: DirectionalLight3D = $DirectionalFill
@@ -263,6 +267,7 @@ func _place_wall(pos: Vector3i, item: int, rot: int) -> void:
 func _generate_walls() -> void:
 	for grid in _wall_grids:
 		grid.clear()
+	_clear_doors()
 	var b := _get_wall_bounds()
 	var x0: int = b[0]
 	var x1: int = b[1]
@@ -295,12 +300,12 @@ func _place_wall_ring(x0: int, x1: int, z0: int, z1: int, y: int, item: int) -> 
 	for z in range(z0, z1):
 		_place_wall(Vector3i(x1, y, z), item, _ROT_RIGHT)
 
-func _get_full_wall_item(perimeter_index: int, perimeter_length: int) -> int:
-	var item := default_wall as int
+func _get_matching_rule(perimeter_index: int, perimeter_length: int) -> BuildingWallRule:
+	var matched: BuildingWallRule = null
 	for rule in rules:
 		if rule and rule.matches(perimeter_index, perimeter_length):
-			item = rule.wall as int
-	return item
+			matched = rule
+	return matched
 
 func _place_full_wall_ring_mixed(x0: int, x1: int, z0: int, z1: int, y: int) -> void:
 	var side_neg_z := x1 - x0
@@ -313,27 +318,58 @@ func _place_full_wall_ring_mixed(x0: int, x1: int, z0: int, z1: int, y: int) -> 
 
 	# -Z side
 	for x in range(x0, x1):
-		var item := _get_full_wall_item(perimeter_index, perimeter_length)
-		_place_wall(Vector3i(x, y, z0), item, _ROT_FRONT)
+		var rule := _get_matching_rule(perimeter_index, perimeter_length)
+		_place_full_wall(Vector3i(x, y, z0), rule, _ROT_FRONT)
 		perimeter_index += 1
 
 	# +Z side
 	for x in range(x0 + 1, x1 + 1):
-		var item := _get_full_wall_item(perimeter_index, perimeter_length)
-		_place_wall(Vector3i(x, y, z1), item, _ROT_BACK)
+		var rule := _get_matching_rule(perimeter_index, perimeter_length)
+		_place_full_wall(Vector3i(x, y, z1), rule, _ROT_BACK)
 		perimeter_index += 1
 
 	# -X side
 	for z in range(z0 + 1, z1 + 1):
-		var item := _get_full_wall_item(perimeter_index, perimeter_length)
-		_place_wall(Vector3i(x0, y, z), item, _ROT_LEFT)
+		var rule := _get_matching_rule(perimeter_index, perimeter_length)
+		_place_full_wall(Vector3i(x0, y, z), rule, _ROT_LEFT)
 		perimeter_index += 1
 
 	# +X side
 	for z in range(z0, z1):
-		var item := _get_full_wall_item(perimeter_index, perimeter_length)
-		_place_wall(Vector3i(x1, y, z), item, _ROT_RIGHT)
+		var rule := _get_matching_rule(perimeter_index, perimeter_length)
+		_place_full_wall(Vector3i(x1, y, z), rule, _ROT_RIGHT)
 		perimeter_index += 1
+
+
+func _place_full_wall(pos: Vector3i, rule: BuildingWallRule, rot: int) -> void:
+	var item := (rule.wall if rule else default_wall) as int
+	if item == BuildingWallRule.Wall.DOCK_DOOR:
+		if pos.y == 0:
+			_spawn_dock_door(pos, rot, rule)
+		else:
+			_place_wall(pos, _DOOR_FALLBACK_WALL, rot)
+		return
+	_place_wall(pos, item, rot)
+
+
+func _spawn_dock_door(pos: Vector3i, rot: int, rule: BuildingWallRule) -> void:
+	var door := _DOCK_DOOR_SCENE.instantiate() as DockDoor
+	if rule:
+		door.door_count = rule.door_count
+		door.opening_width = rule.opening_width
+		door.opening_height = rule.opening_height
+	_door_holder.add_child(door)
+	var cell_basis := walls_a_grid.get_basis_with_orthogonal_index(rot)
+	door.transform = Transform3D(cell_basis, walls_a_grid.map_to_local(pos))
+	door.set_render_layer(2 if rot == _ROT_FRONT or rot == _ROT_RIGHT else 4)
+
+
+func _clear_doors() -> void:
+	if _door_holder == null:
+		return
+	for child in _door_holder.get_children():
+		_door_holder.remove_child(child)
+		child.queue_free()
 
 func _get_matching_wall_y_for_roof(roof_y: int) -> int:
 	var roof_local_y := roof_grid.map_to_local(Vector3i(0, roof_y, 0)).y
