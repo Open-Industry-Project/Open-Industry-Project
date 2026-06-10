@@ -10,7 +10,11 @@ const _ROT_RIGHT := 22
 const _WALL_C := 2
 
 const _DOCK_DOOR_SCENE := preload("res://parts/DockDoor.tscn")
+const _CONTAINER_TRAILER_SCENE := preload("res://parts/ContainerTrailer.tscn")
 const _DOOR_FALLBACK_WALL := 0
+
+const _TRAILER_REAR_OFFSET := 6.16
+const _TRAILER_Y_OFFSET := 1.3
 
 const _ROOF_TRANSITION := 0
 const _ROOF_TILE := 1
@@ -356,12 +360,28 @@ func _spawn_dock_door(pos: Vector3i, rot: int, rule: BuildingWallRule) -> void:
 	var door := _DOCK_DOOR_SCENE.instantiate() as DockDoor
 	if rule:
 		door.door_count = rule.door_count
-		door.opening_width = rule.opening_width
-		door.opening_height = rule.opening_height
+		door.door_width = rule.opening_width
+		door.travel_height = rule.opening_height
 	_door_holder.add_child(door)
 	var cell_basis := walls_a_grid.get_basis_with_orthogonal_index(rot)
 	door.transform = Transform3D(cell_basis, walls_a_grid.map_to_local(pos))
-	door.set_render_layer(2 if rot == _ROT_FRONT or rot == _ROT_RIGHT else 4)
+	var layers := 2 if rot == _ROT_FRONT or rot == _ROT_RIGHT else 4
+	door.set_render_layer(layers)
+
+	if rule == null or rule.trailer:
+		_spawn_trailers(door.transform, door.door_count, layers)
+
+
+func _spawn_trailers(door_transform: Transform3D, door_count: int, layers: int) -> void:
+	var opening_centers: PackedFloat32Array = [5.0] if door_count == 1 else [2.75, 7.25]
+	var backed := Basis(Vector3.UP, PI)
+	for cx in opening_centers:
+		var trailer := _CONTAINER_TRAILER_SCENE.instantiate() as Node3D
+		var local := Transform3D(backed, Vector3(cx, -_TRAILER_Y_OFFSET, -_TRAILER_REAR_OFFSET))
+		trailer.transform = door_transform * local
+		_door_holder.add_child(trailer)
+		for mesh in trailer.find_children("*", "MeshInstance3D", true):
+			(mesh as MeshInstance3D).layers = layers
 
 
 func _clear_doors() -> void:

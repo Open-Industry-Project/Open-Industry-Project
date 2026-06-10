@@ -56,12 +56,17 @@ enum Wall { A, B, C, D, DOCK_DOOR }
 		opening_height = value
 		emit_changed()
 
+@export var trailer: bool = true:
+	set(value):
+		trailer = value
+		emit_changed()
+
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "gap" and count == 1:
 		property.usage &= ~PROPERTY_USAGE_EDITOR
 	if wall != Wall.DOCK_DOOR and property.name in [
-		"door_count", "opening_width", "opening_height",
+		"door_count", "opening_width", "opening_height", "trailer",
 	]:
 		property.usage &= ~PROPERTY_USAGE_EDITOR
 

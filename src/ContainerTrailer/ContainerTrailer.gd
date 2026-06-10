@@ -34,9 +34,6 @@ func _setup_references() -> void:
 	_door_left = get_node_or_null("Chassis/Container/Door_Left") as Node3D
 	_door_right = get_node_or_null("Chassis/Container/Door_Right") as Node3D
 
-	print("Door_Left: ", _door_left)
-	print("Door_Right: ", _door_right)
-
 	if _door_left:
 		_left_closed_rotation = _door_left.rotation_degrees
 	if _door_right:
