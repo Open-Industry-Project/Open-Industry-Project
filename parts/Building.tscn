@@ -34,8 +34,14 @@ count = 2
 start = 28
 metadata/_custom_type_script = "uid://1it35d0vq4ou"
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+
+[sub_resource type="Sky" id="Sky_sky"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
 [sub_resource type="Environment" id="Environment_ijpc5"]
-background_mode = 1
+background_mode = 2
+sky = SubResource("Sky_sky")
 ambient_light_source = 2
 ambient_light_color = Color(0.72, 0.75, 0.8, 1)
 ambient_light_energy = 0.6

@@ -84,6 +84,7 @@ const HALF_WALL_HEIGHT := 6.0
 		roof_visible = value
 		if is_node_ready():
 			roof_grid.visible = value
+			_apply_background()
 
 @export_group("Lighting")
 
@@ -100,7 +101,7 @@ const _SHADOW_ATLAS_SIZE := {
 		if is_node_ready():
 			_apply_shadow_quality()
 
-## Solid background color shown behind the building (visible when walls/roof are hidden)
+## Solid background shown in place of the sky while the roof is hidden.
 @export var background_color: Color = Color(0, 0, 0):
 	set(value):
 		background_color = value
@@ -171,8 +172,9 @@ func _apply_shadow_quality() -> void:
 func _apply_background() -> void:
 	if world_env.environment == null:
 		return
-	world_env.environment.background_mode = Environment.BG_COLOR
 	world_env.environment.background_color = background_color
+	world_env.environment.background_mode = \
+		Environment.BG_SKY if roof_grid.visible else Environment.BG_COLOR
 
 
 func _apply_brightness() -> void:
@@ -209,6 +211,7 @@ func _process(_delta: float) -> void:
 	var should_show: bool = roof_visible and not auto_hide
 	if should_show != roof_grid.visible:
 		roof_grid.visible = should_show
+		_apply_background()
 
 
 func _active_camera() -> Camera3D:
