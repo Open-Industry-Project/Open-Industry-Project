@@ -2,77 +2,58 @@
 class_name DockDoor
 extends Node3D
 
-## Width of the wall segment this door fills (matches `Building.SECTION_SIZE`).
-@export var segment_width: float = 10.0:
-	set(value):
-		segment_width = value
-		_rebuild()
-
-## Height of the wall segment (matches `Building.FULL_WALL_HEIGHT`).
-@export var segment_height: float = 12.0:
-	set(value):
-		segment_height = value
-		_rebuild()
-
-## Number of door openings spread across the segment.
 @export_range(1, 2) var door_count: int = 1:
 	set(value):
-		door_count = value
+		door_count = clampi(value, 1, 2)
 		notify_property_list_changed()
 		_rebuild()
 
-## Depth of the surround walls.
-@export var wall_thickness: float = 0.3:
+@export var travel_height: float = 4.5:
 	set(value):
-		wall_thickness = value
+		travel_height = value
 		_rebuild()
 
-## Width of each door aperture.
-@export var opening_width: float = 4.0:
+@export var door_width: float = 3.0:
 	set(value):
-		opening_width = value
+		door_width = value
 		_rebuild()
 
-## Height of each door aperture, measured up from the floor.
-@export var opening_height: float = 4.5:
-	set(value):
-		opening_height = value
-		_rebuild()
-
-## How many horizontal slats each sectional curtain is split into (visual only).
-@export_range(1, 20) var slat_count: int = 6:
-	set(value):
-		slat_count = value
-		_rebuild()
-
-## Travel speed of the curtains in meters per second.
 @export var open_speed: float = 4.0
 
-## Open/close the first (left) door. Animates live in the editor and at runtime.
 @export var door_1_open: bool = false:
 	set(value):
 		door_1_open = value
 		_set_leaf_open(0, value)
 
-## Open/close the second (right) door. Only used when [member door_count] is 2.
 @export var door_2_open: bool = false:
 	set(value):
 		door_2_open = value
 		_set_leaf_open(1, value)
 
-## Surround (frame) appearance.
-@export var wall_material: Material:
+@export var wall_a_scene: PackedScene:
 	set(value):
-		wall_material = value
+		wall_a_scene = value
 		_rebuild()
 
-## Door panel appearance.
-@export var door_material: Material:
+@export var wall_b_scene: PackedScene:
 	set(value):
-		door_material = value
+		wall_b_scene = value
 		_rebuild()
 
-const _MIN_COLUMN := 0.3
+@export var door_scene: PackedScene:
+	set(value):
+		door_scene = value
+		_rebuild()
+
+@export var door_z_offset: float = 0.39:
+	set(value):
+		door_z_offset = value
+		_rebuild()
+
+@export var door_collision_depth: float = 0.18:
+	set(value):
+		door_collision_depth = value
+		_rebuild()
 
 var _leaves: Array[DockDoorLeaf] = []
 var _render_layers: int = 2
@@ -107,88 +88,33 @@ func _rebuild() -> void:
 		child.queue_free()
 	_leaves.clear()
 
-	var wall_mat := wall_material if wall_material else _default_wall_material()
-	var door_mat := door_material if door_material else _default_door_material()
-	var groove_mat := _groove_material()
-
-	var w := segment_width
-	var h := segment_height
-	var t := wall_thickness
 	var n := clampi(door_count, 1, 2)
 
-	var ow := minf(opening_width, (w - (n + 1) * _MIN_COLUMN) / float(n))
-	var col := (w - n * ow) / float(n + 1)
-	var oh := minf(opening_height, h)
+	var wall_instance: Node3D = null
+	if n == 1 and wall_a_scene:
+		wall_instance = wall_a_scene.instantiate() as Node3D
+	elif n == 2 and wall_b_scene:
+		wall_instance = wall_b_scene.instantiate() as Node3D
 
-	var surround := StaticBody3D.new()
-	surround.name = "Surround"
-	surround.collision_layer = 1
-	surround.collision_mask = 0
-	add_child(surround)
+	if wall_instance:
+		wall_instance.name = "Surround"
+		add_child(wall_instance)
 
-	for j in range(n + 1):
-		var cx := j * (ow + col) + col * 0.5
-		_add_box(surround, "Column%d" % j, Vector3(col, h, t), Vector3(cx, h * 0.5, t * 0.5), wall_mat)
+	var opening_centers := [5.0] if n == 1 else [2.75, 7.25]
 
 	for i in range(n):
-		var opening_cx := col * (i + 1) + ow * i + ow * 0.5
-		_add_box(surround, "Header%d" % i, Vector3(ow, h - oh, t), Vector3(opening_cx, (oh + h) * 0.5, t * 0.5), wall_mat)
-
 		var leaf := DockDoorLeaf.new()
 		leaf.name = "Door%d" % (i + 1)
-		leaf.opening_width = ow
-		leaf.opening_height = oh
-		leaf.wall_thickness = t
-		leaf.slat_count = slat_count
+		leaf.travel_height = travel_height
+		leaf.door_width = door_width
 		leaf.open_speed = open_speed
-		leaf.door_material = door_mat
-		leaf.groove_material = groove_mat
+		leaf.door_scene = door_scene
+		leaf.door_z_offset = door_z_offset
+		leaf.door_collision_depth = door_collision_depth
 		leaf.open = door_2_open if i == 1 else door_1_open
-		leaf.position = Vector3(opening_cx, 0.0, 0.0)
+		leaf.position = Vector3(opening_centers[i], 0.0, 0.0)
 		add_child(leaf)
 		leaf.build()
 		_leaves.append(leaf)
 
 	set_render_layer(_render_layers)
-
-
-func _add_box(parent: Node, p_name: String, size: Vector3, center: Vector3, material: Material) -> void:
-	var mesh := MeshInstance3D.new()
-	mesh.name = p_name
-	var box := BoxMesh.new()
-	box.size = size
-	box.material = material
-	mesh.mesh = box
-	mesh.position = center
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(mesh)
-
-	if parent is CollisionObject3D:
-		var shape := CollisionShape3D.new()
-		var box_shape := BoxShape3D.new()
-		box_shape.size = size
-		shape.shape = box_shape
-		shape.position = center
-		parent.add_child(shape)
-
-
-func _default_wall_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.62, 0.63, 0.66)
-	mat.roughness = 0.9
-	return mat
-
-
-func _default_door_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.78, 0.79, 0.82)
-	mat.metallic = 0.4
-	mat.roughness = 0.55
-	return mat
-
-
-func _groove_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.32, 0.33, 0.35)
-	mat.roughness = 0.8
-	return mat
