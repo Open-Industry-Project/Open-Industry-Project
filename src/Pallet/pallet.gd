@@ -63,6 +63,10 @@ func selected() -> void:
 			transform = _rigid_body.transform
 
 func use() -> void:
+	if EditorInterface.is_transforming():
+		EditorInterface.keep_transform_freeze()
+		_rigid_body.freeze = true
+		return
 	_rigid_body.freeze = not _rigid_body.freeze
 
 func _on_simulation_started() -> void:

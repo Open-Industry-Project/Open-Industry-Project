@@ -87,6 +87,10 @@ func selected() -> void:
 
 
 func use() -> void:
+	if EditorInterface.is_transforming():
+		EditorInterface.keep_transform_freeze()
+		_rigid_body_3d.freeze = true
+		return
 	_rigid_body_3d.freeze = not _rigid_body_3d.freeze
 
 
