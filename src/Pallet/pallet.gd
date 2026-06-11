@@ -69,6 +69,16 @@ func use() -> void:
 		return
 	_rigid_body.freeze = not _rigid_body.freeze
 
+func _inspector_transform_committed() -> void:
+	if _rigid_body.freeze or not Simulation.is_running():
+		return
+	var target := global_transform
+	PhysicsServer3D.body_set_state(_rigid_body.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, target)
+	_rigid_body.global_transform = target
+	_rigid_body.linear_velocity = Vector3.ZERO
+	_rigid_body.angular_velocity = Vector3.ZERO
+	_rigid_body.reset_physics_interpolation()
+
 func _on_simulation_started() -> void:
 	if _enable_initial_transform:
 		return
