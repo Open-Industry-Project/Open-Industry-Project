@@ -440,6 +440,10 @@ func _request_connection_rebuild() -> void:
 	_do_connection_rebuild.call_deferred()
 
 
+func _request_legs_recheck() -> void:
+	_rebuild_legs()
+
+
 func _do_connection_rebuild() -> void:
 	_connection_rebuild_pending = false
 	if not is_inside_tree():

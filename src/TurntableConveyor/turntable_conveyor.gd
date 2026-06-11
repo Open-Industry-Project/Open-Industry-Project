@@ -743,6 +743,10 @@ func _request_legs_refresh() -> void:
 	call_deferred("_rebuild_legs")
 
 
+func _request_legs_recheck() -> void:
+	_rebuild_legs()
+
+
 func _rebuild_legs() -> void:
 	_legs_refresh_pending = false
 	if not is_inside_tree():

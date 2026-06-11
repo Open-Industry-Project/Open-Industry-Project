@@ -752,6 +752,10 @@ func _do_connection_rebuild() -> void:
 	_rebuild_side_guards()
 
 
+func _request_legs_recheck() -> void:
+	_rebuild_legs()
+
+
 func _rebuild() -> void:
 	_rebuild_pending = false
 	if not is_inside_tree():

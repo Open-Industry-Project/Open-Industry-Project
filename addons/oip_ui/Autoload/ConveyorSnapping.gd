@@ -466,6 +466,8 @@ static func _candidates_near(node: Node3D, grow: float) -> Array[Node3D]:
 ## dragged out of contact can still ping the neighbor it left.
 static var _contact_neighbors: Dictionary = {}
 
+static var _leg_overlap_neighbors: Dictionary = {}
+
 
 ## Ping every port-node near [param mover] — plus those it was near last call — to re-derive
 ## from current contact.
@@ -474,30 +476,74 @@ func notify_contacts_rebuild(mover: Node3D) -> void:
 	# Re-place the mover before pinging, so its new cell is live for neighbors deriving this
 	# frame — what keeps multi-move frames stale-free.
 	grid_update(mover)
-	var prev: Array = _contact_neighbors.get(id, [])
-	var current: Array[Node3D] = []
+	var near: Array[Node3D] = []
+	var crossers: Array[Node3D] = []
 	# is_inside_tree() avoids the error get_tree() logs when the mover is out of tree.
 	if mover.is_inside_tree():
-		current = _find_near_port_nodes(mover)
-	var seen: Dictionary = {}
+		var candidates: Array[Node3D] = _candidates_near(mover, 0.3)
+		var m_aabb: AABB = _world_aabb(mover).grow(0.3)
+		near = _find_near_port_nodes(mover, m_aabb, candidates)
+		crossers = _xz_overlapping_conveyors(mover, m_aabb, candidates)
+	_ping_changed_neighbors(_contact_neighbors, id, near, _ping_rebuild)
+	_ping_changed_neighbors(_leg_overlap_neighbors, id, crossers, _queue_leg_recheck)
+
+
+static func _ping_changed_neighbors(store: Dictionary, id: int, current: Array[Node3D], ping: Callable) -> void:
+	var prev: Array = store.get(id, [])
 	for n: Node3D in current:
-		seen[n.get_instance_id()] = true
-		_ping_rebuild(n)
+		ping.call(n)
 	for n: Variant in prev:
-		if n is Node3D and is_instance_valid(n) and not seen.has((n as Node3D).get_instance_id()):
-			_ping_rebuild(n)
+		if n is Node3D and is_instance_valid(n) and not current.has(n):
+			ping.call(n)
 	if current.is_empty():
-		_contact_neighbors.erase(id)
+		store.erase(id)
 	else:
-		_contact_neighbors[id] = current
+		store[id] = current
 
 
-static func _find_near_port_nodes(mover: Node3D) -> Array[Node3D]:
+static var _pending_leg_rechecks: Dictionary = {}
+static var _leg_recheck_flush_queued: bool = false
+
+
+func _queue_leg_recheck(n: Node3D) -> void:
+	if not is_instance_valid(n) or not n.is_inside_tree() or n.is_queued_for_deletion():
+		return
+	_pending_leg_rechecks[n.get_instance_id()] = n
+	if _leg_recheck_flush_queued:
+		return
+	_leg_recheck_flush_queued = true
+	get_tree().physics_frame.connect(_flush_leg_rechecks, CONNECT_ONE_SHOT)
+
+
+func _flush_leg_rechecks() -> void:
+	_leg_recheck_flush_queued = false
+	var pending: Dictionary = _pending_leg_rechecks
+	_pending_leg_rechecks = {}
+	for n: Variant in pending.values():
+		if n is Node3D and is_instance_valid(n) and (n as Node3D).is_inside_tree() \
+				and not (n as Node3D).is_queued_for_deletion():
+			(n as Node3D).call(&"_request_legs_recheck")
+
+
+static func _xz_overlapping_conveyors(mover: Node3D, m_aabb: AABB, candidates: Array[Node3D]) -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	for other: Node3D in candidates:
+		if other == mover or not is_instance_valid(other) or not other.is_inside_tree():
+			continue
+		if not other.has_method(&"_request_legs_recheck"):
+			continue
+		var o: AABB = _world_aabb(other)
+		if m_aabb.position.x < o.end.x and m_aabb.end.x > o.position.x \
+				and m_aabb.position.z < o.end.z and m_aabb.end.z > o.position.z:
+			result.append(other)
+	return result
+
+
+static func _find_near_port_nodes(mover: Node3D, m_aabb: AABB, candidates: Array[Node3D]) -> Array[Node3D]:
 	var result: Array[Node3D] = []
 	# Bounding-box overlap, not center distance: a long thin belt's far (discharge)
 	# end is nowhere near its center, so a radius test would miss neighbors there.
-	var m_aabb: AABB = _world_aabb(mover).grow(0.3)
-	for other: Node3D in _candidates_near(mover, 0.3):
+	for other: Node3D in candidates:
 		if other == mover or not is_instance_valid(other) or not other.is_inside_tree():
 			continue
 		if m_aabb.intersects(_world_aabb(other)):

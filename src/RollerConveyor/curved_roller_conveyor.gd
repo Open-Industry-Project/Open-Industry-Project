@@ -49,6 +49,16 @@ func _sync_size_from_dimensions() -> void:
 	size = Vector3(d, height, d)
 
 
+var local_bbox: AABB:
+	get:
+		var r_out: float = inner_radius + width
+		var a: float = deg_to_rad(conveyor_angle)
+		var c: float = cos(a)
+		var x_min: float = -r_out * (1.0 if a >= PI * 0.5 else sin(a))
+		var z_min: float = c * (inner_radius if c >= 0.0 else r_out)
+		return AABB(Vector3(x_min, -height, z_min), Vector3(-x_min, height, r_out - z_min))
+
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	var d: float
 	match _resize_handle:
@@ -856,6 +866,10 @@ const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
 const _LEG_CENTER_NAME := "Leg_Center"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
+
+func _request_legs_recheck() -> void:
+	_rebuild_legs()
+
 
 func _rebuild_legs() -> void:
 	if not is_inside_tree():

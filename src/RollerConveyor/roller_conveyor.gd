@@ -781,6 +781,10 @@ func _request_rebuild() -> void:
 	_request_roller_refresh()
 
 
+func _request_legs_recheck() -> void:
+	_rebuild_legs()
+
+
 func _request_roller_refresh() -> void:
 	if _roller_refresh_pending or not is_inside_tree():
 		return
