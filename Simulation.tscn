@@ -1,0 +1,140 @@
+[gd_scene format=3 uid="uid://du8q31sbxhd14"]
+
+[ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="1_lfd1m"]
+[ext_resource type="PackedScene" uid="uid://cagvpjdemo001" path="res://parts/AGV.tscn" id="3_lsr5j"]
+[ext_resource type="Script" uid="uid://1it35d0vq4ou" path="res://parts/building_wall_rule.gd" id="3_mpm82"]
+[ext_resource type="PackedScene" uid="uid://bq16fe5njnr2i" path="res://parts/Box.tscn" id="4_lfd1m"]
+[ext_resource type="PackedScene" uid="uid://dc6o7qkwd60ha" path="res://parts/SixAxisRobot.tscn" id="4_vtp77"]
+[ext_resource type="PackedScene" uid="uid://bfnc3pruatscn" path="res://parts/Fence.tscn" id="5_mpm82"]
+[ext_resource type="PackedScene" uid="uid://dfl0rmrkng7x8" path="res://parts/FloorMarking.tscn" id="6_vtp77"]
+[ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="7_qdflh"]
+[ext_resource type="PackedScene" uid="uid://bx0t0ttuepnbm" path="res://parts/TurntableConveyor.tscn" id="8_crdol"]
+[ext_resource type="PackedScene" uid="uid://bldtmlhjmm1tv" path="res://parts/RollerSpurConveyor.tscn" id="9_liksr"]
+[ext_resource type="PackedScene" uid="uid://ccnjj66g0dynu" path="res://parts/Pallet.tscn" id="11_wnud8"]
+
+[sub_resource type="Resource" id="Resource_4bf66"]
+script = ExtResource("3_mpm82")
+count = 2
+start = 1
+metadata/_custom_type_script = "uid://1it35d0vq4ou"
+
+[sub_resource type="Resource" id="Resource_ymq1x"]
+script = ExtResource("3_mpm82")
+count = 2
+start = 24
+metadata/_custom_type_script = "uid://1it35d0vq4ou"
+
+[sub_resource type="Resource" id="Resource_2wb5a"]
+script = ExtResource("3_mpm82")
+wall = 0
+gap = 2
+count = 2
+start = 32
+metadata/_custom_type_script = "uid://1it35d0vq4ou"
+
+[sub_resource type="Resource" id="Resource_522rc"]
+script = ExtResource("3_mpm82")
+wall = 0
+gap = 2
+count = 2
+start = 28
+metadata/_custom_type_script = "uid://1it35d0vq4ou"
+
+[sub_resource type="Resource" id="Resource_wqnqx"]
+script = ExtResource("3_mpm82")
+wall = 4
+count = 1
+start = 2
+door_count = 2
+
+[node name="Simulation" type="Node3D" unique_id=754582932]
+
+[node name="Building" parent="." unique_id=183560046 instance=ExtResource("1_lfd1m")]
+rules = Array[ExtResource("3_mpm82")]([SubResource("Resource_4bf66"), SubResource("Resource_ymq1x"), SubResource("Resource_2wb5a"), SubResource("Resource_522rc"), SubResource("Resource_wqnqx")])
+shadow_quality = 2
+
+[node name="AGV" parent="." unique_id=1792458611 instance=ExtResource("3_lsr5j")]
+transform = Transform3D(-1, 0, 3.8941437e-07, 0, 1, 0, -3.8941437e-07, 0, -1, 7.1442437, 0, -15.403887)
+
+[node name="AGV2" parent="." unique_id=1596173663 instance=ExtResource("3_lsr5j")]
+transform = Transform3D(-1, 0, 3.8941437e-07, 0, 1, 0, -3.8941437e-07, 0, -1, 7.1442437, 0, -15.403887)
+
+[node name="SixAxisRobot" parent="." unique_id=508298280 instance=ExtResource("4_vtp77")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.48505116, 0.036080837, 1.6325095)
+home_position = Array[float]([49.275698744919794, -45.0, 89.99999999999997, 25.000000000000004, 75.0, 360.0])
+waypoints = {
+"1: Point2": Array[float]([3.366595674712959, 24.98700390724383, 141.41226236383798, 1.2115869517724065, 15.744343739778232, 360.0])
+}
+selected_waypoint = "1: Point2"
+new_waypoint_name = "Point3"
+j1_angle = 49.275698744919794
+j6_angle = 360.0
+
+[node name="Box" parent="." unique_id=1373682946 instance=ExtResource("4_lfd1m")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1801426, 0.20000012, 1.6692691)
+metadata/hijack_scale = true
+
+[node name="Fence2" parent="." unique_id=1700000001 instance=ExtResource("5_mpm82")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 5.821218, 0, 2.1478894)
+omit_post_start = true
+size = Vector3(5.27163, 2, 0.06)
+
+[node name="Fence3" parent="." unique_id=224724300 instance=ExtResource("5_mpm82")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9396753, 0, -0.5847955)
+omit_post_start = true
+size = Vector3(7.7630854, 2, 0.06)
+
+[node name="Fence5" parent="." unique_id=868571120 instance=ExtResource("5_mpm82")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9396753, 0, 4.7837043)
+omit_post_end = true
+size = Vector3(7.7630854, 2, 0.06)
+
+[node name="Fence4" parent="." unique_id=1901440178 instance=ExtResource("5_mpm82")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.9418674, 0, 0.5998801)
+omit_post_end = true
+size = Vector3(2.3693511, 2, 0.06)
+
+[node name="FloorMarking" parent="." unique_id=970413264 instance=ExtResource("6_vtp77")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2103443, 0, 3.2752817)
+size = Vector3(0.4861546, 0.02, 3.068923)
+
+[node name="FloorMarking2" parent="." unique_id=2052597985 instance=ExtResource("6_vtp77")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.321287, 0.1329999, 1.7802672)
+style = 3
+size = Vector3(2, 0.02, 2.203186)
+
+[node name="RollerConveyor" parent="." unique_id=75041265 instance=ExtResource("7_qdflh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.028266, 2.0000055, 8.143057)
+metadata/hijack_scale = true
+metadata/_snap_transform = Callable()
+
+[node name="TurntableConveyor" parent="." unique_id=39041698 instance=ExtResource("8_crdol")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.171266, 2.0000055, 8.143057)
+speed = 5.0
+target_angle = 270.0
+
+[node name="RollerConveyor2" parent="." unique_id=2145270475 instance=ExtResource("7_qdflh")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 13.067862, 2.0000055, 7.0000567)
+size = Vector3(14.237045, 0.5, 1.524)
+metadata/hijack_scale = true
+metadata/_snap_transform = Callable()
+
+[node name="RollerSpurConveyor" parent="." unique_id=634096855 instance=ExtResource("9_liksr")]
+transform = Transform3D(-0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, -0.8660254, 15.681912, 2.0000055, 1.1305628)
+metadata/hijack_scale = true
+metadata/_snap_transform = Callable()
+
+[node name="RollerConveyor3" parent="." unique_id=1907984239 instance=ExtResource("7_qdflh")]
+transform = Transform3D(-0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, -0.8660254, 19.146013, 2.0000055, 3.1305628)
+metadata/hijack_scale = true
+metadata/_snap_transform = Callable()
+
+[node name="Box2" parent="." unique_id=1816630966 instance=ExtResource("4_lfd1m")]
+transform = Transform3D(0.8660254, 0, -0.5, 0, 1, 0, 0.5, 0, 0.8660254, 18.418983, 2.2000055, 2.830761)
+metadata/hijack_scale = true
+
+[node name="Pallet" parent="." unique_id=528981788 instance=ExtResource("11_wnud8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.283947, 2.0001419, 8.274372)
+
+[node name="Pallet2" parent="." unique_id=297899294 instance=ExtResource("11_wnud8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.310773, 0.00013622218, 1.7706313)

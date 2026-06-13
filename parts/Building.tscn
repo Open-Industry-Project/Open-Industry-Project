@@ -34,8 +34,14 @@ count = 2
 start = 28
 metadata/_custom_type_script = "uid://1it35d0vq4ou"
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+
+[sub_resource type="Sky" id="Sky_sky"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
 [sub_resource type="Environment" id="Environment_ijpc5"]
-background_mode = 1
+background_mode = 2
+sky = SubResource("Sky_sky")
 ambient_light_source = 2
 ambient_light_color = Color(0.72, 0.75, 0.8, 1)
 ambient_light_energy = 0.6
@@ -175,6 +181,8 @@ data = {
 "cells": PackedInt32Array(196606, 65534, 0, 196607, 65534, 0, 131072, 65534, 0, 131073, 65534, 0, 131074, 65534, 0, 196607, 2, 655360, 131072, 2, 655360, 131073, 2, 655360, 131074, 2, 655360, 131075, 2, 655360, 196606, 65535, 1, 196606, 0, 1, 196607, 65535, 1, 196607, 0, 1, 131072, 65535, 1, 131072, 0, 1, 131073, 65535, 1, 131073, 0, 1, 131074, 65535, 1, 131074, 0, 1)
 }
 metadata/_editor_floor_ = Vector3(0, 2, 0)
+
+[node name="DockDoors" type="Node3D" parent="." unique_id=299569443]
 
 [node name="ThumbnailMesh" type="MeshInstance3D" parent="." unique_id=299569442]
 transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
