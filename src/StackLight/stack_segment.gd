@@ -25,7 +25,21 @@ var index: int = -1
 var _material: StandardMaterial3D
 
 func _ready() -> void:
-	_material = _mesh_instance.mesh.surface_get_material(0).duplicate() as StandardMaterial3D
+	var lens := CylinderMesh.new()
+	lens.top_radius = StackLight.RADIUS
+	lens.bottom_radius = StackLight.RADIUS
+	lens.height = StackLight.SEGMENT_HEIGHT
+	lens.radial_segments = StackLight.RADIAL
+	lens.rings = 1
+	_mesh_instance.mesh = lens
+
+	_material = StandardMaterial3D.new()
+	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_material.roughness = 0.5
+	_material.metallic = 0.0
+	_material.emission_enabled = true
+	_material.emission_energy_multiplier = 0.0
+	_material.albedo_color = Color(0.7, 0.7, 0.7, 1.0)
 	_mesh_instance.set_surface_override_material(0, _material)
 
 	if segment_data:

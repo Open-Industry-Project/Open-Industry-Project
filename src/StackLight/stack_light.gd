@@ -2,10 +2,30 @@
 class_name StackLight
 extends Node3D
 
-const STEP: float = 0.048
-const _TOP_MESH_INITIAL_Y_POS: float = 0.087
 
 ## Number of light segments in the stack (1-10).
+const RADIAL: int = 24
+const RADIUS: float = 0.035
+const STAND_HEIGHT: float = 0.196
+const BASE_HEIGHT: float = 0.025
+## Vertical span of one lit tier; also the spacing between tiers (STEP).
+const SEGMENT_HEIGHT: float = 0.05
+const TOP_HEIGHT: float = 0.014
+# black seam band straddling each tier seam; a hair wider than the lens
+const RING_HEIGHT: float = 0.006
+const RING_RADIUS: float = RADIUS + 0.0015
+# pale inner core the translucent lenses wrap around
+const CORE_RADIUS: float = RADIUS - 0.006
+# flat disc foot (rests on the floor) + slender pole making up STAND_HEIGHT
+const FOOT_HEIGHT: float = 0.012
+const FOOT_RADIUS: float = 0.032
+const FOOT_TOP_RADIUS: float = 0.03
+const STEM_RADIUS: float = 0.013
+const STEM_HEIGHT: float = STAND_HEIGHT - FOOT_HEIGHT
+# y of the first lens' bottom: above the stand and the base collar
+const LENS_BOTTOM: float = STAND_HEIGHT + BASE_HEIGHT
+
+## Number of light segments in the stack (1-8).
 var segments: int = 1:
 	set(value):
 		var new_value: int = clamp(value, 1, 8)
@@ -33,8 +53,7 @@ var segments: int = 1:
 				light_value = new_light_value
 				_update_segment_visuals()
 
-			if _top_mesh:
-				_top_mesh.position = Vector3(0, _TOP_MESH_INITIAL_Y_POS + (STEP * (segments - 1)), 0)
+			_rebuild_dynamic()
 		notify_property_list_changed()
 
 ## Bitmask controlling which segments are lit (bit 0 = segment 1, etc.).
@@ -63,19 +82,21 @@ var tag_name: String = ""
 var _segment_scene: PackedScene = load("res://src/StackLight/StackSegment.tscn")
 var _data: StackLightData = load("res://src/StackLight/StackLightData.tres")
 var _prev_scale: Vector3
-var _top_mesh_initial_y_pos: float
-var _segment_initial_y_pos: float
+var _housing_material: StandardMaterial3D
 var _tag := OIPCommsTag.new()
-@onready var _segments_container: Node3D = get_node("Mid/Segments")
-@onready var _top_mesh: MeshInstance3D = get_node("Mid/Top")
-@onready var _bottom_mesh: MeshInstance3D = get_node("Bottom")
-@onready var _mid_mesh: MeshInstance3D = get_node("Mid")
+@onready var _foot: MeshInstance3D = get_node("Foot")
+@onready var _stem: MeshInstance3D = get_node("Stem")
+@onready var _base: MeshInstance3D = get_node("Base")
+@onready var _core: MeshInstance3D = get_node("Core")
+@onready var _cap: MeshInstance3D = get_node("Cap")
+@onready var _segments_container: Node3D = get_node("Segments")
+@onready var _rings_container: Node3D = get_node("Rings")
 
 
 func _get(property: StringName) -> Variant:
 	if not is_inside_tree() or not _segments_container:
 		return null
-	
+
 	for i in range(segments):
 		if property == "Light " + str(i + 1):
 			var segment := _segments_container.get_child(i)
@@ -148,6 +169,8 @@ func _ready() -> void:
 	_data = _data.duplicate(true)
 	_data.init_segments(segments)
 
+	_build_housing()
+
 	var current_child_count := _segments_container.get_child_count()
 	var difference := segments - current_child_count
 
@@ -159,18 +182,10 @@ func _ready() -> void:
 			if child_to_remove_index >= 0:
 				var child_node := _segments_container.get_child(child_to_remove_index)
 				child_node.queue_free()
-			else:
-				pass
-
-	if _segments_container.get_child_count() > 0:
-		_segment_initial_y_pos = _segments_container.get_child(0).position.y
-	else:
-		_segment_initial_y_pos = 0.0
 
 	_fix_segment_positions()
 	_init_segments()
-
-	_top_mesh.position = Vector3(0, _TOP_MESH_INITIAL_Y_POS + (STEP * (max(0, segments - 1))), 0)
+	_rebuild_dynamic()
 	_update_segment_visuals()
 	_prev_scale = scale
 	_rescale()
@@ -197,10 +212,82 @@ func use() -> void:
 	light_value += 1
 
 
+# Procedural geometry never distorts: force a single uniform scale (driven by X).
 func _rescale() -> void:
-	scale = Vector3(scale.x, scale.y, scale.x)
-	_bottom_mesh.scale = Vector3(1, 1 / scale.y, 1)
-	_mid_mesh.scale = Vector3(1, (1 / scale.y) * scale.x, 1)
+	scale = Vector3(scale.x, scale.x, scale.x)
+
+
+func _build_housing() -> void:
+	_housing_material = StandardMaterial3D.new()
+	# StackLight.glb housing baseColorFactor is black; lifted a hair off pure black.
+	_housing_material.albedo_color = Color8(23, 24, 27)
+	_housing_material.metallic = 0.25
+	_housing_material.roughness = 0.5
+
+	var core_material := StandardMaterial3D.new()
+	# pale core (GLB "Stack-light" mesh, linear factor); convert to sRGB for albedo
+	core_material.albedo_color = Color(0.792, 0.819, 0.933).linear_to_srgb()
+	core_material.metallic = 0.1
+	core_material.roughness = 0.5
+
+	_foot.mesh = _cylinder(FOOT_TOP_RADIUS, FOOT_RADIUS, FOOT_HEIGHT)
+	_foot.material_override = _housing_material
+	_foot.position = Vector3(0, FOOT_HEIGHT * 0.5, 0)
+
+	_stem.mesh = _cylinder(STEM_RADIUS, STEM_RADIUS, STEM_HEIGHT)
+	_stem.material_override = _housing_material
+	_stem.position = Vector3(0, FOOT_HEIGHT + STEM_HEIGHT * 0.5, 0)
+
+	_base.mesh = _cylinder(RADIUS, RADIUS, BASE_HEIGHT)
+	_base.material_override = _housing_material
+	_base.position = Vector3(0, STAND_HEIGHT + BASE_HEIGHT * 0.5, 0)
+
+	# core height/position is set per tier count in _rebuild_dynamic
+	_core.mesh = _cylinder(CORE_RADIUS, CORE_RADIUS, SEGMENT_HEIGHT)
+	_core.material_override = core_material
+
+	# cap is a near-cylinder with only a slight top bevel (top radius 0.9 R)
+	_cap.mesh = _cylinder(RADIUS * 0.9, RADIUS, TOP_HEIGHT)
+	_cap.material_override = _housing_material
+
+
+func _rebuild_dynamic() -> void:
+	var stack := segments * SEGMENT_HEIGHT
+	var core_mesh := _core.mesh as CylinderMesh
+	if core_mesh:
+		core_mesh.height = stack
+	_core.position = Vector3(0, LENS_BOTTOM + stack * 0.5, 0)
+	_cap.position = Vector3(0, LENS_BOTTOM + stack + TOP_HEIGHT * 0.5, 0)
+	_rebuild_rings()
+	_increase_collision_shape()
+
+
+func _rebuild_rings() -> void:
+	for child in _rings_container.get_children():
+		_rings_container.remove_child(child)
+		child.queue_free()
+	# one ring at every seam: base -> tier 0, between tiers, and tier N-1 -> cap
+	var ring_mesh := _cylinder(RING_RADIUS, RING_RADIUS, RING_HEIGHT)
+	for i in range(segments + 1):
+		var ring := MeshInstance3D.new()
+		ring.mesh = ring_mesh
+		ring.material_override = _housing_material
+		ring.position = Vector3(0, LENS_BOTTOM + i * SEGMENT_HEIGHT, 0)
+		_rings_container.add_child(ring)
+
+
+func _cylinder(top_radius: float, bottom_radius: float, height: float) -> CylinderMesh:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = top_radius
+	mesh.bottom_radius = bottom_radius
+	mesh.height = height
+	mesh.radial_segments = RADIAL
+	mesh.rings = 1
+	return mesh
+
+
+func _tower_height(count: int) -> float:
+	return STAND_HEIGHT + BASE_HEIGHT + count * SEGMENT_HEIGHT + TOP_HEIGHT
 
 
 func _init_segments() -> void:
@@ -214,7 +301,6 @@ func _init_segments() -> void:
 
 		if not segment_node.active_state_changed.is_connected(_on_segment_state_changed):
 			segment_node.active_state_changed.connect(_on_segment_state_changed)
-	_increase_collision_shape()
 
 
 func _spawn_segments(count: int) -> void:
@@ -226,7 +312,7 @@ func _spawn_segments(count: int) -> void:
 		_segments_container.add_child(segment, true)
 		var current_index := start_index + i
 		segment.index = current_index
-		segment.position = Vector3(0, _segment_initial_y_pos + (STEP * current_index), 0)
+		segment.position = Vector3(0, LENS_BOTTOM + (current_index + 0.5) * SEGMENT_HEIGHT, 0)
 
 		if current_index < _data.segment_datas.size():
 			segment.segment_data = _data.segment_datas[current_index]
@@ -255,15 +341,17 @@ func _fix_segment_positions() -> void:
 		return
 	for i in range(_segments_container.get_child_count()):
 		var segment_node := _segments_container.get_child(i)
-		segment_node.position = Vector3(0, _segment_initial_y_pos + (STEP * i), 0)
+		segment_node.position = Vector3(0, LENS_BOTTOM + (i + 0.5) * SEGMENT_HEIGHT, 0)
 
 
 func _increase_collision_shape() -> void:
-	var collision_shape := $StaticBody3D/CollisionShape3D
+	var collision_shape: CollisionShape3D = $StaticBody3D/CollisionShape3D
 	if collision_shape:
-		var new_scale_y := 1.45 + (0.3 * segments)
-		collision_shape.shape.size.y = new_scale_y
-		collision_shape.position.y = -0.148 + (0.16 * (segments - 1))
+		var h := _tower_height(segments)
+		var box := collision_shape.shape as BoxShape3D
+		if box:
+			box.size = Vector3(2.0 * RING_RADIUS, h, 2.0 * RING_RADIUS)
+		collision_shape.position = Vector3(0, h * 0.5, 0)
 
 
 func _update_segment_visuals() -> void:
