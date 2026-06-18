@@ -493,7 +493,7 @@ static func _ping_changed_neighbors(store: Dictionary, id: int, current: Array[N
 	for n: Node3D in current:
 		ping.call(n)
 	for n: Variant in prev:
-		if n is Node3D and is_instance_valid(n) and not current.has(n):
+		if is_instance_valid(n) and n is Node3D and not current.has(n):
 			ping.call(n)
 	if current.is_empty():
 		store.erase(id)
@@ -520,7 +520,7 @@ func _flush_leg_rechecks() -> void:
 	var pending: Dictionary = _pending_leg_rechecks
 	_pending_leg_rechecks = {}
 	for n: Variant in pending.values():
-		if n is Node3D and is_instance_valid(n) and (n as Node3D).is_inside_tree() \
+		if is_instance_valid(n) and n is Node3D and (n as Node3D).is_inside_tree() \
 				and not (n as Node3D).is_queued_for_deletion():
 			(n as Node3D).call(&"_request_legs_recheck")
 
