@@ -1,0 +1,84 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://dch8o64adeyks"
+path="res://.godot/imported/DockDoor_01.glb-d32ef958eabd0c7e1877c2d55ac5534e.scn"
+
+[deps]
+
+source_file="res://assets/3DModels/DockDoor/DockDoor_01.glb"
+dest_files=["res://.godot/imported/DockDoor_01.glb-d32ef958eabd0c7e1877c2d55ac5534e.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=false
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"meshes": {
+"DockDoor_01_DockDoor_Wall_A": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/DockDoor/Meshes/DockDoor_Wall_A.res",
+"save_to_file/path": "uid://1f3guxev11cy"
+},
+"DockDoor_01_DockDoor_Wall_B": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/DockDoor/Meshes/DockDoor_Wall_B.res",
+"save_to_file/path": "uid://b7rs2r4b6a4yt"
+},
+"DockDoor_01_Door": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/DockDoor/Meshes/DockDoor_Door_01.res",
+"save_to_file/path": "uid://bogcpb3og1dfo"
+},
+"DockDoor_01_Frame": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/DockDoor/Meshes/DockDoor_Frame_01.res",
+"save_to_file/path": "uid://vfbyvjbh8n6x"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1
+gltf/texture_map_mode=1
