@@ -2,24 +2,16 @@
 class_name Diverter
 extends Node3D
 
-## Button to trigger a divert action in the editor.
-@export_tool_button("Divert") var divert_action: Callable = divert
-## Time in seconds for the diverter to complete its motion.
+## Button to toggle the diverter in the editor.
+@export_tool_button("Toggle Divert") var divert_action: Callable = toggle_divert
+## Time in seconds for the diverter to extend or retract.
 @export_custom(PROPERTY_HINT_NONE, "suffix:s") var divert_time: float = 0.25
-## Distance the diverter arm travels during activation.
+## Distance the diverter arm travels when extended.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var divert_distance: float = 0.75
 
 var size: Vector3 = Vector3(0.722, 1.2, 2.127)
 
-var _fire_divert: bool = false:
-	set(value):
-		_fire_divert = value
-		await get_tree().create_timer(0.3).timeout
-		_fire_divert = false
-
-var _cycled: bool = true
-var _diverting: bool = false
-var _previous_fire_divert_state: bool = false
+var _diverted: bool = false
 var _tag := OIPCommsTag.new()
 @onready var _diverter_animator: DiverterAnimator = $DiverterAnimator
 
@@ -98,20 +90,19 @@ func _disable_collisions_recursive(node: Node) -> void:
 func use() -> void:
 	divert()
 
+## Extend the diverter and hold it across the lane until retracted.
 func divert() -> void:
-	_fire_divert = true
+	_diverted = true
+
+## Retract the diverter back to its home position.
+func retract() -> void:
+	_diverted = false
+
+func toggle_divert() -> void:
+	_diverted = not _diverted
 
 func _physics_process(_delta: float) -> void:
-	if _fire_divert and not _previous_fire_divert_state:
-		_diverting = true
-		_cycled = false
-
-	if _diverting and not _cycled:
-		_diverter_animator.fire(divert_time, divert_distance)
-		_diverting = false
-		_cycled = true
-
-	_previous_fire_divert_state = _fire_divert
+	_diverter_animator.set_target(_diverted, divert_time, divert_distance)
 
 func _on_simulation_started() -> void:
 	if enable_comms:
@@ -119,9 +110,9 @@ func _on_simulation_started() -> void:
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if _tag.on_group_initialized(tag_group_name_param):
-		_tag.write_bit(_fire_divert)
+		_tag.write_bit(_diverted)
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms or not _tag.matches_group(tag_group_name_param):
 		return
-	_fire_divert = _tag.read_bit()
+	_diverted = _tag.read_bit()
