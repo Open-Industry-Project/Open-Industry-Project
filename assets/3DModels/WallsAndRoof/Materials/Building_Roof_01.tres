@@ -10,3 +10,4 @@ orm_texture = ExtResource("2_jjtdd")
 normal_enabled = true
 normal_texture = ExtResource("2_fa36y")
 ao_enabled = true
+ao_light_affect = 0.5
