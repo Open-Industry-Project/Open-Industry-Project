@@ -74,6 +74,10 @@ func set_render_layer(layers: int) -> void:
 		(mesh as MeshInstance3D).layers = layers
 
 
+func get_first_leaf() -> DockDoorLeaf:
+	return _leaves[0] if not _leaves.is_empty() else null
+
+
 func _set_leaf_open(index: int, value: bool) -> void:
 	if index < _leaves.size() and _leaves[index]:
 		_leaves[index].open = value
