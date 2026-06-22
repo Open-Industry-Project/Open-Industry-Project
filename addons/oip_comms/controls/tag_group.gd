@@ -146,6 +146,17 @@ func update_protocol(_index: int, from_ready := false) -> void:
 			gateway.text = "localhost:1883"
 			path.text = ""
 			port.text = ""
+	elif _index == 7:
+		cpu_row.hide()
+		port_row.hide()
+		browse_opc_ua.hide()
+		path_label.hide()
+		path.hide()
+		gateway_label.text = "Bundle (oip-plc.js)"
+
+		if not from_ready:
+			gateway.text = "res://oip-plc.js"
+			path.text = ""
 	else:  # ab_eip
 		cpu_row.show()
 		port_row.hide()

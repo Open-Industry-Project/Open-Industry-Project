@@ -46,6 +46,7 @@ func register_tag_groups() -> void:
 		elif pt_num == "4": pt = "ads"
 		elif pt_num == "5": pt = "rtde"
 		elif pt_num == "6": pt = "mqtt"
+		elif pt_num == "7": pt = "soft_plc"
 
 		var gateway: String = group.gateway
 		var path: String = group.path
