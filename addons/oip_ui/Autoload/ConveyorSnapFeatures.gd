@@ -6,7 +6,7 @@ extends RefCounted
 
 const DIVERTER_Y_OFFSET: float = 0.2
 const DIVERTER_SIDE_OFFSET: float = 0.05
-const BLADE_STOP_TARGET_LOCAL_Y: float = -0.42
+const BLADE_STOP_TARGET_LOCAL_Y: float = -0.188
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
 const SENSOR_GUARD_OFFSET: float = 0.02
 const SENSOR_SNAP_RANGE: float = 0.6

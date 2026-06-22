@@ -4,6 +4,12 @@ extends Node3D
 
 ## Initial velocity applied to this pallet when simulation starts.
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
+## Mass of the pallet, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var mass: float = 20.0:
+	set(value):
+		mass = value
+		if _rigid_body:
+			_rigid_body.mass = value
 ## The color of the pallet material.
 @export var color: Color = Color.WHITE:
 	set(value):
@@ -35,6 +41,7 @@ func _enter_tree() -> void:
 	Simulation.pause_toggled.connect(_on_simulation_set_paused)
 
 func _ready() -> void:
+	_rigid_body.mass = mass
 	_rigid_body.freeze = not Simulation.is_running()
 	if Simulation.is_running():
 		instanced = true

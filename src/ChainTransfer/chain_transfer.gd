@@ -123,6 +123,31 @@ func _validate_property(property: Dictionary) -> void:
 		return
 	OIPCommsSetup.validate_tag_property(property, "popup_tag_group_name", "popup_tag_groups", "popup_tag_name")
 
+
+func _get_property_list() -> Array[Dictionary]:
+	var props: Array[Dictionary] = [{
+		"name": "lane_length",
+		"type": TYPE_FLOAT,
+		"usage": PROPERTY_USAGE_EDITOR,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0.5,3.0,0.05,suffix:m",
+	}]
+	return props
+
+
+func _get(property: StringName) -> Variant:
+	if property == &"lane_length":
+		return scale.z * SNAP_NATIVE_Z_WIDTH
+	return null
+
+
+func _set(property: StringName, value: Variant) -> bool:
+	if property == &"lane_length":
+		scale.z = maxf(0.01, float(value) / SNAP_NATIVE_Z_WIDTH)
+		_lock_scale_to_z_axis()
+		return true
+	return false
+
 func use() -> void:
 	popup_chains = not popup_chains
 

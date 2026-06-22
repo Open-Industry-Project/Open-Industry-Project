@@ -59,6 +59,30 @@ func _validate_property(property: Dictionary) -> void:
 	OIPCommsSetup.validate_tag_property(property)
 
 
+func _get_property_list() -> Array[Dictionary]:
+	var props: Array[Dictionary] = [{
+		"name": "width",
+		"type": TYPE_FLOAT,
+		"usage": PROPERTY_USAGE_EDITOR,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0.1,2.0,0.05,suffix:m",
+	}]
+	return props
+
+
+func _get(property: StringName) -> Variant:
+	if property == &"width":
+		return scale.z * SNAP_NATIVE_Z_WIDTH
+	return null
+
+
+func _set(property: StringName, value: Variant) -> bool:
+	if property == &"width":
+		scale = Vector3(scale.x, scale.y, maxf(0.01, float(value) / SNAP_NATIVE_Z_WIDTH))
+		return true
+	return false
+
+
 func get_snap_features() -> Array:
 	return [
 		{
@@ -112,9 +136,13 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	_fit_blade_to_rollers()
-	_blade.position = Vector3(_blade.position.x, air_pressure_height, _blade.position.z)
 	_air_pressure_r.position = Vector3(_air_pressure_r.position.x, air_pressure_height, _air_pressure_r.position.z)
 	_air_pressure_l.position = Vector3(_air_pressure_l.position.x, air_pressure_height, _air_pressure_l.position.z)
+	var blade_y: float = (air_pressure_height + _active_pos) if active else air_pressure_height
+	_blade.position = Vector3(_blade.position.x, blade_y, _blade.position.z)
+	var corner_y: float = _active_pos if active else 0.0
+	_blade_corner_r.position = Vector3(_blade_corner_r.position.x, corner_y, _blade_corner_r.position.z)
+	_blade_corner_l.position = Vector3(_blade_corner_l.position.x, corner_y, _blade_corner_l.position.z)
 
 
 func _fit_blade_to_rollers() -> void:
