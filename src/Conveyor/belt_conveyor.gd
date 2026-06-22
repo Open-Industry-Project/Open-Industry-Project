@@ -182,6 +182,15 @@ func _get_constrained_size(_new_size: Vector3) -> Vector3:
 	return local_bbox.size
 
 
+func _get_editor_rotation_lock() -> int:
+	return (1 << 0) | (1 << 2)
+
+
+func _get_editor_gizmo_pivot_offset() -> Vector3:
+	var bb := local_bbox
+	return Vector3(bb.position.x + bb.size.x * 0.5, 0.0, 0.0)
+
+
 func _get_active_resize_handle_ids() -> PackedInt32Array:
 	return PackedInt32Array()
 

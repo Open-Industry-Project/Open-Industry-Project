@@ -50,6 +50,10 @@ var local_bbox: AABB:
 		return AABB(Vector3(x_min, -height, z_min), Vector3(-x_min, height, r_out - z_min))
 
 
+func _get_editor_rotation_lock() -> int:
+	return (1 << 0) | (1 << 2)
+
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	var d: float
 	match _resize_handle:

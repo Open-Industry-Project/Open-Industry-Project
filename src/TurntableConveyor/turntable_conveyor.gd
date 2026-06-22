@@ -213,6 +213,10 @@ func _get_resize_local_bounds(for_size: Vector3) -> AABB:
 	return AABB(Vector3(-for_size.x * 0.5, -for_size.y, -for_size.z * 0.5), for_size)
 
 
+func _get_editor_rotation_lock() -> int:
+	return (1 << 0) | (1 << 2)
+
+
 # Keep the footprint square (X == Z) so the deck stays circular; a handle drag on
 # either axis sets the diameter.
 func _get_constrained_size(new_size: Vector3) -> Vector3:

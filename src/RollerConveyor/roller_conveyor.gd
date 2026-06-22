@@ -44,6 +44,17 @@ signal roller_override_material_changed(material: Material)
 			_update_transfer_plates()
 			_update_guard_sensors()
 
+## Whole-run incline about the cross-belt (+Z) axis, degrees. +deg raises the head
+## (+X) end; the tail (origin) stays planted at belt height. A roller bed is rigid, so
+## this is one angle for the whole run (the belt conveyor inclines per-segment instead).
+## Rollers shed product on a steep slope, so the range is gentler than the belt's.
+@export_range(-30, 30, 1, "degrees") var incline_deg: float = 0.0:
+	set(value):
+		if incline_deg == value:
+			return
+		incline_deg = value
+		_apply_incline()
+
 ## How firmly skewed rollers square cargo against the side guards. 1.0 is the default
 ## response; higher acts like a grippier rail, 0.0 disables squaring. The skew/speed-derived
 ## limit still caps the maximum rate regardless of this value.
@@ -217,6 +228,7 @@ var _side_guards: Array[SideGuard] = []
 var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _legs: Array[Node3D] = []
 var _side_guard_rebuild_pending: bool = false
+var _enforcing_yaw: bool = false
 var _legs_refresh_pending: bool = false
 var _roller_refresh_pending: bool = false
 var _last_grid_anchor: Variant = null
@@ -346,6 +358,8 @@ func _reset_preview_holder_transform() -> void:
 func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if Engine.is_editor_hint():
+			_enforce_yaw_only()
 		_request_legs_refresh()
 		_request_side_guard_rebuild()
 		_request_roller_refresh()
@@ -528,12 +542,14 @@ func _setup_collision_shape() -> void:
 
 
 func _update_component_positions() -> void:
+	var inc := _incline_rad()
 	var conv_roller := get_node_or_null("ConvRoller") as Node3D
 	if conv_roller:
 		var frame_height := size.y
 
 		conv_roller.scale = Vector3.ONE
-		conv_roller.position = Vector3(0, -frame_height, 0)
+		conv_roller.position = Vector3(0, -frame_height, 0).rotated(Vector3(0, 0, 1), inc)
+		conv_roller.rotation = Vector3(0, 0, inc)
 		var left_side := conv_roller.get_node_or_null("ConvRollerL") as MeshInstance3D
 		var right_side := conv_roller.get_node_or_null("ConvRollerR") as MeshInstance3D
 		if left_side and right_side:
@@ -554,7 +570,8 @@ func _update_component_positions() -> void:
 
 	var rollers_node := get_node_or_null("Rollers") as Node3D
 	if rollers_node:
-		rollers_node.position = Vector3(0, -_roller_radius(), 0)
+		rollers_node.position = Vector3(0, -_roller_radius(), 0).rotated(Vector3(0, 0, 1), inc)
+		rollers_node.rotation = Vector3(0, 0, inc)
 		rollers_node.scale = Vector3.ONE
 		if rollers_node is MultiMeshRollers:
 			(rollers_node as MultiMeshRollers).set_clip_span(0.0, size.x)
@@ -574,6 +591,43 @@ func _update_length() -> void:
 		_last_length = new_length
 
 
+
+
+func _incline_rad() -> float:
+	return deg_to_rad(incline_deg)
+
+
+func _get_editor_rotation_lock() -> int:
+	return (1 << 0) | (1 << 2)
+
+
+func _get_editor_gizmo_pivot_offset() -> Vector3:
+	return Vector3(size.x * 0.5, 0.0, 0.0)
+
+
+func _enforce_yaw_only() -> void:
+	if _enforcing_yaw:
+		return
+	if absf(rotation.x) < 1.0e-5 and absf(rotation.z) < 1.0e-5:
+		return
+	_enforcing_yaw = true
+	rotation = Vector3(0.0, rotation.y, 0.0)
+	_enforcing_yaw = false
+
+
+func _apply_incline() -> void:
+	if not is_inside_tree():
+		return
+	_update_component_positions()
+	if _simple_conveyor_shape:
+		var inc := _incline_rad()
+		_simple_conveyor_shape.position = Vector3(size.x / 2.0, -size.y / 2.0, 0.0).rotated(Vector3(0, 0, 1), inc)
+		_simple_conveyor_shape.rotation = Vector3(0, 0, inc)
+	_update_conveyor_velocity()
+	_rebuild_legs()
+	ConveyorSnapping.notify_contacts_rebuild(self)
+	if Engine.is_editor_hint():
+		update_gizmos()
 
 
 func _update_conveyor_velocity() -> void:
@@ -609,7 +663,9 @@ func _on_size_changed() -> void:
 		_update_transfer_plates()
 
 		if _simple_conveyor_shape:
-			_simple_conveyor_shape.position = Vector3(size.x / 2.0, -size.y / 2.0, 0)
+			var inc := _incline_rad()
+			_simple_conveyor_shape.position = Vector3(size.x / 2.0, -size.y / 2.0, 0).rotated(Vector3(0, 0, 1), inc)
+			_simple_conveyor_shape.rotation = Vector3(0, 0, inc)
 
 		_update_flow_arrow()
 		_rebuild_side_guards()
@@ -989,7 +1045,7 @@ func _rebuild_legs() -> void:
 	for spec: Dictionary in specs:
 		var leg_name: String = spec["name"]
 		var x: float = spec["x"]
-		var belt_bottom_local: Vector3 = Vector3(x, -size.y, 0.0)
+		var belt_bottom_local: Vector3 = Vector3(x, -size.y, 0.0).rotated(Vector3(0, 0, 1), _incline_rad())
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
 		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
@@ -1041,7 +1097,7 @@ func _reposition_existing_legs() -> void:
 		if leg == null:
 			continue
 		var x: float = spec["x"]
-		var belt_bottom_local: Vector3 = Vector3(x, -size.y, 0.0)
+		var belt_bottom_local: Vector3 = Vector3(x, -size.y, 0.0).rotated(Vector3(0, 0, 1), _incline_rad())
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
 		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:

@@ -293,6 +293,14 @@ func _get_resize_local_bounds(for_size: Vector3) -> AABB:
 			for_size)
 
 
+func _get_editor_rotation_lock() -> int:
+	return (1 << 0) | (1 << 2)
+
+
+func _get_editor_gizmo_pivot_offset() -> Vector3:
+	return Vector3(size.x * 0.5, 0.0, 0.0)
+
+
 var local_bbox: AABB:
 	get:
 		return _get_resize_local_bounds(size)
