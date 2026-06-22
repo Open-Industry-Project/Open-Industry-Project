@@ -325,7 +325,7 @@ size = Vector3(0.42, 0.455, 0.55)
 size = Vector3(0.14, 0.145, 0.14)
 
 [node name="LaserSensor" type="Node3D" unique_id=1636363449]
-transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 0, 0)
+transform = Transform3D(0.271832, 0, 0, 0, 0.271832, 0, 0, 0, 0.271832, 0, 0, 0)
 script = ExtResource("1_27ueu")
 
 [node name="LaserSensor" type="Node3D" parent="." unique_id=780659429]

@@ -65,6 +65,7 @@ emission_energy_multiplier = 0.0
 size = Vector3(0.5, 0.415131, 0.292805)
 
 [node name="PushButton" type="Node3D" unique_id=1216453833]
+transform = Transform3D(0.423729, 0, 0, 0, 0.423729, 0, 0, 0, 0.423729, 0, 0, 0)
 script = ExtResource("1_kcxih")
 
 [node name="Meshes" type="Node3D" parent="." unique_id=570554531]
