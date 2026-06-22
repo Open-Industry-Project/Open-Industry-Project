@@ -229,9 +229,25 @@ func _get_wall_bounds() -> Array[int]:
 	return [x_min, x_max, z_min, z_max]
 
 
+func _structure_offset() -> Vector3:
+	var ox := SECTION_SIZE * (floori(width_sections / 2.0) - width_sections / 2.0)
+	var oz := SECTION_SIZE * (floori(length_sections / 2.0) - length_sections / 2.0)
+	return Vector3(ox, 0.0, oz)
+
+
+func _apply_structure_offset() -> void:
+	var off := _structure_offset()
+	floor_grid.position = off
+	for grid in _wall_grids:
+		grid.position = off
+	roof_grid.position = off
+	_door_holder.position = off
+
+
 func _generate_building() -> void:
 	if not is_node_ready():
 		return
+	_apply_structure_offset()
 	_generate_floor()
 	_generate_walls()
 	_generate_roof()
