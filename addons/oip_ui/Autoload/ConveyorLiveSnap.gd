@@ -7,9 +7,8 @@ extends Node
 const SEARCH_RADIUS: float = 3.0
 const VISIBLE_THRESHOLD: float = 0.3
 const FACING_PRESERVED_DOT: float = 0.85
-const SENSOR_LATERAL_BAND: float = 0.2
-const SENSOR_LONGITUDINAL_GRACE: float = 0.1
 const SNAP_DISABLE_MODIFIER: Key = KEY_ALT
+const _DEBUG_SNAP: bool = false
 const _NO_SNAP_FLOOR_LIFT: float = 2.0
 const _NO_SNAP_SURFACE_TOLERANCE: float = 0.25
 const _BASELINE_REVERSE_META := &"_snap_baseline_reverse"
@@ -132,6 +131,10 @@ func _on_preview_snap(proposed: Transform3D, node: Node3D) -> Variant:
 	_snapshot_baselines(node)
 	var snap_disabled := not ConveyorSnapping.live_snap_enabled or Input.is_physical_key_pressed(SNAP_DISABLE_MODIFIER)
 	var found: Dictionary = {} if snap_disabled else _find_snap(node, proposed)
+	if _DEBUG_SNAP:
+		print("[snap] preview node=", node.name, " sensor=", ConveyorSnapping._is_sensor(node),
+				" proposed=", proposed.origin, " disabled=", snap_disabled,
+				" candidates=", _candidate_cache.size(), " found=", not found.is_empty())
 
 	if found.is_empty():
 		ConveyorSnapping.preview_ghost = null
@@ -632,7 +635,6 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 			continue
 		var override_threshold: bool = (
 			not on_top_attachment
-			and not sel_is_sensor
 			and _selected_body_overlaps_target(intent, selected, entry)
 		)
 		if best_is_override and not override_threshold:
@@ -657,21 +659,23 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 		var alignment: float = intent.basis.x.normalized().dot(snap_xform.basis.x.normalized())
 		var rotation_penalty: float = (1.0 - alignment) * 2.0
 		var rank_dist: float = intent.origin.distance_to(snap_xform.origin)
-		if sel_is_sensor:
-			if not _sensor_over_side_guard(result, intent, entry.xform):
-				continue
+		var threshold: float = result.get("visible_threshold", VISIBLE_THRESHOLD)
+		var preserves_facing: bool = alignment >= FACING_PRESERVED_DOT
+		var gate_dist: float
+		if override_threshold:
+			gate_dist = rank_dist
+		elif sel_is_sensor:
+			gate_dist = _device_gate_distance(result, selected, intent, tgt, entry.xform)
 		else:
-			var threshold: float = result.get("visible_threshold", VISIBLE_THRESHOLD)
-			var preserves_facing: bool = alignment >= FACING_PRESERVED_DOT
-			var gate_dist: float
-			if override_threshold:
-				gate_dist = rank_dist
-			else:
-				gate_dist = _snap_interface_xz_distance(result, selected, intent, tgt, entry.xform)
-			if not preserves_facing and gate_dist > VISIBLE_THRESHOLD:
-				continue
-			if not override_threshold and gate_dist > threshold:
-				continue
+			gate_dist = _snap_interface_xz_distance(result, selected, intent, tgt, entry.xform)
+		if _DEBUG_SNAP and sel_is_sensor:
+			print("[snap]   tgt=", tgt.name, " override=", override_threshold,
+					" gate=", "%.3f" % gate_dist, " thr=", "%.3f" % threshold,
+					" accepted=", override_threshold or gate_dist <= threshold)
+		if not sel_is_sensor and not preserves_facing and gate_dist > VISIBLE_THRESHOLD:
+			continue
+		if not override_threshold and gate_dist > threshold:
+			continue
 		var dist: float = rank_dist + rotation_penalty
 		if override_threshold and not best_is_override:
 			best_is_override = true
@@ -714,6 +718,41 @@ static func _local_bbox_corners(node: Node3D, fallback_size: Variant) -> Array:
 	return []
 
 
+static func _visual_footprint_corners(selected: Node3D) -> Array:
+	var min_x: float = INF
+	var max_x: float = -INF
+	var min_z: float = INF
+	var max_z: float = -INF
+	var found: bool = false
+	var sel_inv: Transform3D = selected.global_transform.affine_inverse()
+	var stack: Array[Node] = [selected]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for child: Node in n.get_children():
+			stack.push_back(child)
+		if n is VisualInstance3D:
+			var vi: VisualInstance3D = n
+			var aabb: AABB = vi.get_aabb()
+			if aabb.size == Vector3.ZERO:
+				continue
+			var xf: Transform3D = sel_inv * vi.global_transform
+			for i: int in range(8):
+				var corner: Vector3 = xf * aabb.get_endpoint(i)
+				min_x = minf(min_x, corner.x)
+				max_x = maxf(max_x, corner.x)
+				min_z = minf(min_z, corner.z)
+				max_z = maxf(max_z, corner.z)
+			found = true
+	if not found:
+		return []
+	return [
+		Vector3(min_x, 0.0, min_z),
+		Vector3(max_x, 0.0, min_z),
+		Vector3(min_x, 0.0, max_z),
+		Vector3(max_x, 0.0, max_z),
+	]
+
+
 static func _selected_body_overlaps_target(intent: Transform3D, selected: Node3D, entry: Dictionary) -> bool:
 	var tgt_corners: Array = _local_bbox_corners(entry.node, entry.size)
 	if tgt_corners.is_empty():
@@ -732,6 +771,8 @@ static func _selected_body_overlaps_target(intent: Transform3D, selected: Node3D
 
 	var sel_size: Variant = selected.size if &"size" in selected else null
 	var sel_corners: Array = _local_bbox_corners(selected, sel_size)
+	if sel_corners.is_empty():
+		sel_corners = _visual_footprint_corners(selected)
 	if sel_corners.is_empty():
 		var local: Vector3 = tgt_inv_basis * (intent.origin - tgt_xform.origin)
 		return (local.x > tgt_min_x and local.x < tgt_max_x
@@ -898,19 +939,17 @@ static func _snap_interface_xz_distance(result: Dictionary, selected: Node3D, in
 	return _xz_distance(sel_end_world, tgt_end_world)
 
 
-static func _xz_distance(a: Vector3, b: Vector3) -> float:
-	return Vector2(a.x - b.x, a.z - b.z).length()
-
-
-static func _sensor_over_side_guard(result: Dictionary, intent: Transform3D, tgt_xform: Transform3D) -> bool:
+static func _device_gate_distance(result: Dictionary, selected: Node3D, intent: Transform3D, target: Node3D, tgt_xform: Transform3D) -> float:
+	var interface_dist: float = _snap_interface_xz_distance(result, selected, intent, target, tgt_xform)
 	var tgt_end: Dictionary = result.get("target_end", {})
 	if not tgt_end.has("pos"):
-		return false
-	var origin_local: Vector3 = tgt_xform.affine_inverse() * intent.origin
-	var contact_local: Vector3 = tgt_end["pos"]
-	var lateral: float = absf(origin_local.z - contact_local.z)
-	var overshoot: float = absf(origin_local.x - contact_local.x)
-	return lateral <= SENSOR_LATERAL_BAND and overshoot <= SENSOR_LONGITUDINAL_GRACE
+		return interface_dist
+	var contact_world: Vector3 = tgt_xform * (tgt_end["pos"] as Vector3)
+	return minf(interface_dist, _xz_distance(intent.origin, contact_world))
+
+
+static func _xz_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 static func _detect_floor_below(node: Node3D, origin: Vector3, exclude_rids: Array = []) -> Plane:

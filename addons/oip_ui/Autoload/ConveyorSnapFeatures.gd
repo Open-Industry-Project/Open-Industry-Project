@@ -9,7 +9,6 @@ const DIVERTER_SIDE_OFFSET: float = 0.05
 const BLADE_STOP_TARGET_LOCAL_Y: float = -0.188
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
 const SENSOR_GUARD_OFFSET: float = 0.02
-const SENSOR_SNAP_RANGE: float = 0.6
 const SENSOR_GUARD_LIFT: float = 0.06
 
 enum Shape { POINT, SEGMENT, TRACK }
@@ -177,9 +176,11 @@ static func _kinds_compatible(sel_kind: StringName, tgt_kind: StringName) -> boo
 
 static func _score_pair(selected: Node3D, target: Node3D, sf: Dictionary, tf: Dictionary) -> float:
 	if tf.shape == Shape.SEGMENT:
-		var seg_center_local: Vector3 = (tf.seg_start + tf.seg_end) * 0.5
-		var seg_center_world: Vector3 = target.global_transform * seg_center_local
-		return ConveyorSnapping.get_selected_xform(selected).origin.distance_to(seg_center_world)
+		var seg_start_world: Vector3 = target.global_transform * (tf.seg_start as Vector3)
+		var seg_end_world: Vector3 = target.global_transform * (tf.seg_end as Vector3)
+		var sel_origin: Vector3 = ConveyorSnapping.get_selected_xform(selected).origin
+		var contact: Vector3 = _closest_point_on_segment(sel_origin, seg_start_world, seg_end_world)
+		return sel_origin.distance_to(contact)
 	if tf.shape == Shape.TRACK:
 		var anchor_world: Vector3 = ConveyorSnapping.get_selected_xform(selected) * (sf.local_pos as Vector3)
 		var anchor_local: Vector3 = target.global_transform.affine_inverse() * anchor_world
@@ -203,6 +204,7 @@ static func _align_point_to_segment(selected: Node3D, target: Node3D, sf: Dictio
 	var contact: Vector3 = _closest_point_on_segment(
 		ConveyorSnapping.get_selected_xform(selected).origin, seg_start_world, seg_end_world
 	)
+	contact = _surface_contact(target, target_xform, contact)
 
 	var side_sign: float = signf(tf.seg_outward_local.z)
 	if side_sign == 0.0:
@@ -409,6 +411,7 @@ static func _align_straight_to_straight(
 		target_end = {"pos": tgt_back.local_pos, "outward": Vector3(-1, 0, 0), "name": &"back"}
 	elif min_distance == dist_left:
 		var contact: Vector3 = _closest_point_on_segment(sel_origin, left_start_world, left_end_world)
+		contact = _surface_contact(target, tgt_xform, contact)
 		# Pick the closer end so dragging tail-first doesn't flip the conveyor.
 		var sel_front_world: Vector3 = sel_xform * sel_front_pos
 		var sel_back_world: Vector3 = sel_xform * sel_back_pos
@@ -435,6 +438,7 @@ static func _align_straight_to_straight(
 		target_end = {"pos": contact_local, "outward": Vector3(0, 0, -1), "name": &"left_side"}
 	else:
 		var contact: Vector3 = _closest_point_on_segment(sel_origin, right_start_world, right_end_world)
+		contact = _surface_contact(target, tgt_xform, contact)
 		var sel_front_world: Vector3 = sel_xform * sel_front_pos
 		var sel_back_world: Vector3 = sel_xform * sel_back_pos
 		var use_front: bool = sel_front_world.distance_to(contact) <= sel_back_world.distance_to(contact)
@@ -517,6 +521,14 @@ static func _flip_around_local_y(snap_transform: Transform3D, snapped_end: Dicti
 		"name": new_name,
 	}
 	return [flipped_transform, flipped_end]
+
+
+static func _surface_contact(target: Node3D, target_xform: Transform3D, contact: Vector3) -> Vector3:
+	if not target.has_method(&"snap_surface_y"):
+		return contact
+	var c_local: Vector3 = target_xform.affine_inverse() * contact
+	c_local.y = target.call(&"snap_surface_y", c_local.x)
+	return target_xform * c_local
 
 
 static func _closest_point_on_segment(point: Vector3, line_start: Vector3, line_end: Vector3) -> Vector3:

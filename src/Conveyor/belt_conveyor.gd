@@ -504,30 +504,51 @@ func get_snap_features() -> Array:
 		"end_name": &"front",
 	})
 	var half_w: float = width * 0.5
+	var first_start_x: float = _path.runs[0].start_xform.origin.x
+	var last_run: BeltPath.Run = _path.runs[_path.runs.size() - 1]
+	var x_end: float = (last_run.start_xform * Vector3(maxf(0.0, last_run.effective_length), 0, 0)).x
+	features.append({
+		"shape": ConveyorSnapFeatures.Shape.SEGMENT,
+		"kind": &"straight_sideguard_left",
+		"seg_start": Vector3(first_start_x, 0.0, -half_w),
+		"seg_end": Vector3(x_end, 0.0, -half_w),
+		"seg_outward_local": Vector3(0, 0, -1),
+	})
+	features.append({
+		"shape": ConveyorSnapFeatures.Shape.SEGMENT,
+		"kind": &"straight_sideguard_right",
+		"seg_start": Vector3(first_start_x, 0.0, half_w),
+		"seg_end": Vector3(x_end, 0.0, half_w),
+		"seg_outward_local": Vector3(0, 0, 1),
+	})
+	return features
+
+
+func snap_surface_y(local_x: float) -> float:
+	if _path == null:
+		_path = BeltPath.build(segments, 0.0, 0.0, 0.0, height)
+	if _path == null or _path.runs.is_empty():
+		return 0.0
+	var pts: Array[Vector2] = []
 	for run: BeltPath.Run in _path.runs:
 		var run_len: float = maxf(0.0, run.effective_length)
 		if run_len <= 0.0:
 			continue
-		var run_start: Vector3 = run.start_xform.origin
-		var run_end: Vector3 = run.start_xform * Vector3(run_len, 0, 0)
-		var z_axis: Vector3 = run.start_xform.basis.z
-		var left: Vector3 = z_axis * (-half_w)
-		var right: Vector3 = z_axis * half_w
-		features.append({
-			"shape": ConveyorSnapFeatures.Shape.SEGMENT,
-			"kind": &"straight_sideguard_left",
-			"seg_start": run_start + left,
-			"seg_end": run_end + left,
-			"seg_outward_local": Vector3(0, 0, -1),
-		})
-		features.append({
-			"shape": ConveyorSnapFeatures.Shape.SEGMENT,
-			"kind": &"straight_sideguard_right",
-			"seg_start": run_start + right,
-			"seg_end": run_end + right,
-			"seg_outward_local": Vector3(0, 0, 1),
-		})
-	return features
+		var s: Vector3 = run.start_xform.origin
+		var e: Vector3 = run.start_xform * Vector3(run_len, 0, 0)
+		pts.append(Vector2(s.x, s.y))
+		pts.append(Vector2(e.x, e.y))
+	if pts.is_empty():
+		return 0.0
+	if local_x <= pts[0].x:
+		return pts[0].y
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		if local_x >= a.x and local_x <= b.x:
+			var t: float = 0.0 if is_equal_approx(b.x, a.x) else (local_x - a.x) / (b.x - a.x)
+			return a.y + t * (b.y - a.y)
+	return pts[pts.size() - 1].y
 
 
 # Drag-from-FileSystem preview. GEN_EDIT_STATE_INSTANCE reuses a holder whose

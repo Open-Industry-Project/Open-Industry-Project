@@ -163,7 +163,6 @@ func get_snap_features() -> Array:
 			"y_offset": -ConveyorSnapFeatures.SENSOR_GUARD_LIFT,
 			"outward_offset": ConveyorSnapFeatures.SENSOR_GUARD_OFFSET,
 			"auto_fit_range": true,
-			"visible_threshold": ConveyorSnapFeatures.SENSOR_SNAP_RANGE,
 			"end_name": &"sensor",
 		},
 	]
