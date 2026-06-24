@@ -859,6 +859,7 @@ func _rebuild_collision() -> void:
 			body.name = body_name
 			add_child(body, false, Node.INTERNAL_MODE_FRONT)
 			body.owner = self
+			body.add_to_group(ConveyorTransport.SURFACE_GROUP)
 		body.transform = d.local_xform
 		body.physics_material_override = phys
 		var cs := body.get_node_or_null("CollisionShape3D") as CollisionShape3D

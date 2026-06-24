@@ -68,6 +68,14 @@ func _exit_tree() -> void:
 		queue_free()
 
 
+func _physics_process(delta: float) -> void:
+	if _paused or not Simulation.is_running():
+		return
+	if _rigid_body_3d.freeze:
+		return
+	ConveyorTransport.drive_body(_rigid_body_3d, size, delta)
+
+
 func _get_constrained_size(new_size: Vector3) -> Vector3:
 	return new_size
 

@@ -508,6 +508,7 @@ func _ensure_simple_collision() -> void:
 			_simple_conveyor_shape = StaticBody3D.new()
 			_simple_conveyor_shape.name = "SimpleConveyorShape"
 			add_child(_simple_conveyor_shape, false, Node.INTERNAL_MODE_FRONT)
+		_simple_conveyor_shape.add_to_group(ConveyorTransport.SURFACE_GROUP)
 		_apply_physics_material()
 		var cs: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if cs == null:

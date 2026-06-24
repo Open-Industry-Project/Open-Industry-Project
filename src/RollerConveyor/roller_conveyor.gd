@@ -520,6 +520,7 @@ func _setup_conveyor_physics() -> void:
 	_simple_conveyor_shape = get_node_or_null("SimpleConveyorShape") as StaticBody3D
 
 	if _simple_conveyor_shape:
+		_simple_conveyor_shape.add_to_group(ConveyorTransport.SURFACE_GROUP)
 		var collision_shape := _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if collision_shape and collision_shape.shape is BoxShape3D:
 			var box_shape := collision_shape.shape as BoxShape3D
