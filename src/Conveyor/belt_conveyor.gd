@@ -63,6 +63,14 @@ const _PRESET_WALK_THRU_LEG_KEEP: float = 1.0
 		if segments.size() > 0:
 			segments[0].length = maxf(_MIN_RUN_LENGTH, value)
 
+## Incline of the only segment, in degrees, when this conveyor has exactly one segment.
+@export_range(-89.0, 89.0, 0.1, "suffix:°") var incline: float = 0.0:
+	get:
+		return segments[0].tilt_relative_deg if segments.size() > 0 else 0.0
+	set(value):
+		if segments.size() > 0:
+			segments[0].tilt_relative_deg = value
+
 
 static func _make_default_segment() -> BeltSegment:
 	return _make_segment(_DEFAULT_SEGMENT_LENGTH, 0.0)
@@ -462,7 +470,7 @@ func _validate_property(property: Dictionary) -> void:
 		return
 	if OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name"):
 		return
-	if property.name == "length":
+	if property.name == "length" or property.name == "incline":
 		property.usage = PROPERTY_USAGE_EDITOR if shape_preset == ShapePreset.STRAIGHT else PROPERTY_USAGE_NONE
 	elif property.name == "segments":
 		property.usage = PROPERTY_USAGE_DEFAULT if shape_preset != ShapePreset.STRAIGHT else PROPERTY_USAGE_STORAGE
