@@ -32,10 +32,6 @@ func _ready() -> void:
 	_rebuild()
 
 
-func _exit_tree() -> void:
-	SensorBeamCache.unregister_instance(self)
-
-
 func _rebuild() -> void:
 	if length <= 0 or not is_inside_tree():
 		return
@@ -43,7 +39,6 @@ func _rebuild() -> void:
 	set_surface_override_material(0, SideGuardMesh.create_material())
 	set_instance_shader_parameter("Scale", 1.0)
 	_update_collision_shape()
-	SensorBeamCache.register_instance(self)
 
 
 func get_metal_material() -> ShaderMaterial:

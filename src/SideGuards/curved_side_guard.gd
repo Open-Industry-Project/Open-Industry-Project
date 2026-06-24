@@ -67,11 +67,6 @@ func _ready() -> void:
 	_rebuild()
 
 
-func _exit_tree() -> void:
-	if is_instance_valid(_mesh_instance):
-		SensorBeamCache.unregister_instance(_mesh_instance)
-
-
 func _ensure_nodes() -> void:
 	if not is_instance_valid(_mesh_instance):
 		_mesh_instance = get_node_or_null("Mesh") as MeshInstance3D
@@ -126,7 +121,6 @@ func _rebuild() -> void:
 	_mesh_instance.mesh = visual_mesh
 	_mesh_instance.set_surface_override_material(0, SideGuardMesh.create_material())
 	_mesh_instance.set_instance_shader_parameter("Scale", 1.0)
-	SensorBeamCache.register_instance(_mesh_instance)
 
 	var collision_mesh := build_arc_wall(
 		radius, SideGuardMesh.WALL_HEIGHT, SideGuardMesh.COLLISION_THICKNESS,
