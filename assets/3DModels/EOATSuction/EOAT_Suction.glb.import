@@ -1,0 +1,111 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://cpn8buagg6ko7"
+path="res://.godot/imported/EOAT_Suction.glb-8628d3be007d79c1a4049daff9551ff8.scn"
+
+[deps]
+
+source_file="res://assets/3DModels/EOATSuction/EOAT_Suction.glb"
+dest_files=["res://.godot/imported/EOAT_Suction.glb-8628d3be007d79c1a4049daff9551ff8.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"meshes": {
+"EOAT_Suction_Attachment": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/EOATSuction/Meshes/Attachment.res",
+"save_to_file/path": "uid://dcqiny5srd2lm"
+},
+"EOAT_Suction_Cap_01": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/EOATSuction/Meshes/Cap_01.res",
+"save_to_file/path": "uid://c2lgr4wgxb1rx"
+},
+"EOAT_Suction_Cap_02": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/EOATSuction/Meshes/Cap_02.res",
+"save_to_file/path": "uid://dsu18rwolqitl"
+},
+"EOAT_Suction_Plane": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/EOATSuction/Meshes/Plane.res",
+"save_to_file/path": "uid://cevhx8dpgwdyi"
+},
+"EOAT_Suction_Rails_01": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/EOATSuction/Meshes/Rails_01.res",
+"save_to_file/path": "uid://c0c4jujuof7xa"
+},
+"EOAT_Suction_Rails_02": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/EOATSuction/Meshes/Rails_02.res",
+"save_to_file/path": "uid://dqqr5qe6ko6jh"
+},
+"EOAT_Suction_SuctionCup": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://assets/3DModels/EOATSuction/Meshes/SuctionCup.res",
+"save_to_file/path": "uid://b4phoo8yar7ku"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1
+gltf/texture_map_mode=1
