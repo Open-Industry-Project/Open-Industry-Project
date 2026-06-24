@@ -18,6 +18,7 @@ var _poll_accum := 0.0
 
 func _init() -> void:
 	name = "ST Program"
+	custom_minimum_size.y = 200
 	_build_ui()
 	set_process(false)
 
