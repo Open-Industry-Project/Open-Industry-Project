@@ -10,4 +10,5 @@ albedo_texture = ExtResource("1_njox0")
 orm_texture = ExtResource("3_mvi7d")
 normal_enabled = true
 normal_texture = ExtResource("2_duy6p")
-ao_enabled = true
+rim_enabled = true
+rim_tint = 0.8

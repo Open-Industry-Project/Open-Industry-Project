@@ -1,13 +1,29 @@
 [gd_scene format=3 uid="uid://xu7wrqfyycmm"]
 
 [ext_resource type="ArrayMesh" uid="uid://bw2k2nh1ti8vh" path="res://assets/3DModels/WallsAndRoof/Meshes/Roof_A.res" id="1_cnxxc"]
+[ext_resource type="Material" uid="uid://cofn0jsa8u8yl" path="res://assets/3DModels/WallsAndRoof/Materials/Building_Framing_01.tres" id="2_1ghvf"]
 [ext_resource type="ArrayMesh" uid="uid://lnx271kny3cn" path="res://assets/3DModels/WallsAndRoof/Meshes/Roof_B.res" id="2_v1av6"]
+[ext_resource type="Material" uid="uid://fvmn8ptsbmry" path="res://assets/3DModels/WallsAndRoof/Materials/Building_Framing_02.tres" id="3_qgrf7"]
+[ext_resource type="Material" uid="uid://ceghwiajlkcfq" path="res://assets/3DModels/WallsAndRoof/Materials/Building_Roof_01.tres" id="4_cec7e"]
+[ext_resource type="Material" uid="uid://cncicrnffmigw" path="res://assets/3DModels/WallsAndRoof/Materials/Building_Fan_A.tres" id="5_ldkyt"]
+[ext_resource type="Material" uid="uid://dwtalgpn7kh16" path="res://assets/3DModels/WallsAndRoof/Materials/Building_Light_A.tres" id="6_28g48"]
+[ext_resource type="Material" uid="uid://d75277i0h50j" path="res://assets/3DModels/WallsAndRoof/Materials/Building_Wall_02.tres" id="7_sm7sm"]
 
 [node name="RoofLibrary" type="Node3D" unique_id=1334510999]
 
 [node name="RoofA" type="MeshInstance3D" parent="." unique_id=90477021]
 mesh = ExtResource("1_cnxxc")
+surface_material_override/0 = ExtResource("2_1ghvf")
+surface_material_override/1 = ExtResource("3_qgrf7")
+surface_material_override/2 = ExtResource("4_cec7e")
+surface_material_override/3 = ExtResource("5_ldkyt")
+surface_material_override/4 = ExtResource("6_28g48")
+surface_material_override/5 = ExtResource("7_sm7sm")
 
 [node name="RoofB" type="MeshInstance3D" parent="." unique_id=261679403]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0)
 mesh = ExtResource("2_v1av6")
+surface_material_override/0 = ExtResource("3_qgrf7")
+surface_material_override/1 = ExtResource("4_cec7e")
+surface_material_override/2 = ExtResource("5_ldkyt")
+surface_material_override/3 = ExtResource("6_28g48")
