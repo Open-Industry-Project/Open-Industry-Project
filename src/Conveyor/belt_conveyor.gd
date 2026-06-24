@@ -58,10 +58,10 @@ const _PRESET_WALK_THRU_LEG_KEEP: float = 1.0
 ## Length of the only segment, when this conveyor has exactly one segment.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = _DEFAULT_SEGMENT_LENGTH:
 	get:
-		return segments[0].length if segments.size() > 0 else 0.0
+		return segments[0].length + height if segments.size() > 0 else 0.0
 	set(value):
 		if segments.size() > 0:
-			segments[0].length = maxf(_MIN_RUN_LENGTH, value)
+			segments[0].length = maxf(_MIN_RUN_LENGTH, value - height)
 
 ## Incline of the only segment, in degrees, when this conveyor has exactly one segment.
 @export_range(-89.0, 89.0, 0.1, "suffix:°") var incline: float = 0.0:
@@ -934,7 +934,8 @@ func _path_or_build() -> BeltPath:
 ## Total top-surface arc length including bend (joint) arcs.
 func total_arc_length() -> float:
 	var p: BeltPath = _path_or_build()
-	return p.top_surface_length if p != null else _segments_total_length()
+	var top: float = p.top_surface_length if p != null else _segments_total_length()
+	return top + height
 
 
 ## Arc bounds for side guards / openings, including pulley wraps.
