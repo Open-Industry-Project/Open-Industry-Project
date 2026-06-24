@@ -3,46 +3,47 @@ extends Node3D
 
 const DEFAULT_SIZE := 0.5
 const GENERATED_CUPS_NAME := "GeneratedCups"
+const MAX_CUPS_PER_AXIS := 64
 
 @export var tool_size_x: float = 0.5:
 	set(value):
 		tool_size_x = maxf(value, 0.5)
-		_rebuild()
+		_queue_rebuild()
 
 @export var tool_size_z: float = 0.5:
 	set(value):
 		tool_size_z = maxf(value, 0.5)
-		_rebuild()
+		_queue_rebuild()
 
 @export var cup_pitch_x: float = 0.1:
 	set(value):
 		cup_pitch_x = maxf(value, 0.01)
-		_rebuild()
+		_queue_rebuild()
 
 @export var cup_pitch_z: float = 0.1:
 	set(value):
 		cup_pitch_z = maxf(value, 0.01)
-		_rebuild()
+		_queue_rebuild()
 
 @export var cup_margin_x: float = 0.05:
 	set(value):
 		cup_margin_x = maxf(value, 0.0)
-		_rebuild()
+		_queue_rebuild()
 
 @export var cup_margin_z: float = 0.05:
 	set(value):
 		cup_margin_z = maxf(value, 0.0)
-		_rebuild()
+		_queue_rebuild()
 
 @export var cups_enabled: bool = true:
 	set(value):
 		cups_enabled = value
-		_rebuild()
+		_queue_rebuild()
 
 @export var rail_b_use_v_for_length: bool = false:
 	set(value):
 		rail_b_use_v_for_length = value
-		_rebuild()
+		_queue_rebuild()
 
 var _attachment: Node3D
 var _planes: Node3D
@@ -69,11 +70,24 @@ var _planes_base: Vector3
 var _cup_base: Vector3
 
 var _setup_done: bool = false
+var _rebuild_queued: bool = false
 
 
 func _ready() -> void:
 	_setup_refs()
 	_capture_base_positions()
+	_rebuild()
+
+
+func _queue_rebuild() -> void:
+	if _rebuild_queued:
+		return
+	_rebuild_queued = true
+	call_deferred("_deferred_rebuild")
+
+
+func _deferred_rebuild() -> void:
+	_rebuild_queued = false
 	_rebuild()
 
 
@@ -97,9 +111,7 @@ func _setup_refs() -> void:
 	if not _generated_cups:
 		_generated_cups = Node3D.new()
 		_generated_cups.name = GENERATED_CUPS_NAME
-		_attachment.add_child(_generated_cups)
-		if Engine.is_editor_hint():
-			_generated_cups.owner = get_tree().edited_scene_root
+		_attachment.add_child(_generated_cups, false, Node.INTERNAL_MODE_BACK)
 
 	_setup_done = true
 
@@ -223,7 +235,7 @@ func _rebuild_cups() -> void:
 	if not _generated_cups:
 		return
 
-	for child in _generated_cups.get_children():
+	for child in _generated_cups.get_children(true):
 		_generated_cups.remove_child(child)
 		child.queue_free()
 
@@ -237,8 +249,8 @@ func _rebuild_cups() -> void:
 	var usable_x: float = maxf(tool_size_x - cup_margin_x * 2.0, 0.0)
 	var usable_z: float = maxf(tool_size_z - cup_margin_z * 2.0, 0.0)
 
-	var count_x: int = maxi(1, int(usable_x / cup_pitch_x) + 1)
-	var count_z: int = maxi(1, int(usable_z / cup_pitch_z) + 1)
+	var count_x: int = clampi(int(usable_x / cup_pitch_x) + 1, 1, MAX_CUPS_PER_AXIS)
+	var count_z: int = clampi(int(usable_z / cup_pitch_z) + 1, 1, MAX_CUPS_PER_AXIS)
 
 	var start_x: float = -usable_x * 0.5
 	var start_z: float = -usable_z * 0.5
@@ -253,7 +265,4 @@ func _rebuild_cups() -> void:
 
 			cup.position = Vector3(px, _cup_base.y, pz)
 			cup.visible = true
-			_generated_cups.add_child(cup)
-
-			if Engine.is_editor_hint():
-				cup.owner = get_tree().edited_scene_root
+			_generated_cups.add_child(cup, false, Node.INTERNAL_MODE_BACK)

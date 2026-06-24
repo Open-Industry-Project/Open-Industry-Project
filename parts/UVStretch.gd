@@ -14,10 +14,6 @@ extends MeshInstance3D
 
 @export var auto_apply_in_editor: bool = true
 
-@export_group("Material Mask")
-@export var tiling_material_name_contains: String = "Trim"
-@export var non_tiling_material_name_contains: String = "Standard"
-
 @export_group("Source Backup")
 @export var source_mesh: Mesh
 
@@ -58,8 +54,10 @@ func _ensure_source_mesh() -> void:
 
 
 func set_tiling_multipliers(u_value: float, v_value: float = 1.0) -> void:
+	_initializing = true
 	u_tiling_multiplier = u_value
 	v_tiling_multiplier = v_value
+	_initializing = false
 	_rebuild_from_source()
 
 
@@ -133,28 +131,21 @@ func _rebuild_from_source() -> void:
 				new_mesh.surface_set_material(surface_idx, passthrough_mat)
 			continue
 
-		var mat: Material = source_mesh.surface_get_material(surface_idx)
-		var mat_name := ""
-		if mat:
-			mat_name = mat.resource_name
+		var new_uvs := PackedVector2Array()
+		new_uvs.resize(original_uvs.size())
 
-		var should_scale_uv := true
+		for i in range(original_uvs.size()):
+			var uv: Vector2 = original_uvs[i]
+			new_uvs[i] = Vector2(
+				uv.x * u_tiling_multiplier,
+				uv.y * v_tiling_multiplier
+			)
 
-		if should_scale_uv:
-			var new_uvs := PackedVector2Array()
-			new_uvs.resize(original_uvs.size())
-
-			for i in range(original_uvs.size()):
-				var uv: Vector2 = original_uvs[i]
-				new_uvs[i] = Vector2(
-					uv.x * u_tiling_multiplier,
-					uv.y * v_tiling_multiplier
-				)
-
-			arrays[Mesh.ARRAY_TEX_UV] = new_uvs
+		arrays[Mesh.ARRAY_TEX_UV] = new_uvs
 
 		new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
+		var mat: Material = source_mesh.surface_get_material(surface_idx)
 		if mat:
 			new_mesh.surface_set_material(surface_idx, mat)
 
