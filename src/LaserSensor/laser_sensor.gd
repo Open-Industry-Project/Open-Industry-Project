@@ -103,7 +103,7 @@ func _physics_process(_delta: float) -> void:
 		distance = new_distance
 	
 	var current_transform := global_transform
-	var beam_end := start_pos + dir * new_distance
+	var beam_end := start_pos + dir * max_range
 	if _beam_needs_update or new_distance != _last_distance or beam_color != _last_beam_color or current_transform != _last_transform:
 		if show_beam:
 			_update_beam_mesh(start_pos, new_distance, beam_color)
