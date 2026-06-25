@@ -7,12 +7,12 @@ const MAX_CUPS_PER_AXIS := 64
 
 @export var tool_size_x: float = 0.5:
 	set(value):
-		tool_size_x = maxf(value, 0.5)
+		tool_size_x = maxf(value, 0.35)
 		_queue_rebuild()
 
 @export var tool_size_z: float = 0.5:
 	set(value):
-		tool_size_z = maxf(value, 0.5)
+		tool_size_z = maxf(value, 0.35)
 		_queue_rebuild()
 
 @export var cup_pitch_x: float = 0.1:
@@ -44,6 +44,32 @@ const MAX_CUPS_PER_AXIS := 64
 	set(value):
 		rail_b_use_v_for_length = value
 		_queue_rebuild()
+		
+@export_group("Alignment Offsets")
+@export var planes_position_offset: Vector3 = Vector3.ZERO:
+	set(value):
+		planes_position_offset = value
+		_rebuild()
+
+@export var cap_01_offset: Vector3 = Vector3.ZERO:
+	set(value):
+		cap_01_offset = value
+		_rebuild()
+
+@export var cap_02_offset: Vector3 = Vector3.ZERO:
+	set(value):
+		cap_02_offset = value
+		_rebuild()
+
+@export var cap_03_offset: Vector3 = Vector3.ZERO:
+	set(value):
+		cap_03_offset = value
+		_rebuild()
+
+@export var cap_04_offset: Vector3 = Vector3.ZERO:
+	set(value):
+		cap_04_offset = value
+		_rebuild()
 
 var _attachment: Node3D
 var _planes: Node3D
@@ -166,7 +192,7 @@ func _rebuild() -> void:
 	_apply_axis_scale(_rail_b_01, false, false, true, 1.0, 1.0, z_ratio)
 	_apply_axis_scale(_rail_b_02, false, false, true, 1.0, 1.0, z_ratio)
 
-	_apply_uv_tiling(_planes, x_ratio, z_ratio)
+	_apply_uv_tiling(_planes, z_ratio, x_ratio)
 
 	_apply_uv_tiling(_rail_a_01, x_ratio, 1.0)
 	_apply_uv_tiling(_rail_a_02, x_ratio, 1.0)
@@ -209,13 +235,13 @@ func _reposition_parts() -> void:
 	var half_z: float = tool_size_z * 0.5
 
 	if _cap_01:
-		_cap_01.position = Vector3(-half_x, _cap_01_base.y, -half_z)
+		_cap_01.position = Vector3(half_x, _cap_01_base.y, -half_z) + cap_01_offset
 	if _cap_02:
-		_cap_02.position = Vector3(half_x, _cap_02_base.y, -half_z)
+		_cap_02.position = Vector3(-half_x, _cap_02_base.y, -half_z) + cap_02_offset
 	if _cap_03:
-		_cap_03.position = Vector3(-half_x, _cap_03_base.y, half_z)
+		_cap_03.position = Vector3(-half_x, _cap_03_base.y, half_z) + cap_03_offset
 	if _cap_04:
-		_cap_04.position = Vector3(half_x, _cap_04_base.y, half_z)
+		_cap_04.position = Vector3(half_x, _cap_04_base.y, half_z) + cap_04_offset
 
 	if _rail_a_01:
 		_rail_a_01.position = Vector3(0.0, _rail_a_01_base.y, -half_z)
@@ -228,7 +254,7 @@ func _reposition_parts() -> void:
 		_rail_b_02.position = Vector3(half_x, _rail_b_02_base.y, 0.0)
 
 	if _planes:
-		_planes.position = Vector3(0.0, _planes_base.y, 0.0)
+		_planes.position = Vector3(0.0, _planes_base.y, 0.0) + planes_position_offset
 
 
 func _rebuild_cups() -> void:
