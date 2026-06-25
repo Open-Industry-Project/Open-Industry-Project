@@ -1,0 +1,4 @@
+[gd_scene format=3 uid="uid://c7kb06algyvye"]
+[ext_resource type="Script" path="res://_seam_test/perp_test.gd" id="1"]
+[node name="PerpTest" type="Node3D"]
+script = ExtResource("1")
