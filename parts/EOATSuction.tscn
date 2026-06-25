@@ -102,38 +102,37 @@ _surfaces = [{
 
 [node name="EOAT" type="Node3D" unique_id=1155476733]
 script = ExtResource("1_mtwtn")
-planes_position_offset = Vector3(0, 0.003, 0)
-cap_01_offset = Vector3(-0.008, 0.002, 0.001)
-cap_02_offset = Vector3(0.008, 0.003, 0.001)
-cap_03_offset = Vector3(0.008, 0.002, -0.001)
-cap_04_offset = Vector3(-0.008, 0.003, -0.001)
+cap_01_offset = Vector3(0.008, 0, 0.001)
+cap_02_offset = Vector3(-0.008, 0, 0.001)
+cap_03_offset = Vector3(0.008, 0, -0.001)
+cap_04_offset = Vector3(-0.008, 0, -0.001)
 
 [node name="Attachment" type="MeshInstance3D" parent="." unique_id=813687793]
 material_override = ExtResource("1_eaua5")
 mesh = ExtResource("2_uj0hp")
 
 [node name="Cap_01" type="MeshInstance3D" parent="Attachment" unique_id=1502201743]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.242, -0.07245004, -0.249)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.242, -0.07545004, -0.249)
 material_override = ExtResource("1_eaua5")
 mesh = ExtResource("4_dxp5j")
 
 [node name="Cap_02" type="MeshInstance3D" parent="Attachment" unique_id=920710733]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.242, -0.07136393, -0.249)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.242, -0.075363934, -0.249)
 material_override = ExtResource("1_eaua5")
 mesh = ExtResource("3_mtwtn")
 
 [node name="Cap_03" type="MeshInstance3D" parent="Attachment" unique_id=1258094746]
-transform = Transform3D(1, 0, 1.7484555e-07, 0, 1, 0, -1.7484555e-07, 0, 1, -0.242, -0.072363935, 0.249)
+transform = Transform3D(1, 0, 1.7484555e-07, 0, 1, 0, -1.7484555e-07, 0, 1, -0.242, -0.075363934, 0.249)
 material_override = ExtResource("1_eaua5")
 mesh = ExtResource("3_mtwtn")
 
 [node name="Cap_04" type="MeshInstance3D" parent="Attachment" unique_id=1376691380]
-transform = Transform3D(1, 0, 1.7484555e-07, 0, 1, 0, -1.7484555e-07, 0, 1, 0.242, -0.07145004, 0.249)
+transform = Transform3D(1, 0, 1.7484555e-07, 0, 1, 0, -1.7484555e-07, 0, 1, 0.242, -0.07545004, 0.249)
 material_override = ExtResource("1_eaua5")
 mesh = ExtResource("4_dxp5j")
 
 [node name="Planes" type="MeshInstance3D" parent="Attachment" unique_id=1691833472]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.006, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0039999993, 0)
 mesh = SubResource("ArrayMesh_mtwtn")
 surface_material_override/0 = ExtResource("6_xgm2p")
 script = ExtResource("8_uj0hp")
@@ -172,7 +171,106 @@ source_mesh = ExtResource("8_od2dy")
 [node name="SuctionCup_01" type="MeshInstance3D" parent="Attachment" unique_id=106262559]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.10347296, 0)
 visible = false
-material_override = ExtResource("1_eaua5")
 mesh = ExtResource("9_3pwi3")
 
 [node name="GeneratedCups" type="Node3D" parent="Attachment" unique_id=1740595347]
+
+[node name="SuctionCup_1_1" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=99469562]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, -0.10347296, -0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_1_2" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1134572198]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, -0.10347296, -0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_1_3" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1781364053]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, -0.10347296, 0)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_1_4" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1860082004]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, -0.10347296, 0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_1_5" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1275289440]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, -0.10347296, 0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_2_1" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1626554274]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, -0.10347296, -0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_2_2" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=461839169]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, -0.10347296, -0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_2_3" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1120391182]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, -0.10347296, 0)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_2_4" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1978275897]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, -0.10347296, 0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_2_5" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1132257661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, -0.10347296, 0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_3_1" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=2112840456]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.10347296, -0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_3_2" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1355488252]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.10347296, -0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_3_3" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=487719333]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.10347296, 0)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_3_4" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=666305105]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.10347296, 0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_3_5" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1689521430]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.10347296, 0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_4_1" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1883015665]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, -0.10347296, -0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_4_2" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1273669320]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, -0.10347296, -0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_4_3" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=828488508]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, -0.10347296, 0)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_4_4" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=725484540]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, -0.10347296, 0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_4_5" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=800492018]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, -0.10347296, 0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_5_1" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1871127617]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.10347296, -0.2)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_5_2" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1862080853]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.10347296, -0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_5_3" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=2037547497]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.10347296, 0)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_5_4" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=349723881]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.10347296, 0.1)
+mesh = ExtResource("9_3pwi3")
+
+[node name="SuctionCup_5_5" type="MeshInstance3D" parent="Attachment/GeneratedCups" unique_id=1462432311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.10347296, 0.2)
+mesh = ExtResource("9_3pwi3")

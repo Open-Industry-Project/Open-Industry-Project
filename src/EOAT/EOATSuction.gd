@@ -7,12 +7,12 @@ const MAX_CUPS_PER_AXIS := 64
 
 @export var tool_size_x: float = 0.5:
 	set(value):
-		tool_size_x = maxf(value, 0.35)
+		tool_size_x = maxf(value, 0.5)
 		_queue_rebuild()
 
 @export var tool_size_z: float = 0.5:
 	set(value):
-		tool_size_z = maxf(value, 0.35)
+		tool_size_z = maxf(value, 0.5)
 		_queue_rebuild()
 
 @export var cup_pitch_x: float = 0.1:
@@ -40,36 +40,39 @@ const MAX_CUPS_PER_AXIS := 64
 		cups_enabled = value
 		_queue_rebuild()
 
-@export var rail_b_use_v_for_length: bool = false:
-	set(value):
-		rail_b_use_v_for_length = value
-		_queue_rebuild()
-		
-@export_group("Alignment Offsets")
+@export_category("Alignment Offsets")
 @export var planes_position_offset: Vector3 = Vector3.ZERO:
 	set(value):
 		planes_position_offset = value
-		_rebuild()
+		_queue_rebuild()
 
 @export var cap_01_offset: Vector3 = Vector3.ZERO:
 	set(value):
 		cap_01_offset = value
-		_rebuild()
+		_queue_rebuild()
 
 @export var cap_02_offset: Vector3 = Vector3.ZERO:
 	set(value):
 		cap_02_offset = value
-		_rebuild()
+		_queue_rebuild()
 
 @export var cap_03_offset: Vector3 = Vector3.ZERO:
 	set(value):
 		cap_03_offset = value
-		_rebuild()
+		_queue_rebuild()
 
 @export var cap_04_offset: Vector3 = Vector3.ZERO:
 	set(value):
 		cap_04_offset = value
-		_rebuild()
+		_queue_rebuild()
+
+@export_category("Vacuum")
+@export var vacuum_on: bool = false:
+	set(value):
+		if vacuum_on == value:
+			return
+		vacuum_on = value
+		_update_vacuum_state()
 
 var _attachment: Node3D
 var _planes: Node3D
@@ -95,15 +98,16 @@ var _rail_b_02_base: Vector3
 var _planes_base: Vector3
 var _cup_base: Vector3
 
-var _setup_done: bool = false
-var _rebuild_queued: bool = false
+var _setup_done := false
+var _vacuum_active_material: StandardMaterial3D
+var _rebuild_queued := false
 
 
 func _ready() -> void:
 	_setup_refs()
 	_capture_base_positions()
 	_rebuild()
-
+	_update_vacuum_state()
 
 func _queue_rebuild() -> void:
 	if _rebuild_queued:
@@ -111,11 +115,9 @@ func _queue_rebuild() -> void:
 	_rebuild_queued = true
 	call_deferred("_deferred_rebuild")
 
-
 func _deferred_rebuild() -> void:
 	_rebuild_queued = false
 	_rebuild()
-
 
 func _setup_refs() -> void:
 	_attachment = get_node_or_null("Attachment") as Node3D
@@ -137,7 +139,8 @@ func _setup_refs() -> void:
 	if not _generated_cups:
 		_generated_cups = Node3D.new()
 		_generated_cups.name = GENERATED_CUPS_NAME
-		_attachment.add_child(_generated_cups, false, Node.INTERNAL_MODE_BACK)
+		_attachment.add_child(_generated_cups)
+		_assign_valid_owner(_generated_cups)
 
 	_setup_done = true
 
@@ -146,28 +149,18 @@ func _capture_base_positions() -> void:
 	if not _setup_done:
 		return
 
-	if _cap_01:
-		_cap_01_base = _cap_01.position
-	if _cap_02:
-		_cap_02_base = _cap_02.position
-	if _cap_03:
-		_cap_03_base = _cap_03.position
-	if _cap_04:
-		_cap_04_base = _cap_04.position
+	if _cap_01: _cap_01_base = _cap_01.position
+	if _cap_02: _cap_02_base = _cap_02.position
+	if _cap_03: _cap_03_base = _cap_03.position
+	if _cap_04: _cap_04_base = _cap_04.position
 
-	if _rail_a_01:
-		_rail_a_01_base = _rail_a_01.position
-	if _rail_a_02:
-		_rail_a_02_base = _rail_a_02.position
-	if _rail_b_01:
-		_rail_b_01_base = _rail_b_01.position
-	if _rail_b_02:
-		_rail_b_02_base = _rail_b_02.position
+	if _rail_a_01: _rail_a_01_base = _rail_a_01.position
+	if _rail_a_02: _rail_a_02_base = _rail_a_02.position
+	if _rail_b_01: _rail_b_01_base = _rail_b_01.position
+	if _rail_b_02: _rail_b_02_base = _rail_b_02.position
 
-	if _planes:
-		_planes_base = _planes.position
-	if _cup_template:
-		_cup_base = _cup_template.position
+	if _planes: _planes_base = _planes.position
+	if _cup_template: _cup_base = _cup_template.position
 
 
 func _rebuild() -> void:
@@ -181,31 +174,18 @@ func _rebuild() -> void:
 	if not _attachment:
 		return
 
-	var x_ratio: float = tool_size_x / DEFAULT_SIZE
-	var z_ratio: float = tool_size_z / DEFAULT_SIZE
+	var x_ratio := tool_size_x / DEFAULT_SIZE
+	var z_ratio := tool_size_z / DEFAULT_SIZE
 
 	_apply_axis_scale(_planes, true, false, true, x_ratio, 1.0, z_ratio)
-
 	_apply_axis_scale(_rail_a_01, true, false, false, x_ratio, 1.0, 1.0)
 	_apply_axis_scale(_rail_a_02, true, false, false, x_ratio, 1.0, 1.0)
-
 	_apply_axis_scale(_rail_b_01, false, false, true, 1.0, 1.0, z_ratio)
 	_apply_axis_scale(_rail_b_02, false, false, true, 1.0, 1.0, z_ratio)
 
-	_apply_uv_tiling(_planes, z_ratio, x_ratio)
-
-	_apply_uv_tiling(_rail_a_01, x_ratio, 1.0)
-	_apply_uv_tiling(_rail_a_02, x_ratio, 1.0)
-
-	if rail_b_use_v_for_length:
-		_apply_uv_tiling(_rail_b_01, 1.0, z_ratio)
-		_apply_uv_tiling(_rail_b_02, 1.0, z_ratio)
-	else:
-		_apply_uv_tiling(_rail_b_01, z_ratio, 1.0)
-		_apply_uv_tiling(_rail_b_02, z_ratio, 1.0)
-
 	_reposition_parts()
 	_rebuild_cups()
+	_update_vacuum_state()
 
 
 func _apply_axis_scale(node: Node3D, use_x: bool, use_y: bool, use_z: bool, x_value: float, y_value: float, z_value: float) -> void:
@@ -222,22 +202,14 @@ func _apply_axis_scale(node: Node3D, use_x: bool, use_y: bool, use_z: bool, x_va
 	node.scale = s
 
 
-func _apply_uv_tiling(node: Node3D, u_value: float, v_value: float = 1.0) -> void:
-	if not node:
-		return
-
-	if node.has_method("set_tiling_multipliers"):
-		node.call("set_tiling_multipliers", u_value, v_value)
-
-
 func _reposition_parts() -> void:
-	var half_x: float = tool_size_x * 0.5
-	var half_z: float = tool_size_z * 0.5
+	var half_x := tool_size_x * 0.5
+	var half_z := tool_size_z * 0.5
 
 	if _cap_01:
-		_cap_01.position = Vector3(half_x, _cap_01_base.y, -half_z) + cap_01_offset
+		_cap_01.position = Vector3(-half_x, _cap_01_base.y, -half_z) + cap_01_offset
 	if _cap_02:
-		_cap_02.position = Vector3(-half_x, _cap_02_base.y, -half_z) + cap_02_offset
+		_cap_02.position = Vector3(half_x, _cap_02_base.y, -half_z) + cap_02_offset
 	if _cap_03:
 		_cap_03.position = Vector3(-half_x, _cap_03_base.y, half_z) + cap_03_offset
 	if _cap_04:
@@ -272,23 +244,78 @@ func _rebuild_cups() -> void:
 
 	_cup_template.visible = false
 
-	var usable_x: float = maxf(tool_size_x - cup_margin_x * 2.0, 0.0)
-	var usable_z: float = maxf(tool_size_z - cup_margin_z * 2.0, 0.0)
+	var usable_x := maxf(tool_size_x - cup_margin_x * 2.0, 0.0)
+	var usable_z := maxf(tool_size_z - cup_margin_z * 2.0, 0.0)
 
 	var count_x: int = clampi(int(usable_x / cup_pitch_x) + 1, 1, MAX_CUPS_PER_AXIS)
 	var count_z: int = clampi(int(usable_z / cup_pitch_z) + 1, 1, MAX_CUPS_PER_AXIS)
 
-	var start_x: float = -usable_x * 0.5
-	var start_z: float = -usable_z * 0.5
+	var start_x := -usable_x * 0.5
+	var start_z := -usable_z * 0.5
 
 	for ix in range(count_x):
 		for iz in range(count_z):
 			var cup := _cup_template.duplicate()
 			cup.name = "SuctionCup_%d_%d" % [ix + 1, iz + 1]
 
-			var px: float = 0.0 if count_x == 1 else start_x + ix * (usable_x / float(count_x - 1))
-			var pz: float = 0.0 if count_z == 1 else start_z + iz * (usable_z / float(count_z - 1))
+			var px := 0.0 if count_x == 1 else start_x + ix * (usable_x / float(count_x - 1))
+			var pz := 0.0 if count_z == 1 else start_z + iz * (usable_z / float(count_z - 1))
 
 			cup.position = Vector3(px, _cup_base.y, pz)
 			cup.visible = true
-			_generated_cups.add_child(cup, false, Node.INTERNAL_MODE_BACK)
+			_generated_cups.add_child(cup)
+			_assign_valid_owner(cup)
+
+
+func set_vacuum_enabled(value: bool) -> void:
+	print("EOAT vacuum set:", value)
+	vacuum_on = value
+	
+
+
+func _update_vacuum_state() -> void:
+	var active_material := _get_vacuum_active_material() if vacuum_on else null
+
+	_apply_material_recursive(_cup_template, active_material)
+
+	if not _generated_cups:
+		return
+
+	for child in _generated_cups.get_children():
+		_apply_material_recursive(child, active_material)
+
+
+func _apply_material_recursive(node: Node, material: Material) -> void:
+	if node == null:
+		return
+
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_override = material
+
+	for child in node.get_children():
+		_apply_material_recursive(child, material)
+
+
+func _get_vacuum_active_material() -> StandardMaterial3D:
+	if _vacuum_active_material:
+		return _vacuum_active_material
+
+	_vacuum_active_material = StandardMaterial3D.new()
+	_vacuum_active_material.albedo_color = Color(0.2, 0.7, 0.2)
+	_vacuum_active_material.emission_enabled = true
+	_vacuum_active_material.emission = Color(0.1, 0.45, 0.1)
+	return _vacuum_active_material
+
+
+func _assign_valid_owner(node: Node) -> void:
+	if not Engine.is_editor_hint():
+		return
+	if node == null:
+		return
+
+	var valid_owner: Node = owner
+	if valid_owner == null and _attachment:
+		valid_owner = _attachment.owner
+
+	if valid_owner != null and valid_owner.is_ancestor_of(node):
+		node.owner = valid_owner
