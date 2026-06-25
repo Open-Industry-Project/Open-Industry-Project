@@ -60,6 +60,13 @@ signal roller_override_material_changed(material: Material)
 ## limit still caps the maximum rate regardless of this value.
 @export_range(0.0, 4.0, 0.1, "or_greater") var cargo_align_strength: float = 1.0
 
+## When on, boxes blend their speed across transitions to neighbouring opted-in
+## conveyors (see ConveyorTransport). Off keeps stock friction-only behaviour.
+@export var velocity_blending: bool = false:
+	set(value):
+		velocity_blending = value
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, value)
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		if value == speed:
@@ -520,7 +527,7 @@ func _setup_conveyor_physics() -> void:
 	_simple_conveyor_shape = get_node_or_null("SimpleConveyorShape") as StaticBody3D
 
 	if _simple_conveyor_shape:
-		_simple_conveyor_shape.add_to_group(ConveyorTransport.SURFACE_GROUP)
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, velocity_blending)
 		var collision_shape := _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if collision_shape and collision_shape.shape is BoxShape3D:
 			var box_shape := collision_shape.shape as BoxShape3D

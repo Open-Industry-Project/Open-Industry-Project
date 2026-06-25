@@ -42,6 +42,16 @@ static var _next_log: Dictionary = {}
 static var _query: PhysicsRayQueryParameters3D
 
 
+## Add/remove a conveyor surface from the blending group (per-conveyor opt-in).
+static func set_surface_blending(body: StaticBody3D, on: bool) -> void:
+	if body == null:
+		return
+	if on:
+		body.add_to_group(SURFACE_GROUP)
+	elif body.is_in_group(SURFACE_GROUP):
+		body.remove_from_group(SURFACE_GROUP)
+
+
 static func drive_body(body: RigidBody3D, footprint: Vector3, delta: float) -> void:
 	if not enabled or body == null or body.freeze or delta <= 0.0:
 		return

@@ -54,6 +54,13 @@ const _GAP_FILL_DEPTH: float = 0.05
 		conveyor_count = clamped
 		_request_rebuild()
 
+## When on, boxes blend their speed across transitions to neighbouring opted-in
+## conveyors (see ConveyorTransport). Off keeps stock friction-only behaviour.
+@export var velocity_blending: bool = false:
+	set(value):
+		velocity_blending = value
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, value)
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
 	set(value):
 		if value == speed:
@@ -508,7 +515,7 @@ func _ensure_simple_collision() -> void:
 			_simple_conveyor_shape = StaticBody3D.new()
 			_simple_conveyor_shape.name = "SimpleConveyorShape"
 			add_child(_simple_conveyor_shape, false, Node.INTERNAL_MODE_FRONT)
-		_simple_conveyor_shape.add_to_group(ConveyorTransport.SURFACE_GROUP)
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, velocity_blending)
 		_apply_physics_material()
 		var cs: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if cs == null:

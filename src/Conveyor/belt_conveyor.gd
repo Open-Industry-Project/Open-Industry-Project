@@ -271,6 +271,14 @@ func _segments_total_length() -> float:
 			total += seg.length
 	return total
 
+## When on, boxes blend their speed across transitions to neighbouring opted-in
+## conveyors (see ConveyorTransport). Off keeps stock friction-only behaviour.
+@export var velocity_blending: bool = false:
+	set(value):
+		velocity_blending = value
+		for b: StaticBody3D in _bodies:
+			ConveyorTransport.set_surface_blending(b, value)
+
 ## Belt linear speed in m/s.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
 	set(value):
@@ -859,7 +867,7 @@ func _rebuild_collision() -> void:
 			body.name = body_name
 			add_child(body, false, Node.INTERNAL_MODE_FRONT)
 			body.owner = self
-			body.add_to_group(ConveyorTransport.SURFACE_GROUP)
+			ConveyorTransport.set_surface_blending(body, velocity_blending)
 		body.transform = d.local_xform
 		body.physics_material_override = phys
 		var cs := body.get_node_or_null("CollisionShape3D") as CollisionShape3D

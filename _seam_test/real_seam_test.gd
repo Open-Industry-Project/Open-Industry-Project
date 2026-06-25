@@ -52,10 +52,12 @@ func _ready() -> void:
 	add_child(_belt_a)
 	_belt_a.set("length", 6.0)
 	_belt_a.set("speed", V_UP)
+	_belt_a.set("velocity_blending", CT.enabled)
 	_belt_b = BELT.instantiate()
 	add_child(_belt_b)
 	_belt_b.set("length", 12.0)
 	_belt_b.set("speed", V_DOWN)
+	_belt_b.set("velocity_blending", CT.enabled)
 	print("SEAM,mode=%s" % ("DRIVE" if CT.enabled else "BASELINE"))
 
 
