@@ -137,6 +137,46 @@ var _is_moving: bool = false
 var _initialized: bool = false
 var _solving_ik: bool = false
 
+func _connect_vacuum_area_signals() -> void:
+	if not _vacuum_area:
+		return
+
+	if not _vacuum_area.body_entered.is_connected(_on_vacuum_area_body_entered):
+		_vacuum_area.body_entered.connect(_on_vacuum_area_body_entered)
+
+	if not _vacuum_area.body_exited.is_connected(_on_vacuum_area_body_exited):
+		_vacuum_area.body_exited.connect(_on_vacuum_area_body_exited)
+
+
+func _get_attached_tool() -> Node3D:
+	if not _tool_pivot:
+		return null
+
+	for child in _tool_pivot.get_children():
+		if child == _suction_mesh or child == _vacuum_area:
+			continue
+		if child is Node3D:
+			return child as Node3D
+
+	return null
+
+
+func _find_vacuum_area_in_attached_tool() -> Area3D:
+	var tool := _get_attached_tool()
+	if not tool:
+		return null
+	return tool.find_child("VacuumArea", true, false) as Area3D
+
+
+func _forward_vacuum_to_tool() -> void:
+	var tool := _get_attached_tool()
+	if not tool:
+		return
+
+	if tool.has_method("set_vacuum_enabled"):
+		tool.call("set_vacuum_enabled", vacuum_on)
+	elif "vacuum_on" in tool:
+		tool.set("vacuum_on", vacuum_on)
 
 func _enter_tree() -> void:
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
@@ -158,9 +198,12 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
+	_setup_node_references()
+	_connect_vacuum_area_signals()
 	_update_scale()
 	_update_joints()
 	_update_vacuum_indicator()
+	_forward_vacuum_to_tool()
 	new_waypoint_name = _get_next_waypoint_name()
 	
 	if _vacuum_area:
@@ -168,6 +211,8 @@ func _ready() -> void:
 			_vacuum_area.body_entered.connect(_on_vacuum_area_body_entered)
 		if not _vacuum_area.body_exited.is_connected(_on_vacuum_area_body_exited):
 			_vacuum_area.body_exited.connect(_on_vacuum_area_body_exited)
+	print("tool=", _get_attached_tool())
+	print("vacuum_area=", _vacuum_area)
 
 
 func _physics_process(delta: float) -> void:
@@ -178,21 +223,24 @@ func _setup_node_references() -> void:
 	_base_pivot = get_node_or_null("BasePivot")
 	if not _base_pivot:
 		return
-	
+
 	_initialized = true
-	
+
 	var shoulder_pivot := _base_pivot.get_node_or_null("ShoulderPivot")
 	_upper_arm_pivot = shoulder_pivot.get_node_or_null("UpperArmPivot") if shoulder_pivot else null
-	
+
 	var elbow_pivot := _upper_arm_pivot.get_node_or_null("ElbowPivot") if _upper_arm_pivot else null
 	_forearm_pivot = elbow_pivot.get_node_or_null("ForearmPivot") if elbow_pivot else null
-	
+
 	_wrist_rot_pivot = _forearm_pivot.get_node_or_null("WristRotPivot") if _forearm_pivot else null
 	_wrist_pitch_pivot = _wrist_rot_pivot.get_node_or_null("WristPitchPivot") if _wrist_rot_pivot else null
 	_tool_pivot = _wrist_pitch_pivot.get_node_or_null("ToolPivot") if _wrist_pitch_pivot else null
-	
-	_suction_mesh = _tool_pivot.get_node_or_null("ToolSuction") if _tool_pivot else null
-	_vacuum_area = _tool_pivot.get_node_or_null("VacuumArea") if _tool_pivot else null
+
+	_suction_mesh = _tool_pivot.get_node_or_null("ToolSuction") as MeshInstance3D if _tool_pivot else null
+	_vacuum_area = _tool_pivot.get_node_or_null("VacuumArea") as Area3D if _tool_pivot else null
+
+	if _tool_pivot and _vacuum_area == null:
+		_vacuum_area = _find_vacuum_area_in_attached_tool()
 
 
 func _update_held_object(_delta: float) -> void:
@@ -346,6 +394,7 @@ func solve_ik(target_pos: Vector3, max_iterations: int = 20, tolerance: float = 
 
 func _update_vacuum_state() -> void:
 	_update_vacuum_indicator()
+	_forward_vacuum_to_tool()
 
 	if vacuum_on:
 		_try_pick_up()
@@ -431,6 +480,7 @@ func _release_object() -> void:
 
 
 func _on_vacuum_area_body_entered(body: Node3D) -> void:
+	print("Vacuum entered:", body.name, " layer=", body.collision_layer if body is CollisionObject3D else "n/a")
 	if body not in _objects_in_range:
 		_objects_in_range.append(body)
 	if vacuum_on and _held_object == null:
