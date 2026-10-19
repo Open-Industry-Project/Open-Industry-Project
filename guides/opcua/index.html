@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Connect a SCADA over OPC UA | Open Industry Project</title>
+    <meta name="description" content="Step by step: publish the simulated PLC program's variables on an OPC UA server from the desktop app, and run the line from your SCADA, HMI or OPC UA client." />
+    <meta name="keywords" content="OPC UA, SCADA, HMI, OPC UA server, simulator, virtual commissioning, IEC 61131-3" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/opcua/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="Connect a SCADA over OPC UA | Open Industry Project" />
+    <meta property="og:description" content="Step by step: publish the simulated PLC program's variables on an OPC UA server from the desktop app, and run the line from your SCADA, HMI or OPC UA client." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/opcua/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- A hand-written page, unlike /plc/. Every label, default and status line below is read from the app
+         (editor/components/OpcUaServerSection.tsx, editor/opcUaServer.ts, apps/desktop/opcUaServer.cjs), and
+         e2e/guide-opcua.mjs follows the page with an OPC UA client. Change those and this goes stale. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Connecting a SCADA or HMI over OPC UA</h1>
+        <p class="lede">
+          The program in the simulator's PLC panel keeps running here, and the simulator publishes its variables on an
+          OPC UA server, the way a real PLC does. Your SCADA, HMI or any OPC UA client connects to it, watches the line
+          and presses its buttons.
+        </p>
+        <p class="lede">
+          In this guide your client presses Start, a belt carries a box to a sensor, and the program stops it. No PLC is
+          needed, and it takes about ten minutes.
+        </p>
+
+        <h2>You need</h2>
+        <ul class="dash">
+          <li>The desktop app, for <a href="/#desktop">Windows or Linux</a>. A browser tab cannot open a network port.</li>
+          <li>An OPC UA client, such as a SCADA or an HMI, that allows the None security policy.</li>
+          <li>A network path from the client to this computer, or the client running on the same computer.</li>
+        </ul>
+
+        <ul class="toc">
+          <li><a href="#scene">1. Build the scene</a></li>
+          <li><a href="#program">2. Write the program</a></li>
+          <li><a href="#serve">3. Start the server</a></li>
+          <li><a href="#connect">4. Connect the client</a></li>
+          <li><a href="#run">5. Run the line</a></li>
+          <li><a href="#trouble">Troubleshooting</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="scene">
+      <div class="wrap">
+        <h2>1. Build the scene and wire it to the program</h2>
+        <p>In the desktop app, start a new scene and place three parts from the library:</p>
+        <ol class="steps">
+          <li>A <b>Belt Conveyor</b>.</li>
+          <li>A <b>Box</b>, sitting on the belt near the end it starts from.</li>
+          <li>A <b>Photo Eye</b> beside the belt, about two thirds of the way along, facing across it.</li>
+        </ol>
+        <p>
+          Select each device, find the <span class="ui">Comms</span> group in the Inspector, tick
+          <span class="ui">Enable Comms</span>, and type the program variable it connects to:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">Main.Eye</td><td>True while the sensor sees the box.</td></tr>
+              <tr><td>Belt Conveyor</td><td>Run Tag</td><td class="m">Main.Run</td><td>The belt runs while it is true.</td></tr>
+              <tr><td>Belt Conveyor</td><td>Speed Tag (M/S)</td><td class="m">Main.Speed</td><td>The belt's speed, a setpoint your client can change.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure class="shot">
+          <img src="img/inspector-comms.webp" width="376" height="248" loading="lazy" decoding="async"
+            alt="The Inspector's Comms group for the Belt Conveyor: Enable Comms ticked, Speed Tag set to Main.Speed and Run Tag set to Main.Run." />
+          <figcaption>The Belt Conveyor's Comms group, wired to the program.</figcaption>
+        </figure>
+        <p>
+          These are names, not I/O addresses. The parts talk to the program running in the simulator, and the client talks
+          to the program. Nothing here travels over a fieldbus.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="program">
+      <div class="wrap">
+        <h2>2. Write the program</h2>
+        <p>
+          Open the PLC panel, replace whatever is in its code editor with this, and check the panel reports no errors:
+        </p>
+        <pre class="code" translate="no"><code>PROGRAM Main
+VAR
+  Start : BOOL;
+  Eye : BOOL;
+  Run : BOOL;
+  Speed : REAL := 0.5;
+END_VAR
+
+Run := Start AND NOT Eye;
+END_PROGRAM</code></pre>
+        <p>
+          The belt runs once <code>Start</code> is true and stops while the sensor sees the box. Nothing in the scene sets
+          <code>Start</code>. Your client presses it.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="serve">
+      <div class="wrap">
+        <h2>3. Start the OPC UA server</h2>
+        <p>Open <span class="ui">Simulation &gt; External PLC…</span> (or double-click the Controller node at the top of the PLC panel's organizer). Leave <span class="ui">Runs on</span> at <b>This simulator</b>, and in the <span class="ui">OPC UA server</span> section:</p>
+        <ol class="steps">
+          <li>Tick <span class="ui">Publish the program's variables</span>. The server starts at once; you do not need to press Play.</li>
+          <li><span class="ui">Port</span>: <b>4843</b> is the default. OPC UA's standard port, 4840, is often taken by a discovery server that other OPC software installs.</li>
+          <li><span class="ui">Reachable from the network</span>: leave it off if the client runs on this computer. Tick it if it does not, and allow the app through the Windows firewall when Windows asks.</li>
+        </ol>
+        <figure class="shot">
+          <img src="img/opcua-server.webp" width="680" height="323" loading="lazy" decoding="async"
+            alt="The OPC UA server section of Controller Properties: Publish the program's variables ticked, Port 4843, Reachable from the network off, and the status line saying it is serving." />
+          <figcaption>The OPC UA server section, serving.</figcaption>
+        </figure>
+        <p>The status line under it should read:</p>
+        <pre class="code" translate="no"><code>Serving opc.tcp://127.0.0.1:4843: no client connected, 4 variables, 3 writable. Stopped: they read as out of service until Play.</code></pre>
+        <p class="sub">
+          Like the other connection settings, these are saved on this computer, not in the scene.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="connect">
+      <div class="wrap">
+        <h2>4. Connect the client</h2>
+        <p>In your client, add a connection to the simulator:</p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Endpoint URL</td><td><code>opc.tcp://127.0.0.1:4843</code> on the same computer, otherwise this computer's address and the same port</td></tr>
+              <tr><td>Security policy</td><td><b>None</b> (the server offers no other)</td></tr>
+              <tr><td>Message security mode</td><td><b>None</b></td></tr>
+              <tr><td>Authentication</td><td><b>Anonymous</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The server calls itself <b>Open Industry Project simulator</b>. Browse <span class="ui">Objects</span> &gt;
+          <span class="ui">PLC</span> &gt; <span class="ui">Main</span> and you find the program's four variables:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Variable</th><th>NodeId</th><th>Type</th><th>Your client may</th></tr></thead>
+            <tbody>
+              <tr><td>Start</td><td class="m">ns=1;s=Main.Start</td><td>Boolean</td><td>read and write</td></tr>
+              <tr><td>Eye</td><td class="m">ns=1;s=Main.Eye</td><td>Boolean</td><td>read only: the sensor feeds it</td></tr>
+              <tr><td>Run</td><td class="m">ns=1;s=Main.Run</td><td>Boolean</td><td>read and write</td></tr>
+              <tr><td>Speed</td><td class="m">ns=1;s=Main.Speed</td><td>Float</td><td>read and write</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>A NodeId is the variable's name, so a tag you set up keeps working across runs, program edits and machines. The program's folders follow its dots, so a timer's outputs sit in a folder named after the timer.</li>
+          <li>What an operator could change is writable, like a Start button or a setpoint. A variable a part feeds (the sensor), a constant and a timer's outputs are read only, and a write to one is refused with <code>BadNotWritable</code>.</li>
+          <li>Types follow the declarations. BOOL is Boolean, INT is Int16, DINT is Int32, REAL is Float, LREAL is Double, STRING is String, and a TIME is a Double of milliseconds.</li>
+        </ul>
+        <p>
+          Subscribe to <code>Eye</code> and <code>Run</code>. Back in the simulator, the status line now names your client:
+          <code>Serving opc.tcp://127.0.0.1:4843: 1 connected (...)</code>.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="run">
+      <div class="wrap">
+        <h2>5. Run the line from the client</h2>
+        <ol class="steps">
+          <li>
+            Before Play, your client reads every variable as <code>BadOutOfService</code> and a write is refused with
+            <code>BadInvalidState</code>. A stopped PLC is not running a line, and a SCADA must not show one that is.
+          </li>
+          <li>Press <span class="ui">Play</span> in the simulator. The values turn good, with no need to reconnect or subscribe again: <code>Start</code>, <code>Eye</code> and <code>Run</code> false, <code>Speed</code> 0.5. The belt waits.</li>
+          <li>Write <b>true</b> to <code>Start</code>. The belt runs, the box reaches the sensor, your subscription sees <code>Eye</code> turn true, and the belt stops.</li>
+          <li>Optional: press Stop and Play to start again, write <code>0.2</code> to <code>Speed</code> and then true to <code>Start</code>. The belt carries the box at the new speed.</li>
+        </ol>
+        <figure class="shot">
+          <img src="img/box-stopped.webp" width="1260" height="630" loading="lazy" decoding="async"
+            alt="The box has ridden the belt conveyor and stopped in front of the photo eye." />
+          <figcaption>After the write to <code>Start</code>, the belt carried the box to the photo eye and stopped.</figcaption>
+        </figure>
+        <p>
+          The PLC panel's watch table shows what your client writes, and Controller Properties shows the last write, for
+          example <code>Last write from a client: Main.Start := TRUE</code>.
+        </p>
+        <div class="note">
+          <p>
+            Stop and Play keep the connection. On Stop every value goes back to <code>BadOutOfService</code>; on Play
+            the same subscriptions turn good again. The server stays up for as long as the box is ticked, not for one run,
+            because a SCADA stays connected while you edit and restart.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="trouble">
+      <div class="wrap">
+        <h2>Troubleshooting</h2>
+        <dl class="trouble">
+          <dt>"Publish the program's variables" is greyed out.</dt>
+          <dd>You are in a browser tab. The server needs the desktop app.</dd>
+
+          <dt>"Could not start the server: ..."</dt>
+          <dd>Something else uses the port. Pick another one, and use it in the client's endpoint URL.</dd>
+
+          <dt>The client refuses to connect, or finds no endpoint.</dt>
+          <dd>
+            Allow the None security policy and anonymous login in its connection settings. The server offers nothing else.
+            If the client is on another computer, tick <span class="ui">Reachable from the network</span>, use this computer's
+            address instead of 127.0.0.1, and check the Windows firewall allows the app.
+          </dd>
+
+          <dt>Every value reads BadOutOfService.</dt>
+          <dd>The simulation is stopped, or the program is not running here (an error in the PLC panel, or "Runs on" set to an external PLC). Press Play.</dd>
+
+          <dt>A write comes back BadNotWritable.</dt>
+          <dd>The variable is one a part feeds, a constant, or a timer's output. Write the variable the program reads instead, like <code>Start</code>.</dd>
+
+          <dt>The variables are missing, or show "no variables yet".</dt>
+          <dd>The program has not compiled. Fix the errors the PLC panel shows. A variable appears under its program's name, so <code>Main.Start</code> is under PLC / Main.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb">Download for Linux (.deb)</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/modbus/">Guide: connect a real PLC over Modbus TCP</a></li>
+              <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O</a></li>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

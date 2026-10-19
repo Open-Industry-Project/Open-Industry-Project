@@ -1,0 +1,924 @@
+{
+  "id": "oip.gantry",
+  "name": "Gantry",
+  "category": "Equipment",
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "legLF",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          -2,
+          0,
+          -1
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "frameLength",
+            "scale": -0.5
+          },
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": -0.5
+          }
+        ]
+      },
+      {
+        "name": "legLFMain",
+        "parent": "legLF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Main",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "frameHeight",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 1,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "legLFTop",
+        "parent": "legLF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Top",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1
+          }
+        ]
+      },
+      {
+        "name": "legLFBase",
+        "parent": "legLF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Base",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "legRF",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          2,
+          0,
+          -1
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "frameLength",
+            "scale": 0.5
+          },
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": -0.5
+          }
+        ],
+        "rotation": [
+          0,
+          3.14159265,
+          0
+        ]
+      },
+      {
+        "name": "legRFMain",
+        "parent": "legRF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Main",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "frameHeight",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 1,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "legRFTop",
+        "parent": "legRF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Top",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1
+          }
+        ]
+      },
+      {
+        "name": "legRFBase",
+        "parent": "legRF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Base",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "legLB",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          -2,
+          0,
+          1
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "frameLength",
+            "scale": -0.5
+          },
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": 0.5
+          }
+        ]
+      },
+      {
+        "name": "legLBMain",
+        "parent": "legLB",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Main",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "frameHeight",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 1,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "legLBTop",
+        "parent": "legLB",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Top",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1
+          }
+        ]
+      },
+      {
+        "name": "legLBBase",
+        "parent": "legLB",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Base",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "legRB",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          2,
+          0,
+          1
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "frameLength",
+            "scale": 0.5
+          },
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": 0.5
+          }
+        ],
+        "rotation": [
+          0,
+          -1.57079633,
+          0
+        ]
+      },
+      {
+        "name": "legRBMain",
+        "parent": "legRB",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Main",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "frameHeight",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 1,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "legRBTop",
+        "parent": "legRB",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Top",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1
+          }
+        ],
+        "rotation": [
+          0,
+          -1.57079633,
+          0
+        ]
+      },
+      {
+        "name": "legRBBase",
+        "parent": "legRB",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Leg_Base",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "beamF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Beam_Main",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "frameLength",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 0,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1,
+          -1
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1
+          },
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": -0.5
+          }
+        ],
+        "rotation": [
+          0,
+          3.14159265,
+          0
+        ]
+      },
+      {
+        "name": "beamB",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Beam_Main",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "frameLength",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 0,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1,
+          1
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1
+          },
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": 0.5
+          }
+        ]
+      },
+      {
+        "name": "xCarriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          1.15,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1,
+            "add": 0.15
+          }
+        ]
+      },
+      {
+        "name": "beamSecondary",
+        "parent": "xCarriage",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Beam_Secondary",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 2,
+              "param": "frameWidth",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 2,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "mainCarriage01",
+        "parent": "xCarriage",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Beam_MainCarriage_01",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          0,
+          1
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": 0.5
+          }
+        ]
+      },
+      {
+        "name": "mainCarriage02",
+        "parent": "xCarriage",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Beam_MainCarriage_02",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          0,
+          -1
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "frameWidth",
+            "scale": -0.5
+          }
+        ]
+      },
+      {
+        "name": "yCarriage",
+        "parent": "xCarriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.095,
+          0
+        ]
+      },
+      {
+        "name": "carriage",
+        "parent": "yCarriage",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Carriage",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "lift",
+        "parent": "yCarriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.725,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": 1,
+            "add": -0.275
+          }
+        ]
+      },
+      {
+        "name": "beamLift",
+        "parent": "lift",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Beam_Lift",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          },
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "frameHeight",
+              "scale": 0.25
+            }
+          ],
+          "tileUv": [
+            {
+              "axis": 1,
+              "uv": "u",
+              "materials": [
+                "Trim"
+              ]
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          3.14159265
+        ]
+      },
+      {
+        "name": "tool",
+        "parent": "lift",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Tool_01",
+          "materials": {
+            "Standard": "std",
+            "Trim": "trim"
+          }
+        },
+        "offset": [
+          0,
+          -1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": -1
+          }
+        ]
+      },
+      {
+        "name": "vacuumLamp",
+        "parent": "tool",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.02,
+            0.035,
+            0.035
+          ]
+        },
+        "collision": "none",
+        "offset": [
+          0.107,
+          0.005,
+          0
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.15,
+              0.85,
+              0.2
+            ],
+            "offColor": [
+              0.03,
+              0.06,
+              0.03
+            ],
+            "param": "vacuumOn"
+          }
+        ]
+      },
+      {
+        "name": "gripper",
+        "parent": "lift",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          -1.2,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": -1,
+            "add": -0.2
+          }
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.31,
+              0.7,
+              0.31
+            ]
+          }
+        }
+      }
+    ],
+    "joints": [
+      {
+        "name": "x",
+        "link": "xCarriage",
+        "type": "prismatic",
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "min": -10,
+        "max": 10,
+        "minParam": {
+          "param": "frameLength",
+          "scale": -0.5,
+          "add": 0.06,
+          "max": 0
+        },
+        "maxParam": {
+          "param": "frameLength",
+          "scale": 0.5,
+          "add": -0.06,
+          "min": 0
+        },
+        "servo": {
+          "maxVelocity": 10,
+          "maxAccel": 50
+        }
+      },
+      {
+        "name": "y",
+        "link": "yCarriage",
+        "type": "prismatic",
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "min": -5,
+        "max": 5,
+        "minParam": {
+          "param": "frameWidth",
+          "scale": -0.5,
+          "add": 0.06,
+          "max": 0
+        },
+        "maxParam": {
+          "param": "frameWidth",
+          "scale": 0.5,
+          "add": -0.06,
+          "min": 0
+        },
+        "servo": {
+          "maxVelocity": 10,
+          "maxAccel": 50
+        }
+      },
+      {
+        "name": "z",
+        "link": "lift",
+        "type": "prismatic",
+        "axis": [
+          0,
+          -1,
+          0
+        ],
+        "min": 0,
+        "max": 10,
+        "maxParam": {
+          "param": "frameHeight",
+          "add": -0.225,
+          "min": 0
+        },
+        "servo": {
+          "maxVelocity": 10,
+          "maxAccel": 50
+        }
+      }
+    ],
+    "bounds": {
+      "length": 4.6,
+      "width": 2.6,
+      "top": 1.4
+    },
+    "posable": true
+  },
+  "materials": [
+    {
+      "id": "std",
+      "albedo": "stdBase",
+      "orm": "stdOrm"
+    },
+    {
+      "id": "trim",
+      "albedo": "trimBase",
+      "orm": "trimOrm"
+    }
+  ],
+  "assets": [
+    {
+      "id": "glb",
+      "mime": "model/gltf-binary",
+      "url": "/models/Gantry.glb"
+    },
+    {
+      "id": "stdBase",
+      "mime": "image/webp",
+      "url": "/models/gantry/Standard_BaseColor.webp"
+    },
+    {
+      "id": "stdOrm",
+      "mime": "image/webp",
+      "url": "/models/gantry/Standard_ORM.webp"
+    },
+    {
+      "id": "trimBase",
+      "mime": "image/webp",
+      "url": "/models/gantry/Trim_BaseColor.webp"
+    },
+    {
+      "id": "trimOrm",
+      "mime": "image/webp",
+      "url": "/models/gantry/Trim_ORM.webp"
+    }
+  ]
+}

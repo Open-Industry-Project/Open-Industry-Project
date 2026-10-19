@@ -1,0 +1,98 @@
+name: Bug report
+description: Something behaves incorrectly in the editor, the simulation, or the PLC engine.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing. Some bugs look the same from the outside but have different
+        causes. The graphics backend and where you ran the app usually tell them apart.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open /app/?scene=demo
+        2. Select the diverter, set ...
+        3. Press Play
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did you hit this?
+      options:
+        - The deployed site (openindustryproject.org)
+        - Local dev server (npm run dev)
+        - Local production preview (npm run preview:prod)
+        - The desktop app (Windows / Linux)
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Graphics backend
+      description: >
+        WebGPU is the default on desktop. To check the other path, set Settings > Graphics >
+        Renderer to WebGL (in a browser you can also add ?nowebgpu to the URL). If the bug
+        disappears, say so. It helps us reproduce it.
+      options:
+        - WebGPU (default on desktop)
+        - WebGL (?nowebgpu)
+        - Happens on both
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Chrome 141 on Windows 11, Safari 26 on macOS 15
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      description: Only needed for rendering or performance issues.
+      placeholder: RTX 4070, Apple M3, Intel Iris Xe
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Any errors or warnings from the browser devtools console.
+      render: text
+
+  - type: textarea
+    id: scene
+    attributes:
+      label: Scene or program
+      description: >
+        If it depends on a particular setup, attach the exported project or paste the
+        Structured Text. A scene that reproduces the bug helps us find it much faster.
+
+  - type: checkboxes
+    id: stale-cache
+    attributes:
+      label: Before filing
+      options:
+        - label: >
+            I cleared site data / unregistered the service worker and it still reproduces.
+            (A leftover service worker from an earlier visit can serve stale code on the
+            same origin, which looks like a phantom bug.)
+          required: false

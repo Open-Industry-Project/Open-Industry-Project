@@ -1,0 +1,38 @@
+/*
+  The editor's stylesheet, split by area under ./styles/. ORDER IS THE CASCADE: these files are the
+  one original sheet cut at rule boundaries, so a later file still wins a tie against an earlier one.
+  Add a rule to the file for its area, and don't reorder the list. The head of styles/base.css has
+  the appearance rules (every colour a token or a light-dark()); appearance.test.ts and
+  bootSkeleton.test.ts read this list and the files it names, in this order.
+*/
+@import './styles/base.css';
+@import './styles/docks.css';
+@import './styles/toolbar.css';
+@import './styles/notices.css';
+@import './styles/run-controls.css';
+@import './styles/parts-dock.css';
+@import './styles/modal.css';
+@import './styles/catalog-cards.css';
+@import './styles/scene-tree.css';
+@import './styles/viewport.css';
+@import './styles/inspector.css';
+@import './styles/inspector-program.css';
+@import './styles/inspector-transform-color.css';
+@import './styles/mobile.css';
+@import './styles/tutorial.css';
+@import './styles/behavior-editor.css';
+@import './styles/history.css';
+@import './styles/command-palette.css';
+@import './styles/annotations.css';
+@import './styles/shortcuts-tests-crash.css';
+@import './styles/problems.css';
+@import './styles/plc-controller.css';
+@import './styles/plc-organizer.css';
+@import './styles/plc-task-dialogs.css';
+@import './styles/settings.css';
+@import './styles/getparts.css';
+@import './styles/publish.css';
+@import './styles/projects.css';
+@import './styles/ladder.css';
+@import './styles/ladder-tools.css';
+@import './styles/plc-shared.css';

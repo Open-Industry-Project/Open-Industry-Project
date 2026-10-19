@@ -1,0 +1,112 @@
+{
+  "name": "Three MC_MoveAbsolute axes carry the box from A to B and back; the gantry follows them",
+  "duration": 60,
+  "checks": [
+    {
+      "eventually": true,
+      "until": 59.5,
+      "tag": "Cycles",
+      "min": 1
+    },
+    {
+      "always": true,
+      "tag": "Fault",
+      "equals": false
+    },
+    {
+      "always": true,
+      "max": 1.20001,
+      "probe": {
+        "joint": {
+          "part": "gantry-1",
+          "joint": "x"
+        }
+      }
+    },
+    {
+      "always": true,
+      "min": -1.20001,
+      "probe": {
+        "joint": {
+          "part": "gantry-1",
+          "joint": "x"
+        }
+      }
+    },
+    {
+      "always": true,
+      "max": 0.46001,
+      "probe": {
+        "joint": {
+          "part": "gantry-1",
+          "joint": "z"
+        }
+      }
+    },
+    {
+      "eventually": true,
+      "until": 30,
+      "min": 0.6,
+      "probe": {
+        "pose": {
+          "part": "box-1",
+          "axis": "y"
+        }
+      }
+    },
+    {
+      "eventually": true,
+      "until": 30,
+      "min": 1.15,
+      "probe": {
+        "pose": {
+          "part": "box-1",
+          "axis": "x"
+        }
+      }
+    },
+    {
+      "always": true,
+      "min": -0.01,
+      "probe": {
+        "pose": {
+          "part": "box-1",
+          "axis": "y"
+        }
+      }
+    },
+    {
+      "at": 19.6,
+      "near": 0.15,
+      "tolerance": 0.02,
+      "probe": {
+        "pose": {
+          "part": "box-1",
+          "axis": "y"
+        }
+      }
+    },
+    {
+      "at": 19.6,
+      "near": -1.2,
+      "tolerance": 0.05,
+      "probe": {
+        "pose": {
+          "part": "box-1",
+          "axis": "x"
+        }
+      }
+    },
+    {
+      "at": 19.6,
+      "near": 0.5,
+      "tolerance": 0.05,
+      "probe": {
+        "pose": {
+          "part": "box-1",
+          "axis": "z"
+        }
+      }
+    }
+  ]
+}

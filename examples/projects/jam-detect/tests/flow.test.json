@@ -1,0 +1,14 @@
+{
+  "name": "Ordinary traffic passes the eye without tripping the jam alarm",
+  "duration": 12,
+  "inputs": [
+    { "at": 0.5, "tag": "Start", "value": true },
+    { "at": 0.6, "tag": "Start", "value": false }
+  ],
+  "checks": [
+    { "eventually": true, "tag": "Eye", "equals": true },
+    { "always": true, "tag": "JamAlarm", "equals": false },
+    { "at": 11.5, "tag": "BeltRun", "equals": true },
+    { "eventually": true, "probe": { "count": { "zone": { "min": [2.9, 0.8, -0.7], "max": [4.1, 1.4, 0.7] } } }, "min": 1 }
+  ]
+}

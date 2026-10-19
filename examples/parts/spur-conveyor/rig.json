@@ -1,0 +1,21 @@
+{
+  "id": "oip.spur-conveyor",
+  "name": "Spur Belt Conveyor",
+  "category": "Equipment",
+  "conveyor": {
+    "bed": "spur",
+    "surface": "belt",
+    "speedParam": "speed"
+  },
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "drawn",
+    "bounds": {
+      "length": 2.8798818102449895,
+      "width": 1.524,
+      "top": 2.3
+    },
+    "conveys": true
+  },
+  "materials": []
+}

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Connection Guides | Open Industry Project</title>
+    <meta name="description" content="Step-by-step guides for connecting the Open Industry Project simulator to a real PLC, SCADA or HMI over Modbus TCP, OPC UA, S7 PUT/GET and ADS." />
+    <meta name="keywords" content="PLC, SCADA, HMI, Modbus TCP, OPC UA, S7, PUT/GET, TwinCAT, ADS, simulator, guides, virtual commissioning" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="Connection Guides | Open Industry Project" />
+    <meta property="og:description" content="Step-by-step guides for connecting the Open Industry Project simulator to a real PLC, SCADA or HMI over Modbus TCP, OPC UA, S7 PUT/GET and ADS." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- The guides index: one card per page under /guides/. Add a card when a guide is added. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/" aria-current="page">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Connection guides</h1>
+        <p class="lede">
+          Step-by-step guides for connecting a real PLC, SCADA or HMI to the simulator. Three guides are tested by
+          following them in the desktop app: Modbus against OpenPLC, OPC UA against an OPC UA client (node-opcua),
+          and S7 against a stand-in S7 CPU in this repository. The PLC-server and ADS guides are not tested this way.
+        </p>
+      </section>
+    </main>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="guide-list">
+          <a class="panel guide-card" href="/guides/modbus/">
+            <h3>A PLC polls the simulator (Modbus TCP)</h3>
+            <p>The simulator serves its sensors and motors on a Modbus TCP server, like a remote I/O rack, and your PLC's master reads and writes them. The example uses OpenPLC.</p>
+          </a>
+          <a class="panel guide-card" href="/guides/plc-server/">
+            <h3>A PLC that serves its I/O (Modbus TCP or OPC UA)</h3>
+            <p>The simulator connects to the PLC's Modbus server device by address, or to its OPC UA server by variable name.</p>
+          </a>
+          <a class="panel guide-card" href="/guides/s7/">
+            <h3>An S7-1200 or S7-1500 (S7 PUT/GET)</h3>
+            <p>The simulator reads and writes the CPU's inputs, outputs, memory and data blocks at the scene's own addresses. Covers the setting the CPU needs before it allows PUT/GET.</p>
+          </a>
+          <a class="panel guide-card" href="/guides/ads/">
+            <h3>A TwinCAT PLC (ADS)</h3>
+            <p>The simulator reads and writes the PLC's variables by name through the TwinCAT router on its own PC, with the route a PLC on another computer needs.</p>
+          </a>
+          <a class="panel guide-card" href="/guides/opcua/">
+            <h3>A SCADA or HMI on the line (OPC UA)</h3>
+            <p>The program keeps running in the simulator, which publishes its variables on an OPC UA server for your SCADA, HMI or any OPC UA client.</p>
+          </a>
+          <a class="panel guide-card" href="/guides/reference/">
+            <h3>Reference</h3>
+            <p>Defaults, address and register rules, timings, OPC UA types and the I/O list format, in one place.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb">Download for Linux (.deb)</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/opcua/">Guide: connect a SCADA or HMI over OPC UA</a></li>
+              <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O</a></li>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+        <p class="tm-notice">CODESYS, OpenPLC, TwinCAT, S7-1200, S7-1500 and TIA Portal are trademarks of their owners, named here only to identify them. This project is not affiliated with or endorsed by them.</p>
+      </div>
+    </footer>
+  </body>
+</html>

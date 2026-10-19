@@ -1,0 +1,371 @@
+/* the Text | Ladder switch over the program (StEditor) */
+.plc-view-switch {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--divider);
+  border-right: 1px solid var(--divider);
+  background: light-dark(#f4f4f5, #212327);
+}
+.plc-view-switch button {
+  padding: 2px 9px;
+  border: 1px solid var(--line-soft);
+  background: var(--control);
+  color: light-dark(#52575d, #9aa0a6);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+.plc-view-switch button:first-child {
+  border-radius: 3px 0 0 3px;
+}
+.plc-view-switch button:last-child {
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+}
+.plc-view-switch button[aria-pressed='true'] {
+  color: var(--text-strong);
+  background: var(--selected);
+  border-color: light-dark(#4f90e2, #4a8fe7);
+}
+/* ...and the button that opens the panel in a window of its own (and, in that window, puts it back) */
+.plc-window {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--control);
+  color: light-dark(#52575d, #9aa0a6);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+.plc-window[aria-pressed='true'] {
+  color: var(--text-strong);
+  background: var(--selected);
+  border-color: light-dark(#4f90e2, #4a8fe7);
+}
+/* a problem's line is a way to the element it is about */
+.ld-problem.link {
+  cursor: pointer;
+}
+.ld-problem.link:hover {
+  text-decoration: underline;
+}
+/* an element a problem is about: red for what stops the program compiling, amber for a warning */
+.ld-cell.bad {
+  outline: 1px solid light-dark(#e87e75, #ff6b5e);
+  background: rgba(255, 107, 94, 0.1);
+}
+.ld-cell.caution {
+  outline: 1px dashed light-dark(#dc9929, #e0a23a);
+}
+/* a live value a person can type into the running program (double-click) */
+.ld-live.writable {
+  cursor: text;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+.ld-live-input {
+  font-size: 10px;
+}
+/* the match Find is standing on (plc/ladderFind.ts): the field, function name or comment that holds the text */
+.ld-box-inst.found,
+.ld-box-row.found,
+.ld-box-title.found,
+.ld-tag.found,
+.ld-comment.found {
+  /* light: the same amber, pale ground and dark text, as a highlighter on paper */
+  background: light-dark(#fff3c4, #5c4a00);
+  box-shadow: 0 0 0 1px #e6b800;
+  border-radius: 2px;
+  color: light-dark(#5c4a00, #fff3c4);
+}
+/* Find / Replace in the ladder view: one row above the rungs */
+.ld-find {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--divider);
+  background: light-dark(#f9f9f9, #1d1e22);
+  font-size: 11px;
+}
+.ld-find-input {
+  width: 170px;
+  padding: 3px 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text-strong);
+  font: 11px ui-monospace, monospace;
+}
+.ld-find-input:focus {
+  border-color: var(--accent);
+}
+.ld-find-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: light-dark(#3a3d43, #b9bcc2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ld-find-scope {
+  padding: 2px 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--control);
+  color: var(--text-strong);
+  font: inherit;
+}
+.ld-find-count {
+  color: light-dark(#50555d, #9aa0a8);
+  white-space: nowrap;
+}
+.ld-find-close {
+  margin-left: auto;
+}
+/* Insert Box (BoxPicker.tsx): a search row over the catalogue, where the Find bar stands */
+.ld-boxpick {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--divider);
+  background: light-dark(#f9f9f9, #1d1e22);
+  font-size: 11px;
+}
+.ld-boxpick-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+}
+.ld-boxpick-head .ld-find-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 360px;
+}
+.ld-boxpick-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line-soft);
+}
+.ld-boxpick-group {
+  position: sticky;
+  top: 0;
+  padding: 3px 8px;
+  background: light-dark(#eef0f3, #26282d);
+  color: light-dark(#50555d, #9aa0a8);
+  font-weight: 600;
+}
+.ld-boxpick-row {
+  display: grid;
+  grid-template-columns: minmax(90px, max-content) minmax(0, 1fr);
+  column-gap: 10px;
+  padding: 2px 8px 2px 14px;
+  cursor: pointer;
+}
+.ld-boxpick-row.on {
+  background: rgba(74, 143, 231, 0.18);
+}
+.ld-boxpick-name {
+  color: var(--text-strong);
+  font: 600 11px ui-monospace, monospace;
+}
+.ld-boxpick-sig {
+  overflow: hidden;
+  color: light-dark(#50555d, #9aa0a8);
+  font: 11px ui-monospace, monospace;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ld-boxpick-sum {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: light-dark(#3a3d43, #b9bcc2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ld-boxpick-none {
+  padding: 6px 8px;
+  color: light-dark(#50555d, #9aa0a8);
+}
+.ld-box-row.focus,
+.ld-box-title.focus,
+.ld-tag.focus {
+  background: rgba(74, 143, 231, 0.18);
+  border-radius: 2px;
+}
+/* the field the arrow keys rest on (↑ / ↓ walk a box's name and pins; Enter opens it) */
+.ld-box-title.focus,
+.ld-tag.focus {
+  outline: 1px solid light-dark(rgba(79, 144, 226, 0.7), rgba(74, 143, 231, 0.7));
+}
+
+/* a rung being retyped as text (double-click on its number) */
+.ld-textedit {
+  font-size: 12px;
+  padding: 2px 5px;
+}
+.ld-rung-text {
+  display: block;
+  margin: 0 0 4px 12px;
+}
+.ld-rung-text .ld-textedit {
+  width: calc(100% - 24px);
+}
+
+/* dragging an element: the one in hand dims, a marker shows the slot it would drop into */
+.ld-cell {
+  user-select: none;
+  touch-action: none;
+}
+.ld-cell.dragging {
+  opacity: 0.4;
+}
+.ld-drop {
+  flex: 0 0 4px;
+  height: 44px;
+  margin: 8px -2px 0;
+  border-radius: 2px;
+  background: var(--ld-on);
+  box-shadow: 0 0 0 2px rgba(63, 185, 80, 0.35);
+}
+
+.ld-problem.warn {
+  color: var(--warn);
+}
+
+/* the strip's element groups: contacts apart from coils, timers from counters, a function from a comparison.
+   A quiet box, not a separator - the point is which chips belong together, which a 1px line cannot say. */
+.ld-pal-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+}
+/* the element bar (LadderView): a strip of elements over the tabs that choose which */
+.ld-elements {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--divider);
+  background: light-dark(#f4f4f5, #212327);
+}
+/* the same bar in a read-only view, where LadderView drops every edit and only the scale readout is left */
+.ld-elements-view {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 6px;
+}
+.ld-element-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px 6px 3px;
+}
+/* the edit commands at the right end of that row. A group of its own so they wrap together and stay put as the
+   palette above the tabs changes width. */
+.ld-strip-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.ld-element-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  padding: 0 6px;
+  border-top: 1px solid var(--divider);
+}
+.ld-pal-label {
+  padding: 2px 8px 3px;
+  border: none;
+  border-top: 2px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ld-pal-label:hover {
+  color: var(--text);
+}
+.ld-pal-label.on {
+  border-top-color: var(--accent);
+  background: var(--control);
+  color: var(--text);
+  font-weight: 600;
+}
+/* the sheet's scale, at the far end of the tabs row and only while it is not 100% (LadderView). A readout that is
+   also the way back, so it is a button; quiet, because at 100% it is not there at all and its job is to be found
+   when something looks wrong, not to sit in the eye. */
+.ld-zoom {
+  margin-left: auto;
+  align-self: center;
+  padding: 1px 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ld-zoom:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* IEC symbols: the mark inside a contact (/, P, N) and a coil (/, S, R, P, N), drawn as the standard draws them */
+.ld-contact-mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: bold 9px ui-monospace, monospace;
+}
+/* a block's instance name stands over it, as IEC draws a function block; a function has none */
+.ld-box-inst {
+  height: 14px;
+  margin-top: -14px;
+  text-align: center;
+  font: 11px ui-monospace, monospace;
+  white-space: nowrap;
+}
+/* the pins that sit on the rung: IN and Q, EN and ENO. They take no value, so they show what flows through them */
+.ld-box-row.rung .ld-box-name {
+  color: light-dark(#2e3135, #c8cbd0);
+}
+.ld-box-row.rung .ld-box-name::before {
+  content: '\25B8  ';
+  color: var(--ld-wire);
+}
+.ld-declare {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--control);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ld-declare:hover {
+  border-color: var(--accent);
+}
+

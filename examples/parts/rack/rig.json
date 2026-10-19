@@ -1,0 +1,580 @@
+{
+  "id": "oip.rack",
+  "name": "Rack",
+  "category": "Structure",
+  "snap": {
+    "flush": true
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "postLF",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            6.55,
+            0.08
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "numShelves",
+              "mulParam": "shelfSpacing",
+              "add": 0.15
+            }
+          ]
+        },
+        "offset": [
+          -2.7,
+          3.275,
+          -0.55
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": -0.5
+          },
+          {
+            "axis": 1,
+            "param": "numShelves",
+            "mulParam": "shelfSpacing",
+            "scale": 0.5,
+            "add": 0.075
+          },
+          {
+            "axis": 2,
+            "param": "depth",
+            "scale": -0.5
+          }
+        ],
+        "color": [
+          0.028,
+          0.107,
+          0.314
+        ],
+        "colorParam": "frameColor",
+        "metalness": 0,
+        "roughness": 0.8
+      },
+      {
+        "name": "postLR",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            6.55,
+            0.08
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "numShelves",
+              "mulParam": "shelfSpacing",
+              "add": 0.15
+            }
+          ]
+        },
+        "offset": [
+          -2.7,
+          3.275,
+          0.55
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": -0.5
+          },
+          {
+            "axis": 1,
+            "param": "numShelves",
+            "mulParam": "shelfSpacing",
+            "scale": 0.5,
+            "add": 0.075
+          },
+          {
+            "axis": 2,
+            "param": "depth",
+            "scale": 0.5
+          }
+        ],
+        "color": [
+          0.028,
+          0.107,
+          0.314
+        ],
+        "colorParam": "frameColor",
+        "metalness": 0,
+        "roughness": 0.8
+      },
+      {
+        "name": "postRF",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            6.55,
+            0.08
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "numShelves",
+              "mulParam": "shelfSpacing",
+              "add": 0.15
+            }
+          ]
+        },
+        "offset": [
+          2.7,
+          3.275,
+          -0.55
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.5
+          },
+          {
+            "axis": 1,
+            "param": "numShelves",
+            "mulParam": "shelfSpacing",
+            "scale": 0.5,
+            "add": 0.075
+          },
+          {
+            "axis": 2,
+            "param": "depth",
+            "scale": -0.5
+          }
+        ],
+        "color": [
+          0.028,
+          0.107,
+          0.314
+        ],
+        "colorParam": "frameColor",
+        "metalness": 0,
+        "roughness": 0.8
+      },
+      {
+        "name": "postRR",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            6.55,
+            0.08
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "numShelves",
+              "mulParam": "shelfSpacing",
+              "add": 0.15
+            }
+          ]
+        },
+        "offset": [
+          2.7,
+          3.275,
+          0.55
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.5
+          },
+          {
+            "axis": 1,
+            "param": "numShelves",
+            "mulParam": "shelfSpacing",
+            "scale": 0.5,
+            "add": 0.075
+          },
+          {
+            "axis": 2,
+            "param": "depth",
+            "scale": 0.5
+          }
+        ],
+        "color": [
+          0.028,
+          0.107,
+          0.314
+        ],
+        "colorParam": "frameColor",
+        "metalness": 0,
+        "roughness": 0.8
+      },
+      {
+        "name": "poleGrid",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            6.55,
+            0.08
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "numShelves",
+              "mulParam": "shelfSpacing",
+              "add": 0.15
+            }
+          ]
+        },
+        "offset": [
+          0,
+          3.275,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "numShelves",
+            "mulParam": "shelfSpacing",
+            "scale": 0.5,
+            "add": 0.075
+          }
+        ],
+        "color": [
+          0.028,
+          0.107,
+          0.314
+        ],
+        "colorParam": "frameColor",
+        "metalness": 0,
+        "roughness": 0.8,
+        "collision": "none",
+        "array": {
+          "grid": {
+            "x": {
+              "sizeParam": "length",
+              "pitchParam": "poleInterval",
+              "size": 5.4,
+              "pitch": 2.7
+            },
+            "z": {
+              "sizeParam": "depth",
+              "pitchParam": "depth",
+              "size": 1.1,
+              "pitch": 1.1
+            }
+          }
+        },
+        "showParam": "enableAutoPoles"
+      },
+      {
+        "name": "shelf",
+        "shape": {
+          "kind": "box",
+          "size": [
+            5.4,
+            0.04,
+            1.1
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            },
+            {
+              "axis": 2,
+              "param": "depth",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1.6,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "shelfSpacing",
+            "scale": 1
+          }
+        ],
+        "color": [
+          0.275,
+          0.296,
+          0.319
+        ],
+        "colorParam": "shelfColor",
+        "metalness": 0,
+        "roughness": 0.8,
+        "array": {
+          "count": "numShelves",
+          "step": [
+            0,
+            1.6,
+            0
+          ],
+          "stepParams": [
+            {
+              "axis": 1,
+              "param": "shelfSpacing"
+            }
+          ]
+        },
+        "hidden": true
+      },
+      {
+        "name": "beamFront",
+        "shape": {
+          "kind": "box",
+          "size": [
+            5.32,
+            0.12,
+            0.05
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1,
+              "add": -0.08
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1.57,
+          -0.55
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "shelfSpacing",
+            "scale": 1,
+            "add": -0.03
+          },
+          {
+            "axis": 2,
+            "param": "depth",
+            "scale": -0.5
+          }
+        ],
+        "color": [
+          0.807,
+          0.147,
+          0.013
+        ],
+        "colorParam": "beamColor",
+        "metalness": 0,
+        "roughness": 0.8,
+        "array": {
+          "count": "numShelves",
+          "step": [
+            0,
+            1.6,
+            0
+          ],
+          "stepParams": [
+            {
+              "axis": 1,
+              "param": "shelfSpacing"
+            }
+          ]
+        }
+      },
+      {
+        "name": "beamBack",
+        "shape": {
+          "kind": "box",
+          "size": [
+            5.32,
+            0.12,
+            0.05
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1,
+              "add": -0.08
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1.57,
+          0.55
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "shelfSpacing",
+            "scale": 1,
+            "add": -0.03
+          },
+          {
+            "axis": 2,
+            "param": "depth",
+            "scale": 0.5
+          }
+        ],
+        "color": [
+          0.807,
+          0.147,
+          0.013
+        ],
+        "colorParam": "beamColor",
+        "metalness": 0,
+        "roughness": 0.8,
+        "array": {
+          "count": "numShelves",
+          "step": [
+            0,
+            1.6,
+            0
+          ],
+          "stepParams": [
+            {
+              "axis": 1,
+              "param": "shelfSpacing"
+            }
+          ]
+        }
+      },
+      {
+        "name": "aisleSignL",
+        "shape": {
+          "kind": "label",
+          "textParam": "aisle",
+          "size": [
+            1.1,
+            0.32
+          ],
+          "color": [
+            0.05,
+            0.06,
+            0.09
+          ]
+        },
+        "offset": [
+          -2.77,
+          6.25,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": -0.5,
+            "add": -0.07
+          },
+          {
+            "axis": 1,
+            "param": "numShelves",
+            "mulParam": "shelfSpacing",
+            "add": -0.15
+          }
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "aisleSignR",
+        "shape": {
+          "kind": "label",
+          "textParam": "aisle",
+          "size": [
+            1.1,
+            0.32
+          ],
+          "color": [
+            0.05,
+            0.06,
+            0.09
+          ]
+        },
+        "offset": [
+          2.77,
+          6.25,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.5,
+            "add": 0.07
+          },
+          {
+            "axis": 1,
+            "param": "numShelves",
+            "mulParam": "shelfSpacing",
+            "add": -0.15
+          }
+        ],
+        "rotation": [
+          0,
+          1.5707963267948966,
+          0
+        ]
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 5.4,
+      "width": 1.1,
+      "top": 6.550000000000001
+    }
+  },
+  "materials": [
+    {
+      "id": "rackFrame",
+      "color": [
+        0.028,
+        0.107,
+        0.314
+      ],
+      "metalness": 0,
+      "roughness": 0.8
+    },
+    {
+      "id": "rackHardware",
+      "color": [
+        0.05,
+        0.052,
+        0.058
+      ],
+      "metalness": 0.15,
+      "roughness": 0.5
+    },
+    {
+      "id": "rackDeck",
+      "color": [
+        0.275,
+        0.296,
+        0.319
+      ],
+      "metalness": 0.1,
+      "roughness": 0.6
+    },
+    {
+      "id": "rackLabel",
+      "color": [
+        0.82,
+        0.82,
+        0.8
+      ],
+      "metalness": 0,
+      "roughness": 0.7
+    }
+  ]
+}

@@ -1,0 +1,342 @@
+/* ---- the program editor (ParamSpec.program): a card per program, a line per step ---- */
+.prog-body {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prog-empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.prog-job {
+  background: light-dark(#fafafb, #1c1d20);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.prog-job-running {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--panel-edge));
+}
+
+.prog-job-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 2px;
+  background: light-dark(#eff0f2, #25272b);
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.prog-job-caret,
+.prog-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-dim);
+}
+
+.prog-job-caret:hover:not(:disabled),
+.prog-icon:hover:not(:disabled) {
+  background: light-dark(#d8dadd, #33363b);
+  color: var(--text);
+}
+
+.prog-job-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 22%, light-dark(#e9eaed, #2a2c31));
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.prog-job-name {
+  font-weight: 600;
+}
+
+.prog-job-count {
+  flex: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.prog-job-live {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--accent);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.prog-job-live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: prog-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes prog-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.prog-steps {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prog-step {
+  display: grid;
+  grid-template-columns: 14px auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 4px;
+  padding: 3px 4px 3px 6px;
+  border-left: 2px solid var(--op-hue);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.prog-step:hover {
+  background: light-dark(#f0f1f3, #24262a);
+}
+
+.prog-step-selected {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.prog-step-selected:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* the step the robot is running right now */
+.prog-step-active,
+.prog-step-active:hover {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.prog-step-num {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.prog-op {
+  width: auto;
+  max-width: 88px;
+  padding: 2px 14px 2px 3px;
+  appearance: none;
+  background: transparent var(--prog-chevron) no-repeat right 3px center / 8px;
+  color: var(--op-hue);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prog-op:hover:not(:disabled),
+.prog-op:focus {
+  outline: none;
+  border-color: var(--line);
+}
+
+/* two columns whatever the step, so a job's arguments line up down the card */
+.prog-args {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.prog-field {
+  --prog-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 6 8 11l4.5-5z' fill='%238b9097'/%3E%3C/svg%3E");
+}
+
+.prog-arg {
+  min-width: 0;
+  width: 100%;
+  height: 22px;
+  padding: 0 14px 0 5px;
+  appearance: none;
+  text-overflow: ellipsis;
+  background: var(--bg) var(--prog-chevron) no-repeat right 3px center / 8px;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.prog-arg:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.prog-arg:disabled {
+  opacity: 0.4;
+}
+
+/* a number argument hosts the Inspector's own number field, cut down to the step's height */
+.prog-arg-number {
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.prog-arg-number .spin {
+  height: 22px;
+}
+
+.prog-missing {
+  color: light-dark(#d52c23, #e5534b);
+  border-color: color-mix(in srgb, light-dark(#e2564e, #e5534b) 60%, var(--line));
+}
+
+/* the selected step's actions, on a strip of their own under it */
+.prog-step-toolbar {
+  grid-column: 2 / -1;
+  display: flex;
+  gap: 4px;
+}
+
+.prog-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  background: var(--control-low);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.prog-tool:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.prog-tool-danger:hover:not(:disabled) {
+  color: light-dark(#d52c23, #e5534b);
+  border-color: color-mix(in srgb, light-dark(#e2564e, #e5534b) 50%, var(--line));
+}
+
+.prog-add-step {
+  padding: 2px 0 0 20px;
+}
+
+.prog-add-step select {
+  height: 22px;
+  padding: 0 18px 0 6px;
+  appearance: none;
+  background: transparent var(--prog-chevron) no-repeat right 5px center / 8px;
+  color: var(--text-dim);
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.prog-add-step select:hover:not(:disabled),
+.prog-add-step select:focus {
+  outline: none;
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* trained-waypoint list: one row per pose (name + Go + delete), matching the tier rows */
+.waypoint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.waypoint-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.waypoint-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.waypoint-go {
+  flex: none;
+  height: 22px;
+  padding: 0 12px;
+  background: var(--control-low);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.waypoint-go:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.waypoint-go:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* manipulator waypoint action buttons (Set/Go Home, Stop) laid out in a row */
+.manip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.manip-actions .array-add {
+  align-self: auto;
+}
+

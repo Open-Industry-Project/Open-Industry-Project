@@ -1,0 +1,15 @@
+{
+  "id": "oip.pallet",
+  "name": "Pallet",
+  "category": "Products",
+  "geometry": {
+    "kind": "cargo",
+    "cargoKind": "pallet",
+    "size": {
+      "length": 1.22,
+      "width": 1.02,
+      "height": 0.135
+    }
+  },
+  "materials": []
+}

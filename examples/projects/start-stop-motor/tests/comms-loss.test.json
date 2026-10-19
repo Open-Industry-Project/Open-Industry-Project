@@ -1,0 +1,28 @@
+{
+  "name": "Losing the I/O connection trips MotorFault at once, and Reset cannot clear it until comms return",
+  "duration": 3.8,
+  "inputs": [
+    { "at": 0.5, "tag": "Start", "value": true },
+    { "at": 0.6, "tag": "Start", "value": false },
+    { "at": 1.5, "tag": "Reset", "value": true },
+    { "at": 1.6, "tag": "Reset", "value": false },
+    { "at": 2.6, "tag": "Reset", "value": true },
+    { "at": 2.7, "tag": "Reset", "value": false },
+    { "at": 3.0, "tag": "Start", "value": true },
+    { "at": 3.1, "tag": "Start", "value": false }
+  ],
+  "faults": [
+    { "at": 1.0, "until": 2.0, "kind": "commsLoss", "statusTag": "IoFault" }
+  ],
+  "checks": [
+    { "at": 0.9, "tag": "Running", "equals": true },
+    { "at": 0.9, "tag": "IoFault", "equals": false },
+    { "eventually": true, "until": 1.1, "tag": "MotorFault", "equals": true },
+    { "at": 1.2, "tag": "Run", "equals": false },
+    { "at": 1.55, "tag": "MotorFault", "equals": true },
+    { "at": 1.8, "tag": "MotorFault", "equals": true },
+    { "at": 2.5, "tag": "Running", "equals": false },
+    { "at": 3.5, "tag": "MotorFault", "equals": false },
+    { "at": 3.5, "tag": "Running", "equals": true }
+  ]
+}

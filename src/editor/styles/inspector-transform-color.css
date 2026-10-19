@@ -1,0 +1,479 @@
+/* Transform vector rows (inline x/y/z) */
+.vector-field {
+  align-items: center;
+}
+
+.vector-axes {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  margin-left: 8px;
+}
+
+.axis {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* the Vector component labels are tinted red / green / blue */
+.axis-label {
+  width: 12px;
+  flex: none;
+  text-align: center;
+  border-radius: 3px;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.axis-x .axis-label {
+  color: light-dark(#d92333, #ff6d7a);
+  background: rgba(245, 51, 82, 0.13);
+}
+
+.axis-y .axis-label {
+  color: light-dark(#547914, #9bdc2b);
+  background: rgba(135, 214, 3, 0.13);
+}
+
+.axis-z .axis-label {
+  color: light-dark(#2070c8, #4aa0ff);
+  background: rgba(41, 140, 245, 0.13);
+}
+
+/* compact spin slider for the 3-up Transform row: same chrome, tighter */
+.spin-compact {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+}
+
+.spin-compact .spin-input {
+  padding: 0 3px;
+}
+
+/* keep the revealed arrow column slim so 3 spinners + arrows fit the narrow panel */
+.spin-compact:hover:not(.spin-disabled) .spin-arrows {
+  width: 11px;
+}
+
+/* property-row wrapper: carries the right-click menu without affecting layout */
+.prop-row {
+  display: contents;
+}
+
+/* A product's own settings, shown under the product param that picked it (paramField ProductSettings): indented so
+   they read as that product's, not the part's */
+.prop-row-product-setting .field-label {
+  padding-left: 12px;
+}
+
+/* A number param a running ST program is commanding through a setpoint tag (a conveyor's speedTag
+   replacing its speed): the field shows the LIVE value, not the authored one, and is read-only because
+   an edit would be silently ignored by the behavior. It must NOT read as a greyed-out dead control —
+   this is the one number on the row that is actually true - so cancel the disabled dimming and mark it
+   live instead. Reverts to the ordinary editable field the moment the program stops driving it. */
+.prop-row-plc .spin-disabled {
+  opacity: 1;
+}
+.prop-row-plc .spin-input:disabled {
+  color: var(--accent);
+  -webkit-text-fill-color: var(--accent); /* Safari/iOS ignore `color` on a disabled input */
+  cursor: default;
+}
+.prop-row-plc .field-badge {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent);
+}
+
+/* color field: a swatch + hex button that opens the picker popup */
+.field-color-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px 0 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.field-color-btn:hover:not(:disabled) {
+  border-color: light-dark(#b3b8bf, #4a4f57);
+}
+
+.field-color-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.field-color-swatch {
+  width: 26px;
+  height: 16px;
+  flex: none;
+  border-radius: 3px;
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.105), rgba(255, 255, 255, 0.15));
+}
+
+/* mixed multi-selection: a neutral checker instead of a single colour */
+.field-color-mixed {
+  background: repeating-conic-gradient(#666 0 25%, #999 0 50%) 0 0 / 8px 8px;
+}
+
+.field-color-btn .field-color-hex {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* color-picker popup (sits above its click-catching .ctx-backdrop) */
+.color-popup {
+  position: fixed;
+  z-index: 65;
+  width: 244px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+}
+
+/* the popup takes focus on open so keys reach it; the container itself needs no ring */
+.color-popup:focus {
+  outline: none;
+}
+
+.color-main {
+  display: flex;
+  gap: 8px;
+  height: 150px;
+}
+
+.color-sv {
+  position: relative;
+  flex: 1;
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.color-sv-knob {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px light-dark(rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.color-hue {
+  position: relative;
+  width: 16px;
+  flex: none;
+  border-radius: 4px;
+  cursor: ns-resize;
+  touch-action: none;
+  background: linear-gradient(
+    to bottom,
+    #f00 0%,
+    #ff0 17%,
+    #0f0 33%,
+    #0ff 50%,
+    #00f 67%,
+    #f0f 83%,
+    #f00 100%
+  );
+}
+
+.color-hue-knob {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 4px;
+  transform: translateY(-50%);
+  border: 1px solid #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px light-dark(rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-preview {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 4px;
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.105), rgba(255, 255, 255, 0.15));
+}
+
+.color-hex-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 6px;
+  font: inherit;
+  font-family: ui-monospace, Consolas, monospace;
+  text-transform: uppercase;
+}
+
+.color-hex-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* RGB/HSV mode toggle + screen eyedropper (color-picker mode tabs) */
+.color-modes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-mode-btn {
+  padding: 3px 9px;
+  background: var(--control-low);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.color-mode-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.color-eyedrop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  background: var(--control-low);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.color-eyedrop:hover {
+  color: var(--text);
+  border-color: light-dark(#b3b8bf, #4a4f57);
+}
+
+/* per-channel R/G/B or H/S/V sliders with a gradient track + numeric readout */
+.color-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.color-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-chan-label {
+  width: 10px;
+  flex: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.color-slider {
+  flex: 1;
+  min-width: 0;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.color-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 6px;
+  height: 18px;
+  border-radius: 2px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.65);
+  box-shadow: 0 0 0 1px light-dark(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.35));
+  cursor: ew-resize;
+}
+
+.color-slider::-moz-range-thumb {
+  width: 6px;
+  height: 18px;
+  border-radius: 2px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.65);
+  cursor: ew-resize;
+}
+
+.color-slider::-moz-range-track {
+  background: transparent;
+}
+
+.color-chan-num {
+  width: 44px;
+  flex: none;
+  height: 22px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 11px;
+  text-align: right;
+}
+
+.color-chan-num:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* preset + recent swatch strips, each on its own labelled line */
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-swatches-label {
+  width: 100%;
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.color-preset-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--control-low);
+  color: var(--text-dim);
+  border: 1px dashed light-dark(#b3b8bf, #4a4f57);
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.color-preset-add:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.color-recent {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 3px;
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.105), rgba(255, 255, 255, 0.15));
+  cursor: pointer;
+}
+
+.color-recent:hover {
+  border-color: var(--accent);
+}
+
+/* property right-click menu (inspector Copy / Paste / Revert) */
+.ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 64;
+}
+
+.ctx-menu {
+  position: fixed;
+  z-index: 65;
+  min-width: 168px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+}
+
+.ctx-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ctx-item:hover:not(:disabled),
+.ctx-item:focus-visible:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  outline: none;
+}
+
+.ctx-key {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.ctx-item:hover:not(:disabled) .ctx-key,
+.ctx-item:focus-visible:not(:disabled) .ctx-key {
+  color: inherit;
+}
+
+.ctx-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ctx-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--panel-edge);
+}
+

@@ -1,0 +1,143 @@
+{
+  "name": "oip-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open Industry Project desktop app: the oip-web build in an Electron shell. Isolated from the root package.json on purpose.",
+  "author": "Automation Standard LLC and Contributors",
+  "license": "MIT",
+  "homepage": "https://www.openindustryproject.org/",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "node ../../scripts/fetch-libplctag.mjs",
+    "licenses": "node ../../scripts/desktop-licenses.mjs",
+    "pack": "npm run licenses && electron-builder --dir",
+    "dist": "npm run licenses && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "koffi": "3.3.2",
+    "node-opcua-certificate-manager": "2.186.17",
+    "node-opcua-client": "2.186.17",
+    "node-opcua-server": "2.186.17"
+  },
+  "build": {
+    "appId": "org.openindustryproject.simulator",
+    "productName": "Open Industry Project",
+    "copyright": "Copyright (c) Automation Standard LLC and Contributors",
+    "extraMetadata": {
+      "name": "open-industry-project",
+      "productName": "Open Industry Project",
+      "desktopName": "open-industry-project.desktop"
+    },
+    "directories": {
+      "output": "release"
+    },
+    "protocols": [
+      {
+        "name": "Open Industry Project link",
+        "schemes": [
+          "openindustry"
+        ]
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": "oip",
+        "name": "OpenIndustryProject.Project",
+        "description": "Open Industry Project",
+        "mimeType": "application/x-open-industry-project",
+        "role": "Editor"
+      },
+      {
+        "ext": "oippart",
+        "name": "OpenIndustryProject.Part",
+        "description": "Open Industry Project part",
+        "mimeType": "application/x-open-industry-project-part",
+        "role": "Editor"
+      }
+    ],
+    "files": [
+      "*.cjs",
+      "!*.test.cjs",
+      "!smoke.cjs",
+      "vendor/libplctag/plctag.dll",
+      "vendor/libplctag/libplctag.so",
+      "vendor/libplctag/LICENSE-MPL-2.0.txt",
+      "oip-logo.ico",
+      "THIRD_PARTY_LICENSES.desktop.txt"
+    ],
+    "extraResources": [
+      {
+        "from": "../../dist",
+        "to": "dist",
+        "filter": [
+          "**/*",
+          "!**/*.map"
+        ]
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "vendor/libplctag/**",
+      "node_modules/@koromix/**"
+    ],
+    "npmRebuild": false,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "enableCookieEncryption": true,
+      "grantFileProtocolExtraPrivileges": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://downloads.openindustryproject.org/desktop/"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "oip-logo.ico",
+      "signtoolOptions": {
+        "publisherName": "Automation Standard LLC"
+      }
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "include": "installer.nsh",
+      "artifactName": "Open-Industry-Project-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools",
+      "icon": "../../public/icons/pwa-512x512.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "icon": "../../public/icons/pwa-512x512.png",
+      "executableName": "open-industry-project",
+      "maintainer": "Open Industry Project <support@openindustryproject.org>",
+      "syncDesktopName": true,
+      "synopsis": "Industrial automation simulator: conveyors, robots and PLCs",
+      "description": "Build production lines, robot cells and machines from real parts, wire their sensors and actuators to a PLC program, and run them in a physics simulation."
+    },
+    "appImage": {
+      "artifactName": "Open-Industry-Project-${version}.${ext}"
+    },
+    "deb": {
+      "artifactName": "open-industry-project_${version}_${arch}.${ext}"
+    }
+  }
+}

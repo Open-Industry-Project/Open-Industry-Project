@@ -1,0 +1,19 @@
+# Deliberately minimal. .gitattributes is what actually enforces line endings (git applies it
+# on checkout and on staging, for everyone); this file only tells an EDITOR to write LF so a
+# human contributor's tree does not fight the attribute between commits. The tools that write
+# most of the code here do not read .editorconfig, which is why it is the backstop and not the
+# mechanism - see .gitattributes for the reasoning.
+#
+# Do NOT add trim_trailing_whitespace or insert_final_newline. Editors apply those on save, so
+# they would silently reformat files as they are opened and scatter unrelated hunks through
+# every diff - exactly the noise this is meant to end.
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+
+# The two Windows launchers cmd.exe and wscript parse byte-wise; pinned CRLF in .gitattributes
+# and asserted by src/editor/lineEndings.test.ts.
+[*.{cmd,vbs}]
+end_of_line = crlf

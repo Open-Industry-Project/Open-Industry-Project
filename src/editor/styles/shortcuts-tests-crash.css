@@ -1,0 +1,272 @@
+/* ===== Keyboard shortcuts reference (ShortcutsOverlay) ===================== */
+/* Reuses the shared modal chrome (.author-backdrop / .author-dialog); only the
+   two-column key list below is its own. Rendered off core/keymap.ts, so the rows
+   are however many bindings the table holds - it scrolls rather than paginates. */
+.shortcuts-dialog {
+  width: min(880px, 100%);
+}
+
+.shortcuts-groups {
+  columns: 2;
+  column-gap: 26px;
+}
+
+.shortcuts-group {
+  break-inside: avoid;
+  margin: 0 0 16px;
+}
+
+.shortcuts-group h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--panel-edge);
+  padding-bottom: 4px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.shortcut-text {
+  min-width: 0;
+}
+
+.shortcut-label {
+  font-size: 12px;
+}
+
+.shortcut-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+
+.shortcut-keys {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shortcut-or {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.shortcuts-dialog kbd {
+  font: 11px/1 ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* one column on a narrow window; its entry point (the toolbar's Help menu) is hidden on mobile (no keyboard) */
+@media (max-width: 760px) {
+  .shortcuts-groups {
+    columns: 1;
+  }
+}
+
+/* ===== Project test verdicts (TestResultsOverlay) ========================== */
+/* Reuses the shared modal chrome (.author-backdrop / .author-dialog); only the
+   verdict list below is its own. Rows append as each spec finishes, so the list
+   grows during a run rather than arriving all at once. There is no --ok/--fail
+   token pair, so the two colours are literal - the same call the GLB-material
+   warning already makes for its amber. */
+.test-run-dialog {
+  width: min(720px, 100%);
+}
+
+.test-run-error {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: light-dark(#d72323, #f08a8a);
+}
+
+.test-run-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.test-run-row {
+  border: 1px solid var(--panel-edge);
+  border-radius: 5px;
+  padding: 8px 10px;
+}
+
+.test-run-row[data-ok='false'] {
+  border-color: #6b3a3a;
+}
+
+.test-run-name {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.test-run-checks {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0 0 0 20px;
+}
+
+.test-run-check {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 2px 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.test-run-mark {
+  flex: none;
+  font-weight: 700;
+}
+
+/* scoped to the direct child so a failing test's passing checks stay green -
+   a blanket `.test-run-row[data-ok='false'] .test-run-mark` would redden them all */
+.test-run-row[data-ok='true'] > .test-run-name > .test-run-mark,
+.test-run-check[data-ok='true'] > .test-run-mark,
+[data-test-run-summary][data-state='pass'] {
+  color: light-dark(#2e7f3b, #8fd69a);
+}
+
+.test-run-row[data-ok='false'] > .test-run-name > .test-run-mark,
+.test-run-check[data-ok='false'] > .test-run-mark,
+[data-test-run-summary][data-state='fail'] {
+  color: light-dark(#d72323, #f08a8a);
+}
+
+/* a test's flow facts (editor/testFacts.ts): neutral, since a fact never fails a test */
+.test-run-facts {
+  margin: 6px 0 0 20px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.test-run-facts-before {
+  padding: 2px 0 4px 18px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.test-run-facts-before summary {
+  cursor: pointer;
+}
+
+.test-run-fact {
+  padding-left: 12px;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ===== Crash boundary (components/CrashDialog.tsx) ========================= */
+/* Above every other overlay (palette is 90): if this is up, nothing behind it is
+   running, so nothing behind it should be reachable. */
+.crash-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.crash-dialog {
+  width: min(640px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  box-shadow: 0 18px 48px light-dark(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.55));
+  color: var(--text);
+  font: 13px/1.5 ui-sans-serif, system-ui, sans-serif;
+}
+
+.crash-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: light-dark(#d72323, #f08a8a);
+}
+
+.crash-body {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crash-action {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-edge);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.crash-action:hover {
+  border-color: var(--accent);
+}
+
+.crash-action.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.crash-action.primary:hover {
+  filter: brightness(1.1);
+}
+
+.crash-note {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+/* The report stays visible rather than hiding behind Copy: clipboard access can be denied,
+   and a selectable block is the fallback that always works. */
+.crash-report {
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  max-height: 40vh;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--panel-edge);
+  color: var(--text-dim);
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  user-select: text;
+}
+

@@ -1,0 +1,1589 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>PLC language reference: Structured Text and ladder | Open Industry Project</title>
+    <meta name="description" content="What the Open Industry Project PLC engine accepts in IEC 61131-3 Structured Text and Ladder Diagram, generated from the engine, and the outside tools that check it." />
+    <meta name="keywords" content="IEC 61131-3, Structured Text, Ladder Diagram, PLC portability, MATIEC, PLCopen, conformance" />
+    <link rel="canonical" href="https://www.openindustryproject.org/plc/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="PLC language reference: Structured Text and ladder | Open Industry Project" />
+    <meta property="og:description" content="What the Open Industry Project PLC engine accepts in IEC 61131-3 Structured Text and Ladder Diagram, generated from the engine, and the outside tools that check it." />
+    <meta property="og:url" content="https://www.openindustryproject.org/plc/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PLC language reference: Structured Text and ladder | Open Industry Project" />
+    <meta name="twitter:description" content="What the Open Industry Project PLC engine accepts in IEC 61131-3 Structured Text and Ladder Diagram, generated from the engine, and the outside tools that check it." />
+    <meta name="twitter:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+
+    <!-- THIS PAGE IS GENERATED. Edit scripts/lib/plc-page.mjs (the narrative) or the engine
+         itself (everything else), then run: npm run capabilities -- --write -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+    <!-- The page's own pieces; the nav, footer, type and colours are site.css's. -->
+    <style>
+      .doc .hero { max-width: 70ch; }
+      .doc .section .sub { max-width: 72ch; margin-bottom: 24px; }
+      .doc .section p.body { color: var(--text-2); max-width: 72ch; margin-bottom: 14px; }
+      .doc .section h3 { margin: 6px 0 14px; }
+
+      .claims { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+      .claims ul, ul.plain { list-style: none; }
+      .claims li, ul.plain li { position: relative; padding-left: 22px; margin-bottom: 12px; color: var(--text-2); font-size: 0.95rem; }
+      .claims li::before, ul.plain li::before { content: ''; position: absolute; left: 0; top: 12px; width: 10px; height: 1px; background: var(--muted); }
+      ul.plain { max-width: 76ch; margin-bottom: 28px; }
+
+      .oracles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 26px; }
+      .oracle .o-name { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+      .oracle .o-name strong { font-size: 1.05rem; }
+      .oracle .o-edition { font-family: var(--mono); font-size: 11.5px; color: var(--muted); text-align: right; }
+      .oracle p { color: var(--text-2); font-size: 0.93rem; margin: 10px 0 14px; }
+      .oracle .o-run { font-family: var(--mono); font-size: 12px; color: var(--text); }
+      .oracle .o-pin { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 6px; word-break: break-all; }
+
+      .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 26px; }
+      .chip { font-family: var(--mono); font-size: 12px; color: var(--text-2); border: 1px solid var(--line); border-radius: 3px; padding: 3px 9px; }
+
+      .vocab { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px 24px; align-items: start; margin-bottom: 34px; }
+      .vocab dt { font-size: 0.9rem; color: var(--muted); padding-top: 4px; }
+      .vocab dd .chips { margin-bottom: 10px; }
+
+      .cat { margin-bottom: 34px; }
+      /* minmax(0, 1fr), not 1fr: a grid item defaults to min-width:auto, so one long line of code inside
+         .st-code would widen its column and push the whole page sideways instead of scrolling in its box. */
+      .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+      .card { min-width: 0; border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; background: var(--bg-raised); }
+      .card-head { font-size: 0.95rem; margin-bottom: 10px; }
+      .card .note { color: var(--muted); font-size: 0.86rem; margin-top: 10px; border: 0; padding: 0; }
+
+      .st-code {
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--text-2);
+        background: var(--bg-sunk);
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        overflow-x: auto;
+        white-space: pre;
+      }
+
+      table.ledger, table.elements { width: 100%; border-collapse: collapse; }
+      table.ledger { table-layout: fixed; }
+      table.ledger th, table.elements th {
+        text-align: left;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 400;
+        padding: 0 14px 10px 0;
+        border-bottom: 1px solid var(--line-strong);
+      }
+      table.ledger td { vertical-align: top; padding: 16px 14px 16px 0; border-bottom: 1px solid var(--line); width: 50%; }
+      table.ledger .what { font-size: 0.95rem; margin-bottom: 8px; }
+      table.ledger .said { font-family: var(--mono); font-size: 12px; color: var(--warn); }
+      table.ledger .note { color: var(--muted); font-size: 0.88rem; margin-top: 10px; border: 0; padding: 0; }
+      table.elements { max-width: 860px; margin-bottom: 30px; }
+      table.elements td { vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: 0.93rem; }
+      table.elements td.m { font-family: var(--mono); font-size: 12.5px; color: var(--text); white-space: pre; }
+
+      ol.divergences { list-style: none; counter-reset: d; max-width: 84ch; }
+      ol.divergences li { counter-increment: d; position: relative; padding-left: 38px; margin-bottom: 18px; color: var(--text-2); }
+      ol.divergences li::before {
+        content: counter(d);
+        position: absolute;
+        left: 0;
+        top: 2px;
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line-strong);
+        border-radius: 3px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--accent);
+      }
+      ol.divergences b { display: block; color: var(--text); font-weight: 600; }
+
+      .doors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+      .door h3 { margin-bottom: 12px; }
+      .door ul { list-style: none; }
+      .door li { position: relative; padding-left: 22px; margin-bottom: 12px; color: var(--text-2); font-size: 0.94rem; }
+      .door li::before { content: ''; position: absolute; left: 0; top: 12px; width: 10px; height: 1px; background: var(--muted); }
+      .fmt { font-family: var(--mono); color: var(--text); }
+
+      .seams { width: 100%; border-collapse: collapse; }
+      .seams td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.92rem; }
+      .seams td.cmd { font-family: var(--mono); font-size: 12px; color: var(--text); white-space: nowrap; }
+
+      @media (max-width: 900px) {
+        .claims, .oracles, .cards, .doors { grid-template-columns: minmax(0, 1fr); }
+        footer.site li a { overflow-wrap: anywhere; }
+        .vocab { grid-template-columns: 1fr; gap: 4px 0; }
+        table.ledger, table.ledger tbody, table.ledger tr, table.ledger td { display: block; width: 100%; }
+        table.ledger thead { display: none; }
+        table.ledger td { border-bottom: none; padding-bottom: 8px; }
+        table.ledger tr { border-bottom: 1px solid var(--line); padding-bottom: 10px; display: block; margin-bottom: 10px; }
+      }
+    </style>
+  </head>
+
+  <body class="doc ref">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/" aria-current="page">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>PLC language reference</h1>
+        <p class="lede">
+          The simulator's built-in PLC runs IEC&nbsp;61131-3 Structured Text and Ladder Diagram. Ladder is a second way to write the same programs: each rung is translated to
+          the Structured Text that means it, so both run on one engine.
+        </p>
+        <p class="lede">
+          This page lists what the engine accepts, what it refuses, where it differs from the standard, and which
+          outside tools check it. It is generated from the engine. Every example below was compiled while the page
+          was built, and every refusal shows the message the compiler gave.
+        </p>
+        <p class="lede">Within the subset, a program is meant to behave the way a real IEC runtime would, so code written here carries over to a physical PLC; where it knowingly behaves differently, the difference is listed. There is no compliance statement and no PLCopen certification.</p>
+        <ul class="toc">
+          <li><a href="#claims">1. What is claimed</a></li>
+          <li><a href="#st">2. Structured Text</a></li>
+          <li><a href="#ladder">3. Ladder Diagram</a></li>
+          <li><a href="#missing">4. Not supported</a></li>
+          <li><a href="#strict">5. Refused for portability</a></li>
+          <li><a href="#caveats">6. Accepted with a caveat</a></li>
+          <li><a href="#divergences">7. Deliberate differences</a></li>
+          <li><a href="#checks">8. Outside checks</a></li>
+          <li><a href="#doors">9. Import and export</a></li>
+          <li><a href="#tools">10. Command-line tools</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="claims">
+      <div class="wrap">
+        <h2>1. What is and is not claimed</h2>
+        <div class="claims">
+          <div class="panel">
+            <h3>Claimed</h3>
+            <ul>
+              <li>Within the subset, a program behaves the way a real IEC runtime would, scan for scan. For ladder, where IEC leaves a choice open, this page states the engine's own rule (section 3).</li>
+              <li>A program can leave the simulator as a spec-legal <span class="fmt" translate="no">.st</span> file, or as PLCopen TC6 XML, the IEC exchange format, with ladder as an LD body.</li>
+              <li>Anything the engine does not accept is refused by name, with the conversion or substitute to write.</li>
+              <li>The deliberate differences we know of are listed in section 7.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>Not claimed</h3>
+            <ul>
+              <li>Compliance. There is no statement against the standard's feature tables and no PLCopen certification.</li>
+              <li>Completeness. Event tasks, 64-bit types, WSTRING and the other gaps in section 4 are missing.</li>
+              <li>Function Block Diagram, Sequential Function Chart and Instruction List. Only Structured Text and Ladder Diagram are read.</li>
+              <li>Vendor extensions. IEC text is read as written, and vendor extensions are not translated.</li>
+              <li>All of 3rd-edition object orientation: function blocks take METHOD, EXTENDS and INTERFACE, and variables take REF_TO, but there is no CLASS or NAMESPACE.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="st">
+      <div class="wrap">
+        <h2>2. Structured Text</h2>
+        <p class="sub">
+          The types, blocks, functions and keywords below are the engine's own tables. Each example compiled while this
+          page was built.
+        </p>
+        <dl class="vocab">
+          <dt>Types</dt>
+          <dd><div class="chips" translate="no"><span class="chip">BOOL</span><span class="chip">SINT</span><span class="chip">INT</span><span class="chip">DINT</span><span class="chip">USINT</span><span class="chip">UINT</span><span class="chip">UDINT</span><span class="chip">BYTE</span><span class="chip">WORD</span><span class="chip">DWORD</span><span class="chip">REAL</span><span class="chip">LREAL</span><span class="chip">TIME</span><span class="chip">DATE</span><span class="chip">TOD</span><span class="chip">DT</span><span class="chip">STRING</span></div></dd>
+          <dt>Function blocks</dt>
+          <dd><div class="chips" translate="no"><span class="chip">TON</span><span class="chip">TOF</span><span class="chip">TP</span><span class="chip">R_TRIG</span><span class="chip">F_TRIG</span><span class="chip">CTU</span><span class="chip">CTD</span><span class="chip">CTUD</span><span class="chip">SR</span><span class="chip">RS</span></div></dd>
+          <dt>Functions</dt>
+          <dd><div class="chips" translate="no"><span class="chip">ABS</span><span class="chip">ACOS</span><span class="chip">ADD</span><span class="chip">ADD_DT_TIME</span><span class="chip">ADD_TIME</span><span class="chip">ADD_TOD_TIME</span><span class="chip">ASIN</span><span class="chip">ATAN</span><span class="chip">BCD_TO_INT</span><span class="chip">CONCAT</span><span class="chip">CONCAT_DATE_TOD</span><span class="chip">COS</span><span class="chip">DELETE</span><span class="chip">DIV</span><span class="chip">DIVTIME</span><span class="chip">DIV_TIME</span><span class="chip">EQ</span><span class="chip">EXP</span><span class="chip">EXPT</span><span class="chip">FIND</span><span class="chip">GE</span><span class="chip">GT</span><span class="chip">INSERT</span><span class="chip">INT_TO_BCD</span><span class="chip">LE</span><span class="chip">LEFT</span><span class="chip">LEN</span><span class="chip">LIMIT</span><span class="chip">LN</span><span class="chip">LOG</span><span class="chip">LT</span><span class="chip">MAX</span><span class="chip">MID</span><span class="chip">MIN</span><span class="chip">MOVE</span><span class="chip">MUL</span><span class="chip">MULTIME</span><span class="chip">MUL_TIME</span><span class="chip">MUX</span><span class="chip">NE</span><span class="chip">REPLACE</span><span class="chip">RIGHT</span><span class="chip">ROL</span><span class="chip">ROR</span><span class="chip">SEL</span><span class="chip">SHL</span><span class="chip">SHR</span><span class="chip">SIN</span><span class="chip">SQRT</span><span class="chip">SUB</span><span class="chip">SUB_DATE_DATE</span><span class="chip">SUB_DT_DT</span><span class="chip">SUB_DT_TIME</span><span class="chip">SUB_TIME</span><span class="chip">SUB_TOD_TIME</span><span class="chip">SUB_TOD_TOD</span><span class="chip">TAN</span><span class="chip">TRUNC</span></div><p class="sub" style="margin:0">Plus the &lt;SRC&gt;_TO_&lt;DST&gt; conversion family over those types.</p></dd>
+          <dt>Keywords</dt>
+          <dd><div class="chips" translate="no"><span class="chip">AND</span><span class="chip">ARRAY</span><span class="chip">BOOL</span><span class="chip">BY</span><span class="chip">BYTE</span><span class="chip">CASE</span><span class="chip">CONSTANT</span><span class="chip">CONTINUE</span><span class="chip">DINT</span><span class="chip">DO</span><span class="chip">DWORD</span><span class="chip">ELSE</span><span class="chip">ELSIF</span><span class="chip">END_CASE</span><span class="chip">END_FOR</span><span class="chip">END_FUNCTION</span><span class="chip">END_FUNCTION_BLOCK</span><span class="chip">END_IF</span><span class="chip">END_REPEAT</span><span class="chip">END_STRUCT</span><span class="chip">END_TYPE</span><span class="chip">END_VAR</span><span class="chip">END_WHILE</span><span class="chip">EXIT</span><span class="chip">FALSE</span><span class="chip">FOR</span><span class="chip">FUNCTION</span><span class="chip">FUNCTION_BLOCK</span><span class="chip">IF</span><span class="chip">INT</span><span class="chip">LREAL</span><span class="chip">MOD</span><span class="chip">NOT</span><span class="chip">OF</span><span class="chip">OR</span><span class="chip">REAL</span><span class="chip">REPEAT</span><span class="chip">RETURN</span><span class="chip">SINT</span><span class="chip">STRING</span><span class="chip">STRUCT</span><span class="chip">THEN</span><span class="chip">TIME</span><span class="chip">TO</span><span class="chip">TRUE</span><span class="chip">TYPE</span><span class="chip">UDINT</span><span class="chip">UINT</span><span class="chip">UNTIL</span><span class="chip">USINT</span><span class="chip">VAR</span><span class="chip">VAR_EXTERNAL</span><span class="chip">VAR_GLOBAL</span><span class="chip">VAR_INPUT</span><span class="chip">VAR_IN_OUT</span><span class="chip">VAR_OUTPUT</span><span class="chip">VAR_TEMP</span><span class="chip">WHILE</span><span class="chip">WORD</span><span class="chip">XOR</span></div></dd>
+        </dl>
+        
+          <div class="cat">
+            <h3>Control flow</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">IF / ELSIF / ELSE</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT n : INT; END_VAR VAR_OUTPUT q : INT; END_VAR
+IF n &gt; 10 THEN q := 2; ELSIF n &gt; 0 THEN q := 1; ELSE q := 0; END_IF;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">CASE with lists and lo..hi ranges</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT n : INT; END_VAR VAR_OUTPUT q : INT; END_VAR
+CASE n OF
+  1, 3: q := 1;
+  4..9: q := 2;
+  -1: q := 9;
+ELSE q := 0;
+END_CASE;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">FOR with BY</div>
+                <pre class="st-code" translate="no"><code>VAR i : INT; sum : INT; END_VAR
+FOR i := 10 TO 0 BY -2 DO sum := sum + i; END_FOR;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">WHILE and REPEAT ... UNTIL</div>
+                <pre class="st-code" translate="no"><code>VAR i : INT; j : INT; END_VAR
+WHILE i &lt; 5 DO i := i + 1; END_WHILE;
+REPEAT j := j + 1; UNTIL j &gt;= 5 END_REPEAT;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">EXIT, CONTINUE, RETURN</div>
+                <pre class="st-code" translate="no"><code>VAR i : INT; n : INT; END_VAR
+FOR i := 1 TO 10 DO
+  IF i = 3 THEN CONTINUE; END_IF;
+  IF i = 8 THEN EXIT; END_IF;
+  n := n + 1;
+END_FOR;
+RETURN;</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="cat">
+            <h3>POUs</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">User FUNCTION_BLOCK, named inputs and =&gt; output bindings</div>
+                <pre class="st-code" translate="no"><code>FUNCTION_BLOCK Motor
+VAR_INPUT Run : BOOL; END_VAR
+VAR_OUTPUT Spinning : BOOL; END_VAR
+Spinning := Run;
+END_FUNCTION_BLOCK
+
+VAR M1 : Motor; lamp : BOOL; END_VAR
+M1(Run := TRUE, Spinning =&gt; lamp);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Stateless FUNCTION (returns by assigning its own name)</div>
+                <pre class="st-code" translate="no"><code>FUNCTION Double : INT
+VAR_INPUT x : INT; END_VAR
+Double := x * 2;
+END_FUNCTION
+
+VAR r : INT; END_VAR
+r := Double(21);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A user block may shadow a standard one (TON is not reserved)</div>
+                <pre class="st-code" translate="no"><code>FUNCTION_BLOCK TON
+VAR_INPUT IN : BOOL; END_VAR
+VAR_OUTPUT Q : BOOL; END_VAR
+Q := IN;
+END_FUNCTION_BLOCK
+
+VAR t : TON; q : BOOL; END_VAR
+t(IN := TRUE, Q =&gt; q);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Positional arguments, in the block’s own declaration order</div>
+                <pre class="st-code" translate="no"><code>VAR t : TON; END_VAR
+t(TRUE, T#1s);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">VAR_IN_OUT binds a place, so the block writes the caller’s array</div>
+                <pre class="st-code" translate="no"><code>FUNCTION_BLOCK Fill
+VAR_IN_OUT buf : ARRAY [1..4] OF INT; END_VAR
+VAR i : INT; END_VAR
+FOR i := 1 TO 4 DO buf[i] := i; END_FOR;
+END_FUNCTION_BLOCK
+
+VAR f : Fill; data : ARRAY [1..4] OF INT; END_VAR
+f(buf := data);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">An array of function-block instances, called by index</div>
+                <pre class="st-code" translate="no"><code>VAR eyes : ARRAY [1..4] OF BOOL; delay : ARRAY [1..4] OF TON; jam : ARRAY [1..4] OF BOOL; i : INT; END_VAR
+FOR i := 1 TO 4 DO
+  delay[i](IN := eyes[i], PT := T#3s);
+  jam[i] := delay[i].Q;
+END_FOR;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A function-block instance as a struct field</div>
+                <pre class="st-code" translate="no"><code>TYPE Merge : STRUCT gap : TON; count : CTU; END_STRUCT; END_TYPE
+VAR m : Merge; eye : BOOL; open : BOOL; END_VAR
+m.gap(IN := NOT eye, PT := T#500ms);
+m.count(CU := eye, PV := 100);
+open := m.gap.Q;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Structs in and out: by-value inputs, readable outputs, struct results</div>
+                <pre class="st-code" translate="no"><code>TYPE Pkg : STRUCT id : DINT; END_STRUCT; END_TYPE
+FUNCTION Make : Pkg
+VAR_INPUT id : DINT; END_VAR
+Make.id := id;
+END_FUNCTION
+
+FUNCTION_BLOCK Latch
+VAR_INPUT p : Pkg; END_VAR
+VAR_OUTPUT held : Pkg; END_VAR
+held := p;
+END_FUNCTION_BLOCK
+
+VAR l : Latch; box : Pkg; copy : Pkg; n : DINT; END_VAR
+box := Make(7);
+l(p := box, held =&gt; copy);
+n := l.held.id;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A formal FUNCTION call, naming its arguments in any order</div>
+                <pre class="st-code" translate="no"><code>FUNCTION Span : INT
+VAR_INPUT lo : INT; hi : INT; END_VAR
+Span := hi - lo;
+END_FUNCTION
+
+VAR n : INT; END_VAR
+n := Span(hi := 10, lo := 3);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A formal FUNCTION call that leaves an input at its initial value</div>
+                <pre class="st-code" translate="no"><code>FUNCTION Scale : INT
+VAR_INPUT v : INT; gain : INT := 2; END_VAR
+Scale := v * gain;
+END_FUNCTION
+
+VAR n : INT; END_VAR
+n := Scale(v := 21);</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="cat">
+            <h3>Declarations</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">Whole structs and arrays assign as values</div>
+                <pre class="st-code" translate="no"><code>TYPE Pkg : STRUCT id : DINT; dest : INT; END_STRUCT; END_TYPE
+VAR a : Pkg; b : Pkg; track : ARRAY [0..3] OF Pkg; i : INT; END_VAR
+b := a;
+FOR i := 3 TO 1 BY -1 DO track[i] := track[i - 1]; END_FOR;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">An enumeration value written with its type (Mode#Idle)</div>
+                <pre class="st-code" translate="no"><code>TYPE Mode : (Idle, Running); END_TYPE
+VAR m : Mode := Mode#Idle; END_VAR
+IF m = Mode#Idle THEN m := Mode#Running; END_IF;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Several names on one declaration line</div>
+                <pre class="st-code" translate="no"><code>VAR x, y, z : INT := 3; END_VAR
+x := y + z;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">CONSTANT</div>
+                <pre class="st-code" translate="no"><code>VAR CONSTANT Limit : INT := 100; END_VAR VAR n : INT; END_VAR
+n := Limit;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">VAR_GLOBAL, shared by every POU</div>
+                <pre class="st-code" translate="no"><code>VAR_GLOBAL Shared : INT := 5; END_VAR
+VAR n : INT; END_VAR
+n := Shared;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A function-block instance in VAR_GLOBAL</div>
+                <pre class="st-code" translate="no"><code>VAR_GLOBAL t : TON; END_VAR
+VAR q : BOOL; END_VAR
+t(IN := TRUE, PT := T#1s);
+q := t.Q;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">TYPE ... STRUCT, nested access paths</div>
+                <pre class="st-code" translate="no"><code>TYPE Inner : STRUCT a : INT; END_STRUCT; END_TYPE
+TYPE Outer : STRUCT
+  inner : Inner;
+  data : ARRAY [1..3] OF INT;
+END_STRUCT; END_TYPE
+VAR p : Outer; n : INT; END_VAR
+n := p.inner.a + p.data[2];</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Multi-dimensional ARRAY with a repeated initialiser</div>
+                <pre class="st-code" translate="no"><code>VAR grid : ARRAY [1..2, 0..3] OF INT := [1, 2, 6(0)]; n : INT; END_VAR
+n := grid[2, 1];</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Enumerations are their own type</div>
+                <pre class="st-code" translate="no"><code>TYPE Mode : (Idle, Running := 10, Fault); END_TYPE
+VAR m : Mode := Running; n : INT; END_VAR
+CASE m OF
+  Idle: n := 0;
+  Running: n := 1;
+  Fault: n := 2;
+END_CASE;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Subranges, enforced on every store</div>
+                <pre class="st-code" translate="no"><code>TYPE Percent : INT (0..100); END_TYPE
+VAR p : Percent := 50; END_VAR
+p := 60;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">VAR_EXTERNAL, checked against the VAR_GLOBAL it names</div>
+                <pre class="st-code" translate="no"><code>VAR_GLOBAL Shared : INT; END_VAR
+VAR_EXTERNAL Shared : INT; END_VAR
+Shared := 1;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Located variables at inputs and outputs (AT %IX0.0, AT %QW4)</div>
+                <pre class="st-code" translate="no"><code>VAR
+  Eye AT %IX100.0 : BOOL;
+  Run AT %QX100.0 : BOOL;
+  Count AT %IW2 : INT;
+END_VAR
+Run := NOT Eye;</code></pre>
+                <p class="note">The address is how the variable meets the world: a scene part whose PLC tag is %IX100.0 feeds it, and an external controller reaches it at that address. Declared in VAR (or VAR_GLOBAL), one variable per address, and the type has to fit the size (a bit holds BOOL, a word INT, UINT or WORD). A function block or function cannot locate a variable.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">Located variables in memory (AT %MW0, %MD1, %MX8.0)</div>
+                <pre class="st-code" translate="no"><code>VAR
+  Count AT %MW0 : INT;
+  Total AT %MD1 : DINT;
+  Flag AT %MX8.0 : BOOL;
+END_VAR
+Count := Count + 1;
+Flag := Count &gt; 3;</code></pre>
+                <p class="note">Storage the program keeps, read and written by name: OpenPLC keeps a SCADA’s values at %MW and %MD, so its programs carry these. No scene part binds a memory address; the OPC UA server publishes the variable by name.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">A plain type alias (TYPE Count : INT)</div>
+                <pre class="st-code" translate="no"><code>TYPE Count : INT; END_TYPE
+VAR n : Count; END_VAR</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A named array type, one type under its name</div>
+                <pre class="st-code" translate="no"><code>TYPE Row : ARRAY [1..3] OF INT; END_TYPE
+VAR a : Row; b : Row := [1, 2, 3]; END_VAR
+a := b;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Array bounds written as named CONSTANTs</div>
+                <pre class="st-code" translate="no"><code>VAR CONSTANT ZONES : INT := 4; END_VAR
+VAR eyes : ARRAY [0..ZONES - 1] OF BOOL; END_VAR
+eyes[ZONES - 1] := TRUE;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Structured initial values: (field := value), and arrays of them</div>
+                <pre class="st-code" translate="no"><code>TYPE Pkg : STRUCT id : DINT; dest : INT; END_STRUCT; END_TYPE
+VAR p : Pkg := (id := 7, dest := 3); lane : ARRAY [1..2] OF Pkg := [(id := 1), (id := 2)]; END_VAR
+p.dest := 4;</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="cat">
+            <h3>Library</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">The PLCopen motion blocks on an AXIS_REF (MC_Power, MC_MoveAbsolute, MC_MoveVelocity, MC_Halt, MC_Stop, MC_Home, ...)</div>
+                <pre class="st-code" translate="no"><code>VAR Ax : AXIS_REF; pwr : MC_Power; mv : MC_MoveAbsolute; END_VAR
+pwr(Axis := Ax, Enable := TRUE);
+mv(Axis := Ax, Execute := pwr.Status, Position := 10, Velocity := 20, Acceleration := 100, Deceleration := 100);</code></pre>
+                <p class="note">A subset of the PLCopen Function Blocks for Motion Control (version 2.0, single axis; not certified), with this engine's choices where PLCopen leaves one written down in docs/motion-control.md: trapezoidal moves (a block's Jerk input is accepted and ignored), an abort, BufferMode Buffered (a queue of moves), the Busy / Done / Active / CommandAborted / Error handshake, software limits. On a real controller the blocks come from its own PLCopen motion library, so an export writes the calls and not the blocks; the Blending buffer modes (a block given one raises Error), gearing, cams and axis groups are not here.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">A standard function called with IEC’s parameter names (LIMIT(MN := 0, IN := x, MX := 10))</div>
+                <pre class="st-code" translate="no"><code>VAR x : INT := 50; n : INT; s : STRING := 'conveyor'; t : STRING; END_VAR
+n := LIMIT(MN := 0, IN := x, MX := 10);
+t := MID(IN := s, L := 3, P := 2);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">** exponentiation (EXPT)</div>
+                <pre class="st-code" translate="no"><code>VAR a : REAL; END_VAR
+a := 2.0 ** 10.0;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">The time and date functions (ADD_TIME, SUB_DT_DT, CONCAT_DATE_TOD, ...)</div>
+                <pre class="st-code" translate="no"><code>VAR a : TIME := T#1s; b : TIME; t : TOD := TOD#12:00:00; END_VAR
+b := ADD_TIME(a, T#500ms);
+t := ADD_TOD_TIME(t, MULTIME(b, 2));</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Timers, counters and edge detectors</div>
+                <pre class="st-code" translate="no"><code>VAR
+  t : TON; f : TOF; p : TP;
+  r : R_TRIG; ft : F_TRIG;
+  cu : CTU; cd : CTD; ud : CTUD;
+  s : SR; rs : RS;
+END_VAR
+t(IN := TRUE, PT := T#1s);
+cu(CU := t.Q, PV := 10);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">The &lt;SRC&gt;_TO_&lt;DST&gt; conversion family</div>
+                <pre class="st-code" translate="no"><code>VAR i : INT := 7; r : REAL; w : WORD; s : STRING; END_VAR
+r := INT_TO_REAL(i);
+w := INT_TO_WORD(i);
+s := INT_TO_STRING(i);
+i := STRING_TO_INT('42');</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Functional operator forms, including comparison chains</div>
+                <pre class="st-code" translate="no"><code>VAR
+  a : INT := 3; b : INT := 2; c : INT := 1;
+  q : BOOL; n : INT;
+END_VAR
+q := GT(a, b, c);
+n := ADD(a, b, c);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">The nine IEC string functions, 1-based</div>
+                <pre class="st-code" translate="no"><code>VAR s : STRING := 'hello world'; part : STRING; at : INT; END_VAR
+part := MID(s, 5, 1);
+at := FIND(s, 'world');
+part := REPLACE(s, 'X', 1, 1);</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="cat">
+            <h3>Types</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">Signed, unsigned and bit-string families, kept apart</div>
+                <pre class="st-code" translate="no"><code>VAR
+  si : SINT; i : INT; di : DINT;
+  usi : USINT; ui : UINT; udi : UDINT;
+  b : BYTE; w : WORD; dw : DWORD;
+END_VAR
+i := i + 1;
+ui := ui + 1;
+w := w AND 16#00FF;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">REAL (single precision) and LREAL</div>
+                <pre class="st-code" translate="no"><code>VAR r : REAL := 0.4; l : LREAL; END_VAR
+l := r;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">TIME is a duration, not a number</div>
+                <pre class="st-code" translate="no"><code>VAR t : TIME := T#1m30s; u : TIME; n : DINT; END_VAR
+u := t + T#500ms;
+n := TIME_TO_DINT(u);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">DATE, TIME_OF_DAY and DATE_AND_TIME, with IEC’s arithmetic table</div>
+                <pre class="st-code" translate="no"><code>VAR d : DATE := D#2024-02-29; t : TOD := TOD#08:00:00; x : DT; gap : TIME; END_VAR
+x := CONCAT_DATE_TOD(d, t) + T#90m;
+gap := x - DT#2024-02-29-00:00:00;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">STRING with a capacity, and IEC $ escapes</div>
+                <pre class="st-code" translate="no"><code>VAR s : STRING[20] := 'line$N'; n : INT; END_VAR
+s := CONCAT(s, 'more');
+n := LEN(s);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">STRING compares and sorts, but has no +</div>
+                <pre class="st-code" translate="no"><code>VAR
+  a : STRING := 'abc';
+  b : STRING := 'abd';
+  lo : STRING; q : BOOL;
+END_VAR
+q := a &lt; b;
+lo := MIN(a, b);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Based, typed, exponent and separated literals</div>
+                <pre class="st-code" translate="no"><code>VAR
+  h : WORD := 16#FF;
+  bits : BYTE := 2#1010_1010;
+  oct : INT := 8#17;
+  typed : INT := INT#5;
+  r : REAL := 1.0E-3;
+END_VAR
+h := h OR WORD#16#0F;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">0 and 1 are BOOL literals (the standard’s own examples use them)</div>
+                <pre class="st-code" translate="no"><code>VAR_OUTPUT Q : BOOL := 0; END_VAR
+Q := 1;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">&amp; is AND</div>
+                <pre class="st-code" translate="no"><code>VAR a : BOOL; b : BOOL; q : BOOL; END_VAR
+q := a &amp; b;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Identifiers are case-insensitive</div>
+                <pre class="st-code" translate="no"><code>VAR Motor : BOOL; END_VAR
+motor := TRUE;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">(* ... *) comments, anywhere trivia may go</div>
+                <pre class="st-code" translate="no"><code>(* a header comment *)
+VAR n : INT; END_VAR
+n := 1; (* trailing *)</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="cat">
+            <h3>Tasks and programs</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">A PROGRAM ... END_PROGRAM, which with no CONFIGURATION runs on the scan time</div>
+                <pre class="st-code" translate="no"><code>PROGRAM Main
+VAR n : INT; END_VAR
+n := 1;
+END_PROGRAM</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">CONFIGURATION / RESOURCE / TASK, each task on its own INTERVAL</div>
+                <pre class="st-code" translate="no"><code>PROGRAM Main
+VAR n : INT; END_VAR
+n := n + 1;
+END_PROGRAM
+
+CONFIGURATION Cfg
+  RESOURCE Res ON PLC
+    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);
+    TASK Slow(INTERVAL := T#100ms, PRIORITY := 2);
+    PROGRAM A WITH Fast : Main;
+    PROGRAM B WITH Slow : Main;
+  END_RESOURCE
+END_CONFIGURATION</code></pre>
+                <p class="note">Tasks run on SIM time: each comes due when its INTERVAL elapses, and tasks due together run by PRIORITY (0 first). A scan takes no sim time, so no task interrupts another. An instance variable is addressed as Instance.Name in the watch table and by scene tags.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">A PROGRAM instance with no task, which runs continuously</div>
+                <pre class="st-code" translate="no"><code>PROGRAM Main
+VAR n : INT; END_VAR
+n := n + 1;
+END_PROGRAM
+
+CONFIGURATION Cfg
+  RESOURCE Res ON PLC
+    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);
+    PROGRAM A WITH Fast : Main;
+    PROGRAM Always : Main;
+  END_RESOURCE
+END_CONFIGURATION</code></pre>
+                <p class="note">IEC gives a program with no task the lowest priority and re-runs it as soon as it finishes; on a sim clock that is once per physics step, after that step's periodic scans.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">Code outside every POU beside a CONFIGURATION, run by an instance that names no type</div>
+                <pre class="st-code" translate="no"><code>VAR n : INT; END_VAR
+n := n + 1;
+
+CONFIGURATION Cfg
+  RESOURCE Res ON PLC
+    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);
+    PROGRAM Main WITH Fast;
+  END_RESOURCE
+END_CONFIGURATION</code></pre>
+                <p class="note">An extension: the variables are the program's top-level variables, seen by every POU under their bare names, and the statements run from the program instance with no type. Export writes that code as a PROGRAM of its own.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="cat">
+            <h3>Object orientation</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">METHOD on a function block: a result, outputs, in-outs, temporaries that start over each call</div>
+                <pre class="st-code" translate="no"><code>FUNCTION_BLOCK Acc
+VAR n : INT; END_VAR
+METHOD Put : INT
+  VAR_INPUT v : INT; END_VAR
+  n := n + v;
+  Put := n;
+END_METHOD
+END_FUNCTION_BLOCK
+
+VAR a : Acc; r1 : INT; END_VAR
+r1 := a.Put(v := 3) + a.Put(4);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">EXTENDS, overrides, SUPER^.M() and SUPER^(), ABSTRACT, FINAL, OVERRIDE</div>
+                <pre class="st-code" translate="no"><code>FUNCTION_BLOCK ABSTRACT Shape
+METHOD ABSTRACT Area : REAL
+END_METHOD
+METHOD Twice : REAL
+  Twice := 2.0 * Area();
+END_METHOD
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK Square EXTENDS Shape
+VAR_INPUT side : REAL; END_VAR
+METHOD OVERRIDE Area : REAL
+  Area := side * side;
+END_METHOD
+END_FUNCTION_BLOCK
+
+VAR sq : Square; a : REAL; END_VAR
+sq(side := 3.0);
+a := sq.Twice();</code></pre>
+                <p class="note">A method called on THIS (THIS.M(), or by its bare name) runs the override of the instance's own class. A derived block runs its own body, not its base's, unless it calls SUPER^(). IEC writes THIS with no ^ and SUPER with one; THIS^ is refused by name.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">INTERFACE, IMPLEMENTS, and variables of an interface type</div>
+                <pre class="st-code" translate="no"><code>INTERFACE IDrive
+  METHOD Travel : INT
+    VAR_INPUT dist : INT; END_VAR
+  END_METHOD
+END_INTERFACE
+
+FUNCTION_BLOCK Belt IMPLEMENTS IDrive
+VAR p : INT; END_VAR
+METHOD Travel : INT
+  VAR_INPUT dist : INT; END_VAR
+  p := p + dist;
+  Travel := p;
+END_METHOD
+END_FUNCTION_BLOCK
+
+VAR belt : Belt; d : IDrive; x : INT; END_VAR
+d := belt;
+IF d &lt;&gt; NULL THEN x := d.Travel(dist := 2); END_IF;</code></pre>
+                <p class="note">An interface variable that refers to no instance is NULL (compared with NULL, or 0); a call through it faults the scan. STruC++ 0.6.2, OpenPLC's compiler, has no interface variables yet, so a program that uses them does not build for OpenPLC.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">REF_TO, REF(), ^ and NULL: IEC references</div>
+                <pre class="st-code" translate="no"><code>TYPE Pkg : STRUCT id : INT; END_STRUCT; END_TYPE
+VAR zones : ARRAY [1..3] OF Pkg; z : REF_TO Pkg; z2 : REF_TO Pkg; ok : BOOL; END_VAR
+z := REF(zones[2]);
+z^.id := 9;
+z2 := z;
+ok := z2 &lt;&gt; NULL;</code></pre>
+                <p class="note">A reference is a variable of a POU (or a block's or method's input, given by the call), never a struct field or an array element here. It is given REF(place), another REF_TO or NULL, compared with NULL, and dereferenced with ^; dereferencing one that is NULL faults the scan.</p>
+              </div>
+              <div class="card">
+                <div class="card-head">A METHOD returning a whole structure or named array</div>
+                <pre class="st-code" translate="no"><code>TYPE Pkg : STRUCT id : INT; END_STRUCT; END_TYPE
+FUNCTION_BLOCK Sorter
+METHOD Make : Pkg
+  VAR_INPUT id : INT; END_VAR
+  Make.id := id;
+END_METHOD
+END_FUNCTION_BLOCK
+
+VAR s1 : Sorter; box : Pkg; END_VAR
+box := s1.Make(id := 7);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">An ARRAY OF an interface, each element pointed at an instance</div>
+                <pre class="st-code" translate="no"><code>INTERFACE IDrive
+  METHOD Travel : INT
+    VAR_INPUT dist : INT; END_VAR
+  END_METHOD
+END_INTERFACE
+
+VAR drives : ARRAY [1..4] OF IDrive; i : INT; x : INT; END_VAR
+FOR i := 1 TO 4 DO
+  IF drives[i] &lt;&gt; NULL THEN x := x + drives[i].Travel(dist := 1); END_IF;
+END_FOR;</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="cat">
+            <h3>Tolerated input forms, exported in IEC form</h3>
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">An enumeration in a declaration: m : (Idle, Run, Stop)</div>
+                <pre class="st-code" translate="no"><code>VAR m : (Idle, Run, Stop) := Run; n : INT; END_VAR
+IF m = Run THEN n := 1; END_IF;</code></pre>
+                <p class="note">IEC. It is an enumeration of the variable's own, its members named bare; PLCopen carries it as the variable's type. MATIEC parses it but cannot generate it (&quot;C code generator does not currently support anonymous enumerated data types&quot;).</p>
+              </div>
+              <div class="card">
+                <div class="card-head">A STRUCT field with a default value</div>
+                <pre class="st-code" translate="no"><code>TYPE Axis :
+STRUCT
+  Speed : REAL := 1.5;
+  Mode : INT := 2;
+END_STRUCT
+END_TYPE
+
+VAR a : Axis; b : Axis := (Speed := 3.0); s : REAL; END_VAR
+s := a.Speed + b.Speed;</code></pre>
+                <p class="note">IEC. Every value of the type starts there: a variable, a field, an array element, a block's or a function's local; a field a variable's own initializer names takes that value instead. A default is a constant (a literal, an enumeration member, a global CONSTANT). MATIEC refuses a NESTED (field := ...) value of a struct type that has defaults, a gap of its own.</p>
+              </div>
+            </div>
+          </div>
+      </div>
+    </section>
+
+    <section class="section" id="ladder">
+      <div class="wrap">
+        <h2>3. Ladder Diagram</h2>
+        <p class="body">
+          The ladder editor draws rungs, and the PLC panel's text view shows the same rungs in a text form. IEC gives
+          ladder no text form, so this one is the project's own. A rung is translated to Structured Text and run by the
+          same engine, so everything in section 2 is available to a ladder program, and the export writes a ladder POU
+          as a PLCopen LD body.
+        </p>
+        <h3>The text form</h3>
+        <div class="scroll-x">
+          <table class="elements">
+            <thead><tr><th>Text</th><th>Element</th></tr></thead>
+            <tbody>
+              <tr><td class="m" translate="no">|x|   |/x|</td><td>Normally open / normally closed contact</td></tr>
+              <tr><td class="m" translate="no">|P x|   |N x|</td><td>Rising / falling edge contact</td></tr>
+              <tr><td class="m" translate="no">(x)   (/x)</td><td>Coil / negated coil</td></tr>
+              <tr><td class="m" translate="no">(S x)   (R x)</td><td>Set / reset coil</td></tr>
+              <tr><td class="m" translate="no">(P x)   (N x)</td><td>Rising / falling edge coil</td></tr>
+              <tr><td class="m" translate="no">a b</td><td>Elements in series</td></tr>
+              <tr><td class="m" translate="no">[p1, p2]</td><td>A branch (parallel paths; an empty path is a wire)</td></tr>
+              <tr><td class="m" translate="no">T1(IN, PT := t, ET =&gt; e)</td><td>A function-block box; the bare pin is the one on the rung</td></tr>
+              <tr><td class="m" translate="no">ADD(IN1 := a, IN2 := b, OUT =&gt; c)</td><td>A function box, run while the rung is on (EN / ENO)</td></tr>
+              <tr><td class="m" translate="no">EQ(IN1 := a, IN2 := b, OUT)</td><td>A function whose BOOL result starts the rung</td></tr>
+              <tr><td class="m" translate="no">Next: ...;</td><td>A rung label, where a jump lands</td></tr>
+              <tr><td class="m" translate="no">... &gt;&gt;Next;</td><td>A jump: while the rung is on, the rungs down to Next are skipped</td></tr>
+              <tr><td class="m" translate="no">... RETURN;</td><td>A return: while the rung is on, the rest of the POU is skipped</td></tr>
+              <tr><td class="m" translate="no">(* ... *)</td><td>A rung comment, above its rung</td></tr>
+            </tbody>
+          </table>
+        </div>
+        
+          <div class="cat">
+            
+            <div class="cards">
+              <div class="card">
+                <div class="card-head">Contacts, a coil and a branch (a seal-in)</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT Start : BOOL; Stop : BOOL; END_VAR
+VAR_OUTPUT Motor : BOOL; END_VAR
+LADDER
+  [|Start|, |Motor|] |/Stop| (Motor);
+END_LADDER</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">An edge contact and set / reset coils</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT Eye : BOOL; Button : BOOL; Clear : BOOL; END_VAR
+VAR_OUTPUT Jam : BOOL; END_VAR
+LADDER
+  |Eye| |P Button| (S Jam);
+  |Clear| (R Jam);
+END_LADDER</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A function-block box on the rung (a timer)</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT Run : BOOL; END_VAR
+VAR_OUTPUT Late : BOOL; END_VAR
+VAR T1 : TON; END_VAR
+LADDER
+  |Run| T1(IN, PT := T#2s) (Late);
+END_LADDER</code></pre>
+                <p class="note">The bare pin sits on the rung; it defaults to the block's first BOOL input and output (a TON's IN and Q).</p>
+              </div>
+              <div class="card">
+                <div class="card-head">A function box that runs while the rung is on (EN / ENO)</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT Go : BOOL; END_VAR
+VAR n : INT; END_VAR
+LADDER
+  |Go| ADD(IN1 := n, IN2 := 1, OUT =&gt; n);
+END_LADDER</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A comparison that starts a rung (a step sequencer)</div>
+                <pre class="st-code" translate="no"><code>VAR Step : INT; Busy : BOOL; END_VAR
+LADDER
+  EQ(IN1 := Step, IN2 := 10, OUT) |/Busy| MOVE(IN := 20, OUT =&gt; Step);
+END_LADDER</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">AND, OR, XOR, NOT and MOD as boxes</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT Go : BOOL; a : BOOL; b : BOOL; END_VAR
+VAR_OUTPUT c : BOOL; END_VAR
+LADDER
+  |Go| AND(IN1 := a, IN2 := b, OUT =&gt; c);
+END_LADDER</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Labels, forward jumps and RETURN</div>
+                <pre class="st-code" translate="no"><code>VAR_INPUT Skip : BOOL; Halt : BOOL; A : BOOL; END_VAR
+VAR_OUTPUT B : BOOL; C : BOOL; END_VAR
+LADDER
+  |Skip| &gt;&gt;Done;
+  |A| (B);
+  Done: |A| (C);
+  |Halt| RETURN;
+END_LADDER</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A ladder PROGRAM, with a rung comment</div>
+                <pre class="st-code" translate="no"><code>PROGRAM Main
+VAR Start : BOOL; Motor : BOOL; END_VAR
+LADDER
+  (* run while Start is held *)
+  |Start| (Motor);
+END_LADDER
+END_PROGRAM</code></pre>
+              </div>
+            </div>
+          </div>
+        <h3>How rungs run</h3>
+        <ul class="plain">
+          <li>A rung runs left to right, each element once, and each element sees what the elements before it wrote. Rungs run top to bottom.</li>
+          <li>IEC leaves the order of a branch's paths open. Paths that hold a contact or a block run first, then paths that hold only coils, each group top to bottom. So a contact on one path of a branch reads a variable as it was before a coil-only path of the same branch writes it.</li>
+          <li>An edge contact passes power for one evaluation after its variable rose or fell. Its memory is updated every evaluation, even while the rung is off, and starts FALSE.</li>
+          <li>A box behind EN is not called while the rung is off. Its outputs hold their values and ENO is off.</li>
+          <li>While a jump's rung is on, the rungs between it and its label are not evaluated, so their coils hold what they last wrote. Jumps go down the section only.</li>
+        </ul>
+        <h3>Not supported</h3>
+        
+          <div class="cat">
+            
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">A jump back up the section (a loop)</div><pre class="st-code" translate="no"><code>VAR A : BOOL; B : BOOL; END_VAR
+LADDER
+  Top: |A| (B);
+  |B| &gt;&gt;Top;
+END_LADDER</code></pre></td>
+                  <td><div class="said" translate="no">a jump back up to 'Top' (rung 0) would run rungs again in one scan, a loop; this ladder jumps only down the section</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A comparison in series after a contact</div><pre class="st-code" translate="no"><code>VAR A : BOOL; n : INT; Q : BOOL; END_VAR
+LADDER
+  |A| GT(IN1 := n, IN2 := 5, OUT) (Q);
+END_LADDER</code></pre></td>
+                  <td><div class="said" translate="no">GT(..., OUT) starts a rung: nothing feeds it, so it stands at the left rail, first on the rung or first on a path of a branch that is</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        <h3>Valid IEC, with an export caveat</h3>
+        <p class="sub">
+          These are valid IEC ladder and run here. Some targets' importers may not accept them, so the PLCopen export
+          warns about each.
+        </p>
+        
+            <table class="ledger">
+              <thead><tr><th>Accepted here</th><th>On a target</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">A transition-sensing coil (P / N coil)</div><pre class="st-code" translate="no"><code>VAR A : BOOL; Q : BOOL; END_VAR
+LADDER
+  |A| (P Q);
+END_LADDER</code></pre></td>
+                  <td><p class="note">IEC has it, and it runs here. Some targets' importers may not accept it, so the PLCopen export warns.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A contact after a coil on the same rung</div><pre class="st-code" translate="no"><code>VAR A : BOOL; B : BOOL; X : BOOL; Y : BOOL; END_VAR
+LADDER
+  |A| (X) |B| (Y);
+END_LADDER</code></pre></td>
+                  <td><p class="note">A coil passes its power on, so IEC allows more elements after it. Some targets' importers may not accept the rung, so the PLCopen export warns.</p></td>
+                </tr>
+              </tbody>
+            </table>
+      </div>
+    </section>
+
+    <section class="section" id="missing">
+      <div class="wrap">
+        <h2>4. Not supported</h2>
+        <p class="sub">
+          These are all valid Structured Text in some edition or tool. The engine refuses each one by name rather than
+          reporting a syntax error. The right-hand column is the compiler's message, captured when this page was built.
+        </p>
+        
+          <div class="cat">
+            <h3>Types the subset lacks</h3>
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">LINT (64-bit signed)</div><pre class="st-code" translate="no"><code>VAR n : LINT; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">LINT is not supported: 64-bit integers need exact arithmetic a JS number cannot provide; use DINT, or LREAL if the range matters more than the last digits</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">ULINT (64-bit unsigned)</div><pre class="st-code" translate="no"><code>VAR n : ULINT; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">ULINT is not supported: 64-bit integers need exact arithmetic a JS number cannot provide; use UDINT, or LREAL if the range matters more than the last digits</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">LWORD (64-bit bit string)</div><pre class="st-code" translate="no"><code>VAR n : LWORD; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">LWORD is not supported: 64-bit bit strings need exact arithmetic a JS number cannot provide; use DWORD, or two of them</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">WSTRING</div><pre class="st-code" translate="no"><code>VAR s : WSTRING; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">WSTRING is not supported: wide (UTF-16) strings are not implemented; STRING is</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A double-quoted (WSTRING) literal</div><pre class="st-code" translate="no"><code>VAR s : STRING; END_VAR
+s := &quot;wide&quot;;</code></pre></td>
+                  <td><div class="said" translate="no">double-quoted literals are WSTRING, which is not implemented; use a single-quoted STRING</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">LDATE, LTOD, LDT (64-bit calendar types)</div><pre class="st-code" translate="no"><code>VAR x : LDT; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">LDT is not supported: the 64-bit calendar types are IEC 3rd edition and not implemented; DT is</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cat">
+            <h3>Tasks and programs the subset lacks</h3>
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">An event task (SINGLE)</div><pre class="st-code" translate="no"><code>VAR_GLOBAL go : BOOL; END_VAR
+PROGRAM Main
+VAR n : INT; END_VAR
+n := 1;
+END_PROGRAM
+
+CONFIGURATION Cfg
+  RESOURCE Res ON PLC
+    TASK OnEdge(SINGLE := go, PRIORITY := 1);
+    PROGRAM A WITH OnEdge : Main;
+  END_RESOURCE
+END_CONFIGURATION</code></pre></td>
+                  <td><div class="said" translate="no">an event task (SINGLE) is not implemented; a TASK here runs on its INTERVAL, and a PROGRAM instance with no task runs continuously</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Wiring a PROGRAM instance's inputs and outputs in the CONFIGURATION</div><pre class="st-code" translate="no"><code>VAR_GLOBAL go : BOOL; END_VAR
+PROGRAM Main
+VAR_INPUT start : BOOL; END_VAR
+VAR n : INT; END_VAR
+n := 1;
+END_PROGRAM
+
+CONFIGURATION Cfg
+  RESOURCE Res ON PLC
+    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);
+    PROGRAM A WITH Fast : Main (start := go);
+  END_RESOURCE
+END_CONFIGURATION</code></pre></td>
+                  <td><div class="said" translate="no">wiring a PROGRAM instance's inputs and outputs in the CONFIGURATION is not implemented; the scene binds them by name, as Instance.Variable</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">More than one RESOURCE in a CONFIGURATION</div><pre class="st-code" translate="no"><code>PROGRAM Main
+VAR n : INT; END_VAR
+n := 1;
+END_PROGRAM
+
+CONFIGURATION Cfg
+  RESOURCE A ON PLC
+    TASK T1(INTERVAL := T#10ms, PRIORITY := 1);
+    PROGRAM P1 WITH T1 : Main;
+  END_RESOURCE
+  RESOURCE B ON PLC
+    TASK T2(INTERVAL := T#10ms, PRIORITY := 1);
+    PROGRAM P2 WITH T2 : Main;
+  END_RESOURCE
+END_CONFIGURATION</code></pre></td>
+                  <td><div class="said" translate="no">2 RESOURCEs are declared; a controller here is one RESOURCE, so declare every TASK and PROGRAM instance inside one</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cat">
+            <h3>Statements the subset lacks</h3>
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">A function-block call used as an expression</div><pre class="st-code" translate="no"><code>VAR t : TON; q : BOOL; END_VAR
+q := t(IN := TRUE, PT := T#1s);</code></pre></td>
+                  <td><div class="said" translate="no">unknown function 't'</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Vendor string extensions (TO_UPPER, TRIM, ...)</div><pre class="st-code" translate="no"><code>VAR s : STRING := 'abc'; END_VAR
+s := TO_UPPER(s);</code></pre></td>
+                  <td><div class="said" translate="no">unknown function 'TO_UPPER'</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cat">
+            <h3>Other IEC languages</h3>
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">Sequential Function Chart (STEP / TRANSITION / ACTION)</div><pre class="st-code" translate="no"><code>INITIAL_STEP Idle:
+END_STEP
+TRANSITION FROM Idle TO Running := start;
+END_TRANSITION</code></pre></td>
+                  <td><div class="said" translate="no">INITIAL_STEP is not supported: Sequential Function Chart is a separate IEC language, not implemented here; express the state machine in ST (a CASE on a state variable is the usual translation)</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cat">
+            <h3>Object orientation the subset lacks</h3>
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">CLASS</div><pre class="st-code" translate="no"><code>CLASS Tank
+VAR level : INT; END_VAR
+END_CLASS</code></pre></td>
+                  <td><div class="said" translate="no">CLASS is not supported: a CLASS is not implemented; use a FUNCTION_BLOCK, which takes METHODs, EXTENDS and IMPLEMENTS here and is what a PLC instantiates</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">NAMESPACE</div><pre class="st-code" translate="no"><code>NAMESPACE Plant
+END_NAMESPACE</code></pre></td>
+                  <td><div class="said" translate="no">NAMESPACE is not supported: IEC 3rd-edition namespaces are not implemented; names are flat in this subset</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">An ARRAY OF REF_TO</div><pre class="st-code" translate="no"><code>VAR refs : ARRAY [1..3] OF REF_TO INT; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">an ARRAY OF REF_TO is not implemented: keep the references as variables of their own, or an array of indices into the data</div><p class="note">IEC allows it; this engine does not implement it yet. Keep the references as variables of their own.</p></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cat">
+            <h3>Vendor extensions, refused by name</h3>
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">POINTER TO</div><pre class="st-code" translate="no"><code>VAR p : POINTER TO INT; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">POINTER TO is not IEC 61131-3 and is not implemented; declare REF_TO, take a reference with REF() and dereference it with ^</div><p class="note">Not IEC 61131-3. Declare REF_TO, take a reference with REF() and dereference it with ^.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">PROPERTY with GET and SET</div><pre class="st-code" translate="no"><code>FUNCTION_BLOCK Motor
+VAR spd : INT; END_VAR
+PROPERTY Speed : INT
+  GET
+    Speed := spd;
+  END_GET
+END_PROPERTY
+END_FUNCTION_BLOCK</code></pre></td>
+                  <td><div class="said" translate="no">PROPERTY is not part of IEC 61131-3; use a METHOD (or a pair of methods) instead</div><p class="note">Not IEC 61131-3. Use a METHOD (or a pair of methods).</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">VAR_INST in a METHOD</div><pre class="st-code" translate="no"><code>FUNCTION_BLOCK M
+METHOD Count : INT
+  VAR_INST n : INT; END_VAR
+  n := n + 1;
+  Count := n;
+END_METHOD
+END_FUNCTION_BLOCK</code></pre></td>
+                  <td><div class="said" translate="no">VAR_INST is not part of IEC 61131-3; declare the variable in the FUNCTION_BLOCK's VAR instead, where it keeps its value between calls</div><p class="note">Not IEC 61131-3. Declare the variable in the FUNCTION_BLOCK's VAR, where it keeps its value between calls.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">REFERENCE TO, REF= and __ISVALIDREF</div><pre class="st-code" translate="no"><code>VAR a : INT; r : REFERENCE TO INT; END_VAR
+r REF= a;</code></pre></td>
+                  <td><div class="said" translate="no">REFERENCE TO is not IEC 61131-3; declare REF_TO and dereference with ^</div><p class="note">Not IEC 61131-3. Declare REF_TO, give it REF(place), dereference it with ^, and compare it with NULL.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">THIS^</div><pre class="st-code" translate="no"><code>FUNCTION_BLOCK M
+VAR n : INT; END_VAR
+METHOD Get : INT
+  Get := THIS^.n;
+END_METHOD
+END_FUNCTION_BLOCK</code></pre></td>
+                  <td><div class="said" translate="no">THIS^ is not how IEC 61131-3 writes it: THIS is used as it is, THIS.x, THIS.Method()</div><p class="note">IEC 61131-3 writes THIS with no ^: THIS.n, THIS.Method(). (SUPER keeps its ^: SUPER^.Method(), SUPER^().)</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">AND_THEN and OR_ELSE</div><pre class="st-code" translate="no"><code>VAR d : INT; ok : BOOL; END_VAR
+ok := d &lt;&gt; 0 AND_THEN 10 / d &gt; 1;</code></pre></td>
+                  <td><div class="said" translate="no">AND_THEN is not part of IEC 61131-3; use nested IF statements, or AND (which evaluates both sides)</div><p class="note">Not IEC 61131-3. Guard with nested IF statements (IF d &lt;&gt; 0 THEN IF 10 / d &gt; 1 THEN ...), or write AND / OR, which evaluate both sides.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">STRUCT EXTENDS</div><pre class="st-code" translate="no"><code>TYPE ST_A : STRUCT x : INT; END_STRUCT; END_TYPE
+TYPE ST_B EXTENDS ST_A : STRUCT y : INT; END_STRUCT; END_TYPE</code></pre></td>
+                  <td><div class="said" translate="no">a STRUCT cannot EXTEND another: IEC 61131-3 derives only function blocks and interfaces. Declare the base's fields in the struct, or hold the base as one field</div><p class="note">Not IEC 61131-3, which derives only function blocks and interfaces. Declare the base's fields in the struct, or hold the base as one field.</p></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+      </div>
+    </section>
+
+    <section class="section" id="strict">
+      <div class="wrap">
+        <h2>5. Refused for portability</h2>
+        <p class="sub">
+          These would not build on a real target, so the engine refuses them too. Most were found by the outside checks
+          in section 8, and the test corpus asserts each refusal.
+        </p>
+        
+          <div class="cat">
+            <h3>Refused for portability</h3>
+            <table class="ledger">
+              <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">Arithmetic on a bit string</div><pre class="st-code" translate="no"><code>VAR b : BYTE := 255; r : BYTE; END_VAR
+r := b + 1;</code></pre></td>
+                  <td><div class="said" translate="no">+ is arithmetic; 'BYTE' is a bit string, which IEC does not do arithmetic on (convert it: BYTE_TO_USINT(...))</div><p class="note">Arithmetic is ANY_NUM; BYTE/WORD/DWORD are ANY_BIT. MATIEC refuses it, so a program that built here would build on no target.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A bitwise operation on a number</div><pre class="st-code" translate="no"><code>VAR i : INT := 1; j : INT := 2; r : INT; END_VAR
+r := i AND j;</code></pre></td>
+                  <td><div class="said" translate="no">AND is a bit-string operation; 'INT' is a number (convert it: INT_TO_WORD(...), or declare the variable BYTE/WORD/DWORD)</div><p class="note">The mirror of the rule above. Write INT_TO_WORD(...) and operate on the bit string.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">NOT on a number</div><pre class="st-code" translate="no"><code>VAR i : INT := 1; r : INT; END_VAR
+r := NOT i;</code></pre></td>
+                  <td><div class="said" translate="no">NOT is a bit-string operation; 'INT' is a number (convert it: INT_TO_WORD(...), or declare the variable BYTE/WORD/DWORD)</div><p class="note">Complement is defined on ANY_BIT. MATIEC refuses it too.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Shifting a signed integer</div><pre class="st-code" translate="no"><code>VAR i : INT := 8; r : INT; END_VAR
+r := SHR(i, 1);</code></pre></td>
+                  <td><div class="said" translate="no">'SHR' shifts a bit string; 'INT' is a number (convert it: INT_TO_WORD(...))</div><p class="note">SHL/SHR/ROL/ROR take a bit string, where the vacated bits are defined.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A missing statement separator</div><pre class="st-code" translate="no"><code>VAR n : INT; END_VAR
+n := 1
+n := 2;</code></pre></td>
+                  <td><div class="said" translate="no">expected ';'</div><p class="note">Between two statements. The one after END_IF, END_CASE, END_FOR, END_WHILE and END_REPEAT may be left out, a tolerated input form; see &quot;Tolerated input forms&quot;.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A narrowing store without the conversion</div><pre class="st-code" translate="no"><code>VAR r : REAL := 1.5; i : INT; END_VAR
+i := r;</code></pre></td>
+                  <td><div class="said" translate="no">cannot assign REAL to 'i' of type INT (write REAL_TO_INT(...))</div><p class="note">Only IEC’s safe widenings are implicit. The error names the conversion to write.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A STRING taken apart by members (S.LEN, S.DATA[i])</div><pre class="st-code" translate="no"><code>VAR s : STRING; n : DINT; END_VAR
+n := s.LEN;</code></pre></td>
+                  <td><div class="said" translate="no">'.LEN': a STRING has no members in IEC 61131-3 - read its length with LEN() and its characters with MID()</div><p class="note">IEC gives a STRING no members: LEN() and MID() read it, and the error says so.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A whole structure or array cleared with := 0</div><pre class="st-code" translate="no"><code>TYPE Pt : STRUCT a : INT; b : REAL; END_STRUCT; END_TYPE
+VAR p : Pt; END_VAR
+p := 0;</code></pre></td>
+                  <td><div class="said" translate="no">cannot assign INT to 'p' of type Pt</div><p class="note">IEC has no value for a structure of zeros: clear the fields or elements one by one.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Mixing BOOL and a number</div><pre class="st-code" translate="no"><code>VAR b : BOOL; n : INT; END_VAR
+n := b;</code></pre></td>
+                  <td><div class="said" translate="no">cannot assign BOOL to 'n' of type INT</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Assigning to a FOR control variable</div><pre class="st-code" translate="no"><code>VAR i : INT; END_VAR
+FOR i := 1 TO 10 DO i := 5; END_FOR;</code></pre></td>
+                  <td><div class="said" translate="no">cannot assign to FOR control variable 'i' inside its own loop</div><p class="note">IEC forbids it outright and MATIEC refuses it by name.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A typed literal that does not fit its type</div><pre class="st-code" translate="no"><code>VAR n : INT := INT#40000; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">40000 does not fit in INT</div></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Two names differing only in case</div><pre class="st-code" translate="no"><code>VAR Motor : BOOL; motor : BOOL; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">duplicate declaration 'motor' ('Motor' is already declared; identifiers are case-insensitive)</div><p class="note">Identifiers are case-insensitive, so these are one name declared twice.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Two memory variables that share bytes (%MW0 and %MX1.2)</div><pre class="st-code" translate="no"><code>VAR w AT %MW0 : INT; b AT %MX1.2 : BOOL; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">'b' at %MX1.2 shares memory with 'w' at %MW0; targets disagree on what overlapping memory addresses mean (some overlay them, OpenPLC keeps each size apart), so give each variable bytes of its own</div><p class="note">IEC leaves overlapping memory to the implementation: one target may overlay the bytes, OpenPLC keeps each size in an area of its own. A program relying on either would mean something different on the other, so each memory variable needs bytes of its own.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A duration in microseconds or nanoseconds (T#500us)</div><pre class="st-code" translate="no"><code>VAR t : TIME := T#500us; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">T#500us: microseconds (us) and nanoseconds (ns) are LTIME units, which TIME here does not take: write T#0.5ms instead</div><p class="note">us and ns are IEC 3rd-edition units, for LTIME; MATIEC, and so OpenPLC, read d, h, m, s and ms. TIME here takes fractions of a millisecond, so T#0.5ms says the same thing.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A DATE, TOD or DT converted to a number</div><pre class="st-code" translate="no"><code>VAR d : DATE; n : DINT; END_VAR
+n := DATE_TO_DINT(d);</code></pre></td>
+                  <td><div class="said" translate="no">DATE_TO_DINT is not portable: the reference compilers count a DATE in different units (MATIEC in seconds since 1970, STruC++ in days); keep it a DATE and compare it with a DATE literal: d &gt;= D#2024-03-01</div><p class="note">The two reference compilers build it and disagree on the number: MATIEC counts every calendar type in seconds, while STruC++ counts a DATE in days and a TOD or DT in milliseconds. No number is portable, TIME_TO_DINT included (MATIEC counts it in whole seconds), so keep the value in its own type: compare a DATE or TOD with a literal of its kind, and subtract two DTs for a TIME to compare with a TIME literal.</p></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+      </div>
+    </section>
+
+    <section class="section" id="caveats">
+      <div class="wrap">
+        <h2>6. Accepted with a caveat</h2>
+        <p class="sub">
+          These run here but mean something different on a target, or a strict compiler refuses them. The export warns
+          about each in the file it writes.
+        </p>
+        
+            <table class="ledger">
+              <thead><tr><th>Accepted here</th><th>On a target</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="what">RETAIN / NON_RETAIN</div><pre class="st-code" translate="no"><code>VAR RETAIN count : INT; END_VAR</code></pre></td>
+                  <td><p class="note">The qualifier is consumed and does not change what the simulator does: RETAIN asks a variable to survive a warm restart, and there is no restart here: every run starts from the declared initial value, which is what a retentive variable is given on a cold start. A real target does have a restart, so the word still matters there.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A variable named after a standard function (ADD, GT, LT, ...)</div><pre class="st-code" translate="no"><code>VAR ADD : INT; lt : BOOL; END_VAR
+ADD := 1;</code></pre></td>
+                  <td><p class="note">IEC does not reserve these, so refusing them would invent a rule the standard lacks. But they are Instruction List OPERATORS, and a compiler sharing one lexer between the languages treats them as keywords in ST too. MATIEC refused VAR_OUTPUT lt : BOOL. Export warns about it.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A POU touching a VAR_GLOBAL without declaring VAR_EXTERNAL</div><pre class="st-code" translate="no"><code>VAR_GLOBAL Shared : INT; END_VAR
+FUNCTION_BLOCK Reader
+VAR_OUTPUT v : INT; END_VAR
+v := Shared;
+END_FUNCTION_BLOCK
+
+VAR r : Reader; n : INT; END_VAR
+r(v =&gt; n);</code></pre></td>
+                  <td><p class="note">Semantically identical (the global resolves to the same image either way), but a block that touches a global without the declaration will not build on the target. Export warns about it.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">END_IF, END_CASE, END_FOR, END_WHILE, END_REPEAT and END_STRUCT without their ;</div><pre class="st-code" translate="no"><code>TYPE Pt :
+STRUCT
+  x : INT;
+END_STRUCT
+END_TYPE
+TYPE Mode : (Idle, Run) END_TYPE
+
+VAR n : INT; p : Pt; END_VAR
+IF n &gt; 0 THEN n := 1; END_IF
+FOR n := 1 TO 3 DO p.x := n; END_FOR</code></pre></td>
+                  <td><p class="note">Common in code written elsewhere. Strict IEC requires it and MATIEC refuses a program without, so an export writes each one back.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">An enumeration member written Mode.Idle</div><pre class="st-code" translate="no"><code>TYPE Mode : (Idle, Run) END_TYPE
+
+VAR m : Mode := Mode.Run; n : INT; END_VAR
+CASE m OF
+  Mode.Idle: n := 0;
+  Mode.Run: n := 1;
+END_CASE;</code></pre></td>
+                  <td><p class="note">Read as IEC's Mode#Idle, which is what an export writes. A variable called Mode keeps its meaning: then Mode.Idle is its member.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">An argument named and given nothing: Q =&gt; , or IN := ,</div><pre class="st-code" translate="no"><code>VAR t : TON; et : TIME; END_VAR
+t(IN := TRUE, PT := T#1s, Q =&gt; , ET =&gt; et);</code></pre></td>
+                  <td><p class="note">What generated call templates leave behind. It reads as not there at all: an input keeps its value, an output goes nowhere. An export drops it.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">An interface base in the __SYSTEM namespace, and PUBLIC on an interface's method</div><pre class="st-code" translate="no"><code>INTERFACE IDrive EXTENDS __SYSTEM.IRoot
+  METHOD PUBLIC Travel : INT
+    VAR_INPUT dist : INT; END_VAR
+  END_METHOD
+END_INTERFACE</code></pre></td>
+                  <td><p class="note">A base named in the __SYSTEM namespace is a runtime's own root interface, which no program declares. Neither it nor PUBLIC asks anything of an implementation (every method of an interface is public), so both are read as saying nothing, and an export leaves them out.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">Any library's namespace on a TYPE: JsonLib.Parser, EXTENDS MyLib.Base</div><pre class="st-code" translate="no"><code>FUNCTION_BLOCK Parser
+END_FUNCTION_BLOCK
+
+VAR p : JsonLib.Parser; many : ARRAY [1..2] OF JsonLib.Parser; END_VAR</code></pre></td>
+                  <td><p class="note">Where only a type can stand (a declaration, EXTENDS, IMPLEMENTS, ARRAY OF, REF_TO, a result), a dotted name is a library's type, so its namespace is read as saying nothing, whatever the library. An export keeps it: the name exists where the library does. Anywhere else a namespace is no namespace: the engine knows no library by name.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">An enumeration with a base type: (Idle, Run) UINT</div><pre class="st-code" translate="no"><code>TYPE Mode :
+(
+  Idle := 0,
+  Run := 10
+) UINT;
+END_TYPE
+
+VAR m : Mode; END_VAR</code></pre></td>
+                  <td><p class="note">A type for an enumeration's values. The values are held as INT here whatever it says, so a value INT cannot hold is refused; an export leaves the word out, since IEC's 2nd edition has no place for it.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">VAR PERSISTENT</div><pre class="st-code" translate="no"><code>VAR PERSISTENT count : INT := 7; END_VAR</code></pre></td>
+                  <td><p class="note">A value that survives a restart and a download; not an IEC word. Read here as retention: a run here has no restart, so it starts at its initial value. PLCopen carries persistent=&quot;true&quot;; IEC text writes RETAIN, the nearest word.</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A STRING capacity written as a constant: STRING(MAX_LEN)</div><pre class="st-code" translate="no"><code>VAR_GLOBAL CONSTANT MAX_LEN : INT := 20; END_VAR
+VAR s : STRING(MAX_LEN); t : STRING[MAX_LEN * 2]; END_VAR</code></pre></td>
+                  <td><p class="note">IEC writes a capacity as an integer. Folded here against the global integer CONSTANTs, the same rule as an array bound, wherever a capacity can be written, and an export writes the integer it folds to, in brackets (STRING(n) goes out as STRING[n] too).</p></td>
+                </tr>
+                <tr>
+                  <td><div class="what">A variable linked in the I/O configuration: AT %I*, AT %Q*</div><pre class="st-code" translate="no"><code>TYPE Io : STRUCT bIn AT %I* : BOOL; END_STRUCT END_TYPE
+FUNCTION_BLOCK Cyl
+VAR bExtended AT %I* : BOOL; bValve AT %Q* : BOOL; END_VAR
+bValve := NOT bExtended;
+END_FUNCTION_BLOCK
+
+VAR start AT %I* : BOOL; END_VAR</code></pre></td>
+                  <td><p class="note">A PLC project completes the address in its I/O configuration, which here is the scene's wiring: the variable is a plain one, in a program, a global, a block or a struct field alike, and a part wired to it by name drives or reads it. IEC completes one in a VAR_CONFIG, which no target here reads, so an export writes the variable plain.</p></td>
+                </tr>
+              </tbody>
+            </table>
+      </div>
+    </section>
+
+    <section class="section" id="divergences">
+      <div class="wrap">
+        <h2>7. Deliberate differences</h2>
+        <p class="sub">Each is exercised by a corpus case carrying a divergence note, and reported by the external oracle as known rather than failed.</p>
+        <ol class="divergences">
+          <li><b>same-width signed/unsigned ties resolve unsigned, both orders</b>IEC does not define mixing signed with unsigned at all; our rule is that the UNSIGNED type wins the same-width tie, in either operand order, so the result is deterministic. (Bit strings no longer take part: arithmetic on ANY_BIT is rejected outright, which is what removed the other half of this divergence.)</li>
+          <li><b>both operands of a BOOL AND are evaluated, so a guard does not protect a divide</b>This engine evaluates both operands of a BOOL AND / OR, so the guarded divide faults. IEC leaves operand evaluation open, so implementations may differ: MATIEC stops at a decided operand, so this program returns FALSE there instead of faulting. A program whose behaviour depends on the difference is non-portable whichever way a simulator answers, so this engine answers the way that SURFACES it: a guard that silently worked here would stop a target that evaluates both operands.</li>
+          <li><b>FOR evaluates bounds once and owns its iteration</b>The loop bound is snapshotted at entry here, and BOTH independent IEC compilers whose behaviour could be inspected re-read it every iteration, so this program runs 3 times here and 10 times there. MATIEC: its generated C puts `if (I &lt;= N)` inside the loop, reading the live variable. RuSTy (PLC-lang): its FOR lowering plants the user-written bound expression in the loop's exit test rather than a temporary, and says so in its own comment. Neither is provably right: IEC constrains FOR to a count &quot;determined in advance&quot;, but no edition text reachable from here says WHEN the final-value expression is evaluated, so where to read it is this engine's own rule. Two compilers agreeing is weaker evidence than it looks, since both lower FOR to a C/LLVM-style loop where re-reading is the lazy path. The snapshot is kept anyway: it is what makes the iteration count knowable at entry, which is the property FOR exists for (WHILE is the construct for a condition re-tested each pass), and the only runaway guard here is a count rather than a clock (the interpreter faults a loop after 1,000,000 iterations), so a body that grows its own bound would run a million iterations in one scan before that fault stopped it. Because it cannot be settled, it is not left silent either: exporting a loop whose body writes its own bound now WARNS (export.ts), which is the honest response to a difference nobody can adjudicate.</li>
+          <li><b>R_TRIG / F_TRIG single-scan pulses</b>the literal IEC F_TRIG body fires when CLK starts false; we suppress that startup pulse, since CLK was never TRUE before it</li>
+          <li><b>SEL and MUX select; out-of-range MUX yields 0</b>IEC declares an out-of-range MUX selector an error; we return 0</li>
+          <li><b>REAL division by zero yields Infinity, not a fault</b>float error handling is vendor-defined; REAL division by zero stays IEEE +/-Infinity here, matching PLC float hardware, which flags but does not fault. Only INTEGER division faults the scan</li>
+          <li><b>an array index outside its bounds faults</b>This engine faults on an array subscript outside its declared range. IEC requires a subscript to be within range but says nothing about what a runtime does when it is not, so faulting is a choice: this engine is where the mistake is cheapest to find. MATIEC does not check: it emits C, which reads past the array and completes the scan, so the replay reports &quot;expected 0 scan lines, got 1&quot; for this case.</li>
+          <li><b>a store outside a subrange faults</b>This engine faults on a store outside a subrange. IEC declares the range but leaves the runtime free, so faulting is this engine being the place the mistake is cheapest to find, exactly as with an array bound. MATIEC does not check and completes the scan, which is why the replay reports &quot;expected 0 scan lines, got 1&quot; here.</li>
+          <li><b>an out-of-range length or position clamps instead of erroring</b>IEC calls an out-of-range length/position an error. This engine clamps to the string instead - faulting a scan over a short string is not behaviour a controller survives.</li>
+          <li><b>REAL_TO_STRING formatting is implementation-defined</b>IEC leaves float-to-text formatting to the implementation, and the vendors disagree (trailing zeros, exponent thresholds). We emit the shortest round-trip form. The VALUE is portable; the exact spelling is not, so do not parse it on the target.</li>
+          <li><b>TIME_TO_STRING emits an IEC duration literal</b>The output is an IEC duration literal (T#1s500ms); IEC does not fix a TIME_TO_STRING format. Chosen so the output round-trips back through STRING_TO_TIME.</li>
+          <li><b>a fraction of a second prints in milliseconds, and a literal in a STRING reads back</b>IEC fixes no spelling for a calendar value as text. A fraction of a second prints in milliseconds, three places; MATIEC prints six (TOD#07:05:09.500000). Text that is no date reads as 0 (1970-01-01, midnight), as STRING_TO_INT of text that is no number reads as 0.</li>
+          <li><b>a TIME_OF_DAY pushed past midnight faults the scan</b>This engine faults on a TOD result past 24:00:00, the same choice as for an array subscript or a subrange: the simulator is where the mistake is cheapest to find. MATIEC does not check a TOD result: it goes on past 24:00:00 with a value that is no time of day.</li>
+          <li><b>a DATE_AND_TIME before 1970 faults the scan</b>This engine's DT range is a 32-bit unsigned count of seconds from 1970, so it has no earlier instant, and a result before 1970 faults rather than hand a program a value an unsigned count cannot hold. MATIEC's count is signed and would go on.</li>
+          <li><b>TIME_TO_DINT counts milliseconds</b>This engine counts a TIME converted to a number in milliseconds, the unit TIME carries everywhere else. STruC++ (T#1500ms converts to 1500 in 0.6.2) counts the same. MATIEC counts WHOLE SECONDS (T#1500ms is 1), so a program that converts a TIME to a number reads a different number on a MATIEC target such as OpenPLC v3.</li>
+          <li><b>DINT_TO_TIME and REAL_TO_TIME read the number as milliseconds</b>MATIEC reads a number converted to a TIME as SECONDS (DINT_TO_TIME(1500) and REAL_TO_TIME(1500.0) are T#1500s), the mirror of its TIME_TO_DINT. This engine reads milliseconds (STruC++ 0.6.2 agrees), so a preset converted from a number lasts 1000 times longer on a MATIEC target such as OpenPLC v3.</li>
+          <li><b>faults when a REF_TO that is NULL is dereferenced</b>IEC 61131-3 makes dereferencing a NULL reference an error and leaves what a controller then does to the implementation. This engine faults the scan, naming it, as it faults a subscript out of range; STruC++'s runtime stops the POU the same way (its NullReference fault). MATIEC has no references</li>
+          <li><b>faults a method called through an interface that refers to no instance</b>IEC 61131-3 makes a call through an interface that refers to no instance (NULL) an error and leaves what a controller then does to the implementation. This engine faults the scan, naming it, as it faults a NULL REF_TO dereferenced; a program tests `itf &lt;&gt; NULL` (or `&lt;&gt; 0`) first</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="checks">
+      <div class="wrap">
+        <h2>8. Outside checks</h2>
+        <p class="sub">
+          Tests written alongside the engine can only show that it agrees with itself, so the test corpus is also run
+          through tools this project did not write. Each is pinned to an exact version, so a result can be reproduced.
+          These checks have found real defects in the engine, such as timers running a scan early and programs accepted
+          here that no real compiler would build. Each was fixed and is kept as a test case.
+        </p>
+        <h3>On every push</h3>
+        <div class="oracles">
+          <div class="panel oracle">
+            <div class="o-name"><strong>MATIEC (iec2c)</strong><span class="o-edition">IEC 61131-3, 2nd edition</span></div>
+            <p>Every corpus program is written out by the app’s own exporter and compiled by a real IEC compiler. The generated C is built, run with the corpus inputs, and compared with the expected values scan for scan.</p>
+            <div class="o-run" translate="no">npm run st-oracle</div>
+            <div class="o-pin">pinned at 7949c0bda1787de9c7cacaa4876ede49f85262dd</div>
+          </div>
+          <div class="panel oracle">
+            <div class="o-name"><strong>STruC++</strong><span class="o-edition">IEC 61131-3, 3rd edition</span></div>
+            <p>The edition boundary. Every case MATIEC refuses only because it is a 2nd-edition compiler must build here, so &quot;the standard allows this&quot; is checked rather than assumed.</p>
+            <div class="o-run" translate="no">npm run st-oracle:ed3</div>
+            <div class="o-pin">pinned at v0.6.2</div>
+          </div>
+          <div class="panel oracle">
+            <div class="o-name"><strong>PLCopen TC6 schema</strong><span class="o-edition">PLCopen XML interchange</span></div>
+            <p>Every exported PLCopen document is validated against PLCopen’s own published schema.</p>
+            <div class="o-run" translate="no">npm run st-oracle:xml</div>
+            
+          </div>
+          <div class="panel oracle">
+            <div class="o-name"><strong>Real-world import corpus</strong><span class="o-edition">Beremiz projects + IEC’s own Annex F examples</span></div>
+            <p>Import, checked with files this project did not write: every POU and data type they declare must reach either the program or the import notes, so nothing is dropped without a word.</p>
+            <div class="o-run" translate="no">npm run st-oracle:import</div>
+            
+          </div>
+          <div class="panel oracle">
+            <div class="o-name"><strong>OpenPLC Editor</strong><span class="o-edition">its own reader, regenerator and STruC++</span></div>
+            <p>What a user who takes a program to OpenPLC meets: its editor reads each export (PLCopen XML, and a project folder of .st files) into its own model, writes Structured Text back out and builds it. A declaration or statement lost on the way in fails the check.</p>
+            <div class="o-run" translate="no">npm run st-oracle:openplc</div>
+            <div class="o-pin">pinned at 13fee913d66fb4d93f7528c3359144819da1c275</div>
+          </div>
+        </div>
+        <p class="body">
+          The corpus samples the subset rather than covering it. A real IEC compiler has built and run
+          17/17 of the scalar types, 10/10 of the standard function blocks
+          and 54/58 of the named functions, with the results compared with the expected values
+          scan for scan. A further 4 were compiled but never run, because the 2nd-edition compiler
+          refuses them by design and only the 3rd-edition one builds them: <span translate="no">BCD_TO_INT, DIV_TIME, INT_TO_BCD, MUL_TIME</span>. Every type, block and function the engine accepts has been through at least one of them.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="doors">
+      <div class="wrap">
+        <h2>9. Import and export</h2>
+        <p class="sub">Anything a target may not carry comes back as a warning or a note. A program that quietly means something other than what its author wrote is worse than one that refuses.</p>
+        <div class="doors">
+          <div class="panel door">
+            <h3>Export</h3>
+            <ul>
+              <li><span class="fmt" translate="no">.st</span> IEC 61131-3 source (.st). Read by MATIEC, STruC++, RuSTy, and any vendor ST editor as paste.</li>
+              <li><span class="fmt" translate="no">.xml</span> PLCopen TC6 interchange XML. Read by IEC 61131-3 tools that import PLCopen XML.</li>
+              <li>The CONFIGURATION, RESOURCE and TASK this simulator does not author are generated on the way out, so one program body can be wrapped for several targets. Beyond that wrapper, Structured Text is written as you wrote it.</li>
+              <li>A ladder POU goes into PLCopen XML as an LD body. In a <span class="fmt" translate="no">.st</span> file it is written as the Structured Text it runs as, because IEC gives ladder no text form.</li>
+              <li>A program that does not compile is not exported.</li>
+            </ul>
+          </div>
+          <div class="panel door">
+            <h3>Import</h3>
+            <ul>
+              <li>A spec-legal <span class="fmt" translate="no">.st</span> file. The CONFIGURATION, RESOURCE and PROGRAM wrappers are removed, and the TASK interval becomes the scan time (this page's test file came in at 40 ms).</li>
+              <li>A PLCopen TC6 project, as IEC tools export it. A ladder body comes in as ladder, rung for rung.</li>
+              <li>Anything the subset cannot hold is named in a note, never dropped. An incomplete address such as AT %I*, which only a VAR_CONFIG could complete, comes back with a note asking for the full address. A memory address such as AT %MW0 crosses as written. A rung the engine cannot draw (a bridge, for example), or a body in FBD, SFC or IL, leaves that POU out with a note saying why.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tools">
+      <div class="wrap">
+        <h2>10. Command-line tools</h2>
+        <p class="sub">
+          This page and <a href="/st-capabilities.json">/st-capabilities.json</a> come from the same probe run, so an
+          agent writing a program for this simulator reads the same list a person does. In the repository, these
+          commands check a program without opening the app, and exit non-zero on a failure:
+        </p>
+        <table class="seams">
+          <tbody>
+            <tr><td class="cmd" translate="no">npm run catalog</td><td>what parts exist, their parameters, and the PLC signals each expects</td></tr>
+            <tr><td class="cmd" translate="no">npm run capabilities</td><td>this manifest: what the engine accepts and refuses, in Structured Text and ladder</td></tr>
+            <tr><td class="cmd" translate="no">npm run check-st -- &lt;path...&gt;</td><td>an ST file compiles</td></tr>
+            <tr><td class="cmd" translate="no">npm run validate-project -- &lt;path&gt;</td><td>a project document loads</td></tr>
+            <tr><td class="cmd" translate="no">npm run check-wiring -- &lt;path&gt;</td><td>every scene tag connects to a program variable</td></tr>
+            <tr><td class="cmd" translate="no">npm run test-project -- &lt;folder&gt;</td><td>the control logic behaves (JSON tests, real exit codes)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator that runs in your browser or as a desktop app. Open source, under the MIT License.</p>
+          </div>
+          <div>
+            <h4>This page</h4>
+            <ul>
+              <li><a href="/st-capabilities.json">The manifest, as JSON</a></li>
+              <li><a href="https://github.com/Open-Industry-Project/Open-Industry-Project/blob/main/docs/st-conformance.md" target="_blank" rel="noopener noreferrer">The Structured Text ledger (docs/st-conformance.md)</a></li>
+              <li><a href="https://github.com/Open-Industry-Project/Open-Industry-Project/blob/main/docs/ladder.md" target="_blank" rel="noopener noreferrer">How ladder works (docs/ladder.md)</a></li>
+              <li><a href="https://github.com/Open-Industry-Project/Open-Industry-Project/blob/main/src/plc/conformanceCases.ts" target="_blank" rel="noopener noreferrer">The conformance corpus</a></li>
+              <li><a href="https://github.com/Open-Industry-Project/Open-Industry-Project/blob/main/.github/workflows/st-oracle.yml" target="_blank" rel="noopener noreferrer">The workflow that runs the checks</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/app/">Launch the simulator</a></li>
+              <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>
+              <li><a href="/guides/">Connection guides</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+          <span>Generated from the engine by npm run capabilities -- --write</span>
+        </div>
+        <p class="tm-notice">OpenPLC is a trademark of its owner, named here only to identify it. This project is not affiliated with or endorsed by it.</p>
+      </div>
+    </footer>
+  </body>
+</html>

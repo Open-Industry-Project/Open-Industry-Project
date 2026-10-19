@@ -1,0 +1,100 @@
+node_modules/
+dist/
+dist-embedded/
+.vite/
+.types/
+*.tsbuildinfo
+
+# Emitted TS declarations leak into src/ from `tsc -b` (declaration emit goes to .types/).
+# Keep the source tree free of build artifacts; the only hand-authored decls are vite-env.d.ts and
+# occt-import-js.d.ts (types for a package that ships none).
+src/**/*.d.ts
+src/**/*.d.ts.map
+!src/**/vite-env.d.ts
+!src/editor/occt-import-js.d.ts
+playwright-report/
+test-results/
+e2e/shots/
+e2e/__shots/
+.e2e-server.json
+# npm run bench-sim: each run's numbers, before/after side by side (machine-specific)
+.bench-sim/
+.claude/settings.local.json
+*.sqlite
+.claude-run-screenshot.png
+
+# Custom-part build artifacts (assets embedded at build time from public/models)
+.scratch/
+
+# Internal design docs / decision journals — kept locally, not published
+docs-internal/
+
+# Debug/scratch convention - local only. A one-off probe is `e2e/_dbg-<name>.mjs` and never
+# committed. A probe worth keeping, because a tracked file cites it as the instrument that
+# measured a constant, moves to e2e/probes/ and is committed; verify-repo-self-contained.mjs
+# fails the build when a tracked file cites a probe the repo does not carry.
+e2e/_dbg-*
+e2e/_tmp-*
+e2e/_repro-*
+e2e/_probe-*
+e2e/_diag*
+e2e/_out-*
+e2e/_verify-*
+e2e/_du.mjs
+# the same probes, written without the leading underscore
+e2e/tmp-*
+e2e/repro-*
+*.cpuprofile
+/pool-verify-*.png
+/pool-glb-*.png
+/moving-boxes-*.png
+
+# Where the e2e scripts drop their shots and report dumps - regenerated every run,
+# never read back across runs (parity gates compare two shots from the SAME run).
+e2e/out/
+# Bench and diag dumps from the sim/PLC micro-benchmarks (src/sim/_bench-*.test.ts).
+/bench.txt
+/diag.txt
+
+# Generated IEC programs + compiler output from the external ST oracles
+# (scripts/oracle-matiec.mjs = IEC 2nd edition, scripts/oracle-strucpp.mjs = 3rd edition)
+/.oracle
+/.oracle-ed3
+# generated PLCopen XML + the fetched TC6 schema (scripts/oracle-plcopen.mjs)
+/.oracle-xml
+# real upstream files, cached, + what the importers made of them (scripts/oracle-import.mjs)
+/.oracle-import
+# OpenPLC editor sources + STruC++ at their pins (GPL-3.0, fetched, never committed), and what the
+# editor made of each exported case (scripts/oracle-openplc.mjs)
+/.oracle-openplc
+# an unpacked STruC++ release, when one is dropped here for a local oracle run
+/strucpp
+
+# Env files (none tracked today; guardrail against a future accidental commit)
+.env
+.env.*
+!.env.example
+
+# python-snap7 2.x (its C library), which scripts/s7-loop.mjs runs as the S7 server
+/.s7-loop
+
+# Sourcemapped scratch build the eager-JS census makes (scripts/eager-census.mjs) - never dist/,
+# so a census cannot disturb a build something else is being measured against.
+/.eager-census
+# The eager-JS jump check's and the census's last measurements on this machine (scripts/lib/eager-js.mjs)
+/.eager-js
+
+# local scratch folder for reference files - never committed
+Examples_Dont_Commit/
+
+# scratch "dist" of scripts/bake-part-assets.mjs (removed after each run)
+/.part-assets-bake/
+
+# Signing material and logs (none tracked; guardrail, since code-signing material passes through dev machines)
+*.pem
+*.pfx
+*.p12
+*.key
+*.log
+# listed library part versions, downloaded by hash to run against this build (scripts/library-corpus.mjs)
+/.cache/library-corpus

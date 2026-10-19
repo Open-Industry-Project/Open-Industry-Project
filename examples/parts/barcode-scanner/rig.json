@@ -1,0 +1,40 @@
+{
+  "id": "oip.barcode-scanner",
+  "name": "Barcode Scanner",
+  "category": "Devices",
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "surface",
+        "shape": { "kind": "frame" },
+        "offset": [0, 0.8, 0],
+        "offsetParams": [{ "axis": 1, "param": "surfaceHeight" }]
+      },
+      {
+        "name": "read",
+        "parent": "surface",
+        "shape": { "kind": "frame" },
+        "offset": [0, 0.3, 0],
+        "offsetParams": [{ "axis": 1, "param": "clearance", "scale": 0.5 }],
+        "zone": {
+          "size": [1.0, 0.6, 0.5],
+          "sizeParams": [
+            { "axis": 0, "param": "width" },
+            { "axis": 1, "param": "clearance" },
+            { "axis": 2, "param": "readDepth" }
+          ]
+        }
+      }
+    ],
+    "joints": [],
+    "bounds": { "length": 1.17, "width": 0.2, "top": 1.66 }
+  },
+  "materials": [
+    { "id": "housing", "color": [0.479, 0.509, 0.539], "metalness": 0.6, "roughness": 0.35 },
+    { "id": "head", "color": [0.06, 0.065, 0.075], "metalness": 0.2, "roughness": 0.5 },
+    { "id": "cap", "color": [0.888, 0.508, 0.005], "metalness": 0.1, "roughness": 0.45 },
+    { "id": "lens", "color": [0.18, 0.18, 0.18], "metalness": 0, "roughness": 0.3 }
+  ]
+}

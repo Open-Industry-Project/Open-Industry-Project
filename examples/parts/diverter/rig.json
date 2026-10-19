@@ -1,0 +1,47 @@
+{
+  "id": "oip.diverter",
+  "name": "Diverter",
+  "category": "Equipment",
+  "commsParam": "enableComms",
+  "snap": {
+    "mounts": [
+      { "at": [0, 0, -1.0635], "accepts": "conveyorGuard", "face": "out", "yOffset": 0.2, "outwardOffset": 0.05, "opens": true }
+    ]
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      { "name": "pusher", "shape": { "kind": "frame" }, "offset": [0, 0, 0] },
+      { "name": "partEnd", "parent": "pusher", "shape": { "kind": "frame" }, "offset": [0, 0.447, -0.853] },
+      { "name": "blade", "parent": "partEnd", "shape": { "kind": "box", "size": [0.47, 0.4, 0.5] }, "offset": [0, 0, 0], "hidden": true }
+    ],
+    "joints": [
+      { "name": "ext3", "link": "partEnd", "type": "prismatic", "axis": [0, 0, -1], "min": 0, "max": 1.5 }
+    ],
+    "bounds": {
+      "length": 0.73, "width": 1.352, "top": 0.66, "bottom": -0.3847, "centerZ": -0.427,
+      "params": [
+        { "field": "width", "param": "divertDistance", "add": 0.602, "min": 0.702, "max": 2.102 },
+        { "field": "centerZ", "param": "divertDistance", "scale": 0.5, "add": -0.802, "min": -0.752, "max": -0.052 },
+        { "field": "bottom", "param": "standHeight", "scale": -1, "max": -0.1 }
+      ]
+    }
+  },
+  "materials": [
+    { "id": "hood", "color": [0.6377, 0.21222, 0.03189], "metalness": 0.511, "roughness": 0.361 },
+    { "id": "cabinet", "color": [0.03072, 0.03689, 0.0497], "metalness": 0, "roughness": 0.45 },
+    { "id": "frame", "color": [0.21956, 0.22322, 0.22321], "metalness": 1, "roughness": 0.539 },
+    { "id": "barrel", "albedo": "metalTex", "color": [0.78, 0.8, 0.84], "metalness": 0.75, "roughness": 0.42, "triplanar": { "space": "object", "scale": 3, "boost": 1 } },
+    { "id": "rod", "albedo": "metalTex", "metalness": 0.9, "roughness": 0.3, "triplanar": { "space": "object", "scale": 2.2, "boost": 1.25 } },
+    { "id": "rubber", "color": [0.012, 0.012, 0.013], "metalness": 0, "roughness": 0.85 },
+    { "id": "hose", "color": [0.02, 0.16, 0.55], "metalness": 0, "roughness": 0.5 },
+    { "id": "label", "albedo": "labelTex", "metalness": 0, "roughness": 0.55 },
+    { "id": "button", "color": [0.00402, 0.491, 0.63755], "metalness": 0, "roughness": 0.5 },
+    { "id": "lampRed", "color": [0.29182, 0.11443, 0.11192], "metalness": 0, "roughness": 0.654 },
+    { "id": "lampGreen", "color": [0.15295, 0.31398, 0.14995], "metalness": 0, "roughness": 0.612 }
+  ],
+  "assets": [
+    { "id": "metalTex", "mime": "image/webp", "url": "/textures/DiverterMetal.webp" },
+    { "id": "labelTex", "mime": "image/webp", "url": "/textures/DiverterLabel.webp" }
+  ]
+}

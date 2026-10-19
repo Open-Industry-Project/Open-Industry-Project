@@ -1,0 +1,12 @@
+{
+  "version": 7,
+  "name": "Jam Detection",
+  "scene": "scene.json",
+  "program": [
+    "plc/program.st"
+  ],
+  "tests": [
+    "tests/flow.test.json",
+    "tests/jam.test.json"
+  ]
+}

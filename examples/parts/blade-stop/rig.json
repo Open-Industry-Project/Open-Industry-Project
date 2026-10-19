@@ -1,0 +1,160 @@
+{
+  "id": "oip.blade-stop",
+  "name": "Blade Stop",
+  "category": "Equipment",
+  "commsParam": "enableComms",
+  "snap": {
+    "track": {
+      "fitWidthParam": "width"
+    }
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "bladeRoot",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "airPressureHeight",
+            "scale": 1,
+            "add": -0.07
+          }
+        ]
+      },
+      {
+        "name": "collider",
+        "parent": "bladeRoot",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.03,
+            0.19,
+            1.524
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "raiseHeight",
+              "scale": 1,
+              "add": 0.15
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.145,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "raiseHeight",
+            "scale": -0.5,
+            "add": -0.125
+          }
+        ]
+      },
+      {
+        "name": "baseCollider",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.16,
+            0.1,
+            1.524
+          ],
+          "sizeParams": [
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.1,
+          0
+        ]
+      }
+    ],
+    "joints": [
+      {
+        "name": "raise",
+        "link": "bladeRoot",
+        "type": "prismatic",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 0.62
+      }
+    ],
+    "bounds": {
+      "length": 0.2,
+      "width": 2,
+      "top": 0.5,
+      "bottom": -0.5295
+    }
+  },
+  "materials": [
+    {
+      "id": "steel",
+      "color": [
+        0.2204,
+        0.2204,
+        0.2204
+      ],
+      "metalness": 0.1,
+      "roughness": 0.5
+    },
+    {
+      "id": "plate",
+      "color": [
+        0.8809,
+        0.8809,
+        0.8809
+      ],
+      "metalness": 0.1,
+      "roughness": 0.4657
+    },
+    {
+      "id": "belt",
+      "color": [
+        0.0122,
+        0.0122,
+        0.0122
+      ],
+      "metalness": 0,
+      "roughness": 1
+    },
+    {
+      "id": "blade",
+      "color": [
+        0.8006,
+        0.3333,
+        0.0482
+      ],
+      "metalness": 0,
+      "roughness": 0.7886
+    }
+  ]
+}

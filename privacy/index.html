@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Privacy: Part Libraries | Open Industry Project</title>
+    <meta name="description" content="What the Open Industry Project's part libraries and part publishing collect, what becomes public, and how to ask for removal." />
+    <link rel="canonical" href="https://www.openindustryproject.org/privacy/" />
+
+    <!-- The privacy policy for the part libraries and publishing (docs/part-libraries.md, "Rules for listed parts"). Keep it in step
+         with what workers/github-signin, src/editor/publish and the parts repository actually do. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Privacy: part libraries and publishing</h1>
+        <p class="lede">
+          What happens to your information when you get parts from a part library, and when you publish a part to the
+          listed library. The Open Industry Project is maintained by Automation Standard LLC.
+        </p>
+      </section>
+    </main>
+
+    <section class="section">
+      <div class="wrap">
+        <h2>Getting parts</h2>
+        <p>
+          Get parts reads each library's index and downloads the parts you add from the address the library is served
+          from. The official libraries are served from <code>parts.openindustryproject.org</code> by Cloudflare, which
+          handles each request as any web host does. The project keeps no record of who reads a library or downloads a
+          part, and you need no account to do either. A library you add yourself is read from its own host, under that
+          host's terms.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <h2>Signing in with GitHub to publish</h2>
+        <p>
+          Publishing a part needs a GitHub account, because your part is sent as a pull request under it. When you sign
+          in, GitHub shows a code that you enter on github.com. The sign-in passes through a small service at
+          <code>signin.openindustryproject.org</code> that only forwards the two sign-in requests to GitHub. It stores
+          nothing and keeps no logs.
+        </p>
+        <p>
+          The access token GitHub gives the app is kept in your browser's storage on this device, or in the desktop
+          app's, and is sent only to GitHub. The app uses it to fork the parts repository, add your part on a branch,
+          open the pull request and read how its review is going. Sign out in the Publish dialog to forget it, and revoke
+          the app at any time in your GitHub settings under Applications.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <h2>What becomes public</h2>
+        <p>
+          The parts repository is public on GitHub. Your pull request, your GitHub account name, the part and the
+          description you wrote are visible there to anyone, under GitHub's own privacy terms. Once a part is listed,
+          the library's index names your GitHub account or organization as its publisher, and the part's files are
+          served to anyone who adds it.
+        </p>
+        <p>
+          A listed version is kept for good, because projects that added it keep using it and every later version of the
+          app is tested against it. That includes the publisher name listed with it.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <h2>Training AI models</h2>
+        <p>
+          A listed part is public under the MIT License for its code and CC BY 4.0 for its models, which allow anyone to
+          use it for any purpose, training AI models included. Do not publish a part you would not share on those
+          terms. Nothing from your projects, rooms or parts shelf is ever used for training.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <h2>Removal and questions</h2>
+        <p>
+          To report a listed part that infringes your rights, or to ask about your information, write to
+          <a href="mailto:parts@openindustryproject.org">parts@openindustryproject.org</a>. A part reported credibly as
+          infringing is removed from its library and its files deleted within 7 days. Projects that already added it
+          keep their own copies, which the project cannot reach.
+        </p>
+      </div>
+    </section>
+
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

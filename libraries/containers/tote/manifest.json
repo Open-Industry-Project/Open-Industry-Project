@@ -1,0 +1,15 @@
+{
+  "id": "oip.tote",
+  "name": "Tote",
+  "category": "Products",
+  "geometry": {
+    "kind": "cargo",
+    "cargoKind": "tote",
+    "size": {
+      "length": 0.6,
+      "width": 0.4,
+      "height": 0.32
+    }
+  },
+  "materials": []
+}

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Connect a TwinCAT PLC over ADS | Open Industry Project</title>
+    <meta name="description" content="Step by step: connect the simulator to a TwinCAT 3 PLC by variable name over ADS, on the same PC or through a route to a PLC on the network." />
+    <meta name="keywords" content="TwinCAT 3, ADS, AMS Net ID, ADS route, Beckhoff, PLC, simulator, virtual commissioning" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/ads/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="Connect a TwinCAT PLC over ADS | Open Industry Project" />
+    <meta property="og:description" content="Step by step: connect the simulator to a TwinCAT 3 PLC by variable name over ADS, on the same PC or through a route to a PLC on the network." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/ads/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- A hand-written page, unlike /plc/. Every label, default and status line below is read from the app (editor/components/ExternalPlcSection.tsx, editor/externalPlc.ts, editor/adsLink.ts, core/ads.ts, apps/desktop/adsIo.cjs). Change those and this goes stale. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Connecting a TwinCAT PLC over ADS</h1>
+        <p class="lede">
+          The simulator can read and write a TwinCAT 3 PLC's variables by name over ADS, Beckhoff's own protocol. Each
+          part's tag is the PLC's name for the variable, like <code>MAIN.Eye</code>, so nothing is mapped to an address.
+          Your program runs on the PLC.
+        </p>
+        <p class="lede">
+          ADS goes through the TwinCAT router, and the simulator uses the router on its own computer. So
+          <b>TwinCAT has to be installed on the computer running the simulator</b>, and a PLC on another computer has to
+          be reachable through a route, exactly as TwinCAT XAE reaches it. <a href="#local">Part A</a> uses the runtime on
+          the same computer; <a href="#remote">part B</a> adds the route to a PLC elsewhere.
+        </p>
+
+        <h2>You need</h2>
+        <ul class="dash">
+          <li>The <a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Windows desktop app</a>. A browser tab cannot open a network connection, and the TwinCAT router runs only on Windows.</li>
+          <li>TwinCAT 3 on this computer: the XAE engineering, the XAR runtime, or the ADS setup alone. Any of them brings the router.</li>
+          <li>A TwinCAT 3 PLC: the runtime on this computer (part A), or a Beckhoff controller or another PC on the network (part B).</li>
+          <li>A license to run the PLC. Beckhoff's documentation describes the options, a trial license for development among them.</li>
+        </ul>
+
+        <ul class="toc">
+          <li><a href="#scene">1. Build the scene</a></li>
+          <li><a href="#local">A. The runtime on this PC</a></li>
+          <li><a href="#remote">B. A PLC on another computer</a></li>
+          <li><a href="#trouble">Troubleshooting</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="scene">
+      <div class="wrap">
+        <h2>1. Build the scene</h2>
+        <p>In the desktop app, start a new scene and place three parts from the library:</p>
+        <ol class="steps">
+          <li>A <b>Belt Conveyor</b>.</li>
+          <li>A <b>Box</b>, sitting on the belt near the end it starts from.</li>
+          <li>A <b>Photo Eye</b> beside the belt, about two thirds of the way along, facing across it.</li>
+        </ol>
+        <p>
+          Select each part, and in the Inspector's <span class="ui">Comms</span> group tick
+          <span class="ui">Enable Comms</span>, then type the PLC's name for its variable:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>The PLC's variable</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">MAIN.Eye</td><td>The simulator writes it</td></tr>
+              <tr><td>Belt Conveyor</td><td>Run Tag</td><td class="m">MAIN.Run</td><td>The simulator reads it</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure class="shot">
+          <img src="img/inspector-comms.webp" width="395" height="128" loading="lazy" decoding="async"
+            alt="The Inspector's Comms group for the Photo Eye: Enable Comms ticked and Presence Tag set to MAIN.Eye." />
+          <figcaption>The photo eye's Comms group, wired by name to <code>MAIN.Eye</code>.</figcaption>
+        </figure>
+        <p>
+          A tag is the variable's full symbol path, starting with the program or global variable list it is declared in:
+          <code>MAIN.Eye</code> for a variable of <code>MAIN</code>, <code>GVL.Run</code> for a global. BOOL, the integer
+          types, REAL and LREAL travel. A structure, a STRING or a 64-bit integer does not, and the dialog says which.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="local">
+      <div class="wrap">
+        <h2>Part A. The runtime on this PC</h2>
+
+        <h3>A1. The PLC program</h3>
+        <pre class="code" translate="no"><code>PROGRAM MAIN
+VAR
+  Eye : BOOL;
+  Run : BOOL;
+END_VAR
+
+Run := NOT Eye;
+END_PROGRAM</code></pre>
+        <p>
+          <code>Eye</code> is a plain variable, not an input linked to I/O, because the simulator writes it. TwinCAT
+          publishes every variable over ADS, so nothing needs to be exported.
+        </p>
+
+        <h3>A2. Build it and run it in TwinCAT</h3>
+        <p>
+          Put the program above into a PLC project in TwinCAT's engineering tool, give the runtime a license, put it in
+          Run mode, then download the program and start it. Beckhoff's own documentation walks through each of those
+          steps. Without a license the runtime stays in Config mode, and the simulator has nothing to connect to.
+        </p>
+
+        <h3>A3. Point the simulator at the runtime</h3>
+        <p>Open <span class="ui">Simulation &gt; External PLC…</span> and set:</p>
+        <ol class="steps">
+          <li><span class="ui">Runs on</span>: <b>An external PLC</b>.</li>
+          <li><span class="ui">PLC connection</span>: <b>ADS, tags by name</b>.</li>
+          <li><span class="ui">AMS Net ID</span>: leave it <b>empty</b>, which means the TwinCAT runtime on this PC.</li>
+          <li><span class="ui">Port</span>: <b>851</b>, the first PLC project in the runtime. A second one is 852.</li>
+        </ol>
+
+        <h3>A4. Press Play</h3>
+        <p>
+          The status line says <code>Reading and writing the PLC's tags at this PC's TwinCAT runtime, AMS port 851</code>,
+          the dialog lists each tag with the type the PLC gave it (<code>MAIN.Eye</code> written to the PLC and
+          <code>MAIN.Run</code> read from it, both BOOL), and the PLC stops the box at the sensor.
+        </p>
+        <p>
+          Press Play before the PLC is running and the simulator waits, trying again every second:
+          <code>target port not found: TwinCAT is not running there, or the AMS port is wrong (851 is the first PLC)</code>.
+          Start the PLC and it connects, without pressing Play again.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="remote">
+      <div class="wrap">
+        <h2>Part B. A PLC on another computer</h2>
+        <p>
+          The simulator's requests leave this PC through its own TwinCAT router, which forwards them only to a computer
+          it has a <b>route</b> to. The PLC's router answers only a computer it has a route back to. So both ends need
+          a route, one on each router.
+        </p>
+        <div class="scroll-x">
+          <svg class="diagram" viewBox="0 0 720 240" role="img" aria-labelledby="ads-svg-title">
+            <title id="ads-svg-title">On this PC, the simulator hands its requests to the TwinCAT router, whose route to the PLC's AMS Net ID carries them over TCP port 48898 to the PLC's router. That router has a route back to this PC's AMS Net ID, and passes the requests to the PLC runtime on AMS port 851.</title>
+            <text class="head" x="40" y="22">Both routers need a route to the other</text>
+            <rect class="cell" x="40" y="44" width="260" height="168" />
+            <text class="mid" x="170" y="68">This PC</text>
+            <rect class="cell" x="60" y="82" width="220" height="30" /><text class="mid" x="170" y="102">Simulator</text>
+            <rect class="cell hot" x="60" y="132" width="220" height="56" /><text class="mid hot" x="170" y="154">TwinCAT router</text><text class="mid dim" x="170" y="174">route to the PLC</text>
+            <path class="rule" d="M170 112 V128 M165 123 L170 129 L175 123" />
+            <rect class="cell" x="420" y="44" width="260" height="168" />
+            <text class="mid" x="550" y="68">PLC</text>
+            <rect class="cell hot" x="440" y="82" width="220" height="56" /><text class="mid hot" x="550" y="104">TwinCAT router</text><text class="mid dim" x="550" y="124">route back to this PC</text>
+            <rect class="cell" x="440" y="158" width="220" height="30" /><text class="mid" x="550" y="178">Runtime, AMS port 851</text>
+            <path class="rule" d="M550 138 V154 M545 149 L550 155 L555 149" />
+            <path class="wire" d="M280 160 H360 V110 H432 M426 105 L433 110 L426 115" />
+            <text class="mid" x="360" y="98">TCP 48898</text>
+          </svg>
+        </div>
+
+        <h3>B1. Add the routes in TwinCAT</h3>
+        <p>
+          Add a route from this PC to the PLC, and one from the PLC back to this PC, with TwinCAT's own tools. Beckhoff's
+          documentation on ADS routes says how. Note the PLC's <b>AMS Net ID</b> while you do. Once TwinCAT on this PC
+          can reach the PLC, so can the simulator: it uses the same router and the same routes.
+        </p>
+        <p>
+          Firewalls between the two have to let ADS through: TCP port 48898, and UDP port 48899 for the broadcast search.
+        </p>
+
+        <h3>B2. Point the simulator at the PLC</h3>
+        <ol class="steps">
+          <li><span class="ui">AMS Net ID</span>: the PLC's, like <b>192.168.1.20.1.1</b>. It often starts with the PLC's IP address, but not always.</li>
+          <li><span class="ui">Port</span>: <b>851</b>, as before.</li>
+        </ol>
+        <p>
+          The first time you press Play, the app asks whether to allow the connection:
+          <code>Allow Open Industry Project to connect to the TwinCAT runtime 192.168.1.20.1.1 (AMS port 851) over ADS?</code>
+          Choose <b>Allow</b>. The app remembers it for that PLC.
+        </p>
+        <p>
+          Without a route, the status line says <code>target machine not found: add a route to this PC on the PLC,
+          or check its AMS Net ID</code>, then <code>This PC's AMS Net ID is ...</code>:
+          the Net ID the PLC's route back has to name.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="trouble">
+      <div class="wrap">
+        <h2>Troubleshooting</h2>
+        <dl class="trouble">
+          <dt>The connection options are greyed out.</dt>
+          <dd>You are in a browser tab. Connecting to a PLC needs the desktop app.</dd>
+
+          <dt>"ADS needs TwinCAT's router on this PC, and TwinCAT is not installed"</dt>
+          <dd>Install TwinCAT 3 on the computer running the simulator, even when the PLC is elsewhere. The ADS setup alone is enough.</dd>
+
+          <dt>"... is the TwinCAT system service running?"</dt>
+          <dd>TwinCAT is installed but its system service is stopped. Start it, or restart the PC.</dd>
+
+          <dt>"target port not found ..."</dt>
+          <dd>Nothing is running on that AMS port: the runtime is in Config mode, the PLC is not started, or the port is wrong. If the runtime keeps falling back to Config mode, check the license (<a href="#local">A2</a>).</dd>
+
+          <dt>"target machine not found ..."</dt>
+          <dd>No route to that AMS Net ID, or the Net ID is mistyped. See <a href="#remote">part B</a>.</dd>
+
+          <dt>"the PLC has no symbol named ..."</dt>
+          <dd>The tag does not match a variable in the running PLC. Check the spelling and that it starts with its program or list, like <code>MAIN.Eye</code>, then download the program if you changed it.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O (Modbus TCP, OPC UA)</a></li>
+              <li><a href="/guides/s7/">Guide: connect an S7-1200 or S7-1500 over PUT/GET</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+        <p class="tm-notice">TwinCAT, Beckhoff, S7-1200 and S7-1500 are trademarks of their owners, named here only to identify them. This project is not affiliated with or endorsed by them.</p>
+      </div>
+    </footer>
+  </body>
+</html>

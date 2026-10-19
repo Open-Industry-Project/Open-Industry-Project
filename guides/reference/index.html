@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>PLC Connection Reference | Open Industry Project</title>
+    <meta name="description" content="Defaults, address rules, timings and what Modbus TCP and OPC UA carry, for every way the simulator connects to a PLC, SCADA or HMI." />
+    <meta name="keywords" content="Modbus TCP, OPC UA, PLC, I/O addresses, register map, reference, simulator" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/reference/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="PLC Connection Reference | Open Industry Project" />
+    <meta property="og:description" content="Defaults, address rules, timings and what Modbus TCP and OPC UA carry, for every way the simulator connects to a PLC, SCADA or HMI." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/reference/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- A hand-written page whose tables are CHECKED: every table with a data-check attribute is compared with the code
+         by src/editor/guideReference.test.ts (npm test). Change a default, a rule or a type and that test says which row. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>PLC connection reference</h1>
+        <p class="lede">
+          Defaults, address rules, timings and what each protocol carries. The step-by-step guides link here for the
+          details.
+        </p>
+        <ul class="toc">
+          <li><a href="#ways">Connection types</a></li>
+          <li><a href="#defaults">Defaults</a></li>
+          <li><a href="#server">Simulator as Modbus server</a></li>
+          <li><a href="#client">Simulator as Modbus client</a></li>
+          <li><a href="#assign">Assign I/O</a></li>
+          <li><a href="#timing">Timing</a></li>
+          <li><a href="#ua-server">OPC UA server</a></li>
+          <li><a href="#ua-client">OPC UA by name</a></li>
+          <li><a href="#s7">S7 PUT/GET</a></li>
+          <li><a href="#ads">ADS</a></li>
+          <li><a href="#io-list">I/O list</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="ways">
+      <div class="wrap">
+        <h2>1. Connection types</h2>
+        <p>All of them are in <span class="ui">Simulation &gt; External PLC…</span>, and all need the desktop app, because a browser tab cannot open a network connection or listen on a port.</p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>In the dialog</th><th>Who serves</th><th>Carries</th><th>Guide</th></tr></thead>
+            <tbody>
+              <tr><td>The PLC polls the simulator</td><td>The simulator, Modbus TCP</td><td>Points, by I/O address</td><td><a href="/guides/modbus/">Modbus TCP</a></td></tr>
+              <tr><td>The simulator polls the PLC</td><td>The PLC, Modbus TCP</td><td>Registers, by I/O address</td><td><a href="/guides/plc-server/#modbus">A PLC that serves, part A</a></td></tr>
+              <tr><td>OPC UA, tags by name</td><td>The PLC, OPC UA</td><td>Variables, by name</td><td><a href="/guides/plc-server/#opcua">A PLC that serves, part B</a></td></tr>
+              <tr><td>EtherNet/IP, tags by name</td><td>A Logix controller, EtherNet/IP</td><td>Controller tags, by name</td><td>None yet</td></tr>
+              <tr><td>S7 PUT/GET</td><td>An S7-1200 or S7-1500, port 102</td><td>I, Q, M and data blocks, by address</td><td><a href="/guides/s7/">S7-1200 / S7-1500</a></td></tr>
+              <tr><td>ADS, tags by name</td><td>A TwinCAT runtime, through the TwinCAT router on this PC</td><td>Variables, by name</td><td><a href="/guides/ads/">TwinCAT</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          A fourth connection, <span class="ui">OPC UA server</span>, can run beside any of them. It publishes the program running
+          in the simulator to a SCADA or HMI (<a href="/guides/opcua/">guide</a>). In all the others, Play hands the scene to
+          the PLC and the program in the PLC panel does not run; the simulation speed is held at real time.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="defaults">
+      <div class="wrap">
+        <h2>2. Defaults</h2>
+        <p>These are saved on each computer, not in the scene.</p>
+        <div class="scroll-x">
+          <table class="map" data-check="defaults">
+            <thead><tr><th>Setting</th><th>Default</th></tr></thead>
+            <tbody>
+              <tr data-key="port"><td>Port the simulator serves Modbus on</td><td class="m">5020</td></tr>
+              <tr data-key="plcHost"><td>PLC address, when the simulator polls it</td><td class="m">127.0.0.1</td></tr>
+              <tr data-key="plcPort"><td>PLC port, when the simulator polls it</td><td class="m">502</td></tr>
+              <tr data-key="inputBase"><td>Holding register 0 is %IW</td><td class="m">0</td></tr>
+              <tr data-key="outputBase"><td>Input register 0 is %QW</td><td class="m">0</td></tr>
+              <tr data-key="opcUaEndpoint"><td>PLC's OPC UA server, tags by name</td><td class="m">opc.tcp://127.0.0.1:4840</td></tr>
+              <tr data-key="eipGateway"><td>Logix controller's address, EtherNet/IP</td><td class="m">127.0.0.1</td></tr>
+              <tr data-key="eipPath"><td>Route to the controller, EtherNet/IP</td><td class="m">1,0</td></tr>
+              <tr data-key="s7Host"><td>S7 CPU's address (a new CPU's)</td><td class="m">192.168.0.1</td></tr>
+              <tr data-key="s7Port"><td>S7 CPU's port</td><td class="m">102</td></tr>
+              <tr data-key="s7Rack"><td>S7 CPU's rack</td><td class="m">0</td></tr>
+              <tr data-key="s7Slot"><td>S7 CPU's slot</td><td class="m">1</td></tr>
+              <tr data-key="adsNetId" data-empty="1"><td>TwinCAT PLC's AMS Net ID</td><td class="m">empty: the runtime on this PC</td></tr>
+              <tr data-key="adsPort"><td>TwinCAT PLC's AMS port (the first PLC project)</td><td class="m">851</td></tr>
+              <tr data-key="uaServerPort"><td>Port of the simulator's own OPC UA server</td><td class="m">4843</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Every server the simulator opens listens on this computer only, until <span class="ui">Reachable from the
+          network</span> is ticked; Windows then asks to let the app through its firewall.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="server">
+      <div class="wrap">
+        <h2>3. The simulator as a Modbus TCP server</h2>
+        <p>
+          In the dialog this is "The PLC polls the simulator". Each I/O address lands on one Modbus point by a fixed rule. The PLC reads the inputs
+          (<code>%I</code>) and writes the outputs (<code>%Q</code>). Addresses are 0-based protocol addresses; the unit ID is
+          ignored.
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Address</th><th>Modbus point</th><th>The PLC</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IXb.n</td><td>Discrete input <code>b&times;8 + n</code></td><td>reads it (FC2)</td></tr>
+              <tr><td class="m">%QXb.n</td><td>Coil <code>b&times;8 + n</code></td><td>writes it (FC5 / FC15)</td></tr>
+              <tr><td class="m">%IWn</td><td>Input register <code>n</code></td><td>reads it (FC4)</td></tr>
+              <tr><td class="m">%QWn</td><td>Holding register <code>n</code></td><td>writes it (FC6 / FC16)</td></tr>
+              <tr><td class="m">%IDn</td><td>Input registers <code>2n</code>, <code>2n+1</code></td><td>reads them (FC4)</td></tr>
+              <tr><td class="m">%QDn</td><td>Holding registers <code>2n</code>, <code>2n+1</code></td><td>writes them (FC16)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Examples:</p>
+        <div class="scroll-x">
+          <table class="map" data-check="server-points">
+            <thead><tr><th>Address</th><th>Modbus point</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IX0.0</td><td class="m">discrete input 0</td></tr>
+              <tr><td class="m">%IX1.2</td><td class="m">discrete input 10</td></tr>
+              <tr><td class="m">%QX100.0</td><td class="m">coil 800</td></tr>
+              <tr><td class="m">%IW3</td><td class="m">input register 3</td></tr>
+              <tr><td class="m">%QW7</td><td class="m">holding register 7</td></tr>
+              <tr><td class="m">%ID50</td><td class="m">input registers 100-101</td></tr>
+              <tr><td class="m">%QD50</td><td class="m">holding registers 100-101</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>32-bit values are low word first. A REAL travels as its IEEE 754 bit pattern across two registers, with no scaling; a DINT the same way.</li>
+          <li>One register, one value. A word inside a double word (<code>%IW101</code> and <code>%ID50</code>) is a conflict; the wiring check reports it before Play.</li>
+          <li>Bytes (<code>%IB</code>), 64-bit values (<code>%IL</code>) and memory (<code>%M</code>) are not sent.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="client">
+      <div class="wrap">
+        <h2>4. The simulator as a Modbus TCP client</h2>
+        <p>
+          In the dialog this is "The simulator polls the PLC". A PLC's Modbus server device exposes its process image as registers. The simulator
+          writes <b>holding registers</b> (the PLC's inputs) and reads <b>input registers</b> (its outputs). A bit is a bit of
+          the register that holds its byte, so a bit and that word clash. The two base settings say which <code>%IW</code> and
+          <code>%QW</code> the device's register 0 is.
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Address</th><th>Register, from the base</th><th>The simulator</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IXb.n</td><td>Holding register <code>b div 2</code>, bit <code>(b mod 2)&times;8 + n</code></td><td>writes it (FC16)</td></tr>
+              <tr><td class="m">%IWn</td><td>Holding register <code>n</code></td><td>writes it (FC16)</td></tr>
+              <tr><td class="m">%IDn</td><td>Holding registers <code>2n</code>, <code>2n+1</code></td><td>writes them (FC16)</td></tr>
+              <tr><td class="m">%QXb.n</td><td>Input register <code>b div 2</code>, bit <code>(b mod 2)&times;8 + n</code></td><td>reads it (FC4)</td></tr>
+              <tr><td class="m">%QWn / %QDn</td><td>Input register(s), as above</td><td>reads them (FC4)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Examples, with both bases at 0:</p>
+        <div class="scroll-x">
+          <table class="map" data-check="client-points">
+            <thead><tr><th>Address</th><th>Register</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IX0.0</td><td class="m">holding register 0 bit 0</td></tr>
+              <tr><td class="m">%IX1.3</td><td class="m">holding register 0 bit 11</td></tr>
+              <tr><td class="m">%QX0.0</td><td class="m">input register 0 bit 0</td></tr>
+              <tr><td class="m">%IW2</td><td class="m">holding register 2</td></tr>
+              <tr><td class="m">%ID1</td><td class="m">holding registers 2-3</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The simulator moves the whole holding block with one FC16 and reads the whole input block with one FC4 per cycle, split past 123 and 125 registers.</p>
+      </div>
+    </section>
+
+    <section class="section" id="assign">
+      <div class="wrap">
+        <h2>5. Where Assign I/O puts addresses</h2>
+        <p>
+          <span class="ui">Simulation &gt; Assign I/O Addresses</span> gives every tag a part is wired to by name an address,
+          declares it in the program, and rewires the parts, as one undo step. The same scene always gets the same
+          addresses, skipping any already taken. When the PLC polls the simulator, the first of each size is:
+        </p>
+        <div class="scroll-x">
+          <table class="map" data-check="assign">
+            <thead><tr><th>A tag that is</th><th>Type</th><th>First address</th></tr></thead>
+            <tbody>
+              <tr data-dir="out" data-type="BOOL"><td>published by a part (a sensor)</td><td>BOOL</td><td class="m">%IX0.0</td></tr>
+              <tr data-dir="in" data-type="BOOL"><td>read by a part (a motor)</td><td>BOOL</td><td class="m">%QX0.0</td></tr>
+              <tr data-dir="out" data-type="INT"><td>published by a part</td><td>INT</td><td class="m">%IW0</td></tr>
+              <tr data-dir="in" data-type="REAL"><td>read by a part (a speed)</td><td>REAL</td><td class="m">%QD50</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Double words start at <code>%ID50</code>, registers 100 and up, so a hundred words fit below them. When the simulator
+          polls the PLC instead, points are packed from the device's first register up, each at the first free spot. A constant, and anything
+          that cannot travel, are left alone, each reported with the reason.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="timing">
+      <div class="wrap">
+        <h2>6. Timing and the watchdog</h2>
+        <div class="scroll-x">
+          <table class="map" data-check="timing">
+            <thead><tr><th>What</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr data-key="POLL_TIMEOUT_MS"><td>Silence after which the PLC's outputs are held off</td><td class="m">1000 ms</td></tr>
+              <tr data-key="CLIENT_POLL_MS"><td>How often the simulator polls a PLC, in every mode where it connects to one</td><td class="m">20 ms</td></tr>
+              <tr data-key="CLIENT_ANSWER_MS"><td>How long it waits for an answer</td><td class="m">500 ms</td></tr>
+              <tr data-key="CLIENT_RETRY_MS"><td>How often it retries a PLC that is not there</td><td class="m">1000 ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>When the PLC goes quiet, every tag it drives is set OFF (a coil false, a register 0) and the line coasts to a stop; the run continues, and the PLC's values come back the moment it answers.</li>
+          <li>The watchdog is not armed before the first poll. Until the PLC has connected once, the status line says what it is waiting for instead.</li>
+          <li>An OPC UA server, or a TwinCAT runtime over ADS, can hide a stopped program. Each belongs to the runtime and keeps answering with the last values; only a lost connection or a silent server trips the watchdog.</li>
+          <li>A real PLC scans on its own clock, so the simulation speed is held at 1x while one is connected.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="ua-server">
+      <div class="wrap">
+        <h2>7. The simulator's OPC UA server</h2>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Property</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Endpoint</td><td><code>opc.tcp://&lt;this computer&gt;:4843</code>, security policy None, anonymous login</td></tr>
+              <tr><td>Server name</td><td>Open Industry Project simulator</td></tr>
+              <tr><td>Browse path</td><td>Objects &gt; PLC &gt; one folder per dot in the variable's name, so <code>Main.Start</code> is PLC &gt; Main &gt; Start</td></tr>
+              <tr><td>NodeId</td><td>The variable's name, like <code>ns=1;s=Main.Start</code>, the same across runs, program edits and computers</td></tr>
+              <tr><td>Writable</td><td>What an operator could change. A variable a part feeds, a constant and a function block's output are read only, and a write to one gets <code>BadNotWritable</code>.</td></tr>
+              <tr><td>While stopped</td><td>Every value reads <code>BadOutOfService</code> and a write gets <code>BadInvalidState</code>. Subscriptions survive Stop and Play.</td></tr>
+              <tr><td>Update rate</td><td>The same 10 Hz mirror as the watch table. A subscription samples at 50 ms at the fastest.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="scroll-x">
+          <table class="map" data-check="ua-types">
+            <thead><tr><th>IEC type</th><th>OPC UA type</th></tr></thead>
+            <tbody>
+              <tr><td class="m">BOOL</td><td class="m">Boolean</td></tr>
+              <tr><td class="m">SINT</td><td class="m">SByte</td></tr>
+              <tr><td class="m">USINT, BYTE</td><td class="m">Byte</td></tr>
+              <tr><td class="m">INT</td><td class="m">Int16</td></tr>
+              <tr><td class="m">UINT, WORD</td><td class="m">UInt16</td></tr>
+              <tr><td class="m">DINT</td><td class="m">Int32</td></tr>
+              <tr><td class="m">UDINT, DWORD</td><td class="m">UInt32</td></tr>
+              <tr><td class="m">REAL</td><td class="m">Float</td></tr>
+              <tr><td class="m">LREAL</td><td class="m">Double</td></tr>
+              <tr><td class="m">TIME, DATE, TOD, DT</td><td class="m">Double</td></tr>
+              <tr><td class="m">STRING</td><td class="m">String</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="sub">A TIME is milliseconds. DATE and DT are milliseconds since 1970-01-01 UTC and TOD since midnight. An enumeration is an Int16.</p>
+      </div>
+    </section>
+
+    <section class="section" id="ua-client">
+      <div class="wrap">
+        <h2>8. OPC UA tags by name</h2>
+        <ul class="dash">
+          <li>A part's tag is the PLC's name for the variable, such as <code>Eye</code> or <code>Main.Eye</code>. A NodeId written out (<code>ns=4;s=...</code>) is taken as it is.</li>
+          <li>The simulator finds each tag on Play by matching the end of every variable's path under Objects, so the folders a server puts above the program do not matter. Case is ignored and an exact spelling wins a tie. A name that fits two variables is refused, with both listed.</li>
+          <li>Direction comes from the parts. A tag a part publishes is written to the PLC, and one that parts only read is read from it. The PLC's variable has to allow that, and a real input that the PLC's I/O overwrites every scan usually refuses a client's write.</li>
+          <li>Before use, the simulator checks that a bit goes to a Boolean and a number to a numeric type, and that the access level allows the read or the write.</li>
+          <li>The connection is unsecured, with security policy None and an anonymous login. A server that only accepts secured clients is reported as such.</li>
+          <li>If the address answers as a discovery server (often on 4840), Play says <code>... is an OPC UA discovery server, not a PLC</code> and names the servers it lists.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="s7">
+      <div class="wrap">
+        <h2>9. S7 PUT/GET</h2>
+        <p>
+          A part's address is the CPU's own: S7 memory is byte-addressed exactly as I/O addresses are, so nothing is
+          mapped or offset. A data block address uses the S7 data-block spelling, without the <code>%</code>.
+          <a href="/guides/s7/">The S7 guide</a> has the CPU's side.
+        </p>
+        <div class="scroll-x">
+          <table class="map" data-check="s7-points">
+            <thead><tr><th>Scene tag</th><th>On the CPU</th><th>Travels as</th><th>The simulator</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IX100.0</td><td class="m">I100.0</td><td class="m">BOOL</td><td>written to the PLC</td></tr>
+              <tr><td class="m">%QX100.0</td><td class="m">Q100.0</td><td class="m">BOOL</td><td>read from the PLC</td></tr>
+              <tr><td class="m">%IB2</td><td class="m">IB2</td><td class="m">BYTE</td><td>written to the PLC</td></tr>
+              <tr><td class="m">%QW4</td><td class="m">QW4</td><td class="m">INT</td><td>read from the PLC</td></tr>
+              <tr><td class="m">%ID84</td><td class="m">ID84</td><td class="m">REAL</td><td>written to the PLC</td></tr>
+              <tr data-type="DINT"><td class="m">%QD8</td><td class="m">QD8</td><td class="m">DINT</td><td>read from the PLC</td></tr>
+              <tr data-writers="1"><td class="m">%MX10.0</td><td class="m">M10.0</td><td class="m">BOOL</td><td>written to the PLC</td></tr>
+              <tr data-writers="0"><td class="m">%MW20</td><td class="m">MW20</td><td class="m">INT</td><td>read from the PLC</td></tr>
+              <tr data-writers="1"><td class="m">DB10.DBX0.0</td><td class="m">DB10.DBX0.0</td><td class="m">BOOL</td><td>written to the PLC</td></tr>
+              <tr data-writers="0"><td class="m">DB10.DBD6</td><td class="m">DB10.DBD6</td><td class="m">REAL</td><td>read from the PLC</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>I is written and Q is read. M and a data block have no direction of their own: a tag a part publishes is written to the PLC, and one that parts only read is read from it.</li>
+          <li>Values are big-endian, as the CPU holds them. A double word is a DINT when the parts carry a whole number and a REAL otherwise, its IEEE 754 bit pattern with no scaling.</li>
+          <li>A bit is written as a bit, so the rest of its byte is left alone. Use input bytes no module occupies: the CPU copies its real input cards over the inputs every cycle.</li>
+          <li>Only a data block with optimized block access turned off has fixed byte offsets. The CPU refuses the addresses of an optimized block, which is how a new one is created.</li>
+          <li>The CPU must permit PUT/GET access from a remote partner, a setting in its configuration. While it refuses, the connection is kept and asked again once a second, and the status line says it is still waiting for the CPU.</li>
+          <li>Every job is cut to the PDU size the CPU agrees when it connects, and to 20 items.</li>
+        </ul>
+        <p>Not carried, each reported in the dialog with the reason:</p>
+        <div class="scroll-x">
+          <table class="map" data-check="s7-refused">
+            <thead><tr><th>Scene tag</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IL0</td><td>A 64-bit value</td></tr>
+              <tr><td class="m">DB0.DBX0.0</td><td>Data blocks are numbered from 1</td></tr>
+              <tr><td class="m">DB10.DBW4.1</td><td>Only a bit address has a <code>.bit</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="ads">
+      <div class="wrap">
+        <h2>10. ADS tags by name</h2>
+        <p>
+          The simulator reads and writes a TwinCAT 3 PLC's variables through the TwinCAT router on its own PC, with
+          Beckhoff's own ADS library, so TwinCAT has to be installed there. A PLC on another computer is reached through the
+          router's routes, as TwinCAT XAE reaches it. <a href="/guides/ads/">The ADS guide</a> has the setup.
+        </p>
+        <p>A tag is the variable's full symbol path, starting with the program or global variable list it is declared in:</p>
+        <div class="scroll-x">
+          <table class="map" data-check="ads-symbols">
+            <thead><tr><th>Scene tag</th><th>Carried</th></tr></thead>
+            <tbody>
+              <tr><td class="m">MAIN.Eye</td><td>yes</td></tr>
+              <tr><td class="m">GVL.Station.Run</td><td>yes</td></tr>
+              <tr><td class="m">MAIN.Lane[3]</td><td>yes</td></tr>
+              <tr><td class="m">Eye</td><td>no: it names no program or list</td></tr>
+              <tr><td class="m">%IX0.0</td><td>no: an I/O address, not a name</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>On Play the simulator asks the runtime for each symbol's type, and carries these:</p>
+        <div class="scroll-x">
+          <table class="map" data-check="ads-types">
+            <thead><tr><th>The PLC's type</th><th>Carried</th></tr></thead>
+            <tbody>
+              <tr data-ads="33,16,17,2,18,3,19,4,5"><td class="m">BOOL, SINT, USINT, INT, UINT, DINT, UDINT, REAL, LREAL</td><td>yes</td></tr>
+              <tr data-ads="20,21"><td class="m">LINT, ULINT</td><td>no: a scene number cannot hold every 64-bit value exactly</td></tr>
+              <tr data-ads="30,31,65"><td class="m">STRING, WSTRING, a structure or array</td><td>no: not a single bit or number</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>An enumeration or a TIME arrives as the integer it is underneath.</li>
+          <li>A bit goes to a BOOL and a number to a numeric type; the other way round is refused with both named.</li>
+          <li>Each cycle is two requests, every write in one and every read in the other.</li>
+          <li>The router gives up on an answer after 500 ms, so a PLC that went away never holds the simulator up.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="io-list">
+      <div class="wrap">
+        <h2>11. The I/O list</h2>
+        <p>
+          <span class="ui">File &gt; Export I/O List (.csv)</span> writes the points the scene serves, one per row, with the
+          columns <code>Tag,Address,Type,Direction,Modbus point,Device</code>. <code>Device</code> names the part and parameter
+          on the point; <code>Tag</code> is blank where the program declares nothing at that address.
+        </p>
+        <p>
+          <span class="ui">File &gt; Import I/O List…</span> reads tag names against addresses, in any column order, comma,
+          semicolon or tab separated, and reads its own export unchanged. A row is refused, with its line number, when its
+          address is malformed, memory or 64-bit, contradicts the part's direction, does not fit the declared type, collides
+          with another row, or names a tag nobody uses.
+        </p>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb">Download for Linux (.deb)</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/opcua/">Guide: connect a SCADA or HMI over OPC UA</a></li>
+              <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O</a></li>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+        <p class="tm-notice">TwinCAT, Beckhoff, Logix, S7-1200, S7-1500 and TIA Portal are trademarks of their owners, named here only to identify them. This project is not affiliated with or endorsed by them.</p>
+      </div>
+    </footer>
+  </body>
+</html>

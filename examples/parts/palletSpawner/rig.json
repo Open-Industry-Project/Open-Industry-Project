@@ -1,0 +1,71 @@
+{
+  "id": "oip.pallet-spawner",
+  "name": "Pallet Spawner",
+  "category": "Products",
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "marker",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "color": [
+          0.2122,
+          0.4564,
+          0.6939
+        ],
+        "opacity": 0.3,
+        "outline": [
+          0.3467,
+          0.6445,
+          0.8714
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "dropCone",
+        "shape": {
+          "kind": "cone",
+          "radius": 0.07,
+          "height": 0.16
+        },
+        "offset": [
+          0,
+          -0.38,
+          0
+        ],
+        "rotation": [
+          3.141592653589793,
+          0,
+          0
+        ],
+        "color": [
+          0.3467,
+          0.6445,
+          0.8714
+        ],
+        "opacity": 0.8
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 0.5,
+      "width": 0.5,
+      "top": 0.5,
+      "bottom": -0.46
+    }
+  },
+  "materials": []
+}

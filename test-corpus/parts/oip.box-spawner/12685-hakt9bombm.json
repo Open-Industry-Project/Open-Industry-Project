@@ -1,0 +1,201 @@
+{
+  "format": 6,
+  "id": "oip.box-spawner",
+  "name": "Box Spawner",
+  "params": {
+    "boxesPerMinute": {
+      "type": "number",
+      "unit": "/min",
+      "default": 45,
+      "min": 0,
+      "max": 1000,
+      "step": 1,
+      "label": "Feed rate",
+      "desc": "Boxes per minute. 0 halts the feed without pausing the part, so the timer restarts cleanly when you raise it again."
+    },
+    "fixedRate": {
+      "type": "boolean",
+      "default": true,
+      "label": "Fixed rate (off = ±50% jitter)",
+      "desc": "On, boxes arrive on an exact metronome. Off, each gap is randomised between half and one-and-a-half times the nominal period, which is what an untidy real feed looks like downstream."
+    },
+    "boxColor": {
+      "type": "color",
+      "default": "#cc8844",
+      "label": "Box color",
+      "group": "Box",
+      "desc": "Tint for every spawned box. Ignored once the cycle list below is non-empty."
+    },
+    "boxColors": {
+      "type": "color",
+      "list": true,
+      "default": "",
+      "label": "Box colors (cycle)",
+      "group": "Box",
+      "desc": "Colors handed out one per box, in order, overriding the single color above. Useful for telling sorted lanes apart at a glance. Leave empty to use the single colour."
+    },
+    "randomColors": {
+      "type": "boolean",
+      "default": false,
+      "label": "Random color order",
+      "group": "Box",
+      "desc": "Draw each colour at random from the cycle list instead of walking the list in order."
+    },
+    "length": {
+      "type": "number",
+      "default": 0.6,
+      "min": 0.1,
+      "step": 0.05,
+      "label": "Box length (m)",
+      "group": "Box",
+      "desc": "Extent along local X of each spawned box. Ignored while Random size is on."
+    },
+    "width": {
+      "type": "number",
+      "default": 0.4,
+      "min": 0.1,
+      "step": 0.05,
+      "label": "Box width (m)",
+      "group": "Box",
+      "desc": "Extent along local Z of each spawned box. Ignored while Random size is on."
+    },
+    "height": {
+      "type": "number",
+      "default": 0.4,
+      "min": 0.1,
+      "step": 0.05,
+      "label": "Box height (m)",
+      "group": "Box",
+      "desc": "Extent along local Y of each spawned box. Ignored while Random size is on."
+    },
+    "randomSize": {
+      "type": "boolean",
+      "default": false,
+      "label": "Random size",
+      "group": "Box",
+      "desc": "Give each box a random size and IGNORE the three dimensions above. The random range is fixed by the part (0.4-0.8 long, 0.3-0.5 high, 0.3-0.5 wide), not derived from them."
+    },
+    "mass": {
+      "type": "number",
+      "default": 10,
+      "min": 0.5,
+      "max": 100,
+      "step": 0.5,
+      "label": "Mass (kg)",
+      "group": "Box",
+      "desc": "Mass given to every spawned box, whatever its size."
+    },
+    "disable": {
+      "type": "boolean",
+      "default": false,
+      "label": "Paused",
+      "desc": "Stop spawning entirely. Use (C, or E while walking) is a separate hand stop: it pauses and resumes the feed during a run without changing this setting, and is cleared when the run stops."
+    },
+    "keepSpacing": {
+      "type": "boolean",
+      "default": false,
+      "label": "Keep spacing while held",
+      "desc": "Hold the interval while the feed is held instead of letting it run down, so boxes dropped onto a conveyor that stops with this spawner (give both the same run tag) stay one pitch apart however often the pair stops."
+    },
+    "conveyorId": {
+      "type": "partRef",
+      "default": "",
+      "label": "Pause when conveyor stopped",
+      "desc": "Interlock: while the named conveyor is stopped, this spawner holds. Wire that conveyor to the PLC and the feed gates itself, with no tag of its own."
+    },
+    "enableComms": {
+      "type": "boolean",
+      "default": false,
+      "label": "Enable comms",
+      "group": "Comms",
+      "desc": "Connect this part to a PLC program. Its tags appear once this is on."
+    },
+    "runTag": {
+      "type": "tag",
+      "dir": "in",
+      "stType": "BOOL",
+      "default": "",
+      "label": "Run tag (spawn only while true)",
+      "group": "Comms",
+      "desc": "Gate the feed from the program. Note this only takes over once a program actually DRIVES the tag - until then the spawner keeps running, so a merely-declared tag is not a stopped feed."
+    },
+    "countTag": {
+      "type": "tag",
+      "dir": "out",
+      "stType": "DINT",
+      "default": "",
+      "label": "Spawned count tag",
+      "group": "Comms",
+      "desc": "Running total of boxes this spawner has dispensed. Subtract the despawner counts to get the work in progress."
+    }
+  },
+  "behavior": "// Box Spawner — a hopper that emits cargo boxes. Demonstrates ctx.spawn: the behavior runs its own rate\n// timer and emits a box every 60/boxesPerMinute seconds; the host creates the dynamic cargo body at the\n// part's pose + the given local offset. Cargo drops at the exact spawn point (no positional scatter), so\n// downstream handling (picks, aligned queues) sees a repeatable pose. A pilot \"Use\" toggles the feed (a\n// runtime latch, so it resets on stop/reload). Optionally gated by a conveyor interlock\n// (conveyorId → ctx.conveyorRunning) or a PLC run tag.\n//\n// A hopper is PACED, not commanded: what the author sets is the INTERVAL BETWEEN boxes, so that is what a hold\n// preserves. The countdown therefore keeps running while the gate is shut but floors at zero — a hold neither\n// costs a period nor banks one. Freeze it instead and every release pays out the remainder of an interval the\n// hopper spent standing still (in the PLC demo: ~2.7 s of empty lane at the top of every row); let it run\n// unfloored and a long hold banks a burst that all lands in one tick.\n// This is the opposite rule from the pallet spawner, deliberately: a MAGAZINE is commanded, so it re-arms on\n// every enable and drops at once, which is what makes a sub-period command pulse dispense exactly one.\n\n// random-size range, full box dimensions (m)\nconst SIZE_MIN = [0.4, 0.3, 0.3]\nconst SIZE_MAX = [0.8, 0.5, 0.5]\n\nlet countdown = 0 // seconds until the next spawn\nlet started = false // arm the first box on the first eligible tick\nlet colorIndex = 0\nlet usedOff = false\nlet spawned = 0\n\n// Publish what this feed has dispensed, every tick (a display not republished goes blank): the infeed half\n// of the line's numbers, which a despawner's count is the other half of - the two differ by the work in\n// progress. It counts REQUESTS: past the physics engine's 10,240-body table a spawn is skipped, uncounted\n// by the host but still counted here.\nfunction publish(ctx) {\n  ctx.display('spawned', spawned)\n  if (ctx.params.enableComms && ctx.params.countTag) ctx.writeNumber(ctx.params.countTag, spawned)\n}\n\n// parse \"#rrggbb\" → [r, g, b] in 0..1\nfunction hexRgb(hex) {\n  const h = (hex || '').replace('#', '')\n  if (h.length < 6) return [1, 1, 1]\n  const v = (i) => { const n = parseInt(h.slice(i, i + 2), 16); return Number.isFinite(n) ? n / 255 : 1 }\n  return [v(0), v(2), v(4)]\n}\n// parse a comma-separated hex list → [[r,g,b], …]\nfunction palette(csv) {\n  return (csv || '').split(',').map((c) => c.trim()).filter((c) => c.length >= 6).map(hexRgb)\n}\n\ndefinePart({\n  interactive: true, // a pilot \"Use\" toggles the feed\n  params: {\n    boxesPerMinute: { type: 'number', unit: '/min', default: 45, min: 0, max: 1000, step: 1, label: 'Feed rate', desc: 'Boxes per minute. 0 halts the feed without pausing the part, so the timer restarts cleanly when you raise it again.' },\n    fixedRate: { type: 'boolean', default: true, label: 'Fixed rate (off = ±50% jitter)', desc: 'On, boxes arrive on an exact metronome. Off, each gap is randomised between half and one-and-a-half times the nominal period, which is what an untidy real feed looks like downstream.' },\n    boxColor: { type: 'color', default: '#cc8844', label: 'Box color', group: 'Box', desc: 'Tint for every spawned box. Ignored once the cycle list below is non-empty.' },\n    boxColors: { type: 'color', list: true, default: '', label: 'Box colors (cycle)', group: 'Box', desc: 'Colors handed out one per box, in order, overriding the single color above. Useful for telling sorted lanes apart at a glance. Leave empty to use the single colour.' },\n    randomColors: { type: 'boolean', default: false, label: 'Random color order', group: 'Box', desc: 'Draw each colour at random from the cycle list instead of walking the list in order.' },\n    length: { type: 'number', default: 0.6, min: 0.1, step: 0.05, label: 'Box length (m)', group: 'Box', desc: 'Extent along local X of each spawned box. Ignored while Random size is on.' },\n    width: { type: 'number', default: 0.4, min: 0.1, step: 0.05, label: 'Box width (m)', group: 'Box', desc: 'Extent along local Z of each spawned box. Ignored while Random size is on.' },\n    height: { type: 'number', default: 0.4, min: 0.1, step: 0.05, label: 'Box height (m)', group: 'Box', desc: 'Extent along local Y of each spawned box. Ignored while Random size is on.' },\n    randomSize: { type: 'boolean', default: false, label: 'Random size', group: 'Box', desc: 'Give each box a random size and IGNORE the three dimensions above. The random range is fixed by the part (0.4-0.8 long, 0.3-0.5 high, 0.3-0.5 wide), not derived from them.' },\n    mass: { type: 'number', default: 10, min: 0.5, max: 100, step: 0.5, label: 'Mass (kg)', group: 'Box', desc: 'Mass given to every spawned box, whatever its size.' },\n    disable: { type: 'boolean', default: false, label: 'Paused', desc: 'Stop spawning entirely. Use (C, or E while walking) is a separate hand stop: it pauses and resumes the feed during a run without changing this setting, and is cleared when the run stops.' },\n    keepSpacing: { type: 'boolean', default: false, label: 'Keep spacing while held', desc: 'Hold the interval while the feed is held instead of letting it run down, so boxes dropped onto a conveyor that stops with this spawner (give both the same run tag) stay one pitch apart however often the pair stops.' },\n    conveyorId: { type: 'partRef', default: '', label: 'Pause when conveyor stopped', desc: 'Interlock: while the named conveyor is stopped, this spawner holds. Wire that conveyor to the PLC and the feed gates itself, with no tag of its own.' },\n    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this part to a PLC program. Its tags appear once this is on.' },\n    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Run tag (spawn only while true)', group: 'Comms', desc: 'Gate the feed from the program. Note this only takes over once a program actually DRIVES the tag - until then the spawner keeps running, so a merely-declared tag is not a stopped feed.' },\n    countTag: { type: 'tag', dir: 'out', stType: 'DINT', default: '', label: 'Spawned count tag', group: 'Comms', desc: 'Running total of boxes this spawner has dispensed. Subtract the despawner counts to get the work in progress.' },\n  },\n  step(ctx) {\n    const p = ctx.params\n    if (ctx.used()) usedOff = !usedOff\n    // hold while a linked conveyor is stopped, or while a controller DRIVES the run tag de-energized\n    // (ctx.tagDriven = output ownership; gating on the tag NAME alone would stop the spawner the moment one\n    // was typed).\n    const stopped = !ctx.conveyorRunning(p.conveyorId) || (p.enableComms && ctx.tagDriven(p.runTag) ? !ctx.readTag(p.runTag) : false)\n    if (p.disable || usedOff || stopped || p.boxesPerMinute <= 0) {\n      // held: the interval runs on, floored at zero — see the note at the top. Floored is what makes this safe\n      // for an interlock that STUTTERS: at most one box is ever due when the gate reopens, never a burst.\n      // Keep spacing: a feed onto a conveyor that stops WITH it (the same gate) must not run its interval down, or\n      // the first box after a hold lands on the one the stopped belt is still holding under the drop\n      if (!p.keepSpacing) countdown = Math.max(0, countdown - ctx.dt)\n      publish(ctx)\n      return\n    }\n    const period = 60 / p.boxesPerMinute\n    // the first box drops on the first eligible tick, not after a full period\n    if (!started) { started = true; countdown = 0 }\n    countdown -= ctx.dt\n    const pal = palette(p.boxColors)\n    let n = 0\n    while (countdown <= 0 && n < 8) {\n      countdown += p.fixedRate ? period : Math.max(ctx.dt, period * (0.5 + ctx.rng()))\n      n++\n      let color\n      if (pal.length > 0) {\n        color = p.randomColors ? pal[Math.floor(ctx.rng() * pal.length)] : pal[colorIndex % pal.length]\n        colorIndex++\n      } else {\n        color = hexRgb(p.boxColor)\n      }\n      const rnd = (i) => SIZE_MIN[i] + ctx.rng() * (SIZE_MAX[i] - SIZE_MIN[i])\n      const size = p.randomSize ? [rnd(0), rnd(1), rnd(2)] : [p.length, p.height, p.width]\n      ctx.spawn({ size: size, color: color, mass: p.mass, offset: [0, -0.2, 0] })\n      spawned++\n    }\n    publish(ctx)\n  },\n})\n",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "marker",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "color": [
+          0.2122,
+          0.4564,
+          0.6939
+        ],
+        "opacity": 0.3,
+        "outline": [
+          0.3467,
+          0.6445,
+          0.8714
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "dropCone",
+        "shape": {
+          "kind": "cone",
+          "radius": 0.07,
+          "height": 0.16
+        },
+        "offset": [
+          0,
+          -0.38,
+          0
+        ],
+        "rotation": [
+          3.141592653589793,
+          0,
+          0
+        ],
+        "color": [
+          0.3467,
+          0.6445,
+          0.8714
+        ],
+        "opacity": 0.8
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 0.5,
+      "width": 0.5,
+      "top": 0.5,
+      "bottom": -0.46
+    }
+  },
+  "category": "Products",
+  "interactive": true,
+  "materials": [],
+  "commsParam": "enableComms"
+}

@@ -1,0 +1,8 @@
+[Unit]
+Description=oip-web collab db backup (sqlite .backup + rotate)
+Documentation=file:/opt/oip-web/server/backup.sh
+
+[Service]
+Type=oneshot
+User=oip
+ExecStart=/usr/bin/env bash /opt/oip-web/server/backup.sh

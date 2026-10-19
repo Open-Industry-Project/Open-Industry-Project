@@ -1,0 +1,281 @@
+{
+  "id": "oip.drum",
+  "name": "Drum",
+  "category": "Products",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "shell",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.29,
+          "height": 0.88,
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "diameter",
+              "scale": 0.5
+            },
+            {
+              "axis": 1,
+              "param": "height"
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0.2,
+        "roughness": 0.55
+      },
+      {
+        "name": "hoopLow",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.298,
+          "height": 0.022,
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "diameter",
+              "scale": 0.5,
+              "add": 0.008
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.147,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": -0.16667
+          }
+        ],
+        "collision": "none",
+        "colorParam": "color",
+        "metalness": 0.2,
+        "roughness": 0.55
+      },
+      {
+        "name": "hoopHigh",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.298,
+          "height": 0.022,
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "diameter",
+              "scale": 0.5,
+              "add": 0.008
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.147,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": 0.16667
+          }
+        ],
+        "collision": "none",
+        "colorParam": "color",
+        "metalness": 0.2,
+        "roughness": 0.55
+      },
+      {
+        "name": "chimeTop",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.3,
+          "height": 0.02,
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "diameter",
+              "scale": 0.5,
+              "add": 0.01
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.444,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": 0.5,
+            "add": 0.004
+          }
+        ],
+        "collision": "none",
+        "color": [
+          0.55,
+          0.56,
+          0.58
+        ],
+        "metalness": 0.6,
+        "roughness": 0.4
+      },
+      {
+        "name": "chimeBottom",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.3,
+          "height": 0.02,
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "diameter",
+              "scale": 0.5,
+              "add": 0.01
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.444,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": -0.5,
+            "add": 0.01
+          }
+        ],
+        "collision": "none",
+        "color": [
+          0.55,
+          0.56,
+          0.58
+        ],
+        "metalness": 0.6,
+        "roughness": 0.4
+      },
+      {
+        "name": "lid",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.282,
+          "height": 0.004,
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "diameter",
+              "scale": 0.5,
+              "add": -0.008
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.4545,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": 0.5,
+            "add": 0.0145
+          }
+        ],
+        "collision": "none",
+        "colorParam": "color",
+        "metalness": 0.2,
+        "roughness": 0.55
+      },
+      {
+        "name": "bungLarge",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.012
+        },
+        "offset": [
+          0.16,
+          0.4625,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "diameter",
+            "scale": 0.28
+          },
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": 0.5,
+            "add": 0.0225
+          }
+        ],
+        "collision": "none",
+        "color": [
+          0.55,
+          0.56,
+          0.58
+        ],
+        "metalness": 0.6,
+        "roughness": 0.4
+      },
+      {
+        "name": "bungSmall",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.022,
+          "height": 0.012
+        },
+        "offset": [
+          -0.16,
+          0.4625,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "diameter",
+            "scale": -0.28
+          },
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": 0.5,
+            "add": 0.0225
+          }
+        ],
+        "collision": "none",
+        "color": [
+          0.55,
+          0.56,
+          0.58
+        ],
+        "metalness": 0.6,
+        "roughness": 0.4
+      }
+    ],
+    "joints": []
+  },
+  "cargo": {
+    "friction": 0.45
+  },
+  "materials": []
+}

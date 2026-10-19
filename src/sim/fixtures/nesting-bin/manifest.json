@@ -1,0 +1,131 @@
+{
+  "id": "test.nesting-bin",
+  "name": "Nesting bin",
+  "category": "Products",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "foot",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.552,
+            0.015,
+            0.352
+          ]
+        },
+        "offset": [
+          0,
+          -0.1325,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "floor",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.579,
+            0.008,
+            0.379
+          ]
+        },
+        "offset": [
+          0,
+          -0.121,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallFront",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.6,
+            0.265,
+            0.021
+          ]
+        },
+        "offset": [
+          0,
+          0.0075,
+          0.1895
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallBack",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.6,
+            0.265,
+            0.021
+          ]
+        },
+        "offset": [
+          0,
+          0.0075,
+          -0.1895
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallLeft",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.021,
+            0.265,
+            0.358
+          ]
+        },
+        "offset": [
+          0.2895,
+          0.0075,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallRight",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.021,
+            0.265,
+            0.358
+          ]
+        },
+        "offset": [
+          -0.2895,
+          0.0075,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      }
+    ],
+    "joints": []
+  },
+  "cargo": {
+    "friction": 0.45,
+    "separateContacts": true,
+    "nestDepth": 0.015
+  },
+  "materials": []
+}

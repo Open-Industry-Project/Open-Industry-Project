@@ -1,0 +1,265 @@
+/* --- dockable panels (Left / Right / Bottom slots) --- */
+
+.dock-slot {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+/* the bottom dock is a direct grid item; side sub-slots fill their column pane */
+.dock-slot-bottom {
+  grid-area: bottom;
+}
+
+/* Rolled up to just its tab strip (the bottom-panel toggle). The height gutter is
+   gone with it, so the strip carries the edge against the viewport itself; and no tab
+   reads as pressed, because nothing is open. */
+.dock-slot.collapsed {
+  border-top: 1px solid var(--panel-edge);
+}
+
+.dock-slot.collapsed .dock-slot-tabs {
+  border-bottom: none;
+}
+
+.dock-slot.collapsed .dock-slot-tab.active {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+
+/* the rule above out-specifies the shared :hover one, so restore hover explicitly —
+   without it the tab you click to re-open the dock gives no feedback at all */
+.dock-slot.collapsed .dock-slot-tab.active:hover:not(:disabled) {
+  background: var(--control-alt);
+  color: var(--text);
+}
+
+/* drag-to-dock: highlight the slot a dragged tab is hovering over (#120320/#119813) */
+.dock-slot.drag-over {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 9999px rgba(74, 143, 231, 0.1);
+}
+
+/* tab strip: one tab per panel docked here, plus the move (▾) menu button */
+.dock-slot-tabs {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 4px 0;
+  border-bottom: 1px solid var(--panel-edge);
+  flex: 0 0 auto;
+}
+
+.dock-slot-tab {
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.dock-slot-tab:hover:not(:disabled) {
+  background: var(--control-alt);
+  color: var(--text);
+}
+
+.dock-slot-tab.active {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--panel-edge);
+}
+
+/* draggable dock tabs (desktop) - grab cursor + dim the tab while it's being dragged */
+.dock-slot-tab[draggable='true'] {
+  cursor: grab;
+}
+
+.dock-slot-tab.dragging {
+  opacity: 0.4;
+}
+
+/* tab drag-reorder: insertion caret before / after the hovered tab */
+.dock-slot-tab.drop-before {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.dock-slot-tab.drop-after {
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.dock-slot-tab-spacer {
+  flex: 1 1 auto;
+}
+
+/* The two trailing strip controls: maximize (⛶) and the move (▾) menu. They keep separate
+   classes despite sharing a look - several e2e gates address the move menu as
+   `.dock-slot-menu-btn` and would silently grab the wrong button otherwise. */
+.dock-slot-menu-btn,
+.dock-slot-max-btn {
+  padding: 2px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  align-self: center;
+}
+
+.dock-slot-menu-btn:hover:not(:disabled),
+.dock-slot-max-btn:hover:not(:disabled) {
+  background: var(--control-alt);
+  color: var(--text);
+}
+
+/* the active panel's content fills the rest of the slot */
+.dock-slot-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dock-slot-content > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* One panel blown up to fill everything under the toolbar (dockLayout.maximized).
+   It shares the VIEWPORT's grid cell rather than replacing it: buildDockGrid keeps that
+   cell named `viewport`, App leaves the 3D canvas mounted there under `visibility:hidden`,
+   and this paints over it. `.viewport` is positioned, so DOM order alone would let it win
+   the paint - the z-index is what actually puts this on top (and above the gutters' 4). */
+.dock-maximized {
+  grid-area: viewport;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+/* the title + restore (❐) strip - the maximized panel's stand-in for a dock tab strip */
+.dock-maximized-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 5px 4px 5px 10px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+/* the restore (❐) button. Reads brighter than a dock strip's ▾ because it's the only
+   visible way back to the scene: Esc is guarded off while focus is in a text
+   field, which is exactly where you are in a maximized ST editor. */
+.dock-maximized-bar .dock-slot-max-btn {
+  color: var(--text);
+  font-size: 14px;
+  padding: 2px 10px;
+}
+
+.dock-maximized-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+/* "Move to …" popup */
+.dock-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+/* Positioned in JS (DockSlot places it against the ▾ / the right-clicked tab and flips it
+   above when the list won't fit below). FIXED, not absolute: `.dock-slot` is overflow:hidden,
+   so a dock at the bottom of the window clipped the tail of the list off. */
+.dock-move-menu {
+  position: fixed;
+  z-index: 41;
+  min-width: 140px;
+  max-width: min(320px, calc(100vw - 12px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+}
+
+.dock-move-menu-label {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.dock-move-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.dock-move-menu-item:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+.dock-move-menu-float {
+  margin-top: 4px;
+  border-top: 1px solid var(--panel-edge);
+  border-radius: 0 0 4px 4px;
+}
+
+/* a side dock (Left / Right) splits into a Top + Bottom pane */
+.dock-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* each column's grid-area (leftA/leftB/rightA/rightB) is assigned inline; the
+   side classes remain as styling/test hooks only. */
+
+.dock-column-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* the draggable horizontal divider between a side's Top and Bottom panes */
+.gutter-split {
+  flex: 0 0 6px;
+  cursor: row-resize;
+}
+

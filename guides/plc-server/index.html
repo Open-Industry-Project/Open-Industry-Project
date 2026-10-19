@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Connect a PLC That Serves | Open Industry Project</title>
+    <meta name="description" content="Step by step: connect the simulator to a PLC that serves its I/O, over Modbus TCP by address or OPC UA by name." />
+    <meta name="keywords" content="Modbus TCP server, OPC UA client, PLC, soft PLC, simulator, virtual commissioning" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/plc-server/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="Connect a PLC That Serves | Open Industry Project" />
+    <meta property="og:description" content="Step by step: connect the simulator to a PLC that serves its I/O, over Modbus TCP by address or OPC UA by name." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/plc-server/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- A hand-written page, unlike /plc/. Every label, default and status line below is read from the app
+         (editor/components/ExternalPlcSection.tsx, editor/externalPlc.ts, core/externalIo.ts, core/opcUa.ts). Change
+         those and this goes stale. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Connecting to a PLC's Modbus or OPC UA server</h1>
+        <p class="lede">
+          Many PLCs do not poll remote I/O over Modbus. They publish their I/O on a Modbus TCP server, or their variables
+          on an OPC UA server, and the simulator connects to them as a client. It writes the sensor values to the PLC and
+          reads the motor outputs back, while your program runs on the PLC.
+        </p>
+        <p class="lede">
+          This guide covers both with the same belt, box and sensor. Part A connects <a href="#modbus">by address over
+          Modbus TCP</a> and part B <a href="#opcua">by name over OPC UA</a>. Any PLC or soft PLC that runs such a server
+          will do; how to add the server to it is in that PLC's own documentation.
+        </p>
+
+        <h2>You need</h2>
+        <ul class="dash">
+          <li>The desktop app, for <a href="/#desktop">Windows or Linux</a>. A browser tab cannot open a network connection.</li>
+          <li>A PLC with a Modbus TCP server device, an OPC UA server, or both. A soft PLC on the same computer is fine.</li>
+          <li>A network path from this computer to the PLC's address and port.</li>
+        </ul>
+
+        <ul class="toc">
+          <li><a href="#scene">1. Build the scene</a></li>
+          <li><a href="#modbus">A. Modbus TCP</a></li>
+          <li><a href="#opcua">B. OPC UA</a></li>
+          <li><a href="#trouble">Troubleshooting</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="scene">
+      <div class="wrap">
+        <h2>1. Build the scene</h2>
+        <p>In the desktop app, start a new scene and place three parts from the library:</p>
+        <ol class="steps">
+          <li>A <b>Belt Conveyor</b>.</li>
+          <li>A <b>Box</b>, sitting on the belt near the end it starts from.</li>
+          <li>A <b>Photo Eye</b> beside the belt, about two thirds of the way along, facing across it.</li>
+        </ol>
+        <p>
+          Select the sensor and the belt, and in the Inspector's <span class="ui">Comms</span> group tick
+          <span class="ui">Enable Comms</span> on each. What you type into their tag fields depends on the connection, so
+          it is in part A and part B.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="modbus">
+      <div class="wrap">
+        <h2>Part A. Modbus TCP</h2>
+        <p>
+          A PLC's Modbus server device exposes its process image as registers. The simulator writes <b>holding
+          registers</b>, which the PLC reads as its inputs (<code>%I</code>), and reads <b>input registers</b>, which hold
+          its outputs (<code>%Q</code>). A bit sits inside a register.
+        </p>
+
+        <h3>A1. Wire the parts to addresses</h3>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>On the PLC's server</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">%IX0.0</td><td>Holding register 0, bit 0</td></tr>
+              <tr><td>Belt Conveyor</td><td>Run Tag</td><td class="m">%QX0.0</td><td>Input register 0, bit 0</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>A2. Point the simulator at the PLC</h3>
+        <p>Open <span class="ui">Simulation &gt; External PLC…</span> and set:</p>
+        <ol class="steps">
+          <li><span class="ui">Runs on</span>: <b>An external PLC</b>.</li>
+          <li><span class="ui">PLC connection</span>: <b>The simulator polls the PLC</b> (the PLC is a Modbus server).</li>
+          <li><span class="ui">PLC</span>: <b>127.0.0.1</b> if the PLC runs on this computer, otherwise its address. <span class="ui">Port</span>: <b>502</b>, unless its server device listens elsewhere.</li>
+          <li>
+            <span class="ui">Holding register 0 is %IW</span> and <span class="ui">Input register 0 is %QW</span>: where the PLC's
+            server device puts its first register in the PLC's memory. The PLC's own configuration of the device says
+            where; both are often <b>0</b> when the device is the PLC's only I/O.
+          </li>
+        </ol>
+        <p>
+          The list underneath should read <code>%IX0.0&nbsp;&nbsp;holding register 0 bit 0</code> and
+          <code>%QX0.0&nbsp;&nbsp;input register 0 bit 0</code>. The rule is that <code>%IWn</code> is holding register
+          <code>n</code> counted from that base, and <code>%IXb.n</code> is bit <code>(b mod 2)&times;8 + n</code> of the
+          register holding byte <code>b</code>. A REAL (<code>%ID</code>) takes two registers, low word first.
+        </p>
+        <figure class="shot">
+          <img src="img/external-plc-modbus.webp" width="680" height="445" loading="lazy" decoding="async"
+            alt="The External PLC settings: Runs on An external PLC, PLC connection The simulator polls the PLC, PLC 127.0.0.1, Port 502, both register bases 0, and the list: %IX0.0 holding register 0 bit 0 and %QX0.0 input register 0 bit 0." />
+          <figcaption>Set up to poll the PLC's Modbus server, with the two points it will read and write.</figcaption>
+        </figure>
+
+        <h3>A3. The PLC program</h3>
+        <pre class="code" translate="no"><code>PROGRAM PLC_PRG
+VAR
+  Eye AT %IX0.0 : BOOL;
+  Run AT %QX0.0 : BOOL;
+END_VAR
+
+Run := NOT Eye;
+END_PROGRAM</code></pre>
+        <p>These are the same addresses as the scene, because on this kind of PLC the simulator and the PLC share one process image.</p>
+
+        <h3>On the PLC</h3>
+        <ol class="steps">
+          <li>Add a Modbus TCP server device to the PLC's configuration, in whatever form its engineering tool offers one (a soft PLC such as CODESYS Control Win is one place such a device can live). Note the port it listens on, and use the same number in the simulator.</li>
+          <li>Find where the device maps its holding registers and its input registers in the PLC's memory. Those are the two base addresses for the simulator. Make sure the device maps at least as many registers as the scene uses.</li>
+          <li>Put the program above into the PLC, in a task that runs it cyclically, then download it and start it.</li>
+        </ol>
+        <p>The vendor's documentation says how to do each of these in its tool.</p>
+
+        <h3>A4. Press Play</h3>
+        <p>
+          The status line says <code>Polling the PLC at 127.0.0.1:502</code> with a count of requests, the box rides to the
+          sensor, and the PLC stops the belt. Press Play before the PLC is up and it waits: <code>Waiting for the PLC at
+          127.0.0.1:502: ... Trying again every second.</code>
+        </p>
+        <p>
+          Stop the application on the PLC while the box is moving and the belt stops. A Modbus server device goes quiet when
+          its application stops, and about a second later the simulator holds every output the PLC drives off until it
+          answers again, and the status line says <code>The PLC at 127.0.0.1:502 stopped answering for 1.0 s: its outputs are held off until it
+          answers again.</code>
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="opcua">
+      <div class="wrap">
+        <h2>Part B. OPC UA</h2>
+        <p>
+          OPC UA carries names, not addresses, so nothing is mapped. Each part's tag is the PLC's own name for the variable,
+          and the simulator finds it on the server. Stop the simulation before you rewire.
+        </p>
+
+        <h3>B1. Wire the parts to the PLC's names</h3>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>The PLC's variable</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">PLC_PRG.Eye</td><td>The simulator writes it</td></tr>
+              <tr><td>Belt Conveyor</td><td>Run Tag</td><td class="m">PLC_PRG.Run</td><td>The simulator reads it</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The simulator matches a tag against the end of each variable's path on the server, so <code>PLC_PRG.Eye</code> finds
+          a variable at <code>.../PLC_PRG/Eye</code> whatever folders the server puts above it, and the same idea works for
+          <code>MAIN.Eye</code> or any other program name. Case does not matter; a name that fits two variables is refused with both listed.
+        </p>
+
+        <h3>B2. Point the simulator at the server</h3>
+        <p>In <span class="ui">Simulation &gt; External PLC…</span>:</p>
+        <ol class="steps">
+          <li><span class="ui">Runs on</span>: <b>An external PLC</b>.</li>
+          <li><span class="ui">PLC connection</span>: <b>OPC UA, tags by name</b> (the PLC runs an OPC UA server).</li>
+          <li><span class="ui">Server</span>: the PLC's endpoint, <code>opc.tcp://127.0.0.1:4840</code> on the same computer by default.</li>
+        </ol>
+        <p>
+          The connection is unsecured, with security policy None and an anonymous login, so the PLC's server has to allow both.
+          Use it on a test bench, not a plant network.
+        </p>
+
+        <h3>B3. The PLC program</h3>
+        <pre class="code" translate="no"><code>PROGRAM PLC_PRG
+VAR
+  Eye : BOOL;
+  Run : BOOL;
+END_VAR
+
+Run := NOT Eye;
+END_PROGRAM</code></pre>
+        <p>
+          <code>Eye</code> is a plain variable, not an input at <code>%IX</code>, because most PLCs refuse a client's write to a real
+          input, which their I/O system overwrites every scan.
+        </p>
+
+        <h3>On the PLC</h3>
+        <ol class="steps">
+          <li>Put the program above into the PLC, as in part A or in a project of its own.</li>
+          <li>Publish <code>Eye</code> and <code>Run</code> on the PLC's OPC UA server, readable and writable. Every PLC has its own way to choose which variables its server exports; its documentation says how.</li>
+          <li>Download the program and start it.</li>
+        </ol>
+
+        <h3>B4. Port 4840 may not be the PLC</h3>
+        <p>
+          4840 is OPC UA's standard port, and some OPC software installs the OPC Foundation's
+          <b>discovery server</b> there. It is a directory of the computer's OPC UA servers, with no tags. If that is
+          what answers, the simulator says so on Play instead of reporting every tag missing:
+          <code>Could not connect: opc.tcp://127.0.0.1:4840 is an OPC UA discovery server, not a PLC</code>, followed by
+          the servers it knows of, if any. A PLC's server that does not register with it will not be among them.
+        </p>
+        <p>
+          Move the PLC's server to its own port, such as 4841, in the PLC's own configuration (its documentation says
+          where), and restart it. Then use <code>opc.tcp://127.0.0.1:4841</code> as the Server.
+        </p>
+
+        <h3>B5. Press Play</h3>
+        <p>
+          The status line says <code>Reading and writing the PLC's tags at opc.tcp://127.0.0.1:4840</code> (or the port
+          you moved the server to), the dialog lists each tag against the variable it found, and the PLC stops the box at
+          the sensor.
+        </p>
+        <div class="note">
+          <p>
+            A stopped program can still look alive. An OPC UA server belongs to the runtime, not the program, and keeps
+            answering with the last values when the application stops. Only a lost connection, or a server that goes
+            silent, makes the simulator hold the PLC's outputs off.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="trouble">
+      <div class="wrap">
+        <h2>Troubleshooting</h2>
+        <dl class="trouble">
+          <dt>The connection options are greyed out.</dt>
+          <dd>You are in a browser tab. Connecting to a PLC needs the desktop app.</dd>
+
+          <dt>"Waiting for the PLC at ...: nothing is listening"</dt>
+          <dd>The PLC is not running, or not at that address and port. The simulator tries again every second, so start the PLC and it connects.</dd>
+
+          <dt>Modbus: it polls, but the belt never runs or never stops.</dt>
+          <dd>
+            The base addresses do not match the server device's I/O mapping, or the scene uses a register the device does
+            not map (check how many registers the device is set to map each way). The dialog lists the register each
+            point uses.
+          </dd>
+
+          <dt>OPC UA: a tag is "not found".</dt>
+          <dd>The variable is not published. Check which variables the PLC's OPC UA server exports, then rebuild and download.</dd>
+
+          <dt>OPC UA: a tag is read only.</dt>
+          <dd>The simulator writes the sensors, so their variables must be writable, which means a plain variable rather than a located input.</dd>
+
+          <dt>OPC UA: "... is an OPC UA discovery server, not a PLC".</dt>
+          <dd>The PLC's server is on another port. See <a href="#opcua">B4</a>.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb">Download for Linux (.deb)</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/modbus/">Guide: a PLC that polls the simulator over Modbus TCP</a></li>
+              <li><a href="/guides/opcua/">Guide: connect a SCADA or HMI over OPC UA</a></li>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+        <p class="tm-notice">CODESYS is a trademark of its owner, named here only to identify it. This project is not affiliated with or endorsed by it.</p>
+      </div>
+    </footer>
+  </body>
+</html>

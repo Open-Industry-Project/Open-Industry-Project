@@ -1,0 +1,146 @@
+{
+  "format": 6,
+  "id": "oip.pallet-spawner",
+  "name": "Pallet Spawner",
+  "params": {
+    "palletsPerMinute": {
+      "type": "number",
+      "unit": "/min",
+      "default": 12,
+      "min": 0,
+      "max": 200,
+      "step": 1,
+      "label": "Feed rate",
+      "desc": "Pallets per minute. 0 halts the magazine without pausing the part."
+    },
+    "fixedRate": {
+      "type": "boolean",
+      "default": true,
+      "label": "Fixed rate (off = ±50% jitter)",
+      "desc": "On, pallets arrive on an exact metronome. Off, each gap is randomised between half and one-and-a-half times the nominal period."
+    },
+    "palletColor": {
+      "type": "color",
+      "default": "#ffffff",
+      "label": "Pallet color",
+      "group": "Pallet",
+      "desc": "Tint multiplied over the pallet wood model. Leave it white unless you want dispensed pallets to read differently from hand-placed ones beside them."
+    },
+    "mass": {
+      "type": "number",
+      "default": 25,
+      "min": 1,
+      "max": 200,
+      "step": 1,
+      "label": "Mass (kg)",
+      "group": "Pallet",
+      "desc": "Mass given to every dispensed pallet, before anything is stacked on it."
+    },
+    "disable": {
+      "type": "boolean",
+      "default": false,
+      "label": "Paused",
+      "desc": "Stop dispensing entirely. Use (C, or E while walking) is a separate hand stop: it pauses and resumes the magazine during a run without changing this setting, and is cleared when the run stops."
+    },
+    "conveyorId": {
+      "type": "partRef",
+      "default": "",
+      "label": "Pause when conveyor stopped",
+      "desc": "Interlock: while the named conveyor is stopped, this spawner holds. Wire that conveyor to the PLC and the feed gates itself, with no tag of its own."
+    },
+    "enableComms": {
+      "type": "boolean",
+      "default": false,
+      "label": "Enable comms",
+      "group": "Comms",
+      "desc": "Connect this part to a PLC program. Its tags appear once this is on."
+    },
+    "runTag": {
+      "type": "tag",
+      "dir": "in",
+      "stType": "BOOL",
+      "default": "",
+      "label": "Run tag (spawn only while true)",
+      "group": "Comms",
+      "desc": "Gate the magazine from the program. Note this only takes over once a program actually DRIVES the tag - until then the spawner keeps running, so a merely-declared tag is not a stopped feed."
+    },
+    "countTag": {
+      "type": "tag",
+      "dir": "out",
+      "stType": "DINT",
+      "default": "",
+      "label": "Spawned count tag",
+      "group": "Comms",
+      "desc": "Running total of pallets this spawner has dispensed. Subtract the despawner counts to get the work in progress."
+    }
+  },
+  "behavior": "// Pallet Spawner — a hopper that emits EUR pallets. Demonstrates ctx.spawn's pallet kind: a rate timer emits\n// a real EUR pallet every 60/palletsPerMinute seconds via ctx.spawn({ kind:'pallet' }); the host creates the\n// pallet body at the part's pose. A pilot \"Use\" toggles the line on/off (a runtime latch, so it resets on\n// stop/reload); pallets drop at the exact spawn point (no positional scatter). Optionally gated by a conveyor\n// interlock (conveyorId → ctx.conveyorRunning) or a PLC run tag.\n//\n// A magazine is COMMANDED rather than paced, so the gate RE-ARMS it: every time it is enabled the next pallet\n// drops on that first eligible tick and the rate only paces it while it stays enabled. That is what makes the\n// usual wiring - a controller pulsing the run tag for less than one period per pallet change - dispense exactly\n// one pallet, every time. Carry the countdown across the hold instead and only the FIRST pulse ever dispenses\n// (the timer happens to start at zero); each later pulse just takes its own length off a period that never\n// reaches zero, so the line silently runs on with no pallet under it.\n\nlet countdown = 0 // seconds until the next spawn\nlet armed = false // drop on the first eligible tick after each enable, not a period later\nlet usedOff = false\nlet spawned = 0\n\n// Publish what this feed has dispensed, every tick (a display not republished goes blank): the infeed half\n// of the line's numbers, which a despawner's count is the other half of - the two differ by the work in\n// progress. It counts REQUESTS: past the physics engine's 10,240-body table a spawn is skipped, uncounted\n// by the host but still counted here.\nfunction publish(ctx) {\n  ctx.display('spawned', spawned)\n  if (ctx.params.enableComms && ctx.params.countTag) ctx.writeNumber(ctx.params.countTag, spawned)\n}\n\nfunction hexRgb(hex) {\n  const h = (hex || '').replace('#', '')\n  if (h.length < 6) return [1, 1, 1]\n  const v = (i) => { const n = parseInt(h.slice(i, i + 2), 16); return Number.isFinite(n) ? n / 255 : 0.5 }\n  return [v(0), v(2), v(4)]\n}\n\ndefinePart({\n  interactive: true, // a pilot \"Use\" toggles the line\n  params: {\n    palletsPerMinute: { type: 'number', unit: '/min', default: 12, min: 0, max: 200, step: 1, label: 'Feed rate', desc: 'Pallets per minute. 0 halts the magazine without pausing the part.' },\n    fixedRate: { type: 'boolean', default: true, label: 'Fixed rate (off = ±50% jitter)', desc: 'On, pallets arrive on an exact metronome. Off, each gap is randomised between half and one-and-a-half times the nominal period.' },\n    // WHITE = untinted, matching oip.pallet's own default: the colour multiplies the pallet wood model\n    // rather than replacing it, so any non-white default makes a dispensed pallet a different colour from\n    // every hand-placed one beside it. It used to default to '#8a5a2b', which is why the demo's magazine\n    // dropped visibly dark pallets onto a build deck stocked with pale ones.\n    palletColor: { type: 'color', default: '#ffffff', label: 'Pallet color', group: 'Pallet', desc: 'Tint multiplied over the pallet wood model. Leave it white unless you want dispensed pallets to read differently from hand-placed ones beside them.' },\n    mass: { type: 'number', default: 25, min: 1, max: 200, step: 1, label: 'Mass (kg)', group: 'Pallet', desc: 'Mass given to every dispensed pallet, before anything is stacked on it.' },\n    disable: { type: 'boolean', default: false, label: 'Paused', desc: 'Stop dispensing entirely. Use (C, or E while walking) is a separate hand stop: it pauses and resumes the magazine during a run without changing this setting, and is cleared when the run stops.' },\n    conveyorId: { type: 'partRef', default: '', label: 'Pause when conveyor stopped', desc: 'Interlock: while the named conveyor is stopped, this spawner holds. Wire that conveyor to the PLC and the feed gates itself, with no tag of its own.' },\n    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this part to a PLC program. Its tags appear once this is on.' },\n    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Run tag (spawn only while true)', group: 'Comms', desc: 'Gate the magazine from the program. Note this only takes over once a program actually DRIVES the tag - until then the spawner keeps running, so a merely-declared tag is not a stopped feed.' },\n    countTag: { type: 'tag', dir: 'out', stType: 'DINT', default: '', label: 'Spawned count tag', group: 'Comms', desc: 'Running total of pallets this spawner has dispensed. Subtract the despawner counts to get the work in progress.' },\n  },\n  step(ctx) {\n    const p = ctx.params\n    if (ctx.used()) usedOff = !usedOff\n    // hold while a linked conveyor is stopped, or while a controller DRIVES the run tag de-energized\n    // (ctx.tagDriven = output ownership; gating on the tag NAME alone would brick the spawner the moment one\n    // was typed — the hand Use above can only latch it MORE off). Undriven, the authored/hand state rules.\n    const stopped = !ctx.conveyorRunning(p.conveyorId) || (p.enableComms && ctx.tagDriven(p.runTag) ? !ctx.readTag(p.runTag) : false)\n    if (p.disable || usedOff || stopped || p.palletsPerMinute <= 0) { armed = false; publish(ctx); return }\n    const period = 60 / p.palletsPerMinute\n    // held off = disarmed, so this is the first eligible tick of a fresh command: drop now, then pace\n    if (!armed) { armed = true; countdown = 0 }\n    countdown -= ctx.dt\n    let n = 0\n    while (countdown <= 0 && n < 4) {\n      countdown += p.fixedRate ? period : Math.max(ctx.dt, period * (0.5 + ctx.rng()))\n      n++\n      ctx.spawn({ kind: 'pallet', color: hexRgb(p.palletColor), mass: p.mass, offset: [0, -0.2, 0] })\n      spawned++\n    }\n    publish(ctx)\n  },\n})\n",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "marker",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "color": [
+          0.2122,
+          0.4564,
+          0.6939
+        ],
+        "opacity": 0.3,
+        "outline": [
+          0.3467,
+          0.6445,
+          0.8714
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "dropCone",
+        "shape": {
+          "kind": "cone",
+          "radius": 0.07,
+          "height": 0.16
+        },
+        "offset": [
+          0,
+          -0.38,
+          0
+        ],
+        "rotation": [
+          3.141592653589793,
+          0,
+          0
+        ],
+        "color": [
+          0.3467,
+          0.6445,
+          0.8714
+        ],
+        "opacity": 0.8
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 0.5,
+      "width": 0.5,
+      "top": 0.5,
+      "bottom": -0.46
+    }
+  },
+  "category": "Products",
+  "interactive": true,
+  "materials": [],
+  "commsParam": "enableComms"
+}

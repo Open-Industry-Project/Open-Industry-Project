@@ -1,0 +1,175 @@
+/* ===== Controller Properties (components/ControllerDialog.tsx, ExternalPlcSection.tsx) ===== */
+/* Where the program runs, in the shared modal chrome (.author-dialog). The ctl-ext rules below are the section inside
+   it; the toolbar's link status (PlcLinkStatus.tsx) borrows its point list. */
+
+.controller-dialog {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+}
+
+.controller-dialog-body {
+  margin-top: 12px;
+  font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+}
+
+/* the external link's own settings, under the choice that turns it on */
+.ctl-ext-indent {
+  padding-left: 22px;
+}
+
+.ctl-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  background: var(--control);
+  color: light-dark(#282b2f, #cfd2d6);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ctl-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.ctl-btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* the External PLC section */
+.ctl-ext {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ctl-ext-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ctl-ext-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ctl-ext-field input[type='text'] {
+  width: 64px;
+  padding: 2px 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: light-dark(#f7f8f9, #1e2023);
+  color: var(--text);
+  font: inherit;
+}
+
+.ctl-ext-field input.ctl-ext-wide {
+  width: 128px;
+}
+
+.ctl-ext-field input.ctl-ext-endpoint {
+  width: 210px;
+}
+
+/* the dialog's sections (Program, Runs on + PLC connection, OPC UA server), divided by a rule */
+.ctl-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ctl-sec + .ctl-sec {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* a heading, and where what it sets is saved (ExternalPlcSection.tsx SectionHead) */
+.ctl-sec-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.ctl-sec-head:not(:first-child) {
+  margin-top: 6px;
+}
+
+.ctl-sec-head h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ctl-scope {
+  padding: 0 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.ctl-sec-note {
+  flex-basis: 100%;
+}
+
+/* what this surface cannot do, said once above every section */
+.ctl-banner {
+  margin-bottom: 12px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  background: light-dark(#f2f4f7, #1e2023);
+  color: var(--text-dim);
+}
+
+/* a short caution, like an unsecured connection: one line, the detail in its tooltip */
+.ctl-warn {
+  color: var(--warn);
+  font-size: 11px;
+}
+
+.controller-dialog .props-ok {
+  margin-left: auto;
+}
+
+/* which end polls: two radios, one per line so each can say which PLCs work that way */
+.ctl-ext-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ctl-ext-points {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* the link is off: what Play would carry, not what it carries */
+.ctl-ext-points-idle {
+  opacity: 0.6;
+}
+
+.ctl-ext-point {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 11px;
+  white-space: pre;
+}
+
+.ctl-dim {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.ctl-problem {
+  color: var(--danger);
+}
+

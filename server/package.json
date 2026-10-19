@@ -1,0 +1,21 @@
+{
+  "name": "oip-web-collab-server",
+  "private": true,
+  "license": "MIT",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Self-hosted Hocuspocus (Yjs) backend for oip-web live collaborative editing.",
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test guards.test.mjs assets.test.mjs"
+  },
+  "dependencies": {
+    "@hocuspocus/extension-sqlite": "^3.2.5",
+    "@hocuspocus/server": "^3.2.5",
+    "sqlite3": "^6.0.1",
+    "yjs": "^13.6.8"
+  },
+  "overrides": {
+    "sqlite3": "$sqlite3"
+  }
+}

@@ -1,0 +1,614 @@
+{
+  "id": "oip.stack-light",
+  "name": "Stack Light",
+  "category": "Devices",
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "foot",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.05,
+          "height": 0.012
+        },
+        "offset": [
+          0,
+          0.006,
+          0
+        ],
+        "color": [
+          0.0086,
+          0.0091,
+          0.011
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "stem",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.013,
+          "height": 0.184
+        },
+        "offset": [
+          0,
+          0.104,
+          0
+        ],
+        "color": [
+          0.0086,
+          0.0091,
+          0.011
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "base",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.025
+        },
+        "offset": [
+          0,
+          0.2085,
+          0
+        ],
+        "color": [
+          0.0086,
+          0.0091,
+          0.011
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "core",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.029000000000000005,
+          "height": 0.15,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.296,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.025,
+            "add": 0.221
+          }
+        ],
+        "color": [
+          0.792,
+          0.819,
+          0.933
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg1",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.05
+        },
+        "offset": [
+          0,
+          0.246,
+          0
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.0232,
+              0.3372,
+              0.0423
+            ],
+            "offColor": [
+              0.017,
+              0.0623,
+              0.0242
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg2",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.05,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": -0.05,
+              "min": 0.0002,
+              "max": 0.05
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.296,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221,
+            "max": 0.296
+          }
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.8879,
+              0.5089,
+              0.0048
+            ],
+            "offColor": [
+              0.1381,
+              0.0864,
+              0.0189
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg3",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.05,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": -0.1,
+              "min": 0.0002,
+              "max": 0.05
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.346,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221,
+            "max": 0.346
+          }
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.6724,
+              0.0212,
+              0.0212
+            ],
+            "offColor": [
+              0.1079,
+              0.0181,
+              0.0212
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg4",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.0002,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": -0.15,
+              "min": 0.0002,
+              "max": 0.05
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.371,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221,
+            "max": 0.396
+          }
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.0212,
+              0.1274,
+              0.6724
+            ],
+            "offColor": [
+              0.0167,
+              0.033,
+              0.1124
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg5",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.0002,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": -0.2,
+              "min": 0.0002,
+              "max": 0.05
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.371,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221,
+            "max": 0.446
+          }
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.807,
+              0.807,
+              0.807
+            ],
+            "offColor": [
+              0.1267,
+              0.1281,
+              0.1312
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg6",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.0002,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": -0.25,
+              "min": 0.0002,
+              "max": 0.05
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.371,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221,
+            "max": 0.496
+          }
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.0232,
+              0.3372,
+              0.0423
+            ],
+            "offColor": [
+              0.017,
+              0.0623,
+              0.0242
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg7",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.0002,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": -0.3,
+              "min": 0.0002,
+              "max": 0.05
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.371,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221,
+            "max": 0.546
+          }
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.8879,
+              0.5089,
+              0.0048
+            ],
+            "offColor": [
+              0.1381,
+              0.0864,
+              0.0189
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "seg8",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.035,
+          "height": 0.0002,
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": -0.35,
+              "min": 0.0002
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.371,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221,
+            "max": 0.596
+          }
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.6724,
+              0.0212,
+              0.0212
+            ],
+            "offColor": [
+              0.1079,
+              0.0181,
+              0.0212
+            ],
+            "opacity": 0.9216
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "ring",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.036500000000000005,
+          "height": 0.006
+        },
+        "offset": [
+          0,
+          0.221,
+          0
+        ],
+        "color": [
+          0.0086,
+          0.0091,
+          0.011
+        ],
+        "collision": "none",
+        "array": {
+          "count": "segments",
+          "step": [
+            0,
+            0.05,
+            0
+          ]
+        }
+      },
+      {
+        "name": "ringTop",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.036500000000000005,
+          "height": 0.006
+        },
+        "offset": [
+          0,
+          0.371,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.221
+          }
+        ],
+        "color": [
+          0.0086,
+          0.0091,
+          0.011
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "cap",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.03150000000000001,
+          "height": 0.014
+        },
+        "offset": [
+          0,
+          0.378,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.228
+          }
+        ],
+        "color": [
+          0.0086,
+          0.0091,
+          0.011
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "dome",
+        "shape": {
+          "kind": "cone",
+          "radius": 0.0315,
+          "height": 0.012
+        },
+        "offset": [
+          0,
+          0.391,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.05,
+            "add": 0.241
+          }
+        ],
+        "color": [
+          0.0086,
+          0.0091,
+          0.011
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "shell",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.07300000000000001,
+            0.385,
+            0.07300000000000001
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "segments",
+              "scale": 0.05,
+              "add": 0.235
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.1925,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "segments",
+            "scale": 0.025,
+            "add": 0.1175
+          }
+        ],
+        "hidden": true
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 0.07300000000000001,
+      "width": 0.07300000000000001,
+      "top": 0.385
+    }
+  },
+  "materials": []
+}

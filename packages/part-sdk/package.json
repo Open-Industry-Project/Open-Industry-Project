@@ -1,0 +1,40 @@
+{
+  "name": "@oip/part-sdk",
+  "version": "0.4.0",
+  "description": "Type definitions for authoring Open Industry Project custom parts. Types only; the simulator provides the definePart() global at runtime.",
+  "license": "MIT",
+  "author": "Automation Standard LLC and Contributors",
+  "homepage": "https://www.openindustryproject.org/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Open-Industry-Project/Open-Industry-Project.git",
+    "directory": "packages/part-sdk"
+  },
+  "bugs": "https://github.com/Open-Industry-Project/Open-Industry-Project/issues",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts"
+    },
+    "./manifest.schema.json": "./manifest.schema.json",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "index.d.ts",
+    "manifest.d.ts",
+    "manifest.schema.json",
+    "global.d.ts",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "open-industry-project",
+    "oip",
+    "simulation",
+    "automation",
+    "custom-parts"
+  ]
+}

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Page not found | Open Industry Project</title>
+    <!--
+      Do not delete this file. Cloudflare Pages treats a deployment with no top-level 404.html
+      as a single-page app and answers every unmatched path with /index.html at 200 - including a
+      hashed /assets/ chunk that has not reached a POP yet in the seconds after a deploy. The
+      /assets/* block in _headers then pins that HTML as an immutable year-long .js in the browser,
+      at the edge and in the service worker's precache, and the app fails to load. With this file present
+      Pages answers the same miss with a 404 and Cache-Control: no-store, so the race costs one failed
+      load instead. See public/_redirects; scripts/smoke-prod.mjs asserts it on every deployment.
+
+      Served at arbitrary URLs, some under COEP (/assets/*, /app/*): keep it self-contained, with
+      absolute links and no subresources.
+    -->
+    <style>
+      html { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        /* the site palette (src/site/site.css), repeated: this page can load nothing */
+        background: #17191b;
+        color: #ece8e1;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        box-sizing: border-box;
+        padding: 16px;
+      }
+      main { max-width: 32rem; text-align: center; }
+      h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+      p { margin: 0 0 1.25rem; color: #8a867f; }
+      a { color: #e5a73a; text-decoration: none; margin: 0 0.75rem; }
+      a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page not found</h1>
+      <p>There is nothing at this address.</p>
+      <a href="/app/">Open the editor</a>
+      <a href="/">Home</a>
+    </main>
+  </body>
+</html>

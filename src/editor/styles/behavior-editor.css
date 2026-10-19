@@ -1,0 +1,174 @@
+/* In-browser behavior-script editor (Monaco) - modal over the editor */
+.behavior-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.behavior-dialog {
+  width: min(900px, 100%);
+  height: min(680px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+  color: var(--text);
+  overflow: hidden;
+}
+
+.behavior-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.behavior-head h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.behavior-pkg {
+  color: var(--accent);
+}
+
+.behavior-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.behavior-close:hover {
+  color: var(--text);
+}
+
+.behavior-lock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(49, 130, 189, 0.16);
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.behavior-lock-warn {
+  background: rgba(231, 114, 74, 0.16);
+}
+
+.behavior-monaco {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.behavior-problems {
+  flex: 0 0 auto;
+  max-height: 132px;
+  overflow-y: auto;
+  border-top: 1px solid var(--panel-edge);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.behavior-ok {
+  color: var(--text-dim);
+}
+
+.behavior-problem {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2px 0;
+}
+
+/* a located problem is a button that jumps to its line: drop the button chrome, keep the row */
+.behavior-problem-link {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.behavior-problem-link:hover .behavior-problem-msg,
+.behavior-problem-link:focus-visible .behavior-problem-msg {
+  text-decoration: underline;
+}
+
+.behavior-problem-kind {
+  flex: 0 0 auto;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: light-dark(#c0481f, #e7724a);
+}
+
+.behavior-problem-loc {
+  flex: 0 0 auto;
+  color: var(--text-dim);
+}
+
+.behavior-problem-msg {
+  color: var(--text);
+}
+
+.behavior-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--panel-edge);
+}
+
+.behavior-status {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.behavior-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.behavior-btn {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.behavior-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.behavior-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.behavior-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+

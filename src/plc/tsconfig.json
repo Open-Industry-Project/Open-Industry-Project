@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "../../.types/plc",
+    "lib": ["ES2022", "DOM"],
+    "types": []
+  },
+  "references": [{ "path": "../core" }],
+  "include": ["./**/*.ts"]
+}

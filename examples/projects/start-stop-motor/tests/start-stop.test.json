@@ -1,0 +1,15 @@
+{
+  "name": "Start/stop seal-in latches and unlatches the motor",
+  "duration": 2,
+  "inputs": [
+    { "at": 0.5, "tag": "Start", "value": true },
+    { "at": 0.6, "tag": "Start", "value": false },
+    { "at": 1.5, "tag": "Stop", "value": true }
+  ],
+  "checks": [
+    { "at": 0.2, "tag": "Running", "equals": false },
+    { "eventually": true, "until": 1.0, "tag": "Running", "equals": true },
+    { "at": 1.0, "tag": "Running", "equals": true },
+    { "at": 1.9, "tag": "Running", "equals": false }
+  ]
+}

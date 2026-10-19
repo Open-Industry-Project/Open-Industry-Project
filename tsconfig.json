@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./src/core" },
+    { "path": "./src/sim" },
+    { "path": "./src/render" },
+    { "path": "./src/plc" },
+    { "path": "./src/collab" },
+    { "path": "./src/editor" }
+  ]
+}

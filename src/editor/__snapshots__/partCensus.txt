@@ -1,0 +1,816 @@
+## oip.agv (rig)
+class {}
+footprint {cx:0.7025,hx:1.3775,hz:0.6300,y0:0,y1:2.8000}
+plugs []
+params reserved=[enableComms] tags=[commandTag:in:INT,executeTag:in:BOOL,doneTag:out:BOOL,forkTag:in:BOOL]
+lamps [beacon] animates=false
+  link body {shape:mesh}
+  link mast {shape:mesh}
+  link piston {shape:mesh}
+  link chassis {body:true,hidden:true,shape:box}
+  link beacon {lamps:[beacon],shape:cylinder}
+  link wheelLF {shape:mesh}
+  link wheelLR {shape:mesh}
+  link wheelRF {shape:mesh}
+  link wheelRR {shape:mesh}
+  link carriage {shape:frame}
+  link forks {shape:mesh}
+  link bladeL {shape:mesh}
+  link bladeR {shape:mesh}
+  link tineL {body:true,hidden:true,shape:box}
+  link tineR {body:true,hidden:true,shape:box}
+  link gripper {gripZone:true,shape:frame}
+
+## oip.barcode-scanner (rig)
+class {}
+footprint {hx:0.5850,hz:0.1000,y0:0,y1:1.6600}
+plugs []
+params reserved=[enableComms] tags=[readTag:out:BOOL,countTag:out:DINT]
+lamps [read,scan] animates=false
+  link surface {shape:frame}
+  link read {shape:frame,zone:true}
+  drawn[0] {collision:static,material:housing}
+  drawn[1] {collision:static,material:housing}
+  drawn[2] {collision:static,material:cap}
+  drawn[3] {material:head}
+  drawn[4] {lamp:scan,material:lens}
+  drawn[5] {lamp:read,material:lens}
+
+## oip.belt-conveyor (function)
+class {beltLike:true,beltWidth:1.5240,conveyor:true,tailOrigin:true}
+footprint {cx:2.0000,hx:2.0850,hz:0.7620,y0:-0.1700,y1:0.0500}
+plugs []
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,runTag:in:BOOL,runningTag:out:BOOL,velocityTag:out:REAL,pulseTag:out:BOOL,encoderTag:out:REAL]
+lamps [] animates=false
+  drawn[0] {instances:2.0000,look:belt}
+  drawn[1] {instances:2.0000,look:belt}
+  drawn[2] {instances:2.0000,look:frame}
+  drawn[3] {collision:static,instances:2.0000,look:guard}
+  drawn[4] {instances:26.0000,look:leg}
+  drawn[5] {instances:48.0000,look:bolt}
+
+## oip.blade-stop (rig)
+class {}
+footprint {hx:0.1000,hz:1.0000,y0:-0.5295,y1:0.5000}
+plugs [track]
+params reserved=[enableComms] tags=[tag:in:BOOL]
+lamps [] animates=false
+  link bladeRoot {shape:frame}
+  link collider {body:true,hidden:true,shape:box}
+  link baseCollider {body:true,hidden:true,shape:box}
+  drawn[0] {doubleSided:true,material:steel}
+  drawn[1] {doubleSided:true,material:plate}
+  drawn[2] {doubleSided:true,material:belt}
+  drawn[3] {doubleSided:true,material:blade,rides:bladeRoot}
+  drawn[4] {doubleSided:true,material:steel,rides:bladeRoot}
+  drawn[5] {doubleSided:true,material:plate,rides:bladeRoot}
+
+## oip.bollards (function)
+class {}
+footprint {hx:2.5350,hz:0.1350,y0:0,y1:0.9000}
+plugs []
+params reserved=[] tags=[]
+lamps [] animates=false
+  drawn[0] {instances:5.0000,look:guard}
+  drawn[1] {instances:5.0000,look:guard}
+  drawn[2] {instances:20.0000,look:bolt}
+
+## oip.box (cargo)
+class {}
+footprint {hx:0.3000,hz:0.2000,y0:-0.2000,y1:0.2000}
+plugs []
+params reserved=[] tags=[]
+lamps [] animates=false
+
+## oip.box-spawner (rig)
+class {}
+footprint {hx:0.2500,hz:0.2500,y0:-0.4600,y1:0.5000}
+plugs []
+params reserved=[enableComms] tags=[runTag:in:BOOL,countTag:out:DINT]
+lamps [] animates=false
+  link marker {outline:true,shape:box}
+  link dropCone {shape:cone}
+
+## oip.chain-transfer (rig)
+class {}
+footprint {hx:0.8250,hz:1.0000,y0:-0.3622,y1:0.2000}
+plugs [track]
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,popupTag:in:BOOL]
+lamps [] animates=true
+  link deck {conveys:true,hidden:true,shape:box}
+  link chainBank {shape:frame}
+  drawn[0] {doubleSided:true,material:frame,rides:chainBank}
+  drawn[1] {doubleSided:true,material:support,rides:chainBank}
+  drawn[2] {doubleSided:true,material:chain,rides:chainBank,scrolls:true}
+
+## oip.color-sensor (rig)
+class {}
+footprint {hx:0.0225,hz:0.0365,y0:0,y1:0.1600}
+plugs [mounts[0]]
+params reserved=[enableComms] tags=[colorTag:out:INT]
+lamps [led] animates=false
+  link lens {sensesBeam:true,shape:frame}
+  link led {body:true,lamps:[led],shape:box}
+  drawn[0] {doubleSided:true,material:body}
+  drawn[1] {doubleSided:true,material:lens}
+  drawn[2] {doubleSided:true,material:black}
+  drawn[3] {doubleSided:true,material:pot}
+  drawn[4] {doubleSided:true,material:steel}
+
+## oip.curved-conveyor (function)
+class {conveyor:true,curved:true,tailOrigin:false}
+footprint {hx:2.4340,hz:2.4340,y0:-0.4000,y1:0.0500}
+plugs []
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,runTag:in:BOOL,runningTag:out:BOOL,velocityTag:out:REAL,pulseTag:out:BOOL,encoderTag:out:REAL]
+lamps [] animates=false
+  drawn[0] {look:belt}
+  drawn[1] {look:frame}
+  drawn[2] {collision:static,look:guard}
+  drawn[3] {look:leg}
+  drawn[4] {look:bolt}
+
+## oip.curved-roller-conveyor (function)
+class {conveyor:true,curved:true,tailOrigin:false}
+footprint {hx:2.4340,hz:2.4340,y0:-0.4000,y1:0.0500}
+plugs []
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,runTag:in:BOOL,runningTag:out:BOOL,velocityTag:out:REAL,pulseTag:out:BOOL,encoderTag:out:REAL]
+lamps [] animates=true
+  drawn[0] {look:frame}
+  drawn[1] {collision:static,look:guard}
+  drawn[2] {look:leg}
+  drawn[3] {look:bolt}
+  drawn[4] {instances:35.0000,look:roller,spins:true}
+  drawn[5] {instances:70.0000,look:roller,noShadow:true,spins:true}
+
+## oip.despawner (rig)
+class {}
+footprint {hx:1.0000,hz:1.0000,y0:0,y1:1.0000}
+plugs []
+params reserved=[enableComms] tags=[countTag:out:INT,rateTag:out:REAL,cycleTag:out:REAL,blockTag:in:BOOL]
+lamps [] animates=false
+  link mouth {outline:true,shape:box,zone:true}
+  link readout {shape:label}
+
+## oip.diffuse-sensor (rig)
+class {}
+footprint {hx:0.0225,hz:0.0365,y0:0,y1:0.1600}
+plugs [mounts[0]]
+params reserved=[enableComms] tags=[tag:out:BOOL]
+lamps [led] animates=false
+  link lens {sensesBeam:true,shape:frame}
+  link led {body:true,lamps:[led],shape:box}
+  drawn[0] {doubleSided:true,material:body}
+  drawn[1] {doubleSided:true,material:lens}
+  drawn[2] {doubleSided:true,material:black}
+  drawn[3] {doubleSided:true,material:pot}
+  drawn[4] {doubleSided:true,material:steel}
+
+## oip.diverter (rig)
+class {guardPusher:true}
+footprint {cz:-0.4270,hx:0.3650,hz:0.6760,y0:-0.3847,y1:0.6600}
+plugs [mounts[0]]
+params reserved=[enableComms] tags=[tag:in:BOOL]
+lamps [green,red] animates=false
+  link pusher {shape:frame}
+  link partEnd {shape:frame}
+  link blade {body:true,hidden:true,shape:box}
+  drawn[0] {material:frame}
+  drawn[1] {material:cabinet}
+  drawn[2] {material:hood}
+  drawn[3] {material:barrel}
+  drawn[4] {material:hose}
+  drawn[5] {material:label}
+  drawn[6] {material:button}
+  drawn[7] {lamp:red,material:lampRed}
+  drawn[8] {lamp:green,material:lampGreen}
+  drawn[9] {material:rod,rides:partEnd}
+  drawn[10] {material:hood,rides:partEnd}
+  drawn[11] {material:frame,rides:partEnd}
+  drawn[12] {material:rubber,rides:partEnd}
+
+## oip.fence (rig)
+class {}
+footprint {hx:2.0000,hz:0.0600,y0:0,y1:2.0000}
+plugs [chain]
+params reserved=[] tags=[]
+lamps [] animates=false
+  link barrier {body:true,hidden:true,shape:box}
+  drawn[0] {material:postMetal}
+  drawn[1] {material:meshMetal}
+
+## oip.flex-conveyor (rig)
+class {}
+footprint {cx:4.0000,cz:0,hx:4.0750,hz:0.4100,y0:-0.8000,y1:0.1200}
+plugs []
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,runTag:in:BOOL,releaseTag:in:BOOL,fullTag:out:BOOL]
+lamps [] animates=false
+  link s0 {shape:frame}
+  link d0 {conveys:true,hidden:true,shape:box}
+  link g0L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g0R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e0 {sensesBeam:true,shape:frame}
+  link s1 {shape:frame}
+  link d1 {conveys:true,hidden:true,shape:box}
+  link g1L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g1R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e1 {sensesBeam:true,shape:frame}
+  link s2 {shape:frame}
+  link d2 {conveys:true,hidden:true,shape:box}
+  link g2L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g2R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e2 {sensesBeam:true,shape:frame}
+  link s3 {shape:frame}
+  link d3 {conveys:true,hidden:true,shape:box}
+  link g3L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g3R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e3 {sensesBeam:true,shape:frame}
+  link s4 {shape:frame}
+  link d4 {conveys:true,hidden:true,shape:box}
+  link g4L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g4R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e4 {sensesBeam:true,shape:frame}
+  link s5 {shape:frame}
+  link d5 {conveys:true,hidden:true,shape:box}
+  link g5L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g5R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e5 {sensesBeam:true,shape:frame}
+  link s6 {shape:frame}
+  link d6 {conveys:true,hidden:true,shape:box}
+  link g6L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g6R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e6 {sensesBeam:true,shape:frame}
+  link s7 {shape:frame}
+  link d7 {conveys:true,hidden:true,shape:box}
+  link g7L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g7R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e7 {sensesBeam:true,shape:frame}
+  link s8 {shape:frame}
+  link d8 {conveys:true,hidden:true,shape:box}
+  link g8L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g8R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e8 {sensesBeam:true,shape:frame}
+  link s9 {shape:frame}
+  link d9 {conveys:true,hidden:true,shape:box}
+  link g9L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g9R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e9 {sensesBeam:true,shape:frame}
+  link s10 {shape:frame}
+  link d10 {conveys:true,hidden:true,shape:box}
+  link g10L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g10R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e10 {sensesBeam:true,shape:frame}
+  link s11 {shape:frame}
+  link d11 {conveys:true,hidden:true,shape:box}
+  link g11L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g11R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e11 {sensesBeam:true,shape:frame}
+  link s12 {shape:frame}
+  link d12 {conveys:true,hidden:true,shape:box}
+  link g12L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g12R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e12 {sensesBeam:true,shape:frame}
+  link s13 {shape:frame}
+  link d13 {conveys:true,hidden:true,shape:box}
+  link g13L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g13R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e13 {sensesBeam:true,shape:frame}
+  link s14 {shape:frame}
+  link d14 {conveys:true,hidden:true,shape:box}
+  link g14L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g14R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e14 {sensesBeam:true,shape:frame}
+  link s15 {shape:frame}
+  link d15 {conveys:true,hidden:true,shape:box}
+  link g15L {hidden:true,shape:box,toggledBy:sideGuides}
+  link g15R {hidden:true,shape:box,toggledBy:sideGuides}
+  link e15 {sensesBeam:true,shape:frame}
+  drawn[0] {material:steel,rides:s0}
+  drawn[1] {material:dark,rides:s0}
+  drawn[2] {material:steel,rides:s1}
+  drawn[3] {material:steel,rides:s2}
+  drawn[4] {material:dark,rides:s2}
+  drawn[5] {material:steel,rides:s3}
+  drawn[6] {material:steel,rides:s4}
+  drawn[7] {material:dark,rides:s4}
+  drawn[8] {material:steel,rides:s5}
+  drawn[9] {material:steel,rides:s6}
+  drawn[10] {material:dark,rides:s6}
+  drawn[11] {material:steel,rides:s7}
+  drawn[12] {material:steel,rides:s8}
+  drawn[13] {material:dark,rides:s8}
+  drawn[14] {material:steel,rides:s9}
+  drawn[15] {material:steel,rides:s10}
+  drawn[16] {material:dark,rides:s10}
+  drawn[17] {material:steel,rides:s11}
+  drawn[18] {material:steel,rides:s12}
+  drawn[19] {material:dark,rides:s12}
+  drawn[20] {material:steel,rides:s13}
+  drawn[21] {material:steel,rides:s14}
+  drawn[22] {material:dark,rides:s14}
+  drawn[23] {material:steel,rides:s15}
+  drawn[24] {material:dark,rides:s15}
+
+## oip.floor-marking (function)
+class {}
+footprint {hx:1.0000,hz:4.0000,y0:0,y1:0.0200}
+plugs [edges]
+params reserved=[] tags=[]
+lamps [] animates=false
+  drawn[0] {look:mesh}
+  drawn[1] {look:mesh}
+
+## oip.gantry (rig)
+class {}
+footprint {hx:2.3000,hz:1.3000,y0:0,y1:1.4000}
+plugs []
+params reserved=[speed,enableComms] tags=[enableTag:in:BOOL,commandTag:in:INT,targetXTag:in:REAL,targetYTag:in:REAL,targetZTag:in:REAL,executeTag:in:BOOL,doneTag:out:BOOL,faultTag:out:BOOL,actualXTag:out:REAL,actualYTag:out:REAL,actualZTag:out:REAL,gripperTag:in:BOOL]
+lamps [vacuumLamp] animates=false
+  link legLF {shape:frame}
+  link legLFMain {shape:mesh}
+  link legLFTop {shape:mesh}
+  link legLFBase {shape:mesh}
+  link legRF {shape:frame}
+  link legRFMain {shape:mesh}
+  link legRFTop {shape:mesh}
+  link legRFBase {shape:mesh}
+  link legLB {shape:frame}
+  link legLBMain {shape:mesh}
+  link legLBTop {shape:mesh}
+  link legLBBase {shape:mesh}
+  link legRB {shape:frame}
+  link legRBMain {shape:mesh}
+  link legRBTop {shape:mesh}
+  link legRBBase {shape:mesh}
+  link beamF {shape:mesh}
+  link beamB {shape:mesh}
+  link xCarriage {shape:frame}
+  link beamSecondary {shape:mesh}
+  link mainCarriage01 {shape:mesh}
+  link mainCarriage02 {shape:mesh}
+  link yCarriage {shape:frame}
+  link carriage {shape:mesh}
+  link lift {shape:frame}
+  link beamLift {shape:mesh}
+  link tool {shape:mesh}
+  link vacuumLamp {lamps:[vacuumLamp],shape:box}
+  link gripper {gripZone:true,shape:frame}
+
+## oip.guard-rail (rig)
+class {}
+footprint {hx:2.0000,hz:0.0400,y0:0,y1:1.0700}
+plugs [chain]
+params reserved=[] tags=[]
+lamps [] animates=false
+  link railTop {shape:box}
+  link railMid {shape:box}
+  link post {shape:box}
+  link wall {body:true,hidden:true,shape:box}
+
+## oip.laser-sensor (rig)
+class {}
+footprint {hx:0.0578,hz:0.0737,y0:0,y1:0.1600}
+plugs [mounts[0]]
+params reserved=[enableComms] tags=[distanceTag:out:REAL]
+lamps [led] animates=false
+  link lens {sensesBeam:true,shape:frame}
+  link led {body:true,lamps:[led],shape:box}
+  drawn[0] {doubleSided:true,material:amber}
+  drawn[1] {doubleSided:true,material:dark}
+  drawn[2] {doubleSided:true,material:lilac}
+  drawn[3] {doubleSided:true,material:black}
+  drawn[4] {doubleSided:true,material:orange}
+  drawn[5] {doubleSided:true,material:gray}
+
+## oip.light-curtain (rig)
+class {}
+footprint {hx:0.7850,hz:0.0550,y0:0,y1:1.4000}
+plugs []
+params reserved=[enableComms] tags=[tag:out:BOOL,mutingLampTag:in:BOOL]
+lamps [muting,ossd,stop] animates=false
+  link field {shape:frame}
+  link beam1 {sensesBeam:true,shape:frame}
+  link beam2 {sensesBeam:true,shape:frame}
+  link beam3 {sensesBeam:true,shape:frame}
+  link beam4 {sensesBeam:true,shape:frame}
+  drawn[0] {collision:static,material:housing}
+  drawn[1] {collision:static,material:housing}
+  drawn[2] {material:cap}
+  drawn[3] {material:window}
+  drawn[4] {lamp:ossd,material:lens}
+  drawn[5] {lamp:stop,material:lens}
+  drawn[6] {lamp:muting,material:lens}
+
+## oip.pallet (cargo)
+class {}
+footprint {hx:0.6100,hz:0.5100,y0:-0.0675,y1:0.0675}
+plugs []
+params reserved=[] tags=[]
+lamps [] animates=false
+
+## oip.pallet-dispenser (rig)
+class {}
+footprint {hx:1.2800,hz:0.8300,y0:-1.0000,y1:2.1500}
+plugs []
+params reserved=[enableComms] tags=[dispenseTag:in:BOOL,enableTag:in:BOOL,busyTag:out:BOOL,bayTag:out:BOOL,countTag:out:DINT,levelTag:out:INT]
+lamps [low,ready] animates=false
+  link carriage {shape:frame}
+  link forkW {shape:frame}
+  link forkE {shape:frame}
+  link p0 {gripZone:true,shape:frame}
+  link p1 {gripZone:true,shape:frame}
+  link p2 {gripZone:true,shape:frame}
+  link p3 {gripZone:true,shape:frame}
+  link p4 {gripZone:true,shape:frame}
+  link p5 {gripZone:true,shape:frame}
+  link p6 {gripZone:true,shape:frame}
+  link p7 {gripZone:true,shape:frame}
+  link p8 {gripZone:true,shape:frame}
+  link p9 {gripZone:true,shape:frame}
+  link colWN {body:true,hidden:true,shape:box}
+  link colWS {body:true,hidden:true,shape:box}
+  link colEN {body:true,hidden:true,shape:box}
+  link colES {body:true,hidden:true,shape:box}
+  link bay {hidden:true,shape:box,zone:true}
+  link magazine {hidden:true,shape:box,zone:true}
+  link seat {hidden:true,shape:box,zone:true}
+  link second {hidden:true,shape:box,zone:true}
+  link held {hidden:true,shape:box,zone:true}
+  link ready {lamps:[ready],shape:cylinder}
+  link low {lamps:[low],shape:cylinder}
+  drawn[0] {material:frame}
+  drawn[1] {doubleSided:true,material:guide}
+  drawn[2] {material:dark}
+  drawn[3] {material:panel}
+  drawn[4] {material:alu}
+  drawn[5] {material:guide,rides:carriage}
+  drawn[6] {material:alu,rides:carriage}
+  drawn[7] {material:steel,rides:forkW}
+  drawn[8] {material:steel,rides:forkE}
+
+## oip.pallet-spawner (rig)
+class {}
+footprint {hx:0.2500,hz:0.2500,y0:-0.4600,y1:0.5000}
+plugs []
+params reserved=[enableComms] tags=[runTag:in:BOOL,countTag:out:DINT]
+lamps [] animates=false
+  link marker {outline:true,shape:box}
+  link dropCone {shape:cone}
+
+## oip.platform (rig)
+class {platformDeck:{deckTop:0,hl:2.0000,hw:2.0000}}
+footprint {hx:2.0000,hz:2.0000,y0:0,y1:1.0700}
+plugs [edges]
+params reserved=[] tags=[]
+lamps [] animates=false
+  link deck {body:true,look:tread,shape:box,walkableDeck:true}
+  link colLF {body:true,shape:box}
+  link colLR {body:true,shape:box}
+  link colRF {body:true,shape:box}
+  link colRR {body:true,shape:box}
+  link columnGrid {shape:box,toggledBy:showSupports}
+  link plateLF {shape:box}
+  link plateLR {shape:box}
+  link plateRF {shape:box}
+  link plateRR {shape:box}
+  link plateGrid {shape:box,toggledBy:showSupports}
+  link beamXN {shape:box}
+  link beamXP {shape:box}
+  link beamZN {shape:box}
+  link beamZP {shape:box}
+  link beamGridX {shape:box,toggledBy:showSupports}
+  link beamGridZ {shape:box,toggledBy:showSupports}
+  link postXN {onEdge:negX,shape:box,toggledBy:showRailings}
+  link railTopXN {onEdge:negX,shape:box,toggledBy:showRailings}
+  link railMidXN {onEdge:negX,shape:box,toggledBy:showRailings}
+  link toeXN {onEdge:negX,shape:box,toggledBy:showRailings}
+  link wallXN {body:true,hidden:true,onEdge:negX,shape:box,toggledBy:showRailings}
+  link postXP {onEdge:posX,shape:box,toggledBy:showRailings}
+  link railTopXP {onEdge:posX,shape:box,toggledBy:showRailings}
+  link railMidXP {onEdge:posX,shape:box,toggledBy:showRailings}
+  link toeXP {onEdge:posX,shape:box,toggledBy:showRailings}
+  link wallXP {body:true,hidden:true,onEdge:posX,shape:box,toggledBy:showRailings}
+  link postZN {onEdge:negZ,shape:box,toggledBy:showRailings}
+  link railTopZN {onEdge:negZ,shape:box,toggledBy:showRailings}
+  link railMidZN {onEdge:negZ,shape:box,toggledBy:showRailings}
+  link toeZN {onEdge:negZ,shape:box,toggledBy:showRailings}
+  link wallZN {body:true,hidden:true,onEdge:negZ,shape:box,toggledBy:showRailings}
+  link postZP {onEdge:posZ,shape:box,toggledBy:showRailings}
+  link railTopZP {onEdge:posZ,shape:box,toggledBy:showRailings}
+  link railMidZP {onEdge:posZ,shape:box,toggledBy:showRailings}
+  link toeZP {onEdge:posZ,shape:box,toggledBy:showRailings}
+  link wallZP {body:true,hidden:true,onEdge:posZ,shape:box,toggledBy:showRailings}
+  drawn[0] {material:platformSteel}
+  drawn[1] {material:platformHardware}
+
+## oip.push-button (rig)
+class {}
+footprint {hx:0.0450,hz:0.0300,y0:0,y1:0.0900}
+plugs [mounts[0]]
+params reserved=[enableComms] tags=[tag:out:BOOL,lampTag:in:BOOL]
+lamps [cap] animates=false
+  link cap {shape:frame}
+  link label {shape:label}
+  drawn[0] {doubleSided:true,material:gray}
+  drawn[1] {doubleSided:true,material:dark}
+  drawn[2] {doubleSided:true,material:light}
+  drawn[3] {doubleSided:true,material:bolt}
+  drawn[4] {lamp:cap,material:cap,rides:cap}
+
+## oip.rack (rig)
+class {}
+footprint {hx:2.7000,hz:0.5500,y0:0,y1:6.5500}
+plugs [flush]
+params reserved=[] tags=[]
+lamps [] animates=false
+  link postLF {body:true,shape:box}
+  link postLR {body:true,shape:box}
+  link postRF {body:true,shape:box}
+  link postRR {body:true,shape:box}
+  link poleGrid {shape:box,toggledBy:enableAutoPoles}
+  link shelf {body:true,hidden:true,shape:box}
+  link beamFront {body:true,shape:box}
+  link beamBack {body:true,shape:box}
+  link aisleSignL {shape:label}
+  link aisleSignR {shape:label}
+  drawn[0] {material:rackFrame}
+  drawn[1] {material:rackHardware}
+  drawn[2] {material:rackDeck}
+  drawn[3] {material:rackLabel}
+
+## oip.roller-conveyor (rig)
+class {conveyor:true,straight:{length:4.0000,width:1.5240},tailOrigin:false,worldPhaseRollers:true}
+footprint {hx:2.0000,hz:0.7620,y0:-0.4000,y1:0.0500}
+plugs []
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,runTag:in:BOOL,runningTag:out:BOOL,velocityTag:out:REAL,pulseTag:out:BOOL,encoderTag:out:REAL]
+lamps [] animates=true
+  link deck {conveys:true,hidden:true,shape:box}
+  link roller {shape:frame}
+  link wallL {body:true,frameSide:left,look:frame,shape:box}
+  link wallR {body:true,frameSide:right,look:frame,shape:box}
+  link flangeL {frameSide:left,look:frame,shape:box}
+  link flangeR {frameSide:right,look:frame,shape:box}
+  link guardL {body:true,guardSide:left,guardWall:true,look:guard,shape:box,toggledBy:leftGuard}
+  link guardR {body:true,guardSide:right,guardWall:true,look:guard,shape:box,toggledBy:rightGuard}
+  link lipL {guardSide:left,look:guard,shape:box,toggledBy:leftGuard}
+  link lipR {guardSide:right,look:guard,shape:box,toggledBy:rightGuard}
+  link legs {shape:leg}
+  drawn[0] {instances:53.0000,look:roller,rides:roller,spins:true}
+  drawn[1] {instances:106.0000,look:roller,noShadow:true,rides:roller,spins:true}
+  drawn[2] {instances:104.0000,look:mesh,material:band,noShadow:true,rides:roller}
+  drawn[3] {instances:104.0000,look:mesh,material:band,noShadow:true,rides:roller}
+
+## oip.safety-gate (rig)
+class {}
+footprint {hx:0.5000,hz:0.1000,y0:0,y1:2.0000}
+plugs [chain]
+params reserved=[enableComms] tags=[tag:out:BOOL]
+lamps [] animates=false
+  link hinge {shape:frame}
+  link leaf {body:true,hidden:true,shape:box}
+  link interact {hidden:true,shape:box}
+  drawn[0] {material:postMetal}
+  drawn[1] {material:meshMetal}
+  drawn[2] {material:meshMetal,rides:hinge}
+  drawn[3] {material:handleMetal,rides:hinge}
+
+## oip.shape (function)
+class {}
+footprint {hx:0.5000,hz:0.5000,y0:0,y1:1.0000}
+plugs []
+params reserved=[] tags=[]
+lamps [] animates=false
+  drawn[0] {collision:staticHull,look:mesh}
+
+## oip.six-axis-robot (rig)
+class {}
+footprint {hx:0.9400,hz:0.4150,y0:0,y1:3.4900}
+plugs []
+params reserved=[speed,enableComms] tags=[commandTag:in:INT,executeTag:in:BOOL,doneTag:out:BOOL,enableTag:in:BOOL,gripperTag:in:BOOL,in1Tag:in:BOOL,in2Tag:in:BOOL,in3Tag:in:BOOL,in4Tag:in:BOOL,out1Tag:out:BOOL,out2Tag:out:BOOL,out3Tag:out:BOOL,out4Tag:out:BOOL]
+lamps [vacuumLamp] animates=true
+  link base {shape:mesh}
+  link basePivot {shape:frame}
+  link linkage1 {shape:mesh}
+  link hydBaseAnchor {shape:frame}
+  link hyd1 {shape:mesh}
+  link shoulder {shape:frame}
+  link upperArm {shape:frame}
+  link linkage2 {shape:mesh}
+  link hydRodAnchor {shape:frame}
+  link hyd2 {shape:mesh}
+  link elbow {shape:frame}
+  link forearm {shape:frame}
+  link linkage3 {shape:mesh}
+  link wristRot {shape:frame}
+  link linkage4 {shape:mesh}
+  link wristPitch {shape:frame}
+  link linkage5 {shape:mesh}
+  link tool {shape:frame}
+  link toolSuction {shape:mesh}
+  link gripper {gripZone:true,shape:frame}
+  link eoat {shape:frame}
+  drawn[0] {material:eoatPaint,rides:eoat}
+  drawn[1] {material:eoatRail,rides:eoat}
+  drawn[2] {material:eoatSteel,rides:eoat}
+  drawn[3] {look:bolt,rides:eoat}
+  drawn[4] {material:eoatPlastic,rides:eoat}
+  drawn[5] {lamp:vacuumLamp,material:eoatLens,rides:eoat}
+  drawn[6] {instances:25.0000,material:eoatCup,rides:eoat}
+
+## oip.spur-conveyor (function)
+class {conveyor:true,spur:true,straight:{length:2.0000,width:1.5240},tailOrigin:false}
+footprint {cx:0.2200,hx:1.2200,hz:0.7620,y0:-0.4000,y1:0.0500}
+plugs []
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,runTag:in:BOOL,runningTag:out:BOOL,velocityTag:out:REAL,pulseTag:out:BOOL,encoderTag:out:REAL]
+lamps [] animates=false
+  drawn[0] {instances:40.0000,look:belt}
+  drawn[1] {instances:40.0000,look:belt}
+  drawn[2] {look:gapfill}
+  drawn[3] {instances:2.0000,look:frame}
+  drawn[4] {collision:static,look:guard}
+  drawn[5] {look:guard}
+  drawn[6] {collision:static,look:guard}
+  drawn[7] {look:guard}
+  drawn[8] {instances:22.0000,look:leg}
+  drawn[9] {instances:36.0000,look:bolt}
+
+## oip.spur-roller-conveyor (function)
+class {conveyor:true,spur:true,straight:{length:2.0000,width:1.5240},tailOrigin:false}
+footprint {cx:0.2200,hx:1.2200,hz:0.7620,y0:-0.4000,y1:0.0500}
+plugs []
+params reserved=[speed,enableComms] tags=[speedTag:in:REAL,speedFpmTag:in:REAL,runTag:in:BOOL,runningTag:out:BOOL,velocityTag:out:REAL,pulseTag:out:BOOL,encoderTag:out:REAL]
+lamps [] animates=true
+  drawn[0] {instances:32.0000,look:roller,spins:true}
+  drawn[1] {instances:64.0000,look:roller,noShadow:true,spins:true}
+  drawn[2] {instances:62.0000,look:mesh,material:band,noShadow:true}
+  drawn[3] {instances:62.0000,look:mesh,material:band,noShadow:true}
+  drawn[4] {instances:2.0000,look:frame}
+  drawn[5] {collision:static,look:guard}
+  drawn[6] {look:guard}
+  drawn[7] {collision:static,look:guard}
+  drawn[8] {look:guard}
+  drawn[9] {instances:22.0000,look:leg}
+  drawn[10] {instances:36.0000,look:bolt}
+
+## oip.stack-light (rig)
+class {}
+footprint {hx:0.0365,hz:0.0365,y0:0,y1:0.3850}
+plugs []
+params reserved=[enableComms] tags=[tag:in:INT]
+lamps [seg1,seg2,seg3,seg4,seg5,seg6,seg7,seg8] animates=false
+  link foot {shape:cylinder}
+  link stem {shape:cylinder}
+  link base {shape:cylinder}
+  link core {shape:cylinder}
+  link seg1 {lamps:[seg1],shape:cylinder}
+  link seg2 {lamps:[seg2],shape:cylinder}
+  link seg3 {lamps:[seg3],shape:cylinder}
+  link seg4 {lamps:[seg4],shape:cylinder}
+  link seg5 {lamps:[seg5],shape:cylinder}
+  link seg6 {lamps:[seg6],shape:cylinder}
+  link seg7 {lamps:[seg7],shape:cylinder}
+  link seg8 {lamps:[seg8],shape:cylinder}
+  link ring {shape:cylinder}
+  link ringTop {shape:cylinder}
+  link cap {shape:cylinder}
+  link dome {shape:cone}
+  link shell {body:true,hidden:true,shape:box}
+
+## oip.stairs (rig)
+class {}
+footprint {cx:1.9160,hx:1.9440,hz:0.6200,y0:0,y1:3.0490}
+plugs [edgeMount]
+params reserved=[] tags=[]
+lamps [] animates=false
+  link tread {body:true,look:tread,shape:box,walkableDeck:true}
+  link riser {floorAnchor:true,look:tread,shape:box,walkableDeck:true}
+  link stringerL {shape:box,toggledBy:showHandrails}
+  link stringerR {shape:box,toggledBy:showHandrails}
+  link stringerFootL {floorAnchor:true,shape:box,toggledBy:showHandrails}
+  link stringerFootR {floorAnchor:true,shape:box,toggledBy:showHandrails}
+  link stringerHeadL {shape:box,toggledBy:showHandrails}
+  link stringerHeadR {shape:box,toggledBy:showHandrails}
+  link railFrame {shape:frame}
+  link railTopL {shape:box,toggledBy:showHandrails}
+  link railTopR {shape:box,toggledBy:showHandrails}
+  link railMidL {shape:box,toggledBy:showHandrails}
+  link railMidR {shape:box,toggledBy:showHandrails}
+  link newelL {floorAnchor:true,shape:box,toggledBy:showHandrails}
+  link newelR {floorAnchor:true,shape:box,toggledBy:showHandrails}
+  link landing {body:true,look:tread,shape:box,walkableDeck:true}
+  link landRailTopL {shape:box,toggledBy:showHandrails}
+  link landRailTopR {shape:box,toggledBy:showHandrails}
+  link landRailMidL {shape:box,toggledBy:showHandrails}
+  link landRailMidR {shape:box,toggledBy:showHandrails}
+  link landPost0L {shape:box,toggledBy:showHandrails}
+  link landPost0R {shape:box,toggledBy:showHandrails}
+  link landPost1L {shape:box,toggledBy:showHandrails}
+  link landPost1R {shape:box,toggledBy:showHandrails}
+  link landSkirtL {shape:box,toggledBy:showHandrails}
+  link landSkirtR {shape:box,toggledBy:showHandrails}
+  link guardSlopeL {body:true,hidden:true,shape:box,toggledBy:showHandrails}
+  link guardSlopeR {body:true,hidden:true,shape:box,toggledBy:showHandrails}
+  link guardLandL {body:true,hidden:true,shape:box,toggledBy:showHandrails}
+  link guardLandR {body:true,hidden:true,shape:box,toggledBy:showHandrails}
+  drawn[0] {material:stairSteel,rides:railFrame}
+  drawn[1] {material:stairSteel,rides:railFrame}
+  drawn[2] {material:stairHardware,rides:railFrame}
+
+## oip.stretch-wrapper (rig)
+class {}
+footprint {hx:2.0000,hz:1.4500,y0:-1.0000,y1:2.2500}
+plugs []
+params reserved=[enableComms] tags=[startTag:in:BOOL,enableTag:in:BOOL,busyTag:out:BOOL,doneTag:out:BOOL,inPositionTag:out:BOOL]
+lamps [beacon] animates=false
+  link arm {shape:frame}
+  link carriage {shape:frame}
+  link eye {sensesBeam:true,shape:frame}
+  link inPos {sensesBeam:true,shape:frame}
+  link station {hidden:true,shape:box,zone:true}
+  link column {body:true,hidden:true,shape:box}
+  link beacon {lamps:[beacon],shape:cylinder}
+  drawn[0] {material:frame}
+  drawn[1] {material:dark}
+  drawn[2] {material:panel}
+  drawn[3] {material:steel}
+  drawn[4] {material:arm,rides:arm}
+  drawn[5] {material:dark,rides:arm}
+  drawn[6] {material:alu,rides:arm}
+  drawn[7] {material:steel,rides:carriage}
+  drawn[8] {material:alu,rides:carriage}
+  drawn[9] {material:dark,rides:carriage}
+  drawn[10] {material:film,rides:carriage}
+
+## oip.turntable-conveyor (rig)
+class {conveyor:true,rotatingDeck:true,tailOrigin:false}
+footprint {hx:1.1430,hz:1.1430,y0:-0.4000,y1:0.0500}
+plugs []
+params reserved=[speed,enableComms] tags=[angleTag:in:REAL,speedTag:in:REAL,speedFpmTag:in:REAL,doneTag:out:BOOL,enableTag:in:BOOL]
+lamps [] animates=true
+  link deck {body:true,gripZone:true,look:frame,shape:cylinder}
+  link drum {look:frame,shape:cylinder}
+  link roller {shape:frame}
+  link lane {conveys:true,hidden:true,shape:box}
+  link laneCapLeft {conveys:true,hidden:true,shape:box}
+  link laneCapRight {conveys:true,hidden:true,shape:box}
+  link leg0 {body:true,look:leg,shape:box}
+  link leg1 {body:true,look:leg,shape:box}
+  link leg2 {body:true,look:leg,shape:box}
+  link leg3 {body:true,look:leg,shape:box}
+  link foot0 {look:leg,shape:box}
+  link foot1 {look:leg,shape:box}
+  link foot2 {look:leg,shape:box}
+  link foot3 {look:leg,shape:box}
+  link motorPivot {shape:frame}
+  link mPocket {shape:box}
+  link mRimN {shape:box}
+  link mRimS {shape:box}
+  link mRimW {shape:box}
+  link mRimE {shape:box}
+  link mGearbox {shape:box}
+  link mHousing {shape:cylinder}
+  link mShaft {shape:cylinder}
+  link mCollar {shape:cylinder}
+  link mBearing {shape:box}
+  link mBearingBoltLB {shape:cylinder}
+  link mBearingBoltLT {shape:cylinder}
+  link mBearingBoltRB {shape:cylinder}
+  link mBearingBoltRT {shape:cylinder}
+  link mAdapter {shape:cylinder}
+  link mBody {shape:cylinder}
+  link mFin35 {shape:box}
+  link mFin60 {shape:box}
+  link mFin120 {shape:box}
+  link mFin145 {shape:box}
+  link mFin215 {shape:box}
+  link mFin240 {shape:box}
+  link mFin270 {shape:box}
+  link mFin300 {shape:box}
+  link mFin325 {shape:box}
+  link mEndBell {shape:cylinder}
+  link mCowl {shape:cylinder}
+  link mGrille {shape:cylinder}
+  link mTerminal {shape:box}
+  link mTermLid {shape:box}
+  link mGland {shape:cylinder}
+  link mNameplate {shape:box}
+  link slewRing {shape:cylinder}
+  link slewRingWeb {shape:cylinder}
+  link baseBeamA {look:leg,shape:box}
+  link baseBeamB {look:leg,shape:box}
+  link slewArm {look:leg,shape:box}
+  link slewPinion {shape:cylinder}
+  link slewGearbox {shape:box}
+  link slewMotor {shape:cylinder}
+  link slewCowl {shape:cylinder}
+  link slewGrille {shape:cylinder}
+  drawn[0] {instances:17.0000,look:roller,rides:roller,spins:true}
+  drawn[1] {instances:14.0000,look:frame,rides:roller}
+  drawn[2] {instances:29.0000,look:bolt,noShadow:true,rides:roller}
+
+## oip.unit-load (rig)
+class {}
+footprint {hx:0.6100,hz:0.5100,y0:0,y1:1.4000}
+plugs []
+params reserved=[] tags=[]
+lamps [] animates=false
+  link origin {shape:frame}

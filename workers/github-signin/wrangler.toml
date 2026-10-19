@@ -1,0 +1,12 @@
+# The GitHub sign-in Worker for publishing parts (index.js, docs/part-libraries.md). Deploy: npx wrangler deploy
+name = "oip-github-signin"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [{ pattern = "signin.openindustryproject.org", custom_domain = true }]
+
+[vars]
+# the GitHub OAuth app's client id ("Open Industry Project parts", device flow enabled): public, not a secret
+GITHUB_CLIENT_ID = "Ov23li9gY4Zit0ekqOTu"
+# who may call it: the site and the desktop shell (http://localhost and 127.0.0.1 are always allowed, for development)
+ALLOWED_ORIGINS = "https://www.openindustryproject.org,https://openindustryproject.org,oip://app"

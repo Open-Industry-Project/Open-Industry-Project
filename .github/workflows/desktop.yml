@@ -1,0 +1,280 @@
+name: Desktop
+
+# The desktop app's release: Windows and Linux from ONE commit, under ONE version, published together.
+#
+#   started by hand ("Run workflow"), upload ticked   version -> Linux + Windows (built, Windows signed, both launched)
+#                                                       -> publish both to downloads.openindustryproject.org/desktop/
+#   started by hand, upload not ticked                the same, ending in a check of the files instead of an upload
+#                                                       (it still SIGNS Windows, which spends KeyLocker signatures)
+#   started by hand on a branch other than main       Linux only: Windows is signed only from main, and publish
+#                                                       needs both
+#   a push touching the shell or its release scripts  Linux only, built and launched, nothing signed or uploaded:
+#                                                       a change that stops the app starting fails here, not on a user
+#
+# Every step is scripts/desktop-release.mjs; this file only runs them in order. Signing is KeyLocker's cloud HSM through
+# smctl (apps/desktop/sign.cjs): the key never reaches the runner, only the client certificate and API key that let
+# it ask for a signature. Secrets: SM_API_KEY, SM_CLIENT_CERT_FILE_B64 (the .p12, base64), SM_CLIENT_CERT_PASSWORD,
+# CLOUDFLARE_API_TOKEN (Pages + "Workers R2 Storage: Edit"), CLOUDFLARE_ACCOUNT_ID.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Publish to the release feed (main only)
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - apps/desktop/**
+      - scripts/desktop-*.mjs
+      - .github/workflows/desktop.yml
+
+concurrency:
+  # a push's check is superseded by the next push; a hand-started release is never cancelled by anything
+  group: desktop-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+# Read-only token: the packages are published to R2 with the Cloudflare token, never to GitHub releases.
+permissions:
+  contents: read
+
+# Every job runs scripts/desktop-release.mjs, whose release check does `git fetch origin main`. The repo is public, so
+# the fetch needs no credentials (the checkouts drop theirs like the other workflows'). If it fails anyway, the check
+# compares against the origin/main the checkout itself created, which is the commit this run was started on.
+
+env:
+  # a hand-started run on a branch may build and launch (the release check would refuse a HEAD that is not on
+  # origin/main); an upload refuses this override outright, and publishing is main-only besides
+  OIP_DESKTOP_UNRELEASED: ${{ github.ref != 'refs/heads/main' && '1' || '' }}
+  UPLOAD: ${{ github.event_name == 'workflow_dispatch' && inputs.upload && github.ref == 'refs/heads/main' }}
+
+jobs:
+  version:
+    # once, so both platforms build under the same number; every later step refuses it if a release lands meanwhile
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - id: v
+        run: echo "version=$(node scripts/desktop-release.mjs --print-version | tail -n 1)" >> "$GITHUB_OUTPUT"
+      - name: Check the upload credentials
+        # Before ~20 minutes of building, not after: the token must be able to WRITE the release bucket. A probe
+        # object, written and removed.
+        if: env.UPLOAD == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "probe from ${{ github.run_id }}" > "$RUNNER_TEMP/r2-probe.txt"
+          if ! npx --yes wrangler@4.132.0 r2 object put oip-downloads/desktop/.ci-write-probe --file "$RUNNER_TEMP/r2-probe.txt" --content-type text/plain --remote; then
+            echo "::error::CLOUDFLARE_API_TOKEN cannot write the oip-downloads R2 bucket: give it 'Workers R2 Storage: Edit'"
+            exit 1
+          fi
+          npx --yes wrangler@4.132.0 r2 object delete oip-downloads/desktop/.ci-write-probe --remote
+
+  linux:
+    needs: version
+    # pinned, not ubuntu-latest: the .deb's AppArmor handling is judged against Ubuntu 24.04's rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OIP_RELEASE_VERSION_PIN: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Where the packages go
+        # outside the checkout, so the build cannot dirty the tree the release check reads
+        run: echo "OIP_RELEASE_DIR=$RUNNER_TEMP/release" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        # npm ci, both: exactly the committed lock files, which it never rewrites (the release check refuses a dirty
+        # tree). The shell's install still runs its postinstall (scripts/fetch-libplctag.mjs).
+        run: |
+          npm ci --no-audit --no-fund
+          npm --prefix apps/desktop ci --no-audit --no-fund
+      - name: Install a display and FUSE
+        # xvfb: the launches need an X server. libfuse2t64: what every AppImage needs, and what the download page
+        # tells users to install.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libfuse2t64
+      - name: Shell unit tests
+        run: node --test apps/desktop/*.test.cjs
+
+      - name: Build, verify and launch the AppImage
+        # User namespaces OPEN, as on Debian, Fedora, Arch: where the AppImage is the package to use.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          xvfb-run -a node scripts/desktop-release.mjs --linux
+
+      - name: Install and launch the .deb (Ubuntu 24.04 rules)
+        # Ubuntu 24.04+ desktops RESTRICT unprivileged user namespaces, which Chromium's sandbox needs; the .deb's
+        # install script adds an AppArmor profile that allows it. Installed with apt, as a user would.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+          sudo apt-get install -y -qq "$(ls "$OIP_RELEASE_DIR"/open-industry-project_*_amd64.deb)"
+          xvfb-run -a node scripts/desktop-smoke.mjs /opt/Open\ Industry\ Project/open-industry-project --software-gl --out "$RUNNER_TEMP/smoke-deb"
+
+      - name: AppImage under Ubuntu 24.04 rules (informational)
+        # Expected to FAIL: an AppImage cannot carry an AppArmor profile, so on Ubuntu 24.04+ its sandbox is refused.
+        # Kept so the day that changes (or stops being true) is visible. Ubuntu users are pointed at the .deb.
+        continue-on-error: true
+        run: xvfb-run -a node scripts/desktop-smoke.mjs "$(ls "$OIP_RELEASE_DIR"/Open-Industry-Project-*.AppImage)" --software-gl --out "$RUNNER_TEMP/smoke-appimage-ubuntu" --timeout 90
+
+      - name: Keep the packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-linux
+          path: |
+            ${{ runner.temp }}/release/*.AppImage
+            ${{ runner.temp }}/release/*.deb
+            ${{ runner.temp }}/release/latest-linux.yml
+          # ~270 MB a push: kept 14 days, they filled the account's artifact quota and a release run could not upload.
+          # A push's package is for a quick look; a hand-started run's is what publish ships.
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 14 || 1 }}
+          if-no-files-found: error
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-linux-screenshots
+          path: |
+            ${{ runner.temp }}/release/*.png
+            ${{ runner.temp }}/smoke-*/*.png
+          retention-days: 14
+          if-no-files-found: ignore
+
+  windows:
+    needs: version
+    # a push only checks Linux: signing spends KeyLocker signatures, which only a hand-started run may do. Only main
+    # is signed, so the company certificate never signs an unreviewed branch (artifacts are public in a public repo).
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      OIP_RELEASE_VERSION_PIN: ${{ needs.version.outputs.version }}
+      # The KeyLocker secrets are NOT set here: job-level env would hand them to every step, the dependency installs
+      # included. Only the two steps that talk to KeyLocker get them, below.
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Where the installer goes
+        run: echo "OIP_RELEASE_DIR=$RUNNER_TEMP/release" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npm --prefix apps/desktop ci --no-audit --no-fund
+
+      - name: KeyLocker client
+        # smctl from DigiCert, authenticated by the client certificate + API key; the signing key stays in the HSM.
+        # Hands the certificate's path and smctl's to the build step as step OUTPUTS, not through GITHUB_ENV.
+        id: keylocker
+        shell: pwsh
+        env:
+          SM_HOST: https://clientauth.one.digicert.com
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
+        run: |
+          if (-not $env:SM_API_KEY -or -not $env:SM_CLIENT_CERT_FILE_B64 -or -not $env:SM_CLIENT_CERT_PASSWORD) {
+            Write-Output "::error::KeyLocker secrets missing: SM_API_KEY, SM_CLIENT_CERT_FILE_B64 and SM_CLIENT_CERT_PASSWORD"
+            exit 1
+          }
+          $cert = Join-Path $env:RUNNER_TEMP 'keylocker.p12'
+          [IO.File]::WriteAllBytes($cert, [Convert]::FromBase64String($env:SM_CLIENT_CERT_FILE_B64))
+          "cert=$cert" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+          $msi = Join-Path $env:RUNNER_TEMP 'Keylockertools-windows-x64.msi'
+          Invoke-WebRequest -Uri 'https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download' -Headers @{ 'x-api-key' = $env:SM_API_KEY } -OutFile $msi
+          Start-Process msiexec.exe -ArgumentList '/i', $msi, '/quiet', '/qn' -Wait
+          $smctl = Get-ChildItem 'C:\Program Files\DigiCert' -Recurse -Filter smctl.exe | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $smctl) { Write-Output '::error::smctl.exe not found after installing the KeyLocker tools'; exit 1 }
+          "smctl=$smctl" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+          $env:SM_CLIENT_CERT_FILE = $cert
+          # proves the API key + client certificate BEFORE the build: the signing keypair has to be listed
+          $pairs = & $smctl keypair ls 2>&1 | Out-String
+          Write-Output $pairs
+          if ($LASTEXITCODE -ne 0 -or $pairs -notmatch 'key_1387363956') {
+            Write-Output '::error::KeyLocker did not list the signing keypair (key_1387363956): check SM_API_KEY, the client certificate and its password'
+            exit 1
+          }
+
+      - name: Build, sign and verify
+        # electron-builder's sign hook (apps/desktop/sign.cjs) runs smctl, which reads the SM_* variables
+        env:
+          SM_HOST: https://clientauth.one.digicert.com
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CLIENT_CERT_FILE: ${{ steps.keylocker.outputs.cert }}
+          OIP_SMCTL: ${{ steps.keylocker.outputs.smctl }}
+        run: node scripts/desktop-release.mjs
+      - name: Launch the app
+        run: node scripts/desktop-smoke.mjs "$OIP_RELEASE_DIR/win-unpacked/Open Industry Project.exe" --software-gl --out "$RUNNER_TEMP/smoke-win"
+
+      - name: Keep the installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-windows
+          path: |
+            ${{ runner.temp }}/release/Open-Industry-Project-Setup-*.exe
+            ${{ runner.temp }}/release/Open-Industry-Project-Setup-*.exe.blockmap
+            ${{ runner.temp }}/release/latest.yml
+          retention-days: 14
+          if-no-files-found: error
+      - name: Keep the screenshot
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-windows-screenshot
+          path: ${{ runner.temp }}/smoke-win/*.png
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Remove the client certificate
+        if: always()
+        shell: pwsh
+        run: Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $env:RUNNER_TEMP 'keylocker.p12')
+
+  publish:
+    # both platforms or neither: it waits on both jobs, and a failure in either stops it
+    needs: [version, linux, windows]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    env:
+      OIP_RELEASE_VERSION_PIN: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Gather both platforms
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: desktop-{linux,windows}
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+      - name: Check (and with upload, publish)
+        # every versioned file of both platforms first, then both feed files, then the stable download copies
+        env:
+          OIP_RELEASE_DIR: ${{ runner.temp }}/release
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/desktop-release.mjs --publish ${{ env.UPLOAD == 'true' && '--upload' || '' }}

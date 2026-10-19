@@ -1,0 +1,16 @@
+{
+  "id": "oip.unit-load",
+  "name": "Unit Load",
+  "category": "Products",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      { "name": "origin", "shape": { "kind": "frame" }, "offset": [0, 0, 0] }
+    ],
+    "joints": [],
+    "bounds": { "length": 1.22, "width": 1.02, "top": 1.4 }
+  },
+  "materials": [
+    { "id": "film", "color": [0.716, 0.838, 0.888], "metalness": 0, "roughness": 0.2 }
+  ]
+}

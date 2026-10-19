@@ -1,0 +1,23 @@
+# Dependency update PRs. Weekly, and few at a time: every bump still has to pass CI and be merged
+# by hand, so a flood of PRs is noise rather than safety.
+version: 2
+updates:
+  # The workflows pin every action to a commit SHA (with its tag in a comment); Dependabot keeps
+  # both in step when a new release lands.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      # minor + patch in one PR; a major still gets a PR of its own
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch

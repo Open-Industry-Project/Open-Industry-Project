@@ -1,0 +1,154 @@
+{
+  "format": 6,
+  "id": "oip.klt-bin",
+  "name": "Stacking bin",
+  "params": {
+    "mass": {
+      "type": "number",
+      "default": 1.8,
+      "min": 0.5,
+      "max": 40,
+      "step": 0.1,
+      "label": "Mass (kg)",
+      "desc": "Physical mass. An empty bin is about 1.8 kg."
+    },
+    "color": {
+      "type": "color",
+      "default": "#3c6e9f",
+      "label": "Color",
+      "desc": "The plastic."
+    }
+  },
+  "behavior": "// Stacking bin - a 600 x 400 x 280 mm small load carrier, the kind automotive and electronics lines move parts in. Cargo\n// with its own body (docs/cargo-bodies.md): an open box on a narrower foot, the tote's stacking collider at this size,\n// so cargo goes in it and a bin set on another sits with its foot inside the rim below. Its manifest's `cargo` says so:\n// `nestDepth` (placement seats it the foot's height lower) and `separateContacts` (the floor over the foot does not sink\n// into what it stands on). There is nothing to simulate here: cargo is passive payload, so step() is empty.\n\ndefinePart({\n  params: {\n    mass: { type: 'number', default: 1.8, min: 0.5, max: 40, step: 0.1, label: 'Mass (kg)', desc: 'Physical mass. An empty bin is about 1.8 kg.' },\n    color: { type: 'color', default: '#3c6e9f', label: 'Color', desc: 'The plastic.' },\n  },\n  step() {\n  },\n})\n",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "foot",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.552,
+            0.015,
+            0.352
+          ]
+        },
+        "offset": [
+          0,
+          -0.1325,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "floor",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.579,
+            0.008,
+            0.379
+          ]
+        },
+        "offset": [
+          0,
+          -0.121,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallFront",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.6,
+            0.265,
+            0.021
+          ]
+        },
+        "offset": [
+          0,
+          0.0075,
+          0.1895
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallBack",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.6,
+            0.265,
+            0.021
+          ]
+        },
+        "offset": [
+          0,
+          0.0075,
+          -0.1895
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallLeft",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.021,
+            0.265,
+            0.358
+          ]
+        },
+        "offset": [
+          0.2895,
+          0.0075,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      },
+      {
+        "name": "wallRight",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.021,
+            0.265,
+            0.358
+          ]
+        },
+        "offset": [
+          -0.2895,
+          0.0075,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.7
+      }
+    ],
+    "joints": []
+  },
+  "category": "Products",
+  "materials": [],
+  "cargo": {
+    "friction": 0.45,
+    "separateContacts": true,
+    "nestDepth": 0.015
+  },
+  "sdk": {
+    "level": 3,
+    "of": "v2:1975:f5aw7jsif4"
+  }
+}

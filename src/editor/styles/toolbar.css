@@ -1,0 +1,490 @@
+button {
+  background: var(--control-alt);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: light-dark(#ced1d5, #383c41);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 1fr auto 1fr keeps the run controls centered (like a title-bar run bar)
+   regardless of how wide the side groups get */
+.toolbar {
+  grid-area: toolbar;
+  /* containing block for the shortfall panel, which hangs below the bar as a full-width sheet
+     (it is anchored to the BAR, not to its badge - see .speed-short-note) */
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-edge);
+  /* the row's one control height - see the rule below. app/index.html's ghosts copy it. */
+  --toolbar-control: 28px;
+}
+
+/* One height for every control in the row. Sized by padding and content, each kind gets its own height
+   (six of them, 24-32px): the 1x would stand 3px taller than the Stop beside it because it holds text
+   where Stop holds an icon. A button centres its content, so a fixed height keeps alignment as long as
+   the vertical padding is removed too: the base `button` rule's 5px leaves a text button a 16px content
+   box for a 19px line, so its label sits low. Widths are untouched. Chips (.collab-status, the view-only
+   pill) are states, not controls, and keep their own size. */
+.toolbar :is(.run-button, .icon-toggle, .share-button, .overflow-button, .project-button, .toolbar-menu-btn, .speed-short-button, .plc-link-button) {
+  height: var(--toolbar-control);
+  padding-block: 0;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+}
+
+.toolbar-run {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: center;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+.toolbar-logo {
+  height: 24px;
+  width: auto;
+  flex: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ── Desktop shell: the toolbar is the title bar ───────────────────────────────────────────────────
+   The Electron shell hides the OS title bar and paints the window buttons over this row instead
+   (apps/desktop/main.cjs TITLE_BAR) to give the viewport ~57px more height. The page then has two jobs
+   the OS frame would otherwise do: being draggable, and leaving the buttons room. */
+.app.desktop-shell .toolbar {
+  -webkit-app-region: drag;
+}
+
+/* Every control opts back out: a drag region eats the click before it reaches the button. Matched by
+   ELEMENT at any depth rather than by position in the tree, so a control inside a wrapper (the project
+   menu, Share, Help) opts out without each wrapper having to carry the exclusion on its behalf. */
+.app.desktop-shell .toolbar :is(button, a, input, select, textarea, [role='button']) {
+  -webkit-app-region: no-drag;
+}
+
+/* Windows/Linux: minimize/maximize/close are drawn inside the row, at its right end. Chromium reports
+   the strip they took as env(titlebar-area-*) (the Window Controls Overlay API), so the right-hand
+   group stops where they begin; the fallbacks collapse the calc to 0 if a shell ever runs without it.
+   The inset goes on that GROUP, not on .toolbar: the row is a `1fr auto 1fr` grid, so padding it would
+   move the centre of the grid too and the Run/Pause/Stop cluster would sit visibly left of the window's
+   centre. Insetting one grid item leaves the columns - and therefore that cluster - where they were. */
+.app.desktop-shell:not(.desktop-mac) .toolbar-right {
+  margin-right: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px));
+}
+
+/* macOS: the traffic lights float over the row's left end instead (titleBarStyle hiddenInset), so the
+   same trick on the other side - inset the LEFT group, leave the grid alone. */
+.app.desktop-shell.desktop-mac .toolbar-left {
+  margin-left: 78px;
+}
+
+/* A popped-out panel's window gets the same one row (Windows/Linux; main.cjs popoutTitleBar): its header row
+   [data-titlebar] is the title bar. It moves to the top edge (the panel drops its top padding), bleeds out to
+   both window edges so the strip sits on ONE colour, takes the strip's height (POPOUT_TITLE_BAR_HEIGHT), and
+   stops its content where the buttons begin. Controls opt out of the drag as on the toolbar; what is left -
+   gaps, as in a browser's tab strip - moves the window. */
+.popout-titlebar {
+  --plc-pad-top: 0px;
+}
+.popout-titlebar [data-titlebar] {
+  -webkit-app-region: drag;
+  box-sizing: border-box;
+  height: 32px;
+  margin: 0 -10px;
+  padding-left: 10px;
+  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 10px)) - env(titlebar-area-x, 0px));
+}
+.popout-titlebar [data-titlebar] :is(button, a, input, select, textarea, [role='button']) {
+  -webkit-app-region: no-drag;
+}
+
+/* The mark as the menu button (Windows/Linux): sized off the logo it holds, so it stays a 24px mark
+   with a hit target around it rather than a chrome-heavy button. The row height sets its height. */
+.toolbar-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.toolbar-menu-btn:hover {
+  background: var(--panel-edge);
+}
+
+/* the project menu's caret, in the same dim, so the two read as the same kind of control */
+.toolbar-menu-btn svg {
+  flex: none;
+  color: var(--text-dim);
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 2px;
+}
+
+/* Project menu (ProjectMenu.tsx): the row's one document control. Its label is where you are - the project,
+   and "› Preview: …" while the demo is previewed over it - and both halves truncate rather than push the run cluster
+   (the min-width chain further down). The PROJECT half gives way first (flex-shrink 8 against 1): its name
+   is also the window title, while the scene half is the only place the open scene is named. The popover
+   shares the "..." overflow's chrome and the Help menu's rows, but hangs from the LEFT, under its button. */
+.project-menu {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.project-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 80px;
+  max-width: 380px;
+  padding-inline: 8px;
+}
+
+.project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 8 auto;
+  min-width: 2.5em;
+  max-width: 200px;
+  font-weight: 600;
+}
+
+/* a status badge (the built-in example), not a second name: small, muted, never truncated - the name gives
+   up width first (flex-shrink 8 above) */
+.project-tag {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 14px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.project-button svg {
+  flex: none;
+  color: var(--text-dim);
+}
+
+.project-button.active {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+
+.overflow-popover.project-popover {
+  left: 0;
+  right: auto;
+  min-width: 260px;
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+}
+
+.tool-button.active {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+
+.icon-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  padding: 5px 0;
+  color: var(--text-dim);
+}
+
+.icon-toggle:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.icon-toggle.active {
+  border-color: var(--accent);
+  background: var(--selected);
+  color: var(--text);
+}
+
+/* divides the right-hand group by kind: document + sharing | view modes | help */
+.toolbar-sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+}
+
+/* Help menu (Toolbar.tsx): Keyboard Shortcuts, Settings, the tutorial, and the GitHub link. The popover shares
+   the "..." overflow's chrome (see .overflow-popover); only the rows are its own, because they carry
+   a chord or an icon where the overflow's are bare labels. */
+.help-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.help-popover {
+  min-width: 250px;
+}
+
+.help-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.help-item:hover:not(:disabled),
+.help-item:focus-visible {
+  background: var(--control-alt);
+}
+
+.help-item-label {
+  flex: 1;
+}
+
+.help-item svg,
+.help-item-key {
+  flex: none;
+  color: var(--text-dim);
+}
+
+.help-item-key {
+  font: inherit;
+  font-size: 12px;
+}
+
+.help-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--control-alt);
+}
+
+.share-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-button.active {
+  background: light-dark(#ced1d5, #383c41);
+}
+
+/* anchor for the share popover so it positions relative to the button */
+.share-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Share access-level popover (edit vs view), pinned under the Share button */
+.share-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  /* menu tier (41+): hangs below the top bar into the viewport, so it has to clear the
+     viewport toolbar overlay at 32 - at 20 the tool row painted over the open menu. */
+  z-index: 41;
+  width: 260px;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+}
+
+.share-popover-head {
+  padding: 6px 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+/* each access option is a full-width row button overriding the base button chrome */
+.share-popover .share-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.share-popover .share-option:hover:not(:disabled) {
+  background: var(--control-alt);
+}
+
+.share-option-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-dim);
+}
+
+.share-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.share-option-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.share-option-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.share-option-copy {
+  flex: none;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.share-popover .share-option:hover .share-option-copy {
+  color: var(--text);
+  background: light-dark(#ced1d5, #383c41);
+}
+
+/* display name shown to collaborators (presence); persisted, no account needed */
+.share-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 8px;
+  border-top: 1px solid var(--control-alt);
+}
+
+.share-name-label {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.share-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  background: light-dark(#f7f8f8, #1e2124);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.share-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.share-popover-status {
+  padding: 6px 8px 4px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* live-collaboration presence chip (peer count + connection dot) */
+.collab-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--control-alt);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.collab-status .collab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d6616b;
+}
+
+.collab-status.connected {
+  color: var(--text);
+}
+
+.collab-status.connected .collab-dot {
+  background: #31a354;
+}
+
+/* view-only badge: shown in the toolbar when the room was opened via a read-only link */
+/* A state, not a control: styled like the base `button` rule, it would sit in a row of buttons looking
+   like one more of them. A tinted uppercase pill cannot be mistaken for something to press. */
+.collab-viewonly {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(74, 143, 231, 0.14);
+  border: 1px solid rgba(74, 143, 231, 0.35);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: light-dark(#216fca, #9ecbff);
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+

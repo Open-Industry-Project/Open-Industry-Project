@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "../../.types/editor",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx"
+  },
+  "references": [
+    { "path": "../core" },
+    { "path": "../sim" },
+    { "path": "../render" },
+    { "path": "../plc" },
+    { "path": "../collab" }
+  ],
+  "include": ["./**/*.ts", "./**/*.tsx"]
+}

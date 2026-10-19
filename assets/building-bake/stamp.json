@@ -1,0 +1,30 @@
+{
+  "note": "written by scripts/bake-wall-lighting.mjs; `npm run bake-walls -- --check` compares against it",
+  "atlas": [
+    2048,
+    1024
+  ],
+  "texelsPerMetre": 21.833,
+  "range": 4,
+  "clippedFraction": {
+    "nz": 0,
+    "px": 0,
+    "pz": 0,
+    "nx": 0
+  },
+  "inputs": "95dc17851958b89d883926a36518ce1a803c62ed3a55728ff1fe8d255541481c",
+  "outputs": {
+    "public/models/building/Wall_A.glb": "35f2c5efc37189a94072640bf24ff7b049b62ba8c90872c587ed51eecaa3d138",
+    "public/models/building/Wall_B.glb": "12145bfe04b831e681e24c1862e70aa67cb4698ad5ff71851052b3adb84e0189",
+    "public/models/building/Wall_C.glb": "09ff3a053f50b3e6e119352fd23588b4226f66e23c78bca66bd3f25732ea0cac",
+    "public/models/building/Wall_D.glb": "a0ee6aebc6891017cf9582cc6abdd5766bed1daf3240eca2470875ee252ad7fb",
+    "public/models/building/Roof_A_Wall.glb": "fff2e1eb60c61c30e1ceb932f73db66b46346b39256b9702b87adaa6ca64543d",
+    "public/models/building/Dock_Wall_A.glb": "f5b198c734be0c052b0c29f10ffbe79c1f829496a7f0dc1ebe9761aa77b18148",
+    "public/models/building/Dock_Wall_B.glb": "7293f96964e611da3882886177a121416ec78de4d71ec4da01f6eb300d0a5fee",
+    "public/models/building/Personnel_Door.glb": "1c3366ae9ac2e661b6b03b3d11dec5692787a4f91eb8266ac72b4d9b5236f6e3",
+    "public/models/building/lightmaps/walls-nz.webp": "401437a88adcf6ecf806d976b33a1616f30afb935140a207006eba7d0cc61b98",
+    "public/models/building/lightmaps/walls-px.webp": "2b0aaca46a16c48e9c486b63f9e9764f9874bd4318e49cbf1d5730f9ff8dcd4f",
+    "public/models/building/lightmaps/walls-pz.webp": "86f5a6622b7ac70ff86d2adbf36e60b2915f589c0b6638facf6a531ef7c5e885",
+    "public/models/building/lightmaps/walls-nx.webp": "2bce084d997deab6b452bbf031a63fce1840d89c6f37a1a1d7a1576a62a32515"
+  }
+}

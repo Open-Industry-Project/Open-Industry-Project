@@ -1,0 +1,665 @@
+/* live presence overlay: remote cursors + selection rings, projected over the canvas */
+.presence-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* a remote peer's selection ring, centered on the part's screen position */
+.presence-sel {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 2px solid light-dark(#737373, #888);
+  border-radius: 50%;
+  opacity: 0.85;
+  box-shadow: 0 0 6px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+}
+
+/* a remote peer's floor cursor: an arrow with a trailing name tag */
+.presence-cursor {
+  position: absolute;
+  /* the SVG pointer's tip is at (2,2); shift the marker so the tip lands on the exact point */
+  transform: translate(-2px, -2px);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.presence-arrow {
+  display: block;
+  width: 20px;
+  height: 20px;
+  line-height: 0;
+  filter: drop-shadow(0 1px 2px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5)));
+}
+
+.presence-name {
+  /* trail the label below-right of the tip so it never covers what the cursor points at */
+  position: absolute;
+  left: 15px;
+  top: 15px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+}
+
+/* first-person avatar: a peer walking the scene in pilot mode. The body is an in-world 3D
+   capsule (render/viewport/viewPilot.ts setPilotAvatars); this is just the floating name billboard. */
+.presence-pilot {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* the name floats just above the peer's head, centered (overrides the cursor's trailing offset) */
+.presence-pilot-name {
+  left: 50%;
+  top: -6px;
+  transform: translate(-50%, -100%);
+}
+
+/* "Previewing - only you" badge: a private sim run is visible only to the runner */
+.preview-badge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 14px;
+  background: rgba(46, 111, 139, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+  pointer-events: none;
+  z-index: 7;
+}
+
+.preview-badge .preview-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8fe3ff;
+  animation: preview-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes preview-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* "Following X" badge: double-F follow mode is tracking the selection. Sits top-left below the
+   viewport toolbar (an information overlay); clicking it stops following. */
+.follow-badge {
+  position: absolute;
+  top: 52px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 9px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-edge);
+  background: light-dark(rgba(245, 246, 247, 0.92), rgba(32, 34, 37, 0.92));
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+  cursor: pointer;
+  z-index: 6;
+}
+
+.follow-badge:hover {
+  background: rgba(46, 111, 139, 0.95);
+  border-color: light-dark(rgba(53, 180, 222, 0.6), rgba(143, 227, 255, 0.6));
+}
+
+.follow-badge svg {
+  width: 14px;
+  height: 14px;
+  color: light-dark(#197a9a, #8fe3ff);
+  flex: 0 0 auto;
+}
+
+/* Guard-openings mode (G) is on: what it is, how to work it, and the way out. Top-centre below the
+   viewport toolbar, in the handle orange so it reads as belonging to the dots it explains. */
+.guard-openings-banner {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 12px;
+  border-radius: 14px;
+  border: 1px solid light-dark(rgba(219, 128, 36, 0.55), rgba(255, 128, 0, 0.55));
+  background: light-dark(rgba(245, 246, 247, 0.92), rgba(32, 34, 37, 0.92));
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 2px 8px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+  z-index: 6;
+}
+
+.guard-openings-title {
+  font-weight: 600;
+  color: light-dark(#9d6119, #ffb050);
+  white-space: nowrap;
+}
+
+.guard-openings-hint {
+  color: light-dark(rgba(0, 0, 0, 0.85), rgba(255, 255, 255, 0.85));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guard-openings-done {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-edge);
+  background: light-dark(rgba(0, 0, 0, 0.056), rgba(255, 255, 255, 0.08));
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.guard-openings-done:hover {
+  background: rgba(255, 128, 0, 0.35);
+}
+
+/* the Inspector's way into guard-openings mode, under the Guard openings table */
+.guard-openings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.guard-openings-edit {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-edge);
+  background: light-dark(rgba(0, 0, 0, 0.042), rgba(255, 255, 255, 0.06));
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.guard-openings-edit:hover:not(:disabled) {
+  border-color: light-dark(rgba(219, 128, 36, 0.6), rgba(255, 128, 0, 0.6));
+}
+
+/* Transient viewport hint (editor-mode point-of-interaction feedback, e.g. "In auto - PLC
+   controlled" off a dead C press). Bottom-center, auto-dismissed by ViewportHint.tsx. */
+.viewport-hint {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 14px;
+  background: light-dark(rgba(245, 246, 247, 0.92), rgba(32, 34, 37, 0.92));
+  border: 1px solid var(--panel-edge);
+  color: light-dark(#956718, #ffd489);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+  pointer-events: none;
+  z-index: 7;
+  animation: viewport-hint-in 0.15s ease-out;
+}
+
+/* walk mode: under the crosshair prompt, above the pilot HUD (z-index 5) */
+.viewport-hint-pilot {
+  top: calc(50% + 56px);
+  bottom: auto;
+}
+
+@keyframes viewport-hint-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* "a new version is available - Reload" toast (UpdatePrompt) */
+.update-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 16px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+  z-index: 50;
+}
+
+.update-toast button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* clear the mobile bottom tab bar, and stretch full-width since the viewport is full-bleed */
+.app.mobile .update-toast {
+  bottom: 72px;
+  left: 16px;
+  right: 16px;
+  justify-content: space-between;
+}
+
+/* custom-part build-failure toasts (PartBuildToast); bottom-left so they never collide with the
+   bottom-right update toast. Newest stacks on top. */
+.part-build-toasts {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  z-index: 50;
+  max-width: 360px;
+  pointer-events: none; /* container is just a stack; each toast re-enables its own pointer events */
+}
+
+.part-build-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid #6b3a1e;
+  border-left: 3px solid light-dark(#df823d, #e0823c);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 16px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+}
+
+/* informational notices sharing the surface (NoticeToast tone="info"): the amber above is the build-failure
+   accent, and a statement like "the demo is now your scene" must not read as something having gone wrong. */
+.part-build-toast.info {
+  border-color: #2e4d77;
+  border-left-color: var(--accent);
+}
+
+.part-build-toast.info .part-build-toast-title {
+  color: light-dark(#226fd2, #7fb0f0);
+}
+
+.part-build-toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.part-build-toast-title {
+  font-weight: 600;
+  color: light-dark(#a35d1b, #f0a967);
+}
+
+.part-build-toast-error {
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+/* a notice's one follow-up (Notice.action) - "Download a copy" under "Saved in this browser" */
+.part-build-toast-action {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #2e4d77;
+  background: transparent;
+  color: light-dark(#226fd2, #7fb0f0);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.part-build-toast-action:hover {
+  background: light-dark(#e6ebf2, #1f2a3a);
+}
+
+.part-build-toast-close {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.part-build-toast-close:hover {
+  color: var(--text);
+}
+
+/* sticky autosave-failure banner (AutosaveBanner). Top-centre and red, not bottom-corner amber like the
+   build toasts: this one means work is being lost right now, and it does not auto-dismiss. */
+.autosave-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(680px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid #7a2b2b;
+  border-left: 3px solid #e05252;
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 16px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+}
+
+.autosave-banner-title {
+  flex: none;
+  font-weight: 600;
+  color: light-dark(#d72323, #f08a8a);
+}
+
+.autosave-banner-body {
+  color: var(--text-dim);
+  min-width: 0;
+}
+
+.autosave-banner-action {
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.autosave-banner-action:hover {
+  border-color: #e05252;
+}
+
+/* "Updated" on a catalog card: this project's version of a built-in the app has changed since (builtInUpdate.ts).
+   Always visible (unlike the hover-only card buttons): it is something to decide, not a tool. */
+.catalog-card-updated {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  border: none;
+  border-radius: 3px;
+  color: #fff;
+  background: color-mix(in srgb, var(--accent, #3b82f6) 85%, black);
+  cursor: pointer;
+}
+
+.catalog-card-updated:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The Catalog's Shelf tab (CatalogShelf.tsx): what a shelf part is to this project, in the same always-visible
+   corner badge as "Updated" above - something to decide, not a hover tool */
+.catalog-card-shelf {
+  position: relative;
+}
+
+.catalog-card-shelf-badge {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  max-width: calc(100% - 6px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  border: none;
+  border-radius: 3px;
+  color: #fff;
+  background: color-mix(in srgb, var(--accent, #3b82f6) 85%, black);
+}
+
+button.catalog-card-shelf-badge {
+  cursor: pointer;
+}
+
+button.catalog-card-shelf-badge:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.catalog-card-shelf-badge.is-quiet {
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.catalog-card-shelf-badge.is-warn {
+  background: #a5551c;
+}
+
+/* where the shelf is, and the ways to change it: a row across the whole card grid */
+.catalog-shelf-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.catalog-shelf-where {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalog-shelf-empty {
+  grid-column: 1 / -1;
+}
+
+.catalog-shelf-problems {
+  color: #d88a4a;
+}
+
+.rig-builtin-updated p {
+  margin: 0 0 4px;
+}
+
+/* ⚠ overlay on a catalog card whose latest edit failed to build (showing the last-good version) */
+.catalog-card-error-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
+  line-height: 1;
+  color: light-dark(#a35d1b, #f0a967);
+  text-shadow: 0 1px 2px light-dark(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.8));
+  pointer-events: none;
+}
+
+/* a param row the Inspector was asked to show (store.paramFocus, a rig node's "Change Width"): a brief highlight */
+.prop-row-flash {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent);
+  transition: background 0.6s ease-out;
+  border-radius: 3px;
+}
+
+/* a rig node field the part sets itself (core linkFieldOwnership): read-only, and this line says what sets it */
+.rig-owned {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+
+/* An agent at work (AgentActivity.tsx): the viewport's bottom-right corner, clear of the hint (bottom centre) and the
+   model-loading indicator (bottom left), and over no dock */
+.agent-activity {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 16px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+  /* above the loading cover (.viewport-cover, 7): an agent can edit while models load, and its edits stay answerable */
+  z-index: 8;
+  white-space: nowrap;
+}
+
+.agent-activity-busy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+}
+
+.agent-activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: agent-activity-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes agent-activity-pulse {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-activity-dot {
+    animation: none;
+  }
+}
+
+.app.mobile .agent-activity {
+  bottom: calc(60px + env(safe-area-inset-bottom));
+}
+
+.agent-review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 36vh;
+  overflow-y: auto;
+}
+
+.agent-review-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-review-change {
+  flex: 0 0 64px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.agent-review-added {
+  color: var(--accent);
+}
+
+.agent-review-removed {
+  color: var(--danger);
+}
+
+.agent-review-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.agent-review-fields {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.agent-review-steps {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.agent-review-steps ol {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  max-height: 20vh;
+  overflow-y: auto;
+}
+
+.agent-review-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}

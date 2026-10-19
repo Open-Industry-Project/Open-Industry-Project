@@ -1,0 +1,57 @@
+{
+  "id": "oip.light-curtain",
+  "name": "Light Curtain",
+  "category": "Devices",
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "field",
+        "shape": { "kind": "frame" },
+        "offset": [0, 0.3, 0],
+        "offsetParams": [{ "axis": 1, "param": "fieldBottom" }]
+      },
+      {
+        "name": "beam1",
+        "parent": "field",
+        "shape": { "kind": "frame" },
+        "offset": [-0.7, 0, 0],
+        "offsetParams": [{ "axis": 0, "param": "width", "scale": -0.5 }],
+        "beam": { "range": 1.4, "rangeParam": "width", "showParam": "showBeam", "axis": [1, 0, 0] }
+      },
+      {
+        "name": "beam2",
+        "parent": "field",
+        "shape": { "kind": "frame" },
+        "offset": [-0.7, 0.3, 0],
+        "offsetParams": [{ "axis": 0, "param": "width", "scale": -0.5 }, { "axis": 1, "param": "fieldHeight", "scale": 0.3333333333333333 }],
+        "beam": { "range": 1.4, "rangeParam": "width", "showParam": "showBeam", "axis": [1, 0, 0] }
+      },
+      {
+        "name": "beam3",
+        "parent": "field",
+        "shape": { "kind": "frame" },
+        "offset": [-0.7, 0.6, 0],
+        "offsetParams": [{ "axis": 0, "param": "width", "scale": -0.5 }, { "axis": 1, "param": "fieldHeight", "scale": 0.6666666666666666 }],
+        "beam": { "range": 1.4, "rangeParam": "width", "showParam": "showBeam", "axis": [1, 0, 0] }
+      },
+      {
+        "name": "beam4",
+        "parent": "field",
+        "shape": { "kind": "frame" },
+        "offset": [-0.7, 0.9, 0],
+        "offsetParams": [{ "axis": 0, "param": "width", "scale": -0.5 }, { "axis": 1, "param": "fieldHeight" }],
+        "beam": { "range": 1.4, "rangeParam": "width", "showParam": "showBeam", "axis": [1, 0, 0] }
+      }
+    ],
+    "joints": [],
+    "bounds": { "length": 1.57, "width": 0.11, "top": 1.4 }
+  },
+  "materials": [
+    { "id": "housing", "color": [0.479, 0.509, 0.539], "metalness": 0.6, "roughness": 0.35 },
+    { "id": "cap", "color": [0.888, 0.508, 0.005], "metalness": 0.1, "roughness": 0.45 },
+    { "id": "window", "color": [0.012, 0.01, 0.01], "metalness": 0, "roughness": 0.15 },
+    { "id": "lens", "color": [0.18, 0.18, 0.18], "metalness": 0, "roughness": 0.3 }
+  ]
+}

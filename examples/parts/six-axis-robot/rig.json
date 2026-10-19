@@ -1,0 +1,539 @@
+{
+  "id": "oip.six-axis-robot",
+  "name": "Six-Axis Robot",
+  "category": "Equipment",
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "base",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Base",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "quat": [
+          0,
+          -0.7071068,
+          0,
+          0.70710677
+        ]
+      },
+      {
+        "name": "basePivot",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "linkage1",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Linkage_01",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0.23,
+          0
+        ],
+        "parent": "basePivot",
+        "quat": [
+          0,
+          -0.7071068,
+          0,
+          0.70710677
+        ]
+      },
+      {
+        "name": "hydBaseAnchor",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.31569114,
+          0.5505995,
+          -0.22799234
+        ],
+        "parent": "basePivot",
+        "quat": [
+          0.05364445,
+          -0.70634111,
+          0.0538397,
+          0.70377966
+        ],
+        "aim": {
+          "target": "hydRodAnchor"
+        }
+      },
+      {
+        "name": "hyd1",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Hydraulic_01",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "parent": "hydBaseAnchor"
+      },
+      {
+        "name": "shoulder",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.9,
+          0
+        ],
+        "parent": "basePivot"
+      },
+      {
+        "name": "upperArm",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          -0.72657037,
+          -0.34717786,
+          -0.00242546
+        ],
+        "parent": "shoulder"
+      },
+      {
+        "name": "linkage2",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Linkage_02",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "parent": "upperArm",
+        "quat": [
+          -0.50000002,
+          -0.49999996,
+          -0.49999998,
+          0.50000004
+        ]
+      },
+      {
+        "name": "hydRodAnchor",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.19884515,
+          0.00020599,
+          -0.228842
+        ],
+        "parent": "upperArm",
+        "quat": [
+          -0.32043198,
+          0.62891006,
+          0.31849341,
+          0.63273804
+        ],
+        "aim": {
+          "target": "hydBaseAnchor"
+        }
+      },
+      {
+        "name": "hyd2",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Hydraulic_02",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "parent": "hydRodAnchor"
+      },
+      {
+        "name": "elbow",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.01472515,
+          1.3262625,
+          -0.00687705
+        ],
+        "parent": "upperArm"
+      },
+      {
+        "name": "forearm",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          -0.01825523,
+          0.01825523,
+          -0.09700517
+        ],
+        "parent": "elbow"
+      },
+      {
+        "name": "linkage3",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Linkage_03",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "parent": "forearm",
+        "quat": [
+          0.5,
+          0.5,
+          0.50000002,
+          -0.49999998
+        ]
+      },
+      {
+        "name": "wristRot",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.11355525,
+          0.87549424,
+          0.09818761
+        ],
+        "parent": "forearm"
+      },
+      {
+        "name": "linkage4",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Linkage_04",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "parent": "wristRot",
+        "quat": [
+          0.5,
+          0.5,
+          0.50000002,
+          -0.49999998
+        ]
+      },
+      {
+        "name": "wristPitch",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.33123374,
+          0
+        ],
+        "parent": "wristRot"
+      },
+      {
+        "name": "linkage5",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Linkage_05",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "parent": "wristPitch",
+        "quat": [
+          0.50000001,
+          -0.50000001,
+          0.50000002,
+          0.49999996
+        ]
+      },
+      {
+        "name": "tool",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.21365428,
+          0
+        ],
+        "parent": "wristPitch"
+      },
+      {
+        "name": "toolSuction",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "Six-Axis_Tool_Suction",
+          "material": "sixaxis"
+        },
+        "offset": [
+          0,
+          0.02553463,
+          0
+        ],
+        "parent": "tool",
+        "quat": [
+          0.7071068,
+          -2e-8,
+          -1e-8,
+          0.70710677
+        ]
+      },
+      {
+        "name": "gripper",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.165672,
+          0
+        ],
+        "parent": "tool",
+        "grip": {
+          "zone": {
+            "size": [
+              0.5,
+              0.7,
+              0.5
+            ],
+            "sizeParams": [
+              {
+                "axis": 0,
+                "param": "toolSizeX",
+                "scale": 1
+              },
+              {
+                "axis": 2,
+                "param": "toolSizeZ",
+                "scale": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "eoat",
+        "parent": "tool",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.009,
+          0
+        ],
+        "quat": [
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    ],
+    "joints": [
+      {
+        "name": "j1",
+        "link": "basePivot",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -3.14159265,
+        "max": 3.14159265
+      },
+      {
+        "name": "j2",
+        "link": "upperArm",
+        "type": "revolute",
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "min": -2.35619449,
+        "max": 2.35619449
+      },
+      {
+        "name": "j3",
+        "link": "forearm",
+        "type": "revolute",
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "min": -2.7925268,
+        "max": 2.7925268
+      },
+      {
+        "name": "j4",
+        "link": "wristRot",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -3.14159265,
+        "max": 3.14159265
+      },
+      {
+        "name": "j5",
+        "link": "wristPitch",
+        "type": "revolute",
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "min": -2.0943951,
+        "max": 2.0943951
+      },
+      {
+        "name": "j6",
+        "link": "tool",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -6.28318531,
+        "max": 6.28318531
+      }
+    ],
+    "bounds": {
+      "length": 1.88,
+      "width": 0.83,
+      "top": 3.49
+    },
+    "posable": true
+  },
+  "materials": [
+    {
+      "id": "sixaxis",
+      "albedo": "albedo",
+      "orm": "orm"
+    },
+    {
+      "id": "eoatPaint",
+      "color": [
+        0.639,
+        0.116,
+        0.0066
+      ],
+      "metalness": 0,
+      "roughness": 0.55
+    },
+    {
+      "id": "eoatRail",
+      "color": [
+        0.04,
+        0.04,
+        0.045
+      ],
+      "metalness": 0.7,
+      "roughness": 0.35
+    },
+    {
+      "id": "eoatSteel",
+      "color": [
+        0.18,
+        0.18,
+        0.19
+      ],
+      "metalness": 0.85,
+      "roughness": 0.45
+    },
+    {
+      "id": "eoatCup",
+      "color": [
+        0.024,
+        0.104,
+        0.4
+      ],
+      "metalness": 0,
+      "roughness": 0.75
+    },
+    {
+      "id": "eoatPlastic",
+      "color": [
+        0.02,
+        0.02,
+        0.022
+      ],
+      "metalness": 0,
+      "roughness": 0.5
+    },
+    {
+      "id": "eoatLens",
+      "color": [
+        0.03,
+        0.06,
+        0.03
+      ],
+      "metalness": 0,
+      "roughness": 0.25
+    }
+  ],
+  "assets": [
+    {
+      "id": "glb",
+      "mime": "model/gltf-binary",
+      "url": "/models/SixAxisRobot.glb"
+    },
+    {
+      "id": "albedo",
+      "mime": "image/webp",
+      "url": "/models/sixaxis/BaseColor.webp"
+    },
+    {
+      "id": "orm",
+      "mime": "image/webp",
+      "url": "/models/sixaxis/ORM.webp"
+    }
+  ]
+}

@@ -1,0 +1,2036 @@
+{
+  "manifest": "oip-web PLC language capabilities",
+  "version": 1,
+  "generatedBy": "npm run capabilities -- --write",
+  "generatedFrom": "the engine itself: every verdict below is the engine in src/plc (checker.ts and interpreter.ts) answering, not prose transcribed from a doc",
+  "language": {
+    "name": "IEC 61131-3 Structured Text and Ladder Diagram",
+    "status": "a subset, deliberately",
+    "claim": "Within the subset, a program is meant to behave the way a real IEC runtime would, so code written here carries over to a physical PLC; where it knowingly behaves differently, the difference is listed. There is no compliance statement and no PLCopen certification.",
+    "ladder": "Ladder is a second front end on the same engine: each rung is translated to the Structured Text that means it. A feature with language \"ladder\" is a LADDER section.",
+    "ledger": "docs/st-conformance.md",
+    "ladderDoc": "docs/ladder.md",
+    "page": "https://www.openindustryproject.org/plc/"
+  },
+  "types": {
+    "supported": [
+      "BOOL",
+      "SINT",
+      "INT",
+      "DINT",
+      "USINT",
+      "UINT",
+      "UDINT",
+      "BYTE",
+      "WORD",
+      "DWORD",
+      "REAL",
+      "LREAL",
+      "TIME",
+      "DATE",
+      "TOD",
+      "DT",
+      "STRING"
+    ],
+    "defaultStringLength": 80,
+    "notes": [
+      "REAL is single precision (f32 after every operation), LREAL is 64-bit, as on every target.",
+      "TIME carries milliseconds and never mixes with numbers implicitly.",
+      "The three integer families (signed, unsigned, bit string) are kept apart at the operator level."
+    ]
+  },
+  "functionBlocks": [
+    "TON",
+    "TOF",
+    "TP",
+    "R_TRIG",
+    "F_TRIG",
+    "CTU",
+    "CTD",
+    "CTUD",
+    "SR",
+    "RS"
+  ],
+  "functions": {
+    "named": [
+      "ABS",
+      "ACOS",
+      "ADD",
+      "ADD_DT_TIME",
+      "ADD_TIME",
+      "ADD_TOD_TIME",
+      "ASIN",
+      "ATAN",
+      "BCD_TO_INT",
+      "CONCAT",
+      "CONCAT_DATE_TOD",
+      "COS",
+      "DELETE",
+      "DIV",
+      "DIVTIME",
+      "DIV_TIME",
+      "EQ",
+      "EXP",
+      "EXPT",
+      "FIND",
+      "GE",
+      "GT",
+      "INSERT",
+      "INT_TO_BCD",
+      "LE",
+      "LEFT",
+      "LEN",
+      "LIMIT",
+      "LN",
+      "LOG",
+      "LT",
+      "MAX",
+      "MID",
+      "MIN",
+      "MOVE",
+      "MUL",
+      "MULTIME",
+      "MUL_TIME",
+      "MUX",
+      "NE",
+      "REPLACE",
+      "RIGHT",
+      "ROL",
+      "ROR",
+      "SEL",
+      "SHL",
+      "SHR",
+      "SIN",
+      "SQRT",
+      "SUB",
+      "SUB_DATE_DATE",
+      "SUB_DT_DT",
+      "SUB_DT_TIME",
+      "SUB_TIME",
+      "SUB_TOD_TIME",
+      "SUB_TOD_TOD",
+      "TAN",
+      "TRUNC"
+    ],
+    "conversions": {
+      "pattern": "<SRC>_TO_<DST>",
+      "over": [
+        "BOOL",
+        "SINT",
+        "INT",
+        "DINT",
+        "USINT",
+        "UINT",
+        "UDINT",
+        "BYTE",
+        "WORD",
+        "DWORD",
+        "REAL",
+        "LREAL",
+        "TIME",
+        "DATE",
+        "TOD",
+        "DT",
+        "STRING"
+      ],
+      "verified": [
+        "INT_TO_REAL",
+        "REAL_TO_INT",
+        "STRING_TO_TIME",
+        "TIME_TO_DINT"
+      ]
+    }
+  },
+  "keywords": [
+    "AND",
+    "ARRAY",
+    "BOOL",
+    "BY",
+    "BYTE",
+    "CASE",
+    "CONSTANT",
+    "CONTINUE",
+    "DINT",
+    "DO",
+    "DWORD",
+    "ELSE",
+    "ELSIF",
+    "END_CASE",
+    "END_FOR",
+    "END_FUNCTION",
+    "END_FUNCTION_BLOCK",
+    "END_IF",
+    "END_REPEAT",
+    "END_STRUCT",
+    "END_TYPE",
+    "END_VAR",
+    "END_WHILE",
+    "EXIT",
+    "FALSE",
+    "FOR",
+    "FUNCTION",
+    "FUNCTION_BLOCK",
+    "IF",
+    "INT",
+    "LREAL",
+    "MOD",
+    "NOT",
+    "OF",
+    "OR",
+    "REAL",
+    "REPEAT",
+    "RETURN",
+    "SINT",
+    "STRING",
+    "STRUCT",
+    "THEN",
+    "TIME",
+    "TO",
+    "TRUE",
+    "TYPE",
+    "UDINT",
+    "UINT",
+    "UNTIL",
+    "USINT",
+    "VAR",
+    "VAR_EXTERNAL",
+    "VAR_GLOBAL",
+    "VAR_INPUT",
+    "VAR_IN_OUT",
+    "VAR_OUTPUT",
+    "VAR_TEMP",
+    "WHILE",
+    "WORD",
+    "XOR"
+  ],
+  "features": [
+    {
+      "id": "if",
+      "category": "Control flow",
+      "intent": "supported",
+      "title": "IF / ELSIF / ELSE",
+      "st": "VAR_INPUT n : INT; END_VAR VAR_OUTPUT q : INT; END_VAR\nIF n > 10 THEN q := 2; ELSIF n > 0 THEN q := 1; ELSE q := 0; END_IF;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "case",
+      "category": "Control flow",
+      "intent": "supported",
+      "title": "CASE with lists and lo..hi ranges",
+      "st": "VAR_INPUT n : INT; END_VAR VAR_OUTPUT q : INT; END_VAR\nCASE n OF\n  1, 3: q := 1;\n  4..9: q := 2;\n  -1: q := 9;\nELSE q := 0;\nEND_CASE;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "for",
+      "category": "Control flow",
+      "intent": "supported",
+      "title": "FOR with BY",
+      "st": "VAR i : INT; sum : INT; END_VAR\nFOR i := 10 TO 0 BY -2 DO sum := sum + i; END_FOR;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "while-repeat",
+      "category": "Control flow",
+      "intent": "supported",
+      "title": "WHILE and REPEAT ... UNTIL",
+      "st": "VAR i : INT; j : INT; END_VAR\nWHILE i < 5 DO i := i + 1; END_WHILE;\nREPEAT j := j + 1; UNTIL j >= 5 END_REPEAT;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "exit-continue-return",
+      "category": "Control flow",
+      "intent": "supported",
+      "title": "EXIT, CONTINUE, RETURN",
+      "st": "VAR i : INT; n : INT; END_VAR\nFOR i := 1 TO 10 DO\n  IF i = 3 THEN CONTINUE; END_IF;\n  IF i = 8 THEN EXIT; END_IF;\n  n := n + 1;\nEND_FOR;\nRETURN;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "function-block",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "User FUNCTION_BLOCK, named inputs and => output bindings",
+      "st": "FUNCTION_BLOCK Motor\nVAR_INPUT Run : BOOL; END_VAR\nVAR_OUTPUT Spinning : BOOL; END_VAR\nSpinning := Run;\nEND_FUNCTION_BLOCK\n\nVAR M1 : Motor; lamp : BOOL; END_VAR\nM1(Run := TRUE, Spinning => lamp);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "function",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "Stateless FUNCTION (returns by assigning its own name)",
+      "st": "FUNCTION Double : INT\nVAR_INPUT x : INT; END_VAR\nDouble := x * 2;\nEND_FUNCTION\n\nVAR r : INT; END_VAR\nr := Double(21);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "fb-shadow",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "A user block may shadow a standard one (TON is not reserved)",
+      "st": "FUNCTION_BLOCK TON\nVAR_INPUT IN : BOOL; END_VAR\nVAR_OUTPUT Q : BOOL; END_VAR\nQ := IN;\nEND_FUNCTION_BLOCK\n\nVAR t : TON; q : BOOL; END_VAR\nt(IN := TRUE, Q => q);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "positional-fb-args",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "Positional arguments, in the block’s own declaration order",
+      "st": "VAR t : TON; END_VAR\nt(TRUE, T#1s);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "var-in-out",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "VAR_IN_OUT binds a place, so the block writes the caller’s array",
+      "st": "FUNCTION_BLOCK Fill\nVAR_IN_OUT buf : ARRAY [1..4] OF INT; END_VAR\nVAR i : INT; END_VAR\nFOR i := 1 TO 4 DO buf[i] := i; END_FOR;\nEND_FUNCTION_BLOCK\n\nVAR f : Fill; data : ARRAY [1..4] OF INT; END_VAR\nf(buf := data);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "fb-array",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "An array of function-block instances, called by index",
+      "st": "VAR eyes : ARRAY [1..4] OF BOOL; delay : ARRAY [1..4] OF TON; jam : ARRAY [1..4] OF BOOL; i : INT; END_VAR\nFOR i := 1 TO 4 DO\n  delay[i](IN := eyes[i], PT := T#3s);\n  jam[i] := delay[i].Q;\nEND_FOR;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "fb-in-struct",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "A function-block instance as a struct field",
+      "st": "TYPE Merge : STRUCT gap : TON; count : CTU; END_STRUCT; END_TYPE\nVAR m : Merge; eye : BOOL; open : BOOL; END_VAR\nm.gap(IN := NOT eye, PT := T#500ms);\nm.count(CU := eye, PV := 100);\nopen := m.gap.Q;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "struct-copy",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Whole structs and arrays assign as values",
+      "st": "TYPE Pkg : STRUCT id : DINT; dest : INT; END_STRUCT; END_TYPE\nVAR a : Pkg; b : Pkg; track : ARRAY [0..3] OF Pkg; i : INT; END_VAR\nb := a;\nFOR i := 3 TO 1 BY -1 DO track[i] := track[i - 1]; END_FOR;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "struct-io",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "Structs in and out: by-value inputs, readable outputs, struct results",
+      "st": "TYPE Pkg : STRUCT id : DINT; END_STRUCT; END_TYPE\nFUNCTION Make : Pkg\nVAR_INPUT id : DINT; END_VAR\nMake.id := id;\nEND_FUNCTION\n\nFUNCTION_BLOCK Latch\nVAR_INPUT p : Pkg; END_VAR\nVAR_OUTPUT held : Pkg; END_VAR\nheld := p;\nEND_FUNCTION_BLOCK\n\nVAR l : Latch; box : Pkg; copy : Pkg; n : DINT; END_VAR\nbox := Make(7);\nl(p := box, held => copy);\nn := l.held.id;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "formal-function-call",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "A formal FUNCTION call, naming its arguments in any order",
+      "st": "FUNCTION Span : INT\nVAR_INPUT lo : INT; hi : INT; END_VAR\nSpan := hi - lo;\nEND_FUNCTION\n\nVAR n : INT; END_VAR\nn := Span(hi := 10, lo := 3);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "plcopen-motion",
+      "category": "Library",
+      "intent": "supported",
+      "title": "The PLCopen motion blocks on an AXIS_REF (MC_Power, MC_MoveAbsolute, MC_MoveVelocity, MC_Halt, MC_Stop, MC_Home, ...)",
+      "st": "VAR Ax : AXIS_REF; pwr : MC_Power; mv : MC_MoveAbsolute; END_VAR\npwr(Axis := Ax, Enable := TRUE);\nmv(Axis := Ax, Execute := pwr.Status, Position := 10, Velocity := 20, Acceleration := 100, Deceleration := 100);",
+      "verdict": "compiles",
+      "note": "A subset of the PLCopen Function Blocks for Motion Control (version 2.0, single axis; not certified), with this engine's choices where PLCopen leaves one written down in docs/motion-control.md: trapezoidal moves (a block's Jerk input is accepted and ignored), an abort, BufferMode Buffered (a queue of moves), the Busy / Done / Active / CommandAborted / Error handshake, software limits. On a real controller the blocks come from its own PLCopen motion library, so an export writes the calls and not the blocks; the Blending buffer modes (a block given one raises Error), gearing, cams and axis groups are not here."
+    },
+    {
+      "id": "standard-named-args",
+      "category": "Library",
+      "intent": "supported",
+      "title": "A standard function called with IEC’s parameter names (LIMIT(MN := 0, IN := x, MX := 10))",
+      "st": "VAR x : INT := 50; n : INT; s : STRING := 'conveyor'; t : STRING; END_VAR\nn := LIMIT(MN := 0, IN := x, MX := 10);\nt := MID(IN := s, L := 3, P := 2);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "omitted-input",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "A formal FUNCTION call that leaves an input at its initial value",
+      "st": "FUNCTION Scale : INT\nVAR_INPUT v : INT; gain : INT := 2; END_VAR\nScale := v * gain;\nEND_FUNCTION\n\nVAR n : INT; END_VAR\nn := Scale(v := 21);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "qualified-enum",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "An enumeration value written with its type (Mode#Idle)",
+      "st": "TYPE Mode : (Idle, Running); END_TYPE\nVAR m : Mode := Mode#Idle; END_VAR\nIF m = Mode#Idle THEN m := Mode#Running; END_IF;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "power-operator",
+      "category": "Library",
+      "intent": "supported",
+      "title": "** exponentiation (EXPT)",
+      "st": "VAR a : REAL; END_VAR\na := 2.0 ** 10.0;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "multi-name-decl",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Several names on one declaration line",
+      "st": "VAR x, y, z : INT := 3; END_VAR\nx := y + z;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "constant",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "CONSTANT",
+      "st": "VAR CONSTANT Limit : INT := 100; END_VAR VAR n : INT; END_VAR\nn := Limit;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "var-global",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "VAR_GLOBAL, shared by every POU",
+      "st": "VAR_GLOBAL Shared : INT := 5; END_VAR\nVAR n : INT; END_VAR\nn := Shared;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "global-fb",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "A function-block instance in VAR_GLOBAL",
+      "st": "VAR_GLOBAL t : TON; END_VAR\nVAR q : BOOL; END_VAR\nt(IN := TRUE, PT := T#1s);\nq := t.Q;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "struct",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "TYPE ... STRUCT, nested access paths",
+      "st": "TYPE Inner : STRUCT a : INT; END_STRUCT; END_TYPE\nTYPE Outer : STRUCT\n  inner : Inner;\n  data : ARRAY [1..3] OF INT;\nEND_STRUCT; END_TYPE\nVAR p : Outer; n : INT; END_VAR\nn := p.inner.a + p.data[2];",
+      "verdict": "compiles"
+    },
+    {
+      "id": "array",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Multi-dimensional ARRAY with a repeated initialiser",
+      "st": "VAR grid : ARRAY [1..2, 0..3] OF INT := [1, 2, 6(0)]; n : INT; END_VAR\nn := grid[2, 1];",
+      "verdict": "compiles"
+    },
+    {
+      "id": "enum",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Enumerations are their own type",
+      "st": "TYPE Mode : (Idle, Running := 10, Fault); END_TYPE\nVAR m : Mode := Running; n : INT; END_VAR\nCASE m OF\n  Idle: n := 0;\n  Running: n := 1;\n  Fault: n := 2;\nEND_CASE;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "subrange",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Subranges, enforced on every store",
+      "st": "TYPE Percent : INT (0..100); END_TYPE\nVAR p : Percent := 50; END_VAR\np := 60;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "integer-families",
+      "category": "Types",
+      "intent": "supported",
+      "title": "Signed, unsigned and bit-string families, kept apart",
+      "st": "VAR\n  si : SINT; i : INT; di : DINT;\n  usi : USINT; ui : UINT; udi : UDINT;\n  b : BYTE; w : WORD; dw : DWORD;\nEND_VAR\ni := i + 1;\nui := ui + 1;\nw := w AND 16#00FF;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "real-lreal",
+      "category": "Types",
+      "intent": "supported",
+      "title": "REAL (single precision) and LREAL",
+      "st": "VAR r : REAL := 0.4; l : LREAL; END_VAR\nl := r;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "time",
+      "category": "Types",
+      "intent": "supported",
+      "title": "TIME is a duration, not a number",
+      "st": "VAR t : TIME := T#1m30s; u : TIME; n : DINT; END_VAR\nu := t + T#500ms;\nn := TIME_TO_DINT(u);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "calendar",
+      "category": "Types",
+      "intent": "supported",
+      "title": "DATE, TIME_OF_DAY and DATE_AND_TIME, with IEC’s arithmetic table",
+      "st": "VAR d : DATE := D#2024-02-29; t : TOD := TOD#08:00:00; x : DT; gap : TIME; END_VAR\nx := CONCAT_DATE_TOD(d, t) + T#90m;\ngap := x - DT#2024-02-29-00:00:00;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "time-library",
+      "category": "Library",
+      "intent": "supported",
+      "title": "The time and date functions (ADD_TIME, SUB_DT_DT, CONCAT_DATE_TOD, ...)",
+      "st": "VAR a : TIME := T#1s; b : TIME; t : TOD := TOD#12:00:00; END_VAR\nb := ADD_TIME(a, T#500ms);\nt := ADD_TOD_TIME(t, MULTIME(b, 2));",
+      "verdict": "compiles"
+    },
+    {
+      "id": "string",
+      "category": "Types",
+      "intent": "supported",
+      "title": "STRING with a capacity, and IEC $ escapes",
+      "st": "VAR s : STRING[20] := 'line$N'; n : INT; END_VAR\ns := CONCAT(s, 'more');\nn := LEN(s);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "string-order",
+      "category": "Types",
+      "intent": "supported",
+      "title": "STRING compares and sorts, but has no +",
+      "st": "VAR\n  a : STRING := 'abc';\n  b : STRING := 'abd';\n  lo : STRING; q : BOOL;\nEND_VAR\nq := a < b;\nlo := MIN(a, b);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "literals",
+      "category": "Types",
+      "intent": "supported",
+      "title": "Based, typed, exponent and separated literals",
+      "st": "VAR\n  h : WORD := 16#FF;\n  bits : BYTE := 2#1010_1010;\n  oct : INT := 8#17;\n  typed : INT := INT#5;\n  r : REAL := 1.0E-3;\nEND_VAR\nh := h OR WORD#16#0F;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "bool-0-1",
+      "category": "Types",
+      "intent": "supported",
+      "title": "0 and 1 are BOOL literals (the standard’s own examples use them)",
+      "st": "VAR_OUTPUT Q : BOOL := 0; END_VAR\nQ := 1;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "ampersand",
+      "category": "Types",
+      "intent": "supported",
+      "title": "& is AND",
+      "st": "VAR a : BOOL; b : BOOL; q : BOOL; END_VAR\nq := a & b;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "case-insensitive",
+      "category": "Types",
+      "intent": "supported",
+      "title": "Identifiers are case-insensitive",
+      "st": "VAR Motor : BOOL; END_VAR\nmotor := TRUE;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "comments",
+      "category": "Types",
+      "intent": "supported",
+      "title": "(* ... *) comments, anywhere trivia may go",
+      "st": "(* a header comment *)\nVAR n : INT; END_VAR\nn := 1; (* trailing *)",
+      "verdict": "compiles"
+    },
+    {
+      "id": "standard-fbs",
+      "category": "Library",
+      "intent": "supported",
+      "title": "Timers, counters and edge detectors",
+      "st": "VAR\n  t : TON; f : TOF; p : TP;\n  r : R_TRIG; ft : F_TRIG;\n  cu : CTU; cd : CTD; ud : CTUD;\n  s : SR; rs : RS;\nEND_VAR\nt(IN := TRUE, PT := T#1s);\ncu(CU := t.Q, PV := 10);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "conversions",
+      "category": "Library",
+      "intent": "supported",
+      "title": "The <SRC>_TO_<DST> conversion family",
+      "st": "VAR i : INT := 7; r : REAL; w : WORD; s : STRING; END_VAR\nr := INT_TO_REAL(i);\nw := INT_TO_WORD(i);\ns := INT_TO_STRING(i);\ni := STRING_TO_INT('42');",
+      "verdict": "compiles"
+    },
+    {
+      "id": "comparison-chain",
+      "category": "Library",
+      "intent": "supported",
+      "title": "Functional operator forms, including comparison chains",
+      "st": "VAR\n  a : INT := 3; b : INT := 2; c : INT := 1;\n  q : BOOL; n : INT;\nEND_VAR\nq := GT(a, b, c);\nn := ADD(a, b, c);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "string-library",
+      "category": "Library",
+      "intent": "supported",
+      "title": "The nine IEC string functions, 1-based",
+      "st": "VAR s : STRING := 'hello world'; part : STRING; at : INT; END_VAR\npart := MID(s, 5, 1);\nat := FIND(s, 'world');\npart := REPLACE(s, 'X', 1, 1);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "lint",
+      "category": "Types the subset lacks",
+      "intent": "unsupported",
+      "title": "LINT (64-bit signed)",
+      "st": "VAR n : LINT; END_VAR",
+      "verdict": "refused",
+      "message": "LINT is not supported: 64-bit integers need exact arithmetic a JS number cannot provide; use DINT, or LREAL if the range matters more than the last digits"
+    },
+    {
+      "id": "ulint",
+      "category": "Types the subset lacks",
+      "intent": "unsupported",
+      "title": "ULINT (64-bit unsigned)",
+      "st": "VAR n : ULINT; END_VAR",
+      "verdict": "refused",
+      "message": "ULINT is not supported: 64-bit integers need exact arithmetic a JS number cannot provide; use UDINT, or LREAL if the range matters more than the last digits"
+    },
+    {
+      "id": "lword",
+      "category": "Types the subset lacks",
+      "intent": "unsupported",
+      "title": "LWORD (64-bit bit string)",
+      "st": "VAR n : LWORD; END_VAR",
+      "verdict": "refused",
+      "message": "LWORD is not supported: 64-bit bit strings need exact arithmetic a JS number cannot provide; use DWORD, or two of them"
+    },
+    {
+      "id": "wstring",
+      "category": "Types the subset lacks",
+      "intent": "unsupported",
+      "title": "WSTRING",
+      "st": "VAR s : WSTRING; END_VAR",
+      "verdict": "refused",
+      "message": "WSTRING is not supported: wide (UTF-16) strings are not implemented; STRING is"
+    },
+    {
+      "id": "wstring-literal",
+      "category": "Types the subset lacks",
+      "intent": "unsupported",
+      "title": "A double-quoted (WSTRING) literal",
+      "st": "VAR s : STRING; END_VAR\ns := \"wide\";",
+      "verdict": "refused",
+      "message": "double-quoted literals are WSTRING, which is not implemented; use a single-quoted STRING"
+    },
+    {
+      "id": "ldt",
+      "category": "Types the subset lacks",
+      "intent": "unsupported",
+      "title": "LDATE, LTOD, LDT (64-bit calendar types)",
+      "st": "VAR x : LDT; END_VAR",
+      "verdict": "refused",
+      "message": "LDT is not supported: the 64-bit calendar types are IEC 3rd edition and not implemented; DT is"
+    },
+    {
+      "id": "var-external",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "VAR_EXTERNAL, checked against the VAR_GLOBAL it names",
+      "st": "VAR_GLOBAL Shared : INT; END_VAR\nVAR_EXTERNAL Shared : INT; END_VAR\nShared := 1;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "located",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Located variables at inputs and outputs (AT %IX0.0, AT %QW4)",
+      "st": "VAR\n  Eye AT %IX100.0 : BOOL;\n  Run AT %QX100.0 : BOOL;\n  Count AT %IW2 : INT;\nEND_VAR\nRun := NOT Eye;",
+      "verdict": "compiles",
+      "note": "The address is how the variable meets the world: a scene part whose PLC tag is %IX100.0 feeds it, and an external controller reaches it at that address. Declared in VAR (or VAR_GLOBAL), one variable per address, and the type has to fit the size (a bit holds BOOL, a word INT, UINT or WORD). A function block or function cannot locate a variable."
+    },
+    {
+      "id": "located-memory",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Located variables in memory (AT %MW0, %MD1, %MX8.0)",
+      "st": "VAR\n  Count AT %MW0 : INT;\n  Total AT %MD1 : DINT;\n  Flag AT %MX8.0 : BOOL;\nEND_VAR\nCount := Count + 1;\nFlag := Count > 3;",
+      "verdict": "compiles",
+      "note": "Storage the program keeps, read and written by name: OpenPLC keeps a SCADA’s values at %MW and %MD, so its programs carry these. No scene part binds a memory address; the OPC UA server publishes the variable by name."
+    },
+    {
+      "id": "program-pou",
+      "category": "Tasks and programs",
+      "intent": "supported",
+      "title": "A PROGRAM ... END_PROGRAM, which with no CONFIGURATION runs on the scan time",
+      "st": "PROGRAM Main\nVAR n : INT; END_VAR\nn := 1;\nEND_PROGRAM",
+      "verdict": "compiles"
+    },
+    {
+      "id": "configuration",
+      "category": "Tasks and programs",
+      "intent": "supported",
+      "title": "CONFIGURATION / RESOURCE / TASK, each task on its own INTERVAL",
+      "st": "PROGRAM Main\nVAR n : INT; END_VAR\nn := n + 1;\nEND_PROGRAM\n\nCONFIGURATION Cfg\n  RESOURCE Res ON PLC\n    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);\n    TASK Slow(INTERVAL := T#100ms, PRIORITY := 2);\n    PROGRAM A WITH Fast : Main;\n    PROGRAM B WITH Slow : Main;\n  END_RESOURCE\nEND_CONFIGURATION",
+      "verdict": "compiles",
+      "note": "Tasks run on SIM time: each comes due when its INTERVAL elapses, and tasks due together run by PRIORITY (0 first). A scan takes no sim time, so no task interrupts another. An instance variable is addressed as Instance.Name in the watch table and by scene tags."
+    },
+    {
+      "id": "continuous-program",
+      "category": "Tasks and programs",
+      "intent": "supported",
+      "title": "A PROGRAM instance with no task, which runs continuously",
+      "st": "PROGRAM Main\nVAR n : INT; END_VAR\nn := n + 1;\nEND_PROGRAM\n\nCONFIGURATION Cfg\n  RESOURCE Res ON PLC\n    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);\n    PROGRAM A WITH Fast : Main;\n    PROGRAM Always : Main;\n  END_RESOURCE\nEND_CONFIGURATION",
+      "verdict": "compiles",
+      "note": "IEC gives a program with no task the lowest priority and re-runs it as soon as it finishes; on a sim clock that is once per physics step, after that step's periodic scans."
+    },
+    {
+      "id": "configuration-body",
+      "category": "Tasks and programs",
+      "intent": "supported",
+      "title": "Code outside every POU beside a CONFIGURATION, run by an instance that names no type",
+      "st": "VAR n : INT; END_VAR\nn := n + 1;\n\nCONFIGURATION Cfg\n  RESOURCE Res ON PLC\n    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);\n    PROGRAM Main WITH Fast;\n  END_RESOURCE\nEND_CONFIGURATION",
+      "verdict": "compiles",
+      "note": "An extension: the variables are the program's top-level variables, seen by every POU under their bare names, and the statements run from the program instance with no type. Export writes that code as a PROGRAM of its own."
+    },
+    {
+      "id": "event-task",
+      "category": "Tasks and programs the subset lacks",
+      "intent": "unsupported",
+      "title": "An event task (SINGLE)",
+      "st": "VAR_GLOBAL go : BOOL; END_VAR\nPROGRAM Main\nVAR n : INT; END_VAR\nn := 1;\nEND_PROGRAM\n\nCONFIGURATION Cfg\n  RESOURCE Res ON PLC\n    TASK OnEdge(SINGLE := go, PRIORITY := 1);\n    PROGRAM A WITH OnEdge : Main;\n  END_RESOURCE\nEND_CONFIGURATION",
+      "verdict": "refused",
+      "message": "an event task (SINGLE) is not implemented; a TASK here runs on its INTERVAL, and a PROGRAM instance with no task runs continuously"
+    },
+    {
+      "id": "program-wiring",
+      "category": "Tasks and programs the subset lacks",
+      "intent": "unsupported",
+      "title": "Wiring a PROGRAM instance's inputs and outputs in the CONFIGURATION",
+      "st": "VAR_GLOBAL go : BOOL; END_VAR\nPROGRAM Main\nVAR_INPUT start : BOOL; END_VAR\nVAR n : INT; END_VAR\nn := 1;\nEND_PROGRAM\n\nCONFIGURATION Cfg\n  RESOURCE Res ON PLC\n    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);\n    PROGRAM A WITH Fast : Main (start := go);\n  END_RESOURCE\nEND_CONFIGURATION",
+      "verdict": "refused",
+      "message": "wiring a PROGRAM instance's inputs and outputs in the CONFIGURATION is not implemented; the scene binds them by name, as Instance.Variable"
+    },
+    {
+      "id": "multiple-resources",
+      "category": "Tasks and programs the subset lacks",
+      "intent": "unsupported",
+      "title": "More than one RESOURCE in a CONFIGURATION",
+      "st": "PROGRAM Main\nVAR n : INT; END_VAR\nn := 1;\nEND_PROGRAM\n\nCONFIGURATION Cfg\n  RESOURCE A ON PLC\n    TASK T1(INTERVAL := T#10ms, PRIORITY := 1);\n    PROGRAM P1 WITH T1 : Main;\n  END_RESOURCE\n  RESOURCE B ON PLC\n    TASK T2(INTERVAL := T#10ms, PRIORITY := 1);\n    PROGRAM P2 WITH T2 : Main;\n  END_RESOURCE\nEND_CONFIGURATION",
+      "verdict": "refused",
+      "message": "2 RESOURCEs are declared; a controller here is one RESOURCE, so declare every TASK and PROGRAM instance inside one"
+    },
+    {
+      "id": "type-alias",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "A plain type alias (TYPE Count : INT)",
+      "st": "TYPE Count : INT; END_TYPE\nVAR n : Count; END_VAR",
+      "verdict": "compiles"
+    },
+    {
+      "id": "named-array-type",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "A named array type, one type under its name",
+      "st": "TYPE Row : ARRAY [1..3] OF INT; END_TYPE\nVAR a : Row; b : Row := [1, 2, 3]; END_VAR\na := b;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "constant-bounds",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Array bounds written as named CONSTANTs",
+      "st": "VAR CONSTANT ZONES : INT := 4; END_VAR\nVAR eyes : ARRAY [0..ZONES - 1] OF BOOL; END_VAR\neyes[ZONES - 1] := TRUE;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "struct-init",
+      "category": "Declarations",
+      "intent": "supported",
+      "title": "Structured initial values: (field := value), and arrays of them",
+      "st": "TYPE Pkg : STRUCT id : DINT; dest : INT; END_STRUCT; END_TYPE\nVAR p : Pkg := (id := 7, dest := 3); lane : ARRAY [1..2] OF Pkg := [(id := 1), (id := 2)]; END_VAR\np.dest := 4;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "fb-call-expression",
+      "category": "Statements the subset lacks",
+      "intent": "unsupported",
+      "title": "A function-block call used as an expression",
+      "st": "VAR t : TON; q : BOOL; END_VAR\nq := t(IN := TRUE, PT := T#1s);",
+      "verdict": "refused",
+      "message": "unknown function 't'"
+    },
+    {
+      "id": "string-case-extension",
+      "category": "Statements the subset lacks",
+      "intent": "unsupported",
+      "title": "Vendor string extensions (TO_UPPER, TRIM, ...)",
+      "st": "VAR s : STRING := 'abc'; END_VAR\ns := TO_UPPER(s);",
+      "verdict": "refused",
+      "message": "unknown function 'TO_UPPER'"
+    },
+    {
+      "id": "sfc-step",
+      "category": "Other IEC languages",
+      "intent": "unsupported",
+      "title": "Sequential Function Chart (STEP / TRANSITION / ACTION)",
+      "st": "INITIAL_STEP Idle:\nEND_STEP\nTRANSITION FROM Idle TO Running := start;\nEND_TRANSITION",
+      "verdict": "refused",
+      "message": "INITIAL_STEP is not supported: Sequential Function Chart is a separate IEC language, not implemented here; express the state machine in ST (a CASE on a state variable is the usual translation)"
+    },
+    {
+      "id": "method",
+      "category": "Object orientation",
+      "intent": "supported",
+      "title": "METHOD on a function block: a result, outputs, in-outs, temporaries that start over each call",
+      "st": "FUNCTION_BLOCK Acc\nVAR n : INT; END_VAR\nMETHOD Put : INT\n  VAR_INPUT v : INT; END_VAR\n  n := n + v;\n  Put := n;\nEND_METHOD\nEND_FUNCTION_BLOCK\n\nVAR a : Acc; r1 : INT; END_VAR\nr1 := a.Put(v := 3) + a.Put(4);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "extends",
+      "category": "Object orientation",
+      "intent": "supported",
+      "title": "EXTENDS, overrides, SUPER^.M() and SUPER^(), ABSTRACT, FINAL, OVERRIDE",
+      "st": "FUNCTION_BLOCK ABSTRACT Shape\nMETHOD ABSTRACT Area : REAL\nEND_METHOD\nMETHOD Twice : REAL\n  Twice := 2.0 * Area();\nEND_METHOD\nEND_FUNCTION_BLOCK\n\nFUNCTION_BLOCK Square EXTENDS Shape\nVAR_INPUT side : REAL; END_VAR\nMETHOD OVERRIDE Area : REAL\n  Area := side * side;\nEND_METHOD\nEND_FUNCTION_BLOCK\n\nVAR sq : Square; a : REAL; END_VAR\nsq(side := 3.0);\na := sq.Twice();",
+      "verdict": "compiles",
+      "note": "A method called on THIS (THIS.M(), or by its bare name) runs the override of the instance's own class. A derived block runs its own body, not its base's, unless it calls SUPER^(). IEC writes THIS with no ^ and SUPER with one; THIS^ is refused by name."
+    },
+    {
+      "id": "interface",
+      "category": "Object orientation",
+      "intent": "supported",
+      "title": "INTERFACE, IMPLEMENTS, and variables of an interface type",
+      "st": "INTERFACE IDrive\n  METHOD Travel : INT\n    VAR_INPUT dist : INT; END_VAR\n  END_METHOD\nEND_INTERFACE\n\nFUNCTION_BLOCK Belt IMPLEMENTS IDrive\nVAR p : INT; END_VAR\nMETHOD Travel : INT\n  VAR_INPUT dist : INT; END_VAR\n  p := p + dist;\n  Travel := p;\nEND_METHOD\nEND_FUNCTION_BLOCK\n\nVAR belt : Belt; d : IDrive; x : INT; END_VAR\nd := belt;\nIF d <> NULL THEN x := d.Travel(dist := 2); END_IF;",
+      "verdict": "compiles",
+      "note": "An interface variable that refers to no instance is NULL (compared with NULL, or 0); a call through it faults the scan. STruC++ 0.6.2, OpenPLC's compiler, has no interface variables yet, so a program that uses them does not build for OpenPLC."
+    },
+    {
+      "id": "ref-to",
+      "category": "Object orientation",
+      "intent": "supported",
+      "title": "REF_TO, REF(), ^ and NULL: IEC references",
+      "st": "TYPE Pkg : STRUCT id : INT; END_STRUCT; END_TYPE\nVAR zones : ARRAY [1..3] OF Pkg; z : REF_TO Pkg; z2 : REF_TO Pkg; ok : BOOL; END_VAR\nz := REF(zones[2]);\nz^.id := 9;\nz2 := z;\nok := z2 <> NULL;",
+      "verdict": "compiles",
+      "note": "A reference is a variable of a POU (or a block's or method's input, given by the call), never a struct field or an array element here. It is given REF(place), another REF_TO or NULL, compared with NULL, and dereferenced with ^; dereferencing one that is NULL faults the scan."
+    },
+    {
+      "id": "class",
+      "category": "Object orientation the subset lacks",
+      "intent": "unsupported",
+      "title": "CLASS",
+      "st": "CLASS Tank\nVAR level : INT; END_VAR\nEND_CLASS",
+      "verdict": "refused",
+      "message": "CLASS is not supported: a CLASS is not implemented; use a FUNCTION_BLOCK, which takes METHODs, EXTENDS and IMPLEMENTS here and is what a PLC instantiates"
+    },
+    {
+      "id": "namespace",
+      "category": "Object orientation the subset lacks",
+      "intent": "unsupported",
+      "title": "NAMESPACE",
+      "st": "NAMESPACE Plant\nEND_NAMESPACE",
+      "verdict": "refused",
+      "message": "NAMESPACE is not supported: IEC 3rd-edition namespaces are not implemented; names are flat in this subset"
+    },
+    {
+      "id": "pointer",
+      "category": "Vendor extensions, refused by name",
+      "intent": "unsupported",
+      "title": "POINTER TO",
+      "st": "VAR p : POINTER TO INT; END_VAR",
+      "verdict": "refused",
+      "message": "POINTER TO is not IEC 61131-3 and is not implemented; declare REF_TO, take a reference with REF() and dereference it with ^",
+      "note": "Not IEC 61131-3. Declare REF_TO, take a reference with REF() and dereference it with ^."
+    },
+    {
+      "id": "property",
+      "category": "Vendor extensions, refused by name",
+      "intent": "unsupported",
+      "title": "PROPERTY with GET and SET",
+      "st": "FUNCTION_BLOCK Motor\nVAR spd : INT; END_VAR\nPROPERTY Speed : INT\n  GET\n    Speed := spd;\n  END_GET\nEND_PROPERTY\nEND_FUNCTION_BLOCK",
+      "verdict": "refused",
+      "message": "PROPERTY is not part of IEC 61131-3; use a METHOD (or a pair of methods) instead",
+      "note": "Not IEC 61131-3. Use a METHOD (or a pair of methods)."
+    },
+    {
+      "id": "var-inst",
+      "category": "Vendor extensions, refused by name",
+      "intent": "unsupported",
+      "title": "VAR_INST in a METHOD",
+      "st": "FUNCTION_BLOCK M\nMETHOD Count : INT\n  VAR_INST n : INT; END_VAR\n  n := n + 1;\n  Count := n;\nEND_METHOD\nEND_FUNCTION_BLOCK",
+      "verdict": "refused",
+      "message": "VAR_INST is not part of IEC 61131-3; declare the variable in the FUNCTION_BLOCK's VAR instead, where it keeps its value between calls",
+      "note": "Not IEC 61131-3. Declare the variable in the FUNCTION_BLOCK's VAR, where it keeps its value between calls."
+    },
+    {
+      "id": "reference-to",
+      "category": "Vendor extensions, refused by name",
+      "intent": "unsupported",
+      "title": "REFERENCE TO, REF= and __ISVALIDREF",
+      "st": "VAR a : INT; r : REFERENCE TO INT; END_VAR\nr REF= a;",
+      "verdict": "refused",
+      "message": "REFERENCE TO is not IEC 61131-3; declare REF_TO and dereference with ^",
+      "note": "Not IEC 61131-3. Declare REF_TO, give it REF(place), dereference it with ^, and compare it with NULL."
+    },
+    {
+      "id": "this-caret",
+      "category": "Vendor extensions, refused by name",
+      "intent": "unsupported",
+      "title": "THIS^",
+      "st": "FUNCTION_BLOCK M\nVAR n : INT; END_VAR\nMETHOD Get : INT\n  Get := THIS^.n;\nEND_METHOD\nEND_FUNCTION_BLOCK",
+      "verdict": "refused",
+      "message": "THIS^ is not how IEC 61131-3 writes it: THIS is used as it is, THIS.x, THIS.Method()",
+      "note": "IEC 61131-3 writes THIS with no ^: THIS.n, THIS.Method(). (SUPER keeps its ^: SUPER^.Method(), SUPER^().)"
+    },
+    {
+      "id": "and-then",
+      "category": "Vendor extensions, refused by name",
+      "intent": "unsupported",
+      "title": "AND_THEN and OR_ELSE",
+      "st": "VAR d : INT; ok : BOOL; END_VAR\nok := d <> 0 AND_THEN 10 / d > 1;",
+      "verdict": "refused",
+      "message": "AND_THEN is not part of IEC 61131-3; use nested IF statements, or AND (which evaluates both sides)",
+      "note": "Not IEC 61131-3. Guard with nested IF statements (IF d <> 0 THEN IF 10 / d > 1 THEN ...), or write AND / OR, which evaluate both sides."
+    },
+    {
+      "id": "struct-extends",
+      "category": "Vendor extensions, refused by name",
+      "intent": "unsupported",
+      "title": "STRUCT EXTENDS",
+      "st": "TYPE ST_A : STRUCT x : INT; END_STRUCT; END_TYPE\nTYPE ST_B EXTENDS ST_A : STRUCT y : INT; END_STRUCT; END_TYPE",
+      "verdict": "refused",
+      "message": "a STRUCT cannot EXTEND another: IEC 61131-3 derives only function blocks and interfaces. Declare the base's fields in the struct, or hold the base as one field",
+      "note": "Not IEC 61131-3, which derives only function blocks and interfaces. Declare the base's fields in the struct, or hold the base as one field."
+    },
+    {
+      "id": "method-struct-result",
+      "category": "Object orientation",
+      "intent": "supported",
+      "title": "A METHOD returning a whole structure or named array",
+      "st": "TYPE Pkg : STRUCT id : INT; END_STRUCT; END_TYPE\nFUNCTION_BLOCK Sorter\nMETHOD Make : Pkg\n  VAR_INPUT id : INT; END_VAR\n  Make.id := id;\nEND_METHOD\nEND_FUNCTION_BLOCK\n\nVAR s1 : Sorter; box : Pkg; END_VAR\nbox := s1.Make(id := 7);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "interface-array",
+      "category": "Object orientation",
+      "intent": "supported",
+      "title": "An ARRAY OF an interface, each element pointed at an instance",
+      "st": "INTERFACE IDrive\n  METHOD Travel : INT\n    VAR_INPUT dist : INT; END_VAR\n  END_METHOD\nEND_INTERFACE\n\nVAR drives : ARRAY [1..4] OF IDrive; i : INT; x : INT; END_VAR\nFOR i := 1 TO 4 DO\n  IF drives[i] <> NULL THEN x := x + drives[i].Travel(dist := 1); END_IF;\nEND_FOR;",
+      "verdict": "compiles"
+    },
+    {
+      "id": "reference-array",
+      "category": "Object orientation the subset lacks",
+      "intent": "unsupported",
+      "title": "An ARRAY OF REF_TO",
+      "st": "VAR refs : ARRAY [1..3] OF REF_TO INT; END_VAR",
+      "verdict": "refused",
+      "message": "an ARRAY OF REF_TO is not implemented: keep the references as variables of their own, or an array of indices into the data",
+      "note": "IEC allows it; this engine does not implement it yet. Keep the references as variables of their own."
+    },
+    {
+      "id": "bitstring-arithmetic",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "Arithmetic on a bit string",
+      "st": "VAR b : BYTE := 255; r : BYTE; END_VAR\nr := b + 1;",
+      "verdict": "refused",
+      "message": "+ is arithmetic; 'BYTE' is a bit string, which IEC does not do arithmetic on (convert it: BYTE_TO_USINT(...))",
+      "note": "Arithmetic is ANY_NUM; BYTE/WORD/DWORD are ANY_BIT. MATIEC refuses it, so a program that built here would build on no target."
+    },
+    {
+      "id": "bitwise-on-number",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A bitwise operation on a number",
+      "st": "VAR i : INT := 1; j : INT := 2; r : INT; END_VAR\nr := i AND j;",
+      "verdict": "refused",
+      "message": "AND is a bit-string operation; 'INT' is a number (convert it: INT_TO_WORD(...), or declare the variable BYTE/WORD/DWORD)",
+      "note": "The mirror of the rule above. Write INT_TO_WORD(...) and operate on the bit string."
+    },
+    {
+      "id": "not-on-number",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "NOT on a number",
+      "st": "VAR i : INT := 1; r : INT; END_VAR\nr := NOT i;",
+      "verdict": "refused",
+      "message": "NOT is a bit-string operation; 'INT' is a number (convert it: INT_TO_WORD(...), or declare the variable BYTE/WORD/DWORD)",
+      "note": "Complement is defined on ANY_BIT. MATIEC refuses it too."
+    },
+    {
+      "id": "shift-signed",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "Shifting a signed integer",
+      "st": "VAR i : INT := 8; r : INT; END_VAR\nr := SHR(i, 1);",
+      "verdict": "refused",
+      "message": "'SHR' shifts a bit string; 'INT' is a number (convert it: INT_TO_WORD(...))",
+      "note": "SHL/SHR/ROL/ROR take a bit string, where the vacated bits are defined."
+    },
+    {
+      "id": "missing-separator",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A missing statement separator",
+      "st": "VAR n : INT; END_VAR\nn := 1\nn := 2;",
+      "verdict": "refused",
+      "message": "expected ';'",
+      "note": "Between two statements. The one after END_IF, END_CASE, END_FOR, END_WHILE and END_REPEAT may be left out, a tolerated input form; see \"Tolerated input forms\"."
+    },
+    {
+      "id": "narrowing-store",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A narrowing store without the conversion",
+      "st": "VAR r : REAL := 1.5; i : INT; END_VAR\ni := r;",
+      "verdict": "refused",
+      "message": "cannot assign REAL to 'i' of type INT (write REAL_TO_INT(...))",
+      "note": "Only IEC’s safe widenings are implicit. The error names the conversion to write."
+    },
+    {
+      "id": "string-members",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A STRING taken apart by members (S.LEN, S.DATA[i])",
+      "st": "VAR s : STRING; n : DINT; END_VAR\nn := s.LEN;",
+      "verdict": "refused",
+      "message": "'.LEN': a STRING has no members in IEC 61131-3 - read its length with LEN() and its characters with MID()",
+      "note": "IEC gives a STRING no members: LEN() and MID() read it, and the error says so."
+    },
+    {
+      "id": "aggregate-clear",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A whole structure or array cleared with := 0",
+      "st": "TYPE Pt : STRUCT a : INT; b : REAL; END_STRUCT; END_TYPE\nVAR p : Pt; END_VAR\np := 0;",
+      "verdict": "refused",
+      "message": "cannot assign INT to 'p' of type Pt",
+      "note": "IEC has no value for a structure of zeros: clear the fields or elements one by one."
+    },
+    {
+      "id": "bool-number-mix",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "Mixing BOOL and a number",
+      "st": "VAR b : BOOL; n : INT; END_VAR\nn := b;",
+      "verdict": "refused",
+      "message": "cannot assign BOOL to 'n' of type INT"
+    },
+    {
+      "id": "for-control-write",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "Assigning to a FOR control variable",
+      "st": "VAR i : INT; END_VAR\nFOR i := 1 TO 10 DO i := 5; END_FOR;",
+      "verdict": "refused",
+      "message": "cannot assign to FOR control variable 'i' inside its own loop",
+      "note": "IEC forbids it outright and MATIEC refuses it by name."
+    },
+    {
+      "id": "literal-out-of-range",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A typed literal that does not fit its type",
+      "st": "VAR n : INT := INT#40000; END_VAR",
+      "verdict": "refused",
+      "message": "40000 does not fit in INT"
+    },
+    {
+      "id": "case-duplicate",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "Two names differing only in case",
+      "st": "VAR Motor : BOOL; motor : BOOL; END_VAR",
+      "verdict": "refused",
+      "message": "duplicate declaration 'motor' ('Motor' is already declared; identifiers are case-insensitive)",
+      "note": "Identifiers are case-insensitive, so these are one name declared twice."
+    },
+    {
+      "id": "memory-overlap",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "Two memory variables that share bytes (%MW0 and %MX1.2)",
+      "st": "VAR w AT %MW0 : INT; b AT %MX1.2 : BOOL; END_VAR",
+      "verdict": "refused",
+      "message": "'b' at %MX1.2 shares memory with 'w' at %MW0; targets disagree on what overlapping memory addresses mean (some overlay them, OpenPLC keeps each size apart), so give each variable bytes of its own",
+      "note": "IEC leaves overlapping memory to the implementation: one target may overlay the bytes, OpenPLC keeps each size in an area of its own. A program relying on either would mean something different on the other, so each memory variable needs bytes of its own."
+    },
+    {
+      "id": "time-microseconds",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A duration in microseconds or nanoseconds (T#500us)",
+      "st": "VAR t : TIME := T#500us; END_VAR",
+      "verdict": "refused",
+      "message": "T#500us: microseconds (us) and nanoseconds (ns) are LTIME units, which TIME here does not take: write T#0.5ms instead",
+      "note": "us and ns are IEC 3rd-edition units, for LTIME; MATIEC, and so OpenPLC, read d, h, m, s and ms. TIME here takes fractions of a millisecond, so T#0.5ms says the same thing."
+    },
+    {
+      "id": "calendar-to-number",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A DATE, TOD or DT converted to a number",
+      "st": "VAR d : DATE; n : DINT; END_VAR\nn := DATE_TO_DINT(d);",
+      "verdict": "refused",
+      "message": "DATE_TO_DINT is not portable: the reference compilers count a DATE in different units (MATIEC in seconds since 1970, STruC++ in days); keep it a DATE and compare it with a DATE literal: d >= D#2024-03-01",
+      "note": "The two reference compilers build it and disagree on the number: MATIEC counts every calendar type in seconds, while STruC++ counts a DATE in days and a TOD or DT in milliseconds. No number is portable, TIME_TO_DINT included (MATIEC counts it in whole seconds), so keep the value in its own type: compare a DATE or TOD with a literal of its kind, and subtract two DTs for a TIME to compare with a TIME literal."
+    },
+    {
+      "id": "retain",
+      "category": "Accepted here, with a caveat on the target",
+      "intent": "permissive",
+      "title": "RETAIN / NON_RETAIN",
+      "st": "VAR RETAIN count : INT; END_VAR",
+      "verdict": "compiles",
+      "note": "The qualifier is consumed and does not change what the simulator does: RETAIN asks a variable to survive a warm restart, and there is no restart here: every run starts from the declared initial value, which is what a retentive variable is given on a cold start. A real target does have a restart, so the word still matters there."
+    },
+    {
+      "id": "il-operator-name",
+      "category": "Accepted here, with a caveat on the target",
+      "intent": "permissive",
+      "title": "A variable named after a standard function (ADD, GT, LT, ...)",
+      "st": "VAR ADD : INT; lt : BOOL; END_VAR\nADD := 1;",
+      "verdict": "compiles",
+      "note": "IEC does not reserve these, so refusing them would invent a rule the standard lacks. But they are Instruction List OPERATORS, and a compiler sharing one lexer between the languages treats them as keywords in ST too. MATIEC refused VAR_OUTPUT lt : BOOL. Export warns about it."
+    },
+    {
+      "id": "implicit-global-read",
+      "category": "Accepted here, with a caveat on the target",
+      "intent": "permissive",
+      "title": "A POU touching a VAR_GLOBAL without declaring VAR_EXTERNAL",
+      "st": "VAR_GLOBAL Shared : INT; END_VAR\nFUNCTION_BLOCK Reader\nVAR_OUTPUT v : INT; END_VAR\nv := Shared;\nEND_FUNCTION_BLOCK\n\nVAR r : Reader; n : INT; END_VAR\nr(v => n);",
+      "verdict": "compiles",
+      "note": "Semantically identical (the global resolves to the same image either way), but a block that touches a global without the declaration will not build on the target. Export warns about it."
+    },
+    {
+      "id": "block-end-semicolon",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "END_IF, END_CASE, END_FOR, END_WHILE, END_REPEAT and END_STRUCT without their ;",
+      "st": "TYPE Pt :\nSTRUCT\n  x : INT;\nEND_STRUCT\nEND_TYPE\nTYPE Mode : (Idle, Run) END_TYPE\n\nVAR n : INT; p : Pt; END_VAR\nIF n > 0 THEN n := 1; END_IF\nFOR n := 1 TO 3 DO p.x := n; END_FOR",
+      "verdict": "compiles",
+      "note": "Common in code written elsewhere. Strict IEC requires it and MATIEC refuses a program without, so an export writes each one back."
+    },
+    {
+      "id": "dotted-enum",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "An enumeration member written Mode.Idle",
+      "st": "TYPE Mode : (Idle, Run) END_TYPE\n\nVAR m : Mode := Mode.Run; n : INT; END_VAR\nCASE m OF\n  Mode.Idle: n := 0;\n  Mode.Run: n := 1;\nEND_CASE;",
+      "verdict": "compiles",
+      "note": "Read as IEC's Mode#Idle, which is what an export writes. A variable called Mode keeps its meaning: then Mode.Idle is its member."
+    },
+    {
+      "id": "empty-argument",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "An argument named and given nothing: Q => , or IN := ,",
+      "st": "VAR t : TON; et : TIME; END_VAR\nt(IN := TRUE, PT := T#1s, Q => , ET => et);",
+      "verdict": "compiles",
+      "note": "What generated call templates leave behind. It reads as not there at all: an input keeps its value, an output goes nowhere. An export drops it."
+    },
+    {
+      "id": "interface-boilerplate",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "An interface base in the __SYSTEM namespace, and PUBLIC on an interface's method",
+      "st": "INTERFACE IDrive EXTENDS __SYSTEM.IRoot\n  METHOD PUBLIC Travel : INT\n    VAR_INPUT dist : INT; END_VAR\n  END_METHOD\nEND_INTERFACE",
+      "verdict": "compiles",
+      "note": "A base named in the __SYSTEM namespace is a runtime's own root interface, which no program declares. Neither it nor PUBLIC asks anything of an implementation (every method of an interface is public), so both are read as saying nothing, and an export leaves them out."
+    },
+    {
+      "id": "library-type",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "Any library's namespace on a TYPE: JsonLib.Parser, EXTENDS MyLib.Base",
+      "st": "FUNCTION_BLOCK Parser\nEND_FUNCTION_BLOCK\n\nVAR p : JsonLib.Parser; many : ARRAY [1..2] OF JsonLib.Parser; END_VAR",
+      "verdict": "compiles",
+      "note": "Where only a type can stand (a declaration, EXTENDS, IMPLEMENTS, ARRAY OF, REF_TO, a result), a dotted name is a library's type, so its namespace is read as saying nothing, whatever the library. An export keeps it: the name exists where the library does. Anywhere else a namespace is no namespace: the engine knows no library by name."
+    },
+    {
+      "id": "enum-base-type",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "An enumeration with a base type: (Idle, Run) UINT",
+      "st": "TYPE Mode :\n(\n  Idle := 0,\n  Run := 10\n) UINT;\nEND_TYPE\n\nVAR m : Mode; END_VAR",
+      "verdict": "compiles",
+      "note": "A type for an enumeration's values. The values are held as INT here whatever it says, so a value INT cannot hold is refused; an export leaves the word out, since IEC's 2nd edition has no place for it."
+    },
+    {
+      "id": "inline-enum",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "supported",
+      "title": "An enumeration in a declaration: m : (Idle, Run, Stop)",
+      "st": "VAR m : (Idle, Run, Stop) := Run; n : INT; END_VAR\nIF m = Run THEN n := 1; END_IF;",
+      "verdict": "compiles",
+      "note": "IEC. It is an enumeration of the variable's own, its members named bare; PLCopen carries it as the variable's type. MATIEC parses it but cannot generate it (\"C code generator does not currently support anonymous enumerated data types\")."
+    },
+    {
+      "id": "persistent",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "VAR PERSISTENT",
+      "st": "VAR PERSISTENT count : INT := 7; END_VAR",
+      "verdict": "compiles",
+      "note": "A value that survives a restart and a download; not an IEC word. Read here as retention: a run here has no restart, so it starts at its initial value. PLCopen carries persistent=\"true\"; IEC text writes RETAIN, the nearest word."
+    },
+    {
+      "id": "string-capacity-constant",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "A STRING capacity written as a constant: STRING(MAX_LEN)",
+      "st": "VAR_GLOBAL CONSTANT MAX_LEN : INT := 20; END_VAR\nVAR s : STRING(MAX_LEN); t : STRING[MAX_LEN * 2]; END_VAR",
+      "verdict": "compiles",
+      "note": "IEC writes a capacity as an integer. Folded here against the global integer CONSTANTs, the same rule as an array bound, wherever a capacity can be written, and an export writes the integer it folds to, in brackets (STRING(n) goes out as STRING[n] too)."
+    },
+    {
+      "id": "incomplete-address",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "permissive",
+      "title": "A variable linked in the I/O configuration: AT %I*, AT %Q*",
+      "st": "TYPE Io : STRUCT bIn AT %I* : BOOL; END_STRUCT END_TYPE\nFUNCTION_BLOCK Cyl\nVAR bExtended AT %I* : BOOL; bValve AT %Q* : BOOL; END_VAR\nbValve := NOT bExtended;\nEND_FUNCTION_BLOCK\n\nVAR start AT %I* : BOOL; END_VAR",
+      "verdict": "compiles",
+      "note": "A PLC project completes the address in its I/O configuration, which here is the scene's wiring: the variable is a plain one, in a program, a global, a block or a struct field alike, and a part wired to it by name drives or reads it. IEC completes one in a VAR_CONFIG, which no target here reads, so an export writes the variable plain."
+    },
+    {
+      "id": "struct-field-default",
+      "category": "Tolerated input forms, exported in IEC form",
+      "intent": "supported",
+      "title": "A STRUCT field with a default value",
+      "st": "TYPE Axis :\nSTRUCT\n  Speed : REAL := 1.5;\n  Mode : INT := 2;\nEND_STRUCT\nEND_TYPE\n\nVAR a : Axis; b : Axis := (Speed := 3.0); s : REAL; END_VAR\ns := a.Speed + b.Speed;",
+      "verdict": "compiles",
+      "note": "IEC. Every value of the type starts there: a variable, a field, an array element, a block's or a function's local; a field a variable's own initializer names takes that value instead. A default is a constant (a literal, an enumeration member, a global CONSTANT). MATIEC refuses a NESTED (field := ...) value of a struct type that has defaults, a gap of its own."
+    },
+    {
+      "id": "ld-seal-in",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "Contacts, a coil and a branch (a seal-in)",
+      "st": "VAR_INPUT Start : BOOL; Stop : BOOL; END_VAR\nVAR_OUTPUT Motor : BOOL; END_VAR\nLADDER\n  [|Start|, |Motor|] |/Stop| (Motor);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder"
+    },
+    {
+      "id": "ld-edge-set-reset",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "An edge contact and set / reset coils",
+      "st": "VAR_INPUT Eye : BOOL; Button : BOOL; Clear : BOOL; END_VAR\nVAR_OUTPUT Jam : BOOL; END_VAR\nLADDER\n  |Eye| |P Button| (S Jam);\n  |Clear| (R Jam);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder"
+    },
+    {
+      "id": "ld-fb-box",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "A function-block box on the rung (a timer)",
+      "st": "VAR_INPUT Run : BOOL; END_VAR\nVAR_OUTPUT Late : BOOL; END_VAR\nVAR T1 : TON; END_VAR\nLADDER\n  |Run| T1(IN, PT := T#2s) (Late);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder",
+      "note": "The bare pin sits on the rung; it defaults to the block's first BOOL input and output (a TON's IN and Q)."
+    },
+    {
+      "id": "ld-function-box",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "A function box that runs while the rung is on (EN / ENO)",
+      "st": "VAR_INPUT Go : BOOL; END_VAR\nVAR n : INT; END_VAR\nLADDER\n  |Go| ADD(IN1 := n, IN2 := 1, OUT => n);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder"
+    },
+    {
+      "id": "ld-compare-starts-rung",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "A comparison that starts a rung (a step sequencer)",
+      "st": "VAR Step : INT; Busy : BOOL; END_VAR\nLADDER\n  EQ(IN1 := Step, IN2 := 10, OUT) |/Busy| MOVE(IN := 20, OUT => Step);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder"
+    },
+    {
+      "id": "ld-operator-box",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "AND, OR, XOR, NOT and MOD as boxes",
+      "st": "VAR_INPUT Go : BOOL; a : BOOL; b : BOOL; END_VAR\nVAR_OUTPUT c : BOOL; END_VAR\nLADDER\n  |Go| AND(IN1 := a, IN2 := b, OUT => c);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder"
+    },
+    {
+      "id": "ld-jump-return",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "Labels, forward jumps and RETURN",
+      "st": "VAR_INPUT Skip : BOOL; Halt : BOOL; A : BOOL; END_VAR\nVAR_OUTPUT B : BOOL; C : BOOL; END_VAR\nLADDER\n  |Skip| >>Done;\n  |A| (B);\n  Done: |A| (C);\n  |Halt| RETURN;\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder"
+    },
+    {
+      "id": "ld-program",
+      "category": "Ladder Diagram",
+      "intent": "supported",
+      "title": "A ladder PROGRAM, with a rung comment",
+      "st": "PROGRAM Main\nVAR Start : BOOL; Motor : BOOL; END_VAR\nLADDER\n  (* run while Start is held *)\n  |Start| (Motor);\nEND_LADDER\nEND_PROGRAM",
+      "verdict": "compiles",
+      "language": "ladder"
+    },
+    {
+      "id": "ld-backward-jump",
+      "category": "Ladder the engine lacks",
+      "intent": "unsupported",
+      "title": "A jump back up the section (a loop)",
+      "st": "VAR A : BOOL; B : BOOL; END_VAR\nLADDER\n  Top: |A| (B);\n  |B| >>Top;\nEND_LADDER",
+      "verdict": "refused",
+      "language": "ladder",
+      "message": "a jump back up to 'Top' (rung 0) would run rungs again in one scan, a loop; this ladder jumps only down the section"
+    },
+    {
+      "id": "ld-compare-in-series",
+      "category": "Ladder the engine lacks",
+      "intent": "unsupported",
+      "title": "A comparison in series after a contact",
+      "st": "VAR A : BOOL; n : INT; Q : BOOL; END_VAR\nLADDER\n  |A| GT(IN1 := n, IN2 := 5, OUT) (Q);\nEND_LADDER",
+      "verdict": "refused",
+      "language": "ladder",
+      "message": "GT(..., OUT) starts a rung: nothing feeds it, so it stands at the left rail, first on the rung or first on a path of a branch that is"
+    },
+    {
+      "id": "ld-edge-coil",
+      "category": "Ladder: valid IEC, with an export caveat",
+      "intent": "permissive",
+      "title": "A transition-sensing coil (P / N coil)",
+      "st": "VAR A : BOOL; Q : BOOL; END_VAR\nLADDER\n  |A| (P Q);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder",
+      "note": "IEC has it, and it runs here. Some targets' importers may not accept it, so the PLCopen export warns."
+    },
+    {
+      "id": "ld-after-coil",
+      "category": "Ladder: valid IEC, with an export caveat",
+      "intent": "permissive",
+      "title": "A contact after a coil on the same rung",
+      "st": "VAR A : BOOL; B : BOOL; X : BOOL; Y : BOOL; END_VAR\nLADDER\n  |A| (X) |B| (Y);\nEND_LADDER",
+      "verdict": "compiles",
+      "language": "ladder",
+      "note": "A coil passes its power on, so IEC allows more elements after it. Some targets' importers may not accept the rung, so the PLCopen export warns."
+    }
+  ],
+  "divergences": {
+    "rule": "Each is exercised by a corpus case carrying a divergence note, and reported by the external oracle as known rather than failed.",
+    "entries": [
+      {
+        "case": "same-width signed/unsigned ties resolve unsigned, both orders",
+        "note": "IEC does not define mixing signed with unsigned at all; our rule is that the UNSIGNED type wins the same-width tie, in either operand order, so the result is deterministic. (Bit strings no longer take part: arithmetic on ANY_BIT is rejected outright, which is what removed the other half of this divergence.)"
+      },
+      {
+        "case": "both operands of a BOOL AND are evaluated, so a guard does not protect a divide",
+        "note": "This engine evaluates both operands of a BOOL AND / OR, so the guarded divide faults. IEC leaves operand evaluation open, so implementations may differ: MATIEC stops at a decided operand, so this program returns FALSE there instead of faulting. A program whose behaviour depends on the difference is non-portable whichever way a simulator answers, so this engine answers the way that SURFACES it: a guard that silently worked here would stop a target that evaluates both operands."
+      },
+      {
+        "case": "FOR evaluates bounds once and owns its iteration",
+        "note": "The loop bound is snapshotted at entry here, and BOTH independent IEC compilers whose behaviour could be inspected re-read it every iteration, so this program runs 3 times here and 10 times there. MATIEC: its generated C puts `if (I <= N)` inside the loop, reading the live variable. RuSTy (PLC-lang): its FOR lowering plants the user-written bound expression in the loop's exit test rather than a temporary, and says so in its own comment. Neither is provably right: IEC constrains FOR to a count \"determined in advance\", but no edition text reachable from here says WHEN the final-value expression is evaluated, so where to read it is this engine's own rule. Two compilers agreeing is weaker evidence than it looks, since both lower FOR to a C/LLVM-style loop where re-reading is the lazy path. The snapshot is kept anyway: it is what makes the iteration count knowable at entry, which is the property FOR exists for (WHILE is the construct for a condition re-tested each pass), and the only runaway guard here is a count rather than a clock (the interpreter faults a loop after 1,000,000 iterations), so a body that grows its own bound would run a million iterations in one scan before that fault stopped it. Because it cannot be settled, it is not left silent either: exporting a loop whose body writes its own bound now WARNS (export.ts), which is the honest response to a difference nobody can adjudicate."
+      },
+      {
+        "case": "R_TRIG / F_TRIG single-scan pulses",
+        "note": "the literal IEC F_TRIG body fires when CLK starts false; we suppress that startup pulse, since CLK was never TRUE before it"
+      },
+      {
+        "case": "SEL and MUX select; out-of-range MUX yields 0",
+        "note": "IEC declares an out-of-range MUX selector an error; we return 0"
+      },
+      {
+        "case": "REAL division by zero yields Infinity, not a fault",
+        "note": "float error handling is vendor-defined; REAL division by zero stays IEEE +/-Infinity here, matching PLC float hardware, which flags but does not fault. Only INTEGER division faults the scan"
+      },
+      {
+        "case": "an array index outside its bounds faults",
+        "note": "This engine faults on an array subscript outside its declared range. IEC requires a subscript to be within range but says nothing about what a runtime does when it is not, so faulting is a choice: this engine is where the mistake is cheapest to find. MATIEC does not check: it emits C, which reads past the array and completes the scan, so the replay reports \"expected 0 scan lines, got 1\" for this case."
+      },
+      {
+        "case": "a store outside a subrange faults",
+        "note": "This engine faults on a store outside a subrange. IEC declares the range but leaves the runtime free, so faulting is this engine being the place the mistake is cheapest to find, exactly as with an array bound. MATIEC does not check and completes the scan, which is why the replay reports \"expected 0 scan lines, got 1\" here."
+      },
+      {
+        "case": "an out-of-range length or position clamps instead of erroring",
+        "note": "IEC calls an out-of-range length/position an error. This engine clamps to the string instead - faulting a scan over a short string is not behaviour a controller survives."
+      },
+      {
+        "case": "REAL_TO_STRING formatting is implementation-defined",
+        "note": "IEC leaves float-to-text formatting to the implementation, and the vendors disagree (trailing zeros, exponent thresholds). We emit the shortest round-trip form. The VALUE is portable; the exact spelling is not, so do not parse it on the target."
+      },
+      {
+        "case": "TIME_TO_STRING emits an IEC duration literal",
+        "note": "The output is an IEC duration literal (T#1s500ms); IEC does not fix a TIME_TO_STRING format. Chosen so the output round-trips back through STRING_TO_TIME."
+      },
+      {
+        "case": "a fraction of a second prints in milliseconds, and a literal in a STRING reads back",
+        "note": "IEC fixes no spelling for a calendar value as text. A fraction of a second prints in milliseconds, three places; MATIEC prints six (TOD#07:05:09.500000). Text that is no date reads as 0 (1970-01-01, midnight), as STRING_TO_INT of text that is no number reads as 0."
+      },
+      {
+        "case": "a TIME_OF_DAY pushed past midnight faults the scan",
+        "note": "This engine faults on a TOD result past 24:00:00, the same choice as for an array subscript or a subrange: the simulator is where the mistake is cheapest to find. MATIEC does not check a TOD result: it goes on past 24:00:00 with a value that is no time of day."
+      },
+      {
+        "case": "a DATE_AND_TIME before 1970 faults the scan",
+        "note": "This engine's DT range is a 32-bit unsigned count of seconds from 1970, so it has no earlier instant, and a result before 1970 faults rather than hand a program a value an unsigned count cannot hold. MATIEC's count is signed and would go on."
+      },
+      {
+        "case": "TIME_TO_DINT counts milliseconds",
+        "note": "This engine counts a TIME converted to a number in milliseconds, the unit TIME carries everywhere else. STruC++ (T#1500ms converts to 1500 in 0.6.2) counts the same. MATIEC counts WHOLE SECONDS (T#1500ms is 1), so a program that converts a TIME to a number reads a different number on a MATIEC target such as OpenPLC v3."
+      },
+      {
+        "case": "DINT_TO_TIME and REAL_TO_TIME read the number as milliseconds",
+        "note": "MATIEC reads a number converted to a TIME as SECONDS (DINT_TO_TIME(1500) and REAL_TO_TIME(1500.0) are T#1500s), the mirror of its TIME_TO_DINT. This engine reads milliseconds (STruC++ 0.6.2 agrees), so a preset converted from a number lasts 1000 times longer on a MATIEC target such as OpenPLC v3."
+      },
+      {
+        "case": "faults when a REF_TO that is NULL is dereferenced",
+        "note": "IEC 61131-3 makes dereferencing a NULL reference an error and leaves what a controller then does to the implementation. This engine faults the scan, naming it, as it faults a subscript out of range; STruC++'s runtime stops the POU the same way (its NullReference fault). MATIEC has no references"
+      },
+      {
+        "case": "faults a method called through an interface that refers to no instance",
+        "note": "IEC 61131-3 makes a call through an interface that refers to no instance (NULL) an error and leaves what a controller then does to the implementation. This engine faults the scan, naming it, as it faults a NULL REF_TO dereferenced; a program tests `itf <> NULL` (or `<> 0`) first"
+      }
+    ]
+  },
+  "corpus": {
+    "groups": 25,
+    "cases": 251,
+    "rejectionCases": 67,
+    "replayedByOracle": 173,
+    "withheldFromOracle": [
+      {
+        "case": "integer division by zero faults the scan",
+        "why": "a scan fault has no comparable image: MATIEC-generated C divides by zero (SIGFPE / UB), it does not raise something the harness can read back"
+      },
+      {
+        "case": "integer MOD by zero faults the scan",
+        "why": "same as integer division by zero - the fault is not observable in the generated C"
+      },
+      {
+        "case": "same-width signed/unsigned ties resolve unsigned, both orders",
+        "why": "a strict IEC compiler rejects the mixed signed/unsigned operands outright, so there is no external answer to compare against"
+      },
+      {
+        "case": "a bit write rewrites only that bit, of a variable or an array element",
+        "why": "partial access (`.%Xn`) is an IEC 3rd-edition feature, which MATIEC, a 2nd-edition compiler, does not read; not yet replayed on STruC++, so the goldens are checked in-process, through both backends"
+      },
+      {
+        "case": "R_TRIG / F_TRIG single-scan pulses",
+        "why": "the cold-start step is the documented F_TRIG divergence, so an external run is expected to disagree on scan 1 by construction"
+      },
+      {
+        "case": "SEL and MUX select; out-of-range MUX yields 0",
+        "why": "the out-of-range MUX step has no defined external answer - IEC calls it an error, so there is nothing to diff against"
+      },
+      {
+        "case": "REAL division by zero yields Infinity, not a fault",
+        "why": "vendor-defined behaviour with no portable spelling for the expected value"
+      },
+      {
+        "case": "a VAR_GLOBAL is one image shared by every POU",
+        "why": "strict IEC makes a POU declare VAR_EXTERNAL to reach a VAR_GLOBAL; here every POU sees globals directly, so MATIEC rejects the FB that writes Level without one. A documented permissiveness, not a semantic difference"
+      },
+      {
+        "case": "an array of timers keeps one clock per element",
+        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both backends"
+      },
+      {
+        "case": "an array of user function blocks, called by index with output bindings",
+        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both backends"
+      },
+      {
+        "case": "a function block holds an array of timers of its own",
+        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both backends"
+      },
+      {
+        "case": "a function-block instance in VAR_GLOBAL is one instance every POU shares",
+        "why": "strict IEC makes a POU declare VAR_EXTERNAL to reach a VAR_GLOBAL; here every POU sees globals directly, so MATIEC rejects the block that reads gap without one. The same documented permissiveness as the VAR_GLOBAL case above, not a semantic difference"
+      },
+      {
+        "case": "assigning one timer in an array to another is rejected",
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both backends"
+      },
+      {
+        "case": "writing a timer output through an array element is rejected",
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both backends"
+      },
+      {
+        "case": "a FUNCTION cannot hold function-block instances inside an array",
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both backends"
+      },
+      {
+        "case": "a formal call of a standard function that leaves an input out is rejected",
+        "why": "MATIEC builds it, leaving MN at its type's zero, as a user FUNCTION's omitted input is left at its start value. This engine asks for every input of a STANDARD function: which type that zero has is overload resolution's to say (LIMIT is generic), and a program that means 0 can write it. A limit of this subset, stricter than the standard, so it is withheld rather than claimed"
+      },
+      {
+        "case": "a named array type passes into a FUNCTION by value and is its result",
+        "why": "MATIEC compiles this program, which is its verdict that the ST is valid, but the C it generates cannot pass an array into a function or take one back as the result (\"aggregate value used where an integer was expected\"), so the replay has nothing to run. STruC++ (3rd edition) builds it. The goldens are checked in-process, through both backends"
+      },
+      {
+        "case": "an array of structs starts from a list of field lists",
+        "why": "no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct's initializer, or field lists inside an array's [...] list, whether the array type is named or spelled out (\"Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype\"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both backends"
+      },
+      {
+        "case": "an array field starts from a [...] list inside a struct's initializer",
+        "why": "no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct's initializer, or field lists inside an array's [...] list, whether the array type is named or spelled out (\"Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype\"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both backends"
+      },
+      {
+        "case": "a store truncates to the declared capacity",
+        "why": "NEITHER external compiler can take a sized STRING variable, in either spelling, so there is no toolchain to check the capacity against. MATIEC parses `VAR s : STRING[3];` and registers the variable (its grammar has IEC's own single_byte_string_var_declaration), but search_base_type.cc has no visitor for single_byte_string_spec_c, so the datatype never resolves and every USE reports \"Variable not declared in this scope\". Hoisting it to `TYPE Str3 : STRING[3]; END_TYPE` + `VAR s : Str3;` is worse, not better: simple_specification accepts only elementary and simple type names, while a string type name is registered under a different token class, so that form is a syntax error (\"invalid specification in variable declaration\"). STruC++ 0.6.2 rejects both spellings outright. The capacity semantics are covered by plc.test.ts instead."
+      },
+      {
+        "case": "REAL_TO_STRING formatting is implementation-defined",
+        "why": "the expected spelling is ours by definition - MATIEC prints its own float format, so a diff here would report a difference the standard permits rather than a defect"
+      },
+      {
+        "case": "TIME_TO_STRING emits an IEC duration literal",
+        "why": "same as REAL_TO_STRING - the format is implementation-defined, so a diff against MATIEC would be reporting a permitted difference"
+      },
+      {
+        "case": "a fraction of a second prints in milliseconds, and a literal in a STRING reads back",
+        "why": "MATIEC prints a fraction of a second to six places, and its STRING_TO_DATE/_TOD/_DT are the same stub as its STRING_TO_TIME (lib/C/iec_std_lib.h: \"Quick hack : only transform seconds\"), so neither half has an answer to compare"
+      },
+      {
+        "case": "a TIME_OF_DAY pushed past midnight faults the scan",
+        "why": "a scan fault has no comparable image: MATIEC computes 86401 s and runs on, which is the divergence itself"
+      },
+      {
+        "case": "a DATE_AND_TIME before 1970 faults the scan",
+        "why": "a scan fault has no comparable image, and MATIEC, whose count is signed, runs on"
+      },
+      {
+        "case": "a date converted to a number is rejected: the reference compilers disagree on the unit",
+        "why": "MATIEC builds it, counting in seconds since 1970, and STruC++ builds it counting in days: that disagreement is what the refusal is for, so neither has an answer that could agree"
+      },
+      {
+        "case": "a date that does not exist is rejected",
+        "why": "MATIEC builds a nonexistent date and only rejects it when the initialisation runs (lib/C/iec_std_lib.h __date_to_timespec calls __iec_error), so its compile step has no answer to compare"
+      },
+      {
+        "case": "a TIME_OF_DAY of 24:00:00 is rejected",
+        "why": "MATIEC builds it, as a TOD that is a whole day long; IEC's day_hour is 0 to 23, so the refusal is the standard's grammar"
+      },
+      {
+        "case": "PRIORITY decides even when the PROGRAM lines are written the other way round",
+        "why": "MATIEC ignores PRIORITY: for this file its generated RES0_run__ tests LOW and HIGH and then calls CONSUMER_body__(&READER) before PRODUCER_body__(&MAKER), in the order the PROGRAM lines are written (stage4/generate_c/generate_c.cc emits one gated call per line), so it has Reader see 0 and then 1. IEC gives the higher-priority task the processor first. The export warns when PROGRAM lines are out of priority order"
+      },
+      {
+        "case": "rejects code outside every POU that no PROGRAM instance runs",
+        "why": "code outside every POU beside a CONFIGURATION, and the PROGRAM line with no type that runs it, are this engine's extension, so an IEC compiler reads neither. An accepted program is exported as a PROGRAM of its own and compared that way; a refused one has no IEC form to hand a compiler"
+      },
+      {
+        "case": "rejects two PROGRAM instances that both run the code outside every POU",
+        "why": "code outside every POU beside a CONFIGURATION, and the PROGRAM line with no type that runs it, are this engine's extension, so an IEC compiler reads neither. An accepted program is exported as a PROGRAM of its own and compared that way; a refused one has no IEC form to hand a compiler"
+      },
+      {
+        "case": "rejects a top-level variable named like a VAR_GLOBAL",
+        "why": "code outside every POU beside a CONFIGURATION, and the PROGRAM line with no type that runs it, are this engine's extension, so an IEC compiler reads neither. An accepted program is exported as a PROGRAM of its own and compared that way; a refused one has no IEC form to hand a compiler"
+      },
+      {
+        "case": "rejects a PROGRAM instance on a task nobody declared",
+        "why": "MATIEC's front end does not check the task an instance names: iec2c accepts this file and emits `if (MISSING) {` into Res0.c, which gcc then refuses (\"'MISSING' undeclared\"). So the program does not build on that toolchain either, but tier 1 stops at iec2c and would report the rule as over-strict. STruC++ refuses it outright"
+      },
+      {
+        "case": "rejects two memory variables that share bytes",
+        "why": "a portability rule of this engine, not of IEC: the standard leaves overlapping memory to the implementation (one target may overlay the bytes, OpenPLC keeps each size in an area of its own), so no external compiler is expected to refuse it"
+      },
+      {
+        "case": "rejects an override that takes other parameters than the method it replaces",
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "rejects an instance of an ABSTRACT block",
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "a method called through a REF_TO a base class runs the class of the instance it refers to",
+        "why": "no external compiler here runs it. MATIEC has no references; STruC++ 0.6.2 refuses a METHOD called through a dereferenced reference (\"Expected `Semicolon`, found `(`\" at drive^.Gain()) and does not build REF() of a function block either. The goldens are checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "faults when a REF_TO that is NULL is dereferenced",
+        "why": "the fault is a null dereference in every compiled target: a scan fault has no comparable image, and asking an external run for one asks its harness to stop. The rule is pinned in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "rejects REF() of a CONSTANT, which the reference would write through to",
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "an INTERFACE variable runs the implementation of the instance it refers to, and is passed to a block as an input",
+        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "faults a method called through an interface that refers to no instance",
+        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "rejects an instance given to an interface its class does not implement",
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "an ARRAY OF an interface: a loop calls the implementation of each instance an element refers to, and skips an empty one",
+        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines and the emitted TypeScript"
+      },
+      {
+        "case": "rejects an ARRAY OF REF_TO, which this engine does not implement",
+        "why": "a limit of this engine, not a rule of IEC 61131-3, which allows an array of references: no external compiler is expected to refuse it"
+      },
+      {
+        "case": "ladder: a seal-in circuit latches through its own contact",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a jump steps over the rungs down to its label",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a jump's own rung runs up to it, and one from the rail always jumps",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: overlapping jumps each step over their own stretch",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: AND, OR, XOR, NOT and MOD as boxes",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: RETURN ends the POU for the scan while its rung is on",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: rejects a jump back up the section",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: rejects a jump to a label no rung has",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: rejects a jump inside a branch",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a coil passes its left link on, and a contact after it reads what it wrote",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: what flows past a coil is what its rung examined, not what the coil wrote",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a branch runs its contact paths before its coil paths",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: branch paths that both hold contacts run top to bottom",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: P and N contacts sense a change of their variable once",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: P and N coils pulse on a change of their left link",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: set and reset coils latch, and the later rung wins",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a timer box takes the rung on IN and carries Q on",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a short timer on the rung turns on within the run",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a counter with its reset on the rung and its output bound by name",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a function box runs on EN, stores OUT, and passes the rung on",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a block with EN on the rung runs only while the rung is on",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a timer with EN on the rung measures the time the rung was off",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a comparison starts a rung, and the contacts after it are in series",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: comparisons on a branch at the left rail",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a comparison on a branch nested at the left rail",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a step sequencer moves on in the rung that tests the step",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: a user function with a BOOL result starts a rung",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: user function blocks on the rung, by a BOOL pair and by EN",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: rejects a comparison that does not stand at the left rail",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: rejects a contact on a number",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "ladder: rejects a coil on a number",
+        "why": "LADDER ... END_LADDER is this engine's text for a ladder diagram; IEC gives LD no text, so an ST compiler never reads one. Exported, a rung is the ST it lowers to (the same text the engine ran), which the ST cases already hold to MATIEC; the ladder itself is exported as a PLCopen <LD> body"
+      },
+      {
+        "case": "a struct field of a struct type takes a (field := ...) default, its own fields filling the rest",
+        "why": "MATIEC refuses a NESTED (field := ...) value of a struct type that declares field defaults (\"Initialization element identifier (Limit) is not declared in referenced structure/FB scope\"), while it builds the same value for a struct without defaults and a top-level one for a struct with them: a gap in its type resolution, not a reading of the standard. vendorSyntax.test.ts holds the semantics on both engines"
+      },
+      {
+        "case": "an enumeration in a declaration",
+        "why": "IEC (enumerated_spec_init), but MATIEC parses it and then cannot generate it: \"C code generator does not currently support anonymous enumerated data types\" (generate_c_base.cc). A gap of that compiler, not a reading of the standard"
+      },
+      {
+        "case": "a STRING capacity written as a constant",
+        "why": "IEC writes a STRING capacity as an integer, never a constant expression: an input form the engine reads. The export (export.ts `foldedCapacities`) writes the folded integer, but the oracle renders the text target directly, which cannot fold it"
+      }
+    ],
+    "editionRejects": [
+      {
+        "case": "INT + DINT computes at DINT width",
+        "why": "IEC 2nd edition requires both operands of an arithmetic operator to have the same type, and MATIEC enforces that (\"Data type mismatch for '+' expression\"). 3rd edition defines implicit conversions, which widen INT into DINT here."
+      },
+      {
+        "case": "implicit widening up a signed chain and into a real is accepted",
+        "why": "IEC 2nd edition has no implicit conversions at all, so MATIEC refuses every one of these stores (\"Incompatible data types for ':=' operation\"). 3rd edition defines the widening set, and every vendor toolchain performs it."
+      },
+      {
+        "case": "the BCD pair packs one decimal digit per nibble",
+        "why": "IEC's normative conversion table defines BCD over UNSIGNED integers (BCD_TO_UINT and siblings) and MATIEC implements exactly that, so it refuses these names - to the point of being unable to compile the Annex F examples vendored in its own repo. IEC's Annex F itself uses the SIGNED spelling this engine follows (WEIGH: `INT_TO_BCD(BCD_TO_INT(gross_weight) - tare_weight)`), and STruC++ 0.6.2 compiles it. The rejection is the expected answer here, not a portability defect."
+      },
+      {
+        "case": "function blocks inside a struct are called and read through their fields",
+        "why": "MATIEC (2nd edition) has no function-block instances as struct fields and refuses the TYPE (\"invalid specification in structure element declaration\"). STruC++ (3rd edition) builds it, call and all."
+      },
+      {
+        "case": "assigning an array copies every element",
+        "why": "MATIEC gives every anonymous ARRAY declaration a type of its own, so two arrays declared identically still do not assign (\"Incompatible data types for ':=' operation\"). STruC++ (3rd edition) builds it. A named array type would satisfy MATIEC, but this subset has no TYPE ... : ARRAY declarations yet."
+      },
+      {
+        "case": "a CONSTANT defined from another holds inside a function block",
+        "why": "MATIEC takes only a literal as an initial value, as for the PROGRAM case above (\"invalid initial value in specification with initialization\"). STruC++ (3rd edition) builds it."
+      },
+      {
+        "case": "a FUNCTION takes a whole array by value",
+        "why": "the same rule as a whole-array assignment: MATIEC gives every anonymous ARRAY declaration a type of its own, so the argument does not match the input (\"Data type incompatibility for value passed in position 1 when invoking function 'Total'\"). STruC++ (3rd edition) builds it."
+      },
+      {
+        "case": "an array bound can be a named CONSTANT or an expression over one",
+        "why": "MATIEC calls a named CONSTANT in array bounds non-standard for IEC 61131-3 (\"Use of variables in array size limits is not allowed in IEC 61131-3 (use -a option to activate support for this non-standard feature)\"). STruC++ (3rd edition) builds it."
+      },
+      {
+        "case": "a CONSTANT can be defined from another CONSTANT",
+        "why": "MATIEC takes only a literal as an initial value, so a CONSTANT defined from another is \"invalid initial value in specification with initialization\". STruC++ (3rd edition) builds it."
+      },
+      {
+        "case": "MUL_TIME and DIV_TIME, the 3rd edition names for MULTIME and DIVTIME",
+        "why": "MUL_TIME and DIV_TIME are the 3rd edition's names; the 2nd edition, and so MATIEC, calls them MULTIME and DIVTIME (lib/standard_functions.txt), which the case above uses. STruC++ has both spellings."
+      },
+      {
+        "case": "a located and an ordinary variable may share one VAR block",
+        "why": "MATIEC takes located declarations only in a VAR block of their own, as IEC's grammar writes them, and refuses this one (\"invalid located variable declaration\"). STruC++, the compiler OpenPLC ships, builds it; the export warns, so a program bound for a strict compiler can be split first"
+      },
+      {
+        "case": "a METHOD runs on its instance: its result, outputs and in-outs, and variables that start over on every call",
+        "why": "MATIEC is a 2nd-edition compiler, and IEC added methods, interfaces, inheritance and references in the 3rd: it refuses the first METHOD, EXTENDS or REF_TO it meets. STruC++ (3rd edition) builds it"
+      },
+      {
+        "case": "EXTENDS: a derived block keeps its base's variables, overrides a method (SUPER^.M() reaches the base's), and runs its base's body only through SUPER^()",
+        "why": "MATIEC is a 2nd-edition compiler, and IEC added methods, interfaces, inheritance and references in the 3rd: it refuses the first METHOD, EXTENDS or REF_TO it meets. STruC++ (3rd edition) builds it"
+      },
+      {
+        "case": "an ABSTRACT block leaves a method to the blocks derived from it, and its own methods call theirs",
+        "why": "MATIEC is a 2nd-edition compiler, and IEC added methods, interfaces, inheritance and references in the 3rd: it refuses the first METHOD, EXTENDS or REF_TO it meets. STruC++ (3rd edition) builds it"
+      },
+      {
+        "case": "REF_TO reads and writes, through ^, the place REF() gives it, an element and a field included, and a call gives a block's REF_TO input one",
+        "why": "MATIEC is a 2nd-edition compiler, and IEC added methods, interfaces, inheritance and references in the 3rd: it refuses the first METHOD, EXTENDS or REF_TO it meets. STruC++ (3rd edition) builds it"
+      },
+      {
+        "case": "a REF_TO is given another's reference and NULL, passes either to a block's REF_TO input, and is compared with NULL",
+        "why": "MATIEC is a 2nd-edition compiler, and IEC added methods, interfaces, inheritance and references in the 3rd: it refuses the first METHOD, EXTENDS or REF_TO it meets. STruC++ (3rd edition) builds it"
+      },
+      {
+        "case": "a method returns a whole structure, by value, and takes one as an input",
+        "why": "MATIEC is a 2nd-edition compiler, and IEC added methods, interfaces, inheritance and references in the 3rd: it refuses the first METHOD, EXTENDS or REF_TO it meets. STruC++ (3rd edition) builds it"
+      },
+      {
+        "case": "an interface base in the __SYSTEM namespace, and PUBLIC on a signature, read as saying nothing",
+        "why": "MATIEC is a 2nd-edition compiler, and IEC added methods, interfaces, inheritance and references in the 3rd: it refuses the first METHOD, EXTENDS or REF_TO it meets. STruC++ (3rd edition) builds it"
+      }
+    ],
+    "source": "src/plc/conformanceCases.ts",
+    "groupTitles": [
+      "integer arithmetic is faithful to declared width",
+      "literal typing and mixed-width expressions",
+      "conversions round and reinterpret per IEC",
+      "bit-string operations work on the declared width",
+      "operator precedence (IEC table: OR < XOR < AND < compare < add < mul)",
+      "control flow",
+      "timers against the IEC timing diagrams (dt = 0.1s scans)",
+      "edge detectors, counters and latches",
+      "selection and math builtins",
+      "the operator functions (IEC call form: ADD, SUB, GT, ...)",
+      "declarations, jumps and output bindings",
+      "POUs - functions are stateless, function blocks retain state",
+      "function-block instances live in arrays, structs and globals",
+      "arrays and structs are values, copied whole",
+      "IEC spellings: **, Type#Member, formal function calls",
+      "named types: TYPE Name : ARRAY and plain aliases",
+      "structured initial values: (field := value) and arrays of them",
+      "file structure - POUs in any order, not just grouped by kind",
+      "STRING is character data, ordered but not arithmetic",
+      "dates and times of day: DATE, TOD and DT",
+      "tasks and programs: a CONFIGURATION runs PROGRAM instances on their own schedules",
+      "located variables: AT binds a variable to an I/O point (%I, %Q) or to memory (%M)",
+      "object orientation and references: METHOD, EXTENDS, INTERFACE and REF_TO",
+      "ladder diagram",
+      "tolerated input forms, exported in IEC form"
+    ]
+  },
+  "oracleCoverage": {
+    "what": "which accepted features an external IEC compiler has witnessed, at either of two grades: EXECUTED (compiled, stepped, and the variable image diffed against the golden scan for scan) or COMPILED ONLY (built by the 3rd-edition compiler but never run, because the 2nd-edition one refuses it by design)",
+    "why": "the corpus SAMPLES the subset rather than covering it. \"unverified\" means unwitnessed by a real compiler, not known-broken - prefer the executed list where a program has the choice.",
+    "method": {
+      "functionsAndBlocks": "the engine's own lexer (valueRefs), so comments and string literals cannot count as coverage",
+      "types": "whole-word match against case source with comments and string literals stripped - types are keywords, which the lexer does not emit as references",
+      "excluded": "cases the oracle skips (never replayed) and `rejects` cases (they prove refusal, not behaviour)",
+      "grades": "executed = replayed through MATIEC tier 2. compiledOnly = reached only by an `editionReject` case, which MATIEC is expected to refuse, so nothing ever ran it. Kept apart so the headline cannot drift upward on the weaker evidence as more editionReject cases accrue."
+    },
+    "casesConsidered": 129,
+    "casesExecuted": 111,
+    "compiledOnly": [
+      "BCD_TO_INT",
+      "DIV_TIME",
+      "INT_TO_BCD",
+      "MUL_TIME"
+    ],
+    "types": {
+      "executed": [
+        "BOOL",
+        "BYTE",
+        "DATE",
+        "DINT",
+        "DT",
+        "DWORD",
+        "INT",
+        "LREAL",
+        "REAL",
+        "SINT",
+        "STRING",
+        "TIME",
+        "TOD",
+        "UDINT",
+        "UINT",
+        "USINT",
+        "WORD"
+      ],
+      "compiledOnly": [],
+      "unverified": []
+    },
+    "functionBlocks": {
+      "executed": [
+        "CTD",
+        "CTU",
+        "CTUD",
+        "F_TRIG",
+        "RS",
+        "R_TRIG",
+        "SR",
+        "TOF",
+        "TON",
+        "TP"
+      ],
+      "compiledOnly": [],
+      "unverified": []
+    },
+    "functions": {
+      "executed": [
+        "ABS",
+        "ACOS",
+        "ADD",
+        "ADD_DT_TIME",
+        "ADD_TIME",
+        "ADD_TOD_TIME",
+        "ASIN",
+        "ATAN",
+        "CONCAT",
+        "CONCAT_DATE_TOD",
+        "COS",
+        "DELETE",
+        "DIV",
+        "DIVTIME",
+        "EQ",
+        "EXP",
+        "EXPT",
+        "FIND",
+        "GE",
+        "GT",
+        "INSERT",
+        "LE",
+        "LEFT",
+        "LEN",
+        "LIMIT",
+        "LN",
+        "LOG",
+        "LT",
+        "MAX",
+        "MID",
+        "MIN",
+        "MOVE",
+        "MUL",
+        "MULTIME",
+        "MUX",
+        "NE",
+        "REPLACE",
+        "RIGHT",
+        "ROL",
+        "ROR",
+        "SEL",
+        "SHL",
+        "SHR",
+        "SIN",
+        "SQRT",
+        "SUB",
+        "SUB_DATE_DATE",
+        "SUB_DT_DT",
+        "SUB_DT_TIME",
+        "SUB_TIME",
+        "SUB_TOD_TIME",
+        "SUB_TOD_TOD",
+        "TAN",
+        "TRUNC"
+      ],
+      "compiledOnly": [
+        "BCD_TO_INT",
+        "DIV_TIME",
+        "INT_TO_BCD",
+        "MUL_TIME"
+      ],
+      "unverified": []
+    },
+    "summary": {
+      "types": "17/17",
+      "functionBlocks": "10/10",
+      "functions": "54/58"
+    }
+  },
+  "externalChecks": {
+    "when": "every push and pull request touching src/plc/ or an oracle script",
+    "workflow": ".github/workflows/st-oracle.yml",
+    "oracles": [
+      {
+        "id": "matiec",
+        "name": "MATIEC (iec2c)",
+        "edition": "IEC 61131-3, 2nd edition",
+        "proves": "Every corpus program is written out by the app’s own exporter and compiled by a real IEC compiler. The generated C is built, run with the corpus inputs, and compared with the expected values scan for scan.",
+        "script": "scripts/oracle-matiec.mjs",
+        "run": "npm run st-oracle",
+        "pinned": "7949c0bda1787de9c7cacaa4876ede49f85262dd"
+      },
+      {
+        "id": "strucpp",
+        "name": "STruC++",
+        "edition": "IEC 61131-3, 3rd edition",
+        "proves": "The edition boundary. Every case MATIEC refuses only because it is a 2nd-edition compiler must build here, so \"the standard allows this\" is checked rather than assumed.",
+        "script": "scripts/oracle-strucpp.mjs",
+        "run": "npm run st-oracle:ed3",
+        "pinned": "v0.6.2"
+      },
+      {
+        "id": "plcopen",
+        "name": "PLCopen TC6 schema",
+        "edition": "PLCopen XML interchange",
+        "proves": "Every exported PLCopen document is validated against PLCopen’s own published schema.",
+        "script": "scripts/oracle-plcopen.mjs",
+        "run": "npm run st-oracle:xml"
+      },
+      {
+        "id": "import",
+        "name": "Real-world import corpus",
+        "edition": "Beremiz projects + IEC’s own Annex F examples",
+        "proves": "Import, checked with files this project did not write: every POU and data type they declare must reach either the program or the import notes, so nothing is dropped without a word.",
+        "script": "scripts/oracle-import.mjs",
+        "run": "npm run st-oracle:import"
+      },
+      {
+        "id": "openplc",
+        "name": "OpenPLC Editor",
+        "edition": "its own reader, regenerator and STruC++",
+        "proves": "What a user who takes a program to OpenPLC meets: its editor reads each export (PLCopen XML, and a project folder of .st files) into its own model, writes Structured Text back out and builds it. A declaration or statement lost on the way in fails the check.",
+        "script": "scripts/oracle-openplc.mjs",
+        "run": "npm run st-oracle:openplc",
+        "pinned": "13fee913d66fb4d93f7528c3359144819da1c275"
+      }
+    ]
+  },
+  "portability": {
+    "export": [
+      {
+        "id": "iec-text",
+        "name": "IEC 61131-3 source (.st)",
+        "takenBy": "MATIEC, STruC++, RuSTy, and any vendor ST editor as paste",
+        "extension": ".st",
+        "reportsWarnings": true
+      },
+      {
+        "id": "plcopen-xml",
+        "name": "PLCopen TC6 interchange XML",
+        "takenBy": "IEC 61131-3 tools that import PLCopen XML",
+        "extension": ".xml",
+        "reportsWarnings": true
+      }
+    ],
+    "import": [
+      {
+        "id": "iec-text",
+        "name": "IEC 61131-3 source (.st)",
+        "adoptsScanTime": true,
+        "scanMsFromSample": 40,
+        "reportsWhatItCannotHold": true,
+        "notesFromSample": [
+          "AT %I*: an incomplete address, which the target's I/O configuration completes. Here the variable is a plain one: wire a part to it by name."
+        ]
+      },
+      {
+        "id": "plcopen-xml",
+        "name": "PLCopen TC6 project",
+        "loadsPous": true,
+        "reportsWhatItCannotHold": true
+      }
+    ],
+    "rule": "Anything a target may not carry comes back as a warning or a note. A program that quietly means something other than what its author wrote is worse than one that refuses."
+  },
+  "seams": [
+    {
+      "run": "npm run catalog",
+      "what": "what parts exist, their parameters, and the PLC signals each expects"
+    },
+    {
+      "run": "npm run capabilities",
+      "what": "this manifest: what the engine accepts and refuses, in Structured Text and ladder"
+    },
+    {
+      "run": "npm run check-st -- <path...>",
+      "what": "an ST file compiles"
+    },
+    {
+      "run": "npm run validate-project -- <path>",
+      "what": "a project document loads"
+    },
+    {
+      "run": "npm run check-wiring -- <path>",
+      "what": "every scene tag connects to a program variable"
+    },
+    {
+      "run": "npm run test-project -- <folder>",
+      "what": "the control logic behaves (JSON tests, real exit codes)"
+    }
+  ]
+}

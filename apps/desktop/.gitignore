@@ -1,0 +1,9 @@
+node_modules/
+devserver.log
+smoke.json
+smoke.png
+release/
+# generated before packaging (scripts/desktop-licenses.mjs)
+THIRD_PARTY_LICENSES.desktop.txt
+# fetched by scripts/fetch-libplctag.mjs (the postinstall)
+vendor/

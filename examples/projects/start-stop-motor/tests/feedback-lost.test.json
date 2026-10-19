@@ -1,0 +1,17 @@
+{
+  "name": "A broken Running feedback wire trips MotorFault even though the motor runs",
+  "duration": 2.5,
+  "inputs": [
+    { "at": 0.5, "tag": "Start", "value": true },
+    { "at": 0.6, "tag": "Start", "value": false }
+  ],
+  "faults": [
+    { "at": 1.0, "part": "m1", "kind": "sensorStuck", "value": false }
+  ],
+  "checks": [
+    { "at": 0.9, "tag": "Running", "equals": true },
+    { "at": 1.2, "tag": "Running", "equals": false },
+    { "eventually": true, "until": 2.0, "tag": "MotorFault", "equals": true },
+    { "at": 2.2, "tag": "Run", "equals": false }
+  ]
+}

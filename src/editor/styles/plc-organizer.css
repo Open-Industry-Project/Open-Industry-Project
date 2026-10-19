@@ -1,0 +1,315 @@
+/* ===== PLC organizer (components/PlcOrganizer.tsx) ===== */
+/* The program as a tree beside the code: the top-level code, the tasks and what they run, then the POUs by kind.
+   Every row is one line; a narrow organizer ellipsizes the NAME and keeps its tag (ST / LD) and its buttons. */
+
+/* the toggle at the left of the PLC panel's header row, in the Text | Ladder switch's colours */
+.plc-organizer-toggle-wrap {
+  flex: none;
+  padding: 4px 6px;
+}
+
+.plc-organizer-toggle {
+  padding: 2px 9px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--control);
+  color: light-dark(#52575d, #9aa0a6);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.plc-organizer-toggle[aria-pressed='true'] {
+  color: var(--text-strong);
+  background: var(--selected);
+  border-color: light-dark(#4f90e2, #4a8fe7);
+}
+
+/* beside the code, at its remembered width (StEditor) */
+.org-col {
+  display: flex;
+  flex: none;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--divider);
+}
+
+/* too narrow a panel to share: drawn over the code, and a pick closes it */
+.org-col.overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: min(280px, 85%);
+  box-shadow: 4px 0 16px light-dark(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45));
+}
+
+.org-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* the divider between the organizer and the code: a handle */
+.org-resizer {
+  flex: 0 0 5px;
+  margin: 0 -2px;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.org-resizer:hover,
+.org-resizer:active {
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+.org-root {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: light-dark(#fbfbfc, #1b1c1f);
+  color: var(--text);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+  scrollbar-width: thin;
+}
+
+.org-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  border-bottom: 1px solid var(--divider);
+  background: light-dark(#fbfbfc, #1b1c1f);
+}
+
+.org-section {
+  padding: 2px 0;
+  border-bottom: 1px solid light-dark(#eff0f2, #25272b);
+}
+
+.org-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.org-head:hover {
+  background: light-dark(rgba(0, 0, 0, 0.028), rgba(255, 255, 255, 0.04));
+}
+
+.org-head.top {
+  font-weight: 600;
+}
+
+.org-head:focus-visible,
+.org-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.org-fold {
+  flex: none;
+  width: 10px;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.org-icon {
+  flex: none;
+  width: 14px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.org-title {
+  flex: 0 1 auto;
+  min-width: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.org-count {
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--control);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.org-kind {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-kind.warn {
+  color: light-dark(#966718, #e0a23a);
+}
+
+.org-problem-count {
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* a head's own "+" sits at its right end */
+.org-head > .org-btn {
+  margin-left: auto;
+}
+
+.org-btn {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-dim);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.org-btn:hover:not(:disabled) {
+  border-color: var(--line-soft);
+  background: var(--control);
+  color: var(--text);
+}
+
+.org-inline-btn {
+  margin-left: 6px;
+}
+
+.org-children {
+  padding-left: 14px;
+}
+
+.org-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 10px;
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.org-row:hover {
+  background: light-dark(rgba(0, 0, 0, 0.028), rgba(255, 255, 255, 0.04));
+}
+
+/* the block the reader is in, in the catalog's active-tab colours */
+.org-row.active {
+  border-left-color: var(--accent);
+  background: var(--selected);
+}
+
+.org-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font: 12px ui-monospace, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Main, the top-level code, is a place, not a POU name */
+.org-top .org-name {
+  font: 600 12px ui-sans-serif, system-ui, sans-serif;
+}
+
+/* a PROGRAM no task runs: there, and not running */
+.org-row.idle .org-name {
+  color: light-dark(#787c81, #7d8186);
+}
+
+/* the language a POU is written in: ladder in the ladder's own power colour */
+.org-lang {
+  flex: none;
+  margin-left: auto;
+  padding: 0 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  color: var(--text-dim);
+  font: 10px ui-monospace, monospace;
+}
+
+.org-lang.ld {
+  border-color: light-dark(#b5dabd, #2d5a36);
+  color: light-dark(#2c8037, #3fb950);
+}
+
+.org-edit-row {
+  cursor: default;
+}
+
+.org-input {
+  flex: 1 1 90px;
+  min-width: 0;
+  padding: 0 4px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px ui-monospace, monospace;
+}
+
+.org-input[aria-invalid='true'] {
+  border-color: light-dark(#c1a11f, #e6b800);
+}
+
+/* why something was refused, under what refused it */
+.org-error {
+  flex-basis: 100%;
+  padding: 2px 8px;
+  color: var(--warn);
+  font-size: 11px;
+  white-space: normal;
+}
+
+.org-empty {
+  padding: 2px 8px 4px 10px;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: normal;
+}
+
+.org-readonly {
+  padding: 4px 8px;
+}
+
+/* ---- a row's own commands (OrganizerTree.tsx) ---- */
+
+/* a row's own commands, at its right end; on a row they show on hover or focus, on a head or a program always */
+.org-cmds {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.org-row > .org-cmds {
+  visibility: hidden;
+}
+
+.org-row:hover > .org-cmds,
+.org-row:focus-within > .org-cmds,
+.org-program > .org-cmds {
+  visibility: visible;
+}
+

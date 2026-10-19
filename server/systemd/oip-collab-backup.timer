@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily oip-web collab db backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

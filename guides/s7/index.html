@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Connect an S7-1200 or S7-1500 | Open Industry Project</title>
+    <meta name="description" content="Step by step: connect the simulator to a Siemens S7-1200 or S7-1500 CPU over S7 PUT/GET, including the setting the CPU needs before it allows PUT/GET." />
+    <meta name="keywords" content="S7-1200, S7-1500, PUT/GET, TIA Portal, S7 protocol, PLC, simulator, virtual commissioning" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/s7/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="Connect an S7-1200 or S7-1500 | Open Industry Project" />
+    <meta property="og:description" content="Step by step: connect the simulator to a Siemens S7-1200 or S7-1500 CPU over S7 PUT/GET, including the setting the CPU needs before it allows PUT/GET." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/s7/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- A hand-written page, unlike /plc/. Every label, default and status line below is read from the app (editor/components/ExternalPlcSection.tsx, editor/externalPlc.ts, editor/s7Link.ts, plc/s7Client.ts, core/s7Io.ts), and e2e/guide-s7.mjs follows the page against a strict stand-in CPU (plc/s7FakeCpu.ts). Change those and this goes stale. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Connecting an S7-1200 or S7-1500 over PUT/GET</h1>
+        <p class="lede">
+          An S7-1200 or S7-1500 CPU can let a client read and write its memory over the S7 protocol. The simulator uses
+          this to write the sensors into the CPU's inputs and read its outputs back, while your program runs on the CPU.
+          The CPU needs no extra hardware, license or OPC UA server.
+        </p>
+        <p class="lede">
+          The CPU only allows this once PUT/GET access is permitted in its configuration and that configuration is
+          downloaded to it; <a href="#cpu">step 3</a> lists what the CPU needs.
+        </p>
+
+        <h2>You need</h2>
+        <ul class="dash">
+          <li>The desktop app, for <a href="/#desktop">Windows or Linux</a>. A browser tab cannot open a network connection.</li>
+          <li>An S7-1200 or S7-1500 CPU, and TIA Portal to configure and download it.</li>
+          <li>
+            A network path from this computer to the CPU's Ethernet port, on TCP port 102. A simulated CPU works only if
+            the simulator puts it on the network, as S7-PLCSIM Advanced does.
+          </li>
+        </ul>
+
+        <ul class="toc">
+          <li><a href="#scene">1. Build the scene</a></li>
+          <li><a href="#wire">2. Wire the parts to addresses</a></li>
+          <li><a href="#cpu">3. Set up the CPU</a></li>
+          <li><a href="#connect">4. Point the simulator at the CPU</a></li>
+          <li><a href="#run">5. Run it</a></li>
+          <li><a href="#db">6. A data block instead</a></li>
+          <li><a href="#trouble">Troubleshooting</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="scene">
+      <div class="wrap">
+        <h2>1. Build the scene</h2>
+        <p>In the desktop app, start a new scene and place three parts from the library:</p>
+        <ol class="steps">
+          <li>A <b>Belt Conveyor</b>.</li>
+          <li>A <b>Box</b>, sitting on the belt near the end it starts from.</li>
+          <li>A <b>Photo Eye</b> beside the belt, about two thirds of the way along, facing across it.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="wire">
+      <div class="wrap">
+        <h2>2. Wire the parts to addresses</h2>
+        <p>
+          Select each part, and in the Inspector's <span class="ui">Comms</span> group tick
+          <span class="ui">Enable Comms</span>, then type its address:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>On the CPU</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">%IX100.0</td><td>Input I100.0. The simulator writes it.</td></tr>
+              <tr><td>Belt Conveyor</td><td>Run Tag</td><td class="m">%QX100.0</td><td>Output Q100.0. The simulator reads it.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure class="shot">
+          <img src="img/inspector-comms.webp" width="395" height="128" loading="lazy" decoding="async"
+            alt="The Inspector's Comms group for the Photo Eye: Enable Comms ticked and Presence Tag set to %IX100.0." />
+          <figcaption>The photo eye's Comms group, wired to the CPU's input I100.0.</figcaption>
+        </figure>
+        <p>
+          A part's address is the CPU's own address with a <code>%</code> in front and an <code>X</code> for a bit.
+          Nothing is mapped or offset:
+        </p>
+        <div class="scroll-x">
+          <svg class="diagram" viewBox="0 0 720 230" role="img" aria-labelledby="s7-svg-title">
+            <title id="s7-svg-title">The simulator writes the photo eye into the CPU's input I100.0 and reads the belt's run bit from its output Q100.0. The CPU's program runs between them, reading I100.0 and writing Q100.0.</title>
+            <text class="head" x="40" y="22">The simulator writes I, reads Q</text>
+            <rect class="cell" x="40" y="50" width="200" height="140" />
+            <text class="mid" x="140" y="78">Simulator</text>
+            <text class="mid dim" x="140" y="118">Photo Eye</text>
+            <text class="mid hot" x="140" y="136">%IX100.0</text>
+            <text class="mid dim" x="140" y="160">Belt Conveyor</text>
+            <text class="mid hot" x="140" y="178">%QX100.0</text>
+            <rect class="cell" x="480" y="50" width="200" height="140" />
+            <text class="mid" x="580" y="78">CPU</text>
+            <rect class="cell hot" x="500" y="104" width="160" height="30" /><text class="mid hot" x="580" y="124">I100.0</text>
+            <rect class="cell hot" x="500" y="150" width="160" height="30" /><text class="mid hot" x="580" y="170">Q100.0</text>
+            <path class="wire" d="M240 120 H492 M486 115 L493 120 L486 125" />
+            <text class="mid" x="366" y="112">PUT: write</text>
+            <path class="wire" d="M500 165 H248 M254 160 L247 165 L254 170" />
+            <text class="mid" x="366" y="157">GET: read</text>
+            <text class="dim" x="480" y="214">"Run" := NOT "Eye";  runs between</text>
+          </svg>
+        </div>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>In the scene</th><th>On the CPU</th><th>The simulator</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IXb.n</td><td><code>Ib.n</code>, an input bit</td><td>writes it, that bit alone</td></tr>
+              <tr><td class="m">%QXb.n</td><td><code>Qb.n</code>, an output bit</td><td>reads it</td></tr>
+              <tr><td class="m">%IBn / %QBn</td><td><code>IBn</code> / <code>QBn</code>, a byte</td><td>writes / reads it</td></tr>
+              <tr><td class="m">%IWn / %QWn</td><td><code>IWn</code> / <code>QWn</code>, a word</td><td>writes / reads it</td></tr>
+              <tr><td class="m">%IDn / %QDn</td><td><code>IDn</code> / <code>QDn</code>, a DINT or REAL</td><td>writes / reads it</td></tr>
+              <tr><td class="m">%MXb.n, %MWn, %MDn</td><td>Memory <code>M</code></td><td>writes it if a part publishes it, reads it if a part is driven by it</td></tr>
+              <tr><td class="m">DB1.DBX0.0, DB1.DBW2</td><td>Data block 1, in the S7 data-block spelling, without the <code>%</code></td><td>the same as memory; see <a href="#db">step 6</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>
+            <b>Use input addresses that no input module occupies.</b> The CPU copies its real input cards into the
+            inputs at the start of every cycle, over anything the simulator wrote there. A new S7-1200 puts its built-in
+            inputs at <code>I0.0</code>, so this guide uses byte 100, well clear of them.
+          </li>
+          <li>Values cross big-endian, as the CPU holds them. A REAL travels as its bit pattern, with no scaling.</li>
+          <li>A 64-bit address (<code>%IL</code>, <code>%QL</code>) does not travel. The dialog lists anything it cannot carry, and why.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="cpu">
+      <div class="wrap">
+        <h2>3. Set up the CPU</h2>
+        <p>
+          Configure and download the CPU in Siemens' own engineering software; its documentation shows where each
+          setting lives. This guide needs the CPU to allow PUT/GET, to be reachable, and to run the program below.
+        </p>
+
+        <h3>3a. Allow PUT/GET</h3>
+        <ol class="steps">
+          <li>The CPU permits PUT/GET access from a remote partner. Siemens names the setting <span class="ui">Permit access with PUT/GET communication from remote partner</span>, and a new CPU has it off.</li>
+          <li>The CPU has an IP address this computer can reach. Note it for step 4; a new CPU is <b>192.168.0.1</b>.</li>
+          <li>The CPU sits in rack 0, slot 1, as every S7-1200 and S7-1500 does.</li>
+        </ol>
+
+        <h3>3b. The program</h3>
+        <p>Add two PLC tags to the default tag table:</p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Name</th><th>Data type</th><th>Address</th></tr></thead>
+            <tbody>
+              <tr><td class="m">Eye</td><td>Bool</td><td class="m">%I100.0</td></tr>
+              <tr><td class="m">Run</td><td>Bool</td><td class="m">%Q100.0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>and one line in <b>Main [OB1]</b>, created in SCL (in LAD it is a normally closed contact on <code>Eye</code> driving a coil on <code>Run</code>):</p>
+        <pre class="code" translate="no"><code>"Run" := NOT "Eye";</code></pre>
+
+        <h3>3c. Download it</h3>
+        <p>
+          Download the CPU's configuration and the program, and put the CPU in RUN. The PUT/GET permission is part of
+          the CPU's configuration, not of the program, so if the CPU is reset to factory settings or replaced, permit it
+          and download the configuration again.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="connect">
+      <div class="wrap">
+        <h2>4. Point the simulator at the CPU</h2>
+        <p>Open <span class="ui">Simulation &gt; External PLC…</span> and set:</p>
+        <ol class="steps">
+          <li><span class="ui">Runs on</span>: <b>An external PLC</b>.</li>
+          <li><span class="ui">PLC connection</span>: <b>S7 PUT/GET</b>.</li>
+          <li><span class="ui">CPU</span>: the CPU's IP address from step 3a. It starts at <b>192.168.0.1</b>, a new CPU's address.</li>
+          <li><span class="ui">Port</span>: <b>102</b>, the port every S7 CPU answers on.</li>
+          <li><span class="ui">Rack</span>: <b>0</b> and <span class="ui">Slot</span>: <b>1</b>, right for every S7-1200 and S7-1500.</li>
+        </ol>
+        <p>
+          The list underneath should read <code>%IX100.0&nbsp;&nbsp;I100.0&nbsp;&nbsp;written to the PLC</code> and
+          <code>%QX100.0&nbsp;&nbsp;Q100.0&nbsp;&nbsp;read from the PLC</code>.
+        </p>
+        <figure class="shot">
+          <img src="img/external-plc-s7.webp" width="680" height="615" loading="lazy" decoding="async"
+            alt="The External PLC settings: Runs on An external PLC, PLC connection S7 PUT/GET, the CPU, Port, Rack 0 and Slot 1, the reminder to permit PUT/GET in TIA Portal, and the list: %IX100.0 I100.0 written to the PLC and %QX100.0 Q100.0 read from the PLC." />
+          <figcaption>Set up for S7 PUT/GET, with the two addresses it will write and read.</figcaption>
+        </figure>
+        <p>
+          The first time you press Play with a CPU on the network, the app asks whether to allow the connection:
+          <code>Allow Open Industry Project to connect to a PLC at 192.168.0.1:102?</code> Choose <b>Allow</b>. The app remembers
+          it for that address.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="run">
+      <div class="wrap">
+        <h2>5. Run it</h2>
+        <p>
+          With the CPU in RUN, press Play. The status line says <code>Reading and writing the CPU's memory at 192.168.0.1
+          (rack 0, slot 1)</code> with a count of cycles, the box rides to the sensor, and the CPU stops the belt.
+        </p>
+        <figure class="shot">
+          <img src="img/box-stopped.webp" width="1260" height="630" loading="lazy" decoding="async"
+            alt="The belt conveyor with the box stopped in front of the photo eye, about two thirds of the way along." />
+          <figcaption>The CPU stopped the belt when the photo eye saw the box.</figcaption>
+        </figure>
+
+        <h3>If PUT/GET is still off</h3>
+        <p>
+          The CPU accepts the connection but refuses every read and write, and the status line says
+          <code>Waiting for the PLC at 192.168.0.1 (rack 0, slot 1): the CPU refused a write of I100.0 (error 0x8104):
+          the CPU does not allow it. On an S7-1200/1500 that means PUT/GET is off</code>, then where the checkbox is.
+          Leave the simulation running, permit PUT/GET as in <a href="#cpu">step 3a</a>, and download the CPU's configuration.
+          The simulator asks again every second, so the belt starts once the CPU allows it.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="db">
+      <div class="wrap">
+        <h2>6. A data block instead of inputs</h2>
+        <p>
+          A program written for simulation often keeps its simulated signals in a data block rather than on input
+          addresses. That works too, with one more setting that every new data block has the wrong way round:
+          <b>Optimized block access</b>. An optimized block has no fixed byte offsets, so PUT/GET cannot address it.
+        </p>
+        <ol class="steps">
+          <li>Add a global data block, <b>DB1</b>, with a Bool <code>Eye</code> as its first variable.</li>
+          <li>Turn off optimized block access for the data block, so its variables have fixed byte offsets (Siemens' documentation shows where), and compile. <code>Eye</code> is then at offset <b>0.0</b>.</li>
+          <li>Read it in <b>Main [OB1]</b> instead of the input (the data block's name in place of <code>"DB1"</code> if you gave it one):</li>
+        </ol>
+        <pre class="code" translate="no"><code>"Run" := NOT "DB1".Eye;</code></pre>
+        <ol class="steps">
+          <li>Download, then rewire the photo eye in the simulator to the data block, in the S7 data-block spelling, without the <code>%</code>:</li>
+        </ol>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>On the CPU</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">DB1.DBX0.0</td><td>DB1, byte 0, bit 0: <code>"DB1".Eye</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          If the block is still optimized, the CPU refuses the photo eye's writes, so nothing reaches the program and the
+          belt never starts. The status line says <code>Waiting for the PLC at ...: the CPU refused a write of DB1.DBX0.0</code>,
+          then <code>A data block read or written over PUT/GET must exist and must NOT use optimized block access</code> and where the
+          setting is. Untick it, compile, download, and run again.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="trouble">
+      <div class="wrap">
+        <h2>Troubleshooting</h2>
+        <dl class="trouble">
+          <dt>The connection options are greyed out.</dt>
+          <dd>You are in a browser tab. Connecting to a PLC needs the desktop app.</dd>
+
+          <dt>"Waiting for the PLC at ...: nothing is listening"</dt>
+          <dd>Nothing answered on port 102 at that address. Check the CPU's IP address, that this computer is on the same subnet, and that the CPU is powered. The simulator tries again every second.</dd>
+
+          <dt>"... the CPU does not allow it ... PUT/GET is off"</dt>
+          <dd>Permit PUT/GET on the CPU and download the CPU's configuration, not only the program. See <a href="#cpu">step 3</a>.</dd>
+
+          <dt>"... (rack 0, slot 1 for an S7-1200 or S7-1500)"</dt>
+          <dd>The CPU refused or closed the connection before it was set up, because the rack or slot is wrong. Set Rack 0 and Slot 1.</dd>
+
+          <dt>It connects, but the belt never stops.</dt>
+          <dd>
+            The eye's address is on a real input module, which the CPU copies over the simulator's value every cycle. Move
+            it to a byte no module occupies, in the scene and in the PLC tag. Watching <code>"Eye"</code> online in the
+            engineering software shows whether it ever turns true.
+          </dd>
+
+          <dt>"... must NOT use optimized block access"</dt>
+          <dd>The data block still has Optimized block access ticked, so its variables have no offsets to read or write, and the belt never starts. See <a href="#db">step 6</a>.</dd>
+
+          <dt>A part's address is not listed.</dt>
+          <dd>The dialog lists what it cannot carry, and why: a 64-bit (<code>%IL</code>) address, for example, does not travel.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb">Download for Linux (.deb)</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O (Modbus TCP, OPC UA)</a></li>
+              <li><a href="/guides/ads/">Guide: connect a TwinCAT PLC over ADS</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+        <p class="tm-notice">Siemens, S7-1200, S7-1500, S7-PLCSIM Advanced, TIA Portal and TwinCAT are trademarks of their owners, named here only to identify them. This project is not affiliated with or endorsed by them.</p>
+      </div>
+    </footer>
+  </body>
+</html>

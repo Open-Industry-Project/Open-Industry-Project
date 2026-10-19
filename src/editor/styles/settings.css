@@ -1,0 +1,260 @@
+/* ===== Shortcuts: the editable half (components/ShortcutsOverlay.tsx) ====== */
+.shortcuts-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 6px;
+}
+
+.shortcuts-reset-all,
+.setting-button {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-edge);
+  background: transparent;
+  color: var(--text-dim);
+  font: 11px/1.4 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.shortcuts-reset-all:hover,
+.setting-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* the chord is the control: a separate pencil would double the row's width for an affordance
+   the whole row already implies */
+.shortcut-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.shortcut-edit:hover {
+  border-color: var(--accent);
+}
+
+.shortcut-edit.changed kbd {
+  border-color: var(--accent);
+  color: light-dark(#296fc5, #cfe0f5);
+}
+
+/* Escape: shown for completeness, not a button (see the component header) */
+.shortcut-fixed {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.shortcut-recording {
+  font: 11px/1 ui-sans-serif, system-ui, sans-serif;
+  color: var(--accent);
+  padding: 3px 6px;
+  border: 1px dashed var(--accent);
+  border-radius: 5px;
+}
+
+.shortcut-revert {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shortcut-revert:hover {
+  background: light-dark(rgba(0, 0, 0, 0.056), rgba(255, 255, 255, 0.08));
+  color: var(--text);
+}
+
+/* why a rebind was refused, in the hint's slot so the row does not change height */
+.shortcut-refused {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: light-dark(#a35d1b, #f0a967);
+}
+
+/* ===== Settings dialog (components/SettingsOverlay.tsx) =================== */
+.settings-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.settings-tab {
+  padding: 6px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.settings-tab:hover {
+  color: var(--text);
+}
+
+.settings-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.settings-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.settings-group + .settings-group {
+  margin-top: 18px;
+}
+
+.settings-group h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.setting-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+}
+
+.setting-text {
+  min-width: 0;
+}
+
+.setting-label {
+  font-size: 12px;
+}
+
+.setting-hint {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.setting-control {
+  flex: none;
+}
+
+.setting-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.setting-switch input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.setting-select {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-edge);
+  background: var(--bg);
+  color: var(--text);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.setting-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.setting-input {
+  width: 180px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-edge);
+  background: var(--bg);
+  color: var(--text);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+}
+
+.setting-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* an input with its button (Part libraries: an address and Add) */
+.setting-control-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Reload-scoped settings say so. A live shadow-map resize destroys a texture that recorded WebGPU
+   bundles hold by handle (quality.ts), so these genuinely cannot apply until the next load - and a
+   control that silently does nothing until you reload is the reason the toolbar popover was cut. */
+.settings-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--panel-edge);
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.settings-note-action {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--text);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.settings-note-action:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* The build stamp at the end of Settings' tab row (BuildStamp): quiet, there for whoever looks for it,
+   on both tabs - the Keyboard list scrolls, so a footer would sit out of sight. */
+.settings-build {
+  align-self: center;
+  margin-left: auto;
+  padding: 2px 4px;
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: 11px ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  cursor: pointer;
+}
+
+.settings-build:hover {
+  color: var(--text);
+}
+

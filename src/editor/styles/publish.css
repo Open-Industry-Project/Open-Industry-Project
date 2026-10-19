@@ -1,0 +1,132 @@
+/* Publish to Part Library (components/PublishPartDialog.tsx) */
+
+.publish-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.publish-section {
+  margin-top: 14px;
+}
+
+.publish-section h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.publish-section p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.publish-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.publish-checks li {
+  padding: 2px 0 2px 20px;
+  position: relative;
+}
+
+.publish-checks li.ok::before {
+  content: '✓';
+  position: absolute;
+  left: 2px;
+  color: var(--accent);
+}
+
+.publish-checks li.bad::before {
+  content: '✗';
+  position: absolute;
+  left: 2px;
+  color: var(--danger);
+}
+
+.publish-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.publish-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.publish-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.publish-check input {
+  margin-top: 2px;
+}
+
+.publish-hint {
+  color: var(--text-dim);
+}
+
+.publish-code {
+  font-family: ui-monospace, monospace;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+}
+
+.publish-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+}
+
+.publish-comments {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+}
+
+.publish-section .publish-rename {
+  margin-top: 8px;
+}
+
+.publish-error-inline {
+  display: block;
+  margin-top: 4px;
+  color: var(--danger);
+}
+
+.publish-error {
+  margin-top: 12px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.publish-step {
+  margin-top: 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+}

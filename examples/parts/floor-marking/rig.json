@@ -1,0 +1,22 @@
+{
+  "id": "oip.floor-marking",
+  "name": "Floor Marking",
+  "category": "Structure",
+  "snap": {
+    "tile": {
+      "group": "floorMarking",
+      "lengthParam": "length",
+      "widthParam": "width",
+      "cornerFlush": true
+    }
+  },
+  "geometry": {
+    "kind": "drawn",
+    "bounds": {
+      "length": 2,
+      "width": 8,
+      "top": 0.02
+    }
+  },
+  "materials": []
+}

@@ -1,0 +1,92 @@
+/* ===== Scene annotations (AnnotationOverlay) =============================== */
+/* Screen-space chips pinned to world points. Absolute inside .viewport, never fixed:
+   .viewport's overflow:hidden is what clips a chip whose anchor sits near the edge,
+   and a fixed layer escapes it - chips hung out over the docks. The overlay converts
+   worldToScreen's page coords to this layer's box. Pointer events are re-enabled on
+   the chip alone, because the chip IS the annotation's hit target (there is nothing
+   in the 3-D scene to click). */
+.note-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* A note is SCENE CONTENT, not chrome, so every piece of UI outranks it: the viewport HUD
+     band (5-8: stats, follow badge, hint, orbit gizmo, cover), the floating
+     PLC panel (30), the viewport toolbar (32), menus (41+) and the tour (60). It was 40, which
+     put chips over the ST editor window and over the stats readout - a world-anchored label
+     drifts wherever the camera puts it, so anything it can cover, it eventually does. */
+  z-index: 4;
+  pointer-events: none;
+}
+
+.note-chip {
+  position: absolute;
+  /* the chip hangs above its point, with a gap, so the thing being labelled is not
+     covered by the label - the anchor is the bottom-centre of the chip */
+  transform: translate(-50%, calc(-100% - 10px));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 4px 9px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 999px;
+  background: light-dark(rgba(245, 246, 247, 0.92), rgba(32, 34, 37, 0.92));
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  pointer-events: auto;
+  /* readable over a bright floor or a dark wall without a drop shadow on the text */
+  box-shadow: 0 1px 6px light-dark(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45));
+}
+
+.note-chip:hover {
+  border-color: var(--accent);
+}
+
+.note-chip.selected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px rgba(74, 143, 231, 0.35),
+    0 1px 6px light-dark(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45));
+}
+
+.note-chip-icon {
+  flex: none;
+  opacity: 0.85;
+}
+
+.note-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the live readout, when the note binds a PLC tag. Tabular figures so a changing
+   number doesn't jitter the chip's width on every update, and a separating rule
+   so the label and the measurement don't read as one sentence. */
+.note-chip-value {
+  flex: none;
+  padding-left: 7px;
+  margin-left: 1px;
+  border-left: 1px solid var(--panel-edge);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* the stem: a short line from the chip down to the exact point it marks, so a chip
+   floating over a busy layout still says which thing it is about */
+.note-chip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 10px;
+  background: var(--panel-edge);
+}
+

@@ -1,0 +1,691 @@
+/*
+  The ladder view (components/LadderView.tsx).
+
+  One number holds the drawing together: every series is laid out from its TOP, and its wire runs
+  30px below that (an 18px tag line, then the middle of a 24px symbol). A branch path is a series, a
+  branch starts where its first path does, so however deep the nesting every wire that should meet
+  does, with no measuring. Anything that draws a wire outside a symbol is 31px tall with the wire as
+  its bottom border; the branch's uprights are cut at the same 29px/31px.
+*/
+.ld-root {
+  --ld-wire: #6b7079;
+  --ld-on: #3fb950;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  outline: none;
+  color: var(--text);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+}
+.ld-empty {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px;
+  text-align: center;
+}
+.ld-empty p {
+  margin: 0;
+  max-width: 460px;
+}
+.ld-dim {
+  color: var(--text-dim);
+}
+/* a PROGRAM on screen that no task runs: said above its rungs, with the one change that would run it */
+.ld-idle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 4px 10px;
+  color: var(--warn);
+  background: light-dark(#f4f4f5, #212327);
+  border-bottom: 1px solid var(--divider);
+  font-size: 12px;
+}
+/* an edit the ladder view refused (a bad operand, a rung that does not read): .ld-idle's banner shape in the red
+   .ld-err and .ld-problem already use for a rung's own errors. Click anywhere on it to dismiss, hence the cursor
+   and the mark at its end. */
+.ld-toast {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  color: var(--danger);
+  background: light-dark(#f5f2f3, #2a2022);
+  border-bottom: 1px solid light-dark(#e3cfd0, #47292b);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ld-toast-x {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.ld-toast:hover .ld-toast-x {
+  color: var(--text);
+}
+.ld-pad {
+  padding: 10px 12px;
+}
+.ld-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 3px;
+  background: var(--line-soft);
+}
+.ld-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--control);
+  color: var(--text-strong);
+  font: inherit;
+  cursor: pointer;
+}
+.ld-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.ld-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ld-btn.primary {
+  background: #1f6f3a;
+  /* the green is the same in both themes, so its text stays light in both */
+  color: light-dark(#ffffff, #e6e6e6);
+  padding: 6px 12px;
+}
+.ld-btn.ld-pal {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.ld-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+/* sticky both ways: a routine is thousands of pixels of rungs in a ~200px viewport, so scrolled into one, its
+   header is the only thing on screen that says which routine you are editing. Its section is the containing block,
+   so the next routine's header pushes this one out, as a list header should. */
+.ld-routine-head {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  padding: 4px 10px;
+  font-weight: 600;
+  background: light-dark(#fbfbfc, #1b1c1f);
+  border-bottom: 1px solid var(--divider);
+}
+/* the declaration pane over a ladder section (LadderVariables.tsx): its toggle sits in the section's sticky header */
+.ld-vars-toggle {
+  margin-left: 12px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-dim);
+  font: 400 11px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+.ld-vars-toggle:hover:not(:disabled) {
+  border-color: var(--line-soft);
+  background: var(--control);
+  color: var(--text);
+}
+.ld-vars {
+  /* left-sticky like the header, so a sheet scrolled sideways along a wide rung keeps its declarations readable */
+  position: sticky;
+  left: 0;
+  max-width: 900px;
+  padding: 4px 10px 8px;
+  border-bottom: 1px solid var(--divider);
+  background: light-dark(#f9f9f9, #1d1e22);
+}
+.ld-vars-table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ld-vars-table th {
+  padding: 2px 8px 4px 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 400;
+  text-align: left;
+}
+.ld-vars-table td {
+  padding: 1px 8px 1px 0;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+/* a renameable name is a full-width field with its "show in the text" arrow beside it: laid out as a row, or the arrow
+   overflows the cell and sits under the next column's field, where nothing can click it */
+.ld-vars-namecell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ld-vars-namecell > .ld-vars-field {
+  flex: 1 1 auto;
+}
+.ld-vars-name {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: 12px ui-monospace, monospace;
+  cursor: pointer;
+}
+.ld-vars-name:hover:not(:disabled) {
+  background: transparent;
+  text-decoration: underline;
+}
+.ld-vars-name:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.ld-vars-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 70px;
+  padding: 1px 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px ui-monospace, monospace;
+}
+.ld-vars-field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+/* read-only reads as text, not as a form that ignores you */
+.ld-vars-field:disabled {
+  border-color: transparent;
+  background: transparent;
+  opacity: 1;
+}
+.ld-vars-dim {
+  color: var(--text-dim);
+  font: 11px ui-monospace, monospace;
+}
+/* a type is a ComboBox (ComboBox.tsx), drawn as the pane's other fields; read-only it reads as text, with no arrow */
+.ld-vars-table .combo {
+  min-width: 110px;
+}
+.ld-vars-table .combo .combo-box {
+  box-sizing: border-box;
+  padding: 1px 26px 1px 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px ui-monospace, monospace;
+}
+.ld-vars-table .combo .combo-box:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.ld-vars-table .combo.disabled {
+  opacity: 1;
+}
+.ld-vars-table .combo.disabled .combo-box {
+  border-color: transparent;
+  background: transparent;
+}
+.ld-vars-table .combo.disabled .combo-arrow {
+  display: none;
+}
+.ld-vars-btn {
+  padding: 0 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  background: var(--control);
+  color: var(--text-dim);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+  line-height: 18px;
+  cursor: pointer;
+}
+.ld-vars-error {
+  padding-top: 4px;
+  color: var(--warn);
+  font-size: 11px;
+}
+.ld-banner {
+  padding: 4px 10px;
+  color: var(--warn);
+  background: light-dark(#f4f4f5, #212327);
+  border-bottom: 1px solid var(--divider);
+}
+.ld-rung {
+  display: flex;
+  /* never narrower than the widest thing it cannot wrap: a single branch wider than the view (see .ld-wrap) */
+  min-width: min-content;
+  padding: 6px 0 4px;
+  border-bottom: 1px solid var(--divider);
+  cursor: default;
+  /* a routine is thousands of nodes, and the browser lays out and paints every one of them on each zoom step and each
+     re-render - unless told a rung out of view can wait. The size it is remembered at keeps the scrollbar accurate. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 90px;
+}
+.ld-rung.sel {
+  background: rgba(74, 143, 231, 0.07);
+}
+.ld-rung.sel > .ld-num {
+  color: var(--accent);
+}
+.ld-num {
+  flex: 0 0 56px;
+  align-self: stretch;
+  padding: 22px 10px 0 0;
+  text-align: right;
+  color: var(--text-dim);
+  font: 11px ui-monospace, monospace;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  border-right: 1px solid var(--divider);
+}
+.ld-num:hover {
+  background: light-dark(rgba(0, 0, 0, 0.028), rgba(255, 255, 255, 0.04));
+}
+.ld-rung.sel > .ld-num {
+  background: rgba(74, 143, 231, 0.22);
+}
+.ld-rung.drop-before {
+  box-shadow: inset 0 2px 0 var(--ld-on);
+}
+.ld-rung.drop-after {
+  box-shadow: inset 0 -2px 0 var(--ld-on);
+}
+/* a branch's end handles, on the wire at either end; drag one over the neighbours to stretch the span */
+.ld-node {
+  position: absolute;
+  top: 24px;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ld-on);
+  border: 1px solid light-dark(#f7f7f8, #1f2023);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.ld-node.left {
+  left: -6px;
+}
+.ld-node.right {
+  right: -6px;
+}
+.ld-node.pulling {
+  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.35);
+}
+.ld-branch.within {
+  outline: 1px dashed rgba(74, 143, 231, 0.5);
+}
+.ld-err {
+  margin-right: 3px;
+  color: var(--danger);
+}
+.ld-rung-body {
+  flex: 1;
+  min-width: min-content;
+  display: flex;
+  flex-direction: column;
+  padding-right: 10px;
+}
+/* a rung's label (where a jump lands), on the rung's top line, and the jump or RETURN that ends a rung */
+.ld-label {
+  display: block;
+  margin: 0 0 2px 3px;
+  color: light-dark(#91681d, #e5c07b);
+  font: 600 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.ld-exit {
+  align-self: center;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid light-dark(#d69b2e, #e5c07b);
+  border-radius: 3px;
+  color: light-dark(#91681d, #e5c07b);
+  font: 600 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: nowrap;
+}
+.ld-comment,
+.ld-comment-input {
+  margin: 0 0 2px 3px;
+  color: light-dark(#427b50, #7bb88a);
+  font: italic 11px ui-sans-serif, system-ui, sans-serif;
+  white-space: pre-wrap;
+}
+.ld-comment-input {
+  resize: none;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  outline: none;
+  padding: 2px 4px;
+}
+.ld-problem {
+  margin: 2px 0 0 3px;
+  color: var(--danger);
+  font-size: 11px;
+}
+.ld-line {
+  display: flex;
+  align-items: stretch;
+  min-width: min-content;
+}
+/* The series of a rung. It wraps: a rung longer than the view carries on underneath instead of
+   running off the side (so every rung is as wide as the view, and its outputs stand against the rail you can SEE).
+   The rows are joined by LadderView `linkWraps`, which draws into .ld-links. A single branch wider than the view cannot
+   wrap, so the rung GROWS to it - `min-width: min-content` here and on every box up to .ld-rung: the widest thing that
+   cannot wrap - and the sheet scrolls sideways to a right rail that stands after it. With `min-width: 0` the branch
+   overflowed instead: the rail stood at the view's edge, through the branch, and .ld-rung's content-visibility (which
+   contains paint) CLIPPED everything past it, so the sheet could not even scroll to it. */
+.ld-wrap {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  flex: 1 1 0;
+  min-width: min-content;
+  row-gap: 26px;
+  padding: 0 10px;
+}
+/* (the wire still reaches both rails across that padding, which is where the return of a wrapped row runs) */
+.ld-wrap > .ld-wire:first-child {
+  margin-left: -10px;
+  min-width: 20px;
+}
+.ld-wrap > .ld-wire.end {
+  margin-right: -10px;
+  min-width: 26px;
+  /* on a row of its own making (the last row of a wrapped rung has no stretch of wire) it runs on to the rail; beside
+     the rung's stretch of wire, which outweighs it ten thousand to one, it stays the stub it is */
+  flex-grow: 1;
+}
+.ld-wrap > .ld-wire.grow {
+  flex-grow: 10000;
+}
+.ld-links {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ld-link {
+  position: absolute;
+  box-sizing: border-box;
+}
+.ld-link.run {
+  border-top: 2px solid var(--ld-wire);
+}
+.ld-link.back {
+  border-right: 2px dotted var(--ld-wire);
+  border-bottom: 2px dotted var(--ld-wire);
+}
+.ld-link.in {
+  border-left: 2px dotted var(--ld-wire);
+  border-bottom: 2px solid var(--ld-wire);
+}
+.ld-rail {
+  flex: 0 0 3px;
+  align-self: stretch;
+  min-height: 46px;
+  background: #8b9097;
+}
+.ld-rail.on {
+  background: var(--ld-on);
+}
+/* Every horizontal wire (the stretches between elements and the stubs inside a symbol) is one construction: a box
+   of `--ld-line-y` tall with the line as its bottom border, so the whole rung is drawn by boxes that round the same
+   way. Two constructions (a bordered box between elements, a centred 2px border inside a symbol) agree at 100% and
+   drift apart once the sheet is zoomed: CSS `zoom` rounds each box on its own, so at 121% the wire runs 0.6px below
+   the coil it feeds and the rung reads as a line of little steps. The symbol's stub subtracts the tag line above
+   it, so both lines land on the same y. */
+.ld-line,
+.ld-path {
+  --ld-line-y: 31px;
+  --ld-tag-h: 18px;
+}
+.ld-wire {
+  flex: 0 0 auto;
+  min-width: 10px;
+  height: var(--ld-line-y);
+  border-bottom: 2px solid var(--ld-wire);
+}
+.ld-wire.grow {
+  flex: 1 1 14px;
+}
+/* the last stretch of a rung or of a branch level, before the rail / the branch's closing leg: wide enough to aim at */
+.ld-wire.end {
+  min-width: 22px;
+}
+/* no wire into a function whose result starts the rung: nothing feeds it */
+.ld-wire.none {
+  border-color: transparent;
+}
+/* online, a wire that carries power is lit, and so is each element that passes it */
+.ld-wire.on,
+.ld-v.on {
+  border-color: var(--ld-on);
+}
+.ld-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 0 auto;
+  /* what it is drawn at is also the least it can be: an element never narrows (its rows wrap only for a description's
+     own line, and an operand's spaces - `Belt + 1` - are no place to break), and a rung sizes itself from its
+     elements' least widths (.ld-wrap, min-content). Left to the default, a box counted as narrow as its longest
+     word, a branch of them as narrower than it draws, and a branch too wide for the view ran past the rail. */
+  width: max-content;
+  min-width: 76px;
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+}
+.ld-cell:hover {
+  background: light-dark(rgba(0, 0, 0, 0.028), rgba(255, 255, 255, 0.04));
+}
+.ld-cell.sel,
+.ld-branch.sel {
+  outline: 1px solid var(--accent);
+  background: rgba(74, 143, 231, 0.13);
+}
+/* a selected branch level is its leg, drawn as a bar on the corner where the level begins */
+.ld-path.sel > .ld-v.l {
+  border-left-width: 8px;
+  border-color: var(--accent);
+  margin-left: -3px;
+  top: 8px;
+  bottom: -4px;
+  height: auto;
+}
+.ld-path.sel > .ld-v.l.last {
+  height: auto;
+}
+.ld-path:hover > .ld-v.l {
+  border-left-width: 4px;
+  margin-left: -1px;
+}
+.ld-tag {
+  height: 18px;
+  padding: 0 6px;
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+  font: 11px ui-monospace, monospace;
+}
+.ld-tag .blank,
+.ld-box-value.blank {
+  color: var(--danger);
+}
+.ld-sym {
+  display: flex;
+  align-items: center;
+  height: 24px;
+}
+.ld-sym .ld-wire {
+  align-self: flex-start;
+  height: calc(var(--ld-line-y) - var(--ld-tag-h));
+  border-bottom: 2px solid var(--ld-wire);
+  border-top: 0;
+}
+.ld-sym .ld-wire.on {
+  border-color: var(--ld-on);
+}
+.ld-glyph {
+  flex: 0 0 auto;
+  color: light-dark(#2e3135, #c8cbd0);
+}
+.ld-glyph.on {
+  color: var(--ld-on);
+}
+.ld-contact {
+  position: relative;
+  width: 12px;
+  height: 18px;
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+.ld-contact.on {
+  background: rgba(63, 185, 80, 0.28);
+}
+.ld-slash {
+  position: absolute;
+  left: calc(50% - 1px);
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: currentColor;
+  transform: rotate(32deg);
+}
+.ld-coil {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  font: bold 10px ui-monospace, monospace;
+}
+.ld-coil.on {
+  background: rgba(63, 185, 80, 0.28);
+}
+.ld-cell.ld-boxed {
+  flex-direction: row;
+  align-items: flex-start;
+  padding-bottom: 4px;
+}
+.ld-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 10px;
+  padding: 2px 7px 4px;
+  border: 1px solid var(--ld-wire);
+  border-radius: 3px;
+  background: light-dark(#eff0f2, #25272b);
+  font: 11px ui-monospace, monospace;
+}
+.ld-box.on {
+  border-color: var(--ld-on);
+}
+.ld-box-title {
+  text-align: center;
+  font-weight: 700;
+}
+.ld-box-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  white-space: nowrap;
+}
+/* the pin-name column's width is a min-width, not a flex-basis: WebKit sizes the box from the row's intrinsic width and
+   leaves a basis out of it, so on an iPhone the box came out ~24px narrower than the row laid inside it, and the
+   values ran out past its border. Chromium counts the basis, which is why only Safari showed it. */
+.ld-box-name {
+  flex: none;
+  min-width: 44px;
+  color: var(--text-dim);
+}
+/* a block pin nothing connects: drawn, as IEC draws every pin, but quieter; double-click connects it */
+.ld-box-row.open .ld-box-name {
+  opacity: 0.6;
+  font-style: italic;
+}
+.ld-box-row[data-open] {
+  cursor: pointer;
+}
+.ld-box-row[data-open]:hover .ld-box-name {
+  opacity: 1;
+  color: var(--accent);
+}
+.ld-live {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--ld-on);
+  /* right-aligned in the room LadderView keeps for it (`roomFor`), so the digits stay put as a value changes */
+  text-align: right;
+  box-sizing: content-box;
+}
+.ld-input {
+  min-width: 60px;
+  padding: 0 3px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text-strong);
+  font: 11px ui-monospace, monospace;
+}
+.ld-branch {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+.ld-path {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  min-width: 44px;
+  min-height: 54px;
+  cursor: pointer;
+}
+.ld-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px solid var(--ld-wire);
+}
+.ld-v.l {
+  left: 0;
+}
+.ld-v.r {
+  right: 0;
+}
+/* a branch's legs run from the top of the line they leave to the bottom of the line they rejoin, so the corners are
+   solid - the same `--ld-line-y` the horizontal wires are drawn from, not a second copy of the number */
+.ld-v.first {
+  top: calc(var(--ld-line-y) - 2px);
+}
+.ld-v.last {
+  bottom: auto;
+  height: var(--ld-line-y);
+}
+.ld-v.first.last {
+  height: 2px;
+}

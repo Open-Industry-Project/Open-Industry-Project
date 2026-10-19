@@ -1,0 +1,83 @@
+{
+  "id": "oip.fence",
+  "name": "Fence",
+  "category": "Structure",
+  "snap": {
+    "chain": {
+      "group": "barrierFence",
+      "lengthParam": "length",
+      "reach": 1,
+      "omitStartParam": "omitPostStart",
+      "omitEndParam": "omitPostEnd"
+    }
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "barrier",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            2,
+            0.06
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            },
+            {
+              "axis": 1,
+              "param": "height",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "height",
+            "scale": 0.5
+          }
+        ],
+        "hidden": true
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 4,
+      "width": 0.12,
+      "top": 2
+    }
+  },
+  "materials": [
+    {
+      "id": "postMetal",
+      "color": [
+        0.949,
+        0.741,
+        0.059
+      ],
+      "metalness": 0.1,
+      "roughness": 0.45
+    },
+    {
+      "id": "meshMetal",
+      "color": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "metalness": 0.3,
+      "roughness": 0.6
+    }
+  ]
+}

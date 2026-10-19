@@ -1,0 +1,144 @@
+/*
+  Appearance. Every colour in this file is written for BOTH themes: a token below, or an inline
+  light-dark(<light>, <dark>). Which one applies is the element's color-scheme, so there is one
+  switch: :root follows the OS, and appearance.ts sets data-theme on <html> when the person picks
+  Light or Dark in Settings. A subtree that must stay dark whatever the theme (the HUD drawn over
+  the 3D scene) says `color-scheme: dark` and every token inside it resolves dark.
+
+  A new rule names a token, or writes light-dark() itself; a bare colour paints one theme only.
+  appearance.test.ts fails on one, with the few deliberate exceptions listed there.
+*/
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#ffffff, #17181b); /* the deepest ground: the body, fields, wells */
+  --panel: light-dark(#f5f6f7, #202225); /* dock panels and toolbars */
+  --panel-edge: light-dark(#e0e2e5, #2e3136); /* a panel's outline */
+  --text: light-dark(#212428, #d7dade);
+  --text-dim: light-dark(#61666c, #8b9097);
+  --text-strong: light-dark(#1e1e1e, #e6e6e6); /* text that must stand out from --text */
+  --accent: light-dark(#2f74d0, #4a8fe7);
+  --line: light-dark(#c9ccd1, #3a3e44); /* a control's border */
+  --line-soft: light-dark(#d7d9dc, #34363b); /* a quieter border: cards, popovers */
+  --divider: light-dark(#eaebed, #2a2c30); /* a rule between rows or sections */
+  --control: light-dark(#e4e5e7, #2d2f34); /* a button's fill */
+  --control-alt: light-dark(#e6e7e9, #2c2f33); /* a raised fill a shade off --control */
+  --control-low: light-dark(#e9ebed, #2a2d31); /* a quieter fill: chips, inactive tabs */
+  --selected: light-dark(#cde0f7, #2a3a50); /* a selected row or chip */
+  --warn: light-dark(#846e15, #e6b800); /* warning text */
+  --danger: light-dark(#d43123, #ff6b5e); /* error text */
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* A native <select>'s list takes its ground from the select itself, and a select drawn transparent (the
+   ComboBox arrow, a step picker) left Chromium a light list under the dark theme's light text. The list
+   names its own colours instead, so no select's look can leak into it. */
+select option,
+select optgroup {
+  color: var(--text);
+  background: var(--bg);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/*
+  Home-screen app: the root is fixed to the screen, because no height unit matches it.
+
+  With viewport-fit=cover and black-translucent the page covers the whole screen. On a
+  Dynamic Island iPhone, both height units are off by the top inset (~59pt), in opposite
+  directions. `100%` resolves against the safe area and is too short: the grid ends above
+  the home indicator. `100vh` on iOS 26 is too long: the grid runs ~59pt past the bottom
+  edge, so the pilot button hides under the tab bar and the crosshair sits ~30pt below
+  centre. `100dvh` is stale in standalone mode until the device rotates.
+
+  `position: fixed; inset: 0` avoids height units. It uses the same frame as other fixed
+  elements, such as .mobile-tabbar (fixed, bottom: 0), which sits correctly. html and body
+  stay at 100% so the document can't scroll.
+
+  This applies only to the installed app; a browser tab keeps the normal height chain.
+  There are two selectors because Android/Chrome answers the display-mode media query,
+  while iOS only sets navigator.standalone, which main.tsx adds to <html> as .standalone.
+*/
+@media (display-mode: standalone) {
+  #root {
+    position: fixed;
+    inset: 0;
+    height: auto;
+  }
+}
+
+html.standalone #root {
+  position: fixed;
+  inset: 0;
+  height: auto;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.45 system-ui, 'Segoe UI', sans-serif;
+  user-select: none;
+  /* mobile: kill pull-to-refresh / rubber-band scroll and double-tap zoom around the canvas */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+  display: grid;
+  height: 100%;
+  grid-template-rows: 48px minmax(0, 1fr) 6px 172px;
+  grid-template-columns: 220px 6px minmax(0, 1fr) 6px 280px;
+  grid-template-areas:
+    'toolbar toolbar toolbar toolbar toolbar'
+    'left gutl viewport gutr inspector'
+    'gutd gutd gutd gutd gutd'
+    'dock dock dock dock dock';
+}
+
+.gutter {
+  background: var(--panel-edge);
+  z-index: 4;
+  /* leaving reverts with no delay - only the arrival is gated (see :hover) */
+  transition: background 80ms linear;
+}
+
+/* Hover is an INVITATION, not the drag itself. Two things keep it quiet, both copied from
+   VS Code's sash (workbench.sash.hoverDelay, 300 ms): the paint waits for a DELIBERATE
+   hover, so a pointer crossing the gutter on its way to a tab never flashes a bar across
+   the shell, and what it paints is a tinted edge rather than the full accent. Full accent
+   means "you are resizing", which is :active below. */
+.gutter:hover {
+  background: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
+  transition-delay: 250ms;
+}
+
+/* :active outranks :hover by source order, and ResizeGutter takes pointer capture on the
+   gutter itself, so this holds for the whole drag even once the pointer leaves it. */
+.gutter:active {
+  background: var(--accent);
+  transition-delay: 0s;
+}
+
+/* side-column width gutters are placed inline (grid-area varies per column); this
+   rule only carries the resize cursor for the bottom-dock height gutter. */
+.gutter-dock {
+  grid-area: gutd;
+  cursor: row-resize;
+}
+

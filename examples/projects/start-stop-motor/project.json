@@ -1,0 +1,17 @@
+{
+  "version": 7,
+  "name": "Start/Stop Motor",
+  "packages": [
+    "parts/demo.motor"
+  ],
+  "scene": "scene.json",
+  "program": [
+    "plc/program.st"
+  ],
+  "tests": [
+    "tests/start-stop.test.json",
+    "tests/motor-fault.test.json",
+    "tests/feedback-lost.test.json",
+    "tests/comms-loss.test.json"
+  ]
+}

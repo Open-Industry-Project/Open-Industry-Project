@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Connect a PLC over Modbus TCP | Open Industry Project</title>
+    <meta name="description" content="Step by step: wire a simulated conveyor to I/O addresses, serve them over Modbus TCP from the desktop app, and let a real PLC stop the belt." />
+    <meta name="keywords" content="Modbus TCP, PLC, soft PLC, OpenPLC, simulator, virtual commissioning, IEC 61131-3" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/modbus/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="Connect a PLC over Modbus TCP | Open Industry Project" />
+    <meta property="og:description" content="Step by step: wire a simulated conveyor to I/O addresses, serve them over Modbus TCP from the desktop app, and let a real PLC stop the belt." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/modbus/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- A hand-written page, unlike /plc/. Every label, default and address below is read from the app
+         (editor/components/ExternalPlcSection.tsx, editor/commands.ts, core/externalIo.ts); the setup is the
+         one `npm run openplc-loop` runs against a real OpenPLC Runtime v4. Change those and this goes stale. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Connection guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Connecting a PLC over Modbus TCP</h1>
+        <p class="lede">
+          The simulator can act as a Modbus TCP server, the way a remote I/O rack does. Your PLC polls it, reading the
+          sensors and writing the motors, and your PLC program decides what the line does.
+        </p>
+        <p class="lede">
+          In this guide you build a belt with a box and a sensor, and your PLC stops the belt when the sensor sees the
+          box. It takes about fifteen minutes once your PLC is installed.
+        </p>
+
+        <h2>You need</h2>
+        <ul class="dash">
+          <li>The desktop app, for <a href="/#desktop">Windows or Linux</a>. A browser tab cannot open a network port.</li>
+          <li>A PLC with a Modbus TCP master (also called a client or a scanner). A hardware PLC or a soft PLC both work.</li>
+          <li>A network path from the PLC to this computer, or the PLC running on the same computer.</li>
+        </ul>
+
+        <ul class="toc">
+          <li><a href="#scene">1. Build the scene</a></li>
+          <li><a href="#serve">2. Serve the I/O</a></li>
+          <li><a href="#map">3. Address mapping</a></li>
+          <li><a href="#plc">4. Set up the PLC</a></li>
+          <li><a href="#run">5. Run it</a></li>
+          <li><a href="#analog">6. Analog values</a></li>
+          <li><a href="#trouble">Troubleshooting</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="scene">
+      <div class="wrap">
+        <h2>1. Build the scene and give it I/O addresses</h2>
+        <p>
+          In the desktop app, start a new scene and place three parts from the library:
+        </p>
+        <ol class="steps">
+          <li>A <b>Belt Conveyor</b>.</li>
+          <li>A <b>Box</b>, sitting on the belt near the end it starts from.</li>
+          <li>A <b>Photo Eye</b> beside the belt, about two thirds of the way along, facing across it.</li>
+        </ol>
+        <p>
+          Now give the two devices I/O addresses instead of names. Select each one, find the
+          <span class="ui">Comms</span> group in the Inspector, tick <span class="ui">Enable Comms</span>, and type the address
+          into its tag field:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">%IX0.0</td><td>An input to the PLC: true while the sensor sees the box.</td></tr>
+              <tr><td>Belt Conveyor</td><td>Run Tag</td><td class="m">%QX0.0</td><td>An output from the PLC: the belt runs while it is true.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <code>%I</code> is always something the scene tells the PLC (a sensor), and <code>%Q</code> is always something the
+          PLC tells the scene (a motor). Only addresses travel to an external PLC. A tag that is a plain name, like
+          <code>Eye</code>, is only seen by the program running inside the simulator.
+        </p>
+        <figure class="shot">
+          <img src="img/inspector-comms.webp" width="376" height="248" loading="lazy" decoding="async"
+            alt="The Inspector's Comms group for the Belt Conveyor: Enable Comms ticked and the Run Tag set to %QX0.0." />
+          <figcaption>The Belt Conveyor's Comms group, with its Run Tag on an output address.</figcaption>
+        </figure>
+        <div class="note tip">
+          <p>
+            If your scene is already wired by name, run <span class="ui">Simulation &gt; Assign I/O Addresses</span>. It gives every
+            named tag an address, starting at <code>%IX0.0</code> and <code>%QX0.0</code>, rewrites the program in the PLC panel to
+            declare them (<code>Eye AT %IX0.0 : BOOL</code>), and is one undo step. <span class="ui">File &gt; Export I/O List (.csv)</span>
+            then gives you the whole table to set the PLC up from, and <span class="ui">File &gt; Import I/O List…</span> goes the other
+            way, when the addresses are already decided.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="serve">
+      <div class="wrap">
+        <h2>2. Serve the I/O over Modbus TCP</h2>
+        <p>Open <span class="ui">Simulation &gt; External PLC…</span> (or double-click the Controller node at the top of the PLC panel's organizer) and set:</p>
+        <ol class="steps">
+          <li><span class="ui">Runs on</span>: <b>An external PLC</b>. On Play, the simulator hands the scene's I/O to your PLC instead of running the program in its own PLC panel.</li>
+          <li><span class="ui">PLC connection</span>: <b>The PLC polls the simulator</b> (the PLC is the Modbus master).</li>
+          <li><span class="ui">Port</span>: <b>5020</b> is the default. Any free port works, and the PLC needs the same number.</li>
+          <li>
+            <span class="ui">Reachable from the network</span>: leave it off if the PLC runs on this computer. Tick it if the PLC is a
+            separate device, and allow the app through the Windows firewall when Windows asks.
+          </li>
+        </ol>
+        <p>
+          The list underneath shows what Play will serve. For this scene it should read
+          <code>%IX0.0&nbsp;&nbsp;discrete input 0</code> and <code>%QX0.0&nbsp;&nbsp;coil 0</code>. If it says no part is wired yet,
+          check that <span class="ui">Enable Comms</span> is ticked on both parts.
+        </p>
+        <figure class="shot">
+          <img src="img/external-plc.webp" width="680" height="458" loading="lazy" decoding="async"
+            alt="The External PLC settings: Runs on An external PLC, PLC connection The PLC polls the simulator, Port 5020, Reachable from the network off, and the list of served points: %IX0.0 discrete input 0 and %QX0.0 coil 0." />
+          <figcaption>Set up to serve, with the two points this scene puts on the wire.</figcaption>
+        </figure>
+        <p class="sub">
+          These settings are saved on this computer, not in the scene, so a colleague who opens the same scene keeps
+          their own.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="map">
+      <div class="wrap">
+        <h2>3. How addresses map to Modbus points</h2>
+        <p>
+          There is no mapping table to fill in. Every address lands on one Modbus point by a fixed rule, so you can
+          work out the PLC's side from the addresses alone:
+        </p>
+        <div class="scroll-x">
+          <svg class="diagram" viewBox="0 0 720 300" role="img" aria-labelledby="map-svg-title">
+            <title id="map-svg-title">%IX1.3 is byte 1, bit 3, so it is discrete input 1 times 8 plus 3, which is 11. A REAL at %ID50 fills input registers 100 and 101, the low word in register 100 and the high word in 101.</title>
+            <text class="head" x="40" y="22">A bit: %IXb.n is point b &#215; 8 + n</text>
+            <path class="rule" d="M42 50 V44 H358 V50 M362 50 V44 H678 V50" />
+            <text class="mid dim" x="200" y="38">%IX0.0 &#8230; %IX0.7</text>
+            <text class="mid dim" x="520" y="38">%IX1.0 &#8230; %IX1.7</text>
+            <rect class="cell" x="40" y="58" width="40" height="34" /><text class="mid" x="60" y="80">0</text><rect class="cell" x="80" y="58" width="40" height="34" /><text class="mid" x="100" y="80">1</text><rect class="cell" x="120" y="58" width="40" height="34" /><text class="mid" x="140" y="80">2</text><rect class="cell" x="160" y="58" width="40" height="34" /><text class="mid" x="180" y="80">3</text><rect class="cell" x="200" y="58" width="40" height="34" /><text class="mid" x="220" y="80">4</text><rect class="cell" x="240" y="58" width="40" height="34" /><text class="mid" x="260" y="80">5</text><rect class="cell" x="280" y="58" width="40" height="34" /><text class="mid" x="300" y="80">6</text><rect class="cell" x="320" y="58" width="40" height="34" /><text class="mid" x="340" y="80">7</text><rect class="cell" x="360" y="58" width="40" height="34" /><text class="mid" x="380" y="80">8</text><rect class="cell" x="400" y="58" width="40" height="34" /><text class="mid" x="420" y="80">9</text><rect class="cell" x="440" y="58" width="40" height="34" /><text class="mid" x="460" y="80">10</text><rect class="cell hot" x="480" y="58" width="40" height="34" /><text class="mid hot" x="500" y="80">11</text><rect class="cell" x="520" y="58" width="40" height="34" /><text class="mid" x="540" y="80">12</text><rect class="cell" x="560" y="58" width="40" height="34" /><text class="mid" x="580" y="80">13</text><rect class="cell" x="600" y="58" width="40" height="34" /><text class="mid" x="620" y="80">14</text><rect class="cell" x="640" y="58" width="40" height="34" /><text class="mid" x="660" y="80">15</text>
+            <text class="dim" x="40" y="114">discrete inputs</text>
+            <text class="mid hot" x="500" y="114">%IX1.3 = 1 &#215; 8 + 3 = discrete input 11</text>
+            <text class="head" x="40" y="170">A REAL: %IDn is registers 2n and 2n+1, low word first</text>
+            <text class="dim" x="40" y="196">%ID50, one 32-bit REAL</text>
+            <rect class="cell" x="40" y="204" width="120" height="40" /><text class="mid" x="100" y="229">high word</text>
+            <rect class="cell" x="160" y="204" width="120" height="40" /><text class="mid" x="220" y="229">low word</text>
+            <rect class="cell hot" x="400" y="204" width="140" height="40" /><text class="mid hot" x="470" y="221">register 100</text><text class="mid dim" x="470" y="237">sent first</text>
+            <rect class="cell" x="550" y="204" width="140" height="40" /><text class="mid" x="620" y="221">register 101</text><text class="mid dim" x="620" y="237">sent second</text>
+            <path class="wire" d="M220 244 V262 H470 V248" />
+            <path class="rule" d="M100 244 V280 H620 V248" />
+            <path class="wire" d="M465 252 L470 246 L475 252" />
+            <path class="rule" d="M615 252 L620 246 L625 252" />
+          </svg>
+        </div>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Address</th><th>Modbus point</th><th>The PLC</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td class="m">%IXb.n</td><td>Discrete input <code>b&times;8 + n</code></td><td>reads it (FC2)</td><td class="m">%IX100.0 = discrete input 800</td></tr>
+              <tr><td class="m">%QXb.n</td><td>Coil <code>b&times;8 + n</code></td><td>writes it (FC5 / FC15)</td><td class="m">%QX100.0 = coil 800</td></tr>
+              <tr><td class="m">%IWn</td><td>Input register <code>n</code></td><td>reads it (FC4)</td><td class="m">%IW100 = input register 100</td></tr>
+              <tr><td class="m">%QWn</td><td>Holding register <code>n</code></td><td>writes it (FC6 / FC16)</td><td class="m">%QW100 = holding register 100</td></tr>
+              <tr><td class="m">%IDn</td><td>Input registers <code>2n</code>, <code>2n+1</code></td><td>reads them (FC4)</td><td class="m">%ID100 = input registers 200-201</td></tr>
+              <tr><td class="m">%QDn</td><td>Holding registers <code>2n</code>, <code>2n+1</code></td><td>writes them (FC16)</td><td class="m">%QD100 = holding registers 200-201</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>Addresses are 0-based protocol addresses. Tools that print 1-based labels show discrete input 0 as <code>10001</code> and coil 0 as <code>00001</code>.</li>
+          <li>A REAL or DINT takes two registers, low word first. Some masters call this "swapped words" or "little-endian word order". A REAL travels as its IEEE 754 bit pattern, with no scaling.</li>
+          <li>The unit ID is ignored. Use 1, or whatever your master defaults to.</li>
+          <li>Bytes (<code>%IB</code>), 64-bit values (<code>%IL</code>) and memory (<code>%M</code>) are not sent. The External PLC dialog lists anything it cannot carry, and why.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="plc">
+      <div class="wrap">
+        <h2>4. Set up the PLC</h2>
+        <p>The program is one line of logic. It runs the belt until the sensor sees the box.</p>
+        <pre class="code" translate="no"><code>PROGRAM main
+VAR
+  Eye AT %IX0.0 : BOOL;
+  Run AT %QX0.0 : BOOL;
+END_VAR
+
+Run := NOT Eye;
+END_PROGRAM</code></pre>
+        <p>
+          These are the addresses the scene uses in step 1, and the ones OpenPLC gives the two Modbus points below in a new
+          project, so the same program runs in the simulator and on the PLC. Strictly, the PLC's addresses are up to the
+          PLC. What has to match is the Modbus point, discrete input 0 and coil 0. On another PLC, declare the variables
+          wherever it puts those points.
+        </p>
+        <p>
+          Then point the PLC's Modbus TCP master at the simulator:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Server address</td><td><code>127.0.0.1</code> on the same computer, otherwise that computer's IP address</td></tr>
+              <tr><td>Port</td><td><code>5020</code>, or the port you chose in step 2</td></tr>
+              <tr><td>Unit / slave ID</td><td><code>1</code> (ignored)</td></tr>
+              <tr><td>Poll</td><td>Read discrete inputs, start <code>0</code>, count <code>1</code>, into the program's <code>Eye</code></td></tr>
+              <tr><td>Poll</td><td>Write coils, start <code>0</code>, count <code>1</code>, from the program's <code>Run</code></td></tr>
+              <tr><td>Poll rate</td><td>Anything under 1 s (see <a href="#run">step 5</a>). 20 to 100 ms is what this setup is tested at.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Example: OpenPLC</h3>
+        <p>
+          OpenPLC is free and installs on Windows without admin rights, so it is a quick way to try this without hardware.
+          You need two downloads from Autonomy Logic's GitHub releases: the <b>OpenPLC Editor</b>, where you write and build
+          the program, and the <b>OpenPLC Runtime</b>, the PLC that runs it. Start the runtime before you begin. These steps
+          were followed with OpenPLC Editor 4.3.0 and Runtime 4.2.2.
+        </p>
+        <ol class="steps">
+          <li>
+            In the Editor, click <span class="ui">New Project</span>, choose <span class="ui">PLC Project</span>, and click
+            <span class="ui">Next</span>. Give it a name, choose an empty folder, and click <span class="ui">Next</span>. Pick
+            <span class="ui">Structured Text</span> as the language, leave the cyclic task at <code>T#20ms</code>, and click
+            <span class="ui">Create Project</span>.
+          </li>
+          <li>
+            The project opens on the program <code>main</code>. OpenPLC keeps a program's variables and its logic in two
+            places. Click the <span class="ui">&lt;/&gt;</span> button above the variables table to see them as text, and paste
+            the <code>VAR</code> ... <code>END_VAR</code> block from the program above into it. Then paste
+            <code>Run := NOT Eye;</code> into the code editor below it.
+          </li>
+          <li>
+            Click the <span class="ui">+</span> button beside the project name, choose <span class="ui">Remote Device</span>,
+            give it a name, choose <span class="ui">Modbus</span> as the protocol, and click <span class="ui">Create</span>.
+            On the device's page, change <span class="ui">Port</span> from 502 to <code>5020</code>. The IP Address
+            (127.0.0.1) and Slave ID (1) are already right for a simulator on the same computer.
+          </li>
+          <li>
+            Click the <span class="ui">+</span> beside <span class="ui">IO Tag Mapping</span> to add an IO group. Choose
+            <span class="ui">Read Discrete Inputs (FC 2)</span>, leave <span class="ui">Offset</span> at <code>0</code> and
+            <span class="ui">Length</span> to <code>1</code>, and click <span class="ui">Create</span>. Add a second group
+            the same way with <span class="ui">Write Multiple Coils (FC 15)</span>. The <span class="ui">Address</span> column
+            shows where OpenPLC put them: <code>%IX0.0</code> and <code>%QX0.0</code> in a new project. If yours differ, use
+            those in the program.
+          </li>
+          <li>
+            Under <span class="ui">Device</span> in the project tree, open <span class="ui">Configuration</span>, set
+            <span class="ui">Device</span> to <span class="ui">OpenPLC Runtime v4</span>, type <code>127.0.0.1</code> as the
+            IP Address, click <span class="ui">Connect</span>, and log in to the runtime.
+          </li>
+          <li>
+            Click the Build button in the toolbar on the far left (the arrow pointing down) and choose
+            <span class="ui">Build and upload</span>. If the runtime is already running a program, confirm with
+            <span class="ui">Stop PLC and Continue</span>. The console ends with <code>PLC started.</code> and
+            <code>Upload complete.</code>
+          </li>
+        </ol>
+        <figure class="shot">
+          <img src="img/openplc-device.webp" width="1600" height="800" loading="lazy" decoding="async"
+            alt="The OpenPLC Editor's Remote Device page for the simulator: IP Address 127.0.0.1, Port 5020, Slave ID 1, and two IO groups, a discrete input group at %IX0.0 and a coil group at %QX0.0." />
+          <figcaption>OpenPLC Editor 4.3.0: the remote device on port 5020, with its two IO groups.</figcaption>
+        </figure>
+        <div class="note">
+          <p>
+            In the Editor, the play button in that toolbar starts and stops the PLC; it does not upload. The
+            <span class="ui">OpenPLC Simulator</span> device the Editor selects by default builds for a simulated microcontroller,
+            and in testing it never connected to this simulator, so choose <span class="ui">OpenPLC Runtime v4</span>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="run">
+      <div class="wrap">
+        <h2>5. Run it</h2>
+        <p>Back in the simulator, press Play. The status line in the External PLC dialog (and the link status in the toolbar) shows each stage:</p>
+        <ul class="dash">
+          <li><code>Serving on 127.0.0.1:5020: no PLC connected yet</code> means the port is open and waiting. Start the PLC now if it is not running.</li>
+          <li><code>Serving on 127.0.0.1:5020: 1 connected (...)</code>, with a count of requests, means the PLC is polling.</li>
+        </ul>
+        <p>
+          The box rides the belt, reaches the sensor, and the belt stops. That stop came from your PLC. The program in the
+          simulator's PLC panel does not run while an external PLC is connected.
+        </p>
+        <figure class="shot">
+          <img src="img/box-stopped.webp" width="1260" height="630" loading="lazy" decoding="async"
+            alt="The box has ridden the belt conveyor and stopped in front of the photo eye." />
+          <figcaption>Your PLC stopped the belt with the box at the photo eye.</figcaption>
+        </figure>
+        <p>
+          To check, press Stop, which puts the box back where you placed it, and press Play again. Then stop the PLC
+          while the box is still moving. The belt stops and the status says
+          <code>The PLC disconnected: its outputs are held off until it polls again.</code>
+          (A PLC that keeps its connection open when it stops shows
+          <code>The PLC stopped polling for 1.2 s: its outputs are held off until it polls again.</code>
+          instead, about a second later.) Start the PLC again and the belt carries on.
+        </p>
+        <div class="note">
+          <p>
+            A PLC that stops polling sends no message saying so, and holding its last outputs would keep the line running
+            on a value nobody is driving. So if no request arrives for 1 s, every output the PLC drives is set OFF (a coil false, a register 0) until it polls again. Real remote I/O
+            does the same. The simulator keeps stepping, so the line coasts to a halt the way it would on the floor.
+          </p>
+          <p>
+            While an external PLC is connected, simulation speed is fixed at real time, because the PLC scans on its own clock
+            and the simulator cannot run faster than it.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="analog">
+      <div class="wrap">
+        <h2>6. Analog values (optional)</h2>
+        <p>
+          A REAL travels in two registers. Add a <b>Laser Sensor</b> beside the belt, before the Photo Eye, and wire
+          two more fields:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>Modbus point</th></tr></thead>
+            <tbody>
+              <tr><td>Laser Sensor</td><td>Distance Tag (M)</td><td class="m">%ID50</td><td>Input registers 100-101, REAL</td></tr>
+              <tr><td>Belt Conveyor</td><td>Speed Tag (M/S)</td><td class="m">%QD50</td><td>Holding registers 100-101, REAL</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Then slow the belt down while the laser sees a box within a metre:</p>
+        <pre class="code" translate="no"><code>PROGRAM main
+VAR
+  Eye   AT %IX0.0 : BOOL;
+  Run   AT %QX0.0 : BOOL;
+  Range AT %ID50 : REAL;    (* metres to the box *)
+  Speed AT %QD50 : REAL;    (* belt speed, m/s *)
+END_VAR
+
+Run := NOT Eye;
+IF Range &gt; 0.0 AND Range &lt; 1.0 THEN
+  Speed := 0.1;
+ELSE
+  Speed := 0.5;
+END_IF;
+END_PROGRAM</code></pre>
+        <p>
+          On the PLC, add a group that reads input registers from 100, two long, into <code>%ID50</code>, and one that writes
+          holding registers from 100, two long, from <code>%QD50</code>. Set the master to low word first.
+        </p>
+        <div class="note">
+          <p>
+            The OpenPLC Editor (4.3.0) cannot set this step up through its screens. An IO group maps each
+            register to its own 16-bit word (<code>%IW</code>, <code>%QW</code>) and has no option for a REAL across two. The
+            OpenPLC Runtime itself reads and writes REALs this way, low word first, which is how this step is tested, but
+            that takes a hand-written device file rather than the Editor's Remote Device page.
+          </p>
+        </div>
+        <div class="note">
+          <p>
+            The <code>Range &gt; 0.0</code> check is there because the PLC's first scan can run before its first poll, so an analog input
+            reads 0 for a scan or two after start, and 0 looks like a real measurement. Inside the simulator this never
+            happens, because inputs are loaded before the first scan. A real PLC needs the guard, and so does the program
+            you will eventually put on one.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="trouble">
+      <div class="wrap">
+        <h2>Troubleshooting</h2>
+        <dl class="trouble">
+          <dt>"An external PLC" is greyed out.</dt>
+          <dd>You are in a browser tab. Connecting needs the desktop app. You can still wire the scene and run Assign I/O in the browser, then open the scene in the desktop app.</dd>
+
+          <dt>"Could not serve: ..." when you press Play.</dt>
+          <dd>Something else is using the port. Pick another one in the External PLC dialog, and give the PLC the same number.</dd>
+
+          <dt>It stays on "no PLC connected yet".</dt>
+          <dd>
+            Check the PLC is running and pointed at the right address and port. If the PLC is on another device, tick
+            <span class="ui">Reachable from the network</span>, use this computer's IP address (not 127.0.0.1), and check the Windows
+            firewall allows the app.
+          </dd>
+
+          <dt>The PLC is connected, but the belt never runs or never stops.</dt>
+          <dd>
+            The addresses on the two sides do not match. The usual causes are off-by-one (a 1-based tool shows discrete input 0 as <code>10001</code>), mixing up bit and byte numbers (<code>%IX1.0</code> is point 8, not 1), or
+            <span class="ui">Enable Comms</span> left off on a part. The External PLC dialog lists exactly which points it serves.
+          </dd>
+
+          <dt>Analog values are nonsense, like a huge number or a tiny fraction.</dt>
+          <dd>Word order. The simulator sends the low word first; set your master to match ("swap words", "little-endian word order").</dd>
+
+          <dt>The belt stops for no reason, then starts again.</dt>
+          <dd>The PLC went more than 1 s without polling, so its outputs were held off. Poll faster, or check what is stalling the PLC.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb">Download for Linux (.deb)</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/opcua/">Guide: connect a SCADA or HMI over OPC UA</a></li>
+              <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O</a></li>
+              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+        <p class="tm-notice">OpenPLC is a trademark of its owner, named here only to identify it. This project is not affiliated with or endorsed by it.</p>
+      </div>
+    </footer>
+  </body>
+</html>

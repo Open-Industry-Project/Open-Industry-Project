@@ -1,0 +1,250 @@
+/* The static site's one stylesheet: the landing, the connection guides and the /plc/ page link it, so they can't
+   drift apart. The look is an operator screen, not a sci-fi HUD: warm charcoal,
+   neutral greys, one accent from the logo's gold, and the state colours (run, warn, fault) only where they mean a
+   state. No glow. public/404.html is served raw and can't link this: it repeats the tokens it needs. */
+
+/* IBM Plex Sans + Mono, self-hosted (SIL OFL, /fonts/LICENSE-plex.txt), latin subset. */
+@font-face { font-family: 'Plex'; font-weight: 400; font-display: swap; src: url('/fonts/plex-sans-400.woff2') format('woff2'); }
+@font-face { font-family: 'Plex'; font-weight: 500; font-display: swap; src: url('/fonts/plex-sans-500.woff2') format('woff2'); }
+@font-face { font-family: 'Plex'; font-weight: 600; font-display: swap; src: url('/fonts/plex-sans-600.woff2') format('woff2'); }
+@font-face { font-family: 'Plex Mono'; font-weight: 400; font-display: swap; src: url('/fonts/plex-mono-400.woff2') format('woff2'); }
+@font-face { font-family: 'Plex Mono'; font-weight: 500; font-display: swap; src: url('/fonts/plex-mono-500.woff2') format('woff2'); }
+
+:root {
+  --bg: #17191b;
+  --bg-raised: #1f2225;
+  --bg-sunk: #121416;
+  --line: #2e3236;
+  --line-strong: #43484d;
+  --text: #ece8e1;
+  --text-2: #b9b4ab;
+  --muted: #8a867f;
+  --accent: #e5a73a;
+  --accent-hover: #f0b852;
+  --accent-ink: #1b1406;
+  --run: #5fb36b;
+  --warn: #e0b43a;
+  --fault: #d65a4f;
+  --sans: 'Plex', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Code', monospace;
+  --gutter: clamp(16px, 4vw, 40px);
+  --max: 1320px;
+
+  /* Older names the guide and /plc/ rules use, mapped onto this palette so those rules need no rewrite. New
+     rules use the names above. */
+  --gray-300: var(--text-2);
+  --gray-400: var(--muted);
+  --gray-500: #6f6b65;
+  --gray-600: var(--line-strong);
+  --hairline: var(--line);
+  --panel-border: var(--line-strong);
+  --cyan: var(--accent);
+  --cyan-strong: var(--accent);
+  --orange: var(--warn);
+  --green: var(--run);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; }
+img, video { display: block; max-width: 100%; }
+code { font-family: var(--mono); font-size: 0.9em; }
+
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
+
+/* ---- Nav ---- */
+header.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* non-zero only in the installed home-screen app, where black-translucent draws the page behind the status bar */
+  padding-top: env(safe-area-inset-top);
+  background: rgba(23, 25, 27, 0.92);
+  border-bottom: 1px solid var(--line);
+}
+.nav-inner { display: flex; align-items: center; gap: 28px; height: 60px; }
+.nav-logo img { height: 34px; width: auto; }
+.nav-links { display: flex; gap: 24px; margin-left: auto; font-size: 15px; }
+.nav-links a { color: var(--text-2); text-decoration: none; }
+.nav-links a:hover, .nav-links a[aria-current] { color: var(--text); }
+
+/* ---- Buttons: flat, square-ish, like panel push-buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 11px 18px;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  background: var(--bg-raised);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--text-2); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-sm { padding: 7px 12px; font-size: 14px; }
+.btn svg { width: 16px; height: 16px; flex: none; }
+
+/* ---- Figure captions, under a picture or a video ---- */
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 24px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.caption .state { color: var(--text-2); }
+
+/* ---- Footer ---- */
+footer.site { margin-top: 140px; border-top: 1px solid var(--line); padding: 40px 0 calc(32px + env(safe-area-inset-bottom)); }
+footer.site img.mark { height: 40px; width: auto; margin-bottom: 14px; }
+footer.site p.blurb { color: var(--muted); font-size: 0.9rem; max-width: 34ch; }
+.foot-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 40px; padding-bottom: 32px; }
+footer.site h4 { font-family: var(--mono); font-weight: 400; font-size: 12.5px; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 14px; }
+footer.site ul { list-style: none; }
+footer.site li { margin-bottom: 10px; }
+footer.site li a { color: var(--text-2); font-size: 0.92rem; text-decoration: none; }
+footer.site li a:hover { color: var(--text); }
+.foot-bottom { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; color: var(--muted); }
+footer.site .tm-notice { font-size: 12.5px; color: var(--muted); margin-top: 8px; max-width: 90ch; }
+
+@media (max-width: 900px) {
+  body { font-size: 16px; }
+  .nav-links { display: none; }
+  .nav-inner .btn { margin-left: auto; }
+  .foot-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  footer.site { margin-top: 96px; }
+}
+
+/* ======== Documentation pages (body.doc): the connection guides and /plc/ ======== */
+body.doc { --max: 980px; }
+body.doc.ref { --max: 1180px; }
+.doc main a, .doc .lede a { color: var(--accent); }
+.doc main a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.doc main .btn { color: var(--text); }
+.doc main .btn-primary { color: var(--accent-ink); }
+.doc b, .doc strong, .doc .ui { color: var(--text); font-weight: 600; }
+.doc code, .doc .mono { font-family: var(--mono); font-size: 0.88em; color: var(--text); }
+
+.doc .hero { padding: 64px 0 32px; max-width: 68ch; }
+.doc .hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.6rem); line-height: 1.12; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 20px; }
+.doc .hero h2 { font-size: 1.05rem; font-weight: 600; margin: 26px 0 10px; }
+.doc .hero p.lede { font-size: 1.08rem; color: var(--text-2); margin-bottom: 16px; }
+
+.doc .toc { list-style: none; margin-top: 26px; display: flex; flex-wrap: wrap; gap: 8px; }
+.doc .toc a { display: inline-block; font-family: var(--mono); font-size: 12px; color: var(--text-2); border: 1px solid var(--line); border-radius: 3px; padding: 4px 10px; text-decoration: none; }
+.doc .toc a:hover { border-color: var(--line-strong); color: var(--text); }
+
+.doc .section { padding: 28px 0; scroll-margin-top: 72px; }
+.doc .section h2 { font-size: clamp(1.4rem, 2.4vw, 1.8rem); font-weight: 600; letter-spacing: -0.015em; margin-bottom: 14px; }
+/* the divider sits on the heading, inside the text column, not across the window */
+.doc .section > .wrap > h2:first-child { border-top: 1px solid var(--line); padding-top: 32px; }
+.doc .section h3 { font-size: 1.05rem; font-weight: 600; margin: 22px 0 10px; }
+.doc .section p { color: var(--text-2); margin-bottom: 14px; max-width: 72ch; }
+.doc .section .sub { color: var(--muted); }
+
+.doc .panel { border: 1px solid var(--line); background: var(--bg-raised); border-radius: 4px; padding: 20px 22px; min-width: 0; }
+
+.doc ol.steps { list-style: none; counter-reset: s; max-width: 74ch; margin: 6px 0 18px; }
+.doc ol.steps > li { counter-increment: s; position: relative; padding-left: 38px; margin-bottom: 14px; color: var(--text-2); }
+.doc ol.steps > li::before {
+  content: counter(s);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+.doc ul.dash { list-style: none; max-width: 72ch; margin: 4px 0 16px; }
+.doc ul.dash li { position: relative; padding-left: 22px; margin-bottom: 10px; color: var(--text-2); }
+.doc ul.dash li::before { content: ''; position: absolute; left: 0; top: 13px; width: 10px; height: 1px; background: var(--muted); }
+
+.doc pre.code {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-2);
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 4px 0 18px;
+  max-width: 72ch;
+}
+.doc pre.code code { color: inherit; font-size: inherit; }
+
+/* a note is a caution (amber); a tip is plain information (grey) */
+.doc .note { border-left: 2px solid var(--warn); padding: 4px 0 4px 16px; margin: 6px 0 18px; max-width: 72ch; }
+.doc .note p { color: var(--text-2); margin-bottom: 0; }
+.doc .note p + p { margin-top: 8px; }
+.doc .note.tip { border-left-color: var(--line-strong); }
+
+/* A picture is taken by the guide's own script (e2e/guide-<slug>.mjs --images), never by hand. */
+.doc figure.shot { margin: 8px 0 22px; max-width: 72ch; }
+.doc figure.shot img { max-width: 100%; height: auto; border: 1px solid var(--line); }
+.doc figure.shot figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+
+.doc svg.diagram { display: block; width: 100%; min-width: 560px; max-width: 720px; height: auto; }
+.doc svg.diagram text { font-family: var(--mono); font-size: 12px; fill: var(--text-2); }
+.doc svg.diagram text.head { font-family: var(--sans); font-size: 14px; font-weight: 600; fill: var(--text); }
+.doc svg.diagram text.dim { fill: var(--muted); }
+.doc svg.diagram text.hot { fill: var(--accent); }
+.doc svg.diagram text.mid { text-anchor: middle; }
+.doc svg.diagram .cell { fill: var(--bg-raised); stroke: var(--line-strong); }
+.doc svg.diagram .cell.hot { fill: rgba(229, 167, 58, 0.12); stroke: var(--accent); }
+.doc svg.diagram .rule { stroke: var(--line-strong); fill: none; }
+.doc svg.diagram .wire { stroke: var(--accent); fill: none; stroke-width: 1.5; }
+
+.doc .scroll-x { overflow-x: auto; margin: 6px 0 18px; }
+.doc table.map { width: 100%; min-width: 620px; border-collapse: collapse; }
+.doc table.map th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 400;
+  padding: 0 14px 10px 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+.doc table.map td { vertical-align: top; padding: 11px 14px 11px 0; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: 0.93rem; }
+.doc table.map td.m { font-family: var(--mono); font-size: 12.5px; color: var(--text); white-space: nowrap; }
+
+.doc dl.trouble { max-width: 74ch; }
+.doc dl.trouble dt { color: var(--text); font-weight: 600; margin-top: 18px; }
+.doc dl.trouble dd { color: var(--text-2); margin-top: 4px; }
+
+/* the guides index: one card per guide */
+.doc .guide-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.doc a.guide-card { display: block; color: var(--text); text-decoration: none; }
+.doc a.guide-card:hover { border-color: var(--text-2); text-decoration: none; }
+.doc .guide-card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+.doc .guide-card p { color: var(--muted); font-size: 0.93rem; }
+@media (max-width: 700px) { .doc .guide-list { grid-template-columns: minmax(0, 1fr); } }

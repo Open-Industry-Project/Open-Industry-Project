@@ -1,0 +1,24 @@
+{
+  "name": "A motor that stops responding trips MotorFault and stays off until Reset",
+  "duration": 4.5,
+  "inputs": [
+    { "at": 0.5, "tag": "Start", "value": true },
+    { "at": 0.6, "tag": "Start", "value": false },
+    { "at": 3.0, "tag": "Reset", "value": true },
+    { "at": 3.1, "tag": "Reset", "value": false },
+    { "at": 3.5, "tag": "Start", "value": true },
+    { "at": 3.6, "tag": "Start", "value": false }
+  ],
+  "faults": [
+    { "at": 1.0, "until": 2.5, "part": "m1", "kind": "actuatorDead" }
+  ],
+  "checks": [
+    { "at": 0.9, "tag": "Running", "equals": true },
+    { "at": 0.9, "tag": "MotorFault", "equals": false },
+    { "eventually": true, "until": 2.0, "tag": "MotorFault", "equals": true },
+    { "at": 2.0, "tag": "Run", "equals": false },
+    { "at": 2.9, "tag": "Running", "equals": false },
+    { "at": 4.2, "tag": "MotorFault", "equals": false },
+    { "at": 4.2, "tag": "Running", "equals": true }
+  ]
+}

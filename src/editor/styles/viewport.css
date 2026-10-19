@@ -1,0 +1,586 @@
+/* Viewport */
+
+.viewport {
+  grid-area: viewport;
+  position: relative;
+  overflow: hidden;
+  background: light-dark(#ffffff, #101113);
+  /* touch gestures (orbit/pinch) must reach the pointer handlers, not scroll/zoom the page */
+  touch-action: none;
+}
+
+.viewport canvas {
+  display: block;
+}
+
+/* spatial toolbar, overlaid at the top-left of the 3D viewport */
+.viewport-toolbar-wrap {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  /* Above the floating panels (StEditor's panel is zIndex 30), below the menus/modals at 41+.
+     This is a STACKING CONTEXT, so the popovers inside it (.snap-config) can never outrank the
+     float on their own: at 6 the PLC float - which covers exactly this corner in the default
+     layout - drew over Snap Settings and swallowed its clicks. */
+  z-index: 32;
+}
+
+/* While flying (freefly) or in pilot mode the camera owns the viewport: make the toolbar
+   non-interactive so a stray click can't toggle a tool, and dim it to signal it's inert. */
+.viewport-toolbar-wrap.nav-inert {
+  pointer-events: none;
+  opacity: 0.4;
+  transition: opacity 0.12s ease;
+}
+
+.viewport-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: light-dark(rgba(245, 246, 247, 0.92), rgba(32, 34, 37, 0.92));
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+}
+
+.viewport-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-dim);
+}
+
+/* the snap-settings gear sits snug against the grid-snap toggle */
+.viewport-tool-mini {
+  width: 22px;
+}
+
+/* Toolbar popovers (Snap Settings, Graphics) */
+.snap-config {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 7; /* within .viewport-toolbar-wrap's stacking context - see its z-index note */
+  min-width: 208px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: light-dark(rgba(245, 246, 247, 0.98), rgba(32, 34, 37, 0.98));
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px light-dark(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45));
+}
+
+.snap-config-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.snap-config-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-dim);
+}
+
+.snap-config-field input {
+  width: 84px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font: inherit;
+}
+
+.snap-config-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.snap-config-reset {
+  margin-top: 2px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.snap-config-sub {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--panel-edge);
+}
+
+.snap-choice {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.snap-choice-btn {
+  padding: 3px 9px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text-dim);
+  border: none;
+  cursor: pointer;
+}
+
+.snap-choice-btn + .snap-choice-btn {
+  border-left: 1px solid var(--line);
+}
+
+.snap-choice-btn.active {
+  background: var(--selected);
+  color: var(--text);
+}
+
+.snap-config-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.8;
+}
+
+.viewport-tool:hover:not(:disabled) {
+  background: var(--control-alt);
+  color: var(--text);
+}
+
+.viewport-tool.active {
+  background: var(--selected);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.viewport-toolbar-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 3px;
+  background: var(--panel-edge);
+}
+
+.rubber-band {
+  position: absolute;
+  border: 1px dashed var(--accent);
+  background: rgba(74, 143, 231, 0.12);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.viewport-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  padding: 24px;
+  text-align: center;
+}
+
+/* Pilot Mode (first-person walk-around) HUD */
+/* Drawn over the 3D scene, not over a panel, so it stays dark in either theme (see :root) */
+.pilot-hud,
+.pilot-touch,
+.stats-overlay,
+.bench-overlay,
+.model-loading {
+  color-scheme: dark;
+  /* restated, not inherited: an inherited colour arrives already resolved in the parent's scheme,
+     so without this the text would come in as the light theme's near-black on a dark chip */
+  color: var(--text);
+}
+
+.pilot-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.pilot-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+.pilot-prompt {
+  position: absolute;
+  top: calc(50% + 22px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.pilot-prompt kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 5px;
+  background: #2c2f33;
+  border: 1px solid #4a4e54;
+  border-radius: 3px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+}
+
+.pilot-help {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* the keyboard hint (WASD / Space / Esc) is meaningless on touch - the on-screen controls replace it */
+@media (pointer: coarse) {
+  .pilot-help {
+    display: none;
+  }
+}
+
+/* floating "enter pilot mode" button (touch only): the crowded toolbar can't fit its icon buttons
+   on a phone, so first-person walk-around gets its own FAB bottom-right of the viewport, clear of
+   the bottom tab bar and the bottom-left loading pill */
+.pilot-fab {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(54px + 16px + env(safe-area-inset-bottom));
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--accent, #2a6df4);
+  color: #fff;
+  border: none;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+
+.pilot-fab:active {
+  filter: brightness(1.12);
+}
+
+/* --- mobile pilot mode: on-screen joystick + look pad + buttons (touch has no WASD / mouse-look) --- */
+.pilot-touch {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  /* the whole surface is the look pad: swallow browser pan/zoom/select gestures on it */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* the walk joystick: a fixed base bottom-left, with a thumb the finger drags around inside it */
+.pilot-touch-stick {
+  position: absolute;
+  left: max(24px, env(safe-area-inset-left));
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  touch-action: none;
+}
+
+.pilot-touch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  /* driven inline via transform; no transition so it tracks the thumb 1:1 */
+}
+
+/* Jump / Use stacked bottom-right, within easy reach of the right thumb */
+.pilot-touch-actions {
+  position: absolute;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.pilot-touch-btn {
+  min-width: 92px;
+  height: 56px;
+  padding: 0 16px;
+  border-radius: 28px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.34);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  touch-action: none;
+}
+
+.pilot-touch-btn:active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.pilot-touch-use {
+  border-color: var(--accent);
+}
+
+/* a small Exit pill top-right of the viewport, clear of the toolbar above it */
+.pilot-touch-exit {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 19px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1.5px solid rgba(255, 255, 255, 0.34);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  touch-action: none;
+}
+
+.pilot-touch-exit:active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.stats-overlay {
+  position: absolute;
+  /* clear the 80px orbit gizmo that sits in the top-right corner */
+  top: 96px;
+  right: 8px;
+  /* in the viewport HUD band, so an annotation chip (4) passes under the counters rather than
+     over them - with no explicit value this was z-index auto and lost to every other layer */
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  white-space: pre;
+  pointer-events: none;
+}
+
+/* active render backend (WebGPU / WebGL) - a labelled header above the counters so
+   screenshots always reveal which path rendered them */
+.stats-overlay-backend {
+  margin-bottom: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  color: #8ab4f8;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* "rec" flag beside `draws`: this frame re-recorded the render bundles, so its draw tally is the
+   whole list rather than one per bundle execute. Dimmed - it qualifies the number, it isn't one. */
+.stats-overlay-note {
+  color: #9aa0a6;
+}
+
+/* "limited by ...": the one line a user should notice, so it is amber, like the speed button's "short" state */
+.stats-overlay-warn {
+  color: #f9ab00;
+}
+
+/* ?stats=dev engineering lines, set apart from the summary above them */
+.stats-overlay-details {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  color: #c4c7c5;
+}
+
+/* ?bench (editor/bench.ts): progress while the run orbits, then the result JSON + a Copy button.
+   pointer-events are ON here, unlike .stats-overlay - the whole point is tapping Copy on a phone. */
+.bench-overlay {
+  position: absolute;
+  top: 96px;
+  left: 8px;
+  z-index: 7;
+  max-width: min(360px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #e8eaed;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+}
+
+.bench-overlay-title {
+  color: #8ab4f8;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.bench-overlay-note {
+  color: #9aa0a6;
+}
+
+/* the run is compromised but still running - e.g. the screen may sleep (no wake lock) */
+.bench-overlay-warn {
+  color: #f0a54a;
+}
+
+/* the blob itself: selectable so a device whose clipboard API is blocked can still long-press it */
+.bench-overlay-blob {
+  width: 100%;
+  height: 120px;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.5);
+  color: #e8eaed;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+}
+
+.bench-overlay button {
+  padding: 6px 10px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8eaed;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* "Loading models…" pill, bottom-left of the viewport while GLBs stream in */
+.model-loading {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #e8eaed;
+  pointer-events: none;
+}
+
+.model-loading-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  animation: model-loading-spin 0.7s linear infinite;
+}
+
+@keyframes model-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-loading-spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* First-load cover over the 3D viewport: hides the procedural placeholder and
+   the untextured-GLB stage until the building is fully textured, then fades. */
+.viewport-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  /* part of the 3D view, which keeps its own look in either theme; the logo's lettering is drawn for a dark ground */
+  color-scheme: dark;
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  transition: opacity 0.4s ease;
+}
+
+.viewport-cover-logo {
+  width: min(46%, 280px);
+  height: auto;
+  /* the SVG's viewBox, so the box has its height before the file arrives: without it an unloaded
+     logo is 0 tall, the column centres without it, and the logo jumps up half its height when it
+     loads (a cold first load, which is who the cover and the boot skeleton exist for) */
+  aspect-ratio: 850 / 296.98;
+  /* the viewport can get short between the toolbar and dock - don't let the logo
+     crowd the spinner; cap by height too */
+  max-height: 45%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.viewport-cover-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viewport-cover.ready {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* a scene swap covers instantly: a fade-in would show the swap's first frames, the pop-in the cover
+   is there to hide. Lifting drops .swap as it adds .ready, so the fade-out still runs. */
+.viewport-cover.swap {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport-cover {
+    transition: none;
+  }
+}
+

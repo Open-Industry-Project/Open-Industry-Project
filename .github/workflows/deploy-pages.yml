@@ -1,0 +1,90 @@
+name: Cloudflare Pages
+
+# THE production deploy: www.openindustryproject.org is served by the `oip-web` Cloudflare Pages
+# project, and a push to main lands here. Requires repo secrets CLOUDFLARE_API_TOKEN (scope:
+# Account → Cloudflare Pages → Edit) and CLOUDFLARE_ACCOUNT_ID. Measurements and hosting traps:
+# docs/cdn-runbook.md.
+on:
+  # www.openindustryproject.org is served by this Pages project, so a push to main must deploy here
+  # or the site silently stops updating.
+  push:
+    branches:
+      - main
+  # Manual runs: leave `production` unchecked to publish a throwaway preview URL, which tests a
+  # deploy without touching the live domain.
+  workflow_dispatch:
+    inputs:
+      production:
+        description: 'Deploy as production (main) rather than a preview'
+        type: boolean
+        default: false
+
+# Read-only GitHub token: the deploy talks to Cloudflare with its own API token, and the
+# wrangler action is not handed a GitHub token, so it creates no GitHub deployments.
+permissions:
+  contents: read
+
+# One deploy at a time, in order: two quick pushes could otherwise finish out of order and leave the
+# older build live. Queued, never cancelled, so every push to main still deploys.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Only the repo that holds the Cloudflare secrets deploys, marked by the repo variable DEPLOY_PAGES=true;
+    # anywhere else (forks, a mirror) the job would fail for want of secrets.
+    if: vars.DEPLOY_PAGES == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        # npm ci: exactly what package-lock.json records (it carries every platform's native packages)
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        # Built HERE, not by Cloudflare's build system: a host-side builder once swallowed a failed
+        # build and shipped the previous assets. Building in Actions also keeps the asset budgets
+        # (optimize-assets.mjs) able to fail the run.
+        run: npm run build
+        env:
+          VITE_COLLAB_URL: wss://collab.openindustryproject.org
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Pinned: action v4 otherwise installs Wrangler `latest`, so the production deploy tool
+          # would change under us without a commit. Bump deliberately. (4.x needs Node >= 22.)
+          wranglerVersion: '4.132.0'
+          # --branch decides production vs preview: the project's production branch is `main`, so
+          # anything else lands on a preview URL that is safe to point the checks below at.
+          command: >-
+            pages deploy dist --project-name=oip-web
+            --branch=${{ (github.event_name == 'push' || (inputs.production && github.ref == 'refs/heads/main')) && 'main' || format('preview-{0}', github.run_number) }}
+
+      - name: Smoke-test the deployment
+        # Pointed at whatever URL this deployment got, so a broken header, an uncompressed wasm or
+        # a cached shell is caught on a preview instead of on the live domain. Also asserts the
+        # collab WebSocket, read out of the built bundle.
+        run: node scripts/smoke-prod.mjs ${{ steps.deploy.outputs.deployment-url }}
+
+      - name: Measure the edge
+        # Throughput/TTFB against CDN baselines. Pages measures 4.5-15 MB/s at 95-290 ms warm TTFB
+        # (docs/cdn-runbook.md).
+        run: node scripts/edge-bench.mjs ${{ steps.deploy.outputs.deployment-url }}
+
+      - name: Summary
+        run: |
+          echo "### Cloudflare Pages deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "URL: ${{ steps.deploy.outputs.deployment-url }}" >> $GITHUB_STEP_SUMMARY

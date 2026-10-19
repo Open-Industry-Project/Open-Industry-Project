@@ -1,0 +1,32 @@
+{
+  // Typecheck the e2e fleet against the app's DECLARED test hook (src/editor/vite-env.d.ts).
+  //
+  // The largest cause of a "stale gate" is a script driving a `window.__oip` API that no longer
+  // exists - discovered today by running ~150 GPU-bound browser scripts for an hour, which also
+  // contends with itself badly enough to invent failures. It is a static question, and TypeScript
+  // already has the answer: the hook is fully typed, so `__oip.view.boxes.apply` either resolves
+  // or it does not - with real scoping, alias and call-result handling that a regex cannot match.
+  //
+  // Deliberately loose everywhere EXCEPT property resolution: these are untyped .mjs scripts, so
+  // strict/noImplicitAny would bury the one class of error worth reading. `npm run check:e2e`
+  // filters to exactly that class.
+  //
+  // Standalone on purpose - NOT part of `tsc -b`, so it never slows or breaks `npm run typecheck`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["verify-*.mjs", "e2e-globals.d.ts", "../src/editor/vite-env.d.ts"]
+}

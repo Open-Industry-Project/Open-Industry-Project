@@ -1,0 +1,11 @@
+{
+  "id": "demo.motor",
+  "name": "Motor",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      { "name": "body", "shape": { "kind": "box", "size": [0.4, 0.4, 0.4] }, "offset": [0, 0.2, 0] }
+    ],
+    "joints": []
+  }
+}

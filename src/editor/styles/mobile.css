@@ -1,0 +1,376 @@
+/* ===================================================================== */
+/* Mobile / touch layout                                                  */
+/* The app drops its three docked panels and runs the viewport full-bleed.*/
+/* Scene tree / Parts / Inspector become slide-in drawers, toggled from a  */
+/* bottom tab bar. Driven by the `.mobile` class App.tsx adds (matchMedia).*/
+/* ===================================================================== */
+
+/* hidden on desktop; the mobile layout reveals it */
+.mobile-tabbar {
+  display: none;
+}
+
+/* Flex, not the desktop 1fr auto 1fr. A centred middle column overlaps the side groups once they
+   outgrow their track; on a phone the run buttons would cover the scene picker at every width. Flow
+   order and shrinkable groups degrade instead of colliding. */
+/* Sticky, for iOS rather than layout. The page never scrolls, so sticky lays out like `relative` and
+   still contains the popovers below the row. From iOS 26 the installed app draws a Liquid Glass blur
+   over the status bar, reaching ~40pt into this row. WebKit skips the blur and fills the status bar
+   with the container's background-color when a fixed or sticky container sits at the top edge.
+   LocalFrameView::fixedContainerEdges hit-tests the top centre of the viewport, 4px in, and takes the
+   first fixed or sticky ancestor that is at least 90% of the viewport wide and shorter than it. A
+   `relative` row doesn't match, so the top would blur. The fixed .mobile-tabbar matches, so the
+   bottom edge never blurs. Keep backdrop-filter off this row: one in that ancestor chain stops the
+   colour fill.
+   Sticky also makes a stacking context, so the menus below this row (menu tier, 41) paint at the
+   row's z-index. 34 keeps them over the viewport toolbar (32) and keeps the row under the drawer
+   backdrop (35), which dims it while a drawer is open. The skeleton's row is sticky too
+   (app/index.html; bootSkeleton.test.ts). */
+.app.mobile .toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 34;
+  display: flex;
+  justify-content: space-between;
+  min-height: calc(48px + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  /* keep buttons clear of a landscape notch (side inset) without losing the base gutter */
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+  gap: 6px;
+}
+
+/* drop chrome that doesn't fit or doesn't work on touch: the Pilot Mode /
+   Distraction-Free / Help icon buttons and the separators between them. The crowded toolbar can't fit
+   them on a phone anyway, so Pilot Mode gets a dedicated floating button instead (.pilot-fab). Help
+   goes whole, wrapper included (an empty flex item still costs a gap): the tour it offers is
+   desktop-only (App.tsx), and a phone has no keyboard to look shortcuts up for. */
+.app.mobile .toolbar .icon-toggle,
+.app.mobile .toolbar-sep,
+.app.mobile .help-wrap {
+  display: none;
+}
+
+/* the document control is the only group allowed to give up space; run + right keep their size */
+.app.mobile .toolbar-left {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.app.mobile .toolbar-run,
+.app.mobile .toolbar-right {
+  flex: none;
+}
+
+/* On the mobile layout the names may truncate to nothing rather than push into the run buttons: at
+   320-360px the run buttons and Share come first. */
+.app.mobile .project-button,
+.app.mobile .project-name {
+  min-width: 0;
+}
+
+/* A phone shows only the project name: the Example badge would take ~60px of ~130, and the demo's own name
+   already says what it is (the badge's meaning is still in the button's tooltip). */
+.app.phone .project-button {
+  max-width: 170px;
+}
+
+.app.phone .project-tag {
+  display: none;
+}
+
+/* --- phone-only cuts: what a tablet still has room for and a phone doesn't --- */
+/* the logo is decorative (aria-hidden), so on a phone it is 30px spent on branding that the project
+   menu needs to stay readable at 320-360px */
+.app.phone .toolbar-logo {
+  display: none;
+}
+
+/* sim speed moves into the "⋯" overflow (still reachable, just not in the bar) */
+.app.phone .run-button.speed {
+  display: none;
+}
+
+/* the overflow's speed entry is the phone's replacement for that button - hide it
+   wherever the button itself is still in the bar */
+.app:not(.phone) .overflow-speed {
+  display: none;
+}
+
+/* likewise the shortfall badge: it says what the hidden button's amber "short" state says, so it
+   belongs only where that button isn't */
+.app:not(.phone) .speed-short-badge {
+  display: none;
+}
+
+/* Share/Invite goes icon-only */
+.app.phone .share-label {
+  display: none;
+}
+
+/* --- the "⋯" overflow: a phone's sim speed, the one control a phone drops from the bar --- */
+.toolbar-overflow {
+  position: relative;
+  display: none;
+}
+
+.app.phone .toolbar-overflow {
+  display: inline-flex;
+}
+
+/* Keeps the document control from growing with a long project or scene name. Otherwise the row's
+   required width changes with the name, and no breakpoint can clear it. The names truncate instead.
+
+   `justify-self: stretch` does the work. A `start` item is sized to its content and only allowed to
+   overflow its track, so with `start`, min-width:0 would collapse the track without narrowing the
+   group, and the centred run cluster would slide left over the scene picker. Stretched, the group is sized by the track, so its
+   flex children shrink. The content stays left-aligned (flex-start), so nothing moves at a comfortable
+   width. The mobile layout drops `1fr auto 1fr` for the same overlap; see .app.mobile .toolbar. */
+.toolbar-left {
+  justify-self: stretch;
+  min-width: 0;
+}
+
+/* --- the narrow-desktop band: the phone's fold, one breakpoint earlier ---------------------------
+   The docked layout runs down to 821px (below that MOBILE_QUERY takes over). If the row overflows, the
+   right-hand group runs off the screen (Share and every icon after it unreachable), and since nothing
+   in the chain clips, the whole document scrolls sideways, viewport and docks included.
+
+   There is one stage. The file actions (New/Save/Demo) are rows of the project menu (ProjectMenu.tsx),
+   behind one button in the left group, so the right-hand group has nothing to fold and all the
+   squeeze is on the left.
+
+     <=1200  the mark goes (~30px). It is branding only: the project name beside it identifies the
+             document, and the phone layout drops it for the same reason. Every action stays in the row;
+             this ladder never hides one.
+             Why 1200: the left half can't use the right half's spare room (the row is 1fr auto 1fr).
+             The breakpoint has slack and could move narrower; measure with verify-toolbar-fit, which
+             holds the project label to its 100px floor.
+
+   Scoped :not(.mobile) so the two ladders don't conflict: a short landscape window is .mobile at any
+   width, and its own rules cover this. Gated by e2e/verify-toolbar-fit.mjs. */
+@media (max-width: 1200px) {
+  /* Not in the desktop shell: there the mark is the menu button (the shell hides the OS menu bar, so
+     this is the only pointer path to File/Edit/Simulation). Hidden, the button would be an empty 12x8
+     stub that still opens the menu. */
+  .app:not(.mobile):not(.desktop-shell) .toolbar-logo {
+    display: none;
+  }
+}
+
+.overflow-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+}
+
+.overflow-popover,
+.help-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  /* menu tier (41+): hangs below the top bar into the viewport, so it has to clear the
+     viewport toolbar overlay at 32; at 20 the tool row would paint over the open menu. */
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+}
+
+.overflow-popover {
+  min-width: 168px;
+}
+
+/* a phone has no keyboard to press them with */
+.app.phone .project-popover .help-item-key {
+  display: none;
+}
+
+.overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 14px;
+}
+
+/* the keyboard's position in a menu reads as the pointer's does (menuKeys, popover.ts) */
+.overflow-item:hover:not(:disabled),
+.overflow-item:focus-visible {
+  background: var(--control-alt);
+}
+
+/* the in-scene tool toolbar can wrap rather than run off the edge */
+.app.mobile .viewport-toolbar {
+  flex-wrap: wrap;
+  max-width: calc(100vw - 16px);
+}
+
+/* keep the loading pill + stats clear of the bottom tab bar */
+.app.mobile .model-loading {
+  bottom: calc(60px + env(safe-area-inset-bottom));
+}
+
+/* --- bottom tab bar: toggles the scene tree / parts / inspector drawers --- */
+.app.mobile .mobile-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  height: calc(54px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  /* in landscape the notch is on a side: keep the end tabs out from under it */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background: var(--panel);
+  border-top: 1px solid var(--panel-edge);
+}
+
+.mobile-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mobile-tab:hover:not(:disabled) {
+  background: none;
+}
+
+.mobile-tab.active {
+  color: var(--accent);
+}
+
+.mobile-tab svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* --- slide-in drawers --- */
+.mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.mobile-drawer {
+  position: fixed;
+  z-index: 36;
+  display: flex;
+  background: var(--panel);
+  box-shadow: 0 0 32px light-dark(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.55));
+  overscroll-behavior: contain;
+}
+
+/* tree (left) + inspector (right): full-height side sheets, clear of both bars */
+.mobile-drawer.left,
+.mobile-drawer.right {
+  top: calc(48px + env(safe-area-inset-top));
+  bottom: calc(54px + env(safe-area-inset-bottom));
+  width: min(86vw, 360px);
+}
+
+/* the sheet backgrounds extend to the screen edge (under any landscape notch),
+   but their content is padded clear of the side inset */
+.mobile-drawer.left {
+  left: 0;
+  padding-left: env(safe-area-inset-left);
+}
+
+.mobile-drawer.right {
+  right: 0;
+  padding-right: env(safe-area-inset-right);
+}
+
+/* parts catalog: a bottom sheet sitting above the tab bar */
+.mobile-drawer.bottom {
+  left: 0;
+  right: 0;
+  bottom: calc(54px + env(safe-area-inset-bottom));
+  height: min(46vh, 320px);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  flex-direction: column;
+}
+
+/* PLC logic: the same bottom sheet, taller. Code needs a dozen or so lines, and the catalog's 46vh
+   leaves about four. In landscape the 68vh limit applies and the code area scrolls. */
+.mobile-drawer.st {
+  left: 0;
+  right: 0;
+  bottom: calc(54px + env(safe-area-inset-bottom));
+  height: min(68vh, 520px);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  flex-direction: column;
+}
+
+/* the panels were grid cells; make them fill the drawer instead */
+.mobile-drawer .inspector,
+.mobile-drawer .left-panel,
+.mobile-drawer .dock {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* --- coarse-pointer ergonomics: bigger tap targets everywhere --- */
+@media (pointer: coarse) {
+  .viewport-tool {
+    width: 38px;
+    height: 38px;
+  }
+
+  .viewport-tool-mini {
+    width: 30px;
+  }
+
+  .catalog-strip {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+
+  .catalog-tab {
+    padding: 8px 14px;
+  }
+
+  .tree-row {
+    padding: 7px 6px;
+  }
+
+  .tree-eye,
+  .tree-lock {
+    width: 26px;
+    height: 26px;
+  }
+
+  .field input,
+  .field select,
+  .spin {
+    min-height: 32px;
+  }
+}
+

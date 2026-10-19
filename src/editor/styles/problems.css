@@ -1,0 +1,157 @@
+/* ===== Problems dock (components/ProblemsPanel.tsx) ======================== */
+.problems-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+  color: var(--text);
+}
+
+.problems-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.problems-count {
+  color: var(--text-dim);
+}
+
+.problems-count.bad {
+  color: light-dark(#d72323, #f08a8a);
+  font-weight: 600;
+}
+
+/* The warning count is the toggle, so the number is never hidden even while the rows are -
+   "0 errors" beside a silent 12 would be a lie of omission. */
+.problems-toggle {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-edge);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.problems-toggle:hover {
+  border-color: var(--accent);
+}
+
+.problems-toggle.on {
+  color: light-dark(#a35d1b, #f0a967);
+  border-color: light-dark(#e2944c, #f0a967);
+}
+
+.problems-empty {
+  padding: 10px 10px;
+  color: var(--text-dim);
+}
+
+.problems-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* A row is a button because it navigates (select + frame, or jump to the line); the ones that
+   have nowhere to go say so by not lighting up. */
+.problems-row {
+  display: grid;
+  grid-template-columns: 14px 58px minmax(60px, 160px) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 10px;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.problems-row:hover {
+  background: light-dark(rgba(0, 0, 0, 0.028), rgba(255, 255, 255, 0.04));
+}
+
+.problems-row.inert {
+  cursor: default;
+}
+
+.problems-row.inert:hover {
+  background: transparent;
+}
+
+.problems-row.error .problems-icon {
+  color: light-dark(#d72323, #f08a8a);
+}
+
+.problems-row.warning .problems-icon {
+  color: light-dark(#a35d1b, #f0a967);
+}
+
+.problems-row.error:hover {
+  border-left-color: light-dark(#ec8989, #f08a8a);
+}
+
+.problems-row.warning:hover {
+  border-left-color: light-dark(#e2944c, #f0a967);
+}
+
+.problems-icon {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.problems-group {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.problems-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.problems-message {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* how many times an identical runtime diagnostic repeated - a throwing step() ticks at sim rate */
+.problems-repeat {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* What was not checked. Pinned under the list rather than mixed into it: these are coverage
+   facts, not problems, and an empty list beside them is a real empty list. */
+.problems-notes {
+  flex: none;
+  padding: 6px 10px;
+  border-top: 1px solid var(--panel-edge);
+  background: var(--bg);
+}
+
+.problems-note {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.problems-note + .problems-note {
+  margin-top: 3px;
+}
+

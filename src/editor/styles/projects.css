@@ -1,0 +1,217 @@
+/* ---- The projects list (ProjectsOverlay.tsx) ----
+   Reuses the shared modal chrome (.author-backdrop / .author-dialog); only the row list is its own.
+   A row is a wide button plus two icon actions, because the primary act here is OPEN and everything
+   else is maintenance - the same weighting the scene switcher gives its picker over its ✎/×. */
+.projects-dialog {
+  width: min(520px, 100%);
+}
+
+.projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 48vh;
+  overflow-y: auto;
+}
+
+/* the built-in examples, apart from the user's own list (ProjectsOverlay.tsx) */
+.projects-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.projects-examples-head {
+  padding: 0 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.projects-row,
+.projects-example-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.projects-row:hover,
+.projects-example-row:hover {
+  background: var(--bg);
+}
+
+/* the open document is marked rather than hidden: a list that omits where you already are makes the
+   list read as "the others", and the row is still the place to rename it */
+.projects-row[data-current='true'],
+.projects-example-row[data-current='true'] {
+  border-color: var(--accent);
+}
+
+.projects-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.projects-name:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.projects-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projects-when {
+  flex: none;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* desktop: the folder the project lives in, on its own line under the name (the row wraps for it) */
+.projects-name:has(.projects-path) {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.projects-path {
+  flex-basis: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.projects-path[data-folder='false'] {
+  font-style: italic;
+}
+
+.projects-actions {
+  flex: none;
+  display: flex;
+  gap: 2px;
+}
+
+.projects-action {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid var(--line-soft);
+  background: var(--control);
+  color: light-dark(#282b2f, #cfd2d6);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.projects-action:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.projects-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.projects-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+}
+
+.projects-input:focus {
+  outline: none;
+}
+
+.projects-new,
+.projects-confirm {
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--text);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.projects-new:hover,
+.projects-confirm:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.projects-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.projects-create .projects-confirm {
+  margin-top: 0;
+}
+
+.projects-empty,
+.projects-error {
+  margin: 6px 2px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.projects-error {
+  /* the same red .test-run-error uses; there is no --danger token */
+  color: light-dark(#d72323, #f08a8a);
+}
+
+/* the projects list's "where this lives" footer: a fact plus the way out of it, never a warning */
+.projects-where {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--panel-edge);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.projects-tofolder {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--text);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.projects-tofolder:hover {
+  background: var(--accent);
+  color: #fff;
+}
+

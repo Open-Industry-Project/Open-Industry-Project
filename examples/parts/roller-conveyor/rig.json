@@ -1,0 +1,414 @@
+{
+  "id": "oip.roller-conveyor",
+  "name": "Roller Conveyor",
+  "category": "Equipment",
+  "conveyor": {
+    "bed": "straight",
+    "surface": "roller",
+    "speedParam": "speed"
+  },
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "inclineParam": "tiltDeg",
+    "maxInclineDeg": 30,
+    "links": [
+      {
+        "name": "deck",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.04,
+            1.524
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.02,
+          0
+        ],
+        "conveys": true,
+        "hidden": true,
+        "color": [
+          0.1,
+          0.1,
+          0.11
+        ]
+      },
+      {
+        "name": "roller",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          -0.024,
+          0
+        ],
+        "array": {
+          "distribute": {
+            "axis": 0,
+            "spanParam": "length",
+            "maxSpacing": 0.075,
+            "worldPhase": true
+          }
+        }
+      },
+      {
+        "name": "wallL",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.17,
+            0.01
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            },
+            {
+              "axis": 1,
+              "param": "frameHeight",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.09,
+          -0.767
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": -0.5,
+            "add": -0.005
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.005
+          }
+        ],
+        "finish": "frame",
+        "sideRail": "left",
+        "bed": true
+      },
+      {
+        "name": "wallR",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.17,
+            0.01
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            },
+            {
+              "axis": 1,
+              "param": "frameHeight",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.09,
+          0.767
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "frameHeight",
+            "scale": -0.5,
+            "add": -0.005
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.005
+          }
+        ],
+        "finish": "frame",
+        "sideRail": "right",
+        "bed": true
+      },
+      {
+        "name": "flangeL",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.005,
+            0.02
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.0025,
+          -0.782
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.02
+          }
+        ],
+        "finish": "frame",
+        "sideRail": "left",
+        "bed": true,
+        "collision": "none"
+      },
+      {
+        "name": "flangeR",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.005,
+            0.02
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.0025,
+          0.782
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.02
+          }
+        ],
+        "finish": "frame",
+        "sideRail": "right",
+        "bed": true,
+        "collision": "none"
+      },
+      {
+        "name": "guardL",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.155,
+            0.005
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.0725,
+          -0.7745
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.0125
+          }
+        ],
+        "finish": "guard",
+        "sideGuard": "left",
+        "showParam": "leftGuard"
+      },
+      {
+        "name": "guardR",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.155,
+            0.005
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.0725,
+          0.7745
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.0125
+          }
+        ],
+        "finish": "guard",
+        "sideGuard": "right",
+        "showParam": "rightGuard"
+      },
+      {
+        "name": "lipL",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.005,
+            0.02
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.1475,
+          -0.787
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ],
+        "finish": "guard",
+        "sideGuard": "left",
+        "showParam": "leftGuard",
+        "collision": "none"
+      },
+      {
+        "name": "lipR",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.005,
+            0.02
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.1475,
+          0.787
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ],
+        "finish": "guard",
+        "sideGuard": "right",
+        "showParam": "rightGuard",
+        "collision": "none"
+      },
+      {
+        "name": "legs",
+        "shape": {
+          "kind": "leg",
+          "spanParam": "length",
+          "widthParam": "width",
+          "standParam": "standHeight",
+          "frameDepth": 0.175,
+          "frameDepthParam": {
+            "param": "frameHeight",
+            "add": 0.005
+          }
+        },
+        "offset": [
+          0,
+          -2,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "standHeight",
+            "scale": -1
+          }
+        ]
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 4,
+      "width": 1.6,
+      "top": 2.3
+    }
+  },
+  "materials": [
+    {
+      "id": "band",
+      "color": [
+        0.6939,
+        0.1844,
+        0.0242
+      ],
+      "metalness": 0,
+      "roughness": 0.55
+    }
+  ]
+}

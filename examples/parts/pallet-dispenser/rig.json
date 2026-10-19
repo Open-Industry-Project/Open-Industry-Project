@@ -1,0 +1,744 @@
+{
+  "id": "oip.pallet-dispenser",
+  "name": "Pallet Dispenser",
+  "category": "Equipment",
+  "commsParam": "enableComms",
+  "holds": {
+    "part": "oip.pallet",
+    "positions": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+    ],
+    "limitParam": "capacity",
+    "params": {
+      "size": "palletSize"
+    }
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "carriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.25,
+          0
+        ]
+      },
+      {
+        "name": "forkW",
+        "parent": "carriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "forkE",
+        "parent": "carriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "p0",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.25,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p1",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.385,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p2",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.52,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p3",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.655,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p4",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.79,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p5",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.925,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p6",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          1.06,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p7",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          1.195,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p8",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          1.33,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "p9",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          1.465,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              0.6,
+              0.108,
+              0.5
+            ],
+            "offset": [
+              0,
+              0.0675,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "name": "colWN",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.12,
+            2.95,
+            0.12
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "standHeight",
+              "scale": 1,
+              "add": 1.95
+            }
+          ]
+        },
+        "offset": [
+          -0.86,
+          0.475,
+          -0.7
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "standHeight",
+            "scale": -0.5,
+            "add": 0.975
+          }
+        ]
+      },
+      {
+        "name": "colWS",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.12,
+            2.95,
+            0.12
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "standHeight",
+              "scale": 1,
+              "add": 1.95
+            }
+          ]
+        },
+        "offset": [
+          -0.86,
+          0.475,
+          0.7
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "standHeight",
+            "scale": -0.5,
+            "add": 0.975
+          }
+        ]
+      },
+      {
+        "name": "colEN",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.12,
+            2.95,
+            0.12
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "standHeight",
+              "scale": 1,
+              "add": 1.95
+            }
+          ]
+        },
+        "offset": [
+          0.86,
+          0.475,
+          -0.7
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "standHeight",
+            "scale": -0.5,
+            "add": 0.975
+          }
+        ]
+      },
+      {
+        "name": "colES",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.12,
+            2.95,
+            0.12
+          ],
+          "sizeParams": [
+            {
+              "axis": 1,
+              "param": "standHeight",
+              "scale": 1,
+              "add": 1.95
+            }
+          ]
+        },
+        "offset": [
+          0.86,
+          0.475,
+          0.7
+        ],
+        "offsetParams": [
+          {
+            "axis": 1,
+            "param": "standHeight",
+            "scale": -0.5,
+            "add": 0.975
+          }
+        ]
+      },
+      {
+        "name": "bay",
+        "hidden": true,
+        "collision": "none",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1,
+            0.16,
+            0.8
+          ]
+        },
+        "offset": [
+          0,
+          0.08,
+          0
+        ],
+        "zone": {
+          "size": [
+            1,
+            0.16,
+            0.8
+          ]
+        }
+      },
+      {
+        "name": "magazine",
+        "hidden": true,
+        "collision": "none",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.5,
+            1.7,
+            0.5
+          ]
+        },
+        "offset": [
+          0,
+          0.85,
+          0
+        ],
+        "zone": {
+          "size": [
+            0.5,
+            1.7,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "seat",
+        "hidden": true,
+        "collision": "none",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.5,
+            0.06,
+            0.5
+          ]
+        },
+        "offset": [
+          0,
+          0.0675,
+          0
+        ],
+        "zone": {
+          "size": [
+            0.5,
+            0.06,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "second",
+        "hidden": true,
+        "collision": "none",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.5,
+            0.06,
+            0.5
+          ]
+        },
+        "offset": [
+          0,
+          0.2025,
+          0
+        ],
+        "zone": {
+          "size": [
+            0.5,
+            0.06,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "held",
+        "hidden": true,
+        "collision": "none",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.5,
+            1.35,
+            0.5
+          ]
+        },
+        "offset": [
+          0,
+          0.925,
+          0
+        ],
+        "zone": {
+          "size": [
+            0.5,
+            1.35,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "ready",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.026,
+          "height": 0.03
+        },
+        "offset": [
+          1.105,
+          0.72,
+          0.62
+        ],
+        "rotation": [
+          0,
+          0,
+          1.57079633
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.0137,
+              0.4508,
+              0.0423
+            ],
+            "offColor": [
+              0.0048,
+              0.0423,
+              0.0086
+            ]
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "low",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.026,
+          "height": 0.03
+        },
+        "offset": [
+          1.105,
+          0.72,
+          0.78
+        ],
+        "rotation": [
+          0,
+          0,
+          1.57079633
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.8879,
+              0.3613,
+              0.0048
+            ],
+            "offColor": [
+              0.0685,
+              0.0319,
+              0.0024
+            ]
+          }
+        ],
+        "collision": "none"
+      }
+    ],
+    "joints": [
+      {
+        "name": "lift",
+        "link": "carriage",
+        "type": "prismatic",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -0.26,
+        "max": 0.01
+      },
+      {
+        "name": "forkW",
+        "link": "forkW",
+        "type": "prismatic",
+        "axis": [
+          -1,
+          0,
+          0
+        ],
+        "min": 0,
+        "max": 0.24
+      },
+      {
+        "name": "forkE",
+        "link": "forkE",
+        "type": "prismatic",
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "min": 0,
+        "max": 0.24
+      }
+    ],
+    "bounds": {
+      "length": 2.56,
+      "width": 1.66,
+      "top": 2.15,
+      "bottom": -1
+    }
+  },
+  "materials": [
+    {
+      "id": "frame",
+      "color": [
+        0.0176,
+        0.0802,
+        0.1946
+      ],
+      "metalness": 0.2,
+      "roughness": 0.55
+    },
+    {
+      "id": "guide",
+      "color": [
+        0.8879,
+        0.5089,
+        0.0048
+      ],
+      "metalness": 0.1,
+      "roughness": 0.5
+    },
+    {
+      "id": "dark",
+      "color": [
+        0.0194,
+        0.0222,
+        0.0262
+      ],
+      "metalness": 0.2,
+      "roughness": 0.6
+    },
+    {
+      "id": "panel",
+      "color": [
+        0.5841,
+        0.6105,
+        0.6445
+      ],
+      "metalness": 0.1,
+      "roughness": 0.5
+    },
+    {
+      "id": "alu",
+      "color": [
+        0.4793,
+        0.5149,
+        0.5647
+      ],
+      "metalness": 0.5,
+      "roughness": 0.35
+    },
+    {
+      "id": "steel",
+      "color": [
+        0.1095,
+        0.1274,
+        0.15
+      ],
+      "metalness": 0.4,
+      "roughness": 0.45
+    }
+  ]
+}

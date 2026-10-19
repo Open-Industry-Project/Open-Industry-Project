@@ -1,0 +1,127 @@
+{
+  "id": "oip.color-sensor",
+  "name": "Color Sensor",
+  "category": "Devices",
+  "commsParam": "enableComms",
+  "snap": {
+    "mounts": [
+      {
+        "at": [
+          0,
+          0,
+          0.037
+        ],
+        "accepts": "conveyorGuard",
+        "face": "in",
+        "outwardOffset": 0.02,
+        "yOffset": 0.02,
+        "fitRangeParam": "maxRange"
+      }
+    ]
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "lens",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0.1,
+          0.037
+        ],
+        "beam": {
+          "range": 10,
+          "rangeParam": "maxRange",
+          "showParam": "showBeam",
+          "tint": "hit"
+        }
+      },
+      {
+        "name": "led",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.014,
+            0.008,
+            0.012
+          ]
+        },
+        "offset": [
+          0,
+          0.124,
+          0.034
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              0.1,
+              0.85,
+              1
+            ]
+          }
+        ]
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 0.045,
+      "width": 0.073,
+      "top": 0.16
+    }
+  },
+  "materials": [
+    {
+      "id": "body",
+      "color": [
+        0,
+        0.13286832,
+        0.21404114
+      ],
+      "metalness": 0,
+      "roughness": 0.55
+    },
+    {
+      "id": "black",
+      "color": [
+        0.00232198,
+        0.00232198,
+        0.00232198
+      ],
+      "metalness": 0,
+      "roughness": 0.55
+    },
+    {
+      "id": "lens",
+      "color": [
+        0.17064494,
+        0,
+        0
+      ],
+      "metalness": 0,
+      "roughness": 0.55
+    },
+    {
+      "id": "pot",
+      "color": [
+        0.26327341,
+        0.26327341,
+        0.26327341
+      ],
+      "metalness": 0.3,
+      "roughness": 0.45
+    },
+    {
+      "id": "steel",
+      "color": [
+        0.47699978,
+        0.50707851,
+        0.53823552
+      ],
+      "metalness": 0.8,
+      "roughness": 0.38
+    }
+  ]
+}

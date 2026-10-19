@@ -1,0 +1,130 @@
+name: CI
+
+# Fork-safe checks: no secrets, runs everywhere (the deploy lives in deploy-pages.yml and
+# only runs on the canonical repo).
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Read-only token: nothing here writes to the repo, its releases or its deployments.
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # 24, not 22: src/plc/scanSpeed.test.ts gates the generated scan engine's speed, which rests on V8
+          # optimising big generated functions. Node 22's older V8 reads 4.2x / 4.9x on the long and wide
+          # cases (floors 4.6 / 7), Node 24 clears them, and the browser and Electron ship newer V8 than either.
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        # npm ci: installs exactly what package-lock.json records and fails if it disagrees with
+        # package.json. The lock carries every platform's optional native packages (Linux included).
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Listed library parts still run
+        # Every part version the listed library holds from other publishers recorded what it did when it was listed
+        # (docs/part-libraries.md). This downloads them by hash from the official libraries, checks the project's
+        # signature, and runs each against this build: a change that makes one behave differently fails here.
+        run: node scripts/library-corpus.mjs
+      - name: Repo is self-contained
+        # Fails when a tracked file imports or cites a file the repo does not carry (a probe
+        # left untracked, a module never added). Static: no browser, no build.
+        run: node e2e/verify-repo-self-contained.mjs
+      - name: Collab server tests
+        working-directory: server
+        run: npm ci && npm test
+      - name: PLC language surface is current
+        # Re-probes the engine and fails if public/st-capabilities.json or plc/index.html no
+        # longer match what the compiler actually does. Cheap (no browser, no build), and it
+        # is the only thing stopping the PUBLISHED subset from drifting away from the real
+        # one — the failure mode that makes a conformance page worse than none at all.
+        run: npm run capabilities -- --check
+      - name: Part SDK is current
+        # Regenerates packages/part-sdk (index.d.ts, manifest.d.ts, manifest.schema.json) from
+        # src/core and fails if the committed copy differs: the SDK is what external authors and
+        # agents read INSTEAD of src/, so a stale one documents a part format that no longer exists.
+        run: npm run build-part-sdk -- --check
+      - name: Generated parts are current
+        # Rebuilds every examples/parts/<dir>/part.js in check mode and fails if a committed
+        # examples/parts/<dir>/{behavior.ts,rig.json} differs from what its source produces.
+        # Without it a change made to the OUTPUT is silently reverted by the next build.
+        run: npm run build-parts -- --check
+      - name: Baked wall lighting is current
+        # The building walls draw light baked by scripts/bake-wall-lighting.mjs, which is also where the
+        # wall lights are defined. This compares a hash of every input (the lights, the source models, the
+        # script) and output against assets/building-bake/stamp.json, so a changed light or model that was
+        # never re-baked fails here instead of shipping walls lit the old way. Hash-only: no re-bake in CI.
+        run: npm run bake-walls -- --check
+      - name: Example project tests pass
+        # Runs the worked example docs/project-tests.md points authors at (its part, scene, ST program
+        # and control-logic test, headless). The schema check above only reads its manifest, so without
+        # this step the example could stop working and nothing would say so.
+        run: npm run test-project -- examples/projects/start-stop-motor
+
+  # The gates that need a PRODUCTION build and a browser. Separate job so the fast checks above
+  # still report in ~2 minutes.
+  #
+  # This job is the expensive one (~10 min: Playwright + a prod build + two browser runs), so a
+  # superseded run is pure waste. Cancel the previous run for the same ref when a new push lands.
+  prod-gates:
+    concurrency:
+      group: prod-gates-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build
+        # Also where the ASSET BUDGET is enforced (scripts/optimize-assets.mjs fails the build when
+        # the payload grows past it) — on the commit, rather than only at deploy time.
+        run: npm run build
+      - name: First-load gate
+        # Throttled prod-build load through the local edge server (e2e/_edge-server.mjs, which
+        # replays public/_headers and public/_redirects as Cloudflare Pages serves them): asserts the building is complete when
+        # the loading cover lifts, and that the speculative catalog warm yields to the scene.
+        #
+        # CAVEAT, deliberately accepted: CI has no GPU, so createWebGPURenderer rejects the software
+        # fallback adapter and the run goes WebGL — which makes this gate's renderer-chunk-parallelism
+        # check vacuous here (it needs the WebGPU path to load any chunks at all). That check is
+        # covered in CI by the unit canary instead: src/render/viewport/rendererBootParallel.test.ts.
+        run: npm run verify-first-load
+      - name: Prod asset parity gate
+        # dist (Draco) vs a RECORDED dev baseline (raw GLBs) — mesh names, triangle counts, local
+        # bboxes and every rig link's rendered world position. The node-driven rigs are compressed
+        # ONLY in prod, so this is the only place a bad compression setting can be caught before
+        # users see distorted robots.
+        #
+        # The dev half is committed as e2e/prod-draco-rigs.baseline.json rather than re-derived
+        # here: booting the editor twice cost ~4 min on this runner (no GPU -> software WebGL), and
+        # the baseline only moves when a source GLB does. The baseline is fingerprinted by the sha
+        # of those GLBs, so a model change fails as "baseline stale, regen it" (in under a second,
+        # before any browser starts) instead of as a parity failure that never happened.
+        run: node e2e/verify-prod-draco-rigs.mjs

@@ -1,0 +1,26 @@
+# Cloudflare Pages routing: the SPA rewrite for the editor. See docs/cdn-runbook.md.
+#
+# Status 200 = REWRITE (serve that file, keep the URL), not a redirect. Pages serves an existing
+# static file before consulting these, so /assets/*, /models/* etc. are never touched by the splat
+# below.
+#
+# The editor is a SPA at /app/, so every deep link under it (/app/?scene=demo, and any future
+# client-side route) must serve the app shell. The landing page at / is a real index.html and is
+# served directly. There is deliberately NO catch-all `/* /index.html 200` rule: it would serve the
+# landing for /app/?scene=demo.
+#
+# The target is `/app/`, NOT `/app/index.html`: Pages canonicalises /app/index.html to /app/, and a
+# rewrite onto the non-canonical name falls through to not-found. A rule naming `/app/index.html`
+# never fires, and /app/<anything> then gets the LANDING through Pages' SPA default with no error to
+# notice. There is no `/app` rule on purpose: Pages already 308s /app to /app/ (query
+# kept), and a rewrite would serve the shell at a non-canonical URL. Both measured with
+# `wrangler pages dev`, which runs Pages' own asset server.
+#
+# Everything nothing here resolves gets public/404.html at 404 with Cache-Control: no-store. That
+# file is what switches Pages' SPA mode off, so read it before deleting it.
+/app/*  /app/  200
+
+# The PLC language page also answers at /st/, its name before it covered ladder, because links to it exist.
+# A 301 only fires for a path with no file, so the build has no st/index.html.
+/st     /plc/  301
+/st/    /plc/  301

@@ -1,0 +1,344 @@
+/* ---- Get parts (components/GetPartsWindow.tsx): sources | parts | the chosen part ---- */
+.getparts-dialog {
+  width: min(1120px, 100%);
+  height: min(760px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.getparts-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0 10px;
+}
+
+.getparts-search {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-edge);
+  background: var(--bg);
+  color: var(--text);
+  font: 13px ui-sans-serif, system-ui, sans-serif;
+}
+
+.getparts-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.getparts-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px 1fr 300px;
+  gap: 12px;
+}
+
+.getparts-sources,
+.getparts-grid,
+.getparts-side {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.getparts-section {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 2px 0 6px;
+}
+
+.getparts-source {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 7px 9px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.getparts-source:hover:not(:disabled),
+.getparts-source.active {
+  border-color: var(--panel-edge);
+  background: var(--bg);
+}
+
+.getparts-source.active {
+  border-color: var(--accent);
+}
+
+.getparts-source:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.getparts-source-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.getparts-source-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.getparts-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+}
+
+.getparts-chip {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.getparts-add-library {
+  margin-top: 6px;
+  width: 100%;
+}
+
+.getparts-publish-head {
+  margin-top: 18px;
+}
+
+.getparts-publish {
+  width: 100%;
+}
+
+.getparts-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.getparts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.getparts-empty .getparts-publish {
+  width: auto;
+}
+
+.getparts-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.getparts-add-form .getparts-search {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.getparts-add-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.getparts-error {
+  color: var(--danger);
+}
+
+.getparts-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 10px;
+  padding: 2px;
+}
+
+.getparts-card {
+  position: relative;
+  width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-edge);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.getparts-card:hover {
+  border-color: var(--text-dim);
+}
+
+.getparts-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.getparts-picture {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.getparts-picture-big {
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.getparts-glyph {
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.getparts-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.getparts-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--text-dim);
+}
+
+.getparts-badge.is-updateAvailable,
+.getparts-badge.is-changedInBoth {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.getparts-side {
+  border-left: 1px solid var(--panel-edge);
+  padding-left: 12px;
+}
+
+.getparts-detail h3 {
+  margin: 4px 0 6px;
+  font-size: 15px;
+}
+
+.getparts-description {
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 0 0 10px;
+}
+
+.getparts-does {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.getparts-does li {
+  margin: 2px 0;
+}
+
+.getparts-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  font-size: 11.5px;
+  margin: 0 0 10px;
+}
+
+.getparts-facts dt {
+  color: var(--text-dim);
+}
+
+.getparts-facts dd {
+  margin: 0;
+}
+
+.getparts-note,
+.getparts-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.getparts-actions {
+  margin-top: 8px;
+}
+
+.getparts-status {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.getparts-primary,
+.getparts-secondary {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.getparts-primary {
+  width: 100%;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.getparts-secondary {
+  border: 1px solid var(--panel-edge);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.getparts-primary:disabled,
+.getparts-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* a phone: the chosen part under the parts, the sources above */
+@media (max-width: 760px) {
+  .getparts-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .getparts-side {
+    border-left: none;
+    padding-left: 0;
+  }
+}

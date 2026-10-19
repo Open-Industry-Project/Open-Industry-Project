@@ -1,0 +1,22 @@
+# Review is required from these owners for changes to the paths below (once branch protection
+# turns on "Require review from Code Owners"). Later lines win over earlier ones.
+
+# CI, deploy and release workflows: they hold the deploy and signing secrets.
+/.github/workflows/ @ryevdokimov
+/.github/CODEOWNERS @ryevdokimov
+/.github/dependabot.yml @ryevdokimov
+
+# The desktop shell: what ships as the signed installer.
+/apps/desktop/ @ryevdokimov
+
+# What ships or deploys without a workflow change: the vendored physics binary, the dependency set, the release and
+# library scripts, the production host config and the collab server.
+/vendor/ @ryevdokimov
+/package.json @ryevdokimov
+/package-lock.json @ryevdokimov
+/scripts/desktop-*.mjs @ryevdokimov
+/scripts/*library*.mjs @ryevdokimov
+/scripts/fetch-libplctag.mjs @ryevdokimov
+/public/_headers @ryevdokimov
+/public/_redirects @ryevdokimov
+/server/ @ryevdokimov

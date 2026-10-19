@@ -1,0 +1,249 @@
+/* peers running their own preview, shown in the toolbar presence chip */
+.collab-previewing {
+  display: inline-flex;
+  align-items: center;
+  color: light-dark(#197a9a, #8fe3ff);
+  font-weight: 600;
+}
+
+.run-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 5px 10px;
+  border: none;
+  color: #fff;
+}
+
+.run-button.play {
+  background: #2e8b46;
+}
+
+.run-button.play:hover:not(:disabled) {
+  background: #36a253;
+}
+
+/* Light greys dark enough for the white glyph to clear 3:1 (#7d848d is ~3.8:1; #b2b7be would be ~2:1) */
+.run-button.pause {
+  background: light-dark(#7d848d, #4a5058);
+}
+
+.run-button.pause:hover:not(:disabled) {
+  background: light-dark(#6f767f, #565d66);
+}
+
+.run-button.pause.active {
+  background: #c79030;
+}
+
+.run-button.pause.active:hover:not(:disabled) {
+  background: #d89d34;
+}
+
+.run-button.stop {
+  background: #c0392b;
+}
+
+.run-button.stop:hover:not(:disabled) {
+  background: #d64535;
+}
+
+/* A setting, not a fourth transport button: outlined rather than filled, and set a little apart from
+   Stop. As a grey fill it read as a disabled Pause/Stop, so while stopped the one control in the cluster
+   that could act looked like the ones that could not. It fills only when its state is worth shouting
+   (a non-default speed, a shortfall) - those rules below put the fill and the white text back. */
+.run-button.speed {
+  margin-left: 4px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.run-button.speed:hover:not(:disabled) {
+  background: var(--control-alt);
+}
+
+/* tint when running at a non-default speed so a left-on 0.5x/8x is obvious at a glance */
+.run-button.speed.boosted {
+  background: #2e6f8b;
+  border-color: transparent;
+  color: #fff;
+}
+
+.run-button.speed.boosted:hover:not(:disabled) {
+  background: #357fa0;
+}
+
+/* The requested speed is more than this machine can step: amber, and the measured rate next to
+   the request, so the button never claims a speedup the sim isn't delivering (simClockRate.ts). */
+.run-button.speed.short,
+.run-button.speed.boosted.short {
+  background: #8a6114;
+  border-color: transparent;
+  color: #fff;
+  gap: 4px;
+}
+
+.run-button.speed.short:hover:not(:disabled),
+.run-button.speed.boosted.short:hover:not(:disabled) {
+  background: #9d6e17;
+}
+
+/* A run button that can't act drops its colour instead of fading it: the generic 0.4 opacity turned an
+   idle Stop pink and a running Play mint, so saturated colour no longer meant "press this". Neutral fill,
+   dim glyph, full opacity. The :is() takes its heaviest argument's weight, so this outranks every variant
+   above, .speed.boosted.short included. */
+.run-button:is(.play, .pause, .stop, .speed, .speed.boosted.short):disabled {
+  background: var(--control-alt);
+  color: light-dark(#a3a8ae, #5c6168);
+  opacity: 1;
+}
+
+/* Running: Play still can't act (neutral fill), but its glyph stays green so the row says the sim is
+   live. Without it the only colour left mid-run was Stop's red, which reads as "stopped". The extra
+   .toolbar matches the weight of the :is() rule above (0,5,0), so source order decides. */
+.toolbar .run-button.play.running:disabled {
+  color: light-dark(#2e8b46, #4cc06a);
+}
+.speed-actual {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* Phone-only shortfall badge: the same amber verdict as the speed button, standing on its own
+   because that button is not in a phone's bar (see the phone cuts). Tapping it opens the reason
+   as text - the button's `title` is unreachable by touch. */
+.speed-short-badge {
+  display: flex;
+  align-items: center;
+}
+
+.speed-short-button {
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: #8a6114;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.speed-short-button.active,
+.speed-short-button:hover {
+  background: #9d6e17;
+}
+
+/* Anchored to the toolbar, not to the badge: the badge sits mid-bar, so a panel centred on it
+   hung off the right edge at 320px however it was width-capped. Spanning the bar instead cannot
+   overflow at any phone width, and reads as the sheet-under-the-bar every phone app uses. */
+.speed-short-note {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 8px;
+  right: 8px;
+  /* menu tier, matching .overflow-popover: it hangs below the top bar over the viewport
+     toolbar (32), which otherwise paints across it */
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+}
+
+.speed-short-note strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The external PLC link's state beside Play and Stop (PlcLinkStatus.tsx): a chip with a dot, only while Play hands the
+   scene to a PLC. Its popover hangs under it, the points it serves and the way to Controller Properties. */
+.plc-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.plc-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.plc-link-button.active {
+  background: light-dark(#ced1d5, #383c41);
+}
+
+.plc-link-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b6f75;
+}
+
+.plc-link-dot.busy {
+  background: #e6b800;
+}
+
+.plc-link-dot.ok {
+  background: #3fb950;
+}
+
+.plc-link-dot.bad {
+  background: #ff6b5e;
+}
+
+.plc-link-note {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  /* menu tier, as .speed-short-note */
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+}
+
+/* At the narrowest phones the bar is already at its limit, and the rule there is that the scene
+   NAME truncates rather than the picker disappearing (see the min-width:0 chain in the phone
+   cuts). A 59px badge broke that rule outright - it pushed the picker to zero width - so below
+   360px the badge sheds its number and keeps the glyph. The rate is one tap away in the panel,
+   and the aria-label carries it either way. */
+@media (max-width: 360px) {
+  .speed-short-rate {
+    display: none;
+  }
+}
+

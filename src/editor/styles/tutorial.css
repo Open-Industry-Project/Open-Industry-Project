@@ -1,0 +1,230 @@
+/* ===== Active in-editor tutorial (TutorialOverlay) ========================= */
+/* The root is a non-blocking layer: pointer-events pass straight through to the
+   real UI so the user performs every action for real, and the step advances by
+   observing scene/run/program state. Only the card itself captures clicks. */
+.tut-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* full-dim backdrop for centered (no-target) steps: welcome / watch / done */
+.tut-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* the spotlight: a ring around the target with a dimmed surround drawn via the
+   huge spread box-shadow, so the highlighted control reads through a clear hole */
+.tut-spotlight {
+  position: absolute;
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  animation: tut-pulse 1.6s ease-in-out infinite;
+  transition: left 0.12s ease, top 0.12s ease, width 0.12s ease, height 0.12s ease;
+}
+
+/* ring only: a step that points at a panel while the user watches the scene beside it */
+.tut-spotlight-clear {
+  box-shadow: none;
+}
+
+@keyframes tut-pulse {
+  0%,
+  100% {
+    outline-color: var(--accent);
+  }
+  50% {
+    outline-color: light-dark(#73a9e8, #9ecbff);
+  }
+}
+
+.tut-card {
+  position: absolute;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+  padding: 14px 16px 12px;
+  color: var(--text);
+  /* never let a tall card run its buttons off-screen - scroll its body instead */
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+
+.tut-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.tut-step-count {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.tut-close {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.tut-close:hover {
+  color: var(--text);
+  background: var(--panel-edge);
+}
+
+.tut-title {
+  margin: 2px 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tut-body {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* a literal value the user types (e.g. a PLC tag), highlighted inline in a step body */
+.tut-kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent, #4ea1ff);
+  color: #051322;
+  font: 600 12px/1.5 ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+}
+
+/* an ST code snippet shown in a step body (the interlock the user types) */
+.tut-code {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  color: light-dark(#236dd5, #cfe3ff);
+  font: 12px/1.5 ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.tut-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tut-skip {
+  margin-right: auto;
+}
+
+.tut-btn {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--panel-edge);
+}
+
+.tut-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tut-btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.tut-btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  /* a long primary label ("Set up the sensor and program") wraps itself, not "Skip tour" */
+  white-space: nowrap;
+}
+.tut-btn-ghost:hover {
+  color: var(--text);
+  background: var(--panel-edge);
+}
+
+/* in-viewport "drop it here" marker: a pulsing ring at a projected world point, with a
+   caption below. Purely visual (pointer-events: none) so it never blocks the drag-to-place. */
+/* the ring is centered exactly on the projected world point; the caption floats above it
+   so neither covers the drop spot (or the belt) directly below the marker */
+.tut-place-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.tut-place-ring {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px rgba(74, 143, 231, 0.22);
+  animation: tut-place-pulse 1.4s ease-in-out infinite;
+}
+.tut-place-label {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--text);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
+}
+@keyframes tut-place-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.45;
+  }
+}
+
+/* off-screen edge arrow: a triangle clamped to the viewport edge, rotated (angle 0 points
+   right, +x) to aim at a placement spot the camera has been moved away from */
+.tut-edge {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 18px solid var(--accent);
+  filter: drop-shadow(0 1px 3px light-dark(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.55)));
+  pointer-events: none;
+  animation: tut-edge-pulse 1.2s ease-in-out infinite;
+}
+@keyframes tut-edge-pulse {
+  0%,
+  100% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+

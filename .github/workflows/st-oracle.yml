@@ -1,0 +1,399 @@
+name: ST external oracle
+
+# Replays the ST conformance corpus (src/plc/conformanceCases.ts) through MATIEC, a real
+# IEC 61131-3 compiler. The in-repo suite proves our interpreter and emitter agree with
+# each other; this proves the corpus GOLDENS are right, which is the thing internal
+# consistency can never establish. See docs/st-conformance.md.
+#
+# A SEPARATE workflow from ci.yml because it builds a third-party toolchain from source and
+# only matters to src/plc changes, which the paths filter below already scopes it to. It runs
+# on the same pushes and PRs as ci.yml and fails just as visibly; making it a REQUIRED check
+# is a branch-protection setting rather than anything in this file, and moving the job into
+# ci.yml would duplicate the MATIEC build into every run for no extra signal.
+#
+# STATUS (2026-08-11). BOTH TIERS ARE GREEN AND BLOCKING. Tier 1: 60 cases compile with a
+# real IEC compiler, 10 withheld with their reasons recorded in the corpus. Tier 2: the
+# generated C is built and stepped, and all 60 agree with MATIEC scan for scan, with one
+# documented divergence (the FOR bound, see docs/st-conformance.md) reported rather than
+# failed. Between them they have found six defects in this engine, including every timer
+# running one scan early — a bug three hand-derived goldens had agreed with since they were
+# written, which is exactly what an external oracle is for.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/plc/**'
+      - 'scripts/oracle-matiec.mjs'
+      # the other jobs' scripts: without these, a change to one alone never triggers its gate
+      - 'scripts/oracle-strucpp.mjs'
+      - 'scripts/oracle-plcopen.mjs'
+      - 'scripts/oracle-import.mjs'
+      - 'scripts/oracle-openplc.mjs'
+      - 'scripts/lib/openplc-editor.mjs'
+      # the external-PLC loop: its I/O table and its runtime/socket halves
+      - 'scripts/openplc-loop.mjs'
+      - 'scripts/lib/openplc-runtime.mjs'
+      - 'scripts/lib/modbus-tcp-listen.mjs'
+      - 'src/core/externalIo.ts'
+      - '.github/workflows/st-oracle.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/plc/**'
+      - 'scripts/oracle-matiec.mjs'
+      # the other jobs' scripts: without these, a change to one alone never triggers its gate
+      - 'scripts/oracle-strucpp.mjs'
+      - 'scripts/oracle-plcopen.mjs'
+      - 'scripts/oracle-import.mjs'
+      - 'scripts/oracle-openplc.mjs'
+      - 'scripts/lib/openplc-editor.mjs'
+      # the external-PLC loop: its I/O table and its runtime/socket halves
+      - 'scripts/openplc-loop.mjs'
+      - 'scripts/lib/openplc-runtime.mjs'
+      - 'scripts/lib/modbus-tcp-listen.mjs'
+      - 'src/core/externalIo.ts'
+      - '.github/workflows/st-oracle.yml'
+  workflow_dispatch:
+
+# Read-only token. GH_TOKEN below is only used to READ public repos (a release download and
+# tree listings, authenticated to dodge the anonymous rate limit), which contents: read covers.
+permissions:
+  contents: read
+
+env:
+  # Pin the toolchain so a corpus result is reproducible: an oracle that silently tracks
+  # someone else's HEAD can flip red on a change that is not ours. That means a COMMIT, not
+  # a branch name — a branch is someone else's HEAD by definition.
+  #
+  # beremiz/matiec is MATIEC's living home (the Beremiz project maintains it; the original
+  # was Mario de Sousa's Mercurial repo, which is where the odd `default` branch name comes
+  # from). The previous pin, nucleron/matiec@master, does not exist — `git clone` exited 128
+  # on every run, which is why neither tier had ever executed. Bump deliberately.
+  MATIEC_REPO: https://github.com/beremiz/matiec
+  MATIEC_REF: 7949c0bda1787de9c7cacaa4876ede49f85262dd
+  # The 3rd-edition oracle, pinned to a release tag for the same reason: its coverage gaps
+  # are recorded per-version in scripts/oracle-strucpp.mjs, so an unpinned upgrade would
+  # silently invalidate those notes.
+  STRUCPP_VERSION: v0.6.2
+  # The OpenPLC Runtime the loop job runs, as its container image tag. Keep it the version a local
+  # run uses (the Windows installer of the same release), and bump it together with the editor pin in
+  # scripts/lib/openplc-editor.mjs: the upload carries the editor's STruC++ headers, so the two ship
+  # as a matched pair.
+  OPENPLC_RUNTIME_TAG: v4.2.2
+
+jobs:
+  oracle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # 24: the oracle imports the corpus straight from TypeScript and relies on native type
+          # stripping being on by default (every workflow here is on 24 now).
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Render the corpus as IEC programs
+        # Toolchain-free, so this step still tells us something even if the build below breaks.
+        run: npm run st-oracle:dry
+
+      - name: Cache MATIEC build
+        id: matiec-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: matiec
+          key: matiec-${{ env.MATIEC_REF }}-${{ runner.os }}
+
+      - name: Build MATIEC
+        if: steps.matiec-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends autoconf automake libtool flex bison build-essential
+          # not --depth 1 --branch: MATIEC_REF is a COMMIT, which a shallow branch clone
+          # cannot check out. --filter=blob:none keeps it cheap anyway (history without blobs).
+          git clone --filter=blob:none "$MATIEC_REPO" matiec
+          cd matiec
+          git checkout --detach "$MATIEC_REF"
+          autoreconf -i
+          ./configure
+          make -j"$(nproc)"
+          test -x ./iec2c || { echo "::error::MATIEC built but produced no iec2c binary"; exit 1; }
+
+      - name: Compile gate (tier 1) — a real IEC compiler must accept what we accept
+        env:
+          IEC2C: ${{ github.workspace }}/matiec/iec2c
+          MATIEC_LIB: ${{ github.workspace }}/matiec/lib
+        run: npm run st-oracle
+
+      - name: Semantic diff (tier 2) — the goldens must match a real runtime
+        # BLOCKING since 2026-08-11, when it first ran green on its own: all 60 replayed
+        # cases agree with MATIEC, and the one documented divergence is reported as such
+        # rather than as a failure. It was non-blocking until then because nothing about it
+        # had ever executed; keeping the flag past its first clean run would only hide the
+        # next real disagreement, which is the whole reason this tier exists.
+        env:
+          IEC2C: ${{ github.workspace }}/matiec/iec2c
+          MATIEC_LIB: ${{ github.workspace }}/matiec/lib
+        run: npm run st-oracle -- --execute
+
+      - name: Upload generated programs and MATIEC output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: st-oracle-output
+          path: .oracle/
+          retention-days: 7
+          # .oracle is a DOTFILE, and upload-artifact skips hidden paths by default — the
+          # first real run uploaded nothing ("No files were found with the provided path"),
+          # so the rejected programs could not be read back. Without this the artifact is
+          # silently empty exactly when it is needed.
+          include-hidden-files: true
+
+  # The 3rd-edition half. MATIEC is IEC 2nd edition, so on its own it cannot tell "our
+  # defect" from "the standard moved" — every case marked `oracle.editionReject` exists at
+  # that boundary. STruC++ settles them: those cases MUST build here. And since it is OpenPLC's
+  # compiler, what its code computes is checked too (--execute). Separate job because
+  # it shares nothing with the MATIEC toolchain and should fail independently.
+  ed3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Fetch STruC++
+        # A prebuilt release, pinned: no toolchain to build, unlike MATIEC. This is the
+        # compiler OpenPLC's editor ships. GPL-3.0 — invoked as a build tool, never linked
+        # or vendored.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$STRUCPP_VERSION" --repo Autonomy-Logic/STruCpp \
+            --pattern 'strucpp-linux-x64.tar.gz' --dir /tmp
+          mkdir -p strucpp
+          tar -xzf /tmp/strucpp-linux-x64.tar.gz -C strucpp --strip-components=1
+          chmod +x strucpp/strucpp
+          strucpp/strucpp --version
+
+      - name: Compile the corpus with a 3rd-edition compiler, then build, run and diff what compiles
+        # --execute (2026-10-06): every compiled case is built with the runner's g++ against the release's
+        # own runtime headers and replayed scan by scan against the goldens, as MATIEC's tier 2 is. Blocking
+        # from the start: its first run (WSL, Ubuntu 24.04's g++ 13, the same pin) was clean once the
+        # STruC++ gaps it found were listed in RUN_GAPS, so a red here is a NEW disagreement.
+        run: npm run st-oracle:ed3 -- --execute
+
+      - name: Upload generated programs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: st-oracle-ed3-output
+          path: .oracle-ed3/
+          retention-days: 7
+          # a dotfile path, which upload-artifact skips by default
+          include-hidden-files: true
+
+  # The OTHER export target. The .st file has been compiler-verified since the MATIEC job
+  # landed; the PLCopen XML had nothing but string assertions written by the same hand as the
+  # emitter — the exact internal-consistency trap these oracles exist to escape. This
+  # validates every exported document against PLCopen's own TC6 schema, which is the closest
+  # thing to a real importer that can be run in CI. It found two defects on its first run.
+  plcopen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install xmllint
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-utils
+
+      - name: Validate the exported XML against the TC6 schema
+        # the schema is fetched by the script from a COMMIT-pinned URL, same rule as the
+        # compiler pins above
+        run: npm run st-oracle:xml
+
+      - name: Upload generated documents
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: st-oracle-xml-output
+          path: .oracle-xml/
+          retention-days: 7
+          # a dotfile path, which upload-artifact skips by default
+          include-hidden-files: true
+
+  # The IMPORT direction. Everything above points outward from our corpus; this points inward,
+  # feeding both importers files this project did not write — Beremiz's own PLCopen projects
+  # (ladder and FBD bodies, an older namespace, vendor extensions) and MATIEC's AnnexF/*_st.txt,
+  # the worked examples out of IEC 61131-3 itself. Until this existed the importers were checked
+  # only by round-tripping through our own exporter, which is the internal consistency this
+  # repo has twice learned is not enough.
+  #
+  # It does NOT require those files to compile here: a real vendor file uses more than this
+  # subset has, and saying so is the honest outcome. The gate is SILENCE — every POU and data
+  # type a file declares must reach either the program or the notes.
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Import real files from pinned upstreams
+        env:
+          # the GitHub API is rate-limited to 60/hour unauthenticated, which a busy day of runs
+          # would exhaust; the tree listing is one request per source
+          GH_TOKEN: ${{ github.token }}
+        run: npm run st-oracle:import
+
+      - name: Upload what the importers made of them
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: st-oracle-import-output
+          path: .oracle-import/imported/
+          retention-days: 7
+          # a dotfile path, which upload-artifact skips by default
+          include-hidden-files: true
+
+  # What a user who takes an export to OpenPLC actually meets. OpenPLC's editor does not compile our
+  # file: it READS it into its own project model and compiles ST it regenerates from that, so this
+  # runs the editor's own reader, transpiler and STruC++ build (fetched at a pinned commit, GPL-3.0,
+  # never vendored) on every exported corpus case, through both ways in (PLCopen XML import, and a
+  # project folder), and replays the regenerated program against the goldens. On its first run
+  # (2026-09-16) every case stopped at the reader, for five causes it records with their diagnosis.
+  openplc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Load and rebuild every export in OpenPLC's editor
+        env:
+          # the pinned tree is listed through the GitHub API, which is rate-limited unauthenticated
+          GH_TOKEN: ${{ github.token }}
+        run: npm run st-oracle:openplc
+
+      - name: Upload the project folders and regenerated programs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: st-oracle-openplc-output
+          path: .oracle-openplc/cases/
+          retention-days: 7
+          # a dotfile path, which upload-artifact skips by default
+          include-hidden-files: true
+
+  # A REAL PLC IN THE LOOP (scripts/openplc-loop.mjs). The program is built by the same pinned editor
+  # as the job above, uploaded to the OpenPLC Runtime's own container, and polls the headless simulator
+  # over Modbus TCP: a box on a belt has to stop at a photo eye in the same place it does with the
+  # program attached in-process. The runtime shares the host network, so each side reaches the other
+  # on 127.0.0.1 (the sim serves 5020, the runtime's API is 8443).
+  openplc-loop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Start the OpenPLC Runtime
+        # the capabilities are the ones the runtime's README runs it with: its scan thread asks for
+        # real-time scheduling
+        run: >-
+          docker run -d --name openplc --network host
+          --cap-add=SYS_NICE --cap-add=SYS_RESOURCE
+          ghcr.io/autonomy-logic/openplc-runtime:${OPENPLC_RUNTIME_TAG}
+
+      - name: Drive the simulated conveyor from OpenPLC
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENPLC_URL: https://127.0.0.1:8443
+        run: npm run openplc-loop
+
+      - name: Keep the runtime's log
+        if: always()
+        run: mkdir -p .oracle-openplc/loop && docker logs openplc > .oracle-openplc/loop/runtime.log 2>&1 || true
+
+      # program.zip is assembled by OpenPLC's own editor and carries STruC++ runtime headers, both
+      # GPL-3.0(-or-later). A downloadable artifact of a public repo is distribution, so the licences
+      # and the corresponding source travel with it. The pinned SHA below IS that source
+      # (THIRD_PARTY_NOTICES.md).
+      - name: Name the licences that travel with the bundle
+        if: always()
+        run: |
+          mkdir -p .oracle-openplc/loop
+          cat > .oracle-openplc/loop/THIRD-PARTY-NOTICE.txt <<'NOTICE'
+          program.zip in this artifact was BUILT BY third-party GPL software and contains parts of it.
+
+            openplc-editor  GPL-3.0             https://github.com/Autonomy-Logic/openplc-editor
+                            pinned commit       13fee913d66fb4d93f7528c3359144819da1c275
+            STruC++         GPL-3.0-or-later    https://www.npmjs.com/package/strucpp
+                            (version in .oracle-openplc/editor-*/node_modules/strucpp)
+
+          The corresponding source of each is at the URL above, at that commit/version. The rest of
+          this artifact (export.st, program.st, modbus_master.json, runtime.log) is produced by
+          oip-web, which is MIT. See THIRD_PARTY_NOTICES.md in the repo for the boundary these keep.
+          NOTICE
+
+      - name: Upload the program and the runtime log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openplc-loop-output
+          path: .oracle-openplc/loop/
+          retention-days: 7
+          include-hidden-files: true

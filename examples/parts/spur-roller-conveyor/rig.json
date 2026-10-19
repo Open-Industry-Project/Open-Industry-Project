@@ -1,0 +1,32 @@
+{
+  "id": "oip.spur-roller-conveyor",
+  "name": "Spur Roller Conveyor",
+  "category": "Equipment",
+  "conveyor": {
+    "bed": "spur",
+    "surface": "roller",
+    "speedParam": "speed"
+  },
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "drawn",
+    "bounds": {
+      "length": 2.8798818102449895,
+      "width": 1.524,
+      "top": 2.3
+    },
+    "conveys": true
+  },
+  "materials": [
+    {
+      "id": "band",
+      "color": [
+        0.6939,
+        0.1844,
+        0.0242
+      ],
+      "metalness": 0,
+      "roughness": 0.55
+    }
+  ]
+}

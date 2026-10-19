@@ -1,0 +1,441 @@
+{
+  "id": "oip.agv",
+  "name": "AGV",
+  "category": "Equipment",
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "body",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Body"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "mast",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Mast"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "piston",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Mast_02"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "chassis",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.48,
+            2.3,
+            1.19
+          ]
+        },
+        "offset": [
+          0.065,
+          1.15,
+          0
+        ]
+      },
+      {
+        "name": "beacon",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.06,
+          "height": 0.1
+        },
+        "offset": [
+          -0.45,
+          2.38,
+          0
+        ],
+        "lamps": [
+          {
+            "emissive": [
+              1,
+              0.55,
+              0
+            ],
+            "offColor": [
+              0.25,
+              0.12,
+              0.02
+            ]
+          }
+        ],
+        "collision": "none"
+      },
+      {
+        "name": "wheelLF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Wheel_LF"
+        },
+        "offset": [
+          -0.285,
+          0.125,
+          0.41
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "wheelLR",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Wheel_LR"
+        },
+        "offset": [
+          0.625,
+          0.125,
+          0.475
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "wheelRF",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Wheel_RF"
+        },
+        "offset": [
+          -0.285,
+          0.125,
+          -0.41
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          3.141592653589793
+        ]
+      },
+      {
+        "name": "wheelRR",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Wheel_RR"
+        },
+        "offset": [
+          0.625,
+          0.125,
+          -0.475
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          3.141592653589793
+        ]
+      },
+      {
+        "name": "carriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.75,
+          0.1,
+          0
+        ]
+      },
+      {
+        "name": "forks",
+        "parent": "carriage",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Forks"
+        },
+        "offset": [
+          -0.75,
+          -0.1,
+          0
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "bladeL",
+        "parent": "carriage",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Fork_L"
+        },
+        "offset": [
+          -0.75,
+          -0.1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "forkSpread",
+            "scale": -0.5,
+            "add": 0.365
+          }
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "bladeR",
+        "parent": "carriage",
+        "shape": {
+          "kind": "mesh",
+          "asset": "glb",
+          "node": "AGV_Fork_R"
+        },
+        "offset": [
+          -0.75,
+          -0.1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "forkSpread",
+            "scale": 0.5,
+            "add": -0.365
+          }
+        ],
+        "rotation": [
+          0,
+          -1.5707963267948966,
+          0
+        ]
+      },
+      {
+        "name": "tineL",
+        "parent": "carriage",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.26,
+            0.051,
+            0.11
+          ]
+        },
+        "offset": [
+          0.7,
+          -0.07150000000000001,
+          -0.365
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "forkSpread",
+            "scale": -0.5
+          }
+        ]
+      },
+      {
+        "name": "tineR",
+        "parent": "carriage",
+        "hidden": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.26,
+            0.051,
+            0.11
+          ]
+        },
+        "offset": [
+          0.7,
+          -0.07150000000000001,
+          0.365
+        ],
+        "offsetParams": [
+          {
+            "axis": 2,
+            "param": "forkSpread",
+            "scale": 0.5
+          }
+        ]
+      },
+      {
+        "name": "gripper",
+        "parent": "carriage",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0.45,
+          0
+        ],
+        "grip": {
+          "zone": {
+            "size": [
+              1.26,
+              2.4,
+              1.4
+            ],
+            "offset": [
+              0.19999999999999996,
+              -0.15,
+              0
+            ]
+          },
+          "forks": {
+            "spreadParam": "forkSpread",
+            "bladeWidth": 0.11,
+            "bladeThickness": 0.051
+          }
+        }
+      }
+    ],
+    "joints": [
+      {
+        "name": "lift",
+        "link": "carriage",
+        "type": "prismatic",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 8
+      },
+      {
+        "name": "piston",
+        "link": "piston",
+        "type": "prismatic",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 4,
+        "cosmetic": true
+      },
+      {
+        "name": "wheelLF",
+        "link": "wheelLF",
+        "type": "revolute",
+        "axis": [
+          -1,
+          0,
+          0
+        ],
+        "min": -3.141592653589793,
+        "max": 3.141592653589793,
+        "cosmetic": true
+      },
+      {
+        "name": "wheelLR",
+        "link": "wheelLR",
+        "type": "revolute",
+        "axis": [
+          -1,
+          0,
+          0
+        ],
+        "min": -3.141592653589793,
+        "max": 3.141592653589793,
+        "cosmetic": true
+      },
+      {
+        "name": "wheelRF",
+        "link": "wheelRF",
+        "type": "revolute",
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "min": -3.141592653589793,
+        "max": 3.141592653589793,
+        "cosmetic": true
+      },
+      {
+        "name": "wheelRR",
+        "link": "wheelRR",
+        "type": "revolute",
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "min": -3.141592653589793,
+        "max": 3.141592653589793,
+        "cosmetic": true
+      }
+    ],
+    "bounds": {
+      "length": 2.755,
+      "width": 1.26,
+      "top": 2.8,
+      "centerX": 0.7025
+    },
+    "posable": true
+  },
+  "materials": [],
+  "assets": [
+    {
+      "id": "glb",
+      "mime": "model/gltf-binary",
+      "url": "/models/AGV.glb"
+    }
+  ]
+}

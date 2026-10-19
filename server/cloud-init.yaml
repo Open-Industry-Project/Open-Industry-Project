@@ -1,0 +1,88 @@
+#cloud-config
+# First-boot provisioning for the oip-web collab server on an Azure Linux VM.
+# Installs Node.js LTS + Caddy (automatic HTTPS/WSS), lays down a hardened systemd
+# unit and a persistent SQLite directory. The app code itself is rsync'd up in a
+# later step (see DEPLOY.md) so we don't bake repo access into the image.
+#
+# Pass to `az vm create --custom-data cloud-init.yaml`.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - curl
+  - rsync
+  - gnupg
+  # node-gyp fallback in case sqlite3 has no prebuilt binary for this arch
+  - build-essential
+  - python3
+  # sqlite CLI for backup.sh (online .backup of the live db; timer installed by deploy.sh)
+  - sqlite3
+
+# unprivileged service account that owns the app + db (no shell, no login)
+users:
+  - default
+  - name: oip
+    system: true
+    shell: /usr/sbin/nologin
+    home: /opt/oip-web
+
+write_files:
+  - path: /etc/systemd/system/oip-collab.service
+    content: |
+      [Unit]
+      Description=oip-web collab server (Hocuspocus/Yjs)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      User=oip
+      WorkingDirectory=/opt/oip-web/server
+      Environment=PORT=1234
+      # loopback only (also index.mjs's default): Caddy below is the one way in
+      Environment=HOST=127.0.0.1
+      Environment=DB_PATH=/var/lib/oip-collab/collab.sqlite
+      ExecStart=/usr/bin/node index.mjs
+      Restart=always
+      RestartSec=3
+      # light hardening: no privilege escalation, read-only system except the db dir
+      NoNewPrivileges=true
+      ProtectSystem=full
+      PrivateTmp=true
+      ReadWritePaths=/var/lib/oip-collab
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/caddy/Caddyfile
+    content: |
+      # EDIT this to your subdomain. Caddy obtains and renews a Let's Encrypt cert
+      # automatically once this name's A record points at this VM and 80/443 are open.
+      # reverse_proxy transparently upgrades the WebSocket (wss) - no extra config.
+      # 127.0.0.1, not localhost: the server binds the IPv4 loopback only, and localhost
+      # may resolve to ::1 first.
+      collab.openindustryproject.org {
+          reverse_proxy 127.0.0.1:1234
+      }
+
+runcmd:
+  # Node.js LTS (NodeSource)
+  - curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+  - apt-get install -y nodejs
+  # Caddy (official cloudsmith repo)
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update
+  - apt-get install -y caddy
+  # the caddy package's postinst can miss creating its system user under cloud-init's
+  # non-interactive apt; create it defensively so caddy.service doesn't fail 217/USER
+  - getent group caddy || groupadd --system caddy
+  - id caddy || useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin caddy
+  - systemctl enable --now caddy
+  # persistent SQLite dir + app dir, owned by the service account
+  - mkdir -p /var/lib/oip-collab /opt/oip-web/server
+  - chown -R oip:oip /var/lib/oip-collab /opt/oip-web
+  - systemctl daemon-reload
+  # the oip-collab service is started in the deploy step, after code is uploaded

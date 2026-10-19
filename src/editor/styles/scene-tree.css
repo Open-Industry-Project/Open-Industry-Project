@@ -1,0 +1,601 @@
+/* Scene tree */
+
+.scene-tree-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.scene-tree-head {
+  padding: 8px 10px 0;
+}
+
+/* the panel title, styled like the Parts dock's .dock-title; docked, the dock-slot tab strip already
+   labels the panel, so it shows only in the mobile drawer, which has no tab strip */
+.scene-tree-head h2 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.dock-slot .scene-tree-head h2 {
+  display: none;
+}
+
+/* part-scene breadcrumb ("open scene"): click to return to the full factory scene */
+.scene-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.scene-breadcrumb-back {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.scene-breadcrumb:hover .scene-breadcrumb-back {
+  text-decoration: underline;
+}
+
+.scene-breadcrumb-sep {
+  opacity: 0.6;
+}
+
+.scene-breadcrumb-part {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Definition-scope banner: shown while editing a definition (a part package), so the
+   blast radius (how many instances a save updates) is impossible to miss. Replaces the plain breadcrumb.
+   Stacked on two lines so the fixed chips never squeeze the definition's name out of a narrow dock. */
+.scene-def-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 2px 0;
+}
+
+/* line 1: scope badge + session actions (back, or master Save/Cancel) */
+.scene-def-scope-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+/* line 2: the name owns the full dock width; the count chip (if any) right-aligns after it */
+.scene-def-scope-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.scene-def-scope-badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.scene-def-scope-name {
+  flex: 1;
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the instance-count chip - a warm tint to read as "this is wide", not a neutral label */
+.scene-def-scope-count {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(232, 168, 56, 0.16);
+  color: light-dark(#936618, #e8a838);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.scene-def-scope-back {
+  flex: none;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.scene-def-scope-back:hover {
+  text-decoration: underline;
+}
+
+/* reinforce the session at the panel level: a subtle accent rail so the whole tree reads as "a definition" */
+.scene-tree-panel.definition-scope {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.scene-filter {
+  width: 100%;
+  margin: 4px 0 6px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+}
+
+.scene-filter:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.scene-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* the "show part types" head toggle beside the filter box */
+.tree-types-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 4px 0 6px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-dim);
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.tree-types-toggle:hover {
+  opacity: 1;
+  background: var(--line);
+}
+
+.tree-types-toggle.active {
+  opacity: 0.9;
+  border-color: var(--line);
+}
+
+.scene-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* The tree owns the arrow keys whenever it holds focus, and nothing else said so - the
+   selected row looks identical either way, so there was no telling whether ↑↓ would move the
+   selection or fly the camera. Drawn for the KEYBOARD only: a click already tells you where you
+   are, and ringing the panel on every row click would be noise. Inset, so no layout shift. */
+.scene-tree:focus {
+  outline: none;
+}
+
+.scene-tree:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.tree-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 4px 2px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tree-row:hover {
+  background: var(--control-alt);
+}
+
+.tree-row.selected {
+  background: var(--selected);
+}
+
+.tree-row.hidden .tree-name {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* drop indicators while dragging a row: a line for sibling reorder, a ring for "make child" */
+.tree-row.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tree-row.drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.tree-row.drop-inside {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--selected);
+}
+
+/* disclosure triangle for rows with children; leaf rows get a same-width spacer */
+.tree-caret,
+.tree-caret-spacer {
+  flex: none;
+  width: 14px;
+  height: 16px;
+}
+
+.tree-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-dim);
+}
+
+.tree-caret:hover {
+  color: var(--text);
+}
+
+.tree-icon {
+  color: var(--text-dim);
+  width: 16px;
+  text-align: center;
+  flex: none;
+}
+
+/* select-as-one marker (a viewport click on any part inside selects the row's part) */
+.tree-group-wrap {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+/* In a narrow column the TYPE gives way first: the name is the part's identity, and what its PLC tags are named after.
+   A `flex: none` type would leave the name as the only thing that can shrink, and at 220px "Infeed" would show 0px of
+   name beside a whole "Roller Conveyor". So the type has no width of its own (basis 0) and only grows into what the
+   name leaves, right-aligned. The name shrinks only once it alone overflows. A weighted shrink (1000 to 1) is not
+   enough: it still takes a fraction of a pixel off every name, and the ellipsis then eats its last letters. */
+.tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* a rig node row's tags (param / aim / array / script): what is true of the node besides its own fields */
+.tree-node-badges {
+  flex: none;
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+
+.tree-type {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.tree-eye,
+.tree-lock,
+.tree-script,
+.tree-open-scene {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-dim);
+  /* always visible (the visibility/lock badges show by default); brightens on hover */
+  opacity: 0.55;
+}
+
+/* the clapperboard "open scene" badge on a custom part - revealed on hover/selection to keep rows
+   quiet (lock/eye stay persistent) */
+.tree-open-scene {
+  display: none;
+  color: var(--accent);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.tree-row:hover .tree-open-scene,
+.tree-row.selected .tree-open-scene {
+  display: inline-flex;
+  opacity: 1;
+}
+
+.tree-open-scene:hover {
+  color: var(--text);
+  background: var(--line);
+}
+
+/* the </> script badge on a custom part: tinted like an attached-script indicator; revealed
+   on hover/selection like the open-scene badge */
+.tree-script {
+  display: none;
+  color: light-dark(#2672c0, #7fb2e6);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.tree-row:hover .tree-script,
+.tree-row.selected .tree-script {
+  display: inline-flex;
+  opacity: 1;
+}
+
+.tree-script:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.tree-script:not(:disabled):hover {
+  color: light-dark(#226fce, #add2ff);
+  background: var(--line);
+}
+
+/* rig-internal rows (a custom part's links/joints): dimmed; in author mode (the part's open scene) they
+   are selectable for read-only inspection, but never draggable/renamable like a scene part */
+.tree-row.rig-node {
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.tree-row.rig-node:hover {
+  background: light-dark(#eeeff1, #26282c);
+}
+
+.tree-row.rig-node .tree-name {
+  color: var(--text-dim);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+/* a selected rig node (author mode) brightens its name so the highlight reads through the dim default */
+.tree-row.rig-node.selected .tree-name {
+  color: var(--text);
+}
+
+/* GLB-introspection panel (author mode): surface an imported model's node + material names so they can be
+   used (shape.node) / recoloured (shape.materials) instead of reverse-engineered with a script. */
+.glb-contents {
+  margin: 6px 0 2px;
+  padding: 6px 8px;
+  background: light-dark(#f6f6f7, #1f2125);
+  border: 1px solid light-dark(#e4e6e8, #2c2f34);
+  border-radius: 4px;
+}
+.glb-group-label {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin: 4px 0 3px;
+}
+.glb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.glb-chip {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  padding: 1px 6px;
+  background: light-dark(#eeeff1, #26282c);
+  color: var(--text-dim);
+  border: 1px solid light-dark(#d6d8dc, #34373c);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.glb-chip:hover:not(:disabled) {
+  color: var(--text);
+  border-color: light-dark(#b6babf, #4a4e54);
+}
+.glb-chip.on {
+  color: #0b0c0e;
+  background: var(--accent, #f2bd0f);
+  border-color: var(--accent, light-dark(#c7a020, #f2bd0f));
+}
+.glb-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.glb-mats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.glb-mat {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  padding: 1px 0;
+}
+.glb-mat-name {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--text);
+}
+.glb-mat-meta {
+  color: var(--text-dim);
+}
+.glb-mat.warn .glb-mat-meta {
+  color: light-dark(#906718, #e0a32e);
+}
+
+/* a trailing glyph on a context-menu item (e.g. the </> on Open Script) */
+.context-icon {
+  margin-left: auto;
+  padding-left: 12px;
+  color: light-dark(#2672c0, #7fb2e6);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+}
+
+.tree-row:hover .tree-eye,
+.tree-row:hover .tree-lock {
+  opacity: 0.8;
+}
+
+.tree-row.hidden .tree-eye,
+.tree-row.locked .tree-lock {
+  opacity: 1;
+}
+
+.tree-row .tree-eye:hover,
+.tree-row .tree-lock:hover {
+  opacity: 1;
+  color: var(--text);
+  background: var(--line);
+}
+
+/* a locked part reads dimmed in the tree (its lock badge stays lit) */
+.tree-row.locked .tree-name {
+  color: var(--text-dim);
+}
+
+.tree-rename {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font: inherit;
+}
+
+.tree-rename:focus {
+  outline: none;
+}
+
+/* Scene tree context menu */
+
+.context-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 51;
+  min-width: 184px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px light-dark(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45));
+}
+
+.context-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.context-item:hover:not(:disabled) {
+  background: var(--control-alt);
+}
+
+.context-shortcut {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.context-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--panel-edge);
+}
+
+/* Viewport list-select picker (Alt+RMB / List Select tool) */
+
+.list-select-menu {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.list-select-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.list-select-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

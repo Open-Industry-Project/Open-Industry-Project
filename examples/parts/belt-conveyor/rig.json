@@ -1,0 +1,21 @@
+{
+  "id": "oip.belt-conveyor",
+  "name": "Belt Conveyor",
+  "category": "Equipment",
+  "conveyor": {
+    "bed": "path",
+    "surface": "belt",
+    "speedParam": "speed"
+  },
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "drawn",
+    "bounds": {
+      "length": 4,
+      "width": 1.524,
+      "top": 0.17
+    },
+    "conveys": true
+  },
+  "materials": []
+}

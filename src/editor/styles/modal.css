@@ -1,0 +1,290 @@
+/* ---- Shared modal chrome (backdrop / card / head / close / intro) ---- */
+.author-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.author-dialog {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+  padding: 16px 18px 14px;
+  color: var(--text);
+}
+
+.author-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.author-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.author-close {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.author-close:hover {
+  color: var(--text);
+}
+
+.author-intro {
+  margin: 8px 0 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* asks before a room's part code runs here (components/RoomCodePrompt.tsx, collab/codeTrust.ts) */
+.room-code-dialog {
+  width: min(480px, 100%);
+}
+
+.room-code-list {
+  margin: 0 0 4px;
+  padding: 0 0 0 18px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.room-code-name {
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.room-code-note {
+  color: var(--text-dim);
+}
+
+.room-code-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* amber, not the autosave banner's red: nothing is being lost, something is being withheld on purpose */
+.room-code-banner {
+  border-color: #7a5a2b;
+  border-left-color: light-dark(#de9945, #e0a052);
+}
+
+.room-code-banner .autosave-banner-title {
+  color: light-dark(#9e601a, #f0c08a);
+}
+
+/* Export Project's choices (components/ExportProjectDialog.tsx): what the file may leave out */
+.export-dialog {
+  width: min(420px, 100%);
+}
+
+.export-dialog-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.export-dialog-choices label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: baseline;
+  cursor: pointer;
+}
+
+.export-dialog-names {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* the part update prompt (components/PartUpdatesNotice.tsx): a bar at the top of the Parts panel, never over it */
+.part-updates-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 8px 6px;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid #2e4d77;
+  border-left: 3px solid light-dark(#226fd2, #7fb0f0);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 12px;
+}
+
+.part-updates-bar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.part-updates-bar-detail {
+  color: var(--text-dim);
+}
+
+.part-updates-bar-action {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #2e4d77;
+  background: transparent;
+  color: light-dark(#226fd2, #7fb0f0);
+  font: 12px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.part-updates-bar-action:hover {
+  background: light-dark(#e6ebf2, #1f2a3a);
+}
+
+.part-updates-bar-close {
+  flex: none;
+  display: flex;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* the review list */
+
+.part-updates-dialog {
+  width: min(520px, 100%);
+}
+
+.part-updates-list {
+  list-style: none;
+  margin: 4px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.part-updates-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.part-updates-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.part-updates-edited {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* what an update changes (core/partChanges.ts), most severe first */
+.part-updates-changes {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.part-updates-list .part-updates-changes li {
+  display: block;
+}
+
+.part-updates-change.breaking {
+  color: var(--danger);
+}
+
+.part-updates-change.placement {
+  color: var(--warn);
+}
+
+/* what a breaking change breaks in this project (plc/updateImpact.ts): the project's facts, not the part's */
+.part-updates-impact {
+  color: var(--text-dim);
+}
+
+/* the one-field naming dialog (components/NameDialog.tsx): window.prompt throws in the Electron shell */
+.name-dialog {
+  width: min(360px, 100%);
+}
+
+.name-dialog-row {
+  display: flex;
+  gap: 8px;
+}
+
+.name-dialog-row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font: inherit;
+}
+
+.name-dialog-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* the dialog's second answer (NameRequest.alternative): a quiet link-style line under the field, so the
+   primary path stays the button beside it */
+.name-dialog-alt {
+  display: block;
+  margin-top: 10px;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.name-dialog-alt:hover {
+  text-decoration: underline;
+}
+
+.name-dialog-alt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+

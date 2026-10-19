@@ -1,0 +1,31 @@
+## spur onto a belt, left side
+host oip.belt-conveyor: openings {left:[[1.2280,2.7720]],mitres:{inner:0.7720,left:[{c:1.0000,x:1.2280},{c:1.0000,x:2.7720}],right:[]},right:[]}
+mover m1 oip.spur-conveyor: extents {leftBack:-0.9900,mitres:{inner:0.7720,left:[{c:1.0000,x:-0.9900}],right:[{c:1.0000,x:-0.9900}]},railCuts:{inner:0.7720,left:[{c:0,x:-0.9900}],right:[{c:0,x:-0.9900}]},rightBack:-0.9900}
+
+## spur onto a roller bed, right side
+host oip.roller-conveyor: openings {left:[],mitres:{inner:0.7720,left:[],right:[{c:1.0000,x:-0.2720},{c:1.0000,x:1.2720}]},right:[[-0.2720,1.2720]]}
+mover m1 oip.spur-conveyor: extents {leftBack:-0.9900,mitres:{inner:0.7720,left:[{c:1.0000,x:-0.9900}],right:[{c:1.0000,x:-0.9900}]},railCuts:{inner:0.7720,left:[{c:0,x:-0.9900}],right:[{c:0,x:-0.9900}]},rightBack:-0.9900}
+
+## roller T into a roller bed, left side
+host oip.roller-conveyor: openings {left:[[-0.7720,0.7720]],mitres:{inner:0.7720,left:[{c:1.0000,x:-0.7720},{c:1.0000,x:0.7720}],right:[]},right:[]}
+mover m1 oip.roller-conveyor: extents {leftBack:-0.9900,mitres:{inner:0.7720,left:[{c:1.0000,x:-0.9900}],right:[{c:1.0000,x:-0.9900}]},railCuts:{inner:0.7720,left:[{c:0,x:-0.9900}],right:[{c:0,x:-0.9900}]},rightBack:-0.9900}
+
+## belt T into a roller bed, right side
+host oip.roller-conveyor: openings {left:[],mitres:{inner:0.7720,left:[],right:[{c:1.0000,x:-1.2720},{c:1.0000,x:0.2720}]},right:[[-1.2720,0.2720]]}
+mover m1 oip.belt-conveyor: extents {leftFront:4.0750,mitres:{inner:0.7720,left:[{c:1.0000,x:4.0750}],right:[{c:1.0000,x:4.0750}]},railCuts:{inner:0.7720,left:[{c:0,x:4.0750}],right:[{c:0,x:4.0750}]},rightFront:4.0750}
+
+## two movers on opposite sides
+host oip.roller-conveyor: openings {left:[[-2.2720,-0.7280]],mitres:{inner:0.7720,left:[{c:1.0000,x:-2.2720},{c:1.0000,x:-0.7280}],right:[{c:1.0000,x:0.7280},{c:1.0000,x:2.2720}]},right:[[0.7280,2.2720]]}
+mover m1 oip.roller-conveyor: extents {leftBack:-0.9900,mitres:{inner:0.7720,left:[{c:1.0000,x:-0.9900}],right:[{c:1.0000,x:-0.9900}]},railCuts:{inner:0.7720,left:[{c:0,x:-0.9900}],right:[{c:0,x:-0.9900}]},rightBack:-0.9900}
+mover m2 oip.roller-conveyor: extents {leftFront:0.9900,mitres:{inner:0.7720,left:[{c:1.0000,x:0.9900}],right:[{c:1.0000,x:0.9900}]},railCuts:{inner:0.7720,left:[{c:0,x:0.9900}],right:[{c:0,x:0.9900}]},rightFront:0.9900}
+
+## roller T at the very end of a roller bed
+host oip.roller-conveyor: openings {left:[[2.0280,3.0000]],mitres:{inner:0.7720,left:[{c:1.0000,x:2.0280}],right:[]},right:[]}
+mover m1 oip.roller-conveyor: extents {leftBack:-0.9900,mitres:{inner:0.7720,left:[{c:1.0000,x:-0.9900}],right:[{c:1.0000,x:-0.9900}]},railCuts:{inner:0.7720,left:[{c:0,x:-0.9900}],right:[{c:0,x:-0.9900}]},rightBack:-0.9900}
+
+## authored opening on a roller bed
+host oip.roller-conveyor: openings {left:[[-2.0000,-1.0000],[0.5000,1.5000]],right:[[0.5000,1.5000]]}
+
+## NEGATIVE: mover end short of the side
+host oip.roller-conveyor: openings {left:[],right:[]}
+mover m1 oip.roller-conveyor: extents {}

@@ -1,0 +1,63 @@
+name: Feature request
+description: Suggest a capability for the simulator, the editor, the PLC engine, or the part SDK.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: >
+        Describe the problem, not the solution. What are you building, and where does the
+        tool get in your way today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the project?
+      options:
+        - Editor and UI
+        - Simulation and physics
+        - PLC / Structured Text engine
+        - Part SDK and custom parts
+        - Rendering
+        - Collaboration
+        - Desktop (Electron) shell
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: fit
+    attributes:
+      label: How does this fit the project's purpose?
+      description: >
+        Open Industry Project is for designing, programming, simulating, and validating
+        industrial automation systems. Requests that strengthen one of those four are
+        easier to accept. A sentence here helps.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: >
+        Including a workaround you are using today, or a way to do this with a custom part
+        rather than an engine change.
+
+  - type: checkboxes
+    id: sdk
+    attributes:
+      label: Could this be a custom part?
+      options:
+        - label: >
+            I checked docs/part-authoring-guide.md and this cannot be built as a part
+            package against @oip/part-sdk.
+          required: false

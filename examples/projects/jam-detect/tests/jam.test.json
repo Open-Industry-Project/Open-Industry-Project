@@ -1,0 +1,30 @@
+{
+  "name": "A box jammed at the eye stops the line, re-trips if restarted too soon, and runs on once cleared",
+  "duration": 15.5,
+  "inputs": [
+    { "at": 0.5, "tag": "Start", "value": true },
+    { "at": 0.6, "tag": "Start", "value": false },
+    { "at": 8.0, "tag": "Reset", "value": true },
+    { "at": 8.1, "tag": "Reset", "value": false },
+    { "at": 8.2, "tag": "Start", "value": true },
+    { "at": 8.3, "tag": "Start", "value": false },
+    { "at": 12.5, "tag": "Reset", "value": true },
+    { "at": 12.6, "tag": "Reset", "value": false },
+    { "at": 12.7, "tag": "Start", "value": true },
+    { "at": 12.8, "tag": "Start", "value": false }
+  ],
+  "faults": [
+    { "at": 3, "until": 12, "kind": "jam", "zone": { "min": [2.4, 0.8, -0.7], "max": [2.8, 1.4, 0.7] } }
+  ],
+  "checks": [
+    { "at": 3, "tag": "JamAlarm", "equals": false },
+    { "eventually": true, "until": 7, "tag": "JamAlarm", "equals": true },
+    { "at": 7.5, "tag": "BeltRun", "equals": false },
+    { "at": 7.5, "tag": "Infeed", "equals": false },
+    { "at": 9, "tag": "BeltRun", "equals": true },
+    { "at": 10.8, "tag": "JamAlarm", "equals": true },
+    { "at": 10.8, "tag": "BeltRun", "equals": false },
+    { "at": 15.4, "tag": "JamAlarm", "equals": false },
+    { "at": 15.4, "tag": "BeltRun", "equals": true }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "oip.curved-roller-conveyor",
+  "name": "Curved Roller Conveyor",
+  "category": "Equipment",
+  "conveyor": {
+    "bed": "arc",
+    "surface": "roller",
+    "speedParam": "speed",
+    "reverseParam": "reverse"
+  },
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "drawn",
+    "bounds": {
+      "length": 2.434,
+      "width": 2.434,
+      "top": 0.17
+    },
+    "conveys": true
+  },
+  "materials": []
+}

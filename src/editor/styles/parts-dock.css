@@ -1,0 +1,122 @@
+/* Left column: scene tree */
+
+.left-panel {
+  grid-area: left;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+}
+
+/* Parts bottom dock */
+
+.dock {
+  grid-area: dock;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+}
+
+.dock-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.dock-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+/* docked, the dock-slot tab strip already labels the panel - drop the redundant
+   inline "PARTS" title (kept in the mobile drawer, which has no tab strip) */
+.dock-slot .dock-title {
+  display: none;
+}
+
+.catalog-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.catalog-tab {
+  padding: 4px 10px;
+}
+
+.catalog-tab.active {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+
+/* How to finish placing, between the tabs and the search. Basis 0, so it never pushes the search onto a line of its
+   own: that would grow the header under the cards the moment placing starts, mid-drag, in a dock of fixed height. It
+   grows into whatever the row leaves and ellipsizes (the whole text is its title). */
+.catalog-placing-hint {
+  flex: 1 1 0;
+  min-width: 120px;
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.catalog-search {
+  /* At the end of the header's one row, not on a row of its own: in the bottom dock the buttons and tabs end about
+     600px in, and a second row took 35px from a dock that is mostly cards. In a narrow side dock the header wraps
+     anyway, and the search wraps with it onto its own line. 140px is what leaves the placing hint room for all of
+     itself at 1366 (258px of it, against 202 beside a 200px search). */
+  flex: 0 1 140px;
+  min-width: 120px;
+  margin-left: auto;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+}
+
+.catalog-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* The header's one row needs about 770px (the buttons, the tabs, a 140px search). Narrower than that - Parts moved to
+   a side dock - it wraps into a stack anyway, and the search takes a whole line of it again rather than sitting as a
+   140px box at one end. */
+.catalog-dock {
+  container: catalog / inline-size;
+}
+
+@container catalog (max-width: 760px) {
+  .catalog-search {
+    flex-basis: 100%;
+  }
+}
+
+/* "+ New part" / "Import part" buttons in the Parts dock header */
+.catalog-author {
+  padding: 4px 9px;
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.catalog-author:hover {
+  background: var(--selected);
+}
+

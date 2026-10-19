@@ -1,0 +1,128 @@
+{
+  "id": "oip.chain-transfer",
+  "name": "Chain Transfer",
+  "category": "Equipment",
+  "conveyor": {
+    "surface": "roller",
+    "speedParam": "speed"
+  },
+  "commsParam": "enableComms",
+  "snap": {
+    "track": {
+      "lanes": {
+        "countParam": "chains",
+        "pitchParam": "distance"
+      },
+      "fitWidthParam": "laneLength",
+      "fitWidthScale": 1,
+      "targetLocalY": -0.03
+    }
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "deck",
+        "parent": "chainBank",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.65,
+            0.06,
+            2
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "chains",
+              "mulParam": "distance"
+            },
+            {
+              "axis": 2,
+              "param": "laneLength",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          -0.03,
+          0
+        ],
+        "conveys": true,
+        "hidden": true,
+        "color": [
+          0.12,
+          0.12,
+          0.13
+        ]
+      },
+      {
+        "name": "chainBank",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "joints": [
+      {
+        "name": "lift",
+        "link": "chainBank",
+        "type": "prismatic",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 0.095
+      }
+    ],
+    "bounds": {
+      "length": 1.65,
+      "width": 2,
+      "top": 0.2,
+      "bottom": -0.3622
+    }
+  },
+  "materials": [
+    {
+      "id": "chain",
+      "albedo": "links",
+      "metalness": 0,
+      "roughness": 1
+    },
+    {
+      "id": "support",
+      "color": [
+        0.4629,
+        0.4629,
+        0.4629
+      ],
+      "metalness": 1,
+      "roughness": 0.6264
+    },
+    {
+      "id": "frame",
+      "color": [
+        0.0879,
+        0.0822,
+        0.4813
+      ],
+      "metalness": 0.7692,
+      "roughness": 0.7088
+    }
+  ],
+  "assets": [
+    {
+      "id": "links",
+      "mime": "image/webp",
+      "url": "/textures/ChainLink.webp"
+    }
+  ]
+}

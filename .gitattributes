@@ -1,0 +1,48 @@
+# Line endings are a property of this REPO, not of whatever core.autocrlf each clone happens
+# to set. The history has always been all-LF, but only because every clone so far was
+# configured that way by hand - a machine setting, invisible to CI and to anyone cloning.
+# `text=auto eol=lf` moves the guarantee into the repo: LF in every blob, LF in every working
+# tree, on every platform. It was a verified no-op on content when added (0 of 1192 tracked
+# non-binary blobs held a CR), so it ratified the existing history rather than rewriting it.
+#
+# The WORKING TREE matters as much as the history because the code here is written largely by
+# tools, which read and rewrite exact bytes. A CRLF working copy turns every multi-line edit
+# into an ending-matching problem, and every whole-file rewrite into a silent flip to LF that
+# produces no diff at all (staging normalizes it away). That drift was already measurable -
+# 323 of 1056 tracked text files had flipped to LF on disk before this rule landed. A uniform
+# tree removes the whole class, and removes the need for an AGENTS.md rule about it.
+* text=auto eol=lf
+
+# Source is text BY DEFINITION, never by content sniffing. `text=auto` decides by scanning for
+# a NUL byte, so a source file that embeds one is silently reclassified as binary and skipped
+# by normalization. Declaring the source extensions `text` takes that guess out of the loop.
+#
+# This does NOT make such a file diffable or searchable, and it is important not to read it
+# that way: `text` governs normalization only. Diffing consults the separate `diff` attribute,
+# and grep/ripgrep do their own sniffing that no git attribute can reach - a NUL-bearing
+# source file prints "Binary file matches" with no line, which makes it invisible to code
+# search and therefore to any agent working in this repo. The only real guard is to not embed
+# NUL bytes in source at all; src/editor/lineEndings.test.ts asserts that.
+*.ts text
+*.tsx text
+*.mjs text
+*.cjs text
+*.js text
+
+# --- exceptions: the files that break with the wrong line ending ----------------------------
+
+# cmd.exe parses labels and parenthesised blocks byte-wise. launch.cmd has a `goto ready`
+# inside a `for /l %%i in (1,1,90) do ( )` block - the exact construct that dies with "The
+# system cannot find the batch label specified" if the file arrives with LF. launch.vbs is
+# pinned beside it; both are Windows-only by definition. src/editor/lineEndings.test.ts
+# asserts they stay CRLF, because a tool editing them would otherwise write LF silently and
+# break the desktop launcher without failing a single test.
+apps/desktop/launch.cmd text eol=crlf
+apps/desktop/launch.vbs text eol=crlf
+
+# Redundant under the blanket rule above, kept deliberately: this is the one file where LF is
+# required rather than stylistic. It is executed by a Linux shell straight out of a
+# WINDOWS working tree, and bash does not tolerate CR (`$'\r': command not found`). If the
+# blanket rule is ever relaxed, this line is what keeps the WSL oracle working. server/*.sh
+# are checked out on the server, where autocrlf is off, so they need no rule.
+scripts/oracle-wsl.sh text eol=lf

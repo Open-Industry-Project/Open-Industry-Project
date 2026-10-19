@@ -1,0 +1,218 @@
+name: Part library
+
+# Publish a part library (docs/part-libraries.md) to the oip-parts R2 bucket, served at
+# parts.openindustryproject.org/<library-id>/index.json. Started by hand ("Run workflow"):
+#
+#   listed ticked     the listed library, oip.community, from the parts repository's main
+#                     (Open-Industry-Project/parts, public, so read without a token): run it after merging a submission
+#   from set          a first-party library's own sources (libraries/<name>)
+#   otherwise         the built-ins of `category`
+#   upload ticked     the new files are uploaded, the index last; unticked, the run ends in a list of what would be
+#
+# Two jobs. `build` reads the published index and packs the parts (npm run build-library, append-only). It runs part
+# code (the listed library's parts are other people's), so it holds no secret. `publish` signs the index (npm run
+# sign-library, which runs no part code) and uploads. It holds the secrets and never runs a part.
+#
+# A published file is never rewritten: it is named by its hash and listed forever. The index is uploaded after the
+# files it names, so a reader never sees a version whose file is missing. Secrets: CLOUDFLARE_API_TOKEN ("Workers R2
+# Storage: Edit") and CLOUDFLARE_ACCOUNT_ID, the same as desktop.yml's, and PART_LIBRARY_SIGNING_KEY (npm run
+# library-key), the project's key (core/librarySignature.ts).
+
+on:
+  workflow_dispatch:
+    inputs:
+      listed:
+        description: The listed library (oip.community) from the parts repository; the fields below are then ignored
+        type: boolean
+        default: false
+      library:
+        description: Library id
+        default: oip.structure
+      name:
+        description: Library name
+        default: Structure
+      from:
+        description: The library's source folder (e.g. libraries/containers); empty packs the built-ins of the category
+        default: ''
+      category:
+        description: The built-ins' catalog category to publish, when no source folder is given
+        default: Structure
+      upload:
+        description: Upload to the bucket (main only)
+        type: boolean
+        default: false
+
+concurrency:
+  # two releases of one library at once would each append to the index they read
+  group: library-${{ inputs.listed && 'oip.community' || inputs.library }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  BUCKET: oip-parts
+  PUBLIC: https://parts.openindustryproject.org
+  UPLOAD: ${{ inputs.upload && github.ref == 'refs/heads/main' }}
+  LIBRARY: ${{ inputs.listed && 'oip.community' || inputs.library }}
+  # Get parts reads from every origin a copy of the app runs on (the site, a self-hosted copy, the desktop
+  # shell), so the bucket allows any origin to GET: .github/library-bucket-cors.json
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The parts repository
+        if: inputs.listed
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Open-Industry-Project/parts
+          path: parts-repository
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+
+      - name: Read the published index
+        # the starting point: build-library appends to it. Absent (404) only before the library's first release.
+        run: |
+          mkdir -p "$RUNNER_TEMP/library"
+          code=$(curl -sS -H 'Cache-Control: no-cache' -o "$RUNNER_TEMP/library/index.json" -w '%{http_code}' "$PUBLIC/$LIBRARY/index.json?run=${{ github.run_id }}")
+          if [ "$code" = "404" ]; then
+            rm -f "$RUNNER_TEMP/library/index.json"
+            echo "No published index yet: this is the first release of $LIBRARY."
+          elif [ "$code" != "200" ]; then
+            echo "::error::$PUBLIC/$LIBRARY/index.json answered $code"
+            exit 1
+          fi
+          cp "$RUNNER_TEMP/library/index.json" "$RUNNER_TEMP/library/.published.json" 2>/dev/null || echo '{"parts":[]}' > "$RUNNER_TEMP/library/.published.json"
+
+      - name: Pack the parts
+        # inputs reach the shell as variables, never pasted into the script
+        env:
+          LISTED: ${{ inputs.listed }}
+          LIBRARY_NAME: ${{ inputs.name }}
+          FROM: ${{ inputs.from }}
+          CATEGORY: ${{ inputs.category }}
+        run: |
+          out="$RUNNER_TEMP/library"
+          if [ "$LISTED" = true ]; then
+            parts=parts-repository/parts
+            if [ -z "$(find "$parts" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)" ]; then
+              # no part yet: an empty library, so the app can list it from the start
+              [ -f "$out/index.json" ] || printf '{\n  "format": 1,\n  "id": "%s",\n  "name": "Community",\n  "licence": { "code": "MIT", "assets": "CC-BY-4.0" },\n  "parts": []\n}\n' "$LIBRARY" > "$out/index.json"
+            else
+              npm run build-library -- "$out" --id "$LIBRARY" --name Community --from "$parts" --listed --namespaces parts-repository/namespaces.json
+            fi
+          elif [ -n "$FROM" ]; then
+            npm run build-library -- "$out" --id "$LIBRARY" --name "$LIBRARY_NAME" --from "$FROM"
+          else
+            npm run build-library -- "$out" --id "$LIBRARY" --name "$LIBRARY_NAME" --category "$CATEGORY"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: library
+          path: ${{ runner.temp }}/library/
+          include-hidden-files: true
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: library
+          path: ${{ runner.temp }}/library
+
+      - name: Read the published index again
+        # fetched here, not taken from the build job's artifact: that job ran part code, so its copy is not trusted
+        run: |
+          code=$(curl -sS -H 'Cache-Control: no-cache' -o "$RUNNER_TEMP/published.json" -w '%{http_code}' "$PUBLIC/$LIBRARY/index.json?run=${{ github.run_id }}-publish")
+          if [ "$code" = "404" ]; then
+            rm -f "$RUNNER_TEMP/published.json"
+          elif [ "$code" != "200" ]; then
+            echo "::error::$PUBLIC/$LIBRARY/index.json answered $code"
+            exit 1
+          fi
+
+      - name: Sign the index
+        # runs no part code (scripts/sign-library.mjs); the key reaches only this step, and only on main. --published
+        # refuses an index that rewrites a published entry or lists a file whose bytes do not match its hash.
+        env:
+          PART_LIBRARY_SIGNING_KEY: ${{ github.ref == 'refs/heads/main' && secrets.PART_LIBRARY_SIGNING_KEY || '' }}
+        run: |
+          if [ -z "$PART_LIBRARY_SIGNING_KEY" ]; then
+            echo "::warning::no PART_LIBRARY_SIGNING_KEY (not main, or no secret: npm run library-key): the index is not signed"
+            exit 0
+          fi
+          npm run sign-library -- "$RUNNER_TEMP/library/index.json" --published "$RUNNER_TEMP/published.json"
+
+      - name: List the new files
+        # every file the new index names that the published one did not
+        run: |
+          [ -f "$RUNNER_TEMP/published.json" ] && cp "$RUNNER_TEMP/published.json" "$RUNNER_TEMP/library/.published.json" || echo '{"parts":[]}' > "$RUNNER_TEMP/library/.published.json"
+          node -e '
+            const fs = require("fs")
+            const files = (i) => new Set(i.parts.flatMap((p) => p.versions.flatMap((v) => (v.thumbnail ? [v.file, v.thumbnail] : [v.file]))))
+            const before = files(JSON.parse(fs.readFileSync(process.argv[1], "utf8")))
+            const after = [...files(JSON.parse(fs.readFileSync(process.argv[2], "utf8")))].filter((f) => !before.has(f))
+            fs.writeFileSync(process.argv[3], after.join("\n") + (after.length ? "\n" : ""))
+          ' "$RUNNER_TEMP/library/.published.json" "$RUNNER_TEMP/library/index.json" "$RUNNER_TEMP/new-files.txt"
+          echo "New files ($(wc -l < "$RUNNER_TEMP/new-files.txt")):"
+          cat "$RUNNER_TEMP/new-files.txt"
+
+      - name: Check the upload credentials
+        # the token must be able to WRITE the bucket. A probe object, written and removed.
+        if: env.UPLOAD == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "probe from ${{ github.run_id }}" > "$RUNNER_TEMP/r2-probe.txt"
+          if ! npx --yes wrangler@4.132.0 r2 object put "$BUCKET/.ci-write-probe" --file "$RUNNER_TEMP/r2-probe.txt" --content-type text/plain --remote; then
+            echo "::error::CLOUDFLARE_API_TOKEN cannot write the $BUCKET R2 bucket: give it 'Workers R2 Storage: Edit'"
+            exit 1
+          fi
+          npx --yes wrangler@4.132.0 r2 object delete "$BUCKET/.ci-write-probe" --remote
+
+      - name: Upload
+        if: env.UPLOAD == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # an index can change with no new file (a signature, a description, a picture's metadata)
+          if [ ! -s "$RUNNER_TEMP/new-files.txt" ] && cmp -s "$RUNNER_TEMP/library/.published.json" "$RUNNER_TEMP/library/index.json"; then
+            echo "Nothing new to publish."
+            exit 0
+          fi
+          # the files first, cached for a year (they never change), then the index, cached for a minute
+          while IFS= read -r f; do
+            case "$f" in
+              *.oippart) type=application/zip ;;
+              *.webp) type=image/webp ;;
+              *.png) type=image/png ;;
+              *.jpg | *.jpeg) type=image/jpeg ;;
+              *) echo "::error::unexpected file $f"; exit 1 ;;
+            esac
+            npx --yes wrangler@4.132.0 r2 object put "$BUCKET/$LIBRARY/$f" --file "$RUNNER_TEMP/library/$f" \
+              --content-type "$type" --cache-control 'public, max-age=31536000, immutable' --remote
+          done < "$RUNNER_TEMP/new-files.txt"
+          npx --yes wrangler@4.132.0 r2 object put "$BUCKET/$LIBRARY/index.json" --file "$RUNNER_TEMP/library/index.json" \
+            --content-type application/json --cache-control 'public, max-age=60' --remote
+          echo "Published $PUBLIC/$LIBRARY/index.json"

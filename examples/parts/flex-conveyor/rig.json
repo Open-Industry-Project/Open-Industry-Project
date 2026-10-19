@@ -1,0 +1,2960 @@
+{
+  "id": "oip.flex-conveyor",
+  "name": "Flex Conveyor",
+  "category": "Equipment",
+  "conveyor": {
+    "surface": "roller",
+    "speedParam": "speed"
+  },
+  "commsParam": "enableComms",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "s0",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "d0",
+        "parent": "s0",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g0L",
+        "parent": "s0",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g0R",
+        "parent": "s0",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e0",
+        "parent": "s0",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s1",
+        "parent": "s0",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d1",
+        "parent": "s1",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g1L",
+        "parent": "s1",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g1R",
+        "parent": "s1",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e1",
+        "parent": "s1",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s2",
+        "parent": "s1",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d2",
+        "parent": "s2",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g2L",
+        "parent": "s2",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g2R",
+        "parent": "s2",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e2",
+        "parent": "s2",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s3",
+        "parent": "s2",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d3",
+        "parent": "s3",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g3L",
+        "parent": "s3",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g3R",
+        "parent": "s3",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e3",
+        "parent": "s3",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s4",
+        "parent": "s3",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d4",
+        "parent": "s4",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g4L",
+        "parent": "s4",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g4R",
+        "parent": "s4",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e4",
+        "parent": "s4",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s5",
+        "parent": "s4",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d5",
+        "parent": "s5",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g5L",
+        "parent": "s5",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g5R",
+        "parent": "s5",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e5",
+        "parent": "s5",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s6",
+        "parent": "s5",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d6",
+        "parent": "s6",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g6L",
+        "parent": "s6",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g6R",
+        "parent": "s6",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e6",
+        "parent": "s6",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s7",
+        "parent": "s6",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d7",
+        "parent": "s7",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g7L",
+        "parent": "s7",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g7R",
+        "parent": "s7",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e7",
+        "parent": "s7",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s8",
+        "parent": "s7",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d8",
+        "parent": "s8",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g8L",
+        "parent": "s8",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g8R",
+        "parent": "s8",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e8",
+        "parent": "s8",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s9",
+        "parent": "s8",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d9",
+        "parent": "s9",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g9L",
+        "parent": "s9",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g9R",
+        "parent": "s9",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e9",
+        "parent": "s9",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s10",
+        "parent": "s9",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d10",
+        "parent": "s10",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g10L",
+        "parent": "s10",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g10R",
+        "parent": "s10",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e10",
+        "parent": "s10",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s11",
+        "parent": "s10",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d11",
+        "parent": "s11",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g11L",
+        "parent": "s11",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g11R",
+        "parent": "s11",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e11",
+        "parent": "s11",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s12",
+        "parent": "s11",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d12",
+        "parent": "s12",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g12L",
+        "parent": "s12",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g12R",
+        "parent": "s12",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e12",
+        "parent": "s12",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s13",
+        "parent": "s12",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d13",
+        "parent": "s13",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g13L",
+        "parent": "s13",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g13R",
+        "parent": "s13",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e13",
+        "parent": "s13",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s14",
+        "parent": "s13",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d14",
+        "parent": "s14",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g14L",
+        "parent": "s14",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g14R",
+        "parent": "s14",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e14",
+        "parent": "s14",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      },
+      {
+        "name": "s15",
+        "parent": "s14",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.0625
+          }
+        ]
+      },
+      {
+        "name": "d15",
+        "parent": "s15",
+        "hidden": true,
+        "conveys": true,
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.05,
+            0.6
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            },
+            {
+              "axis": 2,
+              "param": "width",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          -0.025,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          }
+        ]
+      },
+      {
+        "name": "g15L",
+        "parent": "s15",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          -0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.025
+          }
+        ]
+      },
+      {
+        "name": "g15R",
+        "parent": "s15",
+        "hidden": true,
+        "showParam": "sideGuides",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.62,
+            0.06,
+            0.04
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 0.0625,
+              "add": 0.12
+            }
+          ]
+        },
+        "offset": [
+          0.25,
+          0.03,
+          0.325
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.03125
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": 0.5,
+            "add": 0.025
+          }
+        ]
+      },
+      {
+        "name": "e15",
+        "parent": "s15",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          0.4,
+          0.025,
+          -0.318
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.05
+          },
+          {
+            "axis": 2,
+            "param": "width",
+            "scale": -0.5,
+            "add": -0.018
+          }
+        ],
+        "beam": {
+          "range": 0.6,
+          "rangeParam": "width",
+          "showParam": "showBeam"
+        }
+      }
+    ],
+    "joints": [
+      {
+        "name": "h0",
+        "link": "s0",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h1",
+        "link": "s1",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h2",
+        "link": "s2",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h3",
+        "link": "s3",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h4",
+        "link": "s4",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h5",
+        "link": "s5",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h6",
+        "link": "s6",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h7",
+        "link": "s7",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h8",
+        "link": "s8",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h9",
+        "link": "s9",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h10",
+        "link": "s10",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h11",
+        "link": "s11",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h12",
+        "link": "s12",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h13",
+        "link": "s13",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h14",
+        "link": "s14",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      },
+      {
+        "name": "h15",
+        "link": "s15",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -1.2,
+        "max": 1.2,
+        "cosmetic": true
+      }
+    ],
+    "bounds": {
+      "length": 8.15,
+      "width": 0.82,
+      "top": 0.12,
+      "bottom": -0.8,
+      "params": [
+        {
+          "field": "length",
+          "param": "length",
+          "add": 0.15
+        },
+        {
+          "field": "width",
+          "param": "width",
+          "add": 0.22
+        },
+        {
+          "field": "bottom",
+          "param": "standHeight",
+          "scale": -1
+        }
+      ]
+    }
+  },
+  "materials": [
+    {
+      "id": "steel",
+      "color": [
+        0.552,
+        0.5841,
+        0.624
+      ],
+      "metalness": 0.7,
+      "roughness": 0.32
+    },
+    {
+      "id": "dark",
+      "color": [
+        0.011,
+        0.0123,
+        0.0144
+      ],
+      "metalness": 0.1,
+      "roughness": 0.7
+    },
+    {
+      "id": "eye",
+      "color": [
+        0.8879,
+        0.4735,
+        0.0015
+      ],
+      "metalness": 0.1,
+      "roughness": 0.5
+    }
+  ]
+}

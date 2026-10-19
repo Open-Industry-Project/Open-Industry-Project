@@ -1,0 +1,100 @@
+# Cloudflare Pages response headers. This file IS the production header config. See
+# docs/cdn-runbook.md, and scripts/smoke-prod.mjs which asserts the important ones against every
+# deployment.
+#
+# Pages applies EVERY matching block, not just the first, so the ordering below is for readability
+# rather than precedence, and each block states its full header set instead of relying on
+# inheritance.
+
+# ── every response: no framing ───────────────────────────────────────────────────────────────
+# Nothing legitimately puts this site in a frame, and a framed editor is a clickjacking target (a
+# hidden Use or Delete under a decoy). frame-ancestors is the modern control; X-Frame-Options covers
+# browsers that predate it. No other block sets either header, so Pages' merge of every matching
+# block just adds these two to each block's own set.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+
+# ── the app shell ────────────────────────────────────────────────────────────────────────────
+# COOP+COEP are what make the page cross-origin isolated, which is what makes SharedArrayBuffer,
+# and therefore threaded Jolt, available at all. CORP is needed because WebKit refuses worker-graph
+# loads without it even same-origin (see vite.config.ts).
+#
+# Cache-Control: no-store keeps the shell from being revalidated. A host that strips headers on a 304
+# returns the shell without COOP/COEP, which kills the sim worker in Safari. Cloudflare keeps them,
+# so this could become a normal revalidating cache. no-store is verified working in WebKit on both a
+# first load and a reload; re-test Safari before relaxing it.
+/app
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+  Cache-Control: no-store
+
+/app/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+  Cache-Control: no-store
+
+# ── hashed build output ──────────────────────────────────────────────────────────────────────
+# Content-hashed, so immutable is safe. Carries the COEP/CORP pair because the sim worker and its
+# wasm are served from here and are loaded by a cross-origin-isolated document.
+#
+# No compression rules needed: Cloudflare compresses application/wasm at the edge itself (brotli,
+# checked by scripts/smoke-prod.mjs), so the build ships no precompressed copies.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+
+# ── service worker plumbing ──────────────────────────────────────────────────────────────────
+# no-cache (revalidate every time), never no-store: the SW must be updatable but must not be
+# served stale, or a deploy can't reach an open tab.
+/sw.js
+  Cache-Control: no-cache
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+
+/registerSW.js
+  Cache-Control: no-cache
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# ── baked part assets ────────────────────────────────────────────────────────────────────────
+# public/part-assets/<sha256>.<ext> (scripts/bake-part-assets.mjs): named by the hash of their bytes and never
+# rewritten, so a year, immutable, is safe. A project's copy of a built-in names its model by that hash for good.
+/part-assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# ── unhashed assets ──────────────────────────────────────────────────────────────────────────
+# The app requests these VERSIONED (`?v=<content hash>`, src/core/assetVersions.ts), so a changed
+# file gets a URL neither the edge nor a browser has cached; the edge keys on the query string.
+# Still a day, not a year: this block matches the PATH and cannot tell a
+# versioned request from a bare one (an older shell, a package asset added at run time), and a
+# bare URL must not be pinned for a year. The service worker is where versioned requests get
+# cached for good (CacheFirst, vite.config.ts), so the app loses little by the day.
+/models/*
+  Cache-Control: public, max-age=86400
+
+/textures/*
+  Cache-Control: public, max-age=86400
+
+/thumbnails/*
+  Cache-Control: public, max-age=86400
+
+/fonts/*
+  Cache-Control: public, max-age=31536000
+
+# ── legal notices ────────────────────────────────────────────────────────────────────────────
+# Copied in from the repo root by optimize-assets (copyLegalNotices) and linked from the landing
+# footer. Plain text so a browser SHOWS them: /LICENSE has no extension, so Pages would send it as
+# application/octet-stream (with nosniff) and the link would download a file, and text/markdown is a
+# download in Firefox.
+/LICENSE
+  Content-Type: text/plain; charset=utf-8
+
+/THIRD_PARTY_NOTICES.md
+  Content-Type: text/plain; charset=utf-8

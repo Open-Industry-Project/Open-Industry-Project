@@ -1,0 +1,765 @@
+{
+  "id": "oip.ibc-tote",
+  "name": "IBC tote",
+  "category": "Products",
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "deck",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.2,
+            0.0405,
+            1
+          ]
+        },
+        "offset": [
+          0,
+          -0.4652,
+          0
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block0",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          -0.546,
+          -0.5125,
+          -0.45
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block1",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          -0.546,
+          -0.5125,
+          0
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block2",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          -0.546,
+          -0.5125,
+          0.45
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block3",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          0,
+          -0.5125,
+          -0.45
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block4",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          0,
+          -0.5125,
+          0
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block5",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          0,
+          -0.5125,
+          0.45
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block6",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          0.546,
+          -0.5125,
+          -0.45
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block7",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          0.546,
+          -0.5125,
+          0
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "block8",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.08,
+            0.135,
+            0.091
+          ]
+        },
+        "offset": [
+          0.546,
+          -0.5125,
+          0.45
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "runner0",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.095,
+            0.0245,
+            1
+          ]
+        },
+        "offset": [
+          -0.5525,
+          -0.5677,
+          0
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "runner1",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.095,
+            0.0245,
+            1
+          ]
+        },
+        "offset": [
+          0,
+          -0.5677,
+          0
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "runner2",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.095,
+            0.0245,
+            1
+          ]
+        },
+        "offset": [
+          0.5525,
+          -0.5677,
+          0
+        ],
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.5,
+        "roughness": 0.5
+      },
+      {
+        "name": "tank",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.16,
+            1.025,
+            0.96
+          ]
+        },
+        "offset": [
+          0,
+          0.0675,
+          0
+        ],
+        "colorParam": "color",
+        "metalness": 0,
+        "roughness": 0.35
+      },
+      {
+        "name": "postLF",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            1.025,
+            0.022
+          ]
+        },
+        "offset": [
+          -0.589,
+          0.0675,
+          -0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "postLB",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            1.025,
+            0.022
+          ]
+        },
+        "offset": [
+          -0.589,
+          0.0675,
+          0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "postRF",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            1.025,
+            0.022
+          ]
+        },
+        "offset": [
+          0.589,
+          0.0675,
+          -0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "postRB",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            1.025,
+            0.022
+          ]
+        },
+        "offset": [
+          0.589,
+          0.0675,
+          0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringF0",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.2,
+            0.022,
+            0.022
+          ]
+        },
+        "offset": [
+          0,
+          -0.1067,
+          -0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringB0",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.2,
+            0.022,
+            0.022
+          ]
+        },
+        "offset": [
+          0,
+          -0.1067,
+          0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringL0",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            0.022,
+            1
+          ]
+        },
+        "offset": [
+          -0.589,
+          -0.1067,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringR0",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            0.022,
+            1
+          ]
+        },
+        "offset": [
+          0.589,
+          -0.1067,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringF1",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.2,
+            0.022,
+            0.022
+          ]
+        },
+        "offset": [
+          0,
+          0.2315,
+          -0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringB1",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.2,
+            0.022,
+            0.022
+          ]
+        },
+        "offset": [
+          0,
+          0.2315,
+          0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringL1",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            0.022,
+            1
+          ]
+        },
+        "offset": [
+          -0.589,
+          0.2315,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringR1",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            0.022,
+            1
+          ]
+        },
+        "offset": [
+          0.589,
+          0.2315,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringF2",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.2,
+            0.022,
+            0.022
+          ]
+        },
+        "offset": [
+          0,
+          0.5749,
+          -0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringB2",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1.2,
+            0.022,
+            0.022
+          ]
+        },
+        "offset": [
+          0,
+          0.5749,
+          0.489
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringL2",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            0.022,
+            1
+          ]
+        },
+        "offset": [
+          -0.589,
+          0.5749,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "ringR2",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.022,
+            0.022,
+            1
+          ]
+        },
+        "offset": [
+          0.589,
+          0.5749,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.45,
+          0.46,
+          0.48
+        ],
+        "metalness": 0.7,
+        "roughness": 0.35
+      },
+      {
+        "name": "cap",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.075,
+          "height": 0.035
+        },
+        "offset": [
+          0,
+          0.5975,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.85,
+          0.85,
+          0.82
+        ],
+        "roughness": 0.5
+      },
+      {
+        "name": "valve",
+        "shape": {
+          "kind": "cylinder",
+          "radius": 0.04,
+          "height": 0.09
+        },
+        "offset": [
+          0,
+          -0.365,
+          -0.53
+        ],
+        "rotation": [
+          1.5707963267948966,
+          0,
+          0
+        ],
+        "collision": "none",
+        "color": [
+          0.2,
+          0.2,
+          0.22
+        ],
+        "roughness": 0.6
+      }
+    ],
+    "joints": []
+  },
+  "cargo": {
+    "friction": 0.5,
+    "forkPockets": true,
+    "heavy": true,
+    "loadBase": true
+  },
+  "materials": []
+}

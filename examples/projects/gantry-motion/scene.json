@@ -1,0 +1,48 @@
+{
+  "version": 4,
+  "parts": [
+    {
+      "id": "gantry-1",
+      "type": "part",
+      "packageId": "oip.gantry",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotationY": 0,
+      "params": {
+        "enableComms": true,
+        "mode": "follow",
+        "enableTag": "Enable",
+        "executeTag": "Execute",
+        "targetXTag": "TargetX",
+        "targetYTag": "TargetY",
+        "targetZTag": "TargetZ",
+        "gripperTag": "Vacuum",
+        "doneTag": "Done",
+        "faultTag": "Fault",
+        "actualXTag": "ActualX",
+        "actualYTag": "ActualY",
+        "actualZTag": "ActualZ"
+      }
+    },
+    {
+      "id": "box-1",
+      "type": "part",
+      "packageId": "oip.box",
+      "position": [
+        -1.2,
+        0.15,
+        0.5
+      ],
+      "rotationY": 0,
+      "params": {
+        "length": 0.3,
+        "width": 0.3,
+        "height": 0.3,
+        "mass": 5
+      }
+    }
+  ]
+}

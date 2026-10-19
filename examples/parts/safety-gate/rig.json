@@ -1,0 +1,147 @@
+{
+  "id": "oip.safety-gate",
+  "name": "Safety Gate",
+  "category": "Structure",
+  "commsParam": "enableComms",
+  "snap": {
+    "chain": {
+      "group": "barrierFence",
+      "lengthParam": "length",
+      "reach": 1,
+      "omitStartParam": "omitPostStart",
+      "omitEndParam": "omitPostEnd"
+    }
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "hinge",
+        "shape": {
+          "kind": "frame"
+        },
+        "offset": [
+          -0.5,
+          0,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": -0.5
+          }
+        ]
+      },
+      {
+        "name": "leaf",
+        "parent": "hinge",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.92,
+            2,
+            0.06
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1,
+              "add": -0.08
+            }
+          ]
+        },
+        "offset": [
+          0.5,
+          1,
+          0
+        ],
+        "offsetParams": [
+          {
+            "axis": 0,
+            "param": "length",
+            "scale": 0.5
+          }
+        ],
+        "hidden": true
+      },
+      {
+        "name": "interact",
+        "shape": {
+          "kind": "box",
+          "size": [
+            1,
+            2,
+            0.3
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length",
+              "scale": 1
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1,
+          0
+        ],
+        "hidden": true,
+        "collision": "none"
+      }
+    ],
+    "joints": [
+      {
+        "name": "swing",
+        "link": "hinge",
+        "type": "revolute",
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "min": -3.15,
+        "max": 3.15
+      }
+    ],
+    "bounds": {
+      "length": 1,
+      "width": 0.2,
+      "top": 2
+    }
+  },
+  "materials": [
+    {
+      "id": "postMetal",
+      "color": [
+        0.949,
+        0.741,
+        0.059
+      ],
+      "metalness": 0.1,
+      "roughness": 0.45
+    },
+    {
+      "id": "meshMetal",
+      "color": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "metalness": 0.4,
+      "roughness": 0.5
+    },
+    {
+      "id": "handleMetal",
+      "color": [
+        0.788,
+        0.09,
+        0.09
+      ],
+      "metalness": 0.2,
+      "roughness": 0.4
+    }
+  ]
+}

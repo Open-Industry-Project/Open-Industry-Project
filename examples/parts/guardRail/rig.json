@@ -1,0 +1,139 @@
+{
+  "id": "oip.guard-rail",
+  "name": "Guard Rail",
+  "category": "Structure",
+  "snap": {
+    "chain": {
+      "group": "guardRail",
+      "lengthParam": "length",
+      "reach": 3,
+      "omitStartParam": "omitPostStart",
+      "omitEndParam": "omitPostEnd"
+    }
+  },
+  "geometry": {
+    "kind": "rig",
+    "links": [
+      {
+        "name": "railTop",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.032,
+            0.032
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length"
+            }
+          ]
+        },
+        "offset": [
+          0,
+          1.07,
+          0
+        ],
+        "color": [
+          0.949,
+          0.741,
+          0.059
+        ],
+        "colorParam": "color",
+        "collision": "none"
+      },
+      {
+        "name": "railMid",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            0.032,
+            0.032
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length"
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.54,
+          0
+        ],
+        "color": [
+          0.949,
+          0.741,
+          0.059
+        ],
+        "colorParam": "color",
+        "collision": "none"
+      },
+      {
+        "name": "post",
+        "shape": {
+          "kind": "box",
+          "size": [
+            0.04,
+            1.07,
+            0.04
+          ]
+        },
+        "offset": [
+          0,
+          0.535,
+          0
+        ],
+        "color": [
+          0.949,
+          0.741,
+          0.059
+        ],
+        "colorParam": "color",
+        "collision": "none",
+        "array": {
+          "distribute": {
+            "axis": 0,
+            "spanParam": "length",
+            "maxSpacing": 2.4
+          },
+          "omitFirstParam": "omitPostStart",
+          "omitLastParam": "omitPostEnd"
+        }
+      },
+      {
+        "name": "wall",
+        "shape": {
+          "kind": "box",
+          "size": [
+            4,
+            1.07,
+            0.06
+          ],
+          "sizeParams": [
+            {
+              "axis": 0,
+              "param": "length"
+            }
+          ]
+        },
+        "offset": [
+          0,
+          0.535,
+          0
+        ],
+        "hidden": true
+      }
+    ],
+    "joints": [],
+    "bounds": {
+      "length": 4,
+      "width": 0.08,
+      "top": 1.07
+    }
+  },
+  "materials": []
+}
