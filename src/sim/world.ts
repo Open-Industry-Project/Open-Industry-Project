@@ -69,6 +69,7 @@ import { buildRigBodies, linkDrivenByJoint } from './rigBuild'
 import type { RigBodySink } from './rigBuild'
 import { RigDriver } from './rigDriver'
 import { SensorRegistry } from './sensorRegistry'
+import { LoadCells } from './loadCells'
 import { behaviorRecord, partPackageRev, partSignature } from './worldTypes'
 import type { BehaviorRecord, BodyHolder, JoltModule, KinematicScratch, LiveBox, PartGroup, StepClock, UnitLoad } from './worldTypes'
 
@@ -163,6 +164,8 @@ export class SimWorld implements SimCore<BoxFrame> {
   private readonly rigDriver: RigDriver
   /** the sensing parts' beams and zones, and the casts/counts over the cargo (sensorRegistry.ts) */
   private readonly sensors: SensorRegistry
+  /** the rigs' load-cell links and what they read (loadCells.ts, ctx.weight) */
+  private readonly loadCells: LoadCells
   /** every part's bodies, filed by part, and the constructors that file them (partBodies.ts) */
   private readonly bodies: PartBodies
   /** the part groups, read-only (PartBodies.groups): updateScene's reconcile reads them, and sdkConveyorParity
@@ -293,6 +296,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.pilot = new PilotCapsule(J, this.bodyInterface, this.axisY, this.kin)
     this.cargo = new CargoRegistry(J, this.system, this.bodyInterface, this.axisY, this.clock, this.hz, boxes, this.holds, this.partGroups)
     this.sensors = new SensorRegistry(this.cargo, boxes, this.holds, this.pilot, this.clock, this.hz)
+    this.loadCells = new LoadCells(this.system, this.bodyInterface, this.cargo, boxes, this.holds, this.dt)
     this.rigDriver = new RigDriver(this.bodyInterface, this.kin, this.dt, boxes, this.cargo, this.holds, this.sensors, this.rigMsByPart)
     this.flow = new CargoFlow(this.cargo, boxes, this.holds, this.sensors, this.rigDriver.rigs, this.partGroups, this.cargo.dressings, this.clock, this.hz)
     this.flowFacts = opts.flowFacts === false ? null : new SimFlowFacts(scene.parts, this.cargo, boxes, this.holds, this.sensors, this.bus, this.clock, this.hz)
@@ -442,8 +446,14 @@ export class SimWorld implements SimCore<BoxFrame> {
       if (emitters) {
         const tb = this.perfParts ? performance.now() : 0
         beams = {}
-        for (const e of emitters) beams[e.name] = sensors.castBeam(e.origin, e.dir, e.range)
+        let hitBoxes: Record<string, LiveBox> | undefined
+        for (const e of emitters) {
+          beams[e.name] = sensors.castBeam(e.origin, e.dir, e.range)
+          const hit = sensors.lastBeamHit.box
+          if (hit) (hitBoxes ??= {})[e.name] = hit
+        }
         b.beamHits = beams // captured for the frame - the view draws beams from this, never re-casting
+        b.beamBoxes = hitBoxes // what ctx.markHit marks, so the mark lands on the body the part saw
         if (this.perfParts) this.phaseMs.beams += performance.now() - tb
       }
       const zoneList = b.partId ? sensors.zonesOf(b.partId) : undefined // C-despawn
@@ -481,6 +491,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       inp.zoneAges = zoneAges
       inp.zoneMarks = zoneMarks
       inp.zoneMix = zoneMix
+      inp.weights = b.partId ? this.loadCells.readingsOf(b.partId) : undefined // ctx.weight
       inp.joints = b.measuredJoints
       inp.grips = b.heldGrips
       inp.used = used
@@ -633,9 +644,11 @@ export class SimWorld implements SimCore<BoxFrame> {
   // C-convey: build a static conveyor body for each `conveys` (box) link of a rig - a powered deck whose top
   // carries cargo. The behavior's setSurfaceVelocity drives the (first) link's ConveyorEntry, so a belt's deck
   // conveys exactly like the deck-geometry path, but inside a rich rig (frame, guards, …).
-  private attachRigConveyors(rec: BehaviorRecord, part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number, bodies: { name: string; body: Jolt.Body; id: Jolt.BodyID; offset?: Vec3 }[], inclineRad = 0): void {
+  // Returns the deck bodies by link name.
+  private attachRigConveyors(rec: BehaviorRecord, part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number, bodies: { name: string; body: Jolt.Body; id: Jolt.BodyID; offset?: Vec3 }[], inclineRad = 0): Map<string, Jolt.Body> {
+    const built = new Map<string, Jolt.Body>()
     const decks = geo.links.filter((l) => l.conveys && l.shape.kind === 'box')
-    if (decks.length === 0) return
+    if (decks.length === 0) return built
     const partQuat = qFromAxisAngle([0, 1, 0], part.rotationY)
     const rest = rigWorldPoses(geo, {}, undefined, scale, part.params as RigParams, inclineRad)
     // an inclined deck tilts about the rig root: the FK already lifted lp.pos + rolled lp.quat, so the static
@@ -675,6 +688,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       // segments many, all sharing the behavior's surface/arc command.
       ;(rec.conveyorEntries ??= []).push(entry)
       ;(rec.deckBodies ??= []).push(body)
+      built.set(link.name, body)
       // a joint-driven deck is re-posed each tick by RigDriver.drive (the body centre is the link origin).
       if (jointDriven) bodies.push({ name: link.name, body, id: body.GetID() })
     }
@@ -682,6 +696,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     // until the conveyor's behavior first commands a non-zero speed - a real-but-not-yet-ticked conveyor reads
     // "stopped", not "unknown" (which a dangling id reads). Overwritten each tick by tickBehaviors.
     this.bus.setConveyorSpeed(part.id, 0)
+    return built
   }
 
   /** the new box's frame id, or -1 when the physics system has no room left for another body */
@@ -990,7 +1005,14 @@ export class SimWorld implements SimCore<BoxFrame> {
         this.rigDriver.add({ rec, geo, pkg, pos: part.position, rotationY: part.rotationY, scale, params: part.params as RigParams, inclineRad, bodies, grips: new Map(), emptied: new Set() })
         this.sensors.collectBeams(part, geo, scale, resolvePartParams(pkg.params, part.params as Record<string, ParamValue>))
         this.sensors.collectZones(part, geo, scale)
-        this.attachRigConveyors(rec, part, geo, scale, bodies, inclineRad)
+        const decks = this.attachRigConveyors(rec, part, geo, scale, bodies, inclineRad)
+        const cells: { name: string; body: Jolt.Body; he: Vec3 }[] = []
+        for (const link of geo.links) {
+          if (!link.loadCell) continue
+          const body = decks.get(link.name) ?? bodies.find((rb) => rb.name === link.name)?.body
+          if (body) cells.push({ name: link.name, body, he: linkHalfExtents(link, part.params as RigParams) })
+        }
+        this.loadCells.set(part.id, cells)
       }
     }
   }
@@ -1439,6 +1461,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     if (!group) return
     this.bodies.destroyBodies(group)
     this.bus.deleteConveyorSpeed(id) // a speed-bearing part no longer exists to interlock against
+    this.loadCells.set(id, []) // its platforms' bodies are gone
     this.holds.forgetPart(id)
     for (const boxId of [...group.boxIds]) {
       const i = this.boxes.findIndex((b) => b.id === boxId)
@@ -1458,6 +1481,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.bus.destroyAll()
     this.rigDriver.clear() // bodies are torn down via their part group; just drop the stale refs
     this.sensors.clear()
+    this.loadCells.clear()
     J.destroy(this.joltInterface)
     this.facets.dispose()
     this.cargo.dispose()

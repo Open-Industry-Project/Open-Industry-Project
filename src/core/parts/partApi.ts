@@ -701,6 +701,16 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
    * "wrapped". A beam also sees the walking pilot, as a real photo-eye sees a person, and a box the pilot carries.
    */
   sense(beam: string): { hit: boolean; distance: number; color: [number, number, number]; marks?: Readonly<Record<string, number | boolean | string>> }
+  /**
+   * Read a load cell: the weight resting on a `loadCell` link this tick, in kg (the vertical force through the
+   * platform over g). The host measures it from the physics, not from what the cargo says it weighs: every body
+   * touching the link's top and everything stacked on it, at its own mass and with its vertical acceleration, so a
+   * case dropping onto the platform or a lift starting up reads high for a moment, as a real scale does. Exact while
+   * the load rests on the platform alone; a case still crossing onto it counts by the share of its footprint over
+   * the link. Filtering, settling and tare are the machine's job, as on a real checkweigher: read it while one case
+   * is fully on and the reading is steady. An unknown link reads 0.
+   */
+  weight(link: string): number
   /** read a BOOL PLC tag (device I/O bus); a numeric tag reads as `!== 0`, an absent tag as false */
   readTag(name: string): boolean
   /**
@@ -840,18 +850,29 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
    * Product state: what a machine does to cargo besides making, moving and removing it. Four effects and one read,
    * all on the cargo in a zone (the same rig link names as {@link zone}), all applied by the host after this tick:
    *
-   * - {@link mark} leaves a fact on it that other parts can read ({@link marked}, a beam's `marks`): a labeller's
-   *   ID, "wrapped", "passed inspection". A program sees it through the part that reads it, as a tag.
+   * - {@link mark} leaves a fact on every cargo body whose centre is in the zone, for other parts to read
+   *   ({@link marked}, a beam's `marks`): "scanned", "wrapped", "passed inspection". A program sees it through the
+   *   part that reads it, as a tag.
    * - {@link dress} fits a look to the load (film, a label, straps), drawn in one of your package's materials; it
    *   stays on the load from then on.
    * - {@link join} makes the load one unit load: the pallet and everything on it become a single rigid body (each
    *   piece still drawn, counted and sensed where it stands), as wrapping or strapping does. Only the host takes
    *   one apart (a hand lifting a piece out, or a piece leaving the world).
    *
-   * "The load" is found the same way by all of them: the lowest pallet in the zone (else the lowest body) and
-   * everything resting on it inside its footprint, course on course.
+   * "The load", for dress and join, is the lowest pallet in the zone (else the lowest body) and everything resting
+   * on it inside its footprint, course on course.
+   *
+   * To act on one body rather than on the cargo in a zone (a label on the case a pad touched), use {@link markHit}.
    */
   mark(zone: string, key: string, value: number | boolean | string): void
+  /**
+   * Leave a mark on the one body a beam hit this tick: the case a labeller's pad touched, the item a coder printed
+   * on. It is the body {@link sense} reported for that beam, so a short beam on the face of a tamp pad marks only
+   * the case the pad is against, never a neighbour beside it. Nothing is marked when the beam is clear or sees
+   * only the walking pilot. A piece of a unit load marks the load, as {@link mark} does. Applied by the host after
+   * this tick, in call order with the zone calls.
+   */
+  markHit(beam: string, key: string, value: number | boolean | string): void
   /** How many cargo bodies in a zone carry a truthy mark `key` (counted like {@link zone}: every case of a unit load). */
   marked(zone: string, key: string): number
   /**

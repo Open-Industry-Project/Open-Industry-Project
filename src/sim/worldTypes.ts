@@ -226,6 +226,8 @@ export interface BehaviorRecord {
   /** latest sensor-beam results this step (beam link name → nearest-cargo hit), captured in tickBehaviors
    *  for the frame: the same castBeam output handed to the behavior as ctx.sense */
   beamHits?: Record<string, FrameBeamHit>
+  /** the cargo body each beam hit this step, for the beams that hit one (ctx.markHit marks it); absent when none did */
+  beamBoxes?: Record<string, LiveBox>
   /** latest free-form link pose overrides this step (rig setSubPose), captured in tickBehaviors */
   subPoses?: Record<string, SubPose>
   /** latest PLC tags this script wrote this step (ctx.writeTag/writeNumber), captured for the frame */
@@ -266,6 +268,7 @@ export function behaviorRecord(handle: number, pos: [number, number, number], fw
     values: undefined,
     displays: undefined,
     beamHits: undefined,
+    beamBoxes: undefined,
     subPoses: undefined,
     tags: undefined,
     mobile: undefined,

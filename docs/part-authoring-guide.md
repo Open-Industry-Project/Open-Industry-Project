@@ -477,7 +477,7 @@ Every field is data the host reads; no field changes what another means.
 | Body | |
 |---|---|
 | `collision` | omitted = the shape's default (`box` / `cylinder` collide as themselves; `mesh`, `cone`, `frame`, `label`, `leg` do not). `'none'` = drawn but never solid (a roller bed's rollers, where the conveying box is the real surface). `{ box: [x, y, z] }` on a `mesh` link = collide as that box, centred on the link origin |
-| `conveys` | this box is a conveying surface: cargo on its top rides at the velocity the behavior sets |
+| `conveys` | this box is a conveying surface: cargo on its top rides at the velocity the behavior sets. Under a jointed parent it follows the joint and carries its cargo along, so a vertical lift is a `conveys` deck on a prismatic joint |
 
 | On a conveyor (`'left'` is −Z; the bed runs along +X) | |
 |---|---|
@@ -496,6 +496,7 @@ Every field is data the host reads; no field changes what another means.
 |---|---|
 | `beam` | a sensor ray the behavior reads with `ctx.sense`. Cast from where its link stood at the end of the last step, so an eye on a moving link moves with it ([stretch-wrapper](../examples/parts/stretch-wrapper/)'s carriage eye). It sees cargo, the walking pilot, and a box the pilot carries. Length is the static `range`, or the `number` param named in `rangeParam` (what it senses and draws; a mount's `fitRangeParam` usually names the same one). `showParam` names a boolean that hides the drawn line. The host reads no param by its name: a param called `maxRange` does nothing until a beam names it. `axis` is the link-local direction (default +Z); `tint: 'hit'` colours a blocked beam with the cargo's tint instead of red (the colour sensor) |
 | `zone` | a cargo volume for `ctx.zone` / `ctx.despawn`. Never counts the pilot or a box the pilot carries |
+| `loadCell` | this box link is a weighing platform, read with `ctx.weight` in kg. The host measures the force from the physics: each body resting on the link and everything stacked on it, at its own mass and with its vertical acceleration, so a landing or a lift starting reads high for a moment. Exact while the load rests on the link alone; a case crossing onto it counts by the share of its footprint over the link. Works on a `conveys` deck (a weigh belt) or a plain solid box (a platform scale) |
 | `grip` | a gripper link's pickup volume: `{ zone: { size, offset?, sizeParams? } }` (an oriented box in the link's frame) or `{ radius, radiusParams? }` (a reach past the link's extents; default 0.2 m). Any link can be commanded to grip; this sizes what it takes. Add `forks: { spread \| spreadParam, bladeWidth, bladeThickness }` for a fork gripper whose blades run along the link's +X; taking a pallet through a face its blades don't fit is reported on the part ([agv](../examples/parts/agv/)) |
 
 | Lamps | |
@@ -1099,7 +1100,7 @@ Besides `params` and the required `step(ctx)`, `definePart` declares:
 | Servos | `servos.name` (a joint the manifest marks `servo`; `servo(name)` for a computed name): `power(on)`, `moveAbsolute(pos, { velocity, accel?, decel?, direction? })`, `moveRelative`, `moveVelocity(v)`, `follow(setpoint)`, `halt`, `stop` / `releaseStop`, `reset`, `home`; reads `position`, `velocity`, `state`, `inPosition`, `error`, `done(id)` / `aborted(id)`. See [Servos](#servos-let-the-host-run-the-motion) |
 | Grippers | `grips.name = bool` (`setGrip(name, on)` for a computed name), `measured.grips` (true = actually carrying). If something takes the load out of a closed gripper (the walking pilot, a drag), it drops its whole load, reads false, and stays open until you command it false again |
 | Mobility | `drive(forward, turn)` moves the live root; steer closed-loop off `position` / `forward` |
-| Sensing | `sense(beam)` → `{ hit, distance, color }` (hits cargo and the walking pilot, whose `color` is a mid grey that reads as no colour), `zone(name, filter?)` → cargo count (never the pilot or a box it carries; `{ part }` counts one product, `{ kind }` one kind), `zoneAge(name, filter?)` → that cargo's summed age (s) |
+| Sensing | `sense(beam)` → `{ hit, distance, color }` (hits cargo and the walking pilot, whose `color` is a mid grey that reads as no colour), `zone(name, filter?)` → cargo count (never the pilot or a box it carries; `{ part }` counts one product, `{ kind }` one kind), `zoneAge(name, filter?)` → that cargo's summed age (s), `weight(link)` → kg on a `loadCell` link |
 | Cargo | `spawn({ part, params, color, mass, offset })` makes a product: the cargo part `part` names, as if placed, with `params` over its own ([spawner](../examples/parts/box-spawner/behavior.ts)). The other form, `spawn({ kind, size, ... })` (`kind` `'box'`, the default, `'pallet'` or `'tote'`), makes a bare body. At most 8 a tick, the rest dropped. `despawn(zone)`. See cargo conservation below |
 | Product state | See below |
 | Lamps | `lamps.name = bool` (`setEmissive(name, on)` for a computed name) |
@@ -1113,11 +1114,14 @@ Besides `params` and the required `step(ctx)`, `definePart` declares:
 the line). A machine that stores cargo and gives it back holds the real items with grippers, one per storage
 position, and never despawns them to spawn stand-ins ([pallet-dispenser](../examples/parts/pallet-dispenser/)).
 
-**Product state** acts on the cargo in a zone, applied after the tick. "The load" is always the lowest pallet in
-the zone and everything resting on it inside its footprint.
+**Product state** acts on the cargo in a zone, applied after the tick. `mark` acts on every cargo body whose centre
+is in the zone. `dress` and `join` act on "the load": the lowest pallet in the zone and everything resting on it
+inside its footprint.
 
-- `mark(zone, key, value)` leaves a fact on it (a label's ID, `wrapped`), read back by `marked(zone, key)` (a
+- `mark(zone, key, value)` leaves a fact on each of them (`scanned`, `wrapped`), read back by `marked(zone, key)` (a
   count) and by a beam hit's `marks`.
+- `markHit(beam, key, value)` leaves the fact on the one body a beam hit this tick instead: the case a labeller's pad
+  touched, the item a coder printed on. Put a short beam on the pad's face and only the case against it is marked.
 - `dress(zone, { id, material, opacity?, upTo?, web? })` fits a see-through sleeve round the load in one of your
   package's materials (film, straps). `upTo` clips it at a height above your origin, and it only grows;
   `web: { link, offset, height }` draws the sheet paying out from a roll on that link.
@@ -1348,7 +1352,8 @@ and opening mid-stroke drops it in mid-air.
 The sandbox enforces the first three. The rest keep a part correct and portable.
 
 - Be deterministic. `Date`, `Math.random`, `fetch` and timers are rejected at load. The same inputs give the same
-  sim on every run.
+  sim on every run. A `window`, `document` or `process` you declare yourself (`let window = 0`) is your own variable and is not
+  rejected; a variable named `Date`, `fetch` or a timer is.
 - Loops are budgeted. One call into your part (a `step`, a `geometry` build, `init`) may run 10 million loop
   iterations; past that it is stopped with an error naming the cause. The limit is counted, not timed, so it
   fails at the same point on every machine.
@@ -1356,6 +1361,10 @@ The sandbox enforces the first three. The rest keep a part correct and portable.
   non-finite `setSurfaceVelocity`, a non-positive `spawn` size).
 - Command, don't accumulate blindly. Drive joints and velocities every tick from params, tags and `simTime`, and
   use `measured.*` for closed-loop feedback.
+- Sense what the real machine senses. A real machine has photo-eyes, encoders, position switches and load cells,
+  not a volume that counts boxes. Build it from `beam`s, a conveyor's encoder tag, `measured.joints` and `loadCell`
+  links, coordinated in the behavior or the PLC program as on the real machine, and act on the body a sensor sees
+  (`markHit`). A `zone` suits what happens to whatever stands in a place: a sink, a wrapper's turntable.
 - Parts see only themselves. There is no scene query: facts about other parts arrive as host-computed inputs
   (beams, zones, `rest` params, tag values), which keeps a part portable and the sim's inputs explicit
   ([seam-resolvers](seam-resolvers.md)).

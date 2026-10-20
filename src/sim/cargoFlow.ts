@@ -174,12 +174,17 @@ export class CargoFlow {
     }
   }
 
-  // ctx.mark / dress / join: each on the cargo in a named zone of the calling part, in call order.
+  // ctx.mark / dress / join: each on the cargo in a named zone of the calling part, in call order. ctx.markHit: on the
+  // body a beam of the part hit this step.
   fulfillCargoOps(b: BehaviorRecord, ops: CargoOp[]): void {
     const zones = b.partId ? this.sensors.zonesOf(b.partId) : undefined
-    if (!zones) return
     for (const op of ops) {
-      const z = zones.find((zz) => zz.name === op.zone)
+      if (op.op === 'markHit') {
+        const box = b.beamBoxes?.[op.beam]
+        if (box) this.markPiece(box, { [op.key]: op.value }, b)
+        continue
+      }
+      const z = zones?.find((zz) => zz.name === op.zone)
       if (!z) continue
       const bodies = this.cargo.wrapBodies() // fresh per op: a join or split re-bodies the pieces
       if (op.op === 'mark') {

@@ -18,6 +18,14 @@ describe('partScript compile chokepoint', () => {
     expect(error).toContain('not deterministic')
   })
 
+  it('runs a script that declares its own variable named like a host global', () => {
+    // the shim for `window` would otherwise be a parameter, and `let window` a redeclaration of it
+    const { def, error } = instantiatePartScript(`let window = 2\nfunction document(n) { return n * window }\ndefinePart({ step(ctx) { ctx.writeNumber('x', document(3)) } })`)
+    expect(error).toBe('')
+    expect(def?.step).toBeTypeOf('function')
+    expect(instantiatePartScript(`let window = 2\ndefinePart({ step() { return Date.now() } })`).error).toContain('not deterministic')
+  })
+
   it('rejects a script that never calls definePart', () => {
     const { def, error } = instantiatePartScript(`const x = 1`)
     expect(def).toBeNull()

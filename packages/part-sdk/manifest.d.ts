@@ -489,6 +489,15 @@ export interface RigLink {
         size: Vec3Tuple;
         sizeParams?: SizeParamRef[];
     };
+    /** This (box) link is a weighing platform: a load cell under it. The host reads the vertical force the cargo
+     *  resting on it puts through it each tick, and the behavior reads it with `ctx.weight(linkName)`, in kg. The
+     *  force comes from the physics: every body touching the link's top and everything stacked on it, at its own mass,
+     *  with the vertical acceleration it has this tick, so a load landing on the platform or riding a lift reads more
+     *  for a moment, as on a real scale. Exact while the load rests on this link alone. A body that also rests on
+     *  something else (a case crossing the seam onto a weigh belt) counts by the share of its footprint over the link,
+     *  so the reading ramps as it comes on. Works on a `conveys` deck (a checkweigher's weigh belt) and on a plain
+     *  solid box (a platform scale). */
+    loadCell?: boolean;
     /** This link grips: its pickup volume, where cargo is taken when the behavior closes it (`ctx.setGrip` /
      *  `ctx.grips`). Any link can be commanded to grip; this block sizes what it takes ({@link RigGrip}). Omit it and
      *  the link picks within the host's 0.2 m default reach. Package format 3 spelled these `grabZone`,
@@ -506,7 +515,9 @@ export interface RigLink {
     };
     /** This (box) link is a conveyor surface: its top face carries cargo at the velocity the behavior
      *  sets via `ctx.setSurfaceVelocity` (a powered belt/roller deck). The host builds it as a static conveyor
-     *  body (not a kinematic link body), so cargo rides it; other links (frame, guards) stay normal. */
+     *  body, so cargo rides it; other links (frame, guards) stay normal. A `conveys` link under a joint (a lift's
+     *  carriage, a pop-up transfer) is built kinematic instead and follows the joint each tick, carrying its cargo
+     *  with it: a vertical lift is a `conveys` deck on a prismatic joint. */
     conveys?: boolean;
     /** Author-mode visibility: when true the link (and its subtree, via the render group) is hidden in the
      *  rendered part - the Scene-tree eye toggle. Render-only: the sim/collision body is still built, like a

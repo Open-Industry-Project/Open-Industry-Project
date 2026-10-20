@@ -103,6 +103,7 @@ export function rigBeams(part: SdkPart, geo: Extract<PartPackage['geometry'], { 
 // Cast one world beam against every cargo box; return the nearest hit (or a clear result at full range).
 // `snap` is the step's batched pose rows (null = stock build), `near` the rows the cargo registry's floor grid says may lie
 // near the beam (null = every row), `s` the sensor registry's scratch for the OBB test and `pilotBody` the walking pilot.
+// `hit.box` is left holding the cargo body the beam hit, or null when it is clear or hit the pilot (ctx.markHit).
 export function castBeamRows(
   origin: Vec3,
   dir: Vec3,
@@ -112,7 +113,9 @@ export function castBeamRows(
   near: readonly number[] | null,
   s: { pos: Vec3; quat: Quat; half: Vec3 },
   pilotBody: Jolt.Body | null,
+  hit?: { box: LiveBox | null },
 ): FrameBeamHit {
+  if (hit) hit.box = null
   let bestT = Infinity
   let best: LiveBox | null = null
   const ox = origin[0]
@@ -189,6 +192,7 @@ export function castBeamRows(
     if (t !== null && t <= range && t < bestT) return { hit: true, distance: t, color: PILOT_BEAM_COLOR }
   }
   if (!best) return { hit: false, distance: range, color: [0, 0, 0] }
+  if (hit) hit.box = best
   const marks = marksOf(best)
   return { hit: true, distance: bestT, color: best.color, ...(marks ? { marks } : {}) }
 }

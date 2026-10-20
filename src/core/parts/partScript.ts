@@ -18,7 +18,7 @@
 // (docs/part-sandbox.md). Hosts that never lock down (CLIs, unlocked unit tests) compile with the plain
 // Function constructor.
 
-import { checkDeterminism, formatDeterminismViolations } from '../determinism'
+import { checkDeterminism, declaredNamesOf, formatDeterminismViolations } from '../determinism'
 import { instrumentLoops, LOOP_BUDGET, LOOP_GUARD } from '../loopGuard'
 import type { ParamSchema, ParamValue, PartDefinition } from './partApi'
 import { partSandboxActive } from './partSandbox'
@@ -185,6 +185,15 @@ function budgeted(captured: PartDefinition, label: Uint8Array | null): PartDefin
 const SHIM_NAMES = [...Object.keys(SHIMS), LOOP_GUARD]
 const SHIM_VALUES = [...Object.keys(SHIMS).map((n) => SHIMS[n]), loopGuard]
 
+/** the shims for one source: a name the script declares itself is its own, and a shim parameter of the same name
+ *  would make its `let window` a redeclaration */
+function shimsFor(source: string): { names: string[]; values: unknown[] } {
+  const own = declaredNamesOf(source)
+  if (![...own].some((n) => n in SHIMS)) return { names: SHIM_NAMES, values: SHIM_VALUES }
+  const names = Object.keys(SHIMS).filter((n) => !own.has(n))
+  return { names: [...names, LOOP_GUARD], values: [...names.map((n) => SHIMS[n]), loopGuard] }
+}
+
 // --- the sandbox (docs/part-sandbox.md) ------------------------------------------------------------
 
 // Once the realm is locked down (core/realmLockdown.ts), part code compiles inside an SES Compartment: it sees the
@@ -257,14 +266,15 @@ export function compilePartScript(source: string): CompiledPartScript {
       // The loop-instrumented source when it parses, else the author's own source (the lexical rewrite in
       // core/loopGuard.ts misread something). A misread drops the loop budget but never breaks the part.
       let fn: (...args: unknown[]) => void
+      const shims = shimsFor(source)
       try {
-        fn = compileFactory(['definePart', ...SHIM_NAMES], `"use strict";\n${instrumentLoops(source)}`)
+        fn = compileFactory(['definePart', ...shims.names], `"use strict";\n${instrumentLoops(source)}`)
       } catch {
-        fn = compileFactory(['definePart', ...SHIM_NAMES], `"use strict";\n${source}`)
+        fn = compileFactory(['definePart', ...shims.names], `"use strict";\n${source}`)
       }
       out = {
         factory: (definePart) => {
-          fn(definePart, ...SHIM_VALUES)
+          fn(definePart, ...shims.values)
         },
         error: '',
       }

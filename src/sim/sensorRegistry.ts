@@ -44,6 +44,8 @@ export class SensorRegistry {
   /** the last countZone()'s count and summed age by product (package id) and by kind name, for ctx.zone's filter;
    *  null when the zone was empty, so an empty zone allocates nothing */
   lastZoneMix: ZoneMix | null = null
+  /** the cargo body the last castBeam() hit, or null when it was clear or saw only the pilot (→ ctx.markHit) */
+  readonly lastBeamHit: { box: LiveBox | null } = { box: null }
 
   /** `boxes` is the registry's cargo list; `holds` says which cargo a person carries; `pilot` is a body beams see */
   constructor(
@@ -92,7 +94,7 @@ export class SensorRegistry {
     const ex = ox + dir[0] * range
     const ez = oz + dir[2] * range
     const near = cargo.rowsNear(snap, Math.min(ox, ex) - reach, Math.min(oz, ez) - reach, Math.max(ox, ex) + reach, Math.max(oz, ez) + reach)
-    return castBeamRows(origin, dir, range, this.boxes, snap, near, this.beamScratch, this.pilot.body)
+    return castBeamRows(origin, dir, range, this.boxes, snap, near, this.beamScratch, this.pilot.body, this.lastBeamHit)
   }
 
   // Count cargo whose centre is inside a zone (→ ctx.zone()), leaving their summed age in lastZoneAge.

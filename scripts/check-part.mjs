@@ -133,6 +133,7 @@ try {
       joints: geo.kind === 'rig' ? geo.joints.map((j) => ({ name: j.name, type: j.type, link: j.link, range: [j.min, j.max], ...(j.servo ? { servo: j.servo } : {}) })) : [],
       beams: links.filter((l) => l.beam).map((l) => l.name),
       zones: links.filter((l) => l.zone).map((l) => l.name),
+      loadCells: links.filter((l) => l.loadCell).map((l) => l.name),
       colliders: links.filter((l) => l.collision !== 'none' && ['box', 'cylinder'].includes(l.shape.kind)).map((l) => l.name).concat(links.filter((l) => l.shape.kind === 'mesh' && l.collision?.box).map((l) => l.name)),
       conveys: links.filter((l) => l.conveys).map((l) => l.name).concat('conveys' in geo && geo.conveys ? ['(whole part)'] : []),
       snap: pkg.snap ? Object.keys(pkg.snap).filter((k) => pkg.snap[k] !== undefined) : [],
@@ -320,6 +321,7 @@ if (asJson) {
     list('conveys', s.conveys)
     list('beams', s.beams)
     list('zones', s.zones)
+    list('weighs', s.loadCells)
     list('snap', s.snap)
     console.log(`    params  ${s.params.map((p) => p.key).join(', ') || '(none)'}`)
   }

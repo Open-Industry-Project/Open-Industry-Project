@@ -72,8 +72,8 @@ interface Instance {
    *  script never reaches the objects. beams = beam hits by name; zones = cargo count per detection zone
    *  (C-despawn); zoneAges = summed cargo age per zone (ctx.zoneAge); zoneMarks = per zone, how many cargo
    *  bodies in it carry each truthy mark (ctx.marked); zoneMix = per zone, its count and age by product and by kind
-   *  (ctx.zone's filter). */
-  sensed: { beams: Record<string, BeamHit>; zones: Record<string, number>; zoneAges: Record<string, number>; zoneMarks: Record<string, Record<string, number>>; zoneMix: Record<string, ZoneMix> }
+   *  (ctx.zone's filter); weights = kg on each load-cell link (ctx.weight). */
+  sensed: { beams: Record<string, BeamHit>; zones: Record<string, number>; zoneAges: Record<string, number>; zoneMarks: Record<string, Record<string, number>>; zoneMix: Record<string, ZoneMix>; weights: Record<string, number> }
   /** holder so step() can set the per-tick "used" flag that ctx.used() (a create-time closure) reads */
   inUsed: { used: boolean }
   /** holder for the scene's live conveyor speeds (partId → commanded speed), so ctx.conveyorRunning(id) - the
@@ -126,6 +126,7 @@ type CargoMark = number | boolean | string
 /** One product-state request (ctx.mark / dress / join / split), applied by the host in call order after the tick. */
 export type CargoOp =
   | { op: 'mark'; zone: string; key: string; value: CargoMark }
+  | { op: 'markHit'; beam: string; key: string; value: CargoMark }
   | { op: 'dress'; zone: string; id: string; material: string; opacity?: number; upTo?: number; web?: { link: string; offset: [number, number, number]; height: number } }
   | { op: 'join'; zone: string }
 const MAX_SPAWNS_PER_TICK = 8 // a buggy behavior can't flood the world in one tick
@@ -244,6 +245,8 @@ export interface BehaviorInput {
   zoneMarks?: Record<string, Record<string, number>>
   /** per zone, its count and summed age by product and by kind (ctx.zone's filter), keyed alike; absent when empty */
   zoneMix?: Record<string, ZoneMix>
+  /** kg resting on each load-cell link this tick (ctx.weight), keyed by link name; absent when the part has none */
+  weights?: Record<string, number>
   joints?: Record<string, number>
   grips?: Record<string, boolean>
   used?: boolean
@@ -374,7 +377,7 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
     // ref-swap pattern as inConveyorSpeeds) instead of copying tables per part per tick
     const tagsBox: { cur: Record<string, TagVal>; prev: Record<string, TagVal>; driven: Record<string, TagVal> } = { cur: {}, prev: {}, driven: {} }
     const readBoolTag = (v: TagVal | undefined): boolean => (typeof v === 'number' ? v !== 0 : (v ?? false))
-    const sensed: Instance['sensed'] = { beams: NO_BEAMS, zones: NO_COUNTS, zoneAges: NO_COUNTS, zoneMarks: NO_MARKS, zoneMix: NO_MIX }
+    const sensed: Instance['sensed'] = { beams: NO_BEAMS, zones: NO_COUNTS, zoneAges: NO_COUNTS, zoneMarks: NO_MARKS, zoneMix: NO_MIX, weights: NO_COUNTS }
     // the tally a zone filter picks out (ZoneFilter), or undefined for no usable filter: read field by field, so the
     // script's object is never kept
     const filtered = (zone: string, filter: unknown): ZoneTally | null | undefined => {
@@ -569,6 +572,7 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
         const t = filtered(zone, filter)
         return t === undefined ? (sensed.zones[zone] ?? 0) : (t?.n ?? 0)
       },
+      weight: (link: string): number => sensed.weights[link] ?? 0,
       zoneAge: (zone: string, filter?: unknown): number => {
         const t = filtered(zone, filter)
         return t === undefined ? (sensed.zoneAges[zone] ?? 0) : (t?.age ?? 0)
@@ -580,6 +584,12 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
         if (typeof value !== 'number' && typeof value !== 'boolean' && typeof value !== 'string') return
         if (typeof value === 'number' && !Number.isFinite(value)) return
         out.cargo.push({ op: 'mark', zone, key, value })
+      },
+      markHit: (beam: string, key: string, value: CargoMark) => {
+        if (typeof beam !== 'string' || !beam || typeof key !== 'string' || !key) return
+        if (typeof value !== 'number' && typeof value !== 'boolean' && typeof value !== 'string') return
+        if (typeof value === 'number' && !Number.isFinite(value)) return
+        out.cargo.push({ op: 'markHit', beam, key, value })
       },
       marked: (zone: string, key: string): number => sensed.zoneMarks[zone]?.[key] ?? 0,
       dress: (zone: string, spec: { id?: unknown; material?: unknown; opacity?: unknown; upTo?: unknown; web?: { link?: unknown; offset?: unknown; height?: unknown } }) => {
@@ -817,6 +827,7 @@ export function stepDirect(handle: number, input: BehaviorInput, dt: number): Be
     sn.zoneAges = input.zoneAges ?? NO_COUNTS
     sn.zoneMarks = input.zoneMarks ?? NO_MARKS
     sn.zoneMix = input.zoneMix ?? NO_MIX
+    sn.weights = input.weights ?? NO_COUNTS
     const t1 = timed ? now() : 0
     // refresh joint feedback in place (the proxy reads this object). Merge, not replace: the host sends the
     // host-applied pose per joint each tick, and a joint not reported retains its last measured value.
