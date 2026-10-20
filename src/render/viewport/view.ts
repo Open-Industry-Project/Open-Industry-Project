@@ -1012,6 +1012,13 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     // same appliers the running frame routes to (applyBoxFrame): joints first, then subPose overrides win.
     if (pose.joints) (obj.userData.applyJoints as ((j: Record<string, number>) => void) | undefined)?.(pose.joints)
     if (pose.subPoses) (obj.userData.applySubPoses as ((p: Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>) => void) | undefined)?.(pose.subPoses)
+    // a beam on a link this pose moved casts from where the link now stands. Stopped, the beam probe reruns only on
+    // a scene, cargo or registry change, so without this the beam stays drawn where the link was (a lift's deck
+    // eye left at the lower level). Running, the frame's probe pass re-aims it.
+    if (!this.running && (pose.joints || pose.subPoses) && typeof obj.userData.probeTick === 'function') {
+      const ref = this.registries.probeTickRefs.find((r) => r.entry.part.id === partId)
+      if (ref) this.probeSensor(ref, true)
+    }
     if (pose.lamps) {
       const applyLamps = obj.userData.applyLamps as ((l: Record<string, boolean>) => void) | undefined
       if (applyLamps) {

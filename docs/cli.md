@@ -107,10 +107,12 @@ Never hand-edit scene.json; these go through the same checks the editor does.
   - where the editor's snap engine would seat a part on a host with the params and pose you give, in world
   coordinates plus the host's frame. `--at` is the mover's origin, which `npm run catalog -- <id>` locates (e.g. a
   belt's tail).
-- **`npm run snap-part -- <part | placed id> --project <folder> [--host <id>] [--params k=v,...] --write [--id <id>]`**
+- **`npm run snap-part -- <part | placed id> --project <folder> [--host <id>] [--at x,y,z [--local]] [--rot deg] [--params k=v,...] --write [--id <id>]`**
   - seats it against that project's placed part and writes the edit through core/snap/snapCommit.ts, the editor's own
   commit: pose, fitted params on both parts, attach parent. Guard openings, railing gaps and lifts are derived from
-  the scene on load, never written.
+  the scene on load, never written. A new part is proposed at `--at` (default: the host's centre); a placed part
+  being re-seated is proposed where it stands, at its own yaw, unless `--at` / `--rot` say otherwise. Without
+  `--host`, a new part needs `--at`.
 - **`npm run rename-tag -- <project-folder> <from> <to> [--pou <name>]`** - rename a PLC tag in the program files and
   every part wired to it, the PLC panel's rename. `--pou` names the POU that declares it (none = a top-level tag). A
   name that would collide is refused with the reason. Tests are not changed; it warns about each one that still

@@ -96,6 +96,10 @@ const GATES = [
     why: 'the device benchmark is how a real phone reports back (editor/bench.ts), and every way it breaks is SILENT: a camera it stops driving, a window it stops closing or an override it stops honouring all still produce a confident-looking blob. Cheap to run, and the numbers it collects decide the mobile defaults',
   },
   {
+    script: 'verify-idle-pose-beam.mjs',
+    why: "a beam on a link a stopped pose moves (the idle preview, Use while stopped) must be drawn from where the link now stands: the stopped beam probe reruns only on a scene, cargo or registry change, so a lift's deck eye stayed drawn at the lower level. Fails without the re-probe in view.applyIdlePose",
+  },
+  {
     script: 'verify-showparam-visibility.mjs',
     why: "a rig link's showParam toggle (conveyor side guards, stairs handrails) changes pixels BOTH ways - the on direction had no structural notify, so the bundle replayed the hidden list",
   },

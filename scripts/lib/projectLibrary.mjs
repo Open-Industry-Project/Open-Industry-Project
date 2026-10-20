@@ -11,6 +11,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { buildPart, hasPartSource } from './buildPart.mjs'
 import { readProjectFolder } from './projectFolderFiles.mjs'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -25,17 +26,18 @@ const pick = (dir, names) => names.map((n) => join(dir, n)).find((p) => existsSy
 /** The built-in catalog, baked the way catalog.mjs and the app's bundledPackageData bake it: id -> package. */
 export async function bakeBundled(vite) {
   const { validatePart } = await vite.ssrLoadModule('/src/sim/validatePart.ts')
+  const { joinAssetFiles, isPartAssetPath } = await vite.ssrLoadModule('/src/core/parts/partAssets.ts')
   const bundled = new Map()
   const partsRoot = join(repo, 'examples', 'parts')
   for (const dir of readdirSync(partsRoot, { withFileTypes: true }).filter((e) => e.isDirectory())) {
-    const m = pick(join(partsRoot, dir.name), ['rig.json', 'manifest.json'])
-    const b = pick(join(partsRoot, dir.name), ['behavior.ts', 'behavior.js'])
+    const at = join(partsRoot, dir.name)
+    const m = pick(at, ['rig.json', 'manifest.json'])
+    const b = pick(at, ['behavior.ts', 'behavior.js'])
     if (!m || !b) continue
     // a folder keeps its models and textures as assets/<sha256>.<ext> files the manifest names (core/parts/partAssets.ts)
-  const { joinAssetFiles, isPartAssetPath } = await vite.ssrLoadModule('/src/core/parts/partAssets.ts')
-  const joined = joinAssetFiles(readFileSync(m, 'utf8'), (p) => (isPartAssetPath(p) && existsSync(join(arg, p)) ? new Uint8Array(readFileSync(join(arg, p))) : undefined))
-  if (joined.error !== undefined) return { error: `${arg}: ${joined.error}`, exit: 1 }
-  const r = validatePart(JSON.parse(joined.manifestJson), readFileSync(b, 'utf8'))
+    const joined = joinAssetFiles(readFileSync(m, 'utf8'), (p) => (isPartAssetPath(p) && existsSync(join(at, p)) ? new Uint8Array(readFileSync(join(at, p))) : undefined))
+    if (joined.error !== undefined) continue // like a part that does not bake: left out of the catalog
+    const r = validatePart(JSON.parse(joined.manifestJson), readFileSync(b, 'utf8'))
     if (r.ok && r.package) bundled.set(r.package.id, r.package)
   }
   return bundled
@@ -47,6 +49,21 @@ export async function bakeFolder(vite, arg) {
   const m = pick(arg, ['manifest.json', 'rig.json'])
   const b = pick(arg, ['behavior.js', 'behavior.ts'])
   if (!m || !b) return { error: `${arg}: needs manifest.json (or rig.json) + behavior.js (or behavior.ts)`, exit: 2 }
+  // a part written as one part.js: what gets copied is its built files, so they must be what it builds now, or an
+  // edit to part.js that was never built goes nowhere with no word why
+  if (hasPartSource(arg)) {
+    const { instantiatePartScript } = await vite.ssrLoadModule('/src/core/parts/partScript.ts')
+    const { compileRig } = await vite.ssrLoadModule('/src/core/rig/rigCompile.ts')
+    const built = buildPart(arg, repo, { instantiatePartScript, compileRig })
+    if (!built.files) return { error: `${arg}: its part.js does not build - fix it first (npm run check-part -- ${arg}):\n  ${built.problems.join('\n  ')}`, exit: 1 }
+    const stale = built.files.filter((f) => !existsSync(join(arg, f.name)) || readFileSync(join(arg, f.name), 'utf8').replace(/\r\n/g, '\n') !== f.text).map((f) => f.name)
+    if (stale.length > 0) {
+      return {
+        error: `${arg}: ${stale.join(' and ')} ${stale.length > 1 ? 'are' : 'is'} not what its part.js builds. If part.js changed, build it first (npm run build-parts -- ${arg}). If ${stale.length > 1 ? 'they were' : 'it was'} edited (by hand, the Part Editor or an agent tool), move that change into part.js, or the next build undoes it`,
+        exit: 1,
+      }
+    }
+  }
   // a folder keeps its models and textures as assets/<sha256>.<ext> files the manifest names (core/parts/partAssets.ts)
   const { joinAssetFiles, isPartAssetPath } = await vite.ssrLoadModule('/src/core/parts/partAssets.ts')
   const joined = joinAssetFiles(readFileSync(m, 'utf8'), (p) => (isPartAssetPath(p) && existsSync(join(arg, p)) ? new Uint8Array(readFileSync(join(arg, p))) : undefined))

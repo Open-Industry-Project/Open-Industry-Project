@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeFault, faultActive, FaultInjector, formatTrace, operandProbeKey, TestEvaluator, probeKey, TraceRecorder, validateTestSpec } from './projectTest'
+import { describeFault, faultActive, FaultInjector, formatTrace, operandProbeKey, probePartErrors, TestEvaluator, probeKey, TraceRecorder, validateTestSpec } from './projectTest'
 import type { ResolvedFault, TestCheck, TestValue } from './projectTest'
 
 /** Run a check against a scripted timeline of {time → tags} samples, return its single result. */
@@ -625,5 +625,43 @@ describe('TestEvaluator - the never-appeared guard on the new probes', () => {
     const gate = evalCheck({ always: true, probe: { passed: { zone: { min: [0, 0, 0], max: [1, 1, 1] } } }, max: 0 }, 1, [[1, {}]])
     expect(gate.ok).toBe(false)
     expect(gate.detail).toMatch(/never appeared \(no cargo at all entered its zone in the whole run - is the zone on the cargo's path\?\)$/)
+  })
+})
+
+describe('a pass that proves nothing (CheckResult.warning)', () => {
+  const ready = { eventually: true, tag: 'Ready', equals: false } as TestCheck
+  it('warns on an eventually that already held on the first sample of the run', () => {
+    const r = evalCheck(ready, 2, [[0.01, { Ready: false }], [1, { Ready: true }]])
+    expect(r.ok).toBe(true)
+    expect(r.warning).toContain('already true at the start of the run')
+  })
+
+  it('does not warn when it became true during the run', () => {
+    const r = evalCheck(ready, 2, [[0.01, { Ready: true }], [1, { Ready: false }]])
+    expect(r.ok).toBe(true)
+    expect(r.warning).toBeUndefined()
+  })
+
+  it('does not warn on a window the author started later, and warns when the first sample with the tag already holds', () => {
+    expect(evalCheck({ ...ready, from: 0.5 }, 2, [[0.01, { Ready: true }], [1, { Ready: false }]]).warning).toBeUndefined()
+    // a tag first published after t = 0 that already holds then: nothing had to happen for it either
+    expect(evalCheck(ready, 2, [[0.01, {}], [1, { Ready: false }]]).warning).toBeDefined()
+  })
+})
+
+describe('probePartErrors: a count or passed probe names a placed part', () => {
+  const parts = [{ id: 'box1', packageId: 'oip.box' }, { id: 'box2', packageId: 'oip.box' }, { id: 'belt', packageId: 'oip.belt-conveyor' }]
+  const zone = { min: [0, 0, 0] as [number, number, number], max: [1, 1, 1] as [number, number, number] }
+  it('accepts a placed part id, and no part at all', () => {
+    expect(probePartErrors(parts, [{ eventually: true, min: 1, probe: { count: { zone, part: 'box1' } } }, { at: 1, max: 0, probe: { count: {} } }])).toEqual([])
+  })
+  it('names the placed parts of a part type given in its place, on a probe or a right-hand operand', () => {
+    const [onProbe] = probePartErrors(parts, [{ eventually: true, min: 1, probe: { passed: { zone, part: 'oip.box' } } }])
+    expect(onProbe).toContain('is a part type')
+    expect(onProbe).toContain('box1, box2')
+    expect(probePartErrors(parts, [{ at: 1, tag: 'N', equals: { probe: { count: { part: 'oip.box' } } } }])).toHaveLength(1)
+  })
+  it('refuses an id no part has', () => {
+    expect(probePartErrors(parts, [{ at: 1, max: 0, probe: { count: { part: 'bx1' } } }])[0]).toContain('no placed part')
   })
 })

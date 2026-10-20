@@ -94,6 +94,11 @@ Predicates: `equals` / `notEquals` (BOOL/INT exact), `min` / `max` (numeric boun
 `"equals": {"tag": "Lane1Out"}`, `"min": {"probe": {...}}`. Tag names are the scene-level names, the same
 namespace the scene's ST program sees.
 
+An `eventually` over a window that starts with the run, and already holds on its first sample, passes with a
+warning: nothing had to happen for it to pass. A fresh output reads false and a sensor starts clear, so
+`"eventually": true, "tag": "Ready", "equals": false` is true before the line has done anything. Check the
+transition with `at` after it has had time, or check the opposite first.
+
 ## Checks that survive a layout change
 
 An exact count at an exact time (`{"at": 19.9, "tag": "Lane1Out", "equals": 8}`) is brittle: an unrelated change
@@ -135,6 +140,11 @@ takes the place of `tag`, and the temporal modes and predicates above apply to i
 | `{ "pose": { "part": "id", "axis": "x"\|"y"\|"z"\|"yaw" } }` | where that part is - a mobile part's driven base (`ctx.drive`), else an authored cargo body |
 | `{ "joint": { "part": "id", "joint": "name" } }` | a rig part's joint value (rad / m): the last one it commanded, latched; absent until it commands that joint |
 | `{ "lamp": { "part": "id", "lamp": "name" } }` | whether a part's lamp is lit (`true` / `false`): the last value its behavior commanded, latched; absent until it commands that lamp. It reads the command, so a lamp lit at rest only by its `param` is absent |
+
+Every probe's `part` is a placed part's id in the scene (`box1`), never a part type (`oip.box`, which is what a
+part's own `ctx.zone(name, { part })` filter takes). A `count` or `passed` probe whose `part` is not a placed part is
+refused before the run, since it would count nothing without saying so; to count every case of a type, leave `part`
+out or filter by `kind`.
 
 ```jsonc
 // throughput: 10 boxes reached the discharge zone within 25 s

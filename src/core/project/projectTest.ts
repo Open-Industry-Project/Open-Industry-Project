@@ -273,6 +273,9 @@ export interface CheckResult {
   /** when a failed check failed, in sim seconds: an `at` check's time, the moment an `always` broke, the end of the
    *  window an `eventually` missed. What a trace of the run is centred on (projectTestRunner.ts `failureContext`) */
   failedAt?: number
+  /** a passing check that proves less than it reads: an `eventually` over a window from the start of the run that
+   *  already held on its first sample, so nothing had to happen for it to pass */
+  warning?: string
 }
 
 export interface TestResult {
@@ -530,6 +533,32 @@ function validateWindow(c: Record<string, unknown>, at: string, duration: number
   if (typeof from === 'number' && typeof end === 'number' && !(end > from)) errors.push(`${at}: the window ends (${end}s) before it starts (from ${from}s)`)
 }
 
+/**
+ * The spec's `count` and `passed` probes checked against the scene: their `part` names one placed part by its id.
+ * Anything else matches no cargo, and a count of nothing is 0, never "absent", so the check would fail or pass on
+ * that 0 with no word why. The common slip is a part type (`oip.box`, what ctx.zone's `{ part }` filter takes), so
+ * that error names the placed parts of the type. Returns one message per bad probe.
+ */
+export function probePartErrors(parts: readonly { id: string; packageId?: string }[], checks: readonly TestCheck[]): string[] {
+  const ids = new Set(parts.map((p) => p.id))
+  const errors: string[] = []
+  checks.forEach((c, i) => {
+    const operands = (['equals', 'notEquals', 'min', 'max', 'near'] as const).map((k) => c[k])
+    const probes = [c.probe, ...operands.map((o) => (o !== null && typeof o === 'object' && 'probe' in o ? o.probe : undefined))]
+    for (const p of probes) {
+      const part = p && 'count' in p ? p.count.part : p && 'passed' in p ? p.passed.part : undefined
+      if (part === undefined || ids.has(part)) continue
+      const ofType = parts.filter((q) => q.packageId === part).map((q) => q.id)
+      errors.push(
+        ofType.length > 0
+          ? `checks[${i}]: "part": "${part}" is a part type, and "part" takes one placed part's id (${ofType.slice(0, 4).join(', ')}${ofType.length > 4 ? ', ...' : ''}). To count every ${part}, leave "part" out, or filter by "kind"`
+          : `checks[${i}]: "part": "${part}" is no placed part in the scene (it takes a placed part's id)`,
+      )
+    }
+  })
+  return errors
+}
+
 /** Structural validation of an untrusted test spec. Returns a normalized spec or a list of errors. */
 export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | { ok: false; errors: string[] } {
   const errors: string[] = []
@@ -769,6 +798,8 @@ export class TestEvaluator {
     violatedAt: number
     // eventually
     satisfied: boolean
+    /** it held on the first sample that had both sides inside its window */
+    heldFirst: boolean
     outcome: boolean
     detail: string
   }[]
@@ -800,6 +831,7 @@ export class TestEvaluator {
       violated: false,
       violatedAt: 0,
       satisfied: false,
+      heldFirst: false,
       outcome: false,
       detail: '',
     }))
@@ -824,6 +856,7 @@ export class TestEvaluator {
       const rhs = pred.key === undefined ? pred.literal! : tags[pred.key]!
       const inWindow = time + EPS >= win.from && time <= win.to + EPS
       const both = present && rhsPresent
+      const firstCompared = both && inWindow && !st.compared
       if (both && inWindow) st.compared = true
 
       if (check.at !== undefined) {
@@ -857,6 +890,7 @@ export class TestEvaluator {
       if (check.eventually) {
         if (!st.satisfied && inWindow && both && predicateHolds(pred, value!, rhs)) {
           st.satisfied = true
+          st.heldFirst = firstCompared
           st.detail = `${label} reached ${describePredicate(pred, rhs)} at t=${time.toFixed(2)}s`
         }
         return
@@ -925,8 +959,11 @@ export class TestEvaluator {
       // eventually
       const win = this.windows[i]!
       const span = check.from !== undefined ? `between t=${win.from}s and t=${win.to}s` : `within ${win.to}s`
+      // held from the run's first sample: nothing had to happen for it to pass (a fresh output reads false, a sensor
+      // starts clear), so it is likely to pass whatever the line does
+      const vacuous = st.heldFirst && win.from <= EPS
       return st.satisfied
-        ? { check, ok: true, detail: st.detail }
+        ? { check, ok: true, detail: st.detail, ...(vacuous ? { warning: `already true at the start of the run, so it passes whatever the line does: check it with "at" after it has had time to happen, or check the opposite first` } : {}) }
         : { check, ok: false, detail: `${label} never reached ${describePredicate(pred)} ${span}`, failedAt: Math.min(win.to, this.duration) }
     })
     return { ok: results.every((r) => r.ok), checks: results }

@@ -209,7 +209,7 @@ try {
       ok: result.ok,
       project: project.name,
       duration: spec.duration,
-      checks: result.checks.map((c) => ({ ok: c.ok, detail: c.detail, ...(c.failedAt !== undefined ? { failedAt: c.failedAt } : {}), ...(leadOf(c) ? { leadUp: leadOf(c) } : {}) })),
+      checks: result.checks.map((c) => ({ ok: c.ok, detail: c.detail, ...(c.warning ? { warning: c.warning } : {}), ...(c.failedAt !== undefined ? { failedAt: c.failedAt } : {}), ...(leadOf(c) ? { leadUp: leadOf(c) } : {}) })),
       facts: result.facts,
       ...(result.factsOverflow > 0 ? { factsOverflow: result.factsOverflow } : {}),
       ...(trace ? { trace: trace.result() } : {}),
@@ -235,6 +235,7 @@ try {
     }
     for (const c of result.checks) {
       console.log(`    ${c.ok ? '✓' : '✗'} ${c.detail}`)
+      if (c.warning) console.log(`      ! ${c.warning}`)
       const up = leadOf(c)
       if (!up) {
         if (c === firstFail) printFactsBefore(c)

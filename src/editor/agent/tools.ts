@@ -668,7 +668,7 @@ function verdict(r: ProjectTestRun): Record<string, unknown> {
   if (r.error) return { name: r.name, ok: false, error: r.error }
   // what physically happened: a summary always, and for a failure the facts leading up to it (often the cause)
   const facts = r.facts && r.facts.total > 0 ? { flowFacts: r.facts.summary, ...(r.facts.beforeFailure ? { factsBeforeFailure: r.facts.beforeFailure.lines } : {}) } : {}
-  return { name: r.name, ok: r.ok, checks: r.result?.checks.map((c) => ({ ok: c.ok, detail: c.detail, ...(c.failedAt !== undefined ? { failedAt: c.failedAt } : {}) })), ...facts }
+  return { name: r.name, ok: r.ok, checks: r.result?.checks.map((c) => ({ ok: c.ok, detail: c.detail, ...(c.warning ? { warning: c.warning } : {}), ...(c.failedAt !== undefined ? { failedAt: c.failedAt } : {}) })), ...facts }
 }
 
 function checkedSpec(args: Record<string, unknown>): TestSpec {

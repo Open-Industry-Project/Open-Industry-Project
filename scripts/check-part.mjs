@@ -250,8 +250,11 @@ try {
             if (inner.max[k] > outer.max[k] + tol) report.warnings.push(`${what} reaches ${AX[k]} = ${round(inner.max[k])}, past ${of} (${AX[k]} to ${round(outer.max[k])})`)
           }
         }
-        if (!isEmpty(model)) {
-          report.summary.measured = { model: fmt(model) }
+        if (!isEmpty(model)) report.summary.measured = { model: fmt(model) }
+        // A declared conveyor bed's footprint is the bed (its length and width params), and bounds do not change it,
+        // so advice to edit bounds could never clear. Hardware past the bed (a guard lip, an indicator head) is shown in
+        // the measured line above and left to the author.
+        if (!isEmpty(model) && !pkg.conveyor?.bed) {
           // X/Z: bounds are centred on the origin unless they declare centerX / centerZ, so an overflow is either an
           // off-centre model or bounds too small - say which, and both fixes: a mounted device's origin is a mount
           // point by design.
@@ -286,6 +289,22 @@ try {
     if (geo.kind === 'rig') {
       const solid = drawn.filter((p) => p.collision !== undefined || p.sideGuard !== undefined).length
       if (solid > 0) report.warnings.push(`geometry() draws ${solid} submesh(es) with \`collision\` or \`sideGuard\`, but on a rig part drawn submeshes are render-only: cargo passes through them. Make each solid a link (a box link collides as itself; a guard wall is a box link with \`sideGuard: 'left' | 'right'\`)`)
+    }
+    // Link rotations and revolute joint limits are radians. A value past a full turn is almost always degrees, which
+    // loads fine and leaves the link at a random-looking angle (a label edge-on, so it reads as missing).
+    if (geo.kind === 'rig') {
+      const TURN = 2 * Math.PI + 1e-6
+      const asRad = (v) => round((v * Math.PI) / 180)
+      for (const l of geo.links) {
+        const r = l.rotation
+        if (Array.isArray(r) && r.some((v) => Math.abs(v) > TURN)) report.warnings.push(`link "${l.name}": rotation [${r.join(', ')}] turns more than a full turn; rotation is in radians. If you meant degrees, that is [${r.map(asRad).join(', ')}]`)
+      }
+      for (const j of geo.joints) {
+        if (j.type !== 'revolute') continue
+        // a joint may turn more than once (a drum, a spool), so only a whole number past a turn reads as degrees
+        const over = ['min', 'max'].filter((k) => typeof j[k] === 'number' && Math.abs(j[k]) > TURN && Number.isInteger(j[k]) && !j.servo?.modulo)
+        if (over.length > 0) report.warnings.push(`joint "${j.name}": ${over.map((k) => `${k} ${j[k]}`).join(', ')} is more than a full turn; a revolute joint's limits are in radians. If you meant degrees, that is ${over.map((k) => `${k} ${asRad(j[k])}`).join(', ')}`)
+      }
     }
     // A part with no collision body at all can't stop, carry or push anything - usually a mesh-only import.
     if (geo.kind === 'rig' && report.summary.colliders.length === 0 && report.summary.conveys.length === 0 && report.summary.zones.length === 0) {

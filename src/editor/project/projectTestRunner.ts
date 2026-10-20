@@ -18,7 +18,7 @@ import type { ProjectJSON } from '../../core/project/project'
 import type { BoxFrame } from '../../core/frame'
 import type { FlowFact } from '../../core/flow/flowFacts'
 import { cargoInZone, ProbeSampler } from '../../core/project/projectProbe'
-import { describeFault, faultActive, FaultInjector, TestEvaluator } from '../../core/project/projectTest'
+import { describeFault, faultActive, FaultInjector, probePartErrors, TestEvaluator } from '../../core/project/projectTest'
 import type { ResolvedFault, TestFault, TestResult, TestSpec, TestValue, TraceRecorder } from '../../core/project/projectTest'
 import { packageParamSpecs } from '../../core/packageParams'
 import { getPackage } from '../../core/parts/partRegistry'
@@ -182,6 +182,8 @@ export function runProjectTest(
   opts?: { lockstep?: Lockstep; trace?: TraceRecorder; onFrame?: (frame: Readonly<BoxFrame>) => void; flowFacts?: boolean },
 ): ProjectTestOutcome {
   const { scene, stProgram, controller, stScanMs, hz } = prepareScene(project)
+  const badProbes = probePartErrors(scene.parts, spec.checks)
+  if (badProbes.length > 0) throw new Error(badProbes.join('; '))
   // The scene's own step rate. It is the rate the editor's Play runs at, and a test
   // stepping at another one validates a different machine: sensors sampled coarser or finer, PLC
   // outputs landing a different number of milliseconds after the input that caused them.

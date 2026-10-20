@@ -15,8 +15,9 @@
 // the scene, as the editor's drop does. Everything printed is in WORLD coordinates of that placement, plus the
 // pose in the host's local frame (x along it, z across, y up from its origin).
 //
-// The mover is proposed at --at (default: the host's footprint centre, on its top surface; `--local` reads --at in
-// the host's frame) with yaw --rot (default 0). --at is where the MOVER'S ORIGIN goes, not its centre: `npm run
+// The mover is proposed at --at (default: the host's footprint centre, on its top surface; a placed part being
+// re-seated, where it stands; `--local` reads --at in the host's frame) with yaw --rot (default 0; a re-seated part,
+// its own yaw). --at is where the MOVER'S ORIGIN goes, not its centre: `npm run
 // catalog -- <part>` prints where a part's origin sits ("origin: x -X end, z centre" for a belt conveyor, whose origin
 // is its TAIL end), and a "no snap" says it too. Core's REAL snap engine answers: src/core/snap/snapFeatures.ts
 // `findSnap`, which the editor's live snap (controller.ts applyLiveSnap) calls on every pointer-move.
@@ -98,7 +99,6 @@ if (!ontoArg === !projectArg) usage('give the host as --onto <part> (a fresh one
 if (ontoArg && (hostIdArg || write || newIdArg)) usage('--host, --write and --id need --project')
 if (projectArg && (flag('--host-params') !== undefined || flag('--host-at') !== undefined || flag('--host-rot') !== undefined)) usage('a --project host is the placed part as it stands: --host-params/--host-at/--host-rot are for --onto')
 const at = vec3('--at')
-if (projectArg && !hostIdArg && !at) usage('without --host, say where it is dropped with --at')
 if (local && !at) usage('--local reads --at in the host frame: give --at')
 if (local && projectArg && !hostIdArg) usage('--local needs a host (--host)')
 const rotDeg = degrees('--rot')
@@ -218,9 +218,12 @@ try {
     const w = toWorldXZ(host, p[0], p[2])
     return [w.x, host.position[1] + p[1], w.z]
   }
+  if (!host && !at && !existing) throw fail('without --host, say where it is dropped with --at', 2)
   const hfp = host ? partFootprint(host) : null
-  const proposedPos = at ? (local ? toWorld(at) : at) : toWorld([hfp.cx ?? 0, hfp.y1, hfp.cz ?? 0])
-  const rotationY = (rotDeg * Math.PI) / 180 + (local ? hostRot : 0)
+  // a placed part being re-seated is proposed where it stands, at its own yaw, unless --at / --rot say otherwise: the
+  // host's centre would move it to wherever the host's nearest feature is, far from where it was put
+  const proposedPos = at ? (local ? toWorld(at) : at) : existing ? [...existing.position] : toWorld([hfp.cx ?? 0, hfp.y1, hfp.cz ?? 0])
+  const rotationY = existing && flag('--rot') === undefined ? existing.rotationY : (rotDeg * Math.PI) / 180 + (local ? hostRot : 0)
   // a new part's id: --id, else the next free `<stem>-<n>` in the project (what add-part --place names it)
   const freeId = () => {
     const stem = moverPkg.id.split('.').pop()

@@ -212,7 +212,9 @@ physically moves (reaches the discharge eye, rides the belt, or is fed on). Repl
 do. Without a conveyor and cargo it writes no test and says why.
 
 The project holds a copy of your part. After editing, rerun `npm run add-part -- my-test ./my-part` (no
-`--place`) to refresh it, or edit `my-test/parts/<id>/` directly and treat that as the source.
+`--place`) to refresh it, or edit `my-test/parts/<id>/` directly and treat that as the source. A part written as a
+`part.js` is copied as its built files, so build it first: `add-part` refuses a folder whose built files are not what
+its `part.js` builds.
 
 Frame conventions to place parts by (confirm any part's with `check-part` on its example folder; the
 footprint is part-local):
@@ -266,8 +268,8 @@ The spec format is in [project-tests.md](project-tests.md). Four traps:
 - An `autoWhenDriven` tag param only takes over the device when a **program output** drives it (that is what
   `ctx.tagDriven` means). A test `inputs` entry on it leaves the device on its hand state. Drive it from the
   program (`Extend := NOT Release;`) and stimulate the program's inputs.
-- `eventually … equals false` passes at t = 0 when the tag starts false. Check a transition with `at:` after
-  it has had time to happen, or check `true` first.
+- `eventually … equals false` passes at t = 0 when the tag starts false, and `test-project` marks that pass with a
+  warning. Check a transition with `at:` after it has had time to happen, or check `true` first.
 - Probe a joint directly: `"probe": { "joint": { "part": "stop", "joint": "lift" } }` reads the last value the
   part commanded (latched between commands, clamped to the joint's limits). It is absent until the part first
   commands it, so a mistyped name fails as "never appeared" instead of reading 0.
