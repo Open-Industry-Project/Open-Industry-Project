@@ -1388,7 +1388,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.setPointerRay(clientX, clientY)
     // the camera forward seeds the view/axis constraint planes (camera normal);
     // the pixel coords seed the trackball's grab point
-    this.gizmo.beginDrag(handle, this.raycaster.ray, this.camera.getWorldDirection(this.camTmp), { x: clientX, y: clientY })
+    this.gizmo.beginDrag(handle, this.raycaster.ray, this.camera.getWorldDirection(this.camTmp), { x: clientX, y: clientY }, this.camera.orthographic)
   }
 
   gizmoConstrain(target: GizmoConstraint): void {

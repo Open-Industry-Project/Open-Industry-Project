@@ -416,3 +416,97 @@ describe('TransformGizmo plane pads follow the camera quadrant', () => {
     g.dispose()
   })
 })
+
+describe('TransformGizmo drag guards', () => {
+  /** a ray from `cam` along the -Z view, pitched `pitch` radians up (negative: down) */
+  const pitched = (cam: [number, number, number], pitch: number): Ray =>
+    new Ray(new Vector3(...cam), new Vector3(0, Math.sin(pitch), -Math.cos(pitch)))
+
+  it('a floor-plane drag past the horizon neither flips behind the camera nor runs off to the horizon', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: [0, 0, 0], rotationY: 0, mode: 'move', space: 'global' })
+    const cam: [number, number, number] = [0, 1, 10]
+    g.beginDrag('xz', rayFrom(cam, [0, 0, 0]))
+    const before = g.dragDelta(rayFrom(cam, [0, 0, -2]))?.translation
+    expect(before?.[2]).toBeCloseTo(-2, 5)
+    // just above the horizon the floor plane is behind the camera: the part holds where it was (it went to z +1010)
+    const above = g.dragDelta(pitched(cam, 0.001))?.translation
+    expect(above?.[2]).toBeCloseTo(-2, 5)
+    // just below it the hit is ~1 km out: the travel stops at 20 camera distances
+    const below = g.dragDelta(pitched(cam, -0.001))?.translation
+    expect(Math.hypot(below![0], below![1], below![2])).toBeLessThanOrEqual(20 * Math.hypot(1, 10) + 1e-6)
+    g.dispose()
+  })
+
+  it('an orthographic floor-plane drag follows the cursor even where the plane is behind the ray origin', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: [0, 0, 0], rotationY: 0, mode: 'move', space: 'global' })
+    // orthographic rays are parallel and start on the camera plane: 10° down, this one from below the floor
+    const dir = new Vector3(0, -Math.sin(Math.PI / 18), -Math.cos(Math.PI / 18))
+    const at = (y: number, z: number): Ray => new Ray(new Vector3(0, y, z), dir.clone())
+    g.beginDrag('xz', at(10 * Math.sin(Math.PI / 18), 10 * Math.cos(Math.PI / 18)), dir.clone().normalize(), undefined, true)
+    const t = g.dragDelta(at(-1, 10))?.translation
+    // that ray meets the floor at z = 10 + 1/tan(10°), behind its origin, and it is still the point under the cursor
+    expect(t?.[2]).toBeCloseTo(10 + 1 / Math.tan(Math.PI / 18), 3)
+    g.dispose()
+  })
+
+  it('grid snap steps a local-axis drag of a yawed part along that axis', () => {
+    const g = new TransformGizmo()
+    const yaw = Math.PI / 6
+    g.setState({ center: [0, 0, 0], rotationY: yaw, mode: 'move', space: 'local' })
+    g.beginDrag('x', downRay(0, 0))
+    const ax = { x: Math.cos(yaw), z: -Math.sin(yaw) } // the part's local +X in world
+    // 1.2 m along the axis snaps to one 1 m step ON the axis (world-component snapping gave (1, 0, 0), 0.5 m off it)
+    const t = g.dragDelta(downRay(1.2 * ax.x, 1.2 * ax.z), { translate: 1, rotate: null })?.translation
+    expect(t?.[0]).toBeCloseTo(ax.x, 5)
+    expect(t?.[2]).toBeCloseTo(ax.z, 5)
+    g.dispose()
+  })
+
+  it('a tilted ring turns by the cursor angle on the ring itself, step for step', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: [0, 0, 0], rotationY: 0, mode: 'rotate', space: 'global' })
+    // the camera 40° above the yaw ring, looking at its centre: the ring is an ellipse on screen
+    const e = (40 * Math.PI) / 180
+    const cam: [number, number, number] = [0, 10 * Math.sin(e), 10 * Math.cos(e)]
+    const onRing = (deg: number): [number, number, number] => [Math.cos((deg * Math.PI) / 180), 0, -Math.sin((deg * Math.PI) / 180)]
+    g.beginDrag('rotY', rayFrom(cam, onRing(-60)), new Vector3(...cam).negate().normalize())
+    // the camera-facing reading turned these even 15° steps into 3°-ish then ~30°-ish steps
+    for (let deg = -45; deg <= 120; deg += 15) {
+      const d = g.dragDelta(rayFrom(cam, onRing(deg)))
+      expect(d?.rotationAxis).toEqual([0, 1, 0])
+      expect(d?.rotationDelta).toBeCloseTo(((deg + 60) * Math.PI) / 180, 5)
+    }
+    g.dispose()
+  })
+
+  it('the rotation wedge stays on the grab point while a local-space gizmo turns with the part', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: [0, 0, 0], rotationY: 0, mode: 'rotate', space: 'local' })
+    g.beginDrag('rotY', downRay(1, 0)) // grab on world +X
+    g.dragDelta(downRay(Math.cos(0.5), -Math.sin(0.5)))
+    g.setRotationFeedback(0.5)
+    // the part turns by the drag, so the local gizmo turns with it: the wedge must not turn again on top
+    g.setState({ center: [0, 0, 0], rotationY: 0.5, mode: 'rotate', space: 'local' })
+    g.root.updateMatrixWorld(true)
+    const internals = g as unknown as { edgeGeo: { getAttribute(n: string): { array: ArrayLike<number> } }; feedbackGroup: { matrixWorld: import('three').Matrix4 } }
+    const a = internals.edgeGeo.getAttribute('position').array
+    const start = new Vector3(a[3], a[4], a[5]).applyMatrix4(internals.feedbackGroup.matrixWorld).normalize()
+    expect(start.x).toBeCloseTo(1, 5)
+    expect(start.z).toBeCloseTo(0, 5)
+    g.dispose()
+  })
+
+  it('a yaw-only ring ignores the X/Y/Z axis re-pick (a conveyor never leaves its yaw axis)', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: [0, 0, 0], rotationY: 0, mode: 'rotate', space: 'global', rotateYawOnly: true })
+    g.beginDrag('rotY', downRay(1, 0))
+    for (const key of ['x', 'z', 'y', 'y', 'y'] as const) g.constrain(key)
+    const d = g.dragDelta(downRay(Math.cos(0.4), -Math.sin(0.4)))
+    expect(d?.rotationAxis).toEqual([0, 1, 0])
+    // still the yaw drag (each offset down-ray reads its angle on a slightly different camera-facing plane)
+    expect(d?.rotationDelta).toBeCloseTo(0.4, 1)
+    g.dispose()
+  })
+})
