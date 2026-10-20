@@ -1,20 +1,20 @@
 import { DoubleSide, MeshStandardMaterial } from 'three'
 import type { Group, InstancedMesh, Material, Mesh } from 'three'
-import type { RollerGrid } from '../../../core/rollerGrid'
-import type { RigParams } from '../../../core/rigPose'
-import { evalPartGeometry, resolvePartParams } from '../../../core/geometryEval'
-import { beltLikeView } from '../../../core/partGeometry'
-import { beltXToS, buildBeltPath } from '../../../core/beltPath'
-import type { GuardOpenings } from '../../../core/guardOpenings'
-import { guardHoleRows } from '../../../core/guardHoles'
-import type { GuardHoles } from '../../../core/guardHoles'
-import type { GuardExtents } from '../../../core/guardExtents'
-import { guardMitreRows, withSnapExtents } from '../../../core/guardExtents'
+import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
+import type { RigParams } from '../../../core/rig/rigPose'
+import { evalPartGeometry, resolvePartParams } from '../../../core/geometry/geometryEval'
+import { beltLikeView } from '../../../core/parts/partGeometry'
+import { beltXToS, buildBeltPath } from '../../../core/conveyor/beltPath'
+import type { GuardOpenings } from '../../../core/guards/guardOpenings'
+import { guardHoleRows } from '../../../core/guards/guardHoles'
+import type { GuardHoles } from '../../../core/guards/guardHoles'
+import type { GuardExtents } from '../../../core/guards/guardExtents'
+import { guardMitreRows, withSnapExtents } from '../../../core/guards/guardExtents'
 import type { LegRestRows } from '../../../core/legRests'
 import { withLegRests } from '../../../core/legRests'
 import type { PlatformCut } from '../../../core/structureCuts'
-import type { MeshDescription, MeshPart, ParamValue } from '../../../core/partApi'
-import type { PartAsset, PartMaterial, PartPackage } from '../../../core/partPackage'
+import type { MeshDescription, MeshPart, ParamValue } from '../../../core/parts/partApi'
+import type { PartAsset, PartMaterial, PartPackage } from '../../../core/parts/partPackage'
 import type { SdkPart } from '../../../core/types'
 import { realizeInstancedTemplate, writeInstanceMatrices } from '../instancedTemplate'
 import { realizeMeshDescription, rewriteMeshDescription } from '../meshDescriptionGeometry'
@@ -33,7 +33,7 @@ import { buildMaterial } from './materials'
 // ---- drawn geometry (geometry.kind: 'drawn': the shape comes from the part's geometry()) -------------
 // The Tier-2 escape hatch (docs/procedural-geometry.md): a part's geometry(g, params) callback emits one or
 // more MeshPart[] (a bent multi-segment belt = a scrolling fabric bed + a steel frame + side guards + support
-// legs), realized via core/geometryEval - render's in-layer twin of the sim's embeddedBehavior.geometry
+// legs), realized via core/geometry/geometryEval - render's in-layer twin of the sim's embeddedBehavior.geometry
 // (render may not import sim). Each part is realized into its own mesh with a per-role material ('belt' = the
 // scrolling conveyor fabric, 'frame'/'guard'/'leg' = steel, else neutral; a `material` id overrides). The
 // geometry re-runs (and the meshes rebuild) only when the resolved params change, never per frame.

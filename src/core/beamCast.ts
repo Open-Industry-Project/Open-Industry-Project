@@ -1,10 +1,10 @@
 // Ray-vs-box intersection for sensor beams (C-sensing) - pure plain-number math, deterministic,
 // headless-testable, shared by the sim (a sensor custom part's beam, in the worker) and reusable by render.
 // Mirrors the slab test in render/sensorBeam.ts (which keeps its three.js aim), but expressed on the same
-// quaternion helpers as core/rigPose so a sensor rig's beam casts against cargo box OBBs without three.js.
+// quaternion helpers as core/rig/rigPose so a sensor rig's beam casts against cargo box OBBs without three.js.
 
 import type { BoxFrame } from './frame'
-import type { Quat, Vec3 } from './rigPose'
+import type { Quat, Vec3 } from './rig/rigPose'
 
 /**
  * Ray (origin `o`, unit dir `d`) vs an axis-aligned box of half-extents `h` centred at the origin. Returns

@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { agentGuideMarkdown } from './agentGuide'
 import type { GuideDoc, PartExtent } from './agentGuide'
-import type { ParamSchema } from './partApi'
+import type { ParamSchema } from './parts/partApi'
 
 /** A scene shaped like the real thing: parts referring to packages the scene embeds. */
 function scene(params: ParamSchema, partParams: Record<string, unknown>, partName?: string): unknown {

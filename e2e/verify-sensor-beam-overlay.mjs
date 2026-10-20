@@ -48,7 +48,7 @@ async function frame(page, target, eye) {
 }
 
 /**
- * Mount the sensor using the app's own snap solver (core/snapFeatures findSnap), reached by a dev
+ * Mount the sensor using the app's own snap solver (core/snap/snapFeatures findSnap), reached by a dev
  * dynamic import so the pose is the one a real guard drop produces, including the auto-fit range.
  *
  * Why not hand-place: the mount sits at guardY = ty + surfaceY (snapFeatures.ts), i.e. the conveying
@@ -58,7 +58,7 @@ async function frame(page, target, eye) {
  */
 async function mountSensorOnGuard(page, id = 's1', xs = [0]) {
   return page.evaluate(async ([sid, xCandidates]) => {
-    const mod = await import('/src/core/snapFeatures.ts')
+    const mod = await import('/src/core/snap/snapFeatures.ts')
     const st = window.__oip.store
     const belt = st.getState().scene.parts.find((p) => p.id === 'h1')
     const half = (belt.params?.width ?? 1.524) / 2

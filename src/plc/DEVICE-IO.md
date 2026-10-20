@@ -9,7 +9,7 @@ The Jolt physics runs in a Web Worker, and **so does the attached ST program**
 ([`src/sim/plcHost.ts`](../sim/plcHost.ts)): before every fixed physics step, the worker loop latches %I
 from the tags behaviors wrote on the previous step, drains however many whole scan periods one step of
 **sim time** covers, and applies %Q so the step about to run reads it. That is the same lockstep the
-headless project-test runner uses ([`editor/projectTestRunner.ts`](../editor/projectTestRunner.ts)). The
+headless project-test runner uses ([`editor/project/projectTestRunner.ts`](../editor/project/projectTestRunner.ts)). The
 live sim and the test harness share one interleave, which reproduces exactly at any render frame rate and under
 main-thread jank, tab throttling or a changed timeScale.
 
@@ -61,7 +61,7 @@ one step after the first scan, and a timer started on scan 1 ends one step later
 
 External PLCs (Modbus, S7, OPC UA, EtherNet/IP, ADS) are untouched by this: a real PLC scans on its own clock and
 exchanges the image per frame on the main thread, and the Modbus server starts with the scene's tags in its
-image so the PLC's first poll does not read zeros (`ExternalPlcSession.start` in `editor/externalPlc.ts`).
+image so the PLC's first poll does not read zeros (`ExternalPlcSession.start` in `editor/links/externalPlc.ts`).
 
 `SimController` is thin: `setExternalInputs(tags)` latches the part-written inputs,
 `sampleInputs()` is just that image, `scan(%I, dt)` solves one cycle, `tick(dt)` composes them. It has no
@@ -204,14 +204,14 @@ reads a *frozen* copy of its inputs and writes its outputs once at the end. Two 
 
 SDK sensors cast their beams in the sim worker ([`core/beamCast.ts`](../core/beamCast.ts)). The editor runs
 external PLCs end to end
-([`editor/externalPlc.ts`](../editor/externalPlc.ts), UI in `ExternalPlcSection.tsx`), and the I/O table is
+([`editor/links/externalPlc.ts`](../editor/links/externalPlc.ts), UI in `ExternalPlcSection.tsx`), and the I/O table is
 derived from the parts' address tags (`modbusServerFromTags` / `modbusClientFromTags` in
-[`core/externalIo.ts`](../core/externalIo.ts)) rather than stored in the document.
+[`core/io/externalIo.ts`](../core/io/externalIo.ts)) rather than stored in the document.
 
 ## External PLC: the simulator as a Modbus TCP server
 
 A controller outside the simulator cannot read tags by name. It exchanges numbered points, so a table says
-which point carries which tag ([`core/externalIo.ts`](../core/externalIo.ts)), and the direction comes from
+which point carries which tag ([`core/io/externalIo.ts`](../core/io/externalIo.ts)), and the direction comes from
 the Modbus area: the PLC reads discrete inputs and input registers (sensors) and writes coils and holding
 registers (actuators). The tags it writes are DRIVEN, exactly like an attached program's outputs.
 
@@ -242,7 +242,7 @@ serves and the simulator polls it, which also means the simulator, not the PLC, 
 
 This mode reads the server's registers as an image of the PLC's process image, byte-wise and low byte first. The
 client WRITES holding registers to reach the PLC's inputs and READS input registers to see its outputs, so our fixed
-rule ([`registerImagePointFor`](../core/externalIo.ts)) is: `%IXb.n` is holding register `b>>1`, bit `(b&1)*8 + n`;
+rule ([`registerImagePointFor`](../core/io/externalIo.ts)) is: `%IXb.n` is holding register `b>>1`, bit `(b&1)*8 + n`;
 `%IWn` is holding register `n`; `%IDn` is holding registers `2n, 2n+1`, low word first; `%Q` the same in the input
 registers. Coils are never used. The protocol lives in
 [`modbusClient.ts`](modbusClient.ts), again with no socket: `ModbusPoller` moves the whole holding block with one
@@ -258,7 +258,7 @@ PLC's configuration, and its I/O mapping page shows them; the ranges a device ma
 give the PLC's address and port, and where its server device sits in the image: "Holding register 0 is %IW..." and
 "Input register 0 is %QW...", the two addresses the device's own I/O mapping page shows, both 0 when it is the PLC's
 only I/O. On Play the desktop shell connects out (`plcio:connect`, apps/desktop/plcIo.cjs) and
-[`ExternalPlcClientSession`](../editor/externalPlc.ts) polls every 20 ms. Pressing Play before the PLC is up is
+[`ExternalPlcClientSession`](../editor/links/externalPlc.ts) polls every 20 ms. Pressing Play before the PLC is up is
 fine: it retries every second and the dock says what it is waiting for. The watchdog is the server's: no complete
 cycle for 1 s, or the connection closed, and the PLC's outputs are handed to the scene OFF until it answers.
 
@@ -277,7 +277,7 @@ So in the dock's "OPC UA, tags by name" mode nothing is assigned. A part's PLC t
 the signal (`Eye`, `Main.Eye`, `"Conveyor".Eye`), which is also how a scene wired to the
 program here is already written.
 
-**Finding the node** ([`core/opcUa.ts`](../core/opcUa.ts)). On Play the link browses the server's tree under
+**Finding the node** ([`core/io/opcUa.ts`](../core/io/opcUa.ts)). On Play the link browses the server's tree under
 Objects (the standard namespace and properties left out) and matches each tag against the END of every
 variable's browse path, so the same tag works whatever the server puts above it: OPC UA leaves that to each
 server (a DI `DeviceSet` and a device object, a runtime object, a global-data folder, any depth), and the match
@@ -308,7 +308,7 @@ by name, with that advice.
 runs in the desktop shell's main process ([`apps/desktop/opcUaIo.cjs`](../../apps/desktop/opcUaIo.cjs)):
 connect, browse, describe, and one write-then-read per cycle. Everything that decides (which tag is which
 node, what a value means, the retries, the watchdog) stays in the app
-([`ExternalPlcOpcUaSession`](../editor/externalPlc.ts)).
+([`ExternalPlcOpcUaSession`](../editor/links/externalPlc.ts)).
 
 **Unsecured.** Security policy None and an anonymous session: no certificates to trust on either
 side. That is what a soft PLC on the same machine or a test bench allows; a plant network usually does not,
@@ -343,7 +343,7 @@ symbolically, so it works like OPC UA without the browse: a part's PLC tag is th
 `Program:MainProgram.Eye`, `Lane[3]`, `Status.3` for one bit of a DINT). Settings: the controller's address
 (`host` or `host:port`, 44818 by default) and the path to its CPU (`1,0` = backplane, slot 0; empty when the
 address is the controller's own port). On Play every tag is read once, which is how the controller says what
-type it holds (`raw_tag_type_bytes`: 0xC1 BOOL ... 0xCA REAL); `core/eip.ts` refuses a bit on a number and the
+type it holds (`raw_tag_type_bytes`: 0xC1 BOOL ... 0xCA REAL); `core/io/eip.ts` refuses a bit on a number and the
 reverse, structures, and LINT. Then one write+read cycle every 20 ms.
 
 **The shell speaks the protocol** through libplctag (MPL-2.0 / LGPL, an unmodified release binary), loaded with
@@ -375,9 +375,9 @@ run against real Logix hardware.
 The dock's "ADS, tags by name" mode reads and writes a TwinCAT 3 PLC's variables by their symbol paths
 (`MAIN.Eye`, `GVL.Run`): ADS "symbol info by name" says each one's type and size, a handle by name is taken once,
 and each 20 ms cycle is two ADS SUM commands, every write in one request and every read in another
-(`apps/desktop/adsIo.cjs`). Rules in `src/core/ads.ts`: BOOL, SINT..UDINT, REAL, LREAL travel, an enum or TIME as
+(`apps/desktop/adsIo.cjs`). Rules in `src/core/io/ads.ts`: BOOL, SINT..UDINT, REAL, LREAL travel, an enum or TIME as
 its base integer; structures, strings and 64-bit integers are refused. Settings: the PLC's AMS Net ID (empty = the
-runtime on this PC) and AMS port (851). The session (`editor/adsLink.ts`) is a lazy chunk, loaded on Play.
+runtime on this PC) and AMS port (851). The session (`editor/links/adsLink.ts`) is a lazy chunk, loaded on Play.
 
 **Through TwinCAT's own router, by Beckhoff's TcAdsDll, as oip-comms does (`tcads_loader.cpp`).** A client on a PC
 with TwinCAT hands its ADS requests to that PC's AMS router through TcAdsDll, which is how a local client is meant
@@ -394,7 +394,7 @@ Running a TwinCAT PLC needs a TwinCAT license on the user's system (TwinCAT's ow
 one); without one the runtime stays in Config mode. No test here talks to a TwinCAT router, installed or not: the
 Electron gate's ADS phase points `OIP_TCADSDLL_PATH` at a file that is not there and checks only the app's own side
 (the dock, the lazy session, the IPC into adsIo.cjs, its argument checks and its missing-DLL answer reaching the
-dock); `src/editor/adsLink.test.ts` covers the session against a fake. `guides/ads/` is the step-by-step page.
+dock); `src/editor/links/adsLink.test.ts` covers the session against a fake. `guides/ads/` is the step-by-step page.
 
 ## By address: S7 PUT/GET to an S7-1200 / S7-1500
 
@@ -402,23 +402,23 @@ The dock's "S7 PUT/GET" mode reads and writes a CPU's I, Q and M memory, and its
 protocol (TCP port 102), which every S7-1200 and S7-1500 answers once PUT/GET is permitted in its properties (off by
 default; Siemens' documentation shows where the setting is). No license, no OPC UA server, no table: S7 memory is
 byte-addressed as IEC direct addresses are, so a part's address tag is its S7 address (`%IX80.4` is I80.4, `%QD84`
-is QD84), and `core/s7Io.ts` only decides direction: I is written, Q read, and M goes the way the parts use it (a
+is QD84), and `core/io/s7Io.ts` only decides direction: I is written, Q read, and M goes the way the parts use it (a
 part writes it: to the PLC). Values are big-endian; a double word is DINT or REAL by what the tag carries, as over
 Modbus. Settings: the CPU's address, port (102), rack (0) and slot (1).
 
 **The protocol is ours**, ported from the oip-comms driver (`S7Com.cpp`) into
-`src/plc/s7Client.ts`, with no socket of its own: the desktop shell's plain TCP connection carries it, as it
+`src/plc/link/s7Client.ts`, with no socket of its own: the desktop shell's plain TCP connection carries it, as it
 does the Modbus client. Per connection: COTP connect (it names rack and slot), S7 setup (the PDU size: a 1200
 usually agrees 240), then each 20 ms cycle one multi-item write job per batch of points (a bit is written as a
 BIT, so the rest of its byte, a real input card's, is untouched) and one read of each area's byte run. Every
-job is cut to the NEGOTIATED PDU and 20 items. The session (`editor/s7Link.ts`) and the protocol are a lazy
+job is cut to the NEGOTIATED PDU and 20 items. The session (`editor/links/s7Link.ts`) and the protocol are a lazy
 chunk, loaded on Play. Retries and the watchdog are the Modbus client's. A REFUSED job (PUT/GET off) keeps the
 connection and is asked again once a second. Until a job goes through, the dock says it is still waiting for the
 CPU, and where the checkbox is. `guides/s7/` is the step-by-step page, followed by `e2e/guide-s7.mjs` against the
 fake CPU below (a curated gate).
 
 **What has proved it, and what has not.** The unit tests pin our bytes to oip-comms' request templates (which talk
-to real CPUs) and run the client against a strict fake CPU (`src/plc/s7FakeCpu.ts`: rack/slot, the PDU limit, bit
+to real CPUs) and run the client against a strict fake CPU (`src/plc/link/s7FakeCpu.ts`: rack/slot, the PDU limit, bit
 writes, PUT/GET off). `npm run s7-loop` runs the conveyor case against snap7's server (its C library, python-snap7
 2.x), with the program on the far side transcribed into Python over the server's memory. It runs the same verdict as
 `openplc-loop` (`behaviourChecks` in `scripts/lib/conveyor-loop.mjs`): the belt stops within 500 ms of the eye, the
@@ -447,7 +447,7 @@ way it connects to a real PLC's own OPC UA server, to watch the line and press i
 its own in Controller Properties ("OPC UA server"), a machine setting like the rest, and it does not change
 where the program runs.
 
-**What is published** ([`editor/opcUaServer.ts`](../editor/opcUaServer.ts) `publishedVariables`): every
+**What is published** ([`editor/links/opcUaServer.ts`](../editor/links/opcUaServer.ts) `publishedVariables`): every
 variable of the program's watch table, under Objects / PLC, one folder per dot, so `Main.Start` is
 PLC / Main / Start and a timer's outputs sit in a folder named after it. The NodeId is the name itself,
 `ns=1;s=Main.Start`, so a SCADA tag reaches the same variable on every run and every machine. The type follows
@@ -515,7 +515,7 @@ polls.
 Modbus registers are 16 bits, so a REAL (or a DINT) takes two, and the protocol does not say in which order they go.
 Each device declares its own. This one puts the **low word first**, because that is what OpenPLC's Modbus master
 reads: its plugin converts every 32-bit point with `use_big_endian=False`. A one-off probe against the real runtime
-confirmed it (recorded at `modbusPointFor` in `src/core/externalIo.ts`): served 12.5 as a float32 pair, `Speed AT
+confirmed it (recorded at `modbusPointFor` in `src/core/io/externalIo.ts`): served 12.5 as a float32 pair, `Speed AT
 %ID100 : REAL` computed `Speed * 2.0` and wrote back 25.0. The check that runs each time is `openplc-loop`'s "the
 speeds it commanded arrived as REALs" (below).
 
@@ -547,7 +547,7 @@ A part's PLC tag holds either a program name (`Eye`) or an I/O point (`%IX100.0`
 to a controller outside the simulator. **Assign I/O** (right-click Main in the PLC panel's organizer, the
 Simulation menu, or the command palette) moves a scene
 from one to the other in a single edit ([`ioAssign.ts`](ioAssign.ts) plans and rewrites the program,
-[`editor/ioAssign.ts`](../editor/ioAssign.ts) rewires the parts): each tag a part is wired to by name gets an
+[`editor/program/ioAssign.ts`](../editor/program/ioAssign.ts) rewires the parts): each tag a part is wired to by name gets an
 address, the program declares it there as a located variable (`Eye AT %IX100.0 : BOOL`), and every part wired
 to that name is pointed at the address. It is **one undo step**, because a scene half-way through the change would
 run a program driving names no part carries any more.

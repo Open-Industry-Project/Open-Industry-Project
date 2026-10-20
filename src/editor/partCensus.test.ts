@@ -8,10 +8,10 @@
 // To accept an intended behaviour change: `npx vitest run -u <this file>`, then read the diff.
 
 import { beforeAll, describe, expect, it } from 'vitest'
-import { evalPartGeometry, geometryAnimates, geometryLampNames } from '../core/geometryEval'
-import type { ParamValue } from '../core/partApi'
-import type { PartPackage, RigLink } from '../core/partPackage'
-import { rigLampNames, upgradeStoredPackage } from '../core/partPackage'
+import { evalPartGeometry, geometryAnimates, geometryLampNames } from '../core/geometry/geometryEval'
+import type { ParamValue } from '../core/parts/partApi'
+import type { PartPackage, RigLink } from '../core/parts/partPackage'
+import { rigLampNames, upgradeStoredPackage } from '../core/parts/partPackage'
 import {
   beltLikeView,
   curvedConveyorView,
@@ -24,16 +24,16 @@ import {
   rotatingDeckView,
   spurConveyorView,
   straightConveyorView,
-} from '../core/partGeometry'
-import { clearPackages, registerPackage } from '../core/partRegistry'
-import { rigFrameSide, rigGuardSide } from '../core/guardOpenings'
-import { rigGuardWallLink, rigLinkEmitsBody } from '../core/rigGuards'
-import { createSdkPart } from '../core/scene'
-import { plugsOf } from '../core/snapConnectors'
+} from '../core/parts/partGeometry'
+import { clearPackages, registerPackage } from '../core/parts/partRegistry'
+import { rigFrameSide, rigGuardSide } from '../core/guards/guardOpenings'
+import { rigGuardWallLink, rigLinkEmitsBody } from '../core/rig/rigGuards'
+import { createSdkPart } from '../core/scene/scene'
+import { plugsOf } from '../core/snap/snapConnectors'
 import { platformDeck } from '../core/structureConnections'
 import type { PartInstance } from '../core/types'
 import { buildPackage } from '../sim/buildPackage'
-import { bundledBehaviors, bundledManifests } from './bundledExamples'
+import { bundledBehaviors, bundledManifests } from './parts/bundledExamples'
 
 const pkgs: PartPackage[] = []
 beforeAll(() => {

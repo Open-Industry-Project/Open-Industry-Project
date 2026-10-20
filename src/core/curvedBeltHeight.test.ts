@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { ARC_END_EXT, ROLLER_PITCH } from './types'
 import type { SdkPart } from './types'
-import { conveyorDeckSubs } from './collisionShapes'
-import { curvedConveyorView, partFootprint } from './partGeometry'
-import { checkParamSpecs } from './partAuthoringChecks'
-import type { ParamSchema } from './partApi'
-import { clearPackages, registerPackage } from './partRegistry'
-import type { PartPackage } from './partPackage'
-import { PACKAGE_FORMAT } from './partPackage'
-import { resolveRollerGrids } from './rollerGrid'
+import { conveyorDeckSubs } from './geometry/collisionShapes'
+import { curvedConveyorView, partFootprint } from './parts/partGeometry'
+import { checkParamSpecs } from './parts/partAuthoringChecks'
+import type { ParamSchema } from './parts/partApi'
+import { clearPackages, registerPackage } from './parts/partRegistry'
+import type { PartPackage } from './parts/partPackage'
+import { PACKAGE_FORMAT } from './parts/partPackage'
+import { resolveRollerGrids } from './conveyor/rollerGrid'
 
 // A curved belt's snap ends sit a drum radius past its arc, and its drums follow its Frame height: the arc handle's
 // `endGapParam` ({ param: 'height', scale: 0.5 }) makes the host's endExt track it, the way a straight belt's ends

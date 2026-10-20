@@ -10,7 +10,7 @@
 //   3. a newer version is offered and taken only when asked: Update asks first in the change dialog, Update all takes
 //      every part with one
 //   4. the demo's copies of the Structure built-ins read as the first-party library's own, and a newer one as their
-//      update; the same index from another host claims none of them (core/partLibrary.ts isFirstPartyLibrary)
+//      update; the same index from another host claims none of them (core/parts/partLibrary.ts isFirstPartyLibrary)
 //   4b. signed with the project's key (core/librarySignature.ts; a dev build trusts the gates' key), the same index
 //      is the project's from any host: the demo's built-ins read its newer stairs as their update. Changed after it
 //      was signed, it is refused, not read as unsigned. A listed part names its publisher.
@@ -100,9 +100,9 @@ const vite = await createVite({
   appType: 'custom',
   optimizeDeps: { noDiscovery: true },
 })
-const { oippartBytesToFolder, partToOippartBytes } = await vite.ssrLoadModule('/src/core/partArchive.ts')
+const { oippartBytesToFolder, partToOippartBytes } = await vite.ssrLoadModule('/src/core/parts/partArchive.ts')
 const { buildPackage } = await vite.ssrLoadModule('/src/sim/buildPackage.ts')
-const { partFingerprint } = await vite.ssrLoadModule('/src/core/partOrigin.ts')
+const { partFingerprint } = await vite.ssrLoadModule('/src/core/parts/partOrigin.ts')
 const { sha256HexOfBytes } = await vite.ssrLoadModule('/src/core/sha256.ts')
 const { signedBytes } = await vite.ssrLoadModule('/src/core/librarySignature.ts')
 /** The index as the project's release signs it (scripts/sign-library.mjs), with the gates' key. */
@@ -195,7 +195,7 @@ try {
   await page.locator('.catalog-tab', { hasText: 'Products' }).click()
   await page.locator('[data-package-id="oip.ibc-tote"]').first().waitFor({ timeout: 10000 }).catch(() => {})
   check('the added part shows in its category tab in the Parts dock', (await page.locator('[data-package-id="oip.ibc-tote"]').count()) > 0)
-  // who made it goes with the copy (core/partPackage.ts PartCredit), and shows where the part is used
+  // who made it goes with the copy (core/parts/partPackage.ts PartCredit), and shows where the part is used
   const credit = (await copyOf('oip.ibc-tote')).credit
   check('the copy credits who made it', credit?.by === 'Open Industry Project' && credit?.library === 'Containers', JSON.stringify(credit))
   await page.evaluate(() => {

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { clearPackages, registerPackage } from './partRegistry'
-import type { PartPackage } from './partPackage'
+import { clearPackages, registerPackage } from './parts/partRegistry'
+import type { PartPackage } from './parts/partPackage'
 import type { SdkPart } from './types'
-import { functionStaticHulls, functionStaticWalls } from './functionGuards'
-import { PACKAGE_FORMAT } from './partPackage'
+import { functionStaticHulls, functionStaticWalls } from './guards/functionGuards'
+import { PACKAGE_FORMAT } from './parts/partPackage'
 
 // The `collision: 'hull'` channel: a `function`-geometry submesh realized as a convex hull of its own
 // vertices instead of the AABB box the `'static'` channel gives. The two channels must stay disjoint (the

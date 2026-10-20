@@ -3,7 +3,7 @@
 // Compartment: docs/part-sandbox.md) evaluates this bundle once, then drives user part scripts through strings +
 // numbers only. No objects cross the boundary and no host APIs (Date.now / Math.random / window /
 // fetch) are used, so the same part script runs across both shipping surfaces (browser + Electron) and
-// runs deterministically inside the fixed-timestep SimCore (see src/core/simCore.ts, src/core/partApi.ts).
+// runs deterministically inside the fixed-timestep SimCore (see src/core/simCore.ts, src/core/parts/partApi.ts).
 // The string-only boundary serves the determinism discipline (docs/custom-part-capability-surface.md)
 // and the sandbox's copy-in / validate-out rule (docs/part-sandbox.md).
 //
@@ -18,20 +18,20 @@
 // input JSON: {simTime:number, position:[x,y,z], forward:[x,y,z], tags:{name:bool}, joints:{name:number}}
 //   joints = host-applied (clamped) joint pose from the previous tick - closed-loop feedback for ctx.measured.joints
 
-import { createGeometryBuilder } from '../core/geometryBuilder'
-import { canonicalMeshParts } from '../core/geometryEval'
+import { createGeometryBuilder } from '../core/geometry/geometryBuilder'
+import { canonicalMeshParts } from '../core/geometry/geometryEval'
 import { hostCopy } from '../core/hostCopy'
-import { canonicalAddress } from '../core/iecAddress'
-import { instantiatePartScript, resolvePartParams } from '../core/partScript'
+import { canonicalAddress } from '../core/io/iecAddress'
+import { instantiatePartScript, resolvePartParams } from '../core/parts/partScript'
 import { Rng } from '../core/rng'
-import { jointLimits, type RigParams } from '../core/rigPose'
-import type { RigJoint } from '../core/partPackage'
+import { jointLimits, type RigParams } from '../core/rig/rigPose'
+import type { RigJoint } from '../core/parts/partPackage'
 import {
   axisCommandAborted, axisCommandDone, axisCommandQueued, axisFollow, axisHalt, axisHome, axisInPosition, axisMoveAbsolute, axisMoveRelative, axisMoveVelocity,
   axisPosition, axisPower, axisReleaseStop, axisReset, axisStop, createAxis, stepAxis, type Axis, type ModuloDirection,
 } from '../core/motionAxis'
 import type { ZoneMix, ZoneTally } from '../core/frame'
-import type { GeometryContext, ParamSchema, ParamsOf, ParamValue, PartContext, PartDefinition, Servo, SnapSpec, UnitLoadDecl, Vec3 } from '../core/partApi'
+import type { GeometryContext, ParamSchema, ParamsOf, ParamValue, PartContext, PartDefinition, Servo, SnapSpec, UnitLoadDecl, Vec3 } from '../core/parts/partApi'
 
 // the runtime's writable view of the context the script sees as readonly
 type MutableContext = { -readonly [K in keyof PartContext]: PartContext[K] }
@@ -102,7 +102,7 @@ const NO_MARKS: Record<string, Record<string, number>> = Object.freeze({})
 const NO_MIX: Record<string, ZoneMix> = Object.freeze({})
 
 /**
- * The key a behavior's tag name is stored under. A direct address (`%qx100.0`, core/iecAddress.ts) is one
+ * The key a behavior's tag name is stored under. A direct address (`%qx100.0`, core/io/iecAddress.ts) is one
  * I/O point in any spelling, and the tag tables hold its canonical one, so a part whose tag was typed in
  * lower case still meets the PLC. Checked here, at every read and write, because not every way a tag
  * enters a scene goes through the scene's normalisation. Cached: a part reads the same few names every tick.
@@ -332,7 +332,7 @@ function seedFrom(paramsJson: string): number {
 
 export function create(source: string, paramsJson = '{}', servosJson?: string): number {
   try {
-    // The one eval chokepoint for part code lives in core/partScript.ts, shared with the render/headless
+    // The one eval chokepoint for part code lives in core/parts/partScript.ts, shared with the render/headless
     // geometry evaluator so the two can never drift: the determinism scan rejects Date/Math.random/fetch
     // before the source runs, shadowed-global shims catch what the scan can't see, and each create() runs
     // a fresh top level so module-level closures stay instance-isolated. In-process here, which is not
@@ -746,7 +746,7 @@ export function geometry(handle: number, paramsJson = '{}', ctxJson = '{}'): str
     const params = resolvePartParams(inst.def.params, overrides) as ParamsOf<ParamSchema>
     const out = inst.def.geometry(createGeometryBuilder(), params, JSON.parse(ctxJson) as GeometryContext)
     // normalize to MeshPart[] (a bare description = one role-less part) in the current spelling, so render + sim
-    // see one shape whatever format the script was written for (core/geometryEval canonicalMeshParts)
+    // see one shape whatever format the script was written for (core/geometry/geometryEval canonicalMeshParts)
     const parts = canonicalMeshParts(Array.isArray(out) ? out : [{ desc: out }])
     return JSON.stringify(parts)
   } catch (e) {

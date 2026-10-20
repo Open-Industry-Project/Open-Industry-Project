@@ -1,6 +1,6 @@
 import { DoubleSide, InstancedBufferAttribute, MeshStandardMaterial, Texture } from 'three'
 import type { InstancedMesh } from 'three'
-import type { InstanceTransform } from '../../core/partApi'
+import type { InstanceTransform } from '../../core/parts/partApi'
 import { webgpuNodeFactory } from '../renderMode'
 import { BELT_TEX_PERIOD, beltWeaveTexture } from './common'
 import { animClockEpoch, animClockUniform, rebaseAnim, rebaseAnimForWrap } from './animClock'

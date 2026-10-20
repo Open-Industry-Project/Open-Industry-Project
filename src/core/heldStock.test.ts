@@ -4,9 +4,9 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { emptyHolds, fillHolds, holdCount, holdPositions, holdsOf } from './heldStock'
-import { PACKAGE_FORMAT, validatePartPackage } from './partPackage'
-import type { PartPackage } from './partPackage'
-import { clearPackages, registerPackage } from './partRegistry'
+import { PACKAGE_FORMAT, validatePartPackage } from './parts/partPackage'
+import type { PartPackage } from './parts/partPackage'
+import { clearPackages, registerPackage } from './parts/partRegistry'
 import type { PartInstance, SceneJSON, SdkPart } from './types'
 
 const HOLDER = 'acme.holder'

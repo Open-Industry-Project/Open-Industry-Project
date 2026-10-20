@@ -4,12 +4,12 @@
 // (store.addUserPackage), and a change is one package commit (store.commitPackage), so editing a built-in makes this
 // project's own version of it, as an in-app edit does.
 
-import { getPackage, hasPackage, registerPackage } from '../../core/partRegistry'
-import { manifestOfPackage, type PackageManifest, type PartPackage } from '../../core/partPackage'
-import { partFootprint } from '../../core/partGeometry'
+import { getPackage, hasPackage, registerPackage } from '../../core/parts/partRegistry'
+import { manifestOfPackage, type PackageManifest, type PartPackage } from '../../core/parts/partPackage'
+import { partFootprint } from '../../core/parts/partGeometry'
 import { emptyBox, growBox, meshLinkBox, parseGlb } from '../../core/glbBox'
-import { qApply, rigWorldPoses, type RigParams } from '../../core/rigPose'
-import { createSdkPart } from '../../core/scene'
+import { qApply, rigWorldPoses, type RigParams } from '../../core/rig/rigPose'
+import { createSdkPart } from '../../core/scene/scene'
 import { checkManifestAgainst, type SchemaProblem } from '../../core/manifestSchemaCheck'
 import { stepUpAxisGuess, type StepUpAxis } from '../../core/stepToGlb'
 import { validatePart, type PartDiagnostic } from '../../sim/validatePart'

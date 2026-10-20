@@ -14,29 +14,29 @@
 //
 // A lazy chunk: only desktopAgent.ts imports it, and only once the shell says an agent host exists.
 
-import { subtreeIds } from '../../core/hierarchy'
-import { uniqueSiblingName } from '../../core/partDisplayName'
-import { partFootprint, toWorldXZ } from '../../core/partGeometry'
-import { findSnap } from '../../core/snapFeatures'
-import { commitSnap, snapAttaches } from '../../core/snapCommit'
-import { getPackage } from '../../core/partRegistry'
-import { createSdkPart, nextId } from '../../core/scene'
-import { validateTestSpec, type TestSpec } from '../../core/projectTest'
-import { AGENT_GUIDE, projectToFolderFiles } from '../../core/projectFolder'
-import type { PartPackage } from '../../core/partPackage'
-import type { ParamSpec } from '../../core/partApi'
+import { subtreeIds } from '../../core/scene/hierarchy'
+import { uniqueSiblingName } from '../../core/parts/partDisplayName'
+import { partFootprint, toWorldXZ } from '../../core/parts/partGeometry'
+import { findSnap } from '../../core/snap/snapFeatures'
+import { commitSnap, snapAttaches } from '../../core/snap/snapCommit'
+import { getPackage } from '../../core/parts/partRegistry'
+import { createSdkPart, nextId } from '../../core/scene/scene'
+import { validateTestSpec, type TestSpec } from '../../core/project/projectTest'
+import { AGENT_GUIDE, projectToFolderFiles } from '../../core/project/projectFolder'
+import type { PartPackage } from '../../core/parts/partPackage'
+import type { ParamSpec } from '../../core/parts/partApi'
 import type { PartInstance, SceneJSON, SdkPart } from '../../core/types'
 import { controllerFor, runnableSource } from '../../plc/controller'
 import { defaultController, setTaskTiming } from '../../plc'
 import { isKnownDialect } from '../../core/dialect'
-import { LocalPlcLink } from '../../plc/plcLink'
+import { LocalPlcLink } from '../../plc/link/plcLink'
 import { wiredBindings } from '../../plc/wiring'
-import { commitControllerEdit } from '../controllerCommit'
-import { planTagRename, testsNamingTag } from '../tagRename'
-import { assignIo, importIoList, ioListCsv, ioTargetFor, reportSummary } from '../ioAssign'
-import type { EditorStore } from '../store'
-import type { ProjectTestRun } from '../projectTestsRun'
-import { FOLDER_OPTIONS } from '../folderOptions'
+import { commitControllerEdit } from '../program/controllerCommit'
+import { planTagRename, testsNamingTag } from '../program/tagRename'
+import { assignIo, importIoList, ioListCsv, ioTargetFor, reportSummary } from '../program/ioAssign'
+import type { EditorStore } from '../store/store'
+import type { ProjectTestRun } from '../project/projectTestsRun'
+import { FOLDER_OPTIONS } from '../project/folderOptions'
 import {
   AGENT_LABEL,
   AgentImageResult,
@@ -383,7 +383,7 @@ const snapPart: AgentTool = {
       const hint = turn !== undefined ? ` It would seat with rotationY ${round(turn)} (a quarter turn: the mount faces the other way).` : ' Try `near` closer to where it should mount, or another host.'
       throw new AgentToolError(`nothing ${host ? `on '${host.id}' ` : ''}engages '${part.id}' from [${position.map(round).join(', ')}].${hint}`)
     }
-    // what the editor's drop writes: pose, fits, host fits, attach (core/snapCommit)
+    // what the editor's drop writes: pose, fits, host fits, attach (core/snap/snapCommit)
     const parent = snapAttaches(scene.parts, part.id, c) ? c.targetId : undefined
     const parts = [...commitSnap(scene.parts, part.id, c)]
     const seated = parts.find((p) => p.id === part.id)!
@@ -696,7 +696,7 @@ const runTest: AgentTool = {
   },
   run: async ({ store }, args) => {
     const project = store.snapshotProject()
-    const { runProjectTests } = await import('../projectTestsRun')
+    const { runProjectTests } = await import('../project/projectTestsRun')
     if (args.spec === undefined) {
       if ((project.tests ?? []).length === 0) throw new AgentToolError('the project keeps no tests yet: pass a `spec`, or keep one with save_test')
       const runs = await runProjectTests(project)

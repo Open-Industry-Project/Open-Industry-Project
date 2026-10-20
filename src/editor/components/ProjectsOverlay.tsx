@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { commandEnabled, runCommand } from '../commands'
-import { DEMO_SCENE_NAME } from '../demoScenes'
+import { DEMO_SCENE_NAME } from '../demo/demoScenes'
 import {
   currentDocumentId,
   deleteDocument,
@@ -9,13 +9,13 @@ import {
   renameDocument,
   requestDurableStorage,
   supportsDocumentLibrary,
-} from '../documentStore'
-import type { DocumentMeta } from '../documentStore'
-import { openFolderDocument, openLibraryStandIn } from '../desktopProjectBridge'
-import { createNewProject, UNTITLED_PROJECT } from '../newProject'
-import { getOipProjectApi } from '../desktopProjectApi'
-import type { FolderRecord } from '../desktopProjectApi'
-import type { EditorState, EditorStore } from '../store'
+} from '../project/documentStore'
+import type { DocumentMeta } from '../project/documentStore'
+import { openFolderDocument, openLibraryStandIn } from '../desktop/desktopProjectBridge'
+import { createNewProject, UNTITLED_PROJECT } from '../project/newProject'
+import { getOipProjectApi } from '../desktop/desktopProjectApi'
+import type { FolderRecord } from '../desktop/desktopProjectApi'
+import type { EditorState, EditorStore } from '../store/store'
 import { CloseIcon, PencilIcon, TrashIcon } from './toolbarIcons'
 import { defineMessages, t } from '../../core/i18n'
 

@@ -1,25 +1,25 @@
-import { partCreditText } from '../partCredit'
+import { partCreditText } from '../parts/partCredit'
 import { lazy, Suspense, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, MouseEvent as ReactMouseEvent } from 'react'
 import { versionedAssetUrl } from '../../core/assetVersions'
 import { PART_DEFS } from '../../core/types'
 import type { PartDef, PartType } from '../../core/types'
-import { packageThumbFile } from '../../core/partPackage'
-import { getPackage, packageCategory } from '../../core/partRegistry'
+import { packageThumbFile } from '../../core/parts/partPackage'
+import { getPackage, packageCategory } from '../../core/parts/partRegistry'
 import type { EditorController } from '../controller'
-import type { EditorState } from '../store'
-import { downloadPart } from '../partFile'
-import { shippedAssetBytes, warmShippedAssets } from '../shippedAssetCache'
+import type { EditorState } from '../store/store'
+import { downloadPart } from '../parts/partFile'
+import { shippedAssetBytes, warmShippedAssets } from '../parts/shippedAssetCache'
 import { preloadBehaviorEditor } from './behaviorEditorChunk'
 import { ScriptIcon } from './toolbarIcons'
 import { commandEnabledOn, runCommand, runCommandOn } from '../commands'
 import { ExportIcon, ImportIcon, PartGlyph, PencilIcon, TrashIcon } from './toolbarIcons'
-import { builtInsUpdated } from '../storePackages'
+import { builtInsUpdated } from '../store/storePackages'
 import { builtInUpdateChoices, builtInUpdatedText } from './builtInUpdate'
 import { PartUpdatesNotice } from './PartUpdatesNotice'
 import { UNLISTED_BUILT_INS, editedSinceCopied, sameAsBuiltIn } from '../../core/builtInVersion'
 import { ContextMenu } from './inspector/menu'
-import { getShelfApi } from '../partShelf'
+import { getShelfApi } from '../parts/partShelf'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 
 const M = defineMessages('catalog', {
@@ -175,7 +175,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   // built-in: its committed thumbnail, its bare name, nothing to delete. Only the project's own versions shadow.
   const bundledById = new Map(state.bundledPackages.map((p) => [p.id, p]))
   const ownVersions = state.userPackages.filter((p) => !sameAsBuiltIn(p, bundledById.get(p.id)))
-  // an unlisted built-in (core/partCatalog UNLISTED_BUILT_INS) stays out unless the project changed its own version
+  // an unlisted built-in (core/parts/partCatalog UNLISTED_BUILT_INS) stays out unless the project changed its own version
   const customById = new Map([...state.bundledPackages.filter((p) => !UNLISTED_BUILT_INS.has(p.id)), ...ownVersions].map((p) => [p.id, p]))
   // Pristine first-party bundled packages (by object identity, so a user/folder copy that shadows a bundled
   // id, and takes precedence in customById, is excluded): only these have a committed /thumbnails/pkg/*.webp; every
@@ -430,7 +430,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
                       // the phrase actually means to a reader: a part they imported or authored - provenance
                       // nothing else on the card shows. A first-party package gets its bare name: the tooltip is
                       // still useful because the label ellipsizes, but its category is just the tab you are on.
-                      // A library copy says who made it (editor/partCredit.ts).
+                      // A library copy says who made it (editor/parts/partCredit.ts).
                       bundledSet.has(pkg) ? pkg.name : pkg.credit ? t(M.credited, { name: pkg.name, credit: partCreditText(pkg) }) : t(M.customPart, { name: pkg.name })
               }
               onClick={(e) => keyboardPlace(e, 'part', pkg.id)}

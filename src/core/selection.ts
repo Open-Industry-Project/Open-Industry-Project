@@ -1,4 +1,4 @@
-import { groupRoot } from './hierarchy'
+import { groupRoot } from './scene/hierarchy'
 import type { PartInstance } from './types'
 
 /**

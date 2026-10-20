@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
-import { createPart, createSdkPart, nextId, serializeScene, setNextIdSuffix } from '../core/scene'
-import { isAncestor } from '../core/hierarchy'
-import { clearPackages, registerPackage } from '../core/partRegistry'
-import type { PartPackage } from '../core/partPackage'
+import { createPart, createSdkPart, nextId, serializeScene, setNextIdSuffix } from '../core/scene/scene'
+import { isAncestor } from '../core/scene/hierarchy'
+import { clearPackages, registerPackage } from '../core/parts/partRegistry'
+import type { PartPackage } from '../core/parts/partPackage'
 import { DEFAULT_SIM_HZ, SCENE_VERSION } from '../core/types'
 import type { PartInstance, SceneJSON, SdkPart, SimRate } from '../core/types'
 import { applySceneDiff } from './diff'
@@ -27,7 +27,7 @@ import {
 import { seedIfEmpty } from './provider'
 import { authoredCargoView, CollabBridge, overrideScene, withRunLocalCargo } from './bridge'
 import type { BridgeStore, DragPose, PresenceSource } from './bridge'
-import { PACKAGE_FORMAT } from '../core/partPackage'
+import { PACKAGE_FORMAT } from '../core/parts/partPackage'
 
 /** a representative scene: a building (its `rules` wall-rule list param exercises the nested-list shape) plus
  *  a few generic movable Group bodies to carry position / name / parent / provenance through the room */

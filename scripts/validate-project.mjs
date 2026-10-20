@@ -60,14 +60,14 @@ const vite = await createServer({
 try {
   // the app's built-in parts: a format-3 project names them by id and keeps no copy (scripts/lib/builtIns.mjs)
   await declareBuiltIns(vite)
-  const { folderFilesToProject, unreferencedProjectFiles } = await vite.ssrLoadModule('/src/core/projectFolder.ts')
-  const { isZipData, oipBytesToProject } = await vite.ssrLoadModule('/src/core/projectArchive.ts')
-  const { validateProject } = await vite.ssrLoadModule('/src/core/project.ts')
-  const { validateScene } = await vite.ssrLoadModule('/src/core/scene.ts')
+  const { folderFilesToProject, unreferencedProjectFiles } = await vite.ssrLoadModule('/src/core/project/projectFolder.ts')
+  const { isZipData, oipBytesToProject } = await vite.ssrLoadModule('/src/core/project/projectArchive.ts')
+  const { validateProject } = await vite.ssrLoadModule('/src/core/project/project.ts')
+  const { validateScene } = await vite.ssrLoadModule('/src/core/scene/scene.ts')
   const { dialectRefusal, isKnownDialect } = await vite.ssrLoadModule('/src/core/dialect.ts')
   const { wrappedProgramWarning } = await vite.ssrLoadModule('/src/plc/sceneProgram.ts')
-  const { builtInPackage } = await vite.ssrLoadModule('/src/core/partRegistry.ts')
-  const { summarizeLibrary, describeLibraryEntry } = await vite.ssrLoadModule('/src/core/partLibrarySummary.ts')
+  const { builtInPackage } = await vite.ssrLoadModule('/src/core/parts/partRegistry.ts')
+  const { summarizeLibrary, describeLibraryEntry } = await vite.ssrLoadModule('/src/core/parts/partLibrarySummary.ts')
   // The part baker: rebuilds each parts/<id>/ folder by RUNNING its behavior.js (under the core
   // determinism sandbox) through the canonical validator - so an edited script's syntax/determinism/
   // param errors fail validation here instead of surfacing at sim time in the app.
@@ -133,7 +133,7 @@ try {
   }
   const p = result.project
   // The project, and - for a document from before a project held one scene - the projects its other scenes become
-  // when the app opens it (core/project.ts `splitOff`). Each is checked below as the project it will be.
+  // when the app opens it (core/project/project.ts `splitOff`). Each is checked below as the project it will be.
   const machines = [p, ...(result.splitOff ?? [])]
   if (kind === 'scene') {
     console.log(`✓ valid scene - ${p.scene.parts.length} part(s)`)

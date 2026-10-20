@@ -45,7 +45,7 @@ contextBridge.exposeInMainWorld('oipParts', {
   revealPart: (dir) => ipcRenderer.invoke('parts:revealPart', dir),
 })
 
-// The parts shelf (apps/desktop/partsShelf.cjs; src/editor/partShelf.ts is the typed twin): parts kept outside
+// The parts shelf (apps/desktop/partsShelf.cjs; src/editor/parts/partShelf.ts is the typed twin): parts kept outside
 // any project, for projects to copy from. No paths cross: the page lists the shelf, and hands a part over by id.
 contextBridge.exposeInMainWorld('oipShelf', {
   /** @returns {Promise<{ root: string, parts: Array<{dir,id,name,manifestJson,behaviorSource}>, problems: Array<{dir,message}> }>} */
@@ -58,9 +58,9 @@ contextBridge.exposeInMainWorld('oipShelf', {
   reveal: () => ipcRenderer.invoke('shelf:reveal'),
 })
 
-// The project-as-a-folder surface (src/editor/desktopProjectBridge.ts is the typed twin). The shell
+// The project-as-a-folder surface (src/editor/desktop/desktopProjectBridge.ts is the typed twin). The shell
 // only moves raw {path, contents} text files between disk and the renderer. The format lives in
-// src/core/projectFolder.ts and the sync rules in src/core/folderSync.ts, shared with the web and the CLIs.
+// src/core/project/projectFolder.ts and the sync rules in src/core/project/folderSync.ts, shared with the web and the CLIs.
 contextBridge.exposeInMainWorld('oipProject', {
   /**
    * Show a native folder picker and read the chosen project folder's files.
@@ -83,7 +83,7 @@ contextBridge.exposeInMainWorld('oipProject', {
   signature: (root) => ipcRenderer.invoke('project:signature', root),
 
   /**
-   * Guarded writes (src/core/folderSync.ts FolderWriteOp[]).
+   * Guarded writes (src/core/project/folderSync.ts FolderWriteOp[]).
    * @returns {Promise<{ moved: string[], failed: string[], error: string | null }>}
    */
   write: (root, ops) => ipcRenderer.invoke('project:write', root, ops),
@@ -147,7 +147,7 @@ contextBridge.exposeInMainWorld('oipProject', {
 })
 
 // An external PLC reaches the app over TCP, which the sandboxed renderer cannot open: main listens or
-// connects (plcIo.cjs) and carries raw bytes. src/editor/externalPlc.ts is the typed twin; the protocol is the app's.
+// connects (plcIo.cjs) and carries raw bytes. src/editor/links/externalPlc.ts is the typed twin; the protocol is the app's.
 contextBridge.exposeInMainWorld('oipPlcIo', {
   /** @param {{host: string, port: number}} opts @returns {Promise<{error: string}>} '' once listening */
   listen: (opts) => ipcRenderer.invoke('plcio:listen', opts),
@@ -174,7 +174,7 @@ contextBridge.exposeInMainWorld('oipPlcIo', {
 })
 
 // ...and through OPC UA, whose protocol node-opcua speaks in main (opcUaIo.cjs). The app decides which tag
-// is which node (src/core/opcUa.ts); these are the service calls it makes.
+// is which node (src/core/io/opcUa.ts); these are the service calls it makes.
 contextBridge.exposeInMainWorld('oipOpcUa', {
   /** @param {{endpoint: string}} opts @returns {Promise<{error: string, discovery?: {name: string, urls: string[]}[]}>} discovery: a discovery server, not a PLC */
   connect: (opts) => ipcRenderer.invoke('opcua:connect', opts),
@@ -194,7 +194,7 @@ contextBridge.exposeInMainWorld('oipOpcUa', {
 })
 
 // ...and through EtherNet/IP to a Logix controller, whose protocol libplctag speaks in main (eipIo.cjs). The app
-// decides which tags travel and what their values mean (src/core/eip.ts); these are the library calls it makes.
+// decides which tags travel and what their values mean (src/core/io/eip.ts); these are the library calls it makes.
 contextBridge.exposeInMainWorld('oipEip', {
   /** @param {{gateway: string, path: string}} opts @returns {Promise<{error: string}>} */
   open: (opts) => ipcRenderer.invoke('eip:open', opts),
@@ -206,7 +206,7 @@ contextBridge.exposeInMainWorld('oipEip', {
 })
 
 // ...and over ADS to a TwinCAT runtime, through TwinCAT's own router by Beckhoff's TcAdsDll in main (adsIo.cjs). The app
-// decides which symbols travel and what their values mean (src/core/ads.ts); these are the calls it makes.
+// decides which symbols travel and what their values mean (src/core/io/ads.ts); these are the calls it makes.
 contextBridge.exposeInMainWorld('oipAds', {
   /** @param {{netId: string, port: number}} opts @returns {Promise<{error: string, localNetId?: string, target?: string}>} */
   open: (opts) => ipcRenderer.invoke('ads:open', opts),
@@ -218,7 +218,7 @@ contextBridge.exposeInMainWorld('oipAds', {
 })
 
 // The simulated PLC's own OPC UA server, for a SCADA or HMI (opcUaServer.cjs). The app decides what is
-// published and what a write does (src/editor/opcUaServer.ts); main only keeps the nodes.
+// published and what a write does (src/editor/links/opcUaServer.ts); main only keeps the nodes.
 contextBridge.exposeInMainWorld('oipOpcUaServer', {
   /** @param {{port: number, network: boolean}} opts @returns {Promise<{error: string, endpoint: string}>} */
   start: (opts) => ipcRenderer.invoke('opcuaserver:start', opts),

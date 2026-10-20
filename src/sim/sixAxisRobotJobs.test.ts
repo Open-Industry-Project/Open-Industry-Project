@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { instantiatePartScript, resolvePartParams } from '../core/partScript'
-import type { ParamValue } from '../core/partApi'
+import { instantiatePartScript, resolvePartParams } from '../core/parts/partScript'
+import type { ParamValue } from '../core/parts/partApi'
 
 // The six-axis robot's jobs, run through its real behavior (examples/parts/six-axis-robot/behavior.ts) with the
 // PLC side played by hand: a command number, an Execute edge, and whatever the job's inputs read. What is pinned

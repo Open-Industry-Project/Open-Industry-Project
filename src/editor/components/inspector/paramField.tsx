@@ -4,11 +4,11 @@ import { lazy, Suspense, useContext, useMemo } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { BuildingWallRule, EnumParamSpec, ParamSpec, ParamValue, PartInstance } from '../../../core/types'
 import { labelHead, partParamSpecs } from '../../../core/packageParams'
-import { listPackages } from '../../../core/partRegistry'
-import { isCargoPackage } from '../../../core/partPackage'
-import { canonicalAddress, looksLikeAddress, parseDirectAddress } from '../../../core/iecAddress'
+import { listPackages } from '../../../core/parts/partRegistry'
+import { isCargoPackage } from '../../../core/parts/partPackage'
+import { canonicalAddress, looksLikeAddress, parseDirectAddress } from '../../../core/io/iecAddress'
 import { normalizeHexColorList } from '../../../core/math'
-import { partDisplayNames } from '../../../core/partDisplayName'
+import { partDisplayNames } from '../../../core/parts/partDisplayName'
 import type { LiveSetpoints } from '../../controller/setpoints'
 import { paramDesc } from '../paramDescriptions'
 import { ColorListField, NumberGrid, RowSetField, WallRuleArray } from './arrays'
@@ -35,7 +35,7 @@ import type { GroupNode, SceneTagIndex } from './paramLogic'
 import { decimalsForStep, titleCase } from './shared'
 import type { Update } from './shared'
 import { runCommand } from '../../commands'
-import { closestOpcUaTagNames, matchOpcUaTag } from '../../../core/opcUa'
+import { closestOpcUaTagNames, matchOpcUaTag } from '../../../core/io/opcUa'
 import { TagField, TagSourcesContext } from './tagField'
 import { defineMessages, t } from '../../../core/i18n'
 
@@ -702,7 +702,7 @@ export function GroupSection({
 /**
  * On a tag field, when the scene's OPC UA PLC has been read: a tag the PLC does not hold, or holds more than once,
  * says so where it is typed, with the names closest to it. The link would refuse it at Play anyway
- * (core/opcUa.ts matchOpcUaTag); this is the same verdict, before Play.
+ * (core/io/opcUa.ts matchOpcUaTag); this is the same verdict, before Play.
  */
 function PlcTagBadge({ tag }: { tag: string }) {
   const plc = useContext(TagSourcesContext)?.plc

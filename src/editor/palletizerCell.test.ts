@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { Vector3 } from 'three'
-import { instantiatePartScript, resolvePartParams } from '../core/partScript'
-import type { ParamValue } from '../core/partApi'
+import { instantiatePartScript, resolvePartParams } from '../core/parts/partScript'
+import type { ParamValue } from '../core/parts/partApi'
 import { ROBOT_JOINT_MAX, ROBOT_JOINT_MIN } from '../core/types'
 import { robotForwardKinematics, segmentBoxDistance } from '../render/parts/robotKinematics'
-import { CELL, createPlcDemoScene, LAYER_PATTERN, PALLETIZER, PALLET_STACK_PATTERN } from './demoScenes'
+import { CELL, createPlcDemoScene, LAYER_PATTERN, PALLETIZER, PALLET_STACK_PATTERN } from './demo/demoScenes'
 
 // Guards the demo's layer-forming palletizer against the failure modes a tip-position check cannot see: an
 // impossible bend (a joint jammed on its limit), a link driven through the conveyor line or the stack it is

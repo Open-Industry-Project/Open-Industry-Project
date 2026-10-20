@@ -2,9 +2,9 @@
 // agent's own edits. "This conveyor" or "the rung I'm on" needs the first. The second lets the agent learn that the
 // person reverted its work, rather than building on edits that are gone.
 
-import { getPackage } from '../../core/partRegistry'
+import { getPackage } from '../../core/parts/partRegistry'
 import type { SdkPart } from '../../core/types'
-import { readPlcReading } from '../plcReading'
+import { readPlcReading } from '../program/plcReading'
 import { reviewChanges } from './agentReview'
 import { round, type AgentTool } from './toolKit'
 

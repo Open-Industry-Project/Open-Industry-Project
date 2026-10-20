@@ -1,8 +1,8 @@
 import { Quaternion, Vector3 } from 'three'
 import type { Group, Object3D } from 'three'
 import { clamp } from '../../../core/math'
-import type { ParamValue } from '../../../core/partApi'
-import type { PartPackage, RigJoint, Vec3Tuple } from '../../../core/partPackage'
+import type { ParamValue } from '../../../core/parts/partApi'
+import type { PartPackage, RigJoint, Vec3Tuple } from '../../../core/parts/partPackage'
 import type { RobotGizmoApi, RobotGizmoJoint, RobotGizmoLayout } from '../../api'
 
 // ---- rig editor gizmo (a robot's joint rings + IK handle, generalized to any rig) -------------

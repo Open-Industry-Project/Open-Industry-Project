@@ -15,7 +15,7 @@
 // from nothing: `npm run add-part -- my-test oip.roller-conveyor oip.box ./my-part --place`.
 // `--place` also drops one instance of each part: at the origin, or where that part's own options say. The options
 // after a part apply to that part only:
-//   --params k=v,...  its params, each checked against the param's declared type (core/partParamArgs.ts). A param
+//   --params k=v,...  its params, each checked against the param's declared type (core/parts/partParamArgs.ts). A param
 //                     that takes effect only under a switch setting turns the switch to it unless the switch is given
 //                     too (`speedFpm=200` on a metric belt sets `fpmUnits=true`: said, never silent); with the switch
 //                     given the other way it is warned about. A value the part has already is not stored (printed).
@@ -130,13 +130,13 @@ try {
     scene = lib.scene
     bundled = lib.bundled
   } else {
-    const { emptyScene } = await vite.ssrLoadModule('/src/core/scene.ts')
+    const { emptyScene } = await vite.ssrLoadModule('/src/core/scene/scene.ts')
     scene = emptyScene()
     bundled = await bakeBundled(vite)
   }
-  const { registerPackage } = await vite.ssrLoadModule('/src/core/partRegistry.ts')
-  const { createSdkPart } = await vite.ssrLoadModule('/src/core/scene.ts')
-  const { parseParamArgs, withParamArgs } = await vite.ssrLoadModule('/src/core/partParamArgs.ts')
+  const { registerPackage } = await vite.ssrLoadModule('/src/core/parts/partRegistry.ts')
+  const { createSdkPart } = await vite.ssrLoadModule('/src/core/scene/scene.ts')
+  const { parseParamArgs, withParamArgs } = await vite.ssrLoadModule('/src/core/parts/partParamArgs.ts')
   const { packageParamSpecs } = await vite.ssrLoadModule('/src/core/packageParams.ts')
 
   const idsTaken = new Set(scene.parts.map((p) => p.id))
@@ -297,7 +297,7 @@ function writeScaffold({ out, sceneParts }, project) {
     // the program's files: format 7 lists one per POU (`program`), formats 4-6 name one (`stProgram`)
     const programFiles = Array.isArray(project.program) ? project.program : project.stProgram ? [project.stProgram] : []
     if (programFiles.length === 0) {
-      // one file; the app lays a program out one file per POU when it opens the folder (core/projectFolder.ts)
+      // one file; the app lays a program out one file per POU when it opens the folder (core/project/projectFolder.ts)
       const rel = 'plc/program.st'
       project.program = [rel]
       mkdirSync(dirname(folderOf(rel)), { recursive: true })

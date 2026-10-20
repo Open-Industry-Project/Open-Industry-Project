@@ -1,7 +1,7 @@
 import type { PartInstance } from './types'
-import { deriveGuardOpenings, hostGuardFrame } from './guardOpenings'
-import { beltLikeView } from './partGeometry'
-import { beltXToSExt, buildBeltPath } from './beltPath'
+import { deriveGuardOpenings, hostGuardFrame } from './guards/guardOpenings'
+import { beltLikeView } from './parts/partGeometry'
+import { beltXToSExt, buildBeltPath } from './conveyor/beltPath'
 
 type SRange = [number, number]
 

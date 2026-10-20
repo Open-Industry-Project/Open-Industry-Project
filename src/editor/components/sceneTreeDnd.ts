@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { DragEvent as ReactDragEvent } from 'react'
 import type { PartInstance } from '../../core/types'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../store/store'
 
 /** before/after = sibling reorder around the target; inside = become its child */
 export type DropPos = 'before' | 'after' | 'inside'

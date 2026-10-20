@@ -3,8 +3,8 @@
 // only what it reads; the press gesture drives the placement session (./placement.ts), so it takes what that needs
 // plus the pointer and viewport it tracks (CatalogPlaceDeps).
 
-import { createSdkPart, createPart } from '../../core/scene'
-import { getPackage } from '../../core/partRegistry'
+import { createSdkPart, createPart } from '../../core/scene/scene'
+import { getPackage } from '../../core/parts/partRegistry'
 import { PART_DEFS } from '../../core/types'
 import type { PartInstance, PartType } from '../../core/types'
 import { assetsBusy, runSpeculativeWarm, whenAssetsQuiet } from '../../render/gltf'

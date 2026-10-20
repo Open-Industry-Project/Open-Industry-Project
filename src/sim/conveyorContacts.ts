@@ -2,7 +2,7 @@
 // listener (the ?jsconveyor / stock-build fallback) and the native listener's facet table. ConveyorFacets (conveyorFacets.ts) owns
 // the conveyor maps and the table; everything here reads or writes what it is handed.
 import type Jolt from 'jolt-physics'
-import type { ConveyorEntry } from '../core/collisionShapes'
+import type { ConveyorEntry } from '../core/geometry/collisionShapes'
 import type { JoltModule } from './worldTypes'
 
 // Ghost (internal-edge) collision filtering. Each conveyor's running surface is many separate static convex

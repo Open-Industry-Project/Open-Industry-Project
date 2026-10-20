@@ -1,6 +1,6 @@
 // Get parts (docs/part-libraries.md): where a project gets parts it does not have, from the part libraries it reads
-// (editor/partLibraryUrls.ts). Sources on the left, the selected library's parts in the middle, the selected part on the
-// right. Getting a part copies it into the project's library (editor/partLibraries.ts installFromLibrary); placing it is
+// (editor/parts/partLibraryUrls.ts). Sources on the left, the selected library's parts in the middle, the selected part on the
+// right. Getting a part copies it into the project's library (editor/parts/partLibraries.ts installFromLibrary); placing it is
 // the Parts dock's job, where it then shows in its own category tab beside the built-ins.
 //
 // Each listed part's offered version is downloaded and checked when the window opens (a few KB each), so Add and Update
@@ -15,18 +15,18 @@ import type { ReactElement } from 'react'
 import { createPortal } from 'react-dom'
 import { asCopyOfBuiltIn } from '../../core/builtInVersion'
 import { CARGO_CAP_FORK_POCKETS, CARGO_CAP_HEAVY, CARGO_CAP_LOAD_BASE, cargoCapsOf } from '../../core/frame'
-import { partChanges } from '../../core/partChanges'
-import { libraryCredit, libraryStatus, libraryUrl, offeredVersion } from '../../core/partLibrary'
-import type { LibraryPart, LibraryVersion } from '../../core/partLibrary'
-import type { SourceStatus } from '../../core/partOrigin'
-import { isCargoPackage } from '../../core/partPackage'
-import type { PartPackage } from '../../core/partPackage'
-import { PART_SDK_LEVEL } from '../../core/partSdk'
+import { partChanges } from '../../core/parts/partChanges'
+import { libraryCredit, libraryStatus, libraryUrl, offeredVersion } from '../../core/parts/partLibrary'
+import type { LibraryPart, LibraryVersion } from '../../core/parts/partLibrary'
+import type { SourceStatus } from '../../core/parts/partOrigin'
+import { isCargoPackage } from '../../core/parts/partPackage'
+import type { PartPackage } from '../../core/parts/partPackage'
+import { PART_SDK_LEVEL } from '../../core/parts/partSdk'
 import { dialogHost } from '../dialogHost'
-import { addLibrary, downloadVersion, installFromLibrary, readLibrary } from '../partLibraries'
-import type { LibraryListing } from '../partLibraries'
-import { LIBRARIES_CHANGED, libraryUrls } from '../partLibraryUrls'
-import { documentSceneOf, type EditorState, type EditorStore } from '../store'
+import { addLibrary, downloadVersion, installFromLibrary, readLibrary } from '../parts/partLibraries'
+import type { LibraryListing } from '../parts/partLibraries'
+import { LIBRARIES_CHANGED, libraryUrls } from '../parts/partLibraryUrls'
+import { documentSceneOf, type EditorState, type EditorStore } from '../store/store'
 import { trapTab, useModalKeys } from './inspector/menu'
 import { ShelfChangeDialog } from './ShelfChangeDialog'
 import { CloseIcon, PartGlyph } from './toolbarIcons'
@@ -234,7 +234,7 @@ export function GetPartsWindow({ store, state, onClose, onPublish }: Props): Rea
     </button>
   )
 
-  // who made it, kept with the project's copy (core/partPackage.ts PartCredit)
+  // who made it, kept with the project's copy (core/parts/partPackage.ts PartCredit)
   const creditOf = (l: LibraryListing, partId: string) => libraryCredit(l.index!, l.index!.parts.find((p) => p.id === partId), l.firstParty)
   const add = (l: LibraryListing, pkg: PartPackage): void => installFromLibrary(store, pkg, creditOf(l, pkg.id))
   const update = (l: LibraryListing, pkg: PartPackage, status: SourceStatus, library: string): void => {

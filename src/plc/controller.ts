@@ -20,7 +20,7 @@
 import type { Controller, ControllerTask } from '../core/controller'
 import { diagnostics, parseAndCheck, syntaxDiagnostics } from './checker'
 import { parseDocument, unusedName } from './document'
-import { matchInCode, splitLibrary, triviaMask } from './exportText'
+import { matchInCode, splitLibrary, triviaMask } from './exchange/exportText'
 import { KEYWORDS, lex } from './lexer'
 import { parse } from './parser'
 import { parseStructure } from './structure'

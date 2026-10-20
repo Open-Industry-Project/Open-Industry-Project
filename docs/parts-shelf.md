@@ -1,7 +1,7 @@
 # The parts shelf
 
-Desktop only. Code: `src/core/partShelf.ts` (the statuses),
-`src/editor/partShelf.ts` (moving parts), `src/editor/components/CatalogShelf.tsx` (the Catalog's Shelf tab),
+Desktop only. Code: `src/core/parts/partShelf.ts` (the statuses),
+`src/editor/parts/partShelf.ts` (moving parts), `src/editor/components/CatalogShelf.tsx` (the Catalog's Shelf tab),
 `apps/desktop/partsShelf.cjs` (the folder). Gate: `e2e/verify-parts-shelf-electron.mjs`.
 
 ## Why a shelf
@@ -74,7 +74,7 @@ file dates on a shared drive or after a git checkout say little about which vers
 A part is matched by its id (`acme.transfer`). Two different parts that share an id (the project's did not come from
 the shelf, and its content differs) are a conflict neither side resolves silently: the shelf card cannot be placed,
 and the project's part cannot be put over it. The card offers "Rename ours…", which gives the project's part a new id
-(`store.renameUserPackage`, core/partRename.ts). Every placed copy moves with it, and the undo history is rewritten
+(`store.renameUserPackage`, core/parts/partRename.ts). Every placed copy moves with it, and the undo history is rewritten
 to the new id, so no earlier step brings the old one back. Like Import part it is a library change, not an undo step.
 The shelf's part is never the one renamed: other projects may use it under its id. The rename is refused in a room,
 while running, for a copy of a built-in (Save as a New Part makes a variant), and while another part's definition

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { registerPackage } from '../core/partRegistry'
-import { computeSceneGuardHoles, deriveGuardHoles, beamSegments } from '../core/guardHoles'
+import { registerPackage } from '../core/parts/partRegistry'
+import { computeSceneGuardHoles, deriveGuardHoles, beamSegments } from '../core/guards/guardHoles'
 import { GUARD_HOLE_PANEL } from '../core/types'
 import type { PartInstance, SdkPart } from '../core/types'
 import { buildPackage } from '../sim/buildPackage'
-import { bundledBehaviors, bundledManifests } from './bundledExamples'
+import { bundledBehaviors, bundledManifests } from './parts/bundledExamples'
 
-// Sensor-beam holes through conveyor side guards, derived from the scene (core/guardHoles.ts) with the real bundled
+// Sensor-beam holes through conveyor side guards, derived from the scene (core/guards/guardHoles.ts) with the real bundled
 // packages: a diffuse eye seated where its conveyorGuard mount snaps (lens 0.02 proud of the bed edge, origin 0.037
 // behind it, 0.02 below the deck) must cut the guard it stands against and the far one its beam reaches.
 

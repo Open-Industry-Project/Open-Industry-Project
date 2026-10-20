@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { arrayInstanceDeltas, qApply, resolvedGrabZone, rigWorldPoses } from '../../core/rigPose'
-import { evalPartGeometry } from '../../core/geometryEval'
-import type { MeshPart } from '../../core/partApi'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/partPackage'
+import { arrayInstanceDeltas, qApply, resolvedGrabZone, rigWorldPoses } from '../../core/rig/rigPose'
+import { evalPartGeometry } from '../../core/geometry/geometryEval'
+import type { MeshPart } from '../../core/parts/partApi'
+import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
 import { robotForwardKinematics } from './robotKinematics'
 import { examplePart, type RigGeo } from './examplePart'
 const { geometry: SIX_AXIS_RIG, materials: SIX_AXIS_MATERIALS, assets: SIX_AXIS_ASSETS, behavior: SIX_AXIS_BEHAVIOR } = examplePart<RigGeo>('oip.six-axis-robot')
@@ -10,7 +10,7 @@ const { geometry: SIX_AXIS_RIG, materials: SIX_AXIS_MATERIALS, assets: SIX_AXIS_
 // The Six-Axis robot, authored as a custom part (examples/parts/six-axis-robot), must place its gripper
 // at exactly the same spot the built-in robot does for the same joint angles. Otherwise the "convergence"
 // (a first-party part rebuilt on the public SDK) would be only cosmetic. This pins the rig FK (frame links +
-// quaternion rest rotations composed by core/rigPose) to robotForwardKinematics, the built-in's source of
+// quaternion rest rotations composed by core/rig/rigPose) to robotForwardKinematics, the built-in's source of
 // truth. The rig comes from the committed rig.json (built from examples/parts/six-axis-robot/part.js); the GLB/
 // textures it names are irrelevant to kinematics, so they're not needed here.
 

@@ -1,5 +1,5 @@
 /*
-  The ladder view (components/LadderView.tsx).
+  The ladder view (components/plc/LadderView.tsx).
 
   One number holds the drawing together: every series is laid out from its TOP, and its wire runs
   30px below that (an 18px tag line, then the middle of a 24px symbol). A branch path is a series, a

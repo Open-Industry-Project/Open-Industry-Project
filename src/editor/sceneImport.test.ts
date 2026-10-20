@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { EditorStore } from './store'
-import { importSceneText, isSceneFileText, sceneFileText, sceneNameFromFile } from './sceneFile'
+import { EditorStore } from './store/store'
+import { importSceneText, isSceneFileText, sceneFileText, sceneNameFromFile } from './project/sceneFile'
 import { SCENE_VERSION } from '../core/types'
 import type { PartInstance } from '../core/types'
-import { PACKAGE_FORMAT } from '../core/partPackage'
-import type { PartPackage } from '../core/partPackage'
-import { validateProject } from '../core/project'
-import type { ProjectJSON } from '../core/project'
+import { PACKAGE_FORMAT } from '../core/parts/partPackage'
+import type { PartPackage } from '../core/parts/partPackage'
+import { validateProject } from '../core/project/project'
+import type { ProjectJSON } from '../core/project/project'
 
 // Import Project, handed a scene file, opens it as a new project (a project holds one scene since format 4), filed beside
 // the open one, which is kept. Creating a project reloads into it, so newProject's two hooks are stubbed: whether a
 // project can be created here, and the project handed over to be filed.
 const creatable = vi.fn(() => true)
 const created: ProjectJSON[] = []
-vi.mock('./newProject', () => ({
+vi.mock('./project/newProject', () => ({
   canCreateProject: () => creatable(),
   createProjectFrom: (_store: unknown, project: ProjectJSON) => {
     created.push(project)

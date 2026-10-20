@@ -407,7 +407,7 @@ export interface Decl {
   maxLen?: number
   /**
    * A LOCATED variable's direct address (`Eye AT %IX100.0 : BOOL`), in the canonical spelling of
-   * core/iecAddress.ts. The address, not the name, is how the variable meets the scene and any
+   * core/io/iecAddress.ts. The address, not the name, is how the variable meets the scene and any
    * external controller: an %I variable is an input under that key, a %Q one an output.
    */
   location?: string
@@ -641,7 +641,7 @@ export interface Ast {
   /** every `LADDER ... END_LADDER` section, in source order. Their rungs are already lowered into the bodies
    *  above, so nothing that runs a program reads this: it is for whoever needs the rungs as rungs (the ladder
    *  view, the PLCopen LD writer) or their ST (the text exporters). See ladder.ts. */
-  ladder: import('./ladder').LdSection[]
+  ladder: import('./ladder/ladder').LdSection[]
   /** where the code outside every POU begins (its VAR sections end): where a controller-scoped tag is
    *  declared (plc/tags.ts). The end of the file when there is no such code. */
   bodyStart: number
@@ -791,7 +791,7 @@ export interface CompiledProgram {
    * What a variable is, by the name the watch table keys it by: its declared type (an enumeration reads
    * `ENUM`), whether it is a constant, and its address when it is located. Undefined for a function block's
    * member (`T1.Q`) and for anything that is not a single bit, number or string. For a surface that publishes
-   * the variables by name and has to say what each one holds (editor/opcUaServer.ts).
+   * the variables by name and has to say what each one holds (editor/links/opcUaServer.ts).
    */
   varInfo(name: string): VarInfo | undefined
   /** execute one cyclic scan; `dt` = elapsed seconds since the previous scan, which moves the

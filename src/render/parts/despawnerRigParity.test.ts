@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/partPackage'
+import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
 import { examplePart, type RigGeo } from './examplePart'
 const { behavior: DESPAWNER_BEHAVIOR, geometry: DESPAWNER_RIG } = examplePart<RigGeo>('oip.despawner')
 

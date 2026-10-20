@@ -4,9 +4,9 @@
 // are cast from and reads the cargo through the registry's step caches. SimWorld owns one.
 import type { FrameBeamHit, ZoneMix, ZoneTally } from '../core/frame'
 import { cargoKindName } from '../core/frame'
-import type { PartPackage } from '../core/partPackage'
-import type { ParamValue } from '../core/partApi'
-import type { Quat, Vec3 } from '../core/rigPose'
+import type { PartPackage } from '../core/parts/partPackage'
+import type { ParamValue } from '../core/parts/partApi'
+import type { Quat, Vec3 } from '../core/rig/rigPose'
 import type { SdkPart } from '../core/types'
 import type { BodyHolds } from './bodyHolds'
 import type { CargoRegistry } from './cargoRegistry'

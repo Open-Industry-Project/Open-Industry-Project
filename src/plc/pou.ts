@@ -5,7 +5,7 @@
 // typed engine's in one typed arena (typed/). Neither shape is visible from here: the builders ask a Pou, never its
 // storage, which is what lets both engines share them (docs/plc-typed-storage.md).
 
-import { canonicalAddress } from '../core/iecAddress'
+import { canonicalAddress } from '../core/io/iecAddress'
 import { controllerTags, identKey, isScalarType, passOrder, taskTable } from './program'
 import { bool, isInt, isString, nsOf, num, roundEven, str, strLimit, wrap } from './runtime'
 import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, VarInfo } from './types'

@@ -1,7 +1,7 @@
 # Part SDK vocabulary
 
 The words a part is described in, where each is declared, and why. The current package format is 6
-(`PACKAGE_FORMAT` in [src/core/partPackage.ts](../src/core/partPackage.ts)). Older stored packages load through
+(`PACKAGE_FORMAT` in [src/core/parts/partPackage.ts](../src/core/parts/partPackage.ts)). Older stored packages load through
 `PACKAGE_UPGRADES`, which is the one record of what each format renamed. This page describes only the current words.
 
 ## The test
@@ -42,7 +42,7 @@ is already its direction.
 - **`'rig'`**: links and joints declared in the manifest. A rig's `geometry()` is render-only, and its solids are
   links.
 - **`'drawn'`**: drawn by the script's `geometry()`, which returns submeshes (`MeshPart` in
-  [partApi.ts](../src/core/partApi.ts)).
+  [partApi.ts](../src/core/parts/partApi.ts)).
 - **`'cargo'`**: a box, pallet or tote the line carries. A rig with a `cargo` block is cargo too
   ([cargo-bodies.md](cargo-bodies.md)).
 

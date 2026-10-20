@@ -3,8 +3,8 @@ import { programTagChoices, rankTagNames } from './tagSuggest'
 import { buildSections } from './tagField'
 import type { TagSources } from './tagField'
 import type { TagRow } from '../../../plc/tags'
-import { plcTagListOf, readOpcUaTagList } from '../../externalPlc'
-import type { OpcUaHost } from '../../externalPlc'
+import { plcTagListOf, readOpcUaTagList } from '../../links/externalPlc'
+import type { OpcUaHost } from '../../links/externalPlc'
 
 describe('ranking a tag field\'s suggestions', () => {
   const names = ['Sorter.Motor', 'Sorter.MotorFault', 'Packer.Motor', 'Line2.ConveyorMotor', 'MotorSpeed', 'Sorter.Eye']

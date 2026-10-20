@@ -3,8 +3,8 @@
 // and the static / kinematic / compound-conveyor constructors the part builders call, which file each body under
 // the part being built. SimWorld owns one and brackets each part's build with begin() / end().
 import type Jolt from 'jolt-physics'
-import type { ConveyorEntry, ConveyorSubShape } from '../core/collisionShapes'
-import type { Quat, Vec3 } from '../core/rigPose'
+import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
+import type { Quat, Vec3 } from '../core/rig/rigPose'
 import { compoundConveyorShape, createKinematicBoxQuat, createStaticBody, createStaticBoxQuat, destroyBody, makeBoxShape, makeHull } from './bodyFactory'
 import type { FacetAxes } from './conveyorContacts'
 import type { ConveyorFacets } from './conveyorFacets'

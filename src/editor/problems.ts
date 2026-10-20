@@ -17,7 +17,7 @@
  *    program that does not compile cannot be asked what it declares. Each of those leaves a `note`, because a short
  *    list that silently means "could not look" looks the same as a clean result.
  *
- * A run's flow facts (core/flowFacts.ts) are not listed here: they are what happened, not something to fix. The
+ * A run's flow facts (core/flow/flowFacts.ts) are not listed here: they are what happened, not something to fix. The
  * agent's get_problems, the Tests overlay and the test-project and check-flow CLIs report them.
  */
 import { compile, controllerDiagnostics, controllerSource, LocalPlcLink, parseAndCheck, StError, unhandledProgramTags } from '../plc'
@@ -25,13 +25,13 @@ import { checkLayout } from '../core/checkLayout'
 import type { Controller } from '../core/controller'
 import { dialectRefusal, isKnownDialect } from '../core/dialect'
 import { packageParamSpecs } from '../core/packageParams'
-import { getPackage } from '../core/partRegistry'
-import { newerSdkLevel, PART_SDK_LEVEL } from '../core/partSdk'
+import { getPackage } from '../core/parts/partRegistry'
+import { newerSdkLevel, PART_SDK_LEVEL } from '../core/parts/partSdk'
 import { MAX_SIM_HZ, type PartInstance, type SimRate } from '../core/types'
 import type { CompiledProgram } from '../plc'
 import { timeToString } from '../plc/runtime'
 import { checkWiring, wiredBindings } from '../plc/wiring'
-import type { RuntimePartDiagnostic } from '../core/partDiagnostics'
+import type { RuntimePartDiagnostic } from '../core/parts/partDiagnostics'
 import { shortestHeldIntervalSec } from '../sim/plcHost'
 
 /** Which check produced a row. Also the display grouping, and the sort tie-break after severity. */
@@ -79,7 +79,7 @@ export interface ProblemsInput {
   /** the program's dialect (EditorState.stDialect, core/dialect.ts); absent = IEC. A program in one this build does
    *  not have is one error row, and nothing reads it as IEC: the program-side checks are a blind spot, and say so */
   readonly stDialect?: string
-  /** live runtime diagnostics (core/partDiagnostics.allPartDiagnostics()) */
+  /** live runtime diagnostics (core/parts/partDiagnostics.allPartDiagnostics()) */
   readonly runtime: readonly RuntimePartDiagnostic[]
   /** packageId -> build error, for authored parts whose latest edit did not compile */
   readonly buildErrors: Readonly<Record<string, string>>
@@ -368,7 +368,7 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
     })
   }
 
-  // parts made under a newer Part SDK than this build's (core/partSdk.ts): they may use something this build lacks,
+  // parts made under a newer Part SDK than this build's (core/parts/partSdk.ts): they may use something this build lacks,
   // and would then fail inside the part with no word why. A warning, since most such parts use nothing new
   const newer = new Map<string, string[]>()
   for (const p of input.parts) {

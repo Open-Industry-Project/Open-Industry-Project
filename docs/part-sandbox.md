@@ -8,9 +8,9 @@ that way.
 
 | Layer | Where | What it stops |
 |---|---|---|
-| **Code-trust gate** | `src/collab/codeTrust.ts` | A room's code from running at all until it is allowed (or, in a sandboxed browser, until it is known to be someone else's). Trusted without asking: code this app ships, in any build (`src/editor/shippedBehaviors.ts`), and code this browser wrote. |
+| **Code-trust gate** | `src/collab/codeTrust.ts` | A room's code from running at all until it is allowed (or, in a sandboxed browser, until it is known to be someone else's). Trusted without asking: code this app ships, in any build (`src/editor/parts/shippedBehaviors.ts`), and code this browser wrote. |
 | **SES lockdown** | `src/core/realmLockdown.ts`, run by `src/core/lockdownBoot.ts`, which `src/editor/main.tsx` and `src/sim/worker.ts` import first (on a dev server only, the page skips it when localStorage has `oip-web/no-lockdown`; the worker always locks down) | Tampering with the intrinsics the app relies on, and every path from a handed-in function back to the host (`fn.constructor('return this')`). |
-| **Compartment** | `src/core/partScript.ts` `compileSandboxed` | Part code seeing anything but the language's own globals: no `window`, storage, network, DOM, workers or app objects. |
+| **Compartment** | `src/core/parts/partScript.ts` `compileSandboxed` | Part code seeing anything but the language's own globals: no `window`, storage, network, DOM, workers or app objects. |
 | **The boundary** | `resolvePartParams`, `src/core/hostCopy.ts`, the `ctx` setters in `src/sim/embeddedBehavior.ts` | A part corrupting host data it is handed, or handing back data that changes after it was checked. |
 | **Determinism scan and shims, loop budget** | `src/core/determinism.ts`, `partScript.ts` SHIMS, `src/core/loopGuard.ts` | Not security: reproducibility (`Math.random`, `Date`), and a runaway loop freezing the page. They still run inside the sandbox. |
 | **Desktop main process** | `apps/desktop/folderGrants.cjs`, `endpointConsent.cjs` | What an escape would be worth on the desktop: main only touches folders the user handed it, and asks natively before any socket that leaves the machine. |
@@ -18,7 +18,7 @@ that way.
 ## How part code is compiled
 
 Every host compiles through `compilePartScript` (`partScript.ts`). When the realm is locked down
-(`partSandboxActive()`, `src/core/partSandbox.ts`), the source compiles inside a fresh `Compartment` per distinct source, wrapped as:
+(`partSandboxActive()`, `src/core/parts/partSandbox.ts`), the source compiles inside a fresh `Compartment` per distinct source, wrapped as:
 
 ```js
 (function (Array, Object, Number, ..., parseInt) {      // BOUND_GLOBALS: read once, as locals
@@ -123,7 +123,7 @@ The page ends the worker, stops the run and says so; the next Play starts a fres
 clock instead of judging, since its timers are throttled.
 
 To say which part, part code marks itself in a small buffer the page shares with the worker
-([core/partScript.ts](../src/core/partScript.ts) `setPartCallBeacon`). The outermost call into part code (an entry point
+([core/parts/partScript.ts](../src/core/parts/partScript.ts) `setPartCallBeacon`). The outermost call into part code (an entry point
 or a script's top level, the same place the loop budget resets) writes that it is in part code and the part's name,
 and clears the mark on the way out. The worker names a script by the package whose behavior it is, once per placed
 part. The page reads the buffer before it ends the worker. Where memory cannot be shared (a page that is not
@@ -155,6 +155,6 @@ In the page, that is all the protection there is. A hostile link can cost one fr
   budget intact, every built-in part still builds.
 - `src/editor/roomCodeTrust.test.ts` (`@unlocked-realm`): the gate as the last line of defence where the sandbox
   is absent.
-- `src/collab/codeTrust.test.ts`, `src/editor/shippedBehaviors.test.ts`, `src/core/sha256.test.ts`.
+- `src/collab/codeTrust.test.ts`, `src/editor/parts/shippedBehaviors.test.ts`, `src/core/sha256.test.ts`.
 - `apps/desktop/folderGrants.test.cjs` and `endpointConsent.test.cjs`.
 - Every e2e gate runs the app locked down, since the app locks itself down at boot.

@@ -1,5 +1,5 @@
-import type { PartPackage } from '../core/partPackage'
-import { getPackage } from '../core/partRegistry'
+import type { PartPackage } from '../core/parts/partPackage'
+import { getPackage } from '../core/parts/partRegistry'
 
 // The room's CODE trust gate. A custom part's `behavior` is JavaScript. Where the realm is locked down it runs in
 // the part sandbox (docs/part-sandbox.md), and this gate decides only WHETHER a room's code runs: a browser runs
@@ -19,7 +19,7 @@ import { getPackage } from '../core/partRegistry'
 // path can run it by accident.
 //
 // Trusted without asking: code this app ships or ever shipped (a first-party part, byte for byte, matched by
-// SHA-256 against every released version - editor/shippedBehaviors.ts), code this client wrote into
+// SHA-256 against every released version - editor/parts/shippedBehaviors.ts), code this client wrote into
 // the room itself, and code the registry already runs for that id. Everything else waits until the user allows
 // the ROOM's code (a per-room decision, remembered in this browser, like an editor's workspace trust).
 

@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { editedSinceCopied } from '../../core/builtInVersion'
-import { partChanges, type PartChange } from '../../core/partChanges'
+import { partChanges, type PartChange } from '../../core/parts/partChanges'
 import type { EditorController } from '../controller'
 import { dialogHost } from '../dialogHost'
-import { documentSceneOf, type EditorState } from '../store'
-import { builtInsUpdated } from '../storePackages'
+import { documentSceneOf, type EditorState } from '../store/store'
+import { builtInsUpdated } from '../store/storePackages'
 import { updateAllQuestion, updatesAvailableText } from './builtInUpdate'
 import { trapTab, useModalKeys } from './inspector/menu'
 import { CloseIcon } from './toolbarIcons'
@@ -32,7 +32,7 @@ const M = defineMessages('partUpdates', {
 })
 
 /** one part the app has a newer version of: what to call it, whether the project changed its copy too, and what taking
- *  the app's version changes in this project (core/partChanges.ts) */
+ *  the app's version changes in this project (core/parts/partChanges.ts) */
 interface Update {
   id: string
   name: string

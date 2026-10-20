@@ -11,7 +11,7 @@ effects and two dropdowns. A format 1-3 document can hold several scenes. It sti
 
 ## What a project is
 
-A `ProjectJSON` (`src/core/project.ts`) is a manifest over pieces that already exist:
+A `ProjectJSON` (`src/core/project/project.ts`) is a manifest over pieces that already exist:
 
 ```
 ProjectJSON {
@@ -89,17 +89,17 @@ The main design choices:
    implicit program on its scan time, which is the same thing, so its text is what runs. A program that also declares a
    `PROGRAM` runs the default table, so the organizer shows what runs.
 
-   **The organizer** ([PlcOrganizer.tsx](../src/editor/components/PlcOrganizer.tsx)) edits that table from a
-   tree beside the code in the PLC panel ([editor/plcOrganizer.ts](../src/editor/plcOrganizer.ts),
+   **The organizer** ([PlcOrganizer.tsx](../src/editor/components/plc/PlcOrganizer.tsx)) edits that table from a
+   tree beside the code in the PLC panel ([editor/program/plcOrganizer.ts](../src/editor/program/plcOrganizer.ts),
    [plc/taskTree.ts](../src/plc/taskTree.ts)). The tree lists Main (the top-level code), the tasks and the
    program instances each runs, then the POUs by kind, the data types and the global variables. Double-clicking a
    task or a program opens a properties dialog
-   ([ControllerPropertiesDialogs.tsx](../src/editor/components/ControllerPropertiesDialogs.tsx)).
+   ([ControllerPropertiesDialogs.tsx](../src/editor/components/plc/ControllerPropertiesDialogs.tsx)).
 
    There is no separate Controller dock. The tree's first node, Controller, holds Main. Its properties are the
-   external PLC link ([ControllerDialog.tsx](../src/editor/components/ControllerDialog.tsx)), a machine setting
+   external PLC link ([ControllerDialog.tsx](../src/editor/components/plc/ControllerDialog.tsx)), a machine setting
    kept in the browser, never in the project. While Play hands the scene to an external PLC, the toolbar shows
-   the link's state beside Play and Stop ([PlcLinkStatus.tsx](../src/editor/components/PlcLinkStatus.tsx)).
+   the link's state beside Play and Stop ([PlcLinkStatus.tsx](../src/editor/components/plc/PlcLinkStatus.tsx)).
 
    A program with no table sees the default one, and its task interval is where the scan time is edited.
    Retiming the default table sets `stScanMs` and stores no table. "+ Program" asks for a name, then adds a
@@ -108,8 +108,8 @@ The main design choices:
 
    Every edit is a pure function in [plc/controllerEdits.ts](../src/plc/controllerEdits.ts) that returns the
    next table and the tags it renames. Only renaming a `PROGRAM` instance, or the type it is named after,
-   renames tags. [editor/controllerCommit.ts](../src/editor/controllerCommit.ts) applies the table, the program
-   and the parts' tag parameters ([editor/controllerRewire.ts](../src/editor/controllerRewire.ts)) as one program
+   renames tags. [editor/program/controllerCommit.ts](../src/editor/program/controllerCommit.ts) applies the table, the program
+   and the parts' tag parameters ([editor/program/controllerRewire.ts](../src/editor/program/controllerRewire.ts)) as one program
    edit (`store.commitProgram`). None of it goes through the code editor, which is a lazy chunk that may not have
    loaded yet. A mounted editor catches up. A program whose text declares its own CONFIGURATION runs from it, and
    the panel offers to move its tasks into the table. Gated by
@@ -150,7 +150,7 @@ with no extra code.
 
 ## Serialization: one layout, two presentations
 
-- **`.oip` file = the project folder, zipped** (the `.docx` model; `core/projectArchive.ts`). Unzip a shared
+- **`.oip` file = the project folder, zipped** (the `.docx` model; `core/project/projectArchive.ts`). Unzip a shared
   `.oip` and you have the editable folder. Zip a folder by hand and it imports the same way. Encoding is
   byte-reproducible (fixed entry mtime). Import re-bakes part folders through the canonical validator, so a
   broken `behavior.js` fails the import with located diagnostics. Flat-JSON `.oip` documents (an older export
@@ -162,7 +162,7 @@ with no extra code.
 
 The same data model is used everywhere ([architecture.md](./architecture.md)). In project format 6 a part's
 embedded assets are real files beside its manifest, `parts/<id>/assets/<sha256>.glb`, named by the hash of their
-bytes (`core/partAssets.ts`). The folder codec, the `.oip` and Put on Shelf write them. Every host that reads a
+bytes (`core/parts/partAssets.ts`). The folder codec, the `.oip` and Put on Shelf write them. Every host that reads a
 part folder joins them back into base64 `data` before baking: the codec, the `.oip`, the desktop folder IO and
 sync, the browser folder link, the CLIs, the shelf and Import Parts from Folder. Nothing else in the app sees the
 difference. A missing file, or one that does not hash to its name, fails the open. In memory, and in the browser
@@ -171,7 +171,7 @@ are untouched ([part-sources.md](part-sources.md) "Assets").
 
 ### The project folder
 
-`src/core/projectFolder.ts` is the folder codec, a pure split view of the `.oip` document. Files are
+`src/core/project/projectFolder.ts` is the folder codec, a pure split view of the `.oip` document. Files are
 `{path, contents}` data with no filesystem access. The Electron shell, the validate CLI and the tests share it:
 
 ```
@@ -192,7 +192,7 @@ copy that `projectFolder.test.ts` pins.
 
 Under `parts/`, the app reads and writes only those three kinds of file. Anything else there belongs to the
 author: a `part.js` that `npm run build-parts -- <folder>` turns into a part's `manifest.json` and `behavior.js`,
-shared modules in `parts/_shared/`, notes (core/projectFolder.ts `isPartSourceFile`). The folder sync leaves them
+shared modules in `parts/_shared/`, notes (core/project/projectFolder.ts `isPartSourceFile`). The folder sync leaves them
 out of every round, so it never writes, loads or removes one, and removing a part removes only its own files
 ([part-authoring-guide.md](part-authoring-guide.md#writing-a-part-as-one-partjs)). The parts themselves are
 ordinary project content: the two-way folder sync below writes them and reads outside edits back, so a
@@ -243,7 +243,7 @@ upload does.
 
 A part folder is the parts-workspace format that **Import Parts from Folder** scans (`partsWorkspace.cjs`, which
 can read a project's `parts/` directly). `manifest.json` omits the fields baked from the behavior (`params`,
-`format`, `interactive`, `snap`; `core/partPackage.manifestOfPackage`), so the script is the source of truth.
+`format`, `interactive`, `snap`; `core/parts/partPackage.manifestOfPackage`), so the script is the source of truth.
 Rebuilding a part therefore runs the behavior once. Core's codec stays execution-free by taking an injected
 `PartBaker`, and the app and the CLI inject `sim/validatePart`. So **an edited `behavior.js` is re-baked, and its
 syntax, determinism or param errors fail the open with located diagnostics** instead of loading an inert part.
@@ -258,7 +258,7 @@ runs the real core validators via vite SSR (exit 0/1), so an externally edited p
 launching the app.
 
 In the Electron shell, **File → Open Project Folder… / Save Project to Folder…** move raw files over IPC
-(`apps/desktop/projectFolderIo.cjs` does the fs work, and `src/editor/desktopProjectBridge.ts` owns the flows).
+(`apps/desktop/projectFolderIo.cjs` does the fs work, and `src/editor/desktop/desktopProjectBridge.ts` owns the flows).
 The shell holds no rules of its own about the format. Open writes the folder's project as the working copy and
 reloads into it, through the same boot path every launch uses. Swapping the project in place would have to repeat
 that boot by hand: retire the old project's authoritative part registrations, replace `userPackages`, refresh the
@@ -272,7 +272,7 @@ project's parts. The reload reuses the one tested boot path. The web gets the sa
 A project that lives in a folder is kept in sync with it both ways. Every edit is written back a moment after it
 is made. Anything else that changes the folder, such as an agent, an editor or a `git checkout`, is loaded in. So
 git, backups and agents see the folder, not the app's private storage. One engine
-(`editor/projectFolderSync.ts`) runs on two hosts:
+(`editor/project/projectFolderSync.ts`) runs on two hosts:
 
 - **Desktop**: every project lives in a folder. The Electron shell moves the files
   (`desktopProjectApi.ts` → `apps/desktop/projectFolderIo.cjs`).
@@ -288,7 +288,7 @@ git, backups and agents see the folder, not the app's private storage. One engin
 
 How a round works:
 
-- **Decisions are per file, against a baseline** (`core/folderSync.ts`, pure). A file changed only in the app is
+- **Decisions are per file, against a baseline** (`core/project/folderSync.ts`, pure). A file changed only in the app is
   written. A file changed only on disk is loaded. A file changed in both, differently, is a **conflict**, and
   nothing moves until the user picks "Use folder version" or "Keep my version" (`FolderLinkBanner`). Loading and
   writing can happen in the same round when they touch different files.
@@ -359,7 +359,7 @@ CLIs and agents read them, but no menu writes one. The part editor is "Open Part
 the same reason: a workspace for one part is not a scene.
 
 **Save (Ctrl+S, and Save in the project menu) is the project Save on every surface** (`file.save`,
-`editor/saveProject.ts`). The project already saves itself, so Save writes what is pending and says where the work
+`editor/project/saveProject.ts`). The project already saves itself, so Save writes what is pending and says where the work
 is:
 - with a folder, it writes at once and confirms "Saved" only once the folder has it (a conflict or a folder error
   answers with its banner instead);
@@ -406,7 +406,7 @@ Nothing may save over the source until the others are safe, so whoever reads suc
 copy, an import or an opened folder parks them before its reload, and opening a document from the document library
 parks them too. Opening such a document also rewrites its record as the one scene it keeps, so it does not split
 twice. The next boot files what is parked
-(`editor/projectSplit.ts`):
+(`editor/project/projectSplit.ts`):
 
 - **Desktop, the project lives in a folder:** one question, listing the folders it will make. Yes: each scene gets
   a folder of its own beside the project's (`createFolder(name, beside)`, only beside a granted folder). The
@@ -427,7 +427,7 @@ will be. `add-part` writes into a folder, so it refuses an older one until the a
 
 ## The browser working copy
 
-In the browser the project's working copy is the `oip-web/project` autosave (`src/editor/projectFile.ts`; store
+In the browser the project's working copy is the `oip-web/project` autosave (`src/editor/project/projectFile.ts`; store
 `persistProject` / `adoptProjectLibrary`): the scene, its ST program and the project's parts in one document,
 which the `main.tsx` boot prefers.
 

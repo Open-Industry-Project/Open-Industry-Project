@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/partPackage'
-import { rigWorldPoses } from '../../core/rigPose'
+import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
+import { rigWorldPoses } from '../../core/rig/rigPose'
 import { rayObb } from '../../core/beamCast'
-import { evalPartGeometry } from '../../core/geometryEval'
-import type { MeshPart } from '../../core/partApi'
+import { evalPartGeometry } from '../../core/geometry/geometryEval'
+import type { MeshPart } from '../../core/parts/partApi'
 import { SENSOR_EMIT_Y, SENSOR_EMIT_Z, SENSOR_HEIGHT } from '../../core/types'
 import { examplePart, type RigGeo } from './examplePart'
 const { assets: DIFFUSE_SENSOR_ASSETS, behavior: DIFFUSE_SENSOR_BEHAVIOR, materials: DIFFUSE_SENSOR_MATERIALS, geometry: DIFFUSE_SENSOR_RIG, head: DIFFUSE_SENSOR_HEAD } = examplePart<RigGeo>('oip.diffuse-sensor')

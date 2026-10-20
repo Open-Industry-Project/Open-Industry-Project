@@ -21,7 +21,7 @@ const ban = (patterns, message) => ({
 const renderBans = ['react', 'react-dom', 'react-dom/*', 'jolt-physics', 'jolt-physics/*', '**/sim/**', '**/editor/**']
 const renderMessage = 'render may only depend on core and three'
 // Part hot-reload invariants: examples/parts/** data enters the app
-// through exactly two modules: editor/bundledPackageData (whose only importer is the
+// through exactly two modules: editor/parts/bundledPackageData (whose only importer is the
 // hot-accepting bundledExamples.ts) and render/parts/examplePart (a parity-test fixture). Any other
 // importer becomes an un-accepting HMR boundary, which silently turns every part edit into a full page
 // reload (demoScenes did this once).
@@ -68,7 +68,7 @@ export default tseslint.config(
   { ignores: ['dist/**', '.types/**', 'node_modules/**', '**/*.d.ts'] },
   {
     // A part script kept as a test fixture (src/sim/fixtures/<part>/behavior.js) runs in the part sandbox, which hands
-    // it `definePart` as its one global (core/partScript.ts). Linted as a script, with that global declared.
+    // it `definePart` as its one global (core/parts/partScript.ts). Linted as a script, with that global declared.
     files: ['src/**/fixtures/**/behavior.js'],
     languageOptions: { sourceType: 'script', globals: { definePart: 'readonly' } },
   },
@@ -106,7 +106,7 @@ export default tseslint.config(
     // core/sim/render/plc already ban bundledPackageData through their '**/editor/**' bans; render's
     // examplePart enforcement is its own block below.
     files: ['src/**'],
-    ignores: ['src/editor/bundledExamples.ts', 'src/editor/bundledPackageData.test.ts', 'src/editor/agentGuideConventions.test.ts'],
+    ignores: ['src/editor/parts/bundledExamples.ts', 'src/editor/parts/bundledPackageData.test.ts', 'src/editor/agentGuideConventions.test.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [bundledDataBan, examplePartBan, gplOracleBan] }],
     },
@@ -118,12 +118,12 @@ export default tseslint.config(
     // earlier entry for the files it matches.
     files: ['src/**'],
     ignores: [
-      'src/editor/store.ts',
-      'src/editor/projectFile.ts',
-      'src/editor/stProgram.ts',
-      'src/editor/stProgram.test.ts',
-      'src/editor/bundledExamples.ts',
-      'src/editor/bundledPackageData.test.ts',
+      'src/editor/store/store.ts',
+      'src/editor/project/projectFile.ts',
+      'src/editor/program/stProgram.ts',
+      'src/editor/program/stProgram.test.ts',
+      'src/editor/parts/bundledExamples.ts',
+      'src/editor/parts/bundledPackageData.test.ts',
       // vitest-only, like the line above: a test file is never in the dev module graph, so it cannot
       // become the un-accepting HMR boundary this ban exists to prevent.
       'src/editor/agentGuideConventions.test.ts',
@@ -137,16 +137,16 @@ export default tseslint.config(
     // keeps its exemptions out of this one so they keep exactly the rules they had.
     files: ['src/editor/**'],
     ignores: [
-      'src/editor/store.ts',
-      'src/editor/projectFile.ts',
-      'src/editor/stProgram.ts',
-      'src/editor/stProgram.test.ts',
-      'src/editor/bundledExamples.ts',
-      'src/editor/bundledPackageData.test.ts',
+      'src/editor/store/store.ts',
+      'src/editor/project/projectFile.ts',
+      'src/editor/program/stProgram.ts',
+      'src/editor/program/stProgram.test.ts',
+      'src/editor/parts/bundledExamples.ts',
+      'src/editor/parts/bundledPackageData.test.ts',
       'src/editor/agentGuideConventions.test.ts',
       'src/editor/App.tsx',
-      'src/editor/projectTestRunner.ts',
-      'src/editor/projectTestsRun.ts',
+      'src/editor/project/projectTestRunner.ts',
+      'src/editor/project/projectTestsRun.ts',
     ],
     rules: {
       'no-restricted-imports': ['error', { patterns: [bundledDataBan, examplePartBan, stProgramSeamBan, gplOracleBan, renderViewBan, simWorldBan] }],
@@ -161,7 +161,7 @@ export default tseslint.config(
   },
   {
     // The project-test runner drives a SimWorld in-process, headless, by design.
-    files: ['src/editor/projectTestRunner.ts', 'src/editor/projectTestsRun.ts'],
+    files: ['src/editor/project/projectTestRunner.ts', 'src/editor/project/projectTestsRun.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [bundledDataBan, examplePartBan, stProgramSeamBan, gplOracleBan, renderViewBan] }],
     },

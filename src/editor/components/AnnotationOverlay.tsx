@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-import { effectivelyHiddenSet } from '../../core/hierarchy'
+import { effectivelyHiddenSet } from '../../core/scene/hierarchy'
 import { annotationGlyph } from '../../core/types'
 import type { AnnotationPart, PartInstance } from '../../core/types'
 import type { IRenderView } from '../../render/api'
@@ -9,8 +9,8 @@ import { chipViews, chipsKey, readoutText } from '../annotationChips'
 import type { ChipProjection, ChipView } from '../annotationChips'
 import type { EditorController } from '../controller'
 import { focusViewScene } from '../controller/viewScene'
-import { editTarget, editTargetFocusId } from '../store'
-import type { EditorState, EditorStore } from '../store'
+import { editTarget, editTargetFocusId } from '../store/store'
+import type { EditorState, EditorStore } from '../store/store'
 
 /**
  * Scene annotations, drawn as screen-space chips over the viewport - the icon + caption a person pins to a

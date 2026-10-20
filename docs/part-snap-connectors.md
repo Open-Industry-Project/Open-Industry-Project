@@ -8,8 +8,8 @@ how to change any of them safely.
 ## The model
 
 A part's `snap` block is a set of declarations in a closed vocabulary. The engine
-([snapFeatures.ts](../src/core/snapFeatures.ts)) never reads those kinds directly. It reads
-**connectors** ([snapConnectors.ts](../src/core/snapConnectors.ts)):
+([snapFeatures.ts](../src/core/snap/snapFeatures.ts)) never reads those kinds directly. It reads
+**connectors** ([snapConnectors.ts](../src/core/snap/snapConnectors.ts)):
 
 - A **plug** is a feature of the part being dragged. It seeks a socket of a kind, or, for a peer plug, a
   same-group plug on the other part. `plugsOf(snap)` compiles a declaration into plugs once and caches them.
@@ -68,7 +68,7 @@ or a deliberate SDK-only mark with its reason. A kind that only synthetic specim
 
 ## Conveyor to conveyor
 
-The conveyor engine (`snapConveyor` in `src/core/snapFeatures.ts`) follows the same idea inside itself. It
+The conveyor engine (`snapConveyor` in `src/core/snap/snapFeatures.ts`) follows the same idea inside itself. It
 solves every join the mover could make: each of its ends onto each end of the target and, on a straight
 target, onto each flank (a side merge). The cheapest one that engages is taken. There is no up-front "end or
 side?" decision. Choosing a mode first, from the mover's origin and body axis, would send a spur held at a

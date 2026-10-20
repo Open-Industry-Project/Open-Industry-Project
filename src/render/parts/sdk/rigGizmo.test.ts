@@ -1,6 +1,6 @@
 import { Group, Matrix4, Object3D, Quaternion, Scene, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
-import type { PartPackage } from '../../../core/partPackage'
+import type { PartPackage } from '../../../core/parts/partPackage'
 import { buildRigGizmo } from './rigGizmo'
 
 type RigGeo = Extract<PartPackage['geometry'], { kind: 'rig' }>

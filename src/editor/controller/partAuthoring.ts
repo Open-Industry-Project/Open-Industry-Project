@@ -2,15 +2,15 @@
 // behavior script, importing and creating parts. No state of its own: every edit is a package commit through
 // the store, so each function takes only the narrow slice of the controller it uses (AuthoringDeps).
 
-import { getPackage, hasPackage, registerPackage } from '../../core/partRegistry'
-import { behaviorMentions, renameRigJoint as renamedJoints, renameRigLink, renameRigNameRefs, validatePartPackage } from '../../core/partPackage'
+import { getPackage, hasPackage, registerPackage } from '../../core/parts/partRegistry'
+import { behaviorMentions, renameRigJoint as renamedJoints, renameRigLink, renameRigNameRefs, validatePartPackage } from '../../core/parts/partPackage'
 import { asNewPartFrom } from '../../core/builtInVersion'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
 import type { AuthorableShapeKind } from '../rigTree'
-import type { PartPackage, RigJoint, RigLink, RigShape } from '../../core/partPackage'
+import type { PartPackage, RigJoint, RigLink, RigShape } from '../../core/parts/partPackage'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
 import type { PackageManifest } from '../../sim/buildPackage'
-import { parsePartBytes, parsePartText } from '../partFile'
+import { parsePartBytes, parsePartText } from '../parts/partFile'
 import { validatePart } from '../../sim/validatePart'
 import type { PartDiagnostic } from '../../sim/validatePart'
 import type { PartDef, SdkPart } from '../../core/types'

@@ -13,12 +13,12 @@
 
 import type { SdkPart, PartInstance } from '../core/types'
 import { PART_DEFS } from '../core/types'
-import { partDisplayName, partTypeName } from '../core/partDisplayName'
-import type { RigLink } from '../core/partPackage'
+import { partDisplayName, partTypeName } from '../core/parts/partDisplayName'
+import type { RigLink } from '../core/parts/partPackage'
 import type { RigGeometry } from './rigTree'
 import { canDeleteRigNode } from './rigTree'
-import type { EditorState } from './store'
-import { documentSceneOf, editTarget, rigNodeKey } from './store'
+import type { EditorState } from './store/store'
+import { documentSceneOf, editTarget, rigNodeKey } from './store/store'
 
 export type TreeNodeKind = 'part' | 'rigLink'
 

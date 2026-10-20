@@ -10,7 +10,7 @@
 // says it seats onto a host, with no host near it, is wrong. No heuristics, no tolerance tuning.
 //
 // The only collision reported is a part standing in an interior building column (`columnSpacing`,
-// core/buildingColumns.ts): solid floor-to-roof, nothing is ever meant to overlap it. Cargo is exempt, and so is
+// core/building/buildingColumns.ts): solid floor-to-roof, nothing is ever meant to overlap it. Cargo is exempt, and so is
 // anything flat on the floor (markings).
 //
 // One warning, never an error: a box feed (a part with a `keepSpacing` param: the box spawner) dropping onto a belt
@@ -26,10 +26,10 @@
 // Registry-dependent: footprint and snap declaration resolve per package, so the scene's packages must be
 // registered (true anywhere a scene is loaded).
 
-import { getPackage } from './partRegistry'
-import { isConveyorLike, partFootprint, toLocalXZ, toWorldXZ } from './partGeometry'
-import { commsOn } from './conveyorDirection'
-import { INTERIOR_COLUMN_SIZE, interiorColumnHeight, interiorColumns } from './buildingColumns'
+import { getPackage } from './parts/partRegistry'
+import { isConveyorLike, partFootprint, toLocalXZ, toWorldXZ } from './parts/partGeometry'
+import { commsOn } from './conveyor/conveyorDirection'
+import { INTERIOR_COLUMN_SIZE, interiorColumnHeight, interiorColumns } from './building/buildingColumns'
 import { cargoView } from './frame'
 import type { PartInstance } from './types'
 
@@ -162,7 +162,7 @@ export interface LayoutCheckOptions {
   feedRunsWithoutBelt?: (feedTag: string, beltTag: string) => boolean | undefined
 }
 
-/** What {@link exerciseProgram} drives: a compiled program's link (plc/plcLink.ts LocalPlcLink), structurally. */
+/** What {@link exerciseProgram} drives: a compiled program's link (plc/link/plcLink.ts LocalPlcLink), structurally. */
 export interface ExercisableProgram {
   readonly inputs: readonly string[]
   /** the program's variables by the scene's tag names */

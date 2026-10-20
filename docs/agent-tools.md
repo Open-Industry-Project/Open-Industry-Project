@@ -57,7 +57,7 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `get_package` | one catalog part in full: every param with its type, default, range, unit and, for a tag, its direction and ST type |
 | `add_part` / `update_part` / `delete_parts` | author the scene; params are checked against the package |
 | `snap_part` | seat a part where the editor's snap engine puts a dropped one (a sensor on a belt guard, a conveyor on another's end), fitting what the snap fits |
-| `duplicate_parts` | copy a group by an offset, renaming its tags (`core/partDuplicate.ts`, the `duplicate-parts` CLI's engine) |
+| `duplicate_parts` | copy a group by an offset, renaming its tags (`core/parts/partDuplicate.ts`, the `duplicate-parts` CLI's engine) |
 | `get_part_sdk` | the part authoring guide by section, and one Part SDK declaration by name |
 | `get_part_source` | a part definition as its folder holds it: manifest, behavior script, params, footprint, which placed parts use it |
 | `check_part` | a draft definition checked and not kept: the manifest schema (a misspelt field the bake ignores) and the app's bake (`validatePart`) |
@@ -99,7 +99,7 @@ The person can see an agent at work and answer for its edits ([agentSession.ts](
 
 The review opens only where an agent can connect (the desktop app), and not in a room, whose history is shared, or
 in a view-only editor. `get_context` reads the PLC panel through one slot the panel fills while it is mounted
-([plcReading.ts](../src/editor/plcReading.ts)), so a closed panel reads as `null`. Gated by
+([plcReading.ts](../src/editor/program/plcReading.ts)), so a closed panel reads as `null`. Gated by
 `src/editor/agent/agentSession.test.ts` and `e2e/verify-agent-review.mjs`.
 
 ## The rules

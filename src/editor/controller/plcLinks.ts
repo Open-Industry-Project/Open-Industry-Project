@@ -8,30 +8,30 @@ import { controllerFor, LocalPlcLink, runnableSource } from '../../plc'
 // deep import: the wiring check is a checker, not part of the runtime PLC surface the barrel exposes
 import { checkWiring } from '../../plc/wiring'
 // the link's sessions are loaded on use (loadExternalPlc): only what the first frame shows is static
-import { EXTERNAL_PLC_OFF, flattenFrameTags } from '../externalPlcStatus'
-import type { ExternalPlcLink, ExternalPlcStatus, PlcTagList } from '../externalPlcStatus'
-import { OpcUaServerSession, publishedVariables } from '../opcUaServer'
-import type { PublishedProgram } from '../opcUaServer'
-import type { ExternalPlcSettings } from '../storePrefs'
-import type { EditorStore } from '../store'
+import { EXTERNAL_PLC_OFF, flattenFrameTags } from '../links/externalPlcStatus'
+import type { ExternalPlcLink, ExternalPlcStatus, PlcTagList } from '../links/externalPlcStatus'
+import { OpcUaServerSession, publishedVariables } from '../links/opcUaServer'
+import type { PublishedProgram } from '../links/opcUaServer'
+import type { ExternalPlcSettings } from '../store/storePrefs'
+import type { EditorStore } from '../store/store'
 import { NO_PROGRAM, setDriven, setProgramStatus } from './program'
 import type { ProgramState } from './program'
 import type { EditorController } from '../controller'
 
-export type ExternalPlcModule = typeof import('../externalPlc')
+export type ExternalPlcModule = typeof import('../links/externalPlc')
 
 /** The links to PLCs outside the app: the external-PLC link's module and session, its tag browse, and the OPC UA server. */
 export class PlcLinkState {
   // the external-PLC link's module, loaded on first use (loadExternalPlc) and warmed at startup when a link is on
   externalPlc: ExternalPlcModule | null = null
   externalPlcLoad: Promise<ExternalPlcModule> | null = null
-  // the external-PLC link of the current run (editor/externalPlc.ts), and who watches its status
+  // the external-PLC link of the current run (editor/links/externalPlc.ts), and who watches its status
   externalSession: ExternalPlcLink | null = null
   externalStatus: ExternalPlcStatus = EXTERNAL_PLC_OFF
   readonly watchers = new Set<() => void>()
   // the PLC's tag names for the Inspector's tag picker: a run's last browse, kept after Stop, or a read while stopped
   plcTags: PlcTagList | null = null
-  // the simulated PLC's OPC UA server (editor/opcUaServer.ts): up for as long as it is switched on, across runs
+  // the simulated PLC's OPC UA server (editor/links/opcUaServer.ts): up for as long as it is switched on, across runs
   uaServer: OpcUaServerSession | null = null
   uaServerSettings: ExternalPlcSettings | null = null
 }
@@ -48,10 +48,10 @@ export function notifyExternal(l: PlcLinkState): void {
   for (const cb of l.watchers) cb()
 }
 
-/** The external-PLC link's sessions (editor/externalPlc.ts), out of the first frame because only a desktop run
+/** The external-PLC link's sessions (editor/links/externalPlc.ts), out of the first frame because only a desktop run
  *  with a link uses them. One load, kept; a failed one is forgotten so the next use tries again. */
 export function loadExternalPlc(l: PlcLinkState): Promise<ExternalPlcModule> {
-  l.externalPlcLoad ??= import('../externalPlc').then(
+  l.externalPlcLoad ??= import('../links/externalPlc').then(
     (m) => (l.externalPlc = m),
     (e: unknown) => {
       l.externalPlcLoad = null
@@ -159,7 +159,7 @@ export function syncOpcUaServer(l: PlcLinkState, p: ProgramState, ec: PlcLinkDep
   notifyExternal(l)
 }
 
-/** Publish a program's variables, with what the scene feeds read-only (editor/opcUaServer.ts publishedVariables). */
+/** Publish a program's variables, with what the scene feeds read-only (editor/links/opcUaServer.ts publishedVariables). */
 export function publishToUaServer(l: PlcLinkState, store: EditorStore, program: PublishedProgram): void {
   if (!l.uaServer) return
   const feeds = new Set(checkWiring(store.getState().scene.parts).tags.filter((t) => t.writers.length > 0).map((t) => t.name))

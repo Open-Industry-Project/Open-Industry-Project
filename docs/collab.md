@@ -89,7 +89,7 @@ piece is open source and can be self-hosted.
   `main.tsx`) decides whether a room's code runs at all. A package reaches the store only in an
   admitted form: its data as the room holds it, and its code only if that code is trusted or the
   room's code is allowed to run. Trusted without asking: any shipped version of this app's own
-  parts (matched by SHA-256 against every released version, `src/editor/shippedBehaviors.ts`), and
+  parts (matched by SHA-256 against every released version, `src/editor/parts/shippedBehaviors.ts`), and
   code this browser wrote into a room (remembered by fingerprint). Held code keeps its params and
   rig but runs a stand-in (its earlier version, else the built-in of the same id, else nothing).
   The stand-in is in both the registry and the scene's embedded copies, which the sim falls back

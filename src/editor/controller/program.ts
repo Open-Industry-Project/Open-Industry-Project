@@ -9,9 +9,9 @@ import { commsTags, ControllerError, controllerFor, LocalPlcLink, runnableSource
 import type { TagValue } from '../../plc'
 // deep import: the wiring check is a checker, not part of the runtime PLC surface the barrel exposes
 import { checkWiring, wiredBindings } from '../../plc/wiring'
-import { attachedProgram, programRefusal } from '../programReload'
-import type { AttachedProgram } from '../programReload'
-import type { PublishedProgram } from '../opcUaServer'
+import { attachedProgram, programRefusal } from '../program/programReload'
+import type { AttachedProgram } from '../program/programReload'
+import type { PublishedProgram } from '../links/opcUaServer'
 import type { EditorController } from '../controller'
 
 /** Snapshot of the attached ST program's bind/compile result, mirrored into the ST editor

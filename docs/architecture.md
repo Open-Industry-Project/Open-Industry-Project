@@ -31,7 +31,7 @@ project content to a renderer object.
 ## The `PartContext` seam
 
 Part behavior never touches an engine API directly. It calls an abstract interface,
-`PartContext` (`src/core/partApi.ts`), with methods such as `setSurfaceVelocity`, `drive`,
+`PartContext` (`src/core/parts/partApi.ts`), with methods such as `setSurfaceVelocity`, `drive`,
 `setJoint`, `setGrip`, `sense`, `readTag`/`writeTag`, `spawn`/`despawn` and `zone`. The sim host
 implements it over Jolt-WASM on both shells. A part never raycasts or queries the scene. What it
 may know arrives through `sense` and the context's other readings. Two things follow:
@@ -81,7 +81,7 @@ The rules:
 
 - **One declaration layer, `src/plc/tags.ts`.** A variable is one declaration in the program
   text. So declare, retype, move and delete exist once, whichever surface asks (the ladder's
-  declaration pane `components/LadderVariables.tsx`, the organizer). So does rename, which follows
+  declaration pane `components/plc/LadderVariables.tsx`, the organizer). So does rename, which follows
   scope and carries the scene's wiring with it.
 - **Never a second copy of an edit.** Two surfaces may differ in what they show and where a
   thing is reached, but the change they make to the program is the same change. Two copies drift

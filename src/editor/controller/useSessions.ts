@@ -5,12 +5,12 @@
 import type { BoxFrame } from '../../core/frame'
 import { memoizeAuthoredCargoFrame } from '../../core/frame'
 import { authoredZoneCounts } from '../../core/zoneCounts'
-import { getPackage } from '../../core/partRegistry'
-import { servoJointsJson } from '../../core/partPackage'
-import type { PartPackage } from '../../core/partPackage'
+import { getPackage } from '../../core/parts/partRegistry'
+import { servoJointsJson } from '../../core/parts/partPackage'
+import type { PartPackage } from '../../core/parts/partPackage'
 import { IdleUseSession, idleKey, settleIdlePose, withJointRests } from '../../sim/idlePose'
 import type { SdkPart, SceneJSON } from '../../core/types'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../store/store'
 import type { EditorController } from '../controller'
 
 /** The devices a stopped-scene Use is operating, and the idle actuation preview's memo. */

@@ -3,7 +3,7 @@
 // libplctag (MPL-2.0 / LGPL-2.0+, https://github.com/libplctag/libplctag) speaks CIP to a Logix controller: it
 // opens the session, forwards the connection through the path (`1,0`: the backplane, slot 0), packs requests and
 // reconnects on its own thread. The app decides everything else - which tags travel, which way, and what a value
-// means (src/core/eip.ts, src/editor/externalPlc.ts). This file only turns those decisions into library calls.
+// means (src/core/io/eip.ts, src/editor/links/externalPlc.ts). This file only turns those decisions into library calls.
 //
 // Nothing here blocks main. Every create, read and write is started with a timeout of 0, which returns at once
 // (PLCTAG_STATUS_PENDING), and finished by polling plc_tag_status on a timer. A synchronous call would freeze every

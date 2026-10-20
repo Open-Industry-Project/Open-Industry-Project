@@ -8,18 +8,18 @@
 //   - determinism  : nondeterministic / sandbox-escaping primitives (core/determinism.ts) - located
 //   - load         : doesn't call definePart, or is a syntax/eval error (embeddedBehavior.create)
 //   - rig          : a declared joint/gripper that isn't in the manifest's rig geometry
-//   - package      : structural problems in the resulting PartPackage (core/partPackage.validate)
+//   - package      : structural problems in the resulting PartPackage (core/parts/partPackage.validate)
 
 import { cargoCentreOffset, cargoPieces, cargoPiecesBounds } from '../core/cargoBody'
-import type { RigParams } from '../core/rigPose'
+import type { RigParams } from '../core/rig/rigPose'
 import { checkDeterminism } from '../core/determinism'
-import type { ParamSchema } from '../core/partApi'
-import type { PartPackage } from '../core/partPackage'
-import { checkGeometryRefs, checkParamSpecs, undeclaredParamReads } from '../core/partAuthoringChecks'
-import { evalPartGeometry, geometryLampNames, resolvePartParams } from '../core/geometryEval'
-import { canonicalOrigin, canonicalSnap, PACKAGE_FORMAT, rigLampNames, servoJointsJson, validatePartPackage, validateSnapParamRefs } from '../core/partPackage'
-import type { PackageManifest } from '../core/partPackage'
-import { stampSdk } from '../core/partSdk'
+import type { ParamSchema } from '../core/parts/partApi'
+import type { PartPackage } from '../core/parts/partPackage'
+import { checkGeometryRefs, checkParamSpecs, undeclaredParamReads } from '../core/parts/partAuthoringChecks'
+import { evalPartGeometry, geometryLampNames, resolvePartParams } from '../core/geometry/geometryEval'
+import { canonicalOrigin, canonicalSnap, PACKAGE_FORMAT, rigLampNames, servoJointsJson, validatePartPackage, validateSnapParamRefs } from '../core/parts/partPackage'
+import type { PackageManifest } from '../core/parts/partPackage'
+import { stampSdk } from '../core/parts/partSdk'
 import { pinShippedAsset } from '../core/shippedAssets'
 import { create, declarations, destroy, error, meta, step } from './embeddedBehavior'
 
@@ -154,7 +154,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   if (manifest.materials !== undefined) pkg.materials = manifest.materials
   if (manifest.thumbnail !== undefined) pkg.thumbnail = manifest.thumbnail
   // `exposes` (a scoped cell's public tags) retired with PLC tag scoping: refused here with the reason, where
-  // an author can act on it; a stored package just loses it (core/partPackage.ts dropRetiredExposes)
+  // an author can act on it; a stored package just loses it (core/parts/partPackage.ts dropRetiredExposes)
   if ((manifest as { exposes?: unknown }).exposes !== undefined) {
     diagnostics.push({ kind: 'package', message: "exposes: retired with PLC tag scoping; a part's PLC interface is its 'tag' params, wired by name. Remove it" })
   }
@@ -179,7 +179,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   // basedOn / fromShelf, with no format number to upgrade by
   const origin = canonicalOrigin(manifest).origin
   if (origin !== undefined) pkg.origin = origin
-  // who made a library copy (core/partPackage.ts PartCredit), as the app wrote it; validatePartPackage checks its shape
+  // who made a library copy (core/parts/partPackage.ts PartCredit), as the app wrote it; validatePartPackage checks its shape
   if (manifest.credit !== undefined) pkg.credit = manifest.credit
   for (const p of validatePartPackage(pkg)) {
     diagnostics.push({ kind: 'package', message: `${p.field}: ${p.message}` })
@@ -190,7 +190,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   for (const p of validateSnapParamRefs(pkg)) {
     diagnostics.push({ kind: 'package', message: `${p.field}: ${p.message}` })
   }
-  // The rest of the author-time data checks, same reasoning (core/partAuthoringChecks.ts): a param spec that
+  // The rest of the author-time data checks, same reasoning (core/parts/partAuthoringChecks.ts): a param spec that
   // contradicts itself, and every param / link name the geometry or a spec uses, resolved.
   for (const p of [...checkParamSpecs(params), ...checkGeometryRefs(manifest.geometry, params)]) {
     diagnostics.push({ kind: 'package', message: `${p.field}: ${p.message}` })
@@ -240,7 +240,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   if (!decl.hasStep) diagnostics.push({ kind: 'load', message: 'definePart({...}) has no step(ctx) - every part needs one, even an empty `step() {}` for passive cargo' })
 
   const ok = diagnostics.length === 0
-  // the level this part was last changed under: kept from the manifest while the part is unchanged (core/partSdk.ts)
+  // the level this part was last changed under: kept from the manifest while the part is unchanged (core/parts/partSdk.ts)
   if (manifest.sdk !== undefined) pkg.sdk = manifest.sdk
   return ok ? { ok, diagnostics, package: stampSdk(pkg) } : { ok, diagnostics }
 }

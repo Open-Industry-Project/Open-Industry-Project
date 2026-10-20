@@ -104,8 +104,8 @@ async function main() {
         import('/src/collab/provider.ts'),
         import('/src/collab/rooms.ts'),
         import('/src/collab/demoRoom.ts'),
-        import('/src/editor/demoScenes.ts'),
-        import('/src/editor/stProgram.ts'),
+        import('/src/editor/demo/demoScenes.ts'),
+        import('/src/editor/program/stProgram.ts'),
       ])
       const { ydoc, whenSynced, serverSynced, provider } = connectRoom(await resolveRoom(room, false))
       await whenSynced

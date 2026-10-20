@@ -13,7 +13,7 @@
 //   E. A problem with a line number in the behavior editor's list jumps to that line.
 //   F. The Catalog ✎ is disabled in a shared room, where opening a part's own scene is refused.
 //   G. A joint's name can be changed, but only while the script never mentions it. A rename does not
-//      rewrite the script (core/partPackage.ts behaviorMentions says why), and a joint the script still
+//      rewrite the script (core/parts/partPackage.ts behaviorMentions says why), and a joint the script still
 //      commands by its old name stops moving with no error.
 //   N. In the Part Editor, the copy's Name and Category are the part's own (the copy's own name would be dropped on
 //      Back). A blank name is refused with a reason, the change is an undo step, and a built-in's are read-only.

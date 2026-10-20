@@ -27,7 +27,7 @@
 // JSON.stringify, and a literal string is further escaped of `<`, `>` and `(`, the characters SES's source checks
 // look for.
 
-import { partSandboxActive } from '../core/partSandbox'
+import { partSandboxActive } from '../core/parts/partSandbox'
 import { builtinFor, evalBuiltin, isBuiltinFunc } from './builtins'
 import { FAULT, StFault } from './faults'
 import { type Env, identKey } from './program'

@@ -68,7 +68,7 @@ export { toTypeScript } from './emit'
 // Not re-exported here: the portability doors, a program leaving as a spec-legal IEC file or PLCopen XML (./export)
 // and coming back in (./importText, ./importXml). Import them from their modules. The app loads this barrel before its
 // first frame, and a module the barrel re-exports goes into that eager chunk even when only a lazily loaded one calls it
-// (editor/stFileTransfer.ts is that one), which would put the whole PLCopen writer and reader under the eager-JS budget.
+// (editor/program/stFileTransfer.ts is that one), which would put the whole PLCopen writer and reader under the eager-JS budget.
 // a program as its blocks - a view over the same source string, not a second storage format
 export { declaredName, flattenDocument, parseDocument, type StBlock, type StBlockKind, type StDocument } from './document'
 // ...and the structural edits over that view: the POU list every PLC tool lets you manage
@@ -82,7 +82,7 @@ export {
   type DocumentEdit,
   type NewBlockKind,
 } from './document'
-export { LocalPlcLink, loadProgram, NO_WIRED_BINDINGS, type PlcLink, type WiredBindings } from './plcLink'
+export { LocalPlcLink, loadProgram, NO_WIRED_BINDINGS, type PlcLink, type WiredBindings } from './link/plcLink'
 export { commsTags, deviceTags, devicesForTag, sceneTags, unhandledProgramTags } from './bindings'
 export type { DeviceTagField, DeviceTagUse, DeviceTags, SceneTag, TaggedPart } from './bindings'
 export {

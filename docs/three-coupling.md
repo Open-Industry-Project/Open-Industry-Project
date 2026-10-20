@@ -101,7 +101,7 @@ disabled, every check reads DIRTY.
 **Shadow-pass `alphaTest` churn is not patched.** An alpha-tested shadow caster churns the shadow pass's material
 version every frame, a CPU cost that grows with the number of such casters: slower, never wrong. No gate tracks it
 (a one-off A/B put it near 1.8 ms a frame at 100 belts). Nothing in src/ or the shipped GLBs (no `alphaMode: MASK`)
-sets an `alphaTest` above 0. The side guards' beam cutouts are geometry (core/guardHoles.ts) for this reason. An
+sets an `alphaTest` above 0. The side guards' beam cutouts are geometry (core/guards/guardHoles.ts) for this reason. An
 imported MASK model brings the cost. Measure its frame cost before adding a patch for it.
 
 ## Tier 2 - behavioral assumptions on public API

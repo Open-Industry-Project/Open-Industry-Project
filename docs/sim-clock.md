@@ -111,7 +111,7 @@ shortfall readout reports it.
 
 What guards the range: the physics invariants and the embedded PLC at a spread of rates
 ([simRate.test.ts](../src/sim/simRate.test.ts)), the demo cell's acceptance ladder at a spread weighted toward the
-floor ([demoAcceptance.ts](../src/editor/demoAcceptance.ts), one `demoScenesSim.<rate>hz.test.ts` per rate), and
+floor ([demoAcceptance.ts](../src/editor/demo/demoAcceptance.ts), one `demoScenesSim.<rate>hz.test.ts` per rate), and
 [verify-sim-rate.mjs](../e2e/verify-sim-rate.mjs), which proves the Inspector clamps the rate and the live worker
 steps at the chosen rate and keeps up with real time. Moving either bound means re-running that sweep.
 

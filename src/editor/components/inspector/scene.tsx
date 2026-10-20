@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import type { ReactElement } from 'react'
-import { sceneUnits, setSceneUnits } from '../../../core/sceneUnits'
+import { sceneUnits, setSceneUnits } from '../../../core/scene/sceneUnits'
 import { MAX_SIM_HZ, MIN_SIM_HZ } from '../../../core/types'
 import type { SceneUnits } from '../../../core/types'
-import type { EditorState, EditorStore } from '../../store'
+import type { EditorState, EditorStore } from '../../store/store'
 import type { EditorController } from '../../controller'
 import { LIMIT_LOAD, loadAtRate, sustainableHz, useStepMeter } from '../../simLoad'
 import { NumberField } from './fields'
-import { partDisplayName } from '../../../core/partDisplayName'
+import { partDisplayName } from '../../../core/parts/partDisplayName'
 import { InspectorHeader } from './header'
 import { getCommand, runCommand } from '../../commands'
 import { defineMessages, t } from '../../../core/i18n'
@@ -54,7 +54,7 @@ const M = defineMessages('inspector.scene', {
 
 /**
  * The Inspector with nothing selected: the properties of the scene itself, which is what is in front of you then.
- * Today that is the physics step rate, which is the scene's (core/project.ts
+ * Today that is the physics step rate, which is the scene's (core/project/project.ts
  * ProjectMachine.simHz): it decides how finely a sensor sees cargo and how soon a PLC output can follow an input,
  * so it is part of the machine the scene is, like its scan time. Saved with the scene and, in a room, shared.
  *
@@ -62,7 +62,7 @@ const M = defineMessages('inspector.scene', {
  * layout makes the user's own. A running sim is not a lock: a world keeps the rate it was built at, so a change
  * applies on the next run, and the panel says so.
  *
- * And the scene's Units (SceneJSON.units, core/sceneUnits.ts): how every length and speed is shown and typed, and
+ * And the scene's Units (SceneJSON.units, core/scene/sceneUnits.ts): how every length and speed is shown and typed, and
  * what every conveyor's speed tag carries (FPM or m/s, a REAL either way). A plant runs one convention, so this is
  * the only place it is chosen: part of the scene document, and an ordinary, undoable edit that converts every
  * conveyor with it. It cannot rewrite the program, so after a switch that moved bound speed tags it says so.

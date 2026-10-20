@@ -5,8 +5,8 @@
 
 import type { Access, AliasDef, ArrayDim, ArrayType, Ast, BinOp, CaseLabel, ConfigurationDef, DataType, Decl, DeclType, Diagnostic, EnumDef, EnumMember, Expr, FbArg, FbDef, FuncDef, Initializer, InterfaceDef, MethodDef, ProgramDef, ProgramInstanceDef, ResourceDef, ScalarType, SourcePos, StructDef, StructField, StructInit, Stmt, SubrangeDef, TaskDef, Token, VarSection } from './types'
 import { DEFAULT_STRING_LEN, isArray, SCALAR_TYPES, StError } from './types'
-import type { LdBlockInfo, LdBlockPin, LdBox, LdCoilMode, LdContactMode, LdElement, LdExit, LdOperand, LdPin, LdRung, LdSection } from './ladder'
-import { builtinFbInfo, builtinFunctionInfo, commentText, lowerSection, mapBack, OPERATOR_FUNCTIONS } from './ladder'
+import type { LdBlockInfo, LdBlockPin, LdBox, LdCoilMode, LdContactMode, LdElement, LdExit, LdOperand, LdPin, LdRung, LdSection } from './ladder/ladder'
+import { builtinFbInfo, builtinFunctionInfo, commentText, lowerSection, mapBack, OPERATOR_FUNCTIONS } from './ladder/ladder'
 import { isBuiltinFunc } from './builtins'
 import { lex, lexedSource } from './lexer'
 import { MOTION_LIBRARY_NAMES, MOTION_LIBRARY_SOURCE } from './motionPrelude'

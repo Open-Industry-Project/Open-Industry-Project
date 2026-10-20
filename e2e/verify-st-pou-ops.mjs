@@ -1,5 +1,5 @@
 // The PLC panel's organizer as the program's list, not just an index: New / Rename / Delete, from the tree beside the
-// code (components/PlcOrganizer.tsx).
+// code (components/plc/PlcOrganizer.tsx).
 //
 // document.test.ts covers the text transforms: that a new block compiles, that a rename reaches every reference
 // and no comment text, that the program body cannot be deleted. Only a browser run can check that the gestures reach
@@ -244,7 +244,7 @@ async function main() {
     check('moving the cursor lights its block again', (await litRows(page)) === 'Main', await litRows(page))
 
     // ---- Devices: the scene's parts that use tags, in the organizer tree ----
-    // The section is the tree's (components/OrganizerTree.tsx): it is what the scene offers the program, so an
+    // The section is the tree's (components/plc/OrganizerTree.tsx): it is what the scene offers the program, so an
     // unwired part can be seen from the panel.
     await page.waitForFunction(() => window.__oip.store.getState().bundledPackages.length > 0, null, { timeout: 60000, polling: 200 })
     await page.evaluate(() => {

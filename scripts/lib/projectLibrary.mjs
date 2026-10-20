@@ -31,8 +31,8 @@ export async function bakeBundled(vite) {
     const m = pick(join(partsRoot, dir.name), ['rig.json', 'manifest.json'])
     const b = pick(join(partsRoot, dir.name), ['behavior.ts', 'behavior.js'])
     if (!m || !b) continue
-    // a folder keeps its models and textures as assets/<sha256>.<ext> files the manifest names (core/partAssets.ts)
-  const { joinAssetFiles, isPartAssetPath } = await vite.ssrLoadModule('/src/core/partAssets.ts')
+    // a folder keeps its models and textures as assets/<sha256>.<ext> files the manifest names (core/parts/partAssets.ts)
+  const { joinAssetFiles, isPartAssetPath } = await vite.ssrLoadModule('/src/core/parts/partAssets.ts')
   const joined = joinAssetFiles(readFileSync(m, 'utf8'), (p) => (isPartAssetPath(p) && existsSync(join(arg, p)) ? new Uint8Array(readFileSync(join(arg, p))) : undefined))
   if (joined.error !== undefined) return { error: `${arg}: ${joined.error}`, exit: 1 }
   const r = validatePart(JSON.parse(joined.manifestJson), readFileSync(b, 'utf8'))
@@ -47,8 +47,8 @@ export async function bakeFolder(vite, arg) {
   const m = pick(arg, ['manifest.json', 'rig.json'])
   const b = pick(arg, ['behavior.js', 'behavior.ts'])
   if (!m || !b) return { error: `${arg}: needs manifest.json (or rig.json) + behavior.js (or behavior.ts)`, exit: 2 }
-  // a folder keeps its models and textures as assets/<sha256>.<ext> files the manifest names (core/partAssets.ts)
-  const { joinAssetFiles, isPartAssetPath } = await vite.ssrLoadModule('/src/core/partAssets.ts')
+  // a folder keeps its models and textures as assets/<sha256>.<ext> files the manifest names (core/parts/partAssets.ts)
+  const { joinAssetFiles, isPartAssetPath } = await vite.ssrLoadModule('/src/core/parts/partAssets.ts')
   const joined = joinAssetFiles(readFileSync(m, 'utf8'), (p) => (isPartAssetPath(p) && existsSync(join(arg, p)) ? new Uint8Array(readFileSync(join(arg, p))) : undefined))
   if (joined.error !== undefined) return { error: `${arg}: ${joined.error}`, exit: 1 }
   const r = validatePart(JSON.parse(joined.manifestJson), readFileSync(b, 'utf8'))
@@ -76,10 +76,10 @@ export function freshParams(pkg, units) {
 /** Open the project in `folder` (creating a minimal one when `create`), with its library writers. Throws an Error
  *  with `exit: 2` for a folder it cannot write into. */
 export async function projectLibrary(vite, folder, { create = true, log = console.log } = {}) {
-  const { emptyScene } = await vite.ssrLoadModule('/src/core/scene.ts')
-  const { PROJECT_VERSION } = await vite.ssrLoadModule('/src/core/project.ts')
-  const { manifestOfPackage, packageDependencies, productRefsOf } = await vite.ssrLoadModule('/src/core/partPackage.ts')
-  const { partFingerprint, withOrigin } = await vite.ssrLoadModule('/src/core/partOrigin.ts')
+  const { emptyScene } = await vite.ssrLoadModule('/src/core/scene/scene.ts')
+  const { PROJECT_VERSION } = await vite.ssrLoadModule('/src/core/project/project.ts')
+  const { manifestOfPackage, packageDependencies, productRefsOf } = await vite.ssrLoadModule('/src/core/parts/partPackage.ts')
+  const { partFingerprint, withOrigin } = await vite.ssrLoadModule('/src/core/parts/partOrigin.ts')
 
   const manifestPath = join(folder, 'project.json')
   let project
@@ -201,14 +201,14 @@ export async function projectLibrary(vite, folder, { create = true, log = consol
 }
 
 /**
- * Load a project folder the way the app does (core/projectFolder.ts folderFilesToProject) and register its part
+ * Load a project folder the way the app does (core/project/projectFolder.ts folderFilesToProject) and register its part
  * library over the built-ins, so the registry resolves each package to the PROJECT's copy. Call declareBuiltIns
  * (scripts/lib/builtIns.mjs) first. Returns { project } (core ProjectJSON) or { errors }.
  */
 export async function loadProject(vite, folder) {
-  const { folderFilesToProject } = await vite.ssrLoadModule('/src/core/projectFolder.ts')
+  const { folderFilesToProject } = await vite.ssrLoadModule('/src/core/project/projectFolder.ts')
   const { validatePart, formatPartDiagnostics } = await vite.ssrLoadModule('/src/sim/validatePart.ts')
-  const { registerPackage } = await vite.ssrLoadModule('/src/core/partRegistry.ts')
+  const { registerPackage } = await vite.ssrLoadModule('/src/core/parts/partRegistry.ts')
   const bakePart = (manifestJson, behaviorJs) => {
     let manifest
     try {

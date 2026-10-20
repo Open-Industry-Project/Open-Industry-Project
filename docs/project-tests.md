@@ -187,13 +187,13 @@ Things worth knowing:
   removes it. Assert existence separately: `{ "probe": {"count": {"part": "pallet-1"}}, "always": true,
   "equals": 1 }`.
 
-Probes are pure over one step's `BoxFrame` ([core/projectProbe.ts](../src/core/projectProbe.ts)), so
+Probes are pure over one step's `BoxFrame` ([core/project/projectProbe.ts](../src/core/project/projectProbe.ts)), so
 they unit-test against a hand-built frame with no Jolt and no scene. The one piece of state is a
 latch: `BoxFrame.basePoses` only carries a mobile part that *drove* that step, so an AGV that
 arrives and stops would fall out of the frame exactly when an `at`-mode arrival check reads it.
 
 **Worked example: the demo cell itself.**
-[demoAcceptance.ts](../src/editor/demoAcceptance.ts) runs the palletizing demo headless for
+[demoAcceptance.ts](../src/editor/demo/demoAcceptance.ts) runs the palletizing demo headless for
 90 simulated seconds (one `demoScenesSim.<rate>hz.test.ts` per step rate) and asserts a ladder of stages (feed → transport → row → layer →
 putaway), plus the invariant that nothing ever falls through the floor. A failure names the rung, so a
 regression says how far down the line it is. Nothing is hand-authored: the scene is built by code,
@@ -265,7 +265,7 @@ only way it can tell a lost device from a quiet one when inputs hold. A status t
 is refused like any other fault that would touch nothing. A network loss with no `part` acts on every device
 whose tags it can find; a scene with none is refused.
 
-**A fault names the device, not its tags.** The runner (`resolveFaults` in editor/projectTestRunner.ts)
+**A fault names the device, not its tags.** The runner (`resolveFaults` in editor/project/projectTestRunner.ts)
 finds the tags through what the package declares: its `'tag'` params with a `dir`, read the way the sim
 reads them (the param's default when the scene leaves it unset). Renaming a tag in the Inspector does not break the test. The flip side:
 a part that speaks tags through anything else (a plain string param, a fixed name) cannot be faulted, and
@@ -329,7 +329,7 @@ need to place a `count` zone or a `passed` gate; `--json` carries it as `cargo` 
 
 **Why a check failed is printed with it.** A failed check says what was wrong; the cause is in the other tags
 just before (a stop went on, an eye saw a box). The run is deterministic, so a failed test is run a second time
-with a `TraceRecorder` (core/projectTest.ts) recording every tag that changes in the `--context` seconds (default
+with a `TraceRecorder` (core/project/projectTest.ts) recording every tag that changes in the `--context` seconds (default
 3; 0 turns it off) before each check's `failedAt`, and those are listed under the check: each tag's value coming
 in, then each change with its time. Changes, not samples, because an encoder changes every step and a button once;
 a tag that changes too often to read is cut to its first and last changes. `--trace` follows chosen tags (or
@@ -377,7 +377,7 @@ the report says who covers it (`Lane1Blocked: nothing in the scene writes it; wr
 
 This is the same path every part uses (the whole catalog is authored on the SDK,
 [architecture.md](architecture.md)), so the runner needs no special path for tests. Layering: the pure evaluator
-is `core/projectTest.ts` (temporal/predicate logic, unit-tested); the runner is `editor/projectTestRunner.ts`
+is `core/project/projectTest.ts` (temporal/predicate logic, unit-tested); the runner is `editor/project/projectTestRunner.ts`
 (the only layer that may import both `sim` and `plc`, same as `controller.ts`).
 
 Worked example: [`examples/projects/start-stop-motor/`](../examples/projects/start-stop-motor/) is a
@@ -403,7 +403,7 @@ listed too, for the reader to weigh; a fact never fails a test and never changes
 | `stalled` | a box sits still (within 1 cm) for 1 s on a conveyor whose live commanded speed is not zero. One fact per conveyor per stall: boxes backing up one after another are one record (`boxes` = the most at once) until the conveyor has held none for 2 s; reported when it starts and again, same `id`, with its `duration` when it ends (`ongoing` when the run ended first) | the conveyor, its speed |
 
 Each record is `{ id, kind, t, at: [x, y, z], cargo?, cargoPart?, part?, ...detail, message }` (`FlowFact` in
-`src/core/flowFacts.ts`, where every threshold is a named constant with its reason). The tracker is pure and
+`src/core/flow/flowFacts.ts`, where every threshold is a named constant with its reason). The tracker is pure and
 deterministic: the same run gives the same facts. It runs after every physics step inside `SimWorld`
 (`src/sim/flowFacts.ts`), reading only what the step already computed (the batched pose snapshot, the beam hits the
 behaviors were handed, the live conveyor speeds), so it moves nothing: a run's bench-sim fingerprint is the same with
@@ -421,12 +421,12 @@ Where they show up:
   `--input Start=true@0.5 --input Start=false@1`) and lists the facts grouped by kind. Exit 0 whatever the facts, 2
   usage, 3 the project does not load or cannot run.
 - **The running app**: the sim worker ships the facts its steps collected on each posted frame (`flowFacts` on the
-  `frame` message, `src/sim/protocol.ts`), and `SimClient.flowFacts` (`src/core/flowFactLog.ts`) keeps the latest
+  `frame` message, `src/sim/protocol.ts`), and `SimClient.flowFacts` (`src/core/flow/flowFactLog.ts`) keeps the latest
   record per id for the run: kept after Stop, cleared by the next Run, and it notifies only when a frame carried a
   fact. The agent tool `get_problems` returns the newest 50 as `flowFacts`, apart from its problems and counts. The
   Problems dock does not list them: it lists what to fix.
 - **The in-app Tests overlay** shows the same per-test summary line as `test-project`, and for a failing test the
-  facts up to its earliest failing check (`src/editor/testFacts.ts`).
+  facts up to its earliest failing check (`src/editor/project/testFacts.ts`).
 
 The demo cell gives a stall per row at the row former's blade stop, which is the accumulation it is built for, and
 a flicker per row as a case settles against the stop. A box line that runs off the end of its belt gives a `dropped`
@@ -462,7 +462,7 @@ seal-in style program the generated test passes as-is (press the first input, ex
 coil), giving a green baseline to build from.
 
 **Scaffolding generates files on purpose, and stays out of the export path.** `Save Project to Folder`
-(core/projectFolder.ts) is a faithful, byte-reproducible *mirror* of project data. Injecting template
+(core/project/projectFolder.ts) is a faithful, byte-reproducible *mirror* of project data. Injecting template
 files there would break the round-trip and the reproducible archive. So the starter lives in this
 separate command: **export mirrors, scaffold generates.** It writes no CI workflow, because the OIP CLI
 is not installable in a standalone repo.

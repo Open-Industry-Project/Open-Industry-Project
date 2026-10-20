@@ -40,8 +40,8 @@ import {
   officialLibrariesOff,
   setLibraryUrls,
   setOfficialLibraryOn,
-} from '../partLibraryUrls'
-import type { EditorState, EditorStore } from '../store'
+} from '../parts/partLibraryUrls'
+import type { EditorState, EditorStore } from '../store/store'
 import { CloseIcon } from './toolbarIcons'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { tNodes } from '../i18nNodes'
@@ -535,7 +535,7 @@ function PartLibrariesGroup(): ReactElement {
   const [status, setStatus] = useState<{ busy: boolean; error: string }>({ busy: false, error: '' })
   const add = async (): Promise<void> => {
     setStatus({ busy: true, error: '' })
-    const { addLibrary } = await import('../partLibraries')
+    const { addLibrary } = await import('../parts/partLibraries')
     const refused = await addLibrary(draft)
     if (refused === null) setDraft('')
     setStatus({ busy: false, error: refused ?? '' })

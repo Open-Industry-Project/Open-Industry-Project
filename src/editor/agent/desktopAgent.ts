@@ -6,7 +6,7 @@
 // problems checker and the part registry's readers, which the first frame doesn't need.
 
 import type { AgentController, AgentImage, AgentShell } from './tools'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../store/store'
 import type { AgentSession } from './agentSession'
 
 /** One call the shell forwards: an id to answer by, the tool, its arguments. */

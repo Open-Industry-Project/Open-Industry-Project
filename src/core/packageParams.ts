@@ -3,9 +3,9 @@
 // validateScene/normalizePart clamping, and the Inspector). Through this converter, custom parts use the
 // same param pipeline as every built-in type, with no special cases downstream.
 
-import type { ParamSchema } from './partApi'
-import { getPackage } from './partRegistry'
-import type { PartPackage } from './partPackage'
+import type { ParamSchema } from './parts/partApi'
+import { getPackage } from './parts/partRegistry'
+import type { PartPackage } from './parts/partPackage'
 import { PART_DEFS } from './types'
 import type { SdkPart, ParamSpec, PartInstance, VisibleWhen } from './types'
 

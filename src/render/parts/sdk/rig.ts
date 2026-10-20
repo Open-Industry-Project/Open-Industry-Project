@@ -1,32 +1,32 @@
 import { Box3, BufferGeometry, CanvasTexture, Color, ConeGeometry, CylinderGeometry, DoubleSide, EdgesGeometry, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, RepeatWrapping, SRGBColorSpace, Vector3 } from 'three'
 import type { InstancedMesh, Material, Object3D, Texture } from 'three'
-import { getPackage } from '../../../core/partRegistry'
-import { arrayInstanceDeltas, legFrameDepth, MAX_DISTRIBUTE_INSTANCES, POSE_STRIDE, resolvedBoxSize, resolvedCylinder, resolvedMeshScale, resolvedOffset, rigLinkLocalPoseInto, rigPoseBuffer, rigWorldPosesInto, restQuatOf } from '../../../core/rigPose'
-import { reportPartDiagnostic } from '../../../core/partDiagnostics'
-import type { SeamContext } from '../../../core/rigPose'
-import type { RollerGrid } from '../../../core/rollerGrid'
-import type { RigParams, SubPose } from '../../../core/rigPose'
-import { evalPartGeometry, geometryAnimates, partDeclaredLamps, partHasGeometry, resolvePartParams } from '../../../core/geometryEval'
-import { rigInclineRad } from '../../../core/partGeometry'
-import type { GuardOpenings } from '../../../core/guardOpenings'
-import { keptSegments, rigFrameSide, rigGuardSide } from '../../../core/guardOpenings'
-import type { GuardExtents } from '../../../core/guardExtents'
+import { getPackage } from '../../../core/parts/partRegistry'
+import { arrayInstanceDeltas, legFrameDepth, MAX_DISTRIBUTE_INSTANCES, POSE_STRIDE, resolvedBoxSize, resolvedCylinder, resolvedMeshScale, resolvedOffset, rigLinkLocalPoseInto, rigPoseBuffer, rigWorldPosesInto, restQuatOf } from '../../../core/rig/rigPose'
+import { reportPartDiagnostic } from '../../../core/parts/partDiagnostics'
+import type { SeamContext } from '../../../core/rig/rigPose'
+import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
+import type { RigParams, SubPose } from '../../../core/rig/rigPose'
+import { evalPartGeometry, geometryAnimates, partDeclaredLamps, partHasGeometry, resolvePartParams } from '../../../core/geometry/geometryEval'
+import { rigInclineRad } from '../../../core/parts/partGeometry'
+import type { GuardOpenings } from '../../../core/guards/guardOpenings'
+import { keptSegments, rigFrameSide, rigGuardSide } from '../../../core/guards/guardOpenings'
+import type { GuardExtents } from '../../../core/guards/guardExtents'
 import { legRestDyAt } from '../../../core/legRests'
 import type { LegRestRows } from '../../../core/legRests'
-import { guardHolePanelDescription } from '../../../core/guardHoles'
-import { extrudeDescription } from '../../../core/geometryShapes'
-import { cutAt, mitreAt, railFlangeOffset } from '../../../core/guardExtents'
-import type { GuardHoles } from '../../../core/guardHoles'
+import { guardHolePanelDescription } from '../../../core/guards/guardHoles'
+import { extrudeDescription } from '../../../core/geometry/geometryShapes'
+import { cutAt, mitreAt, railFlangeOffset } from '../../../core/guards/guardExtents'
+import type { GuardHoles } from '../../../core/guards/guardHoles'
 import { GUARD_HOLE_PANEL, GUARD_HOLE_RADIUS } from '../../../core/types'
 import { cutPostDeltas, deckStripRects, isMultiInstance } from '../../../core/structureCuts'
 import type { PlatformCut } from '../../../core/structureCuts'
-import type { GeometryContext, MeshDescription, MeshPart, ParamValue } from '../../../core/partApi'
-import type { MeshUvTile, PartAsset, PartMaterial, PartPackage, RigLegShape, RigLink, RigShape, Vec3Tuple } from '../../../core/partPackage'
-import { subPosedLinkNames } from '../../../core/partPackage'
+import type { GeometryContext, MeshDescription, MeshPart, ParamValue } from '../../../core/parts/partApi'
+import type { MeshUvTile, PartAsset, PartMaterial, PartPackage, RigLegShape, RigLink, RigShape, Vec3Tuple } from '../../../core/parts/partPackage'
+import { subPosedLinkNames } from '../../../core/parts/partPackage'
 import type { SdkPart } from '../../../core/types'
 import { realizeMeshDescription, rewriteMeshDescription } from '../meshDescriptionGeometry'
 
-// A guard's sensor-beam hole panel (core/guardHoles.ts guardHolePanelDescription), one geometry per distinct plate
+// A guard's sensor-beam hole panel (core/guards/guardHoles.ts guardHolePanelDescription), one geometry per distinct plate
 // shape (sheet height, hole height, thickness), shared by every rig guard in the scene and kept for the session:
 // a scene has a handful of hole heights at most, and a geometry a recorded render bundle may still hold must never
 // be freed (gpuRetire.ts), so these are not.
@@ -40,7 +40,7 @@ function guardHolePanelGeometry(y0: number, y1: number, holeY: number, thickness
   }
   return g
 }
-// A mitred guard end (core/guardExtents.ts GuardMitre) on a box link: the box stops square where the cut is deepest and
+// A mitred guard end (core/guards/guardExtents.ts GuardMitre) on a box link: the box stops square where the cut is deepest and
 // this right-angle wedge carries the band on out to the cut. Unit legs along +x and +z, y centred, so one scale
 // (c * thickness, height, thickness) and one of four proper rotations fits any end on either side. Shared scene-wide
 // and never freed, like the hole panels.
@@ -910,7 +910,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
   const probeTick = beamVisuals.length
     ? (probe: BeamProbe): boolean => {
         // hidden part: no beam (mirrors the built-in sensors). The guard holes a beam cuts are not drawn from here:
-        // they are geometry, worked out from the scene (core/guardHoles.ts), so hiding a sensor leaves them. The show flags are
+        // they are geometry, worked out from the scene (core/guards/guardHoles.ts), so hiding a sensor leaves them. The show flags are
         // left alone - syncSensorBeams ANDs them with root.visible every frame, so
         // the beams come back with the part without needing another probe seam (WebGPU's staged
         // compile hides parts outside any seam; see sensorBeamOverlay.ts).
@@ -1751,7 +1751,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
         // a guard fully covered by openings (segs empty) collapses its one remaining child to nothing
         if (segs.length === 0) gs.children[0]!.scale.set(0, 0, 0)
         // Cut ends where this part meets another conveyor. A guard end is mitred on the plane the two guards share
-        // (core/guardExtents.ts GuardMitre: the host's mitres come with its openings, a mover's with its extents). A mover's
+        // (core/guards/guardExtents.ts GuardMitre: the host's mitres come with its openings, a mover's with its extents). A mover's
         // frame rail end is cut to fit against the host's frame, which stays whole (GuardExtents.railCuts): the wall on
         // the host's outer wall face, the top flange a flange width further out. Either way the cut is a line across
         // this link's band, d0..d1 out from the guard line, at `c` along the bed per metre out: the box stops square

@@ -1,4 +1,4 @@
-/* ===== PLC organizer (components/PlcOrganizer.tsx) ===== */
+/* ===== PLC organizer (components/plc/PlcOrganizer.tsx) ===== */
 /* The program as a tree beside the code: the top-level code, the tasks and what they run, then the POUs by kind.
    Every row is one line; a narrow organizer ellipsizes the NAME and keeps its tag (ST / LD) and its buttons. */
 

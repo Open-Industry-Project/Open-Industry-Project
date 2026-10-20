@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { castBeamFrame, castsCrossRows, changedCargoRows, rayAabb, rayCapsuleY, rayObb } from './beamCast'
 import type { BoxFrame } from './frame'
-import { qFromAxisAngle } from './rigPose'
-import type { Quat } from './rigPose'
+import { qFromAxisAngle } from './rig/rigPose'
+import type { Quat } from './rig/rigPose'
 
 describe('beamCast - ray vs box (C-sensing)', () => {
   it('rayAabb returns the entry distance for a hit and null for a miss', () => {

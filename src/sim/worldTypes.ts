@@ -3,11 +3,11 @@
 // JoltModule).
 import type Jolt from 'jolt-physics'
 import type { FrameBeamHit } from '../core/frame'
-import type { CargoMarkValue, PartPackage } from '../core/partPackage'
+import type { CargoMarkValue, PartPackage } from '../core/parts/partPackage'
 import type { BehaviorInput } from './embeddedBehavior'
-import type { ConveyorEntry } from '../core/collisionShapes'
-import { packageRev } from '../core/partRegistry'
-import type { Quat, RigParams, SubPose, Vec3 } from '../core/rigPose'
+import type { ConveyorEntry } from '../core/geometry/collisionShapes'
+import { packageRev } from '../core/parts/partRegistry'
+import type { Quat, RigParams, SubPose, Vec3 } from '../core/rig/rigPose'
 import type { PartInstance } from '../core/types'
 
 export type JoltModule = Awaited<ReturnType<typeof Jolt>>

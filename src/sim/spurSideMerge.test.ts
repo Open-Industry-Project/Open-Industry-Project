@@ -1,15 +1,15 @@
-import type { PackageManifest } from '../core/partPackage'
+import type { PackageManifest } from '../core/parts/partPackage'
 import { describe, expect, it } from 'vitest'
 import type { SdkPart } from '../core/types'
-import type { PartMaterial, PartPackage, PartPackageGeometry } from '../core/partPackage'
+import type { PartMaterial, PartPackage, PartPackageGeometry } from '../core/parts/partPackage'
 import { FRAME_WALL_THICKNESS, SPUR_SIDE_GAP } from '../core/types'
-import { createSdkPart } from '../core/scene'
-import { registerPackage } from '../core/partRegistry'
+import { createSdkPart } from '../core/scene/scene'
+import { registerPackage } from '../core/parts/partRegistry'
 import { buildPackage } from './buildPackage'
-import { computeSceneOpenings } from '../core/guardOpenings'
-import { computeSceneExtents } from '../core/guardExtents'
-import { conveyorEndsOf, spurConveyorView, toLocalXZ, toWorldXZ } from '../core/partGeometry'
-import { findSnap } from '../core/snapFeatures'
+import { computeSceneOpenings } from '../core/guards/guardOpenings'
+import { computeSceneExtents } from '../core/guards/guardExtents'
+import { conveyorEndsOf, spurConveyorView, toLocalXZ, toWorldXZ } from '../core/parts/partGeometry'
+import { findSnap } from '../core/snap/snapFeatures'
 
 /**
  * The spur side merge, for both shipped spur families.

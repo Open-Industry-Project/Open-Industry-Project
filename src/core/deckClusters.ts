@@ -1,5 +1,5 @@
 import type { PartInstance } from './types'
-import { conveyorEndsOf, isBeltLike } from './partGeometry'
+import { conveyorEndsOf, isBeltLike } from './parts/partGeometry'
 import { memoizeByParticipants } from './memoParts'
 
 /**

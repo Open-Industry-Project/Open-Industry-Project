@@ -36,7 +36,7 @@
 .org-comms.on {
   background: var(--ld-on, #3fb950);
 }
-/* a device's tags (components/DeviceTagsDialog.tsx) */
+/* a device's tags (components/plc/DeviceTagsDialog.tsx) */
 .device-tags-dialog {
   width: min(560px, 100%);
 }
@@ -100,7 +100,7 @@
   cursor: pointer;
 }
 
-/* cross reference (components/CrossRefDialog.tsx) */
+/* cross reference (components/plc/CrossRefDialog.tsx) */
 .xref-dialog {
   width: min(600px, 100%);
 }

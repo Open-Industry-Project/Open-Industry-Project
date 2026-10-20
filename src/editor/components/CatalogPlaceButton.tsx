@@ -2,9 +2,9 @@
 // runs at the press, synchronously, so a part copied into the project there is found by the placement that starts in
 // the same handler.
 
-import type { PartPackage } from '../../core/partPackage'
+import type { PartPackage } from '../../core/parts/partPackage'
 import type { EditorController } from '../controller'
-import type { EditorState } from '../store'
+import type { EditorState } from '../store/store'
 import { PartGlyph } from './toolbarIcons'
 
 interface Props {

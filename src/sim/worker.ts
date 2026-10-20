@@ -2,9 +2,9 @@
 
 // First: part behaviors step in this worker, so it locks down before anything else runs (core/lockdownBoot.ts)
 import '../core/lockdownBoot'
-import { subscribePartDiagnostics } from '../core/partDiagnostics'
-import { listPackages } from '../core/partRegistry'
-import { setPartCallBeacon } from '../core/partScript'
+import { subscribePartDiagnostics } from '../core/parts/partDiagnostics'
+import { listPackages } from '../core/parts/partRegistry'
+import { setPartCallBeacon } from '../core/parts/partScript'
 import { DEFAULT_SIM_HZ } from '../core/types'
 import type { SceneJSON } from '../core/types'
 import { StError } from '../plc'
@@ -66,7 +66,7 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
 }
 
 // Custom-part runtime diagnostics (a throwing step(), an unknown commanded joint, …) are raised in this
-// worker's core/partDiagnostics instance; mirror every event to the main thread so the editor's instance
+// worker's core/parts/partDiagnostics instance; mirror every event to the main thread so the editor's instance
 // (the one the Inspector/console read) stays in sync. Already deduped + rate-limited at the source.
 subscribePartDiagnostics((event) => post({ type: 'partDiagnostics', event }))
 

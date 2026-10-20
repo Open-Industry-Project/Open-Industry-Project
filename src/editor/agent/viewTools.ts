@@ -3,7 +3,7 @@
 // taking back the agent's own last edit, and dropping a kept test.
 
 import { cargoKindName } from '../../core/frame'
-import { duplicateParts } from '../../core/partDuplicate'
+import { duplicateParts } from '../../core/parts/partDuplicate'
 import { assetsBusy, whenAssetsQuiet } from '../../render/gltf'
 import type { SceneJSON } from '../../core/types'
 import {

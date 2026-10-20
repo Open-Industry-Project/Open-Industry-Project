@@ -6,17 +6,17 @@ import { sameAsBuiltIn } from '../../core/builtInVersion'
 import { PART_DEFS } from '../../core/types'
 import type { ParamSpec, PartInstance, PartType, SdkPart } from '../../core/types'
 import { partParamSpecs, switchValue, visibleWhenHolds } from '../../core/packageParams'
-import { partDisplayName } from '../../core/partDisplayName'
-import { packageThumbFile } from '../../core/partPackage'
-import type { PartPackage } from '../../core/partPackage'
-import { getPackage } from '../../core/partRegistry'
+import { partDisplayName } from '../../core/parts/partDisplayName'
+import { packageThumbFile } from '../../core/parts/partPackage'
+import type { PartPackage } from '../../core/parts/partPackage'
+import { getPackage } from '../../core/parts/partRegistry'
 import { rigGeometryOf } from '../rigTree'
 import { paramDesc } from './paramDescriptions'
-import type { EditorState, EditorStore } from '../store'
+import type { EditorState, EditorStore } from '../store/store'
 import type { EditorController } from '../controller'
 import type { LiveSetpoints } from '../controller/setpoints'
 import { BoolRow, DisplayUnitsContext, GuardOpeningsModeContext, LiveEditContext, RevertSlot, TextField } from './inspector/fields'
-import { sceneUnits } from '../../core/sceneUnits'
+import { sceneUnits } from '../../core/scene/sceneUnits'
 import type { LiveEditGate } from './inspector/fields'
 import { ContextMenu, menuItemsFor } from './inspector/menu'
 import type { OpenCtx, PropMenuState } from './inspector/menu'
@@ -27,7 +27,7 @@ import { HoldsSection } from './inspector/holds'
 import { PartActions, PartInfoFields, PartStatus } from './inspector/rig'
 import { importRigNodePanel, preloadRigNodePanel } from './inspector/rigNodeChunk'
 import { InspectorHeader } from './inspector/header'
-import { partCreditLine } from '../partCredit'
+import { partCreditLine } from '../parts/partCredit'
 import { placedCopiesOf } from '../treeNode'
 import { titleCase } from './inspector/shared'
 import type { Update } from './inspector/shared'
@@ -35,7 +35,7 @@ import { TransformSection } from './inspector/transform'
 import { PartSceneProperties, SceneProperties } from './inspector/scene'
 import { TagSourcesContext } from './inspector/tagField'
 import type { TagSources } from './inspector/tagField'
-import type { PlcTagList } from '../externalPlc'
+import type { PlcTagList } from '../links/externalPlc'
 import { defineMessages, t } from '../../core/i18n'
 import { tNodes } from '../i18nNodes'
 
@@ -378,7 +378,7 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
   const inCommsSection = (s: ParamSpec): boolean =>
     s.kind === 'tagRef' || (!!commsSpec?.group && !!s.group && (s.group === commsSpec.group || s.group.startsWith(`${commsSpec.group}/`)))
   // ...and a units switch (ParamSpec.imperialUnits) is the scene's to set: its Units (Scene Properties,
-  // core/sceneUnits.ts) write it on every part, so a per-part copy of that choice is never a field.
+  // core/scene/sceneUnits.ts) write it on every part, so a per-part copy of that choice is never a field.
   const editableSpecs = allSpecs.filter(
     (s) =>
       !s.hidden &&
@@ -425,7 +425,7 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
           ) : undefined
         }
       />
-      {/* who made it: a part from a part library credits its publisher, wherever it is used (editor/partCredit.ts) */}
+      {/* who made it: a part from a part library credits its publisher, wherever it is used (editor/parts/partCredit.ts) */}
       {pkg?.credit &&
         (() => {
           const credit = partCreditLine(pkg)!

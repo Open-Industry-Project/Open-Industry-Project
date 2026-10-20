@@ -4,12 +4,12 @@
 // helpers (./drag.ts), which work on the whole controller, so every function takes the controller too.
 
 import { normalizeAngle } from '../../core/math'
-import { subtreeIds } from '../../core/hierarchy'
+import { subtreeIds } from '../../core/scene/hierarchy'
 import { rotateXZ } from '../../core/transforms'
-import { surfaceAlignPose } from '../../core/snapFeatures'
-import type { SnapPose } from '../../core/snapFeatures'
+import { surfaceAlignPose } from '../../core/snap/snapFeatures'
+import type { SnapPose } from '../../core/snap/snapFeatures'
 import type { SceneJSON } from '../../core/types'
-import type { EditorState } from '../store'
+import type { EditorState } from '../store/store'
 import * as dragOps from './drag'
 import type { EditorController } from '../controller'
 

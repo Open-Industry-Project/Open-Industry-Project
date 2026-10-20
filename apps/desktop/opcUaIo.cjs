@@ -2,8 +2,8 @@
 //
 // OPC UA is too large a protocol to implement in the app the way Modbus is (plcIo.cjs moves raw bytes and
 // src/plc/modbus*.ts implement the protocol). So here the library handles the protocol and the app decides everything
-// else: which tags travel, which node each one is, and what a value means (src/core/opcUa.ts,
-// src/editor/externalPlc.ts). This file only turns those decisions into service calls.
+// else: which tags travel, which node each one is, and what a value means (src/core/io/opcUa.ts,
+// src/editor/links/externalPlc.ts). This file only turns those decisions into service calls.
 //
 // Unsecured on purpose, for now: security policy None and an anonymous session, with no certificates to trust
 // on either side. That is the setting a test bench or a soft PLC on the same machine uses. A plant network

@@ -1,5 +1,5 @@
 // An older multi-scene project folder, opened in the real desktop shell, splits into one project per scene
-// (src/editor/projectSplit.ts, docs/projects.md "Splitting an older project"). From format 4 a project holds one
+// (src/editor/project/projectSplit.ts, docs/projects.md "Splitting an older project"). From format 4 a project holds one
 // scene; a format-3 folder listing three scenes still opens: the scene that was active stays the project, and
 // each other scene becomes a project "<project> - <scene>" in a folder of its own beside the project's folder,
 // after a single confirmation.
@@ -51,7 +51,7 @@ const SPLIT_QUESTION = 'Make these folders now?' // the tail of projectSplit.ts 
 const group = (id) => ({ id, type: 'group', position: [0, 0.2, 0], rotationY: 0, params: {} })
 const scene = (...ids) => JSON.stringify({ version: 4, parts: ids.map(group) }, null, 2) + '\n'
 // Line A also places the library part, so the split has something to carry into Line A's project and to leave out
-// of Line C's (core/project.ts usedLibraryOnly)
+// of Line C's (core/project/project.ts usedLibraryOnly)
 const libPart = { id: 'a-lib', type: 'part', packageId: 'split.part', position: [2, 0.2, 0], rotationY: 0, params: {} }
 const sceneWithLib = (...ids) => JSON.stringify({ version: 4, parts: [...ids.map(group), libPart] }, null, 2) + '\n'
 const test = (name, sceneId) =>

@@ -1,17 +1,17 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { clearPackages, registerPackage } from '../core/partRegistry'
-import type { PartPackage } from '../core/partPackage'
-import { createSdkPart } from '../core/scene'
-import { findSnap } from '../core/snapFeatures'
-import { conveyingSurfaceAt } from '../core/conveyorSurface'
-import { beltLikeView, conveyorEndsOf } from '../core/partGeometry'
+import { clearPackages, registerPackage } from '../core/parts/partRegistry'
+import type { PartPackage } from '../core/parts/partPackage'
+import { createSdkPart } from '../core/scene/scene'
+import { findSnap } from '../core/snap/snapFeatures'
+import { conveyingSurfaceAt } from '../core/conveyor/conveyorSurface'
+import { beltLikeView, conveyorEndsOf } from '../core/parts/partGeometry'
 import { scaffoldLine } from '../core/lineScaffold'
-import { formatParamArgs, hiddenParamArgs, parseParamArgs, withParamArgs } from '../core/partParamArgs'
+import { formatParamArgs, hiddenParamArgs, parseParamArgs, withParamArgs } from '../core/parts/partParamArgs'
 import type { PartInstance, SdkPart } from '../core/types'
 import { buildPackage } from '../sim/buildPackage'
-import { bundledBehaviors, bundledManifests } from './bundledExamples'
+import { bundledBehaviors, bundledManifests } from './parts/bundledExamples'
 
-// core/lineScaffold.ts (npm run add-part --scaffold) and core/partParamArgs.ts (--params / --host-params) against
+// core/lineScaffold.ts (npm run add-part --scaffold) and core/parts/partParamArgs.ts (--params / --host-params) against
 // the real shipped parts: a scaffold is only as good as the snaps the shipped parts declare.
 
 const pkgs = new Map<string, PartPackage>()

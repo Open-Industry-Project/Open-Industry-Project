@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { PartChange } from '../../core/partChanges'
+import type { PartChange } from '../../core/parts/partChanges'
 import type { PartInstance } from '../../core/types'
 import { defineMessages, t } from '../../core/i18n'
 
@@ -46,7 +46,7 @@ export function useSignalImpacts(
 }
 
 /**
- * What taking another version of a part changes, most severe first (core/partChanges.ts). Wording-only changes are
+ * What taking another version of a part changes, most severe first (core/parts/partChanges.ts). Wording-only changes are
  * counted, not listed. A breaking signal change says what it breaks here once `impacts` has loaded: whether the
  * change is a problem depends on the project.
  */

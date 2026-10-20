@@ -13,7 +13,7 @@ import { BufferAttribute, BufferGeometry, InstancedMesh, Matrix4, Mesh } from 't
 import type { Material, Object3D } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { CargoShapeRef } from '../../core/frame'
-import { getPackage } from '../../core/partRegistry'
+import { getPackage } from '../../core/parts/partRegistry'
 import type { PartInstance } from '../../core/types'
 import type { PartVisual } from './registry'
 import { createCustomVisual } from './sdkPart'

@@ -11,7 +11,7 @@
 //   undriven    a part reads a tag nothing writes - it will sit at the zero value forever.
 //   unread      a part publishes a tag nobody consumes.
 //   undeclared  a part's tag param has no declared direction, so none of the above can be asked of it. Only a
-//               stored package can have one: an authored part is refused without `dir` (core/partAuthoringChecks.ts).
+//               stored package can have one: an authored part is refused without `dir` (core/parts/partAuthoringChecks.ts).
 //   address     a part's tag is a direct address (%IX100.0) that cannot carry it: malformed, memory,
 //               the wrong way round (a sensor is the PLC's input, so %I; an actuator its output, %Q),
 //               or the wrong size for the value (a BOOL is a bit, a REAL a double word).
@@ -25,13 +25,13 @@
 //   • only tag params with a non-empty value - an unset tag is unwired by intent, not by error;
 //   • only parts whose package is loaded: `unresolvedPackages` carries the others out so the caller can say so.
 
-import { canonicalAddress, looksLikeAddress, parseDirectAddress, sizeWord } from '../core/iecAddress'
-import type { IoSize } from '../core/iecAddress'
+import { canonicalAddress, looksLikeAddress, parseDirectAddress, sizeWord } from '../core/io/iecAddress'
+import type { IoSize } from '../core/io/iecAddress'
 import { packageParamSpecs } from '../core/packageParams'
-import { commsOn } from '../core/conveyorDirection'
-import { getPackage } from '../core/partRegistry'
+import { commsOn } from '../core/conveyor/conveyorDirection'
+import { getPackage } from '../core/parts/partRegistry'
 import type { TaggedPart } from './bindings'
-import type { PlcLink, WiredBindings } from './plcLink'
+import type { PlcLink, WiredBindings } from './link/plcLink'
 
 /** A scene part as the wiring walk needs it - {@link TaggedPart} plus its display name. */
 export interface WiringPart extends TaggedPart {
@@ -237,7 +237,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
   }
 
   // A word inside a double word: %ID100 is the two words %IW200 and %IW201, in the PLC's memory and on every
-  // Modbus link (core/externalIo.ts), so two tags there overwrite each other. In the sim they are separate
+  // Modbus link (core/io/externalIo.ts), so two tags there overwrite each other. In the sim they are separate
   // names and nothing collides, which is exactly why it has to be said here. Only this overlap is universal:
   // a bit inside a word collides on a byte-addressed PLC and in a register image, but not in OpenPLC, whose
   // bits and words are separate tables, so that one is left to the link that would carry it.
@@ -274,7 +274,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
  * A part wired to one of the program's own tags by name (`CompiledProgram.bindable`: a controller tag, a
  * global, `Main.Eye`) is connected to it, and the parts say which way: a tag a part publishes is the
  * program's input, written in before each scan; one that parts only read is its output, which the program
- * drives and owns (ctx.tagDriven). That is the rule the OPC UA link already follows (core/opcUa.ts), and the
+ * drives and owns (ctx.tagDriven). That is the rule the OPC UA link already follows (core/io/opcUa.ts), and the
  * one a programmer expects of controller tags that carry no direction at all: a tag is a tag, and the
  * device on the other end decides.
  *

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { PackageManifest } from './buildPackage'
 import { validatePart } from './validatePart'
-import { undeclaredParamReads } from '../core/partAuthoringChecks'
-import { partFingerprint, storedPackageHash } from '../core/partOrigin'
-import { manifestOfPackage } from '../core/partPackage'
-import { newerSdkLevel, PART_SDK_LEVEL } from '../core/partSdk'
+import { undeclaredParamReads } from '../core/parts/partAuthoringChecks'
+import { partFingerprint, storedPackageHash } from '../core/parts/partOrigin'
+import { manifestOfPackage } from '../core/parts/partPackage'
+import { newerSdkLevel, PART_SDK_LEVEL } from '../core/parts/partSdk'
 
 const deck: PackageManifest = { id: 'acme.deck', name: 'Deck', geometry: { kind: 'rig', links: [{ name: 'deck', shape: { kind: 'box', size: [6, 0.1, 1] }, offset: [0, -0.05, 0], conveys: true }], joints: [], bounds: { length: 6, width: 1, top: 0.05, bottom: -0.1 } } }
 
@@ -318,7 +318,7 @@ describe('where a project copy came from (package format 6: origin)', () => {
   })
 })
 
-describe('the Part SDK level stamp (core/partSdk.ts)', () => {
+describe('the Part SDK level stamp (core/parts/partSdk.ts)', () => {
   it("stamps a new part with this build's level and its fingerprint", () => {
     const pkg = validatePart(deck, GOOD).package!
     expect(pkg.sdk).toEqual({ level: PART_SDK_LEVEL, of: partFingerprint(pkg) })

@@ -1,5 +1,5 @@
 import type { PartInstance } from './types'
-import { registryRevision } from './partRegistry'
+import { registryRevision } from './parts/partRegistry'
 import { createFootprintIndex } from './footprintGrid'
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createPart } from '../../../core/scene'
+import { createPart } from '../../../core/scene/scene'
 import { num, tagRef, text } from '../../../core/types'
 import type { ColorParamSpec, EnumParamSpec, NumberListParamSpec, ParamSpec, PartInstance, PartRefParamSpec } from '../../../core/types'
 import {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { create, destroy, stepDirect } from './embeddedBehavior'
 import type { BehaviorOutput } from './embeddedBehavior'
-import { PACKAGE_FORMAT, validatePartPackage } from '../core/partPackage'
+import { PACKAGE_FORMAT, validatePartPackage } from '../core/parts/partPackage'
 
 // `ctx.display` - a part publishing a named value for its own live caption (`label.textFrom`) to draw.
 //

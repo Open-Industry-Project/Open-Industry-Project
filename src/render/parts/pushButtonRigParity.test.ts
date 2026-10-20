@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, rigLampNames, validatePartPackage } from '../../core/partPackage'
-import { evalPartGeometry, geometryLampNames } from '../../core/geometryEval'
-import type { MeshPart } from '../../core/partApi'
+import { PACKAGE_FORMAT, rigLampNames, validatePartPackage } from '../../core/parts/partPackage'
+import { evalPartGeometry, geometryLampNames } from '../../core/geometry/geometryEval'
+import type { MeshPart } from '../../core/parts/partApi'
 import { examplePart, type RigGeo } from './examplePart'
-import { instantiatePartScript } from '../../core/partScript'
+import { instantiatePartScript } from '../../core/parts/partScript'
 const { assets: PUSH_BUTTON_SDK_ASSETS, behavior: PUSH_BUTTON_SDK_BEHAVIOR, materials: PUSH_BUTTON_SDK_MATERIALS, geometry: PUSH_BUTTON_SDK_RIG } = examplePart<RigGeo>('oip.push-button')
 
 // The Push Button as a custom part (examples/parts/push-button), drawn by geometry(): it exercises C-interaction

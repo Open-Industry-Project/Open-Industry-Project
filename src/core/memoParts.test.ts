@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { SdkPart, PartInstance } from './types'
-import type { PartPackage } from './partPackage'
-import { clearPackages, registerPackage, unregisterPackage } from './partRegistry'
+import type { PartPackage } from './parts/partPackage'
+import { clearPackages, registerPackage, unregisterPackage } from './parts/partRegistry'
 import { memoizeByParticipants } from './memoParts'
-import { computeSceneOpenings } from './guardOpenings'
-import { resolveRollerGrids } from './rollerGrid'
-import { computeSceneExtents } from './guardExtents'
+import { computeSceneOpenings } from './guards/guardOpenings'
+import { resolveRollerGrids } from './conveyor/rollerGrid'
+import { computeSceneExtents } from './guards/guardExtents'
 import { computeDeckClusters } from './deckClusters'
-import { PACKAGE_FORMAT } from './partPackage'
+import { PACKAGE_FORMAT } from './parts/partPackage'
 
 // The identity-memo layer over the scene-wide neighbour passes (memoParts.ts). The invariant under
 // test: a transient scene that replaces only non-participant part objects (a dragged cargo box) must

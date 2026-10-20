@@ -1,11 +1,11 @@
 import * as Y from 'yjs'
-import { sanitizeParents } from '../core/hierarchy'
-import { normalizePart } from '../core/scene'
+import { sanitizeParents } from '../core/scene/hierarchy'
+import { normalizePart } from '../core/scene/scene'
 import { PART_DEFS, SCENE_VERSION, toSimRate } from '../core/types'
 import { fromRoomEntry, toRoomEntry } from './roomAssets'
 import type { ParamSpec, ParamValue, PartInstance, PartType, SceneJSON, SdkPart, SimRate } from '../core/types'
-import { upgradeStoredPackage } from '../core/partPackage'
-import type { PartPackage } from '../core/partPackage'
+import { upgradeStoredPackage } from '../core/parts/partPackage'
+import type { PartPackage } from '../core/parts/partPackage'
 import { validateController } from '../core/controller'
 import type { Controller } from '../core/controller'
 import { storedDialect } from '../core/dialect'
@@ -212,7 +212,7 @@ export function writeUnits(ydoc: Y.Doc, units: SceneJSON['units']): void {
   else metaMap(ydoc).set(UNITS_META, units)
 }
 
-/** `meta` key holding the room's scene's physics step rate (Hz; core/project.ts ProjectMachine.simHz). It sits beside the scene's version, not with the
+/** `meta` key holding the room's scene's physics step rate (Hz; core/project/project.ts ProjectMachine.simHz). It sits beside the scene's version, not with the
  *  program: the rate is a property of the world, and every peer steps its own - so a room that did not
  *  carry it would have two people watching the same line behave differently. */
 export const SIM_HZ_META = 'simHz'

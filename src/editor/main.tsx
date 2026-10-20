@@ -2,7 +2,7 @@
 // (core/lockdownBoot.ts, docs/part-sandbox.md)
 import '../core/lockdownBoot'
 import { createRoot } from 'react-dom/client'
-import { blankScene, setNextIdSuffix } from '../core/scene'
+import { blankScene, setNextIdSuffix } from '../core/scene/scene'
 import { DEFAULT_SIM_HZ } from '../core/types'
 import type { SceneJSON, SimRate } from '../core/types'
 import type { Controller } from '../core/controller'
@@ -21,28 +21,28 @@ import {
 import { consumeSeedMark, resolveRoom, type ResolvedRoom } from '../collab/rooms'
 import { SimClient } from '../sim/client'
 import { getPartThumbnails, renderPackageThumbnails } from '../render/viewport/thumbnails'
-import { getPackage, registerPackage } from '../core/partRegistry'
-import type { PackageManifest } from '../core/partPackage'
-import { partSandboxActive } from '../core/partSandbox'
-import { DESKTOP_SHELL } from './desktopMenuBridge'
+import { getPackage, registerPackage } from '../core/parts/partRegistry'
+import type { PackageManifest } from '../core/parts/partPackage'
+import { partSandboxActive } from '../core/parts/partSandbox'
+import { DESKTOP_SHELL } from './desktop/desktopMenuBridge'
 import { prefetchSceneAssets } from './prefetchSceneAssets'
 import { prefetchThumbnails } from '../render/prefetch'
-import { bundledBehaviors, bundledThumbnailIds, loadBundledExamples, registerBundledPackages } from './bundledExamples'
+import { bundledBehaviors, bundledThumbnailIds, loadBundledExamples, registerBundledPackages } from './parts/bundledExamples'
 import { speculativeFetches } from '../render/gltf'
 import { App } from './App'
 import { AppCrashBoundary } from './components/CrashDialog'
-import { createPlcDemoScene, DEMO_CONTROLLER, DEMO_PROGRAM } from './demoScenes'
-import { DEFAULT_SCAN_MS } from './stProgram'
-import { importSceneText, loadSceneText, sceneFileText } from './sceneFile'
-import { PROJECT_KEY, loadStoredProject, noteWorkingCopyWrite, onWorkingCopySuperseded, parkSplitOff, unopenedProject } from './projectFile'
-import { startSplitFiling } from './projectSplit'
-import { currentDocumentId, onCurrentDocumentChange, supportsDocumentLibrary, syncCurrentDocument, writeDocument } from './documentStore'
-import { EditorStore } from './store'
+import { createPlcDemoScene, DEMO_CONTROLLER, DEMO_PROGRAM } from './demo/demoScenes'
+import { DEFAULT_SCAN_MS } from './program/stProgram'
+import { importSceneText, loadSceneText, sceneFileText } from './project/sceneFile'
+import { PROJECT_KEY, loadStoredProject, noteWorkingCopyWrite, onWorkingCopySuperseded, parkSplitOff, unopenedProject } from './project/projectFile'
+import { startSplitFiling } from './project/projectSplit'
+import { currentDocumentId, onCurrentDocumentChange, supportsDocumentLibrary, syncCurrentDocument, writeDocument } from './project/documentStore'
+import { EditorStore } from './store/store'
 import { initKeymapPrefs } from './keymapPrefs'
 import { initNavPrefs } from './navigationPrefs'
 import { initLanguage } from './autoTranslate'
 import { followAppearance } from './appearance'
-import { isFreshNavigation, isPhoneViewport, phoneOpensDemo } from './phoneDemo'
+import { isFreshNavigation, isPhoneViewport, phoneOpensDemo } from './demo/phoneDemo'
 import './styles.css'
 
 // iOS reports "launched from the home screen" only through this non-standard flag - the
@@ -110,7 +110,7 @@ document.addEventListener('visibilitychange', () => {
  * Park an older multi-scene working copy's other scenes (projectFile.parkSplitOff) before the boot saves over it. If
  * they cannot be parked, nothing may be saved: the session goes read-only rather than lose them.
  */
-function keepSplitOff(splitOff: readonly import('../core/project').ProjectJSON[] | undefined): void {
+function keepSplitOff(splitOff: readonly import('../core/project/project').ProjectJSON[] | undefined): void {
   if (!splitOff || splitOff.length === 0) return
   const parked = parkSplitOff(splitOff)
   if (parked.ok) return
@@ -185,7 +185,7 @@ function bootSolo(): void {
 }
 
 /**
- * Keep the document library in sync with the working copy (editor/documentStore.ts).
+ * Keep the document library in sync with the working copy (editor/project/documentStore.ts).
  *
  * The library makes more than one project possible, but it must never get between an edit and the
  * autosave: `oip-web/project` is written synchronously on every commit, and this is a trailing,
@@ -295,7 +295,7 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
     import('../collab/stBinding'),
     import('../collab/codeTrust'),
     import('../collab/demoRoom'),
-    import('./shippedBehaviors').then((m) => m.loadShippedBehaviors()),
+    import('./parts/shippedBehaviors').then((m) => m.loadShippedBehaviors()),
     import('../collab/roomAssets'),
   ])
   // a part's embedded models live in the collab server's asset store by hash (collab/roomAssets.ts), which an editor
@@ -543,5 +543,5 @@ if (room) {
   startSolo()
   // the desktop app booted to take a browser's project (Open in Desktop App; desktopHandoff.ts asks before importing)
   const handoff = DESKTOP_SHELL ? params.get('handoff') : null
-  if (handoff) void import('./desktopHandoff').then((m) => m.receiveDesktopHandoff(store, handoff))
+  if (handoff) void import('./desktop/desktopHandoff').then((m) => m.receiveDesktopHandoff(store, handoff))
 }

@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { PlcTagList } from '../../externalPlc'
+import type { PlcTagList } from '../../links/externalPlc'
 import type { TagRow } from '../../../plc/tags'
 import { loadProgramTags, programTagChoices, rankTagNames } from './tagSuggest'
 import { defineMessages, t } from '../../../core/i18n'

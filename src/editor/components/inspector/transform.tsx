@@ -3,7 +3,7 @@
 import { normalizeAngle } from '../../../core/math'
 import type { PartInstance, PartType } from '../../../core/types'
 import { paramDesc } from '../paramDescriptions'
-import type { EditorStore } from '../../store'
+import type { EditorStore } from '../../store/store'
 import { useLiveValue } from '../../useLiveValue'
 import { AxisInput, Fold, useShownLengthUnit, VectorRow } from './fields'
 import type { OpenCtx } from './menu'

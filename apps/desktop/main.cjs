@@ -28,7 +28,7 @@ const { SCHEME: LINK_SCHEME, deepLinkFromArgv, isDeepLinkArg, linkUrl, parseDeep
 
 // The shell keeps NO parts of its own. A project's part definitions are its own copies, stored with the project
 // - on the desktop in its folder's parts/, which the renderer's folder sync writes and reads back like any other
-// project file (src/editor/externalEditor.ts). This side only scans a folder the user picks (to IMPORT its parts
+// project file (src/editor/parts/externalEditor.ts). This side only scans a folder the user picks (to IMPORT its parts
 // into the open project) and opens or reveals a part's file. It keeps no live part folders: with a second home for
 // parts, a part edited in one project surfaces in another, and load order decides which copy wins.
 
@@ -434,7 +434,7 @@ let projectRoot = null
 
 // ── Project folders ───────────────────────────────────────────────────────────────────────────────
 // On the desktop a project IS a folder (docs/projects.md): the renderer keeps it in step both ways
-// (src/editor/projectFolderSync.ts), and this side only moves files and remembers which document lives
+// (src/editor/project/projectFolderSync.ts), and this side only moves files and remembers which document lives
 // in which folder (folderRegistry.cjs). The format and the sync rules stay in src/core, so the shell
 // never has a second opinion about either.
 const registry = createFolderRegistry(join(app.getPath('userData'), 'project-folders.json'))
@@ -486,7 +486,7 @@ function folderNameFor(name) {
 // Never an existing folder - this is for projects that have no files yet.
 function createProjectFolder(name, beside) {
   // Beside a folder the app already works in (the scenes split out of an older project go next to it,
-  // src/editor/projectSplit.ts), else under the default projects folder. Only beside a GRANTED folder: the
+  // src/editor/project/projectSplit.ts), else under the default projects folder. Only beside a GRANTED folder: the
   // renderer names the folder, and a grant is what says this app was given it.
   const root = typeof beside === 'string' && beside !== '' && grants.allows(beside) ? dirname(beside) : defaultProjectsRoot()
   const base = folderNameFor(name)
@@ -531,7 +531,7 @@ function readProjectAt(root) {
 }
 
 // File → Open Project Folder…: pick a folder and hand its raw files to the renderer, which reassembles
-// + validates them through the one codec (src/core/projectFolder.ts). The shell stays format-blind.
+// + validates them through the one codec (src/core/project/projectFolder.ts). The shell stays format-blind.
 async function pickOpenProjectFolder(win) {
   const result = await dialog.showOpenDialog(win, {
     title: 'Open Project Folder',
@@ -595,7 +595,7 @@ function openDocumentFile(path) {
 }
 
 // Pick a folder of parts and scan it (null if cancelled), for the renderer to IMPORT into the open project's parts
-// (src/editor/packageSource.ts). Read once: the folder is a source, not a live second home for those parts. Shared by
+// (src/editor/parts/packageSource.ts). Read once: the folder is a source, not a live second home for those parts. Shared by
 // the renderer IPC (window.oipParts.pickWorkspace) and the File menu so both paths behave identically.
 async function pickWorkspace(win) {
   const result = await dialog.showOpenDialog(win, {
@@ -720,7 +720,7 @@ function registerIpc() {
     return { root, names: listWorkspace(root).parts.map((p) => p.name) }
   })
   // The project as a folder on disk: pickers, then the plain moves the renderer's sync makes - read,
-  // fingerprint, guarded writes. The sync decides WHAT to move (src/core/folderSync.ts); this only moves it.
+  // fingerprint, guarded writes. The sync decides WHAT to move (src/core/project/folderSync.ts); this only moves it.
   ipcMain.handle('project:pickOpenFolder', (event) => pickOpenProjectFolder(BrowserWindow.fromWebContents(event.sender)))
   ipcMain.handle('project:pickSaveFolder', (event) => pickSaveProjectFolder(BrowserWindow.fromWebContents(event.sender)))
   ipcMain.handle('project:readAt', (_event, root) => {
@@ -894,7 +894,7 @@ function registerIpc() {
 }
 
 // Tell the renderer to run an app-level command (New/Open/Undo/Run/…). The renderer dispatches it to
-// the SAME store/controller verbs the toolbar + keyboard use (see src/editor/desktopMenuBridge.ts), so
+// the SAME store/controller verbs the toolbar + keyboard use (see src/editor/desktop/desktopMenuBridge.ts), so
 // the menu never drifts from the on-screen affordances.
 function sendCommand(win, command, viaChord = false) {
   if (win && !win.isDestroyed()) win.webContents.send('menu:command', command, viaChord)
@@ -1211,7 +1211,7 @@ function enableCrossOriginIsolation() {
 // `openindustry://open?room=...`: the installer registers the scheme (package.json `build.protocols`). A link
 // that launches the app goes into the first URL the window loads; one that arrives while it runs (a second
 // launch on Windows / Linux, `open-url` on macOS) moves the window into that room, or, for `?handoff=`, reloads it
-// to receive a browser's project (src/editor/desktopHandoff.ts, which asks before importing). Leaving the document it showed
+// to receive a browser's project (src/editor/desktop/desktopHandoff.ts, which asks before importing). Leaving the document it showed
 // loses nothing: the page saves on `pagehide` (main.tsx flushPersist, projectFolderSync's flush), exactly as when
 // Share moves a window into a new room.
 // A development shell registers only when asked (OIP_DEEP_LINK=1): registering writes the OS's per-user handler

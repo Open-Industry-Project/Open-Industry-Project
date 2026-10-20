@@ -10,7 +10,7 @@ import { whenCoverHidden, whenScenePainted } from '../render/renderReady'
 import { gpuErrorReport } from '../render/gpuErrorWatch'
 import { noteActiveRenderer, renderQuality, shadowMapSize } from '../render/quality'
 import type { PartType } from '../core/types'
-import type { PartPackage } from '../core/partPackage'
+import type { PartPackage } from '../core/parts/partPackage'
 import { sameAsBuiltIn } from '../core/builtInVersion'
 import { resolveKeyAction } from '../core/keymap'
 import type { SimClient } from '../sim/client'
@@ -35,18 +35,18 @@ import { PilotTouchControls } from './components/PilotTouchControls'
 import { PilotFab } from './components/PilotFab'
 import { ResizeGutter } from './components/ResizeGutter'
 import { SceneTree } from './components/SceneTree'
-import { PlcPanel } from './components/PlcPanel'
+import { PlcPanel } from './components/plc/PlcPanel'
 import type { SettingsTab } from './components/SettingsOverlay'
 import { ProjectsOverlay } from './components/ProjectsOverlay'
 import { FolderLinkBanner } from './components/FolderLinkBanner'
-import { beginFolderLink, reconnectProjectFolder, restoreFolderLink, saveProjectToFolderHandle, unlinkProjectFolder } from './projectFolderLink'
-import { resolveFolderConflict, restoreFolderSync, syncFolderNow, syncedFolderPath } from './projectFolderSync'
-import { splitFiling } from './projectSplit'
-import { connectDesktopOpenRequests } from './desktopProjectBridge'
-import { connectDesktopFileOpens } from './desktopFileOpen'
-import { importProjectFile } from './importProjectFile'
+import { beginFolderLink, reconnectProjectFolder, restoreFolderLink, saveProjectToFolderHandle, unlinkProjectFolder } from './project/projectFolderLink'
+import { resolveFolderConflict, restoreFolderSync, syncFolderNow, syncedFolderPath } from './project/projectFolderSync'
+import { splitFiling } from './project/projectSplit'
+import { connectDesktopOpenRequests } from './desktop/desktopProjectBridge'
+import { connectDesktopFileOpens } from './desktop/desktopFileOpen'
+import { importProjectFile } from './project/importProjectFile'
 import { TutorialOverlay } from './components/TutorialOverlay'
-import { PHONE_QUERY } from './phoneDemo'
+import { PHONE_QUERY } from './demo/phoneDemo'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { DesktopUpdateToast } from './components/DesktopUpdateToast'
 import { BenchOverlay } from './components/BenchOverlay'
@@ -57,7 +57,7 @@ import { AnnotationOverlay } from './components/AnnotationOverlay'
 import { PartBuildToast } from './components/PartBuildToast'
 import { NoticeToast } from './components/NoticeToast'
 import { TranslateToast } from './components/TranslateToast'
-import { installDemoForkHost } from './demoFork'
+import { installDemoForkHost } from './demo/demoFork'
 import { AutosaveBanner } from './components/AutosaveBanner'
 import { UnopenedProjectBanner } from './components/UnopenedProjectBanner'
 import { OtherTabBanner } from './components/OtherTabBanner'
@@ -72,11 +72,11 @@ import { GuardOpeningsBanner } from './components/GuardOpeningsBanner'
 import { EditorController } from './controller'
 import { connectDesktopAgent } from './agent/desktopAgent'
 import type { AgentSession } from './agent/agentSession'
-import { discardUnopenedProject, downloadProject, downloadUnopenedProject } from './projectFile'
-import { DEMO_SCENE_NAME } from './demoScenes'
+import { discardUnopenedProject, downloadProject, downloadUnopenedProject } from './project/projectFile'
+import { DEMO_SCENE_NAME } from './demo/demoScenes'
 import { assetsBusy } from '../render/gltf'
-import { connectDesktopPackages } from './packageSource'
-import { loadBundledExamples } from './bundledExamples'
+import { connectDesktopPackages } from './parts/packageSource'
+import { loadBundledExamples } from './parts/bundledExamples'
 import {
   activateDockPanel,
   BOTTOM_MAX_SHARE,
@@ -113,10 +113,10 @@ import {
   type DockSide,
   type DockSlotId,
 } from './dockLayout'
-import { DESKTOP_MAC, DESKTOP_SHELL, getDesktopUpdate, getOipMenuApi } from './desktopMenuBridge'
+import { DESKTOP_MAC, DESKTOP_SHELL, getDesktopUpdate, getOipMenuApi } from './desktop/desktopMenuBridge'
 import { commandEnabled, desktopMenuModel, menuEnablement, runCommand, runMenuCommand, setCommandCtx, type CommandUi } from './commands'
-import type { EditorStore } from './store'
-import type { ProjectJSON } from '../core/project'
+import type { EditorStore } from './store/store'
+import type { ProjectJSON } from '../core/project/project'
 import { RestoreIcon } from './components/toolbarIcons'
 import { defineMessages, t } from '../core/i18n'
 
@@ -126,7 +126,7 @@ import { defineMessages, t } from '../core/i18n'
 const BehaviorEditor = lazy(importBehaviorEditor)
 // Lazy for the same reason as the panels' own chunks: Controller Properties is a dialog opened on demand (the
 // organizer's Controller node, the toolbar's link status, Simulation > External PLC…), never before the first frame
-const ControllerDialog = lazy(() => import('./components/ControllerDialog').then((m) => ({ default: m.ControllerDialog })))
+const ControllerDialog = lazy(() => import('./components/plc/ControllerDialog').then((m) => ({ default: m.ControllerDialog })))
 // Settings and the test results are opened on demand too; lazy, they kept the eager-JS budget (scripts/lib/eager-js.mjs)
 // from a raise when the flow-facts and rig-gizmo work grew the first frame
 const SettingsOverlay = lazy(() => import('./components/SettingsOverlay').then((m) => ({ default: m.SettingsOverlay })))
@@ -1617,7 +1617,7 @@ export function App({ store, sim }: AppProps) {
           const file = e.target.files?.[0]
           e.target.value = '' // so choosing the same file twice fires again
           // lazy, like the exports (commands.ts): the readers load when a file does
-          if (file) void import('./stFileTransfer').then((m) => m.importStFile(store, file))
+          if (file) void import('./program/stFileTransfer').then((m) => m.importStFile(store, file))
         }}
       />
       {/* every surface's "Import Project…" lands here: file.importProject → CommandUi.openProjectFilePicker → this

@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
-import { clearPackages, registerPackage } from '../../core/partRegistry'
-import type { PartPackage } from '../../core/partPackage'
+import { clearPackages, registerPackage } from '../../core/parts/partRegistry'
+import type { PartPackage } from '../../core/parts/partPackage'
 import type { SdkPart } from '../../core/types'
 import { ROLLER_MODEL_RADIUS } from './common'
 import { createCustomVisual, rigRollerSpinRadius } from './sdkPart'
 import { examplePart, type RigGeo } from './examplePart'
-import { evalPartGeometry } from '../../core/geometryEval'
-import { PACKAGE_FORMAT } from '../../core/partPackage'
+import { evalPartGeometry } from '../../core/geometry/geometryEval'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
 
 const pkg = (length: number, width: number): PartPackage => ({
   format: PACKAGE_FORMAT,

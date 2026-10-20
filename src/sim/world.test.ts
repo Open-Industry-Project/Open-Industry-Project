@@ -1,13 +1,13 @@
-import type { PackageManifest } from '../core/partPackage'
+import type { PackageManifest } from '../core/parts/partPackage'
 import initJolt from 'jolt-physics'
 import { describe, expect, it } from 'vitest'
 import { CARGO_KIND_BOX, CARGO_KIND_PALLET } from '../core/frame'
 import { quatFromYXZ } from '../core/math'
 import { PALLET_SIZE, SCENE_VERSION, DEFAULT_SIM_HZ } from '../core/types'
 import type { BuildingPart, SdkPart, PartInstance, SceneJSON } from '../core/types'
-import type { PartAsset, PartMaterial, PartPackage, PartPackageGeometry } from '../core/partPackage'
-import { createSdkPart } from '../core/scene'
-import { registerPackage } from '../core/partRegistry'
+import type { PartAsset, PartMaterial, PartPackage, PartPackageGeometry } from '../core/parts/partPackage'
+import { createSdkPart } from '../core/scene/scene'
+import { registerPackage } from '../core/parts/partRegistry'
 import { buildPackage } from './buildPackage'
 import { SimWorld } from './world'
 
@@ -198,7 +198,7 @@ describe('chain transfer pop-up physically lifts + diverts cargo', () => {
   // CONVEYOR_FRICTION), so it brakes the case the rollers are trying to carry. The part declares a recess for
   // exactly this (examples/parts/chain-transfer, snap.track.targetLocalY = -0.03), so the track snap seats it
   // below the bed and cargo rides the rollers alone until the pop-up takes it. This pins the physics that number
-  // exists for; the declaration itself is guarded in editor/bundledPackageData.test.ts.
+  // exists for; the declaration itself is guarded in editor/parts/bundledPackageData.test.ts.
   it('a lowered transfer resting in a running roller bed lets cargo pass; seated flush it brakes it', () => {
     const DROP = 0.03 // snap.track.targetLocalY, as a positive depth
     /** how far the box travels along the bed in 4 s with a lowered, idle transfer seated at `chainY` */

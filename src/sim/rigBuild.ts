@@ -1,20 +1,20 @@
 // Rig parts, the build side: which links get collision bodies and where (buildRigBodies), the link-pose helpers,
 // and the unknown-name diagnostics. SimWorld hands in its own body constructors as a RigBodySink.
 import type Jolt from 'jolt-physics'
-import { guardColliderCrossSection } from '../core/collisionShapes'
-import type { ConveyorEntry } from '../core/collisionShapes'
-import { geometryLampNames, resolvePartParams } from '../core/geometryEval'
-import type { ParamValue } from '../core/partApi'
-import { reportPartDiagnostic } from '../core/partDiagnostics'
-import { rigLampNames } from '../core/partPackage'
-import type { PartPackage } from '../core/partPackage'
-import { keptSegments, rigFrameSide, rigGuardSide } from '../core/guardOpenings'
-import type { GuardOpenings } from '../core/guardOpenings'
-import type { GuardExtents } from '../core/guardExtents'
-import type { GuardRun } from '../core/guardRuns'
-import { rigLinkEmitsBody } from '../core/rigGuards'
-import { arrayInstanceDeltas, linkHalfExtents, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rigPose'
-import type { LinkPose, Quat, RigParams, Vec3 } from '../core/rigPose'
+import { guardColliderCrossSection } from '../core/geometry/collisionShapes'
+import type { ConveyorEntry } from '../core/geometry/collisionShapes'
+import { geometryLampNames, resolvePartParams } from '../core/geometry/geometryEval'
+import type { ParamValue } from '../core/parts/partApi'
+import { reportPartDiagnostic } from '../core/parts/partDiagnostics'
+import { rigLampNames } from '../core/parts/partPackage'
+import type { PartPackage } from '../core/parts/partPackage'
+import { keptSegments, rigFrameSide, rigGuardSide } from '../core/guards/guardOpenings'
+import type { GuardOpenings } from '../core/guards/guardOpenings'
+import type { GuardExtents } from '../core/guards/guardExtents'
+import type { GuardRun } from '../core/guards/guardRuns'
+import { rigLinkEmitsBody } from '../core/rig/rigGuards'
+import { arrayInstanceDeltas, linkHalfExtents, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rig/rigPose'
+import type { LinkPose, Quat, RigParams, Vec3 } from '../core/rig/rigPose'
 import { GROUND_FRICTION } from './bodyFactory'
 import type { BehaviorRecord } from './worldTypes'
 
@@ -68,7 +68,7 @@ export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geom
   for (const [name, lp] of rest) {
     const link = linkByName.get(name)
     if (!link) continue
-    // Which links get a body: one shared rule (core/rigGuards.ts rigLinkEmitsBody). Transform-only 'frame'
+    // Which links get a body: one shared rule (core/rig/rigGuards.ts rigLinkEmitsBody). Transform-only 'frame'
     // pivots, render-only shapes (label/roller/leg/chain/cone), noCollision primitives, a showParam switched
     // off, a mesh link with no collision box, and `conveys` decks (built as static conveyor bodies by
     // attachRigConveyors instead) all get none. Shared because guardRuns.ts must agree exactly on the set of
@@ -77,7 +77,7 @@ export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geom
     if (!rigLinkEmitsBody(link, resolved as Record<string, unknown>)) continue
     const heRaw = linkHalfExtents(link, params)
     const worldRaw = composeRigLink(pos, partQuat, lp)
-    // Guard collider normalization (core/collisionShapes.ts): a rig guard link carries the 0.005 sheet-metal
+    // Guard collider normalization (core/geometry/collisionShapes.ts): a rig guard link carries the 0.005 sheet-metal
     // visual thickness, where belts/curves build theirs at GUARD_COLLISION_THICKNESS. Thicken the collider
     // outward from its inner face, visual untouched (this reshapes the body, not the link), so every
     // family presents one cross-section and guardRuns can merge a roller against a belt. Grown along the

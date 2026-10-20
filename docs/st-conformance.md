@@ -487,7 +487,7 @@ writes the table back as a `CONFIGURATION`.
 wired to a terminal, so the same program runs in the simulator and, exported as written, on a PLC with I/O there.
 
 - **The address is the key on the tag surface.** `%I` is an input and `%Q` an output wherever declared, under its
-  canonical address ([core/iecAddress.ts](../src/core/iecAddress.ts): upper case, bit size written, no leading
+  canonical address ([core/io/iecAddress.ts](../src/core/io/iecAddress.ts): upper case, bit size written, no leading
   zeros, so `%i100.0` and `%IX100.0` are one point). The watch table and code keep the name. An address is never
   qualified by an instance or scoped to a cell.
 - **Where:** a plain `VAR` in a `PROGRAM` (including code outside every POU) and `VAR_GLOBAL`, as IEC's grammar
@@ -616,7 +616,7 @@ portability failure as a divergence, pointed the other way.
    - an enumeration with a base type (`(Idle, Run) UINT`): values are held as INT, so one INT cannot hold is
      refused; export leaves the word out;
 
-   and `canonicalSyntax` ([exportText.ts](../src/plc/exportText.ts)), a lexical pass both exports run first, writes
+   and `canonicalSyntax` ([exportText.ts](../src/plc/exchange/exportText.ts)), a lexical pass both exports run first, writes
    each in the strict form. The corpus group "tolerated input forms" proves it: the oracles render each case through
    that pass, and MATIEC and STruC++ build the result and agree with the goldens.
 
@@ -625,7 +625,7 @@ portability failure as a divergence, pointed the other way.
 
 ## Getting a program out
 
-[src/plc/export.ts](../src/plc/export.ts) has two targets, because there is no universal one:
+[src/plc/exchange/export.ts](../src/plc/exchange/export.ts) has two targets, because there is no universal one:
 
 | Target | What it is | Who takes it |
 |--------|------------|--------------|
@@ -679,7 +679,7 @@ wrote.
 
 ## Getting a program in
 
-[src/plc/importText.ts](../src/plc/importText.ts) (`Import .st` in the ST editor) is the exporter run backwards,
+[src/plc/exchange/importText.ts](../src/plc/exchange/importText.ts) (`Import .st` in the ST editor) is the exporter run backwards,
 sharing its trivia mask so a keyword inside a comment is never mistaken for the real one:
 
 | The file has | What happens |
@@ -696,9 +696,9 @@ Anything the subset cannot hold is reported: a program that quietly means someth
 worse than one that refuses.
 
 **The round trip**: every corpus case is exported and imported again and must come back text for text with no notes
-([importText.test.ts](../src/plc/importText.test.ts)); a file this editor wrote imports as a no-op.
+([importText.test.ts](../src/plc/exchange/importText.test.ts)); a file this editor wrote imports as a no-op.
 
-**PLCopen XML** ([src/plc/importXml.ts](../src/plc/importXml.ts)), the format many IEC tools export: each `<pou>`
+**PLCopen XML** ([src/plc/exchange/importXml.ts](../src/plc/exchange/importXml.ts)), the format many IEC tools export: each `<pou>`
 becomes a block, `<dataType>`s `TYPE` declarations, the configuration's `<globalVars>` a `VAR_GLOBAL` block; a
 single program's task interval becomes the scan time, while a controller's programs keep their names and its tasks
 and `<pouInstance>`s become a `CONFIGURATION`. Blocks are composed by `flattenDocument`

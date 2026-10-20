@@ -11,7 +11,7 @@
 // (same programmatic-vite shape as validate-project.mjs), so there's no second implementation.
 // A test whose scene's program is in a dialect this version does not have (core/dialect.ts) fails
 // with the reason, as Play refuses it: the runner never steps it as IEC.
-// Every run also collects FLOW FACTS (src/core/flowFacts.ts): what physically happened to the cargo - a box dropped
+// Every run also collects FLOW FACTS (src/core/flow/flowFacts.ts): what physically happened to the cargo - a box dropped
 // or lost, tipped, a sensor flickering, a box sitting still on a running conveyor. They are printed as a one-line
 // summary per test, listed before a failure's first failing check, and carried in --json. Facts never fail a test.
 
@@ -89,11 +89,11 @@ let errored = 0
 try {
   // the app's built-in parts: a format-3 project names them by id and keeps no copy (scripts/lib/builtIns.mjs)
   await declareBuiltIns(vite)
-  const { folderFilesToProject } = await vite.ssrLoadModule('/src/core/projectFolder.ts')
-  const { validateTestSpec, TraceRecorder, formatTrace } = await vite.ssrLoadModule('/src/core/projectTest.ts')
-  const { cargoRows } = await vite.ssrLoadModule('/src/core/projectProbe.ts')
-  const { runProjectTest } = await vite.ssrLoadModule('/src/editor/projectTestRunner.ts')
-  const { formatFlowFact, summarizeFlowFacts } = await vite.ssrLoadModule('/src/core/flowFacts.ts')
+  const { folderFilesToProject } = await vite.ssrLoadModule('/src/core/project/projectFolder.ts')
+  const { validateTestSpec, TraceRecorder, formatTrace } = await vite.ssrLoadModule('/src/core/project/projectTest.ts')
+  const { cargoRows } = await vite.ssrLoadModule('/src/core/project/projectProbe.ts')
+  const { runProjectTest } = await vite.ssrLoadModule('/src/editor/project/projectTestRunner.ts')
+  const { formatFlowFact, summarizeFlowFacts } = await vite.ssrLoadModule('/src/core/flow/flowFacts.ts')
   const { validatePart, formatPartDiagnostics } = await vite.ssrLoadModule('/src/sim/validatePart.ts')
   const initJolt = (await vite.ssrLoadModule('jolt-physics')).default
 
@@ -119,7 +119,7 @@ try {
   // falls back to globbing tests/, which is how every project authored before tests joined the document keeps
   // working unchanged.
   //
-  // A folder from before a project held one scene splits when it is read (core/project.ts `splitOff`): each of
+  // A folder from before a project held one scene splits when it is read (core/project/project.ts `splitOff`): each of
   // its other scenes is the project it will be when the app opens it, carrying the tests that named it. Each test
   // runs against its own project, so a result here means what it meant before.
   const projects = [loaded.project, ...(loaded.splitOff ?? [])]

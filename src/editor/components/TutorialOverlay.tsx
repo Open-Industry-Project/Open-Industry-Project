@@ -4,10 +4,10 @@ import { keymapRev, subscribeKeymap } from '../../core/keymap'
 import type { IRenderView } from '../../render/api'
 import { withKeys } from '../keyHint'
 import type { EditorController } from '../controller'
-import type { EditorState, EditorStore } from '../store'
-import { isOtherDocumentSlot, SCENE_SLOT, sceneSlotKey, slotDocumentId } from '../documentStore'
-import { canCreateProject, createNewProject, openProjectById } from '../newProject'
-import { leaveDemo } from '../sceneFile'
+import type { EditorState, EditorStore } from '../store/store'
+import { isOtherDocumentSlot, SCENE_SLOT, sceneSlotKey, slotDocumentId } from '../project/documentStore'
+import { canCreateProject, createNewProject, openProjectById } from '../project/newProject'
+import { leaveDemo } from '../project/sceneFile'
 import {
   clearTutorialProgress,
   consumeTourOnBoot,

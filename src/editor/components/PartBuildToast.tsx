@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import type { PartBuildNotice } from '../store'
+import type { PartBuildNotice } from '../store/store'
 import { CloseIcon } from './toolbarIcons'
 import { defineMessages, t } from '../../core/i18n'
 

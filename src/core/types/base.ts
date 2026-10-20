@@ -3,7 +3,7 @@
 // (conveyors.ts, sensors.ts, …) import from here; the index.ts barrel re-exports
 // everything so the public import path stays `core/types`.
 
-import type { ProgramSpec } from '../partApi'
+import type { ProgramSpec } from '../parts/partApi'
 import { PALLET_BLOCK_HALF, PALLET_BLOCK_OFFSET, PALLET_DECK_THICKNESS, PALLET_POCKET_HEIGHT, PALLET_SIZE } from '../pallet'
 
 // v4: the generic SDK-part discriminant renamed 'custom' -> 'part' (there are no code built-ins, so an SDK
@@ -14,9 +14,9 @@ export const SCENE_VERSION = 4
 export type PartType =
   | 'building'
   | 'group'
-  // A user-authored part imported from a PartPackage (src/core/partPackage.ts). Unlike the container/shell
+  // A user-authored part imported from a PartPackage (src/core/parts/partPackage.ts). Unlike the container/shell
   // meta types, its params are not static PART_DEFS metadata. They come from the referenced package's baked
-  // schema, resolved at runtime via the package registry (src/core/partRegistry.ts). This is the part type:
+  // schema, resolved at runtime via the package registry (src/core/parts/partRegistry.ts). This is the part type:
   // conveyors, devices, structure and cargo are all such parts. Cargo (box, pallet) is a `part` whose package
   // declares `geometry.kind: 'cargo'` - see core/frame.ts cargoView. Stored as 'custom' before v4.
   | 'part'
@@ -114,7 +114,7 @@ interface PartBaseInternal {
    * "Soft" parenting: positions stay world-space (the sim/renderer are unaffected),
    * but the editor treats the parent + its descendants as a rigid group - moving or
    * rotating a parent carries its subtree, and deleting/duplicating acts on the whole
-   * subtree. References must resolve and stay acyclic (see core/hierarchy).
+   * subtree. References must resolve and stay acyclic (see core/scene/hierarchy).
    */
   parent?: string
   /** world meters; conveying-surface top sits at origin y for conveyors */
@@ -175,7 +175,7 @@ export interface BooleanParamSpec {
    *  SDK's `ParamSpec.whenAbsent`): a new switch must not change what an existing scene's numbers mean */
   whenAbsent?: boolean
   /** the part's units switch, true = imperial (the SDK's `imperialUnits`): set by the scene's Units (SceneJSON
-   *  `units`, core/sceneUnits.ts) on every part, never a field of its own */
+   *  `units`, core/scene/sceneUnits.ts) on every part, never a field of its own */
   imperialUnits?: boolean
 }
 
@@ -257,7 +257,7 @@ export interface TagRefParamSpec {
    * Which way the signal flows: 'in' = the part reads the tag, 'out' = the part writes it. It is the part's
    * declared direction (the SDK's `ParamSpec.dir`), carried through from the package. The wiring check
    * (plc/wiring.ts) reads it to find tags nothing drives and tags two parts both write. Required of an authored
-   * part (core/partAuthoringChecks.ts); absent only on a stored package saved before `dir` existed, which the check
+   * part (core/parts/partAuthoringChecks.ts); absent only on a stored package saved before `dir` existed, which the check
    * reports as `undeclared` rather than skipping.
    */
   dir?: 'in' | 'out'
@@ -539,7 +539,7 @@ export const DEFAULT_ROTATE_SNAP_DEG = 15
 // adjustable channel guide rail's range.
 export const GUARD_HEIGHT = 0.15
 export const GUARD_THICKNESS = 0.005
-/** a sensor beam's hole through a side guard (core/guardHoles.ts): 40 mm across, the size a real photo-eye is
+/** a sensor beam's hole through a side guard (core/guards/guardHoles.ts): 40 mm across, the size a real photo-eye is
  *  given through a guide rail */
 export const GUARD_HOLE_RADIUS = 0.02
 /** the length of guard sheet a hole's panel replaces: the hole plus a 30 mm margin each side. The guard is split

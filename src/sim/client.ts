@@ -1,10 +1,10 @@
 import type { BoxFrame } from '../core/frame'
-import { FlowFactLog } from '../core/flowFactLog'
-import { clearPartDiagnostics, notePartDiagnosticsDropped, reportPartDiagnostic } from '../core/partDiagnostics'
-import { PART_CALL_BEACON_BYTES, readPartCallBeacon } from '../core/partScript'
+import { FlowFactLog } from '../core/flow/flowFactLog'
+import { clearPartDiagnostics, notePartDiagnosticsDropped, reportPartDiagnostic } from '../core/parts/partDiagnostics'
+import { PART_CALL_BEACON_BYTES, readPartCallBeacon } from '../core/parts/partScript'
 import { DEFAULT_SIM_HZ } from '../core/types'
 import type { SceneJSON, SimRate } from '../core/types'
-import type { WiredBindings } from '../plc/plcLink'
+import type { WiredBindings } from '../plc/link/plcLink'
 import type { TagValue } from '../plc/types'
 import type { PlcFrameState } from './plcHost'
 import { scenePatch } from './scenePatch'
@@ -50,9 +50,9 @@ export class SimClient {
    *  window-diff two reads (e2e/threaded-jolt-bench.mjs, StatsOverlay's `phys` line). null until
    *  the first frame. */
   stepStats: StepStats | null = null
-  /** The current run's flow facts (core/flowFacts.ts), by fact id, as the worker reported them: a fact that unfolds (a
+  /** The current run's flow facts (core/flow/flowFacts.ts), by fact id, as the worker reported them: a fact that unfolds (a
    *  stall) arrives again under its id when it ends, and replaces its first record. Kept after Stop, cleared on each
-   *  start; the Problems dock subscribes to it (core/flowFactLog.ts). */
+   *  start; the Problems dock subscribes to it (core/flow/flowFactLog.ts). */
   readonly flowFacts = new FlowFactLog()
   /** the last `partIds` / `dressings` the worker sent: it omits them while unchanged (frameWire.ts), and every
    *  frame handed on re-attaches these, so consumers still see a complete BoxFrame */
@@ -75,7 +75,7 @@ export class SimClient {
   // Play is still instant.
   private worker: Worker | null = null
   private _running = false
-  /** shared with the worker: which part's code it is running (core/partScript.ts); null where memory cannot be shared */
+  /** shared with the worker: which part's code it is running (core/parts/partScript.ts); null where memory cannot be shared */
   private beacon: SharedArrayBuffer | null = null
   /** when the last frame arrived (or the run started), and whether one has arrived this run */
   private lastFrameAt = 0

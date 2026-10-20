@@ -5,16 +5,16 @@
 import { useMemo, useRef, useState } from 'react'
 import type { ChangeEvent as ReactChangeEvent } from 'react'
 import type { SdkPart } from '../../../core/types'
-import { getPackage } from '../../../core/partRegistry'
-import { partDisplayName } from '../../../core/partDisplayName'
-import { inspectGlb } from '../../glbInspect'
-import type { RigJoint, RigLink, RigShape } from '../../../core/partPackage'
-import { behaviorMentions } from '../../../core/partPackage'
-import { linkCollisionBox, partLinkOwnership } from '../../../core/rigPose'
-import type { LinkFieldOwner, LinkNote } from '../../../core/rigPose'
+import { getPackage } from '../../../core/parts/partRegistry'
+import { partDisplayName } from '../../../core/parts/partDisplayName'
+import { inspectGlb } from '../../parts/glbInspect'
+import type { RigJoint, RigLink, RigShape } from '../../../core/parts/partPackage'
+import { behaviorMentions } from '../../../core/parts/partPackage'
+import { linkCollisionBox, partLinkOwnership } from '../../../core/rig/rigPose'
+import type { LinkFieldOwner, LinkNote } from '../../../core/rig/rigPose'
 import { AUTHORABLE_SHAPE_KINDS, canDeleteRigNode, convertShape, isAuthorableShapeKind, shapeLabel } from '../../rigTree'
 import type { AuthorableShapeKind } from '../../rigTree'
-import type { EditorStore } from '../../store'
+import type { EditorStore } from '../../store/store'
 import type { EditorController } from '../../controller'
 import { AxisInput, BoolRow, Fold, NumberField, TextField, useShownLengthUnit, VectorRow } from './fields'
 import { InspectorHeader } from './header'
@@ -583,7 +583,7 @@ export function RigNodePanel({
         {joint ? (
           <>
             {/* renamed here only while the script never mentions it: a rename here does not rewrite the script
-                (core/partPackage.ts behaviorMentions says why), so a used name is changed in the script first */}
+                (core/parts/partPackage.ts behaviorMentions says why), so a used name is changed in the script first */}
             {jointMentioned || !editable ? (
               <>
                 {row(t(M.name), joint.name, t(M.jointNameTip, { name: joint.name }))}

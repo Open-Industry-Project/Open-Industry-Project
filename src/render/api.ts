@@ -73,8 +73,8 @@ export type ProjectionMode = 'perspective' | 'orthographic'
 /**
  * The camera a scene opens at when it has no remembered one: a ~14 m 3/4 of world zero. It suits the
  * default warehouse, where the first part is placed near the origin. A scene may declare its own opening
- * view instead (editor/demoScenes DEMO_OPENING_VIEW). Once a scene has been framed, the pose remembered
- * for it takes precedence over both (editor/storePrefs viewport state).
+ * view instead (editor/demo/demoScenes DEMO_OPENING_VIEW). Once a scene has been framed, the pose remembered
+ * for it takes precedence over both (editor/store/storePrefs viewport state).
  */
 export const DEFAULT_CAMERA_POSE = { px: 9, py: 7, pz: 9, tx: 0, ty: 0, tz: 0 } as const
 
@@ -127,7 +127,7 @@ export interface GizmoState {
    */
   frame?: [number, number, number, number]
   /** move handles to leave out, per local axis [x, y, z] (and every plane pad that uses one): an axis the part
-   *  sets itself, where a drag would be overwritten (core/rigPose.ts linkFieldOwnership) */
+   *  sets itself, where a drag would be overwritten (core/rig/rigPose.ts linkFieldOwnership) */
   lockMove?: [boolean, boolean, boolean]
   /** leave out every rotate handle (rings, view ring, trackball): a rotation the part sets itself (an aim) */
   lockRotate?: boolean
@@ -606,7 +606,7 @@ export interface IRenderView {
   /**
    * Fires once the camera comes to rest after a move: orbit, dolly, pan, a freelook or pilot flight,
    * an F-focus ease, an orbit-gizmo axis snap. One call per gesture, not per frame, because the editor
-   * persists the pose as per-scene workspace state (editor/storePrefs). Silent while a navigation
+   * persists the pose as per-scene workspace state (editor/store/storePrefs). Silent while a navigation
    * gesture or VR owns the camera, and while follow mode tracks a moving part (it never comes to
    * rest). The write happens when the user lets go.
    */

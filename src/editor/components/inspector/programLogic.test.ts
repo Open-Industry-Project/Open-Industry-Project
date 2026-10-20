@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ProgramSpec } from '../../../core/partApi'
+import type { ProgramSpec } from '../../../core/parts/partApi'
 import type { ParamSpec } from '../../../core/types'
 import {
   addProgram,

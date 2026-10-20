@@ -3,8 +3,8 @@
 // The renderer (the sandboxed app) cannot open a socket, so the main process opens it and carries bytes
 // both ways over IPC. The direction depends on the PLC: one that polls (OpenPLC) connects to a listener
 // here, and one that serves (a Modbus server device) is connected to from here. Either way main
-// knows no protocol. Every Modbus decision is made in the app, by src/plc/modbusServer.ts and
-// src/plc/modbusClient.ts, which are unit-tested there (src/editor/externalPlc.ts is the renderer's twin of
+// knows no protocol. Every Modbus decision is made in the app, by src/plc/link/modbusServer.ts and
+// src/plc/link/modbusClient.ts, which are unit-tested there (src/editor/links/externalPlc.ts is the renderer's twin of
 // this file). Main stays this simple on purpose: the app's own tests cover everything that can be wrong
 // about a frame, and a main process that decoded Modbus would be a second copy of that logic.
 //

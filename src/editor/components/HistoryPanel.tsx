@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { EditorState, EditorStore } from '../store'
+import type { EditorState, EditorStore } from '../store/store'
 import { defineMessages, t } from '../../core/i18n'
 
 const M = defineMessages('history', {

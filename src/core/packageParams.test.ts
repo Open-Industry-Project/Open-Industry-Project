@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isRealRange, labelHead, numberLabelUnit, schemaToParamSpecs, switchValue, visibleWhenHolds } from './packageParams'
-import type { ParamSchema } from './partApi'
+import type { ParamSchema } from './parts/partApi'
 import type { ColorParamSpec, EnumParamSpec, NumberParamSpec } from './types'
 
 // The SDK->editor param bridge. Focus: the `'enum'` type added for shape-preset pickers (a belt's shapePreset
@@ -149,7 +149,7 @@ describe('schemaToParamSpecs - a switch between two ways of saying one thing', (
     expect(tag).toMatchObject({ kind: 'tagRef', stType: 'DINT', dir: 'in' })
   })
   it('a part whose saved params lack the key resolves to whenAbsent; one that carries it, to what it carries', async () => {
-    const { resolvePartParams } = await import('./partScript')
+    const { resolvePartParams } = await import('./parts/partScript')
     expect(resolvePartParams(schema, {}).fpmUnits).toBe(false) // written before the switch existed
     expect(resolvePartParams(schema, { fpmUnits: true }).fpmUnits).toBe(true)
     expect(resolvePartParams(schema, {}).speedFpm).toBe(394) // (an ordinary param still takes its default)

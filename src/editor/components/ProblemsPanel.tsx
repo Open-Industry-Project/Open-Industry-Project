@@ -24,11 +24,11 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { HeldPackage } from '../../collab/codeTrust'
 import { getRoomCodeGate } from '../../collab/session'
-import { allPartDiagnostics, partDiagnosticsOverflowed, partDiagnosticsRev, subscribePartDiagnostics } from '../../core/partDiagnostics'
+import { allPartDiagnostics, partDiagnosticsOverflowed, partDiagnosticsRev, subscribePartDiagnostics } from '../../core/parts/partDiagnostics'
 import { isKnownDialect } from '../../core/dialect'
 import { controllerFor } from '../../plc'
 import type { EditorController } from '../controller'
-import type { EditorState, EditorStore } from '../store'
+import type { EditorState, EditorStore } from '../store/store'
 import { collectProblems, type Problem } from '../problems'
 import { defineMessages, t } from '../../core/i18n'
 

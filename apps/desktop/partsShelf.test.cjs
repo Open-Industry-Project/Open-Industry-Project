@@ -60,7 +60,7 @@ try {
     console.log('✓ a mismatched or broken manifest is refused')
   }
 
-  // 5b. embedded assets go on the shelf as hash-named files (src/core/partAssets.ts), read back as the same base64;
+  // 5b. embedded assets go on the shelf as hash-named files (src/core/parts/partAssets.ts), read back as the same base64;
   //     a new version replaces the files the old one named
   {
     const { createHash } = require('node:crypto')

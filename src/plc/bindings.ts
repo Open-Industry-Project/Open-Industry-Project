@@ -7,9 +7,9 @@
 
 import { packageParamSpecs, switchValue, visibleWhenHolds } from '../core/packageParams'
 import type { VisibleWhen } from '../core/types'
-import { commsOn } from '../core/conveyorDirection'
-import { getPackage } from '../core/partRegistry'
-import type { PlcLink } from './plcLink'
+import { commsOn } from '../core/conveyor/conveyorDirection'
+import { getPackage } from '../core/parts/partRegistry'
+import type { PlcLink } from './link/plcLink'
 
 /** A scene part with its params, for reading the per-part device-IO tag wiring. */
 export interface TaggedPart {

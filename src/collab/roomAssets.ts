@@ -16,7 +16,7 @@
 //
 // Unconfigured (no room, a test, a room opened offline), nothing changes: assets stay embedded both ways.
 
-import { base64ToBytes, bytesToBase64 } from '../core/partAssets'
+import { base64ToBytes, bytesToBase64 } from '../core/parts/partAssets'
 import { sha256HexOfBytes } from '../core/sha256'
 
 /** Where a room's assets live, and the proof this client may add to them (null for a viewer). */

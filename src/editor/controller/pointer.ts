@@ -3,12 +3,12 @@
 // the controller); as the input router it drives every other area, so its functions take the controller too.
 
 import { normalizeAngle } from '../../core/math'
-import { groupRoot } from '../../core/hierarchy'
-import { getPackage } from '../../core/partRegistry'
-import { partDisplayName } from '../../core/partDisplayName'
+import { groupRoot } from '../../core/scene/hierarchy'
+import { getPackage } from '../../core/parts/partRegistry'
+import { partDisplayName } from '../../core/parts/partDisplayName'
 import { ROTATION_SNAP } from '../../core/types'
 import type { SdkPart } from '../../core/types'
-import type { ListSelectItem } from '../store'
+import type { ListSelectItem } from '../store/store'
 import * as dragOps from './drag'
 import type { Drag } from './drag'
 import * as placementOps from './placement'

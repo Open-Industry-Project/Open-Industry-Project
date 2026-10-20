@@ -3,15 +3,15 @@
 import { useCallback, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import type { PartDef, SdkPart } from '../../../core/types'
-import { partDiagnosticsFor, partDiagnosticsRev, subscribePartDiagnostics } from '../../../core/partDiagnostics'
-import { getPackage, packageCategory, PART_CATEGORIES } from '../../../core/partRegistry'
+import { partDiagnosticsFor, partDiagnosticsRev, subscribePartDiagnostics } from '../../../core/parts/partDiagnostics'
+import { getPackage, packageCategory, PART_CATEGORIES } from '../../../core/parts/partRegistry'
 import { TextField } from './fields'
 import { commandEnabledOn, getCommand, runCommandOn } from '../../commands'
 import { preloadBehaviorEditor } from '../behaviorEditorChunk'
-import type { EditorStore } from '../../store'
+import type { EditorStore } from '../../store/store'
 import type { EditorController } from '../../controller'
 import { CopyIcon, ExportIcon, ExternalLinkIcon, FolderIcon, SceneIcon, ScriptIcon } from '../toolbarIcons'
-import { builtInsUpdated } from '../../storePackages'
+import { builtInsUpdated } from '../../store/storePackages'
 import { builtInUpdateChoices, builtInUpdatedText } from '../builtInUpdate'
 import { editedSinceCopied, variantBase } from '../../../core/builtInVersion'
 import { defineMessages, t } from '../../../core/i18n'
@@ -39,7 +39,7 @@ const M = defineMessages('inspector.rig', {
 })
 
 /**
- * Live runtime problems for one placed part (core/partDiagnostics): a step()/geometry() that threw, a
+ * Live runtime problems for one placed part (core/parts/partDiagnostics): a step()/geometry() that threw, a
  * compile failure at attach, an unknown commanded joint/lamp name. The build-time half (validatePart) is
  * `buildError` in PartStatus; this is the sim-run half - a part frozen at its last-good output now
  * explains itself where the author is looking. Subscribes to the diagnostics store (new entries + clears;

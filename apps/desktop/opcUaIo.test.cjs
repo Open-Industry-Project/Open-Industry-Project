@@ -1,6 +1,6 @@
 // Smoke test for opcUaIo.cjs - the node-opcua half of an OPC UA link. Runs with plain Node (no Electron):
 // `node apps/desktop/opcUaIo.test.cjs`. The mapping (which tag is which node) is tested in
-// src/core/opcUa.test.ts. Here a real node-opcua server tests the service calls: connect, browse,
+// src/core/io/opcUa.test.ts. Here a real node-opcua server tests the service calls: connect, browse,
 // describe, a write-then-read cycle, the PLC going away, and a server that refuses an unsecured client.
 
 const assert = require('node:assert/strict')

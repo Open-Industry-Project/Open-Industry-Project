@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { servoJointsJson, type PartPackageGeometry } from '../core/partPackage'
+import { servoJointsJson, type PartPackageGeometry } from '../core/parts/partPackage'
 import { create, destroy, stepDirect, type BehaviorOutput } from './embeddedBehavior'
 
 // The shipped gantry on its three servo axes, driven the way a PLC drives it: tags in, tags out, one tick at a time.

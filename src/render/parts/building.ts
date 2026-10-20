@@ -16,10 +16,10 @@ import {
   Vector3,
 } from 'three'
 import type { Material, Object3D, PerspectiveCamera, Texture } from 'three'
-import { wallRuleAt } from '../../core/buildingDocks'
-import { INTERIOR_COLUMN_SIZE, interiorColumnHeight, interiorColumns } from '../../core/buildingColumns'
+import { wallRuleAt } from '../../core/building/buildingDocks'
+import { INTERIOR_COLUMN_SIZE, interiorColumnHeight, interiorColumns } from '../../core/building/buildingColumns'
 import { clamp } from '../../core/math'
-import { DEG } from '../../core/partGeometry'
+import { DEG } from '../../core/parts/partGeometry'
 import type { BuildingPart, PartInstance, WallVariant } from '../../core/types'
 import {
   BUILDING_FULL_WALL_HEIGHT,
@@ -57,7 +57,7 @@ const COLUMN_PROUD = 0.04
 const BASE_PROUD = 0.02
 const COLUMN_SPACING = 5
 const COLUMN_CAPACITY = 80
-// interior grid columns (core/buildingColumns.ts): an I-section of two flanges and a web, over a yellow
+// interior grid columns (core/building/buildingColumns.ts): an I-section of two flanges and a web, over a yellow
 // base guard of the kind real warehouse columns wear against forklift and cargo strikes
 const INTERIOR_FLANGE = 0.025
 const INTERIOR_WEB = 0.015
@@ -222,7 +222,7 @@ const quarterTurns = (rotationY: number): number => (((Math.round(rotationY / (M
 const litSide = (side: WallSide, quarters: number): WallSide => SIDES_BY_YAW[(SIDES_BY_YAW.indexOf(side) + quarters) % 4]!
 const emptySides = <T,>(make: () => T): Record<WallSide, T> => ({ nz: make(), pz: make(), nx: make(), px: make() })
 
-// wall-rule matching (which module paints a perimeter cell) is core/buildingDocks.ts wallRuleAt: the sim cuts its
+// wall-rule matching (which module paints a perimeter cell) is core/building/buildingDocks.ts wallRuleAt: the sim cuts its
 // open dock openings from the same answer
 const ruleAt = wallRuleAt
 

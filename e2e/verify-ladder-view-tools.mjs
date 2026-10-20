@@ -1,8 +1,8 @@
 // The ladder view's tools, through the rung core: Find and Replace
-// (Ctrl+F / Ctrl+H, or the toolbar's Find: plc/ladderFind.ts, reading IEC's leaf through IEC_LEAVES) and Cross
+// (Ctrl+F / Ctrl+H, or the toolbar's Find: plc/ladder/ladderFind.ts, reading IEC's leaf through IEC_LEAVES) and Cross
 // Reference (Ctrl+E, or the toolbar's Cross Ref: plc/crossRef.ts, through IEC_REFS); and, while the program runs,
 // Toggle Bit (Ctrl+T, or the toolbar) and a value typed into the running program under a block's pin. And type-ahead
-// in a field (plc/ladderComplete.ts): the proposed ending selected after the caret, BOOLs first for a contact.
+// in a field (plc/ladder/ladderComplete.ts): the proposed ending selected after the caret, BOOLs first for a contact.
 //
 // ladderFind.test.ts proves the search and the replace on rungs. What only a browser can prove: that the keys open the
 // bar and do not reach the browser's own Find, that a match is selected and lit where it stands, that the stored

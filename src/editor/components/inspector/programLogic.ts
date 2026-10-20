@@ -5,7 +5,7 @@
 // Removing a row of a table other params point at (a robot deleting a waypoint its jobs move to) is the edit with
 // real consequences, so it lives here too: `removeTableRow` returns the patch that keeps every pointer valid.
 
-import type { ProgramArg, ProgramOp, ProgramSpec } from '../../../core/partApi'
+import type { ProgramArg, ProgramOp, ProgramSpec } from '../../../core/parts/partApi'
 import type { ParamSpec, ParamValue } from '../../../core/types'
 
 /** names stored one per line; a missing line reads as '' */

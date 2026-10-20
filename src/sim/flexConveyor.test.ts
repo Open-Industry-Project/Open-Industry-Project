@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import initJolt from 'jolt-physics'
 import { afterEach, describe, expect, it } from 'vitest'
-import { flexStations } from '../core/flexPath'
-import { clearPackages } from '../core/partRegistry'
-import { validateScene } from '../core/scene'
+import { flexStations } from '../core/conveyor/flexPath'
+import { clearPackages } from '../core/parts/partRegistry'
+import { validateScene } from '../core/scene/scene'
 import { SCENE_VERSION } from '../core/types'
 import { buildPackage } from './buildPackage'
 import type { PackageManifest } from './buildPackage'
@@ -14,7 +14,7 @@ import { SimWorld } from './world'
 
 // The Flex Conveyor (examples/parts/flex-conveyor): 16 hinged sections fitted along a path through its control points,
 // every deck conveying along its own direction (ctx.setSurfaceSpeed). What it has to get right: the running bed takes
-// the shape core/flexPath.ts says (the behavior carries a mirror of that code, and this is what holds them together),
+// the shape core/conveyor/flexPath.ts says (the behavior carries a mirror of that code, and this is what holds them together),
 // and a case put on the infeed rides every bend of it to the discharge end.
 
 const Jolt = await initJolt()

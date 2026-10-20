@@ -1,30 +1,30 @@
 import { Vector3 } from 'three'
 import type { BoxFrame } from '../core/frame'
-import { subscribePartDiagnostics } from '../core/partDiagnostics'
-import { getPackage, onPackagesChanged } from '../core/partRegistry'
+import { subscribePartDiagnostics } from '../core/parts/partDiagnostics'
+import { getPackage, onPackagesChanged } from '../core/parts/partRegistry'
 import type { AuthorableShapeKind } from './rigTree'
-import type { RigShape } from '../core/partPackage'
+import type { RigShape } from '../core/parts/partPackage'
 import { IdleUseSession } from '../sim/idlePose'
 import type { PartDiagnostic } from '../sim/validatePart'
-import { moveViewportState, persistViewportState } from './storePrefs'
-import { onCurrentDocumentChange, SCENE_SLOT, sceneSlotKey, slotDocumentId } from './documentStore'
-import type { SnapCandidate, SnapPose } from '../core/snapFeatures'
+import { moveViewportState, persistViewportState } from './store/storePrefs'
+import { onCurrentDocumentChange, SCENE_SLOT, sceneSlotKey, slotDocumentId } from './project/documentStore'
+import type { SnapCandidate, SnapPose } from '../core/snap/snapFeatures'
 import type { PartDef, PartInstance, PartType, SceneJSON } from '../core/types'
 import type { DisplayUnits } from '../core/units'
-import { sceneUnits } from '../core/sceneUnits'
+import { sceneUnits } from '../core/scene/sceneUnits'
 import type { BoxPick, IRenderView, ResizeHandle } from '../render/api'
 import type { PlcFault, SimClient } from '../sim/client'
 import type { StepStats } from '../sim/protocol'
 import type { ProcessImageSnapshot, TagValue } from '../plc'
-import { keepProjectVersion } from './storePackages'
+import { keepProjectVersion } from './store/storePackages'
 // the link's sessions are loaded on use (loadExternalPlc): only what the first frame shows is static
-import { desktopAdsHost, desktopEipHost, desktopOpcUaHost, desktopPlcIoHost, flattenFrameTags } from './externalPlcStatus'
-import type { AdsHost, EipHost, ExternalPlcLink, ExternalPlcStatus, OpcUaHost, PlcIoHost, PlcTagList } from './externalPlcStatus'
-import { desktopOpcUaServerHost, OPC_UA_SERVER_OFF } from './opcUaServer'
-import type { OpcUaServerHost, OpcUaServerSession, OpcUaServerStatus, PublishedProgram } from './opcUaServer'
-import { programOutOfDate, type ReloadBlocker } from './programReload'
+import { desktopAdsHost, desktopEipHost, desktopOpcUaHost, desktopPlcIoHost, flattenFrameTags } from './links/externalPlcStatus'
+import type { AdsHost, EipHost, ExternalPlcLink, ExternalPlcStatus, OpcUaHost, PlcIoHost, PlcTagList } from './links/externalPlcStatus'
+import { desktopOpcUaServerHost, OPC_UA_SERVER_OFF } from './links/opcUaServer'
+import type { OpcUaServerHost, OpcUaServerSession, OpcUaServerStatus, PublishedProgram } from './links/opcUaServer'
+import { programOutOfDate, type ReloadBlocker } from './program/programReload'
 import { coverSceneSwapIfArriving } from './sceneSwapCover'
-import type { EditorState, EditorStore, LiveCargoPose, ToolMode, TransformSpace } from './store'
+import type { EditorState, EditorStore, LiveCargoPose, ToolMode, TransformSpace } from './store/store'
 // controller/ area modules: each owns its state in an object this class holds (see the class comment)
 import * as dragOps from './controller/drag'
 import type { Drag } from './controller/drag'
@@ -221,7 +221,7 @@ export class EditorController {
 
     sim.onFrame = (frame) => {
       this.lastFrame = frame
-      // an external PLC exchanges its I/O once per frame, like a fieldbus (editor/externalPlc.ts)
+      // an external PLC exchanges its I/O once per frame, like a fieldbus (editor/links/externalPlc.ts)
       if (this.links.externalSession) {
         const out = this.links.externalSession.exchange(flattenFrameTags(frame.tags))
         if (out) this.sim.setTags(out)
@@ -269,7 +269,7 @@ export class EditorController {
         error: f.line !== undefined ? `${what}: ${f.message} (line ${f.line}, col ${f.col})` : `${what}: ${f.message}`,
       })
     }
-    // Custom-part runtime diagnostics (core/partDiagnostics): a throwing step()/geometry(), a compile
+    // Custom-part runtime diagnostics (core/parts/partDiagnostics): a throwing step()/geometry(), a compile
     // failure at attach, an unknown commanded joint/lamp. One console line per unique problem (deduped
     // at the source - a per-tick repeat can't spam); the Inspector shows them on the selected part.
     subscribePartDiagnostics((e) => {
@@ -963,7 +963,7 @@ export class EditorController {
   }
 
   /**
-   * Import a part file (.part.json - see editor/partFile.ts) into the user's library: validate + re-bake
+   * Import a part file (.part.json - see editor/parts/partFile.ts) into the user's library: validate + re-bake
    * it, register it as the authoritative copy, and surface it in the catalog. Returns a human-readable
    * error, or null on success/cancel. `confirmReplace` (when given) gates overwriting an id that's already
    * loaded - declining is a silent no-op, like cancelling a file dialog. Replacing a bundled example

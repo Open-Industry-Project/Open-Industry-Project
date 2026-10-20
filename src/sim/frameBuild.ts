@@ -1,8 +1,8 @@
 // The BoxFrame the worker posts: every live cargo row (pose, size, colour, owner) plus what each part's behavior
 // produced this step - joints, lamps, tags, beam hits, speeds, displays, marks, dressings. Reads SimWorld's state only.
 import type { BoxFrame, CargoShapeRef, FrameBeamHit, FrameDressing } from '../core/frame'
-import type { CargoMarkValue } from '../core/partPackage'
-import type { SubPose } from '../core/rigPose'
+import type { CargoMarkValue } from '../core/parts/partPackage'
+import type { SubPose } from '../core/rig/rigPose'
 import { marksOf } from './worldTypes'
 import type { BehaviorRecord, LiveBox, UnitLoad } from './worldTypes'
 
@@ -25,7 +25,7 @@ export function buildFrame(
   const colors = new Float32Array(count * 3)
   const kinds = new Uint8Array(count)
   const caps = new Uint8Array(count)
-  const partIds: (string | null)[] = new Array(count).fill(null) // filled, not holey (see core/geometryShapes transformDescription)
+  const partIds: (string | null)[] = new Array(count).fill(null) // filled, not holey (see core/geometry/geometryShapes transformDescription)
   for (const [i, box] of boxes.entries()) {
     ids[i] = box.id
     kinds[i] = box.kind

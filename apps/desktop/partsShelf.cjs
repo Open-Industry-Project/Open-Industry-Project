@@ -60,7 +60,7 @@ function writeShelfPart(root, id, manifestJson, behaviorSource) {
       mkdirSync(dir)
     }
     // embedded assets go on the shelf as hash-named files beside the manifest, the layout a project's parts/ uses
-    // (src/core/partAssets.ts); files the new version no longer names are removed, so the folder holds one version
+    // (src/core/parts/partAssets.ts); files the new version no longer names are removed, so the folder holds one version
     const split = splitAssetFiles(manifest)
     const keep = new Set(split.files.map((f) => f.path.slice('assets/'.length)))
     for (const f of split.files) {

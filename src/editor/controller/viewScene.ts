@@ -3,17 +3,17 @@
 // and the flex push throttle are this area's own state (WalkOverlays, held by the controller); everything
 // else a function needs is passed in.
 
-import { ancestorIds, subtreeIds } from '../../core/hierarchy'
-import { getPackage } from '../../core/partRegistry'
-import { productRefsOf, servoJointsJson, unitPiecesOf } from '../../core/partPackage'
+import { ancestorIds, subtreeIds } from '../../core/scene/hierarchy'
+import { getPackage } from '../../core/parts/partRegistry'
+import { productRefsOf, servoJointsJson, unitPiecesOf } from '../../core/parts/partPackage'
 import { settleIdlePose, withJointRests } from '../../sim/idlePose'
-import { withFlexPose } from '../../core/partGeometry'
-import type { FlexPose } from '../../core/partGeometry'
+import { withFlexPose } from '../../core/parts/partGeometry'
+import type { FlexPose } from '../../core/parts/partGeometry'
 import type { SdkPart, PartInstance, SceneJSON } from '../../core/types'
 import type { IRenderView } from '../../render/api'
 import type { SimClient } from '../../sim/client'
-import { editTarget, editTargetFocusId } from '../store'
-import type { EditorState, EditorStore } from '../store'
+import { editTarget, editTargetFocusId } from '../store/store'
+import type { EditorState, EditorStore } from '../store/store'
 
 // how often a flex the walking character pulls is re-handed to the running sim (each is a rebuild of the part there),
 // per second; the drawn bed follows the hands every frame regardless (pushWalkFlexToSim)

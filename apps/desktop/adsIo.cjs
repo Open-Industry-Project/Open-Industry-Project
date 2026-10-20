@@ -5,7 +5,7 @@
 // Net IDs and any secured connection to the PLC. Going through that library is the documented way for a local client,
 // and it keeps the app out of route and transport security handling. oip-comms' driver does the same
 // (tcads_loader.cpp) and this follows it: the same search for the DLL, symbol info and a
-// handle per symbol by name, reads and writes through the handle, the same error table (src/core/ads.ts). One thing
+// handle per symbol by name, reads and writes through the handle, the same error table (src/core/io/ads.ts). One thing
 // is added: a cycle is two ADS SUM commands (every write in one request, every read in another) instead of a request
 // per symbol, so a PLC across the network takes two round trips a cycle whatever the scene holds.
 //
@@ -360,7 +360,7 @@ async function shutdownAds() {
  *                                                              each symbol's info and a handle
  *   ads:exchange {writes: [{name, value}], reads: [name]} -> {error, writes: [code], reads: [{value, status}]}
  *   ads:close                                                  release the handles and the port
- * A code is an ADS return code, 0 for done (src/core/ads.ts says what each means).
+ * A code is an ADS return code, 0 for done (src/core/io/ads.ts says what each means).
  * `consent` (endpointConsent.cjs `allows`) is asked before a link to another PC's runtime.
  */
 function registerAdsIo(ipcMain, { consent }) {

@@ -213,7 +213,7 @@
   color: var(--text-dim);
 }
 
-/* what an update changes (core/partChanges.ts), most severe first */
+/* what an update changes (core/parts/partChanges.ts), most severe first */
 .part-updates-changes {
   list-style: none;
   margin: 2px 0 0;

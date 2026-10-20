@@ -56,13 +56,13 @@ const vite = await createServer({
 const reports = []
 try {
   const { validatePart } = await vite.ssrLoadModule('/src/sim/validatePart.ts')
-  const { registerPackage } = await vite.ssrLoadModule('/src/core/partRegistry.ts')
-  const { partFootprint } = await vite.ssrLoadModule('/src/core/partGeometry.ts')
-  const { createSdkPart } = await vite.ssrLoadModule('/src/core/scene.ts')
-  const { evalPartGeometry, resolvePartParams } = await vite.ssrLoadModule('/src/core/geometryEval.ts')
-  const { linkHalfExtents, qApply, resolvedMeshScale, rigRestExtent, rigWorldPoses } = await vite.ssrLoadModule('/src/core/rigPose.ts')
-  const { instantiatePartScript } = await vite.ssrLoadModule('/src/core/partScript.ts')
-  const { compileRig } = await vite.ssrLoadModule('/src/core/rigCompile.ts')
+  const { registerPackage } = await vite.ssrLoadModule('/src/core/parts/partRegistry.ts')
+  const { partFootprint } = await vite.ssrLoadModule('/src/core/parts/partGeometry.ts')
+  const { createSdkPart } = await vite.ssrLoadModule('/src/core/scene/scene.ts')
+  const { evalPartGeometry, resolvePartParams } = await vite.ssrLoadModule('/src/core/geometry/geometryEval.ts')
+  const { linkHalfExtents, qApply, resolvedMeshScale, rigRestExtent, rigWorldPoses } = await vite.ssrLoadModule('/src/core/rig/rigPose.ts')
+  const { instantiatePartScript } = await vite.ssrLoadModule('/src/core/parts/partScript.ts')
+  const { compileRig } = await vite.ssrLoadModule('/src/core/rig/rigCompile.ts')
 
   for (const target of targets) {
     const report = { folder: target, ok: false, problems: [] }

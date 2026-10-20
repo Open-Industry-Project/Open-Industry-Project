@@ -3,13 +3,13 @@
 //   npm run edit-part -- <project-folder> <partId> [--params k=v,...] [--at x,y,z] [--rot <deg>] [--name <text>]
 //
 //   --params k=v,...  checked against each param's declared type and applied the way add-part applies them
-//                     (core/partParamArgs.ts): a param its `visibleWhen` switch hides is warned about, and
+//                     (core/parts/partParamArgs.ts): a param its `visibleWhen` switch hides is warned about, and
 //                     `length` / `width` / `height` on a part with no param of that name resize it through its own
 //                     resize path (a belt's length lives in its `segments`)
 //   --at x,y,z        the part's new ORIGIN, world metres, y up (`npm run catalog -- <packageId>` says where it is)
 //   --rot <deg>       its new yaw about +Y, in degrees
 //   --name <text>     its scene-tree name ('' clears it, so the tree shows the id)
-// A moved or turned part carries its soft-parented subtree, as the editor's gizmo does (core/partEdit.ts).
+// A moved or turned part carries its soft-parented subtree, as the editor's gizmo does (core/parts/partEdit.ts).
 // It prints each change, old -> new, and says when a new value is the param's default.
 //
 // Why this exists: without it the only way to change a part already in scene.json is a hand-written script over
@@ -86,7 +86,7 @@ try {
     exit = 2
     throw new Error('unknown id')
   }
-  const { editPartParams, editPartPose } = await vite.ssrLoadModule('/src/core/partEdit.ts')
+  const { editPartParams, editPartPose } = await vite.ssrLoadModule('/src/core/parts/partEdit.ts')
   const lines = []
   if (o.params !== undefined) {
     if (part.type !== 'part') {
@@ -107,8 +107,8 @@ try {
     part.params = r.params
     for (const c of r.changes) lines.push(`  ${c.key}: ${shown(c.from)} -> ${shown(c.to)}${c.isDefault ? '  (the default)' : ''}`)
     // a declared param given at its current value is no change; say so, or the edit looks lost
-    const { parseParamArgs } = await vite.ssrLoadModule('/src/core/partParamArgs.ts')
-    const { getPackage } = await vite.ssrLoadModule('/src/core/partRegistry.ts')
+    const { parseParamArgs } = await vite.ssrLoadModule('/src/core/parts/partParamArgs.ts')
+    const { getPackage } = await vite.ssrLoadModule('/src/core/parts/partRegistry.ts')
     const declared = getPackage(part.packageId)?.params ?? {}
     const same = Object.keys(parseParamArgs(o.params)).filter((k) => k in declared && !r.changes.some((c) => c.key === k))
     if (same.length) lines.push(`  unchanged (already that value): ${same.join(', ')}`)

@@ -6,7 +6,7 @@
 // names whichever task runs that code, so retiming it, moving it or adding PROGRAMs beside it renames
 // nothing. A PROGRAM instance's variables are its own tags, `Instance.Name`, so renaming an instance moves
 // tags that parts in the scene may be wired to. The edits that do that return a list of renames, and the
-// panel rewires the scene's parts with it (editor/controllerRewire.ts), so a line that ran before the edit
+// panel rewires the scene's parts with it (editor/program/controllerRewire.ts), so a line that ran before the edit
 // still runs after it.
 
 import type { Controller } from '../core/controller'

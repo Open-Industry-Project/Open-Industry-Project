@@ -4,7 +4,7 @@
 // after the behaviors drove the entries and before the solver reads them. The gates and the listeners themselves
 // live in conveyorContacts.ts.
 import type Jolt from 'jolt-physics'
-import type { ConveyorEntry } from '../core/collisionShapes'
+import type { ConveyorEntry } from '../core/geometry/collisionShapes'
 import { allocFacets, CONVEYOR_TAG, createConveyorContactListener, FACET_CAPACITY, FACET_STRIDE, FLANK_PROTECT_COS, freeFacets, FRICTION_COUPLING, GHOST_MIN_SEPARATION, GHOST_RAM_DEPTH, GHOST_RAM_UP_DOT, GHOST_SPEC_UP_DOT, SURFACE_GATE_COS, syncFacetBlock, writeFacetAxes } from './conveyorContacts'
 import type { FacetAxes } from './conveyorContacts'
 import type { JoltModule } from './worldTypes'

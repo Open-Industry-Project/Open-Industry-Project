@@ -15,15 +15,15 @@ duplicate it.
   consumer after that carries only those fields: a box shape, or the pallet's and tote's compounds
   (sim/cargoRegistry.ts `cargoShape`); one instanced batch for boxes and one per pallet footprint and tote size
   (render/viewport/boxes.ts); sensing against each body's oriented box.
-- **A cargo part with its own body** is a `rig` with a `cargo` declaration (`CargoDecl` in core/partPackage.ts:
+- **A cargo part with its own body** is a `rig` with a `cargo` declaration (`CargoDecl` in core/parts/partPackage.ts:
   `friction`, `massParam`, `colorParam`). It is kind `CARGO_KIND_PART`.
 
 ## How a part's own body works
 
 - **Recognised once.** `cargoView` returns a part-bodied view through `partCargoView`, and `isCargoPackage`
-  (core/partPackage.ts) is the package-level test the sim, the frame, the scaffold and the product dropdown share.
+  (core/parts/partPackage.ts) is the package-level test the sim, the frame, the scaffold and the product dropdown share.
 - **Collider** (core/cargoBody.ts `cargoPieces`): the rig's colliding links at rest pose, by the same rule machine rigs
-  use (core/rigLinkBody.ts `rigLinkEmitsBody`). A box link is a box; a cylinder link stays a cylinder (a machine rig's
+  use (core/rig/rigLinkBody.ts `rigLinkEmitsBody`). A box link is a box; a cylinder link stays a cylinder (a machine rig's
   cylinder collides as its bounding box). The sim builds one Jolt compound per shape key
   (sim/bodyFactory.ts `buildPartCargoShape`, cached in the cargo registry) and shares it between bodies. A body keeps
   its `shapeKey`, so a unit join or split rebuilds it.
@@ -86,7 +86,7 @@ their standard sizes (an enum param, `'1200x800'`) to drive link sizes, which a 
 textured meshes (the cardboard and wood atlases) ported to models, a visual risk to every scene for no change in what
 they do. Because the engine names none of them, any of them can move to a library like any other part.
 
-What still names them, in src/core/partIdCoupling.test.ts: a kind-only spawn's product (`kindSpawnRef`) and a stored
+What still names them, in src/core/parts/partIdCoupling.test.ts: a kind-only spawn's product (`kindSpawnRef`) and a stored
 unit load that names no pieces (`unitPiecesOf`), both for stored part versions.
 
 ## Limits

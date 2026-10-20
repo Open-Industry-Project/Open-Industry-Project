@@ -16,8 +16,8 @@
 // so a machine whose state is what it holds (a pallet dispenser's magazine) previews holding it.
 
 import { create, destroy, stepDirect } from './embeddedBehavior'
-import type { ParamValue } from '../core/partApi'
-import { jointRestValue } from '../core/partGeometry'
+import type { ParamValue } from '../core/parts/partApi'
+import { jointRestValue } from '../core/parts/partGeometry'
 
 /** A settled device pose to apply to a rig at rest: `joints` in the sim's units (rad / m), `subPoses` the
  *  free-form link overrides, `lamps` the emissive states (a maintained button's lit cap) - the joint/subPose/

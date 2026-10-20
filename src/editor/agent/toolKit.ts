@@ -3,12 +3,12 @@
 // beside it (partTools.ts, programTools.ts, viewTools.ts).
 
 import { UNLISTED_BUILT_INS, sameAsBuiltIn } from '../../core/builtInVersion'
-import type { PartPackage } from '../../core/partPackage'
+import type { PartPackage } from '../../core/parts/partPackage'
 import type { PartInstance, SceneJSON } from '../../core/types'
 import type { EditorController } from '../controller'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../store/store'
 import type { AgentSession } from './agentSession'
-import { allPartDiagnostics, partDiagnosticsOverflowed } from '../../core/partDiagnostics'
+import { allPartDiagnostics, partDiagnosticsOverflowed } from '../../core/parts/partDiagnostics'
 import { isKnownDialect } from '../../core/dialect'
 import { controllerFor } from '../../plc/controller'
 import { collectProblems } from '../problems'

@@ -2,7 +2,7 @@
 // union and the total PART_DEFS table, and defines the meta parts (group, part) plus
 // the scene container. The `Record<PartType, PartDef>` annotation on PART_DEFS is
 // the exhaustiveness gate - a family that forgets to register a type fails the build here.
-import type { PartPackage } from '../partPackage'
+import type { PartPackage } from '../parts/partPackage'
 import { SCENE_VERSION, num, tagRef, text, type EnumParamSpec, type PartBase, type PartDef, type PartType } from './base'
 import { STRUCTURE_DEFS, type BuildingPart } from './structure'
 
@@ -84,7 +84,7 @@ export interface SceneJSON {
    */
   packages?: PartPackage[]
   /**
-   * The scene's Units (core/sceneUnits.ts): how every length and speed is shown and typed, and every part's units
+   * The scene's Units (core/scene/sceneUnits.ts): how every length and speed is shown and typed, and every part's units
    * switch (the SDK's `ParamSpec.imperialUnits`, a conveyor's `fpmUnits`: its speed and speed tag in FPM or m/s).
    * Authored in Scene Properties, where changing it converts every part with it. Absent = `'metric'`: the default for
    * a new scene, and what a scene saved before it existed already is (its conveyors predate the switch).

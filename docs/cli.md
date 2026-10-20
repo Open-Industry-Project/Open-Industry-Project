@@ -25,12 +25,12 @@ Scene conventions the tools assume (rotationY direction, +X downstream, left = -
   posed, through the real renderer; `--focus` is a close-up of a part-local sphere.
 - **`npm run build-part-sdk`** - regenerates `packages/part-sdk` from src/core, refusing output that doesn't compile;
   `-- --check` is the CI gate. It also fails when the SDK's surface changed without a raise of `PART_SDK_LEVEL`
-  (src/core/partSdk.ts; the levels are recorded in `packages/part-sdk/levels.json`, docs/part-sources.md).
+  (src/core/parts/partSdk.ts; the levels are recorded in `packages/part-sdk/levels.json`, docs/part-sources.md).
 - **`npm run build-parts [-- <dir | path>...]`** - builds parts from their `part.js` sources
   (docs/part-authoring-guide.md "Writing a Part as One part.js"). A source is one `definePart` holding `manifest`,
   the params, `rig(params)` (or a static `manifest.geometry`), `geometry()` and `step()`, importing other modules by
   relative path. From it this writes the behavior (the imports joined in, comments kept, `manifest` / `rig()` and
-  unused helpers left out: scripts/lib/bundlePart.mjs) and the manifest (src/core/rigCompile.ts turns each number that follows a param into a
+  unused helpers left out: scripts/lib/bundlePart.mjs) and the manifest (src/core/rig/rigCompile.ts turns each number that follows a param into a
   ref: a straight line in one param, a straight line between two flat ends (the ref's `min` / `max`), or a product of
   two params plus a constant (`mulParam`), on a link offset, a box, cylinder or grip zone size, an array step, a leg
   row's frame depth, a joint's limits (`minParam` / `maxParam`, the static limit the widest over the range) or a bounds
@@ -54,7 +54,7 @@ Scene conventions the tools assume (rotationY direction, +X downstream, left = -
   in the old-parts corpus (`npm run parts:record`). Append-only: an unchanged part gets nothing new, a changed one a new version. Every
   version is read back the way the app installs it before anything is written. `--dry` writes nothing. `--listed
   --namespaces <file>` packs the parts repository's `parts/` as the listed library: the listing rules of
-  `core/partSubmission.ts`, each part's publisher from its id, each new
+  `core/parts/partSubmission.ts`, each part's publisher from its id, each new
   version's behaviour digest recorded in the index instead of a corpus entry, the realm locked down while parts run,
   and a part whose folder is gone dropped. The index it writes is unsigned.
 - **`PART_LIBRARY_SIGNING_KEY=<pem> npm run sign-library -- <index.json> [--published <index.json>]`** - signs a
@@ -102,13 +102,13 @@ Never hand-edit scene.json; these go through the same checks the editor does.
 - **`npm run duplicate-parts -- <project-folder> <partId...> --offset dx,dy,dz [--rename Old=New,...] [--tag-suffix S] [--id-suffix S] [--strict]`**
   - copy a station. Its subtree comes along, parent and partRef links inside the group follow the copies, links
   outside are kept, and tags are renamed. A second writer of a tag is a warning that `--strict` fails. Seam geometry
-  is re-derived on load by core/sceneResolve.ts, so there is nothing to copy.
+  is re-derived on load by core/scene/sceneResolve.ts, so there is nothing to copy.
 - **`npm run snap-part -- <part> --onto <host> [--host-params k=v,...] [--host-at x,y,z] [--host-rot deg] [--at x,y,z [--local]]`**
   - where the editor's snap engine would seat a part on a host with the params and pose you give, in world
   coordinates plus the host's frame. `--at` is the mover's origin, which `npm run catalog -- <id>` locates (e.g. a
   belt's tail).
 - **`npm run snap-part -- <part | placed id> --project <folder> [--host <id>] [--params k=v,...] --write [--id <id>]`**
-  - seats it against that project's placed part and writes the edit through core/snapCommit.ts, the editor's own
+  - seats it against that project's placed part and writes the edit through core/snap/snapCommit.ts, the editor's own
   commit: pose, fitted params on both parts, attach parent. Guard openings, railing gaps and lifts are derived from
   the scene on load, never written.
 - **`npm run rename-tag -- <project-folder> <from> <to> [--pou <name>]`** - rename a PLC tag in the program files and
@@ -129,7 +129,7 @@ Never hand-edit scene.json; these go through the same checks the editor does.
   one a test input drives is written; `--strict` fails on warnings.
 - **`npm run check-layout -- <path>`** - parts that declare they seat on something actually do. It reports
   disconnection, not collision: a naive overlap test flags 303 pairs on the correct demo scene (src/core/checkLayout.ts
-  explains). Its one collision check is a part standing in an interior building column (src/core/buildingColumns.ts).
+  explains). Its one collision check is a part standing in an interior building column (src/core/building/buildingColumns.ts).
   It also warns, and `--strict` fails, when a box spawner drops onto a belt the program starts and stops without
   being held with it by `conveyorId` + `keepSpacing`: boxes stack on the stopped belt.
 - **`npm run test-project -- <folder>`** - control logic behaves. Exit 1 = a check failed, 3 = the project or a test
@@ -139,7 +139,7 @@ Never hand-edit scene.json; these go through the same checks the editor does.
 - **`npm run check-flow -- <project-folder> [--seconds N] [--input Tag=v@t] [--json]`** - what physically happened on
   the line: boxes dropped or lost, tipped, eye flickers with the tags that toggled, boxes still on a running
   conveyor. These are facts, never verdicts: a row former's stall is normal accumulation. `test-project` prints the
-  same facts before a failure ([project-tests.md](project-tests.md) "Flow facts"). The tracker (core/flowFacts.ts,
+  same facts before a failure ([project-tests.md](project-tests.md) "Flow facts"). The tracker (core/flow/flowFacts.ts,
   run every step by sim/flowFacts.ts) only reads, so a bench-sim fingerprint must not move with it.
   `new SimWorld(..., { flowFacts: false })` turns it off for an A/B run.
 - **`npm run bench-sim -- <project.oip | folder> [--label before]`** - where a sim step's time goes, in the stats

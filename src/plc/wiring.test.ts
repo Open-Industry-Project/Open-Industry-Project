@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { clearPackages, registerPackage } from '../core/partRegistry'
-import type { PartPackage } from '../core/partPackage'
-import { LocalPlcLink } from './plcLink'
+import { clearPackages, registerPackage } from '../core/parts/partRegistry'
+import type { PartPackage } from '../core/parts/partPackage'
+import { LocalPlcLink } from './link/plcLink'
 import { unhandledProgramTags } from './bindings'
 import { checkWiring, type WiringPart, wiredBindings } from './wiring'
-import { PACKAGE_FORMAT } from '../core/partPackage'
+import { PACKAGE_FORMAT } from '../core/parts/partPackage'
 
 // The wiring check reads the declared signal on each tag param (dir + stType) - so unlike the
 // direction-blind walk in bindings.ts it can tell a driver from a reader, and catch the plumbing

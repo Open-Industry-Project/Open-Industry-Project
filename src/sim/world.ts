@@ -3,37 +3,37 @@ import { CARGO_KIND_BOX, cargoFriction, cargoRefKey, cargoView, kindSpawnRef, pa
 import { unitPieces } from '../core/frame'
 import type { BoxFrame, FrameBeamHit, FrameDressing, ZoneMix } from '../core/frame'
 import type { CargoPiece } from '../core/cargoBody'
-import type { FlowFact } from '../core/flowFacts'
+import type { FlowFact } from '../core/flow/flowFacts'
 import type { Measurements, SimCore } from '../core/simCore'
 import { hexToRgb } from '../core/math'
-import { curvedConveyorView, faceHandleOfPkg, isBeltLike, pathHandleOfPkg, rigInclineRad, sdkSpurCorners, spurConveyorView } from '../core/partGeometry'
-import type { SpurConveyorView } from '../core/partGeometry'
-import { beltGuardWalls } from '../core/beltGuards'
-import { curvedGuardWalls } from '../core/curvedGuards'
-import { functionStaticHulls, functionStaticWalls } from '../core/functionGuards'
+import { curvedConveyorView, faceHandleOfPkg, isBeltLike, pathHandleOfPkg, rigInclineRad, sdkSpurCorners, spurConveyorView } from '../core/parts/partGeometry'
+import type { SpurConveyorView } from '../core/parts/partGeometry'
+import { beltGuardWalls } from '../core/guards/beltGuards'
+import { curvedGuardWalls } from '../core/guards/curvedGuards'
+import { functionStaticHulls, functionStaticWalls } from '../core/guards/functionGuards'
 import { rotateXZ } from '../core/transforms'
-import { resolvePartParams } from '../core/geometryEval'
-import { clearPartDiagnostics, reportPartDiagnostic } from '../core/partDiagnostics'
-import type { ParamValue } from '../core/partApi'
-import { conveyorSpeedParams } from '../core/conveyorDirection'
-import type { GuardOpenings } from '../core/guardOpenings'
-import type { GuardExtents } from '../core/guardExtents'
+import { resolvePartParams } from '../core/geometry/geometryEval'
+import { clearPartDiagnostics, reportPartDiagnostic } from '../core/parts/partDiagnostics'
+import type { ParamValue } from '../core/parts/partApi'
+import { conveyorSpeedParams } from '../core/conveyor/conveyorDirection'
+import type { GuardOpenings } from '../core/guards/guardOpenings'
+import type { GuardExtents } from '../core/guards/guardExtents'
 import type { StructureConnections } from '../core/structureConnections'
 import { structureCutGeo } from '../core/structureCuts'
 import type { DeckCluster } from '../core/deckClusters'
-import type { GuardRun } from '../core/guardRuns'
-import { resolveScene, simResolvedKey } from '../core/sceneResolve'
-import type { ResolvedContext } from '../core/sceneResolve'
-import { beltDeckSubsLocal, conveyorDeckSubs, worldSub } from '../core/collisionShapes'
-import type { ConveyorEntry, ConveyorSubShape } from '../core/collisionShapes'
+import type { GuardRun } from '../core/guards/guardRuns'
+import { resolveScene, simResolvedKey } from '../core/scene/sceneResolve'
+import type { ResolvedContext } from '../core/scene/sceneResolve'
+import { beltDeckSubsLocal, conveyorDeckSubs, worldSub } from '../core/geometry/collisionShapes'
+import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
 import type { BeltSegmentSpec } from '../core/types'
-import type { PartPackage } from '../core/partPackage'
-import { isCargoPackage, servoJointsJson } from '../core/partPackage'
+import type { PartPackage } from '../core/parts/partPackage'
+import { isCargoPackage, servoJointsJson } from '../core/parts/partPackage'
 import * as behavior from './embeddedBehavior'
-import { getPackage, registerNewScenePackages, registerScenePackages } from '../core/partRegistry'
-import { linkHalfExtents, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rigPose'
-import type { RigParams } from '../core/rigPose'
-import type { Vec3 } from '../core/rigPose'
+import { getPackage, registerNewScenePackages, registerScenePackages } from '../core/parts/partRegistry'
+import { linkHalfExtents, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rig/rigPose'
+import type { RigParams } from '../core/rig/rigPose'
+import type { Vec3 } from '../core/rig/rigPose'
 import type {
   BuildingPart,
   SdkPart,
@@ -1046,7 +1046,7 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  instead of a built-in part type, so cargo can't leave the band. Self-gates out for a non-curved part (the
    *  belt path builds those). SDK arc convention: P(t) = (r·cos t, 0, −r·sin t), the box yaw = t + π/2. */
   private addCustomCurvedGuards(part: SdkPart, guardRun?: GuardRun): void {
-    // Walls come from core/curvedGuards.ts, the same enumeration guardRuns.ts reads, so a merge decision
+    // Walls come from core/guards/curvedGuards.ts, the same enumeration guardRuns.ts reads, so a merge decision
     // keyed by wall applies to the box the resolver meant. Only the straight tangent stubs can ever merge (the
     // arc chords turn, and sameWall's parallel test drops them), which is what a butted straight meets.
     for (const w of curvedGuardWalls(part)) {
@@ -1092,7 +1092,7 @@ export class SimWorld implements SimCore<BoxFrame> {
   private addFunctionStaticColliders(part: SdkPart, pkg: PartPackage, extents?: GuardExtents, guardRun?: GuardRun): void {
     this.addFunctionStaticHulls(part, pkg)
     // walls come from the shared enumeration guardRuns.ts also reads, so a merge override keyed by wall
-    // applies to the box the resolver meant (core/functionGuards.ts)
+    // applies to the box the resolver meant (core/guards/functionGuards.ts)
     for (const w of functionStaticWalls(part, pkg, extents)) {
       // Merged run: a sideGuard box butting a collinear neighbour's guard (a spur butted to a roller) is
       // emitted once by the run's owner covering both, and skipped by every other member. Two bodies meeting

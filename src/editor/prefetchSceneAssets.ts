@@ -5,7 +5,7 @@ import { dracoLoader } from '../render/dracoDecoder'
 import { beginAssetLoad, whenBuildingGateOpen } from '../render/gltf'
 import { CARGO_BOX_TEXTURES } from '../render/parts/cargoBox'
 import { PALLET_TEXTURES } from '../render/parts/pallet'
-import { bundledManifests } from './bundledExamples'
+import { bundledManifests } from './parts/bundledExamples'
 
 /**
  * Start downloading the loaded scene's part assets as soon as the scene is known, instead of

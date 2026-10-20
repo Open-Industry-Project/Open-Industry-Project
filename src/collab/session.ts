@@ -206,7 +206,7 @@ let codeGate: PackageGate | null = null
 
 /** how this room treats code someone else wrote: run it in the part sandbox unless blocked, or hold it until allowed */
 export interface RoomCodeMode {
-  /** true: the part sandbox is on (core/partSandbox.ts) and this is a browser, so room code runs by default */
+  /** true: the part sandbox is on (core/parts/partSandbox.ts) and this is a browser, so room code runs by default */
   sandboxed: boolean
   /** the server doc name, the key a Block / Allow is remembered under (codeTrust.ts) */
   docName: string

@@ -62,7 +62,7 @@ const inspect = (page) =>
 /** give the stored project a pre-code copy of the sensor, as a document saved by an older build holds one: in the
  *  scene's copies (project format 2 kept one per placed part, with no record of where it came from), and with `fork`
  *  also in the authored library. Without `fork` the library has no copy of the sensor, as a format-2 library had none:
- *  the copy the current format keeps there (core/project.ts keepDefinitionsOnce) is taken out first */
+ *  the copy the current format keeps there (core/project/project.ts keepDefinitionsOnce) is taken out first */
 const plant = (page, fork) =>
   page.evaluate(
     ({ id, stale, fork }) => {

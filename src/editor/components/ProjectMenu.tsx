@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { commandChord, commandDisabledReason, commandEnabled, getCommand, runCommand } from '../commands'
-import { DEMO_SCENE_NAME } from '../demoScenes'
-import { DESKTOP_SHELL } from '../desktopMenuBridge'
+import { DEMO_SCENE_NAME } from '../demo/demoScenes'
+import { DESKTOP_SHELL } from '../desktop/desktopMenuBridge'
 import { withKey } from '../keyHint'
-import type { EditorState } from '../store'
+import type { EditorState } from '../store/store'
 import { focusFirstMenuItem, fromKeyboard, menuKeys, useDismiss } from './popover'
 import { ChevronIcon } from './toolbarIcons'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
@@ -27,7 +27,7 @@ const M = defineMessages('projectMenu', {
 // The project menu: the top bar's one document control, for the project on screen (or the built-in example)
 // and everything you do to it. Project actions (New / Save / Demo, Export / Import Project) live here rather
 // than as loose buttons in the row, where they would sit beside scene-level controls with nothing to tell
-// them apart. There is no scene switcher: a project holds one scene (format 4, core/project.ts). The demo is
+// them apart. There is no scene switcher: a project holds one scene (format 4, core/project/project.ts). The demo is
 // a project of its own (the built-in example): while it is open the label reads "Palletizing demo" with an
 // Example badge, and leaving it means opening another project.
 //
@@ -61,7 +61,7 @@ const HINTS: Record<string, MessageId> = {
 // i18n-ok: file extensions
 const HINT_PARAMS = { oip: '.oip', json: '.json' }
 
-// Save is the project save (editor/saveProject.ts). Its hint names a chord, so it is built at render from
+// Save is the project save (editor/project/saveProject.ts). Its hint names a chord, so it is built at render from
 // the active keymap rather than typed in (keyHint.ts).
 const saveHint = (): string =>
   DESKTOP_SHELL

@@ -7,13 +7,13 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import { checkLayout, exerciseProgram, formatLayoutFinding, type LayoutCheckOptions } from '../core/checkLayout'
-import { clearPackages, getPackage } from '../core/partRegistry'
-import { createSdkPart } from '../core/scene'
+import { clearPackages, getPackage } from '../core/parts/partRegistry'
+import { createSdkPart } from '../core/scene/scene'
 import type { PartInstance, SdkPartParams } from '../core/types'
 import { LocalPlcLink, runnableSource } from '../plc'
 import { checkWiring, wiredBindings } from '../plc/wiring'
-import { registerBundledPackages } from './bundledExamples'
-import { createPlcDemoScene, DEMO_CONTROLLER, DEMO_PROGRAM } from './demoScenes'
+import { registerBundledPackages } from './parts/bundledExamples'
+import { createPlcDemoScene, DEMO_CONTROLLER, DEMO_PROGRAM } from './demo/demoScenes'
 
 beforeAll(() => {
   clearPackages()

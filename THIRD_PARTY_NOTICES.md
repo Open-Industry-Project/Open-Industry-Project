@@ -48,7 +48,7 @@ only. No art asset in this repository comes from Godot.
 
 ## oip-comms
 
-The S7 client (`src/plc/s7Client.ts`, with the wire templates in `src/plc/s7Client.test.ts`)
+The S7 client (`src/plc/link/s7Client.ts`, with the wire templates in `src/plc/link/s7Client.test.ts`)
 is a TypeScript port of the S7 driver in [oip-comms](https://github.com/Open-Industry-Project/oip-comms)
 (`S7Com.cpp`). oip-comms is distributed under the MIT License:
 

@@ -52,7 +52,7 @@ export function loadProgramTags(source: string): Promise<readonly TagRow[]> {
     if (source.trim() === '') return []
     const [{ listTags }, { wrappedPrograms }] = await Promise.all([import('../../../plc/tags'), import('../../../plc/sceneProgram')])
     const rows = listTags(source)
-    // a program that is one PROGRAM and nothing else answers to its variables' bare names (plc/plcLink.ts
+    // a program that is one PROGRAM and nothing else answers to its variables' bare names (plc/link/plcLink.ts
     // soleInstanceAliases), so they are offered as the controller's own tags are
     const wrapped = wrappedPrograms(source)
     if (wrapped.length !== 1) return rows

@@ -1,5 +1,5 @@
 // Gate: the scene's Units are one choice that decides both how the scene is shown and what its conveyors' speed tags
-// carry (core/sceneUnits.ts). Scene Properties > Units converts every conveyor as one undoable edit, the Inspector
+// carry (core/scene/sceneUnits.ts). Scene Properties > Units converts every conveyor as one undoable edit, the Inspector
 // shows and takes lengths and speeds in those units while the document keeps its own, and no conveyor offers a
 // units switch of its own.
 //

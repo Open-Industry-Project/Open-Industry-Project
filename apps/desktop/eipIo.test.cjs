@@ -1,5 +1,5 @@
 // Smoke test for eipIo.cjs - the libplctag half of an EtherNet/IP link. Runs with plain Node (no Electron):
-// `node apps/desktop/eipIo.test.cjs`. What a tag's type means is tested in src/core/eip.test.ts. Here libplctag's
+// `node apps/desktop/eipIo.test.cjs`. What a tag's type means is tested in src/core/io/eip.test.ts. Here libplctag's
 // own Logix simulator (ab_server, fetched beside the library by scripts/fetch-libplctag.mjs) tests the library calls:
 // a type per tag, a write-then-read cycle in every type the link carries, a missing tag, a PLC that goes away and
 // comes back, and one that was never there.
@@ -7,7 +7,7 @@
 // ab_server is a tag table with no program, so nothing here "scans": a write is read back as it was written. It
 // answers two things differently from a real controller. Both are pinned below, so a library bump that changes them
 // is seen. A missing tag is PLCTAG_ERR_BAD_PARAM; a ControlLogix answers "path destination unknown", which libplctag
-// reports as PLCTAG_ERR_NOT_FOUND, and core/eip.ts eipStatusMessage reads both the same. And it does not implement
+// reports as PLCTAG_ERR_NOT_FOUND, and core/io/eip.ts eipStatusMessage reads both the same. And it does not implement
 // the read-modify-write service, so writing one bit of a DINT (`Count.3`) is PLCTAG_ERR_UNSUPPORTED here.
 
 const assert = require('node:assert/strict')

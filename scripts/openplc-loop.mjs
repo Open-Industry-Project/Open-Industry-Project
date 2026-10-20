@@ -7,7 +7,7 @@
 // must rest where it does with the program attached in-process, which is the product claim itself.
 //
 // Analog too: a laser's distance goes in as a REAL and the belt's speed comes back as one (IEEE754, low
-// word first, measured rather than assumed: core/externalIo.ts). The case is shared with
+// word first, measured rather than assumed: core/io/externalIo.ts). The case is shared with
 // scripts/s7-loop.mjs (scripts/lib/conveyor-loop.mjs), so the two controllers are judged alike.
 //
 // What runs where:
@@ -15,9 +15,9 @@
 //                   real PLC scans on its own clock
 //   the wiring      the parts' tags are the I/O addresses, the program's variables are located at them
 //                   (docs/st-conformance.md, Located variables), and the Modbus map follows from the
-//                   addresses alone (core/externalIo.ts, modbusServerFromTags): nothing is mapped by hand
-//   the link        src/plc/modbusServer.ts behind a TCP socket: the simulator is the Modbus SERVER and
-//                   the PLC polls it (core/externalIo.ts says why it is that way round)
+//                   addresses alone (core/io/externalIo.ts, modbusServerFromTags): nothing is mapped by hand
+//   the link        src/plc/link/modbusServer.ts behind a TCP socket: the simulator is the Modbus SERVER and
+//                   the PLC polls it (core/io/externalIo.ts says why it is that way round)
 //   the program     exported the way the editor's Export does, loaded by OpenPLC's editor as a project
 //                   folder (the AT clauses become its own variable locations), transpiled and built with
 //                   STruC++, and packed into program.zip by the editor's own bundle composer

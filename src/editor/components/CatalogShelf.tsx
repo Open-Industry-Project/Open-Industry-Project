@@ -1,21 +1,21 @@
 // The Catalog's Shelf tab (docs/parts-shelf.md): the parts shelf's parts, each with what it is to the open project,
 // and this project's parts that are not on the shelf yet. Every shelf action lives here, so the part cards on the
-// other tabs keep their size: placing copies a shelf part into the project (editor/partShelf.ts), "Update" takes the
+// other tabs keep their size: placing copies a shelf part into the project (editor/parts/partShelf.ts), "Update" takes the
 // shelf's newer version, "Put on shelf" files the project's.
 //
 // Desktop only: the Catalog renders this only when the shell has a shelf (getShelfApi).
 
 import { useCallback, useEffect, useState } from 'react'
-import { partChanges } from '../../core/partChanges'
-import type { PartPackage } from '../../core/partPackage'
-import { getPackage } from '../../core/partRegistry'
-import { freePartId } from '../../core/partRename'
-import type { ShelfStatus } from '../../core/partShelf'
+import { partChanges } from '../../core/parts/partChanges'
+import type { PartPackage } from '../../core/parts/partPackage'
+import { getPackage } from '../../core/parts/partRegistry'
+import { freePartId } from '../../core/parts/partRename'
+import type { ShelfStatus } from '../../core/parts/partShelf'
 import type { EditorController } from '../controller'
-import { documentSceneOf, type EditorState } from '../store'
+import { documentSceneOf, type EditorState } from '../store/store'
 import { askName } from '../nameDialog'
-import { copyFromShelf, putOnShelf, readShelf, statusInProject } from '../partShelf'
-import type { OipShelfApi, ShelfListing } from '../partShelf'
+import { copyFromShelf, putOnShelf, readShelf, statusInProject } from '../parts/partShelf'
+import type { OipShelfApi, ShelfListing } from '../parts/partShelf'
 import { CatalogPlaceButton } from './CatalogPlaceButton'
 import { ShelfChangeDialog } from './ShelfChangeDialog'
 import { defineMessages, t } from '../../core/i18n'
@@ -115,7 +115,7 @@ export function CatalogShelf({ state, controller, api, query, packageThumbnails 
   // this project's own parts that are not on the shelf yet (a pristine built-in is the app's, not the project's)
   const notOnShelf = state.userPackages.filter((p) => !onShelfIds.has(p.id) && matches(p))
 
-  // replacing one version with another is asked in a dialog that lists what changes (core/partChanges.ts)
+  // replacing one version with another is asked in a dialog that lists what changes (core/parts/partChanges.ts)
   const [review, setReview] = useState<Parameters<typeof ShelfChangeDialog>[0] | null>(null)
   const close = (): void => setReview(null)
 

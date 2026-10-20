@@ -35,7 +35,7 @@ on:
       - 'scripts/openplc-loop.mjs'
       - 'scripts/lib/openplc-runtime.mjs'
       - 'scripts/lib/modbus-tcp-listen.mjs'
-      - 'src/core/externalIo.ts'
+      - 'src/core/io/externalIo.ts'
       - '.github/workflows/st-oracle.yml'
   pull_request:
     branches: [main]
@@ -52,7 +52,7 @@ on:
       - 'scripts/openplc-loop.mjs'
       - 'scripts/lib/openplc-runtime.mjs'
       - 'scripts/lib/modbus-tcp-listen.mjs'
-      - 'src/core/externalIo.ts'
+      - 'src/core/io/externalIo.ts'
       - '.github/workflows/st-oracle.yml'
   workflow_dispatch:
 

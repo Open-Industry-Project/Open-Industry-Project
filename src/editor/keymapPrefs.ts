@@ -1,6 +1,6 @@
 /**
  * The localStorage half of the rebinding seam: core/keymap.ts owns what the bindings are, this owns
- * what they were last time. Split because core is DOM-free, the same way editor/stProgram.ts holds
+ * what they were last time. Split because core is DOM-free, the same way editor/program/stProgram.ts holds
  * the program document's storage half.
  *
  * Validated on read, not trusted. A stored map outlives the build that wrote it, so an action that

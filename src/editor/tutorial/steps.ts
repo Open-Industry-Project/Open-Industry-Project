@@ -4,12 +4,12 @@
 // advances - the overlay never fakes the work for them. See TutorialOverlay for the
 // runtime that resolves the spotlight target and watches `done`.
 
-import { conveyorEndsOf, type PartEnd } from '../../core/partGeometry'
-import { commsOn, commsParamOf } from '../../core/conveyorDirection'
+import { conveyorEndsOf, type PartEnd } from '../../core/parts/partGeometry'
+import { commsOn, commsParamOf } from '../../core/conveyor/conveyorDirection'
 import type { PartInstance, SceneJSON } from '../../core/types'
 import type { EditorController } from '../controller'
-import { DESKTOP_MAC, DESKTOP_SHELL } from '../desktopMenuBridge'
-import type { EditorState, EditorStore } from '../store'
+import { DESKTOP_MAC, DESKTOP_SHELL } from '../desktop/desktopMenuBridge'
+import type { EditorState, EditorStore } from '../store/store'
 import { defineMessages, t } from '../../core/i18n'
 
 // The cards' text. Each step reads its strings through a getter, so t() runs when the overlay renders the card,

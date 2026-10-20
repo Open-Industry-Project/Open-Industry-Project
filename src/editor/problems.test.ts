@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { clearPackages, registerPackage } from '../core/partRegistry'
-import type { PartPackage } from '../core/partPackage'
+import { clearPackages, registerPackage } from '../core/parts/partRegistry'
+import type { PartPackage } from '../core/parts/partPackage'
 import type { SdkPart } from '../core/types'
-import type { RuntimePartDiagnostic } from '../core/partDiagnostics'
+import type { RuntimePartDiagnostic } from '../core/parts/partDiagnostics'
 import { DEFAULT_SIM_HZ, MAX_SIM_HZ } from '../core/types'
 import { collectProblems, type ProblemsInput } from './problems'
-import { PACKAGE_FORMAT } from '../core/partPackage'
-import { partFingerprint } from '../core/partOrigin'
-import { PART_SDK_LEVEL } from '../core/partSdk'
+import { PACKAGE_FORMAT } from '../core/parts/partPackage'
+import { partFingerprint } from '../core/parts/partOrigin'
+import { PART_SDK_LEVEL } from '../core/parts/partSdk'
 
 // Synthetic packages, like plc/wiring.test.ts: what the aggregator needs from a package is its
 // declared tag signals, and building real ones here would only test the build.

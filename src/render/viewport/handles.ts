@@ -11,9 +11,9 @@ import {
   Vector3,
 } from 'three'
 import type { PerspectiveCamera, Ray, Raycaster } from 'three'
-import { beltPathFromParams, beltSegmentFrames, defaultBeltSegments, sampleBeltPathExt } from '../../core/beltPath'
-import { guardArcRange, openingAt, openingsOnSide, rowsToOpeningSpecs } from '../../core/guardOpeningEdit'
-import type { GuardWall } from '../../core/guardOpeningEdit'
+import { beltPathFromParams, beltSegmentFrames, defaultBeltSegments, sampleBeltPathExt } from '../../core/conveyor/beltPath'
+import { guardArcRange, openingAt, openingsOnSide, rowsToOpeningSpecs } from '../../core/guards/guardOpeningEdit'
+import type { GuardWall } from '../../core/guards/guardOpeningEdit'
 import { OVERLAY_LAYER } from '../env'
 import {
   beltLikeView,
@@ -30,8 +30,8 @@ import {
   straightConveyorView,
   toLocalXZ,
   toWorldXZ,
-} from '../../core/partGeometry'
-import type { CurvedGizmo } from '../../core/partGeometry'
+} from '../../core/parts/partGeometry'
+import type { CurvedGizmo } from '../../core/parts/partGeometry'
 import { GUARD_HEIGHT } from '../../core/types'
 import type { BeltGuardOpeningSpec, BeltSegmentSpec, PartInstance } from '../../core/types'
 import type { BoxResizeHandle, CurveResizeHandle, FlexResizeHandle, GuardOpeningHandle, ResizeHandle, ScreenProjector } from '../api'

@@ -5,16 +5,16 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import { isCargoPart } from '../../core/frame'
 import { clamp, normalizeAngle, quatFromYXZ } from '../../core/math'
-import { subtreeIds } from '../../core/hierarchy'
+import { subtreeIds } from '../../core/scene/hierarchy'
 import { bandSelection } from '../../core/selection'
 import { rotateXZ, yawAboutPivot } from '../../core/transforms'
-import { getPackage } from '../../core/partRegistry'
-import { linkFieldOwnership, restQuatOf } from '../../core/rigPose'
-import type { LinkFieldOwnership, RigParams } from '../../core/rigPose'
-import { resolvePartParams } from '../../core/partScript'
-import type { ParamValue } from '../../core/partApi'
-import { rigInclineRad } from '../../core/partGeometry'
-import type { PartPackage, RigLink } from '../../core/partPackage'
+import { getPackage } from '../../core/parts/partRegistry'
+import { linkFieldOwnership, restQuatOf } from '../../core/rig/rigPose'
+import type { LinkFieldOwnership, RigParams } from '../../core/rig/rigPose'
+import { resolvePartParams } from '../../core/parts/partScript'
+import type { ParamValue } from '../../core/parts/partApi'
+import { rigInclineRad } from '../../core/parts/partGeometry'
+import type { PartPackage, RigLink } from '../../core/parts/partPackage'
 import {
   beltLikeView,
   curvedGizmoOf,
@@ -30,7 +30,7 @@ import {
   resizePart,
   surfaceBelowParam,
   withFlexPose,
-} from '../../core/partGeometry'
+} from '../../core/parts/partGeometry'
 import {
   guardArcRange,
   isolateOnWall,
@@ -42,16 +42,16 @@ import {
   rowsToOpeningSpecs,
   snapArc,
   sweepOpening,
-} from '../../core/guardOpeningEdit'
-import { sceneUnits } from '../../core/sceneUnits'
+} from '../../core/guards/guardOpeningEdit'
+import { sceneUnits } from '../../core/scene/sceneUnits'
 import { formatLength } from '../../core/units'
 import type { DisplayUnits } from '../../core/units'
 import { FLOOR_SURFACE_Y } from '../../core/types'
 import type { BeltGuardOpeningSpec, SdkPart, PartInstance, SceneJSON } from '../../core/types'
-import type { SnapPose } from '../../core/snapFeatures'
+import type { SnapPose } from '../../core/snap/snapFeatures'
 import type { GizmoConstraint, GizmoHandle, GizmoSnap, GuardOpeningHandle, GuardWallPoint, ResizeHandle, RobotHandle } from '../../render/api'
-import { guardOpeningsTarget } from '../store'
-import type { EditorState } from '../store'
+import { guardOpeningsTarget } from '../store/store'
+import type { EditorState } from '../store/store'
 import type { EditorController } from '../controller'
 
 const BAND_THRESHOLD_PX = 8
@@ -533,7 +533,7 @@ export function posedScene(start: SceneJSON, poses: Map<string, SnapPose>): Scen
  * The single gesture-preview path. Every transient scene a gesture streams, and so what its release
  * commits, is staged here: poses applied + the engaged snap candidate's param overrides folded (a
  * stair's numSteps refit to a deck, a chain transfer adopting the host pitch). Preview == commit is
- * the contract the seam resolvers (core/sceneResolve.ts) depend on: they derive cuts and openings
+ * the contract the seam resolvers (core/scene/sceneResolve.ts) depend on: they derive cuts and openings
  * from whatever scene they are handed, so a gesture that streams a pose without the override fold
  * shows its neighbour effects only on commit (the stair→platform railing bug). Any
  * new gesture must build its transient through this, never through a bare posedScene. Re-rest is

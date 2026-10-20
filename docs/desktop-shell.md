@@ -198,7 +198,7 @@ push and a reload loads it. An installer carries its build, so it does not:
   shared room. `npm run pack` is unchecked, for trying a build locally.
 - An older installed app in a newer room is told to update the app, not to reload, because a reload loads the
   same version and the banner comes straight back. That is `NewerBuildBanner`'s desktop variant. Its button runs
-  the shell's own update check (`getDesktopUpdate` in `src/editor/desktopMenuBridge.ts`, then
+  the shell's own update check (`getDesktopUpdate` in `src/editor/desktop/desktopMenuBridge.ts`, then
   [updater.cjs](../apps/desktop/updater.cjs)). `DESKTOP_UPDATE_URL` (the site, opened in the OS browser) is only
   the fallback for a shell with no update bridge.
 
@@ -251,11 +251,11 @@ electron-builder's NSIS target ignores `build.protocols`. `build.protocols` cove
 On an installed build, a link fired through the Windows shell handler cold-starts the app in the room. A second
 link goes to the running window, which moves rooms while the second copy quits. In a room, the browser's
 Help > Open in Desktop App fires `openindustry://open?room=<room>`
-([desktopLink.ts](../src/editor/desktopLink.ts)). Outside a room it hands over the project, since a link cannot
+([desktopLink.ts](../src/editor/desktop/desktopLink.ts)). Outside a room it hands over the project, since a link cannot
 carry it. It fires `openindustry://open?handoff=<secret>` and uploads the project's `.oip` bytes to that private
 document on the collab server ([handoff.ts](../src/collab/handoff.ts)). The desktop app boots at `?handoff=`,
 waits for the bytes, asks the user (the link is web input, and a project carries part code), imports them as
-File > Import would, and clears the document ([desktopHandoff.ts](../src/editor/desktopHandoff.ts)). From then on
+File > Import would, and clears the document ([desktopHandoff.ts](../src/editor/desktop/desktopHandoff.ts)). From then on
 the two are separate copies. If the page keeps the focus for 2 s, it says the app did not open, offers the
 download, and clears its upload.
 
@@ -277,7 +277,7 @@ The installer also registers `.oip` (a project) and `.oippart` (one part) with t
 `fileAssociations` (checked against app-builder-lib 26.15), so no `installer.nsh` entry is needed. A
 double-click hands the path to the app on its command line (`open-file` on macOS). A second launch hands it to
 the running window and quits. [fileOpen.cjs](../apps/desktop/fileOpen.cjs) reads the file and gives the
-renderer its bytes, never the path. [desktopFileOpen.ts](../src/editor/desktopFileOpen.ts) imports them
+renderer its bytes, never the path. [desktopFileOpen.ts](../src/editor/desktop/desktopFileOpen.ts) imports them
 through the app's own import paths: a `.oip` as File > Import Project does (it asks, and the open project is
 kept under Projects), and a `.oippart` into the open project's parts as Import part does. Neither file is ever
 written back. Gated by `e2e/verify-desktop-file-open-electron.mjs` from the path onward. The registration

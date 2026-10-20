@@ -2,13 +2,13 @@
 // scene slot, the opening view, the Focus / Follow press run and the follow badge. The bookkeeping is this
 // area's own state (CameraState, held by the controller); the store and view come in as dependencies.
 
-import { partDisplayName } from '../../core/partDisplayName'
-import { DEMO_OPENING_VIEW } from '../demoScenes'
-import { clearViewportState, readViewportState } from '../storePrefs'
-import { SCENE_SLOT, sceneSlotKey } from '../documentStore'
+import { partDisplayName } from '../../core/parts/partDisplayName'
+import { DEMO_OPENING_VIEW } from '../demo/demoScenes'
+import { clearViewportState, readViewportState } from '../store/storePrefs'
+import { SCENE_SLOT, sceneSlotKey } from '../project/documentStore'
 import { DEFAULT_CAMERA_POSE } from '../../render/api'
 import type { IRenderView, ProjectionMode } from '../../render/api'
-import type { EditorState, EditorStore } from '../store'
+import type { EditorState, EditorStore } from '../store/store'
 import type { EditorController } from '../controller'
 
 /** The camera's own bookkeeping: the slot it is filed under, the Focus / Follow press run, the part-focus return. */

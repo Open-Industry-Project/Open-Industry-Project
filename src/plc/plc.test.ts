@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compile, diagnostics, SAMPLE_PROGRAM } from './index'
-import { LocalPlcLink } from './plcLink'
+import { LocalPlcLink } from './link/plcLink'
 import { toTypeScript } from './emit'
 import { StError } from './types'
 import { lex } from './lexer'

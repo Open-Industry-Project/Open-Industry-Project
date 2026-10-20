@@ -1,15 +1,15 @@
 import type { PartInstance, SceneJSON, SimRate } from '../core/types'
-import type { PartPackage } from '../core/partPackage'
+import type { PartPackage } from '../core/parts/partPackage'
 import type { CargoShapeRef, FrameBeamHit, FrameDressing } from '../core/frame'
-import type { FlowFact } from '../core/flowFacts'
-import type { PartDiagnosticsEvent } from '../core/partDiagnostics'
+import type { FlowFact } from '../core/flow/flowFacts'
+import type { PartDiagnosticsEvent } from '../core/parts/partDiagnostics'
 import type { PlcFrameWire } from './plcHost'
-import type { WiredBindings } from '../plc/plcLink'
+import type { WiredBindings } from '../plc/link/plcLink'
 import type { TagValue } from '../plc/types'
 
 export type MainToWorker =
   | { type: 'warmup' }
-  // the page's hang beacon (core/partScript.ts setPartCallBeacon): part code marks itself in it, so a page that
+  // the page's hang beacon (core/parts/partScript.ts setPartCallBeacon): part code marks itself in it, so a page that
   // stops getting frames can name the part the worker is stuck in. Sent once, before anything else.
   | { type: 'beacon'; buffer: SharedArrayBuffer }
   // hz: the scene's physics step rate (EditorState.simHz). Fixed for the world's lifetime, so a rate
@@ -71,7 +71,7 @@ export type MainToWorker =
   // detach the ST program (Stop / program panel Detach); behaviors idle on their next step
   | { type: 'stopProgram' }
   // write the attached program's variables by name before its next scan: an HMI or SCADA writing a PLC's
-  // tags (a Start button, a setpoint), through the simulator's OPC UA server (editor/opcUaServer.ts)
+  // tags (a Start button, a setpoint), through the simulator's OPC UA server (editor/links/opcUaServer.ts)
   | { type: 'writePlcVars'; values: Record<string, TagValue> }
   // retune the attached program's scan (cycle) time live, from the ST editor's scan-ms field
   | { type: 'setScanPeriod'; periodSec: number }
@@ -182,7 +182,7 @@ export type WorkerToMain =
       // in-worker PLC state (watch / %I / %Q / scan telemetry), present while a program is attached -
       // the main thread's watch table and IO monitor render from this, at frame cadence
       plc?: PlcFrameWire
-      // Flow facts (core/flowFacts.ts) collected by the steps since the last posted frame: what physically happened to
+      // Flow facts (core/flow/flowFacts.ts) collected by the steps since the last posted frame: what physically happened to
       // the cargo (dropped, lost, tipped, a sensor flicker, a stall). The sim computes them every step and ships them
       // batched here, so none is lost to the frame cadence. A fact that unfolds (a stall) is sent when it starts and
       // again, same `id`, when it ends: keep the latest record per id (SimClient.flowFacts). Absent = none new.
@@ -190,7 +190,7 @@ export type WorkerToMain =
       stepStats: StepStats
     }
   | { type: 'error'; message: string }
-  // a custom-part runtime diagnostic (core/partDiagnostics) raised inside the worker; the sim's module
+  // a custom-part runtime diagnostic (core/parts/partDiagnostics) raised inside the worker; the sim's module
   // instance is separate from the main thread's, so events are mirrored across for the editor to surface
   | { type: 'partDiagnostics'; event: PartDiagnosticsEvent }
   // the attached ST program faulted (a runtime scan fault, or a backstop compile failure) - the worker

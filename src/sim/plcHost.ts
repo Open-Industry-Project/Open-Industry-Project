@@ -3,7 +3,7 @@
 // loop calls interleave() before world.step(): the scan reads the tags behaviors wrote on the
 // previous step (%I), runs however many whole scan periods one step of sim time covers, and
 // applies its outputs (%Q) so the very next step's behaviors read them. That is the same
-// lockstep the headless project-test runner uses (editor/projectTestRunner.ts), so the live sim
+// lockstep the headless project-test runner uses (editor/project/projectTestRunner.ts), so the live sim
 // and the test harness share one interleave semantics.
 //
 // The scan accumulator is driven from the fixed step dt (sim time), not wall clock. So the scan/step
@@ -126,7 +126,7 @@ export class PlcHost {
    * time), and the parts take their first step on no PLC output, as at power-up. The first scan, before the second
    * step, sees what they published, by the same path as every scan after it. Our rule (IEC leaves when field inputs
    * are first valid to the implementation); a program attached to a world already running scans at once.
-   * The project-test runner keeps the same rule (editor/projectTestRunner.ts).
+   * The project-test runner keeps the same rule (editor/project/projectTestRunner.ts).
    *
    * May throw an StError / StFault - a runtime fault (a subscript out of range, a division by zero, a
    * loop the watchdog would have caught) - the caller detaches the program and reports, mirroring a faulted PLC
@@ -148,7 +148,7 @@ export class PlcHost {
     // scan): what a part is commanded by, and all a field device sees of a real PLC. Not the whole variable table,
     // for two reasons. The contract: a scene that read an internal variable here would work against this PLC and
     // break against a real one over the wire, and in project tests, which hand parts the outputs alone
-    // (editor/projectTestRunner.ts). checkWiring calls such a read `undriven`, "stays at its zero value", and here
+    // (editor/project/projectTestRunner.ts). checkWiring calls such a read `undriven`, "stays at its zero value", and here
     // it does. A part that should see a variable is wired to it, which binds it as an output (plc/wiring.ts
     // wiredBindings). And the cost: the table lists every array element and UDT member a program holds (thousands
     // of values for a large one). Rebuilt after every scan, it measured five times the scan's own cost on a large

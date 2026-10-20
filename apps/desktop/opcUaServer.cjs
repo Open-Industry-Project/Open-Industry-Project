@@ -4,7 +4,7 @@
 // The reverse of opcUaIo.cjs, which is a client of a real PLC's server. Here the app's own program
 // keeps running in the sim worker, and whatever connects sees its variables and writes the ones an operator
 // may write (a Start button, a setpoint). As in opcUaIo.cjs, node-opcua handles the protocol and the app decides
-// everything else (src/editor/opcUaServer.ts): which variables are published, as which type, which of them a
+// everything else (src/editor/links/opcUaServer.ts): which variables are published, as which type, which of them a
 // client may write, and what a write does. This file only turns that into nodes.
 //
 // Unsecured on purpose, for now, like the client: security policy None and anonymous sessions. It listens on

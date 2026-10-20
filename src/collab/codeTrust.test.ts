@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { clearPackages, registerPackage } from '../core/partRegistry'
-import type { PartPackage } from '../core/partPackage'
+import { clearPackages, registerPackage } from '../core/parts/partRegistry'
+import type { PartPackage } from '../core/parts/partPackage'
 import {
   blockedRoomCount,
   forgetBlockedRooms,
@@ -19,7 +19,7 @@ import {
   trustedRoomCount,
 } from './codeTrust'
 import type { FirstPartyCode } from './codeTrust'
-import { PACKAGE_FORMAT } from '../core/partPackage'
+import { PACKAGE_FORMAT } from '../core/parts/partPackage'
 
 const SHIPPED_BELT = 'definePart({ step(ctx) { ctx.setSurfaceVelocity(1) } })'
 

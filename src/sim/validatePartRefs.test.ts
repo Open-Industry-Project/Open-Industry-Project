@@ -1,12 +1,12 @@
-// Author-time data checks (core/partAuthoringChecks.ts + sim/validatePart.ts): a corpus of parts, each broken
+// Author-time data checks (core/parts/partAuthoringChecks.ts + sim/validatePart.ts): a corpus of parts, each broken
 // in one realistic way that would otherwise load, bake and silently do nothing. Each must fail validation;
 // the unbroken control must pass.
 
 import { describe, expect, it } from 'vitest'
 import { validatePart } from './validatePart'
 import type { PackageManifest } from './buildPackage'
-import { checkGeometryRefs } from '../core/partAuthoringChecks'
-import type { PartPackageGeometry } from '../core/partPackage'
+import { checkGeometryRefs } from '../core/parts/partAuthoringChecks'
+import type { PartPackageGeometry } from '../core/parts/partPackage'
 
 type M = PackageManifest & { geometry: { links: any[]; joints: any[]; inclineParam?: string } } // eslint-disable-line @typescript-eslint/no-explicit-any -- specs build deliberately malformed links and joints
 

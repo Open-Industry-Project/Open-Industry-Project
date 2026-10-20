@@ -2,12 +2,12 @@
 // kinematic and dynamic-cargo bodies. Creation only - SimWorld files each body under its part group and registers
 // conveyors.
 import type Jolt from 'jolt-physics'
-import { runningSurfaceFlow, runningSurfaceNormal } from '../core/collisionShapes'
-import type { ConveyorEntry, ConveyorSubShape } from '../core/collisionShapes'
+import { runningSurfaceFlow, runningSurfaceNormal } from '../core/geometry/collisionShapes'
+import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
 import type { CargoPiece } from '../core/cargoBody'
-import type { PartPackage } from '../core/partPackage'
-import { getPackage } from '../core/partRegistry'
-import type { Quat, Vec3 } from '../core/rigPose'
+import type { PartPackage } from '../core/parts/partPackage'
+import { getPackage } from '../core/parts/partRegistry'
+import type { Quat, Vec3 } from '../core/rig/rigPose'
 import type { PartInstance } from '../core/types'
 import { BELT_FRICTION, BOX_RESTITUTION, CONVEYOR_FRICTION, PALLET_SIZE } from '../core/types'
 import { palletCollider } from '../core/pallet'

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { Notice } from '../store'
+import type { Notice } from '../store/store'
 import { CloseIcon } from './toolbarIcons'
 import { defineMessages, t } from '../../core/i18n'
 

@@ -1,4 +1,4 @@
-/* ===== Controller Properties (components/ControllerDialog.tsx, ExternalPlcSection.tsx) ===== */
+/* ===== Controller Properties (components/plc/ControllerDialog.tsx, ExternalPlcSection.tsx) ===== */
 /* Where the program runs, in the shared modal chrome (.author-dialog). The ctl-ext rules below are the section inside
    it; the toolbar's link status (PlcLinkStatus.tsx) borrows its point list. */
 

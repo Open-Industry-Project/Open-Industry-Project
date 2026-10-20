@@ -148,7 +148,7 @@ export const KEY_BINDINGS = [
   // the way to reach every app-level command (see editor/commands.ts)
   { id: 'ui.commands', mode: 'editor', group: 'Help', label: 'Command palette', keys: ['ctrl+shift+KeyP'], match: 'logical', hint: 'search every menu command' },
 
-  // --- the ladder view (editor/components/LadderView.tsx), while it has the keyboard ---------------------
+  // --- the ladder view (editor/components/plc/LadderView.tsx), while it has the keyboard ---------------------
   // Its Delete, Ctrl+C/X/V and Ctrl+Z/Y are the Edit group's: the same chords, acting on the rungs.
   { id: 'ladder.prev', mode: 'ladder', group: 'Ladder', label: 'Previous element', keys: ['ArrowLeft'], hint: 'through branches, and on to the rung above' },
   { id: 'ladder.next', mode: 'ladder', group: 'Ladder', label: 'Next element', keys: ['ArrowRight'], hint: 'through branches, and on to the rung below' },
@@ -319,7 +319,7 @@ export function resolveKeymap(overrides?: KeymapOverrides): readonly KeyBinding[
  * Module state, on purpose. `resolveKeymap` alone produces a table, but the six listeners that resolve
  * a press (editor controller, freelook, pilot, the palette/menu chord labels) live in three different
  * layers. `render/` cannot import `editor/`, so core is the only place a rebinding can become visible
- * to all of them at once. Same shape as core/partRegistry and core/partDiagnostics: a process-wide
+ * to all of them at once. Same shape as core/parts/partRegistry and core/parts/partDiagnostics: a process-wide
  * table with a revision and subscribers, no DOM, no store.
  *
  * Persistence is not here. core is DOM-free, so localStorage is handled in editor/keymapPrefs.ts,

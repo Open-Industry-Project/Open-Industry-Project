@@ -17,7 +17,7 @@
 // the same wrong readout, so an empty tag table resolves to 0 here rather than falling back.
 // Stopped, nothing is commanding anything and the authored params rule again.
 
-import { getPackage } from '../../core/partRegistry'
+import { getPackage } from '../../core/parts/partRegistry'
 import type { SdkPart, PartInstance } from '../../core/types'
 import type { TagValue } from '../../plc'
 import type { EditorController } from '../controller'

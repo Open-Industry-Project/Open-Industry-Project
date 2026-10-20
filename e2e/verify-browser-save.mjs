@@ -1,4 +1,4 @@
-// Save in the browser (src/editor/saveProject.ts), in a real browser:
+// Save in the browser (src/editor/project/saveProject.ts), in a real browser:
 //
 //   - Ctrl+S is the app's Save. Unhandled, it reaches the browser's own "Save page as", which saves the
 //     app's HTML. It must be prevented (from inside a text field too) and answered with "Saved in this browser".

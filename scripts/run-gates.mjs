@@ -150,7 +150,7 @@ const GATES = [
   },
   {
     script: 'verify-ladder-box-picker.mjs',
-    why: "Insert Box is the one door to everything a rung can call that the element bar does not hold - a program's own FUNCTION_BLOCKs above all, which nothing else offers - and every box reaches the rung through the catalogue's one insert path (plc/ladderCatalog.ts), the bar's included. The unit tests hold the catalogue to the engine; only the app can show the bar's 'Block…' and Ctrl+B opening it on the search field, a typed name picking the program's own block, Enter landing it declared with every pin to fill and titled with its outputs drawn before one is named, a library function landing the same way, and Escape changing nothing",
+    why: "Insert Box is the one door to everything a rung can call that the element bar does not hold - a program's own FUNCTION_BLOCKs above all, which nothing else offers - and every box reaches the rung through the catalogue's one insert path (plc/ladder/ladderCatalog.ts), the bar's included. The unit tests hold the catalogue to the engine; only the app can show the bar's 'Block…' and Ctrl+B opening it on the search field, a typed name picking the program's own block, Enter landing it declared with every pin to fill and titled with its outputs drawn before one is named, a library function landing the same way, and Escape changing nothing",
   },
   {
     script: 'verify-demo-ladder.mjs',
@@ -342,7 +342,7 @@ const GATES = [
   },
   {
     script: 'verify-st-controller.mjs',
-    why: 'the Controller Organizer edits a scene\'s tasks as DATA, and one of its edits renames tags: splitting a program into tasks turns Motor into Main.Motor, so the program text, the task table and the parts wired to those tags have to move together or the line silently stops. Unit tests pin each half (plc/controllerEdits, editor/controllerRewire); only a browser run proves the panel applies them together - Split into tasks swaps the scan field for the organizer, + Program lands a chip whose name field renames the instance too, a task\'s rows edit the table, a refused name says why, Run attaches the result, and the table is part of the saved project rather than panel state',
+    why: 'the Controller Organizer edits a scene\'s tasks as DATA, and one of its edits renames tags: splitting a program into tasks turns Motor into Main.Motor, so the program text, the task table and the parts wired to those tags have to move together or the line silently stops. Unit tests pin each half (plc/controllerEdits, editor/program/controllerRewire); only a browser run proves the panel applies them together - Split into tasks swaps the scan field for the organizer, + Program lands a chip whose name field renames the instance too, a task\'s rows edit the table, a refused name says why, Run attaches the result, and the table is part of the saved project rather than panel state',
   },
   {
     script: 'verify-st-program-undo.mjs',
@@ -398,7 +398,7 @@ const GATES = [
   },
   {
     script: 'verify-project-shelf.mjs',
-    why: "the browser can hold more than ONE project now (editor/documentStore.ts), and every way that goes wrong is invisible to a unit test: the library is IndexedDB, absent in the Node env. Isolation is the claim with teeth - a new project must carry none of the previous one's scenes - and the switch is write-then-RELOAD through the single tested boot path, so a scene tab that survives it survives everything. Also pins the split the design rests on: localStorage keeps the WORKING COPY (unchanged, quota-guarded, synchronous on every commit) while IndexedDB holds the library, which is what makes N projects safe on a store where one project with an embedded model can already exhaust the quota. The open document cannot be deleted, because it IS the working copy",
+    why: "the browser can hold more than ONE project now (editor/project/documentStore.ts), and every way that goes wrong is invisible to a unit test: the library is IndexedDB, absent in the Node env. Isolation is the claim with teeth - a new project must carry none of the previous one's scenes - and the switch is write-then-RELOAD through the single tested boot path, so a scene tab that survives it survives everything. Also pins the split the design rests on: localStorage keeps the WORKING COPY (unchanged, quota-guarded, synchronous on every commit) while IndexedDB holds the library, which is what makes N projects safe on a store where one project with an embedded model can already exhaust the quota. The open document cannot be deleted, because it IS the working copy",
   },
   {
     script: 'verify-folder-link-persist.mjs',
@@ -469,11 +469,11 @@ const GATES = [
   },
   {
     script: 'guide-s7.mjs',
-    why: "the S7 guide (/guides/s7/) followed the same way, against the unit tests' strict stand-in CPU (src/plc/s7FakeCpu.ts) on a real TCP socket, since no S7 CPU is at hand: the page's addresses, the dialog's defaults and PUT/GET reminder, nothing listening, a wrong slot refused, PUT/GET off named and then allowed mid-run without a second Play, the box stopped at the eye and the bits beside the eye's input left alone. Its quotes are the messages a reader stuck on PUT/GET actually sees, so rewording them in s7Client.ts or s7Link.ts fails here; retake its pictures with `node e2e/guide-s7.mjs --images`. Launches the dev Electron shell",
+    why: "the S7 guide (/guides/s7/) followed the same way, against the unit tests' strict stand-in CPU (src/plc/link/s7FakeCpu.ts) on a real TCP socket, since no S7 CPU is at hand: the page's addresses, the dialog's defaults and PUT/GET reminder, nothing listening, a wrong slot refused, PUT/GET off named and then allowed mid-run without a second Play, the box stopped at the eye and the bits beside the eye's input left alone. Its quotes are the messages a reader stuck on PUT/GET actually sees, so rewording them in s7Client.ts or s7Link.ts fails here; retake its pictures with `node e2e/guide-s7.mjs --images`. Launches the dev Electron shell",
   },
   {
     script: 'verify-repo-self-contained.mjs',
-    why: "the working tree is not the repo, and nothing else can tell the difference - tsc, eslint and vitest all read the filesystem, so they go green on a tree no clone can reproduce. Two shapes, both of which shipped: ~100 comments cite the probe that measured a constant, and a cited probe has to be a tracked file in e2e/probes/ (three were never committed and are gone, leaving numbers nobody can re-derive), and 16 modules including src/plc/ladder.ts and src/core/opcUa.ts were imported by 41 tracked files while untracked. Static, no browser",
+    why: "the working tree is not the repo, and nothing else can tell the difference - tsc, eslint and vitest all read the filesystem, so they go green on a tree no clone can reproduce. Two shapes, both of which shipped: ~100 comments cite the probe that measured a constant, and a cited probe has to be a tracked file in e2e/probes/ (three were never committed and are gone, leaving numbers nobody can re-derive), and 16 modules including src/plc/ladder/ladder.ts and src/core/io/opcUa.ts were imported by 41 tracked files while untracked. Static, no browser",
   },
 ]
 

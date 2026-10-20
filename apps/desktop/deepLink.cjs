@@ -1,4 +1,4 @@
-// Links that open the desktop app from a browser: `openindustry://open?room=<room>` (src/editor/desktopLink.ts
+// Links that open the desktop app from a browser: `openindustry://open?room=<room>` (src/editor/desktop/desktopLink.ts
 // builds them). The installer registers the scheme with the OS (package.json `build.protocols`), so a click in
 // any browser launches the app, or hands the link to the copy already running (main.cjs `second-instance`).
 //
@@ -6,7 +6,7 @@
 // this collab room" and "take the project waiting in this hand-over document". The room or document must have
 // the exact shape Share mints (src/collab/rooms.ts). It never names a file or folder. A room opens under the room
 // rules (peers' part code held until the room is allowed); a hand-over is imported only after the app asks whether
-// it was sent from the user's own browser (src/editor/desktopHandoff.ts).
+// it was sent from the user's own browser (src/editor/desktop/desktopHandoff.ts).
 
 const SCHEME = 'openindustry'
 
@@ -47,7 +47,7 @@ function parseDeepLink(text) {
 
 /**
  * The app URL a link asks for, from `base` (where the window's app is served): in the link's room, or booting to
- * receive its hand-over (src/editor/desktopHandoff.ts), or `base` itself for a bare "open the app".
+ * receive its hand-over (src/editor/desktop/desktopHandoff.ts), or `base` itself for a bare "open the app".
  */
 function linkUrl(base, link) {
   if (link.room) return roomUrl(base, link)

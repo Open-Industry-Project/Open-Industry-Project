@@ -1,4 +1,4 @@
-// Verify Make a Copy of This Room (src/editor/roomCopy.ts): the room's document becomes a project of your own.
+// Verify Make a Copy of This Room (src/editor/project/roomCopy.ts): the room's document becomes a project of your own.
 //
 // The alternative, export, leave, import, doesn't work: import is refused inside a room, and a room's held part
 // code exports as stand-ins. This drives the real command through the palette against a real Hocuspocus server

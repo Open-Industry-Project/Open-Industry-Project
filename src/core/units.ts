@@ -1,14 +1,14 @@
 // --- units: the one conversion table, and how a stored quantity is shown in the scene's unit system ---
 //
 // Storage never changes with the display: a document holds SI (or whatever unit a param declares). The scene's Units
-// (core/sceneUnits.ts) decide how a length or a speed is shown and typed. Only units of length and speed convert;
+// (core/scene/sceneUnits.ts) decide how a length or a speed is shown and typed. Only units of length and speed convert;
 // '°', 's', '%', 'kg' and the rest show as declared under either system.
 
 import { DEFAULT_TRANSLATE_SNAP } from './types/base'
 import type { SceneUnits } from './types/parts'
 
 /** How lengths and speeds are shown: metric (m, m/s) or imperial (inches, feet per minute). It is the scene's Units
- *  (core/sceneUnits.ts), which also decides what its conveyors' speed tags carry. */
+ *  (core/scene/sceneUnits.ts), which also decides what its conveyors' speed tags carry. */
 export type DisplayUnits = SceneUnits
 
 /** The grid-snap translate increment a viewer who never set one gets, in metres: 1 m, or 1 ft under imperial. */

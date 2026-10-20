@@ -3,8 +3,8 @@
 // the joint table. Both resolve the part's package from the live registry and walk the same forest, so
 // the two views never drift.
 
-import { getPackage } from '../core/partRegistry'
-import type { PartPackageGeometry, RigJoint, RigLink, RigShape } from '../core/partPackage'
+import { getPackage } from '../core/parts/partRegistry'
+import type { PartPackageGeometry, RigJoint, RigLink, RigShape } from '../core/parts/partPackage'
 import type { SdkPart, PartInstance } from '../core/types'
 import { convertUnit, displayUnitFor, type DisplayUnits } from '../core/units'
 

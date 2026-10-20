@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { canonicalMeshParts } from './geometryEval'
-import { canonicalSnap, deckRig, PACKAGE_FORMAT, PACKAGE_UPGRADES, type PackageUpgrade, upgradeStoredPackage, validatePartPackage } from './partPackage'
+import { canonicalMeshParts } from './geometry/geometryEval'
+import { canonicalSnap, deckRig, PACKAGE_FORMAT, PACKAGE_UPGRADES, type PackageUpgrade, upgradeStoredPackage, validatePartPackage } from './parts/partPackage'
 
 // A valid stored package at the current format: the smallest thing validatePartPackage accepts.
 const stored = (over: Record<string, unknown> = {}): Record<string, unknown> => ({

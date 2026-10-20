@@ -1,5 +1,5 @@
 // Scaffold discoverable extras into an existing project FOLDER (docs/project-tests.md). This is a
-// deliberate GENERATIVE act - kept OUT of the export/spill path (core/projectFolder.ts), which must
+// deliberate GENERATIVE act - kept OUT of the export/spill path (core/project/projectFolder.ts), which must
 // stay a faithful, byte-reproducible mirror of project data. Export mirrors; scaffolding generates.
 //
 //   npm run scaffold-project -- <project-folder>

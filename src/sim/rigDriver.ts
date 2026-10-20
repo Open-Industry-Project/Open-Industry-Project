@@ -1,14 +1,14 @@
 // Custom rig parts in the running world: each rig's link bodies, driven every step to the FK pose of its behavior's
-// latest joint commands (FK shared with the renderer via core/rigPose) so the links push cargo where the visual shows
+// latest joint commands (FK shared with the renderer via core/rig/rigPose) so the links push cargo where the visual shows
 // them, and its grippers, which take hold of cargo through the holds and carry it rigidly. SimWorld builds each rig's
 // bodies (rigBuild.ts), hands the instance over here and drives it once per step, after tickBehaviors.
 import type Jolt from 'jolt-physics'
 import { CARGO_CAP_FORK_POCKETS } from '../core/frame'
 import { clamp } from '../core/math'
 import { forkEntryProblem } from '../core/pallet'
-import { reportPartDiagnostic } from '../core/partDiagnostics'
-import { composePartWorldInPlace, jointLimits, linkCollisionBox, POSE_STRIDE, qApply, qConjugate, qFromAxisAngle, qMul, resolvedGrabReach, resolvedGrabZone, rigLinkIndex, rigPoseBuffer, rigWorldPosesInto, shapeHalfExtents } from '../core/rigPose'
-import type { Quat, Vec3 } from '../core/rigPose'
+import { reportPartDiagnostic } from '../core/parts/partDiagnostics'
+import { composePartWorldInPlace, jointLimits, linkCollisionBox, POSE_STRIDE, qApply, qConjugate, qFromAxisAngle, qMul, resolvedGrabReach, resolvedGrabZone, rigLinkIndex, rigPoseBuffer, rigWorldPosesInto, shapeHalfExtents } from '../core/rig/rigPose'
+import type { Quat, Vec3 } from '../core/rig/rigPose'
 import type { BodyHolds } from './bodyHolds'
 import type { CargoRegistry } from './cargoRegistry'
 import { grabbableBoxesInReach, grabbableBoxesInZone } from './cargoSensing'
@@ -19,7 +19,7 @@ import type { KinematicScratch, LiveBox, RigInstance } from './worldTypes'
 
 export class RigDriver {
   // Custom rig parts: kinematic collision body per link, driven each step by the behavior's joint output
-  // (FK shared with the renderer via core/rigPose) so the links push cargo where the visual shows them.
+  // (FK shared with the renderer via core/rig/rigPose) so the links push cargo where the visual shows them.
   // Read anywhere (the frame's film web, bodyStats); added to only through add().
   readonly rigs: RigInstance[] = []
 

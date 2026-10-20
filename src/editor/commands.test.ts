@@ -7,9 +7,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_KEYMAP } from '../core/keymap'
 import { acceleratorFor, COMMANDS, commandChord, commandDisabledReason, commandEnabled, commandEnabledOn, DESKTOP_MENU, desktopMenuModel, getCommand, menuEnablement, runCommand, runCommandOn, runMenuCommand, setCommandCtx, SIM_SPEEDS } from './commands'
 import type { CommandCtx } from './commands'
-import { parkSplitOff, readParkedSplitOff } from './projectFile'
-import { PROJECT_VERSION } from '../core/project'
-import type { ProjectJSON } from '../core/project'
+import { parkSplitOff, readParkedSplitOff } from './project/projectFile'
+import { PROJECT_VERSION } from '../core/project/project'
+import type { ProjectJSON } from '../core/project/project'
 import { SCENE_VERSION } from '../core/types'
 
 // file.exportSplitOff downloads each waiting project: the download is the browser's (a Blob and an <a>), so it is
@@ -17,8 +17,8 @@ import { SCENE_VERSION } from '../core/types'
 const downloaded: string[] = []
 // Export Project's download, recorded the same way, with what it was told to leave out
 const exportedWith: unknown[] = []
-vi.mock('./projectFile', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./projectFile')>()),
+vi.mock('./project/projectFile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./project/projectFile')>()),
   downloadProjectDocument: (p: { name: string }) => {
     downloaded.push(p.name)
     return Promise.resolve()
@@ -263,7 +263,7 @@ describe('projects list', () => {
   const projects = getCommand('file.projects')!
   const ctx = (state: Record<string, boolean>): CommandCtx => ({ state }) as unknown as CommandCtx
 
-  // The browser can hold more than one project (editor/documentStore.ts), which the projects list shows. It stays
+  // The browser can hold more than one project (editor/project/documentStore.ts), which the projects list shows. It stays
   // available while the sim runs, since it is a list and the actions inside it end the session anyway. It is
   // not offered where the document is not ours to switch: a room’s document is the collab doc, and a
   // view-only link owns nothing.
@@ -369,7 +369,7 @@ describe('dispatch', () => {
 
 describe('reload PLC program', () => {
   const reload = getCommand('sim.reloadProgram')!
-  // only what the rule reads: the controller answers both questions (editor/programReload.ts holds the rule itself)
+  // only what the rule reads: the controller answers both questions (editor/program/programReload.ts holds the rule itself)
   const ctxWith = (programOutOfDate: boolean, programReloadBlocker: string | null, reloads: string[] = []): CommandCtx =>
     ({ controller: { programOutOfDate, programReloadBlocker, reloadProgram: () => reloads.push('reload') } }) as unknown as CommandCtx
 

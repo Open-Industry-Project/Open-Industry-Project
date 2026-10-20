@@ -2,7 +2,7 @@
 // plus which parts container (bundled or live) a part's visual goes in.
 
 import type { Group, Object3D } from 'three'
-import { getPackage } from '../../core/partRegistry'
+import { getPackage } from '../../core/parts/partRegistry'
 import type { PartInstance, PartType } from '../../core/types'
 import { markBundleDirtyPart, notifyBundleStructureChanged, wantsBundleLiveSplit } from '../bundleGroups'
 import { visualStructureEpoch } from '../parts/structureRev'

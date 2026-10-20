@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { BufferGeometry, Float32BufferAttribute, Mesh, Raycaster, Vector3 } from 'three'
-import { sweepProfileAlongX } from '../../core/meshDescription'
+import { sweepProfileAlongX } from '../../core/geometry/meshDescription'
 import { realizeMeshDescription, rewriteMeshDescription } from './meshDescriptionGeometry'
 import { ensureColliderBVH, markLazyColliderBVH } from '../bvh'
-import { evalPartGeometry, resolvePartParams } from '../../core/geometryEval'
-import { instantiatePartScript } from '../../core/partScript'
+import { evalPartGeometry, resolvePartParams } from '../../core/geometry/geometryEval'
+import { instantiatePartScript } from '../../core/parts/partScript'
 import { examplePart } from './examplePart'
 
 // The host realization step: a portable MeshDescription → a three.js BufferGeometry. BufferGeometry +

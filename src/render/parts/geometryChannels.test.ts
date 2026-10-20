@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Matrix4, Mesh, Quaternion, Vector3 } from 'three'
 import type { InstancedMesh } from 'three'
 import type { MeshStandardMaterial, Texture } from 'three'
-import { clearPackages, registerPackage } from '../../core/partRegistry'
-import type { PartPackage } from '../../core/partPackage'
+import { clearPackages, registerPackage } from '../../core/parts/partRegistry'
+import type { PartPackage } from '../../core/parts/partPackage'
 import { createCustomVisual } from './sdkPart'
-import { PACKAGE_FORMAT } from '../../core/partPackage'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
 
 // The geometry() animation channels (MeshPart.scroll / MeshPart.spin): a part's own texture moves along its U, and a
 // submesh turns about an axis, at a speed the behavior reports while the sim runs (the same live value the

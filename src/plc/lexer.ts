@@ -1,7 +1,7 @@
 // Tokenizer for the ST subset. Tracks line/column/offset on every token so the
 // parser and type checker can emit positioned diagnostics (editor squiggles).
 
-import { canonicalAddress } from '../core/iecAddress'
+import { canonicalAddress } from '../core/io/iecAddress'
 import type { ScalarType, SourcePos, Token } from './types'
 import { parseCalendar } from './runtime'
 import { CALENDAR_TYPE_NAMES, SCALAR_TYPES, StError } from './types'
@@ -421,7 +421,7 @@ function lexText(src: string): Token[] {
       continue
     }
     // `%` opens a direct address (`AT %IX0.0`): how a PLC names a physical I/O point. The token
-    // carries the canonical spelling (core/iecAddress.ts), so `%i0.0` and `%IX0.0` are one point to
+    // carries the canonical spelling (core/io/iecAddress.ts), so `%i0.0` and `%IX0.0` are one point to
     // everything downstream; whether its shape is one this engine binds is the checker's question,
     // where the answer can be a positioned diagnostic rather than a failure to read the file.
     if (c === '%') {

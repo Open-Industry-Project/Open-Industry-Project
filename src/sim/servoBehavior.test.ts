@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, servoJointsJson, upgradeStoredPackage, validatePartPackage, type RigJoint } from '../core/partPackage'
+import { PACKAGE_FORMAT, servoJointsJson, upgradeStoredPackage, validatePartPackage, type RigJoint } from '../core/parts/partPackage'
 import type { PackageManifest } from './buildPackage'
 import { create, destroy, stepDirect } from './embeddedBehavior'
 import { validatePart } from './validatePart'

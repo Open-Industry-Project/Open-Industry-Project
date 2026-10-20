@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { PartChange } from '../../core/partChanges'
+import type { PartChange } from '../../core/parts/partChanges'
 import type { PartInstance } from '../../core/types'
 import { dialogHost } from '../dialogHost'
 import { trapTab, useModalKeys } from './inspector/menu'

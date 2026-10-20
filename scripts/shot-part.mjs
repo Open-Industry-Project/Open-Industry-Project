@@ -114,9 +114,9 @@ let pkg, part, footprint, sceneVersion, standHeight = 0
   })
   try {
     const { validatePart } = await vite.ssrLoadModule('/src/sim/validatePart.ts')
-    const { registerPackage } = await vite.ssrLoadModule('/src/core/partRegistry.ts')
-    const { partFootprint, surfaceBelowParam } = await vite.ssrLoadModule('/src/core/partGeometry.ts')
-    const { createSdkPart } = await vite.ssrLoadModule('/src/core/scene.ts')
+    const { registerPackage } = await vite.ssrLoadModule('/src/core/parts/partRegistry.ts')
+    const { partFootprint, surfaceBelowParam } = await vite.ssrLoadModule('/src/core/parts/partGeometry.ts')
+    const { createSdkPart } = await vite.ssrLoadModule('/src/core/scene/scene.ts')
     ;({ SCENE_VERSION: sceneVersion } = await vite.ssrLoadModule('/src/core/types/base.ts'))
     const result = validatePart(manifest, readFileSync(behaviorPath, 'utf8'))
     if (!result.ok || !result.package) {

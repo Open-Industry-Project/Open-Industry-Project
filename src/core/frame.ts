@@ -1,20 +1,20 @@
 import { fitLoad, wrapAnchor } from './cargoWrap'
 import type { WrapBody } from './cargoWrap'
-import { ancestorIds } from './hierarchy'
+import { ancestorIds } from './scene/hierarchy'
 import { hexToRgb, quatFromYXZ, quatToYXZ } from './math'
-import { getPackage, registryRevision } from './partRegistry'
+import { getPackage, registryRevision } from './parts/partRegistry'
 import type { PartInstance } from './types'
 import { BOX_FRICTION, PALLET_FRICTION, PALLET_SIZE, TOTE_FRICTION, TOTE_MASS } from './types'
 import { PALLET_STANDARDS, palletStandardSize } from './pallet'
 import { TOTE_FOOT_H, TOTE_STANDARDS, toteStandardSize } from './tote'
 import { rotateXZ } from './transforms'
-import type { CargoMarkValue, PartPackage, RigGeometry } from './partPackage'
-import { isCargoPackage, unitPiecesOf } from './partPackage'
-import type { ParamValue } from './partApi'
-import { resolvePartParams } from './partScript'
+import type { CargoMarkValue, PartPackage, RigGeometry } from './parts/partPackage'
+import { isCargoPackage, unitPiecesOf } from './parts/partPackage'
+import type { ParamValue } from './parts/partApi'
+import { resolvePartParams } from './parts/partScript'
 import { cargoPieces, cargoPiecesBounds, cargoShapeKey } from './cargoBody'
 import type { CargoPiece } from './cargoBody'
-import type { RigParams } from './rigPose'
+import type { RigParams } from './rig/rigPose'
 
 export const CARGO_KIND_BOX = 0
 export const CARGO_KIND_PALLET = 1
@@ -33,7 +33,7 @@ export const cargoKindName = (kind: number): CargoKindName =>
   kind === CARGO_KIND_PALLET ? 'pallet' : kind === CARGO_KIND_TOTE ? 'tote' : kind === CARGO_KIND_PART ? 'part' : 'box'
 
 /**
- * What a cargo body is to the machines around it, as bits (core/partPackage.ts CargoDecl): fork pockets (a fork's fit
+ * What a cargo body is to the machines around it, as bits (core/parts/partPackage.ts CargoDecl): fork pockets (a fork's fit
  * check), heavy (it bears loads: a firmer solver island, never a dropped/tipped fact), load base (where wrapping starts and what
  * anchors a unit load), separate contacts (no manifold reduction). The engine asks these, never which kind or part a
  * body is (docs/part-libraries.md, "App code names capabilities, not parts").

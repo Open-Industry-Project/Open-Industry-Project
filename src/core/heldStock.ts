@@ -3,11 +3,11 @@
 // what a run starts with and the behavior grips what it finds there. This module is where those positions are, which
 // of them are filled, and the Fill / Empty edits the Inspector offers. Pure: scene in, scene out.
 
-import type { HoldsDecl, PartPackage } from './partPackage'
-import { getPackage } from './partRegistry'
-import { qApply, resolvedGrabZone, rigWorldPoses } from './rigPose'
-import type { Quat, Vec3 } from './rigPose'
-import { createSdkPart, nextId } from './scene'
+import type { HoldsDecl, PartPackage } from './parts/partPackage'
+import { getPackage } from './parts/partRegistry'
+import { qApply, resolvedGrabZone, rigWorldPoses } from './rig/rigPose'
+import type { Quat, Vec3 } from './rig/rigPose'
+import { createSdkPart, nextId } from './scene/scene'
 import type { PartInstance, SceneJSON, SdkPart, SdkPartParams } from './types'
 
 /** One position a part holds an item at: its gripper link, the item's centre in the world, and the zone it grips in. */

@@ -17,9 +17,9 @@
 //
 // Written at the folder root, where the loader ignores it. Reassembly is manifest-driven
 // (folderFilesToProject) and the live sweep reads only project.json plus the format's own subfolders
-// (editor/projectFolderLink.ts), so this file has no effect on the app and cannot corrupt a round trip.
+// (editor/project/projectFolderLink.ts), so this file has no effect on the app and cannot corrupt a round trip.
 
-import type { ParamSchema, ParamSpec } from './partApi'
+import type { ParamSchema, ParamSpec } from './parts/partApi'
 import type { Controller } from './controller'
 import { isKnownDialect } from './dialect'
 
@@ -58,7 +58,7 @@ export interface GuideScene {
   name?: string
   /** folder-relative path this scene's JSON was written to */
   scenePath: string
-  /** folder-relative paths of its program's files, in order, when it has a program (core/projectFolder.ts) */
+  /** folder-relative paths of its program's files, in order, when it has a program (core/project/projectFolder.ts) */
   programPaths?: string[]
   /** the program's controller table, when it runs several programs on tasks */
   controller?: Controller

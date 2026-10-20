@@ -188,7 +188,7 @@ try {
   }
   await solo.close()
   // ── the same ladder in the desktop shell ────────────────────────────────────────────────────────
-  // window.oipMenu is what DESKTOP_SHELL reads (editor/desktopMenuBridge.ts), so stubbing it gives the
+  // window.oipMenu is what DESKTOP_SHELL reads (editor/desktop/desktopMenuBridge.ts), so stubbing it gives the
   // real .desktop-shell / .desktop-mac classes and therefore the real CSS. It cannot reproduce the
   // window-controls inset (env(titlebar-area-*) needs a real Electron window, and reads 0 here), so
   // this pass judges the shell-only rules (what the row keeps and what it cuts) and leaves the inset

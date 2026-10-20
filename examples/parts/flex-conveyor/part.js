@@ -54,7 +54,7 @@ const EYE_Y = 0.025 //          beam height over the roller tops: LOW, as zone e
 //                               or a bag is seen too - an eye at case-middle height lets anything shorter pass under it
 const EYE_OUT = 0.018 //        the eye's lens, this far outside the roller ends: its housing is tucked in against the -z
 //                               scissor side at roller level (the reflector against the +z side), not up on a bracket
-// The cross-section the editor's footprint reads (core/partGeometry.ts partFootprint, which lays it along the fitted
+// The cross-section the editor's footprint reads (core/parts/partGeometry.ts partFootprint, which lays it along the fitted
 // sections, since the bed bends): across, the bed and its scissor frame, 0.11 m outside the bed width each side; along,
 // the bed length plus the casters' 0.075 m overhang at each end; down to the caster bottoms at the stand height.
 const FRAME_SIDE = 0.11

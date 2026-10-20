@@ -22,7 +22,7 @@ import tsWorker from 'monaco-editor/languages/features/typescript/ts.worker.js?w
 import partSdkIndexDts from '../../../packages/part-sdk/index.d.ts?raw'
 import partSdkGlobalDts from '../../../packages/part-sdk/global.d.ts?raw'
 import partSdkManifestDts from '../../../packages/part-sdk/manifest.d.ts?raw'
-import { getPackage } from '../../core/partRegistry'
+import { getPackage } from '../../core/parts/partRegistry'
 import { getRoomCodeGate, peersEditingPart, setLocalEditingPart, subscribePeers, type RemotePeer } from '../../collab/session'
 import type { PartDiagnostic } from '../../sim/validatePart'
 import type { EditorController } from '../controller'

@@ -10,11 +10,11 @@
 // Loaded with the tools (desktopAgent.ts), never on the first frame. The diff the review shows is agentReview.ts.
 
 import type { Controller } from '../../core/controller'
-import type { PartPackage } from '../../core/partPackage'
-import type { TestSpec } from '../../core/projectTest'
+import type { PartPackage } from '../../core/parts/partPackage'
+import type { TestSpec } from '../../core/project/projectTest'
 import type { SceneJSON } from '../../core/types'
-import type { EditEvent } from '../storeHistory'
-import type { EditorStore } from '../store'
+import type { EditEvent } from '../store/storeHistory'
+import type { EditorStore } from '../store/store'
 import { AGENT_LABEL } from './toolKit'
 
 const AGENT_PREFIX = `${AGENT_LABEL}:`

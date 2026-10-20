@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AGENT_TOOLS, agentToolDefinitions, callAgentTool, type AgentController, type AgentToolContext } from './tools'
-import { EditorStore } from '../store'
-import { registerPackage, unregisterPackage } from '../../core/partRegistry'
-import type { PartPackage } from '../../core/partPackage'
+import { EditorStore } from '../store/store'
+import { registerPackage, unregisterPackage } from '../../core/parts/partRegistry'
+import type { PartPackage } from '../../core/parts/partPackage'
 import type { SdkPart } from '../../core/types'
 import { buildPackage } from '../../sim/buildPackage'
-import { bundledBehaviors, bundledManifests } from '../bundledExamples'
-import { PACKAGE_FORMAT } from '../../core/partPackage'
+import { bundledBehaviors, bundledManifests } from '../parts/bundledExamples'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
 import { defaultController } from '../../plc'
 
 // the in-app test runner loads jolt-physics/wasm, which the node env cannot resolve: run_test's plumbing is what is
 // tested here, and verify-agent-mcp-electron.mjs runs a real spec through the real runner
 const runProjectTests = vi.fn()
-vi.mock('../projectTestsRun', () => ({ runProjectTests: (...a: unknown[]) => runProjectTests(...a) }))
+vi.mock('../project/projectTestsRun', () => ({ runProjectTests: (...a: unknown[]) => runProjectTests(...a) }))
 
 const BELT: PartPackage = {
   format: PACKAGE_FORMAT,

@@ -94,7 +94,7 @@
   box-shadow: inset 0 1px 0 light-dark(rgba(0, 0, 0, 0.028), rgba(255, 255, 255, 0.04));
 }
 
-/* who made a part from a part library (editor/partCredit.ts), under the header band */
+/* who made a part from a part library (editor/parts/partCredit.ts), under the header band */
 .inspector-credit {
   margin: -2px 0 8px;
   font-size: 12px;

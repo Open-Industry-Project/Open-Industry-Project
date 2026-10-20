@@ -1,4 +1,4 @@
-import type { PackageManifest } from '../core/partPackage'
+import type { PackageManifest } from '../core/parts/partPackage'
 // A loaded pallet must stay on the deck it rides.
 //
 // A pallet stands on nine 0.1 m blocks under a load many times its own mass. With Jolt's default solver
@@ -13,9 +13,9 @@ import type { PackageManifest } from '../core/partPackage'
 import initJolt from 'jolt-physics'
 import { describe, expect, it } from 'vitest'
 import { CARGO_KIND_PALLET } from '../core/frame'
-import type { PartMaterial, PartPackage, PartPackageGeometry } from '../core/partPackage'
-import { registerPackage } from '../core/partRegistry'
-import { createSdkPart } from '../core/scene'
+import type { PartMaterial, PartPackage, PartPackageGeometry } from '../core/parts/partPackage'
+import { registerPackage } from '../core/parts/partRegistry'
+import { createSdkPart } from '../core/scene/scene'
 import { MAX_SIM_HZ, MIN_SIM_HZ, SCENE_VERSION } from '../core/types'
 import type { PartInstance, SimRate } from '../core/types'
 import { buildPackage } from './buildPackage'

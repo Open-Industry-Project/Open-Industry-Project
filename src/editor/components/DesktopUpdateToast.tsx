@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getOipMenuApi } from '../desktopMenuBridge'
+import { getOipMenuApi } from '../desktop/desktopMenuBridge'
 import { defineMessages, t } from '../../core/i18n'
 
 const M = defineMessages('desktopUpdate', {

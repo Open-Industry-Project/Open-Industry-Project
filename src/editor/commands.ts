@@ -15,14 +15,14 @@
 import { activeBinding, type KeyActionId } from '../core/keymap'
 import { isKnownDialect } from '../core/dialect'
 import { defineMessage, t, type MessageId } from '../core/i18n'
-import { openDemoScene } from './sceneFile'
-import { clearParkedSplitOff, downloadProject, downloadProjectDocument, exportChoicesFor, readParkedSplitOff } from './projectFile'
-import { saveProject } from './saveProject'
-import { copyRoomToProjects } from './roomCopy'
+import { openDemoScene } from './project/sceneFile'
+import { clearParkedSplitOff, downloadProject, downloadProjectDocument, exportChoicesFor, readParkedSplitOff } from './project/projectFile'
+import { saveProject } from './project/saveProject'
+import { copyRoomToProjects } from './project/roomCopy'
 import { requestTutorial } from './tutorial/session'
-import { getOipProjectApi, openProjectFromFolder, saveProjectToFolder } from './desktopProjectBridge'
-import { supportsFolderSync } from './projectFolderSync'
-import { canCreateProject, createNewProject, UNTITLED_PROJECT } from './newProject'
+import { getOipProjectApi, openProjectFromFolder, saveProjectToFolder } from './desktop/desktopProjectBridge'
+import { supportsFolderSync } from './project/projectFolderSync'
+import { canCreateProject, createNewProject, UNTITLED_PROJECT } from './project/newProject'
 import {
   hasPausedFolder,
   linkProjectFolder,
@@ -30,20 +30,20 @@ import {
   saveAndLinkProjectFolder,
   supportsFolderLink,
   unlinkProjectFolder,
-} from './projectFolderLink'
+} from './project/projectFolderLink'
 import type { EditorController } from './controller'
-import { guardOpeningsTarget } from './store'
-import type { EditorState, EditorStore } from './store'
+import { guardOpeningsTarget } from './store/store'
+import type { EditorState, EditorStore } from './store/store'
 // Lazy: the PLC file doors carry the PLCopen writer and readers, which nothing needs until a file actually moves, and the
 // build budgets what loads before the first frame (optimize-assets.mjs, eager JS)
-const stFileTransfer = (): Promise<typeof import('./stFileTransfer')> => import('./stFileTransfer')
+const stFileTransfer = (): Promise<typeof import('./program/stFileTransfer')> => import('./program/stFileTransfer')
 import { askName } from './nameDialog'
 import { acceleratorHint, primaryKey } from './keyHint'
-import { DESKTOP_SHELL } from './desktopMenuBridge'
+import { DESKTOP_SHELL } from './desktop/desktopMenuBridge'
 import { manageAgentDoor } from './agent/desktopAgent'
-import { DESKTOP_DOWNLOAD_URL, openInDesktopApp } from './desktopLink'
-import { canOpenExternal, openExternal, partFolderOf } from './externalEditor'
-import { getOipPartsApi } from './desktopPartsBridge'
+import { DESKTOP_DOWNLOAD_URL, openInDesktopApp } from './desktop/desktopLink'
+import { canOpenExternal, openExternal, partFolderOf } from './parts/externalEditor'
+import { getOipPartsApi } from './desktop/desktopPartsBridge'
 import type { SdkPart } from '../core/types'
 
 /** The UI-only affordances a command needs and the store can't provide (pickers, overlays, layout). */
@@ -210,7 +210,7 @@ const MSG_RELOAD_PART_SCENE = defineMessage(
   "The Part Editor runs its part's own behavior, not the PLC program.",
 )
 const MSG_RELOAD_CURRENT = defineMessage('command.sim.reloadProgram.current', 'The running program is up to date.')
-// the text on screen failed to attach, and reloading the same text would fail the same way (editor/programReload.ts)
+// the text on screen failed to attach, and reloading the same text would fail the same way (editor/program/programReload.ts)
 const MSG_RELOAD_FAILED_PREVIOUS = defineMessage(
   'command.sim.reloadProgram.failedPrevious',
   'The program has an error, so the PLC is still running the previous one. Fix it first.',
@@ -234,7 +234,7 @@ const ioDisabledReason = (ctx: CommandCtx): string | null =>
 // Assign I/O, Import / Export I/O List: loaded when one runs, not with the app. Imported statically it held the I/O
 // planner (plc/ioAssign.ts) in the first frame for three commands (per eager-census); enablement stays here,
 // synchronous, so a menu never waits on it
-const ioAssign = (): Promise<typeof import('./ioAssign')> => import('./ioAssign')
+const ioAssign = (): Promise<typeof import('./program/ioAssign')> => import('./program/ioAssign')
 
 const hasSelection = (ctx: CommandCtx): boolean => ctx.state.selectedIds.length > 0
 
@@ -311,7 +311,7 @@ const COMMAND_DEFS: readonly Command[] = [
   {
     // Save, on every surface: the project already saves itself as you go, so this writes anything pending
     // and says where the work is - its folder on the desktop, this browser's storage (with "Download a
-    // copy") on the web (editor/saveProject.ts). `keys`, not `accelerator`: the app binds Ctrl+S (App.tsx),
+    // copy") on the web (editor/project/saveProject.ts). `keys`, not `accelerator`: the app binds Ctrl+S (App.tsx),
     // because the browser has no menu to, and the desktop menu then only displays the chord.
     id: 'file.save',
     label: 'Save',
@@ -743,7 +743,7 @@ const COMMAND_DEFS: readonly Command[] = [
   {
     // Loads the program as it is now into the running sim without resetting the world. It restarts the program
     // (its variables, timers and steps start over; there is no online change), so it runs only when asked, not on
-    // every keystroke. Enabled only when the running program is out of date (editor/programReload.ts), so the PLC
+    // every keystroke. Enabled only when the running program is out of date (editor/program/programReload.ts), so the PLC
     // dock's button lights up exactly when the text on screen is not what runs. No chord: Ctrl/Cmd-Enter in the code editor reaches it (StEditor).
     id: 'sim.reloadProgram',
     label: 'Reload PLC Program',
@@ -849,7 +849,7 @@ const COMMAND_DEFS: readonly Command[] = [
     run: ({ store }) => store.toggleShowNotes(),
   },
   {
-    // The camera is remembered per scene (editor/storePrefs viewport state), so this is Reset Panel
+    // The camera is remembered per scene (editor/store/storePrefs viewport state), so this is Reset Panel
     // Layout's counterpart: the way back from a view left somewhere useless, without hunting for a
     // framing by hand. Forgets the remembered pose too, so the scene reopens on its opening view.
     id: 'view.resetCamera',

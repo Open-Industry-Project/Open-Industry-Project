@@ -7,9 +7,9 @@
 // what a checked program means lives in program.ts and interpreter.ts, what IEC permits lives
 // here.
 
-import { parseDirectAddress, sizeWord, TYPES_FOR_SIZE } from '../core/iecAddress'
+import { parseDirectAddress, sizeWord, TYPES_FOR_SIZE } from '../core/io/iecAddress'
 import { builtinResultType, calendarOperatorType, isBuiltinFunc, orderStandardArgs } from './builtins'
-import { LD_ROLES, ladderRole } from './ladder'
+import { LD_ROLES, ladderRole } from './ladder/ladder'
 import { lex } from './lexer'
 import { parse } from './parser'
 import { type CheckedProgram, containsFb, controllerTags, type EnumDefMap, type Env, fbDecls, type FbDefMap, funcDecls, type FuncDefMap, identKey, type InterfaceDefMap, isFb, isScalarType, methodDecls, type StructDefMap, type SubrangeDefMap } from './program'

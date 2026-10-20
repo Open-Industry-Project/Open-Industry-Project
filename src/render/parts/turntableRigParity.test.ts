@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { resolvedBoxSize, resolvedCylinder, resolvedOffset } from '../../core/rigPose'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/partPackage'
-import { instantiatePartScript, resolvePartParams } from '../../core/partScript'
-import { evalPartGeometry } from '../../core/geometryEval'
-import type { MeshPart } from '../../core/partApi'
-import type { ParamValue } from '../../core/partApi'
+import { resolvedBoxSize, resolvedCylinder, resolvedOffset } from '../../core/rig/rigPose'
+import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
+import { instantiatePartScript, resolvePartParams } from '../../core/parts/partScript'
+import { evalPartGeometry } from '../../core/geometry/geometryEval'
+import type { MeshPart } from '../../core/parts/partApi'
+import type { ParamValue } from '../../core/parts/partApi'
 import { examplePart, type RigGeo } from './examplePart'
 const { geometry: TURNTABLE_RIG, behavior: TURNTABLE_BEHAVIOR } = examplePart<RigGeo>('oip.turntable-conveyor')
 
@@ -208,7 +208,7 @@ describe('Turntable custom-part rig - rotating kinematic deck + conveying lane',
 })
 
 // ---- behavior logic, driven from the real committed source ------------------------------------------------
-// A minimal PartContext mock over core/partScript (the one compile chokepoint): enough surface for the
+// A minimal PartContext mock over core/parts/partScript (the one compile chokepoint): enough surface for the
 // turntable behavior - params, dt, the joints bag, tag reads/writes, and the two surface-velocity commands.
 
 interface Tick {

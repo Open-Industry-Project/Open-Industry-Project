@@ -43,7 +43,7 @@ export interface LiveEditGate {
 }
 export const LiveEditContext = createContext<LiveEditGate | null>(null)
 
-/** The scene's Units (core/sceneUnits.ts), as fields show them. The Inspector provides it; a field outside
+/** The scene's Units (core/scene/sceneUnits.ts), as fields show them. The Inspector provides it; a field outside
  *  one shows metric, which is what everything is stored in. */
 export const DisplayUnitsContext = createContext<DisplayUnits>('metric')
 

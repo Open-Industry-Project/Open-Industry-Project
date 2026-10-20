@@ -2,7 +2,7 @@
 //
 // The scene is wired to I/O points: a photo eye's PLC tag is %IX100.0 and a belt's run tag %QX100.0. With
 // External PLC on (Controller Properties), Play serves those points over Modbus TCP from the shell's socket
-// (apps/desktop/plcIo.cjs -> editor/externalPlc.ts) instead of running a program here. This script is the
+// (apps/desktop/plcIo.cjs -> editor/links/externalPlc.ts) instead of running a program here. This script is the
 // PLC: a Modbus master on a real TCP connection that reads the eye (discrete input 800) and writes the
 // belt (coil 800) with the rung `Run := NOT Eye`, the way OpenPLC's master did in `npm run openplc-loop`.
 //
@@ -275,7 +275,7 @@ async function logix(port) {
 /**
  * An S7-1200 over PUT/GET, small enough to read: COTP connect, a 240-byte PDU, and read-var / write-var jobs on its
  * I and Q bytes, written here from the protocol as `servingPlc` is for Modbus (the strict unit-test CPU is
- * src/plc/s7FakeCpu.ts; scripts/s7-loop.mjs runs against snap7). Its scan is `Q100.0 := force OR NOT I100.0` on
+ * src/plc/link/s7FakeCpu.ts; scripts/s7-loop.mjs runs against snap7). Its scan is `Q100.0 := force OR NOT I100.0` on
  * every write; `putGet` false answers every job with 0x8104, as a CPU with PUT/GET off does.
  */
 function s7Plc() {

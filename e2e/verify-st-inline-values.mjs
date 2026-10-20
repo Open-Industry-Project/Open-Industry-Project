@@ -1,5 +1,5 @@
 // Gate for the ST editor's inline live-value overlay (live values drawn beside the code while it runs),
-// and specifically for the `valueRefs` memo in `src/editor/stLang.ts`.
+// and specifically for the `valueRefs` memo in `src/editor/program/stLang.ts`.
 //
 // The overlay's decorations recompute on every value push (StEditor polls the live variable
 // image every 120 ms while a program runs), not just on edits. Rebuilding the document string and

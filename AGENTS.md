@@ -115,7 +115,7 @@ e.g. don't reach for `three` inside `core` to "just compute a matrix."
 
 **The four big classes compose owned state; don't put fields back on them.** `RenderView`
 ([view.ts](src/render/viewport/view.ts)), `EditorController` ([controller.ts](src/editor/controller.ts)),
-`SimWorld` ([world.ts](src/sim/world.ts)) and `EditorStore` ([store.ts](src/editor/store.ts)) are composition
+`SimWorld` ([world.ts](src/sim/world.ts)) and `EditorStore` ([store.ts](src/editor/store/store.ts)) are composition
 roots: each area keeps its fields in an object it owns, in its own module, held as a `readonly` field (e.g.
 `ViewWarmState` in viewWarm.ts, `CameraState` in controller/camera.ts, `CargoRegistry` in sim/cargoRegistry.ts,
 `UndoHistory` in storeHistory.ts). An area's functions take their own state plus a narrow dependency type (a
@@ -143,7 +143,7 @@ projectTestsRun.ts); eslint enforces both.
   Help > Agent Connections... allows it, on in the dev shell. Agent edits go through the store's own paths, one
   "Agent: ..." undo step each; a new tool is one entry in `AGENT_TOOLS`. Read [docs/agent-tools.md](docs/agent-tools.md)
   first. Gated by `verify-agent-mcp-electron.mjs`.
-- **The PLC panel is [PlcPanel.tsx](src/editor/components/PlcPanel.tsx)**: it owns the program file and the window
+- **The PLC panel is [PlcPanel.tsx](src/editor/components/plc/PlcPanel.tsx)**: it owns the program file and the window
   (text editor, status lines, file menu, the organizer column with `PlcOrganizer` / `LadderView` / `LadderVariables`,
   and the controller's faults). It pops out only from the pop-out button in its header, and a dialog opened from the
   popup mounts in that document ([dialogHost.ts](src/editor/dialogHost.ts)). Ladder chords are the keymap's `ladder`
@@ -187,7 +187,7 @@ projectTestsRun.ts); eslint enforces both.
   selection, so it is pushed the answer (`menu:enabled`). [apps/desktop/main.cjs](apps/desktop/main.cjs) holds no app
   labels of its own.
 - **Only authoring writes the document; operating never does.** The store's edit gate
-  ([store.ts](src/editor/store.ts) `commit` → `documentChanged`) decides what is an edit: a change to the scene minus
+  ([store.ts](src/editor/store/store.ts) `commit` → `documentChanged`) decides what is an edit: a change to the scene minus
   what the current run owns (`documentOf`). Only that gets undo, autosave, folder writes, room-feed lines or a demo
   fork. Use operates a device and never writes a param ([controller/pilot.ts](src/editor/controller/pilot.ts)
   `idleUsePart`). Run or session state never enters `scene.parts` except as run-owned cargo, marked run-owned before
@@ -196,7 +196,7 @@ projectTestsRun.ts); eslint enforces both.
   `verify-walk-session.mjs` and the "edit gate" block in `store.test.ts`.
 - **A reaction to a scene edit must cost what the edit touches, not the scene.** A drag streams ~60 scenes a second.
   In the view a reaction is a `SceneConsumer` ([viewSceneConsumers.ts](src/render/viewport/viewSceneConsumers.ts))
-  declaring the parts it `reads` (checked against [SceneDelta](src/core/sceneDelta.ts)) and an idle `audit()`; a pure
+  declaring the parts it `reads` (checked against [SceneDelta](src/core/scene/sceneDelta.ts)) and an idle `audit()`; a pure
   derivation of parts is a `memoParts.ts` memo. [docs/scene-change-consumers.md](docs/scene-change-consumers.md).
   Gated by `verify-interaction-budget.mjs`.
 - **Text an editor component shows goes through [src/core/i18n.ts](src/core/i18n.ts)**: one `defineMessages` table
@@ -233,9 +233,9 @@ projectTestsRun.ts); eslint enforces both.
   the folder through `scripts/lib/projectFolderFiles.mjs` and declares built-ins (`scripts/lib/builtIns.mjs`) before
   it validates.
 - **A rig link's pose has one resolver**: core `rigWorldPosesInto` / `rigLinkLocalPoseInto`
-  ([src/core/rigPose.ts](src/core/rigPose.ts)). Never bake a param-driven offset into a link at build time. Which
+  ([src/core/rig/rigPose.ts](src/core/rig/rigPose.ts)). Never bake a param-driven offset into a link at build time. Which
   fields a param, joint or script owns is `linkFieldOwnership`, and the Inspector and gizmo lock what it says.
-- **Flow facts are facts, never problems** (core/flowFacts.ts, core/flowFactLog.ts). They reach `get_problems`'
+- **Flow facts are facts, never problems** (core/flow/flowFacts.ts, core/flow/flowFactLog.ts). They reach `get_problems`'
   `flowFacts`, the Tests overlay, `test-project` and `check-flow`, never the Problems dock, an error or warning count, or
   a test verdict, since an accumulating line stalls on purpose. Gated by `verify-flow-facts.mjs`.
 - **A CLI that starts vite in middleware mode passes `server: { middlewareMode: true, hmr: false, ws: false }`**, or it

@@ -14,13 +14,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { dialogHost } from '../dialogHost'
-import { partDisplayNames, partTypeName } from '../../core/partDisplayName'
+import { partDisplayNames, partTypeName } from '../../core/parts/partDisplayName'
 import { PART_DEFS } from '../../core/types'
 import { commandChord, commandDisabledReason, commandEnabled, groupLabel, runCommand, visibleCommands } from '../commands'
-import { DESKTOP_SHELL } from '../desktopMenuBridge'
+import { DESKTOP_SHELL } from '../desktop/desktopMenuBridge'
 import { rankPaletteItems, type PaletteItem } from '../paletteItems'
 import type { EditorController } from '../controller'
-import type { EditorState, EditorStore } from '../store'
+import type { EditorState, EditorStore } from '../store/store'
 import { defineMessages, t } from '../../core/i18n'
 
 const M = defineMessages('palette', {
