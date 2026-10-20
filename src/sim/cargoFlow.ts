@@ -2,7 +2,7 @@
 // completions measurements() counts), the product state behaviors put on it (ctx.mark / dress / join), and authored
 // unit loads seeded at the first step. It works on the cargo through the registry and finds each part's zones in the
 // sensor registry. SimWorld owns one; tickBehaviors hands it each behavior's requests in call order.
-import { CARGO_CAP_LOAD_BASE, CARGO_KIND_BOX, CARGO_KIND_PALLET, CARGO_KIND_TOTE, DEFAULT_DRESS_OPACITY, cargoRefKey, kindSpawnRef, cargoFriction, cargoView, unitMembers, unitStart } from '../core/frame'
+import { CARGO_CAP_LOAD_BASE, CARGO_KIND_BOX, CARGO_KIND_PALLET, CARGO_KIND_TOTE, DEFAULT_DRESS_OPACITY, cargoRefKey, kindSpawnRef, cargoFriction, cargoView, partChildren, unitMembers, unitStart } from '../core/frame'
 import type { FrameDressing } from '../core/frame'
 import { fitLoad, wrapAnchor } from '../core/cargoWrap'
 import type { WrapBody } from '../core/cargoWrap'
@@ -144,13 +144,14 @@ export class CargoFlow {
       }
     })
     const bodies = this.cargo.wrapBodies()
+    const kids = partChildren(parts)
     const joins: { rows: number[]; start: NonNullable<ReturnType<typeof unitStart>>; partId: string }[] = []
     for (const part of parts) {
       if (only && !only.has(part.id)) continue
       const start = unitStart(part)
       if (!start) continue
       // its filed cargo, else the pieces it stacked itself (unitPieces)
-      let member = unitMembers(parts, part.id).map((m) => rowOf.get(m.id)).filter((i): i is number => i !== undefined)
+      let member = unitMembers(parts, part.id, kids).map((m) => rowOf.get(m.id)).filter((i): i is number => i !== undefined)
       if (member.length === 0) member = ownRows.get(part.id) ?? []
       // a load already joined (a mid-run rebuild of something else) is left as it is
       if (member.length === 0 || member.some((i) => this.boxes[i]!.unit)) continue

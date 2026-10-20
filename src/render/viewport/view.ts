@@ -22,7 +22,7 @@ import type { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { BoxFrame } from '../../core/frame'
 import { buildAuthoredCargoFrame, cargoFramesEqual, isCargoPart, memoizeAuthoredCargoFrame } from '../../core/frame'
-import { castBeamFrame } from '../../core/beamCast'
+import { castBeamFrame, castsCrossRows, changedCargoRows } from '../../core/beamCast'
 import { activeNav, middleDragAction } from '../../core/navigation'
 import { isConveyorLike } from '../../core/partGeometry'
 import type { DisplayUnits } from '../../core/units'
@@ -215,6 +215,16 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
   /** what reacts to a scene edit, and which parts each reads (viewSceneConsumers.ts) */
   readonly sceneConsumers = this.createSceneConsumers()
   beamProbeDirty = true
+  // The idle cargo frame changed and nothing else did. The next stopped pass then re-probes only the sensors whose
+  // last casts (beamCasts) enter a changed row, in the frame they were probed against (probedCargoFrame) or the new
+  // one: a full pass costs sensors x every cargo row (~3.4 ms per pointer-move dragging a box in the demo, 25 casts
+  // x 1053 rows), where a beam's answer can only change through a row that moved.
+  private beamCargoDirty = false
+  private probedCargoFrame: BoxFrame | null = null
+  // per sensor part, the beams its last stopped probe cast (BEAM_CAST_STRIDE values each); empty while running
+  private readonly beamCasts = new Map<string, number[]>()
+  // the list the sensor being probed records its casts into (probeBeam), null outside a recording probe
+  private probeCasts: number[] | null = null
   // sensor part roots currently hidden, so their reveal can re-arm the beam probe (see tick)
   private readonly beamHiddenParts = new WeakSet<object>()
   private lastProbeSimActive = false
@@ -1033,7 +1043,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     // this batch renders, and re-run the probes against it when it is a new frame (the memo returns
     // the same one while no cargo changed)
     const frame = this.idleCargoMemo(this.idleCargoParts())
-    if (frame !== this.idleCargoFrame) this.beamProbeDirty = true
+    if (frame !== this.idleCargoFrame) this.beamCargoDirty = true
     this.idleCargoFrame = frame
     this.boxes.apply(frame)
   }
@@ -1077,7 +1087,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
   /** Re-probe every sensor beam now and report whether any beam moved: a beam that changes here was stale on screen. */
   private auditSensorBeams(): { ok: boolean; reason: string } {
     // running: beams follow the sim's frames; dirty: a probe is already scheduled for the next frame
-    if (this.running || this.beamProbeDirty) return { ok: true, reason: '' }
+    if (this.running || this.beamProbeDirty || this.beamCargoDirty) return { ok: true, reason: '' }
     const before = sensorBeamDebug().beams
     this.runBeamProbes()
     const after = sensorBeamDebug().beams
@@ -1094,10 +1104,49 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
 
   /** one stopped/running beam probe pass over every sensor rig (the per-frame gate in tickBody decides when) */
   private runBeamProbes(): void {
-    for (const ref of this.registries.probeTickRefs) {
-      this.ensureFreshPose(ref.entry)
-      this.probePartId = ref.entry.part.id // routes this part's frame.beamHits in probeBeam
-      if (ref.probeTick(this.probeBeam) === true) markBundleDirtyPart(ref.entry.part.id)
+    // stopped, each sensor's casts are recorded for the next cargo-only pass; running, beams read the worker's hits
+    const record = !(this.running && this.simHasFrame)
+    this.beamCasts.clear()
+    for (const ref of this.registries.probeTickRefs) this.probeSensor(ref, record)
+    this.probedCargoFrame = record ? this.idleCargoFrame : null
+  }
+
+  /**
+   * The stopped pass after a cargo-only change (beamCargoDirty): re-probe the sensors whose recorded casts enter a
+   * changed row before or after the change. Every other sensor would cast the same answer. A change in the row
+   * count has no row-for-row diff, so it takes the full pass.
+   */
+  private runCargoBeamProbes(): void {
+    const before = this.probedCargoFrame
+    const after = this.idleCargoFrame
+    const rows = before && after ? changedCargoRows(before, after) : null
+    if (!before || !after || !rows) {
+      this.runBeamProbes()
+      return
+    }
+    if (rows.length > 0) {
+      for (const ref of this.registries.probeTickRefs) {
+        const casts = this.beamCasts.get(ref.entry.part.id)
+        if (casts && (castsCrossRows(casts, before, rows) || castsCrossRows(casts, after, rows))) this.probeSensor(ref, true)
+      }
+    }
+    this.probedCargoFrame = after
+  }
+
+  private probeSensor(ref: ViewRegistries['probeTickRefs'][number], record: boolean): void {
+    const id = ref.entry.part.id
+    this.ensureFreshPose(ref.entry)
+    this.probePartId = id // routes this part's frame.beamHits in probeBeam
+    let casts: number[] | null = null
+    if (record) {
+      casts = []
+      this.beamCasts.set(id, casts)
+    }
+    this.probeCasts = casts
+    try {
+      if (ref.probeTick(this.probeBeam) === true) markBundleDirtyPart(id)
+    } finally {
+      this.probeCasts = null
     }
   }
 
@@ -1896,6 +1945,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
       this.beamHit.color.setRGB(h.color[0]!, h.color[1]!, h.color[2]!, SRGBColorSpace)
       return this.beamHit
     }
+    this.probeCasts?.push(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, maxDist)
     const frame = this.idleCargoFrame
     if (!frame || frame.count === 0) return null
     this.beamOriginArr[0] = origin.x
@@ -2035,6 +2085,8 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
       this.lastProbeSimActive !== simActive ||
       this.probedRegistryRev !== this.registries.probeRegistryRev
     this.lastProbeSimActive = simActive
+    // only the cargo moved (a box drag): re-probe just the sensors it can affect (runCargoBeamProbes)
+    const probeCargoBeams = !probeBeams && this.beamCargoDirty
     // Registry loops, not an every-entry sweep: most parts register no per-frame callback, so
     // this costs O(ticking parts) instead of O(all parts) × 3 megamorphic userData reads per
     // frame (refreshTickRegistries). Frozen parts without callbacks get no blanket
@@ -2068,6 +2120,8 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
       // this registry generation has now been probed; a rebuild later in the frame bumps past it
       // and re-fires the gate next frame
       this.probedRegistryRev = this.registries.probeRegistryRev
+    } else if (probeCargoBeams) {
+      this.runCargoBeamProbes()
     }
     // Beams are instances of the scene-level bank, not children of their parts, so hiding a part does
     // not hide its beam. Mirror it every frame, not only on probe frames: parts are hidden
@@ -2087,6 +2141,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     }
     // the probe pass above consumed this frame's dirtiness; the next stopped re-probe waits for a seam
     if (probeBeams) this.beamProbeDirty = false
+    if (probeBeams || probeCargoBeams) this.beamCargoDirty = false
     // Moved-stream expiry (poolMovedAt): once every ejected non-drag mover has held still for the
     // quiet period, one rebuild re-pools them all. Wall-clock (not sync-count) so the re-pool
     // can't fire in the middle of a stalled scrub/stream, and it fires without needing another

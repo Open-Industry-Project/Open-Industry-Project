@@ -174,9 +174,10 @@ export function unitStart(part: PartInstance): UnitStart | null {
   return { join: on(decl.joinWhen), marks: attrs.values, types: attrs.types, dress }
 }
 
-/** The cargo parts an authored unit load holds: its descendants in the scene that are cargo. Membership is exactly
- *  that; nothing standing nearby joins. */
-export function unitMembers(parts: readonly PartInstance[], unitId: string): PartInstance[] {
+/** parent id → its children in scene order, so several {@link unitMembers} walks over one part list share one index */
+export type PartChildren = ReadonlyMap<string, readonly PartInstance[]>
+
+export function partChildren(parts: readonly PartInstance[]): PartChildren {
   const kids = new Map<string, PartInstance[]>()
   for (const p of parts) {
     if (p.parent === undefined) continue
@@ -184,6 +185,13 @@ export function unitMembers(parts: readonly PartInstance[], unitId: string): Par
     if (!list) kids.set(p.parent, (list = []))
     list.push(p)
   }
+  return kids
+}
+
+/** The cargo parts an authored unit load holds: its descendants in the scene that are cargo. Membership is exactly
+ *  that; nothing standing nearby joins. A caller walking many loads passes `kids` ({@link partChildren}) built once,
+ *  or each walk re-indexes every part. */
+export function unitMembers(parts: readonly PartInstance[], unitId: string, kids: PartChildren = partChildren(parts)): PartInstance[] {
   const out: PartInstance[] = []
   const seen = new Set<string>([unitId])
   const walk = (id: string): void => {
@@ -222,14 +230,14 @@ const UNIT_LOAD_DX = 0.013
  * cargo instance at its world pose (id `<load>#<n>`, never a scene part), which is what lets the stopped view and the
  * sim build them through the one cargo recognizer (cargoView) exactly as they build a filed pallet and its cases.
  */
-export function unitPieces(parts: readonly PartInstance[], unit: PartInstance): PartInstance[] {
+export function unitPieces(parts: readonly PartInstance[], unit: PartInstance, kids?: PartChildren): PartInstance[] {
   if (unit.type !== 'part') return []
   const pkg = getPackage(unit.packageId)
   const pieces = pkg ? unitPiecesOf(pkg) : undefined
   if (!pkg || !pieces) return []
   const cv = unit.params.courses ?? pkg.params.courses?.default
   const courses = typeof cv === 'number' ? Math.min(8, Math.max(0, Math.round(cv))) : 0
-  if (courses === 0 || unitMembers(parts, unit.id).length > 0) return []
+  if (courses === 0 || unitMembers(parts, unit.id, kids).length > 0) return []
   const col = unit.params.caseColor ?? pkg.params.caseColor?.default
   const caseColor = typeof col === 'string' ? col : '#ffffff'
   const uq = partQuat(unit)
@@ -617,11 +625,14 @@ export function buildAuthoredCargoFrame(parts: readonly PartInstance[]): BoxFram
   // one recognizer for what IS cargo (built-in box/pallet + C-cargo custom parts) - see cargoView
   // `owner` is the unit load a self-stacked piece belongs to (unitPieces): its row is picked and selected as the load
   const cargo: { part: PartInstance; view: CargoView; owner?: string }[] = []
+  // built on the first unit load, then shared by every load's member walk here and in unitDressings
+  let kids: PartChildren | undefined
   for (const p of parts) {
     const view = cargoView(p)
     if (view) cargo.push({ part: p, view })
     else if (p.type === 'part' && getPackage(p.packageId)?.unit) {
-      for (const piece of unitPieces(parts, p)) {
+      kids ??= partChildren(parts)
+      for (const piece of unitPieces(parts, p, kids)) {
         const pv = cargoView(piece)
         if (pv) cargo.push({ part: piece, view: pv, owner: p.id })
       }
@@ -664,7 +675,7 @@ export function buildAuthoredCargoFrame(parts: readonly PartInstance[]): BoxFram
     colors[p3 + 1] = g
     colors[p3 + 2] = b
   }
-  const dressings = unitDressings(parts, { count, ids, positions, quats, halfExtents, kinds, caps, partIds })
+  const dressings = unitDressings(parts, { count, ids, positions, quats, halfExtents, kinds, caps, partIds }, kids)
   return { count, ids, positions, quats, halfExtents, colors, kinds, caps, partIds, simTime: 0, ...(dressings.length ? { dressings } : {}), ...(shapes && shapeRefs ? { shapes, shapeRefs } : {}) }
 }
 
@@ -672,9 +683,9 @@ export function buildAuthoredCargoFrame(parts: readonly PartInstance[]): BoxFram
  * {@link buildAuthoredCargoFrame} memoized on what it reads: the cargo parts and unit loads (by reference, in order, as
  * memoParts.ts keys a derivation), every other part's parent edge (unitMembers walks descendants through non-cargo
  * parts), and the package registry. A streamed edit of anything else (a robot's tool-size drag) reuses the frame: the
- * stopped editor builds it on every scene change, and on the demo two builds cost ~16 ms per pointer-move
- * (unitDressings is O(loads x rows)). One memo per caller, since callers pass different part lists (the view drops
- * hidden cargo). The frame is shared across calls: treat it as immutable.
+ * stopped editor builds it on every scene change, and on the demo two builds cost ~10 ms per pointer-move. One memo
+ * per caller, since callers pass different part lists (the view drops hidden cargo). The frame is shared across
+ * calls: treat it as immutable.
  */
 export function memoizeAuthoredCargoFrame(): (parts: readonly PartInstance[]) => BoxFrame {
   let lastRefs: PartInstance[] | null = null
@@ -724,16 +735,21 @@ export function cargoFramesEqual(a: BoxFrame, b: BoxFrame): boolean {
 export function unitDressings(
   parts: readonly PartInstance[],
   rows: Pick<BoxFrame, 'count' | 'ids' | 'positions' | 'quats' | 'halfExtents' | 'kinds' | 'caps' | 'partIds'>,
+  kids?: PartChildren,
 ): FrameDressing[] {
   const out: FrameDressing[] = []
   let bodies: WrapBody[] | null = null
   let rowOf: Map<string, number> | null = null
+  // the rows carrying each part id, for a load that stacks itself (its pieces' rows carry its id)
+  let ownRows: Map<string, number[]> | null = null
   for (const part of parts) {
     const start = unitStart(part)
     if (!start || start.dress.length === 0) continue
-    if (!bodies || !rowOf) {
+    if (!bodies || !rowOf || !ownRows) {
       bodies = []
       rowOf = new Map()
+      ownRows = new Map()
+      kids ??= partChildren(parts)
       for (let i = 0; i < rows.count; i++) {
         const p = i * 3
         const q = i * 4
@@ -743,12 +759,17 @@ export function unitDressings(
           half: [rows.halfExtents[p]!, rows.halfExtents[p + 1]!, rows.halfExtents[p + 2]!],
         })
         const id = rows.partIds[i]
-        if (id) rowOf.set(id, i)
+        if (id) {
+          rowOf.set(id, i)
+          let list = ownRows.get(id)
+          if (!list) ownRows.set(id, (list = []))
+          list.push(i)
+        }
       }
     }
-    let member = unitMembers(parts, part.id).map((m) => rowOf!.get(m.id)).filter((i): i is number => i !== undefined)
+    let member = unitMembers(parts, part.id, kids).map((m) => rowOf!.get(m.id)).filter((i): i is number => i !== undefined)
     // a load that stacks itself: its pieces' rows carry its own id (buildAuthoredCargoFrame)
-    if (member.length === 0) member = [...Array(rows.count).keys()].filter((i) => rows.partIds[i] === part.id)
+    if (member.length === 0) member = ownRows.get(part.id) ?? []
     if (member.length === 0) continue
     const b = bodies
     const a = wrapAnchor(member.map((i) => ({ index: i, y: b[i]!.pos[1], pallet: frameHasCap(rows, i, CARGO_CAP_LOAD_BASE) })))
