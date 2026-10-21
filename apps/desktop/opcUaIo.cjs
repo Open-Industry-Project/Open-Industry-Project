@@ -134,24 +134,31 @@ class OpcUaLink {
     let seen = 0
     let truncated = false
     const size = this.limits.browse > 0 ? Math.min(BROWSE_BATCH, this.limits.browse) : BROWSE_BATCH
+    const children = (n) => ({ nodeId: n.nodeId, browseDirection: ua.BrowseDirection.Forward, referenceTypeId: 'HierarchicalReferences', includeSubtypes: true, nodeClassMask: 0, resultMask: 63 })
     for (let depth = 0; depth < MAX_DEPTH && level.length > 0 && !truncated; depth++) {
       const next = []
       for (let at = 0; at < level.length && !truncated; at += size) {
         const batch = level.slice(at, at + size)
-        const results = await this.session.browse(
-          batch.map((n) => ({ nodeId: n.nodeId, browseDirection: ua.BrowseDirection.Forward, referenceTypeId: 'HierarchicalReferences', includeSubtypes: true, nodeClassMask: 0, resultMask: 63 })),
-        )
+        const results = await this.session.browse(batch.map(children))
+        const found = []
+        const retry = []
         for (let i = 0; i < results.length; i++) {
-          const refs = [...(results[i].references ?? [])]
-          let cp = results[i].continuationPoint
-          while (cp && cp.length > 0) {
-            const more = await this.session.browseNext([cp], false)
-            refs.push(...(more[0].references ?? []))
-            cp = more[0].continuationPoint
-          }
+          const status = results[i].statusCode
+          if (status.name === 'BadNoContinuationPoints') retry.push(batch[i])
+          else if (status.isGood()) found.push([batch[i], await this.pages(results[i])])
+          // any other status is a node this session may not browse, and it is left out
+        }
+        // A server holds only so many continuation points per session, and answers the rest of a request with
+        // BadNoContinuationPoints. Those nodes go again one at a time, each one's points released before the next.
+        for (const node of retry) {
+          const [result] = await this.session.browse([children(node)])
+          if (!result.statusCode.isGood()) throw new Error(`could not browse ${node.path.join('.') || 'Objects'} (${result.statusCode.name})`)
+          found.push([node, await this.pages(result)])
+        }
+        for (const [node, refs] of found) {
           for (const ref of refs) {
             if (ref.nodeId.namespace === 0 || ref.referenceTypeId.toString() === HAS_PROPERTY) continue
-            const path = [...batch[i].path, ref.browseName.name]
+            const path = [...node.path, ref.browseName.name]
             const nodeId = ref.nodeId.toString()
             if (ref.nodeClass === ua.NodeClass.Variable) variables.push({ path, nodeId })
             if (ref.nodeClass === ua.NodeClass.Object || ref.nodeClass === ua.NodeClass.Variable) next.push({ nodeId, path })
@@ -162,6 +169,20 @@ class OpcUaLink {
       level = next
     }
     return { variables, truncated }
+  }
+
+  /** A browse result's references, with every page behind its continuation point. */
+  async pages(result) {
+    const refs = [...(result.references ?? [])]
+    let cp = result.continuationPoint
+    while (cp && cp.length > 0) {
+      const [more] = await this.session.browseNext([cp], false)
+      // a point the server dropped (BadContinuationPointInvalid) would otherwise end the list early without a word
+      if (!more.statusCode.isGood()) throw new Error(`browsing the PLC's tags stopped part way (${more.statusCode.name})`)
+      refs.push(...(more.references ?? []))
+      cp = more.continuationPoint
+    }
+    return refs
   }
 
   /** The DataType and the user's access level of each node, for the app to bind against. */

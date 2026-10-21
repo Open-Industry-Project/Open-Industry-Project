@@ -33,21 +33,21 @@ async function plc(port, pki, secure = false, discovery = false) {
   return server
 }
 
-/** A server that takes at most 100 nodes per Read, Write or Browse, with 150 objects of two Int32s under Objects. */
-async function crowded(port, pki) {
+/** A server with `objects` objects under Objects, each holding the Int32s `names`, and the given capabilities. */
+async function crowded(port, pki, objects, names, serverCapabilities) {
   const server = new OPCUAServer({
     port,
     serverCertificateManager: new OPCUACertificateManager({ rootFolder: join(pki, `server-${port}`) }),
     securityPolicies: [SecurityPolicy.None],
     securityModes: [MessageSecurityMode.None],
     allowAnonymous: true,
-    serverCapabilities: { operationLimits: { maxNodesPerRead: 100, maxNodesPerWrite: 100, maxNodesPerBrowse: 100 } },
+    serverCapabilities,
   })
   await server.initialize()
   const ns = server.engine.addressSpace.getOwnNamespace()
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < objects; i++) {
     const o = ns.addObject({ organizedBy: server.engine.addressSpace.rootFolder.objects, browseName: `M${i}` })
-    for (const name of ['A', 'B']) ns.addVariable({ componentOf: o, browseName: name, dataType: 'Int32', value: { dataType: 'Int32', value: 0 } })
+    for (const name of names) ns.addVariable({ componentOf: o, browseName: name, dataType: 'Int32', value: { dataType: 'Int32', value: 0 } })
   }
   await server.start()
   return server
@@ -116,7 +116,7 @@ async function main() {
       await lds.shutdown(0)
     }
     // 7. a server with low OperationLimits: every request is split to fit them
-    const small = await crowded(48414, pki)
+    const small = await crowded(48414, pki, 150, ['A', 'B'], { operationLimits: { maxNodesPerRead: 100, maxNodesPerWrite: 100, maxNodesPerBrowse: 100 } })
     try {
       const link = new OpcUaLink(join(pki, 'client'), () => {})
       assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48414'), { error: '' })
@@ -133,6 +133,21 @@ async function main() {
       await link.close()
     } finally {
       await small.shutdown(0)
+    }
+
+    // 8. a server with two browse continuation points: the nodes it has none left for are browsed again, not lost
+    const paged = await crowded(48415, pki, 10, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], { maxBrowseContinuationPoints: 2 })
+    try {
+      const link = new OpcUaLink(join(pki, 'client'), () => {})
+      assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48415'), { error: '' })
+      // a PLC pages a node's references at its own size; node-opcua's server pages only at the size the client asks
+      link.session.requestedMaxReferencesPerNode = 5
+      const { variables, truncated } = await link.browse()
+      assert.equal(truncated, false)
+      assert.equal(variables.length, 80)
+      await link.close()
+    } finally {
+      await paged.shutdown(0)
     }
     console.log('opcUaIo: all checks passed')
   } finally {
