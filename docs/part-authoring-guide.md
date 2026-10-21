@@ -109,7 +109,8 @@ out, along with any helper nothing else calls.
 place of the number. The fields and forms it fits are listed under `build-parts` in [cli.md](cli.md). It refuses a
 rig it cannot express and names the field, for example a link that appears or goes with a param. Move that shape into
 `geometry()`, or write the ref in `rig()`'s output yourself, spelled as the manifest spells it. Round your own derived
-constants (an `r8` helper), or the float noise lands in the manifest.
+constants to 8 decimals (`const r8 = (n) => +n.toFixed(8)`), or the float noise lands in the manifest. Round no
+coarser: the build checks each fit to 1e-7, and a value rounded to 6 decimals reads as not following its param.
 
 **Shared modules.** A `part.js` may import named exports from other files by relative path:
 `import { legPieces } from '../_shared/legs.js'`. The build joins each imported module into `behavior.js`, so the
@@ -273,8 +274,9 @@ The spec format is in [project-tests.md](project-tests.md). Four traps:
 - Probe a joint directly: `"probe": { "joint": { "part": "stop", "joint": "lift" } }` reads the last value the
   part commanded (latched between commands, clamped to the joint's limits). It is absent until the part first
   commands it, so a mistyped name fails as "never appeared" instead of reading 0.
-- List the tests in `project.json` `"tests"`. Once the list has an entry, `test-project` runs only the listed
-  ones; it globs `tests/` only while the list is empty.
+- List the tests in `project.json` `"tests"`: the app runs only the listed ones. `test-project` runs every
+  `tests/*.test.json`, listed or not, and notes each one the app will not run. So keep a control you expect to fail
+  out of `tests/` (a `controls/` folder), or it turns the run red.
 
 ### 4. Run it, and run a control
 
@@ -886,6 +888,10 @@ from the `inspect-glb` boxes before choosing the range.
   the part at every setting. The [diverter](../examples/parts/diverter/rig.json) does both: its origin sits
   toward the guard it mounts on, its length and centre follow its stroke, and its bottom follows its stand
   height.
+- A `face` handle takes over its axis: a param with `handle: { kind: 'face', axis: 'x' }` IS the footprint's length
+  (`'z'` its width, `'y'` its height), whatever `bounds` says. So hardware past the body the handle sizes (a ramp, an
+  indicator head) is outside the footprint. Leave the handle off a param that is not the whole extent, and tie
+  `bounds` to it with `bounds.params` instead.
 
 ### 4. Behavior and verify
 
@@ -1090,6 +1096,10 @@ Besides `params` and the required `step(ctx)`, `definePart` declares:
 - `interactive: true`: pilot-mode Use → `ctx.used()` (and `useParam`, below);
 - `unit`: makes the part a unit load (see Product state in the table);
 - optional `init(ctx)` / `dispose(ctx)`.
+
+State a behavior keeps between ticks lives in variables at the top of the script (`let count = 0`), outside
+`definePart`. They belong to one placed part: each instance runs the script's top level afresh, so two placed parts
+never share one. There is no `ctx.state`.
 
 ### The `ctx` members
 

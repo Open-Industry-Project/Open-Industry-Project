@@ -87,7 +87,8 @@ Never hand-edit scene.json; these go through the same checks the editor does.
   - `--params` values are checked against each param's declared type, and a given value is never written over. One
     that needs a switch setting turns the switch and says so (`speedFpm=200` sets `fpmUnits=true`). One equal to
     what the part already has is printed as not stored. A list is one comma-joined value:
-    `--params 'boxColors=#e33,#3e3,width=1'`.
+    `--params 'boxColors=#e33,#3e3,width=1'`. A value that parses as JSON is read as JSON, so a `numberList` is
+    written as one: `--params 'segments=[[3,0],[1,10]]'`.
   - All or nothing: any bad part or value writes nothing and lists every error.
   - A built-in needs only its id (checked, then placed); an authored part is baked and added to the library. Creates
     the project if missing.
