@@ -33,6 +33,8 @@ export interface SpawnRequest {
   color?: [number, number, number]
   mass?: number
   offset?: [number, number, number]
+  /** facts the item starts with (ctx.spawn `marks`) */
+  marks?: Record<string, CargoMarkValue>
 }
 
 export class CargoFlow {
@@ -249,6 +251,7 @@ export class CargoFlow {
       const wx = b.pos[0] + off[0] * fx - off[2] * fz
       const wy = b.pos[1] + off[1]
       const wz = b.pos[2] + off[0] * fz + off[2] * fx
+      const before = this.boxes.length
       if (s.part !== undefined) {
         this.spawnProduct(b, s, wx, wy, wz, yaw)
       } else if (s.kind === 'pallet') {
@@ -264,6 +267,9 @@ export class CargoFlow {
         const size = s.size ?? [0.6, 0.4, 0.4]
         this.cargo.createDynamicBox(wx, wy, wz, size[0] / 2, size[1] / 2, size[2] / 2, yaw, s.mass ?? BOX_MASS, BOX_FRICTION, CARGO_KIND_BOX, null, s.color ?? [1, 1, 1], kindOwn(CARGO_KIND_BOX, size)) // (SimWorld.spawnBoxAt's defaults)
       }
+      // the facts it starts with, over the attributes a product starts with (and checked against their types)
+      const born = this.boxes.length > before ? this.boxes[this.boxes.length - 1] : undefined
+      if (born && s.marks) this.markPiece(born, s.marks, b)
     }
   }
 

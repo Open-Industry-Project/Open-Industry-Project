@@ -860,6 +860,10 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
      * product cannot be spawned yet; a part that is not cargo, or is not in the project, spawns nothing and is reported
      * on the spawner.
      *
+     * `marks` are facts the item starts its life with, as if a machine had already left them ({@link mark}): the code
+     * printed on its label, its destination. A product's own attributes start the same way, and a mark of one of them
+     * must have its declared type.
+     *
      * Without `part`, the older form: `kind` `'box'` (default), `'pallet'` (a four-way
      * block pallet with its own friction) or `'tote'` (an open-top plastic container with its own friction, which cargo can ride in), `size`
      * [w, h, d] (box default 0.6×0.4×0.4; for a pallet only the footprint counts: it is snapped to a standard one within
@@ -880,6 +884,7 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
         color?: [number, number, number];
         mass?: number;
         offset?: [number, number, number];
+        marks?: Record<string, number | boolean | string>;
     }): void;
     /**
      * Count the cargo currently inside a detection/removal zone - the sink primitive (despawners, exits, counts).

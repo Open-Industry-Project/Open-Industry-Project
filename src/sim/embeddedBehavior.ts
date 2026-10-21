@@ -119,7 +119,7 @@ function tagKey(name: string): string {
 }
 
 /** A cargo-spawn request this tick (C-spawn); the host fulfills it after step(). */
-type SpawnReq = { part?: string; params?: Record<string, number | boolean | string>; kind?: 'box' | 'pallet' | 'tote'; size?: [number, number, number]; color?: [number, number, number]; mass?: number; offset?: [number, number, number] }
+type SpawnReq = { part?: string; params?: Record<string, number | boolean | string>; kind?: 'box' | 'pallet' | 'tote'; size?: [number, number, number]; color?: [number, number, number]; mass?: number; offset?: [number, number, number]; marks?: Record<string, CargoMark> }
 /** one ctx.wrap request: stretch-wrap the load in `zone` up to `upTo` m above the part origin */
 /** a mark a machine leaves on cargo (ctx.mark) */
 type CargoMark = number | boolean | string
@@ -685,6 +685,16 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
         if (offset) req.offset = offset
         const mass = finiteOrUndef(opts?.mass)
         if (mass !== undefined && mass > 0) req.mass = mass
+        // the facts it starts with, copied value by value like `params`
+        const given = opts?.marks
+        if (typeof given === 'object' && given !== null) {
+          const marks: Record<string, CargoMark> = {}
+          for (const k of Object.keys(given)) {
+            const v = (given as Record<string, unknown>)[k]
+            if (k && (typeof v === 'string' || typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)))) marks[k] = v
+          }
+          if (Object.keys(marks).length > 0) req.marks = marks
+        }
         out.spawns.push(req)
       },
     }
