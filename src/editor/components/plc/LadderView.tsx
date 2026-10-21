@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ChangeEvent, ClipboardEvent as ReactClipboardEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from 'react'
 import { keymapRev, resolveKeyAction, subscribeKeymap } from '../../../core/keymap'
 import { primaryKey, withKey } from '../../keyHint'
@@ -15,25 +15,20 @@ import {
   elementRange,
   insertElements,
   insertRungs,
-  moveElement,
   moveRung,
-  moveRungTo,
   removeRange,
   removeRungs,
   removeSelected,
   replaceRung,
-  resizeBranch,
   selKind,
   seriesLength,
   setComment,
   stepInstruction,
   isBranch,
-  type DropSlot,
   type LadderEdit,
   type LadderSel,
 } from '../../../plc/ladder/ladderEdit'
 import type { LadderRoutine, Rung, RungElement, RungItem } from '../../../plc/ladder/ladderRungs'
-import { findInLadder, replaceable, replaceFound, stepFound, type LdFound } from '../../../plc/ladder/ladderFind'
 import { crossReference, duplicateDestructive } from '../../../plc/crossRef'
 import { devicesForTag, type DeviceTags } from '../../../plc/bindings'
 import { CrossRefDialog } from './CrossRefDialog'
@@ -42,21 +37,19 @@ import { completeName } from '../../../plc/ladder/ladderComplete'
 import { LADDER, RoutineHead, type PaletteEntry, type Power } from './ladderLeaf'
 import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { activeClipboard } from '../../dialogHost'
-import { fmt, indexWatch, watchLookup, type WatchIndex } from './ladderWatch'
+import { fmt } from './ladderWatch'
 import { CloseIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
 import { tNodes } from '../../i18nNodes'
+import { FRONT } from './ladderSel'
+import type { Sel } from './ladderSel'
+import { isEl, useLadderZoom, useRungsInView, useWrapLinks, ZOOM_STEP } from './useLadderSheet'
+import { useLadderWatch } from './useLadderWatch'
+import { useLadderFind } from './useLadderFind'
+import { useLadderDrags } from './useLadderDrags'
 
 const M = defineMessages('ladder', {
   notOneRung: "'{text}' does not read as one rung",
-  notFound: 'Not found',
-  noMoreBelow: 'No more matches below (Wrap is off)',
-  noMoreAbove: 'No more matches above (Wrap is off)',
-  fixTextFirst: 'This section has text to fix in the Text view first',
-  functionName: "A function's name is changed by retyping the element, not replaced",
-  nothingToReplace: 'Nothing to replace',
-  replaced: { one: 'Replaced {count} place', other: 'Replaced {count} places' },
-  replacedSkipped: { one: 'Replaced {count} place ({skipped} skipped)', other: 'Replaced {count} places ({skipped} skipped)' },
   cannotWrite: 'this view cannot write to the running program',
   operand: 'Operand',
   pinOpenVariable: '{pin}: not connected. Double-click to connect it to a variable',
@@ -115,7 +108,6 @@ const M = defineMessages('ladder', {
   wrap: 'Wrap',
   thisSection: 'This section',
   allSections: 'All sections',
-  matchOf: '{n} of {total}',
   close: 'Close (Esc)',
   boxPrompt: 'Find a block or function: TON, LIMIT, INT_TO_REAL…',
   addRungHint: 'Add a rung below the selected one',
@@ -198,28 +190,12 @@ interface LadderViewProps {
   writeLive?: (key: string, text: string) => string | null
 }
 
-interface Sel extends LadderSel {
-  routine: number
-}
-
-/** How far the sheet scales, and by how much a wheel notch or a key moves it. */
-const ZOOM_MIN = 0.4
-const ZOOM_MAX = 2.5
-const ZOOM_STEP = 1.1
-
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
-
-/** An element, whichever window it belongs to: a popped-out panel's nodes are another window's class. */
-const isEl = (x: unknown): x is HTMLElement => !!x && typeof x === 'object' && (x as Node).nodeType === 1
 
 /** A field that is a place (a variable, a member, an element), which a value can be written into - not an expression. */
 const PLACE = /^\s*[A-Za-z_][A-Za-z0-9_]*(\s*(\.\s*[A-Za-z_0-9]+|\[[^\]]*\]))*\s*$/
 
-
 const NO_FAULTS: readonly Diagnostic[] = []
-
-/** Where something goes with nothing selected: the first section. */
-const FRONT = 0
 
 export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, onEdit, onUndo, onRedo, getDiagnostics, getWatch, live: running, readOnly, getTags, getDevices, revealRoutine = null, revealRung, onRevealedRoutine, idle, onShowText, onRenameTag, toggleBit, writeLive }: LadderViewProps): ReactElement {
   const routines = useMemo(() => LADDER.read(source, faults.length > 0 ? [...getDiagnostics(source), ...faults] : getDiagnostics(source)), [source, faults])
@@ -245,173 +221,15 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
   const ownClip = (fromEvent: string): string => (clipRef.current !== '' && Date.now() - clipAt.current < 600 ? clipRef.current : fromEvent || clipRef.current)
   // what the last copy here was: a branch level pastes as a new level, elements paste onto the level selected
   const clipKind = useRef<'elements' | 'level' | 'rungs' | null>(null)
-  // Ctrl+wheel and the ladder.zoom* keys scale the drawing; remembered per browser
-  const [zoom, setZoom] = useState(() => {
-    try {
-      const z = Number(localStorage.getItem('oip.ladderZoom'))
-      return z >= ZOOM_MIN && z <= ZOOM_MAX ? z : 1
-    } catch {
-      return 1
-    }
-  })
-  const zoomNow = useRef(zoom)
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoomRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  /** Paint a scale onto the DOM, keeping the scroll where it was. Returns it, or null if it did not move. */
-  const paintZoom = useCallback((to: number): number | null => {
-    const was = zoomNow.current
-    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(to * 100) / 100))
-    if (next === was) return null
-    zoomNow.current = next
-    const scroller = scrollRef.current
-    const sheet = zoomRef.current
-    if (sheet) sheet.style.setProperty('zoom', String(next))
-    if (scroller) {
-      scroller.dataset.zoom = String(next)
-      scroller.scrollTop = (scroller.scrollTop * next) / was
-      scroller.scrollLeft = (scroller.scrollLeft * next) / was
-    }
-    return next
-  }, [])
-  const rememberZoom = useCallback((next: number): void => {
-    setZoom(next)
-    try {
-      localStorage.setItem('oip.ladderZoom', String(next))
-    } catch {
-      // private mode
-    }
-  }, [])
-  /** A whole step, from a key or the readout. There is no wheel storm to debounce, so it lands at once. */
-  const stepZoom = useCallback((to: number): void => {
-    const next = paintZoom(to)
-    if (next !== null) rememberZoom(next)
-  }, [paintZoom, rememberZoom])
-  useEffect(() => {
-    const el = rootRef.current
-    if (!el) return
-    // native, and not passive: React's wheel listener is passive, and could not keep the browser's own Ctrl+wheel (page
-    // zoom) from firing too. A step goes straight to the DOM (one style on one element); React hears of the new zoom
-    // once the wheel has settled, since re-rendering a whole routine per step is what makes zooming crawl.
-    let settle = 0
-    const onWheel = (e: WheelEvent): void => {
-      if (!e.ctrlKey) return
-      e.preventDefault()
-      const next = paintZoom(zoomNow.current * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP))
-      if (next === null) return
-      window.clearTimeout(settle)
-      settle = window.setTimeout(() => rememberZoom(next), 250)
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => {
-      window.clearTimeout(settle)
-      el.removeEventListener('wheel', onWheel)
-    }
-  }, [routines.length === 0, paintZoom, rememberZoom])
+  // Ctrl+wheel and the ladder.zoom* keys scale the drawing (useLadderSheet.ts)
+  const { zoom, zoomNow, stepZoom } = useLadderZoom(rootRef, scrollRef, zoomRef, routines.length === 0)
 
-  // Which rungs are in (or near) view, as `routine/rung`: null until the observer has reported, which reads as "all of
-  // them". Only `liveSig` asks - what a rung shows of the PROGRAM is drawn wherever the rung is.
-  const inView = useRef<Set<string> | null>(null)
-  const [, setSeen] = useState(0)
-  useEffect(() => {
-    const root = scrollRef.current
-    if (!root || typeof IntersectionObserver === 'undefined') return
-    const seen = new Set<string>()
-    inView.current = null
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let came = false
-        for (const e of entries) {
-          const el = e.target as HTMLElement
-          const k = `${el.dataset.rungOf}/${el.dataset.rungIndex}`
-          if (e.isIntersecting) {
-            if (!seen.has(k)) came = true
-            seen.add(k)
-          } else seen.delete(k)
-        }
-        inView.current = seen
-        if (came) setSeen((n) => n + 1) // a rung has come into view: draw it with the values of now
-      },
-      { root, rootMargin: '300px 0px' },
-    )
-    root.querySelectorAll('[data-testid="ladder-rung"]').forEach((el) => observer.observe(el))
-    return () => {
-      observer.disconnect()
-      inView.current = null
-    }
-    // (the rungs drawn: an edit that adds or removes one is another set of nodes)
-  }, [routines])
+  const inView = useRungsInView(scrollRef, routines)
 
-  // ---- a rung that wraps -----------------------------------------------------------------------------------------
-  //
-  // A rung's series is a flex row that wraps (styles.css `.ld-wrap`), so a rung longer than the view carries on
-  // underneath. What CSS cannot do is join the rows: where a row ends, the wire runs on to the edge, drops, comes back
-  // under the row and enters the next one. That takes knowing where the rows fell, so it is measured - for the rungs in
-  // view only, reads first and writes after - and drawn into `.ld-links`, a layer React renders empty and never reads.
-  const linkWraps = useCallback((): void => {
-    const scroller = scrollRef.current
-    if (!scroller) return
-    const view = scroller.getBoundingClientRect()
-    const plans: { layer: HTMLElement; html: string }[] = []
-    for (const rung of scroller.querySelectorAll<HTMLElement>('.ld-rung')) {
-      const box = rung.getBoundingClientRect()
-      if (box.bottom < view.top - 200 || box.top > view.bottom + 200) continue
-      const wrap = rung.querySelector<HTMLElement>('.ld-wrap')
-      const layer = wrap?.querySelector<HTMLElement>(':scope > .ld-links')
-      if (!wrap || !layer) continue
-      const items = [...wrap.children].filter((c): c is HTMLElement => isEl(c) && c !== layer && !c.classList.contains('ld-drop'))
-      const rows: { top: number; bottom: number; left: number; right: number }[] = []
-      for (const it of items) {
-        const row = rows.find((r) => Math.abs(r.top - it.offsetTop) <= 2)
-        if (!row) rows.push({ top: it.offsetTop, bottom: it.offsetTop + it.offsetHeight, left: it.offsetLeft, right: it.offsetLeft + it.offsetWidth })
-        else {
-          row.bottom = Math.max(row.bottom, it.offsetTop + it.offsetHeight)
-          row.left = Math.min(row.left, it.offsetLeft)
-          row.right = Math.max(row.right, it.offsetLeft + it.offsetWidth)
-        }
-      }
-      rows.sort((a, b) => a.top - b.top)
-      const W = wrap.clientWidth
-      const WIRE = 31 // where the wire runs in a row: `.ld-wire`'s height
-      let html = ''
-      for (let k = 0; k + 1 < rows.length; k++) {
-        const [a, b] = [rows[k]!, rows[k + 1]!]
-        const y0 = a.top + WIRE
-        const mid = Math.round((a.bottom + b.top) / 2)
-        const y1 = b.top + WIRE
-        // the run carries on the row's own wire, so it covers the same 2px (wire - 2 to wire; it sat 1px lower, a step
-        // at every wrap). It starts 1px back: offsetLeft and offsetWidth are rounded apiece, so the row's measured end can
-        // sit up to ~0.7px past its real one, and an overlap cannot show where a gap would
-        html += `<i class="ld-link run" style="left:${a.right - 1}px;top:${y0 - 2}px;width:${Math.max(0, W - 3 - a.right)}px"></i>`
-        html += `<i class="ld-link back" style="left:4px;top:${y0}px;width:${W - 8}px;height:${mid - y0}px"></i>`
-        html += `<i class="ld-link in" style="left:4px;top:${mid}px;width:${Math.max(4, b.left - 4)}px;height:${y1 - mid}px"></i>`
-      }
-      if (layer.dataset.links !== html) plans.push({ layer, html })
-    }
-    for (const { layer, html } of plans) {
-      layer.innerHTML = html
-      layer.dataset.links = html
-    }
-  }, [])
-  useLayoutEffect(() => linkWraps())
-  useEffect(() => {
-    const scroller = scrollRef.current
-    if (!scroller) return
-    let frame = 0
-    const soon = (): void => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(linkWraps)
-    }
-    const resized = new ResizeObserver(soon)
-    resized.observe(scroller)
-    if (zoomRef.current) resized.observe(zoomRef.current)
-    scroller.addEventListener('scroll', soon, { passive: true })
-    return () => {
-      cancelAnimationFrame(frame)
-      resized.disconnect()
-      scroller.removeEventListener('scroll', soon)
-    }
-  }, [linkWraps, routines.length === 0])
+  useWrapLinks(scrollRef, zoomRef, routines.length === 0)
 
   // Both fields are mirrored in refs: Enter commits and unmounts the field, and the blur that removal fires must not
   // find the draft still there and commit it a second time.
@@ -465,21 +283,8 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     commentingRef.current = c
     setCommentingState(c)
   }
-  const [watch, setWatch] = useState<Readonly<Record<string, TagValue>> | null>(null)
   // which field of the selected element the keys rest on (a box has several)
   const [focus, setFocus] = useState<{ key: string; field: number } | null>(null)
-  // a branch end being dragged over its neighbours, and how far it has been pulled
-  const [stretch, setStretch] = useState<{ branch: Sel; side: 'left' | 'right'; dx: number; by: number } | null>(null)
-  const stretchRef = useRef<{ branch: Sel; side: 'left' | 'right'; startX: number; moved: boolean } | null>(null)
-  // an element being dragged to a new place, and the slot it would drop into (drawn as a marker there)
-  const [dragDrop, setDragDrop] = useState<{ from: Sel; slot: (DropSlot & { routine: number }) | null } | null>(null)
-  const elDrag = useRef<{ from: Sel; startX: number; startY: number; moved: boolean } | null>(null)
-  // a rung being dragged by its number: the slot between rungs where it would land
-  const [rungDrop, setRungDrop] = useState<{ routine: number; slot: number } | null>(null)
-  const rungDrag = useRef<{ routine: number; from: number; startY: number; moved: boolean } | null>(null)
-  const suppressClick = useRef(false)
-  const getWatchRef = useRef(getWatch)
-  getWatchRef.current = getWatch
 
   // the selection stays on screen: the arrows walk a whole routine, and a selection that left the view is one the next
   // key acts on unseen. `nearest` moves nothing when it is already visible, so a click never jumps.
@@ -519,55 +324,8 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     )
   }, [revealProblem])
 
-  // the image changes every scan, independent of any store update, so it is polled (as the text view's is)
-  useEffect(() => {
-    if (!live) {
-      setWatch(null)
-      return
-    }
-    const id = setInterval(() => setWatch({ ...(getWatchRef.current() ?? {}) }), 120)
-    return () => clearInterval(id)
-  }, [live])
-  // the values under the operands: the running program's image (its key set is fixed, so its index is kept across polls:
-  // ladderWatch.ts)
-  const watchIndex = useRef<{ keys: number; src: string; index: WatchIndex } | null>(null)
-  const { valueOf, keyOf } = useMemo(() => {
-    const image = live ? watch : null
-    if (!image) {
-      watchIndex.current = null
-      return watchLookup(null, null)
-    }
-    const keys = Object.keys(image).length
-    const held = watchIndex.current
-    // A running program's key set is fixed, so the index is kept across polls. The poll hands a fresh object every
-    // 120 ms, and indexing five thousand values on each would be the whole cost of a watch. A reload swaps the
-    // program while it keeps running, so the source text is checked too: a tag renamed and reloaded keeps the same
-    // key count, and a stale index would answer for names that no longer exist (it memoises the misses too), so
-    // every rung would draw de-energized while the controller is scanning normally.
-    if (!held || held.keys !== keys || held.src !== source) {
-      watchIndex.current = { keys, src: source, index: indexWatch(image) }
-    }
-    return watchLookup(image, watchIndex.current!.index)
-  }, [watch, live, source])
-  /** values are drawn under the operands while the program runs */
-  const showsValues = live
-  // Room for each value, so a running program does not move the sheet. A box is sized from what is in it, and a live
-  // value is in it: `99` becoming `100` widened the box, which pushed everything after it along the rung (and could
-  // wrap a long rung onto another line), then `100` falling back to `99` pulled it all back - every few scans. So a
-  // value's room only ever grows: a number starts with four digits of it (so the ordinary 2-3 digit counters never
-  // move at all) and a value that outgrows that widens its box once, not every time it changes. Per slot, remembered
-  // until the program starts or stops - the values change meaning then. (`ch` is exact here: boxes are monospace.)
-  const valueRoom = useRef<{ live: boolean; room: Map<string, number> }>({ live, room: new Map() })
-  if (valueRoom.current.live !== live) valueRoom.current = { live, room: new Map() }
-  const roomFor = (slot: string, shown: string, numeric: boolean): number => {
-    const want = Math.max(shown.length, numeric ? 4 : 0)
-    const had = valueRoom.current.room.get(slot) ?? 0
-    const room = Math.max(had, want)
-    if (room !== had) valueRoom.current.room.set(slot, room)
-    return room
-  }
-  /** where a value typed under an operand goes: into the running program */
-  const writeValue = live ? writeLive : undefined
+  // the values under the operands while the program runs (useLadderWatch.ts)
+  const { setWatch, valueOf, keyOf, roomFor, showsValues, writeValue } = useLadderWatch(live, getWatch, source, writeLive)
 
   // a selection the text moved out from under (an undo, a peer's edit) falls back to its rung
   const active = ((): Sel | null => {
@@ -875,98 +633,8 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     setEditing({ at, field, draft: text === '?' ? '' : text })
   }
 
-  // ---- Find and Replace (Ctrl+F / Ctrl+H): the shared rung core's search (plc/ladder/ladderFind.ts), through what the rungs
-  //      say - every field, a function's name, the rung comments - in the section in hand or in all of them, wrapping
-  //      or not. The match is selected, which brings it into view; a replace is an ordinary edit, one undo step.
-  const [finding, setFinding] = useState<{ replace: boolean } | null>(null)
-  const [findQuery, setFindQuery] = useState('')
-  const [findWith, setFindWith] = useState('')
-  const [findWrap, setFindWrap] = useState(true)
-  const [findWhole, setFindWhole] = useState(false)
-  const [findScope, setFindScope] = useState<'routine' | 'all'>('routine')
-  // the match in hand. It is a place, and outlives a change of option (whole word, scope): the search goes on from it
-  // whether or not it still matches. Only a new query starts over.
-  const [findAt, setFindAt] = useState<LdFound | null>(null)
-  const [findNote, setFindNote] = useState('')
-  const findInput = useRef<HTMLInputElement>(null)
-  const findOpts = { query: findQuery, whole: findWhole }
-  // "the section in hand": the one the selection is in, else the match's, else the first
-  const findRoutine = active?.routine ?? findAt?.routine ?? FRONT
-  const found = useMemo(
-    () => (finding ? findInLadder(routines, { query: findQuery, whole: findWhole }, findScope === 'all' ? 'all' : findRoutine, LADDER.leaves) : []),
-    [finding !== null, routines, findQuery, findWhole, findScope, findRoutine],
-  )
-  /** Is this the match in hand? It is lit where it stands (`.found`) - the field, the function's name or the comment
-   *  that holds the text - because selecting its element says which one, and a block has several fields. */
-  const isFound = (at: { routine: number; rung: number; trail: readonly number[] }, field: number | 'comment'): boolean =>
-    !!finding && !!findAt && findAt.routine === at.routine && findAt.rung === at.rung && findAt.field === field && findAt.trail.join('.') === at.trail.join('.')
-  const samePlace = (a: LdFound, b: LdFound): boolean => a.routine === b.routine && a.rung === b.rung && a.field === b.field && a.trail.join('.') === b.trail.join('.')
-  const foundIndex = findAt ? found.findIndex((f) => samePlace(f, findAt)) : -1
-  const showFound = (f: LdFound): void => {
-    const at: Sel = { routine: f.routine, rung: f.rung, trail: f.trail }
-    setSel(at)
-    if (typeof f.field === 'number' && f.field >= 0) setFocus({ key: selKey(at), field: f.field })
-    setFindAt(f)
-    setFindNote('')
-  }
-  const findStep = (by: 1 | -1, list: readonly LdFound[] = found): void => {
-    if (findQuery === '') return
-    // from the match in hand; else from what is selected, so a search starts where the author is looking
-    const from = findAt ?? (active ? { routine: active.routine, rung: active.rung, trail: active.trail, field: -1 } : null)
-    const next = stepFound(list, from, by, findWrap)
-    if (next) showFound(next)
-    else setFindNote(t(list.length === 0 ? M.notFound : by === 1 ? M.noMoreBelow : M.noMoreAbove))
-  }
-  // each open asks for the cursor in the Find box, taken in the commit that mounts the bar: a deferred focus (such as a
-  // setTimeout) sends the keys typed straight after Ctrl+F to the sheet instead
-  const [findFocus, setFindFocus] = useState(0)
-  useLayoutEffect(() => {
-    if (findFocus === 0) return
-    // the text already there is selected, as every Find box does
-    findInput.current?.focus()
-    findInput.current?.select()
-  }, [findFocus])
-  const openFind = (replace: boolean): void => {
-    setFinding({ replace })
-    setFindNote('')
-    setFindFocus((n) => n + 1)
-  }
-  const closeFind = (): void => {
-    setFinding(null)
-    setFindAt(null)
-    setFindNote('')
-    rootRef.current?.focus()
-  }
-  /** Replace through `targets`, skipping what cannot be (a function's name; a section whose text must be fixed first). */
-  const replaceThese = (targets: readonly LdFound[]): number => {
-    const can = targets.filter((f) => replaceable(f) && !locked(routines[f.routine]))
-    if (can.length === 0) return 0
-    let next = source
-    for (const [routine, rungs] of replaceFound(routines, can, findOpts, findWith, LADDER.leaves)) next = LADDER.write(next, routine, rungs)
-    if (next !== source) onEdit(next) // One edit, whatever it touched: one Ctrl+Z takes a Replace All back
-    return can.length
-  }
-  // after a Replace the rungs are read again: the search moves on from where the replaced match stood
-  const moveOn = useRef(false)
-  useEffect(() => {
-    if (!moveOn.current) return
-    moveOn.current = false
-    findStep(1)
-  }, [found])
-  const replaceOne = (): void => {
-    const here = foundIndex >= 0 ? found[foundIndex]! : null
-    if (!here) return findStep(1) // nothing in hand yet: Replace finds first
-    if (replaceThese([here]) === 0) {
-      setFindNote(t(replaceable(here) ? M.fixTextFirst : M.functionName))
-      return
-    }
-    moveOn.current = true
-  }
-  const replaceAll = (): void => {
-    const n = replaceThese(found)
-    setFindAt(null)
-    setFindNote(n === 0 ? t(M.nothingToReplace) : n < found.length ? t(M.replacedSkipped, { count: n, skipped: found.length - n }) : t(M.replaced, { count: n }))
-  }
+  // ---- Find and Replace (Ctrl+F / Ctrl+H): useLadderFind.ts
+  const { finding, setFinding, findQuery, setFindQuery, findWith, setFindWith, findWrap, setFindWrap, findWhole, setFindWhole, findScope, setFindScope, findAt, setFindAt, setFindNote, findInput, found, isFound, findStep, openFind, closeFind, replaceOne, replaceAll, findCount } = useLadderFind({ routines, active, source, onEdit, locked, setSel, setFocus, selKey, rootRef })
 
   // ---- Cross Reference (Ctrl+E, or the selection's menu): every place the tag under the selection is used (plc/crossRef.ts) ----
   const [xref, setXref] = useState<string | null>(null)
@@ -1113,188 +781,7 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     e.stopPropagation()
   }
 
-  // ---- dragging a branch end (extend / shorten its span) ---------------------------------------------------------
-
-  const elementRect = (routine: number, rung: number, trail: number[]): DOMRect | null =>
-    rootRef.current?.querySelector(`[data-trail="${routine}/${rung}/${trail.join('.')}"]`)?.getBoundingClientRect() ?? null
-
-  /** How many neighbours a branch end dragged to `x` takes in (> 0) or gives back (< 0). */
-  const stretchBy = (branch: Sel, side: 'left' | 'right', x: number): number => {
-    const r = routines[branch.routine]
-    const el = r && elementAt(r.rungs, branch)
-    if (!isBranch(el)) return 0
-    const home = branch.trail.slice(0, -1)
-    const i = branch.trail[branch.trail.length - 1]!
-    const mid = (rect: DOMRect): number => rect.left + rect.width / 2
-    let by = 0
-    if (side === 'right') {
-      for (let k = 1; ; k++) {
-        const rect = elementRect(branch.routine, branch.rung, [...home, i + k])
-        if (!rect || x < mid(rect)) break
-        by = k
-      }
-      if (by > 0) return by
-      for (let j = el.paths[0]!.length - 1; j >= 0; j--) {
-        const rect = elementRect(branch.routine, branch.rung, [...branch.trail, 0, j])
-        if (!rect || x > mid(rect)) break
-        by--
-      }
-      return by
-    }
-    for (let k = 1; k <= i; k++) {
-      const rect = elementRect(branch.routine, branch.rung, [...home, i - k])
-      if (!rect || x > mid(rect)) break
-      by = k
-    }
-    if (by > 0) return by
-    for (let j = 0; j < el.paths[0]!.length; j++) {
-      const rect = elementRect(branch.routine, branch.rung, [...branch.trail, 0, j])
-      if (!rect || x < mid(rect)) break
-      by--
-    }
-    return by
-  }
-
-  const onNodeDown = (e: ReactPointerEvent<HTMLElement>, branch: Sel, side: 'left' | 'right'): void => {
-    if (!canEdit) return
-    e.stopPropagation()
-    e.preventDefault()
-    stretchRef.current = { branch, side, startX: e.clientX, moved: false }
-    e.currentTarget.setPointerCapture(e.pointerId)
-    setSel(branch)
-  }
-  const onNodeMove = (e: ReactPointerEvent<HTMLElement>): void => {
-    const d = stretchRef.current
-    if (!d) return
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return
-    d.moved = true
-    setStretch({ branch: d.branch, side: d.side, dx: e.clientX - d.startX, by: stretchBy(d.branch, d.side, e.clientX) })
-  }
-  const onNodeUp = (e: ReactPointerEvent<HTMLElement>): void => {
-    const d = stretchRef.current
-    stretchRef.current = null
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-    setStretch(null)
-    if (!d?.moved) return
-    const by = stretchBy(d.branch, d.side, e.clientX)
-    if (by === 0) return
-    const r = routines[d.branch.routine]!
-    const out = resizeBranch(r.rungs, d.branch, d.side, by)
-    commit(d.branch.routine, out.rungs, out.sel ? { ...out.sel, routine: d.branch.routine } : null)
-  }
-
-  // ---- dragging an element to another place ----------------------------------------------------------------------
-
-  /** The drop slot under (x, y): the series row there, and the index in it the pointer is nearest. */
-  const dropSlotAt = (x: number, y: number): (DropSlot & { routine: number }) | null => {
-    const under = (rootRef.current?.ownerDocument ?? document).elementsFromPoint(x, y)
-    const row = under.find((el) => isEl(el) && el.dataset.series !== undefined) as HTMLElement | undefined
-    const rungRow = under.find((el) => isEl(el) && el.dataset.rungOf !== undefined && el.dataset.rungIndex !== undefined) as HTMLElement | undefined
-    const series = row?.dataset.series ?? (rungRow ? `${rungRow.dataset.rungOf}/${rungRow.dataset.rungIndex}/` : null)
-    if (series === null) return null
-    const [routine, rung, homeText] = series.split('/')
-    const home = homeText === '' ? [] : homeText!.split('.').map(Number)
-    const prefix = `${routine}/${rung}/${homeText === '' ? '' : `${homeText}.`}`
-    // a long rung wraps, so "before" is not just "to the left": everything on a row above the pointer comes before it
-    const cells: DOMRect[] = []
-    for (const el of rootRef.current?.querySelectorAll<HTMLElement>('[data-trail]') ?? []) {
-      const trail = el.dataset.trail!
-      if (!trail.startsWith(prefix) || trail.slice(prefix.length).includes('.')) continue
-      cells.push(el.getBoundingClientRect())
-    }
-    const rowTops = [...new Set(cells.map((r) => Math.round(r.top)))].sort((a, b) => a - b)
-    const rowOf = (top: number): number => rowTops.findIndex((t) => Math.abs(t - Math.round(top)) <= 2)
-    let at = 0
-    rowTops.forEach((t, k) => {
-      if (y >= t) at = k
-    })
-    const index = cells.filter((r) => rowOf(r.top) < at || (rowOf(r.top) === at && x > r.left + r.width / 2)).length
-    return { routine: Number(routine), rung: Number(rung), home, index }
-  }
-  const onCellDown = (e: ReactPointerEvent<HTMLElement>, at: Sel): void => {
-    if (!canEdit || e.button !== 0 || (isEl(e.target) && e.target.closest('input, .ld-node'))) return
-    elDrag.current = { from: at, startX: e.clientX, startY: e.clientY, moved: false }
-    // captured from the press, so a drag that leaves the cell in its first move is still followed; clicks then target
-    // the cell, which is why its double-click hit-tests what is under the pointer
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  /** Double-click on a cell: the field under the pointer (a box's name or one of its values; a contact's variable). */
-  const onCellDoubleClick = (e: { clientX: number; clientY: number; stopPropagation: () => void }, at: Sel): void => {
-    e.stopPropagation()
-    const hit = (rootRef.current?.ownerDocument ?? document).elementFromPoint(e.clientX, e.clientY)
-    if (!isEl(hit) || hit.closest('input')) return
-    // on a block pin nothing connects: connect it (the row says which, and which way)
-    const open = hit.closest<HTMLElement>('[data-open]')
-    if (open?.dataset.pin) return connect(at, open.dataset.pin, open.dataset.out === 'true')
-    const row = hit.closest<HTMLElement>('[data-field]')
-    // on a pin's live number, while the program runs: a value for the running program, not an edit of the rung
-    const liveNumber = hit.closest<HTMLElement>('[data-live-text]')
-    if (liveNumber && row) return startLiveEdit(at, Number(row.dataset.field), liveNumber.dataset.liveText ?? '')
-    startEdit(at, row ? Number(row.dataset.field) : 0)
-  }
-  const onCellMove = (e: ReactPointerEvent<HTMLElement>): void => {
-    const d = elDrag.current
-    if (!d) return
-    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 6) return
-    d.moved = true
-    setDragDrop({ from: d.from, slot: dropSlotAt(e.clientX, e.clientY) })
-  }
-  const onCellUp = (e: ReactPointerEvent<HTMLElement>): void => {
-    const d = elDrag.current
-    elDrag.current = null
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-    setDragDrop(null)
-    if (!d?.moved) return
-    suppressClick.current = true
-    window.setTimeout(() => (suppressClick.current = false), 0)
-    const slot = dropSlotAt(e.clientX, e.clientY)
-    if (!slot || slot.routine !== d.from.routine) return
-    const out = moveElement(routines[d.from.routine]!.rungs, d.from, slot)
-    commit(d.from.routine, out.rungs, out.sel ? { ...out.sel, routine: d.from.routine } : null)
-  }
-  const dropMarker = (routine: number, rung: number, home: number[], i: number): ReactNode => {
-    const s = dragDrop?.slot
-    if (!s || s.routine !== routine || s.rung !== rung || s.index !== i || s.home.length !== home.length || !s.home.every((n, k) => n === home[k])) return null
-    return <i key={`drop${i}`} className="ld-drop" data-testid="ld-drop" />
-  }
-
-  // ---- dragging a rung by its number -----------------------------------------------------------------------------
-
-  const rungSlotAt = (routine: number, y: number): number => {
-    const rows = rootRef.current?.querySelectorAll(`[data-rung-of="${routine}"]`)
-    let slot = 0
-    rows?.forEach((el, k) => {
-      const r = el.getBoundingClientRect()
-      if (y > r.top + r.height / 2) slot = k + 1
-    })
-    return slot
-  }
-  const onNumDown = (e: ReactPointerEvent<HTMLElement>, routine: number, from: number): void => {
-    if (!canEdit) return
-    rungDrag.current = { routine, from, startY: e.clientY, moved: false }
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  const onNumMove = (e: ReactPointerEvent<HTMLElement>): void => {
-    const d = rungDrag.current
-    if (!d) return
-    if (!d.moved && Math.abs(e.clientY - d.startY) < 5) return
-    d.moved = true
-    setRungDrop({ routine: d.routine, slot: rungSlotAt(d.routine, e.clientY) })
-  }
-  const onNumUp = (e: ReactPointerEvent<HTMLElement>): void => {
-    const d = rungDrag.current
-    rungDrag.current = null
-    setRungDrop(null)
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-    if (!d?.moved) return
-    suppressClick.current = true
-    window.setTimeout(() => (suppressClick.current = false), 0)
-    const slot = rungSlotAt(d.routine, e.clientY)
-    const to = slot > d.from ? slot - 1 : slot
-    if (to === d.from) return
-    const out = moveRungTo(routines[d.routine]!.rungs, d.from, to)
-    commit(d.routine, out.rungs, out.sel ? { ...out.sel, routine: d.routine } : null)
-  }
+  const { stretch, dragDrop, rungDrop, suppressClick, dropMarker, onCellDoubleClick, onCellDown, onCellMove, onCellUp, onNodeDown, onNodeMove, onNodeUp, onNumDown, onNumMove, onNumUp } = useLadderDrags({ routines, canEdit, rootRef, setSel, commit, connect, startEdit, startLiveEdit })
 
   // ---- drawing ---------------------------------------------------------------------------------------------------
 
@@ -2058,7 +1545,7 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
             <option value="all">{t(M.allSections)}</option>
           </select>
           <span className="ld-find-count" data-testid="ladder-find-count">
-            {findNote !== '' ? findNote : findQuery === '' ? '' : found.length === 0 ? t(M.notFound) : t(M.matchOf, { n: foundIndex >= 0 ? foundIndex + 1 : '-', total: found.length })}
+            {findCount}
           </span>
           <button className="ld-btn ld-find-close" data-testid="ladder-find-close" title={t(M.close)} onClick={closeFind}>
             <CloseIcon />

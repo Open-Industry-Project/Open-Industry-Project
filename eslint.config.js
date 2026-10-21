@@ -95,7 +95,7 @@ export default tseslint.config(
   ...Object.entries({
     'src/editor/store/store.ts': 2600,
     'src/render/viewport/view.ts': 2500,
-    'src/editor/components/plc/LadderView.tsx': 2300,
+    'src/editor/components/plc/LadderView.tsx': 1800,
     'src/editor/controller.ts': 2000,
     'src/core/parts/partApi.ts': 1700,
     'src/editor/App.tsx': 1700,

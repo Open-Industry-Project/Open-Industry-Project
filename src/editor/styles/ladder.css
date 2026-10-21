@@ -384,7 +384,7 @@
 }
 /* The series of a rung. It wraps: a rung longer than the view carries on underneath instead of
    running off the side (so every rung is as wide as the view, and its outputs stand against the rail you can SEE).
-   The rows are joined by LadderView `linkWraps`, which draws into .ld-links. A single branch wider than the view cannot
+   The rows are joined by `linkWraps` (useLadderSheet.ts), which draws into .ld-links. A single branch wider than the view cannot
    wrap, so the rung GROWS to it - `min-width: min-content` here and on every box up to .ld-rung: the widest thing that
    cannot wrap - and the sheet scrolls sideways to a right rail that stands after it. With `min-width: 0` the branch
    overflowed instead: the rail stood at the view's edge, through the branch, and .ld-rung's content-visibility (which
@@ -635,7 +635,7 @@
   margin-left: auto;
   padding-left: 8px;
   color: var(--ld-on);
-  /* right-aligned in the room LadderView keeps for it (`roomFor`), so the digits stay put as a value changes */
+  /* right-aligned in the room the view keeps for it (`roomFor`, useLadderWatch.ts), so the digits stay put as a value changes */
   text-align: right;
   box-sizing: content-box;
 }
