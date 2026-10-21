@@ -746,8 +746,17 @@ const pathBed: BedFamily<BeltLikeView> = {
     const front = end.x + Math.cos(end.angle) * pulley
     return { width: v.width, spur: false, faceX: (sign) => (sign > 0 ? front : back), slope: 1 }
   },
-  // openings are plan X here; the belt's geometry maps them onto its path
-  guardHost: (v) => rectangleGuardHost(0, Math.max(beltHorizontalExtent(v.segments), 1e-3), v.width / 2, 1),
+  guardHost(v) {
+    // openings are plan X over the bed, which the belt's geometry maps onto its path. Its guards run on past the bed
+    // around each end drum, to the faces localEnds puts its ends on, so a beam can hole them there too.
+    const host = rectangleGuardHost(0, Math.max(beltHorizontalExtent(v.segments), 1e-3), v.width / 2, 1)
+    const path = buildBeltPath(v.segments, v.height)
+    const start = beltStartPose(path)
+    const end = beltEndPose(path)
+    const pulley = path.height / 2
+    const run: [number, number] = [start.x - Math.cos(start.angle) * pulley, end.x + Math.cos(end.angle) * pulley]
+    return { ...host, sides: { left: run, right: [run[0], run[1]] } }
+  },
   sideMerge: () => ({ framedEnd: true }),
   flanks(v) {
     // tail-origin: the bed and its guards run local x 0..extent

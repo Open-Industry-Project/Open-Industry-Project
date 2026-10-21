@@ -14,6 +14,7 @@
 
 import { commandedSpeed, conveyorDrive, driveFeedbackParams, driveRampParams, publishDrive, rampedSpeed } from '../_shared/conveyorDrive.js'
 import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../_shared/conveyorUnits.js'
+import { guardGapRuns, guardGapsParam } from '../_shared/guardGaps.js'
 import { HOLE_PANEL, holePanel } from '../_shared/guardHolePanel.js'
 import { guardBand, guardMitresParam, mitreLookup, railCutLookup, railCutsParam, spurRailCutter } from '../_shared/guardMitre.js'
 import { LEG_CLEARANCE, LEG_END_INSET, LEG_SPACING, legPieces } from '../_shared/legs.js'
@@ -72,6 +73,7 @@ definePart({
     guardExtents: { type: 'numberList', hidden: true, arity: 3, default: [], label: 'Rail extents [side ±1, back m, front m]', group: 'Guards', desc: 'Where the rails and guards STOP on each side, in bed-local X. Normally written by the host: when this spur merges flush onto another conveyor, this retracts the rails to its outer wall instead of running them through its frame. Worked out by the host from the scene; not for editing.' },
     // mitred guard ends as [x m, c, side ±1] rows (_shared/guardMitre.js). HOST-FED at a side merge, so hidden.
     ...guardMitresParam('Guards'),
+    ...guardGapsParam('Guards'),
     ...railCutsParam('Guards'),
     // deck height above the floor — drives the LEG length; host auto-fills it from the surface beneath at drop/snap.
     standHeight: { type: 'number', default: 2.0, min: 0.1, max: 3, step: 0.01, rest: 'surfaceBelow', label: 'Stand height (m)', desc: 'Height of the deck above whatever is beneath it, which sets the leg length. The host fills this in when you drop or snap the conveyor, so the legs reach the floor - or a platform crossing underneath - without you measuring. Pin it by hand when you want a deliberate height.' },
@@ -277,31 +279,37 @@ definePart({
       var on = g_sign < 0 ? p.leftGuard !== false : p.rightGuard !== false
       if (!on) continue
       var run = railRuns[s2 === 0 ? 0 : 1]
-      // SENSOR-BEAM HOLES (host-fed rows [x, y, side], guardHoles.ts): the sheet is split around a panel-long gap
-      // at each hole inside this guard's run, and a sheet panel with the hole cut through fills it (the top return
-      // below runs on unbroken over it). The pieces stay ONE collision part, so its AABB collider is the same
-      // whole wall; the sim never sees the holes anyway.
-      var gLo = run.cx - run.len / 2, gHi = run.cx + run.len / 2, gCuts = []
-      for (var hi = 0; hi < holes.length; hi++) {
-        var hrow = holes[hi], h0 = hrow[0] - HOLE_PANEL / 2, h1 = hrow[0] + HOLE_PANEL / 2
-        if (hrow[2] !== g_sign || h0 < gLo || h1 > gHi) continue
-        gCuts.push([h0, h1])
-        var hKey = hrow[1].toFixed(4)
-        if (!holePanels[hKey]) holePanels[hKey] = { y: hrow[1], descs: [] }
-        // the panel's frame: outward +z from the sheet's inner face; the −Z side is it yawed 180°, never mirrored
-        holePanels[hKey].descs.push({ x: hrow[0], sign: g_sign })
+      // GUARD GAPS (host-fed rows [x0, x1, side], _shared/guardGaps.js): where the host opens this guard, for a
+      // diverter whose arms cross it. Each solid run between gaps is its own collision part, so the collider stops
+      // at the gap as the mesh does. With no gap there is one run, the whole guard.
+      var gRuns = guardGapRuns(p, g_sign, run.cx - run.len / 2, run.cx + run.len / 2)
+      for (var gr = 0; gr < gRuns.length; gr++) {
+        // SENSOR-BEAM HOLES (host-fed rows [x, y, side], guardHoles.ts): the sheet is split around a panel-long gap
+        // at each hole inside this guard's run, and a sheet panel with the hole cut through fills it (the top return
+        // below runs on unbroken over it). A run's pieces stay ONE collision part, so its AABB collider is the same
+        // whole wall; the sim never sees the holes anyway.
+        var gLo = gRuns[gr][0], gHi = gRuns[gr][1], gCuts = []
+        for (var hi = 0; hi < holes.length; hi++) {
+          var hrow = holes[hi], h0 = hrow[0] - HOLE_PANEL / 2, h1 = hrow[0] + HOLE_PANEL / 2
+          if (hrow[2] !== g_sign || h0 < gLo || h1 > gHi) continue
+          gCuts.push([h0, h1])
+          var hKey = hrow[1].toFixed(4)
+          if (!holePanels[hKey]) holePanels[hKey] = { y: hrow[1], descs: [] }
+          // the panel's frame: outward +z from the sheet's inner face; the −Z side is it yawed 180°, never mirrored
+          holePanels[hKey].descs.push({ x: hrow[0], sign: g_sign })
+        }
+        gCuts.sort(function (a, b) { return a[0] - b[0] })
+        var gPieces = [], gCur = gLo
+        for (var gc = 0; gc < gCuts.length; gc++) { if (gCuts[gc][0] - gCur > 1e-4) gPieces.push([gCur, gCuts[gc][0]]); gCur = Math.max(gCur, gCuts[gc][1]) }
+        if (gHi - gCur > 1e-4) gPieces.push([gCur, gHi])
+        var gboxes = gPieces.map(function (pc) { return guardBand(g, pc[0], pc[1], mitreAt(g_sign, pc[0]), mitreAt(g_sign, pc[1]), 0, GT, RAIL_TOP, GH, g_sign, hw + FWT) })
+        if (gboxes.length) guardParts.push({ desc: gboxes.length === 1 ? gboxes[0] : g.merge.apply(g, gboxes), finish: 'guard', collision: 'box', sideGuard: g_sign < 0 ? 'left' : 'right' })
+        // the guard's formed top: a 20 mm OUTWARD return along its top edge (as every conveyor guard has). Its own
+        // part with NO collision: the host's collider is this guard part's AABB, and the return would widen it off
+        // the one guard cross-section every family shares - the one butted guards merge on (core/guardRuns.ts).
+        var lip = guardBand(g, gLo, gHi, mitreAt(g_sign, gLo), mitreAt(g_sign, gHi), GT, GT + 0.02, GH - GT, GH, g_sign, hw + FWT)
+        guardParts.push({ desc: lip, finish: 'guard' })
       }
-      gCuts.sort(function (a, b) { return a[0] - b[0] })
-      var gPieces = [], gCur = gLo
-      for (var gc = 0; gc < gCuts.length; gc++) { if (gCuts[gc][0] - gCur > 1e-4) gPieces.push([gCur, gCuts[gc][0]]); gCur = Math.max(gCur, gCuts[gc][1]) }
-      if (gHi - gCur > 1e-4) gPieces.push([gCur, gHi])
-      var gboxes = gPieces.map(function (pc) { return guardBand(g, pc[0], pc[1], mitreAt(g_sign, pc[0]), mitreAt(g_sign, pc[1]), 0, GT, RAIL_TOP, GH, g_sign, hw + FWT) })
-      if (gboxes.length) guardParts.push({ desc: gboxes.length === 1 ? gboxes[0] : g.merge.apply(g, gboxes), finish: 'guard', collision: 'box', sideGuard: g_sign < 0 ? 'left' : 'right' })
-      // the guard's formed top: a 20 mm OUTWARD return along its top edge (as every conveyor guard has). Its own
-      // part with NO collision: the host's collider is this guard part's AABB, and the return would widen it off
-      // the one guard cross-section every family shares - the one butted guards merge on (core/guardRuns.ts).
-      var lip = guardBand(g, gLo, gHi, mitreAt(g_sign, gLo), mitreAt(g_sign, gHi), GT, GT + 0.02, GH - GT, GH, g_sign, hw + FWT)
-      guardParts.push({ desc: lip, finish: 'guard' })
     }
 
     // 5. SUPPORT LEGS — real floor supports (_shared/legs.js), built leg-local with their floor at

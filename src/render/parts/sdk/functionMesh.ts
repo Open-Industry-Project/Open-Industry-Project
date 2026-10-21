@@ -4,8 +4,8 @@ import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
 import { evalPartGeometry, resolvePartParams } from '../../../core/geometry/geometryEval'
 import { bedView } from '../../../core/parts/partGeometry'
-import { beltXToS, buildBeltPath } from '../../../core/conveyor/beltPath'
-import type { GuardOpenings } from '../../../core/guards/guardOpenings'
+import { beltXToS, beltXToSExt, buildBeltPath } from '../../../core/conveyor/beltPath'
+import { withGuardGaps, type GuardOpenings } from '../../../core/guards/guardOpenings'
 import { guardHoleRows } from '../../../core/guards/guardHoles'
 import type { GuardHoles } from '../../../core/guards/guardHoles'
 import type { GuardExtents } from '../../../core/guards/guardExtents'
@@ -58,13 +58,14 @@ function withNeighborOpenings(p: SdkPart, pkg: PartPackage, params: Record<strin
 // Fold the host-derived sensor-beam holes (guardHoles.ts) into a function conveyor's `guardHoles` param as rows
 // [x, y, side ±1], so its geometry() splits the guard sheet around each and draws the holed panel. x arrives in the
 // host's guard frame: a belt-like part's plan X becomes arc length here (the frame its guard is built in, as for
-// openings); a centre-origin bed's X and a curve's arc angle pass through. A no-op unless the part declares the
-// param (the hole convention) - a conveyor that doesn't draw holes keeps solid guards.
+// openings), extended along the end tangents, since its guards run on around each end drum and a hole there is
+// negative or past the path's length; a centre-origin bed's X and a curve's arc angle pass through. A no-op unless
+// the part declares the param (the hole convention) - a conveyor that doesn't draw holes keeps solid guards.
 function withGuardHoles(p: SdkPart, pkg: PartPackage, params: Record<string, ParamValue>, holes?: GuardHoles): Record<string, ParamValue> {
   if (!holes || !pkg.params.guardHoles) return params
   const view = bedView(p, 'path')
   const path = view ? buildBeltPath(view.segments, view.height) : null
-  const rows = guardHoleRows(holes).map(([x, y, side]) => [path ? beltXToS(path, x!) : x!, y!, side!])
+  const rows = guardHoleRows(holes).map(([x, y, side]) => [path ? beltXToSExt(path, x!) : x!, y!, side!])
   return rows.length ? { ...params, guardHoles: rows } : params
 }
 
@@ -228,12 +229,13 @@ export function buildFunctionMesh(geo: Extract<PartPackage['geometry'], { kind: 
     materials: allMats,
     refresh(p: SdkPart, openings?: GuardOpenings, _grid?: RollerGrid, extents?: GuardExtents, _platformCut?: PlatformCut, legRests?: LegRestRows, holes?: GuardHoles): void {
       const overrides = p.params as RigParams
-      // resolve params, then fold in any neighbour-derived guard openings so a butted junction opens the
-      // guard, any snap-derived extents so a merged mover's rails/guards end on the host wall plane
+      // resolve params, then fold in any neighbour-derived guard openings so a butted junction or a diverter opens
+      // the guard (a belt takes them as arc-length guardOpenings rows, a straight or a spur as guardGaps), any
+      // snap-derived extents so a merged mover's rails/guards end on the host wall plane
       // (a spur extends to it; a flush straight/belt retracts to it), any host-derived leg-rest rows so
       // a bed crossing a platform stands each leg on the surface actually below it (legRests.ts), and the
       // sensor-beam holes through its guards (guardHoles.ts).
-      const params = withGuardMitres(pkg, withGuardHoles(p, pkg, withLegRests(p, withSnapExtents(p, withNeighborOpenings(p, pkg, resolvePartParams(pkg.params, overrides), openings), extents), legRests), holes), openings, extents)
+      const params = withGuardMitres(pkg, withGuardHoles(p, pkg, withLegRests(p, withSnapExtents(p, withGuardGaps(p, withNeighborOpenings(p, pkg, resolvePartParams(pkg.params, overrides), openings), openings), extents), legRests), holes), openings, extents)
       // drives the fabric scroll (belt convention) - read the resolved speed: a belt left at its default speed
       // carries no override, so overrides.speed is undefined and the scroll would freeze. Folded with the
       // snap-owned `reverse` flag (conveyorDirection.ts) so a snapped-reversed curve scrolls back down its own

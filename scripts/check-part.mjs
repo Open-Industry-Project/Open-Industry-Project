@@ -7,7 +7,7 @@
 // memory the way build-parts builds it (scripts/lib/buildPart.mjs). The checks below run on that build, and a
 // manifest or behavior beside it that differs from the build is a `stale` problem: either part.js changed and was not
 // built, or the file was edited (by the app's Part Editor or an agent tool) and the next build would undo it.
-// Three checks, cheapest first, and then a readout of what the part is once baked:
+// Four checks, cheapest first, and then a readout of what the part is once baked:
 //
 //   1. schema - the manifest against @oip/part-sdk's manifest.schema.json. Catches what the app would
 //                  silently IGNORE: an unknown key (`noColision`) validates, bakes, and does nothing.
@@ -18,6 +18,8 @@
 //                  rig is also MEASURED: rest-pose FK places every collider box and each mesh link's GLB box
 //                  (scripts/lib/glb.mjs), and a model outside its bounds, or a collider well outside the model,
 //                  is a warning with the fix (an off-centre import, stale bounds, a missing bounds.bottom).
+//   4. host facts - a drawn part's host-fed params (src/core/parts/hostFacts.ts): one its own declarations say it
+//                  needs and it leaves out is a warning, since that fact then never reaches it.
 //
 // Before this existed a part could only be checked by building a whole project folder around it and running
 // validate-project (in two agent trials, both routed through a project just to see a bake error).
@@ -63,6 +65,7 @@ try {
   const { linkHalfExtents, qApply, resolvedMeshScale, rigRestExtent, rigWorldPoses } = await vite.ssrLoadModule('/src/core/rig/rigPose.ts')
   const { instantiatePartScript } = await vite.ssrLoadModule('/src/core/parts/partScript.ts')
   const { compileRig } = await vite.ssrLoadModule('/src/core/rig/rigCompile.ts')
+  const { hostFactWarnings } = await vite.ssrLoadModule('/src/core/parts/hostFacts.ts')
 
   for (const target of targets) {
     const report = { folder: target, ok: false, problems: [] }
@@ -309,6 +312,13 @@ try {
     // A part with no collision body at all can't stop, carry or push anything - usually a mesh-only import.
     if (geo.kind === 'rig' && report.summary.colliders.length === 0 && report.summary.conveys.length === 0 && report.summary.zones.length === 0) {
       report.warnings.push('no link builds a collision body (mesh links are visual-only unless they declare `collision`): cargo will pass through this part')
+    }
+    // The facts the host hands a drawn part through fixed-name params (a guard opening, a beam hole, a merge's wall):
+    // one the part leaves out never reaches it, with no error (src/core/parts/hostFacts.ts)
+    try {
+      for (const w of hostFactWarnings(pkg, createSdkPart(pkg, 'check-part-probe', [0, 0, 0]))) report.warnings.push(w)
+    } catch (e) {
+      report.warnings.push(`could not check the host-fed params: ${e.message}`)
     }
     report.ok = report.problems.length === 0
   }

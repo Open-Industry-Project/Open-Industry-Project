@@ -139,15 +139,15 @@ function wallSpansOf(part: PartInstance, openings: GuardOpenings | undefined, ex
       })
     }
     if (out.length > 0) return out
-    // Spur parts, whose guards are coarse `collision:'box'` boxes. Restricted to the spur view:
-    // that is the one addFunctionStaticBoxes call site which folds `extents` in, and the wall list must be
-    // derived from identical params on both sides or the keys address different boxes. The other two call
-    // sites pass no extents, so admitting them here could desync. Only sideGuard boxes merge. A rail or
+    // Spur parts, whose guards are coarse `collision:'box'` boxes. Restricted to the spur: that is the one
+    // addFunctionStaticColliders call site that takes a merge run, and it folds the same `extents` and `openings`
+    // in, so both sides derive the wall list from identical params and the keys address the same boxes. The other
+    // call sites take no run, so admitting them here could desync. Only sideGuard boxes merge. A rail or
     // frame submesh is a different wall with a different cross-section, and merging across roles would
     // silently reshape one into the other.
     if (bedView(part, 'spur') === null) return out
     const pq = partQuat(part)
-    for (const w of functionStaticWalls(part, pkg, extents)) {
+    for (const w of functionStaticWalls(part, pkg, extents, openings)) {
       if (!w.sideGuard) continue
       const d = qApply(pq, [w.localCx, w.localCy, w.localCz])
       out.push({

@@ -1087,6 +1087,31 @@ frame's outer face, the top flange a flange width further out), with `c` the slo
 [_shared/guardMitre.js](../examples/parts/_shared/guardMitre.js). A rig guard or rail box needs neither: the host
 cuts it.
 
+**Facts the host fills in.** A part never sees the scene, so the host works out what its surroundings mean for it and
+hands each fact to a `drawn` part as a numberList param of a fixed name. Your `geometry()` reads it, and the sim
+builds the part's colliders from the same params, so the fact reaches collision as well as the mesh. Declaring the
+param is how a part takes the fact. Leave one out and the part still loads, but that fact never reaches it: a
+diverter's arms run into a solid guard, or a sensor beam passes through one. `npm run check-part` warns about each
+fact your part's own declarations say it needs and it doesn't take
+([src/core/parts/hostFacts.ts](../src/core/parts/hostFacts.ts)). Every row is arity 3, and every param but
+`guardOpenings` is `hidden: true`, since the host overwrites it.
+
+| Param | Rows | What the host puts there | Taken by |
+|---|---|---|---|
+| `guardOpenings` | `[start, end, side ±1/0]` | a belt's openings, in arc length: authored ones and those a neighbour's end or a diverter makes | a belt with guards |
+| `guardGaps` | `[x0, x1, side ±1]` | where it opens a straight or spur bed's guards (a diverter mounted on one), in local X | a straight or spur with guards |
+| `guardHoles` | `[x, y, side ±1]` | where a sensor beam crosses a guard (a curve's `x` is its arc angle) | any conveyor with guards |
+| `guardExtents` | `[side ±1, backX, frontX]` | where rails and guards stop at a side merge: the host's wall plane | a straight, spur or belt |
+| `guardMitres` | `[x, c, side ±1]` | how a guard end at a junction is cut | a conveyor whose guards meet another's |
+| `railCuts` | `[x, c, side ±1]` | how a rail end is cut to stop against the host's frame | a straight, spur or belt with rails |
+| `legRests` | `[x0, x1, dy]` | per-leg footing over a platform crossing under the part | a legged part |
+
+A spur takes end joins only (it is itself the merge), so no conveyor end opens its guards. Only a device mounted on
+one does, through `guardGaps`. Build each solid run of a gapped guard as its own `collision: 'box'` part, so the
+collider stops at the gap as the mesh does: [_shared/guardGaps.js](../examples/parts/_shared/guardGaps.js)
+(`guardGapsParam`, `guardGapRuns`), used by both spurs. A `rig` part takes none of these params: the host cuts its
+guard and rail links itself.
+
 ## Behavior: the `ctx` surface
 
 Besides `params` and the required `step(ctx)`, `definePart` declares:

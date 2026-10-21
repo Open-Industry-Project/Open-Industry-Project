@@ -4,6 +4,8 @@ import { computeSceneGuardHoles, deriveGuardHoles, beamSegments } from '../core/
 import { GUARD_HOLE_PANEL } from '../core/types'
 import type { PartInstance, SdkPart } from '../core/types'
 import { buildPackage } from '../sim/buildPackage'
+import { evalPartGeometry } from '../core/geometry/geometryEval'
+import { resolvePartParams } from '../core/parts/partScript'
 import { bundledBehaviors, bundledManifests } from './parts/bundledExamples'
 
 // Sensor-beam holes through conveyor side guards, derived from the scene (core/guards/guardHoles.ts) with the real bundled
@@ -94,6 +96,24 @@ describe('sensor-beam guard holes', () => {
     const holes = deriveGuardHoles(belt, beamSegments(eye('e', 2.5)))!
     expect(holes.right[0]![0]).toBeCloseTo(2.5, 3)
     expect(holes.left[0]![0]).toBeCloseTo(2.5, 3)
+  })
+
+  it("a belt's guards run on around its end drums, and a beam crossing one there holes it too", () => {
+    // the shipped belt's drum radius is half its 0.17 height, so its guards run from -0.085 to 4.085
+    const belt = part('belt', 'oip.belt-conveyor', [0, Y, 0], 0, { segments: [[4, 0]], width: W, height: 0.17 })
+    for (const x of [-0.03, 4.03]) {
+      const holes = deriveGuardHoles(belt, beamSegments(eye('e', x)))!
+      expect(holes.right.map(([hx]) => hx)).toEqual([x])
+      expect(holes.left.map(([hx]) => hx)).toEqual([x])
+    }
+    // past the drum face there is no guard to hole
+    expect(deriveGuardHoles(belt, beamSegments(eye('e', -0.15)))).toBeNull()
+    // and the belt draws a hole there: its rows arrive in arc length, which runs negative around the tail drum. A
+    // hole whose panel would overhang the guard's end is left uncut.
+    const pkg = real.find((p) => p.id === 'oip.belt-conveyor')!
+    const draw = (rows: number[][]) => JSON.stringify(evalPartGeometry(pkg.behavior, resolvePartParams(pkg.params, { ...(belt.params as never), guardHoles: rows })))
+    expect(draw([[-0.03, 0.08, 1]])).not.toBe(draw([]))
+    expect(draw([[-0.07, 0.08, 1]])).toBe(draw([]))
   })
 
   it('a curve takes its holes as an arc angle, on the guard (inner or outer) the beam crosses', () => {

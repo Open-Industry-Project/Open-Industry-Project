@@ -4,6 +4,8 @@ import type { ParamValue } from '../parts/partApi'
 import { resolvePartParams } from '../parts/partScript'
 import { withSnapExtents } from './guardExtents'
 import type { GuardExtents } from './guardExtents'
+import { withGuardGaps } from './guardOpenings'
+import type { GuardOpenings } from './guardOpenings'
 import { evalPartGeometry } from '../geometry/geometryEval'
 import { guardColliderCrossSection } from '../geometry/collisionShapes'
 import { packageRev } from '../parts/partRegistry'
@@ -79,8 +81,9 @@ const WALL_MEMO_MAX = 512
  * Empty for a part with no such submeshes (an inert or purely-conveying part).
  * The returned array is shared/cached - do not mutate it.
  */
-export function functionStaticWalls(part: PartInstance, pkg: PartPackage, extents?: GuardExtents): StaticWall[] {
-  const params = withSnapExtents(part, resolvePartParams(pkg.params, part.params as Record<string, ParamValue>), extents)
+export function functionStaticWalls(part: PartInstance, pkg: PartPackage, extents?: GuardExtents, openings?: GuardOpenings): StaticWall[] {
+  // the same host facts the renderer folds in (functionMesh.ts), so a gap or an extent moves the collider with the mesh
+  const params = withGuardGaps(part, withSnapExtents(part, resolvePartParams(pkg.params, part.params as Record<string, ParamValue>), extents), openings)
   const memoKey = `${pkg.id}@${packageRev(pkg.id)}|${JSON.stringify(params)}`
   const hit = WALL_MEMO.get(memoKey)
   if (hit) return hit

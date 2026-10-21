@@ -965,7 +965,7 @@ export class SimWorld implements SimCore<BoxFrame> {
           const rec = this.bus.last()
           if (rec) rec.partId = part.id
         } else this.reportAttachFailure(part)
-        this.addFunctionStaticColliders(part, pkg, extents, guardRun)
+        this.addFunctionStaticColliders(part, pkg, { extents, openings, guardRun })
         return
       }
       // any other drawn conveying bed (a lone belt, a drawn straight, a deck with no declared bed): a conveying
@@ -979,7 +979,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       // gets the general AABB-box channel for its collision:'box' guards: the same coarse static colliders a
       // non-conveying function part gets, so cargo can't leave its bed.
       if (bed?.kind === 'path') this.addCustomBeltGuards(part, openings, extents, guardRun)
-      else this.addFunctionStaticColliders(part, pkg)
+      else this.addFunctionStaticColliders(part, pkg, { openings })
     } else if (pkg.geometry.kind === 'drawn') {
       // a non-conveying function part: realize its declared solids, collision:'box' submeshes as AABB
       // boxes, collision:'hull' ones as convex hulls (the general collision channel; a conveying belt
@@ -1105,14 +1105,16 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  solid whose AABB would be a lie. Used both for a non-conveying function part and for a conveying one that
    *  isn't belt-like/curved (the spur's side guards), where the path-aware guard builders don't apply. The box
    *  channel is coarse for a very non-boxy solid, but a real wall, and the only one a guard merge can span.
-   *  `extents` (snap extents) are folded into the params first, so a merged mover's guard colliders reach
-   *  the host wall plane exactly like its rendered rails/guards: a spur extends to it, a flush straight/belt
-   *  retracts to it (withSnapExtents is a no-op for parts without a guardExtents param). */
-  private addFunctionStaticColliders(part: SdkPart, pkg: PartPackage, extents?: GuardExtents, guardRun?: GuardRun): void {
+   *  `extents` (snap extents) and `openings` (as `guardGaps`) are folded into the params first, so a merged
+   *  mover's guard colliders reach the host wall plane exactly like its rendered rails/guards (a spur extends to
+   *  it, a flush straight/belt retracts to it), and a diverter's gap is open in the collider too. Each fold is a
+   *  no-op for a part that does not declare its param. */
+  private addFunctionStaticColliders(part: SdkPart, pkg: PartPackage, facts: { extents?: GuardExtents; openings?: GuardOpenings; guardRun?: GuardRun } = {}): void {
+    const { extents, openings, guardRun } = facts
     this.addFunctionStaticHulls(part, pkg)
     // walls come from the shared enumeration guardRuns.ts also reads, so a merge override keyed by wall
     // applies to the box the resolver meant (core/guards/functionGuards.ts)
-    for (const w of functionStaticWalls(part, pkg, extents)) {
+    for (const w of functionStaticWalls(part, pkg, extents, openings)) {
       // Merged run: a sideGuard box butting a collinear neighbour's guard (a spur butted to a roller) is
       // emitted once by the run's owner covering both, and skipped by every other member. Two bodies meeting
       // at the seam would ram cargo riding the wall.

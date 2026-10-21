@@ -273,6 +273,10 @@ const GATES = [
     why: 'WebGPU resource lifetime, the MERGE gesture the resize gate cannot reach: butting a spur onto a conveyor and sliding it along re-emits the HOST\'s geometry per pointer-move while the mover is drag-ejected, then the draw list goes QUIET - so a buffer freed under a live recording has nothing left to replace it and the main + shadow passes are rejected on every frame from the end of the drag onward (a PERMANENT black viewport, outline and gizmo still drawing over it). Waiting for a landed re-record before freeing was not enough; gpuRetire also notifies AFTER the release (SKIPs without WebGPU)',
   },
   {
+    script: 'verify-spur-diverter-gap.mjs',
+    why: "a diverter snapped onto a spur opens the spur's guard where its arms cross, as DRAWN: a drawn part only gets that opening through its `guardGaps` param (core/parts/hostFacts.ts), and a part that leaves the param out still loads, so the arms would run into solid guard with no error anywhere. Carries its own control (the spur alone keeps a whole guard)",
+  },
+  {
     script: 'verify-warm-load-no-gpu-errors.mjs',
     why: 'the RELOAD path: on a persistent profile the second load has a WARM Dawn pipeline cache, so the cover lifts ~2.5s sooner and lands inside the load tail - zero uncaptured GPU errors and no black viewport there. Every other gate in this fleet runs a fresh profile and is therefore always COLD, which is how a freed shared geometry blanked ~73% of the canvas on every real reload with the whole fleet green (SKIPs without WebGPU)',
   },

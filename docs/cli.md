@@ -16,7 +16,9 @@ Scene conventions the tools assume (rotationY direction, +X downstream, left = -
   joints, colliders. A folder with a `part.js` is built in memory the way `build-parts` builds it and the checks run
   on that build. A manifest or behavior beside it that differs from the build is a `stale` problem: the `part.js`
   changed and was not built, or the file was edited (by hand, the Part Editor or an agent tool) and the next build
-  would undo that edit.
+  would undo that edit. It also warns when a drawn part leaves out a host-fed param its declarations say it needs
+  (a conveyor with guards and no `guardHoles`), since that fact then never reaches it (part authoring guide, "Facts
+  the host fills in").
 - **`npm run inspect-glb -- <file.glb>`** - a model's node tree: names, local TRS, materials, subtree boxes.
 - **`npm run import-model -- <file.step|.stp> [--out <file.glb>]`** - STEP to GLB through the app's own conversion:
   `--up z|y` (default guessed from the exporting program), `--detail normal|coarse`, `--min-part-mm <n>` (default
