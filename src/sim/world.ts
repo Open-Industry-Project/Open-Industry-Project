@@ -675,9 +675,13 @@ export class SimWorld implements SimCore<BoxFrame> {
       // a contact on a side as the wall it is. One body works because the listener can keep a
       // contact's collision and drop its conveying; with only accept-or-disable it would take a thin inset
       // slab in a proud plain housing: two bodies per deck, a 5 mm notch at every junction.
+      // A deck whose link is turned in the part (a side belt standing on its edge, a deck tipped onto a slope or yawed
+      // across the bed) is built at that turn, as a jointed one is: its running face is its local +Y wherever that
+      // points. Built from the part's yaw alone, the turn was dropped without a word.
+      const turned = Math.abs(lp.quat[0]) > 1e-9 || Math.abs(lp.quat[1]) > 1e-9 || Math.abs(lp.quat[2]) > 1e-9
       const body = jointDriven
         ? this.bodies.addKinematicBoxQuat(he[0], he[1], he[2], [cx, cy, cz], dq, friction)
-        : tan
+        : tan || turned
           ? this.bodies.addStaticBoxQuat(he[0], he[1], he[2], cx, cy, cz, { x: dq[0], y: dq[1], z: dq[2], w: dq[3] }, friction)
           : this.bodies.addStaticBox(he[0], he[1], he[2], cx, cy, cz, part.rotationY, friction)
       const entry: ConveyorEntry = { kind: 'linear', vx: 0, vy: 0, vz: 0, ...(tan ? { tan } : {}) }

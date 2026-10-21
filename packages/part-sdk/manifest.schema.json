@@ -386,7 +386,7 @@
           ]
         },
         "conveys": {
-          "description": "This (box) link is a conveyor surface: its top face carries cargo at the velocity the behavior\nsets via `ctx.setSurfaceVelocity` (a powered belt/roller deck). The host builds it as a static conveyor\nbody, so cargo rides it; other links (frame, guards) stay normal. A `conveys` link under a joint (a lift's\ncarriage, a pop-up transfer) is built kinematic instead and follows the joint each tick, carrying its cargo\nwith it: a vertical lift is a `conveys` deck on a prismatic joint.",
+          "description": "This (box) link is a conveyor surface: its top face carries cargo at the velocity the behavior\nsets via `ctx.setSurfaceVelocity` (a powered belt/roller deck). The host builds it as a static conveyor\nbody, so cargo rides it; other links (frame, guards) stay normal. A `conveys` link under a joint (a lift's\ncarriage, a pop-up transfer) is built kinematic instead and follows the joint each tick, carrying its cargo\nwith it: a vertical lift is a `conveys` deck on a prismatic joint. A `conveys` link turned in the part is built\nat that turn, and its running face is its local +Y wherever that points: a side belt is a `conveys` box stood\non its edge. A running face meeting cargo from the side needs a firm squeeze to grip it: a contact up to\n2 mm deep on a sideways face reads as a seam snag between butted conveyors and is ignored.",
           "type": "boolean"
         },
         "hidden": {

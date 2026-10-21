@@ -485,7 +485,10 @@ export interface RigLink {
    *  sets via `ctx.setSurfaceVelocity` (a powered belt/roller deck). The host builds it as a static conveyor
    *  body, so cargo rides it; other links (frame, guards) stay normal. A `conveys` link under a joint (a lift's
    *  carriage, a pop-up transfer) is built kinematic instead and follows the joint each tick, carrying its cargo
-   *  with it: a vertical lift is a `conveys` deck on a prismatic joint. */
+   *  with it: a vertical lift is a `conveys` deck on a prismatic joint. A `conveys` link turned in the part is built
+   *  at that turn, and its running face is its local +Y wherever that points: a side belt is a `conveys` box stood
+   *  on its edge. A running face meeting cargo from the side needs a firm squeeze to grip it: a contact up to
+   *  2 mm deep on a sideways face reads as a seam snag between butted conveyors and is ignored. */
   conveys?: boolean
   /** Author-mode visibility: when true the link (and its subtree, via the render group) is hidden in the
    *  rendered part - the Scene-tree eye toggle. Render-only: the sim/collision body is still built, like a

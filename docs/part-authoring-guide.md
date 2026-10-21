@@ -479,7 +479,7 @@ Every field is data the host reads; no field changes what another means.
 | Body | |
 |---|---|
 | `collision` | omitted = the shape's default (`box` / `cylinder` collide as themselves; `mesh`, `cone`, `frame`, `label`, `leg` do not). `'none'` = drawn but never solid (a roller bed's rollers, where the conveying box is the real surface). `{ box: [x, y, z] }` on a `mesh` link = collide as that box, centred on the link origin |
-| `conveys` | this box is a conveying surface: cargo on its top rides at the velocity the behavior sets. Under a jointed parent it follows the joint and carries its cargo along, so a vertical lift is a `conveys` deck on a prismatic joint |
+| `conveys` | this box is a conveying surface: cargo on its top rides at the velocity the behavior sets. Under a jointed parent it follows the joint and carries its cargo along, so a vertical lift is a `conveys` deck on a prismatic joint. Turned in the part, it is built at that turn and runs on its local +Y face: a side belt is a `conveys` box stood on its edge (it grips only on a firm squeeze, since a contact up to 2 mm deep on a sideways face is ignored as a seam snag) |
 
 | On a conveyor (`'left'` is −Z; the bed runs along +X) | |
 |---|---|
