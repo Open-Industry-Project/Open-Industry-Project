@@ -132,17 +132,26 @@ contextBridge.exposeInMainWorld('oipProject', {
     return () => ipcRenderer.removeListener('project:openPath', listener)
   },
 
-  /** A project or part file the app was launched to open, once, as `{ name, kind, bytes }` or `{ error }`; null after. */
+  /** The next project or part file waiting to be opened, as `{ name, kind, bytes }` or `{ error }`; null when none waits. */
   takePendingFile: () => ipcRenderer.invoke('file:takePendingOpen'),
 
   /**
-   * Hear a project or part file opened while the app runs (a double-click on a .oip / .oippart).
+   * Hear a project or part file opened while the app runs (a double-click on a .oip / .oippart). The main process
+   * keeps each file until it is taken, so one that arrived before this listener (the editor still starting) is
+   * taken here as it connects.
    * @param {(file: { name: string, kind: 'project' | 'part', bytes: Uint8Array } | { error: string }) => void} cb
    */
   onOpenFile: (cb) => {
-    const listener = (_event, file) => cb(file)
-    ipcRenderer.on('file:open', listener)
-    return () => ipcRenderer.removeListener('file:open', listener)
+    const take = () =>
+      void ipcRenderer.invoke('file:takePendingOpen').then((file) => {
+        if (!file) return
+        cb(file)
+        take()
+      })
+    const listener = () => take()
+    ipcRenderer.on('file:pending', listener)
+    take()
+    return () => ipcRenderer.removeListener('file:pending', listener)
   },
 })
 

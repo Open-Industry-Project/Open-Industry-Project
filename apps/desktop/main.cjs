@@ -580,18 +580,20 @@ if (pendingOpen) grants.grant(pendingOpen)
 // A project or part FILE the app was launched to open (a double-click on a .oip / .oippart, "Open with", or macOS's
 // open-file before the window exists), handed to the renderer as bytes once it asks (fileOpen.cjs). No grant: the
 // renderer never learns the path, so the folder the file sat in stays out of its reach.
-let pendingFile = documentFileArg(process.argv)
+// Every file waits here until the renderer takes it. Sending the bytes outright lost a file opened while the renderer
+// was still starting (its listener connects only once the editor exists), with no word to the person.
+const pendingFiles = []
+const launchFile = documentFileArg(process.argv)
+if (launchFile) pendingFiles.push(launchFile)
 
-/** Hand a project or part file to the window, or keep it for the window that has not asked yet. */
+/** Keep a project or part file for the window, bring the window forward, and tell it a file is waiting. */
 function openDocumentFile(path) {
+  pendingFiles.push(path)
   const win = BrowserWindow.getAllWindows()[0]
-  if (!win || win.isDestroyed() || win.webContents.isLoading()) {
-    pendingFile = path
-    return
-  }
+  if (!win || win.isDestroyed()) return
   if (win.isMinimized()) win.restore()
   win.focus()
-  win.webContents.send('file:open', readDocumentFile(path))
+  if (!win.webContents.isLoading()) win.webContents.send('file:pending')
 }
 
 // Pick a folder of parts and scan it (null if cancelled), for the renderer to IMPORT into the open project's parts
@@ -789,10 +791,9 @@ function registerIpc() {
     pendingOpen = null
     return root
   })
-  // A project or part file the app was opened with, handed over once as bytes (fileOpen.cjs).
+  // The next project or part file waiting to be opened, as bytes (fileOpen.cjs), or null. Each is handed over once.
   ipcMain.handle('file:takePendingOpen', () => {
-    const path = pendingFile
-    pendingFile = null
+    const path = pendingFiles.shift()
     return path ? readDocumentFile(path) : null
   })
   // Edit / reveal a custom part's behavior script from the editor UI (Inspector buttons).
