@@ -33,6 +33,26 @@ async function plc(port, pki, secure = false, discovery = false) {
   return server
 }
 
+/** A server that takes at most 100 nodes per Read, Write or Browse, with 150 objects of two Int32s under Objects. */
+async function crowded(port, pki) {
+  const server = new OPCUAServer({
+    port,
+    serverCertificateManager: new OPCUACertificateManager({ rootFolder: join(pki, `server-${port}`) }),
+    securityPolicies: [SecurityPolicy.None],
+    securityModes: [MessageSecurityMode.None],
+    allowAnonymous: true,
+    serverCapabilities: { operationLimits: { maxNodesPerRead: 100, maxNodesPerWrite: 100, maxNodesPerBrowse: 100 } },
+  })
+  await server.initialize()
+  const ns = server.engine.addressSpace.getOwnNamespace()
+  for (let i = 0; i < 150; i++) {
+    const o = ns.addObject({ organizedBy: server.engine.addressSpace.rootFolder.objects, browseName: `M${i}` })
+    for (const name of ['A', 'B']) ns.addVariable({ componentOf: o, browseName: name, dataType: 'Int32', value: { dataType: 'Int32', value: 0 } })
+  }
+  await server.start()
+  return server
+}
+
 async function main() {
   const pki = mkdtempSync(join(tmpdir(), 'oip-opcua-'))
   const server = await plc(48411, pki)
@@ -94,6 +114,25 @@ async function main() {
       console.log(`  a discovery server: ${JSON.stringify(r)}`)
     } finally {
       await lds.shutdown(0)
+    }
+    // 7. a server with low OperationLimits: every request is split to fit them
+    const small = await crowded(48414, pki)
+    try {
+      const link = new OpcUaLink(join(pki, 'client'), () => {})
+      assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48414'), { error: '' })
+      const { variables } = await link.browse()
+      assert.equal(variables.length, 300)
+      const ids = variables.filter((v) => v.path.at(-1) === 'A').map((v) => v.nodeId)
+      const nodes = await link.describe(ids)
+      assert.equal(nodes.length, 150)
+      assert.ok(nodes.every((n) => n.dataType === 'ns=0;i=6'))
+      const cycle = await link.exchange(ids.map((nodeId, i) => ({ nodeId, builtin: 6, value: i })), ids)
+      assert.equal(cycle.writes.length, 150)
+      assert.ok(cycle.writes.every((s) => s === 'Good'))
+      assert.deepEqual(cycle.reads.map((r) => r.value), ids.map((_, i) => i))
+      await link.close()
+    } finally {
+      await small.shutdown(0)
     }
     console.log('opcUaIo: all checks passed')
   } finally {

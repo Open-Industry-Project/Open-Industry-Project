@@ -29,6 +29,14 @@ const BROWSE_BATCH = 200
 /** The reference type for properties (EngineeringUnits and the like), which are not a program's variables. */
 const HAS_PROPERTY = 'ns=0;i=46'
 
+/** `items` in runs of at most `size` (0: one run), for a server's per-request node limit. */
+function chunks(items, size) {
+  if (!(size > 0) || items.length <= size) return [items]
+  const out = []
+  for (let at = 0; at < items.length; at += size) out.push(items.slice(at, at + size))
+  return out
+}
+
 /** A library error as one readable line. */
 function say(e) {
   const text = String(e?.message ?? e).split('\n')[0].trim().replace(/\s+\.$/, '')
@@ -48,6 +56,8 @@ class OpcUaLink {
     this.client = null
     this.session = null
     this.closed = false
+    /** The server's OperationLimits: most nodes per Read, Write and Browse request (0: no limit). */
+    this.limits = { read: 0, write: 0, browse: 0 }
   }
 
   /**
@@ -89,6 +99,16 @@ class OpcUaLink {
       this.session = await client.createSession()
       if (this.closed) throw new Error('closed')
       this.session.on('session_closed', () => this.lost('the PLC closed the session'))
+      // node-opcua does not split requests, and a server rejects one over its limits with BadTooManyOperations.
+      // A limit the server does not publish is taken as none. (The library's readOperationLimits reads twelve
+      // limits and logs a warning for each one a server leaves out.)
+      const ids = ua.VariableIds
+      const limits = await this.session
+        .read([ids.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead, ids.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite, ids.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse].map((i) => ({ nodeId: `ns=0;i=${i}`, attributeId: ua.AttributeIds.Value })))
+        .catch(() => [])
+      if (this.closed) throw new Error('closed')
+      const limit = (i) => (limits[i]?.statusCode.isGood() ? Number(limits[i].value.value) || 0 : 0)
+      this.limits = { read: limit(0), write: limit(1), browse: limit(2) }
       return { error: '' }
     } catch (e) {
       await this.close()
@@ -113,10 +133,11 @@ class OpcUaLink {
     let level = [{ nodeId: 'ns=0;i=85', path: [] }]
     let seen = 0
     let truncated = false
+    const size = this.limits.browse > 0 ? Math.min(BROWSE_BATCH, this.limits.browse) : BROWSE_BATCH
     for (let depth = 0; depth < MAX_DEPTH && level.length > 0 && !truncated; depth++) {
       const next = []
-      for (let at = 0; at < level.length && !truncated; at += BROWSE_BATCH) {
-        const batch = level.slice(at, at + BROWSE_BATCH)
+      for (let at = 0; at < level.length && !truncated; at += size) {
+        const batch = level.slice(at, at + size)
         const results = await this.session.browse(
           batch.map((n) => ({ nodeId: n.nodeId, browseDirection: ua.BrowseDirection.Forward, referenceTypeId: 'HierarchicalReferences', includeSubtypes: true, nodeClassMask: 0, resultMask: 63 })),
         )
@@ -151,7 +172,7 @@ class OpcUaLink {
       { nodeId, attributeId: ua.AttributeIds.DataType },
       { nodeId, attributeId: ua.AttributeIds.UserAccessLevel },
     ])
-    const dv = await this.session.read(reads)
+    const dv = await this.read(reads)
     return nodeIds.map((_, i) => {
       const type = dv[i * 2]
       const access = dv[i * 2 + 1]
@@ -165,12 +186,26 @@ class OpcUaLink {
   /** One cycle: the writes, then the reads. Per-item statuses come back by name ("Good", "BadNotWritable"). */
   async exchange(writes, reads) {
     const ua = opcua()
-    const w = writes.length === 0 ? [] : await this.session.write(writes.map((x) => ({ nodeId: x.nodeId, attributeId: ua.AttributeIds.Value, value: { value: { dataType: x.builtin, value: x.value } } })))
-    const r = reads.length === 0 ? [] : await this.session.read(reads.map((nodeId) => ({ nodeId, attributeId: ua.AttributeIds.Value })))
+    const w = await this.write(writes.map((x) => ({ nodeId: x.nodeId, attributeId: ua.AttributeIds.Value, value: { value: { dataType: x.builtin, value: x.value } } })))
+    const r = await this.read(reads.map((nodeId) => ({ nodeId, attributeId: ua.AttributeIds.Value })))
     return {
       writes: w.map((s) => s.name),
       reads: r.map((d) => ({ value: d.value?.value ?? null, status: d.statusCode.name })),
     }
+  }
+
+  /** A Read of any length, in requests the server's MaxNodesPerRead allows. */
+  async read(nodes) {
+    const out = []
+    for (const part of chunks(nodes, this.limits.read)) if (part.length > 0) out.push(...(await this.session.read(part)))
+    return out
+  }
+
+  /** A Write of any length, in requests the server's MaxNodesPerWrite allows. */
+  async write(nodes) {
+    const out = []
+    for (const part of chunks(nodes, this.limits.write)) if (part.length > 0) out.push(...(await this.session.write(part)))
+    return out
   }
 
   async close() {
