@@ -37,7 +37,7 @@ async function until(page, probe, want, what) {
 }
 
 // live guard boxes per wall: the rig guard-split pool keeps one child per kept span, and collapses the
-// last survivor to zero scale when a wall is fully open (render/parts/sdk/rig.ts guardSplitLinks).
+// last survivor to zero scale when a wall is fully open (render/parts/sdk/rigLayout.ts layoutGuardSplit).
 const probeGuards = (page) =>
   page.evaluate(() => {
     if (!window.__oip?.view) return null // the page reloaded under us (see RELOADED below)

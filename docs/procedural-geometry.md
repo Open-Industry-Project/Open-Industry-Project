@@ -67,7 +67,7 @@ Two tempting arguments are **not** reasons either way:
   in [optimize-assets.mjs](../scripts/optimize-assets.mjs)), and together they are about 2 MB. Converting
   one saves bytes nobody waits on, and adds the CPU work of building it.
 - **Draw cost, in the common case.** `geometry()` submeshes join the scene-global pool by geometry content,
-  the same as a GLB's leaves ([rig.ts](../src/render/parts/sdk/rig.ts), "Pool opt-in, the function tier's
+  the same as a GLB's leaves ([rigProcedural.ts](../src/render/parts/sdk/rigProcedural.ts), "Pool opt-in, the function tier's
   rule"), so identical copies merge and an extra copy costs the same draws in code as from a GLB. The exceptions
   stay one draw per copy each: a `lamp` submesh, the belt fabric, and anything with `scroll` or `spin`.
   [verify-draw-budget.mjs](../e2e/verify-draw-budget.mjs) holds an extra copy to 3 draws, so count those before

@@ -181,7 +181,7 @@ describe('link banks: decoration riding a moving link', () => {
   })
 })
 
-// ...and a rig's geometry() dressing (rig.ts procSlots): static submeshes pool, a lamp and one riding a moving link don't
+// ...and a rig's geometry() dressing (rigProcedural.ts procSlots): static submeshes pool, a lamp and one riding a moving link don't
 const dressPkg = (): PartPackage =>
   ({
     format: PACKAGE_FORMAT,
