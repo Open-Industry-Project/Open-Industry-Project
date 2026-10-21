@@ -232,7 +232,7 @@ export type TestOperand = { tag: string } | { probe: TestProbe }
  *  - source: `tag` (a PLC/behavior tag) or `probe` (a world reading);
  *  - temporal mode: `at` (sample once at time t), `always` (invariant), or `eventually` (holds at some step);
  *  - predicate: `equals` / `notEquals` (exact), `min`/`max` (numeric bound), or `near` (± `tolerance`), each
- *    against a literal or a {@link TestOperand}.
+ *    against a literal or a {@link TestOperand}; or a range, `min` and `max` together, both numbers.
  * `always` and `eventually` hold over the window [`from`, `until`] (default: the whole run).
  */
 export interface TestCheck {
@@ -681,8 +681,15 @@ export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | 
     if (c?.at !== undefined && (typeof c.at !== 'number' || c.at < 0)) errors.push(`${at}.at must be a time ≥ 0`)
     if (c?.within !== undefined && (typeof c.within !== 'number' || c.within <= 0)) errors.push(`${at}.within must be a positive time`)
     validateWindow(c, at, typeof d.duration === 'number' ? d.duration : Infinity, errors)
-    const predicate = PREDICATE_KEYS.filter((k) => c?.[k] !== undefined)
-    if (predicate.length !== 1) errors.push(`${at} must have exactly one of ${PREDICATE_KEYS.join('/')}`)
+    const given = PREDICATE_KEYS.filter((k) => c?.[k] !== undefined)
+    // a range is `min` and `max` together, both numbers: checked here and then judged as one predicate
+    const range = given.length === 2 && given.includes('min') && given.includes('max')
+    if (range) {
+      if (typeof c.min !== 'number' || typeof c.max !== 'number' || !Number.isFinite(c.min) || !Number.isFinite(c.max)) errors.push(`${at}: a range (min and max together) takes two numbers`)
+      else if (c.min > c.max) errors.push(`${at}: the range's min (${c.min}) is above its max (${c.max})`)
+    }
+    const predicate = range ? [] : given
+    if (!range && predicate.length !== 1) errors.push(`${at} must have exactly one of ${PREDICATE_KEYS.join('/')}, or min and max together for a range`)
     // the right-hand side: a literal, or another tag / a probe read at the same step
     let operand: TestOperand | undefined
     const pk = predicate.length === 1 ? predicate[0]! : undefined
@@ -717,7 +724,10 @@ export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | 
 
 /** A check's predicate, resolved once: which comparison, and its right-hand side (a literal, or a table key). */
 interface Predicate {
-  op: PredicateKey
+  /** `range` is `min` and `max` together, judged against `lo`..`hi` */
+  op: PredicateKey | 'range'
+  lo?: number
+  hi?: number
   /** the literal right-hand side, when it is one */
   literal?: TestValue
   /** the sample-table key of the right-hand side, when it is another tag or a probe */
@@ -729,9 +739,12 @@ interface Predicate {
   tolerance: number
 }
 
-const PRED_SYMBOL: Readonly<Record<PredicateKey, string>> = { equals: '=', notEquals: '≠', min: '≥', max: '≤', near: '≈' }
+const PRED_SYMBOL: Readonly<Record<PredicateKey | 'range', string>> = { equals: '=', notEquals: '≠', min: '≥', max: '≤', near: '≈', range: 'in' }
 
 function predicateOf(check: TestCheck, index: number): Predicate {
+  if (typeof check.min === 'number' && typeof check.max === 'number') {
+    return { op: 'range', lo: check.min, hi: check.max, literal: check.min, label: `${check.min}..${check.max}`, tolerance: 0 }
+  }
   const op = PREDICATE_KEYS.find((k) => check[k] !== undefined) ?? 'equals'
   const rhs = check[op]
   const tolerance = check.tolerance ?? 0
@@ -755,6 +768,8 @@ function predicateHolds(p: Predicate, value: TestValue, rhs: TestValue): boolean
       return typeof value === 'number' && typeof rhs === 'number' && value <= rhs
     case 'near':
       return typeof value === 'number' && typeof rhs === 'number' && Math.abs(value - rhs) <= p.tolerance
+    case 'range':
+      return typeof value === 'number' && value >= p.lo! && value <= p.hi!
   }
 }
 
@@ -962,7 +977,7 @@ export class TestEvaluator {
         return { check, ok: false, detail: `${this.nouns[i]} never appeared (${this.whyNoTag()})` }
       }
       if (!st.sawOperand) {
-        const rhs = check[pred.op] as TestOperand
+        const rhs = check[pred.op as PredicateKey] as TestOperand
         const why = 'probe' in rhs ? TestEvaluator.whyNoProbe(rhs.probe) : this.whyNoTag()
         return { check, ok: false, detail: `${pred.noun} (the right-hand side) never appeared (${why})` }
       }

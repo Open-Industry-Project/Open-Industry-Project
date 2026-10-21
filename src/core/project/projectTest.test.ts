@@ -681,3 +681,27 @@ describe('validateTestSpec: the marked filter', () => {
     }
   })
 })
+
+describe('a range check: min and max together', () => {
+  it('validates two numbers, min not above max, and nothing more', () => {
+    const spec = (c: Record<string, unknown>) => validateTestSpec({ duration: 5, checks: [{ at: 1, tag: 'Kg', ...c }] })
+    expect(spec({ min: 9, max: 11 }).ok).toBe(true)
+    const above = spec({ min: 11, max: 9 })
+    expect(above.ok).toBe(false)
+    if (!above.ok) expect(above.errors.join(' ')).toContain('above its max')
+    expect(spec({ min: 9, max: { tag: 'Hi' } }).ok).toBe(false) // a range takes two numbers
+    expect(spec({ min: 9, max: 11, equals: 10 }).ok).toBe(false) // and is the only predicate
+  })
+
+  it('holds inside the range, ends included, and says the range when it fails', () => {
+    const kg = (v: number) => evalCheck({ at: 1, tag: 'Kg', min: 9, max: 11 } as TestCheck, 2, [[1, { Kg: v }]])
+    expect(kg(9).ok).toBe(true)
+    expect(kg(11).ok).toBe(true)
+    const low = kg(7)
+    expect(low.ok).toBe(false)
+    expect(low.detail).toContain('expected in 9..11')
+    // an invariant over a window too
+    const r = evalCheck({ always: true, tag: 'Kg', min: 9, max: 11 } as TestCheck, 2, [[0.5, { Kg: 10 }], [1, { Kg: 12 }]])
+    expect(r.ok).toBe(false)
+  })
+})

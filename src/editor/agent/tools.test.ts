@@ -432,9 +432,9 @@ describe('agent tools: run_test', () => {
   it('refuses an invalid spec with the validator\'s reasons, and reports a run that threw', async () => {
     const c = ctx()
     expect(await refused(c, 'run_test', { spec: { checks: [] } })).toMatch(/invalid test spec/)
-    // a range written as one check says how to write it
-    const both = { duration: 1, checks: [{ tag: 'A', at: 1, min: 1, max: 2 }] }
-    expect(await refused(c, 'run_test', { spec: both })).toMatch(/A range is two checks/)
+    // two predicates that are not a range say what a check takes
+    const both = { duration: 1, checks: [{ tag: 'A', at: 1, min: 1, equals: 2 }] }
+    expect(await refused(c, 'run_test', { spec: both })).toMatch(/or min and max together for a range/)
     runProjectTests.mockResolvedValue([{ name: 'test-1', ok: false, error: 'the run threw' }])
     expect(await refused(c, 'run_test', { spec: { duration: 1, checks: [{ tag: 'A', at: 0, equals: true }] } })).toBe('the run threw')
   })

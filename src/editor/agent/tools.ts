@@ -673,11 +673,7 @@ function verdict(r: ProjectTestRun): Record<string, unknown> {
 
 function checkedSpec(args: Record<string, unknown>): TestSpec {
   const v = validateTestSpec(optObj(args, 'spec'))
-  if (!v.ok) {
-    // the most common error in a first spec: a check is one predicate, so a range is two checks
-    const range = v.errors.some((e) => /exactly one of/.test(e)) ? '\n(A range is two checks on the same source, one `min` and one `max`, or one `near` with a `tolerance`.)' : ''
-    throw new AgentToolError(`invalid test spec:\n${v.errors.map((e) => `- ${e}`).join('\n')}${range}`)
-  }
+  if (!v.ok) throw new AgentToolError(`invalid test spec:\n${v.errors.map((e) => `- ${e}`).join('\n')}`)
   return v.spec
 }
 

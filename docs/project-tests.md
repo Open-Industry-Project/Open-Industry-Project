@@ -90,7 +90,7 @@ Every check has exactly one **source**, one **temporal** mode, and one **predica
 | `from: t1`, `until: t2` | the window of `always` / `eventually`, both ends inclusive; either may be left out. `within: t` is another spelling of `until` for `eventually` |
 
 Predicates: `equals` / `notEquals` (BOOL/INT exact), `min` / `max` (numeric bounds), `near` + `tolerance`
-(REAL). The right-hand side is a literal, or **another tag or a probe**, read at the same step:
+(REAL), or `min` and `max` together for a range, both numbers (`"min": 9, "max": 11` holds from 9 to 11). The right-hand side is a literal, or **another tag or a probe**, read at the same step:
 `"equals": {"tag": "Lane1Out"}`, `"min": {"probe": {...}}`. Tag names are the scene-level names, the same
 namespace the scene's ST program sees.
 
