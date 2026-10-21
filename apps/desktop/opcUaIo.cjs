@@ -28,6 +28,10 @@ const MAX_NODES = 20000
 const BROWSE_BATCH = 200
 /** The reference type for properties (EngineeringUnits and the like), which are not a program's variables. */
 const HAS_PROPERTY = 'ns=0;i=46'
+const HAS_SUBTYPE = 'ns=0;i=45'
+/** The standard Enumeration DataType, and the abstract ones: BaseDataType, Number, Integer, UInteger. */
+const ENUMERATION = 29
+const ABSTRACT = new Set([24, 26, 27, 28])
 
 /** `items` in runs of at most `size` (0: one run), for a server's per-request node limit. */
 function chunks(items, size) {
@@ -58,6 +62,8 @@ class OpcUaLink {
     this.closed = false
     /** The server's OperationLimits: most nodes per Read, Write and Browse request (0: no limit). */
     this.limits = { read: 0, write: 0, browse: 0 }
+    /** DataType NodeId -> the built-in type it comes down to, as builtinOf found it */
+    this.types = new Map()
   }
 
   /**
@@ -185,7 +191,10 @@ class OpcUaLink {
     return refs
   }
 
-  /** The DataType and the user's access level of each node, for the app to bind against. */
+  /**
+   * The DataType of each node, the built-in type it comes down to (0 when none), and the user's access level,
+   * for the app to bind against.
+   */
   async describe(nodeIds) {
     const ua = opcua()
     if (nodeIds.length === 0) return []
@@ -194,14 +203,56 @@ class OpcUaLink {
       { nodeId, attributeId: ua.AttributeIds.UserAccessLevel },
     ])
     const dv = await this.read(reads)
-    return nodeIds.map((_, i) => {
+    const nodes = []
+    for (let i = 0; i < nodeIds.length; i++) {
       const type = dv[i * 2]
       const access = dv[i * 2 + 1]
-      return {
-        dataType: type.statusCode.isGood() ? type.value.value.toString() : '',
+      const dataType = type.statusCode.isGood() ? type.value.value : null
+      nodes.push({
+        dataType: dataType?.toString() ?? '',
+        builtin: dataType ? await this.builtinOf(dataType) : 0,
         access: access.statusCode.isGood() ? Number(access.value.value) : 0,
+      })
+    }
+    // an abstract DataType (Number, BaseDataType) does not say what the value is, so the value's own type does
+    const open = nodeIds.filter((_, i) => nodes[i].dataType !== '' && nodes[i].builtin === 0)
+    if (open.length > 0) {
+      const values = await this.read(open.map((nodeId) => ({ nodeId, attributeId: ua.AttributeIds.Value })))
+      let k = 0
+      for (const n of nodes) {
+        if (n.dataType === '' || n.builtin !== 0) continue
+        const v = values[k++]
+        if (v.statusCode.isGood() && v.value.arrayType === ua.VariantArrayType.Scalar) n.builtin = v.value.dataType
       }
-    })
+    }
+    return nodes
+  }
+
+  /**
+   * The built-in type a DataType comes down to, following its supertypes to the standard namespace: an alias
+   * of Int16 is an Int16, Duration a Double, and an enumeration an Int32 (its values travel as one). 0 for an
+   * abstract type. node-opcua's own getBuiltInDataType is not used: it takes any type numbered 1 to 25 as
+   * built-in whatever its namespace, so a PLC's `ns=4;i=7` would read as UInt32.
+   */
+  async builtinOf(dataType) {
+    const key = dataType.toString()
+    if (this.types.has(key)) return this.types.get(key)
+    const ua = opcua()
+    let id = dataType
+    let found = 0
+    for (let step = 0; step < MAX_DEPTH; step++) {
+      if (id.namespace === 0 && typeof id.value === 'number') {
+        if (id.value === ENUMERATION) found = 6
+        else if (id.value >= 1 && id.value <= 25 && !ABSTRACT.has(id.value)) found = id.value
+        if (found !== 0 || ABSTRACT.has(id.value)) break
+      }
+      const [r] = await this.session.browse([{ nodeId: id, browseDirection: ua.BrowseDirection.Inverse, referenceTypeId: HAS_SUBTYPE, includeSubtypes: false, nodeClassMask: 0, resultMask: 63 }])
+      const up = r.statusCode.isGood() ? r.references?.[0]?.nodeId : null
+      if (!up) break
+      id = up
+    }
+    this.types.set(key, found)
+    return found
   }
 
   /** One cycle: the writes, then the reads. Per-item statuses come back by name ("Good", "BadNotWritable"). */
@@ -276,7 +327,7 @@ async function withLink(event, fn) {
  *                                                                   discovery: [{name, urls}] when the address
  *                                                                   is a discovery server, not a PLC
  *   opcua:browse   -> {error, variables: [{path, nodeId}], truncated} every variable under Objects
- *   opcua:describe {nodeIds} -> {error, nodes: [{dataType, access}]}
+ *   opcua:describe {nodeIds} -> {error, nodes: [{dataType, builtin, access}]}
  *   opcua:exchange {writes: [{nodeId, builtin, value}], reads: [nodeId]} -> {error, writes: [status], reads: [{value, status}]}
  *   opcua:close                                                     end the session
  * and pushes

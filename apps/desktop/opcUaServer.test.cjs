@@ -51,11 +51,11 @@ async function main() {
     // 3. types and access, as published
     const described = await link.describe([id('PLC.Start'), id('PLC.Eye'), id('PLC.Speed'), id('PLC.Count'), id('PLC.Label')])
     assert.deepEqual(described, [
-      { dataType: 'ns=0;i=1', access: 3 },
-      { dataType: 'ns=0;i=1', access: 1 },
-      { dataType: 'ns=0;i=10', access: 3 },
-      { dataType: 'ns=0;i=4', access: 3 },
-      { dataType: 'ns=0;i=12', access: 3 },
+      { dataType: 'ns=0;i=1', builtin: 1, access: 3 },
+      { dataType: 'ns=0;i=1', builtin: 1, access: 1 },
+      { dataType: 'ns=0;i=10', builtin: 10, access: 3 },
+      { dataType: 'ns=0;i=4', builtin: 4, access: 3 },
+      { dataType: 'ns=0;i=12', builtin: 12, access: 3 },
     ])
 
     // 4. while the simulation is stopped, a read says so and a write is refused

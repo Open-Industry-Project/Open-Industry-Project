@@ -156,6 +156,14 @@ describe('binding points to nodes', () => {
     const odd = bindOpcUaPoints([{ tag: 'Eye', dir: 'toPlc', type: null }], SHALLOW, () => ({ dataType: 'ns=0;i=12', access: 3 }))
     expect(odd.problems).toEqual([expect.stringMatching(/not a single bit or number \(its type is ns=0;i=12\)/)])
   })
+
+  it('binds a PLC\'s own type by the built-in it comes down to, and names a refused one', () => {
+    const r = bindOpcUaPoints([{ tag: 'Eye', dir: 'toPlc', type: 'INT' }], SHALLOW, () => ({ dataType: 'ns=4;i=3005', builtin: 6, access: 3 }))
+    expect(r.problems).toEqual([])
+    expect(r.bindings.map((b) => b.builtin)).toEqual([6])
+    const wide = bindOpcUaPoints([{ tag: 'Eye', dir: 'toPlc', type: 'DINT' }], SHALLOW, () => ({ dataType: 'ns=0;i=8', builtin: 8, access: 3 }))
+    expect(wide.problems).toEqual([expect.stringMatching(/not a single bit or number \(its type is Int64\)/)])
+  })
 })
 
 describe('a discovery server where a PLC was expected', () => {

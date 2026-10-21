@@ -39,6 +39,11 @@ export interface OpcUaVariable {
 export interface OpcUaNodeInfo {
   /** the DataType attribute, as a NodeId string (`ns=0;i=1` is Boolean) */
   dataType: string
+  /**
+   * the built-in type id the DataType comes down to, which the shell finds by following its supertypes (a
+   * PLC's enumeration is an Int32, its alias of INT an Int16); 0 or absent when it found none
+   */
+  builtin?: number
   /** the UserAccessLevel attribute: bit 0 readable, bit 1 writable */
   access: number
 }
@@ -208,6 +213,26 @@ const BUILTIN: Record<number, { name: string; kind: 'bool' | 'int' | 'float'; mi
   11: { name: 'Double', kind: 'float' },
 }
 
+/** The other built-in types, which no scene value travels as, by id: named in a refusal. */
+const OTHER_BUILTIN: Record<number, string> = {
+  8: 'Int64',
+  9: 'UInt64',
+  12: 'String',
+  13: 'DateTime',
+  14: 'Guid',
+  15: 'ByteString',
+  16: 'XmlElement',
+  17: 'NodeId',
+  18: 'ExpandedNodeId',
+  19: 'StatusCode',
+  20: 'QualifiedName',
+  21: 'LocalizedText',
+  22: 'Structure',
+  23: 'DataValue',
+  24: 'Variant',
+  25: 'DiagnosticInfo',
+}
+
 /** The built-in type id a DataType NodeId names, or null when it is not one a scene value travels as. */
 export function builtinOf(dataType: string): number | null {
   const m = /^(?:ns=0;)?i=(\d+)$/.exec(dataType)
@@ -216,7 +241,7 @@ export function builtinOf(dataType: string): number | null {
 }
 
 export function builtinName(id: number): string {
-  return BUILTIN[id]?.name ?? `type ${id}`
+  return BUILTIN[id]?.name ?? OTHER_BUILTIN[id] ?? `type ${id}`
 }
 
 /**
@@ -242,10 +267,11 @@ export function bindOpcUaPoints(
       problems.push(`${p.tag}: the PLC did not describe ${m.variable.path.join('.')}`)
       continue
     }
-    const builtin = builtinOf(info.dataType)
+    const builtin = info.builtin ? (BUILTIN[info.builtin] ? info.builtin : null) : builtinOf(info.dataType)
     const where = m.variable.path.join('.')
     if (builtin === null) {
-      problems.push(`${p.tag}: ${where} is not a single bit or number (its type is ${info.dataType})`)
+      const type = info.builtin ? builtinName(info.builtin) : info.dataType
+      problems.push(`${p.tag}: ${where} is not a single bit or number (its type is ${type})`)
       continue
     }
     const kind = BUILTIN[builtin]!.kind

@@ -9,7 +9,7 @@ const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const { OPCUAServer } = require('node-opcua-server')
 const { OPCUACertificateManager } = require('node-opcua-certificate-manager')
-const { ApplicationType, MessageSecurityMode, SecurityPolicy } = require('node-opcua-client')
+const { ApplicationType, DataType, MessageSecurityMode, SecurityPolicy, VariantArrayType } = require('node-opcua-client')
 const { OpcUaLink } = require('./opcUaIo.cjs')
 
 /** A PLC-like server: PLC_PRG.Eye, .Run and .Speed, running `Run := NOT Eye` on every write of Eye. */
@@ -53,6 +53,29 @@ async function crowded(port, pki, objects, names, serverCapabilities) {
   return server
 }
 
+/** A server whose Main holds variables of types a PLC defines or the standard derives: none is a built-in itself. */
+async function ownTypes(port, pki) {
+  const server = new OPCUAServer({
+    port,
+    serverCertificateManager: new OPCUACertificateManager({ rootFolder: join(pki, `server-${port}`) }),
+    securityPolicies: [SecurityPolicy.None],
+    securityModes: [MessageSecurityMode.None],
+    allowAnonymous: true,
+  })
+  await server.initialize()
+  const ns = server.engine.addressSpace.getOwnNamespace()
+  const main = ns.addObject({ organizedBy: server.engine.addressSpace.rootFolder.objects, browseName: 'Main' })
+  const add = (browseName, dataType, value) => ns.addVariable({ componentOf: main, browseName, dataType, value })
+  // an IEC ENUM gets a type of its own; an alias (TYPE T_Speed : INT; END_TYPE) a subtype of Int16
+  add('Mode', ns.addEnumerationType({ browseName: 'E_Mode', enumeration: ['Off', 'Auto', 'Manual'] }), { dataType: DataType.Int32, value: 1 })
+  add('Speed', ns.createDataType({ browseName: 'T_Speed', subtypeOf: 'Int16', isAbstract: false }), { dataType: DataType.Int16, value: 5 })
+  add('Delay', 'Duration', { dataType: DataType.Double, value: 250 })
+  add('Level', 'Number', { dataType: DataType.Float, value: 0.5 })
+  add('Count', 'Int64', { dataType: DataType.Int64, arrayType: VariantArrayType.Scalar, value: [0, 7] })
+  await server.start()
+  return server
+}
+
 async function main() {
   const pki = mkdtempSync(join(tmpdir(), 'oip-opcua-'))
   const server = await plc(48411, pki)
@@ -70,8 +93,8 @@ async function main() {
     // 2. describe: types and access, as the app binds against them
     const nodes = await link.describe([id('Eye'), id('Speed')])
     assert.deepEqual(nodes, [
-      { dataType: 'ns=0;i=1', access: 3 },
-      { dataType: 'ns=0;i=10', access: 3 },
+      { dataType: 'ns=0;i=1', builtin: 1, access: 3 },
+      { dataType: 'ns=0;i=10', builtin: 10, access: 3 },
     ])
 
     // 3. one cycle: write the eye, read what the PLC's rung made of it
@@ -148,6 +171,28 @@ async function main() {
       await link.close()
     } finally {
       await paged.shutdown(0)
+    }
+
+    // 9. a PLC's own types: each described by the built-in it comes down to, and written as that
+    const typed = await ownTypes(48416, pki)
+    try {
+      const link = new OpcUaLink(join(pki, 'client'), () => {})
+      assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48416'), { error: '' })
+      const { variables } = await link.browse()
+      const names = ['Mode', 'Speed', 'Delay', 'Level', 'Count']
+      const ids = names.map((name) => variables.find((v) => v.path.at(-1) === name).nodeId)
+      const nodes = await link.describe(ids)
+      // an enumeration as Int32, an alias of Int16 as Int16, Duration as Double, an abstract Number by its value's
+      // Float, and Int64 as itself (the app refuses it)
+      assert.deepEqual(nodes.map((n) => n.builtin), [6, 4, 11, 10, 8])
+      assert.ok(nodes[0].dataType.startsWith('ns=1;'))
+      const writes = [2, 7, 500, 0.25].map((value, i) => ({ nodeId: ids[i], builtin: nodes[i].builtin, value }))
+      const cycle = await link.exchange(writes, ids.slice(0, 4))
+      assert.deepEqual(cycle.writes, ['Good', 'Good', 'Good', 'Good'])
+      assert.deepEqual(cycle.reads.map((r) => r.value), [2, 7, 500, 0.25])
+      await link.close()
+    } finally {
+      await typed.shutdown(0)
     }
     console.log('opcUaIo: all checks passed')
   } finally {
