@@ -6,7 +6,7 @@
 import { normalizeAngle } from '../../core/math'
 import { subtreeIds } from '../../core/scene/hierarchy'
 import { rotateXZ } from '../../core/transforms'
-import { surfaceAlignPose } from '../../core/snap/snapFeatures'
+import { surfaceAlignPose } from '../../core/snap/snapSurfacePose'
 import type { SnapPose } from '../../core/snap/snapFeatures'
 import type { SceneJSON } from '../../core/types'
 import type { EditorState } from '../store/store'

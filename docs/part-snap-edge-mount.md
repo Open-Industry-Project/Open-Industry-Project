@@ -46,7 +46,7 @@ general capability for a custom part seating along any declared rectangular surf
 
 ## How a match happens
 
-`snapEdgeMount` (in [snapFeatures.ts](../src/core/snap/snapFeatures.ts)):
+`snapEdgeMount` (in [snapEdges.ts](../src/core/snap/snapEdges.ts)):
 
 1. Read the target's `surfaces` entry whose `kind === accepts` → the deck rectangle (its length/width params).
 2. Height gate `|Δy| ≤ tolerance`, decks coplanar.

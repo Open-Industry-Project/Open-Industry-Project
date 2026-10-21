@@ -51,7 +51,7 @@ async function frame(page, target, eye) {
  * Mount the sensor using the app's own snap solver (core/snap/snapFeatures findSnap), reached by a dev
  * dynamic import so the pose is the one a real guard drop produces, including the auto-fit range.
  *
- * Why not hand-place: the mount sits at guardY = ty + surfaceY (snapFeatures.ts), i.e. the conveying
+ * Why not hand-place: the mount sits at guardY = ty + surfaceY (snapRails.ts), i.e. the conveying
  * surface, ~0.75 m up. A guessed height can put the sensor on the floor beside the belt, measuring a
  * beam crossing open air, which looks healthy and tests nothing. Scanning candidate origins until
  * findSnap engages removes the guess.

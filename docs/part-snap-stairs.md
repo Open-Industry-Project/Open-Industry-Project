@@ -50,7 +50,7 @@ A package declaring the format 2 `snap.stairMount` fails validation by name
 
 ## How a match happens
 
-`snapEdgeMountInto` (in [snapFeatures.ts](../src/core/snap/snapFeatures.ts)) works in the SDK stair's
+`snapEdgeMountInto` (in [snapEdges.ts](../src/core/snap/snapEdges.ts)) works in the SDK stair's
 **foot-origin, +X-up-slope** frame:
 
 1. Read the target's `surfaces` entry whose `kind === accepts` and carries a `heightParam` → deck length/width

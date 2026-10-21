@@ -61,7 +61,7 @@ function foldBound(e: Expr, consts: Map<string, number>, what = 'an array bound'
 }
 
 /**
- * `STRING(MAX_LEN)`: every STRING capacity written as a constant expression (parser.ts `stringLen`), folded against the
+ * `STRING(MAX_LEN)`: every STRING capacity written as a constant expression (parserDecl.ts `stringLen`), folded against the
  * global CONSTANTs and written where the parser left its placeholder - any `maxLen`, `retMaxLen` or `elemMaxLen` of
  * -(1 + k) in the tree. One walk of the AST, and only for a program that writes such a capacity. A capacity that does
  * not fold is reported where it is written, and the default capacity stands in, so a tolerant check carries on.

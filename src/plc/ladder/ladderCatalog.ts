@@ -217,7 +217,7 @@ function typeName(t: DataType): string {
 
 const pinOf = (d: Decl): CatalogPin => ({ name: d.name, type: typeName(d.type), bool: d.type === 'BOOL' })
 
-/** The program's own FUNCTION_BLOCKs and FUNCTIONs, read as the parser reads a box's pins (parser.ts `userBlockInfo`):
+/** The program's own FUNCTION_BLOCKs and FUNCTIONs, read as the parser reads a box's pins (parserLadder.ts `userBlockInfo`):
  *  VAR_INPUT and VAR_OUTPUT, in declaration order. `except` is the POU being edited, which cannot call itself. */
 function ownEntries(source: string, except: string): CatalogEntry[] {
   let ast

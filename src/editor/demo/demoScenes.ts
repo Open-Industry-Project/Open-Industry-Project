@@ -2210,7 +2210,7 @@ export function createPlcDemoScene(): SceneJSON {
   // decides the row is done on its own, and since cases are counted at release, 5 m upstream, the next row gets
   // pushed while still in transit and the arm lifts a part-built layer (on the second course only).
   //
-  // It sits on the far rail, at the seat core/snap/snapFeatures.seatOnRail computes for the sensor package's
+  // It sits on the far rail, at the seat core/snap/snapRails.seatOnRail computes for the sensor package's
   // `conveyorGuard` mount (examples/parts/diffuse-sensor: lens at local +z EYE_LENS_Z, seated EYE_MOUNT_OUTWARD
   // proud of the rail, facing in), so a drag puts it where this places it.
   //

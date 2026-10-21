@@ -91,7 +91,7 @@ stepping-mezzanine non-goal below.
 
 The other platform-adjacent snaps are *different* kinds: **barrier → deck edge** and **stairs → deck edge** are
 both `snap.edgeMount` (`snapEdgeMount` for the `'along'` facing, `snapEdgeMountInto` for `'into'`, in
-[snapFeatures.ts](../src/core/snap/snapFeatures.ts)): see [part-snap-edge-mount.md](part-snap-edge-mount.md) and
+[snapEdges.ts](../src/core/snap/snapEdges.ts)): see [part-snap-edge-mount.md](part-snap-edge-mount.md) and
 [part-snap-stairs.md](part-snap-stairs.md).
 
 ## Non-goals

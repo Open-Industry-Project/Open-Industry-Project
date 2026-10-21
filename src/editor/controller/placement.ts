@@ -10,7 +10,7 @@ import { getPackage } from '../../core/parts/partRegistry'
 import { partFootprint } from '../../core/parts/partGeometry'
 import { PART_DEFS } from '../../core/types'
 import type { PartInstance, PartType, SceneJSON } from '../../core/types'
-import { surfaceAlignPose } from '../../core/snap/snapFeatures'
+import { surfaceAlignPose } from '../../core/snap/snapSurfacePose'
 import type { SnapCandidate, SnapPose } from '../../core/snap/snapFeatures'
 import type { EditorController } from '../controller'
 

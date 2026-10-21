@@ -3,7 +3,7 @@
 Ladder is a second front end on the Structured Text engine, not a second runtime. A rung lowers to the ST that
 means it, and everything downstream (checker, interpreter, TypeScript emitter, text exporters, the sim worker)
 sees ordinary statements. The code is [src/plc/ladder/ladder.ts](../src/plc/ladder/ladder.ts) (model, lowering, export caveats),
-[src/plc/parser.ts](../src/plc/parser.ts) (`ladderSection`) and [src/plc/ladder/ladderXml.ts](../src/plc/ladder/ladderXml.ts)
+[src/plc/parserLadder.ts](../src/plc/parserLadder.ts) (`ladderSection`) and [src/plc/ladder/ladderXml.ts](../src/plc/ladder/ladderXml.ts)
 (PLCopen `<LD>` in and out).
 
 **Its words are data, not branches in the checker.** A lowered place that an element requires to be BOOL carries a

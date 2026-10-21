@@ -135,10 +135,10 @@ export function matchInCode(src: string, mask: Uint8Array, re: RegExp, from = 0)
  * The spelling every compiler reads, for the non-IEC input forms the parser tolerates (each one our own rule for
  * reading code written elsewhere; none of them is ever written out):
  *  - the `;` after END_IF, END_CASE, END_FOR, END_WHILE, END_REPEAT and END_STRUCT, and after the last declaration of
- *    a TYPE block (parser.ts `blockEnd` / `typeEnd`), which strict IEC requires and MATIEC refuses a program without;
+ *    a TYPE block (parserStmt.ts `blockEnd`, parserDecl.ts `typeEnd`), which strict IEC requires and MATIEC refuses a program without;
  *  - `Mode#Idle` for an enumeration's member written `Mode.Idle` (checkExpr.ts `inferType`, the `member` case);
- *  - nothing at all for an argument named and given nothing, `Q => ,` (parser.ts `blockArgs`);
- *  - `STRING[80]` for `STRING(80)` (parser.ts `stringLen`);
+ *  - nothing at all for an argument named and given nothing, `Q => ,` (parserExpr.ts `blockArgs`);
+ *  - `STRING[80]` for `STRING(80)` (parserDecl.ts `stringLen`);
  *  - nothing for an interface's `__SYSTEM.<name>` base, or PUBLIC / ABSTRACT on an interface's method (parser.ts
  *    `interfaceDef`);
  *  - nothing for an enumeration's base type, `(Idle, Run) UINT`;
@@ -183,7 +183,7 @@ export function canonicalSyntax(text: string, opts: { iecText?: boolean } = {}):
   })
   for (const p of semis) edits.push({ at: p, end: p, text: ';' })
 
-  // `STRING(80)` -> `STRING[80]`: IEC writes a capacity in brackets (parser.ts `stringLen` reads either)
+  // `STRING(80)` -> `STRING[80]`: IEC writes a capacity in brackets (parserDecl.ts `stringLen` reads either)
   inCode(/\b(W?STRING)[ \t]*\([ \t]*(\d+)[ \t]*\)/gi, (m) => {
     if (src[m.index - 1] !== '.' && src[m.index - 1] !== '#') edits.push({ at: m.index, end: m.index + m[0].length, text: `${m[1]}[${m[2]}]` })
   })

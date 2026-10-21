@@ -91,14 +91,14 @@ inclined straight reports its ends where they are. `conveyorLocalEnds` puts them
 neighbour at `targetEndY − e.y`, so a flat run snaps onto an incline's head or tail, an incline onto a flat
 run, and a nose-over chain (flat, incline, flat) comes out at the right heights with nothing set by hand.
 Related rules:
-- **Nothing side-merges onto an inclined bed** (`straightFlanks` in [snapFeatures.ts](../src/core/snap/snapFeatures.ts)
+- **Nothing side-merges onto an inclined bed** (`straightFlanks` in [snapConveyor.ts](../src/core/snap/snapConveyor.ts)
   offers no flank on one). A side merge seats the mover flat at one height, and a sloping flank disagrees with
   it across the whole mouth. An inclined mover still side-merges onto a flat bed, its raised end seated on the bed.
 - **The footprint is the plan extent** (`partFootprint`): `hx = (L/2)·cos`, matching the ends. At `L/2` it
   would overhang each end by `(L/2)(1 − cos)`, so a correctly butted neighbour would read as overlapping and
   snap in the distance-blind override tier. The drop-raycast proxy (`collisionShapes.ts` `footprintHull`) still
   builds the tilted slab from the bed's slope length, not the footprint's `hx`.
-- **Guard-mounted devices seat on the slope** (`snapFeatures.ts` `straightGuardHost`). A sensor or diverter
+- **Guard-mounted devices seat on the slope** (`snapRails.ts` `straightGuardHost`). A sensor or diverter
   seats on the guard at the height it has at that point (`x·tan`, as a belt's path also gives), along a rail
   that ends where the bed does in plan. A pop-up diverter seated there still opens the guard (the opening's
   height check reads the same slope). **Track devices (blade stop, chain transfer) refuse an inclined bed**,

@@ -46,7 +46,7 @@ The shipped stairs declare `edgeMount` facing `'into'` with `fromFloor` on `numS
 
 A gate in a platform railing is `edgeMount: { accepts: 'deck', alongParam: 'width', reach: 1, opens: true }`. A ramp is
 the stairs' declaration with a length param in place of the step count, with one caveat. `fromFloor` fits its param in
-whole units (rounded, at least 1; [snapFeatures.ts](../src/core/snap/snapFeatures.ts) `snapEdgeMountInto`). So a ramp gets a
+whole units (rounded, at least 1; [snapEdges.ts](../src/core/snap/snapEdges.ts) `snapEdgeMountInto`). So a ramp gets a
 continuous fit only by making its unit small (a fine `scale` on the axis-1 `atParams` entry), and `lift` absorbs the
 residual. None of them needs a new word.
 
@@ -57,7 +57,7 @@ residual. None of them needs a new word.
 | the words (`SnapEdgeMount`, `SnapParamOffset`, `SnapMount.opens`) | [partApi.ts](../src/core/parts/partApi.ts) |
 | the link words (`onEdge`, `anchor`, `dropWhenMounted`), validation, the format 2 -> 3 upgrade | [partPackage.ts](../src/core/parts/partPackage.ts) (types), [partValidateRig.ts](../src/core/parts/partValidateRig.ts) (validation), [partUpgrade.ts](../src/core/parts/partUpgrade.ts) (upgrade) |
 | the contact point, shared by the seat and the cut so they cannot disagree | [snapConnectors.ts](../src/core/snap/snapConnectors.ts) `edgeMountContact` |
-| the seat (`'along'`: `snapEdgeMount`; `'into'`: `snapEdgeMountInto`) | [snapFeatures.ts](../src/core/snap/snapFeatures.ts) |
+| the seat (`'along'`: `snapEdgeMount`; `'into'`: `snapEdgeMountInto`) | [snapEdges.ts](../src/core/snap/snapEdges.ts) |
 | which guests meet which edges, and the gaps, notches and lifts | [structureConnections.ts](../src/core/structureConnections.ts) |
 | the cut rig render and sim both build from (`onEdge`, `anchor`, `dropWhenMounted`) | [structureCuts.ts](../src/core/structureCuts.ts) |
 | a mount that opens a guard | [partGeometry.ts](../src/core/parts/partGeometry.ts) `isGuardPusher` / `guardPusherContacts` |

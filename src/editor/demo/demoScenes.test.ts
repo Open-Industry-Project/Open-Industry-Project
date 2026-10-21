@@ -411,7 +411,7 @@ describe('PLC demo scene', () => {
 
   // The cell is authored to be reproducible by the snap: its lane spacing is a whole number of roller pitches,
   // which keeps every chain lane in a roller gap instead of riding a roller. The snap
-  // rounds an authored spacing to whole pitches (core/snap/snapFeatures adoptedLaneSpacing), so a demo value that
+  // rounds an authored spacing to whole pitches (core/snap/snapTrack adoptedLaneSpacing), so a demo value that
   // already is one survives a re-snap untouched - and a hand-tuned value that isn'T would silently shift when
   // anyone nudges the part.
   it('the transfer\'s lane spacing is a whole number of roller pitches (a re-snap would not move it)', () => {

@@ -3,7 +3,7 @@
 // The source string is the one truth (document.ts). A ladder view is a round trip over it: `readLadder` gives it
 // rungs, a gesture changes them (ladderEdit.ts), `writeLadder` prints them back into the same string, which then
 // saves, undoes and reaches a room like typing, because it is an edit to the text. Nothing here runs anything: the
-// parser (parser.ts `ladderSection`) and the lowering (ladder.ts) are what make a rung mean something.
+// parser (parserLadder.ts `ladderSection`) and the lowering (ladder.ts) are what make a rung mean something.
 //
 // A rung's comment is the comment written above it in the text, so it survives every tool that reads the program as
 // ST; operands are kept as the author's text, not as expressions.
