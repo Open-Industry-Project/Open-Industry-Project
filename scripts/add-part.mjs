@@ -13,7 +13,8 @@
 //
 // A folder with no project.json becomes a new project with an empty scene, so a part can be tested
 // from nothing: `npm run add-part -- my-test oip.roller-conveyor oip.box ./my-part --place`.
-// `--place` also drops one instance of each part: at the origin, or where that part's own options say. The options
+// `--place` also drops one instance of each part: at the origin, or where that part's own options say. A part given
+// any of the options below is placed whether or not --place is there (they describe a placed part). The options
 // after a part apply to that part only:
 //   --params k=v,...  its params, each checked against the param's declared type (core/parts/partParamArgs.ts). A param
 //                     that takes effect only under a switch setting turns the switch to it unless the switch is given
@@ -93,7 +94,6 @@ for (let i = 0; i < argv.length; i++) {
 }
 const [folder, ...parts] = positional
 if (!folder || parts.length === 0) usage()
-if (optsFor.size > 0 && !place) usage('--params / --id / --at / --rot describe a PLACED part: add --place or --scaffold')
 {
   const ids = [...optsFor.values()].map((o) => o.id).filter(Boolean)
   const twice = ids.find((id, i) => ids.indexOf(id) !== i)
@@ -169,7 +169,8 @@ try {
     registerPackage(pkg)
     const step = { arg, pkg, given: [] }
     plan.push(step)
-    if (!place) continue
+    // a part's own options describe a placed part, so they place it even without --place
+    if (!place && !optsFor.has(index)) continue
     const o = optsFor.get(index) ?? {}
     let id = o.id
     if (!id) {

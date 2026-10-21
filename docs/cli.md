@@ -83,7 +83,7 @@ Scene conventions the tools assume (rotationY direction, +X downstream, left = -
 Never hand-edit scene.json; these go through the same checks the editor does.
 
 - **`npm run add-part -- <project-folder> <built-in id | part-folder> [--params k=v,...] [--id <id>] [--at x,y,z] [--rot <deg>]... [--place | --scaffold]`**
-  - The options after a part apply to that part.
+  - The options after a part apply to that part, and place it: a part given any of them is placed without `--place`.
   - `--params` values are checked against each param's declared type, and a given value is never written over. One
     that needs a switch setting turns the switch and says so (`speedFpm=200` sets `fpmUnits=true`). One equal to
     what the part already has is printed as not stored. A list is one comma-joined value:
