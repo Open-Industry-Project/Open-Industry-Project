@@ -93,7 +93,7 @@ export default tseslint.config(
   // Files already over the limit. Each may not grow past its own ceiling: its size when the limit came in, plus
   // headroom. Shrink a ceiling when a split shrinks the file, and delete the entry once it is under 1,500.
   ...Object.entries({
-    'src/editor/store/store.ts': 2600,
+    'src/editor/store/store.ts': 2300,
     'src/render/viewport/view.ts': 2500,
     'src/editor/components/plc/LadderView.tsx': 1800,
     'src/editor/controller.ts': 2000,

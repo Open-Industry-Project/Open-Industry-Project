@@ -6,6 +6,9 @@ import type { PartPackage } from '../../core/parts/partPackage'
 import { renamePartInScene } from '../../core/parts/partRename'
 import type { SceneJSON } from '../../core/types'
 
+/** How close in time two edits with the same coalescing key must be to merge into one undo step. */
+export const COALESCE_MS = 800
+
 export interface CommitOptions {
   coalesceKey?: string
   before?: SceneJSON
