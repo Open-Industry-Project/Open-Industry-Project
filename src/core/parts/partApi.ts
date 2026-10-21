@@ -705,9 +705,10 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
    * Read a load cell: the weight resting on a `loadCell` link this tick, in kg (the vertical force through the
    * platform over g). The host measures it from the physics, not from what the cargo says it weighs: every body
    * touching the link's top and everything stacked on it, at its own mass and with its vertical acceleration, so a
-   * case dropping onto the platform or a lift starting up reads high for a moment, as a real scale does. Exact while
-   * the load rests on the platform alone; a case still crossing onto it counts by the share of its footprint over
-   * the link. Filtering, settling and tare are the machine's job, as on a real checkweigher: read it while one case
+   * case dropping onto the platform or a lift starting up reads high for a moment, as a real scale does. A load on the
+   * platform alone counts in full, even hanging past its edge; one that also rests on something else (a case still
+   * crossing onto it, a pallet bridging two scales) is shared by where its centre of gravity falls between the two.
+   * Filtering, settling and tare are the machine's job, as on a real checkweigher: read it while one case
    * is fully on and the reading is steady. An unknown link reads 0.
    */
   weight(link: string): number

@@ -296,7 +296,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.pilot = new PilotCapsule(J, this.bodyInterface, this.axisY, this.kin)
     this.cargo = new CargoRegistry(J, this.system, this.bodyInterface, this.axisY, this.clock, this.hz, boxes, this.holds, this.partGroups)
     this.sensors = new SensorRegistry(this.cargo, boxes, this.holds, this.pilot, this.clock, this.hz)
-    this.loadCells = new LoadCells(this.system, this.bodyInterface, this.cargo, boxes, this.holds, this.dt)
+    this.loadCells = new LoadCells(J, this.system, this.bodyInterface, this.cargo, boxes, this.holds, this.dt)
     this.rigDriver = new RigDriver(this.bodyInterface, this.kin, this.dt, boxes, this.cargo, this.holds, this.sensors, this.rigMsByPart)
     this.flow = new CargoFlow(this.cargo, boxes, this.holds, this.sensors, this.rigDriver.rigs, this.partGroups, this.cargo.dressings, this.clock, this.hz)
     this.flowFacts = opts.flowFacts === false ? null : new SimFlowFacts(scene.parts, this.cargo, boxes, this.holds, this.sensors, this.bus, this.clock, this.hz)
@@ -1482,6 +1482,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.rigDriver.clear() // bodies are torn down via their part group; just drop the stale refs
     this.sensors.clear()
     this.loadCells.clear()
+    this.loadCells.dispose()
     J.destroy(this.joltInterface)
     this.facets.dispose()
     this.cargo.dispose()

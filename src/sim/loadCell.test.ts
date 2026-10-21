@@ -202,6 +202,39 @@ describe('load cell (ctx.weight)', () => {
     w.dispose()
   })
 
+  it('reads a load cantilevered past the edge in full: nothing else holds it up', () => {
+    // a 1.6 m case, its centre of gravity over the 1.2 m platform and 0.5 m of it hanging past the +x edge
+    const w = world([onScale(), { id: 'long', type: 'part', packageId: 'oip.box', position: [0.3, DECK_Y + BOX_H / 2, 0], rotationY: 0, params: { mass: 20, length: 1.6 } }])
+    steps(w, 90, { run: 0 })
+    expect(kg(w)).toBeCloseTo(20, 1)
+    steps(w, 900, { run: 0 }) // and the same once it is asleep
+    expect(w.bodyStats().active).toBe(0)
+    expect(kg(w)).toBeCloseTo(20, 1)
+    w.dispose()
+  })
+
+  it('shares a case bridging two scales by its centre of gravity, and the two always add up to it', () => {
+    // two scales butted at x = 0; a 1 m case 20 kg, its centre at x 0.2: most of it on the right scale
+    const parts: PartInstance[] = [
+      { id: 'left', type: 'part', packageId: 'acme.scale', position: [-0.6, DECK_Y, 0], rotationY: 0, params: {} },
+      { id: 'right', type: 'part', packageId: 'acme.scale', position: [0.6, DECK_Y, 0], rotationY: 0, params: {} },
+      { id: 'c', type: 'part', packageId: 'oip.box', position: [0.2, DECK_Y + BOX_H / 2, 0], rotationY: 0, params: { mass: 20, length: 1 } },
+      // and a case stacked on it off its centre, so the stack's centre of gravity is not the case's own
+      { id: 'top', type: 'part', packageId: 'oip.box', position: [0.45, DECK_Y + BOX_H * 1.5, 0], rotationY: 0, params: { mass: 10, length: 0.4 } },
+    ]
+    const w = world(parts)
+    steps(w, 90, { run: 0 })
+    const awake = [kg(w, 'left'), kg(w, 'right')]
+    expect(awake[0]! + awake[1]!).toBeCloseTo(30, 1)
+    expect(awake[1]!).toBeGreaterThan(awake[0]! * 2) // the weight sits over the right scale
+    steps(w, 900, { run: 0 })
+    expect(w.bodyStats().active).toBe(0)
+    // asleep, nothing moved: the same readings, and the stacked case is not counted again as standing on a scale
+    expect(kg(w, 'left')).toBeCloseTo(awake[0]!, 3)
+    expect(kg(w, 'right')).toBeCloseTo(awake[1]!, 3)
+    w.dispose()
+  })
+
   it('reads more while the platform accelerates the load up, and the load at a steady climb', () => {
     const w = world([{ id: 'lift', type: 'part', packageId: 'acme.lift', position: [0, DECK_Y, 0], rotationY: 0, params: {} }, boxAt('b', 0, DECK_Y + BOX_H / 2, 10)])
     steps(w, 90, { go: false })

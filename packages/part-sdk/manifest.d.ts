@@ -493,10 +493,11 @@ export interface RigLink {
      *  resting on it puts through it each tick, and the behavior reads it with `ctx.weight(linkName)`, in kg. The
      *  force comes from the physics: every body touching the link's top and everything stacked on it, at its own mass,
      *  with the vertical acceleration it has this tick, so a load landing on the platform or riding a lift reads more
-     *  for a moment, as on a real scale. Exact while the load rests on this link alone. A body that also rests on
-     *  something else (a case crossing the seam onto a weigh belt) counts by the share of its footprint over the link,
-     *  so the reading ramps as it comes on. Works on a `conveys` deck (a checkweigher's weigh belt) and on a plain
-     *  solid box (a platform scale). */
+     *  for a moment, as on a real scale. A load resting on this link alone counts in full, even one hanging past its
+     *  edge. A load that also rests on something else (a case crossing the seam onto a weigh belt, a pallet bridging two
+     *  scales) is shared between them by where its centre of gravity falls between the two, so the reading ramps as a
+     *  case comes on. Works on a `conveys` deck (a checkweigher's weigh belt) and on a plain solid box (a platform
+     *  scale). */
     loadCell?: boolean;
     /** This link grips: its pickup volume, where cargo is taken when the behavior closes it (`ctx.setGrip` /
      *  `ctx.grips`). Any link can be commanded to grip; this block sizes what it takes ({@link RigGrip}). Omit it and
