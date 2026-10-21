@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { ARC_END_EXT, ROLLER_PITCH } from './types'
 import type { SdkPart } from './types'
 import { conveyorDeckSubs } from './geometry/collisionShapes'
-import { curvedConveyorView, partFootprint } from './parts/partGeometry'
+import { bedView, partFootprint } from './parts/partGeometry'
 import { checkParamSpecs } from './parts/partAuthoringChecks'
 import type { ParamSchema } from './parts/partApi'
 import { clearPackages, registerPackage } from './parts/partRegistry'
@@ -42,11 +42,11 @@ afterEach(() => clearPackages())
 describe('curved belt end gap follows its Frame height (arc handle endGapParam)', () => {
   it('endExt = height / 2, and the default height gives ARC_END_EXT', () => {
     registerPackage(curvePkg())
-    expect(curvedConveyorView(curve({ height: 0.17 }))!.endExt).toBeCloseTo(ARC_END_EXT, 12)
-    expect(curvedConveyorView(curve({ height: 0.4 }))!.endExt).toBeCloseTo(0.2, 12)
-    expect(curvedConveyorView(curve({ height: 0.1 }))!.endExt).toBeCloseTo(0.05, 12)
+    expect(bedView(curve({ height: 0.17 }), 'arc')!.endExt).toBeCloseTo(ARC_END_EXT, 12)
+    expect(bedView(curve({ height: 0.4 }), 'arc')!.endExt).toBeCloseTo(0.2, 12)
+    expect(bedView(curve({ height: 0.1 }), 'arc')!.endExt).toBeCloseTo(0.05, 12)
     // a curve saved before the param falls back to the half-pulley
-    expect(curvedConveyorView(curve({}))!.endExt).toBe(ARC_END_EXT)
+    expect(bedView(curve({}), 'arc')!.endExt).toBe(ARC_END_EXT)
   })
 
   it('a deep curve widens its footprint and lead-in stubs to reach its drums; a shallow one keeps ARC_END_EXT', () => {

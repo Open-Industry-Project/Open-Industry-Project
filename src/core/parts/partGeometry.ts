@@ -1,15 +1,13 @@
 import {
-  ARC_END_EXT,
   BELT_MIN_RUN_LENGTH,
   BUILDING_SECTION_SIZE,
   FLOOR_SURFACE_Y,
   PART_DEFS,
   buildingEaveHeight,
-  type BeltSegmentSpec,
   type ParamValue,
   type PartInstance,
 } from '../types'
-import { beltHorizontalExtent, beltPathFromParams, beltSegmentAngles } from '../conveyor/beltPath'
+import { beltHorizontalExtent, beltSegmentAngles } from '../conveyor/beltPath'
 import { flexStations } from '../conveyor/flexPath'
 import { cargoView } from '../frame'
 import { getPackage } from './partRegistry'
@@ -17,41 +15,28 @@ import { resolvedRef, rigRestExtent, type RigParams } from '../rig/rigPose'
 import type { PartBounds } from './partPackage'
 import { rotateXZ, toLocalXZ, toWorldXZ } from '../transforms'
 import { memoByParams, memoByPkg } from './partMemo'
-import {
-  beltLikeView,
-  curvedConveyorView,
-  faceHandleParams,
-  isBeltLike,
-  resolveInclineRad,
-  rotatingDeckView,
-  sdkSpurCorners,
-  spurConveyorView,
-  straightConveyorView,
-  type CurvedGizmo,
-  type PartEnd,
-} from '../conveyor/conveyorBeds'
+import { bedOf, bedView, faceHandleParams, isBeltLike, resolveInclineRad, type CurvedGizmo, type PartEnd } from '../conveyor/conveyorBeds'
 
-// The conveyor bed views and ends live in conveyorBeds.ts, re-exported here for the callers that read every part's
+// The conveyor beds and their ends live in conveyorBeds.ts, re-exported here for the callers that read every part's
 // geometry from this module.
 export {
-  beltLikeView,
+  bedOf,
+  bedView,
   conveyorEndsOf,
   conveyorLocalEnds,
-  curvedConveyorView,
   curvedGizmoOf,
   faceHandleOfPkg,
   isBeltLike,
   isConveyorLike,
   jointRestValue,
   pathHandleOfPkg,
+  rectangleBedOf,
   resolveInclineRad,
   rigInclineRad,
-  rotatingDeckView,
   sdkCurvedLocalEnds,
   sdkSpurCorners,
   sdkSpurFaceX,
-  spurConveyorView,
-  straightConveyorView,
+  type BedKind,
   type BeltLikeView,
   type CurvedConveyorView,
   type CurvedGizmo,
@@ -158,51 +143,15 @@ export const partFootprint = memoByParams(function partFootprintUncached(part: P
       // volume in the scene, so a zero footprint (out of band-select, snap and drop-rest) is correct
       return { hx: 0, hz: 0, y0: 0, y1: 0 }
     case 'part': {
-      // footprint = the package's geometry. A belt-like part (declared `path` handle) reflows with its
-      // segments, so use the live belt footprint; otherwise read the package's geometry shape.
-      const view = beltLikeView(part)
-      if (view) return beltFootprintOf(view.segments, view.height, view.width)
+      // A conveyor's footprint reflows with its bed's live params (a belt's segments, a straight's face handles, a
+      // spur's splay, a curve's sweep), not the baked bounds, so selection, snap and drop-rest track a resized bed.
+      const bed = bedOf(part)
+      if (bed) return bed.footprint(part)
       // C-cargo (a dynamic-cargo package): a centre-origin box reflowing with the instance's size params,
       // like the built-in box/pallet, so floorRest seats the underside on the floor and
       // collision-vertex snap / the pick proxy see the true box.
       const cargo = cargoView(part)
       if (cargo) return { hx: cargo.halfExtents[0], hz: cargo.halfExtents[2], y0: -cargo.halfExtents[1], y1: cargo.halfExtents[1] }
-      // an SDK spur conveyor: the footprint covers the whole splayed parallelogram (incl. the shear overhang
-      // past ±length/2), matching the built-in spur, so selection/broadphase/drop-rest see the true bed.
-      const spurFp = spurConveyorView(part)
-      if (spurFp) {
-        const xs = sdkSpurCorners(spurFp).map((c) => c.x)
-        const lo = Math.min(...xs)
-        const hi = Math.max(...xs)
-        return { hx: (hi - lo) / 2, cx: (hi + lo) / 2, hz: spurFp.width / 2, y0: -0.4, y1: 0.05 }
-      }
-      // a straight SDK conveyor (roller family): reflow the footprint with its length/width `face`-handle params
-      // (centre-origin), instead of the stale baked bounds, so selection/snap track a resized bed. An inclined
-      // bed (inclineParam) pivots about the centre. Its ends move in to (L/2)·cos in plan (the extent the snap
-      // overlap test, face-flush, leg rests and the layout check all read, and where conveyorLocalEnds puts the
-      // ends), while the head lifts and the tail drops by (L/2)·|sin|. The vertical extent grows both ways so the
-      // selection AABB / focus framing cover them. At L/2 the box would overhang each end by (L/2)(1 - cos): 20 cm
-      // on a 3 m bed at 30 degrees, enough to count a correctly butted neighbour as overlapping.
-      const straight = straightConveyorView(part)
-      if (straight) {
-        const th = resolveInclineRad(part)
-        const half = straight.length / 2
-        const rise = half * Math.abs(Math.sin(th))
-        return { hx: half * Math.cos(th), hz: straight.width / 2, y0: -0.4 - rise, y1: 0.05 + rise }
-      }
-      // a curved SDK conveyor (arc `handle`): a square footprint out to the outer radius plus the tangent stub,
-      // matching the built-in curved conveyor's footprint, so broadphase/selection track the sweep.
-      const curved = curvedConveyorView(part)
-      if (curved) {
-        // footprint (broadphase/selection) mirrors the built-in curved conveyor: at least the ARC_END_EXT reach on
-        // both families, not the roller's flush snap `endExt`, so the box never under-covers the tangent stub.
-        // A deep curved belt's longer stub (its drum, endGapParam) widens it.
-        const r = curved.innerRadius + curved.width + Math.max(ARC_END_EXT, curved.endExt)
-        return { hx: r, hz: r, y0: -0.4, y1: 0.05 }
-      }
-      // a rotating-deck SDK conveyor (turntable family): a plate-radius square footprint that reflows with width.
-      const disc = rotatingDeckView(part)
-      if (disc) return { hx: disc.radius, hz: disc.radius, y0: -0.4, y1: 0.05 }
       // Rig/drawn/cargo: their declared `bounds` box (a default until authored). An
       // unresolved package yields a zero footprint until it loads.
       const pkg = getPackage(part.packageId)
@@ -815,28 +764,10 @@ export function surfaceBelowParam(part: PartInstance): string | null {
   return null
 }
 
-/** Belt footprint (tail-origin, + the end-drum pulley wrap on each end) from raw segments/height/width -
- *  shared by the built-in belt and an SDK belt-like custom part. */
-function beltFootprintOf(
-  segments: BeltSegmentSpec[],
-  height: number,
-  width: number,
-): { hx: number; hz: number; y0: number; y1: number; cx: number } {
-  const path = beltPathFromParams({ segments, height })
-  const extent = Math.max(beltHorizontalExtent(segments), BELT_MIN_RUN_LENGTH)
-  return {
-    hx: extent / 2 + path.height / 2,
-    cx: extent / 2,
-    hz: width / 2,
-    y0: path.bounds.minY - path.height,
-    y1: path.bounds.maxY + 0.05,
-  }
-}
-
 export function resizeHandleMidY(part: PartInstance): number {
-  // SDK conveyors (belt-like or straight roller family): deck sits at local y=0, like the built-ins, so the
-  // resize dots sit on the conveying surface rather than the leg-dipped footprint mid-height.
-  if (part.type === 'part' && (isBeltLike(part) || straightConveyorView(part))) return 0
+  // a belt, straight or spur bed sits at local y=0, so its resize dots sit on the conveying surface rather than the
+  // leg-dipped footprint mid-height
+  if (bedOf(part)?.resizeOnDeck) return 0
   const fp = partFootprint(part)
   return (fp.y0 + fp.y1) / 2
 }
@@ -1016,7 +947,7 @@ export function resizePart(
  * via the last segment's cumulative tilt.
  */
 function resizeBeltLength(part: PartInstance, sign: 1 | -1, newExtent: number): ResizeResult {
-  const view = beltLikeView(part)
+  const view = bedView(part, 'path')
   const keep = { position: [...part.position] as [number, number, number], params: { ...(part.params as unknown as Record<string, ParamValue>) } }
   if (!view) return keep
   const segments = view.segments.map((s) => ({ ...s }))
@@ -1044,7 +975,7 @@ function resizeBeltLength(part: PartInstance, sign: 1 | -1, newExtent: number): 
  * horizontal (local X), independent of segment 0's tilt.
  */
 export function resizeBeltTail(part: PartInstance, dragAlongT: number): ResizeResult {
-  const view = beltLikeView(part)
+  const view = bedView(part, 'path')
   const params = part.params as unknown as Record<string, ParamValue>
   if (!view) return { position: [...part.position], params: { ...params } }
   const segments = view.segments.map((s) => ({ ...s }))
@@ -1064,7 +995,7 @@ export function resizeBeltTail(part: PartInstance, dragAlongT: number): ResizeRe
  * length to `newLength`; the origin holds and every downstream segment follows.
  */
 export function resizeBeltSegmentLength(part: PartInstance, segIndex: number, newLength: number): ResizeResult {
-  const view = beltLikeView(part)
+  const view = bedView(part, 'path')
   const params = part.params as unknown as Record<string, ParamValue>
   if (!view) return { position: [...part.position], params: { ...params } }
   const segments = view.segments.map((s) => ({ ...s }))
@@ -1093,7 +1024,7 @@ export function conveyorCenterOffsetX(part: PartInstance): number {
   // origin but has no `length` param - its length midpoint is half the horizontal plan extent instead.
   // Other custom conveyors (straight/spur/curved views) keep a centre origin, so their offset is 0.
   if (part.type === 'part') {
-    const view = beltLikeView(part)
+    const view = bedView(part, 'path')
     return view ? beltHorizontalExtent(view.segments) / 2 : 0
   }
   return 0

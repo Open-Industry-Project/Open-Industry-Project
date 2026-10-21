@@ -4,7 +4,7 @@ import type { PartPackage } from '../core/parts/partPackage'
 import { createSdkPart } from '../core/scene/scene'
 import { findSnap } from '../core/snap/snapFeatures'
 import { conveyingSurfaceAt } from '../core/conveyor/conveyorSurface'
-import { beltLikeView, conveyorEndsOf } from '../core/parts/partGeometry'
+import { bedView, conveyorEndsOf } from '../core/parts/partGeometry'
 import { scaffoldLine } from '../core/lineScaffold'
 import { formatParamArgs, hiddenParamArgs, parseParamArgs, withParamArgs } from '../core/parts/partParamArgs'
 import type { PartInstance, SdkPart } from '../core/types'
@@ -70,7 +70,7 @@ describe('withParamArgs', () => {
   it("gives a belt its length through the resize path (its segments) and refuses a param it doesn't have", () => {
     const belt = fresh('oip.belt-conveyor', 'b', { width: 0.8, length: 3 })
     expect(belt.params.width).toBe(0.8)
-    expect(beltLikeView(belt)!.segments.map((s) => s.length)).toEqual([3])
+    expect(bedView(belt, 'path')!.segments.map((s) => s.length)).toEqual([3])
     expect(() => fresh('oip.belt-conveyor', 'b', { wdith: 0.8 })).toThrow(/no param "wdith"/)
   })
 

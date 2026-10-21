@@ -3,7 +3,7 @@ import type { Group, InstancedMesh, Material, Mesh } from 'three'
 import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
 import { evalPartGeometry, resolvePartParams } from '../../../core/geometry/geometryEval'
-import { beltLikeView } from '../../../core/parts/partGeometry'
+import { bedView } from '../../../core/parts/partGeometry'
 import { beltXToS, buildBeltPath } from '../../../core/conveyor/beltPath'
 import type { GuardOpenings } from '../../../core/guards/guardOpenings'
 import { guardHoleRows } from '../../../core/guards/guardHoles'
@@ -45,7 +45,7 @@ import { buildMaterial } from './materials'
 // the neighbour fact and injects it as ordinary params, exactly like rest:'surfaceBelow' fills standHeight.
 function withNeighborOpenings(p: SdkPart, pkg: PartPackage, params: Record<string, ParamValue>, openings?: GuardOpenings): Record<string, ParamValue> {
   if (!openings || (openings.left.length === 0 && openings.right.length === 0) || !pkg.params.guardOpenings) return params
-  const view = beltLikeView(p)
+  const view = bedView(p, 'path')
   if (!view) return params
   const path = buildBeltPath(view.segments, view.height)
   const rows: number[][] = []
@@ -62,7 +62,7 @@ function withNeighborOpenings(p: SdkPart, pkg: PartPackage, params: Record<strin
 // param (the hole convention) - a conveyor that doesn't draw holes keeps solid guards.
 function withGuardHoles(p: SdkPart, pkg: PartPackage, params: Record<string, ParamValue>, holes?: GuardHoles): Record<string, ParamValue> {
   if (!holes || !pkg.params.guardHoles) return params
-  const view = beltLikeView(p)
+  const view = bedView(p, 'path')
   const path = view ? buildBeltPath(view.segments, view.height) : null
   const rows = guardHoleRows(holes).map(([x, y, side]) => [path ? beltXToS(path, x!) : x!, y!, side!])
   return rows.length ? { ...params, guardHoles: rows } : params

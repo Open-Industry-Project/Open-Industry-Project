@@ -1,6 +1,6 @@
 import type { PartInstance } from './types'
 import { deriveGuardOpenings, hostGuardFrame } from './guards/guardOpenings'
-import { beltLikeView } from './parts/partGeometry'
+import { bedView } from './parts/partGeometry'
 import { beltXToSExt, buildBeltPath } from './conveyor/beltPath'
 
 type SRange = [number, number]
@@ -20,7 +20,7 @@ export function junctionOpeningRows(host: PartInstance, parts: readonly PartInst
   if (!frame) return { left: [], right: [] }
   const bare = { ...host, params: { ...host.params, guardOpenings: [] } } as unknown as PartInstance
   const cut = deriveGuardOpenings(bare, parts)
-  const view = beltLikeView(bare)
+  const view = bedView(bare, 'path')
   const path = view ? buildBeltPath(view.segments, view.height) : null
   const toRow = (x: number): number => (path ? beltXToSExt(path, x) : x - frame.bedLo)
   const map = (ranges: readonly SRange[]): SRange[] =>

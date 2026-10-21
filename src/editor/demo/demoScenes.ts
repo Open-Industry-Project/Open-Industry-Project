@@ -65,7 +65,7 @@ import type { Controller } from '../../core/controller'
 /**
  * Resolve a bundled first-party package by id: the live registry copy when the bundled-examples
  * loader has already run, else built fresh from the committed folder (examples/parts/<dir>) and
- * registered so the geometry seams (beltLikeView & co) resolve while the scene is being built.
+ * registered so the geometry seams (bedOf & co) resolve while the scene is being built.
  * The demo embeds every package it uses in scene.packages, so loading it is self-contained
  * (registerScenePackages) in any context. A build failure (never, once committed) returns null.
  */

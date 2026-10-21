@@ -7,7 +7,7 @@ import { computeSceneExtents, deriveGuardExtents, extentsKey, withSnapExtents } 
 import { PACKAGE_FORMAT } from '../parts/partPackage'
 
 // The hosts and spurs guardExtents recognizes are SDK (`custom`) parts. A spur is a face-handle bed declaring
-// angleFront/BackParam (spurConveyorView). A host is a belt-like or straight SDK conveyor (hostGeom). These tests
+// angleFront/BackParam (its spur bed). A host is a belt-like or straight SDK conveyor (hostGeom). These tests
 // cover an SDK spur butting an SDK straight host.
 
 /** an SDK spur package: the length face handle declares the splay params (+ a guardExtents param to fold into) */

@@ -41,7 +41,7 @@ function box(length: number, height: number, width: number): SdkPart {
 }
 
 // a straight SDK roller conveyor: a `conveys` rig with length (X) + width (Z) `face` handles - centre-origin,
-// its footprint reflows with the params (straightConveyorView), exactly the surviving conveyor proxy path.
+// its footprint reflows with the params (its straight bed's footprint), exactly the surviving conveyor proxy path.
 function sdkRollerPkg(): PartPackage {
   return {
     format: PACKAGE_FORMAT,

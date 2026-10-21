@@ -93,7 +93,7 @@ export function memoizeLocalized<T>(spec: LocalizedSpec<T>): (parts: readonly Pa
     result: T | undefined
   }
   const index = createFootprintIndex()
-  // `isTarget`/`isInfluencer` are not cheap: they build geometry views (beltLikeView, moverShapeOf,
+  // `isTarget`/`isInfluencer` are not cheap: they build geometry views (bedOf, moverShapeOf,
   // hostGeom) to decide what a part is. Asking every part every call would be an O(scene) term with
   // a real constant. They are pure in (part, package registry), and parts are immutable snapshots, so
   // the answer is cached on identity and dropped wholesale when the registry revision changes.

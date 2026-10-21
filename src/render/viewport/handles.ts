@@ -16,7 +16,7 @@ import { guardArcRange, openingAt, openingsOnSide, rowsToOpeningSpecs } from '..
 import type { GuardWall } from '../../core/guards/guardOpeningEdit'
 import { OVERLAY_LAYER } from '../env'
 import {
-  beltLikeView,
+  bedView,
   curvedGizmoOf,
   flexPathOf,
   curvedHandleLocal,
@@ -25,9 +25,9 @@ import {
   isBeltLike,
   isTailOriginConveyor,
   partFootprint,
+  rectangleBedOf,
   resizeHandleMidY,
   resolveInclineRad,
-  straightConveyorView,
   toLocalXZ,
   toWorldXZ,
 } from '../../core/parts/partGeometry'
@@ -115,7 +115,7 @@ function sameHandle(a: ResizeHandle, b: ResizeHandle): boolean {
 
 /** normalized belt segments for any belt-like part (built-in or a declared-`path`-handle SDK part) */
 function beltSegmentsOf(part: PartInstance): BeltSegmentSpec[] {
-  return beltLikeView(part)?.segments ?? defaultBeltSegments()
+  return bedView(part, 'path')?.segments ?? defaultBeltSegments()
 }
 
 /** local +Y face the resize box presents for sign (top = y1, bottom = y0) */
@@ -423,8 +423,8 @@ export class ResizeHandles {
   private layoutOpeningCubes(part: PartInstance): boolean {
     const range = guardArcRange(part)
     if (!range) return false
-    const view = beltLikeView(part)
-    const straight = view ? null : straightConveyorView(part)
+    const view = bedView(part, 'path')
+    const straight = view ? null : rectangleBedOf(part)
     if (!view && !straight) return false
     // local (plan-X, elevation, slope) of a row value, per family, and the values the wall polyline samples
     let sample: (s: number) => { x: number; y: number; angle: number }

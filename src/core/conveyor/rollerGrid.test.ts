@@ -11,7 +11,7 @@ import { PACKAGE_FORMAT } from '../parts/partPackage'
 // ---- SDK fixtures (hoisted) ----------------------------------------------------------------------------------
 // Conveyors are `custom` parts on the public SDK (docs/architecture.md), so every fixture is an SDK custom part the
 // seam resolver recognizes through partGeometry: a worldPhase roller bed (isWorldPhaseRollerBed +
-// straightConveyorView) and an SDK curved roller (curvedConveyorView with an `endGap` below the belt half-pulley)
+// a straight bed) and an SDK curved roller (an arc bed with an `endGap` below the belt half-pulley)
 // that seeds the shared world pitch grid.
 
 const ROLLER_PKG = 'test.sdk-roller'

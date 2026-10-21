@@ -1,7 +1,7 @@
 import type { BeltGuardOpeningSpec, PartInstance } from '../types'
 import { FRAME_WALL_THICKNESS, GUARD_COLLISION_THICKNESS, GUARD_HEIGHT, GUARD_THICKNESS } from '../types'
 import type { PartPackage } from '../parts/partPackage'
-import { beltLikeView } from '../parts/partGeometry'
+import { bedView } from '../parts/partGeometry'
 import { beltGuardChords, buildBeltPath, manualGuardOpenings, mergeCollinearChords } from '../conveyor/beltPath'
 import { rotateXZ } from '../transforms'
 import type { GuardExtents } from './guardExtents'
@@ -62,7 +62,7 @@ export function beltGuardWalls(
   neighbor?: GuardOpenings,
   extents?: GuardExtents,
 ): GuardWall[] {
-  const view = beltLikeView(part)
+  const view = bedView(part, 'path')
   if (!view) return []
   if (!view.leftGuard && !view.rightGuard) return []
   const own = (part.params as Record<string, unknown>).guardOpenings

@@ -2,12 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { clearPackages, registerPackage } from './partRegistry'
 import type { PartPackage } from './partPackage'
 import {
-  beltLikeView,
+  bedView,
   conveyorLocalEnds,
   faceHandleOfPkg,
   partFootprint,
   pathHandleOfPkg,
-  straightConveyorView,
 } from './partGeometry'
 import type { PartInstance, SdkPart } from '../types'
 import { PACKAGE_FORMAT } from './partPackage'
@@ -56,7 +55,7 @@ describe('partGeometry derivation memos', () => {
   it('returns the same view for a stable part object (cache hit)', () => {
     registerPackage(beltPkg())
     const part = beltPart({ segments: [[3, 0], [2, 15]] })
-    expect(beltLikeView(part)).toBe(beltLikeView(part))
+    expect(bedView(part, 'path')).toBe(bedView(part, 'path'))
     expect(conveyorLocalEnds(part)).toBe(conveyorLocalEnds(part))
     expect(partFootprint(part)).toBe(partFootprint(part))
   })
@@ -64,9 +63,9 @@ describe('partGeometry derivation memos', () => {
   it('a transient re-pose ({...p, position}) keeps the cached view - the drag-stream contract', () => {
     registerPackage(beltPkg())
     const part = beltPart({ segments: [[3, 0]] })
-    const view = beltLikeView(part)
+    const view = bedView(part, 'path')
     const moved = { ...part, position: [5, 0, 2] } as SdkPart // params identity preserved, like posedScene
-    expect(beltLikeView(moved)).toBe(view)
+    expect(bedView(moved, 'path')).toBe(view)
     expect(conveyorLocalEnds(moved)).toBe(conveyorLocalEnds(part))
   })
 
@@ -74,8 +73,8 @@ describe('partGeometry derivation memos', () => {
     registerPackage(beltPkg())
     const a = beltPart({ segments: [[3, 0], [2, 15]] })
     const b = beltPart({ segments: [[3, 0], [2, 15]] }) // structurally equal, new params object
-    const va = beltLikeView(a)!
-    const vb = beltLikeView(b)!
+    const va = bedView(a, 'path')!
+    const vb = bedView(b, 'path')!
     expect(vb).not.toBe(va)
     expect(vb.segments).toEqual(va.segments)
     expect({ ...vb, writeSegments: null }).toEqual({ ...va, writeSegments: null })
@@ -86,9 +85,9 @@ describe('partGeometry derivation memos', () => {
   it('re-registering the package invalidates cached views under an unchanged part object', () => {
     registerPackage(beltPkg())
     const part = beltPart({ segments: [[3, 0]] }) // no width param → view.width falls back to pkg bounds
-    expect(beltLikeView(part)!.width).toBe(1)
+    expect(bedView(part, 'path')!.width).toBe(1)
     registerPackage(beltPkg({ geometry: { kind: 'drawn', bounds: { length: 3, width: 2, top: 0.28 }, conveys: true } as PartPackage['geometry'] }))
-    expect(beltLikeView(part)!.width).toBe(2) // registryRevision moved → recompute against the live package
+    expect(bedView(part, 'path')!.width).toBe(2) // registryRevision moved → recompute against the live package
   })
 
   it('a params object reaching a different type/package revalidates (no cross-part bleed)', () => {
@@ -97,10 +96,10 @@ describe('partGeometry derivation memos', () => {
     const params = { length: 4, width: 1 }
     const a = { id: 'cp_a', type: 'part', packageId: 'acme.roller', position: [0, 0, 0], rotationY: 0, params } as unknown as SdkPart
     const b = { ...a, id: 'cp_b', packageId: 'acme.roller2' } as SdkPart
-    expect(straightConveyorView(a)!.length).toBe(4)
-    expect(straightConveyorView(b)!.length).toBe(4) // same params identity, different package → recomputed, not a stale hit
+    expect(bedView(a, 'straight')!.length).toBe(4)
+    expect(bedView(b, 'straight')!.length).toBe(4) // same params identity, different package → recomputed, not a stale hit
     const box = { id: 'bx_1', type: 'box', position: [0, 0, 0], rotationY: 0, params } as unknown as PartInstance
-    expect(straightConveyorView(box)).toBeNull() // same params identity, different type
+    expect(bedView(box, 'straight')).toBeNull() // same params identity, different type
   })
 
   it('package-level lookups cache on the package object and refresh on re-register', () => {

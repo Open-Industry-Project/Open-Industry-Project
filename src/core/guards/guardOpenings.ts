@@ -1,9 +1,9 @@
 import { FRAME_WALL_THICKNESS, GUARD_CONTACT_TOLERANCE } from '../types'
 import type { PartInstance } from '../types'
 import type { PartEnd } from '../parts/partGeometry'
-import { beltLikeView, conveyorEndsOf, guardPusherContacts, isConveyorLike, isGuardPusher, straightConveyorView, toLocalXZ } from '../parts/partGeometry'
-import { beltHorizontalExtent } from '../conveyor/beltPath'
-import { endAtHostHeight, guardSlope, junctionMouths, mitresKey, sortCuts } from './guardExtents'
+import type { BedGuardHost } from '../conveyor/conveyorBeds'
+import { bedOf, bedView, conveyorEndsOf, guardPusherContacts, isConveyorLike, isGuardPusher, toLocalXZ } from '../parts/partGeometry'
+import { endAtHostHeight, junctionMouths, mitresKey, sortCuts } from './guardExtents'
 import type { GuardMitres } from './guardExtents'
 import { rowsToOpeningSpecs, straightGuardOpenings } from './guardOpeningEdit'
 import { getPackage } from '../parts/partRegistry'
@@ -104,42 +104,38 @@ export function keptSegments(x0: number, x1: number, openings: readonly Range[])
 }
 
 /**
- * The local-X guard span + half-width of a part that can host side-guard openings: a belt-like bed
- * (tail-origin, bed 0..horizontal-extent) or a straight roller/face-handle bed (centre-origin, bed
- * ±length/2). The two conventions differ only in where the origin sits along the length. The consumer
+ * The local-X guard span + half-width of a part that can host side-guard openings (its bed's guardHost): a belt
+ * (tail-origin, bed 0..horizontal-extent) or a straight or spur bed (centre-origin, bed ±length/2). The two
+ * conventions differ only in where the origin sits along the length. The consumer
  * (belt geometry() vs the rig guard-splitter) reads the openings in the same local frame it built the
  * guard in, so each stays self-consistent. null for any other part (curved/turntable/non-conveyor).
  * `slope` turns a plan local X into that frame's X (an inclined bed's guards run along its slope; 1 for a
  * belt, whose openings are plan X until its geometry maps them onto the path).
  */
-export function hostGuardFrame(host: PartInstance): { bedLo: number; bedHi: number; hw: number; slope: number } | null {
-  const beltView = beltLikeView(host)
-  if (beltView) return { bedLo: 0, bedHi: Math.max(beltHorizontalExtent(beltView.segments), 1e-3), hw: beltView.width / 2, slope: 1 }
-  // a straight roller/powered-deck bed (the rig conveyor family): centre-origin, so the bed runs ±length/2 and
-  // its guards sit at ±width/2. It is the same side-merge target the snap engine produces, opened like the belt.
-  const straight = straightConveyorView(host)
-  if (straight) return { bedLo: -straight.length / 2, bedHi: straight.length / 2, hw: straight.width / 2, slope: guardSlope(host) }
-  return null
+export function hostGuardFrame(host: PartInstance): BedGuardHost | null {
+  return bedOf(host)?.guardHost(host) ?? null
 }
 
 /**
  * Openings on `host`'s left/right guards from every other conveyor's end that
- * butts against it. `host` must be a straight roller/belt conveyor (the only
- * side-merge target the snap engine produces); other types return empty.
+ * butts against it, and from every guard pusher mounted on it. `host` must be a bed whose guards open (a belt, a
+ * straight or a spur); other types return empty. A spur opens for pushers only: it is itself a merge and takes
+ * end joins only, so a conveyor end placed against its side leaves the guard closed (checkLayout.ts warns).
  */
 export function deriveGuardOpenings(host: PartInstance, others: readonly PartInstance[]): GuardOpenings {
   const result: GuardOpenings = { left: [], right: [] }
-  // host is any side-guard bed (a belt-like `path` part, or a straight roller/face-handle bed).
   const frame = hostGuardFrame(host)
   if (!frame) return result
   // openings live in the host's local centreline X; the guard builders (belt geometry / rig guard-splitter)
   // read them in that same frame. bedLo..bedHi is the length span, hw the half-width at which the guards sit.
   const { bedLo, bedHi, hw, slope } = frame
+  const takesMerges = bedView(host, 'spur') === null
   let mitres: GuardMitres | undefined
 
   for (const other of others) {
     if (other.id === host.id) continue
     if (!isOpener(other)) continue
+    if (!takesMerges && isConveyorLike(other)) continue
 
     // Preferred: an extent-capable mover (spur / straight / belt) states exactly where its own guards
     // end on this host's wall plane. The opening spans those two corners, so the host's guard ends
@@ -216,7 +212,7 @@ export function deriveGuardOpenings(host: PartInstance, others: readonly PartIns
  * opening twice and in the wrong space, since arc-length ≠ centreline X once the path bends.
  */
 function addAuthoredOpenings(host: PartInstance, result: GuardOpenings, bedLo: number, bedHi: number): void {
-  if (host.type !== 'part' || beltLikeView(host) !== null) return
+  if (host.type !== 'part' || bedView(host, 'path') !== null) return
   const pkg = getPackage(host.packageId)
   if (!pkg || pkg.params.guardOpenings == null) return // authoring openings is opt-in, per package
   const own = (host.params as Record<string, unknown>).guardOpenings

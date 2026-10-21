@@ -1,6 +1,6 @@
 import type { PartInstance } from '../types'
 import { ARC_END_EXT, FRAME_WALL_THICKNESS, GUARD_COLLISION_THICKNESS, GUARD_HEIGHT, GUARD_THICKNESS } from '../types'
-import { curvedConveyorView, curvedGizmoOf, DEG, toWorldXZ } from '../parts/partGeometry'
+import { bedView, curvedGizmoOf, DEG, toWorldXZ } from '../parts/partGeometry'
 import { MAX_SEGMENT_DEG } from '../geometry/collisionShapes'
 import type { GuardWall } from './beltGuards'
 
@@ -25,7 +25,7 @@ function yawQuat(yaw: number): [number, number, number, number] {
 }
 
 export function curvedGuardWalls(part: PartInstance): GuardWall[] {
-  const view = curvedConveyorView(part)
+  const view = bedView(part, 'arc')
   if (!view) return []
   const py = part.position[1]
   const gh = GUARD_HEIGHT

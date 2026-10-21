@@ -2118,8 +2118,8 @@ export function canonicalSnap<T>(snap: T): T {
 
 /**
  * The conveyor format 3 inferred from a package, as a declaration (the format 4 upgrade step). Each test is the one
- * the host's classifiers applied in format 3 (core/parts/partGeometry.ts: beltLikeView, curvedGizmoOf, straightConveyorView,
- * spurConveyorView, rotatingDeckView), frozen here: they are what an old package meant, whatever the live rules become.
+ * the host's classifiers applied in format 3 (the belt, curve, straight, spur and turntable views then in
+ * core/parts/partGeometry.ts), frozen here: they are what an old package meant, whatever the live rules become.
  */
 function inferConveyorV3(pkg: Record<string, unknown>): ConveyorDecl | undefined {
   const params = (pkg.params ?? {}) as Record<string, { handle?: Record<string, unknown> } | undefined>

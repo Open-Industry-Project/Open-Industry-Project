@@ -229,7 +229,7 @@ describe('Spur Belt Conveyor (geometry-function tier - splayed parallelogram dec
   })
 
   it('the length face handle declares the spur (angleFrontParam/angleBackParam) - the host-recognition marker', () => {
-    // the marker spurConveyorView keys on: without it the host would treat the part as a plain straight
+    // the marker the spur bed's view keys on: without it the host would treat the part as a plain straight
     // conveyor (square ends, rectangular footprint, no host guard opening, no snap extents).
     expect(SPUR_BEHAVIOR).toMatch(/angleFrontParam:\s*'angleFrontDeg'/)
     expect(SPUR_BEHAVIOR).toMatch(/angleBackParam:\s*'angleBackDeg'/)

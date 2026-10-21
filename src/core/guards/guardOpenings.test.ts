@@ -6,8 +6,8 @@ import { computeSceneOpenings, deriveGuardOpenings, keptSegments } from './guard
 import { toLocalXZ, toWorldXZ } from '../parts/partGeometry'
 import { PACKAGE_FORMAT } from '../parts/partPackage'
 
-// deriveGuardOpenings opens either a belt-like custom host (beltLikeView: tail-origin bed 0..extent, guards at
-// ±width/2) or a straight roller/face-handle bed (straightConveyorView: centre-origin bed ±length/2, guards at
+// deriveGuardOpenings opens either a belt-like custom host (a path bed: tail-origin bed 0..extent, guards at
+// ±width/2) or a straight roller/face-handle bed (a straight bed: centre-origin bed ±length/2, guards at
 // ±width/2). An opener is any custom conveyor (isConveyorLike). So the host fixtures below are belt-like SDK belts
 // (and one straight roller host), and the perpendicular openers are centre-origin SDK rollers. Their ends are
 // flush at ±length/2, so an opener origin sits length/2 back off the edge. keptSegments is pure.
@@ -407,5 +407,43 @@ describe('diverter (guard-mounting pusher) openings', () => {
     const op = deriveGuardOpenings(host, [host, sen])
     expect(op).toEqual({ left: [], right: [] })
     expect([...computeSceneOpenings([host, sen]).keys()]).toEqual([])
+  })
+})
+
+// A spur is itself a merge and takes end joins only, so no conveyor end opens its guards. A device mounted on its
+// guard still does: a diverter's arms cross it like any other bed's.
+describe('a spur host', () => {
+  beforeEach(() => {
+    registerPackage(sdkRollerPkg())
+    registerPackage(diverterPkg())
+    registerPackage({
+      format: PACKAGE_FORMAT,
+      id: 'test.spurhost',
+      name: 'Spur', conveyor: { bed: 'spur', surface: 'roller' },
+      params: {
+        length: { type: 'number', default: 2, handle: { kind: 'face', axis: 'x', angleFrontParam: 'angleFrontDeg', angleBackParam: 'angleBackDeg' } },
+        width: { type: 'number', default: 0.6, handle: { kind: 'face', axis: 'z' } },
+        angleFrontDeg: { type: 'number', default: 30 },
+        angleBackDeg: { type: 'number', default: 0 },
+      },
+      behavior: 'definePart({ step(){} })',
+      geometry: { kind: 'drawn', bounds: { length: 2, width: 0.6, top: 0.5 }, conveys: true },
+    } as unknown as PartPackage)
+  })
+  afterEach(() => clearPackages())
+  const spur = (): SdkPart =>
+    ({ id: 'spur', type: 'part', packageId: 'test.spurhost', position: [0, 0.75, 0], rotationY: 0, params: { length: 2, width: 0.6, angleFrontDeg: 30, angleBackDeg: 0 } }) as unknown as SdkPart
+
+  it('keeps its guard closed where a conveyor end meets its side', () => {
+    // a perpendicular roller whose front end lands mid-side on the spur's +Z edge
+    const butt = sdkRoller('butt', 0, 0.3 + 1, Math.PI / 2)
+    expect(deriveGuardOpenings(spur(), [spur(), butt])).toEqual({ left: [], right: [] })
+    expect(computeSceneOpenings([spur(), butt]).has('spur')).toBe(false)
+  })
+
+  it('still opens where a diverter mounts on its guard', () => {
+    const op = deriveGuardOpenings(spur(), [spur(), diverter('dv', 0)])
+    expect(op.left).toEqual([])
+    expect(op.right).toHaveLength(1)
   })
 })

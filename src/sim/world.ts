@@ -6,7 +6,7 @@ import type { CargoPiece } from '../core/cargoBody'
 import type { FlowFact } from '../core/flow/flowFacts'
 import type { Measurements, SimCore } from '../core/simCore'
 import { hexToRgb } from '../core/math'
-import { curvedConveyorView, faceHandleOfPkg, isBeltLike, pathHandleOfPkg, rigInclineRad, sdkSpurCorners, spurConveyorView } from '../core/parts/partGeometry'
+import { bedOf, faceHandleOfPkg, pathHandleOfPkg, rigInclineRad, sdkSpurCorners } from '../core/parts/partGeometry'
 import type { SpurConveyorView } from '../core/parts/partGeometry'
 import { beltGuardWalls } from '../core/guards/beltGuards'
 import { curvedGuardWalls } from '../core/guards/curvedGuards'
@@ -933,60 +933,53 @@ export class SimWorld implements SimCore<BoxFrame> {
       }
       this.flow.noteUnitRebuilt(part.id)
     }
-    if (cluster && cluster.members.length > 1 && pkg.geometry.kind === 'drawn' && pkg.geometry.conveys && isBeltLike(part)) {
-      // Clustered belt-like SDK belt (butted end-to-end with another conveyor): the merged deck + this member's
-      // conveying behavior are built by the cluster owner (addConveyorDeck: order-independent, attaches every
-      // custom member). It rides one compound so Jolt's edge removal spans the seam (no cargo snag), for
-      // built-in belt parity. Guards stay per-part (they don't merge), so build this member's here (with any neighbour openings).
-      this.addConveyorDeck(part, cluster)
-      this.addCustomBeltGuards(part, openings, extents, guardRun)
-      return
-    }
-    const curved = pkg.geometry.kind === 'drawn' && pkg.geometry.conveys ? curvedConveyorView(part) : null
-    if (curved) {
-      // a curved SDK conveyor (`arc` handle): build the arc chord + stub deck (curvedDeckSubs, via conveyorDeckSubs)
-      // and attach its behavior, so it both collides and carries cargo around the sweep (setArcSurfaceVelocity each
-      // tick). The flat-deck fallback in spawnFromPackage would put a straight box at the origin, missing the arc.
-      if (this.spawnCurvedConveyor(part, pkg)) {
-        const rec = this.bus.last()
-        if (rec) rec.partId = part.id
-      } else this.reportAttachFailure(part)
-      // the arc's inner/outer guard walls (+ tangent stubs) - this early-return path must build them itself
-      this.addCustomCurvedGuards(part, guardRun)
-      return
-    }
-    const spurV = pkg.geometry.kind === 'drawn' && pkg.geometry.conveys ? spurConveyorView(part) : null
-    if (spurV) {
-      // an SDK spur conveyor (length face handle declares splay params): build the parallelogram hull deck
-      // the built-in spur gets (addSpurConveyor's centre-origin twin). The flat length×width fallback box
-      // misses the splay overhang past ±length/2, so cargo crossing the angled discharge/infeed face would
-      // fall off a bed that looks solid. Guards go through the general static-box channel with the host's
-      // snap extents folded in, so a merged junction's guard colliders reach the host wall like the visual.
-      if (this.spawnSdkSpurConveyor(part, pkg, spurV)) {
-        const rec = this.bus.last()
-        if (rec) rec.partId = part.id
-      } else this.reportAttachFailure(part)
-      this.addFunctionStaticColliders(part, pkg, extents, guardRun)
-      return
-    }
     if (pkg.geometry.kind === 'drawn' && pkg.geometry.conveys) {
-      // deck / conveying function bed: a conveying body + behavior; tag the just-
-      // pushed record with the part id so any joint output is routed to its visual (decks/beds emit none, harmless).
+      const bed = bedOf(part)
+      if (bed?.kind === 'path' && cluster && cluster.members.length > 1) {
+        // Clustered belt (butted end-to-end with another conveyor): the merged deck + this member's conveying
+        // behavior are built by the cluster owner (addConveyorDeck: order-independent, attaches every custom
+        // member). It rides one compound so Jolt's edge removal spans the seam (no cargo snag). Guards stay per-part
+        // (they don't merge), so build this member's here (with any neighbour openings).
+        this.addConveyorDeck(part, cluster)
+        this.addCustomBeltGuards(part, openings, extents, guardRun)
+        return
+      }
+      if (bed?.kind === 'arc') {
+        // a curve: build the arc chord + stub deck (curvedDeckSubs, via conveyorDeckSubs) and attach its behavior,
+        // so it both collides and carries cargo around the sweep (setArcSurfaceVelocity each tick). The flat-deck
+        // fallback in spawnFromPackage would put a straight box at the origin, missing the arc.
+        if (this.spawnCurvedConveyor(part, pkg)) {
+          const rec = this.bus.last()
+          if (rec) rec.partId = part.id
+        } else this.reportAttachFailure(part)
+        // the arc's inner/outer guard walls (+ tangent stubs)
+        this.addCustomCurvedGuards(part, guardRun)
+        return
+      }
+      if (bed?.kind === 'spur') {
+        // a spur: build the parallelogram hull deck. The flat length×width fallback box misses the splay overhang
+        // past ±length/2, so cargo crossing the angled discharge/infeed face would fall off a bed that looks solid.
+        // Guards go through the general static-box channel with the host's snap extents folded in, so a merged
+        // junction's guard colliders reach the host wall like the visual.
+        if (this.spawnSdkSpurConveyor(part, pkg, bed.view.spur)) {
+          const rec = this.bus.last()
+          if (rec) rec.partId = part.id
+        } else this.reportAttachFailure(part)
+        this.addFunctionStaticColliders(part, pkg, extents, guardRun)
+        return
+      }
+      // any other drawn conveying bed (a lone belt, a drawn straight, a deck with no declared bed): a conveying
+      // body + behavior; tag the just-pushed record with the part id so any joint output is routed to its visual
+      // (decks/beds emit none, harmless).
       if (this.spawnFromPackage(pkg, part.position, part.rotationY, JSON.stringify(part.params))) {
         const rec = this.bus.last()
         if (rec) rec.partId = part.id
       } else this.reportAttachFailure(part)
-      // belt-like beds get their static side guards here (one place for both the lone + clustered path); a
-      // non-belt conveying part is self-gated out by addCustomBeltGuards (no belt view → no guards).
-      this.addCustomBeltGuards(part, openings, extents, guardRun)
-      // an SDK curved conveying part (curved belt/roller) gets its inner/outer arc guard walls instead; the
-      // belt path above self-gates out for a curve (no belt view), and this self-gates out for a non-curve.
-      this.addCustomCurvedGuards(part, guardRun)
-      // a conveying function part that is neither belt-like nor curved (a plain straight SDK conveyor; spurs
-      // early-returned above): the two path-aware guard builders self-gate out for it, so its
-      // collision:'box' guards get the general AABB-box channel: the same coarse static colliders a
+      // a belt gets its path-aware side guards here (one place for both the lone + clustered path). Anything else
+      // gets the general AABB-box channel for its collision:'box' guards: the same coarse static colliders a
       // non-conveying function part gets, so cargo can't leave its bed.
-      if (pkg.geometry.kind === 'drawn' && !isBeltLike(part) && !curvedConveyorView(part)) this.addFunctionStaticColliders(part, pkg)
+      if (bed?.kind === 'path') this.addCustomBeltGuards(part, openings, extents, guardRun)
+      else this.addFunctionStaticColliders(part, pkg)
     } else if (pkg.geometry.kind === 'drawn') {
       // a non-conveying function part: realize its declared solids, collision:'box' submeshes as AABB
       // boxes, collision:'hull' ones as convex hulls (the general collision channel; a conveying belt
@@ -1068,7 +1061,7 @@ export class SimWorld implements SimCore<BoxFrame> {
   }
 
   /** Static inner/outer side-guard walls for an SDK curved conveying part (curved belt/roller): the collision
-   *  twin of the built-in addCurvedSideGuards, but driven by the arc `handle` recognizer (curvedConveyorView)
+   *  twin of the built-in addCurvedSideGuards, but driven by the arc bed's view
    *  instead of a built-in part type, so cargo can't leave the band. Self-gates out for a non-curved part (the
    *  belt path builds those). SDK arc convention: P(t) = (r·cos t, 0, −r·sin t), the box yaw = t + π/2. */
   private addCustomCurvedGuards(part: SdkPart, guardRun?: GuardRun): void {

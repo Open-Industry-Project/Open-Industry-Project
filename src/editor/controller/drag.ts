@@ -16,7 +16,7 @@ import type { ParamValue } from '../../core/parts/partApi'
 import { rigInclineRad } from '../../core/parts/partGeometry'
 import type { PartPackage, RigLink } from '../../core/parts/partPackage'
 import {
-  beltLikeView,
+  bedView,
   curvedGizmoOf,
   flexPull,
   flexPathOf,
@@ -967,15 +967,15 @@ export function moveResize(ec: EditorController, drag: Drag & { kind: 'resize' }
   }
   // belt path handles: tail (drag_along_t, shifts origin to hold the head) or a
   // segment-end (absolute new length, origin holds and downstream segments follow). Works for the
-  // built-in belt and a belt-like SDK part (the segments live in either shape) via beltLikeView.
+  // built-in belt and a belt-like SDK part (the segments live in either shape) via its path bed.
   if ('belt' in drag.handle) {
-    const before = beltLikeView(part)?.segments ?? []
+    const before = bedView(part, 'path')?.segments ?? []
     const r =
       drag.handle.belt === 'tail'
         ? resizeBeltTail(part, extent)
         : resizeBeltSegmentLength(part, drag.handle.belt, extent)
     const idx = drag.handle.belt === 'tail' ? 0 : drag.handle.belt
-    const after = beltLikeView({ ...part, params: r.params } as unknown as PartInstance)?.segments ?? before
+    const after = bedView({ ...part, params: r.params } as unknown as PartInstance, 'path')?.segments ?? before
     if (before[idx]?.length !== after[idx]?.length) drag.moved = true
     ec.store.setTransient({
       ...drag.start,

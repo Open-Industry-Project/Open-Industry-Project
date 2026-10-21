@@ -13,17 +13,14 @@ import type { ParamValue } from '../core/parts/partApi'
 import type { PartPackage, RigLink } from '../core/parts/partPackage'
 import { rigLampNames, upgradeStoredPackage } from '../core/parts/partPackage'
 import {
-  beltLikeView,
-  curvedConveyorView,
+  bedView,
   isBeltLike,
   isConveyorLike,
   isGuardPusher,
   isTailOriginConveyor,
   isWorldPhaseRollerBed,
   partFootprint,
-  rotatingDeckView,
-  spurConveyorView,
-  straightConveyorView,
+  rectangleBedOf,
 } from '../core/parts/partGeometry'
 import { clearPackages, registerPackage } from '../core/parts/partRegistry'
 import { rigFrameSide, rigGuardSide } from '../core/guards/guardOpenings'
@@ -116,8 +113,8 @@ function census(pkg: PartPackage): string[] {
   const resolved = { ...defaults(pkg), ...(part.params as Record<string, unknown>) }
   // the census's word for the drawn kind predates format 4 ('function')
   const lines: string[] = [`## ${pkg.id} (${pkg.geometry.kind === 'drawn' ? 'function' : pkg.geometry.kind})`]
-  const straight = straightConveyorView(part)
-  const belt = beltLikeView(part)
+  const straight = rectangleBedOf(part)
+  const belt = bedView(part, 'path')
   lines.push(
     'class ' +
       fmt({
@@ -125,9 +122,9 @@ function census(pkg: PartPackage): string[] {
         beltLike: isBeltLike(part) || undefined,
         beltWidth: belt?.width,
         straight: straight ? { length: straight.length, width: straight.width } : undefined,
-        spur: spurConveyorView(part) ? true : undefined,
-        curved: curvedConveyorView(part) ? true : undefined,
-        rotatingDeck: rotatingDeckView(part) ? true : undefined,
+        spur: bedView(part, 'spur') ? true : undefined,
+        curved: bedView(part, 'arc') ? true : undefined,
+        rotatingDeck: bedView(part, 'turntable') ? true : undefined,
         worldPhaseRollers: isWorldPhaseRollerBed(part) || undefined,
         tailOrigin: isConveyorLike(part) ? isTailOriginConveyor(part) : undefined,
         guardPusher: isGuardPusher(part) || undefined,

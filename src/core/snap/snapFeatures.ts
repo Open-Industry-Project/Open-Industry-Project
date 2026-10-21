@@ -23,7 +23,7 @@ import { angleDiff, clamp, forwardXZ, normalizeAngle } from '../math'
 import { rotateXZ as rotXZ } from '../transforms'
 import type { SnapChain, SnapEdgeMount, SnapMount, SnapSpec, SnapSurface, SnapTile, SnapTrack } from '../parts/partApi'
 import type { LocalEnd } from '../parts/partGeometry'
-import { beltLikeView, conveyorEndsOf, conveyorLocalEnds, curvedConveyorView, isBeltLike, isConveyorLike, isTailOriginConveyor, isWorldPhaseRollerBed, partFootprint, resolveInclineRad, rotatingDeckView, spurConveyorView, straightConveyorView, toLocalXZ, toWorldXZ } from '../parts/partGeometry'
+import { bedOf, bedView, conveyorEndsOf, conveyorLocalEnds, isConveyorLike, isTailOriginConveyor, isWorldPhaseRollerBed, partFootprint, rectangleBedOf, resolveInclineRad, toLocalXZ, toWorldXZ } from '../parts/partGeometry'
 import { beltHorizontalExtent, beltXToS, buildBeltPath, sampleBeltPath } from '../conveyor/beltPath'
 import { getPackage } from '../parts/partRegistry'
 import { resolveRollerGrids, rollerBedPitch, rollerStations } from '../conveyor/rollerGrid'
@@ -461,10 +461,10 @@ function snapConveyor(
       consider(conveyorMate(proposed, target, e, t.outX, t.outZ, t.x, t.z, t.y, `${e.end} -> end:${t.end}`), SNAP_CONVEYOR_END_MAX_TURN)
     }
   }
-  // Parts with straight ends and side guards merge onto a flank: straights, belt-like custom/SDK parts, and the
-  // turntable (whose snap features report straight ends + guards at the home orientation).
-  const sideCapable = isBeltLike(moving) || straightConveyorView(moving) !== null || rotatingDeckView(moving) !== null
-  if (sideCapable) {
+  // Beds with straight ends and side guards merge onto a flank (the bed's sideMerge): straights, spurs, belts, and
+  // the turntable (whose snap features report straight ends + guards at the home orientation).
+  const merge = bedOf(moving)?.sideMerge() ?? null
+  if (merge) {
     // a spur merging onto a side keeps a flange clearance from the bed edge (the spur gap); its
     // frame/guard rails then extend back to the host wall via guardExtents. An SDK spur declares its own clearance on
     // the length face handle (`sideGap`, default = the belt spur's). A square T (a straight or a belt) stands its end
@@ -472,10 +472,8 @@ function snapConveyor(
     // everything reaching that face (above all a belt's end drum) up to a wall thickness inside the host's frame
     // wall. Its rails then end on that face as they are, and only their top flange steps back past the host's
     // (guardExtents.ts railCuts). A turntable mover still butts the edge (its plate is not a framed end).
-    const spurGap = spurConveyorView(moving)?.sideGap
-    const framedEnd = rotatingDeckView(moving) === null
     for (const f of straightFlanks(target)) {
-      const gap = spurGap ?? (framedEnd ? f.frameOut : 0)
+      const gap = merge.gap ?? (merge.framedEnd ? f.frameOut : 0)
       for (const e of localEnds) consider(flankMate(proposed, target, e, f, gap), SNAP_CONVEYOR_FLANK_MAX_TURN)
     }
   }
@@ -544,32 +542,19 @@ interface Flank {
 }
 
 /**
- * The flanks a conveyor can side-merge onto: a straight's (built-in or SDK), a belt-like part's, a turntable's.
- * An SDK spur is not one: its flanks shear with the splay, so it takes end joins only. Nor is an
+ * The flanks a conveyor can side-merge onto (its bed's flanks): a straight's, a belt's, a turntable's.
+ * A spur is not one: it is itself a merge, so it takes end joins only (checkLayout.ts warns). Nor is an
  * inclined bed: a side merge seats the mover flat at one height, but a tilted flank climbs along its length, so the
  * two surfaces would disagree across the whole mouth (16 cm over a 0.6 m mouth at 15 degrees). Elevation belongs
  * on straight runs joined end to end (docs/conveyor-incline.md); an inclined mover still merges onto a flat bed.
  */
 function straightFlanks(target: PartInstance): Flank[] {
-  if (target.type !== 'part') return []
-  const disc = rotatingDeckView(target)
-  const beltView = disc ? null : beltLikeView(target)
-  const straight = beltView || disc ? null : straightConveyorView(target)
-  if (!disc && !beltView && (straight === null || spurConveyorView(target) !== null)) return []
+  const flanks = bedOf(target)?.flanks() ?? null
+  if (flanks === null) return []
   if (resolveInclineRad(target) !== 0) return []
-  // Straights run the full bed length at z=±width/2; the turntable's guards span only the lane (±width/2 in X)
-  // on the plate rim at z=±radius. A belt-like part resolves its bed extent + width via beltLikeView.
-  const hl = beltView ? Math.max(beltHorizontalExtent(beltView.segments), 1e-3) / 2 : disc ? disc.width / 2 : (straight?.length ?? 0) / 2
-  const hw = beltView ? beltView.width / 2 : disc ? disc.radius : (straight?.width ?? 0) / 2
-  // Tail-origin parts (roller / belt / belt-like custom) run their bed + guards local x 0..2·hl, not −hl..+hl;
-  // the turntable is genuinely centre-origin.
-  const tail = isTailOriginConveyor(target)
-  const x0 = tail ? 0 : -hl
-  const x1 = tail ? 2 * hl : hl
+  const { x0, x1, hw, frameOut } = flanks
   const l = rotXZ(0, -1, target.rotationY)
   const r = rotXZ(0, 1, target.rotationY)
-  // a straight or belt bed carries the L-frame outside its bed edge; the turntable's flank is its bare plate rim
-  const frameOut = disc ? 0 : FRAME_WALL_THICKNESS
   return [
     { side: 'left', x0, x1, z: -hw, outX: l.x, outZ: l.z, frameOut },
     { side: 'right', x0, x1, z: hw, outX: r.x, outZ: r.z, frameOut },
@@ -596,7 +581,7 @@ function flankMate(proposed: SnapPose, target: PartInstance, e: LocalEnd, f: Fla
 /** A curved conveyor - a built-in curved type or an SDK curved bed (a custom part with an `arc` handle), so an
  *  SDK curved conveyor routes through the curved free-end-stable snap the same way the built-in does. */
 function isCurvedPart(part: PartInstance): boolean {
-  return curvedConveyorView(part) !== null
+  return bedView(part, 'arc') !== null
 }
 
 /**
@@ -827,7 +812,7 @@ function snapTrack(
 ): SnapCandidate | null {
   // host must be a straight SDK roller bed (the converged twin of the built-in roller conveyor); an SDK track
   // part (blade stop / chain transfer, declaring snap.track) seats onto its rendered roller stations.
-  const hostView = isWorldPhaseRollerBed(target) ? straightConveyorView(target) : null
+  const hostView = isWorldPhaseRollerBed(target) ? rectangleBedOf(target) : null
   if (!hostView) return null
   // ...and a level one. A blade stop halts product and a chain transfer lifts it across; on a roller incline the
   // stopped product runs back down (rollers shed it past 30 degrees, and slip well before), so neither is fitted
@@ -988,12 +973,12 @@ type SurfaceYAt = (localX: number) => number
  * device mounts on an SDK conveyor). Returns null for a non-conveyor target - the `'conveyorGuard'` surface a
  * mount accepts. */
 function straightGuardHost(target: PartInstance): { bedLen: number; width: number; surfaceYAt: SurfaceYAt | null } | null {
-  const bl = beltLikeView(target)
+  const bl = bedView(target, 'path')
   if (bl) {
     const path = buildBeltPath(bl.segments, bl.height)
     return { bedLen: Math.max(beltHorizontalExtent(bl.segments), 1e-3), width: bl.width, surfaceYAt: (x) => sampleBeltPath(path, beltXToS(path, x)).y }
   }
-  const sv = straightConveyorView(target)
+  const sv = rectangleBedOf(target)
   if (sv) {
     const th = resolveInclineRad(target)
     if (th === 0) return { bedLen: sv.length, width: sv.width, surfaceYAt: null }
@@ -1029,7 +1014,7 @@ interface RailSocket {
  * Every rail socket of a kind a target offers, for a mount that `accepts` it:
  *
  * - `'conveyorGuard'` on a conveyor: its guard pair, inferred from the bed (straightGuardHost) in that bed's own
- *   origin convention (isTailOriginConveyor, the predicate straightFlanks uses): belt-like runs x 0..length from
+ *   origin convention (isTailOriginConveyor): belt-like runs x 0..length from
  *   its tail, other straights are centre-origin. Assuming the tail form would shift the mountable band half a
  *   bed forward on every centre-origin host.
  * - each declared surface of that kind (definePart({ snap: { surfaces } })): a pair at z = ±width/2, centre-

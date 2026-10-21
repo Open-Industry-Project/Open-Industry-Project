@@ -427,10 +427,10 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   }
 
   // parts that declare they seat onto a host and have none near them, and parts standing in an interior building
-  // column: the check-layout CLI's checks, which fail on these, so they are errors here too (core/checkLayout.ts
-  // says why it reports disconnection, and the column clash is its one collision)
+  // column: the check-layout CLI's errors, so they are errors here too (core/checkLayout.ts says why it reports
+  // disconnection, and the column clash is its one collision). A conveyor end against a spur's side is its warning.
   for (const f of checkLayout(input.parts)) {
-    problems.push({ key: `layout:${f.kind}:${f.partId}`, severity: 'error', group: 'Layout', subject: f.partName ?? f.partId, message: f.detail, parts: [f.partId] })
+    problems.push({ key: `layout:${f.kind}:${f.partId}`, severity: f.severity, group: 'Layout', subject: f.partName ?? f.partId, message: f.detail, parts: [f.partId] })
   }
 
   // what nothing above could look at

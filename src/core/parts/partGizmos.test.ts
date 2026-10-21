@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { clearPackages, registerPackage } from './partRegistry'
 import type { PartPackage } from './partPackage'
 import {
-  beltLikeView,
+  bedView,
   constrainResizeExtent,
   conveyorLocalEnds,
   curvedGizmoOf,
@@ -17,7 +17,6 @@ import {
   resizeBeltSegmentLength,
   resizeParamKey,
   resizePart,
-  straightConveyorView,
 } from './partGeometry'
 import type { SdkPart } from '../types'
 import { PACKAGE_FORMAT } from './partPackage'
@@ -64,9 +63,9 @@ describe('declared part gizmos (docs/part-gizmos.md)', () => {
     expect(effectiveResize(part)).toEqual({ x: true, z: true })
   })
 
-  it('beltLikeView normalizes numberList rows to {length, tiltDeg} and writes them back as rows', () => {
+  it('a path bed view normalizes numberList rows to {length, tiltDeg} and writes them back as rows', () => {
     registerPackage(beltPkg())
-    const view = beltLikeView(beltPart([[3, 0], [2, 15]]))
+    const view = bedView(beltPart([[3, 0], [2, 15]]), 'path')
     expect(view).not.toBeNull()
     expect(view!.segments).toEqual([{ length: 3, tiltDeg: 0 }, { length: 2, tiltDeg: 15 }])
     expect(view!.width).toBe(1)
@@ -80,7 +79,7 @@ describe('declared part gizmos (docs/part-gizmos.md)', () => {
     registerPackage(beltPkg({ id: 'acme.plain', params: { width: { type: 'number', default: 1 } } }))
     const plain = { ...beltPart([[3, 0]]), packageId: 'acme.plain' } as SdkPart
     expect(isBeltLike(plain)).toBe(false)
-    expect(beltLikeView(plain)).toBeNull()
+    expect(bedView(plain, 'path')).toBeNull()
   })
 
   it('belt-like parts are tail-origin, so width handles centre at mid-length (like the built-in)', () => {
@@ -156,7 +155,7 @@ describe('straight SDK conveyors (roller family, declared face handles)', () => 
   it('a `conveys` rig + length/width `face` handles is a straight, resizable, snapping conveyor', () => {
     registerPackage(rollerPkg())
     const part = rollerPart()
-    expect(straightConveyorView(part)).toEqual({ length: 3, width: 1, height: 0.9 })
+    expect(bedView(part, 'straight')).toEqual({ length: 3, width: 1, height: 0.9 })
     expect(effectiveResize(part)).toEqual({ x: true, z: true })
     expect(isConveyorLike(part)).toBe(true)
     expect(isBeltLike(part)).toBe(false) // not belt-like (no path handle): it's the straight family
@@ -299,7 +298,7 @@ describe('straight SDK conveyors (roller family, declared face handles)', () => 
       }),
     )
     const part = { ...rollerPart(), packageId: 'acme.notconv' } as SdkPart
-    expect(straightConveyorView(part)).toBeNull()
+    expect(bedView(part, 'straight')).toBeNull()
     expect(conveyorLocalEnds(part)).toEqual([])
   })
 })

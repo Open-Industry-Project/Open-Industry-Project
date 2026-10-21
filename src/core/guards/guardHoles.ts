@@ -3,7 +3,7 @@ import type { PartInstance } from '../types'
 import type { MeshDescription, ParamValue } from '../parts/partApi'
 import { hostGuardFrame } from './guardOpenings'
 import { hostSurfaceY } from './guardExtents'
-import { beltLikeView, curvedGizmoOf, toLocalXZ } from '../parts/partGeometry'
+import { bedView, curvedGizmoOf, toLocalXZ } from '../parts/partGeometry'
 import { getPackage, registryRevision } from '../parts/partRegistry'
 import { resolvePartParams } from '../parts/partScript'
 import { qApply, qFromAxisAngle, resolvedBeamRange, rigWorldPoses } from '../rig/rigPose'
@@ -136,8 +136,8 @@ function pushHole(list: GuardHole[], x: number, y: number, minGap: number): void
 function straightHoles(host: PartInstance, beams: readonly BeamSegment[]): GuardHoles | null {
   const frame = hostGuardFrame(host)
   if (!frame) return null
-  const { bedLo, bedHi, hw, slope } = frame
-  const belt = beltLikeView(host)
+  const { hw, slope, sides } = frame
+  const belt = bedView(host, 'path')
   const leftUp = belt ? belt.leftGuard : guardUp(host, 'leftGuard')
   const rightUp = belt ? belt.rightGuard : guardUp(host, 'rightGuard')
   const out: GuardHoles = { left: [], right: [] }
@@ -154,7 +154,9 @@ function straightHoles(host: PartInstance, beams: readonly BeamSegment[]): Guard
       if (behindAndLeaving(t, lens, side * dz < 0)) continue
       const planX = la.x + (lb.x - la.x) * t
       const x = planX / slope
-      if (x < bedLo || x > bedHi) continue
+      // within this side's own guard run (a spur's two guards are offset by its splay)
+      const [lo, hi] = side < 0 ? sides.left : sides.right
+      if (x < lo || x > hi) continue
       const rel = (a[1] + (b[1] - a[1]) * t - hostSurfaceY(host, planX)) * slope
       if (!crossesSheet(rel)) continue
       pushHole(side < 0 ? out.left : out.right, x, holeY(rel), GUARD_HOLE_PANEL)
@@ -209,7 +211,12 @@ function curvedHoles(host: PartInstance, beams: readonly BeamSegment[]): GuardHo
 /** a host's reach in plan, from its origin: whatever a beam must come within to cross one of its guards */
 function hostReach(host: PartInstance): number | null {
   const frame = hostGuardFrame(host)
-  if (frame) return Math.hypot(Math.max(Math.abs(frame.bedLo), Math.abs(frame.bedHi)), frame.hw + 0.1)
+  if (frame) {
+    // a spur's longer guard reaches past the bed's ends
+    const { left, right } = frame.sides
+    const x = Math.max(Math.abs(frame.bedLo), Math.abs(frame.bedHi), Math.abs(left[0]), Math.abs(left[1]), Math.abs(right[0]), Math.abs(right[1]))
+    return Math.hypot(x, frame.hw + 0.1)
+  }
   const arc = curvedGizmoOf(host)
   if (arc) return arc.innerRadius + arc.width + 0.1
   return null

@@ -1,7 +1,7 @@
 import type { PartInstance } from '../types'
 import { ARC_END_EXT, ROLLER_PITCH, ROLLER_RADIUS } from '../types'
 import { forwardXZ } from '../math'
-import { conveyorEndsOf, curvedConveyorView, isWorldPhaseRollerBed, resolveInclineRad, straightConveyorView } from '../parts/partGeometry'
+import { bedView, conveyorEndsOf, isWorldPhaseRollerBed, rectangleBedOf, resolveInclineRad } from '../parts/partGeometry'
 import { getPackage } from '../parts/partRegistry'
 import { memoizeByParticipants } from '../memoParts'
 
@@ -67,7 +67,7 @@ function sdkRollerSpec(part: PartInstance): { pitch: number; radius: number } {
 
 /** the roller pitch of a straight SDK roller bed (for the track-snap engine), or null when the part isn't one */
 export function rollerBedPitch(part: PartInstance): number | null {
-  return isWorldPhaseRollerBed(part) && straightConveyorView(part) ? sdkRollerSpec(part).pitch : null
+  return isWorldPhaseRollerBed(part) && rectangleBedOf(part) ? sdkRollerSpec(part).pitch : null
 }
 
 /** local +X span + roller radius/pitch of a straight SDK roller bed (centre-origin), or null otherwise. An
@@ -75,7 +75,7 @@ export function rollerBedPitch(part: PartInstance): number | null {
  *  so it anchors + continues across snapped beds. */
 function rollerBed(part: PartInstance): RollerBed | null {
   if (!isWorldPhaseRollerBed(part)) return null
-  const view = straightConveyorView(part)
+  const view = rectangleBedOf(part)
   if (!view) return null
   // centre-origin: bed spans local x ±length/2
   const spec = sdkRollerSpec(part)
@@ -148,7 +148,7 @@ interface GridNode {
  * shallow curved belt's drum-radius endExt (height / 2) is below ARC_END_EXT too.
  */
 function isCurveAnchor(part: PartInstance): boolean {
-  const v = curvedConveyorView(part)
+  const v = bedView(part, 'arc')
   if (v === null || v.endExt >= ARC_END_EXT - 1e-6) return false
   return !(part.type === 'part' && getPackage(part.packageId)?.conveyor?.surface === 'belt')
 }

@@ -133,8 +133,9 @@ Never hand-edit scene.json; these go through the same checks the editor does.
 - **`npm run check-layout -- <path>`** - parts that declare they seat on something actually do. It reports
   disconnection, not collision: a naive overlap test flags 303 pairs on the correct demo scene (src/core/checkLayout.ts
   explains). Its one collision check is a part standing in an interior building column (src/core/building/buildingColumns.ts).
-  It also warns, and `--strict` fails, when a box spawner drops onto a belt the program starts and stops without
-  being held with it by `conveyorId` + `keepSpacing`: boxes stack on the stopped belt.
+  It also warns, and `--strict` fails, when a conveyor's end meets a spur's side (a spur takes end joins only, so its
+  guard stays closed there), and when a box spawner drops onto a belt the program starts and stops without being held
+  with it by `conveyorId` + `keepSpacing`: boxes stack on the stopped belt.
 - **`npm run test-project -- <folder>`** - control logic behaves. Exit 1 = a check failed, 3 = the project or a test
   could not run. `--only` takes an exact file or test name and falls back to a substring only when nothing matches
   exactly; `--cargo 5,10` lists where every box is at those times. Prefer `passed` + `color` probes, tag-vs-tag

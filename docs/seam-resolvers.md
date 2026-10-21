@@ -70,7 +70,7 @@ With both, a drag frame's resolve cost stays flat in scene size: it is the real 
 A peer's drag holds close to full frame rate at 480 parts.
 
 **Classification memo.** `isTarget`/`isInfluencer` are not cheap: they build geometry views
-(`beltLikeView`, `moverShapeOf`, `hostGeom`) to decide what a part is. They are pure in (part, registry), and
+(`bedOf`, `moverShapeOf`, `hostGeom`) to decide what a part is. They are pure in (part, registry), and
 parts are immutable, so the answers are cached on identity and dropped wholesale when the registry changes. That
 invalidation is required. A package can arrive *after* the first resolve (async load, author edit, a peer's
 part syncing in) under unchanged refs, and a stale `false` would exclude the part forever. The seam resolvers'

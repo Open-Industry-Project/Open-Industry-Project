@@ -79,7 +79,7 @@ already anchors.
 - The `face` handle (on a conveying part's length param) takes `angleFrontParam`/`angleBackParam`, naming the
   sibling params that splay each end face. Declaring either, together with the manifest's
   `conveyor: { bed: 'spur' }`, marks the part a **spur conveyor** (centre-origin parallelogram bed). Validation
-  requires the two to match ([partPackage.ts](../src/core/parts/partPackage.ts)), and `spurConveyorView` in
+  requires the two to match ([partPackage.ts](../src/core/parts/partPackage.ts)), and the spur bed in
   [conveyorBeds.ts](../src/core/conveyor/conveyorBeds.ts) reads both. The host then derives the angled snap ends, the
   splay-covering footprint and collision hull, the opening a merge cuts in the host's guard, and the rail and guard
   snap extents it folds into a declared `guardExtents` param. It also derives `sideGap`, the clearance kept off

@@ -16,7 +16,7 @@ const pose = (x: number, y: number, z: number, rot: number): SnapPose => ({
 
 // an SDK straight roller bed: a custom rig whose deck conveys + whose rollers sit on a world-phase distribute
 // grid (maxSpacing = the light-class pitch), with length/width `face` handles. It is therefore both a
-// straightConveyorView conveyor (centre-origin, ends at ±length/2 - unlike a tail-origin bed) and a world-phase
+// straight-bed conveyor (centre-origin, ends at ±length/2 - unlike a tail-origin bed) and a world-phase
 // roller bed (a blade/chain track host).
 function customRollerPkg(): PartPackage {
   return {
@@ -932,7 +932,7 @@ describe('custom lane-track snapping (declarative snap.track.lanes - SDK chain t
 })
 
 // an SDK turntable (a rotating-deck custom part: a revolute joint drives a width-parametric cylinder deck).
-// rotatingDeckView surfaces the plate rim, so it snaps exactly like the built-in turntable - home-fixed straight
+// Its turntable bed surfaces the plate rim, so it snaps exactly like the built-in turntable - home-fixed straight
 // ±X rim ends + left/right side-guard segments on the rim - even though it's a custom part.
 function customTurntablePkg(): PartPackage {
   return {

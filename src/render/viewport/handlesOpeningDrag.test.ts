@@ -30,7 +30,7 @@ const rollerPkg = {
   geometry,
 } as unknown as PartPackage
 
-// the belt's path handle is what makes a part belt-like (partGeometry.beltLikeView); the shipped belt declares it so
+// the belt's path handle is what makes a part belt-like (a path bed, conveyorBeds.ts); the shipped belt declares it so
 const belt0 = examplePart('oip.belt-conveyor')
 const beltPkg = {
   format: PACKAGE_FORMAT,

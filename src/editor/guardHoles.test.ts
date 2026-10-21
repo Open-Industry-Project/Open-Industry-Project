@@ -11,7 +11,7 @@ import { bundledBehaviors, bundledManifests } from './parts/bundledExamples'
 // behind it, 0.02 below the deck) must cut the guard it stands against and the far one its beam reaches.
 
 const behaviors = bundledBehaviors()
-const IDS = ['oip.roller-conveyor', 'oip.belt-conveyor', 'oip.curved-conveyor', 'oip.diffuse-sensor']
+const IDS = ['oip.roller-conveyor', 'oip.belt-conveyor', 'oip.curved-conveyor', 'oip.spur-conveyor', 'oip.diffuse-sensor']
 const real = bundledManifests().filter((m) => IDS.includes(m.id)).map((m) => buildPackage(m, behaviors.get(m.id)!))
 beforeEach(() => real.forEach((p) => registerPackage(p)))
 
@@ -67,6 +67,19 @@ describe('sensor-beam guard holes', () => {
     // its left guard 2 cm behind the lens: inside the back extent, but the beam would leave that bed through it
     const spur = part('spur', 'oip.roller-conveyor', [0, Y, W + 0.0525], 0, { length: 4, width: W })
     expect(deriveGuardHoles(spur, beamSegments(eye('e', 1.2)))).toBeNull()
+  })
+
+  it("a spur's guards are holed along their own runs, which its splay offsets from the bed's ends", () => {
+    // the shipped spur: length 2, front face splayed 30°, so its +Z guard runs to 1 + tan30°·HW (about 1.44) and its
+    // −Z guard stops at 1 − tan30°·HW (about 0.56)
+    const spur = part('spur', 'oip.spur-conveyor', [0, Y, 0], 0, { length: 2, width: W, angleFrontDeg: 30, angleBackDeg: 0 })
+    const reach = 1 + Math.tan(Math.PI / 6) * HW
+    // past the bed's end but on the long guard: holed there, and not on the short one, which ends before it
+    const holes = deriveGuardHoles(spur, beamSegments(eye('e', 1.25)))!
+    expect(holes.right.map(([x]) => x)).toEqual([1.25])
+    expect(holes.left).toEqual([])
+    // past the long guard's own end: nothing to hole
+    expect(deriveGuardHoles(spur, beamSegments(eye('e', reach + 0.1)))).toBeNull()
   })
 
   it('a beam over the guard top cuts nothing, and a lowered guard is not cut', () => {

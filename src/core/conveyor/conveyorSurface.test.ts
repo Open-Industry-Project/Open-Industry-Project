@@ -61,7 +61,7 @@ function curvePkg(): PartPackage {
   } as unknown as PartPackage
 }
 
-// an SDK turntable: a revolute joint drives a width-parametric cylinder deck (rotatingDeckView recognizes it)
+// an SDK turntable: a revolute joint drives a width-parametric cylinder deck (the turntable bed's view recognizes it)
 function turntablePkg(): PartPackage {
   return {
     format: PACKAGE_FORMAT,

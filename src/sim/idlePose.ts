@@ -178,7 +178,7 @@ export function settleIdlePose(source: string, params: Record<string, ParamValue
  * joint still moving at its 5 s cap (continuous motion must not freeze mid-spin), but a slow discrete move is
  * dropped too: a turntable deck slewing 150 degrees at 20 deg/s with its ramps takes ~8 s. Without this it would
  * fall back to 0, and the stopped editor would show the deck square while the Inspector (and the conveying
- * surface, which reads the same binding through rotatingDeckView) said 150. A joint that declares where it
+ * surface, which reads the same binding through the turntable bed's view) said 150. A joint that declares where it
  * settles is taken at its word; a joint the behavior did settle keeps the behavior's value. Null only when there is nothing to pose.
  */
 export function withJointRests(

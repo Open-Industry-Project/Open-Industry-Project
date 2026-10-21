@@ -1,6 +1,6 @@
 import { rotateXZ } from '../transforms'
 import { conveyorSpeedParams } from '../conveyor/conveyorDirection'
-import { beltLikeView, curvedConveyorView, DEG, partFootprint, resolveInclineRad, straightConveyorView } from '../parts/partGeometry'
+import { bedOf, bedView, DEG, partFootprint, rectangleBedOf, resolveInclineRad } from '../parts/partGeometry'
 import { beltColliders, buildBeltPath } from '../conveyor/beltPath'
 import type { BeltSegmentSpec } from '../types'
 import { ARC_END_EXT, BELT_MIN_RUN_LENGTH, CONVEYOR_BODY_THICKNESS, GUARD_COLLISION_THICKNESS } from '../types'
@@ -220,22 +220,27 @@ export function sdkCurvedDeckSubs(
 
 /** Part-local deck facets for any mergeable conveyor type; [] for the rest. */
 export function conveyorDeckSubs(part: PartInstance): ConveyorSubShape[] {
-  // a belt-like custom/SDK part (declares a `path` handle) merges into a butted cluster - its facets carry
-  // tan, driven each tick by the part's behavior (beltDeckSubsLocal).
-  const view = beltLikeView(part)
-  if (view) return beltDeckSubsLocal(view.segments, view.height, view.width)
-  // a curved SDK conveyor (declares an `arc` handle): arc chord + stub facets, so it collides + carries cargo
-  // around the sweep (its behavior re-drives the arc field each tick via setArcSurfaceVelocity). cx/cz seed to
-  // the part's world XZ.
-  const curved = curvedConveyorView(part)
-  if (curved) {
-    const key = conveyorSpeedParams(part).speed
-    const sp = key ? (part.params as unknown as Record<string, unknown>)[key] : undefined
-    const speed = typeof sp === 'number' ? sp : 0
-    return sdkCurvedDeckSubs(curved.innerRadius, curved.width, curved.sweepDeg, speed, part.position[0], part.position[2], part.rotationY, Math.max(ARC_END_EXT, curved.endExt))
+  const bed = bedOf(part)
+  if (bed === null) return []
+  switch (bed.kind) {
+    case 'path':
+      // a belt merges into a butted cluster: its facets carry tan, driven each tick by the part's behavior
+      return beltDeckSubsLocal(bed.view.segments, bed.view.height, bed.view.width)
+    case 'arc': {
+      // arc chord + stub facets, so it collides and carries cargo around the sweep (its behavior re-drives the arc
+      // field each tick via setArcSurfaceVelocity). cx/cz seed to the part's world XZ.
+      const key = conveyorSpeedParams(part).speed
+      const sp = key ? (part.params as unknown as Record<string, unknown>)[key] : undefined
+      const speed = typeof sp === 'number' ? sp : 0
+      const v = bed.view
+      return sdkCurvedDeckSubs(v.innerRadius, v.width, v.sweepDeg, speed, part.position[0], part.position[2], part.rotationY, Math.max(ARC_END_EXT, v.endExt))
+    }
+    case 'straight':
+    case 'spur':
+    case 'turntable':
+      // their decks are built from their own geometry, part by part, and never merge
+      return []
   }
-  // any other custom part (no belt/arc view) has no mergeable deck.
-  return []
 }
 
 // --- editor collision proxy ------------------------------------------------
@@ -262,7 +267,7 @@ function footprintHull(part: PartInstance): Vec3[] {
   const fp = partFootprint(part)
   const cx = fp.cx ?? 0
   const cz = fp.cz ?? 0
-  const straight = straightConveyorView(part)
+  const straight = rectangleBedOf(part)
   const incline = straight ? resolveInclineRad(part) : 0
   if (straight && incline !== 0) {
     // the slab is the bed's slope length; the footprint's hx is its plan length ((L/2)·cos), so read the bed
@@ -299,7 +304,7 @@ function footprintHull(part: PartInstance): Vec3[] {
  * and the drop landed away from the cursor.
  */
 export function collisionProxy(part: PartInstance): CollisionShape[] {
-  const belt = beltLikeView(part)
+  const belt = bedView(part, 'path')
   if (belt) return beltDeckSubsLocal(belt.segments, belt.height, belt.width)
   return [{ hull: footprintHull(part), ...IDENTITY }]
 }

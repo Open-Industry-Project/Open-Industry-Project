@@ -1,5 +1,5 @@
 import type { BeltGuardOpeningSpec, PartInstance } from '../types'
-import { beltLikeView, straightConveyorView } from '../parts/partGeometry'
+import { bedView, rectangleBedOf } from '../parts/partGeometry'
 import { buildBeltPath } from '../conveyor/beltPath'
 import { getPackage } from '../parts/partRegistry'
 
@@ -63,7 +63,7 @@ export function beltGuardArcRange(part: PartInstance): GuardArcRange | null {
   if (part.type !== 'part') return null
   const pkg = getPackage(part.packageId)
   if (!pkg || pkg.params.guardOpenings == null) return null // the part must author openings for the gizmo to drive
-  const view = beltLikeView(part)
+  const view = bedView(part, 'path')
   if (!view) return null // gizmo is belt-only (needs the belt path's arc-length parameterisation)
   const path = buildBeltPath(view.segments, view.height)
   const pulley = path.height / 2
@@ -84,7 +84,7 @@ export function straightGuardArcRange(part: PartInstance): GuardArcRange | null 
   if (part.type !== 'part') return null
   const pkg = getPackage(part.packageId)
   if (!pkg || pkg.params.guardOpenings == null) return null // the part must author openings for the gizmo to drive
-  const view = straightConveyorView(part)
+  const view = rectangleBedOf(part)
   return view ? { lo: 0, hi: view.length } : null
 }
 

@@ -5,7 +5,7 @@ import { getPackage } from '../parts/partRegistry'
 import { resolvePartParams } from '../parts/partScript'
 import { partQuat } from '../frame'
 import { rigGuardWallLink, rigHasGuardWall } from '../rig/rigGuards'
-import { beltLikeView, curvedConveyorView, rigInclineRad, spurConveyorView } from '../parts/partGeometry'
+import { bedOf, bedView, rigInclineRad } from '../parts/partGeometry'
 import { beltGuardWalls } from './beltGuards'
 import { curvedGuardWalls } from './curvedGuards'
 import { functionStaticWalls } from './functionGuards'
@@ -145,7 +145,7 @@ function wallSpansOf(part: PartInstance, openings: GuardOpenings | undefined, ex
     // sites pass no extents, so admitting them here could desync. Only sideGuard boxes merge. A rail or
     // frame submesh is a different wall with a different cross-section, and merging across roles would
     // silently reshape one into the other.
-    if (spurConveyorView(part) === null) return out
+    if (bedView(part, 'spur') === null) return out
     const pq = partQuat(part)
     for (const w of functionStaticWalls(part, pkg, extents)) {
       if (!w.sideGuard) continue
@@ -278,7 +278,8 @@ function participates(p: PartInstance): boolean {
   const pkg = getPackage(p.packageId)
   if (!pkg) return false
   if (pkg.geometry.kind === 'rig') return rigHasGuardWall(pkg) || isOpener(p)
-  return beltLikeView(p) !== null || curvedConveyorView(p) !== null || spurConveyorView(p) !== null || isOpener(p)
+  const kind = bedOf(p)?.kind
+  return kind === 'path' || kind === 'arc' || kind === 'spur' || isOpener(p)
 }
 
 export const computeGuardRuns = memoizeByParticipants(participates, computeGuardRunsUncached)

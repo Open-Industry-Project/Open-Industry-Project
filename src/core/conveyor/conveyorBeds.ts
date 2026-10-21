@@ -2,14 +2,18 @@
 //
 // A conveyor part declares its bed kind (`conveyor.bed`: straight, spur, path, arc or turntable). Each kind has a
 // view here that reads the bed's live dimensions from the part's params and handles, and an entry in BED_FAMILIES
-// that answers the questions every kind must answer: its two ends, the surface at a point, the surface velocity
-// and its reach. BED_FAMILIES is typed over every kind, so a new kind does not compile until each answer exists.
-// Ask through bedOf(). Code that needs a kind's own dimensions switches on ConveyorBed.kind, which narrows `view`.
+// that answers the questions every kind must answer: its ends, footprint, surface and carry, and how it takes part
+// in side merges and guard junctions. BED_FAMILIES is typed over every kind, so a new kind does not compile until
+// each answer exists.
+//
+// Ask through bedOf(). Code that needs one kind's own dimensions asks bedView(part, kind), or switches on
+// ConveyorBed.kind, which narrows `view`. The views themselves are private: a chain of "is it this view, else that
+// one" outside this module is how a missed kind used to fail silently.
 //
 // Questions about two beds at once (snap mating, guard merges, the roller-grid seams) stay with their own engines,
-// which read these views.
-import { ARC_END_EXT, SPUR_SIDE_GAP, type BeltSegmentSpec, type ParamValue, type PartInstance } from '../types'
-import { beltEndPose, beltHorizontalExtent, beltStartPose, beltXToS, buildBeltPath, sampleBeltPath } from './beltPath'
+// which read these answers.
+import { ARC_END_EXT, BELT_MIN_RUN_LENGTH, FRAME_WALL_THICKNESS, SPUR_SIDE_GAP, type BeltSegmentSpec, type ParamValue, type PartInstance } from '../types'
+import { beltEndPose, beltHorizontalExtent, beltPathFromParams, beltStartPose, beltXToS, buildBeltPath, sampleBeltPath } from './beltPath'
 import type { ConveyingSurface, SurfaceVelocity } from './conveyorSurface'
 import { forwardXZ } from '../math'
 import type { ConveyorDecl } from '../parts/partPackage'
@@ -125,7 +129,7 @@ function pathHandleOf(
   return keys ? { ...keys, pkg } : null
 }
 
-export const beltLikeView = memoByParams(function beltLikeViewUncached(part: PartInstance): BeltLikeView | null {
+const beltLikeView = memoByParams(function beltLikeViewUncached(part: PartInstance): BeltLikeView | null {
   const path = pathHandleOf(part)
   if (!path || path.pkg?.conveyor?.bed !== 'path') return null
   const params = part.params as unknown as Record<string, unknown>
@@ -216,7 +220,7 @@ export interface StraightConveyorView {
   height: number
 }
 
-export const straightConveyorView = memoByParams(function straightConveyorViewUncached(part: PartInstance): StraightConveyorView | null {
+const straightConveyorView = memoByParams(function straightConveyorViewUncached(part: PartInstance): StraightConveyorView | null {
   if (part.type !== 'part') return null
   const pkg = getPackage(part.packageId)
   const bed = pkg?.conveyor?.bed
@@ -253,7 +257,7 @@ export interface SpurConveyorView {
   sideGap: number
 }
 
-export const spurConveyorView = memoByParams(function spurConveyorViewUncached(part: PartInstance): SpurConveyorView | null {
+const spurConveyorView = memoByParams(function spurConveyorViewUncached(part: PartInstance): SpurConveyorView | null {
   if (part.type !== 'part') return null
   const pkg = getPackage(part.packageId)
   if (!pkg || pkg.conveyor?.bed !== 'spur') return null
@@ -312,7 +316,7 @@ export interface RotatingDeckView {
   restRad: number
 }
 
-export const rotatingDeckView = memoByParams(function rotatingDeckViewUncached(part: PartInstance): RotatingDeckView | null {
+const rotatingDeckView = memoByParams(function rotatingDeckViewUncached(part: PartInstance): RotatingDeckView | null {
   if (part.type !== 'part') return null
   const pkg = getPackage(part.packageId)
   if (!pkg || pkg.geometry.kind !== 'rig' || pkg.conveyor?.bed !== 'turntable') return null
@@ -441,7 +445,7 @@ export interface CurvedConveyorView {
   outerGuard: boolean
 }
 
-export const curvedConveyorView = memoByParams(function curvedConveyorViewUncached(part: PartInstance): CurvedConveyorView | null {
+const curvedConveyorView = memoByParams(function curvedConveyorViewUncached(part: PartInstance): CurvedConveyorView | null {
   const g = curvedGizmoOf(part)
   if (!g || !g.sdk) return null
   const pkg = part.type === 'part' ? getPackage(part.packageId) : undefined
@@ -516,6 +520,54 @@ export interface BedViews {
   turntable: RotatingDeckView
 }
 
+/** local XZ half-extents and height range of a bed's footprint box; `cx` is its centre's local X when not 0 */
+export interface BedFootprint {
+  hx: number
+  hz: number
+  y0: number
+  y1: number
+  cx?: number
+}
+
+/** A bed's end faces as a side-merging mover sees them: the bed width, the face X at (end sign, z), and whether
+ *  its rails extend to a host's wall (a spur) or only retract to it (a straight or a belt). */
+export interface BedMergeFaces {
+  width: number
+  spur: boolean
+  /** a face's local X measured along the bed (what an extents row carries); times `slope` for its plan position */
+  faceX: (sign: 1 | -1, z: number) => number
+  /** along-the-bed to plan: cos of the bed's incline, 1 for a bed that does not incline */
+  slope: number
+}
+
+/** The local-X span and half-width of a bed whose side guards open where a neighbour butts them. `slope` turns a
+ *  plan local X into the guard's own along-the-bed X. */
+export interface BedGuardHost {
+  bedLo: number
+  bedHi: number
+  hw: number
+  slope: number
+  /** where each side's guard actually runs, in the same X: bedLo..bedHi on a rectangular bed, but a spur's angled
+   *  ends make one side's guard reach past ±length/2 and the other's stop short of it */
+  sides: { left: [number, number]; right: [number, number] }
+}
+
+/** How a bed side-merges onto another bed's flank as the mover: the clearance it keeps off the flank (a spur's
+ *  declared gap), and whether its end is framed (stands on the host's wall face) or a bare plate (butts the edge). */
+export interface BedSideMerge {
+  gap?: number
+  framedEnd: boolean
+}
+
+/** The flanks another bed can side-merge onto: both run local x0..x1 at z = ±hw, and `frameOut` is how far the
+ *  bed's frame stands out past them. */
+export interface BedFlanks {
+  x0: number
+  x1: number
+  hw: number
+  frameOut: number
+}
+
 /** The questions every bed kind answers. Everything but `surfaceAt` and `surfaceVelocity` reads the part's
  *  type, packageId and params only, never its pose, because bedOf and conveyorLocalEnds memoise on params. */
 interface BedFamily<V> {
@@ -529,12 +581,48 @@ interface BedFamily<V> {
   surfaceVelocity(v: V, part: PartInstance, speed: number, x: number, z: number): SurfaceVelocity
   /** how far the bed reaches from the part origin (m), for a quick "could this point be over it" test */
   reach(v: V): number
+  /** the footprint box selection, broadphase and drop-rest read */
+  footprint(v: V, part: PartInstance): BedFootprint
+  /** true when the resize dots sit on the conveying surface (local y = 0), not at the footprint's mid-height */
+  resizeOnDeck: boolean
+  /** its end faces as a side-merging mover, or null for a bed whose rails never meet a host's wall */
+  mergeFaces(v: V, part: PartInstance): BedMergeFaces | null
+  /** its guard span as a host whose guards open, or null for a bed whose guards never open */
+  guardHost(v: V, part: PartInstance): BedGuardHost | null
+  /** how it side-merges as the mover, or null for a bed that takes end joins only */
+  sideMerge(v: V): BedSideMerge | null
+  /** its flanks as a side-merge target, or null for a bed nothing merges onto from the side */
+  flanks(v: V): BedFlanks | null
 }
 
 /** a constant carry along the part's +X */
 function forwardCarry(part: PartInstance, speed: number): SurfaceVelocity {
   const f = forwardXZ(part.rotationY)
   return { vx: f.x * speed, vz: f.z * speed }
+}
+
+/** cos of a bed's incline: an inclined bed's guards run along its slope, so a plan distance is this times the
+ *  along-bed one */
+function inclineSlope(part: PartInstance): number {
+  return Math.cos(resolveInclineRad(part))
+}
+
+/** the guard host of a bed whose two guards both run its whole length */
+function rectangleGuardHost(bedLo: number, bedHi: number, hw: number, slope: number): BedGuardHost {
+  return { bedLo, bedHi, hw, slope, sides: { left: [bedLo, bedHi], right: [bedLo, bedHi] } }
+}
+
+/** the footprint of a tail-origin belt: its plan extent plus the end-drum overhang, and its path's height range */
+function beltFootprintOf(segments: BeltSegmentSpec[], height: number, width: number): BedFootprint {
+  const path = beltPathFromParams({ segments, height })
+  const extent = Math.max(beltHorizontalExtent(segments), BELT_MIN_RUN_LENGTH)
+  return {
+    hx: extent / 2 + path.height / 2,
+    cx: extent / 2,
+    hz: width / 2,
+    y0: path.bounds.minY - path.height,
+    y1: path.bounds.maxY + 0.05,
+  }
 }
 
 /** A centre-origin rectangle. A whole-bed incline pivots it about the origin. */
@@ -560,6 +648,23 @@ const straightBed: BedFamily<StraightConveyorView> = {
   },
   surfaceVelocity: (_v, part, speed) => forwardCarry(part, speed),
   reach: (v) => Math.hypot(v.length / 2, v.width / 2),
+  footprint(v, part) {
+    // The ends of an inclined bed move in to (L/2)·cos in plan: the extent the snap overlap test, face-flush, leg
+    // rests and the layout check read, and where localEnds puts them. The head lifts and the tail drops by
+    // (L/2)·|sin|, so the vertical extent grows both ways to cover them. At L/2 the box would overhang each end by
+    // (L/2)(1 - cos): 20 cm on a 3 m bed at 30 degrees, enough to count a correctly butted neighbour as overlapping.
+    const th = resolveInclineRad(part)
+    const half = v.length / 2
+    const rise = half * Math.abs(Math.sin(th))
+    return { hx: half * Math.cos(th), hz: v.width / 2, y0: -0.4 - rise, y1: 0.05 + rise }
+  },
+  resizeOnDeck: true,
+  // flat ends at ±length/2; its rails retract to a host's wall plane, never extend to it
+  mergeFaces: (v, part) => ({ width: v.width, spur: false, faceX: (sign) => (sign * v.length) / 2, slope: inclineSlope(part) }),
+  guardHost: (v, part) => rectangleGuardHost(-v.length / 2, v.length / 2, v.width / 2, inclineSlope(part)),
+  sideMerge: () => ({ framedEnd: true }),
+  // the full bed length at z = ±width/2, with the L-frame outside the bed edge
+  flanks: (v) => ({ x0: -v.length / 2, x1: v.length / 2, hw: v.width / 2, frameOut: FRAME_WALL_THICKNESS }),
 }
 
 /** A straight bed whose end faces splay, so it merges flush onto a straight line at an angle. */
@@ -581,6 +686,28 @@ const spurBed: BedFamily<BedViews['spur']> = {
   surfaceAt: (v, part, lx, lz) => straightBed.surfaceAt(v.straight, part, lx, lz),
   surfaceVelocity: (_v, part, speed) => forwardCarry(part, speed),
   reach: (v) => straightBed.reach(v.straight),
+  footprint({ spur }) {
+    // the whole splayed parallelogram, including the shear overhang past ±length/2
+    const xs = sdkSpurCorners(spur).map((c) => c.x)
+    const lo = Math.min(...xs)
+    const hi = Math.max(...xs)
+    return { hx: (hi - lo) / 2, cx: (hi + lo) / 2, hz: spur.width / 2, y0: -0.4, y1: 0.05 }
+  },
+  resizeOnDeck: true,
+  // sheared faces; its rails extend to the host's wall plane to close the side gap
+  mergeFaces: ({ spur }) => ({ width: spur.width, spur: true, faceX: (sign, z) => sdkSpurFaceX(spur, sign, z), slope: 1 }),
+  guardHost(v, part) {
+    // its guards take device openings and beam holes like a straight's, but each side's guard runs between that
+    // edge's own end faces, offset from ±length/2 by the splay. No conveyor end opens them (guardOpenings.ts).
+    const host = straightBed.guardHost(v.straight, part)!
+    const hw = v.spur.width / 2
+    const side = (z: number): [number, number] => [sdkSpurFaceX(v.spur, -1, z), sdkSpurFaceX(v.spur, 1, z)]
+    return { ...host, sides: { left: side(-hw), right: side(hw) } }
+  },
+  sideMerge: ({ spur }) => ({ gap: spur.sideGap, framedEnd: true }),
+  // A spur is itself the merge: a line fed into its side would cross product entering at an angle, in a section too
+  // short to sequence the two, so it takes end joins only (checkLayout.ts warns when an end meets its side).
+  flanks: () => null,
 }
 
 /** A tail-origin bent belt: the surface follows its segment profile. */
@@ -607,6 +734,26 @@ const pathBed: BedFamily<BeltLikeView> = {
   },
   surfaceVelocity: (_v, part, speed) => forwardCarry(part, speed),
   reach: (v) => Math.hypot(beltHorizontalExtent(v.segments), v.width / 2),
+  footprint: (v) => beltFootprintOf(v.segments, v.height, v.width),
+  resizeOnDeck: true,
+  mergeFaces(v) {
+    // the drum-overhang faces localEnds puts the ends on; its frame and guards retract to a flush-merged host's wall
+    const path = buildBeltPath(v.segments, v.height)
+    const start = beltStartPose(path)
+    const end = beltEndPose(path)
+    const pulley = path.height / 2
+    const back = start.x - Math.cos(start.angle) * pulley
+    const front = end.x + Math.cos(end.angle) * pulley
+    return { width: v.width, spur: false, faceX: (sign) => (sign > 0 ? front : back), slope: 1 }
+  },
+  // openings are plan X here; the belt's geometry maps them onto its path
+  guardHost: (v) => rectangleGuardHost(0, Math.max(beltHorizontalExtent(v.segments), 1e-3), v.width / 2, 1),
+  sideMerge: () => ({ framedEnd: true }),
+  flanks(v) {
+    // tail-origin: the bed and its guards run local x 0..extent
+    const hl = Math.max(beltHorizontalExtent(v.segments), 1e-3) / 2
+    return { x0: 0, x1: 2 * hl, hw: v.width / 2, frameOut: FRAME_WALL_THICKNESS }
+  },
 }
 
 /** A curve: a flat annulus about the part origin, swept from local +X toward -Z. */
@@ -626,6 +773,19 @@ const arcBed: BedFamily<CurvedConveyorView> = {
     return { vx: omega * (z - part.position[2]), vz: -omega * (x - part.position[0]) }
   },
   reach: (v) => v.innerRadius + v.width,
+  footprint(v) {
+    // a square out to the outer radius plus the tangent stub: at least the ARC_END_EXT reach on both families, not
+    // the roller's flush snap `endExt`, so the box never under-covers the stub. A deep curved belt's longer stub
+    // (its drum, endGapParam) widens it.
+    const r = v.innerRadius + v.width + Math.max(ARC_END_EXT, v.endExt)
+    return { hx: r, hz: r, y0: -0.4, y1: 0.05 }
+  },
+  resizeOnDeck: false,
+  // a curve meets other beds end to end only, so its guards never open and nothing merges onto its side
+  mergeFaces: () => null,
+  guardHost: () => null,
+  sideMerge: () => null,
+  flanks: () => null,
 }
 
 /** A round deck turning on a revolute joint. Its ends are home-oriented on the rim at ±radius along local X, since
@@ -645,6 +805,14 @@ const turntableBed: BedFamily<RotatingDeckView> = {
     return { vx: (f.x * c + f.z * s) * speed, vz: (f.z * c - f.x * s) * speed }
   },
   reach: (v) => v.radius,
+  footprint: (v) => ({ hx: v.radius, hz: v.radius, y0: -0.4, y1: 0.05 }),
+  resizeOnDeck: false,
+  // its plate is no framed end: its rails never meet a host's wall, and its guards don't open
+  mergeFaces: () => null,
+  guardHost: () => null,
+  sideMerge: () => ({ framedEnd: false }),
+  // the guards span only the lane (±width/2 in X) on the bare plate rim at z = ±radius
+  flanks: (v) => ({ x0: -v.width / 2, x1: v.width / 2, hw: v.radius, frameOut: 0 }),
 }
 
 const BED_FAMILIES: { [K in BedKind]: BedFamily<BedViews[K]> } = {
@@ -661,6 +829,12 @@ export type ConveyorBed = { [K in BedKind]: { readonly kind: K; readonly view: B
   surfaceAt(part: PartInstance, lx: number, lz: number): ConveyingSurface | null
   surfaceVelocity(part: PartInstance, speed: number, x: number, z: number): SurfaceVelocity
   reach(): number
+  footprint(part: PartInstance): BedFootprint
+  readonly resizeOnDeck: boolean
+  mergeFaces(part: PartInstance): BedMergeFaces | null
+  guardHost(part: PartInstance): BedGuardHost | null
+  sideMerge(): BedSideMerge | null
+  flanks(): BedFlanks | null
 }
 
 function resolveBed<K extends BedKind>(kind: K, part: PartInstance): ConveyorBed | null {
@@ -674,6 +848,12 @@ function resolveBed<K extends BedKind>(kind: K, part: PartInstance): ConveyorBed
     surfaceAt: (p, lx, lz) => family.surfaceAt(view, p, lx, lz),
     surfaceVelocity: (p, speed, x, z) => family.surfaceVelocity(view, p, speed, x, z),
     reach: () => family.reach(view),
+    footprint: (p) => family.footprint(view, p),
+    resizeOnDeck: family.resizeOnDeck,
+    mergeFaces: (p) => family.mergeFaces(view, p),
+    guardHost: (p) => family.guardHost(view, p),
+    sideMerge: () => family.sideMerge(view),
+    flanks: () => family.flanks(view),
   } as ConveyorBed
 }
 
@@ -685,6 +865,23 @@ export const bedOf = memoByParams(function bedOfUncached(part: PartInstance): Co
   if (!kind) return null
   return resolveBed(kind, part) ?? (kind === 'spur' ? resolveBed('straight', part) : null)
 })
+
+/** The view of a part whose bed is of `kind`, or null for any other part. A spur is never a 'straight' here: ask
+ *  {@link rectangleBedOf} for the rectangle both share. */
+export function bedView<K extends BedKind>(part: PartInstance, kind: K): BedViews[K] | null {
+  const bed = bedOf(part)
+  return bed !== null && bed.kind === kind ? (bed.view as BedViews[K]) : null
+}
+
+/** The centre-origin length × width rectangle of a straight bed or a spur (a spur's unsplayed rectangle), or null
+ *  for any other bed. For the code that treats both alike: roller stations, guard-mounted devices, the resize dots. */
+export function rectangleBedOf(part: PartInstance): StraightConveyorView | null {
+  const bed = bedOf(part)
+  if (bed === null) return null
+  if (bed.kind === 'straight') return bed.view
+  if (bed.kind === 'spur') return bed.view.straight
+  return null
+}
 
 /** local ends for any conveyor; [] for a part that is not one */
 export const conveyorLocalEnds = memoByParams(function conveyorLocalEndsUncached(part: PartInstance): LocalEnd[] {

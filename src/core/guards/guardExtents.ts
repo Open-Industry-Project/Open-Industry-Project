@@ -2,19 +2,10 @@ import { FRAME_FLANGE_WIDTH, FRAME_WALL_THICKNESS, GUARD_CONTACT_HEIGHT, GUARD_C
 import type { PartInstance } from '../types'
 import type { ParamValue } from '../parts/partApi'
 import type { PartEnd } from '../parts/partGeometry'
-import {
-  beltLikeView,
-  conveyorEndsOf,
-  isConveyorLike,
-  resolveInclineRad,
-  sdkSpurFaceX,
-  spurConveyorView,
-  straightConveyorView,
-  toLocalXZ,
-  toWorldXZ,
-} from '../parts/partGeometry'
+import { bedOf, bedView, conveyorEndsOf, isConveyorLike, resolveInclineRad, toLocalXZ, toWorldXZ } from '../parts/partGeometry'
+import type { BedMergeFaces } from '../conveyor/conveyorBeds'
 import { getPackage } from '../parts/partRegistry'
-import { beltEndPose, beltHorizontalExtent, beltStartPose, beltXToSExt, buildBeltPath, sampleBeltPathExt } from '../conveyor/beltPath'
+import { beltXToSExt, buildBeltPath, sampleBeltPathExt } from '../conveyor/beltPath'
 import { memoizeLocalized } from '../memoParts'
 
 /**
@@ -162,7 +153,7 @@ export function guardSlope(part: PartInstance): number {
  * else the deck plane at the part origin. The junction height gate compares a mover's end against it.
  */
 export function hostSurfaceY(host: PartInstance, planX: number): number {
-  const belt = beltLikeView(host)
+  const belt = bedView(host, 'path')
   if (belt) {
     const path = buildBeltPath(belt.segments, belt.height)
     return host.position[1] + sampleBeltPathExt(path, beltXToSExt(path, planX)).y
@@ -183,69 +174,26 @@ function partAxes(part: PartInstance): { fx: number; fz: number; zx: number; zz:
   return { fx: xa.x - o.x, fz: xa.z - o.z, zx: za.x - o.x, zz: za.z - o.z }
 }
 
-/** a mover's local face geometry: face X at (end sign, z) + bed width, and whether it is a spur
- *  (extend-capable) or a straight (retract-only) */
-interface MoverShape {
-  width: number
-  spur: boolean
-  /** a face's local X measured along the bed (what an extents row carries); times `slope` for its plan position */
-  faceX: (sign: 1 | -1, z: number) => number
-  /** {@link guardSlope}: along-the-bed to plan */
-  slope: number
-}
+/** a mover's local face geometry: a spur's rails extend to the host's wall plane, a straight's or a belt's retract
+ *  to it (the bed's {@link BedMergeFaces}) */
+type MoverShape = BedMergeFaces
 
-/** local face geometry of an SDK spur view - sheared face X (centre-origin, sdkSpurFaceX). Null for non-spurs. */
-function spurShapeOf(part: PartInstance): MoverShape | null {
-  const v = spurConveyorView(part)
-  return v ? { width: v.width, spur: true, faceX: (sign, z) => sdkSpurFaceX(v, sign, z), slope: 1 } : null
-}
-
-/** local face geometry of a straight (non-spur) conveyor - flat ends at ±length/2. The flush side-merge
- *  counterpart of spurShapeOf: its rails retract to the host wall plane instead of extending to it. */
-function straightShapeOf(part: PartInstance): MoverShape | null {
-  if (part.type !== 'part' || spurConveyorView(part) !== null) return null
-  const v = straightConveyorView(part)
-  return v ? { width: v.width, spur: false, faceX: (sign) => (sign * v.length) / 2, slope: guardSlope(part) } : null
-}
-
-/** local face geometry of a belt-like (`path`-handle) conveyor - tail-origin, faces at the drum-overhang
- *  ends (the same faces conveyorLocalEnds derives: path end ± cos(end angle)·pulley). Retract-only, like
- *  the straight: its frame/guards run to those faces and pull back to a flush-merged host's wall plane. */
-function beltShapeOf(part: PartInstance): MoverShape | null {
-  const v = beltLikeView(part)
-  if (!v) return null
-  const path = buildBeltPath(v.segments, v.height)
-  const start = beltStartPose(path)
-  const end = beltEndPose(path)
-  const pulley = path.height / 2
-  const back = start.x - Math.cos(start.angle) * pulley
-  const front = end.x + Math.cos(end.angle) * pulley
-  return { width: v.width, spur: false, faceX: (sign) => (sign > 0 ? front : back), slope: 1 }
-}
-
-/** any snap-extent-capable mover: an SDK spur (extend), or a straight/belt conveyor (retract) */
+/** any snap-extent-capable mover: a spur, a straight or a belt */
 function moverShapeOf(part: PartInstance): MoverShape | null {
-  return spurShapeOf(part) ?? straightShapeOf(part) ?? beltShapeOf(part)
+  return bedOf(part)?.mergeFaces(part) ?? null
 }
 
 /**
- * A straight host's bed span (in plan: an inclined bed's length foreshortened by its slope) + half-width in its
- * local frame, or null when the part can't host a spur merge. Hosts are the same family deriveGuardOpenings opens:
- * a built-in roller/belt (tail-origin: 0..length/extent), an SDK belt (`path` handle, tail-origin) or a straight
- * SDK conveyor (centre-origin: ±length/2). So the opening and the extension are produced for the same junction. A
- * spur view is not a host, because its flanks shear (built-in spurs never host on a spur either).
+ * A host's bed span in plan (an inclined bed's length foreshortened by its slope) + half-width in its local frame,
+ * or null when the part can't host a merge. Hosts are the beds whose guards open (the bed's guardHost: a belt,
+ * tail-origin 0..extent, or a straight, centre-origin ±length/2), so the opening and the extension are produced for
+ * the same junction. A spur is not one here: it is itself a merge and takes end joins only.
  */
 function hostGeom(host: PartInstance): { lo: number; hi: number; hw: number } | null {
-  const belt = beltLikeView(host)
-  if (belt) return { lo: 0, hi: Math.max(beltHorizontalExtent(belt.segments), 1e-3), hw: belt.width / 2 }
-  if (host.type === 'part' && spurConveyorView(host) === null) {
-    const straight = straightConveyorView(host)
-    if (straight) {
-      const half = (straight.length / 2) * guardSlope(host)
-      return { lo: -half, hi: half, hw: straight.width / 2 }
-    }
-  }
-  return null
+  const bed = bedOf(host)
+  if (bed === null || bed.kind === 'spur') return null
+  const g = bed.guardHost(host)
+  return g ? { lo: g.bedLo * g.slope, hi: g.bedHi * g.slope, hw: g.hw } : null
 }
 
 /** one side's junction corner: where the mover's guard line meets the host's outer wall plane */
