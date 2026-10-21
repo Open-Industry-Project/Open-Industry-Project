@@ -1343,7 +1343,7 @@ and opening mid-stroke drops it in mid-air.
 | Mobile vehicle (root motion) | agv |
 | Sensors (presence / colour / distance) | diffuse-sensor, color-sensor, laser-sensor |
 | Safety device: several beams + a PLC-driven indicator | light-curtain (four `beam` links sized by `rangeParam`, one OSSD output, a muting lamp read from a tag. Muting is the safety program's job, not the part's; the demo's `MutingSeq` block is the example) |
-| Identify cargo once | barcode-scanner (`mark`s what it has read and counts only unmarked cases, so a case held under the arch counts once; a one-shot good-read pulse) |
+| Identify cargo once | barcode-scanner (a scan line across the conveyor reads each case's code off its marks onto a code tag, and `markHit`s the case it read, so a case held under the arch is read once; a one-shot good-read pulse) |
 | Cargo lifecycle | box-spawner (the Spawner: a product, released at a steady interval or on each enable, with a cycle of colours and of one attribute's values for a mixed stream), despawner; palletSpawner (not in the catalog, kept for projects that use it); pallet-dispenser (stores real cargo: a gripper per magazine position posed with `setSubPose`, so a dispense releases only the bottom pallet; a zone interlock; a set-down stack gripped where it stands; stock authored through `holds`); stretch-wrapper (`dress` as the carriage climbs, then `join` + `mark`; a carriage eye moving with its link; a start / busy / done handshake) |
 | Param-driven structure, arrays | rack, fence, stairs, guardRail, platform |
 | Interaction + lamps | push-button, stack-light |

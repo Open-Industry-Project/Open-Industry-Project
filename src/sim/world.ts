@@ -70,7 +70,7 @@ import type { RigBodySink } from './rigBuild'
 import { RigDriver } from './rigDriver'
 import { SensorRegistry } from './sensorRegistry'
 import { LoadCells } from './loadCells'
-import { behaviorRecord, partPackageRev, partSignature } from './worldTypes'
+import { behaviorRecord, marksOf, partPackageRev, partSignature } from './worldTypes'
 import type { BehaviorRecord, BodyHolder, JoltModule, KinematicScratch, LiveBox, PartGroup, StepClock, UnitLoad } from './worldTypes'
 
 export type { JoltModule } from './worldTypes'
@@ -1165,6 +1165,12 @@ export class SimWorld implements SimCore<BoxFrame> {
   frame(): BoxFrame {
     // one WASM call for all pos+quats (snapshotBoxes); null = stock-build fallback, read per box in buildFrame
     return buildFrame(this.boxes, this.cargo.snapshotBoxes(), this.bus.behaviors, this.units, this.dressings, this.conveyorSpeeds, this.clock.step / this.hz, this.cargo.shapeRefs)
+  }
+
+  /** each cargo row's marks (ctx.mark, markHit, product attributes), index-aligned with frame(); null for a row with
+   *  none. The frame carries marks only for authored parts, and a test's `marked` filter reads spawned cargo too */
+  cargoMarks(): (Readonly<Record<string, number | boolean | string>> | null)[] {
+    return this.boxes.map((b) => marksOf(b))
   }
 
   /** cumulative stepDirect cost split from the behavior runtime - merged into StepStats.phases

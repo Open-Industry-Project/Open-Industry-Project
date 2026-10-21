@@ -25,10 +25,11 @@ lamps [beacon] animates=false
 class {}
 footprint {hx:0.5850,hz:0.1000,y0:0,y1:1.6600}
 plugs []
-params reserved=[enableComms] tags=[readTag:out:BOOL,countTag:out:DINT]
+params reserved=[enableComms] tags=[readTag:out:BOOL,countTag:out:DINT,codeTag:out:DINT]
 lamps [read,scan] animates=false
   link surface {shape:frame}
   link read {shape:frame,zone:true}
+  link scanLine {sensesBeam:true,shape:frame}
   drawn[0] {collision:static,material:housing}
   drawn[1] {collision:static,material:housing}
   drawn[2] {collision:static,material:cap}
