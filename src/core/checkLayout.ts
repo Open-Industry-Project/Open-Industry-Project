@@ -14,7 +14,7 @@
 // anything flat on the floor (markings).
 //
 // Two warnings, never errors. The first: a conveyor's end placed against a spur's side. A spur is itself a merge and
-// takes end joins only, so its guard stays closed there (spurSideFindings).
+// takes end joins only, so its guard stays closed there (endJoinSideFindings).
 //
 // The second: a box feed (a part with a `keepSpacing` param: the box spawner) dropping onto a belt
 // whose run tag something drives, without being held with that belt. A program that stops the belt (accumulation, a
@@ -63,9 +63,9 @@ export interface LayoutFinding {
   /** the package for a package part, else the part's type */
   packageId: string
   /** 'unseated': declares a host and has none. 'column': stands in an interior building column. 'feed': a box feed
-   *  drops onto a driven belt without being held with it (a warning). 'spurSide': a conveyor's end meets a spur's
-   *  side, which takes end joins only (a warning). */
-  kind: 'unseated' | 'column' | 'feed' | 'spurSide'
+   *  drops onto a driven belt without being held with it (a warning). 'endJoinSide': a conveyor's end meets the side
+   *  of a bed that takes end joins only, a spur (a warning). */
+  kind: 'unseated' | 'column' | 'feed' | 'endJoinSide'
   /** 'error' fails the CLI; 'warning' is reported and does not (unless --strict) */
   severity: 'error' | 'warning'
   detail: string
@@ -239,7 +239,7 @@ export function checkLayout(parts: readonly PartInstance[], options: LayoutCheck
     })
   }
   findings.push(...columnFindings(parts))
-  findings.push(...spurSideFindings(parts))
+  findings.push(...endJoinSideFindings(parts))
   if (options.drivenTags) findings.push(...feedFindings(parts, options.drivenTags, options.feedRunsWithoutBelt))
   return findings.sort((a, b) => a.partId.localeCompare(b.partId) || a.kind.localeCompare(b.kind))
 }
@@ -309,20 +309,20 @@ function columnFindings(parts: readonly PartInstance[]): LayoutFinding[] {
   return out
 }
 
-/** an end faces into a spur's side when its outward direction is within this of the side's inward normal (cos 45°) */
+/** an end faces into a bed's side when its outward direction is within this of the side's inward normal (cos 45°) */
 const FACING = Math.SQRT1_2
 
 /**
- * Conveyor ends placed against a spur's side. A spur is itself a merge, so it takes end joins only: its guard stays
- * closed where another conveyor's end meets its side (guardOpenings.ts), and cargo fed there stops at the guard. The
- * snap engine never seats a side merge on a spur, so this is a part placed there by hand or by a script. A warning,
- * since the layout may be meant as a sketch.
+ * Conveyor ends placed against the side of a bed that takes end joins only (ConveyorBed.endJoinsOnly: a spur, which is
+ * itself a merge). Its guard stays closed where another conveyor's end meets its side (guardOpenings.ts), and cargo
+ * fed there stops at the guard. The snap engine never seats a side merge there, so this is a part placed by hand or
+ * by a script. A warning, since the layout may be meant as a sketch.
  */
-function spurSideFindings(parts: readonly PartInstance[]): LayoutFinding[] {
+function endJoinSideFindings(parts: readonly PartInstance[]): LayoutFinding[] {
   const out: LayoutFinding[] = []
   for (const spur of parts) {
     const bed = bedOf(spur)
-    if (bed?.kind !== 'spur') continue
+    if (!bed?.endJoinsOnly) continue
     const host = bed.guardHost(spur)
     if (!host) continue
     for (const other of parts) {
@@ -334,7 +334,7 @@ function spurSideFindings(parts: readonly PartInstance[]): LayoutFinding[] {
         const [lo, hi] = side < 0 ? host.sides.left : host.sides.right
         if (at.x / host.slope < lo - CONTACT_XZ || at.x / host.slope > hi + CONTACT_XZ) return false
         if (Math.abs(e.y - spur.position[1]) > CONTACT_Y) return false
-        // the end points into the spur, across its side, not along it (a bed parked alongside)
+        // the end points into the bed, across its side, not along it (a bed parked alongside)
         const tip = toLocalXZ(spur, e.x + e.outX, e.z + e.outZ)
         return (tip.z - at.z) * side < -FACING
       })
@@ -345,9 +345,9 @@ function spurSideFindings(parts: readonly PartInstance[]): LayoutFinding[] {
         partId: other.id,
         ...(name !== undefined ? { partName: name } : {}),
         packageId: other.type === 'part' ? other.packageId : other.type,
-        kind: 'spurSide',
+        kind: 'endJoinSide',
         severity: 'warning',
-        detail: `its end meets the side of the spur ${spurName}. A spur is itself a merge and takes end joins only, so its guard stays closed there: merge onto a straight or a belt instead`,
+        detail: `its end meets the side of ${spurName}, a ${bed.kind} conveyor that takes end joins only, so its guard stays closed there: merge onto a straight or a belt instead`,
       })
     }
   }

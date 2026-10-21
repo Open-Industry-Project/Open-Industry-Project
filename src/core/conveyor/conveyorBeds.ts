@@ -19,6 +19,7 @@ import { forwardXZ } from '../math'
 import type { ConveyorDecl } from '../parts/partPackage'
 import { memoByParams, memoByPkg } from '../parts/partMemo'
 import { getPackage } from '../parts/partRegistry'
+import { resolvePartParams, resolvedParam } from '../parts/partScript'
 import { resolvedBoxSize, resolvedCylinder } from '../rig/rigPose'
 import { rotateXZ, toWorldXZ } from '../transforms'
 
@@ -54,6 +55,16 @@ export interface LocalEnd {
 }
 
 // --- the bed views ------------------------------------------------------------
+
+/**
+ * How a view reads the part's params: the instance's value, else the param's declared default (resolvedParam, the
+ * rule geometry() gets its params by). A view falls back to the package's bounds only when neither is usable, so the
+ * host sizes a bed exactly as the part draws it, even for a part saved without some of its params.
+ */
+function paramReader(pkg: ReturnType<typeof getPackage>, part: PartInstance): (key: string) => unknown {
+  const own = part.params as unknown as Record<string, unknown>
+  return (key) => resolvedParam(pkg?.params, own, key)
+}
 
 /**
  * A shape-agnostic view of any belt-like part's segment chain (docs/part-gizmos.md `path` handle). A part
@@ -132,18 +143,18 @@ function pathHandleOf(
 const beltLikeView = memoByParams(function beltLikeViewUncached(part: PartInstance): BeltLikeView | null {
   const path = pathHandleOf(part)
   if (!path || path.pkg?.conveyor?.bed !== 'path') return null
-  const params = part.params as unknown as Record<string, unknown>
-  const segs = parseBeltRows(params[path.key], path.lenCol, path.tiltCol)
+  const param = paramReader(path.pkg, part)
+  const segs = parseBeltRows(param(path.key), path.lenCol, path.tiltCol)
   if (!segs) return null
   const bounds = path.pkg && path.pkg.geometry.kind !== 'cargo' ? path.pkg.geometry.bounds : undefined
-  const wv = params[path.widthKey]
-  const hv = params[path.heightKey]
+  const wv = param(path.widthKey)
+  const hv = param(path.heightKey)
   return {
     segments: segs,
     width: typeof wv === 'number' && wv > 0 ? wv : (bounds?.width ?? 1),
     height: typeof hv === 'number' && hv > 0 ? hv : (bounds?.top ?? 0.28),
-    leftGuard: params[path.leftGuardKey] !== false,
-    rightGuard: params[path.rightGuardKey] !== false,
+    leftGuard: param(path.leftGuardKey) !== false,
+    rightGuard: param(path.rightGuardKey) !== false,
     writeSegments: (segs2) => {
       const rows = segs2.map((s) => {
         const row: number[] = []
@@ -227,10 +238,10 @@ const straightConveyorView = memoByParams(function straightConveyorViewUncached(
   if (!pkg || (bed !== 'straight' && bed !== 'spur')) return null
   const { lengthKey, widthKey } = faceHandleParams(part)
   if (!lengthKey || !widthKey) return null
-  const params = part.params as unknown as Record<string, unknown>
+  const param = paramReader(pkg, part)
   const bounds = pkg.geometry.kind !== 'cargo' ? pkg.geometry.bounds : undefined
-  const lv = params[lengthKey]
-  const wv = params[widthKey]
+  const lv = param(lengthKey)
+  const wv = param(widthKey)
   return {
     length: typeof lv === 'number' && lv > 0 ? lv : (bounds?.length ?? 1),
     width: typeof wv === 'number' && wv > 0 ? wv : (bounds?.width ?? 1),
@@ -265,17 +276,14 @@ const spurConveyorView = memoByParams(function spurConveyorViewUncached(part: Pa
   if (!lengthKey || !widthKey) return null
   const h = (pkg.params[lengthKey] as { handle?: { angleFrontParam?: string; angleBackParam?: string; sideGap?: number } }).handle
   if (!h || (h.angleFrontParam === undefined && h.angleBackParam === undefined)) return null
-  const params = part.params as unknown as Record<string, unknown>
+  const param = paramReader(pkg, part)
   const num = (key: string | undefined): number => {
-    if (!key) return 0
-    const v = params[key]
-    if (typeof v === 'number' && Number.isFinite(v)) return v
-    const d = pkg.params[key]?.default
-    return typeof d === 'number' && Number.isFinite(d) ? d : 0
+    const v = key ? param(key) : undefined
+    return typeof v === 'number' && Number.isFinite(v) ? v : 0
   }
   const bounds = pkg.geometry.kind !== 'cargo' ? pkg.geometry.bounds : undefined
-  const lv = params[lengthKey]
-  const wv = params[widthKey]
+  const lv = param(lengthKey)
+  const wv = param(widthKey)
   return {
     length: typeof lv === 'number' && lv > 0 ? lv : (bounds?.length ?? 1),
     width: typeof wv === 'number' && wv > 0 ? wv : (bounds?.width ?? 1),
@@ -324,12 +332,12 @@ const rotatingDeckView = memoByParams(function rotatingDeckViewUncached(part: Pa
   if (!joint) return null
   const deck = pkg.geometry.links.find((l) => l.name === joint.link)
   if (!deck || deck.shape.kind !== 'cylinder') return null
-  const params = part.params as unknown as Parameters<typeof resolvedCylinder>[1]
+  const params = resolvePartParams(pkg.params, part.params as never) as unknown as Parameters<typeof resolvedCylinder>[1]
   const radius = resolvedCylinder(deck.shape, params).radius
   // the lane width is the conveys box's resolved cross (Z) size - declared by the part's own sizeParams
   const lane = pkg.geometry.links.find((l) => l.conveys === true && l.shape.kind === 'box')
   const laneW = lane && lane.shape.kind === 'box' ? resolvedBoxSize(lane.shape.size, lane.shape.sizeParams, params as Record<string, number>)[2] : undefined
-  const restRad = jointRestValue(joint, part.params as unknown as Record<string, unknown>) ?? 0
+  const restRad = jointRestValue(joint, params as unknown as Record<string, unknown>) ?? 0
   return { radius, width: typeof laneW === 'number' && laneW > 0 ? laneW : radius * 2, restRad }
 })
 
@@ -404,13 +412,13 @@ export function curvedGizmoOf(part: PartInstance): CurvedGizmo | null {
   if (!pkg || !packageConveys(pkg)) return null
   const keys = sdkArcParamKeys(pkg)
   if (!keys) return null
-  const params = part.params as unknown as Record<string, unknown>
+  const param = paramReader(pkg, part)
   const bounds = pkg.geometry.kind !== 'cargo' ? pkg.geometry.bounds : undefined
-  const sv = params[keys.sweepKey]
-  const iv = params[keys.innerRadiusKey]
-  const wv = params[keys.widthKey]
+  const sv = param(keys.sweepKey)
+  const iv = param(keys.innerRadiusKey)
+  const wv = param(keys.widthKey)
   // the lead-in tracking a param (a curved belt's drum radius = height / 2), when the param resolves to a length
-  const gp = keys.endGapParam ? params[keys.endGapParam.param] : undefined
+  const gp = keys.endGapParam ? param(keys.endGapParam.param) : undefined
   const gapFromParam = typeof gp === 'number' && Number.isFinite(gp) ? gp * (keys.endGapParam!.scale ?? 1) + (keys.endGapParam!.add ?? 0) : undefined
   return {
     sweepDeg: typeof sv === 'number' ? sv : 90,
@@ -451,14 +459,14 @@ const curvedConveyorView = memoByParams(function curvedConveyorViewUncached(part
   const pkg = part.type === 'part' ? getPackage(part.packageId) : undefined
   if (pkg?.conveyor?.bed !== 'arc') return null
   const keys = sdkArcParamKeys(pkg)
-  const params = part.params as unknown as Record<string, unknown>
+  const param = paramReader(pkg, part)
   return {
     innerRadius: g.innerRadius,
     width: g.width,
     sweepDeg: g.sweepDeg,
     endExt: g.endExt,
-    innerGuard: !keys || params[keys.innerGuardKey] !== false,
-    outerGuard: !keys || params[keys.outerGuardKey] !== false,
+    innerGuard: !keys || param(keys.innerGuardKey) !== false,
+    outerGuard: !keys || param(keys.outerGuardKey) !== false,
   }
 })
 
@@ -503,7 +511,9 @@ export function resolveInclineRad(part: PartInstance): number {
   if (part.type !== 'part') return 0
   const pkg = getPackage(part.packageId)
   if (!pkg || pkg.geometry.kind !== 'rig') return 0
-  return rigInclineRad(pkg.geometry, part.params as unknown as Record<string, unknown>)
+  const key = pkg.geometry.inclineParam
+  if (!key) return 0
+  return rigInclineRad(pkg.geometry, { [key]: resolvedParam(pkg.params, part.params as unknown as Record<string, unknown>, key) })
 }
 
 // --- the bed families ---------------------------------------------------------
@@ -593,6 +603,12 @@ interface BedFamily<V> {
   sideMerge(v: V): BedSideMerge | null
   /** its flanks as a side-merge target, or null for a bed nothing merges onto from the side */
   flanks(v: V): BedFlanks | null
+  /**
+   * True for a bed no conveyor may merge onto from the side, whatever its geometry. The one place that rule lives:
+   * the snap engine offers no flank on it, no conveyor end opens its guards or takes extents off its wall, and
+   * check-layout warns about an end placed against its side. A device mounted on its guard still opens it.
+   */
+  endJoinsOnly: boolean
 }
 
 /** a constant carry along the part's +X */
@@ -665,6 +681,7 @@ const straightBed: BedFamily<StraightConveyorView> = {
   sideMerge: () => ({ framedEnd: true }),
   // the full bed length at z = ±width/2, with the L-frame outside the bed edge
   flanks: (v) => ({ x0: -v.length / 2, x1: v.length / 2, hw: v.width / 2, frameOut: FRAME_WALL_THICKNESS }),
+  endJoinsOnly: false,
 }
 
 /** A straight bed whose end faces splay, so it merges flush onto a straight line at an angle. */
@@ -705,9 +722,11 @@ const spurBed: BedFamily<BedViews['spur']> = {
     return { ...host, sides: { left: side(-hw), right: side(hw) } }
   },
   sideMerge: ({ spur }) => ({ gap: spur.sideGap, framedEnd: true }),
-  // A spur is itself the merge: a line fed into its side would cross product entering at an angle, in a section too
-  // short to sequence the two, so it takes end joins only (checkLayout.ts warns when an end meets its side).
+  // never asked for: it takes end joins only
   flanks: () => null,
+  // A spur is itself the merge: a line fed into its side would cross product entering at an angle, in a section too
+  // short to sequence the two.
+  endJoinsOnly: true,
 }
 
 /** A tail-origin bent belt: the surface follows its segment profile. */
@@ -763,6 +782,7 @@ const pathBed: BedFamily<BeltLikeView> = {
     const hl = Math.max(beltHorizontalExtent(v.segments), 1e-3) / 2
     return { x0: 0, x1: 2 * hl, hw: v.width / 2, frameOut: FRAME_WALL_THICKNESS }
   },
+  endJoinsOnly: false,
 }
 
 /** A curve: a flat annulus about the part origin, swept from local +X toward -Z. */
@@ -795,6 +815,7 @@ const arcBed: BedFamily<CurvedConveyorView> = {
   guardHost: () => null,
   sideMerge: () => null,
   flanks: () => null,
+  endJoinsOnly: false,
 }
 
 /** A round deck turning on a revolute joint. Its ends are home-oriented on the rim at ±radius along local X, since
@@ -822,6 +843,7 @@ const turntableBed: BedFamily<RotatingDeckView> = {
   sideMerge: () => ({ framedEnd: false }),
   // the guards span only the lane (±width/2 in X) on the bare plate rim at z = ±radius
   flanks: (v) => ({ x0: -v.width / 2, x1: v.width / 2, hw: v.radius, frameOut: 0 }),
+  endJoinsOnly: false,
 }
 
 const BED_FAMILIES: { [K in BedKind]: BedFamily<BedViews[K]> } = {
@@ -844,6 +866,7 @@ export type ConveyorBed = { [K in BedKind]: { readonly kind: K; readonly view: B
   guardHost(part: PartInstance): BedGuardHost | null
   sideMerge(): BedSideMerge | null
   flanks(): BedFlanks | null
+  readonly endJoinsOnly: boolean
 }
 
 function resolveBed<K extends BedKind>(kind: K, part: PartInstance): ConveyorBed | null {
@@ -863,6 +886,7 @@ function resolveBed<K extends BedKind>(kind: K, part: PartInstance): ConveyorBed
     guardHost: (p) => family.guardHost(view, p),
     sideMerge: () => family.sideMerge(view),
     flanks: () => family.flanks(view),
+    endJoinsOnly: family.endJoinsOnly,
   } as ConveyorBed
 }
 

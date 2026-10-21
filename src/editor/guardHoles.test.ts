@@ -111,7 +111,7 @@ describe('sensor-beam guard holes', () => {
     // and the belt draws a hole there: its rows arrive in arc length, which runs negative around the tail drum. A
     // hole whose panel would overhang the guard's end is left uncut.
     const pkg = real.find((p) => p.id === 'oip.belt-conveyor')!
-    const draw = (rows: number[][]) => JSON.stringify(evalPartGeometry(pkg.behavior, resolvePartParams(pkg.params, { ...(belt.params as never), guardHoles: rows })))
+    const draw = (rows: number[][]) => JSON.stringify(evalPartGeometry(pkg.behavior, resolvePartParams(pkg.params, { ...(belt.params as Record<string, unknown>), guardHoles: rows } as never)))
     expect(draw([[-0.03, 0.08, 1]])).not.toBe(draw([]))
     expect(draw([[-0.07, 0.08, 1]])).toBe(draw([]))
   })

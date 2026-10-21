@@ -187,11 +187,11 @@ function moverShapeOf(part: PartInstance): MoverShape | null {
  * A host's bed span in plan (an inclined bed's length foreshortened by its slope) + half-width in its local frame,
  * or null when the part can't host a merge. Hosts are the beds whose guards open (the bed's guardHost: a belt,
  * tail-origin 0..extent, or a straight, centre-origin ±length/2), so the opening and the extension are produced for
- * the same junction. A spur is not one here: it is itself a merge and takes end joins only.
+ * the same junction. A bed that takes end joins only (a spur) is not one.
  */
 function hostGeom(host: PartInstance): { lo: number; hi: number; hw: number } | null {
   const bed = bedOf(host)
-  if (bed === null || bed.kind === 'spur') return null
+  if (bed === null || bed.endJoinsOnly) return null
   const g = bed.guardHost(host)
   return g ? { lo: g.bedLo * g.slope, hi: g.bedHi * g.slope, hw: g.hw } : null
 }

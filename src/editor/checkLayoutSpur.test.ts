@@ -20,17 +20,17 @@ const W = 1.524 // the shipped beds' width
 const place = (packageId: string, id: string, pos: [number, number, number], rotationY = 0): PartInstance =>
   ({ ...createSdkPart(getPackage(packageId)!, id, pos, rotationY), name: id }) as PartInstance
 const spur = (): PartInstance => place('oip.spur-conveyor', 'spur', [0, Y, 0])
-const spurSide = (parts: PartInstance[]) => checkLayout(parts).filter((f) => f.kind === 'spurSide')
+const endJoinSide = (parts: PartInstance[]) => checkLayout(parts).filter((f) => f.kind === 'endJoinSide')
 
 describe("a conveyor end against a spur's side", () => {
   it('warns on the conveyor whose end meets the side, naming the spur', () => {
     // a 4 m roller pointing −Z, its front end on the spur's +Z edge
     const roller = place('oip.roller-conveyor', 'feed', [0, Y, W / 2 + 2], Math.PI / 2)
-    const [f, ...rest] = spurSide([spur(), roller])
+    const [f, ...rest] = endJoinSide([spur(), roller])
     expect(rest).toEqual([])
     expect(f!.partId).toBe('feed')
     expect(f!.severity).toBe('warning')
-    expect(formatLayoutFinding(f!)).toContain('side of the spur spur (spur)')
+    expect(formatLayoutFinding(f!)).toContain('the side of spur (spur), a spur conveyor that takes end joins only')
   })
 
   it('does not warn for a spur snapped onto a line, or a bed parked alongside one', () => {
@@ -40,6 +40,6 @@ describe("a conveyor end against a spur's side", () => {
     expect(snap?.join).toContain('flank')
     const merged = { ...moving, position: snap!.pose.position, rotationY: snap!.pose.rotationY } as PartInstance
     const alongside = place('oip.roller-conveyor', 'beside', [0, Y, W + 0.02])
-    expect(spurSide([host, merged, spur(), alongside])).toEqual([])
+    expect(endJoinSide([host, merged, spur(), alongside])).toEqual([])
   })
 })

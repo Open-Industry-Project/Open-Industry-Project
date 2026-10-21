@@ -29,6 +29,8 @@ interface FactSubject {
   opens: boolean
   /** its rails and guards meet a host's wall when it side-merges (the bed's mergeFaces) */
   merges: boolean
+  /** no conveyor merges onto its side (the bed's endJoinsOnly), so no junction cuts its guard ends */
+  endJoinsOnly: boolean
 }
 
 export interface HostFact {
@@ -74,7 +76,7 @@ export const HOST_FACTS: readonly HostFact[] = [
     param: 'guardMitres',
     row: '[x m, c, side ±1]',
     what: 'how each guard end at a junction is cut to meet the other guard on one plane',
-    missing: (s) => (s.guards && (s.merges || (s.opens && s.kind !== 'spur')) ? 'its guard ends at a junction stay square and cross the other guard' : null),
+    missing: (s) => (s.guards && (s.merges || (s.opens && !s.endJoinsOnly)) ? 'its guard ends at a junction stay square and cross the other guard' : null),
   },
   {
     param: 'railCuts',
@@ -112,6 +114,7 @@ export function hostFactWarnings(pkg: PartPackage, part: PartInstance): string[]
     rails: drawn.some((m) => m.finish === 'frame'),
     opens: bed !== null && bed.guardHost(part) !== null,
     merges: bed !== null && bed.mergeFaces(part) !== null,
+    endJoinsOnly: bed?.endJoinsOnly ?? false,
   }
   for (const f of HOST_FACTS) {
     if (pkg.params[f.param]) continue

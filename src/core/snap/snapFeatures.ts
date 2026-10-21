@@ -549,7 +549,9 @@ interface Flank {
  * on straight runs joined end to end (docs/conveyor-incline.md); an inclined mover still merges onto a flat bed.
  */
 function straightFlanks(target: PartInstance): Flank[] {
-  const flanks = bedOf(target)?.flanks() ?? null
+  const bed = bedOf(target)
+  if (bed === null || bed.endJoinsOnly) return []
+  const flanks = bed.flanks()
   if (flanks === null) return []
   if (resolveInclineRad(target) !== 0) return []
   const { x0, x1, hw, frameOut } = flanks

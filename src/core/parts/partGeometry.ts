@@ -11,6 +11,7 @@ import { beltHorizontalExtent, beltSegmentAngles } from '../conveyor/beltPath'
 import { flexStations } from '../conveyor/flexPath'
 import { cargoView } from '../frame'
 import { getPackage } from './partRegistry'
+import { resolvedParam } from './partScript'
 import { resolvedRef, rigRestExtent, type RigParams } from '../rig/rigPose'
 import type { PartBounds } from './partPackage'
 import { rotateXZ, toLocalXZ, toWorldXZ } from '../transforms'
@@ -95,10 +96,12 @@ export function guardPusherContacts(part: PartInstance): PartEnd[] {
  */
 function reflowFaceDims(part: PartInstance, defLength: number, defWidth: number): { length: number; width: number } {
   const resize = effectiveResize(part)
+  const pkg = part.type === 'part' ? getPackage(part.packageId) : undefined
   const p = part.params as Record<string, unknown>
   const dim = (axis: 'x' | 'z', def: number): number => {
     if (!resize[axis]) return def // the part doesn't resize this axis - keep the baked default
-    const v = p[resizeParamKey(part, axis)]
+    // the instance's value, else the param's default (what geometry() draws), and the baked size only past both
+    const v = resolvedParam(pkg?.params, p, resizeParamKey(part, axis))
     return typeof v === 'number' && v > 0 ? v : def
   }
   return { length: dim('x', defLength), width: dim('z', defWidth) }
@@ -114,7 +117,8 @@ function reflowFaceDims(part: PartInstance, defLength: number, defWidth: number)
  */
 function reflowFaceHeight(part: PartInstance, defHeight: number): number {
   if (!effectiveResize(part).y) return defHeight // no vertical handle - keep the baked default
-  const v = (part.params as Record<string, unknown>)[resizeParamKey(part, 'y')]
+  const pkg = part.type === 'part' ? getPackage(part.packageId) : undefined
+  const v = resolvedParam(pkg?.params, part.params as Record<string, unknown>, resizeParamKey(part, 'y'))
   return typeof v === 'number' && v > 0 ? v : defHeight
 }
 
@@ -451,16 +455,18 @@ export function flexPathOf(part: PartInstance): FlexPathGizmo | null {
   if (!pkg) return null
   const keys = flexKeysMemo(pkg)
   if (!keys) return null
-  const raw = (part.params as unknown as Record<string, unknown>)[keys.pointsKey]
+  // each read is the instance's value, else the param's default: the size the part's geometry() draws
+  const own = part.params as unknown as Record<string, unknown>
+  const param = (key: string): unknown => resolvedParam(pkg.params, own, key)
+  const raw = param(keys.pointsKey)
   const points = Array.isArray(raw)
     ? raw.filter((r): r is number[] => Array.isArray(r) && Number.isFinite(r[0]) && Number.isFinite(r[1])).map((r): [number, number] => [r[0]!, r[1]!])
     : []
-  const params = part.params as unknown as Record<string, unknown>
   const braked = {
-    infeed: keys.infeedBrakeKey !== undefined && params[keys.infeedBrakeKey] === true,
-    discharge: keys.dischargeBrakeKey !== undefined && params[keys.dischargeBrakeKey] === true,
+    infeed: keys.infeedBrakeKey !== undefined && param(keys.infeedBrakeKey) === true,
+    discharge: keys.dischargeBrakeKey !== undefined && param(keys.dischargeBrakeKey) === true,
   }
-  const width = keys.scissor ? params[keys.scissor.widthKey] : undefined
+  const width = keys.scissor ? param(keys.scissor.widthKey) : undefined
   const scissor = keys.scissor && typeof width === 'number' && width > 0 ? { rollers: keys.scissor.rollers, width } : null
   return { points, sections: keys.sections, maxHinge: keys.maxHinge, pointsKey: keys.pointsKey, lengthKey: keys.lengthKey, braked, scissor }
 }

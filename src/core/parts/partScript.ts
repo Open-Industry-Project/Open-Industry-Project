@@ -347,12 +347,8 @@ export function resolvePartParams(schema: ParamSchema | undefined, overrides: Re
   const out: Record<string, ParamValue> = {}
   if (schema) {
     for (const k of Object.keys(schema)) {
-      const spec = schema[k]
-      if (!spec) continue
-      const ov = overrides[k]
-      // (a key the saved part never carried is not a fresh part's default: see ParamSpec.whenAbsent)
-      const resolved = ov === undefined ? (spec.type === 'boolean' && typeof spec.whenAbsent === 'boolean' ? spec.whenAbsent : spec.default) : ov
-      out[k] = ownCopy(spec.type === 'numberList' ? coerceNumberList(resolved, spec.default) : resolved)
+      if (!schema[k]) continue
+      out[k] = ownCopy(resolvedParam(schema, overrides, k)!)
     }
   }
   for (const k of Object.keys(overrides)) {
@@ -360,6 +356,21 @@ export function resolvePartParams(schema: ParamSchema | undefined, overrides: Re
     if (ov !== undefined && !(k in out)) out[k] = ownCopy(ov)
   }
   return out
+}
+
+/**
+ * One param as {@link resolvePartParams} resolves it, uncopied: the instance's value, else the schema default (a
+ * boolean that declares `whenAbsent` takes that instead), a malformed numberList reading as its default. For code that
+ * needs one key on a hot path, and for the host's own reads of a part's size (the conveyor bed views), so the host sees
+ * the same value the part's geometry() is handed. A key the schema doesn't declare reads the instance's value.
+ */
+export function resolvedParam(schema: ParamSchema | undefined, overrides: Readonly<Record<string, unknown>>, key: string): ParamValue | undefined {
+  const spec = schema?.[key]
+  const ov = overrides[key] as ParamValue | undefined
+  if (!spec) return ov
+  // (a key the saved part never carried is not a fresh part's default: see ParamSpec.whenAbsent)
+  const resolved = ov === undefined ? (spec.type === 'boolean' && typeof spec.whenAbsent === 'boolean' ? spec.whenAbsent : spec.default) : ov
+  return spec.type === 'numberList' ? coerceNumberList(resolved, spec.default) : resolved
 }
 
 /** a param value the receiver may mutate without touching the original: arrays and plain objects deep-copied */
