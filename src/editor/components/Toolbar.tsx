@@ -281,52 +281,54 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
         <ProjectMenu state={state} />
       </div>
       <div className="toolbar-run">
-        <button
-          className={`run-button play${state.running ? ' running' : ''}`}
-          data-tutorial="play"
-          // Paused is the case worth naming: the run is still going, so this stays disabled, and the
-          // instinct is to reach HERE to resume rather than back to Pause. Say where the resume is
-          // instead of leaving a dead button offering to "Start Simulation".
-          title={
-            state.paused
-              ? t(M.pausedHint)
-              : state.running
-                ? t(M.runningHint)
-                : state.focusedPartId !== null
-                ? t(M.runPart)
-                : withCommandKey(t(M.startSimTitle), 'sim.run')
-          }
-          aria-label={t(M.startSim)}
-          disabled={!controller || state.running}
-          onClick={() => controller?.run()}
-        >
-          <PlayIcon />
-        </button>
-        <button
-          className={`run-button pause${state.paused ? ' active' : ''}`}
-          // This button IS the resume, because Play stays disabled for the whole run. So while
-          // paused it has to SAY so: a fixed
-          // "Toggle Pause" left the highlight as the only clue the run was held, and left a
-          // screen reader with none at all - hence aria-pressed, which the two toggles beside
-          // it in this row already carry.
-          title={withCommandKey(t(state.paused ? M.resumeSimTitle : M.pauseSimTitle), 'sim.pause')}
-          aria-label={t(state.paused ? M.resumeSim : M.pauseSim)}
-          aria-pressed={state.paused}
-          disabled={!controller || !state.running}
-          onClick={() => controller?.togglePause()}
-        >
-          <PauseIcon />
-        </button>
-        <button
-          className="run-button stop"
-          data-tutorial="stop"
-          title={withCommandKey(t(M.stopSimTitle), 'sim.stop')}
-          aria-label={t(M.stopSim)}
-          disabled={!controller || !state.running}
-          onClick={() => controller?.stop()}
-        >
-          <StopIcon />
-        </button>
+        <div className="run-transport segmented" role="group">
+          <button
+            className={`run-button play${state.running ? ' running' : ''}`}
+            data-tutorial="play"
+            // Paused is the case worth naming: the run is still going, so this stays disabled, and the
+            // instinct is to reach HERE to resume rather than back to Pause. Say where the resume is
+            // instead of leaving a dead button offering to "Start Simulation".
+            title={
+              state.paused
+                ? t(M.pausedHint)
+                : state.running
+                  ? t(M.runningHint)
+                  : state.focusedPartId !== null
+                  ? t(M.runPart)
+                  : withCommandKey(t(M.startSimTitle), 'sim.run')
+            }
+            aria-label={t(M.startSim)}
+            disabled={!controller || state.running}
+            onClick={() => controller?.run()}
+          >
+            <PlayIcon />
+          </button>
+          <button
+            className={`run-button pause${state.paused ? ' active' : ''}`}
+            // This button IS the resume, because Play stays disabled for the whole run. So while
+            // paused it has to SAY so: a fixed
+            // "Toggle Pause" left the highlight as the only clue the run was held, and left a
+            // screen reader with none at all - hence aria-pressed, which the two toggles beside
+            // it in this row already carry.
+            title={withCommandKey(t(state.paused ? M.resumeSimTitle : M.pauseSimTitle), 'sim.pause')}
+            aria-label={t(state.paused ? M.resumeSim : M.pauseSim)}
+            aria-pressed={state.paused}
+            disabled={!controller || !state.running}
+            onClick={() => controller?.togglePause()}
+          >
+            <PauseIcon />
+          </button>
+          <button
+            className="run-button stop"
+            data-tutorial="stop"
+            title={withCommandKey(t(M.stopSimTitle), 'sim.stop')}
+            aria-label={t(M.stopSim)}
+            disabled={!controller || !state.running}
+            onClick={() => controller?.stop()}
+          >
+            <StopIcon />
+          </button>
+        </div>
         <button
           className={`run-button speed${state.timeScale !== 1 ? ' boosted' : ''}${speedShort ? ' short' : ''}`}
           title={speedTitle}

@@ -267,7 +267,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
           {t(M.getParts)}
         </button>
         <input ref={importRef} type="file" accept=".oippart,.json,application/json" multiple hidden onChange={onImportFile} />
-        <div className="catalog-tabs">
+        <div className="catalog-tabs segmented" role="group">
           {tabs.map((c) => (
             <button
               key={c}
@@ -282,6 +282,8 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
               {t(CATEGORY_LABEL[c])}
             </button>
           ))}
+          {/* the shelf is a source, not a category, but still exclusive with them: same row, past a divider */}
+          {shelfApi && <span className="segmented-sep" aria-hidden="true" />}
           {shelfApi && (
             <button
               className={`catalog-tab${showShelf ? ' active' : ''}`}

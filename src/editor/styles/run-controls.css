@@ -16,6 +16,12 @@
   color: #fff;
 }
 
+/* Play, Pause and Stop as one .segmented group. Their fills touch, so a border in the toolbar's own colour
+   draws the seam between two colours (and is invisible on the outer edge). */
+.run-transport > .run-button {
+  border: 1px solid var(--panel);
+}
+
 .run-button.play {
   background: #2e8b46;
 }

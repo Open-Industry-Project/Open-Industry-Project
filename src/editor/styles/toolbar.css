@@ -17,6 +17,46 @@ button:disabled {
   cursor: default;
 }
 
+/* Buttons that are one control with several states (the run transport, the part categories): joined
+   into one row with one rounded outline, so they read as a single choice and not as separate actions.
+   Neighbours overlap by 1px so two borders draw as one seam. The hovered, focused or active segment
+   sits on top, so its own border shows on every side. A .segmented-sep splits the row in two. */
+.segmented {
+  display: flex;
+  align-items: center;
+}
+
+.segmented > button {
+  border-radius: 0;
+}
+
+.segmented > button + button {
+  margin-left: -1px;
+}
+
+.segmented > button:is(:first-child, .segmented-sep + button) {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.segmented > button:is(:last-child, :has(+ .segmented-sep)) {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.segmented > button:is(:hover, :focus-visible, .active) {
+  position: relative;
+  z-index: 1;
+}
+
+.segmented-sep {
+  align-self: center;
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--line);
+}
+
 /* 1fr auto 1fr keeps the run controls centered (like a title-bar run bar)
    regardless of how wide the side groups get */
 .toolbar {

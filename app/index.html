@@ -207,6 +207,22 @@
         border: 1px solid light-dark(#c9ccd1, #3a3e44);
         opacity: 0.4;
       }
+      /* = .run-transport.segmented: Play, Pause and Stop joined, neighbours overlapping by 1px */
+      #boot-skeleton .bs-transport {
+        display: flex;
+      }
+      #boot-skeleton .bs-transport > .bs-ghost {
+        border-radius: 0;
+      }
+      #boot-skeleton .bs-transport > .bs-ghost + .bs-ghost {
+        margin-left: -1px;
+      }
+      #boot-skeleton .bs-transport > .bs-ghost:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      #boot-skeleton .bs-transport > .bs-ghost:last-child {
+        border-radius: 0 4px 4px 0;
+      }
       /* the one toolbar element that is neither state nor surface-specific: the mark sits at the
          left end on the web (img.toolbar-logo) and inside the menu button in the desktop shell */
       #boot-skeleton .bs-mark {
@@ -380,9 +396,11 @@
           <span class="bs-ghost bs-project"></span>
         </div>
         <div class="bs-tb-run">
-          <span class="bs-ghost" style="width: 40px"></span>
-          <span class="bs-ghost" style="width: 40px"></span>
-          <span class="bs-ghost" style="width: 40px"></span>
+          <span class="bs-transport">
+            <span class="bs-ghost" style="width: 40px"></span>
+            <span class="bs-ghost" style="width: 40px"></span>
+            <span class="bs-ghost" style="width: 40px"></span>
+          </span>
           <span class="bs-ghost bs-speed" style="width: 40px; margin-left: 4px"></span>
         </div>
         <div class="bs-tb-right">
