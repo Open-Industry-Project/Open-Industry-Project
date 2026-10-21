@@ -213,6 +213,7 @@ export function runProjectTest(
   if (plc) world.setBehaviorDrivenTags(plc.outputs)
   const evaluator = new TestEvaluator(spec)
   const probes = new ProbeSampler(spec.checks)
+  const needsMarks = probes.needsMarks
   const faults = resolveFaults(scene.parts, spec.faults ?? [], plc?.inputs)
   const injector = new FaultInjector(faults)
   // jams, each with the body it caught (null until it catches one, and again once released)
@@ -306,7 +307,7 @@ export function runProjectTest(
         ...(plc ? (plc.tagView as Record<string, TestValue>) : {}),
         ...overlay,
         ...faultToPlc,
-        ...probes.values(frame),
+        ...probes.values(frame, needsMarks ? world.cargoMarks() : undefined),
       }
       evaluator.sample(frame.simTime, sample)
       opts?.onFrame?.(frame)

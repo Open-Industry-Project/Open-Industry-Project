@@ -18,7 +18,20 @@ import { cargoKindName } from '../frame'
 import type { BoxFrame, CargoKindName } from '../frame'
 import { quatToYXZ } from '../math'
 import { isOperand, operandProbeKey, probeKey } from './projectTest'
-import type { CargoColor, CountProbe, JointProbe, LampProbe, PassedProbe, PoseProbe, TestCheck, TestProbe, TestValue, Zone } from './projectTest'
+import type { CargoColor, CountProbe, JointProbe, LampProbe, MarkFilter, PassedProbe, PoseProbe, TestCheck, TestProbe, TestValue, Zone } from './projectTest'
+
+/** each frame row's marks (SimWorld.cargoMarks), index-aligned with the frame; null for a row with none */
+export type RowMarks = readonly (Readonly<Record<string, number | boolean | string>> | null)[]
+
+/** Does a body carrying `m` match a mark filter: the key truthy, or the key equal to the value given? */
+function markMatches(filter: MarkFilter, m: Readonly<Record<string, number | boolean | string>> | null | undefined): boolean {
+  if (typeof filter === 'string') {
+    const v = m?.[filter]
+    return v !== undefined && v !== false && v !== 0 && v !== ''
+  }
+  for (const [k, want] of Object.entries(filter)) if (m?.[k] !== want) return false
+  return true
+}
 
 const AXIS_INDEX: Readonly<Record<'x' | 'y' | 'z', number>> = { x: 0, y: 1, z: 2 }
 
@@ -95,18 +108,19 @@ function colorMatches(color: CargoColor, frame: BoxFrame, i: number): boolean {
 
 /** Does body `i` match a count/passed probe's part, kind and colour filters (the zone aside)? Transient spawner boxes
  *  have a null partId, so a `part` filter naturally excludes them while an unfiltered count includes them. */
-function matchesFilters(spec: CountProbe, frame: BoxFrame, i: number): boolean {
+function matchesFilters(spec: CountProbe, frame: BoxFrame, i: number, marks?: RowMarks): boolean {
   if (spec.part !== undefined && frame.partIds[i] !== spec.part) return false
+  if (spec.marked !== undefined && !markMatches(spec.marked, marks?.[i])) return false
   if (spec.kind !== undefined && cargoKindName(frame.kinds[i]!) !== spec.kind) return false
   if (spec.color !== undefined && !colorMatches(spec.color, frame, i)) return false
   return true
 }
 
 /** How many live cargo bodies match every filter. */
-function countCargo(spec: CountProbe, frame: BoxFrame): number {
+function countCargo(spec: CountProbe, frame: BoxFrame, marks?: RowMarks): number {
   let n = 0
   for (let i = 0; i < frame.count; i++) {
-    if (!matchesFilters(spec, frame, i)) continue
+    if (!matchesFilters(spec, frame, i, marks)) continue
     if (spec.zone) {
       const p = i * 3
       if (!inZone(spec.zone, frame.positions[p]!, frame.positions[p + 1]!, frame.positions[p + 2]!)) continue
@@ -198,18 +212,24 @@ export class ProbeSampler {
     return this.probes.length === 0
   }
 
-  /** Read every probe against one step's frame, keyed for the evaluator's sample table. */
-  values(frame: BoxFrame): Record<string, TestValue> {
+  /** Does a probe filter on marks, so the runner has to hand {@link values} each row's marks? */
+  get needsMarks(): boolean {
+    return this.probes.some(({ probe }) => ('count' in probe && probe.count.marked !== undefined) || ('passed' in probe && probe.passed.marked !== undefined))
+  }
+
+  /** Read every probe against one step's frame, keyed for the evaluator's sample table. `marks` is each row's marks,
+   *  which a `marked` filter reads (a spawned body's are not in the frame). */
+  values(frame: BoxFrame, marks?: RowMarks): Record<string, TestValue> {
     const out: Record<string, TestValue> = {}
     if (this.probes.length === 0) return out
     for (const [id, bp] of Object.entries(frame.basePoses ?? {})) this.lastBase.set(id, bp)
     for (const [id, js] of Object.entries(frame.joints ?? {})) for (const [name, v] of Object.entries(js)) this.lastJoint.set(`${id}\u0000${name}`, v)
     for (const [id, ls] of Object.entries(frame.lamps ?? {})) for (const [name, v] of Object.entries(ls)) this.lastLamp.set(`${id}\u0000${name}`, v)
     this.trackColors(frame)
-    if (this.passed.size > 0) this.trackPassed(frame)
+    if (this.passed.size > 0) this.trackPassed(frame, marks)
     for (const { key, probe } of this.probes) {
       let v: TestValue | undefined
-      if ('count' in probe) v = this.colorWitnessed(probe.count.color) ? countCargo(probe.count, frame) : undefined
+      if ('count' in probe) v = this.colorWitnessed(probe.count.color) ? countCargo(probe.count, frame, marks) : undefined
       else if ('passed' in probe) v = this.readPassed(key, probe.passed)
       else if ('joint' in probe) v = this.readJoint(probe.joint)
       else if ('lamp' in probe) v = this.readLamp(probe.lamp)
@@ -239,7 +259,7 @@ export class ProbeSampler {
 
   /** Record each body that entered a `passed` zone this step: its centre is inside, or swept through it since the last
    *  step. */
-  private trackPassed(frame: BoxFrame): void {
+  private trackPassed(frame: BoxFrame, marks?: RowMarks): void {
     const next = new Map<number, [number, number, number]>()
     for (let i = 0; i < frame.count; i++) {
       const id = frame.ids[i]!
@@ -254,7 +274,7 @@ export class ProbeSampler {
         const zone = probe.passed.zone
         if (!(prev ? segmentHitsZone(zone, prev, here) : inZone(zone, here[0], here[1], here[2]))) continue
         t.entered.add(id)
-        if (matchesFilters(probe.passed, frame, i)) t.n++
+        if (matchesFilters(probe.passed, frame, i, marks)) t.n++
       }
     }
     this.prevPos = next

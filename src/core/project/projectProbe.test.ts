@@ -243,3 +243,30 @@ describe('cargoRows', () => {
     ])
   })
 })
+
+describe('ProbeSampler - the marked filter', () => {
+  const bodies = frame([{ pos: [3, 1, 0] }, { pos: [4, 1, 0] }, { pos: [5, 1, 0] }])
+  const marks = [{ sealed: true, code: 2 }, { sealed: false, code: 'A' }, null]
+  const count = (marked: unknown): number | boolean | undefined => {
+    const sampler = new ProbeSampler([{ probe: { count: { zone: ZONE, marked } }, at: 0, min: 0 } as TestCheck])
+    expect(sampler.needsMarks).toBe(true)
+    return sampler.values(bodies, marks)[probeKey(0)]
+  }
+  it('counts the bodies whose mark is truthy, or has the value given', () => {
+    expect(count('sealed')).toBe(1)
+    expect(count({ code: 2 })).toBe(1)
+    expect(count({ code: 'A' })).toBe(1)
+    expect(count({ code: 3 })).toBe(0)
+  })
+  it('judges a passed probe as the body enters the zone', () => {
+    const gate = { min: [2, 0, -1] as [number, number, number], max: [2.5, 2, 1] as [number, number, number] }
+    const sampler = new ProbeSampler([{ probe: { passed: { zone: gate, marked: 'sealed' } }, eventually: true, min: 1 } as TestCheck])
+    const before = frame([{ pos: [1, 1, 0], id: 1 }, { pos: [1, 1, 0.5], id: 2 }])
+    const after = frame([{ pos: [3, 1, 0], id: 1 }, { pos: [3, 1, 0.5], id: 2 }])
+    sampler.values(before, [{ sealed: true }, null])
+    expect(sampler.values(after, [{ sealed: true }, null])[probeKey(0)]).toBe(1)
+  })
+  it('needs no marks when no probe filters on them', () => {
+    expect(new ProbeSampler([{ probe: { count: {} }, at: 0, min: 0 }]).needsMarks).toBe(false)
+  })
+})

@@ -135,11 +135,16 @@ takes the place of `tag`, and the temporal modes and predicates above apply to i
 
 | probe | yields |
 |---|---|
-| `{ "count": { "zone": {"min":[x,y,z], "max":[x,y,z]}, "part": "id", "kind": "box"\|"pallet"\|"tote", "color": "red" } }` | how many live cargo bodies match now - every filter optional and ANDed, `{}` counts all cargo |
+| `{ "count": { "zone": {"min":[x,y,z], "max":[x,y,z]}, "part": "id", "kind": "box"\|"pallet"\|"tote", "color": "red", "marked": "sealed" } }` | how many live cargo bodies match now - every filter optional and ANDed, `{}` counts all cargo |
 | `{ "passed": { "zone": {...}, "part", "kind", "color" } }` | how many cargo bodies have entered `zone` since the run began: cumulative, each body once, despawned ones included. "Boxes that passed this point", whenever they arrived. The zone is required, the filters are `count`'s |
 | `{ "pose": { "part": "id", "axis": "x"\|"y"\|"z"\|"yaw" } }` | where that part is - a mobile part's driven base (`ctx.drive`), else an authored cargo body |
 | `{ "joint": { "part": "id", "joint": "name" } }` | a rig part's joint value (rad / m): the last one it commanded, latched; absent until it commands that joint |
 | `{ "lamp": { "part": "id", "lamp": "name" } }` | whether a part's lamp is lit (`true` / `false`): the last value its behavior commanded, latched; absent until it commands that lamp. It reads the command, so a lamp lit at rest only by its `param` is absent |
+
+`count` and `passed` also take `"marked"`: only the cargo carrying a mark, as a machine left it (`ctx.mark`,
+`markHit`) or as a product attribute. A key alone counts the cargo whose mark is truthy (`"marked": "sealed"`), and
+one key and a value counts the cargo with that value (`"marked": { "code": 2 }`). A `passed` probe judges it as the
+cargo enters the zone, so a gate at the end of a line counts what reached it labelled.
 
 Every probe's `part` is a placed part's id in the scene (`box1`), never a part type (`oip.box`, which is what a
 part's own `ctx.zone(name, { part })` filter takes). A `count` or `passed` probe whose `part` is not a placed part is

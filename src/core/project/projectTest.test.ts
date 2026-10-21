@@ -665,3 +665,19 @@ describe('probePartErrors: a count or passed probe names a placed part', () => {
     expect(probePartErrors(parts, [{ at: 1, max: 0, probe: { count: { part: 'bx1' } } }])[0]).toContain('no placed part')
   })
 })
+
+describe('validateTestSpec: the marked filter', () => {
+  const spec = (marked: unknown) => validateTestSpec({ duration: 1, checks: [{ at: 1, min: 0, probe: { count: { marked } } }] })
+  it('takes a mark key, or one key and its value', () => {
+    expect(spec('sealed').ok).toBe(true)
+    expect(spec({ code: 2 }).ok).toBe(true)
+    expect(spec({ sku: 'A-100' }).ok).toBe(true)
+  })
+  it('refuses anything else, naming the two forms', () => {
+    for (const bad of ['', { a: 1, b: 2 }, {}, { code: [1] }, 3]) {
+      const r = spec(bad)
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.errors.join(' ')).toContain('marked must be a mark key')
+    }
+  })
+})

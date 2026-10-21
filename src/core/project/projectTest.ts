@@ -155,14 +155,20 @@ export type PoseAxis = 'x' | 'y' | 'z' | 'yaw'
 export type CargoColor = 'red' | 'green' | 'blue' | `#${string}`
 const COLOR_NAMES = ['red', 'green', 'blue'] as const
 
+/** A mark a body must carry (ctx.mark / markHit, or a product attribute): a key whose value is truthy (`"sealed"`), or
+ *  one key and the value it must have (`{ "code": 2 }`). */
+export type MarkFilter = string | Record<string, number | boolean | string>
+
 /** How many live cargo bodies match. Every filter is optional and a body must match all that are given; `{}`
  *  counts all live cargo in the scene. `part` narrows to one authored cargo id: 0 or 1, which is the
- *  idiom for "this pallet still exists" (see the `always` note in docs/project-tests.md). */
+ *  idiom for "this pallet still exists" (see the `always` note in docs/project-tests.md). `marked` counts only the
+ *  bodies carrying that mark: the cases a labeller labelled, those a scanner read with a given code. */
 export interface CountProbe {
   zone?: Zone
   part?: string
   kind?: 'box' | 'pallet' | 'tote'
   color?: CargoColor
+  marked?: MarkFilter
 }
 
 /**
@@ -176,6 +182,8 @@ export interface PassedProbe {
   part?: string
   kind?: 'box' | 'pallet' | 'tote'
   color?: CargoColor
+  /** as {@link CountProbe.marked}, judged as the body enters the zone */
+  marked?: MarkFilter
 }
 
 /** Where a part actually is: a mobile part's driven base (ctx.drive) or an authored cargo body. */
@@ -313,6 +321,7 @@ export function describeProbe(p: TestProbe): string {
   if (f.part !== undefined) filters.push(`part ${f.part}`)
   if (f.color !== undefined) filters.push(f.color)
   if (f.kind !== undefined) filters.push(f.kind)
+  if (f.marked !== undefined) filters.push(typeof f.marked === 'string' ? `marked ${f.marked}` : `marked ${Object.entries(f.marked).map(([k, v]) => `${k}=${v}`).join('')}`)
   if (f.zone) filters.push(`zone ${fmtVec(f.zone.min)}..${fmtVec(f.zone.max)}`)
   return `${'passed' in p ? 'passed' : 'count'}(${filters.length > 0 ? filters.join(', ') : 'all cargo'})`
 }
@@ -379,8 +388,8 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
     const out: CountProbe = {}
     let ok = true
     for (const k of Object.keys(f)) {
-      if (k !== 'part' && k !== 'kind' && k !== 'zone' && k !== 'color') {
-        errors.push(`${path}.${kind}.${k} is not a filter (part/kind/color/zone)`)
+      if (k !== 'part' && k !== 'kind' && k !== 'zone' && k !== 'color' && k !== 'marked') {
+        errors.push(`${path}.${kind}.${k} is not a filter (part/kind/color/marked/zone)`)
         ok = false
       }
     }
@@ -402,6 +411,16 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
         errors.push(`${path}.${kind}.color must be ${COLOR_NAMES.join('/')} or a "#rrggbb" tint`)
         ok = false
       } else out.color = color as CargoColor
+    }
+    if (f.marked !== undefined) {
+      const m = f.marked
+      const entries = typeof m === 'object' && m !== null && !Array.isArray(m) ? Object.entries(m) : null
+      if (typeof m === 'string' && m !== '') out.marked = m
+      else if (entries && entries.length === 1 && entries[0]![0] !== '' && ['number', 'boolean', 'string'].includes(typeof entries[0]![1])) out.marked = { [entries[0]![0]]: entries[0]![1] as number | boolean | string }
+      else {
+        errors.push(`${path}.${kind}.marked must be a mark key ("sealed": the mark is truthy) or one key and its value ({ "code": 2 })`)
+        ok = false
+      }
     }
     if (f.zone !== undefined) {
       const zone = validateZone(f.zone, `${path}.${kind}.zone`, errors)
