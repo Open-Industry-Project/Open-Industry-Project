@@ -169,6 +169,21 @@ The lease only serialises scripts that use it, so `run-gates` stamps each row wi
 counts ([e2e/_load.mjs](../e2e/_load.mjs)) and prints a **CONTENDED RUN** banner when the box was busy. Verdicts still
 hold, but the timings are noise.
 
+### Gates that pass on timing
+
+A busy machine makes a gate fail, not pass, so contention never hides a regression. What does is a gate that waits
+on the clock, or on one event landing before another, instead of on the state it checks: it passes while the machine
+is fast enough. [e2e/_throttle.mjs](../e2e/_throttle.mjs) slows every Chromium page and Electron window a gate opens
+by the given factor:
+
+```
+OIP_E2E_CPU_THROTTLE=4 NODE_OPTIONS=--import=file:///<repo>/e2e/_throttle.mjs npm run gates
+```
+
+A gate that fails only slowed is a lead. Read why: either the app has a race (a desktop file opened while the
+editor was still starting was dropped, and its gate passed at full speed), or the gate's wait is the wrong thing to
+wait on. A timeout that is merely too short for a 4x slower page is neither.
+
 ### Editing while a gate runs
 
 These scripts drive a dev server, so a save fires HMR, and a `src/render/` edit forces a full page reload. A reload
