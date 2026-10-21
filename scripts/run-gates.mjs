@@ -157,6 +157,10 @@ const GATES = [
     why: "Insert Box is the one door to everything a rung can call that the element bar does not hold - a program's own FUNCTION_BLOCKs above all, which nothing else offers - and every box reaches the rung through the catalogue's one insert path (plc/ladder/ladderCatalog.ts), the bar's included. The unit tests hold the catalogue to the engine; only the app can show the bar's 'Block…' and Ctrl+B opening it on the search field, a typed name picking the program's own block, Enter landing it declared with every pin to fill and titled with its outputs drawn before one is named, a library function landing the same way, and Escape changing nothing",
   },
   {
+    script: 'verify-ladder-drag-zoom.mjs',
+    why: "the ladder sheet's own gestures write to the DOM and the program without React seeing most of them: Ctrl+wheel paints the zoom straight onto the sheet and saves it once the wheel settles, a wrapped rung's rows are joined by wire drawn into a layer React never reads, a rung moves by its number and a branch end stretches over its neighbours through pointer capture. Nothing else drives any of them, so each is read back from the stored program or the sheet itself",
+  },
+  {
     script: 'verify-demo-ladder.mjs',
     why: "the demo ships ONE program in two languages, Palletizer in ladder calling PalletTruck in Structured Text, and only the app can show the PLC panel treating a POU's language as the POU's own: a panel open on text when the demo loads comes up on the rungs of the program the controller runs, with no Text | Ladder switch and no idle twin; Play lights the rungs and the ladder drives the cell; the ST chip opens the text, the ladder chip brings the rungs back, and its 'Show as text' shows the rung text without forking the demo. The unit tests hold the program to being the same machine as the demo all in ST and all in ladder",
   },
