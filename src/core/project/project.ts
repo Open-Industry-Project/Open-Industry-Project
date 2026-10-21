@@ -11,7 +11,7 @@
 // This module is the pure data model + (de)serializer only. It reuses scene.ts's per-part and per-package
 // validation wholesale, so it inherits every clamp/migration scene validation does.
 
-import { serializeScene, validateScene } from '../scene/scene'
+import { savedParts, validateScene } from '../scene/scene'
 import { packageDependencies, productRefsOf, upgradeStoredPackage, validatePartPackage } from '../parts/partPackage'
 import { originOf, partFingerprint, withOrigin } from '../parts/partOrigin'
 import { builtInPackage, hasBuiltInPackages } from '../parts/partRegistry'
@@ -607,7 +607,7 @@ export function validateProject(data: unknown): ProjectValidationResult {
 /**
  * Serialize a project to a single `.oip` JSON document: name, the authored package library once, the scene's parts
  * and its program, then the tests. Stable, human-readable (2-space indent, trailing newline) so it
- * diffs and round-trips. Reuses {@link serializeScene} for stable key order, then unwraps it.
+ * diffs and round-trips. The parts are written as a scene file writes them ({@link savedParts}).
  */
 export function serializeProject(
   project: ProjectJSON,
@@ -621,22 +621,15 @@ export function serializeProject(
   // What keepDefinitionsOnce left on the scene: nothing, once the host has declared its built-ins; everything, in a
   // host that has not (it cannot tell a built-in's copy from a definition nothing else holds, so it keeps both).
   const own = project.scene.packages ?? []
-  // compact and without the packages: this string is parsed back for its `parts` alone (serializeScene's key ordering
-  // + param round-tripping, not its formatting). The resolving set (own + library + built-ins) still goes in, because
-  // that is what resolves each part's param specs; it comes back out only as `own`, re-attached below.
-  const parsed = JSON.parse(
-    serializeScene({ version: SCENE_VERSION, parts: project.scene.parts, packages: resolvingPackages(project.scene.parts, own, library) }, undefined, undefined, {
-      pretty: false,
-      embedPackages: false,
-    }),
-  ) as { parts: unknown }
+  // each part's param specs resolve against own + library + built-ins; only `own` is written with the scene below
+  const parts = savedParts(project.scene.parts, resolvingPackages(project.scene.parts, own, library))
   return (
     JSON.stringify(
       {
         version: PROJECT_VERSION,
         name: project.name,
         ...(library.length > 0 ? { packages: library } : {}),
-        scene: { version: SCENE_VERSION, parts: parsed.parts, ...(own.length > 0 ? { packages: own } : {}), ...(project.scene.units !== undefined ? { units: project.scene.units } : {}) },
+        scene: { version: SCENE_VERSION, parts, ...(own.length > 0 ? { packages: own } : {}), ...(project.scene.units !== undefined ? { units: project.scene.units } : {}) },
         ...(typeof project.stProgram === 'string' && project.stProgram !== ''
           ? {
               stProgram: project.stProgram,

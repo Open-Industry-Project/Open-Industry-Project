@@ -798,7 +798,7 @@ export class TestEvaluator {
     violatedAt: number
     // eventually
     satisfied: boolean
-    /** it held on the first sample that had both sides inside its window */
+    /** it held on the run's first sample */
     heldFirst: boolean
     outcome: boolean
     detail: string
@@ -815,6 +815,8 @@ export class TestEvaluator {
    * that did appear gives it something checkable.
    */
   private readonly seenTags = new Set<string>()
+  /** the time of the run's first sample, once there is one */
+  private firstTime: number | null = null
 
   constructor(private readonly spec: TestSpec) {
     this.duration = spec.duration
@@ -842,6 +844,7 @@ export class TestEvaluator {
     for (const key of Object.keys(tags)) {
       if (key.charCodeAt(0) !== 0) this.seenTags.add(key) // NUL-prefixed keys are probe bookkeeping
     }
+    this.firstTime ??= time
     this.spec.checks.forEach((check, i) => {
       const st = this.states[i]!
       const key = this.keys[i]!
@@ -856,7 +859,6 @@ export class TestEvaluator {
       const rhs = pred.key === undefined ? pred.literal! : tags[pred.key]!
       const inWindow = time + EPS >= win.from && time <= win.to + EPS
       const both = present && rhsPresent
-      const firstCompared = both && inWindow && !st.compared
       if (both && inWindow) st.compared = true
 
       if (check.at !== undefined) {
@@ -890,7 +892,9 @@ export class TestEvaluator {
       if (check.eventually) {
         if (!st.satisfied && inWindow && both && predicateHolds(pred, value!, rhs)) {
           st.satisfied = true
-          st.heldFirst = firstCompared
+          // the run's first sample, not the first one with a value: a probe such as `passed` has no value until the
+          // thing it counts happens, and then it holds on its first value for a real reason
+          st.heldFirst = time <= this.firstTime! + EPS
           st.detail = `${label} reached ${describePredicate(pred, rhs)} at t=${time.toFixed(2)}s`
         }
         return

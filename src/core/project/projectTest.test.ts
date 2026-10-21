@@ -642,10 +642,10 @@ describe('a pass that proves nothing (CheckResult.warning)', () => {
     expect(r.warning).toBeUndefined()
   })
 
-  it('does not warn on a window the author started later, and warns when the first sample with the tag already holds', () => {
+  it('does not warn on a window the author started later, nor on a source that first appears when it comes true', () => {
     expect(evalCheck({ ...ready, from: 0.5 }, 2, [[0.01, { Ready: true }], [1, { Ready: false }]]).warning).toBeUndefined()
-    // a tag first published after t = 0 that already holds then: nothing had to happen for it either
-    expect(evalCheck(ready, 2, [[0.01, {}], [1, { Ready: false }]]).warning).toBeDefined()
+    // a passed probe has no value until a case enters its zone: holding on its first value is the event itself
+    expect(evalCheck(ready, 2, [[0.01, {}], [1, { Ready: false }]]).warning).toBeUndefined()
   })
 })
 

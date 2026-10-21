@@ -676,45 +676,16 @@ function migrateConveyorOriginsToTail(parts: PartInstance[]): void {
 }
 
 /**
- * stable key order (id, name?, visible?, locked?, grouped?, parent?, type, position,
- * rotationY, rotationX?, rotationZ?, params), 2-space indent, trailing newline.
- *
- * A non-empty `stProgram` is appended as a top-level field so a shared/exported scene
- * carries its PLC control logic, not just the layout. Empty/undefined is omitted (no
- * program to bundle), and validateScene then leaves an importer's program untouched.
- * `stScanMs` (the program's authored cycle time) rides with it, and only with it - a scan
- * time without a program is meaningless, so it is omitted whenever the program is.
+ * The parts as a saved document writes them: stable key order (id, name?, visible?, locked?, grouped?, parent?, type,
+ * packageId?, position, rotationY, rotationX?, rotationZ?, params), and every param its spec declares, filled from the
+ * spec's default when the part leaves it out. SDK parts are package-driven: their params come from the referenced
+ * package's schema, not the (empty) static PART_DEFS.part.params, so `packages` are indexed by id, falling back to the
+ * runtime registry so a part still round-trips its params when its package is absent. Mirrors validateScene, which
+ * resolves the same specs on the way back in. Shared by serializeScene and serializeProject, which stringify it.
  */
-export function serializeScene(
-  scene: SceneJSON,
-  stProgram?: string,
-  stScanMs?: number,
-  /** `pretty: false` drops the indentation. It is for the browser autosave, which no human reads and which
-   *  handles every space twice (once building the string, once writing it). Indentation doubles this
-   *  payload: 228 KB of demo scene becomes 461 KB of text. Files a user can open keep the indent.
-   *
-   *  `embedPackages: false` resolves the parts' param specs against `scene.packages` as usual but
-   *  leaves the packages out of the output. Only serializeProject passes it, for a string it parses
-   *  back purely to reuse this function's key ordering: on the demo those snapshots are 170 KB of the
-   *  218 KB it was building and re-parsing on every commit, to then discard them and re-attach the
-   *  originals verbatim. Anything that persists a scene on its own must keep them (validateScene
-   *  rejects a custom part whose package is absent). */
-  opts?: { pretty?: boolean; embedPackages?: boolean },
-  /** the program's controller table (core/controller.ts): written with the program, and only with it */
-  controller?: Controller | null,
-  /** the program's dialect (core/dialect.ts): written only when it is not IEC, with or without a program */
-  stDialect?: string | null,
-  /** the scene's physics step rate: written only when it is not DEFAULT_SIM_HZ, with or without a program */
-  simHz?: SimRate,
-): string {
-  const dialect = storedDialect(stDialect)
-  const hz = toSimRate(simHz)
-  // SDK parts are package-driven: their editable params come from the referenced package's schema,
-  // not the (empty) static PART_DEFS.part.params. Index the embedded packages' specs by id, falling
-  // back to the runtime registry so a part still round-trips its params if the scene's packages array is
-  // somehow absent. Mirrors validateScene, which resolves the same specs on the way back in.
+export function savedParts(parts: readonly PartInstance[], packages: readonly PartPackage[] | undefined): object[] {
   const pkgSpecs = new Map<string, ParamSpec[]>()
-  for (const pkg of scene.packages ?? []) pkgSpecs.set(pkg.id, packageParamSpecs(pkg))
+  for (const pkg of packages ?? []) pkgSpecs.set(pkg.id, packageParamSpecs(pkg))
   const specsFor = (part: PartInstance): ParamSpec[] => {
     if (part.type !== 'part') return PART_DEFS[part.type].params
     const pid = (part as SdkPart).packageId
@@ -723,7 +694,7 @@ export function serializeScene(
     const pkg = getPackage(pid)
     return pkg ? packageParamSpecs(pkg) : []
   }
-  const parts = scene.parts.map((part) => {
+  return parts.map((part) => {
     const src = part.params as unknown as Record<string, ParamValue>
     const params: Record<string, ParamValue> = {}
     for (const spec of specsFor(part)) {
@@ -750,6 +721,35 @@ export function serializeScene(
       params,
     }
   })
+}
+
+/**
+ * A scene file: its parts ({@link savedParts}), 2-space indent, trailing newline.
+ *
+ * A non-empty `stProgram` is appended as a top-level field so a shared/exported scene
+ * carries its PLC control logic, not just the layout. Empty/undefined is omitted (no
+ * program to bundle), and validateScene then leaves an importer's program untouched.
+ * `stScanMs` (the program's authored cycle time) rides with it, and only with it - a scan
+ * time without a program is meaningless, so it is omitted whenever the program is.
+ */
+export function serializeScene(
+  scene: SceneJSON,
+  stProgram?: string,
+  stScanMs?: number,
+  /** `pretty: false` drops the indentation. It is for the browser autosave, which no human reads and which
+   *  handles every space twice (once building the string, once writing it). Indentation doubles this
+   *  payload: 228 KB of demo scene becomes 461 KB of text. Files a user can open keep the indent. */
+  opts?: { pretty?: boolean },
+  /** the program's controller table (core/controller.ts): written with the program, and only with it */
+  controller?: Controller | null,
+  /** the program's dialect (core/dialect.ts): written only when it is not IEC, with or without a program */
+  stDialect?: string | null,
+  /** the scene's physics step rate: written only when it is not DEFAULT_SIM_HZ, with or without a program */
+  simHz?: SimRate,
+): string {
+  const dialect = storedDialect(stDialect)
+  const hz = toSimRate(simHz)
+  const parts = savedParts(scene.parts, scene.packages)
   return (
     JSON.stringify(
       {
@@ -757,12 +757,9 @@ export function serializeScene(
         parts,
         // embed custom-part packages so the scene is self-contained: validateScene requires every custom
         // part's package to be present on the way back in (else the part - and the whole scene - is rejected).
-        // `embedPackages: false` is the one caller that re-attaches them itself - see the opts note.
         // the scene's unit system (SceneJSON.units) is part of the document, like its parts
         ...(scene.units !== undefined ? { units: scene.units } : {}),
-        ...(scene.packages && scene.packages.length > 0 && opts?.embedPackages !== false
-          ? { packages: scene.packages }
-          : {}),
+        ...(scene.packages && scene.packages.length > 0 ? { packages: scene.packages } : {}),
         ...(typeof stProgram === 'string' && stProgram !== ''
           ? {
               stProgram,
