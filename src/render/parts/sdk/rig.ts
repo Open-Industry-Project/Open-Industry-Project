@@ -1653,8 +1653,12 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
       }
       // rigSize handles: keep the dots + tool outline at the resolved param values (default-resolved, so a
       // sparse instance shows the package defaults; streamed transient params track a live gizmo drag)
-      gizmo?.setSizes?.(resolvePartParams(paramSpecs, p.params as Record<string, ParamValue>))
-      const params = p.params as RigParams
+      // Every size and pose below reads the default-resolved params: a sparse instance is drawn at its defaults, as its
+      // geometry(), its gizmo and the sim's bodies (world.ts) all take it, so the links, the colliders and the host's
+      // footprint describe one part.
+      const resolvedParams = resolvePartParams(paramSpecs, p.params as Record<string, ParamValue>)
+      gizmo?.setSizes?.(resolvedParams)
+      const params = resolvedParams as RigParams
       // Pass the part placement as the seam so world-phase beds (roller grids) align across butted parts;
       // the centred default ignores it (docs/seam-resolvers.md).
       const seam = { worldPos: p.position, worldRotY: p.rotationY, anchor: grid?.anchor }

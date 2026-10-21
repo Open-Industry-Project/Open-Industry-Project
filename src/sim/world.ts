@@ -992,22 +992,27 @@ export class SimWorld implements SimCore<BoxFrame> {
       const rec = this.attachJointBehavior(part.id, pkg.behavior, JSON.stringify(part.params), part.position, part.rotationY, servoJointsJson(pkg.geometry))
       if (!rec) this.reportAttachFailure(part)
       if (rec) {
+        // The bodies are built from the default-resolved params, as the renderer draws the links (rig.ts refresh): a
+        // part saved without a size param collides at its default, where it is drawn, not at the link's static
+        // size. The driver keeps this object for the run; an edit replaces the part and rebuilds it.
+        const params = resolvePartParams(pkg.params, part.params as Record<string, ParamValue>)
+        const resolved = { ...part, params } as SdkPart
         // per-instance cut geometry: a platform with a snapped stair opens its railing + carves its deck; a
         // top-connected stair retracts its top handrail. Colliders build from the same cut links the renderer
         // rebuilds its meshes from (structureCutGeo), so the physical footprint can't drift from the visual.
-        const geo = structConn ? structureCutGeo(pkg.geometry, part.id, part.params as unknown as Record<string, unknown>, structConn) : pkg.geometry
-        const scale = typeof part.params.scale === 'number' && part.params.scale > 0 ? part.params.scale : 1
-        const inclineRad = rigInclineRad(geo, part.params as unknown as Record<string, unknown>)
-        const bodies = this.buildRigBodies(geo, part.position, part.rotationY, scale, part.params as RigParams, pkg.params, inclineRad, openings, extents, guardRun)
-        this.rigDriver.add({ rec, geo, pkg, pos: part.position, rotationY: part.rotationY, scale, params: part.params as RigParams, inclineRad, bodies, grips: new Map(), emptied: new Set() })
-        this.sensors.collectBeams(part, geo, scale, resolvePartParams(pkg.params, part.params as Record<string, ParamValue>))
-        this.sensors.collectZones(part, geo, scale)
-        const decks = this.attachRigConveyors(rec, part, geo, scale, bodies, inclineRad)
+        const geo = structConn ? structureCutGeo(pkg.geometry, part.id, params, structConn) : pkg.geometry
+        const scale = typeof params.scale === 'number' && params.scale > 0 ? params.scale : 1
+        const inclineRad = rigInclineRad(geo, params)
+        const bodies = this.buildRigBodies(geo, part.position, part.rotationY, scale, params as RigParams, pkg.params, inclineRad, openings, extents, guardRun)
+        this.rigDriver.add({ rec, geo, pkg, pos: part.position, rotationY: part.rotationY, scale, params: params as RigParams, inclineRad, bodies, grips: new Map(), emptied: new Set() })
+        this.sensors.collectBeams(resolved, geo, scale, params)
+        this.sensors.collectZones(resolved, geo, scale)
+        const decks = this.attachRigConveyors(rec, resolved, geo, scale, bodies, inclineRad)
         const cells: { name: string; body: Jolt.Body; he: Vec3 }[] = []
         for (const link of geo.links) {
           if (!link.loadCell) continue
           const body = decks.get(link.name) ?? bodies.find((rb) => rb.name === link.name)?.body
-          if (body) cells.push({ name: link.name, body, he: linkHalfExtents(link, part.params as RigParams) })
+          if (body) cells.push({ name: link.name, body, he: linkHalfExtents(link, params as RigParams) })
         }
         this.loadCells.set(part.id, cells)
       }
