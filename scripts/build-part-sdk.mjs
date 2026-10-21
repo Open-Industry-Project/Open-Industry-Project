@@ -69,7 +69,7 @@ outputs.set(
   ].join('\n'),
 )
 
-// 3. manifest.d.ts - partPackage's TYPES only. Its functions are the app's validators and editors, not an
+// 3. manifest.d.ts - partPackage's TYPES only. Its functions are the app's own helpers, not an
 // author surface, so they're dropped statement by statement (a statement's full text carries its JSDoc).
 const pkgSource = ts.createSourceFile('partPackage.d.ts', readEmitted('partPackage'), ts.ScriptTarget.ES2022, true)
 const kept = []

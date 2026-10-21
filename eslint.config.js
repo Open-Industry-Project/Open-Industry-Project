@@ -83,6 +83,33 @@ export default tseslint.config(
     },
   },
   {
+    // A source file past 1,500 lines is hard to find code in, for a person or an agent reading it in chunks, and
+    // parallel sessions editing different areas of it collide. Split it by area (checker.ts and partPackage.ts are
+    // the pattern) rather than raising the limit. A warning, so it never blocks a change.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    rules: { 'max-lines': ['warn', { max: 1500 }] },
+  },
+  // Files already over the limit. Each may not grow past its own ceiling: its size when the limit came in, plus
+  // headroom. Shrink a ceiling when a split shrinks the file, and delete the entry once it is under 1,500.
+  ...Object.entries({
+    'src/editor/store/store.ts': 2600,
+    'src/render/viewport/view.ts': 2500,
+    'src/editor/components/plc/LadderView.tsx': 2300,
+    'src/plc/parser.ts': 2100,
+    'src/render/parts/sdk/rig.ts': 2100,
+    'src/editor/controller.ts': 2000,
+    'src/core/snap/snapFeatures.ts': 1800,
+    'src/core/parts/partApi.ts': 1700,
+    'src/editor/App.tsx': 1700,
+    'src/sim/world.ts': 1700,
+  }).map(([file, max]) => ({ files: [file], rules: { 'max-lines': ['warn', { max }] } })),
+  {
+    // Data, not logic: conformance cases and demo scenes grow by adding entries, and nobody reads them end to end.
+    files: ['src/plc/conformanceCases.ts', 'src/editor/demo/demoScenes.ts'],
+    rules: { 'max-lines': 'off' },
+  },
+  {
     // The world-space planar rotation convention lives once, in core/transforms.ts
     // (rotateXZ / yawAboutPivot). Private copies would let the sign conventions silently diverge
     // (partGeometry, prefabInstance and snapFeatures each once held one, as `rotateXZ` or `rotXZ`).

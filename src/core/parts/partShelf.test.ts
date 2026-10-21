@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, manifestOfPackage, validatePartPackage } from './partPackage'
+import { PACKAGE_FORMAT, manifestOfPackage } from './partPackage'
+import { validatePartPackage } from './partValidate'
 import type { PartPackage } from './partPackage'
 import { asShelfCopy, forShelf, onShelfAs, shelfFingerprint, shelfStatus } from './partShelf'
 

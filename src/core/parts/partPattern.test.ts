@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, validatePartPackage } from './partPackage'
+import { PACKAGE_FORMAT } from './partPackage'
+import { validatePartPackage } from './partValidate'
 
 // Validation of a package material's `pattern` (PartMaterial.pattern): the two-colour texture the host paints in
 // place of an albedo image. A pattern is data an agent writes by hand, so every field it can get wrong is named.

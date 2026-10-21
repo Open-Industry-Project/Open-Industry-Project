@@ -2,7 +2,7 @@
 
 The words a part is described in, where each is declared, and why. The current package format is 6
 (`PACKAGE_FORMAT` in [src/core/parts/partPackage.ts](../src/core/parts/partPackage.ts)). Older stored packages load through
-`PACKAGE_UPGRADES`, which is the one record of what each format renamed. This page describes only the current words.
+`PACKAGE_UPGRADES` ([partUpgrade.ts](../src/core/parts/partUpgrade.ts)), which is the one record of what each format renamed. This page describes only the current words.
 
 ## The test
 

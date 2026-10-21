@@ -5,13 +5,14 @@
 // blank dropdown.
 //
 // These run in sim/validatePart.ts (authoring: the in-app editor, check-part, add-part, the build scripts) and
-// not in core/parts/partPackage.validatePartPackage: a package problem drops the package when a saved
+// not in core/parts/partValidate.validatePartPackage: a package problem drops the package when a saved
 // document loads, and a typo'd reference is not worth deleting someone's placed part over. The author gets it
 // where they can fix it (the same split as validateSnapParamRefs).
 
 import type { Finish, ParamSchema, ParamSpec } from './partApi'
 import { blankNonCode } from '../determinism'
-import { RIG_FINISHES, rigLampNames } from './partPackage'
+import { rigLampNames } from './partPackage'
+import { RIG_FINISHES } from './partValidateRig'
 import type { PartPackageGeometry, RigLink, SizeParamRef } from './partPackage'
 
 export interface AuthoringProblem {

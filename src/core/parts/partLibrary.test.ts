@@ -3,7 +3,8 @@ import { oippartBytesToFolder, partToOippartBytes } from './partArchive'
 import { asLibraryCopy, checkLibraryAppend, checkLibraryDownload, isFirstPartyLibrary, libraryCredit, libraryStatus, libraryUrl, offeredVersion, validateLibraryIndex } from './partLibrary'
 import type { LibraryPart, LibraryVersion, PartLibraryIndex } from './partLibrary'
 import { partFingerprint } from './partOrigin'
-import { PACKAGE_FORMAT, validatePartPackage, type PartPackage } from './partPackage'
+import { PACKAGE_FORMAT, type PartPackage } from './partPackage'
+import { validatePartPackage } from './partValidate'
 import { sha256HexOfBytes } from '../sha256'
 
 function pkg(id: string, behavior = 'definePart({step(){}})'): PartPackage {

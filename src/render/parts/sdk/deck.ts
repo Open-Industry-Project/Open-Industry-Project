@@ -12,7 +12,7 @@ import { DEFAULT_DECK_THICK } from './shared'
 const FALLBACK = { length: 1, width: 1, thick: DEFAULT_DECK_THICK }
 
 // The placeholder a part shows while its package has not loaded. Package format 4 has no geometry kind 'deck';
-// a stored one loads as the equivalent rig (partPackage.ts deckRig).
+// a stored one loads as the equivalent rig (partUpgrade.ts deckRig).
 function deckDims(_pkg: PartPackage | undefined): { length: number; width: number; thick: number } {
   return { length: FALLBACK.length, width: FALLBACK.width, thick: FALLBACK.thick }
 }

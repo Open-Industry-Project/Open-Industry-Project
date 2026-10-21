@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { arrayInstanceDeltas, linkHalfExtents } from '../../core/rig/rigPose'
 import { examplePart, type RigGeo } from './examplePart'
 const { geometry: GUARD_RAIL_RIG } = examplePart<RigGeo>('oip.guard-rail')

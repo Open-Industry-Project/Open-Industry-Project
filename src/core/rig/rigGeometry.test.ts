@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { behaviorMentions, dropRetiredRigLinks, PACKAGE_FORMAT, renameRigJoint, renameRigLink, renameRigNameRefs, subPosedLinkNames, validatePartPackage } from '../parts/partPackage'
+import { behaviorMentions, PACKAGE_FORMAT, renameRigJoint, renameRigLink, renameRigNameRefs, subPosedLinkNames } from '../parts/partPackage'
+import { validatePartPackage } from '../parts/partValidate'
+import { dropRetiredRigLinks } from '../parts/partUpgrade'
 import type { PartPackage, RigJoint, RigLink } from '../parts/partPackage'
 
 // Validation of the rig geometry format (multi-body custom parts). The kinematic rig = a tree of links

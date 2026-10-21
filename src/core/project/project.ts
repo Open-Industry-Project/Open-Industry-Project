@@ -12,7 +12,9 @@
 // validation wholesale, so it inherits every clamp/migration scene validation does.
 
 import { savedParts, validateScene } from '../scene/scene'
-import { packageDependencies, productRefsOf, upgradeStoredPackage, validatePartPackage } from '../parts/partPackage'
+import { packageDependencies, productRefsOf } from '../parts/partPackage'
+import { validatePartPackage } from '../parts/partValidate'
+import { upgradeStoredPackage } from '../parts/partUpgrade'
 import { originOf, partFingerprint, withOrigin } from '../parts/partOrigin'
 import { builtInPackage, hasBuiltInPackages } from '../parts/partRegistry'
 import type { PartPackage } from '../parts/partPackage'

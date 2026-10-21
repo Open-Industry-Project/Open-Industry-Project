@@ -87,7 +87,8 @@ The rules:
   thing is reached, but the change they make to the program is the same change. Two copies drift
   apart as each gains features the other lacks. So a fork made on purpose states what would have
   to be true to retire it, not only why it exists.
-- **Checker rules for a front end sit beside `checker.ts`, never as branches inside it**
+- **Checker rules for a front end sit beside the checker (`checker.ts` and its `check*.ts`
+  modules), never as branches inside it**
   (ladder's `LD_ROLES` is the pattern).
 - **A saved program may name a dialect this build does not have.** The program document's
   `stDialect` (`src/core/dialect.ts`) is a forward-compatibility marker. Absent means IEC. Any

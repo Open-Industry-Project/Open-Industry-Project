@@ -10,7 +10,8 @@
 // Desktop only for now: no window.oipShelf in the browser, so getShelfApi() is null and the Catalog shows no shelf.
 
 import { registerPackage } from '../../core/parts/partRegistry'
-import { manifestOfPackage, validatePartPackage } from '../../core/parts/partPackage'
+import { manifestOfPackage } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import type { PartPackage } from '../../core/parts/partPackage'
 import { asShelfCopy, forShelf, onShelfAs, shelfStatus } from '../../core/parts/partShelf'
 import type { ShelfStatus } from '../../core/parts/partShelf'

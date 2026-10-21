@@ -11,7 +11,8 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { evalPartGeometry, geometryAnimates, geometryLampNames } from '../core/geometry/geometryEval'
 import type { ParamValue } from '../core/parts/partApi'
 import type { PartPackage, RigLink } from '../core/parts/partPackage'
-import { rigLampNames, upgradeStoredPackage } from '../core/parts/partPackage'
+import { rigLampNames } from '../core/parts/partPackage'
+import { upgradeStoredPackage } from '../core/parts/partUpgrade'
 import {
   bedView,
   isBeltLike,

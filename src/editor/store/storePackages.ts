@@ -4,7 +4,8 @@
 import { asCopyOfBuiltIn, builtInChangedSince, builtInFingerprint } from '../../core/builtInVersion'
 import { withOrigin } from '../../core/parts/partOrigin'
 import type { PartPackage } from '../../core/parts/partPackage'
-import { upgradeStoredPackage, validatePartPackage } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
+import { upgradeStoredPackage } from '../../core/parts/partUpgrade'
 import { PROJECT_KEY } from '../project/projectFile'
 import type { EditorState, EditorStore } from './store'
 

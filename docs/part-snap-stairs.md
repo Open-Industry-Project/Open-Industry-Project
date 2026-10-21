@@ -45,7 +45,7 @@ Like [surfaces](part-snap-surfaces.md) and [edge-mount](part-snap-edge-mount.md)
   - **`opens` / `notch` / `lift`**: what meeting the edge does to the platform and the flight (below).
 
 A package declaring the format 2 `snap.stairMount` fails validation by name
-([partPackage.ts](../src/core/parts/partPackage.ts)). A stored format 2 package is rewritten on load by
+([partValidate.ts](../src/core/parts/partValidate.ts)). A stored format 2 package is rewritten on load by
 `upgradeCutsToFormat3`.
 
 ## How a match happens

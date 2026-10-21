@@ -130,6 +130,6 @@ change to a declaration's reach, and a 1 mm change inside the engine.
   change. Declare it.
 - **A new pairing** of existing shapes is a case in `solvePlug` plus a solver.
 - **A new shape** is a `Plug` member in `snapConnectors.ts`, a socket resolver and a solver in
-  `snapFeatures.ts`, validation in `partPackage.ts` (`validateSnap`, plus `SNAP_PARAM_REFS` if it names
+  `snapFeatures.ts`, validation in `partValidate.ts` (`validateSnap`, plus `SNAP_PARAM_REFS` if it names
   params), an owner entry in `SNAP_KIND_OWNER` (bundledPackageData.test.ts, a compile error until you add
   one), a golden specimen, and this doc.

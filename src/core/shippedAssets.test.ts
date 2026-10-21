@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { partFingerprint } from './parts/partOrigin'
-import { PACKAGE_FORMAT, validatePartPackage } from './parts/partPackage'
+import { PACKAGE_FORMAT } from './parts/partPackage'
+import { validatePartPackage } from './parts/partValidate'
 import type { PartPackage } from './parts/partPackage'
 import { PART_ASSETS_PATH, pinShippedAsset, referenceShippedAssets, shippedAssetUrl, shippedFetchUrl } from './shippedAssets'
 import { SHIPPED_PART_ASSETS } from './shippedPartAssets'

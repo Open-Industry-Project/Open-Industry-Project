@@ -136,7 +136,7 @@ export function matchInCode(src: string, mask: Uint8Array, re: RegExp, from = 0)
  * reading code written elsewhere; none of them is ever written out):
  *  - the `;` after END_IF, END_CASE, END_FOR, END_WHILE, END_REPEAT and END_STRUCT, and after the last declaration of
  *    a TYPE block (parser.ts `blockEnd` / `typeEnd`), which strict IEC requires and MATIEC refuses a program without;
- *  - `Mode#Idle` for an enumeration's member written `Mode.Idle` (checker.ts, the `member` case);
+ *  - `Mode#Idle` for an enumeration's member written `Mode.Idle` (checkExpr.ts `inferType`, the `member` case);
  *  - nothing at all for an argument named and given nothing, `Q => ,` (parser.ts `blockArgs`);
  *  - `STRING[80]` for `STRING(80)` (parser.ts `stringLen`);
  *  - nothing for an interface's `__SYSTEM.<name>` base, or PUBLIC / ABSTRACT on an interface's method (parser.ts

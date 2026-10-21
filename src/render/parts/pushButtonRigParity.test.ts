@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, rigLampNames, validatePartPackage } from '../../core/parts/partPackage'
+import { PACKAGE_FORMAT, rigLampNames } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { evalPartGeometry, geometryLampNames } from '../../core/geometry/geometryEval'
 import type { MeshPart } from '../../core/parts/partApi'
 import { examplePart, type RigGeo } from './examplePart'

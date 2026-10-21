@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { rigWorldPoses } from '../../core/rig/rigPose'
 import { rayObb } from '../../core/beamCast'
 import { evalPartGeometry } from '../../core/geometry/geometryEval'

@@ -9,7 +9,7 @@ sees ordinary statements. The code is [src/plc/ladder/ladder.ts](../src/plc/ladd
 **Its words are data, not branches in the checker.** A lowered place that an element requires to be BOOL carries a
 role, held in a side table keyed by the AST node (`ladderRole`, filled by `mapBack`) rather than as a field on
 `Expr`, so the ST AST stays free of ladder vocabulary. `LD_ROLES` says
-which side of a statement each role stands on and how to word its diagnostic, and `checker.ts` asks: one lookup on
+which side of a statement each role stands on and how to word its diagnostic, and the checker (`checkExpr.ts` `elementRule`) asks: one lookup on
 a read, one on a write. The identity key is safe because nothing clones a statement
 between the lowering and the check. A `structuredClone` introduced on that path would drop roles, which
 `ladder.test.ts` catches by asserting both messages exactly.

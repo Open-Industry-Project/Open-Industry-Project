@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { validatePartPackage } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { buildPackage, packageToWorkspaceFiles } from '../../sim/buildPackage'
 import type { PackageManifest } from '../../sim/buildPackage'
 import { parsePartBytes, parsePartText, serializePart } from './partFile'

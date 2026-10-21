@@ -38,7 +38,7 @@ export type LdRole = 'contact' | 'coil'
  *
  * The checker owns what IEC permits; it does not own what a contact is. It asks for the role of the place it is
  * about to reject and words the diagnostic from this table, so the ladder's vocabulary stays here rather than in
- * branches in checker.ts.
+ * branches in the checker.
  */
 export const LD_ROLES: Record<LdRole, { side: 'read' | 'write'; says: (place: string, is: string) => string }> = {
   contact: { side: 'read', says: (place, is) => `a contact examines a BOOL, and '${place}' is ${is}` },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MeshStandardMaterial } from 'three'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { evalPartGeometry } from '../../core/geometry/geometryEval'
 import type { MeshPart } from '../../core/parts/partApi'
 import { examplePart, type FuncGeo } from './examplePart'

@@ -55,7 +55,7 @@ residual. None of them needs a new word.
 | Piece | File |
 |---|---|
 | the words (`SnapEdgeMount`, `SnapParamOffset`, `SnapMount.opens`) | [partApi.ts](../src/core/parts/partApi.ts) |
-| the link words (`onEdge`, `anchor`, `dropWhenMounted`), validation, the format 2 -> 3 upgrade | [partPackage.ts](../src/core/parts/partPackage.ts) |
+| the link words (`onEdge`, `anchor`, `dropWhenMounted`), validation, the format 2 -> 3 upgrade | [partPackage.ts](../src/core/parts/partPackage.ts) (types), [partValidateRig.ts](../src/core/parts/partValidateRig.ts) (validation), [partUpgrade.ts](../src/core/parts/partUpgrade.ts) (upgrade) |
 | the contact point, shared by the seat and the cut so they cannot disagree | [snapConnectors.ts](../src/core/snap/snapConnectors.ts) `edgeMountContact` |
 | the seat (`'along'`: `snapEdgeMount`; `'into'`: `snapEdgeMountInto`) | [snapFeatures.ts](../src/core/snap/snapFeatures.ts) |
 | which guests meet which edges, and the gaps, notches and lifts | [structureConnections.ts](../src/core/structureConnections.ts) |

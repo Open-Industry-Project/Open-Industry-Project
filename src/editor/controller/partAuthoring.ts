@@ -3,7 +3,8 @@
 // the store, so each function takes only the narrow slice of the controller it uses (AuthoringDeps).
 
 import { getPackage, hasPackage, registerPackage } from '../../core/parts/partRegistry'
-import { behaviorMentions, renameRigJoint as renamedJoints, renameRigLink, renameRigNameRefs, validatePartPackage } from '../../core/parts/partPackage'
+import { behaviorMentions, renameRigJoint as renamedJoints, renameRigLink, renameRigNameRefs } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { asNewPartFrom } from '../../core/builtInVersion'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
 import type { AuthorableShapeKind } from '../rigTree'

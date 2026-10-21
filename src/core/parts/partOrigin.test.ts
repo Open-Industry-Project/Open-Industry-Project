@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { matchesRecord, originOf, partFingerprint, sourceStatus, storedPackageHash, withOrigin, withoutOrigin } from './partOrigin'
-import { canonicalOrigin, PACKAGE_FORMAT, upgradeStoredPackage, validatePartPackage } from './partPackage'
+import { PACKAGE_FORMAT } from './partPackage'
+import { validatePartPackage } from './partValidate'
+import { canonicalOrigin, upgradeStoredPackage } from './partUpgrade'
 import type { PartPackage } from './partPackage'
 
 function part(size = 1): PartPackage {

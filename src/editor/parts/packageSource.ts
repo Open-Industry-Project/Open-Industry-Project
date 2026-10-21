@@ -10,7 +10,7 @@
 // No-op in the browser (no window.oipParts).
 
 import { registerPackage } from '../../core/parts/partRegistry'
-import { validatePartPackage } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { buildPackage } from '../../sim/buildPackage'
 import type { PackageManifest } from '../../sim/buildPackage'
 import { getOipPartsApi } from '../desktop/desktopPartsBridge'

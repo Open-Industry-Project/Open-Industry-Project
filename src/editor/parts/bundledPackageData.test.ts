@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackageManifest } from '../../sim/buildPackage'
-import { validatePartPackage, validateSnapParamRefs } from '../../core/parts/partPackage'
+import { validatePartPackage, validateSnapParamRefs } from '../../core/parts/partValidate'
 import type { SnapSpec } from '../../core/parts/partApi'
 import { clearPackages, registerPackage } from '../../core/parts/partRegistry'
 import { evalPartGeometry } from '../../core/geometry/geometryEval'

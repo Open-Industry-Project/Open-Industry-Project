@@ -2,7 +2,7 @@
 // platform's "Deck surface"). Everything that draws a rig reads the result through here, so a link's look has one
 // rule. This covers the look only: no body, collider or snap depends on a finish.
 import type { Finish, ParamSchema } from '../parts/partApi'
-import { RIG_FINISHES } from '../parts/partPackage'
+import { RIG_FINISHES } from '../parts/partValidateRig'
 import type { PartPackage, RigLink } from '../parts/partPackage'
 
 type RigGeo = Extract<PartPackage['geometry'], { kind: 'rig' }>

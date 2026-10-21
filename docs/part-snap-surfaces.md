@@ -76,7 +76,7 @@ engine, as with gizmo handle kinds ([part-gizmos.md](part-gizmos.md#non-goals)).
 - **`SnapSurface`** + `SnapSpec.surfaces` on the SDK ([partApi.ts](../src/core/parts/partApi.ts)); declared in the
   part's manifest (`rig.json`'s `snap`) like `mounts`/`track`, and lifted into the public
   `@oip/part-sdk` `index.d.ts` by `npm run build-part-sdk`.
-- **Validation** in [partPackage.ts](../src/core/parts/partPackage.ts) (`validateSnap`), mirroring the `mounts`
+- **Validation** in [partValidate.ts](../src/core/parts/partValidate.ts) (`validateSnap`), mirroring the `mounts`
   checks: `kind`/`lengthParam`/`widthParam` must be non-empty strings.
 - **Dispatch** in [snapFeatures.ts](../src/core/snap/snapFeatures.ts): `railSocketsOf(target, accepts)` resolves
   the rail sockets (`railPair`, for a conveyor's guards or a surface), and

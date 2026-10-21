@@ -234,7 +234,7 @@ function needNum(name: string, t: ScalarType, pos: SourcePos): ScalarType {
 }
 
 /**
- * ADD, SUB, MUL and DIV over durations and dates: exactly the operators' rules (checker.ts
+ * ADD, SUB, MUL and DIV over durations and dates: exactly the operators' rules (checkExpr.ts
  * `inferTimeBinary`, and `calendarOperatorType` above), so `ADD(tod, t)` and `tod + t` cannot disagree.
  * ADD chains left to right; a duration scales by a plain number, and nothing else mixes with one.
  */

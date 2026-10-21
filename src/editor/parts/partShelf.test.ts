@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { PACKAGE_FORMAT, manifestOfPackage, upgradeStoredPackage } from '../../core/parts/partPackage'
+import { PACKAGE_FORMAT, manifestOfPackage } from '../../core/parts/partPackage'
+import { upgradeStoredPackage } from '../../core/parts/partUpgrade'
 import type { PartPackage } from '../../core/parts/partPackage'
 import { shelfFingerprint, shelfStatus } from '../../core/parts/partShelf'
 import { buildPackage } from '../../sim/buildPackage'

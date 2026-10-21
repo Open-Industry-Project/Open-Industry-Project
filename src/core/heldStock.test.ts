@@ -4,7 +4,8 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { emptyHolds, fillHolds, holdCount, holdPositions, holdsOf } from './heldStock'
-import { PACKAGE_FORMAT, validatePartPackage } from './parts/partPackage'
+import { PACKAGE_FORMAT } from './parts/partPackage'
+import { validatePartPackage } from './parts/partValidate'
 import type { PartPackage } from './parts/partPackage'
 import { clearPackages, registerPackage } from './parts/partRegistry'
 import type { PartInstance, SceneJSON, SdkPart } from './types'

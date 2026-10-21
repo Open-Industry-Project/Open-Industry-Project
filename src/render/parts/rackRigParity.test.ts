@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { rackBoxes } from '../../core/parts/partGeometry'
 import type { RigLink } from '../../core/parts/partPackage'
 import { arrayInstanceDeltas, linkHalfExtents, resolvedOffset } from '../../core/rig/rigPose'

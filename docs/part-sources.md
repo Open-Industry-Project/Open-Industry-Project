@@ -131,7 +131,7 @@ Copies alone do not keep people on one app. If a later app stops running somethi
 capability, a shape kind, a param type), that project needs the old app again. So:
 
 - **Nothing a part can use is removed without an automatic upgrade.** `upgradeStoredPackage`
-  ([src/core/parts/partPackage.ts](../src/core/parts/partPackage.ts)) stays the one door a stored part comes through, and
+  ([src/core/parts/partUpgrade.ts](../src/core/parts/partUpgrade.ts)) stays the one door a stored part comes through, and
   `RETIRED_SHAPE_KINDS` keeps its grace period (`npm run retired-kinds`).
 - **A test proves it.** A corpus of old part versions (every built-in as shipped, plus representative authored
   parts) loads and runs against every build; one that stops loading or behaves differently fails it. Same family as

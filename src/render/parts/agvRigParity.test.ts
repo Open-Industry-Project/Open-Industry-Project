@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { rigWorldPoses } from '../../core/rig/rigPose'
-import { PACKAGE_FORMAT, validatePartPackage } from '../../core/parts/partPackage'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
 import { PALLET_STANDARDS, fittingSpreads } from '../../core/pallet'
 import { instantiatePartScript } from '../../core/parts/partScript'
 import { AGV_LOAD_AHEAD, AGV_TINE_HEEL, AGV_TINE_LENGTH, AGV_TINE_OFFSET, AGV_TINE_RISE, AGV_TINE_THICKNESS, AGV_TINE_WIDTH } from '../../core/types'

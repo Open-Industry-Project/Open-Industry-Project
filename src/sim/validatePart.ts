@@ -8,7 +8,7 @@
 //   - determinism  : nondeterministic / sandbox-escaping primitives (core/determinism.ts) - located
 //   - load         : doesn't call definePart, or is a syntax/eval error (embeddedBehavior.create)
 //   - rig          : a declared joint/gripper that isn't in the manifest's rig geometry
-//   - package      : structural problems in the resulting PartPackage (core/parts/partPackage.validate)
+//   - package      : structural problems in the resulting PartPackage (core/parts/partValidate.ts validatePartPackage)
 
 import { cargoCentreOffset, cargoPieces, cargoPiecesBounds } from '../core/cargoBody'
 import type { RigParams } from '../core/rig/rigPose'
@@ -17,7 +17,9 @@ import type { ParamSchema } from '../core/parts/partApi'
 import type { PartPackage } from '../core/parts/partPackage'
 import { checkGeometryRefs, checkParamSpecs, undeclaredParamReads } from '../core/parts/partAuthoringChecks'
 import { evalPartGeometry, geometryLampNames, resolvePartParams } from '../core/geometry/geometryEval'
-import { canonicalOrigin, canonicalSnap, PACKAGE_FORMAT, rigLampNames, servoJointsJson, validatePartPackage, validateSnapParamRefs } from '../core/parts/partPackage'
+import { PACKAGE_FORMAT, rigLampNames, servoJointsJson } from '../core/parts/partPackage'
+import { validatePartPackage, validateSnapParamRefs } from '../core/parts/partValidate'
+import { canonicalOrigin, canonicalSnap } from '../core/parts/partUpgrade'
 import type { PackageManifest } from '../core/parts/partPackage'
 import { stampSdk } from '../core/parts/partSdk'
 import { pinShippedAsset } from '../core/shippedAssets'
@@ -142,7 +144,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   if (decl.unit) pkg.unit = decl.unit // a unit-load product type (validated with the package, validateUnit)
   // declarative snap features (a device's mount onto a host surface): the manifest's. Behavior code written before
   // format 4 declared them in definePart, and stored code cannot be rewritten, so a script's snap is still read when
-  // the manifest has none (in the current spelling, partPackage.ts canonicalSnap). Both, and different: refused.
+  // the manifest has none (in the current spelling, partUpgrade.ts canonicalSnap). Both, and different: refused.
   if (manifest.snap !== undefined) {
     pkg.snap = canonicalSnap(manifest.snap)
     if (decl.snap !== undefined && JSON.stringify(canonicalSnap(decl.snap)) !== JSON.stringify(pkg.snap)) {
@@ -154,7 +156,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   if (manifest.materials !== undefined) pkg.materials = manifest.materials
   if (manifest.thumbnail !== undefined) pkg.thumbnail = manifest.thumbnail
   // `exposes` (a scoped cell's public tags) retired with PLC tag scoping: refused here with the reason, where
-  // an author can act on it; a stored package just loses it (core/parts/partPackage.ts dropRetiredExposes)
+  // an author can act on it; a stored package just loses it (core/parts/partUpgrade.ts dropRetiredExposes)
   if ((manifest as { exposes?: unknown }).exposes !== undefined) {
     diagnostics.push({ kind: 'package', message: "exposes: retired with PLC tag scoping; a part's PLC interface is its 'tag' params, wired by name. Remove it" })
   }
