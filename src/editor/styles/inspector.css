@@ -224,14 +224,8 @@
   vertical-align: middle;
 }
 
-/* the same chip, for a tag whose wiring contradicts itself (two writers, or two declared ST types) */
-.field-badge-warn {
-  background: color-mix(in srgb, #e0a32e 26%, transparent);
-  color: #e0a32e; /* the amber the GLB-material warning already uses; there is no --warn token */
-  cursor: help;
-}
-
-/* a tag field's verdict from the program (inspector/paramField.tsx ProgramTagMark): beside the box, which it outlines */
+/* everything wrong with a tag field's tag (inspector/paramField.tsx TagWarnMark): beside the box, which it outlines.
+   The amber the GLB-material warning already uses; there is no --warn token */
 .tag-warn {
   flex: none;
   display: inline-flex;
@@ -304,6 +298,12 @@
 .tag-suggest-detail {
   font-size: 10px;
   color: var(--text-dim);
+}
+.tag-suggest-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: none;
 }
 .tag-suggest-note {
   padding: 2px 8px 2px 16px;

@@ -8,8 +8,12 @@
 //               which one that is depends on part order. Always a bug.
 //   type-clash  two parts declare the same tag as different ST types. Always a bug.
 //   program-type  a part says BOOL and the program declares that var numeric (or the reverse).
-//   undriven    a part reads a tag nothing writes - it will sit at the zero value forever.
-//   unread      a part publishes a tag nobody consumes.
+//   undriven    a part reads a tag the program does not drive - it will sit at the zero value forever.
+//   unread      a part publishes a tag the program does not read.
+//
+// A part's tag connects only to the program: parts read the program's outputs, and what a part writes goes only to
+// the program's inputs (sim/behaviorBus.ts). So another part writing a tag neither drives it for a part that reads
+// it nor reads it for that part.
 //   undeclared  a part's tag param has no declared direction, so none of the above can be asked of it. Only a
 //               stored package can have one: an authored part is refused without `dir` (core/parts/partAuthoringChecks.ts).
 //   address     a part's tag is a direct address (%IX100.0) that cannot carry it: malformed, memory,
@@ -207,21 +211,23 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
       }
     }
 
-    if (readers.length > 0 && driverCount === 0) {
+    // a part writing the tag does not count: what a part writes reaches only the program, never another part
+    const partsOnly = writers.length > 0 && readers.length > 0 ? ` (a part's write reaches only the program, never another part)` : ''
+    if (readers.length > 0 && !programWrites) {
       problems.push({
         severity: 'warning',
         kind: 'undriven',
         tag,
-        message: `read by ${readers.map((r) => `${r.partLabel}.${r.paramKey}`).join(', ')} but nothing writes it - it stays at its zero value`,
+        message: `read by ${readers.map((r) => `${r.partLabel}.${r.paramKey}`).join(', ')} but the program does not drive it - it stays at its zero value${partsOnly}`,
         parts: readers.map((r) => r.partId),
       })
     }
-    if (writers.length > 0 && readers.length === 0 && !programReads) {
+    if (writers.length > 0 && !programReads) {
       problems.push({
         severity: 'warning',
         kind: 'unread',
         tag,
-        message: `written by ${writers.map((w) => `${w.partLabel}.${w.paramKey}`).join(', ')} but nothing reads it`,
+        message: `written by ${writers.map((w) => `${w.partLabel}.${w.paramKey}`).join(', ')} but the program does not read it${partsOnly}`,
         parts: writers.map((w) => w.partId),
       })
     }

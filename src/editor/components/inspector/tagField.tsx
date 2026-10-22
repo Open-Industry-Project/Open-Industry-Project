@@ -15,8 +15,8 @@ import { defineMessages, t } from '../../../core/i18n'
 const M = defineMessages('inspector.tagField', {
   placeholder: 'PLC tag…',
   more: { one: '{n} more, keep typing', other: '{n} more, keep typing' },
-  inScene: 'In this scene',
   inProgram: 'In the program',
+  uses: { one: '{n} part', other: '{n} parts' },
   read: "Read the PLC's tags",
   readAgain: "Read the PLC's tags again",
   onPlc: 'On the PLC',
@@ -47,7 +47,6 @@ export interface TagSources {
 export const TagSourcesContext = createContext<TagSources | null>(null)
 
 /** How many of each source the list shows before saying how many more fit. */
-const SCENE_LIMIT = 8
 const PROGRAM_LIMIT = 8
 const PLC_LIMIT = 50
 
@@ -55,9 +54,9 @@ const PLC_LIMIT = 50
 const LIST_MAX_HEIGHT = 300
 const EDGE = 8
 
-type Row = { kind: 'name'; name: string; detail?: string } | { kind: 'action'; label: string; run: () => void }
+type Row = { kind: 'name'; name: string; detail?: string; uses?: number } | { kind: 'action'; label: string; run: () => void }
 interface Section {
-  id: 'scene' | 'program' | 'plc'
+  id: 'program' | 'plc'
   title: string
   rows: Row[]
   /** a line under the rows: how many more fit, or why there are none */
@@ -72,7 +71,7 @@ export function TagField({
   disabled,
   labelExtra,
   extra,
-  sceneNames,
+  sceneUses,
   stType,
   onCommit,
 }: {
@@ -83,8 +82,8 @@ export function TagField({
   disabled: boolean
   labelExtra?: ReactNode
   extra?: ReactNode
-  /** the scene's own tags to offer, already filtered (not this field's value, not another type) */
-  sceneNames: readonly string[]
+  /** the tags the scene's parts hold, already filtered (not another type), with how many tag fields hold each */
+  sceneUses: ReadonlyMap<string, number>
   /** the field's declared ST type, which the program's and the scene's suggestions match */
   stType?: string
   onCommit: (v: string) => void
@@ -164,7 +163,7 @@ export function TagField({
   }
 
   const query = typed ? text : ''
-  const sections = open ? buildSections(query, sceneNames, programTagChoices(programTags, stType), sources, mixed ? '' : value) : []
+  const sections = open ? buildSections(query, sceneUses, programTags, stType, sources) : []
   const rows = sections.flatMap((s) => s.rows)
   const activate = (row: Row): void => {
     if (row.kind === 'name') pick(row.name)
@@ -266,7 +265,12 @@ export function TagField({
                     onClick={() => activate(row)}
                   >
                     <span className="tag-suggest-name">{row.kind === 'name' ? row.name : row.label}</span>
-                    {row.kind === 'name' && row.detail && <span className="tag-suggest-detail">{row.detail}</span>}
+                    {row.kind === 'name' && (row.detail || row.uses) && (
+                      <span className="tag-suggest-meta">
+                        {row.uses ? <span className="tag-suggest-detail">{t(M.uses, { count: row.uses, n: row.uses.toLocaleString() })}</span> : null}
+                        {row.detail && <span className="tag-suggest-detail">{row.detail}</span>}
+                      </span>
+                    )}
                   </div>
                 )
               })}
@@ -286,28 +290,30 @@ export function TagField({
 /** "{n} more, keep typing": `count` picks the plural form, `n` is the count as shown. */
 const moreNote = (n: number): string => t(M.more, { count: n, n: n.toLocaleString() })
 
-/** The list's sections for what is typed. Exported for its spec. */
+/**
+ * The list's sections for what is typed: the program's variables of the field's type, each with how many of the
+ * scene's tag fields hold it, then the PLC's. A name the program does not declare is not offered, even when parts
+ * hold it: a part's tag connects only to the program (sim/behaviorBus.ts), so such a name connects to nothing, and
+ * offering it would spread a typo. The field's mark says so instead. `program` is every tag the program has, of any
+ * type. Exported for its spec.
+ */
 export function buildSections(
   query: string,
-  sceneNames: readonly string[],
-  programChoices: readonly { name: string; type: string }[],
+  sceneUses: ReadonlyMap<string, number>,
+  program: readonly { name: string; type: string }[],
+  stType: string | undefined,
   sources: TagSources | null,
-  current: string,
 ): Section[] {
   const out: Section[] = []
-  const taken = new Set([current.toLowerCase()])
-  const scene = rankTagNames(query, sceneNames, SCENE_LIMIT)
-  if (scene.shown.length > 0) {
-    for (const n of scene.shown) taken.add(n.toLowerCase())
-    out.push({ id: 'scene', title: t(M.inScene), rows: scene.shown.map((name) => ({ kind: 'name', name })), notes: scene.more > 0 ? [moreNote(scene.more)] : [] })
-  }
-  // a program tag the scene already uses is listed once, under the scene
-  const inScene = new Set(sceneNames.map((n) => n.toLowerCase()))
-  const types = new Map(programChoices.map((c) => [c.name, c.type]))
-  const progNames = programChoices.map((c) => c.name).filter((n) => !inScene.has(n.toLowerCase()) && !taken.has(n.toLowerCase()))
-  const prog = rankTagNames(query, progNames, PROGRAM_LIMIT)
+  const taken = new Set<string>()
+  const uses = new Map([...sceneUses].map(([name, n]) => [name.toLowerCase(), n]))
+  const choices = programTagChoices(program, stType)
+  const types = new Map(choices.map((c) => [c.name, c.type]))
+  const prog = rankTagNames(query, choices.map((c) => c.name), PROGRAM_LIMIT)
   if (prog.shown.length > 0) {
-    out.push({ id: 'program', title: t(M.inProgram), rows: prog.shown.map((name) => ({ kind: 'name', name, detail: types.get(name) })), notes: prog.more > 0 ? [moreNote(prog.more)] : [] })
+    for (const n of prog.shown) taken.add(n.toLowerCase())
+    const rows: Row[] = prog.shown.map((name) => ({ kind: 'name', name, detail: types.get(name), uses: uses.get(name.toLowerCase()) ?? 0 }))
+    out.push({ id: 'program', title: t(M.inProgram), rows, notes: prog.more > 0 ? [moreNote(prog.more)] : [] })
   }
   if (sources?.plcLinked) out.push(plcSection(query, sources, taken))
   return out

@@ -190,32 +190,31 @@ describe('collectProblems - the program/scene name bridge', () => {
     expect(row).toMatchObject({ severity: 'warning', group: 'Wiring', subject: 'Motor' })
   })
 
-  it('drops the vaguer unwired row when a wiring row already covers that tag', () => {
+  it('says on the wiring row when the program does not declare the tag, rather than in a second row', () => {
     registerPackage(SENSOR)
-    // Spare is written by two sensors (contested) and the program never declares it, so both checks
-    // fire on one tag; only the wiring row - which names the parts - should survive.
+    // Spare is written by two sensors (contested) and the program never declares it
     const r = collectProblems(
       input({
         stProgram: GOOD_PROGRAM,
         parts: [part('s1', 't.sensor', { tag: 'Spare' }), part('s2', 't.sensor', { tag: 'Spare' })],
       }),
     )
-    expect(r.problems.some((p) => p.key === 'unwired:Spare')).toBe(false)
-    // the wiring rows themselves stay: contested and unread are two different mistakes on one tag
+    // contested and unread are two different mistakes on one tag
     expect(r.problems.filter((p) => p.subject === 'Spare').map((p) => p.key)).toEqual(['wiring:contested:Spare', 'wiring:unread:Spare'])
+    expect(r.problems.find((p) => p.key === 'wiring:unread:Spare')?.message).toMatch(/does not declare it, which is usually a typo$/)
+    expect(r.problems.find((p) => p.key === 'wiring:contested:Spare')?.message).not.toMatch(/typo/)
   })
 
-  it('keeps the unwired row when nothing else reported that tag', () => {
+  it('reports a tag parts both write and read, which the program never declares: a part write reaches no part', () => {
     registerPackage(CONVEYOR)
-    // Typo drives Spare and the conveyor reads it, so wiring is content; the program never declares it
     const r = collectProblems(
       input({
         stProgram: GOOD_PROGRAM,
         parts: [part('c1', 't.conveyor', { runTag: 'Spare', runningTag: 'Spare' })],
       }),
     )
-    const row = r.problems.find((p) => p.key === 'unwired:Spare')
-    expect(row).toMatchObject({ severity: 'warning', parts: ['c1'] })
+    expect(r.problems.filter((p) => p.subject === 'Spare').map((p) => p.key)).toEqual(['wiring:undriven:Spare', 'wiring:unread:Spare'])
+    expect(r.problems.find((p) => p.key === 'wiring:undriven:Spare')).toMatchObject({ severity: 'warning', parts: ['c1'] })
   })
 })
 

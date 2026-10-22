@@ -41,35 +41,40 @@ describe('the sections of the list', () => {
   ]
   const sources = (over: Partial<TagSources> = {}): TagSources => ({ check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, ...over })
 
-  it('lists a program tag the scene already uses once, under the scene', () => {
-    const s = buildSections('', ['Motor1'], [{ name: 'Motor1', type: 'BOOL' }, { name: 'Start', type: 'BOOL' }], sources({ plcLinked: false }), '')
-    expect(s.map((x) => x.id)).toEqual(['scene', 'program'])
-    expect(s[1]!.rows).toEqual([{ kind: 'name', name: 'Start', detail: 'BOOL' }])
+  const program = [{ name: 'Motor1', type: 'BOOL' }, { name: 'Start', type: 'BOOL' }, { name: 'Speed', type: 'REAL' }]
+
+  it("lists the program's tags of the field's type with their uses, and no name the program lacks", () => {
+    const s = buildSections('', new Map([['Motor1', 2], ['Motr', 1], ['Speed', 1]]), program, 'BOOL', sources({ plcLinked: false }))
+    expect(s.map((x) => x.id)).toEqual(['program'])
+    expect(s[0]!.rows).toEqual([
+      { kind: 'name', name: 'Motor1', detail: 'BOOL', uses: 2 },
+      { kind: 'name', name: 'Start', detail: 'BOOL', uses: 0 },
+    ])
   })
 
   it('offers to read the PLC\'s tags before any have been read', () => {
-    const s = buildSections('', [], [], sources(), '')
+    const s = buildSections('', new Map(), [], undefined, sources())
     expect(s).toHaveLength(1)
     expect(s[0]!.rows).toEqual([{ kind: 'action', label: 'Read the PLC\'s tags', run: expect.any(Function) }])
   })
 
   it('lists the PLC\'s tags only once something is typed', () => {
     const plc = plcTagListOf('opc.tcp://plc:4840', { variables, truncated: false })
-    const idle = buildSections('', [], [], sources({ plc }), '')
+    const idle = buildSections('', new Map(), [], undefined, sources({ plc }))
     expect(idle[0]!.title).toBe('On the PLC (2 tags)')
     expect(idle[0]!.rows.filter((r) => r.kind === 'name')).toEqual([])
     expect(idle[0]!.notes).toEqual(['Type to search them.'])
-    const typed = buildSections('mot', [], [], sources({ plc }), '')
+    const typed = buildSections('mot', new Map(), [], undefined, sources({ plc }))
     expect(typed[0]!.rows.filter((r) => r.kind === 'name')).toEqual([{ kind: 'name', name: 'Motor' }])
   })
 
   it('says when the PLC holds more than was read', () => {
     const plc = plcTagListOf('opc.tcp://plc:4840', { variables, truncated: true })
-    expect(buildSections('e', [], [], sources({ plc, canReadPlc: false }), '')[0]!.notes).toEqual([expect.stringContaining('more tags than were read')])
+    expect(buildSections('e', new Map(), [], undefined, sources({ plc, canReadPlc: false }))[0]!.notes).toEqual([expect.stringContaining('more tags than were read')])
   })
 
   it('leaves the PLC out when the link is not OPC UA', () => {
-    expect(buildSections('', [], [], sources({ plcLinked: false }), '')).toEqual([])
+    expect(buildSections('', new Map(), [], undefined, sources({ plcLinked: false }))).toEqual([])
   })
 })
 

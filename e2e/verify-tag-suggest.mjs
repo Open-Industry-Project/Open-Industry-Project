@@ -80,9 +80,9 @@ async function main() {
     await field.click()
     await list.waitFor({ timeout: 5000 })
     await page.waitForFunction(() => !!document.querySelector('[data-testid="tag-suggest-program"]'), { timeout: 10000 }).catch(() => {})
-    const scene = await names('scene')
     const program = await names('program')
-    check('the scene section offers the tag another belt uses', scene.some((t) => t.startsWith('Motor')), JSON.stringify(scene))
+    const listed = await list.getByTestId('tag-suggest-item').allTextContents()
+    check('a name another belt uses, which the program lacks, is not offered', !listed.some((t) => t.startsWith('Motor')), JSON.stringify(listed))
     check('the program section offers its BOOL, not its REAL', program.some((t) => t.startsWith('Start')) && !program.some((t) => t.startsWith('Speed')), JSON.stringify(program))
     check('no PLC section while the link is not OPC UA', (await list.getByTestId('tag-suggest-plc').count()) === 0)
     await page.keyboard.press('Escape')
@@ -152,17 +152,59 @@ async function main() {
     await page.keyboard.press('Enter')
     tag = await page.evaluate(() => window.__oip.store.getState().scene.parts.find((p) => p.id === 'b2').params.runTag)
     check('a typed name is still taken as typed', tag === 'PhotoEye1', tag)
-    const badge = page.getByTestId('tag-plc-badge')
+    const badge = page.locator('[data-testid="tag-warn"][data-kinds~="plc"]')
     await badge.waitFor({ timeout: 3000 }).catch(() => {})
-    const badgeText = (await badge.count()) ? await badge.textContent() : null
     const badgeTitle = (await badge.count()) ? await badge.getAttribute('title') : null
-    check('it carries a "not on PLC" chip', badgeText === 'not on PLC', String(badgeText))
+    check('it carries a warning mark that the PLC lacks it', /the PLC has no tag named PhotoEye1/.test(badgeTitle ?? ''), String(badgeTitle))
     check('naming the closest tag', /Closest: PhotoEye_1/.test(badgeTitle ?? ''), String(badgeTitle))
 
     // the other belt's tag is bound to a name the PLC does not hold either; back in serve mode there is no chip at all
     await page.evaluate(() => window.__oip.store.setExternalPlc({ mode: 'serve' }))
     await page.waitForTimeout(200)
-    check('no PLC chip once the link is not OPC UA', (await badge.count()) === 0)
+    check('no PLC warning once the link is not OPC UA', (await badge.count()) === 0)
+
+    // ---- the field's own tag is offered while it is retyped (it stays the saved value until a commit), with its uses
+    await page.evaluate(() => {
+      const { store } = window.__oip
+      const scene = store.getState().scene
+      store.commit('Edit runTag', { ...scene, parts: scene.parts.map((p) => (p.id === 'b1' ? { ...p, params: { ...p.params, runTag: 'Start' } } : p)) })
+      store.select('b1')
+    })
+    await field.click()
+    await field.fill('Sta')
+    await list.waitFor({ timeout: 5000 })
+    const own = await names('program')
+    check("retyping the field's own tag lists it, used by one part", own.some((t) => /^Start1 part/.test(t)), JSON.stringify(own))
+    await page.keyboard.press('Escape')
+    await page.evaluate(() => window.__oip.store.select('b2'))
+
+    // ---- the warning mark beside the box: the program's word on a tag (editor/program/tagVerdicts.ts)
+    const kindsOf = (re) =>
+      page.evaluate((src) => {
+        const label = [...document.querySelectorAll('.field-label')].find((l) => new RegExp(src, 'i').test(l.textContent ?? ''))
+        return label?.closest('label')?.querySelector('[data-testid="tag-warn"]')?.getAttribute('data-kinds') ?? ''
+      }, re)
+    const setB2 = (params) =>
+      page.evaluate((params) => {
+        const { store } = window.__oip
+        const scene = store.getState().scene
+        store.commit('Edit tags', { ...scene, parts: scene.parts.map((p) => (p.id === 'b2' ? { ...p, params: { ...p.params, ...params } } : p)) })
+        store.select('b2')
+      }, params)
+    await page.evaluate(() => window.__oip.store.loadStProgram('VAR\n  Start : BOOL;\n  Speed : BOOL;\nEND_VAR\n', { persist: false }))
+    await setB2({ enableComms: true, runTag: 'Strt', speedTag: 'Speed' })
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="tag-warn"]').length >= 2, { timeout: 10000 }).catch(() => {})
+    const runKinds = await kindsOf('^Run tag')
+    const speedKinds = await kindsOf('^Speed tag')
+    check('a name the program does not declare is marked', runKinds.split(' ').includes('undeclared'), runKinds)
+    check('a REAL field on a BOOL variable is marked', speedKinds.split(' ').includes('type'), speedKinds)
+    await page.evaluate(() => window.__oip.store.loadStProgram('VAR\n  Strt : BOOL;\n  Speed : REAL;\nEND_VAR\n', { persist: false }))
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="tag-warn"]').length === 0, { timeout: 10000 }).catch(() => {})
+    check('declaring them clears both marks', (await kindsOf('^Run tag')) === '' && (await kindsOf('^Speed tag')) === '')
+    await setB2({ enableComms: false, runTag: 'Nope' })
+    await page.waitForTimeout(800)
+    check('a part with comms off gets no program mark', !(await kindsOf('^Run tag')).includes('undeclared'))
+    await setB2({ enableComms: true, runTag: '', speedTag: '' })
 
     // ---- two instances of one program: each instance's variables, by the qualified names wiring binds
     await page.evaluate((src) => window.__oip.store.loadStProgram(src, { persist: false }), TWO_LINES)

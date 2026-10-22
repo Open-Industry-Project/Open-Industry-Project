@@ -58,16 +58,12 @@ const M = defineMessages('inspector.paramField', {
   dirWrite: 'write',
   typeClash: 'Wired to a tag other parts declare as {types}. One of them is reading the wrong thing.',
   writerClash: 'Another part writes this tag too. The last one to run wins, and which that is depends on part order.',
-  clash: 'clash',
-  badAddress: 'bad address',
   declaresAt: 'The program declares {name} AT {address}',
   leaveGuardMode: 'Leave guard-openings mode (G or Esc)',
   enterGuardMode: 'Draw, resize and remove openings on the guards in the viewport (G)',
   doneEditing: 'Done editing',
   editInViewport: 'Edit in viewport',
   closest: '{error}. Closest: {names}',
-  notOnPlc: 'not on PLC',
-  ambiguous: 'ambiguous',
   notInProgram: 'The program does not declare {tag}, so it neither reads nor drives it. Usually a typo, or a variable not written yet.',
   wrongType: 'The program declares {tag} as {programType}, and this field carries {fieldType}.',
 })
@@ -444,12 +440,11 @@ export function ParamField({
     case 'tagRef': {
       const current = typeof shared === 'string' ? shared : spec.default
       const { suggestions: pool, signals, located } = tagIndex()
-      // Suggestions = tags already bound elsewhere, minus this field's own value (never offer a dupe) and
-      // minus any tag another part declares as a different ST type: the one filter that can't hide a
-      // legitimate pick. Not filtered by direction: a tag no part writes is most often one the program drives
+      // Suggestions = tags already bound in the scene, this field's own among them (it is what is typed until a
+      // commit, so leaving it out hid the name while it was being retyped), minus any tag another part declares as a
+      // different ST type: the one filter that can't hide a legitimate pick. Not filtered by direction: a tag no part writes is most often one the program drives
       // (a conveyor's runTag bound to the program's Motor output). The program's own tags are TagField's.
       const suggestions = pool.filter((t) => {
-        if (!mixed && t === current) return false
         const types = signals.get(t)?.types
         return !spec.stType || !types || types.size === 0 || types.has(spec.stType)
       })
@@ -476,7 +471,7 @@ export function ParamField({
           mixed={mixed}
           tooltip={tooltip}
           disabled={disabled}
-          sceneNames={suggestions}
+          sceneUses={new Map(suggestions.map((name) => [name, signals.get(name)?.uses ?? 0]))}
           stType={spec.stType}
           labelExtra={
             <>
@@ -486,27 +481,23 @@ export function ParamField({
                   {spec.stType ? ` ${spec.stType}` : ''}
                 </span>
               )}
-              {problem && (
-                <span className="field-badge field-badge-warn" title={problem}>
-                  {t(M.clash)}
-                </span>
-              )}
-              {addressError && (
-                <span className="field-badge field-badge-warn" title={addressError}>
-                  {t(M.badAddress)}
-                </span>
-              )}
               {locatedName && (
                 <span className="field-badge" title={t(M.declaresAt, { name: locatedName, address: current })}>
                   = {locatedName}
                 </span>
               )}
-              {!mixed && !address && <PlcTagBadge tag={current} />}
             </>
           }
           extra={
             <>
-              {!mixed && !address && current !== '' && commsOn(part) && <ProgramTagMark tag={current} stType={spec.stType} parts={allParts} />}
+              <TagWarnMark
+                tag={mixed ? '' : current}
+                stType={spec.stType}
+                parts={allParts}
+                reasons={[...(problem ? [{ kind: 'clash' as const, why: problem }] : []), ...(addressError ? [{ kind: 'address' as const, why: addressError }] : [])]}
+                byName={!mixed && !address}
+                connected={commsOn(part)}
+              />
               {revertArrow}
             </>
           }
@@ -735,37 +726,52 @@ function useProgramVerdicts(parts: readonly PartInstance[], check: ProgramCheck 
   return fresh ?? held
 }
 
+type TagWarning = { kind: 'clash' | 'address' | 'plc' | 'undeclared' | 'type'; why: string }
+
 /**
- * On a tag field of a part with comms on: a name the program does not declare, or declares as the other kind of value
- * (a bit where the field carries a number, or the reverse). The Problems panel lists the same two as `unwired` and
- * `program-type`; this says it where the name is typed. Nothing is said without a program that compiles. A mark beside
- * the box, which it outlines, rather than a chip on the label: the label column ellipsizes its chips.
+ * Everything wrong with a tag field's tag, as one mark beside the box, which it outlines, with each reason a line of
+ * its title. A mark rather than a chip on the label, because the label column ellipsizes its chips. `reasons` are the
+ * scene's own (parts disagreeing over the tag, a malformed address); the mark adds the PLC's and the program's when
+ * the tag is a name (`byName`). `connected` is whether the part's comms are on: a part with comms off is wired to
+ * nothing, so the program has nothing to say about its tag.
  */
-function ProgramTagMark({ tag, stType, parts }: { tag: string; stType?: string; parts: readonly PartInstance[] }) {
-  const check = useContext(TagSourcesContext)?.check
-  const verdict = useProgramVerdicts(parts, check)?.get(tag)
-  if (!verdict) return null
-  const why = !verdict.declared
-    ? t(M.notInProgram, { tag })
-    : stType && verdict.type && (verdict.type === 'BOOL') !== (stType === 'BOOL')
-      ? t(M.wrongType, { tag, programType: verdict.type, fieldType: stType })
-      : null
-  if (!why) return null
+function TagWarnMark({ tag, stType, parts, reasons, byName, connected }: { tag: string; stType?: string; parts: readonly PartInstance[]; reasons: readonly TagWarning[]; byName: boolean; connected: boolean }) {
+  const plc = usePlcTagWarning(byName ? tag : '')
+  const program = useProgramTagWarning(byName && connected ? tag : '', stType, parts)
+  const all = [...reasons, ...(plc ? [plc] : []), ...(program ? [program] : [])]
+  if (all.length === 0) return null
+  const title = all.map((w) => w.why).join('\n')
   return (
-    <span className="tag-warn" role="img" title={why} aria-label={why} data-testid="tag-program-mark" data-verdict={verdict.declared ? 'type' : 'undeclared'}>
+    <span className="tag-warn" role="img" title={title} aria-label={title} data-testid="tag-warn" data-kinds={all.map((w) => w.kind).join(' ')}>
       {'!' /* i18n-ok: a mark, its words are the title */}
     </span>
   )
 }
 
 /**
- * On a tag field, when the scene's OPC UA PLC has been read: a tag the PLC does not hold, or holds more than once,
- * says so where it is typed, with the names closest to it. The link would refuse it at Play anyway
- * (core/io/opcUa.ts matchOpcUaTag); this is the same verdict, before Play.
+ * The program's word on a tag (program/tagVerdicts.ts): a name it does not declare, or declares as the other kind of
+ * value (a bit where the field carries a number, or the reverse). The Problems panel says the same on its wiring rows.
+ * Nothing without a program that compiles, or for '' (no tag, or not one to ask about).
  */
-function PlcTagBadge({ tag }: { tag: string }) {
+function useProgramTagWarning(tag: string, stType: string | undefined, parts: readonly PartInstance[]): TagWarning | null {
+  const check = useContext(TagSourcesContext)?.check
+  const verdict = useProgramVerdicts(parts, tag === '' ? undefined : check)?.get(tag)
+  if (!verdict) return null
+  if (!verdict.declared) return { kind: 'undeclared', why: t(M.notInProgram, { tag }) }
+  if (stType && verdict.type && (verdict.type === 'BOOL') !== (stType === 'BOOL')) {
+    return { kind: 'type', why: t(M.wrongType, { tag, programType: verdict.type, fieldType: stType }) }
+  }
+  return null
+}
+
+/**
+ * When the scene's OPC UA PLC has been read: a tag the PLC does not hold, or holds more than once, with the names
+ * closest to it. The link would refuse it at Play anyway (core/io/opcUa.ts matchOpcUaTag); this is the same verdict,
+ * before Play.
+ */
+function usePlcTagWarning(tag: string): TagWarning | null {
   const plc = useContext(TagSourcesContext)?.plc
-  const verdict = useMemo(() => {
+  return useMemo(() => {
     if (!plc || plc.state !== 'ready' || tag === '' || tag.includes('/')) return null
     const m = matchOpcUaTag(tag, plc.variables)
     if (!('error' in m)) return null
@@ -773,13 +779,6 @@ function PlcTagBadge({ tag }: { tag: string }) {
     // a browse that stopped at its limit cannot say a name is missing, only that it did not reach it
     if (missing && plc.truncated) return null
     const close = missing ? closestOpcUaTagNames(tag, plc.names) : []
-    const title = close.length > 0 ? t(M.closest, { error: m.error, names: close.join(', ') }) : m.error
-    return { text: t(missing ? M.notOnPlc : M.ambiguous), title }
+    return { kind: 'plc', why: close.length > 0 ? t(M.closest, { error: m.error, names: close.join(', ') }) : m.error }
   }, [plc, tag])
-  if (!verdict) return null
-  return (
-    <span className="field-badge field-badge-warn" title={verdict.title} data-testid="tag-plc-badge">
-      {verdict.text}
-    </span>
-  )
 }

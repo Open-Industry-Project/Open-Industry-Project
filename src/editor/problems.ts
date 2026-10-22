@@ -285,6 +285,11 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
 
   // wiring: does the tag plumbing connect (direction- and type-aware)
   const wiring = checkWiring(input.parts, link ?? undefined)
+  // the program/scene name bridge: declared-but-unhandled, wired-but-undeclared
+  const { unbound, unwired } = link ? unhandledProgramTags(input.parts, link) : { unbound: [], unwired: [] }
+  // A tag the program never declares is always undriven or unread too, since a part's tag connects only to the
+  // program. That row names the parts and can be clicked, so it carries the likelier cause instead of a second row.
+  const undeclared = new Set(unwired)
   for (const p of wiring.problems) {
     // `undriven`/`unread` ask whether anything drives or reads a tag, and the program counts as a
     // writer/reader. So with no link they fire on every tag the program handles. Those warnings are
@@ -298,7 +303,7 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
       severity: p.severity,
       group: 'Wiring',
       subject: p.tag,
-      message: p.message,
+      message: (p.kind === 'undriven' || p.kind === 'unread') && undeclared.has(p.tag) ? `${p.message}. The program does not declare it, which is usually a typo` : p.message,
       parts: p.parts,
     })
   }
@@ -306,35 +311,15 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
     notes.push(`Tags unknown for ${wiring.unresolvedPackages.join(', ')}: the package is not loaded, so parts using it were not checked.`)
   }
 
-  // the program/scene name bridge: declared-but-unhandled, wired-but-undeclared
-  if (link) {
-    const { unbound, unwired } = unhandledProgramTags(input.parts, link)
-    for (const tag of unbound) {
-      problems.push({
-        key: `unbound:${tag}`,
-        severity: 'warning',
-        group: 'Wiring',
-        subject: tag,
-        message: 'the program declares it, but no part reads or writes it',
-        parts: [],
-      })
-    }
-    // A tag the program never declares is usually a typo - but if the wiring walk already reported
-    // that same tag (undriven, unread, contested), this row would be a second, vaguer sentence about
-    // one mistake. The wiring row wins: it names the parts, and it is the one you can click.
-    const alreadyReported = new Set(wiring.problems.map((p) => p.tag))
-    for (const tag of unwired) {
-      if (alreadyReported.has(tag)) continue
-      const wired = wiring.tags.find((t) => t.name === tag)
-      problems.push({
-        key: `unwired:${tag}`,
-        severity: 'warning',
-        group: 'Wiring',
-        subject: tag,
-        message: 'parts wire it, but the program declares it in neither direction (usually a typo)',
-        parts: wired ? [...new Set([...wired.writers, ...wired.readers])] : [],
-      })
-    }
+  for (const tag of unbound) {
+    problems.push({
+      key: `unbound:${tag}`,
+      severity: 'warning',
+      group: 'Wiring',
+      subject: tag,
+      message: 'the program declares it, but no part reads or writes it',
+      parts: [],
+    })
   }
   // A `@bind` pragma names a scoped cell's tags, and this build has no tag scope, so one left in a
   // program is a comment that binds nothing. Said where it stands, since the program around it still compiles.

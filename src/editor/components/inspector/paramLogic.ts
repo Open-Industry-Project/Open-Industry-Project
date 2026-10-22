@@ -100,6 +100,8 @@ export function buildParamTooltip(spec: ParamSpec, label: string, desc: string |
 export interface TagSignal {
   writers: number
   readers: number
+  /** the tag fields in the scene that hold it, whatever their direction */
+  uses: number
   types: Set<string>
 }
 
@@ -126,7 +128,8 @@ export function buildSceneTagIndex(allParts: readonly PartInstance[], program = 
       if (s.kind !== 'tagRef') continue
       const v = (p.params as unknown as Record<string, ParamValue>)[s.key]
       if (typeof v !== 'string' || v === '') continue
-      const entry = signals.get(v) ?? { writers: 0, readers: 0, types: new Set<string>() }
+      const entry = signals.get(v) ?? { writers: 0, readers: 0, uses: 0, types: new Set<string>() }
+      entry.uses++
       if (s.dir === 'out') entry.writers++
       else if (s.dir === 'in') entry.readers++
       if (s.stType) entry.types.add(s.stType)
