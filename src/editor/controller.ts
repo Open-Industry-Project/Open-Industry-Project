@@ -470,6 +470,10 @@ export class EditorController {
     runOps.togglePause(this)
   }
 
+  step(): void {
+    runOps.step(this)
+  }
+
   /** Set the simulation speed multiplier. Applies live to a
    *  running sim and persists for the next run; usable while stopped. */
   setTimeScale(scale: number): void {

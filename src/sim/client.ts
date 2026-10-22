@@ -335,6 +335,12 @@ export class SimClient {
     this.post({ type: 'setPaused', paused })
   }
 
+  /** while paused: advance one fixed step (the worker ignores it while running) */
+  step(): void {
+    if (!this._running) return
+    this.post({ type: 'step' })
+  }
+
   /** scale the sim clock (slow-motion <1, fast-forward >1); applied live while running.
    *  A speed chosen while stopped is re-pushed by the controller on the next start. */
   setTimeScale(scale: number): void {

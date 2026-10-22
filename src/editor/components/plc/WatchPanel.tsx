@@ -4,6 +4,7 @@ import type { TagValue } from '../../../plc'
 import { deviceTags, devicesForTag, type DeviceTagUse } from '../../../plc/bindings'
 import { listTags } from '../../../plc/tags'
 import type { ScanTime } from '../../../sim/plcHost'
+import { commandChord, commandDisabledReason, commandEnabled, getCommand, runCommand } from '../../commands'
 import type { EditorController } from '../../controller'
 import type { EditorState, EditorStore } from '../../store/store'
 import { declaredTypeSets, formatPlcValue, typeOfKey, type DeclaredTypes } from '../../program/plcValueText'
@@ -19,6 +20,10 @@ const M = defineMessages('plcWatch', {
   scanTitle:
     'How long the scans took to execute on this computer. The interval is simulated time, so a long scan slows the whole simulation instead of making the task late.',
   scanCount: { one: '{count} scan timed', other: '{count} scans timed' },
+  step: 'Step',
+  stepTitle: 'Advance the paused simulation by one physics step, with the scans due in it',
+  stepTitleKey: 'Advance the paused simulation by one physics step, with the scans due in it ({chord})',
+  withChord: '{text} ({chord})',
   reset: 'Reset',
   resetTitle: 'Start the average and the maximum over',
   stopped: 'Press Play to see live values and scan times',
@@ -59,6 +64,18 @@ const MAX_SUGGESTIONS = 2000
 const MAX_PARTS = 3
 /** How long the declared types wait after an edit before they are read again: they take a parse. */
 const TYPES_DELAY_MS = 250
+
+/**
+ * The Step button's tooltip: what it does, or while it is greyed why (commands.ts disabledReason), with the chord
+ * this surface binds (F7 in the desktop app, Shift+. in the browser) so the tooltip also teaches the key.
+ */
+function stepTitle(): string {
+  const cmd = getCommand('sim.step')
+  const chord = cmd ? commandChord(cmd) : ''
+  const reason = commandDisabledReason('sim.step')
+  if (reason) return chord ? t(M.withChord, { text: reason, chord }) : reason
+  return chord ? t(M.stepTitleKey, { chord }) : t(M.stepTitle)
+}
 
 /** A scan time in the unit that keeps it readable: microseconds below a millisecond. */
 function duration(ms: number): string {
@@ -320,6 +337,11 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
                 </div>
               ))}
             </div>
+            {/* Here rather than in the toolbar: stepping is for watching values change, and these are the values.
+                Greyed while running rather than hidden, so whoever has this dock open learns that it exists. */}
+            <button type="button" className="plc-watch-btn" data-testid="plc-watch-step" disabled={!commandEnabled('sim.step')} title={stepTitle()} onClick={() => runCommand('sim.step')}>
+              {t(M.step)}
+            </button>
             <button type="button" className="plc-watch-btn" data-testid="plc-watch-reset" title={t(M.resetTitle)} onClick={() => controller?.resetPlcScanTimes()}>
               {t(M.reset)}
             </button>

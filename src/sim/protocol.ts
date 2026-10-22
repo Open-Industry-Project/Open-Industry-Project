@@ -46,6 +46,8 @@ export type MainToWorker =
   | { type: 'setGrabbedPose'; bodyId: number; position: [number, number, number]; quat: [number, number, number, number] }
   | { type: 'releaseBody'; bodyId: number }
   | { type: 'setPaused'; paused: boolean }
+  // while paused: advance one fixed physics step, with the PLC scans that fall due in it. Ignored while running.
+  | { type: 'step' }
   | { type: 'setTimeScale'; scale: number }
   // the PLC→part half of the device-IO bus, injected from the main thread: tag values fed to custom-part
   // behaviors as the tags they read (ctx.readTag/readNumber). The local program's scans do not route
@@ -177,9 +179,9 @@ export type WorkerToMain =
       shapesKept?: true
       shapeRefsNew?: Record<string, CargoShapeRef>
       marks?: Record<string, Record<string, number | boolean | string>>
-      // published while paused with no step behind it: a held edit (a gizmo drag teleporting a body, a live
-      // scene edit) changed the world and the view has to catch up. simTime did not move, so SimClient keeps
-      // it out of the rate clock, where it would read as a stalled sim.
+      // published while paused: a held edit (a gizmo drag teleporting a body, a live scene edit) changed the
+      // world and the view has to catch up, or a Step advanced it by one step. Neither says anything about how
+      // fast the sim runs, so SimClient keeps it out of the rate clock, where it would read as a stalled sim.
       paused?: true
       // in-worker PLC state (watch / %I / %Q / scan telemetry), present while a program is attached -
       // the main thread's watch table and IO monitor render from this, at frame cadence

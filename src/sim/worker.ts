@@ -48,6 +48,8 @@ const HELD_EDITS = new Set<MainToWorker['type']>(['update', 'updatePatch', 'adop
 let liveScene: SceneJSON | null = null
 // a held edit landed while paused and no frame has shown it yet
 let heldDirty = false
+// Step presses not yet run. The paused loop runs them on its next tick, so a step queued behind an edit sees it.
+let stepsRequested = 0
 
 self.onmessage = (e: MessageEvent<MainToWorker>) => {
   if (e.data.type === 'beacon') {
@@ -79,9 +81,9 @@ function post(msg: WorkerToMain, transfer: Transferable[] = []): void {
 // program just attached sends it at once, so nothing waits a tenth of a second for its first values
 let watchSentAt = -Infinity
 let watchSentFor: PlcHost | null = null
-function plcFrame(host: PlcHost): PlcFrameWire {
+function plcFrame(host: PlcHost, force: boolean): PlcFrameWire {
   const now = performance.now()
-  if (watchSentFor === host && now - watchSentAt < 1000 / WATCH_HZ) return host.snapshot({ watch: false })
+  if (!force && watchSentFor === host && now - watchSentAt < 1000 / WATCH_HZ) return host.snapshot({ watch: false })
   watchSentAt = now
   watchSentFor = host
   return host.snapshot()
@@ -157,6 +159,7 @@ async function handle(msg: MainToWorker): Promise<void> {
       plc = null // fresh world, fresh program: the controller's attach message follows its 'start'
       stepMsTotal = stepMsMax = stepsDone = frameMsTotal = framesDone = plcMsTotal = 0
       resetFrameWire()
+      stepsRequested = 0
       world = new SimWorld(jolt, msg.scene, { benchRaw, forceJsListener, perfParts, hz: msg.hz })
       liveScene = msg.scene
       // ...but don't step it yet when the caller says it has more to send. Ownership ('setDrivenTags') and
@@ -196,6 +199,9 @@ async function handle(msg: MainToWorker): Promise<void> {
     } else if (msg.type === 'setPaused') {
       // hold the world but stop stepping; the loop keeps running so resume is instant
       paused = msg.paused
+      stepsRequested = 0
+    } else if (msg.type === 'step') {
+      if (paused && world) stepsRequested++
     } else if (msg.type === 'setTimeScale') {
       // applied live by the running loop on its next tick
       timeScale = msg.scale
@@ -231,6 +237,7 @@ async function handle(msg: MainToWorker): Promise<void> {
     } else {
       stopLoop()
       paused = false
+      stepsRequested = 0
       plc = null
       world?.dispose()
       world = null
@@ -261,6 +268,19 @@ function startLoop(): void {
     if (paused) {
       last = performance.now()
       wasPaused = true
+      if (stepsRequested > 0) {
+        const n = stepsRequested
+        stepsRequested = 0
+        heldDirty = false // the stepped frame shows any held edit too
+        try {
+          for (let i = 0; i < n; i++) advance(w, stepSec)
+          postFrame(w, true, true)
+        } catch (err) {
+          stopLoop()
+          post({ type: 'error', message: err instanceof Error ? err.message : String(err) })
+        }
+        return
+      }
       // Nothing steps, but a held edit still changed the world: a gizmo drag teleports a body, a live
       // edit adds or removes cargo, a promotion adopts one. Publish that unstepped, or the view, the
       // gizmo anchor and every live pick keep reading the pre-pause frame - the dragged box stays
@@ -300,27 +320,7 @@ function startLoop(): void {
       const maxSteps = catchUpSteps(timeScale, hz)
       let steps = 0
       while (acc >= stepMs && steps < maxSteps) {
-        // Interleave the PLC scan before each step, on the fixed step dt (sim time): the scan reads
-        // the tags behaviors wrote last step and its outputs apply to the step about to run. The
-        // same lockstep as the headless project-test runner, exactly reproducible at any frame
-        // rate or timeScale (see PlcHost). A runtime scan fault drops the program to STOP (detach +
-        // report) without touching the physics loop, like a faulted PLC leaving the machine powered.
-        if (plc) {
-          const tp = performance.now()
-          try {
-            plc.interleave(w, stepSec)
-          } catch (err) {
-            plc = null
-            post(plcFaultMsg(err))
-          }
-          plcMsTotal += performance.now() - tp
-        }
-        const t0 = performance.now()
-        w.step()
-        const dt = performance.now() - t0
-        stepMsTotal += dt
-        if (dt > stepMsMax) stepMsMax = dt
-        stepsDone++
+        advance(w, stepSec)
         acc -= stepMs
         steps++
       }
@@ -334,6 +334,31 @@ function startLoop(): void {
   }, 8)
 }
 
+/** one fixed step: the PLC scans that fall due, then physics. The running loop and a paused Step both come here. */
+function advance(w: SimWorld, stepSec: number): void {
+  // Interleave the PLC scan before each step, on the fixed step dt (sim time): the scan reads
+  // the tags behaviors wrote last step and its outputs apply to the step about to run. The
+  // same lockstep as the headless project-test runner, exactly reproducible at any frame
+  // rate or timeScale (see PlcHost). A runtime scan fault drops the program to STOP (detach +
+  // report) without touching the physics loop, like a faulted PLC leaving the machine powered.
+  if (plc) {
+    const tp = performance.now()
+    try {
+      plc.interleave(w, stepSec)
+    } catch (err) {
+      plc = null
+      post(plcFaultMsg(err))
+    }
+    plcMsTotal += performance.now() - tp
+  }
+  const t0 = performance.now()
+  w.step()
+  const dt = performance.now() - t0
+  stepMsTotal += dt
+  if (dt > stepMsMax) stepMsMax = dt
+  stepsDone++
+}
+
 // partIds + dressings go out only when they changed (frameWire.ts); reset whenever the world is rebuilt or
 // dropped, so a new world's first frame carries both in full
 const frameWire = new FrameWireEncoder()
@@ -341,8 +366,11 @@ function resetFrameWire(): void {
   frameWire.reset()
 }
 
-/** snapshot the world and ship it to the main thread; `held` = published while paused, no step behind it */
-function postFrame(w: SimWorld, held: boolean): void {
+/**
+ * snapshot the world and ship it to the main thread. `held` = published while paused (a held edit or a Step);
+ * `fullWatch` = carry the variable table even inside its 1/WATCH_HZ window, so a Step shows the values it made.
+ */
+function postFrame(w: SimWorld, held: boolean, fullWatch = false): void {
   const tf = performance.now()
   const f = w.frame()
   const flowFacts = w.drainFlowFacts()
@@ -372,7 +400,7 @@ function postFrame(w: SimWorld, held: boolean): void {
       ...(f.beamHits ? { beamHits: f.beamHits } : {}),
       ...(f.marks ? { marks: f.marks } : {}),
       ...(held ? { paused: true as const } : {}),
-      ...(plc ? { plc: plcFrame(plc) } : {}),
+      ...(plc ? { plc: plcFrame(plc, fullWatch) } : {}),
       ...(flowFacts.length > 0 ? { flowFacts } : {}),
       stepStats: { totalMs: stepMsTotal, steps: stepsDone, maxMs: stepMsMax, frameTotalMs: frameMsTotal, frames: framesDone, plcTotalMs: plcMsTotal, ...(plc ? { plcSplit: { ...plc.perf } } : {}), worstStep: { ...w.worstStep }, overBudgetSteps: w.overBudgetSteps, ...(w.perfParts ? { worstScriptCall: { ...w.worstScriptCall } } : {}), phases: { ...w.phaseMs, ...w.scriptPerf() }, scriptMsByPart: Object.fromEntries(w.scriptMsByPart), rigMsByPart: Object.fromEntries(w.rigMsByPart), ...w.bodyStats() },
     },

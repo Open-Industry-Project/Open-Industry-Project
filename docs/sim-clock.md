@@ -39,6 +39,7 @@ second, and the scans follow the steps.
 | Slow render frame, GC pause, main-thread jank | Invisible to control logic: the worker never waits on the main thread. |
 | 144 Hz display vs 60 Hz sim | Render cadence does not matter. The watch table re-renders whatever state the frames carry. |
 | Refocus | The worker resyncs its step clock on unpause (`last = now; acc = 0`). There is no banked backlog, so no physics burst and no scan burst. |
+| Step (while paused) | One `1/hz` step through the same scan-then-step path as the loop, so the scans due in it run too. A program scanning every 10 ms at 60 Hz runs one or two scans per Step; one scanning every 50 ms runs on every third Step. |
 | Worker overload (heavy scene and heavy program) | The step loop sheds wall-clock backlog. Physics and control logic slow down as one unit. |
 
 The visibility pause (`EditorController.onVisibilityChange`) saves CPU and stops a hidden tab spawning boxes. It is

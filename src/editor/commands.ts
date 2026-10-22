@@ -175,6 +175,7 @@ const MSG_EXTERNAL_DESKTOP_ONLY = defineMessage(
   'command.part.openExternal.desktopOnly',
   "Open the desktop app to edit this part's script in your own editor.",
 )
+const MSG_STEP_PAUSE_FIRST = defineMessage('command.sim.step.pauseFirst', 'Pause the simulation to step it one physics step at a time')
 const MSG_OPEN_SCRIPT_FAILED = defineMessage('command.part.openExternal.failed', "Couldn't open the script: {error}")
 const MSG_SAVED_AS_NEW = defineMessage('command.part.saveAsNew.done', 'Saved as “{name}” in the Parts catalog. Placed parts are unchanged.')
 const MSG_GUARD_OPENINGS_NO_TARGET = defineMessage('command.edit.guardOpenings.noTarget', 'Select one conveyor with side guards first.')
@@ -772,6 +773,19 @@ const COMMAND_DEFS: readonly Command[] = [
     run: ({ controller }) => controller?.togglePause(),
   },
   {
+    // One fixed physics step, with the PLC scans due in it, so a sensor edge or a one-scan pulse can be watched
+    // happen. Paused only: running, the loop is already stepping.
+    id: 'sim.step',
+    label: 'Step',
+    group: 'Simulation',
+    accelerator: 'F7',
+    webKeys: 'sim.step',
+    enabled: (ctx) => !!ctx.controller && ctx.state.running && ctx.state.paused,
+    // stopped needs no reason of its own: the toolbar already says the run is stopped
+    disabledReason: (ctx) => (ctx.state.running && !ctx.state.paused ? t(MSG_STEP_PAUSE_FIRST) : null),
+    run: ({ controller }) => controller?.step(),
+  },
+  {
     id: 'sim.stop',
     label: 'Stop',
     group: 'Simulation',
@@ -1248,6 +1262,7 @@ export const DESKTOP_MENU: readonly MenuSection[] = [
     items: [
       { command: 'sim.run' },
       { command: 'sim.pause' },
+      { command: 'sim.step' },
       { command: 'sim.stop' },
       { command: 'sim.reloadProgram' },
       { command: 'sim.externalPlc' },

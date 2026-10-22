@@ -60,6 +60,13 @@ export function togglePause(ec: EditorController): void {
   ec.sim.setPaused(paused)
 }
 
+/** advance a paused run by one physics step, with the PLC scans that fall due in it */
+export function step(ec: EditorController): void {
+  const s = ec.store.getState()
+  if (!s.running || !s.paused) return
+  ec.sim.step()
+}
+
 export function stop(ec: EditorController): void {
   ec.sim.stop()
   // The live poses go with the bodies. Clear them before setRunning(false): that store change re-pushes the

@@ -657,7 +657,8 @@ export function App({ store, sim }: AppProps) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
-  // The transport's keys (keymap sim.playPause / sim.stop): Space plays or pauses, Shift+Space stops. These are
+  // The transport's keys (keymap sim.playPause / sim.stop / sim.step): Space plays or pauses, Shift+Space stops,
+  // Shift+Period steps a paused run. These are
   // for the browser, where F5 (the desktop menu's key) reloads the page. They are ignored where Space already means
   // something: text (the ST code, a name field), a dialog or menu (Space confirms or picks there), and free fly,
   // whose boost is Space. Everywhere else Space toggles the run, even on a focused button, as in a video player.
@@ -665,9 +666,9 @@ export function App({ store, sim }: AppProps) {
   // button. Enter still presses a focused button. The browser clicks a button on Space's keyup, so that is
   // suppressed too. Listens in every window, so the keys also work from a popped-out ladder.
   const transportSpace = useRef(false)
-  const transportAction = (e: KeyboardEvent): 'sim.playPause' | 'sim.stop' | null => {
+  const transportAction = (e: KeyboardEvent): 'sim.playPause' | 'sim.stop' | 'sim.step' | null => {
     const action = resolveKeyAction(e, 'editor')
-    if (action !== 'sim.playPause' && action !== 'sim.stop') return null
+    if (action !== 'sim.playPause' && action !== 'sim.stop' && action !== 'sim.step') return null
     if (isEditableTarget(e.target) || inDialogOrMenu(e.target)) return null
     // free fly, not walk mode: in walk mode Space is free, so it pauses the run and the user can look at the line
     if (controller?.view.isNavigating() && state.mode !== 'pilot') return null
@@ -677,6 +678,11 @@ export function App({ store, sim }: AppProps) {
     const action = transportAction(e)
     if (!action) return
     e.preventDefault() // no page scroll, no button press
+    if (action === 'sim.step') {
+      // a held Step repeats on purpose: each auto-repeat is one more step
+      if (commandEnabled('sim.step')) runCommand('sim.step')
+      return
+    }
     transportSpace.current = true
     if (e.repeat) return // held down, it must not flicker between paused and running
     if (action === 'sim.stop') runCommand('sim.stop')

@@ -149,6 +149,8 @@ export const KEY_BINDINGS = [
   // in text, dialogs, menus and free fly, whose boost is Space too (see App.tsx).
   { id: 'sim.playPause', mode: 'editor', group: 'Simulation', label: 'Play / pause', keys: ['Space'], hint: 'starts a stopped simulation; F5 / F6 in the desktop app' },
   { id: 'sim.stop', mode: 'editor', group: 'Simulation', label: 'Stop', keys: ['shift+Space'], hint: 'Shift+F5 in the desktop app' },
+  // Shift+Period types '>', which reads as "next". Auto-repeat steps again, so holding it plays the run slowly.
+  { id: 'sim.step', mode: 'editor', group: 'Simulation', label: 'Step one physics step', keys: ['shift+Period'], hint: 'while paused; F7 in the desktop app' },
 
   // --- help ----------------------------------------------------------------
   { id: 'ui.shortcuts', mode: 'editor', group: 'Help', label: 'Keyboard shortcuts', keys: ['shift+Slash'] },
