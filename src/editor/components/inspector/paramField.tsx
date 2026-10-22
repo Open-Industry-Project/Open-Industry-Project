@@ -1,6 +1,6 @@
 // --- ParamField: one spec-driven property row, plus the group-tree sections around it ---
 
-import { lazy, Suspense, useContext, useMemo } from 'react'
+import { lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { BuildingWallRule, EnumParamSpec, ParamSpec, ParamValue, PartInstance } from '../../../core/types'
 import { labelHead, partParamSpecs } from '../../../core/packageParams'
@@ -9,6 +9,8 @@ import { isCargoPackage } from '../../../core/parts/partPackage'
 import { canonicalAddress, looksLikeAddress, parseDirectAddress } from '../../../core/io/iecAddress'
 import { normalizeHexColorList } from '../../../core/math'
 import { partDisplayNames } from '../../../core/parts/partDisplayName'
+import { commsOn } from '../../../core/conveyor/conveyorDirection'
+import type { ProgramCheck, TagVerdict } from '../../program/tagVerdicts'
 import type { LiveSetpoints } from '../../controller/setpoints'
 import { paramDesc } from '../paramDescriptions'
 import { ColorListField, NumberGrid, RowSetField, WallRuleArray } from './arrays'
@@ -66,6 +68,8 @@ const M = defineMessages('inspector.paramField', {
   closest: '{error}. Closest: {names}',
   notOnPlc: 'not on PLC',
   ambiguous: 'ambiguous',
+  notInProgram: 'The program does not declare {tag}, so it neither reads nor drives it. Usually a typo, or a variable not written yet.',
+  wrongType: 'The program declares {tag} as {programType}, and this field carries {fieldType}.',
 })
 
 export { buildGroupTree } from './paramLogic'
@@ -442,9 +446,8 @@ export function ParamField({
       const { suggestions: pool, signals, located } = tagIndex()
       // Suggestions = tags already bound elsewhere, minus this field's own value (never offer a dupe) and
       // minus any tag another part declares as a different ST type: the one filter that can't hide a
-      // legitimate pick. Not filtered by direction: the ST program's own tags are invisible
-      // from here, so dropping "nothing in the scene writes it" would hide the commonest correct answer
-      // (a conveyor's runTag bound to the program's Motor output).
+      // legitimate pick. Not filtered by direction: a tag no part writes is most often one the program drives
+      // (a conveyor's runTag bound to the program's Motor output). The program's own tags are TagField's.
       const suggestions = pool.filter((t) => {
         if (!mixed && t === current) return false
         const types = signals.get(t)?.types
@@ -501,7 +504,12 @@ export function ParamField({
               {!mixed && !address && <PlcTagBadge tag={current} />}
             </>
           }
-          extra={revertArrow}
+          extra={
+            <>
+              {!mixed && !address && current !== '' && commsOn(part) && <ProgramTagMark tag={current} stType={spec.stType} parts={allParts} />}
+              {revertArrow}
+            </>
+          }
           onCommit={(v) => {
             // an address is kept in its one spelling, which is how the tag tables meet it
             const t = v.trim()
@@ -696,6 +704,57 @@ export function GroupSection({
         />
       ))}
     </Fold>
+  )
+}
+
+/** How long the scene and the program hold still before a tag field asks the program about its tag, as Problems waits. */
+const VERDICT_DELAY_MS = 250
+
+// one answer for every tag field of a render, kept until the scene or the program changes
+let verdictsFor: { parts: readonly PartInstance[]; check: ProgramCheck; verdicts: ReadonlyMap<string, TagVerdict> } | null = null
+
+/** The program's verdict on each wired tag (program/tagVerdicts.ts), once the scene and the program settle. */
+function useProgramVerdicts(parts: readonly PartInstance[], check: ProgramCheck | undefined): ReadonlyMap<string, TagVerdict> | null {
+  const fresh = check && verdictsFor?.parts === parts && verdictsFor.check === check ? verdictsFor.verdicts : null
+  // the last answer stays up while the next one waits: a drag streams scenes, and a badge must not flicker under it
+  const [held, setHeld] = useState<ReadonlyMap<string, TagVerdict> | null>(fresh)
+  useEffect(() => {
+    if (!check || fresh) return
+    let live = true
+    const timer = setTimeout(() => {
+      void import('../../program/tagVerdicts').then(({ programTagVerdicts }) => {
+        if (verdictsFor?.parts !== parts || verdictsFor.check !== check) verdictsFor = { parts, check, verdicts: programTagVerdicts(parts, check) }
+        if (live) setHeld(verdictsFor.verdicts)
+      })
+    }, VERDICT_DELAY_MS)
+    return () => {
+      live = false
+      clearTimeout(timer)
+    }
+  }, [parts, check, fresh])
+  return fresh ?? held
+}
+
+/**
+ * On a tag field of a part with comms on: a name the program does not declare, or declares as the other kind of value
+ * (a bit where the field carries a number, or the reverse). The Problems panel lists the same two as `unwired` and
+ * `program-type`; this says it where the name is typed. Nothing is said without a program that compiles. A mark beside
+ * the box, which it outlines, rather than a chip on the label: the label column ellipsizes its chips.
+ */
+function ProgramTagMark({ tag, stType, parts }: { tag: string; stType?: string; parts: readonly PartInstance[] }) {
+  const check = useContext(TagSourcesContext)?.check
+  const verdict = useProgramVerdicts(parts, check)?.get(tag)
+  if (!verdict) return null
+  const why = !verdict.declared
+    ? t(M.notInProgram, { tag })
+    : stType && verdict.type && (verdict.type === 'BOOL') !== (stType === 'BOOL')
+      ? t(M.wrongType, { tag, programType: verdict.type, fieldType: stType })
+      : null
+  if (!why) return null
+  return (
+    <span className="tag-warn" role="img" title={why} aria-label={why} data-testid="tag-program-mark" data-verdict={verdict.declared ? 'type' : 'undeclared'}>
+      {'!' /* i18n-ok: a mark, its words are the title */}
+    </span>
   )
 }
 

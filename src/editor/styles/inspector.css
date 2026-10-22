@@ -231,6 +231,25 @@
   cursor: help;
 }
 
+/* a tag field's verdict from the program (inspector/paramField.tsx ProgramTagMark): beside the box, which it outlines */
+.tag-warn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  background: color-mix(in srgb, #e0a32e 26%, transparent);
+  color: #e0a32e;
+  cursor: help;
+}
+.field-control:has(> .tag-warn) > input {
+  border-color: #e0a32e;
+}
+
 /* a tag field's suggestions (inspector/tagField.tsx): fixed under the box so the Inspector's scroll cannot clip it */
 .tag-suggest {
   position: fixed;

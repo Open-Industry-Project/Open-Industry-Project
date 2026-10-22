@@ -9,6 +9,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import type { ReactNode } from 'react'
 import type { PlcTagList } from '../../links/externalPlc'
 import type { TagRow } from '../../../plc/tags'
+import type { ProgramCheck } from '../../program/tagVerdicts'
 import { loadProgramTags, programTagChoices, rankTagNames } from './tagSuggest'
 import { defineMessages, t } from '../../../core/i18n'
 
@@ -34,6 +35,8 @@ const M = defineMessages('inspector.tagField', {
 /** Where a tag field's suggestions come from beyond the scene: the Inspector provides it. */
 export interface TagSources {
   program: string
+  /** the program with what it is compiled under, for what a field says about its tag (program/tagVerdicts.ts) */
+  check: ProgramCheck
   /** the PLC's tag list, when the link is OPC UA and the list is of the PLC the settings name; else null */
   plc: Readonly<PlcTagList> | null
   /** the PLC's tags can be read from here (desktop app, OPC UA link, no run holding the link) */

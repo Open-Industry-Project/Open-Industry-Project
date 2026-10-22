@@ -39,7 +39,7 @@ describe('the sections of the list', () => {
     { path: ['PLC1', 'MAIN', 'Motor'], nodeId: 'a' },
     { path: ['PLC1', 'MAIN', 'Eye'], nodeId: 'b' },
   ]
-  const sources = (over: Partial<TagSources> = {}): TagSources => ({ program: '', plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, ...over })
+  const sources = (over: Partial<TagSources> = {}): TagSources => ({ program: '', check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, ...over })
 
   it('lists a program tag the scene already uses once, under the scene', () => {
     const s = buildSections('', ['Motor1'], [{ name: 'Motor1', type: 'BOOL' }, { name: 'Start', type: 'BOOL' }], sources({ plcLinked: false }), '')

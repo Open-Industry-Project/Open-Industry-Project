@@ -201,9 +201,11 @@ function useTagSources(controller: EditorController | null, state: EditorState):
   const plc = linked && plcList?.endpoint === settings.opcUaEndpoint ? plcList : null
   const canReadPlc = linked && !state.running && settings.opcUaEndpoint.trim() !== ''
   const program = state.stProgram
+  const { stDialect: dialect, controller: table, stScanMs: scanMs } = state
+  const check = useMemo(() => ({ source: program, dialect, controller: table, scanMs }), [program, dialect, table, scanMs])
   return useMemo(
-    () => ({ program, plc, plcLinked: linked, canReadPlc, readPlc: () => controller?.readPlcTags() }),
-    [program, plc, linked, canReadPlc, controller],
+    () => ({ program, check, plc, plcLinked: linked, canReadPlc, readPlc: () => controller?.readPlcTags() }),
+    [program, check, plc, linked, canReadPlc, controller],
   )
 }
 
