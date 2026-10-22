@@ -603,6 +603,24 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
 
   const cancelRename = useCallback(() => setRenamingId(null), [])
 
+  // open every collapsed ancestor of `id`, so its row is in the list
+  const expandAncestors = useCallback((id: string) => {
+    const byId = live.current.partsById
+    const part = byId.get(id)
+    if (!part) return
+    setCollapsed((cur) => {
+      let next: Set<string> | null = null
+      const seen = new Set<string>()
+      for (let pid = part.parent; pid !== undefined && !seen.has(pid); pid = byId.get(pid)?.parent) {
+        seen.add(pid)
+        if (!cur.has(pid)) continue
+        next = next ?? new Set(cur)
+        next.delete(pid)
+      }
+      return next ?? cur
+    })
+  }, [])
+
   const beginRename = useCallback(
     (id: string) => {
       const { running, partsById: byId } = live.current
@@ -611,21 +629,11 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
       if (!part) return
       // F2 on a part picked in the viewport can land under a collapsed ancestor: open the path so the
       // input mounts (a row hidden any other way is dropped by the rename guard above)
-      setCollapsed((cur) => {
-        let next: Set<string> | null = null
-        const seen = new Set<string>()
-        for (let pid = part.parent; pid !== undefined && !seen.has(pid); pid = byId.get(pid)?.parent) {
-          seen.add(pid)
-          if (!cur.has(pid)) continue
-          next = next ?? new Set(cur)
-          next.delete(pid)
-        }
-        return next ?? cur
-      })
+      expandAncestors(id)
       setText(part.name ?? '')
       setRenamingId(id)
     },
-    [],
+    [expandAncestors],
   )
 
   const toggleCollapse = useCallback((id: string) => {
@@ -779,7 +787,20 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
     })
     return () => cancelAnimationFrame(raf)
   }, [])
-  useEffect(() => (scrollTargetKey === undefined ? undefined : revealRow(scrollTargetKey)), [scrollTargetKey, revealRow])
+  // A part picked in the viewport can sit under a collapsed ancestor: open the path once per new pick.
+  // Keyed on the pick, not the collapse set, so collapsing a parent of the selection later stays collapsed.
+  useEffect(() => {
+    if (lastSelected !== undefined) expandAncestors(lastSelected)
+  }, [lastSelected, expandAncestors])
+  // whether the target has a row yet: the expansion above lands a render later, and the reveal re-runs then
+  const targetListed = useMemo(
+    () => scrollTargetKey !== undefined && renderRows.some((r) => r.key === scrollTargetKey),
+    [renderRows, scrollTargetKey],
+  )
+  useEffect(
+    () => (scrollTargetKey === undefined || !targetListed ? undefined : revealRow(scrollTargetKey)),
+    [scrollTargetKey, targetListed, revealRow],
+  )
   // a rename can open on a row that isn't on screen (F2 after a viewport pick, which may also have just
   // expanded its ancestors): the input is kept mounted off-window, so scroll it to where it's typed into
   useEffect(() => (renamingKey === null ? undefined : revealRow(renamingKey)), [renamingKey, revealRow])
