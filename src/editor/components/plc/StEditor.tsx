@@ -55,6 +55,9 @@ const M = defineMessages('stEditor', {
   noDefinitionDetail: 'Put the caret on a name the program declares (a variable, a member, a block, a function or a type) and press {keys} again.',
   goToDefinition: 'Go to definition',
   goToDefinitionOf: 'Go to definition of {name}',
+  foldDeclarations: 'Fold all declarations',
+  foldDeclarationsHint: 'Collapse every VAR section, TYPE and STRUCT, leaving the statements',
+  unfoldAll: 'Unfold all',
   notRunning: 'The program is not running',
   reloadAttached:
     'Your edits are not running yet. Reload restarts the program with them (Ctrl/Cmd-Enter): its timers, counters and steps start over, the scene carries on',
@@ -823,6 +826,9 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
           }),
         },
         { label: t(M.selectAll), testid: 'st-select-all', onClick: later(() => editor.selectAll()) },
+        { label: '-', onClick: () => {} },
+        { label: t(M.foldDeclarations), testid: 'st-fold-declarations', title: t(M.foldDeclarationsHint), onClick: later(() => editor.foldDeclarations()) },
+        { label: t(M.unfoldAll), testid: 'st-unfold-all', onClick: later(() => editor.unfoldAll()) },
       ],
     })
   }

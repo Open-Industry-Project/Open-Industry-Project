@@ -5,9 +5,11 @@ import { Compartment, EditorState, Prec, Transaction } from '@codemirror/state'
 import { forceLinting } from '@codemirror/lint'
 import type { Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder, runScopeHandlers } from '@codemirror/view'
+import { unfoldAll } from '@codemirror/language'
 import { changedSpan } from '../../../core/textDiff'
 import type { TagValue } from '../../../plc'
 import { pushWatchValues, stExtensions } from '../../program/stLang'
+import { foldDeclarations } from '../../program/stFolding'
 import { watchNameAt, watchNameOfSelection } from '../../program/plcWatchList'
 import type { Controller } from '../../../core/controller'
 
@@ -60,6 +62,10 @@ export interface StCodeEditorHandle {
   /** replace the selection with `text` (Paste, Cut), as one step of this editor's history */
   replaceSelection: (text: string, userEvent: 'input.paste' | 'delete.cut') => void
   selectAll: () => void
+  /** fold every VAR section, TYPE and STRUCT (stFolding.ts); false when there was none left to fold */
+  foldDeclarations: () => boolean
+  /** open every folded block; false when none was folded */
+  unfoldAll: () => boolean
   /** re-measure: the editor was hidden (`display: none`, under another view of the panel) and is back on screen */
   refresh: () => void
   /** push the live variable image for inline value overlays; `{}` clears them */
@@ -314,6 +320,8 @@ export const StCodeEditor = forwardRef<StCodeEditorHandle, StCodeEditorProps>(fu
       v.dispatch(v.state.replaceSelection(text), { userEvent, scrollIntoView: true })
       v.focus()
     },
+    foldDeclarations: () => (view.current ? foldDeclarations(view.current) : false),
+    unfoldAll: () => (view.current ? unfoldAll(view.current) : false),
     selectAll: () => {
       const v = view.current
       if (!v) return

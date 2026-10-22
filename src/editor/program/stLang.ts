@@ -17,6 +17,7 @@ import { BUILTIN_FUNCTIONS, controllerDiagnostics, KEYWORDS as ST_KEYWORDS, SCAL
 import type { Controller } from '../../core/controller'
 import type { TagValue } from '../../plc'
 import { declaredTypes, formatPlcValue, refType } from './plcValueText'
+import { stFolding } from './stFolding'
 
 // Keyword classes, derived from the lexer's own reserved-word set rather than re-listed
 // here. A hand-copy goes stale when the language gains a keyword, and then the
@@ -145,6 +146,10 @@ const stTheme = EditorView.theme(
     // empty-editor ghost text (the ST skeleton hint): muted like comments, clearly not real content
     '.cm-placeholder': { color: 'light-dark(#a0a4aa, #5b5f66)' },
     '.cm-activeLine': { backgroundColor: 'light-dark(rgba(0, 0, 0, 0.021), rgba(255,255,255,0.03))' },
+    // the fold gutter's markers and a folded block's placeholder: quiet until hovered, like the line numbers beside them
+    '.cm-foldGutter .cm-gutterElement': { cursor: 'pointer', padding: '0 2px' },
+    '.cm-foldGutter .cm-gutterElement:hover': { color: 'var(--text-strong)' },
+    '.cm-foldPlaceholder': { backgroundColor: 'light-dark(#eeeff1, #26282c)', border: '1px solid var(--line-soft)', color: 'light-dark(#52575d, #9aa0a6)', padding: '0 4px', margin: '0 2px' },
     '.cm-activeLineGutter': { backgroundColor: 'light-dark(rgba(0, 0, 0, 0.035), rgba(255,255,255,0.05))' },
     '&.cm-focused': { outline: 'none' },
     '.cm-cursor': { borderLeftColor: 'var(--text-strong)' },
@@ -338,6 +343,7 @@ export function stExtensions(
   const useHistory = opts?.history ?? true
   return [
     lineNumbers(),
+    stFolding(),
     highlightActiveLine(),
     drawSelection(),
     ...(useHistory ? [history()] : []),
