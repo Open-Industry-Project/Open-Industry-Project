@@ -5,7 +5,7 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, 
 import { clamp } from '../../../core/math'
 import { isRealBound, isRealRange } from '../../../core/packageParams'
 import { displayUnitFor, niceStep, toStored, unitView, type DisplayUnits } from '../../../core/units'
-import { evalNumeric, snapToStep } from './shared'
+import { evalNumeric, parseOffset, snapToStep } from './shared'
 import { FoldIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
 
@@ -74,6 +74,9 @@ interface SpinSliderProps {
   /** narrow variant for Transform x/y/z (tighter sizing, same chrome) */
   compact?: boolean
   onCommit: (v: number) => void
+  /** a relative entry ("+= 1.2"), in the stored unit. Without it the field commits its value plus the offset,
+   *  which a mixed field can't do; a field over several parts passes this to offset each part from its own value. */
+  onOffset?: (d: number) => void
 }
 
 /**
@@ -81,6 +84,7 @@ interface SpinSliderProps {
  *  - Every field is typed: a click places the caret, and the value commits on Enter, Tab or leaving the field
  *    (Escape puts back what it held). Nothing is written while typing, so "12" never builds a 1 first. The text
  *    may be an expression ("2*0.75") or carry a unit the field converts ("5ft", "394 fpm"; see evalNumeric).
+ *    "+=" or "-=" in front makes it an offset from the current value ("+= 600mm"; see parseOffset).
  *  - Every field steps on the grid with ArrowUp/Down and the hover spin arrows (press and hold repeats).
  *  - A field with a real range (isRealRange: both bounds chosen, not the ±1e6 stand-in) is also a slider: its
  *    fill shows where the value sits, and dragging across it moves the value in proportion to the range, the
@@ -94,7 +98,7 @@ interface SpinSliderProps {
  */
 export function SpinSlider(props: SpinSliderProps) {
   const system = useContext(DisplayUnitsContext)
-  const { unit, entryUnit, value, min, max, step, decimals, onCommit } = props
+  const { unit, entryUnit, value, min, max, step, decimals, onCommit, onOffset } = props
   const view = unitView(unit || entryUnit || '', system)
   if (view.k === 1) return <SpinSliderCore {...props} />
   const k = view.k
@@ -111,11 +115,12 @@ export function SpinSlider(props: SpinSliderProps) {
       unit={unit ? view.unit : unit}
       entryUnit={entryUnit ? view.unit : entryUnit}
       onCommit={(v) => onCommit(toStored(v, k))}
+      onOffset={onOffset && ((d) => onOffset(toStored(d, k)))}
     />
   )
 }
 
-function SpinSliderCore({ value, decimals, unit = '', entryUnit, min, max, step, disabled, mixed, compact, onCommit }: SpinSliderProps) {
+function SpinSliderCore({ value, decimals, unit = '', entryUnit, min, max, step, disabled, mixed, compact, onCommit, onOffset }: SpinSliderProps) {
   // the unit is drawn as a separate dim suffix, never part of the editable text
   const fmt = (v: number): string => v.toFixed(decimals)
   const [text, setText] = useState(mixed ? '' : fmt(value))
@@ -319,6 +324,14 @@ function SpinSliderCore({ value, decimals, unit = '', entryUnit, min, max, step,
             show(mixed ? '' : fmt(value))
             return
           }
+          const offset = parseOffset(textRef.current, unit || entryUnit || '')
+          if (offset !== undefined) {
+            if (offset !== null && onOffset) onOffset(offset)
+            else if (offset !== null && !mixed) commitRaw(valueRef.current + offset)
+            else if (session.current.wrote && !session.current.mixed) onCommit(session.current.value)
+            show(mixed ? '' : fmt(offset !== null && !onOffset && !mixed ? clampVal(valueRef.current + offset) : session.current.value))
+            return
+          }
           const parsed = evalNumeric(textRef.current, unit || entryUnit || '')
           if (parsed !== null) commitRaw(parsed)
           // text that doesn't parse ("2 3") is a cancelled edit: undo whatever arrow steps the session wrote
@@ -461,7 +474,9 @@ export function AxisInput({
   step,
   entryUnit,
   disabled,
+  mixed,
   onCommit,
+  onOffset,
 }: {
   prefix: string
   value: number
@@ -470,12 +485,14 @@ export function AxisInput({
   /** see SpinSlider: the unit typed input converts into (the row label names it; the narrow axis shows none) */
   entryUnit?: string
   disabled: boolean
+  mixed?: boolean
   onCommit: (v: number) => void
+  onOffset?: (d: number) => void
 }) {
   return (
     <span className={`axis axis-${prefix.toLowerCase()}`}>
       <span className="axis-label">{prefix}</span>
-      <SpinSlider value={value} decimals={decimals} step={step} entryUnit={entryUnit} disabled={disabled} compact onCommit={onCommit} />
+      <SpinSlider value={value} decimals={decimals} step={step} entryUnit={entryUnit} disabled={disabled} mixed={mixed} compact onCommit={onCommit} onOffset={onOffset} />
     </span>
   )
 }

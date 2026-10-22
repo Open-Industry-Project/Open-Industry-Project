@@ -320,28 +320,11 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
 
   // Every SDK part is type 'part', so the type can't tell a conveyor from a sensor; the package can. The
   // fields come from the first part's package, and writing them into another package's part is junk at best.
-  const kindOf = (p: PartInstance): string => (p.type === 'part' ? `part:${(p as SdkPart).packageId}` : p.type)
-  if (new Set(selected.map(kindOf)).size > 1) {
-    return (
-      <div className="inspector">
-        <InspectorHeader title={t(M.partsSelected, { count: selected.length })} />
-        <p className="inspector-hint">{t(M.mixedTypes)}</p>
-      </div>
-    )
-  }
-
   // one type (1+ parts): edit the representative, fan edits out to the whole selection
   const targets = selected
   const part = targets[0]!
   const type: PartType = part.type
   const multi = targets.length > 1
-  const def = PART_DEFS[type]
-  // the header names what the part is: every SDK part shares the generic 'part' type, so its package says it
-  const pkg = type === 'part' ? packageOf(state, (part as SdkPart).packageId) : undefined
-  const kindLabel = pkg?.name ?? def.label
-  // the Part Editor session's throwaway: its Name field names the part itself (PartInfoFields)
-  const definitionCopy = !multi && type === 'part' && state.packageEdit?.partId === part.id
-  const thumb = headerThumb(state, part, pkg, packageThumbnails)
   const ids = targets.map((t) => t.id)
   const idSet = new Set(ids)
   const update: Update = (label, key, mutate) => {
@@ -355,6 +338,36 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
       { coalesceKey: `param:${ids.join(',')}:${key}` },
     )
   }
+
+  const kindOf = (p: PartInstance): string => (p.type === 'part' ? `part:${(p as SdkPart).packageId}` : p.type)
+  if (new Set(selected.map(kindOf)).size > 1) {
+    // the params differ by kind, but every part has a pose: the Transform still edits them together
+    return (
+      <div className="inspector">
+        <InspectorHeader title={t(M.partsSelected, { count: selected.length })} />
+        <TransformSection
+          store={store}
+          committed={part}
+          ids={ids}
+          type={type}
+          disabled={false}
+          effCollapsed={collapsed}
+          toggle={toggle}
+          openCtx={openCtx}
+          update={update}
+        />
+        <p className="inspector-hint">{t(M.mixedTypes)}</p>
+        {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItemsFor(menu)} onClose={() => setMenu(null)} />}
+      </div>
+    )
+  }
+  const def = PART_DEFS[type]
+  // the header names what the part is: every SDK part shares the generic 'part' type, so its package says it
+  const pkg = type === 'part' ? packageOf(state, (part as SdkPart).packageId) : undefined
+  const kindLabel = pkg?.name ?? def.label
+  // the Part Editor session's throwaway: its Name field names the part itself (PartInfoFields)
+  const definitionCopy = !multi && type === 'part' && state.packageEdit?.partId === part.id
+  const thumb = headerThumb(state, part, pkg, packageThumbnails)
   const f = filter.trim().toLowerCase()
   // partParamSpecs resolves a part's fields from its package schema (def.params is empty for the generic
   // 'part' type); the structural types (building/group) fall through to their static PART_DEFS list.
@@ -399,7 +412,7 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
   const effCollapsed: Record<string, boolean> = f ? {} : { ...Object.fromEntries(sectionPaths(editableSpecs).map((p) => [p, startsCollapsed(p)])), ...collapsed }
 
   // every collapsible section path (Expand/Collapse All targets), incl. the Transform fold
-  const allSectionPaths = (): string[] => (multi ? sectionPaths(editableSpecs) : ['Transform', ...sectionPaths(editableSpecs)])
+  const allSectionPaths = (): string[] => ['Transform', ...sectionPaths(editableSpecs)]
   const collapseAll = () => setCollapsed(Object.fromEntries(allSectionPaths().map((p) => [p, true])))
   // explicit, since a nested section's default is folded
   const expandAll = () => setCollapsed(Object.fromEntries(allSectionPaths().map((p) => [p, false])))
@@ -506,18 +519,17 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
         extra={<RevertSlot />}
         onChange={(v) => store.setVisible(ids, v)}
       />
-      {!multi && (
-        <TransformSection
-          store={store}
-          committed={part}
-          type={type}
-          disabled={false}
-          effCollapsed={effCollapsed}
-          toggle={toggle}
-          openCtx={openCtx}
-          update={update}
-        />
-      )}
+      <TransformSection
+        store={store}
+        committed={part}
+        ids={ids}
+        type={type}
+        disabled={false}
+        effCollapsed={effCollapsed}
+        toggle={toggle}
+        openCtx={openCtx}
+        update={update}
+      />
       {/* the filter searches the params below it, so a part with none (a group) has no filter */}
       {editableSpecs.length > 0 && (
         <div className="inspector-filter-row">

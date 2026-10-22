@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { decimalsForStep, evalNumeric, gridDecimals, snapToStep } from './shared'
+import { decimalsForStep, evalNumeric, gridDecimals, parseOffset, snapToStep } from './shared'
+
+describe('parseOffset', () => {
+  it('reads += and -= as an offset, converting units like a value', () => {
+    expect(parseOffset('+= 1.2', 'm')).toBe(1.2)
+    expect(parseOffset('-=600mm', 'm')).toBeCloseTo(-0.6, 12)
+    expect(parseOffset(' += 2*45', '')).toBe(90)
+  })
+
+  it('leaves a signed plain value absolute', () => {
+    expect(parseOffset('-5', 'm')).toBeUndefined()
+    expect(parseOffset('+5', 'm')).toBeUndefined()
+    expect(parseOffset('5', 'm')).toBeUndefined()
+  })
+
+  it('is null when the amount does not parse', () => {
+    expect(parseOffset('+=', 'm')).toBeNull()
+    expect(parseOffset('-= 2 3', 'm')).toBeNull()
+  })
+})
 
 describe('decimalsForStep', () => {
   it('matches the step', () => {
