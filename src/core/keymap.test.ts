@@ -30,6 +30,10 @@ describe('resolveKeyAction - QWERTY', () => {
     expect(resolveKeyAction(press('F2', 'F2', { shiftKey: true }), 'editor')).toBeNull()
   })
 
+  it('binds go to definition to F12', () => {
+    expect(resolveKeyAction(press('F12', 'F12'), 'editor')).toBe('edit.goToDefinition')
+  })
+
   it('keeps Numpad5 working with NumLock off, where key reports "Clear"', () => {
     expect(resolveKeyAction(press('Numpad5', 'Clear'), 'editor')).toBe('view.projection')
     expect(resolveKeyAction(press('KeyO', 'o'), 'editor')).toBe('view.projection')

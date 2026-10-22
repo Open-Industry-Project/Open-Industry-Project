@@ -51,6 +51,10 @@ const M = defineMessages('stEditor', {
   renameIntro: "Every use of it in {where} follows, and so does the scene's wiring.",
   rename: 'Rename',
   notRenamed: '{name} was not renamed',
+  noDefinition: 'No definition here',
+  noDefinitionDetail: 'Put the caret on a name the program declares (a variable, a member, a block, a function or a type) and press {keys} again.',
+  goToDefinition: 'Go to definition',
+  goToDefinitionOf: 'Go to definition of {name}',
   notRunning: 'The program is not running',
   reloadAttached:
     'Your edits are not running yet. Reload restarts the program with them (Ctrl/Cmd-Enter): its timers, counters and steps start over, the scene carries on',
@@ -664,6 +668,15 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     })
   }
 
+  /** Move the caret to where the name under it is declared (plc/tags.ts `definitionAt`). */
+  const goToDefinitionAt = (offset: number): void => {
+    void import('../../../plc/tags').then(({ definitionAt }) => {
+      const at = definitionAt(currentSource(), offset)
+      if (at !== null) editorRef.current?.revealOffset(at)
+      else showReport({ headline: t(M.noDefinition), detail: t(M.noDefinitionDetail, { keys: primaryKey('edit.goToDefinition') ?? '' }), items: [], tone: 'warn', keepOnEdit: false })
+    })
+  }
+
   const showText = (offset: number): void => {
     setView('text')
     editorRef.current?.revealOffset(offset)
@@ -765,6 +778,8 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     const at = editorRef.current.contextAt(point)
     if (!at) return
     const editor = editorRef.current
+    // contextAt put the caret at the click, so the name under the caret is the one clicked
+    const caret = editor.caret()
     const has = at.selected !== ''
     const later = (fn: () => void) => () => void window.setTimeout(fn, 0)
     const copyText = (): Promise<boolean> =>
@@ -782,6 +797,13 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
           disabled: at.name === null,
           title: t(at.name !== null ? M.addToWatchHint : M.addToWatchNone),
           onClick: later(() => at.name !== null && addToWatch(at.name)),
+        },
+        {
+          label: caret?.word ? t(M.goToDefinitionOf, { name: caret.word }) : t(M.goToDefinition),
+          testid: 'st-go-to-definition',
+          keys: primaryKey('edit.goToDefinition'),
+          disabled: !caret?.word,
+          onClick: later(() => caret && goToDefinitionAt(caret.offset)),
         },
         { label: '-', onClick: () => {} },
         { label: t(M.cut), testid: 'st-cut', keys: primaryKey('edit.cut'), disabled: readOnly || !has, title: readOnly ? readOnlyNote : undefined, onClick: later(() => void copyText().then((ok) => ok && editor.replaceSelection('', 'delete.cut'))) },
@@ -1058,11 +1080,16 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
                   style={view === 'ladder' ? { ...editorHostWrap, display: 'none' } : editorHostWrap}
                   onContextMenu={openTextMenu}
                   onKeyDown={(e) => {
-                    // (resolved, never compared: core/keymap.ts owns which chord means Rename)
-                    if (resolveKeyAction(e, 'editor') !== 'edit.rename') return
+                    // (resolved, never compared: core/keymap.ts owns which chord means Rename and Go to definition)
+                    const action = resolveKeyAction(e, 'editor')
+                    if (action !== 'edit.rename' && action !== 'edit.goToDefinition') return
                     e.preventDefault()
                     e.stopPropagation()
-                    renameAtCaret()
+                    if (action === 'edit.rename') renameAtCaret()
+                    else {
+                      const at = editorRef.current?.caret()
+                      if (at) goToDefinitionAt(at.offset)
+                    }
                   }}
                 >
                   <Suspense fallback={null}>
