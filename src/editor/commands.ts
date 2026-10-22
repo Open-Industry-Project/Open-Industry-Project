@@ -33,6 +33,7 @@ import {
 } from './project/projectFolderLink'
 import type { EditorController } from './controller'
 import { guardOpeningsTarget } from './store/store'
+import { canPasteProperties, copyProperties, pasteProperties, propertiesSource } from './store/storeProperties'
 import type { EditorState, EditorStore } from './store/store'
 // Lazy: the PLC file doors carry the PLCopen writer and readers, which nothing needs until a file actually moves, and the
 // build budgets what loads before the first frame (optimize-assets.mjs, eager JS)
@@ -176,6 +177,12 @@ const MSG_EXTERNAL_DESKTOP_ONLY = defineMessage(
 const MSG_OPEN_SCRIPT_FAILED = defineMessage('command.part.openExternal.failed', "Couldn't open the script: {error}")
 const MSG_SAVED_AS_NEW = defineMessage('command.part.saveAsNew.done', 'Saved as “{name}” in the Parts catalog. Placed parts are unchanged.')
 const MSG_GUARD_OPENINGS_NO_TARGET = defineMessage('command.edit.guardOpenings.noTarget', 'Select one conveyor with side guards first.')
+const MSG_COPY_PROPERTIES_ONE = defineMessage('command.edit.copyProperties.one', 'Select one part to copy its properties.')
+const MSG_PASTE_PROPERTIES_EMPTY = defineMessage('command.edit.pasteProperties.empty', 'Copy Properties from a part first.')
+const MSG_PASTE_PROPERTIES_KIND = defineMessage(
+  'command.edit.pasteProperties.kind',
+  'The properties are from a {kind}. Select parts of that type to paste them onto.',
+)
 // Kept verbatim from projectFile's ROOM_OWNS_DOCUMENT, the string that already said this, so the import
 // refuses a room in the same words wherever the refusal is shown.
 const MSG_IMPORT_PROJECT_ROOM = defineMessage(
@@ -584,6 +591,28 @@ const COMMAND_DEFS: readonly Command[] = [
     keys: 'edit.duplicate',
     enabled: (ctx) => !ctx.state.readOnly && hasSelection(ctx),
     run: ({ store }) => store.duplicateSelection(),
+  },
+  {
+    // every property of one part onto the selected parts of its type (store/storeProperties.ts); the Inspector's
+    // row menu copies one property at a time. Name, transform and tags stay each part's own.
+    id: 'edit.copyProperties',
+    label: 'Copy Properties',
+    group: 'Edit',
+    enabled: (ctx) => propertiesSource(ctx.state) !== null,
+    disabledReason: () => t(MSG_COPY_PROPERTIES_ONE),
+    run: ({ store }) => copyProperties(store),
+  },
+  {
+    id: 'edit.pasteProperties',
+    label: 'Paste Properties',
+    group: 'Edit',
+    enabled: (ctx) => !ctx.state.readOnly && canPasteProperties(ctx.state),
+    disabledReason: (ctx) => {
+      if (ctx.state.readOnly) return null
+      const clip = ctx.state.propertyClipboard
+      return clip ? t(MSG_PASTE_PROPERTIES_KIND, { kind: clip.kindLabel }) : t(MSG_PASTE_PROPERTIES_EMPTY)
+    },
+    run: ({ store }) => pasteProperties(store),
   },
   {
     id: 'edit.delete',
@@ -1182,6 +1211,8 @@ export const DESKTOP_MENU: readonly MenuSection[] = [
       { command: 'edit.copy' },
       { command: 'edit.paste' },
       { command: 'edit.duplicate' },
+      { command: 'edit.copyProperties' },
+      { command: 'edit.pasteProperties' },
       { command: 'edit.delete' },
       { separator: true },
       { command: 'edit.selectAll' },

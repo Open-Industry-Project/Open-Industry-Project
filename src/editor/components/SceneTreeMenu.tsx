@@ -27,7 +27,7 @@ const M = defineMessages('sceneTreeMenu', {
 })
 
 // the clipboard block, by command id (editor/commands.ts)
-const CLIPBOARD_COMMANDS = ['edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate'] as const
+const CLIPBOARD_COMMANDS = ['edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate', 'edit.copyProperties', 'edit.pasteProperties'] as const
 
 const MENU_W = 184
 
@@ -84,7 +84,7 @@ export function SceneTreeMenu({ menu, state, store, controller, onClose, beginRe
     return { up: idxs[0]! > 0, down: idxs[idxs.length - 1]! < sibs.length - 1 }
   })()
   // a part's menu is tall (full scene ops); a rig link's is short (the capability subset) - clamp by kind
-  const menuH = menu.src.kind === 'rigLink' ? 232 : 496
+  const menuH = menu.src.kind === 'rigLink' ? 232 : 552
   const menuStyle = { left: Math.min(menu.x, window.innerWidth - MENU_W - 8), top: Math.min(menu.y, window.innerHeight - menuH - 8) }
 
   // Every shortcut in this menu comes from the active keymap, in this platform's notation (⌘ on a Mac).
@@ -102,7 +102,7 @@ export function SceneTreeMenu({ menu, state, store, controller, onClose, beginRe
       <div className="context-backdrop" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose() }} />
       <div className="context-menu" style={menuStyle}>
         {/* clipboard + duplicate - multi-select scene ops, part rows only (no rig-link equivalent).
-            Rendered from the command registry: these four are the same actions the Edit menu, the
+            Rendered from the command registry: these are the same actions the Edit menu, the
             palette and Ctrl+X/C/V/D run, so their enablement is one rule, not a per-surface guess. */}
         {menuIsPart && (
           <>

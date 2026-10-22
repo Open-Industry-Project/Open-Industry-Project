@@ -26,6 +26,7 @@ import {
   readVertexSnapOrigin,
 } from './storePrefs'
 import type { ExternalPlcSettings } from './storePrefs'
+import type { PropertyClipboard } from './storeProperties'
 
 /** Dev-only (see setState): recursively freeze a part snapshot so any in-place mutation throws at the
  *  offending line. Already-frozen subtrees short-circuit, so unchanged parts re-entering the store are O(1). */
@@ -298,6 +299,8 @@ export interface EditorState {
    *  rig node's "Change Width" (a node axis the part's Width sets), consumed and cleared by the Inspector. UI state
    *  only - never part of the document. `seq` makes a repeat request for the same field a new one. */
   paramFocus: { partId: string; param: string; seq: number } | null
+  /** what Copy Properties last took (storeProperties.ts), for Paste Properties. Never part of the document. */
+  propertyClipboard: PropertyClipboard | null
   running: boolean
   paused: boolean
   /** sim-clock speed multiplier the user asked for: 0.5 slow-mo … 8 fast-forward, 1 = realtime */
@@ -478,6 +481,7 @@ export function initialEditorState(scene: SceneJSON | undefined, stProgram: stri
     lockedRigNodes: new Set(),
     behaviorEditTarget: null,
     paramFocus: null,
+    propertyClipboard: null,
     running: false,
     paused: false,
     timeScale: 1,
