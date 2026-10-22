@@ -117,7 +117,7 @@
         <p>Open <span class="ui">Simulation &gt; External PLC…</span> and set:</p>
         <ol class="steps">
           <li><span class="ui">Runs on</span>: <b>An external PLC</b>.</li>
-          <li><span class="ui">PLC connection</span>: <b>The simulator polls the PLC</b> (the PLC is a Modbus server).</li>
+          <li>Under it, how the PLC connects: <b>The simulator polls the PLC</b> (the PLC is a Modbus server).</li>
           <li><span class="ui">PLC</span>: <b>127.0.0.1</b> if the PLC runs on this computer, otherwise its address. <span class="ui">Port</span>: <b>502</b>, unless its server device listens elsewhere.</li>
           <li>
             <span class="ui">Holding register 0 is %IW</span> and <span class="ui">Input register 0 is %QW</span>: where the PLC's
@@ -133,7 +133,7 @@
         </p>
         <figure class="shot">
           <img src="img/external-plc-modbus.webp" width="680" height="445" loading="lazy" decoding="async"
-            alt="The External PLC settings: Runs on An external PLC, PLC connection The simulator polls the PLC, PLC 127.0.0.1, Port 502, both register bases 0, and the list: %IX0.0 holding register 0 bit 0 and %QX0.0 input register 0 bit 0." />
+            alt="The External PLC settings: Runs on An external PLC, connecting with The simulator polls the PLC, PLC 127.0.0.1, Port 502, both register bases 0, and the list: %IX0.0 holding register 0 bit 0 and %QX0.0 input register 0 bit 0." />
           <figcaption>Set up to poll the PLC's Modbus server, with the two points it will read and write.</figcaption>
         </figure>
 
@@ -199,7 +199,7 @@ END_PROGRAM</code></pre>
         <p>In <span class="ui">Simulation &gt; External PLC…</span>:</p>
         <ol class="steps">
           <li><span class="ui">Runs on</span>: <b>An external PLC</b>.</li>
-          <li><span class="ui">PLC connection</span>: <b>OPC UA, tags by name</b> (the PLC runs an OPC UA server).</li>
+          <li>Under it, how the PLC connects: <b>OPC UA, tags by name</b> (the PLC runs an OPC UA server).</li>
           <li><span class="ui">Server</span>: the PLC's endpoint, <code>opc.tcp://127.0.0.1:4840</code> on the same computer by default.</li>
         </ol>
         <p>

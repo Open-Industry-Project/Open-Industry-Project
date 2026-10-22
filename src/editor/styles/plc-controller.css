@@ -153,11 +153,6 @@
   gap: 1px;
 }
 
-/* the link is off: what Play would carry, not what it carries */
-.ctl-ext-points-idle {
-  opacity: 0.6;
-}
-
 .ctl-ext-point {
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   font-size: 11px;

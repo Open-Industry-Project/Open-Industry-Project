@@ -130,7 +130,7 @@
         <p>Open <span class="ui">Simulation &gt; External PLC…</span> (or double-click the Controller node at the top of the PLC panel's organizer) and set:</p>
         <ol class="steps">
           <li><span class="ui">Runs on</span>: <b>An external PLC</b>. On Play, the simulator hands the scene's I/O to your PLC instead of running the program in its own PLC panel.</li>
-          <li><span class="ui">PLC connection</span>: <b>The PLC polls the simulator</b> (the PLC is the Modbus master).</li>
+          <li>Under it, how the PLC connects: <b>The PLC polls the simulator</b> (the PLC is the Modbus master).</li>
           <li><span class="ui">Port</span>: <b>5020</b> is the default. Any free port works, and the PLC needs the same number.</li>
           <li>
             <span class="ui">Reachable from the network</span>: leave it off if the PLC runs on this computer. Tick it if the PLC is a
@@ -144,7 +144,7 @@
         </p>
         <figure class="shot">
           <img src="img/external-plc.webp" width="680" height="458" loading="lazy" decoding="async"
-            alt="The External PLC settings: Runs on An external PLC, PLC connection The PLC polls the simulator, Port 5020, Reachable from the network off, and the list of served points: %IX0.0 discrete input 0 and %QX0.0 coil 0." />
+            alt="The External PLC settings: Runs on An external PLC, connecting with The PLC polls the simulator, Port 5020, Reachable from the network off, and the list of served points: %IX0.0 discrete input 0 and %QX0.0 coil 0." />
           <figcaption>Set up to serve, with the two points this scene puts on the wire.</figcaption>
         </figure>
         <p class="sub">

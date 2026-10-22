@@ -40,9 +40,7 @@ const M = defineMessages('externalPlc', {
   thisSimulatorNote: '(the program in the PLC panel)',
   externalPlc: 'An external PLC',
   externalPlcNote: "(Play hands it the scene's tags)",
-  connection: 'PLC connection',
-  connectionNote: 'How an external PLC connects on Play. Assign I/O Addresses also uses it to choose addresses.',
-  whichEndPolls: 'Which end polls',
+  whichEndPolls: 'How the PLC connects',
   serveTitle: "The PLC's Modbus master reads and writes the simulator, which serves on a port of this machine",
   serve: 'The PLC polls the simulator',
   serveNote: '(the PLC is the Modbus master)',
@@ -93,7 +91,6 @@ const M = defineMessages('externalPlc', {
   opcUaNames: "A part's PLC tag is the PLC's own name for it (like Main.Eye), found on the server on Play, so nothing needs an address.",
   adsNames: "A part's PLC tag is the PLC's own name for it (MAIN.Eye, or GVL.Run for a global), asked for on Play, so nothing needs an address.",
   eipNames: "A part's PLC tag is the controller's own tag name (Eye, or Program:MainProgram.Eye for a program tag), asked for on Play, so nothing needs an address.",
-  wouldCarry: 'Would carry on Play, with an external PLC:',
   noTagEip: "No part has a PLC tag yet. Give each part the PLC's name for its signal, like Eye (a sensor) or Run (a motor).",
   noTagByName: "No part has a PLC tag yet. Give each part the PLC's name for its signal, like MAIN.Eye (a sensor) or MAIN.Run (a motor).",
   noAddress:
@@ -196,6 +193,8 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
   const problems = live ? status.problems : planned.problems
   const hint = statusHint(status, state.running)
   const locked = state.running || state.readOnly
+  /** Play hands the scene to a PLC, so how it connects is asked */
+  const external = settings.enabled && available
   const poll = settings.mode === 'poll'
   const opcua = settings.mode === 'opcua'
   const eip = settings.mode === 'eip'
@@ -218,14 +217,14 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
       <SectionHead title={t(M.runsOn)} scope="computer" />
       <div className="ctl-ext-mode" role="radiogroup" aria-label={t(M.runsOn)}>
         <label className="ctl-ext-field" title={t(M.here)}>
-          <input type="radio" name="external-plc-runs-on" checked={!(settings.enabled && available)} disabled={locked} onChange={() => store.setExternalPlc({ enabled: false })} data-testid="external-plc-here" />
+          <input type="radio" name="external-plc-runs-on" checked={!external} disabled={locked} onChange={() => store.setExternalPlc({ enabled: false })} data-testid="external-plc-here" />
           {t(M.thisSimulator)} <span className="ctl-dim">{t(M.thisSimulatorNote)}</span>
         </label>
         <label className="ctl-ext-field" title={t(available ? M.onPlay : WHY_NOT)}>
           <input
             type="radio"
             name="external-plc-runs-on"
-            checked={settings.enabled && available}
+            checked={external}
             disabled={!available || locked}
             onChange={() => store.setExternalPlc({ enabled: true })}
             data-testid="external-plc-enabled"
@@ -233,241 +232,235 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
           {t(M.externalPlc)} <span className="ctl-dim">{t(M.externalPlcNote)}</span>
         </label>
       </div>
-      {/* Which end polls, and where. A group of its own rather than a child of "An external PLC": the mode also decides
-          where Assign I/O puts the scene's tags (editor/program/ioAssign.ts ioTargetFor), so it matters while the program runs
-          here, and in a browser tab, too. */}
-      <SectionHead title={t(M.connection)} scope="computer" note={t(M.connectionNote)} />
-      <div className="ctl-ext-mode" role="radiogroup" aria-label={t(M.whichEndPolls)}>
-        <label className="ctl-ext-field" title={t(M.serveTitle)}>
-          <input type="radio" name="external-plc-mode" checked={settings.mode === 'serve'} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'serve' })} data-testid="external-plc-mode-serve" />
-          {t(M.serve)} <span className="ctl-dim">{t(M.serveNote)}</span>
-        </label>
-        <label className="ctl-ext-field" title={t(M.pollTitle)}>
-          <input type="radio" name="external-plc-mode" checked={poll} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'poll' })} data-testid="external-plc-mode-poll" />
-          {t(M.poll)} <span className="ctl-dim">{t(M.pollNote)}</span>
-        </label>
-        <label className="ctl-ext-field" title={t(M.opcUaTitle)}>
-          <input type="radio" name="external-plc-mode" checked={opcua} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'opcua' })} data-testid="external-plc-mode-opcua" />
-          {t(M.opcUa)} <span className="ctl-dim">{t(M.opcUaNote)}</span>
-        </label>
-        <label className="ctl-ext-field" title={t(M.eipTitle)}>
-          <input type="radio" name="external-plc-mode" checked={eip} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'eip' })} data-testid="external-plc-mode-eip" />
-          {t(M.eip)} <span className="ctl-dim">{t(M.eipNote)}</span>
-        </label>
-        <label className="ctl-ext-field" title={t(M.s7Title)}>
-          <input type="radio" name="external-plc-mode" checked={s7} disabled={locked} onChange={() => store.setExternalPlc({ mode: 's7' })} data-testid="external-plc-mode-s7" />
-          {/* i18n-ok: protocol name */}
-          S7 PUT/GET <span className="ctl-dim">{t(M.s7Note)}</span>
-        </label>
-        <label className="ctl-ext-field" title={t(M.adsTitle)}>
-          <input type="radio" name="external-plc-mode" checked={ads} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'ads' })} data-testid="external-plc-mode-ads" />
-          {t(M.ads)} <span className="ctl-dim">{t(M.adsNote)}</span>
-        </label>
-      </div>
-      {guide && (
-        <div className="ctl-dim" data-testid="external-plc-guide">
-          <a href={guide.href} target="_blank" rel="noopener noreferrer">
-            {t(guide.label)}
-          </a>
-        </div>
-      )}
-      {available && opcua && (
-        <>
-          <div className="ctl-ext-row">
-            <label className="ctl-ext-field" title={t(M.serverTitle)}>
-              {t(M.server)}
-              <CommitField
-                value={settings.opcUaEndpoint}
-                className="ctl-ext-endpoint"
-                disabled={locked}
-                commit={(text) => {
-                  if (!isOpcUaEndpoint(text)) return false
-                  store.setExternalPlc({ opcUaEndpoint: text })
-                  return true
-                }}
-                testId="external-plc-opcua-endpoint"
-              />
+      {/* How the external PLC connects, and where, under the choice that turns it on. Assign I/O reads the stored
+          mode too (editor/program/ioAssign.ts ioTargetFor), but it only tells a PLC that serves Modbus registers from
+          everything else, so the choice is not offered while the program runs here. */}
+      {external && (
+        <div className="ctl-ext ctl-ext-indent" data-testid="external-plc-settings">
+          <div className="ctl-ext-mode" role="radiogroup" aria-label={t(M.whichEndPolls)}>
+            <label className="ctl-ext-field" title={t(M.serveTitle)}>
+              <input type="radio" name="external-plc-mode" checked={settings.mode === 'serve'} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'serve' })} data-testid="external-plc-mode-serve" />
+              {t(M.serve)} <span className="ctl-dim">{t(M.serveNote)}</span>
+            </label>
+            <label className="ctl-ext-field" title={t(M.pollTitle)}>
+              <input type="radio" name="external-plc-mode" checked={poll} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'poll' })} data-testid="external-plc-mode-poll" />
+              {t(M.poll)} <span className="ctl-dim">{t(M.pollNote)}</span>
+            </label>
+            <label className="ctl-ext-field" title={t(M.opcUaTitle)}>
+              <input type="radio" name="external-plc-mode" checked={opcua} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'opcua' })} data-testid="external-plc-mode-opcua" />
+              {t(M.opcUa)} <span className="ctl-dim">{t(M.opcUaNote)}</span>
+            </label>
+            <label className="ctl-ext-field" title={t(M.eipTitle)}>
+              <input type="radio" name="external-plc-mode" checked={eip} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'eip' })} data-testid="external-plc-mode-eip" />
+              {t(M.eip)} <span className="ctl-dim">{t(M.eipNote)}</span>
+            </label>
+            <label className="ctl-ext-field" title={t(M.s7Title)}>
+              <input type="radio" name="external-plc-mode" checked={s7} disabled={locked} onChange={() => store.setExternalPlc({ mode: 's7' })} data-testid="external-plc-mode-s7" />
+              {/* i18n-ok: protocol name */}
+              S7 PUT/GET <span className="ctl-dim">{t(M.s7Note)}</span>
+            </label>
+            <label className="ctl-ext-field" title={t(M.adsTitle)}>
+              <input type="radio" name="external-plc-mode" checked={ads} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'ads' })} data-testid="external-plc-mode-ads" />
+              {t(M.ads)} <span className="ctl-dim">{t(M.adsNote)}</span>
             </label>
           </div>
-          <div className="ctl-warn" data-testid="external-plc-opcua-unsecured" title={t(M.opcUaUnsecuredTitle)}>
-            {t(M.opcUaUnsecured)}
-          </div>
-        </>
-      )}
-      {available && eip && (
-        <div className="ctl-ext-row">
-          <label className="ctl-ext-field" title={t(M.eipGatewayTitle)}>
-            {t(M.eipGateway)}
-            <CommitField
-              value={settings.eipGateway}
-              wide
-              disabled={locked}
-              commit={(text) => {
-                if (!isPlcHost(text)) return false
-                store.setExternalPlc({ eipGateway: text })
-                return true
-              }}
-              testId="external-plc-eip-gateway"
-            />
-          </label>
-          <label className="ctl-ext-field" title={t(M.eipPathTitle)}>
-            {t(M.eipPath)}
-            <CommitField
-              value={settings.eipPath}
-              disabled={locked}
-              commit={(text) => {
-                if (!isEipPath(text)) return false
-                store.setExternalPlc({ eipPath: text })
-                return true
-              }}
-              testId="external-plc-eip-path"
-            />
-          </label>
-        </div>
-      )}
-      {available && ads && (
-        <>
-          <div className="ctl-ext-row">
-            <label className="ctl-ext-field" title={t(M.adsNetIdTitle)}>
-              {/* i18n-ok: the ADS protocol's name for the field */}
-              AMS Net ID
-              <CommitField
-                value={settings.adsNetId}
-                wide
-                disabled={locked}
-                commit={(text) => {
-                  if (!isAmsNetId(text)) return false
-                  store.setExternalPlc({ adsNetId: text })
-                  return true
-                }}
-                testId="external-plc-ads-netid"
-              />
-            </label>
-            <label className="ctl-ext-field" title={t(M.adsPortTitle)}>
-              {t(M.port)}
-              <CommitField value={String(settings.adsPort)} numeric disabled={locked} commit={whole('adsPort', 1, 65535)} testId="external-plc-ads-port" />
-            </label>
-          </div>
-          <div className="ctl-dim" data-testid="external-plc-ads-router">
-            {t(M.adsRouter)}
-          </div>
-        </>
-      )}
-      {available && s7 && (
-        <>
-          <div className="ctl-ext-row">
-            <label className="ctl-ext-field" title={t(M.s7HostTitle)}>
-              {t(M.s7Host)}
-              <CommitField
-                value={settings.s7Host}
-                wide
-                disabled={locked}
-                commit={(text) => {
-                  if (!isPlcHost(text)) return false
-                  store.setExternalPlc({ s7Host: text })
-                  return true
-                }}
-                testId="external-plc-s7-host"
-              />
-            </label>
-            <label className="ctl-ext-field" title={t(M.s7PortTitle)}>
-              {t(M.port)}
-              <CommitField value={String(settings.s7Port)} numeric disabled={locked} commit={whole('s7Port', 1, 65535)} testId="external-plc-s7-port" />
-            </label>
-          </div>
-          <div className="ctl-ext-row">
-            <label className="ctl-ext-field" title={t(M.s7RackTitle)}>
-              {t(M.s7Rack)}
-              <CommitField value={String(settings.s7Rack)} numeric disabled={locked} commit={whole('s7Rack', 0, 7)} testId="external-plc-s7-rack" />
-            </label>
-            <label className="ctl-ext-field" title={t(M.s7SlotTitle)}>
-              {t(M.s7Slot)}
-              <CommitField value={String(settings.s7Slot)} numeric disabled={locked} commit={whole('s7Slot', 0, 31)} testId="external-plc-s7-slot" />
-            </label>
-          </div>
-          <div className="ctl-dim" data-testid="external-plc-s7-putget">
-            {t(M.s7PutGet)}
-          </div>
-        </>
-      )}
-      {available &&
-        !byName &&
-        !s7 &&
-        (poll ? (
-          <>
+          {guide && (
+            <div className="ctl-dim" data-testid="external-plc-guide">
+              <a href={guide.href} target="_blank" rel="noopener noreferrer">
+                {t(guide.label)}
+              </a>
+            </div>
+          )}
+          {opcua && (
+            <div className="ctl-dim" data-testid="external-plc-opcua-names">
+              {t(M.opcUaNames)}
+            </div>
+          )}
+          {ads && (
+            <div className="ctl-dim" data-testid="external-plc-ads-names">
+              {t(M.adsNames)}
+            </div>
+          )}
+          {eip && (
+            <div className="ctl-dim" data-testid="external-plc-eip-names">
+              {t(M.eipNames)}
+            </div>
+          )}
+          {opcua && (
+            <>
+              <div className="ctl-ext-row">
+                <label className="ctl-ext-field" title={t(M.serverTitle)}>
+                  {t(M.server)}
+                  <CommitField
+                    value={settings.opcUaEndpoint}
+                    className="ctl-ext-endpoint"
+                    disabled={locked}
+                    commit={(text) => {
+                      if (!isOpcUaEndpoint(text)) return false
+                      store.setExternalPlc({ opcUaEndpoint: text })
+                      return true
+                    }}
+                    testId="external-plc-opcua-endpoint"
+                  />
+                </label>
+              </div>
+              <div className="ctl-warn" data-testid="external-plc-opcua-unsecured" title={t(M.opcUaUnsecuredTitle)}>
+                {t(M.opcUaUnsecured)}
+              </div>
+            </>
+          )}
+          {eip && (
             <div className="ctl-ext-row">
-              <label className="ctl-ext-field" title={t(M.plcHostTitle)}>
-                {t(M.plcHost)}
+              <label className="ctl-ext-field" title={t(M.eipGatewayTitle)}>
+                {t(M.eipGateway)}
                 <CommitField
-                  value={settings.plcHost}
+                  value={settings.eipGateway}
                   wide
                   disabled={locked}
                   commit={(text) => {
                     if (!isPlcHost(text)) return false
-                    store.setExternalPlc({ plcHost: text })
+                    store.setExternalPlc({ eipGateway: text })
                     return true
                   }}
-                  testId="external-plc-host"
+                  testId="external-plc-eip-gateway"
                 />
               </label>
-              <label className="ctl-ext-field" title={t(M.plcPortTitle)}>
-                {t(M.port)}
-                <CommitField value={String(settings.plcPort)} numeric disabled={locked} commit={whole('plcPort', 1, 65535)} testId="external-plc-plc-port" />
+              <label className="ctl-ext-field" title={t(M.eipPathTitle)}>
+                {t(M.eipPath)}
+                <CommitField
+                  value={settings.eipPath}
+                  disabled={locked}
+                  commit={(text) => {
+                    if (!isEipPath(text)) return false
+                    store.setExternalPlc({ eipPath: text })
+                    return true
+                  }}
+                  testId="external-plc-eip-path"
+                />
               </label>
-            </div>
-            <div className="ctl-ext-row">
-              <label className="ctl-ext-field" title={t(M.inputBaseTitle)}>
-                {t(M.inputBase)}
-                <CommitField value={String(settings.inputBase)} numeric disabled={locked} commit={whole('inputBase', 0, 65535)} testId="external-plc-input-base" />
-              </label>
-              <label className="ctl-ext-field" title={t(M.outputBaseTitle)}>
-                {t(M.outputBase)}
-                <CommitField value={String(settings.outputBase)} numeric disabled={locked} commit={whole('outputBase', 0, 65535)} testId="external-plc-output-base" />
-              </label>
-            </div>
-          </>
-        ) : (
-          <div className="ctl-ext-row">
-            <label className="ctl-ext-field">
-              {t(M.port)}
-              <CommitField value={String(settings.port)} numeric disabled={locked} commit={whole('port', 1, 65535)} testId="external-plc-port" />
-            </label>
-            <label className="ctl-ext-field" title={t(M.networkTitle)}>
-              <input type="checkbox" checked={settings.network} disabled={locked} onChange={(e) => store.setExternalPlc({ network: e.target.checked })} data-testid="external-plc-network" />
-              {t(M.network)}
-            </label>
-          </div>
-        ))}
-      {opcua && (
-        <div className="ctl-dim" data-testid="external-plc-opcua-names">
-          {t(M.opcUaNames)}
-        </div>
-      )}
-      {ads && (
-        <div className="ctl-dim" data-testid="external-plc-ads-names">
-          {t(M.adsNames)}
-        </div>
-      )}
-      {eip && (
-        <div className="ctl-dim" data-testid="external-plc-eip-names">
-          {t(M.eipNames)}
-        </div>
-      )}
-      {available && (
-        <>
-          {settings.enabled && (
-            <div className={status.state === 'failed' || (state.running && status.stale) ? 'ctl-problem' : 'ctl-dim'} data-testid="external-plc-status" role="status">
-              {statusLine(status, state.running, settings)}
             </div>
           )}
-          {settings.enabled && hint && (
+          {ads && (
+            <>
+              <div className="ctl-ext-row">
+                <label className="ctl-ext-field" title={t(M.adsNetIdTitle)}>
+                  {/* i18n-ok: the ADS protocol's name for the field */}
+                  AMS Net ID
+                  <CommitField
+                    value={settings.adsNetId}
+                    wide
+                    disabled={locked}
+                    commit={(text) => {
+                      if (!isAmsNetId(text)) return false
+                      store.setExternalPlc({ adsNetId: text })
+                      return true
+                    }}
+                    testId="external-plc-ads-netid"
+                  />
+                </label>
+                <label className="ctl-ext-field" title={t(M.adsPortTitle)}>
+                  {t(M.port)}
+                  <CommitField value={String(settings.adsPort)} numeric disabled={locked} commit={whole('adsPort', 1, 65535)} testId="external-plc-ads-port" />
+                </label>
+              </div>
+              <div className="ctl-dim" data-testid="external-plc-ads-router">
+                {t(M.adsRouter)}
+              </div>
+            </>
+          )}
+          {s7 && (
+            <>
+              <div className="ctl-ext-row">
+                <label className="ctl-ext-field" title={t(M.s7HostTitle)}>
+                  {t(M.s7Host)}
+                  <CommitField
+                    value={settings.s7Host}
+                    wide
+                    disabled={locked}
+                    commit={(text) => {
+                      if (!isPlcHost(text)) return false
+                      store.setExternalPlc({ s7Host: text })
+                      return true
+                    }}
+                    testId="external-plc-s7-host"
+                  />
+                </label>
+                <label className="ctl-ext-field" title={t(M.s7PortTitle)}>
+                  {t(M.port)}
+                  <CommitField value={String(settings.s7Port)} numeric disabled={locked} commit={whole('s7Port', 1, 65535)} testId="external-plc-s7-port" />
+                </label>
+              </div>
+              <div className="ctl-ext-row">
+                <label className="ctl-ext-field" title={t(M.s7RackTitle)}>
+                  {t(M.s7Rack)}
+                  <CommitField value={String(settings.s7Rack)} numeric disabled={locked} commit={whole('s7Rack', 0, 7)} testId="external-plc-s7-rack" />
+                </label>
+                <label className="ctl-ext-field" title={t(M.s7SlotTitle)}>
+                  {t(M.s7Slot)}
+                  <CommitField value={String(settings.s7Slot)} numeric disabled={locked} commit={whole('s7Slot', 0, 31)} testId="external-plc-s7-slot" />
+                </label>
+              </div>
+              <div className="ctl-dim" data-testid="external-plc-s7-putget">
+                {t(M.s7PutGet)}
+              </div>
+            </>
+          )}
+          {!byName &&
+            !s7 &&
+            (poll ? (
+              <>
+                <div className="ctl-ext-row">
+                  <label className="ctl-ext-field" title={t(M.plcHostTitle)}>
+                    {t(M.plcHost)}
+                    <CommitField
+                      value={settings.plcHost}
+                      wide
+                      disabled={locked}
+                      commit={(text) => {
+                        if (!isPlcHost(text)) return false
+                        store.setExternalPlc({ plcHost: text })
+                        return true
+                      }}
+                      testId="external-plc-host"
+                    />
+                  </label>
+                  <label className="ctl-ext-field" title={t(M.plcPortTitle)}>
+                    {t(M.port)}
+                    <CommitField value={String(settings.plcPort)} numeric disabled={locked} commit={whole('plcPort', 1, 65535)} testId="external-plc-plc-port" />
+                  </label>
+                </div>
+                <div className="ctl-ext-row">
+                  <label className="ctl-ext-field" title={t(M.inputBaseTitle)}>
+                    {t(M.inputBase)}
+                    <CommitField value={String(settings.inputBase)} numeric disabled={locked} commit={whole('inputBase', 0, 65535)} testId="external-plc-input-base" />
+                  </label>
+                  <label className="ctl-ext-field" title={t(M.outputBaseTitle)}>
+                    {t(M.outputBase)}
+                    <CommitField value={String(settings.outputBase)} numeric disabled={locked} commit={whole('outputBase', 0, 65535)} testId="external-plc-output-base" />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <div className="ctl-ext-row">
+                <label className="ctl-ext-field">
+                  {t(M.port)}
+                  <CommitField value={String(settings.port)} numeric disabled={locked} commit={whole('port', 1, 65535)} testId="external-plc-port" />
+                </label>
+                <label className="ctl-ext-field" title={t(M.networkTitle)}>
+                  <input type="checkbox" checked={settings.network} disabled={locked} onChange={(e) => store.setExternalPlc({ network: e.target.checked })} data-testid="external-plc-network" />
+                  {t(M.network)}
+                </label>
+              </div>
+            ))}
+          <div className={status.state === 'failed' || (state.running && status.stale) ? 'ctl-problem' : 'ctl-dim'} data-testid="external-plc-status" role="status">
+            {statusLine(status, state.running, settings)}
+          </div>
+          {hint && (
             <div className="ctl-dim" data-testid="external-plc-hint">
               {hint}
             </div>
           )}
-          {/* with the link off this is only what Play would carry, so it says so and steps back */}
-          {!settings.enabled && points.length > 0 && <div className="ctl-dim">{t(M.wouldCarry)}</div>}
-          <div className={settings.enabled ? 'ctl-ext-points' : 'ctl-ext-points ctl-ext-points-idle'} data-testid="external-plc-points">
+          <div className="ctl-ext-points" data-testid="external-plc-points">
             {points.length === 0 ? (
               <span className="ctl-dim">
                 {t(byName ? (eip ? M.noTagEip : M.noTagByName) : M.noAddress)}
@@ -485,7 +478,7 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
               {p}
             </div>
           ))}
-        </>
+        </div>
       )}
     </section>
   )
