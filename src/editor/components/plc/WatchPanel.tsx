@@ -1,0 +1,461 @@
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactElement } from 'react'
+import type { TagValue } from '../../../plc'
+import { deviceTags, devicesForTag, type DeviceTagUse } from '../../../plc/bindings'
+import { listTags } from '../../../plc/tags'
+import type { ScanTime } from '../../../sim/plcHost'
+import type { EditorController } from '../../controller'
+import type { EditorState, EditorStore } from '../../store/store'
+import { declaredTypeSets, formatPlcValue, typeOfKey, type DeclaredTypes } from '../../program/plcValueText'
+import { addWatchNames, onWatchListChange, parseWatchNames, readWatchList, resolveWatch, saveWatchList, type WatchRow } from '../../program/plcWatchList'
+import { TrashIcon } from '../toolbarIcons'
+import { defineMessages, t } from '../../../core/i18n'
+
+const M = defineMessages('plcWatch', {
+  scanProgram: 'Scan: last {last}, average {avg}, max {max}, every {interval}',
+  scanTask: 'Task {task}: last {last}, average {avg}, max {max}, every {interval}',
+  scanProgramContinuous: 'Scan: last {last}, average {avg}, max {max}, every physics step',
+  scanTaskContinuous: 'Task {task}: last {last}, average {avg}, max {max}, every physics step',
+  scanTitle:
+    'How long the scans took to execute on this computer. The interval is simulated time, so a long scan slows the whole simulation instead of making the task late.',
+  scanCount: { one: '{count} scan timed', other: '{count} scans timed' },
+  reset: 'Reset',
+  resetTitle: 'Start the average and the maximum over',
+  stopped: 'Press Play to see live values and scan times',
+  colName: 'Name',
+  colValue: 'Value',
+  colType: 'Type',
+  colWired: 'Wired to',
+  notInProgram: 'not in the running program',
+  members: { one: '{count} value', other: '{count} values' },
+  moreMembers: { one: '{count} more not listed', other: '{count} more not listed' },
+  expand: 'Show the values under {name}',
+  collapse: 'Hide the values under {name}',
+  toggleTitle: 'Click to write the opposite value. A bit the program writes is written back by its next scan',
+  editTitle: 'Click to write a new value. A variable the program writes is written back by its next scan',
+  setLabel: 'New value for {name}',
+  reads: '{part}: its {field} reads this',
+  writes: '{part}: its {field} writes this',
+  uses: '{part}: its {field}',
+  selectPart: 'Click to select it in the scene',
+  moreParts: { one: '+{count} more', other: '+{count} more' },
+  remove: 'Stop watching {name}',
+  empty: 'Right-click a variable in the PLC panel and choose Add to Watch, or type its name below',
+  addLabel: 'Variables to watch',
+  addPlaceholder: 'Name, or several separated by commas',
+  add: 'Add',
+  clear: 'Clear',
+  clearTitle: 'Remove every variable from the watch list',
+})
+
+/** How often the panel re-reads the image while the program runs. The image itself arrives ten times a second
+ *  (sim/plcHost.ts WATCH_HZ), so reading faster shows nothing new. */
+const POLL_MS = 125
+/** How long a value that just changed stays marked. */
+const FLASH_MS = 700
+/** Most names the add box suggests: the whole image of a large program is thousands of values. */
+const MAX_SUGGESTIONS = 2000
+/** Parts listed in a row's Wired to before the rest are counted. */
+const MAX_PARTS = 3
+/** How long the declared types wait after an edit before they are read again: they take a parse. */
+const TYPES_DELAY_MS = 250
+
+/** A scan time in the unit that keeps it readable: microseconds below a millisecond. */
+function duration(ms: number): string {
+  // i18n-ok: units
+  if (ms === 0) return '0 µs' // under the clock's grain (ScanTime says why)
+  // i18n-ok: units
+  if (ms < 1) return `${(ms * 1000).toFixed(ms < 0.01 ? 1 : 0)} µs`
+  // i18n-ok: units
+  return `${ms.toFixed(ms < 10 ? 2 : 1)} ms`
+}
+/** A task interval as the scan-time field writes it. */
+function interval(sec: number): string {
+  const ms = sec * 1000
+  // i18n-ok: units
+  return Number.isInteger(ms) ? `${ms} ms` : `${Number(ms.toFixed(3))} ms`
+}
+
+function scanLine(s: ScanTime): string {
+  const p = { task: s.task, last: duration(s.lastMs), avg: duration(s.avgMs), max: duration(s.maxMs), interval: interval(s.periodSec) }
+  if (s.kind === 'continuous') return t(s.task === '' ? M.scanProgramContinuous : M.scanTaskContinuous, p)
+  return t(s.task === '' ? M.scanProgram : M.scanTask, p)
+}
+
+/**
+ * Every part wired to the value: by the name as written, by the image's key, and by the key without its program
+ * instance (a part may name `Run` for `Line.Run`, the bare-name rule in plc/DEVICE-IO.md).
+ */
+function wiredParts(devices: ReturnType<typeof deviceTags>, name: string, key: string | null): DeviceTagUse[] {
+  const names = new Set([name.toUpperCase()])
+  if (key !== null) {
+    names.add(key.toUpperCase())
+    const dot = key.indexOf('.')
+    if (dot > 0) names.add(key.slice(dot + 1).toUpperCase())
+  }
+  const seen = new Set<string>()
+  const out: DeviceTagUse[] = []
+  for (const n of names)
+    for (const u of devicesForTag(devices, n)) {
+      const id = `${u.device.id}:${u.field}`
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push(u)
+    }
+  return out
+}
+
+interface ValueCellProps {
+  name: string
+  rowKey: string | null
+  value: TagValue | undefined
+  type: string | undefined
+  live: boolean
+  flash: boolean
+  controller: EditorController | null
+  onError: (why: string | null) => void
+}
+
+/**
+ * The value, and the way to write it: a BOOL toggles on a click, a number opens a field on one (Enter writes, Escape or
+ * leaving it writes nothing, since a value written into a running machine should be meant). Text is set in the
+ * declaration, so a STRING only shows.
+ */
+function ValueCell({ name, rowKey, value, type, live, flash, controller, onError }: ValueCellProps): ReactElement {
+  const [draft, setDraft] = useState<string | null>(null)
+  const cls = `plc-watch-value${flash ? ' plc-watch-flash' : ''}`
+  if (value === undefined) return <td className={cls} data-testid="plc-watch-value" />
+  const text = formatPlcValue(value, type, 80)
+  const writable = live && rowKey !== null && controller !== null && typeof value !== 'string'
+  if (!writable) return <td className={cls} data-testid="plc-watch-value">{text}</td>
+  if (typeof value === 'boolean')
+    return (
+      <td className={cls} data-testid="plc-watch-value">
+        <button type="button" className={`plc-watch-cell plc-watch-bool${value ? ' on' : ''}`} data-testid="plc-watch-write" title={t(M.toggleTitle)} onClick={() => onError(controller.togglePlcBit(rowKey) ? null : t(M.notInProgram))}>
+          {text}
+        </button>
+      </td>
+    )
+  if (draft !== null)
+    return (
+      <td className={cls} data-testid="plc-watch-value">
+        <input
+          className="ld-vars-field plc-watch-set"
+          data-testid="plc-watch-set"
+          aria-label={t(M.setLabel, { name })}
+          spellCheck={false}
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => setDraft(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              const why = controller.writePlcValue(rowKey, draft)
+              onError(why)
+              if (why === null) setDraft(null)
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              setDraft(null)
+              onError(null)
+            }
+          }}
+        />
+      </td>
+    )
+  return (
+    <td className={cls} data-testid="plc-watch-value">
+      {/* (the raw number to edit: a duration is milliseconds underneath, which is what a write takes) */}
+      <button type="button" className="plc-watch-cell" data-testid="plc-watch-write" title={t(M.editTitle)} onClick={() => {
+          onError(null)
+          setDraft(String(value))
+        }}>
+        {text}
+      </button>
+    </td>
+  )
+}
+
+interface WatchPanelProps {
+  store: EditorStore
+  state: EditorState
+  controller: EditorController | null
+}
+
+/**
+ * The Watch dock: the variables the reader picked, with their live values, their types and the parts wired to them,
+ * and how long the program's scans take. A dock of its own, so it can stay in view beside the running line while the
+ * PLC panel is closed. Variables reach it by Add to Watch in the PLC panel (the code's and the rungs' right-click
+ * menus) or by name here; the list is remembered per project in this browser (plcWatchList.ts).
+ */
+export function WatchPanel({ store, state, controller }: WatchPanelProps): ReactElement {
+  const project = state.projectName
+  const [names, setNames] = useState(() => readWatchList(project))
+  const [shownFor, setShownFor] = useState(project)
+  if (shownFor !== project) {
+    setShownFor(project)
+    setNames(readWatchList(project))
+  }
+  const setList = (next: string[]): void => {
+    setNames(next)
+    saveWatchList(project, next)
+  }
+  // an Add to Watch from the PLC panel, or this list changed in another copy of the panel
+  useEffect(() => onWatchListChange((changed) => changed === project && setNames(readWatchList(project))), [project])
+
+  // the controller owns the program's lifecycle; this mirrors whether one is attached
+  const [attached, setAttached] = useState(() => controller?.programStatus.attached ?? false)
+  useEffect(() => {
+    if (!controller) return
+    const sync = (): void => setAttached(controller.programStatus.attached)
+    sync()
+    return controller.onProgramStatus(sync)
+  }, [controller])
+  const live = attached && state.running
+
+  const [image, setImage] = useState<Readonly<Record<string, TagValue>> | null>(null)
+  const [times, setTimes] = useState<readonly ScanTime[]>([])
+  // when each watched value last changed (performance.now), for the mark a change leaves; kept between polls
+  const lastSeen = useRef(new Map<string, TagValue>())
+  const changedAt = useRef(new Map<string, number>())
+  const namesRef = useRef(names)
+  namesRef.current = names
+  const ctrlRef = useRef(controller)
+  ctrlRef.current = controller
+  useEffect(() => {
+    if (!live) return
+    const read = (): void => {
+      const img = ctrlRef.current?.plcWatch ?? null
+      if (img) {
+        const now = performance.now()
+        for (const n of namesRef.current) {
+          const r = resolveWatch(n, img)
+          const seen = r.key !== null ? [{ key: r.key, value: r.value! }] : r.members
+          for (const { key, value } of seen) {
+            const before = lastSeen.current.get(key)
+            if (before !== undefined && before !== value) changedAt.current.set(key, now)
+            lastSeen.current.set(key, value)
+          }
+        }
+      }
+      setImage(img)
+      setTimes(ctrlRef.current?.plcScanTimes ?? [])
+    }
+    read()
+    const id = setInterval(read, POLL_MS)
+    return () => {
+      clearInterval(id)
+      setImage(null)
+      setTimes([])
+      lastSeen.current.clear()
+      changedAt.current.clear()
+    }
+  }, [live])
+
+  // the declared types, re-read a pause after the program text changes (they take a parse)
+  const [types, setTypes] = useState<DeclaredTypes>(() => declaredTypeSets(state.stProgram))
+  useEffect(() => {
+    const id = window.setTimeout(() => setTypes(declaredTypeSets(state.stProgram)), TYPES_DELAY_MS)
+    return () => window.clearTimeout(id)
+  }, [state.stProgram])
+  // the parts that speak tags, re-derived when the scene's parts change (and only then)
+  const parts = state.scene.parts
+  const devices = useMemo(() => deviceTags(parts), [parts])
+
+  const [adding, setAdding] = useState('')
+  const [suggestions, setSuggestions] = useState<readonly string[]>([])
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
+  const rows: WatchRow[] = names.map((n) => (image ? resolveWatch(n, image) : { name: n, key: null, value: undefined, members: [], more: 0 }))
+  const now = performance.now()
+  const flashing = (key: string | null): boolean => key !== null && now - (changedAt.current.get(key) ?? -Infinity) < FLASH_MS
+  const add = (text: string): void => {
+    const parsed = parseWatchNames(text)
+    if (parsed.length === 0) return
+    setList(addWatchNames(names, parsed))
+    setAdding('')
+  }
+  const fillSuggestions = (): void => {
+    const img = controller?.plcWatch
+    const keys = img ? Object.keys(img) : listTagNames(state.stProgram)
+    setSuggestions(keys.length > MAX_SUGGESTIONS ? keys.slice(0, MAX_SUGGESTIONS) : keys)
+  }
+  const toggleExpanded = (name: string): void => {
+    const k = name.toUpperCase()
+    setExpanded((cur) => {
+      const next = new Set(cur)
+      if (!next.delete(k)) next.add(k)
+      return next
+    })
+  }
+  const wiredCell = (name: string, key: string | null): ReactElement => {
+    const uses = wiredParts(devices, name, key)
+    return (
+      <td className="plc-watch-wired" data-testid="plc-watch-wired">
+        {uses.slice(0, MAX_PARTS).map((u) => {
+          const what = { part: u.device.name, field: u.field }
+          const how = u.section === 'VAR_INPUT' ? t(M.writes, what) : u.section === 'VAR_OUTPUT' ? t(M.reads, what) : t(M.uses, what)
+          return (
+            <button key={`${u.device.id}:${u.field}`} type="button" className="plc-watch-part" data-testid="plc-watch-part" data-part={u.device.id} title={`${how}. ${t(M.selectPart)}`} onClick={() => store.select(u.device.id)}>
+              {u.device.name}
+            </button>
+          )
+        })}
+        {uses.length > MAX_PARTS && <span className="ld-vars-dim">{t(M.moreParts, { count: uses.length - MAX_PARTS })}</span>}
+      </td>
+    )
+  }
+
+  return (
+    <div className="plc-watch" data-testid="plc-watch">
+      <div className="plc-watch-scan" data-testid="plc-watch-scan" title={t(M.scanTitle)}>
+        {!live ? (
+          <span className="plc-watch-scan-lines ld-vars-dim">{t(M.stopped)}</span>
+        ) : (
+          <>
+            <div className="plc-watch-scan-lines">
+              {times.map((s, i) => (
+                <div key={`${s.task}:${i}`} data-testid="plc-watch-scan-line" data-scans={s.scans} data-avg-ms={s.avgMs} data-max-ms={s.maxMs}>
+                  {scanLine(s)} <span className="ld-vars-dim">({t(M.scanCount, { count: s.scans })})</span>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="plc-watch-btn" data-testid="plc-watch-reset" title={t(M.resetTitle)} onClick={() => controller?.resetPlcScanTimes()}>
+              {t(M.reset)}
+            </button>
+          </>
+        )}
+        {names.length > 0 && (
+          <button type="button" className="plc-watch-btn" data-testid="plc-watch-clear" title={t(M.clearTitle)} onClick={() => setList([])}>
+            {t(M.clear)}
+          </button>
+        )}
+      </div>
+      <div className="plc-watch-scroll">
+        <table className="ld-vars-table plc-watch-table">
+          <thead>
+            <tr>
+              <th>{t(M.colName)}</th>
+              <th>{t(M.colValue)}</th>
+              <th>{t(M.colType)}</th>
+              <th>{t(M.colWired)}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const open = expanded.has(r.name.toUpperCase())
+              const structured = r.key === null && r.members.length > 0
+              const type = typeOfKey(types, r.key ?? r.name)
+              return (
+                <Fragment key={r.name}>
+                  <tr data-testid="plc-watch-row" data-name={r.name}>
+                    <td className="plc-watch-name">
+                      {structured ? (
+                        <button type="button" className="plc-watch-caret" aria-expanded={open} aria-label={t(open ? M.collapse : M.expand, { name: r.name })} onClick={() => toggleExpanded(r.name)}>
+                          {open ? '▾' : '▸'}
+                        </button>
+                      ) : (
+                        <span className="plc-watch-caret" />
+                      )}
+                      {r.name}
+                    </td>
+                    {structured ? (
+                      <td className="plc-watch-value ld-vars-dim" data-testid="plc-watch-value">
+                        {t(M.members, { count: r.members.length + r.more })}
+                      </td>
+                    ) : r.value === undefined && live && image ? (
+                      <td className="plc-watch-value ld-vars-dim" data-testid="plc-watch-value">
+                        {t(M.notInProgram)}
+                      </td>
+                    ) : (
+                      <ValueCell name={r.name} rowKey={r.key} value={r.value} type={type} live={live} flash={flashing(r.key)} controller={controller} onError={setError} />
+                    )}
+                    <td className="plc-watch-type ld-vars-dim" data-testid="plc-watch-type">
+                      {type ?? ''}
+                    </td>
+                    {wiredCell(r.name, r.key)}
+                    <td>
+                      <button type="button" className="ld-vars-btn" data-testid="plc-watch-remove" aria-label={t(M.remove, { name: r.name })} title={t(M.remove, { name: r.name })} onClick={() => setList(names.filter((n) => n !== r.name))}>
+                        <TrashIcon size="1em" />
+                      </button>
+                    </td>
+                  </tr>
+                  {structured &&
+                    open &&
+                    r.members.map((m) => {
+                      const mType = typeOfKey(types, m.key)
+                      return (
+                        <tr key={m.key} data-testid="plc-watch-member" data-name={m.key}>
+                          <td className="plc-watch-name plc-watch-member">{m.key}</td>
+                          <ValueCell name={m.key} rowKey={m.key} value={m.value} type={mType} live={live} flash={flashing(m.key)} controller={controller} onError={setError} />
+                          <td className="plc-watch-type ld-vars-dim">{mType ?? ''}</td>
+                          {wiredCell(m.key, m.key)}
+                          <td />
+                        </tr>
+                      )
+                    })}
+                  {structured && open && r.more > 0 && (
+                    <tr>
+                      <td colSpan={5} className="ld-vars-dim plc-watch-member">
+                        {t(M.moreMembers, { count: r.more })}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="ld-vars-dim">
+                  {t(M.empty)}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="plc-watch-add">
+        <input
+          className="ld-vars-field"
+          data-testid="plc-watch-add-name"
+          aria-label={t(M.addLabel)}
+          placeholder={t(M.addPlaceholder)}
+          spellCheck={false}
+          list="plc-watch-suggestions"
+          value={adding}
+          onFocus={fillSuggestions}
+          onChange={(e) => setAdding(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              add(adding)
+            }
+          }}
+        />
+        <datalist id="plc-watch-suggestions">
+          {suggestions.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+        <button type="button" className="plc-watch-btn" data-testid="plc-watch-add" disabled={adding.trim() === ''} onClick={() => add(adding)}>
+          {t(M.add)}
+        </button>
+      </div>
+      {error && (
+        <div className="ld-vars-error plc-watch-error" role="alert" data-testid="plc-watch-error">
+          ⚠ {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The program's declared names, which the add box suggests while nothing runs. */
+function listTagNames(source: string): string[] {
+  try {
+    return [...new Set(listTags(source).map((r) => r.name))]
+  } catch {
+    return []
+  }
+}

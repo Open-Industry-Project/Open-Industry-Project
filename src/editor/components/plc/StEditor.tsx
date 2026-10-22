@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactElement } from 'react'
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement } from 'react'
 import {
   commsTags,
   controllerFor,
@@ -36,6 +36,10 @@ import { PlcFileMenu } from './PlcFileMenu'
 import { providePlcReading } from '../../program/plcReading'
 import { CheckIcon, CopyIcon, DockIcon, ExternalLinkIcon, FoldIcon, MaximizeIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
+import { ContextMenu, type MenuItem } from '../inspector/menu'
+import { primaryKey } from '../../keyHint'
+import { activeClipboard } from '../../dialogHost'
+import { addToWatchList } from '../../program/plcWatchList'
 
 const M = defineMessages('stEditor', {
   viewOnlyLink: 'Disabled on a view-only link',
@@ -55,6 +59,16 @@ const M = defineMessages('stEditor', {
   hideOrganizer: 'Hide the organizer: the program as a tree of tasks, programs and types',
   showOrganizer: 'Show the organizer: the program as a tree of tasks, programs and types',
   organizer: 'Organizer',
+  addNameToWatch: 'Add {name} to Watch',
+  addToWatch: 'Add to Watch',
+  addToWatchHint: 'Follow its live value in the Watch dock',
+  addToWatchNone: 'Right-click a variable to watch it',
+  cut: 'Cut',
+  copy: 'Copy',
+  paste: 'Paste',
+  selectAll: 'Select All',
+  pasteRefused: 'The browser did not hand over the clipboard',
+  pasteRefusedDetail: 'Press {keys} in the code to paste instead.',
   programView: 'Program view',
   textTitle: 'The program as Structured Text',
   text: 'Text',
@@ -124,7 +138,7 @@ interface StEditorProps {
   docked?: boolean
   /**
    * Read-the-program surface: the code, its POU index and the PLC status, with every command
-   * that WRITES dropped. This is the mobile Logic sheet (App), where the program runs on Play
+   * that WRITES dropped. This is the mobile PLC sheet (App), where the program runs on Play
    * but a phone keyboard is no way to author ST.
    *
    * Not `store.setReadOnly` - that flag is the collaborative view-only link and
@@ -696,6 +710,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     toggleBit: (key) => ctrlRef.current?.togglePlcBit(key) ?? false,
     // (NOT `?? 'not running'`: a write that WORKED answers null)
     writeLive: (key, text) => (ctrlRef.current ? ctrlRef.current.writePlcValue(key, text) : t(M.notRunning)),
+    addToWatch: (name) => addToWatch(name),
     tags: () => commsTags(stateRef.current.scene.parts),
     undo: () => editorRef.current?.undo(),
     redo: () => editorRef.current?.redo(),
@@ -732,6 +747,64 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
       }),
     [],
   )
+
+  /** Add to Watch, from the text's menu or the rungs': onto the project's list, with the Watch dock brought forward. */
+  const addToWatch = (name: string): void => {
+    addToWatchList(stateRef.current.projectName, [name])
+    store.revealPanel('watch')
+  }
+
+  // The code's right-click menu: Add to Watch for the variable clicked, and the editing items the browser's own menu
+  // had, which this one replaces. Shift+right-click still opens the browser's.
+  const [textMenu, setTextMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+  const openTextMenu = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    if (e.shiftKey || !editorRef.current) return
+    e.preventDefault()
+    // the menu key fires this with no pointer position: the menu opens at the caret
+    const point = e.clientX === 0 && e.clientY === 0 ? null : { x: e.clientX, y: e.clientY }
+    const at = editorRef.current.contextAt(point)
+    if (!at) return
+    const editor = editorRef.current
+    const has = at.selected !== ''
+    const later = (fn: () => void) => () => void window.setTimeout(fn, 0)
+    const copyText = (): Promise<boolean> =>
+      (activeClipboard()?.writeText(at.selected) ?? Promise.reject(new Error('no clipboard'))).then(
+        () => true,
+        () => false,
+      )
+    setTextMenu({
+      x: at.at.x,
+      y: at.at.y,
+      items: [
+        {
+          label: at.name !== null ? t(M.addNameToWatch, { name: at.name }) : t(M.addToWatch),
+          testid: 'st-add-to-watch',
+          disabled: at.name === null,
+          title: t(at.name !== null ? M.addToWatchHint : M.addToWatchNone),
+          onClick: later(() => at.name !== null && addToWatch(at.name)),
+        },
+        { label: '-', onClick: () => {} },
+        { label: t(M.cut), testid: 'st-cut', keys: primaryKey('edit.cut'), disabled: readOnly || !has, title: readOnly ? readOnlyNote : undefined, onClick: later(() => void copyText().then((ok) => ok && editor.replaceSelection('', 'delete.cut'))) },
+        { label: t(M.copy), testid: 'st-copy', keys: primaryKey('edit.copy'), disabled: !has, onClick: later(() => void copyText()) },
+        {
+          label: t(M.paste),
+          testid: 'st-paste',
+          keys: primaryKey('edit.paste'),
+          disabled: readOnly,
+          title: readOnly ? readOnlyNote : undefined,
+          onClick: later(() => {
+            const clip = activeClipboard()
+            void (clip ? clip.readText() : Promise.reject(new Error('no clipboard'))).then(
+              (text) => editor.replaceSelection(text, 'input.paste'),
+              () => showReport({ headline: t(M.pasteRefused), detail: t(M.pasteRefusedDetail, { keys: primaryKey('edit.paste') ?? '' }), items: [], tone: 'warn', keepOnEdit: false }),
+            )
+          }),
+        },
+        { label: t(M.selectAll), testid: 'st-select-all', onClick: later(() => editor.selectAll()) },
+      ],
+    })
+  }
+
 
   // the divider between the organizer and the code: drag to resize, remembered on release
   const orgResize = useRef<{ sx: number; bw: number } | null>(null)
@@ -983,6 +1056,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
                 {/* the text editor stays MOUNTED under the ladder: it owns the buffer, its undo history and a room's binding */}
                 <div
                   style={view === 'ladder' ? { ...editorHostWrap, display: 'none' } : editorHostWrap}
+                  onContextMenu={openTextMenu}
                   onKeyDown={(e) => {
                     // (resolved, never compared: core/keymap.ts owns which chord means Rename)
                     if (resolveKeyAction(e, 'editor') !== 'edit.rename') return
@@ -1038,6 +1112,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
                   >
                     {copied ? <CheckIcon /> : <CopyIcon />}
                   </button>
+                  {textMenu && <ContextMenu x={textMenu.x} y={textMenu.y} items={textMenu.items} onClose={() => setTextMenu(null)} />}
                 </div>
               </div>
             </div>

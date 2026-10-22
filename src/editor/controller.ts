@@ -15,6 +15,7 @@ import { sceneUnits } from '../core/scene/sceneUnits'
 import type { BoxPick, IRenderView, ResizeHandle } from '../render/api'
 import type { PlcFault, SimClient } from '../sim/client'
 import type { StepStats } from '../sim/protocol'
+import type { ScanTime } from '../sim/plcHost'
 import type { ProcessImageSnapshot, TagValue } from '../plc'
 import { keepProjectVersion } from './store/storePackages'
 // the link's sessions are loaded on use (loadExternalPlc): only what the first frame shows is static
@@ -756,19 +757,31 @@ export class EditorController {
     return s ? { inputs: s.inputs, outputs: s.outputs } : { inputs: {}, outputs: {} }
   }
 
-  /** cumulative scan-engine telemetry since the program started (null when none). With the scan
-   *  interleaved in the worker, sim time can't backlog - a nonzero `overruns` only means the
-   *  cycle time was pushed below what one physics step can drain (see PlcHost). Resets on each Run. */
   /** The controller's fault (plc/faults.ts): the one that stopped the program. It stands as it was after the program
    *  stops, until the next program starts. */
   get plcFaults(): PlcFaults {
     return { source: this.program.faultSource, fault: this.program.lastFault }
   }
 
+  /** cumulative scan-engine telemetry since the program started (null when none). With the scan
+   *  interleaved in the worker, sim time can't backlog - a nonzero `overruns` only means the
+   *  cycle time was pushed below what one physics step can drain (see PlcHost). Resets on each Run. */
   get plcScanStats(): { scansRun: number; overruns: number } | null {
     if (!this.program.plcAttached) return null
     const s = this.sim.plcState
     return { scansRun: s?.scansRun ?? 0, overruns: s?.overruns ?? 0 }
+  }
+
+  /** How long each task's scans take to execute, from the latest frame (sim/plcHost.ts ScanTime). Null when no
+   *  program runs here, empty until its first frame. */
+  get plcScanTimes(): readonly ScanTime[] | null {
+    if (!this.program.plcAttached) return null
+    return this.sim.plcState?.scanTimes ?? []
+  }
+
+  /** Start the scan-time averages and maxima over; the next frame carries the fresh ones. */
+  resetPlcScanTimes(): void {
+    if (this.program.plcAttached) this.sim.resetScanTimes()
   }
 
   // (e2e verify-camera-persistence calls it at runtime)

@@ -360,6 +360,12 @@ export class SimClient {
     this.post({ type: 'forceTag', name, value })
   }
 
+  /** start the running program's scan-time averages and maxima over */
+  resetScanTimes(): void {
+    if (!this._running) return
+    this.post({ type: 'resetScanTimes' })
+  }
+
   /** push the global tag keys the attached controller drives (its program outputs, alias-lifted): the
    *  output-ownership set behaviors read as ctx.tagDriven. Pushed on program attach, cleared ([]) on detach. */
   setDrivenTags(tags: string[]): void {

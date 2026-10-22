@@ -82,6 +82,9 @@ const M = defineMessages('ladder', {
   addBranchLevel: 'Add Branch Level',
   addBranchLevelHint: 'One more level on the selected branch',
   toggleBit: 'Toggle Bit',
+  addNameToWatch: 'Add {name} to Watch',
+  addToWatch: 'Add to Watch',
+  addToWatchHint: 'Follow its live value in the Watch dock',
   toggleBitHint: 'Toggle the BOOL under the selection, once',
   toggleBitIdle: 'Toggle Bit works while the program runs',
   crossReference: 'Cross Reference',
@@ -188,6 +191,8 @@ interface LadderViewProps {
   /** write a value typed under an operand into the running program, by its watch key: null when it was written, else why
    *  not (EditorController.writePlcValue) */
   writeLive?: (key: string, text: string) => string | null
+  /** Add to Watch: put a variable on the Watch dock's list (absent = no such item) */
+  onWatch?: (name: string) => void
 }
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -197,7 +202,7 @@ const PLACE = /^\s*[A-Za-z_][A-Za-z0-9_]*(\s*(\.\s*[A-Za-z_0-9]+|\[[^\]]*\]))*\s
 
 const NO_FAULTS: readonly Diagnostic[] = []
 
-export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, onEdit, onUndo, onRedo, getDiagnostics, getWatch, live: running, readOnly, getTags, getDevices, revealRoutine = null, revealRung, onRevealedRoutine, idle, onShowText, onRenameTag, toggleBit, writeLive }: LadderViewProps): ReactElement {
+export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, onEdit, onUndo, onRedo, getDiagnostics, getWatch, live: running, readOnly, getTags, getDevices, revealRoutine = null, revealRung, onRevealedRoutine, idle, onShowText, onRenameTag, toggleBit, writeLive, onWatch }: LadderViewProps): ReactElement {
   const routines = useMemo(() => LADDER.read(source, faults.length > 0 ? [...getDiagnostics(source), ...faults] : getDiagnostics(source)), [source, faults])
   // A PROGRAM drawn here that no task runs is not what is running, so nothing here is lit: its variables would
   // otherwise answer from the program that is running, which shares its names when it is another version of it
@@ -665,6 +670,18 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     const key = keyOf(use.text)
     const value = valueOf(use.text)
     return key !== null && typeof value === 'boolean' ? { key, value } : null
+  }
+  /** The variable Add to Watch puts on the list: the place in the selection's focused field, by the running image's
+   *  spelling when there is one (a POU's variable under its instance), else as written. */
+  const watchTarget = (): string | null => {
+    if (!active) return null
+    const r = routines[active.routine]
+    const el = r && elementAt(r.rungs, active)
+    if (!el || isBranch(el)) return null
+    const uses = LADDER.refs.uses(el)
+    const use = uses.find((u) => u.field === focusedField) ?? uses[0]
+    if (!use || !PLACE.test(use.text)) return null
+    return keyOf(use.text) ?? use.text.replace(/\s+/g, '')
   }
   const toggle = (): void => {
     const bit = toggleTarget()
@@ -1419,6 +1436,7 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     const off = !canEdit || !active
     const rungs = target?.rungs.length ?? 0
     const tag = focusedTag()
+    const watched = watchTarget()
     const sep = SEPARATOR
     return [
       { label: t(M.cut), testid: 'ladder-cut', keys: primaryKey('edit.cut'), disabled: off || !has, title: why, onClick: later(() => { if (copySelection() !== '') deleteSelection() }) },
@@ -1432,6 +1450,7 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
       { label: t(M.addBranchLevel), testid: 'ladder-path', disabled: off || !canAddPath(target!.rungs, active), title: why ?? t(M.addBranchLevelHint), onClick: later(() => void apply(addPath)) },
       sep,
       { label: t(M.toggleBit), testid: 'ladder-toggle-bit-item', keys: primaryKey('ladder.toggleBit'), disabled: !toggleTarget(), title: t(live ? M.toggleBitHint : M.toggleBitIdle), onClick: later(toggle) },
+      ...(onWatch ? [{ label: watched !== null ? t(M.addNameToWatch, { name: watched }) : t(M.addToWatch), testid: 'ladder-add-to-watch', disabled: watched === null, title: t(M.addToWatchHint), onClick: later(() => watched !== null && onWatch(watched)) }] : []),
       { label: t(M.crossReference), testid: 'ladder-xref', keys: primaryKey('ladder.crossRef'), disabled: !tag, title: t(M.crossReferenceHint), onClick: later(() => tag && setXref(tag)) },
       { label: t(M.findItem), testid: 'ladder-find-open', keys: primaryKey('ladder.find'), title: t(M.findItemHint), onClick: later(() => openFind(false)) },
     ]
@@ -1608,7 +1627,7 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
           never clips, when the panel is narrower.
 
           A READ-ONLY view drops the bar rather than disabling it, which is the rule the PLC panel's header already
-          follows (StEditor's commandsEl). Its controls wrap to five or six rows on the mobile Logic sheet - a
+          follows (StEditor's commandsEl). Its controls wrap to five or six rows on the mobile PLC sheet - a
           third of a drawer whose whole job is to show rungs - and not one of them can act; the tabs go with them,
           since all they choose is which elements the strip offers. The scale readout is not an edit, so it stays. */}
       {readOnly ? (

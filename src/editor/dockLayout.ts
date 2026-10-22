@@ -13,7 +13,7 @@
 
 import { defineMessages, t } from '../core/i18n'
 
-export type DockPanelId = 'tree' | 'inspector' | 'catalog' | 'st' | 'history' | 'problems'
+export type DockPanelId = 'tree' | 'inspector' | 'catalog' | 'st' | 'history' | 'problems' | 'watch'
 export type DockSlotId =
   | 'leftTop'
   | 'leftBottom'
@@ -39,7 +39,7 @@ export type DockSide = 'left' | 'right'
 export type DockLocation = DockSlotId | 'floating' | 'popout'
 
 /** every movable panel */
-export const ALL_PANELS: DockPanelId[] = ['tree', 'inspector', 'catalog', 'st', 'history', 'problems']
+export const ALL_PANELS: DockPanelId[] = ['tree', 'inspector', 'catalog', 'st', 'history', 'problems', 'watch']
 
 /** panels that can be detached into a floating window (only the PLC editor) */
 export const FLOATABLE_PANELS: DockPanelId[] = ['st']
@@ -84,6 +84,7 @@ export const DOCK_PANEL_TITLES: Record<DockPanelId, string> = {
   st: 'PLC',
   history: 'History',
   problems: 'Problems',
+  watch: 'Watch',
 }
 
 // The ids are `dock.panel.<panel>`: the boot skeleton's inline script finds the cached translations by that prefix.
@@ -119,10 +120,12 @@ export const SLOT_LABELS: Record<DockSlotId, string> = {
 
 /**
  * Where each panel goes when nothing has been moved yet: History as a background tab behind the
- * Scene tree, and the PLC editor and Problems behind Parts.
+ * Scene tree, and the PLC editor, Problems and Watch behind Parts.
  *
  * The bottom strip reads in the order the work goes: place parts, write the program, check the result.
- * Problems goes last because it checks the whole twin, wiring and parts as well as the program.
+ * Problems comes after the program because it checks the whole twin, wiring and parts as well as the program.
+ * Watch is last: it is for the running line. A stored layout that predates it gets it after Problems too
+ * (`normalizeDockLayout` restores a missing panel at its place in the default order).
  *
  * The PLC editor is docked, not floating: a floating window over the viewport hides much of it on a
  * laptop screen and sits in the path of a catalog drag. Docked, it shares a strip with the Problems
@@ -138,6 +141,7 @@ const DEFAULT_LOCATION: Record<DockPanelId, DockSlotId | 'floating'> = {
   st: 'bottom',
   history: 'leftTop',
   problems: 'bottom',
+  watch: 'bottom',
 }
 
 export type DockLayout = Record<DockSlotId, DockPanelId[]> & {
@@ -212,7 +216,7 @@ export function defaultDockLayout(): DockLayout {
     rightBottom: [],
     rightTop2: [],
     rightBottom2: [],
-    bottom: ['catalog', 'st', 'problems'],
+    bottom: ['catalog', 'st', 'problems', 'watch'],
     floating: [],
     popout: [],
     active: {
@@ -619,6 +623,7 @@ export const DEFAULT_BOTTOM_HEIGHT: Record<DockPanelId, number | { share: number
   catalog: 200,
   st: { share: 0.45 },
   problems: 230,
+  watch: 230,
   tree: 230,
   inspector: 230,
   history: 230,

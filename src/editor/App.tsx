@@ -134,13 +134,15 @@ const GetPartsWindow = lazy(() => import('./components/GetPartsWindow').then((m)
 const PublishPartDialog = lazy(() => import('./components/PublishPartDialog').then((m) => ({ default: m.PublishPartDialog })))
 const TestResultsOverlay = lazy(() => import('./components/TestResultsOverlay').then((m) => ({ default: m.TestResultsOverlay })))
 // desktop only, and loaded at an agent's first call, so it stays off the first frame
+// LAZY: the watch dock is a background tab until a program is being debugged, and it brings the declaration reader
+const WatchPanel = lazy(() => import('./components/plc/WatchPanel').then((m) => ({ default: m.WatchPanel })))
 const AgentActivity = lazy(() => import('./components/AgentActivity').then((m) => ({ default: m.AgentActivity })))
 
 const M = defineMessages('app', {
   tabScene: 'Scene',
   tabParts: 'Parts',
   tabInspect: 'Inspect',
-  tabLogic: 'Logic',
+  tabPlc: 'PLC',
   rendererUnavailable: 'Renderer unavailable: {error}',
   previewTitle: 'Your simulation runs only in your browser. Collaborators keep seeing the shared design, not your boxes.',
   preview: 'Previewing (only you)',
@@ -276,8 +278,8 @@ function InspectTabIcon() {
   )
 }
 
-/** The PLC logic tab: a chip with two legs, the "there's a controller in here" glyph */
-function LogicTabIcon() {
+/** The PLC tab: a chip with two legs, the "there's a controller in here" glyph */
+function PlcTabIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <rect x="5.5" y="5.5" width="9" height="9" rx="1.5" />
@@ -291,12 +293,12 @@ interface MobileTabBarProps {
   onToggle: (panel: MobilePanel) => void
   /** the Parts catalog tab - hidden on phones, which don't author parts */
   showCatalog: boolean
-  /** the PLC Logic tab - hidden when the panel is in a window of its own (see App) */
-  showLogic: boolean
+  /** the PLC tab - hidden when the panel is in a window of its own (see App) */
+  showPlc: boolean
 }
 
 /** Mobile nav: one tap toggles each panel's drawer open/closed */
-function MobileTabBar({ panel, onToggle, showCatalog, showLogic }: MobileTabBarProps) {
+function MobileTabBar({ panel, onToggle, showCatalog, showPlc }: MobileTabBarProps) {
   const tab = (id: MobilePanel, label: string, Icon: () => ReactElement) => (
     <button
       className={`mobile-tab${panel === id ? ' active' : ''}`}
@@ -312,7 +314,7 @@ function MobileTabBar({ panel, onToggle, showCatalog, showLogic }: MobileTabBarP
       {tab('tree', t(M.tabScene), TreeTabIcon)}
       {showCatalog && tab('catalog', t(M.tabParts), PartsTabIcon)}
       {tab('inspector', t(M.tabInspect), InspectTabIcon)}
-      {showLogic && tab('st', t(M.tabLogic), LogicTabIcon)}
+      {showPlc && tab('st', t(M.tabPlc), PlcTabIcon)}
     </nav>
   )
 }
@@ -1164,6 +1166,12 @@ export function App({ store, sim }: AppProps) {
         return <HistoryPanel store={store} state={state} />
       case 'problems':
         return <ProblemsPanel store={store} state={state} controller={controller} />
+      case 'watch':
+        return (
+          <Suspense fallback={null}>
+            <WatchPanel store={store} state={state} controller={controller} />
+          </Suspense>
+        )
     }
   }
 
@@ -1225,11 +1233,11 @@ export function App({ store, sim }: AppProps) {
   // pilot mode owns the screen - hide the mobile chrome while walking around
   const showMobileChrome = isMobile && state.mode !== 'pilot'
 
-  // The Logic sheet, unless the ST panel is in an OS window of its own. A phone can't reach that state,
+  // The PLC sheet, unless the ST panel is in an OS window of its own. A phone can't reach that state,
   // but a desktop window narrowed past the mobile breakpoint with a popout already open can. Mounting the
   // sheet then would put two live CodeMirrors on one buffer (the same hazard the floating panel's maxPanel
   // gate prevents), so the sheet is not offered.
-  const showMobileLogic = !!controller && !isPoppedOut(dockLayout, 'st')
+  const showMobilePlc = !!controller && !isPoppedOut(dockLayout, 'st')
 
   // `phone` is the CSS twin of isPhone: the tightest tier, where chrome a tablet still has
   // room for (sim speed, the Share label) has to come out of the toolbar.
@@ -1416,7 +1424,7 @@ export function App({ store, sim }: AppProps) {
               parts sheet it is non-modal: the point is to watch the code and the scene at once.
               Editing stays desktop-only (StEditor's `viewOnly`), which is the same line the phone
               already draws for part authoring. */}
-          {mobilePanel === 'st' && controller && showMobileLogic && (
+          {mobilePanel === 'st' && controller && showMobilePlc && (
             <div className="mobile-drawer st">
               {/* the tasks it runs on are in the panel's organizer, drawn over the code on a phone */}
               <PlcPanel store={store} state={state} controller={controller} docked viewOnly />
@@ -1426,7 +1434,7 @@ export function App({ store, sim }: AppProps) {
             panel={mobilePanel}
             onToggle={(p) => setMobilePanel((cur) => (cur === p ? null : p))}
             showCatalog={!isPhone}
-            showLogic={showMobileLogic}
+            showPlc={showMobilePlc}
           />
         </>
       )}

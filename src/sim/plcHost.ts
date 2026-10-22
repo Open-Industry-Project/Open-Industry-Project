@@ -13,7 +13,7 @@
 // this samples at the sim's own rate, the true information rate of the world. See src/plc/DEVICE-IO.md.
 
 import { LocalPlcLink, SimController, TaskScheduler } from '../plc'
-import type { WiredBindings } from '../plc'
+import type { Schedulable, TaskInfo, WiredBindings } from '../plc'
 import type { TagValue } from '../plc'
 
 /** The slice of SimWorld the host needs - narrow so tests can drive it with a stub. */
@@ -36,7 +36,38 @@ export interface PlcFrameState {
   outputs: Readonly<Record<string, TagValue>>
   scansRun: number
   overruns: number
+  /** how long each task's scans take to execute, for the Watch dock's scan-time line */
+  scanTimes: ScanTime[]
 }
+
+/**
+ * One task's measured execution time: the real time its scans took on this machine, in ms. Its interval is sim time
+ * and holds whatever this is (the scan interleaves with the physics steps), so a long scan slows the whole sim
+ * rather than making the task late. It is the number to read when a program feels heavy.
+ * The browser's clock has a 5 µs grain in a cross-origin isolated page, so a short scan's `lastMs` reads 0 or
+ * 0.005; the average over many scans is finer than that.
+ */
+export interface ScanTime {
+  /** the task's name; '' for a program with no tasks, which scans on the scan-time field */
+  task: string
+  kind: TaskInfo['kind']
+  /** the task's interval in seconds; a continuous task runs once per physics step instead */
+  periodSec: number
+  /** scans timed since the program started, or since the last reset */
+  scans: number
+  lastMs: number
+  avgMs: number
+  maxMs: number
+}
+
+/** Running totals for one task's scans. */
+interface ScanTally {
+  scans: number
+  totalMs: number
+  lastMs: number
+  maxMs: number
+}
+const emptyTally = (): ScanTally => ({ scans: 0, totalMs: 0, lastMs: 0, maxMs: 0 })
 
 /**
  * Drop STRING-valued tags on the way to the world. Scene behaviours are driven by numbers
@@ -82,6 +113,8 @@ export class PlcHost {
   readonly #link: LocalPlcLink
   readonly #ctl: SimController
   readonly #engine: TaskScheduler
+  // one tally per task, or one for a program with no tasks; indexed as the scheduler numbers them
+  #tallies: ScanTally[] = []
 
   /** Compile + attach a program. Throws StError on a compile error (the main thread validated
    *  the same source before shipping it, so a throw here is only a defensive backstop). */
@@ -89,8 +122,51 @@ export class PlcHost {
     // the scene's bindings by wiring, computed where the scene is (editor/controller.ts runProgram)
     const link = new LocalPlcLink(source, wired)
     this.#link = link
-    this.#ctl = new SimController(link)
-    this.#engine = new TaskScheduler(this.#ctl, { ...(periodSec !== undefined ? { periodSec } : {}), maxCatchUp: MAX_SCANS_PER_STEP })
+    const ctl = new SimController(link)
+    this.#ctl = ctl
+    // the scheduler drives the controller through this, so each scan is timed where it runs
+    const timed: Schedulable = {
+      get tasks() {
+        return ctl.tasks
+      },
+      tick: (dt) => {
+        const t0 = performance.now()
+        const out = ctl.tick(dt)
+        this.#record(0, performance.now() - t0)
+        return out
+      },
+      tickTask: (index, dt) => {
+        const t0 = performance.now()
+        const out = ctl.tickTask(index, dt)
+        this.#record(index, performance.now() - t0)
+        return out
+      },
+    }
+    this.#engine = new TaskScheduler(timed, { ...(periodSec !== undefined ? { periodSec } : {}), maxCatchUp: MAX_SCANS_PER_STEP })
+  }
+
+  #record(index: number, ms: number): void {
+    const t = (this.#tallies[index] ??= emptyTally())
+    t.scans++
+    t.totalMs += ms
+    t.lastMs = ms
+    if (ms > t.maxMs) t.maxMs = ms
+  }
+
+  /** Start the scan-time averages and maxima over (the Watch dock's Reset). The first scans include the engine
+   *  warming up, so a maximum read after a reset is the steady one. */
+  resetScanTimes(): void {
+    this.#tallies = []
+  }
+
+  /** each task's {@link ScanTime}, in the controller's task order */
+  scanTimes(): ScanTime[] {
+    const tasks = this.#ctl.tasks
+    const rows = tasks.length === 0 ? [{ task: '', kind: 'periodic' as const, periodSec: this.#engine.periodSec }] : tasks.map((t) => ({ task: t.name, kind: t.kind, periodSec: t.periodSec }))
+    return rows.map((r, i) => {
+      const t = this.#tallies[i] ?? emptyTally()
+      return { ...r, scans: t.scans, lastMs: t.lastMs, avgMs: t.scans > 0 ? t.totalMs / t.scans : 0, maxMs: t.maxMs }
+    })
   }
 
   /** Write one variable of the running program (a toggled bit); it shows in the next frame's watch. */
@@ -174,6 +250,13 @@ export class PlcHost {
   snapshot(opts?: { watch?: true }): PlcFrameState
   snapshot(opts?: { watch?: boolean }): PlcFrameWire {
     const { inputs, outputs } = this.#ctl.processImage
-    return { ...(opts?.watch === false ? {} : { watch: this.#ctl.watch }), inputs, outputs, scansRun: this.#engine.scansRun, overruns: this.#engine.overruns }
+    return {
+      ...(opts?.watch === false ? {} : { watch: this.#ctl.watch }),
+      inputs,
+      outputs,
+      scansRun: this.#engine.scansRun,
+      overruns: this.#engine.overruns,
+      scanTimes: this.scanTimes(),
+    }
   }
 }

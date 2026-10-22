@@ -15,7 +15,7 @@ import { collectProblems } from '../problems'
 
 /** The slice of the controller the tools use, so a test can hand in a stand-in (null = no viewport mounted yet). */
 export type AgentController = Pick<EditorController, 'run' | 'stop' | 'plcWatch' | 'writePlcValue' | 'plcFault'> &
-  Partial<Pick<EditorController, 'sim' | 'view' | 'lastFrame'>>
+  Partial<Pick<EditorController, 'sim' | 'view' | 'lastFrame' | 'plcScanTimes'>>
 
 /** A rectangle of the editor window in CSS pixels. */
 export interface CaptureRect {

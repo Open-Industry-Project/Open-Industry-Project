@@ -91,12 +91,12 @@ describe('bottom dock collapse (bottom-panel toggle)', () => {
 
   it('emptying a collapsed bottom dock clears the flag', () => {
     const collapsed = clickBottomDockTab(defaultDockLayout(), 'catalog')
-    // the bottom dock ships with three tabs (Parts, PLC, Problems); the flag survives losing all but the last
+    // the bottom dock ships with four tabs (Parts, PLC, Problems, Watch); the flag survives losing all but the last
     let oneLeft = collapsed
-    for (const panel of ['catalog', 'st'] as const) oneLeft = moveDockPanel(oneLeft, panel, 'leftBottom')
-    expect(oneLeft.bottom).toEqual(['problems'])
+    for (const panel of ['catalog', 'st', 'problems'] as const) oneLeft = moveDockPanel(oneLeft, panel, 'leftBottom')
+    expect(oneLeft.bottom).toEqual(['watch'])
     expect(oneLeft.bottomCollapsed).toBe(true)
-    const emptied = moveDockPanel(oneLeft, 'problems', 'leftBottom')
+    const emptied = moveDockPanel(oneLeft, 'watch', 'leftBottom')
     expect(emptied.bottom).toEqual([])
     expect(emptied.bottomCollapsed).toBe(false)
   })
@@ -117,24 +117,26 @@ describe('normalizeDockLayout / bottomCollapsed', () => {
     const raw = { ...defaultDockLayout(), bottom: [], bottomCollapsed: true }
     const out = normalizeDockLayout(raw)
     // the bottom-dock panels are restored to their default slot, and must not arrive rolled up
-    expect(out.bottom).toEqual(['catalog', 'st', 'problems'])
+    expect(out.bottom).toEqual(['catalog', 'st', 'problems', 'watch'])
     expect(out.bottomCollapsed).toBe(false)
   })
 
   it('restores a missing panel at its place in the default tab order, not at the end', () => {
-    const out = normalizeDockLayout({ ...defaultDockLayout(), bottom: ['problems', 'catalog'] })
+    const out = normalizeDockLayout({ ...defaultDockLayout(), bottom: ['problems', 'catalog', 'watch'] })
     // placed after the panel it follows by default (Parts); the user's own order is kept
-    expect(out.bottom).toEqual(['problems', 'catalog', 'st'])
+    expect(out.bottom).toEqual(['problems', 'catalog', 'st', 'watch'])
     // with that neighbour gone too, it goes before the panel it precedes (Problems)
-    const noParts = normalizeDockLayout({ ...defaultDockLayout(), bottom: ['problems'], leftBottom: ['catalog'] })
-    expect(noParts.bottom).toEqual(['st', 'problems'])
+    const noParts = normalizeDockLayout({ ...defaultDockLayout(), bottom: ['problems', 'watch'], leftBottom: ['catalog'] })
+    expect(noParts.bottom).toEqual(['st', 'problems', 'watch'])
+    // a layout stored before Watch existed gets it after Problems, where it stands by default
+    expect(normalizeDockLayout({ ...defaultDockLayout(), bottom: ['catalog', 'st', 'problems'] }).bottom).toEqual(['catalog', 'st', 'problems', 'watch'])
   })
 })
 
 describe('the PLC editor docks by default', () => {
   it('as a background tab behind Parts', () => {
     const l = defaultDockLayout()
-    expect(l.bottom).toEqual(['catalog', 'st', 'problems'])
+    expect(l.bottom).toEqual(['catalog', 'st', 'problems', 'watch'])
     expect(l.active.bottom).toBe('catalog')
     expect(l.floating).toEqual([])
     expect(locate(l, 'st')).toBe('bottom')
@@ -152,7 +154,7 @@ describe('the PLC editor docks by default', () => {
   it('moves an unstamped (v1) floating PLC editor into its docked default', () => {
     const out = normalizeDockLayout(migrateDockLayout(JSON.parse(JSON.stringify(v1Default))))
     expect(out.floating).toEqual([])
-    expect(out.bottom).toEqual(['catalog', 'st', 'problems'])
+    expect(out.bottom).toEqual(['catalog', 'st', 'problems', 'watch'])
     expect(out.active.bottom).toBe('catalog') // arrives behind Parts, not in front of it
   })
 
@@ -191,14 +193,14 @@ describe('a stored layout from before the Controller dock went (layouts v2 and v
 
   it('reads an untouched v2 strip as today\'s default', () => {
     const out = normalizeDockLayout(migrateDockLayout(JSON.parse(JSON.stringify(v2Default))))
-    expect(out.bottom).toEqual(['catalog', 'st', 'problems'])
+    expect(out.bottom).toEqual(['catalog', 'st', 'problems', 'watch'])
     expect(out.active.bottom).toBe('catalog')
   })
 
   it('reads an untouched v3 strip as today\'s default too, and moves the front tab off the Controller', () => {
     const v3 = { ...defaultDockLayout(), bottom: ['catalog', 'st', 'controller', 'problems'], active: { ...defaultDockLayout().active, bottom: 'controller' }, version: 3 }
     const out = normalizeDockLayout(migrateDockLayout(JSON.parse(JSON.stringify(v3))))
-    expect(out.bottom).toEqual(['catalog', 'st', 'problems'])
+    expect(out.bottom).toEqual(['catalog', 'st', 'problems', 'watch'])
     expect(out.bottom).toContain(out.active.bottom)
   })
 
@@ -217,7 +219,7 @@ describe('a stored layout from before the Controller dock went (layouts v2 and v
   it('keeps a strip someone arranged', () => {
     const arranged = { ...v2Default, bottom: ['st', 'catalog', 'problems', 'controller'] }
     expect(migrateDockLayout(arranged)).toBe(arranged)
-    expect(normalizeDockLayout(migrateDockLayout(arranged)).bottom).toEqual(['st', 'catalog', 'problems'])
+    expect(normalizeDockLayout(migrateDockLayout(arranged)).bottom).toEqual(['st', 'catalog', 'problems', 'watch'])
   })
 })
 
@@ -254,7 +256,7 @@ describe('readDockLayout / saveDockLayout', () => {
     data.set('oip-web/dock-layout', JSON.stringify(v1DefaultBlob()))
     const l = readDockLayout()
     expect(isFloating(l, 'st')).toBe(false)
-    expect(l.bottom).toEqual(['catalog', 'st', 'problems'])
+    expect(l.bottom).toEqual(['catalog', 'st', 'problems', 'watch'])
   })
 
   /** what a v1 build wrote on first load: its default, unstamped, maximized/popout stripped */

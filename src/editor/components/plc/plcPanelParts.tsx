@@ -92,6 +92,8 @@ export interface PlcPanelCtx {
   watch: () => Readonly<Record<string, TagValue>> | null | undefined
   toggleBit: (key: string) => boolean
   writeLive: (key: string, text: string) => string | null
+  /** Add to Watch: a variable onto the watch list, with the Watch dock brought forward */
+  addToWatch: (name: string) => void
   /** every PLC tag the scene's parts speak */
   tags: () => string[]
   undo: () => void
@@ -255,6 +257,7 @@ export function PanelLadder({ ctx }: { ctx: PlcPanelCtx }): ReactElement {
         onRenameTag={ctx.readOnly ? undefined : (scope, from, to) => renameDeclaration(ctx, scope, from, to)}
         toggleBit={ctx.toggleBit}
         writeLive={ctx.writeLive}
+        onWatch={ctx.addToWatch}
       />
     </Suspense>
   )

@@ -921,6 +921,12 @@ const COMMAND_DEFS: readonly Command[] = [
     run: ({ store }) => store.revealPanel('problems'),
   },
   {
+    id: 'view.watch',
+    label: 'Watch',
+    group: 'View',
+    run: ({ store }) => store.revealPanel('watch'),
+  },
+  {
     // The preferences half of the same dialog the ? chord opens on its keyboard tab. No chord of its
     // own: it is opened rarely, and every OS puts it in a menu rather than on a key.
     id: 'view.settings',
@@ -1243,6 +1249,7 @@ export const DESKTOP_MENU: readonly MenuSection[] = [
       { command: 'view.commandPalette' },
       { command: 'view.plc' },
       { command: 'view.problems' },
+      { command: 'view.watch' },
       { command: 'view.settings' },
       { command: 'view.distractionFree' },
       { command: 'view.resetLayout' },

@@ -54,6 +54,8 @@ export type MainToWorker =
   | { type: 'setTags'; tags: Record<string, number | boolean> }
   // one variable of the running program written between scans: the ladder's toggle bit (Ctrl+T)
   | { type: 'forceTag'; name: string; value: number | boolean }
+  // start the running program's scan-time averages and maxima over (the Watch dock's Reset; PlcHost.resetScanTimes)
+  | { type: 'resetScanTimes' }
   // Output-ownership half of the bus: the global tag keys the attached controller drives (its declared program
   // outputs, alias-lifted). Static per program, so it's pushed once on attach and cleared ([]) on detach.
   // Behaviors read it as ctx.tagDriven to decide auto (tag-commanded) vs hand-operated mode.

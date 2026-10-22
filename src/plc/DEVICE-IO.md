@@ -161,7 +161,10 @@ reads a *frozen* copy of its inputs and writes its outputs once at the end. Two 
   extra work (more steps per real second → proportionally more scans). Sim time cannot backlog the way wall-clock
   frames can, so the catch-up clamp (`overrun`) only trips if the cycle time is pushed below what one step can drain
   (`MAX_SCANS_PER_STEP`); cumulative `scansRun` / `overruns` travel in each frame's `plc` payload to
-  `EditorController.plcScanStats` for the PLC panel. Because that limit is a pure function of the task interval and
+  `EditorController.plcScanStats` for the PLC panel. Beside them rides each task's measured execution time
+  (`scanTimes`: last, average and max in ms of real time, `PlcHost.scanTimes`), which the Watch dock and
+  the agent's `get_tags` show. It is telemetry only: the interleave runs on sim time, so a slow scan slows the whole
+  sim and never makes a task late or moves a fingerprint. Because that limit is a pure function of the task interval and
   the step rate (`shortestHeldIntervalSec`), the Problems dock warns about a TASK too fast to hold before Run, on
   its `INTERVAL` line. Only a TASK written in the text can be that fast, since the scan-time field and the
   controller table both floor at 1 ms. When the whole *worker* can't hold real time (heavy scene + heavy program),

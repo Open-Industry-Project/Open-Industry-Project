@@ -374,6 +374,17 @@ describe('agent tools: operating', () => {
     expect(c.store.getEditHistory().events).toHaveLength(0)
   })
 
+  it("get_tags carries each task's scan time, rounded to the microsecond", async () => {
+    const ctrl = fakeController({ Count: 3 })
+    const times = [{ task: 'Fast', kind: 'periodic', periodSec: 0.01, scans: 120, lastMs: 0.0123456, avgMs: 0.011, maxMs: 0.25 }]
+    const c = ctx(Object.assign(ctrl, { plcScanTimes: times }))
+    expect(await ok(c, 'get_tags')).toEqual({
+      running: true,
+      tags: { Count: 3 },
+      scanTimes: [{ task: 'Fast', intervalMs: 10, scans: 120, lastMs: 0.012, avgMs: 0.011, maxMs: 0.25 }],
+    })
+  })
+
   it('says the viewport is loading rather than crashing when there is no controller yet', async () => {
     expect(await refused(ctx(null), 'run')).toMatch(/still loading/)
   })

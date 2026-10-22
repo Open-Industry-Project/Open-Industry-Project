@@ -626,19 +626,30 @@ const getTags: AgentTool = {
   name: 'get_tags',
   description:
     "Read the running PLC program's variables (a ~10 Hz mirror, so a pulse shorter than ~0.15 s can be missed). " +
-    'Optional names filter. Empty while stopped.',
+    'Optional names filter. Empty while stopped. Also returns `scanTimes`: per task, how long its scans take to execute ' +
+    '(last, average, max in ms of real time) and its interval.',
   inputSchema: {
     type: 'object',
     properties: { names: { type: 'array', items: { type: 'string' } } },
     additionalProperties: false,
   },
   run: (ctx, args) => {
-    const watch = needController(ctx).plcWatch
+    const controller = needController(ctx)
+    const watch = controller.plcWatch
     const names = args.names === undefined ? null : strList(args, 'names')
     if (!watch) return { running: ctx.store.getState().running, tags: {} }
     const tags: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(watch)) if (!names || names.includes(k)) tags[k] = v
-    return { running: true, tags, ...(names ? { missing: names.filter((n) => !(n in watch)) } : {}) }
+    const us = (ms: number): number => Math.round(ms * 1000) / 1000
+    const scanTimes = (controller.plcScanTimes ?? []).map((s) => ({
+      task: s.task,
+      intervalMs: s.kind === 'continuous' ? null : us(s.periodSec * 1000),
+      scans: s.scans,
+      lastMs: us(s.lastMs),
+      avgMs: us(s.avgMs),
+      maxMs: us(s.maxMs),
+    }))
+    return { running: true, tags, ...(names ? { missing: names.filter((n) => !(n in watch)) } : {}), ...(scanTimes.length > 0 ? { scanTimes } : {}) }
   },
 }
 

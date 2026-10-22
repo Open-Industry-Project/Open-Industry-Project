@@ -196,6 +196,43 @@ END_CONFIGURATION`)
     expect(snap.outputs.Run).toBe(true)
     expect(snap.scansRun).toBeGreaterThan(0)
   })
+
+  it('times every scan: one row for a program on the scan-time field, reset on request', () => {
+    const host = new PlcHost(ECHO, 0.005)
+    const port = new StubPort()
+    for (let i = 0; i < 30; i++) host.interleave(port, STEP)
+    const [row, ...rest] = host.snapshot().scanTimes
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({ task: '', kind: 'periodic', periodSec: 0.005, scans: host.snapshot().scansRun })
+    expect(row!.maxMs).toBeGreaterThanOrEqual(row!.avgMs)
+    expect(row!.maxMs).toBeGreaterThanOrEqual(row!.lastMs)
+    host.resetScanTimes()
+    expect(host.snapshot().scanTimes[0]).toMatchObject({ scans: 0, lastMs: 0, avgMs: 0, maxMs: 0 })
+  })
+
+  it("times a CONFIGURATION's tasks each on their own, at their own intervals", () => {
+    const host = new PlcHost(`PROGRAM Counter
+VAR_OUTPUT n : INT; END_VAR
+n := n + 1;
+END_PROGRAM
+CONFIGURATION Cell
+  RESOURCE Res0 ON PLC
+    TASK Fast(INTERVAL := T#10ms, PRIORITY := 1);
+    TASK Slow(INTERVAL := T#50ms, PRIORITY := 2);
+    PROGRAM FastCount WITH Fast : Counter;
+    PROGRAM SlowCount WITH Slow : Counter;
+  END_RESOURCE
+END_CONFIGURATION`)
+    const port = new StubPort()
+    for (let i = 0; i < DEFAULT_SIM_HZ; i++) host.interleave(port, STEP) // one sim-second
+    const { scanTimes, watch } = host.snapshot()
+    expect(scanTimes.map((s) => [s.task.toUpperCase(), s.periodSec])).toEqual([
+      ['FAST', 0.01],
+      ['SLOW', 0.05],
+    ])
+    expect(scanTimes[0]!.scans).toBe(watch['FastCount.n'])
+    expect(scanTimes[1]!.scans).toBe(watch['SlowCount.n'])
+  })
 })
 
 describe('PlcHost: the first scan', () => {

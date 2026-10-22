@@ -8,6 +8,7 @@ import { EditorView, keymap, placeholder, runScopeHandlers } from '@codemirror/v
 import { changedSpan } from '../../../core/textDiff'
 import type { TagValue } from '../../../plc'
 import { pushWatchValues, stExtensions } from '../../program/stLang'
+import { watchNameAt, watchNameOfSelection } from '../../program/plcWatchList'
 import type { Controller } from '../../../core/controller'
 
 /** CodeMirror's own test for which modifier `Mod` is: Cmd on a Mac, Ctrl elsewhere (a key replayed through it has to
@@ -49,6 +50,16 @@ export interface StCodeEditorHandle {
   redo: () => void
   /** where the caret is, and the identifier under it if any (what a command about "the name here" starts from) */
   caret: () => { offset: number; word: string | null } | null
+  /**
+   * What a right-click at (x, y) is on, for the panel's menu: a click inside the selection keeps it, anywhere else puts
+   * the caret there first, as text editors do. `name` is the variable there (plcWatchList.ts `watchNameAt`, or the
+   * selection when it is one place), `selected` the selected text, and `at` where to open the menu. Without a point
+   * (the menu key) it answers for the caret.
+   */
+  contextAt: (point: { x: number; y: number } | null) => { name: string | null; selected: string; at: { x: number; y: number } } | null
+  /** replace the selection with `text` (Paste, Cut), as one step of this editor's history */
+  replaceSelection: (text: string, userEvent: 'input.paste' | 'delete.cut') => void
+  selectAll: () => void
   /** re-measure: the editor was hidden (`display: none`, under another view of the panel) and is back on screen */
   refresh: () => void
   /** push the live variable image for inline value overlays; `{}` clears them */
@@ -278,6 +289,36 @@ export const StCodeEditor = forwardRef<StCodeEditorHandle, StCodeEditorProps>(fu
       const range = v.state.wordAt(offset)
       const word = range ? v.state.sliceDoc(range.from, range.to) : null
       return { offset, word: word && /^[A-Za-z_][A-Za-z0-9_]*$/.test(word) ? word : null }
+    },
+    contextAt: (point) => {
+      const v = view.current
+      if (!v) return null
+      const sel = v.state.selection.main
+      const pos = point ? v.posAtCoords(point) : sel.head
+      if (pos !== null && (sel.empty || pos < sel.from || pos > sel.to)) v.dispatch({ selection: { anchor: pos } })
+      v.focus()
+      const s = v.state.selection.main
+      const selected = v.state.sliceDoc(s.from, s.to)
+      let name: string | null = null
+      if (!s.empty) name = watchNameOfSelection(selected)
+      else if (pos !== null) {
+        const line = v.state.doc.lineAt(pos)
+        name = watchNameAt(line.text, pos - line.from)
+      }
+      const c = point ?? v.coordsAtPos(s.head) ?? v.dom.getBoundingClientRect()
+      return { name, selected, at: { x: 'x' in c ? c.x : c.left, y: 'y' in c ? c.y : c.bottom } }
+    },
+    replaceSelection: (text, userEvent) => {
+      const v = view.current
+      if (!v) return
+      v.dispatch(v.state.replaceSelection(text), { userEvent, scrollIntoView: true })
+      v.focus()
+    },
+    selectAll: () => {
+      const v = view.current
+      if (!v) return
+      v.dispatch({ selection: { anchor: 0, head: v.state.doc.length } })
+      v.focus()
     },
     refresh: () => view.current?.requestMeasure(),
     setWatchValues: (values: Record<string, TagValue>) => {

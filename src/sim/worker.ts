@@ -204,6 +204,8 @@ async function handle(msg: MainToWorker): Promise<void> {
       world?.setBehaviorInputTags(msg.tags)
     } else if (msg.type === 'forceTag') {
       plc?.force(msg.name, msg.value)
+    } else if (msg.type === 'resetScanTimes') {
+      plc?.resetScanTimes()
     } else if (msg.type === 'setDrivenTags') {
       // output ownership: which global tags the attached controller drives (ctx.tagDriven)
       world?.setBehaviorDrivenTags(msg.tags)

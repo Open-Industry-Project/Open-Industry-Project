@@ -16,8 +16,7 @@ import { tags as t } from '@lezer/highlight'
 import { BUILTIN_FUNCTIONS, controllerDiagnostics, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs } from '../../plc'
 import type { Controller } from '../../core/controller'
 import type { TagValue } from '../../plc'
-import { calendarToString, timeToString } from '../../plc/runtime'
-import { listTags } from '../../plc/tags'
+import { declaredTypes, formatPlcValue, refType } from './plcValueText'
 
 // Keyword classes, derived from the lexer's own reserved-word set rather than re-listed
 // here. A hand-copy goes stale when the language gains a keyword, and then the
@@ -238,19 +237,7 @@ function stLinter(getController: (source: string) => Controller | null, lints: (
  *  so a full 80-character capacity would push the line off screen. */
 const VALUE_BOX_CHARS = 24
 
-/** A value as its declared type writes it: a duration or a date is a number of milliseconds underneath, and shows as
- *  its literal (`T#1s500ms`, `D#2024-02-29`, `TOD#07:05:09.500`), the spelling the program itself uses. */
-function formatValue(v: TagValue, type?: string): string {
-  if (typeof v === 'number' && type === 'TIME') return timeToString(v)
-  if (typeof v === 'number' && (type === 'DATE' || type === 'TOD' || type === 'DT')) return calendarToString(type, v)
-  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE'
-  // a STRING shows quoted, in the ST spelling, so an empty one still reads as a value
-  if (typeof v === 'string') {
-    const shown = v.length > VALUE_BOX_CHARS ? `${v.slice(0, VALUE_BOX_CHARS)}...` : v
-    return `'${shown.replace(/\n/g, '$N')}'`
-  }
-  return Number.isInteger(v) ? String(v) : v.toFixed(3)
-}
+const formatValue = (v: TagValue, type?: string): string => formatPlcValue(v, type, VALUE_BOX_CHARS)
 
 /** A small box rendered just after a variable, showing its current scan value. */
 class ValueWidget extends WidgetType {
@@ -298,25 +285,10 @@ const typesByDoc = new WeakMap<Text, Map<string, string>>()
 function docTypes(doc: Text): Map<string, string> {
   let types = typesByDoc.get(doc)
   if (!types) {
-    types = new Map()
-    try {
-      for (const row of listTags(doc.toString())) types.set(row.name.toUpperCase(), row.type.trim().toUpperCase())
-    } catch {
-      // not a program yet: every value shows as it is
-    }
+    types = declaredTypes(doc.toString())
     typesByDoc.set(doc, types)
   }
   return types
-}
-
-/** The type a watched reference reads: its declaration's, or a standard timer's ET / PT, which are durations. */
-function refType(types: ReadonlyMap<string, string>, name: string): string | undefined {
-  const dot = name.indexOf('.')
-  if (dot < 0) return types.get(name.toUpperCase())
-  const base = types.get(name.slice(0, dot).toUpperCase())
-  const member = name.slice(dot + 1).toUpperCase()
-  if ((base === 'TON' || base === 'TOF' || base === 'TP') && (member === 'ET' || member === 'PT')) return 'TIME'
-  return undefined
 }
 
 /** Replace the monitored variable image; an empty map removes all inline values. */
