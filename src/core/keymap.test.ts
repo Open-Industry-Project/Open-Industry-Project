@@ -39,6 +39,18 @@ describe('resolveKeyAction - QWERTY', () => {
     expect(resolveKeyAction(press('KeyO', 'o'), 'editor')).toBe('view.projection')
   })
 
+  it('binds the numpad axis views, Ctrl for the opposite side, with NumLock on or off', () => {
+    expect(resolveKeyAction(press('Numpad1', '1'), 'editor')).toBe('view.front')
+    expect(resolveKeyAction(press('Numpad1', 'End', { ctrlKey: true }), 'editor')).toBe('view.rear')
+    expect(resolveKeyAction(press('Numpad3', 'PageDown'), 'editor')).toBe('view.right')
+    expect(resolveKeyAction(press('Numpad3', '3', { ctrlKey: true }), 'editor')).toBe('view.left')
+    expect(resolveKeyAction(press('Numpad7', 'Home'), 'editor')).toBe('view.top')
+    expect(resolveKeyAction(press('Numpad7', '7', { ctrlKey: true }), 'editor')).toBe('view.bottom')
+    // the main row's 1 and Page Down are untouched
+    expect(resolveKeyAction(press('Digit1', '1'), 'editor')).toBeNull()
+    expect(resolveKeyAction(press('PageDown', 'PageDown'), 'editor')).toBe('place.floor')
+  })
+
   it('resolves the ctrl family', () => {
     expect(resolveKeyAction(press('KeyZ', 'z', { ctrlKey: true }), 'editor')).toBe('edit.undo')
     expect(resolveKeyAction(press('KeyZ', 'z', { ctrlKey: true, shiftKey: true }), 'editor')).toBe('edit.redo')

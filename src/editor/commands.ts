@@ -32,6 +32,7 @@ import {
   unlinkProjectFolder,
 } from './project/projectFolderLink'
 import type { EditorController } from './controller'
+import type { AxisViewId } from './controller/camera'
 import { guardOpeningsTarget } from './store/store'
 import { canPasteProperties, copyProperties, pasteProperties, propertiesSource } from './store/storeProperties'
 import type { EditorState, EditorStore } from './store/store'
@@ -267,6 +268,16 @@ const partScriptDir = (ctx: CommandCtx): string | null => {
   const pkg = targetPackage(ctx)
   return pkg ? partFolderOf(ctx.state, pkg) : null
 }
+
+/** an axis view's command, under its keymap action's id and chord */
+const axisView = (id: AxisViewId, label: string): Command => ({
+  id,
+  label,
+  group: 'View',
+  keys: id,
+  enabled: (ctx) => !!ctx.controller,
+  run: ({ controller }) => controller?.viewAlongAxis(id),
+})
 
 const COMMAND_DEFS: readonly Command[] = [
   // ── File ────────────────────────────────────────────────────────────────────────────────────────
@@ -897,6 +908,13 @@ const COMMAND_DEFS: readonly Command[] = [
     keys: 'view.projection',
     run: ({ store }) => store.toggleProjection(),
   },
+  // The orbit gizmo's axis balls, for whoever has no numpad (a laptop) or wants the view by name
+  axisView('view.front', 'Front View'),
+  axisView('view.rear', 'Rear View'),
+  axisView('view.right', 'Right View'),
+  axisView('view.left', 'Left View'),
+  axisView('view.top', 'Top View'),
+  axisView('view.bottom', 'Bottom View'),
   {
     id: 'view.commandPalette',
     label: 'Command Palette…',

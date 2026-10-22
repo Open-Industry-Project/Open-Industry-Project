@@ -401,6 +401,7 @@ function nullView(): IRenderView {
     resizeDragPoint: () => null,
     endResizeDrag() {},
     setRuler() {},
+    snapToAxis() {},
     focusOn() {},
     startFollow() {},
     stopFollow() {},

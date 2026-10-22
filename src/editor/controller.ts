@@ -811,6 +811,11 @@ export class EditorController {
     cameraOps.resetCamera(this)
   }
 
+  /** an axis view: Numpad 1 / 3 / 7 and the palette's Front View and the rest (controller/camera.ts) */
+  viewAlongAxis(id: cameraOps.AxisViewId): void {
+    cameraOps.viewAlongAxis(this.view, id)
+  }
+
   dispose(): void {
     dragOps.cancelActiveDrag(this)
     this.container.removeEventListener('pointerdown', this.onPointerDown)

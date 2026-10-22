@@ -1589,7 +1589,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     viewCamera.updateFollow(this)
   }
 
-  private snapToAxis(dir: Vector3): void {
+  snapToAxis(dir: Vector3): void {
     viewCamera.snapToAxis(this, dir)
   }
 

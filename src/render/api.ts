@@ -543,6 +543,12 @@ export interface IRenderView {
   /** show the ruler measurement line + readout between two world points; null clears it */
   setRuler(a: [number, number, number] | null, b: [number, number, number] | null): void
 
+  /**
+   * animate the camera to look down `dir` (a unit world axis) at the orbit target, in auto-ortho: the
+   * orbit gizmo's axis-ball click, and Numpad 1 / 3 / 7
+   */
+  snapToAxis(dir: Vector3): void
+
   /** animate the camera to frame these parts (F key) */
   focusOn(ids: readonly string[]): void
 

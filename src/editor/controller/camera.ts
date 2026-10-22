@@ -2,6 +2,7 @@
 // scene slot, the opening view, the Focus / Follow press run and the follow badge. The bookkeeping is this
 // area's own state (CameraState, held by the controller); the store and view come in as dependencies.
 
+import { Vector3 } from 'three'
 import { partDisplayName } from '../../core/parts/partDisplayName'
 import { DEMO_OPENING_VIEW } from '../demo/demoScenes'
 import { clearViewportState, readViewportState } from '../store/storePrefs'
@@ -79,6 +80,23 @@ export function resetCamera(ec: CameraDeps): void {
   clearViewportState(viewportKey(ec.store))
   ec.view.setProjection('perspective')
   ec.view.setCameraPose(openingView(ec.store))
+}
+
+/** the world axis each axis view looks down, as the orbit gizmo maps them (+X right, +Y top, +Z front) */
+const AXIS_VIEWS = {
+  'view.front': new Vector3(0, 0, 1),
+  'view.rear': new Vector3(0, 0, -1),
+  'view.right': new Vector3(1, 0, 0),
+  'view.left': new Vector3(-1, 0, 0),
+  'view.top': new Vector3(0, 1, 0),
+  'view.bottom': new Vector3(0, -1, 0),
+} as const
+
+export type AxisViewId = keyof typeof AXIS_VIEWS
+
+/** an orthographic view down a world axis, as an orbit-gizmo ball click gives (Numpad 1 / 3 / 7, the palette) */
+export function viewAlongAxis(view: IRenderView, id: AxisViewId): void {
+  view.snapToAxis(AXIS_VIEWS[id])
 }
 
 /** whether the current F run is following (an even press count ≥ 2) */

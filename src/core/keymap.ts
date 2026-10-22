@@ -126,6 +126,13 @@ export const KEY_BINDINGS = [
   { id: 'view.space', mode: 'editor', group: 'View', label: 'Local / global space', keys: ['KeyT'] },
   { id: 'view.trackball', mode: 'editor', group: 'View', label: 'Trackball rotate', keys: ['KeyU'] },
   { id: 'view.projection', mode: 'editor', group: 'View', label: 'Perspective / orthographic', keys: ['KeyO', 'Numpad5'] },
+  // The orbit gizmo's axis balls from the keyboard: an orthographic view down a world axis, Ctrl for the opposite side
+  { id: 'view.front', mode: 'editor', group: 'View', label: 'Front view', keys: ['Numpad1'], hint: 'Ctrl for the rear' },
+  { id: 'view.rear', mode: 'editor', group: 'View', label: 'Rear view', keys: ['ctrl+Numpad1'] },
+  { id: 'view.right', mode: 'editor', group: 'View', label: 'Right view', keys: ['Numpad3'], hint: 'Ctrl for the left' },
+  { id: 'view.left', mode: 'editor', group: 'View', label: 'Left view', keys: ['ctrl+Numpad3'] },
+  { id: 'view.top', mode: 'editor', group: 'View', label: 'Top view', keys: ['Numpad7'], hint: 'Ctrl for the bottom' },
+  { id: 'view.bottom', mode: 'editor', group: 'View', label: 'Bottom view', keys: ['ctrl+Numpad7'] },
   { id: 'view.flowArrows', mode: 'editor', group: 'View', label: 'Flow arrows', keys: ['Period'] },
   { id: 'camera.freelook', mode: 'editor', group: 'View', label: 'Free fly', keys: ['shift+KeyF'], hint: 'or hold the right mouse button' },
   { id: 'view.distractionFree', mode: 'editor', group: 'View', label: 'Distraction-free mode', keys: ['ctrl+shift+F11', 'meta+shift+KeyD'], match: 'logical' },
@@ -436,7 +443,10 @@ const TOKEN_LABEL: Record<string, string> = {
   ArrowDown: '↓',
   ArrowLeft: '←',
   ArrowRight: '→',
+  Numpad1: 'Numpad 1',
+  Numpad3: 'Numpad 3',
   Numpad5: 'Numpad 5',
+  Numpad7: 'Numpad 7',
 }
 
 /** the chord as a human reads it: `ctrl+shift+KeyZ` → `Ctrl+Shift+Z` (`⌘⇧Z` on a Mac) */
