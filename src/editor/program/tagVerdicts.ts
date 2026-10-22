@@ -1,6 +1,6 @@
-// What the program says about each tag the scene's parts are wired to, for the Inspector's tag fields: whether it
-// declares the name, and as what type. The same compile and bindings as the Problems panel's `unwired` and
-// `program-type` rows (editor/problems.ts), so a field and the panel never disagree about a tag.
+// What the program says to the Inspector's tag fields: which names a part can be wired to, and whether it declares
+// each name the scene's parts are wired to, and as what type. The same compile and bindings as Play and the Problems
+// panel's `unwired` and `program-type` rows (editor/problems.ts), so a field, its suggestions and the panel agree.
 //
 // Loaded by a dynamic import: a tag field renders in the first frame's graph, and the compiler does not.
 
@@ -36,6 +36,32 @@ function compiled(source: string): CompiledProgram | null {
   return kept.program
 }
 
+function compiledFor(check: ProgramCheck): CompiledProgram | null {
+  if (!isKnownDialect(check.dialect) || check.source.trim() === '') return null
+  return compiled(controllerSource(check.source, controllerFor(check.source, check.controller, check.scanMs)))
+}
+
+/**
+ * Every program variable a part's tag can name, with its declared type, in declaration order: the declared inputs and
+ * outputs and what wiring binds (`CompiledProgram.bindable`, a program instance's variables as `Main.Eye` among them).
+ * A sole instance's variables go by their bare names, which the link answers to (plcLink.ts soleInstanceAliases).
+ * Null when the program does not compile, so the caller can fall back to reading its declarations.
+ */
+export function programTagNames(check: ProgramCheck): { name: string; type: string }[] | null {
+  const program = compiledFor(check)
+  if (!program) return null
+  const bare = new Map([...new LocalPlcLink(program).aliases].map(([alias, name]) => [name, alias]))
+  const out: { name: string; type: string }[] = []
+  const seen = new Set<string>()
+  for (const name of [...program.inputs, ...program.outputs, ...program.bindable]) {
+    if (seen.has(name)) continue
+    seen.add(name)
+    const info = program.varInfo(name)
+    if (info && !info.constant) out.push({ name: bare.get(name) ?? name, type: info.type })
+  }
+  return out
+}
+
 /**
  * A verdict for every tag a comms-enabled part is wired to, keyed as the part writes it. Empty when there is no
  * program, it is in a dialect this build cannot read, or it does not compile: then a name is a forward reference
@@ -43,8 +69,7 @@ function compiled(source: string): CompiledProgram | null {
  */
 export function programTagVerdicts(parts: readonly PartInstance[], check: ProgramCheck): Map<string, TagVerdict> {
   const out = new Map<string, TagVerdict>()
-  if (!isKnownDialect(check.dialect) || check.source.trim() === '') return out
-  const program = compiled(controllerSource(check.source, controllerFor(check.source, check.controller, check.scanMs)))
+  const program = compiledFor(check)
   if (!program) return out
   const link = new LocalPlcLink(program, wiredBindings(parts, program))
   const unwired = new Set(unhandledProgramTags(parts, link).unwired)

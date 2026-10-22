@@ -24,6 +24,21 @@ const PROGRAM = `VAR
 END_VAR
 `
 
+const TWO_LINES = `PROGRAM Line
+VAR
+  Run : BOOL;
+  Speed : REAL;
+END_VAR
+END_PROGRAM
+CONFIGURATION Cell
+  RESOURCE Cpu ON PLC
+    TASK Fast (INTERVAL := T#10ms, PRIORITY := 1);
+    PROGRAM Line1 WITH Fast : Line;
+    PROGRAM Line2 WITH Fast : Line;
+  END_RESOURCE
+END_CONFIGURATION
+`
+
 async function main() {
   const browser = await chromium.launch({ headless: !HEADED })
   const page = await browser.newPage({ viewport: { width: 1600, height: 950 } })
@@ -148,6 +163,15 @@ async function main() {
     await page.evaluate(() => window.__oip.store.setExternalPlc({ mode: 'serve' }))
     await page.waitForTimeout(200)
     check('no PLC chip once the link is not OPC UA', (await badge.count()) === 0)
+
+    // ---- two instances of one program: each instance's variables, by the qualified names wiring binds
+    await page.evaluate((src) => window.__oip.store.loadStProgram(src, { persist: false }), TWO_LINES)
+    await field.click()
+    await list.waitFor({ timeout: 5000 })
+    await page.waitForFunction(() => /Line2\.Run/.test(document.querySelector('[data-testid="tag-suggest-program"]')?.textContent ?? ''), { timeout: 10000 }).catch(() => {})
+    const instances = await names('program')
+    check("two instances: the program section offers each one's BOOL", instances.some((t) => t.startsWith('Line1.Run')) && instances.some((t) => t.startsWith('Line2.Run')) && !instances.some((t) => t.includes('Speed')), JSON.stringify(instances))
+    await page.keyboard.press('Escape')
   } finally {
     await browser.close()
   }

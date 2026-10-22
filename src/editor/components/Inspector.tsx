@@ -204,8 +204,8 @@ function useTagSources(controller: EditorController | null, state: EditorState):
   const { stDialect: dialect, controller: table, stScanMs: scanMs } = state
   const check = useMemo(() => ({ source: program, dialect, controller: table, scanMs }), [program, dialect, table, scanMs])
   return useMemo(
-    () => ({ program, check, plc, plcLinked: linked, canReadPlc, readPlc: () => controller?.readPlcTags() }),
-    [program, check, plc, linked, canReadPlc, controller],
+    () => ({ check, plc, plcLinked: linked, canReadPlc, readPlc: () => controller?.readPlcTags() }),
+    [check, plc, linked, canReadPlc, controller],
   )
 }
 

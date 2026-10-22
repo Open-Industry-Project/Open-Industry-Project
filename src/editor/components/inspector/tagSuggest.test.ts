@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { programTagChoices, rankTagNames } from './tagSuggest'
+import { declaredTags, programTagChoices, rankTagNames } from './tagSuggest'
 import { buildSections } from './tagField'
 import type { TagSources } from './tagField'
 import type { TagRow } from '../../../plc/tags'
@@ -26,11 +26,11 @@ const row = (name: string, type: string, extra: Partial<TagRow> = {}): TagRow =>
 describe('the program\'s tags a field offers', () => {
   const rows = [row('Start', 'BOOL'), row('Speed', 'REAL'), row('Limit', 'REAL', { constant: true }), row('Timer1', 'TON'), row('Local', 'BOOL', { scope: { kind: 'pou', name: 'Fb' } })]
   it('offers controller-scope variables of the field\'s type', () => {
-    expect(programTagChoices(rows, 'BOOL')).toEqual([{ name: 'Start', type: 'BOOL' }])
-    expect(programTagChoices(rows, 'REAL')).toEqual([{ name: 'Speed', type: 'REAL' }])
+    expect(programTagChoices(declaredTags(rows), 'BOOL')).toEqual([{ name: 'Start', type: 'BOOL' }])
+    expect(programTagChoices(declaredTags(rows), 'REAL')).toEqual([{ name: 'Speed', type: 'REAL' }])
   })
   it('offers any bit or number when the field declares no type, never a block', () => {
-    expect(programTagChoices(rows, undefined).map((c) => c.name)).toEqual(['Start', 'Speed'])
+    expect(programTagChoices(declaredTags(rows), undefined).map((c) => c.name)).toEqual(['Start', 'Speed'])
   })
 })
 
@@ -39,7 +39,7 @@ describe('the sections of the list', () => {
     { path: ['PLC1', 'MAIN', 'Motor'], nodeId: 'a' },
     { path: ['PLC1', 'MAIN', 'Eye'], nodeId: 'b' },
   ]
-  const sources = (over: Partial<TagSources> = {}): TagSources => ({ program: '', check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, ...over })
+  const sources = (over: Partial<TagSources> = {}): TagSources => ({ check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, ...over })
 
   it('lists a program tag the scene already uses once, under the scene', () => {
     const s = buildSections('', ['Motor1'], [{ name: 'Motor1', type: 'BOOL' }, { name: 'Start', type: 'BOOL' }], sources({ plcLinked: false }), '')

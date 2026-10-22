@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PACKAGE_FORMAT, type PartPackage } from '../../core/parts/partPackage'
 import { clearPackages, registerPackage } from '../../core/parts/partRegistry'
 import type { PartInstance } from '../../core/types'
-import { programTagVerdicts, type ProgramCheck } from './tagVerdicts'
+import { programTagNames, programTagVerdicts, type ProgramCheck } from './tagVerdicts'
 
 const PROGRAM = `VAR
   Motor : BOOL;
@@ -47,5 +47,48 @@ describe('programTagVerdicts', () => {
     expect(programTagVerdicts(parts, check('')).size).toBe(0)
     expect(programTagVerdicts(parts, check('VAR Motor : BOOL END_VAR')).size).toBe(0)
     expect(programTagVerdicts(parts, check(PROGRAM, { dialect: 'other' })).size).toBe(0)
+  })
+})
+
+const LINE = `PROGRAM Line
+VAR
+  Run : BOOL;
+  Speed : REAL;
+  Timer : TON;
+END_VAR
+VAR CONSTANT
+  Max : REAL := 2.0;
+END_VAR
+Run := Speed < Max;
+END_PROGRAM
+`
+
+describe('programTagNames', () => {
+  it('lists what a part can be wired to, a sole instance by bare name', () => {
+    expect(programTagNames(check(PROGRAM))).toEqual([
+      { name: 'Motor', type: 'BOOL' },
+      { name: 'Infeed', type: 'INT' },
+    ])
+    expect(programTagNames(check(LINE))).toEqual([
+      { name: 'Run', type: 'BOOL' },
+      { name: 'Speed', type: 'REAL' },
+    ])
+  })
+
+  it("lists each instance's variables by their qualified names", () => {
+    const two = `${LINE}
+CONFIGURATION Cell
+  RESOURCE Cpu ON PLC
+    TASK Fast (INTERVAL := T#10ms, PRIORITY := 1);
+    PROGRAM Line1 WITH Fast : Line;
+    PROGRAM Line2 WITH Fast : Line;
+  END_RESOURCE
+END_CONFIGURATION
+`
+    expect(programTagNames(check(two))?.map((t) => t.name).sort()).toEqual(['Line1.Run', 'Line1.Speed', 'Line2.Run', 'Line2.Speed'])
+  })
+
+  it('is null when the program does not compile', () => {
+    expect(programTagNames(check('VAR Motor : BOOL END_VAR'))).toBeNull()
   })
 })

@@ -8,7 +8,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PlcTagList } from '../../links/externalPlc'
-import type { TagRow } from '../../../plc/tags'
 import type { ProgramCheck } from '../../program/tagVerdicts'
 import { loadProgramTags, programTagChoices, rankTagNames } from './tagSuggest'
 import { defineMessages, t } from '../../../core/i18n'
@@ -34,8 +33,7 @@ const M = defineMessages('inspector.tagField', {
 
 /** Where a tag field's suggestions come from beyond the scene: the Inspector provides it. */
 export interface TagSources {
-  program: string
-  /** the program with what it is compiled under, for what a field says about its tag (program/tagVerdicts.ts) */
+  /** the program with what it is compiled under: what a field suggests and says about its tag (program/tagVerdicts.ts) */
   check: ProgramCheck
   /** the PLC's tag list, when the link is OPC UA and the list is of the PLC the settings name; else null */
   plc: Readonly<PlcTagList> | null
@@ -104,7 +102,7 @@ export function TagField({
   const [typed, setTyped] = useState(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
-  const [programRows, setProgramRows] = useState<readonly TagRow[]>([])
+  const [programTags, setProgramTags] = useState<readonly { name: string; type: string }[]>([])
   const input = useRef<HTMLInputElement>(null)
   const [at, setAt] = useState<{ left: number; top?: number; bottom?: number; width: number; maxHeight: number } | null>(null)
 
@@ -113,17 +111,17 @@ export function TagField({
   }, [value, mixed])
 
   // the program's tags, read when the list first opens (and again if the program changes while it is open)
-  const program = sources?.program ?? ''
+  const check = sources?.check
   useEffect(() => {
-    if (!open) return
+    if (!open || !check) return
     let live = true
-    void loadProgramTags(program).then((rows) => {
-      if (live) setProgramRows(rows)
+    void loadProgramTags(check).then((tags) => {
+      if (live) setProgramTags(tags)
     })
     return () => {
       live = false
     }
-  }, [open, program])
+  }, [open, check])
 
   // the list hangs off the box in the viewport, so the Inspector's scrolling cannot clip it; it follows a scroll.
   // Being fixed, it cannot be scrolled to either: a box low in the window opens it upward when there is more room
@@ -166,7 +164,7 @@ export function TagField({
   }
 
   const query = typed ? text : ''
-  const sections = open ? buildSections(query, sceneNames, programTagChoices(programRows, stType), sources, mixed ? '' : value) : []
+  const sections = open ? buildSections(query, sceneNames, programTagChoices(programTags, stType), sources, mixed ? '' : value) : []
   const rows = sections.flatMap((s) => s.rows)
   const activate = (row: Row): void => {
     if (row.kind === 'name') pick(row.name)
