@@ -211,8 +211,8 @@ jobs:
           # proves the API key + client certificate BEFORE the build: the signing keypair has to be listed
           $pairs = & $smctl keypair ls 2>&1 | Out-String
           Write-Output $pairs
-          if ($LASTEXITCODE -ne 0 -or $pairs -notmatch 'key_1387363956') {
-            Write-Output '::error::KeyLocker did not list the signing keypair (key_1387363956): check SM_API_KEY, the client certificate and its password'
+          if ($LASTEXITCODE -ne 0 -or $pairs -notmatch 'key_1638501538') {
+            Write-Output '::error::KeyLocker did not list the signing keypair (key_1638501538): check SM_API_KEY, the client certificate and its password'
             exit 1
           }
 
