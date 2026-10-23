@@ -128,6 +128,8 @@ Never hand-edit scene.json; these go through the same checks the editor does.
 ## Checking a project
 
 - **`npm run validate-project -- <path>`** - the document loads; lists what loading repaired, `--strict` fails on it.
+  `--write` removes from a project folder's scene file the param keys loading drops (one a part's newer version no
+  longer declares) and changes nothing else.
 - **`npm run check-st -- <path...>`** - ST compiles. A project's program files are checked together, as the program
   they make, and each error is reported at its own file and line.
 - **`npm run check-wiring -- <path>`** - tags connect. The project's tests count, so a tag a test checks is read and
