@@ -224,7 +224,7 @@
   vertical-align: middle;
 }
 
-/* everything wrong with a tag field's tag (inspector/paramField.tsx TagWarnMark): beside the box, which it outlines.
+/* everything wrong with a tag field's tag (inspector/paramField.tsx TagMark): beside the box, which it outlines.
    The amber the GLB-material warning already uses; there is no --warn token */
 .tag-warn {
   flex: none;
@@ -242,6 +242,23 @@
 }
 .field-control:has(> .tag-warn) > input {
   border-color: #e0a32e;
+}
+/* the same mark when the binding is sound (TagMark): connected (.on, the accent) or waiting on a program (dim).
+   Quieter than a warning, and it leaves the box's border alone */
+.tag-status {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: help;
+}
+.tag-status.on {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 /* Force / Release beside a tag field while the program runs (inspector/tagForce.tsx). A forced field takes the

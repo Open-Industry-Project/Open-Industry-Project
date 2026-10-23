@@ -24,6 +24,7 @@ describe('programTagVerdicts', () => {
         enableComms: { type: 'boolean', default: false },
         runTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '' },
         speedTag: { type: 'tag', dir: 'in', stType: 'REAL', default: '' },
+        doneTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '' },
       },
       behavior: 'definePart({ step(){} })',
       geometry: { kind: 'rig', links: [], joints: [], bounds: { length: 1, width: 1, top: 1 } },
@@ -33,9 +34,26 @@ describe('programTagVerdicts', () => {
 
   it('says which wired names the program declares, and as what', () => {
     const v = programTagVerdicts([part('c1', { enableComms: true, runTag: 'Motor', speedTag: 'Infeed' }), part('c2', { enableComms: true, runTag: 'Motr' })], check(PROGRAM))
-    expect(v.get('Motor')).toEqual({ declared: true, type: 'BOOL' })
-    expect(v.get('Infeed')).toEqual({ declared: true, type: 'INT' })
+    expect(v.get('Motor')).toEqual({ declared: true, type: 'BOOL', drives: true, reads: false })
+    expect(v.get('Infeed')).toEqual({ declared: true, type: 'INT', drives: true, reads: false })
     expect(v.get('Motr')).toEqual({ declared: false })
+  })
+
+  it('says which way a declared tag is bound', () => {
+    const io = `PROGRAM Main
+VAR_INPUT
+  Eye : BOOL;
+END_VAR
+VAR_OUTPUT
+  Run : BOOL;
+END_VAR
+Run := Eye;
+END_PROGRAM
+`
+    // a part reading the program's input is driven by nothing; a part writing its output is read by nothing
+    const v = programTagVerdicts([part('c1', { enableComms: true, runTag: 'Eye', doneTag: 'Run' }), part('c2', { enableComms: true, runTag: 'Run', doneTag: 'Eye' })], check(io))
+    expect(v.get('Eye')).toEqual({ declared: true, type: 'BOOL', drives: false, reads: true })
+    expect(v.get('Run')).toEqual({ declared: true, type: 'BOOL', drives: true, reads: false })
   })
 
   it('says nothing of a part with comms off', () => {

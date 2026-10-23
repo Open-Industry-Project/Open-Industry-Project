@@ -1,7 +1,9 @@
 // Verify a tag field's suggestions (src/editor/components/inspector/tagField.tsx): the scene's tags, the program's
 // (of the field's type only), and, when the external link is OPC UA, the PLC's. The PLC's tags are read on request
 // while stopped, listed only once something is typed, and picked by click or keyboard into the param. A tag the
-// PLC does not hold gets a "not on PLC" chip. The PLC is a fake OPC UA host handed to the controller
+// PLC does not hold gets a "not on PLC" chip. The field's mark says what a binding does: a warning (undeclared, wrong
+// type, undriven), connected, or no program; the Speed field says a
+// bound speed tag replaces it. The PLC is a fake OPC UA host handed to the controller
 // (controller.opcUaHost is public for this): this tests the field, not the wire, which verify-external-plc-electron covers.
 // Run: node e2e/verify-tag-suggest.mjs [--headed]
 /* global process, console, window, localStorage, document */
@@ -201,6 +203,56 @@ async function main() {
     await page.evaluate(() => window.__oip.store.loadStProgram('VAR\n  Strt : BOOL;\n  Speed : REAL;\nEND_VAR\n', { persist: false }))
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="tag-warn"]').length === 0, { timeout: 10000 }).catch(() => {})
     check('declaring them clears both marks', (await kindsOf('^Run tag')) === '' && (await kindsOf('^Speed tag')) === '')
+
+    // ---- a sound binding says what it does: connected, or no program yet
+    const statusOf = (re) =>
+      page.evaluate((src) => {
+        const label = [...document.querySelectorAll('.field-label')].find((l) => new RegExp(src, 'i').test(l.textContent ?? ''))
+        const mark = label?.closest('label')?.querySelector('[data-testid="tag-status"]')
+        return mark ? { kind: mark.getAttribute('data-kind'), title: mark.getAttribute('title') } : null
+      }, re)
+    const statusIs = (re, kind) =>
+      page
+        .waitForFunction(
+          ([src, kind]) => {
+            const label = [...document.querySelectorAll('.field-label')].find((l) => new RegExp(src, 'i').test(l.textContent ?? ''))
+            return label?.closest('label')?.querySelector('[data-testid="tag-status"]')?.getAttribute('data-kind') === kind
+          },
+          [re, kind],
+          { timeout: 10000 },
+        )
+        .catch(() => {})
+    await statusIs('^Run tag', 'driven')
+    check('a tag the program drives is marked connected', (await statusOf('^Run tag'))?.kind === 'driven', JSON.stringify(await statusOf('^Run tag')))
+    const speedDriven = await statusOf('^Speed tag')
+    check('a driven speed tag says what it replaces', speedDriven?.kind === 'driven' && /in place of its Speed/.test(speedDriven.title ?? ''), JSON.stringify(speedDriven))
+    // the Speed field says, while stopped, that the tag will replace it
+    const speedBadge = await page.evaluate(() => {
+      const row = document.querySelector('[data-param="speed"]')
+      return { badge: row?.querySelector('.field-badge')?.textContent ?? '', title: row?.querySelector('.field-label')?.getAttribute('title') ?? '' }
+    })
+    check('the Speed field says a bound speed tag replaces it', speedBadge.badge === 'tag' && /reads “Speed” instead of this value/.test(speedBadge.title), JSON.stringify(speedBadge))
+
+    // the program's inputs: nothing drives them, so the run tag is ignored and the speed tag stalls the belt
+    await page.evaluate(() => window.__oip.store.loadStProgram('PROGRAM Main\nVAR_INPUT\n  Strt : BOOL;\n  Speed : REAL;\nEND_VAR\nEND_PROGRAM\n', { persist: false }))
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="tag-warn"]').length >= 2, { timeout: 10000 }).catch(() => {})
+    const ignored = await page.evaluate(() => {
+      const label = [...document.querySelectorAll('.field-label')].find((l) => /^Run tag/i.test(l.textContent ?? ''))
+      const mark = label?.closest('label')?.querySelector('[data-testid="tag-warn"]')
+      return { kinds: mark?.getAttribute('data-kinds') ?? '', title: mark?.getAttribute('title') ?? '' }
+    })
+    check('an undriven run tag warns that the part ignores it', ignored.kinds.split(' ').includes('undriven') && /ignores it and runs on its own setting/.test(ignored.title), JSON.stringify(ignored))
+    const stall = await page.evaluate(() => {
+      const label = [...document.querySelectorAll('.field-label')].find((l) => /^Speed tag/i.test(l.textContent ?? ''))
+      const mark = label?.closest('label')?.querySelector('[data-testid="tag-warn"]')
+      return { kinds: mark?.getAttribute('data-kinds') ?? '', title: mark?.getAttribute('title') ?? '' }
+    })
+    check('an undriven speed tag warns that the part uses 0 for its Speed', stall.kinds.split(' ').includes('undriven') && /uses 0 in place of its Speed/.test(stall.title), JSON.stringify(stall))
+
+    // no program at all
+    await page.evaluate(() => window.__oip.store.loadStProgram('', { persist: false }))
+    await statusIs('^Run tag', 'no-program')
+    check('with no program the field says so', (await statusOf('^Run tag'))?.kind === 'no-program', JSON.stringify(await statusOf('^Run tag')))
     await setB2({ runTag: '', speedTag: '' })
 
     // ---- two instances of one program: each instance's variables, by the qualified names wiring binds

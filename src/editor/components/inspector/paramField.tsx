@@ -68,6 +68,15 @@ const M = defineMessages('inspector.paramField', {
   closest: '{error}. Closest: {names}',
   notInProgram: 'The program does not declare {tag}, so it neither reads nor drives it. Usually a typo, or a variable not written yet.',
   wrongType: 'The program declares {tag} as {programType}, and this field carries {fieldType}.',
+  notDriven: 'The program does not drive {tag}, so this part reads it as {zero}.',
+  notDrivenSetpoint: 'The program does not drive {tag}, so while the scene runs this part uses 0 in place of its {param}.',
+  notDrivenGated: 'The program does not drive {tag}, so this part ignores it and runs on its own setting.',
+  notRead: 'The program does not read {tag}, so what this part writes there goes nowhere.',
+  driven: 'Connected: the program drives {tag}, and this part follows it while the scene runs.',
+  drivenSetpoint: 'Connected: the program drives {tag}, and this part follows it in place of its {param} while the scene runs.',
+  read: 'Connected: the program reads {tag}, and gets what this part writes each scan.',
+  noProgram: 'No program yet. This part connects to {tag} once a program declares it.',
+  setpointBound: 'While the scene runs, this part reads “{tag}” instead of this value. It reads 0 while nothing drives that tag.',
 })
 
 export { buildGroupTree } from './paramLogic'
@@ -212,6 +221,9 @@ export function ParamField({
   switch (spec.kind) {
     case 'number': {
       const authored = typeof shared === 'number' ? shared : spec.default
+      // Stopped, a bound setpoint tag (a speed tag) is said here too: once the scene runs this value is not what the
+      // part uses, and an undriven tag makes it use 0, so a belt with a speed tag and no program sits still.
+      const setpointTag = live || parts.length !== 1 ? '' : boundSetpointTag(part, spec.key)
       // Show what the part is actually using, read-only (an edit would silently do nothing) - and keep the
       // authored value one hover away, since that is what the field returns to on Stop.
       const liveTip = product
@@ -225,7 +237,10 @@ export function ParamField({
               : t(M.plcComms, { tag: live.tag, value: typeof live.value === 'number' ? formatQuantity(spec, live.value, system) : String(live.value) }),
             t(M.authored, { value: formatQuantity(spec, authored, system) }),
           ].join('\n')
+        : setpointTag
+        ? [tooltip, '', t(M.setpointBound, { tag: setpointTag })].join('\n')
         : tooltip
+      const numberBadge = live ? (product ? 'live' : 'plc') : setpointTag ? 'tag' /* i18n-ok: badge, its words are the title */ : undefined
       // a bitmask (ParamSpec.bits): a checkbox per bit, the count literal or read off the param it names
       if (spec.bits !== undefined) {
         const bitsSpec = typeof spec.bits === 'string' ? partParamSpecs(part).find((s) => s.key === spec.bits) : undefined
@@ -237,7 +252,7 @@ export function ParamField({
             value={typeof live?.value === 'number' ? live.value : authored}
             mixed={mixed}
             tooltip={liveTip}
-            badge={live ? (product ? 'live' : 'plc') : undefined}
+            badge={numberBadge}
             disabled={disabled || live !== undefined}
             extra={live ? revertSlot : revertArrow}
             onToggle={(bit, on) =>
@@ -263,7 +278,7 @@ export function ParamField({
           step={shownStep}
           mixed={mixed}
           tooltip={liveTip}
-          badge={live ? (product ? 'live' : 'plc') : undefined}
+          badge={numberBadge}
           extra={live ? revertSlot : revertArrow}
           value={shownNumber(spec, typeof live?.value === 'number' ? live.value : authored)}
           disabled={disabled || live !== undefined}
@@ -467,6 +482,9 @@ export function ParamField({
       const address = !mixed && looksLikeAddress(current) ? parseDirectAddress(current) : null
       const addressError = address && 'error' in address ? address.error : null
       const locatedName = address && !('error' in address) ? located.get(address.text) : undefined
+      // the param a setpoint tag stands in for (a speed tag's Speed), named when the tag is undriven
+      const replacedSpec = spec.setpointFor ? partParamSpecs(part).find((s) => s.key === spec.setpointFor) : undefined
+      const replaces = replacedSpec ? labelHead(replacedSpec.label) : undefined
       // Committed on Enter / blur / a suggestion pick, not per keystroke: every commit persists the whole
       // project, and each half-typed name ("M", "Mo", "Mot") would be bound, wired and checked in turn.
       return row(
@@ -495,16 +513,17 @@ export function ParamField({
           }
           extra={
             <>
-              <TagWarnMark
+              <TagMark
                 tag={mixed ? '' : current}
-                stType={spec.stType}
+                spec={spec}
+                replaces={replaces}
                 parts={allParts}
                 reasons={[...(problem ? [{ kind: 'clash' as const, why: problem }] : []), ...(addressError ? [{ kind: 'address' as const, why: addressError }] : [])]}
                 byName={!mixed && !address}
                 connected={commsOn(part)}
               />
-              {/* one part only: a multi-selection may name several tags, and one button cannot say which it holds. A part
-                  whose comms switch is off reads none of its tags, so there is nothing for a force to reach */}
+              {/* one part only: a multi-selection may name several tags, and one button cannot say which it holds. A custom
+                  part whose comms switch (its package's commsParam) is off reads none of its tags, so a force reaches nothing */}
               {forcing && parts.length === 1 && !mixed && current !== '' && commsOn(part) && <TagForce forcing={forcing} tag={current} paramKey={spec.key} />}
               {revertArrow}
             </>
@@ -709,6 +728,18 @@ export function GroupSection({
   )
 }
 
+/** The tag a part's setpoint tag param names for `key` (a speed tag for `speed`), or '' when none is bound or comms are off. */
+function boundSetpointTag(part: PartInstance, key: string): string {
+  if (!commsOn(part)) return ''
+  const params = part.params as Record<string, unknown>
+  for (const s of partParamSpecs(part)) {
+    if (s.kind !== 'tagRef' || s.setpointFor !== key) continue
+    const tag = params[s.key]
+    if (typeof tag === 'string' && tag.trim() !== '') return tag.trim()
+  }
+  return ''
+}
+
 /** How long the scene and the program hold still before a tag field asks the program about its tag, as Problems waits. */
 const VERDICT_DELAY_MS = 250
 
@@ -737,40 +768,73 @@ function useProgramVerdicts(parts: readonly PartInstance[], check: ProgramCheck 
   return fresh ?? held
 }
 
-type TagWarning = { kind: 'clash' | 'address' | 'plc' | 'undeclared' | 'type'; why: string }
+type TagWarning = { kind: 'clash' | 'address' | 'plc' | 'undeclared' | 'type' | 'undriven' | 'unread'; why: string }
+/** What a sound binding does: connected either way, or waiting on a program that does not exist yet. */
+type TagStatus = { kind: 'driven' | 'read' | 'no-program'; why: string }
+
+/** The field's tag-param shape the mark reads: which way the part uses the tag, and what it carries. */
+type TagMarkSpec = { dir?: 'in' | 'out'; stType?: string; onlyWhenDriven?: boolean }
 
 /**
- * Everything wrong with a tag field's tag, as one mark beside the box, which it outlines, with each reason a line of
- * its title. A mark rather than a chip on the label, because the label column ellipsizes its chips. `reasons` are the
- * scene's own (parts disagreeing over the tag, a malformed address); the mark adds the PLC's and the program's when
- * the tag is a name (`byName`). `connected` is whether the part's comms are on: a part with comms off is wired to
- * nothing, so the program has nothing to say about its tag.
+ * One mark beside a tag field's box saying what its binding does. A warning (`!`, which outlines the box) lists
+ * everything wrong with the tag, each reason a line of its title. Otherwise the mark says the binding is sound: the
+ * program drives the tag or reads it (✓), or there is no program yet (○). Without that a field that works and one that does nothing look the same. A mark rather than a chip on
+ * the label, because the label column ellipsizes its chips. `reasons` are the scene's own (parts disagreeing over the
+ * tag, a malformed address); the mark adds the PLC's and the program's when the tag is a name (`byName`).
+ * `connected` is whether the part's comms are on: a part with comms off is wired to nothing, so the program has
+ * nothing to say about its tag.
  */
-function TagWarnMark({ tag, stType, parts, reasons, byName, connected }: { tag: string; stType?: string; parts: readonly PartInstance[]; reasons: readonly TagWarning[]; byName: boolean; connected: boolean }) {
+function TagMark({ tag, spec, replaces, parts, reasons, byName, connected }: { tag: string; spec: TagMarkSpec; replaces?: string; parts: readonly PartInstance[]; reasons: readonly TagWarning[]; byName: boolean; connected: boolean }) {
   const plc = usePlcTagWarning(byName ? tag : '')
-  const program = useProgramTagWarning(byName && connected ? tag : '', stType, parts)
-  const all = [...reasons, ...(plc ? [plc] : []), ...(program ? [program] : [])]
-  if (all.length === 0) return null
-  const title = all.map((w) => w.why).join('\n')
+  const program = useProgramTagWord(byName && connected ? tag : '', spec, replaces, parts)
+  const programWarning = program && 'warn' in program ? program.warn : null
+  const all = [...reasons, ...(plc ? [plc] : []), ...(programWarning ? [programWarning] : [])]
+  if (all.length > 0) {
+    const title = all.map((w) => w.why).join('\n')
+    return (
+      <span className="tag-warn" role="img" title={title} aria-label={title} data-testid="tag-warn" data-kinds={all.map((w) => w.kind).join(' ')}>
+        {'!' /* i18n-ok: a mark, its words are the title */}
+      </span>
+    )
+  }
+  const status = program && 'status' in program ? program.status : null
+  if (!status) return null
+  const connectedNow = status.kind === 'driven' || status.kind === 'read'
   return (
-    <span className="tag-warn" role="img" title={title} aria-label={title} data-testid="tag-warn" data-kinds={all.map((w) => w.kind).join(' ')}>
-      {'!' /* i18n-ok: a mark, its words are the title */}
+    <span className={`tag-status${connectedNow ? ' on' : ''}`} role="img" title={status.why} aria-label={status.why} data-testid="tag-status" data-kind={status.kind}>
+      {connectedNow ? '✓' : '○' /* i18n-ok: a mark, its words are the title */}
     </span>
   )
 }
 
 /**
- * The program's word on a tag (program/tagVerdicts.ts): a name it does not declare, or declares as the other kind of
- * value (a bit where the field carries a number, or the reverse). The Problems panel says the same on its wiring rows.
- * Nothing without a program that compiles, or for '' (no tag, or not one to ask about).
+ * The program's word on a tag (program/tagVerdicts.ts), as the field's direction reads it. A warning for a name it
+ * does not declare, one it declares as the other kind of value (a bit where the field carries a number, or the
+ * reverse), a tag the part reads that the program does not drive, or one the part writes that it does not read. A
+ * declared tag is undriven only when the program has it on the wrong side (a VAR_INPUT, or a tag another part
+ * writes), so a tag the part reads only while driven (`onlyWhenDriven`) warns too, worded by what the part does
+ * instead. The Problems panel says the same on its wiring rows. With no program, a status saying so. Nothing for a
+ * program that does not compile (Problems says why), or for '' (no tag, or not one to ask about).
  */
-function useProgramTagWarning(tag: string, stType: string | undefined, parts: readonly PartInstance[]): TagWarning | null {
+function useProgramTagWord(tag: string, spec: TagMarkSpec, replaces: string | undefined, parts: readonly PartInstance[]): { warn: TagWarning } | { status: TagStatus } | null {
   const check = useContext(TagSourcesContext)?.check
   const verdict = useProgramVerdicts(parts, tag === '' ? undefined : check)?.get(tag)
-  if (!verdict) return null
-  if (!verdict.declared) return { kind: 'undeclared', why: t(M.notInProgram, { tag }) }
+  if (tag === '' || !check) return null
+  if (!verdict) return check.source.trim() === '' ? { status: { kind: 'no-program', why: t(M.noProgram, { tag }) } } : null
+  if (!verdict.declared) return { warn: { kind: 'undeclared', why: t(M.notInProgram, { tag }) } }
+  const { stType } = spec
   if (stType && verdict.type && (verdict.type === 'BOOL') !== (stType === 'BOOL')) {
-    return { kind: 'type', why: t(M.wrongType, { tag, programType: verdict.type, fieldType: stType }) }
+    return { warn: { kind: 'type', why: t(M.wrongType, { tag, programType: verdict.type, fieldType: stType }) } }
+  }
+  if (spec.dir === 'in') {
+    if (verdict.drives) return { status: { kind: 'driven', why: replaces ? t(M.drivenSetpoint, { tag, param: replaces }) : t(M.driven, { tag }) } }
+    const why = spec.onlyWhenDriven
+      ? t(M.notDrivenGated, { tag })
+      : replaces ? t(M.notDrivenSetpoint, { tag, param: replaces }) : t(M.notDriven, { tag, zero: stType === 'BOOL' ? 'FALSE' : '0' /* i18n-ok: IEC literals */ })
+    return { warn: { kind: 'undriven', why } }
+  }
+  if (spec.dir === 'out') {
+    return verdict.reads ? { status: { kind: 'read', why: t(M.read, { tag }) } } : { warn: { kind: 'unread', why: t(M.notRead, { tag }) } }
   }
   return null
 }

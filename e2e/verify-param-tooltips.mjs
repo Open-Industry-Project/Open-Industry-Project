@@ -32,7 +32,10 @@ const readRows = (page) =>
   page.evaluate(() => {
     const out = []
     for (const el of document.querySelectorAll('.inspector .field-label, .inspector .rig-joint')) {
-      const label = (el.querySelector('.rig-joint-name') ?? el).textContent?.trim() ?? ''
+      // the label's own text, without its chips (a bound speed tag's `tag` badge on Speed)
+      const own = (el.querySelector('.rig-joint-name') ?? el).cloneNode(true)
+      for (const b of own.querySelectorAll('.field-badge')) b.remove()
+      const label = own.textContent?.trim() ?? ''
       const title = el.getAttribute('title') ?? ''
       if (label) out.push({ label, title })
     }

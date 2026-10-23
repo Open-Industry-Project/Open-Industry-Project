@@ -18,8 +18,13 @@ export interface ProgramCheck {
   scanMs: number
 }
 
-/** `type` is the program's declared type (`BOOL`, `INT`, `ENUM`), when it can tell. */
-export type TagVerdict = { declared: false } | { declared: true; type?: string }
+/**
+ * `type` is the program's declared type (`BOOL`, `INT`, `ENUM`), when it can tell. `drives` and `reads` say which way
+ * the tag is bound: the program drives what it declares as an output (or what wiring makes one, `wiredBindings`), and
+ * reads what it declares as an input. A part reads only what the program drives, and what a part writes reaches only
+ * the program's inputs (sim/behaviorBus.ts), so these answer whether a part's binding does anything.
+ */
+export type TagVerdict = { declared: false } | { declared: true; type?: string; drives: boolean; reads: boolean }
 
 let kept: { source: string; program: CompiledProgram | null } | null = null
 
@@ -73,13 +78,16 @@ export function programTagVerdicts(parts: readonly PartInstance[], check: Progra
   if (!program) return out
   const link = new LocalPlcLink(program, wiredBindings(parts, program))
   const unwired = new Set(unhandledProgramTags(parts, link).unwired)
+  const outputs = new Set(link.outputs)
+  const inputs = new Set(link.inputs)
   for (const tag of commsTags(parts)) {
     if (unwired.has(tag)) {
       out.set(tag, { declared: false })
       continue
     }
     const type = program.varInfo(link.aliases.get(tag) ?? tag)?.type
-    out.set(tag, type ? { declared: true, type } : { declared: true })
+    const way = { drives: outputs.has(tag), reads: inputs.has(tag) }
+    out.set(tag, type ? { declared: true, type, ...way } : { declared: true, ...way })
   }
   return out
 }
