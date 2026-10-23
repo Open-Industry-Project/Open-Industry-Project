@@ -28,6 +28,9 @@ export interface CatalogSignal {
   desc?: string
   setpointFor?: string
   commandsDevice?: true
+  /** the part reads it only while a program drives it, and runs on its own setting the rest of the time (the SDK's
+   *  `onlyWhenDriven`, implied by `autoWhenDriven`): a tag named and not driven does not stop the part */
+  onlyWhenDriven?: true
   values?: { value: number; label: string }[]
 }
 
@@ -86,6 +89,7 @@ export function catalogSignals(pkg: Pick<PartPackage, 'params'>): CatalogSignal[
     if (spec.desc !== undefined) sig.desc = spec.desc
     if (spec.setpointFor !== undefined) sig.setpointFor = spec.setpointFor
     if (spec.autoWhenDriven) sig.commandsDevice = true
+    if (spec.onlyWhenDriven || spec.autoWhenDriven) sig.onlyWhenDriven = true
     if (Array.isArray(spec.values)) sig.values = dataCopy(spec.values)
     out.push(sig)
   }
@@ -227,6 +231,7 @@ function signalLines(s: CatalogSignal, verbose: boolean): string[] {
   const extra = [
     s.setpointFor ? `setpoint for ${s.setpointFor}` : null,
     s.commandsDevice ? 'commands the device' : null,
+    s.onlyWhenDriven ? 'only while a program drives it' : null,
     s.values ? s.values.map((v) => `${v.value} = ${v.label}`).join(', ') : null,
   ]
     .filter(Boolean)

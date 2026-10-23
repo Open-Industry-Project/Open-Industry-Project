@@ -124,6 +124,8 @@ export function schemaToParamSpecs(schema: ParamSchema): ParamSpec[] {
       // to find undriven tags, contested ones, and type clashes.
       if (s.dir === 'in' || s.dir === 'out') spec.dir = s.dir
       if (s.stType === 'BOOL' || s.stType === 'INT' || s.stType === 'DINT' || s.stType === 'REAL') spec.stType = s.stType
+      // read only while a program drives it: undriven, the part runs on its own setting rather than on a 0
+      if (s.onlyWhenDriven === true || s.autoWhenDriven === true) spec.onlyWhenDriven = true
       // a code tag's meanings, for the field's listing
       if (Array.isArray(s.values)) spec.values = s.values.filter((v) => v && typeof v.value === 'number' && typeof v.label === 'string').map((v) => ({ value: v.value, label: v.label }))
     } else if (s.type === 'partRef') {

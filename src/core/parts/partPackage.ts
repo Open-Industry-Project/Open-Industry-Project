@@ -921,8 +921,9 @@ export interface PartPackage {
   /** what kind of conveyor this part is, if any ({@link ConveyorDecl}) */
   conveyor?: ConveyorDecl
   /** the `boolean` param that switches this part's PLC link: while it is false the part's tags are disconnected
-   *  (it runs on its authored params), and the PLC panel's comms toggle writes it. Omit it and the part's tags are
-   *  always connected. Package format 3 read a param named `enableComms` for this. */
+   *  (it runs on its authored params), and the PLC panel's comms toggle writes it. Usually omitted: a part without
+   *  one is connected by each tag field that names a tag, and an empty field is a signal left unconnected, which is
+   *  how the built-in parts work. Package format 3 read a param named `enableComms` for this. */
   commsParam?: string
   /** the cargo this part stores, held on its grippers ({@link HoldsDecl}) */
   holds?: HoldsDecl

@@ -42,6 +42,13 @@ describe('partChanges', () => {
     expect(worstImpact(changes)).toBe('behavior')
   })
 
+  it('a comms switch dropped or added is a break: placed copies connect, or disconnect, without a word', () => {
+    const switched = part({ commsParam: 'link', params: { ...part().params, link: { type: 'boolean', default: false } } })
+    expect(subjects(switched, part())).toEqual(['breaking:param:link', 'breaking:commsParam'])
+    // added: copies take the switch's default, and a default of off disconnects every one of them
+    expect(subjects(part(), switched)).toEqual(['breaking:commsParam', 'behavior:param:link'])
+  })
+
   it('lists changes most severe first', () => {
     const { speed: _gone, ...rest } = part().params
     const to = part({ name: 'Belt 2', behavior: 'definePart({ v: 2 })', snap: {} as PartPackage['snap'], params: rest })

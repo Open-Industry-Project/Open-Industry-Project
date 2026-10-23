@@ -50,7 +50,12 @@ export function partChanges(from: PartPackage, to: PartPackage): PartChange[] {
 
   if (from.behavior !== to.behavior) add('behavior', 'script', 'The part\'s script changed.')
   for (const field of ['interactive', 'useParam', 'commsParam', 'holds', 'unit'] as const) {
-    if (!same(from[field], to[field])) add('behavior', field, `${FIELD_TEXT[field]} changed.`)
+    if (same(from[field], to[field])) continue
+    // a switch dropped: every tag a placed copy names connects, including on a copy whose switch was off
+    if (field === 'commsParam' && to.commsParam === undefined) add('breaking', field, 'The part has no comms switch now: each tag field that names a tag is connected. A placed copy whose switch was off connects the tags it names.')
+    // ...and one added: a placed copy has no value for it, so it takes the switch's default, and off disconnects it
+    else if (field === 'commsParam' && from.commsParam === undefined) add('breaking', field, 'The part has a comms switch now. A placed copy takes its default, and where that is off, its tags disconnect until the switch is turned on.')
+    else add('behavior', field, `${FIELD_TEXT[field]} changed.`)
   }
 
   if (!same(from.snap, to.snap)) add('placement', 'snap', 'How the part snaps onto other parts changed. Placed copies may no longer be seated where they were.')
@@ -99,7 +104,7 @@ function paramChanges(from: Record<string, ParamSpec>, to: Record<string, ParamS
       if (a.dir !== b.dir) add('breaking', 'signal', `${name} changed direction (${a.dir ?? 'unset'} to ${b.dir ?? 'unset'}).`, key)
       if (a.stType !== b.stType) add('breaking', 'signal', `${name} changed type (${a.stType ?? 'unset'} to ${b.stType ?? 'unset'}).`, key)
       if (!same(a.values, b.values)) add('behavior', 'signal', `What the codes of ${name} mean changed.`, key)
-      if (a.setpointFor !== b.setpointFor || !!a.autoWhenDriven !== !!b.autoWhenDriven) {
+      if (a.setpointFor !== b.setpointFor || !!a.autoWhenDriven !== !!b.autoWhenDriven || !!a.onlyWhenDriven !== !!b.onlyWhenDriven) {
         add('behavior', 'signal', `What ${name} commands changed.`, key)
       }
       if (!same(a.default, b.default)) add('behavior', 'signal', `${name}'s suggested tag name changed. Placed copies keep the tag they are wired to.`, key)

@@ -270,6 +270,9 @@ export interface TagRefParamSpec {
    * scene isn't using. Same units as the target param by contract.
    */
   setpointFor?: string
+  /** the part reads this tag only while a program drives it, and runs on its own setting otherwise (the SDK's
+   *  `onlyWhenDriven`, or `autoWhenDriven`, which implies it). The wiring check words an undriven warning by it. */
+  onlyWhenDriven?: boolean
   /** what each number a code tag carries means (the SDK's `values`), listed on the field */
   values?: { value: number; label: string }[]
 }

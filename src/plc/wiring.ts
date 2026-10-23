@@ -8,7 +8,8 @@
 //               which one that is depends on part order. Always a bug.
 //   type-clash  two parts declare the same tag as different ST types. Always a bug.
 //   program-type  a part says BOOL and the program declares that var numeric (or the reverse).
-//   undriven    a part reads a tag the program does not drive - it will sit at the zero value forever.
+//   undriven    a part reads a tag the program does not drive - it reads the zero value, or, for a tag the part
+//               reads only while a program drives it (`onlyWhenDriven`), the part runs on its own setting.
 //   unread      a part publishes a tag the program does not read.
 //
 // A part's tag connects only to the program: parts read the program's outputs, and what a part writes goes only to
@@ -31,7 +32,7 @@
 
 import { canonicalAddress, looksLikeAddress, parseDirectAddress, sizeWord } from '../core/io/iecAddress'
 import type { IoSize } from '../core/io/iecAddress'
-import { packageParamSpecs } from '../core/packageParams'
+import { labelHead, packageParamSpecs } from '../core/packageParams'
 import { commsOn } from '../core/conveyor/conveyorDirection'
 import { getPackage } from '../core/parts/partRegistry'
 import type { TaggedPart } from './bindings'
@@ -82,6 +83,10 @@ interface Decl {
   paramKey: string
   dir: 'in' | 'out'
   stType?: 'BOOL' | 'INT' | 'DINT' | 'REAL'
+  /** the label of the param this tag replaces while bound (`setpointFor`): undriven, the part uses 0 in its place */
+  replaces?: string
+  /** the part reads the tag only while a program drives it (`onlyWhenDriven`): undriven, it runs on its own setting */
+  gated?: boolean
 }
 
 function paramsOf(p: WiringPart): Record<string, unknown> {
@@ -109,6 +114,25 @@ export function addressProblem(raw: string, dir: 'in' | 'out', stType: Decl['stT
 }
 
 /**
+ * What an undriven tag does to the parts that read it. One read whenever it names a tag reads 0, and a setpoint then
+ * runs on 0 in place of the param it replaces. One read only while a program drives it (`gated`) runs on its own
+ * setting instead, so "stays at its zero value" would be wrong for it.
+ */
+function undrivenCost(readers: readonly Decl[]): string {
+  const zero = readers.filter((r) => !r.gated)
+  const own = readers.filter((r) => r.gated)
+  const out: string[] = []
+  if (zero.length > 0) {
+    const hit = zero.filter((r) => r.replaces !== undefined)
+    const setpoints = hit.length > 0 ? `, so ${hit.map((r) => `${r.partLabel} uses 0 in place of its ${r.replaces}`).join(', ')}` : ''
+    out.push(`${own.length > 0 ? `for ${zero.map((r) => `${r.partLabel}.${r.paramKey}`).join(', ')} ` : ''}it stays at its zero value${setpoints}`)
+  }
+  const names = [...new Set(own.map((r) => r.partLabel))]
+  if (names.length > 0) out.push(`${names.join(', ')} ${names.length === 1 ? 'runs on its' : 'run on their'} own setting until a program drives it`)
+  return out.join('; ')
+}
+
+/**
  * Walk a scene's declared tag signals and report what doesn't connect. `link` is optional: without a
  * compiled program the part-vs-part checks still run (contested writers, type clashes), and the
  * program-side ones are not attempted.
@@ -129,7 +153,8 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
       continue
     }
     if (!commsOn(p as { type: string; packageId?: string; params: unknown })) continue
-    for (const spec of packageParamSpecs(pkg)) {
+    const specs = packageParamSpecs(pkg)
+    for (const spec of specs) {
       if (spec.kind !== 'tagRef') continue
       const raw = params[spec.key]
       let tag = typeof raw === 'string' ? raw.trim() : ''
@@ -153,7 +178,8 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         tag = canonicalAddress(tag) ?? tag
       }
       const list = byTag.get(tag) ?? []
-      list.push({ partId: p.id, partLabel: p.name ?? p.id, paramKey: spec.key, dir: spec.dir, stType: spec.stType })
+      const replaced = spec.setpointFor ? specs.find((s) => s.key === spec.setpointFor) : undefined
+      list.push({ partId: p.id, partLabel: p.name ?? p.id, paramKey: spec.key, dir: spec.dir, stType: spec.stType, ...(replaced ? { replaces: labelHead(replaced.label) } : {}), ...(spec.onlyWhenDriven ? { gated: true } : {}) })
       byTag.set(tag, list)
     }
   }
@@ -218,7 +244,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         severity: 'warning',
         kind: 'undriven',
         tag,
-        message: `read by ${readers.map((r) => `${r.partLabel}.${r.paramKey}`).join(', ')} but the program does not drive it - it stays at its zero value${partsOnly}`,
+        message: `read by ${readers.map((r) => `${r.partLabel}.${r.paramKey}`).join(', ')} but the program does not drive it - ${undrivenCost(readers)}${partsOnly}`,
         parts: readers.map((r) => r.partId),
       })
     }

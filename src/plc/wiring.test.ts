@@ -109,6 +109,24 @@ Q := Level > 3;`)
     expect(report.problems.every((p) => p.severity === 'warning')).toBe(true)
   })
 
+  it('says what an undriven setpoint costs: the part runs on 0 in place of the param it replaces', () => {
+    registerPackage(pkg('t.drive', {
+      speed: { type: 'number', default: 1, label: 'Speed (m/s, − reverses)' },
+      speedTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '' },
+      runTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '' },
+      stopTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '' },
+    }))
+    const report = checkWiring(scene(part('d1', 't.drive', { speedTag: 'Rate', runTag: 'Go', stopTag: 'Halt' })))
+    const msg = (tag: string) => report.problems.find((p) => p.kind === 'undriven' && p.tag === tag)?.message
+    expect(msg('Rate')).toContain('so d1 uses 0 in place of its Speed (m/s)')
+    // a gate read only while driven: undriven, the part runs on its own setting, so it does not read 0
+    expect(msg('Go')).toContain('d1 runs on its own setting until a program drives it')
+    expect(msg('Go')).not.toContain('zero value')
+    // one read whenever it names a tag does read 0, and replaces no param
+    expect(msg('Halt')).toContain('it stays at its zero value')
+    expect(msg('Halt')).not.toContain('in place of')
+  })
+
   it('warns on a published tag nobody reads, and stays quiet once the program reads it', () => {
     registerPackage(SENSOR)
     expect(checkWiring(scene(part('s1', 't.sensor', { tag: 'PE' }))).problems.map((p) => p.kind)).toContain('unread')

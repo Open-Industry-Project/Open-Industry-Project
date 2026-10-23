@@ -165,7 +165,7 @@ export interface ParamSpec {
     stType?: 'BOOL' | 'INT' | 'DINT' | 'REAL';
     /**
      * For a `'tag'` param: this tag commands the device - the script follows the auto-vs-hand convention
-     * (`comms && ctx.tagDriven(tag) ? readTag(tag) : manualLatch`, `comms` being the manifest's `commsParam`), so while an attached program declares
+     * (`ctx.tagDriven(tag) ? readTag(tag) : manualLatch`), so while an attached program declares
      * the tag as an output, the program owns the device and hand presses are overridden. Declaring it lets the
      * host surface that ownership at the point of interaction (the pilot's "In auto - PLC controlled" prompt).
      * Leave it off for tags the device merely publishes (a button's press, a sensor's beam) or reads as an
@@ -174,8 +174,17 @@ export interface ParamSpec {
      */
     autoWhenDriven?: boolean;
     /**
+     * For an `'in'` `'tag'` param: the script reads it only while a program drives it (`ctx.tagDriven(tag)`), and runs
+     * on its own setting the rest of the time. A conveyor's run gate: `!ctx.tagDriven(runTag) || ctx.readTag(runTag)`,
+     * so a belt with a run tag named and no program runs at its authored speed. Declaring it lets the wiring check say
+     * so when the program does not drive the tag, instead of warning that the tag reads 0. Implied by
+     * {@link autoWhenDriven}, which gates the same way and also takes the device out of hand control. Leave it off a
+     * tag read whenever it names one (a setpoint, read as 0 until driven). Ignored for non-`'tag'` params.
+     */
+    onlyWhenDriven?: boolean;
+    /**
      * For a `'tag'` param that is an analog setpoint (a REAL the script reads instead of a value param,
-     * `comms && tag ? ctx.readNumber(tag) : ctx.params.speed`): the name of the param it replaces. A conveyor's
+     * `tag ? ctx.readNumber(tag) : ctx.params.speed`): the name of the param it replaces. A conveyor's
      * `speedTag` declares `setpointFor: 'speed'`.
      *
      * Without it the Inspector shows the authored number while the scene obeys a different one (a program commanding
@@ -788,8 +797,8 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
     /**
      * Is `name` currently driven by a controller - declared as an output of the attached PLC program (or, later,
      * a real PLC over the wire)? The output-ownership primitive: a controller in RUN owns the outputs it declares;
-     * everything else is hand-operable. Gate a comms device's automatic mode on it -
-     * `enableComms && tagDriven(tag) ? readTag(tag) : manual` - so the device answers the program while one is
+     * everything else is hand-operable. Gate a device's automatic mode on it -
+     * `tagDriven(tag) ? readTag(tag) : manual` - so the device answers the program while one is
      * scanning and answers the operator (ctx.used()) when none is: sim stopped, no program attached, or the tag
      * isn't a program output. False whenever readTag would be reading nobody's value. Deterministic; changes
      * only on program attach/detach, never mid-scan.

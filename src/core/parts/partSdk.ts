@@ -14,7 +14,7 @@ import { partFingerprint } from './partOrigin'
 import type { PartPackage } from './partPackage'
 
 /** The Part SDK level of this build. packages/part-sdk/package.json's version is `0.<level>.0`. */
-export const PART_SDK_LEVEL = 6
+export const PART_SDK_LEVEL = 7
 
 /**
  * `pkg` stamped with the level it was last changed under. An existing stamp is kept while it still describes the
