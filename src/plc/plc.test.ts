@@ -694,6 +694,32 @@ describe('PlcLink seam', () => {
     expect(out).toEqual({ Motor: true, Lamp: false })
     expect(link.watch.Motor).toBe(true)
   })
+
+  it('holds a forced input against the scene and a forced output against the program until released', () => {
+    const link = new LocalPlcLink(SAMPLE_PROGRAM)
+    link.setForces({ Stop: true, Lamp: true })
+    // the scene feeds Start and a released Stop, but the program reads the forced Stop, so the motor stays off
+    expect(link.step({ Start: true, Stop: false }, 0.1)).toEqual({ Motor: false, Lamp: true })
+    expect(link.step({ Start: true, Stop: false }, 0.1)).toEqual({ Motor: false, Lamp: true })
+    expect(link.watch.Lamp).toBe(true)
+    link.setForces({})
+    expect(link.step({ Start: true, Stop: false }, 0.1)).toEqual({ Motor: true, Lamp: false })
+  })
+
+  it('holds one bit of a word and a struct field by name, as it holds a plain variable by its port', () => {
+    const link = new LocalPlcLink(`TYPE Pair : STRUCT A : BOOL; B : BOOL; END_STRUCT; END_TYPE
+VAR_OUTPUT
+  W : WORD;
+  P : Pair;
+END_VAR
+W := 0;
+P.A := FALSE;
+`)
+    link.setForces({ 'W.2': true, 'P.A': true })
+    link.step({}, 0.1)
+    expect(link.watch.W).toBe(4)
+    expect(link.watch['P.A']).toBe(true)
+  })
 })
 
 describe('diagnostics carry source positions', () => {

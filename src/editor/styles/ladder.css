@@ -582,6 +582,28 @@
 .ld-coil.on {
   background: rgba(63, 185, 80, 0.28);
 }
+/* an operand held by a force (the Watch dock): its name in the warning colour and an F badge beside it, so a rung
+   running on a forced value says so where it is read. The badge is drawn over the cell's left edge, in the tag's
+   padding, rather than in the flow: a force set or released then moves nothing on the sheet. */
+.ld-cell.forced .ld-tag {
+  position: relative;
+  color: var(--warn);
+}
+.ld-forced-badge {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+  min-width: 7px;
+  height: 11px;
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--warn);
+  color: #1f2023;
+  font: bold 9px/11px ui-monospace, monospace;
+  text-align: center;
+  z-index: 1;
+}
 .ld-cell.ld-boxed {
   flex-direction: row;
   align-items: flex-start;
@@ -638,6 +660,14 @@
   /* right-aligned in the room the view keeps for it (`roomFor`, useLadderWatch.ts), so the digits stay put as a value changes */
   text-align: right;
   box-sizing: content-box;
+}
+.ld-live.forced {
+  position: relative;
+  color: var(--warn);
+}
+/* in the value's left padding, so the value keeps its place */
+.ld-live.forced .ld-forced-badge {
+  left: 4px;
 }
 .ld-input {
   min-width: 60px;

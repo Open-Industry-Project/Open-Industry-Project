@@ -15,6 +15,7 @@ import { partLinkOwnership } from '../../core/rig/rigPose'
 import type { EditorState, EditorStore } from '../store/store'
 import { rigNodeKey } from '../store/store'
 import type { EditorController } from '../controller'
+import { partsWithForces, usePlcForces } from '../program/plcForces'
 import { matchesTreeFilter, sessionDefinitionScope } from '../treeNode'
 import type { TreeNodeSource } from '../treeNode'
 import { SceneTreeMenu } from './SceneTreeMenu'
@@ -170,6 +171,8 @@ interface TreeRowProps {
   collapsed: boolean
   canReorder: boolean
   running: boolean
+  /** a tag of the part is forced while the program runs (EditorController.forcePlcValue) */
+  forced?: boolean
   onRowClick: (e: ReactMouseEvent, desc: RowDesc) => void
   onRowContextMenu: (e: ReactMouseEvent, desc: RowDesc) => void
   onBeginRename: (desc: RowDesc) => void
@@ -194,6 +197,9 @@ interface TreeRowProps {
 }
 
 const M = defineMessages('sceneTree', {
+  // a mark, not a word: the forced badge the rungs draw beside an operand (LadderView)
+  forced: 'F',
+  forcedTitle: 'A tag of this part is forced: the running program holds it until released',
   tagParam: 'param',
   whyParam: "Its position is partly set by the part's params: {params}",
   tagAim: 'aim',
@@ -336,6 +342,11 @@ const TreeRow = memo(function TreeRow(props: TreeRowProps) {
       ) : (
         <>
           <span className="tree-name">{label}</span>
+          {props.forced && (
+            <span className="tree-forced" data-testid="tree-forced" title={t(M.forcedTitle)}>
+              {t(M.forced)}
+            </span>
+          )}
           {props.nodeBadges ? (
             <span className="tree-node-badges" data-testid="tree-node-badges">
               {props.nodeBadges}
@@ -421,6 +432,9 @@ const TreeRow = memo(function TreeRow(props: TreeRowProps) {
 })
 
 export function SceneTree({ store, state, controller }: SceneTreeProps) {
+  // the parts with a forced signal, re-worked out when a force is set or released (not every frame)
+  const forces = usePlcForces(controller)
+  const forcedParts = useMemo(() => partsWithForces(state.scene.parts, forces, controller?.plcWatch, controller?.plcAliases), [state.scene.parts, forces, controller])
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [text, setText] = useState('')
   // author-mode rig-node rename (parallel to the part-row rename above): which internal link is being
@@ -1089,6 +1103,7 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
                 collapsed={!open}
                 canReorder={canReorder}
                 running={state.running}
+                forced={forcedParts.has(part.id)}
                 onRowClick={onRowClickDesc}
                 onRowContextMenu={onRowContextMenuDesc}
                 onBeginRename={onBeginRenameDesc}

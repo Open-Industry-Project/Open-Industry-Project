@@ -174,6 +174,11 @@ export class PlcHost {
     this.#link.force(name, value)
   }
 
+  /** Hold variables at a value across scans until released (LocalPlcLink.setForces); the whole table each time. */
+  setForces(forces: Readonly<Record<string, TagValue>>): void {
+    this.#link.setForces(forces)
+  }
+
   /** retune the cycle time live (the ST editor's scan-ms field); applies from the next step. A
    *  program with a CONFIGURATION ignores it: each of its tasks runs on its own interval. */
   setPeriod(periodSec: number): void {

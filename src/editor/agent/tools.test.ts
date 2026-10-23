@@ -374,6 +374,34 @@ describe('agent tools: operating', () => {
     expect(c.store.getEditHistory().events).toHaveLength(0)
   })
 
+  it('force_tag holds a variable and get_tags reports it; release_forces lets it go; neither writes the document', async () => {
+    const forces: Record<string, number | boolean> = {}
+    // (defineProperty, not Object.assign: assign would copy the getter's value once)
+    const ctrl = Object.defineProperty(fakeController({ Start: false, Count: 3 }), 'plcForces', { get: () => ({ ...forces }) })
+    Object.assign(ctrl, {
+      forcePlcValue: (key: string, text?: string) => {
+        if (!(key in { Start: 0, Count: 0 })) return `'${key}' is not a value of the running program`
+        forces[key] = text === undefined ? (key === 'Count' ? 3 : false) : text === 'true' ? true : Number(text)
+        return null
+      },
+      releasePlcForces: (key?: string) => {
+        for (const k of Object.keys(forces)) if (key === undefined || k === key) delete forces[k]
+      },
+    })
+    const c = ctx(ctrl)
+    const before = c.store.getState().scene
+    await ok(c, 'run')
+    expect(await ok(c, 'force_tag', { name: 'Start', value: true })).toEqual({ forces: { Start: true } })
+    expect(await ok(c, 'force_tag', { name: 'Count' })).toEqual({ forces: { Start: true, Count: 3 } })
+    expect(await refused(c, 'force_tag', { name: 'Nope', value: 1 })).toMatch(/not a value/)
+    expect(((await ok(c, 'get_tags')) as { forces?: unknown }).forces).toEqual({ Start: true, Count: 3 })
+    expect(await ok(c, 'release_forces', { name: 'Start' })).toEqual({ forces: { Count: 3 } })
+    expect(await ok(c, 'release_forces')).toEqual({ forces: {} })
+    expect('forces' in ((await ok(c, 'get_tags')) as object)).toBe(false)
+    expect(c.store.getState().scene).toBe(before)
+    expect(c.store.getEditHistory().events).toHaveLength(0)
+  })
+
   it("get_tags carries each task's scan time, rounded to the microsecond", async () => {
     const ctrl = fakeController({ Count: 3 })
     const times = [{ task: 'Fast', kind: 'periodic', periodSec: 0.01, scans: 120, lastMs: 0.0123456, avgMs: 0.011, maxMs: 0.25 }]

@@ -53,6 +53,9 @@ import * as pointerOps from './controller/pointer'
 import * as keyboardOps from './controller/keyboard'
 import * as catalogOps from './controller/catalogPlace'
 
+/** {@link EditorController.plcAliases} with no program attached */
+const NO_PLC_ALIASES: ReadonlyMap<string, string> = new Map()
+
 export type { PlcFaults, ProgramStatus }
 
 // a running cargo body's live pose. Declared in the store (its other consumer: a copy gesture rebases
@@ -688,7 +691,7 @@ export class EditorController {
    * running program or the key is not a BOOL of it.
    */
   togglePlcBit(key: string): boolean {
-    return programOps.togglePlcBit(this, key)
+    return programOps.togglePlcBit({ ec: this, p: this.program }, key)
   }
 
   /**
@@ -697,7 +700,39 @@ export class EditorController {
    * one it only reads holds the value. `key` is the watch key. The reason it was refused, or null when written.
    */
   writePlcValue(key: string, text: string): string | null {
-    return programOps.writePlcValue(this, key, text)
+    return programOps.writePlcValue({ ec: this, p: this.program }, key, text)
+  }
+
+  /**
+   * Force a variable of the running program: hold it at `text`, or at the value it has now, until released. The
+   * program reads the held value and the parts see it, whatever the scene feeds or the program writes. A write
+   * ({@link writePlcValue}, {@link togglePlcBit}) to a forced variable changes the held value. Forces belong to
+   * the run: Stop, or the program detaching, releases them. The reason it was refused, or null when held.
+   */
+  forcePlcValue(key: string, text?: string): string | null {
+    return programOps.forcePlcValue({ ec: this, p: this.program }, key, text)
+  }
+
+  /** Release one forced variable, or every one when `key` is left out. */
+  releasePlcForces(key?: string): void {
+    programOps.releasePlcForces({ ec: this, p: this.program }, key)
+  }
+
+  /** The attached program's bare-name aliases (LocalPlcLink.aliases): the rule a part's tag binds by. Empty with
+   *  no program attached. */
+  get plcAliases(): ReadonlyMap<string, string> {
+    return (this.program.plcAttached ? this.program.uaProgram?.aliases : undefined) ?? NO_PLC_ALIASES
+  }
+
+  /** The running program's forced variables and the values they are held at, by watch key. */
+  get plcForces(): Readonly<Record<string, number | boolean>> {
+    return this.sim.forces
+  }
+
+  /** Subscribe to forces being set or released; returns an unsubscribe. */
+  onPlcForces(cb: () => void): () => void {
+    this.program.forceWatchers.add(cb)
+    return () => this.program.forceWatchers.delete(cb)
   }
 
   /** Live variable image of the running program (null when none), for a watch table. Rendered from

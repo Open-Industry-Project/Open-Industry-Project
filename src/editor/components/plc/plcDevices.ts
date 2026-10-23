@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { commsParamOf } from '../../../core/conveyor/conveyorDirection'
 import { deviceTags } from '../../../plc'
+import { forceKeyOf } from '../../program/plcForces'
 import type { PartInstance } from '../../../core/types'
 import type { EditorStore } from '../../store/store'
 import type { OrganizerDevices } from './OrganizerTree'
@@ -43,6 +44,15 @@ export function useOrganizerDevices(ctx: PlcPanelCtx): OrganizerDevices {
         const part = ctx.state.scene.parts.find((p) => p.id === id)
         const key = part ? commsParamOf(part as { type: string; packageId?: string }) : undefined
         if (key) patchPart(store, id, 'Edit Enable Comms', { [key]: on })
+      },
+      // through the panel's doors, which reach the controller as it is when called
+      forcing: {
+        keyOf: (tag) => forceKeyOf(tag, ctx.watch(), ctx.aliases()),
+        forces: ctx.forces,
+        onForces: ctx.onForces,
+        force: ctx.force,
+        release: ctx.releaseForce,
+        onProgramStatus: ctx.onProgramStatus,
       },
     }),
     [list, readOnly, store],

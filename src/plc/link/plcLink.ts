@@ -86,6 +86,8 @@ export class LocalPlcLink implements PlcLink {
   // name that was a regex and two case-insensitive lookups a tag, a scan. Rebuilt when bind() changes the lists.
   #inPorts: TagPort[] | null = null
   #outPorts: TagPort[] | null = null
+  // held forces, each resolved once (see setForces): written before every scan and again after it
+  #forces: { set: (v: TagValue) => void; value: TagValue }[] = []
   /** bare scene tag -> the sole program instance's variable ({@link soleInstanceAliases}) */
   readonly aliases: ReadonlyMap<string, string>
 
@@ -192,6 +194,30 @@ export class LocalPlcLink implements PlcLink {
     this.prog.setInput(this.#resolve(name), value)
   }
 
+  /**
+   * Hold variables at a value until released: the whole table, replacing the last one ({} releases them all). A held
+   * value is written before each scan, so the program reads it whatever the scene feeds, and again after the scan,
+   * so the output image and the next scan see it whatever the program wrote. Commissioning's force, as distinct from
+   * {@link force}'s one write. A name the program does not have is ignored, as {@link write} ignores it.
+   */
+  setForces(forces: Readonly<Record<string, TagValue>>): void {
+    this.#forces = Object.entries(forces).map(([tag, value]) => {
+      const name = this.#resolve(tag)
+      // a plain variable takes its port, as the inputs and outputs do; a struct path or one bit of a word (`Status.3`)
+      // goes by name, which only setInput walks
+      if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+        const port = this.prog.port(name)
+        return { set: (v: TagValue) => port.set(v), value }
+      }
+      return { set: (v: TagValue) => this.prog.setInput(name, v), value }
+    })
+    this.#applyForces()
+  }
+
+  #applyForces(): void {
+    for (const f of this.#forces) f.set(f.value)
+  }
+
   step(inputs: Readonly<Record<string, TagValue>>, dt: number): Record<string, TagValue> {
     return this.cycle(inputs, () => this.prog.scan(dt))
   }
@@ -207,7 +233,9 @@ export class LocalPlcLink implements PlcLink {
       const v = inputs[names[i]!]
       if (v !== undefined) inPorts[i]!.set(v)
     }
+    if (this.#forces.length > 0) this.#applyForces()
     scan()
+    if (this.#forces.length > 0) this.#applyForces()
     const out: Record<string, TagValue> = {}
     const outs = this.#outputs
     const outPorts = (this.#outPorts ??= outs.map((n) => this.prog.port(this.#resolve(n))))

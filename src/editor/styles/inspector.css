@@ -244,6 +244,59 @@
   border-color: #e0a32e;
 }
 
+/* Force / Release beside a tag field while the program runs (inspector/tagForce.tsx). A forced field takes the
+   warning colour, as the Watch dock marks a forced value */
+.tag-force {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* a held force goes on its own line under the tag field: the badge and Release beside the field would squeeze the
+   tag, which is the wiring, down to nothing in a narrow Inspector */
+.field-control:has(> .tag-force.on) {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+.tag-force.on {
+  order: 10;
+  flex-basis: 100%;
+  justify-content: flex-end;
+}
+.tag-forced-input {
+  padding: 0 4px;
+  border: 1px solid var(--warn);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text-strong);
+  font: 11px ui-monospace, monospace;
+}
+.field-control:has(> .tag-force) > input {
+  min-width: 6em;
+}
+.tag-force-btn {
+  padding: 0 6px;
+  font-size: 11px;
+}
+.tag-force.on .tag-force-btn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+/* the held value; a button, since a click changes it (tagForce.tsx) */
+.tag-forced-badge {
+  padding: 0 4px;
+  border: none;
+  border-radius: 3px;
+  background: var(--warn);
+  color: light-dark(#fff, #1f2023);
+  font: bold 10px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+.field-control:has(> .tag-force.on) > input {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
 /* a tag field's suggestions (inspector/tagField.tsx): fixed under the box so the Inspector's scroll cannot clip it */
 .tag-suggest {
   position: fixed;

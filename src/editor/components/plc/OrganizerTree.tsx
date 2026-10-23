@@ -1,10 +1,11 @@
-import { memo, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, forwardRef } from 'react'
+import { memo, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement, ReactNode } from 'react'
 import type { Controller } from '../../../core/controller'
 import { resolveKeyAction } from '../../../core/keymap'
 import { addTask, moveProgram, programsOnTask, removeProgram, removeTask, scheduleProgram, type DeviceTags, type TagRename } from '../../../plc'
 import type { TaskTree, TaskTreeProgram, TaskTreeTask } from '../../../plc/taskTree'
 import { DeviceTagsDialogChunk } from './deviceTagsChunk'
+import { forcedDeviceIds } from '../../program/plcForces'
 import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { FoldIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
@@ -73,10 +74,16 @@ const M = defineMessages('organizer', {
     one: 'Comms OFF: {wired} of {count} tag field wired. Click to select, double-click for its tags',
     other: 'Comms OFF: {wired} of {count} tag fields wired. Click to select, double-click for its tags',
   },
+  deviceHint: {
+    one: '{wired} of {count} tag field wired. Click to select, double-click for its tags',
+    other: '{wired} of {count} tag fields wired. Click to select, double-click for its tags',
+  },
   commsOn: 'Comms on',
   commsOff: 'Comms off',
   noTagsWired: 'no tags wired',
   commsOffShort: 'comms off',
+  forced: 'forced',
+  forcedHint: 'A tag of this device is forced: the running program holds it until released',
   deviceTagsHint: 'Its tags, to copy and edit',
   deviceTags: 'tags…',
   organizer: 'Program organizer',
@@ -191,12 +198,27 @@ export interface OrganizerContent {
  * it (components/plc/plcDevices.ts `useOrganizerDevices`), and the object must be stable across renders: it is a prop of
  * the memoized `Popups`, which is what keeps opening a device's tags from re-rendering a tree of hundreds of tags.
  */
+/** Forcing a device's tags from its dialog, while the program runs (EditorController.forcePlcValue). */
+export interface DeviceForcing {
+  /** the running program's watch key for a tag a part names; null when there is none to force (stopped, a direct
+   *  address, a name the program does not have) */
+  keyOf: (tag: string) => string | null
+  forces: () => Readonly<Record<string, number | boolean>>
+  onForces: (cb: () => void) => () => void
+  force: (key: string) => string | null
+  release: (key: string) => void
+  /** told when a program attaches or detaches (Play, Stop, a reload); returns an unsubscribe */
+  onProgramStatus: (cb: () => void) => () => void
+}
+
 export interface OrganizerDevices {
   list: readonly DeviceTags[]
   /** select the part in the scene */
   select: (id: string) => void
   setTag: (id: string, key: string, value: string) => void
   setComms: (id: string, on: boolean) => void
+  /** force a tag from the device's dialog while the program runs; absent where nothing runs a program */
+  forcing?: DeviceForcing
   /** the scene cannot be written (a view-only link); not the tree's `readOnly`, which also stands for a
    *  program this build may not edit (core/dialect.ts): that gates the program text, and a part's wiring is not program text */
   readOnly: boolean
@@ -323,6 +345,7 @@ const Popups = memo(
             readOnly={devices.readOnly}
             onSetTag={(key, value) => devices.setTag(device.id, key, value)}
             onSetComms={(on) => devices.setComms(device.id, on)}
+            forcing={devices.forcing}
             onClose={() => setDeviceOpen(null)}
           />
         )}
@@ -331,8 +354,19 @@ const Popups = memo(
   }),
 )
 
+/** The devices with a tag field on a forced variable, re-read when a force is set or released. */
+function useForcedDevices(devices: OrganizerDevices | undefined): ReadonlySet<string> {
+  const forcing = devices?.forcing
+  const list = devices?.list
+  const [rev, setRev] = useState(0)
+  useEffect(() => (forcing ? forcing.onForces(() => setRev((n) => n + 1)) : undefined), [forcing])
+  // (rev: a force set or released changes the answer without changing the list)
+  return useMemo(() => (forcing && list ? forcedDeviceIds(list, forcing.forces(), forcing.keyOf) : new Set<string>()), [forcing, list, rev])
+}
+
 export function OrganizerTree(props: OrganizerTreeProps): ReactElement {
   const { content, controller, tree, ownConfiguration, problems, readOnly, readOnlyNote, revealTasks, activeBlock = -1, onPicked, runsOn, devices, onControllerProperties, editController } = props
+  const forcedDevices = useForcedDevices(devices)
   const tableLocked = readOnly || ownConfiguration
 
   const rootRef = useRef<HTMLDivElement>(null)
@@ -849,12 +883,18 @@ export function OrganizerTree(props: OrganizerTreeProps): ReactElement {
                             key={dev.id}
                             className="org-row"
                             data-testid="org-device"
-                            title={t(dev.enabled ? M.deviceHintOn : M.deviceHintOff, { count: dev.fields.length, wired })}
+                            title={t(!dev.switchable ? M.deviceHint : dev.enabled ? M.deviceHintOn : M.deviceHintOff, { count: dev.fields.length, wired })}
                             onClick={() => d.select(dev.id)}
                             onDoubleClick={() => popups.current?.device(dev.id)}
                           >
-                            <span className={`org-comms${dev.enabled ? ' on' : ''}`} title={t(dev.enabled ? M.commsOn : M.commsOff)} />
+                            {/* the switch's state, for a part that declares one; any other part is connected by its named tags */}
+                            {dev.switchable && <span className={`org-comms${dev.enabled ? ' on' : ''}`} title={t(dev.enabled ? M.commsOn : M.commsOff)} />}
                             <span className="org-name">{dev.name}</span>
+                            {forcedDevices.has(dev.id) && (
+                              <span className="org-forced" data-testid="org-device-forced" title={t(M.forcedHint)}>
+                                {t(M.forced)}
+                              </span>
+                            )}
                             <span className="org-kind">{dev.fields.filter((f) => f.value !== '').map((f) => f.value).join(', ') || t(dev.enabled ? M.noTagsWired : M.commsOffShort)}</span>
                             <span className="org-cmds">
                               <button type="button" className="org-btn" data-testid="org-device-tags" title={t(M.deviceTagsHint)} onClick={(e) => { e.stopPropagation(); popups.current?.device(dev.id) }}>

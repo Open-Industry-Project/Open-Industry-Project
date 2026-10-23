@@ -627,7 +627,7 @@ const getTags: AgentTool = {
   description:
     "Read the running PLC program's variables (a ~10 Hz mirror, so a pulse shorter than ~0.15 s can be missed). " +
     'Optional names filter. Empty while stopped. Also returns `scanTimes`: per task, how long its scans take to execute ' +
-    '(last, average, max in ms of real time) and its interval.',
+    '(last, average, max in ms of real time) and its interval, and `forces`: the variables force_tag holds, if any.',
   inputSchema: {
     type: 'object',
     properties: { names: { type: 'array', items: { type: 'string' } } },
@@ -649,7 +649,14 @@ const getTags: AgentTool = {
       avgMs: us(s.avgMs),
       maxMs: us(s.maxMs),
     }))
-    return { running: true, tags, ...(names ? { missing: names.filter((n) => !(n in watch)) } : {}), ...(scanTimes.length > 0 ? { scanTimes } : {}) }
+    const forces = controller.plcForces ?? {}
+    return {
+      running: true,
+      tags,
+      ...(names ? { missing: names.filter((n) => !(n in watch)) } : {}),
+      ...(scanTimes.length > 0 ? { scanTimes } : {}),
+      ...(Object.keys(forces).length > 0 ? { forces } : {}),
+    }
   },
 }
 
@@ -671,6 +678,45 @@ const setTag: AgentTool = {
     const why = needController(ctx).writePlcValue(name, String(value))
     if (why) throw new AgentToolError(why)
     return { name, value }
+  },
+}
+
+const forceTag: AgentTool = {
+  name: 'force_tag',
+  description:
+    'Force a variable of the running PLC program: hold it at a value across scans until released, whatever the program ' +
+    'writes or the parts feed (commissioning: run a conveyor by hand, block a sensor). Omit `value` to hold the value it ' +
+    'has now. Stop, or release_forces, releases it. Never written to the document.',
+  inputSchema: {
+    type: 'object',
+    properties: { name: { type: 'string' }, value: { type: ['boolean', 'number'] } },
+    required: ['name'],
+    additionalProperties: false,
+  },
+  run: (ctx, args) => {
+    const name = str(args, 'name')
+    const value = args.value
+    if (value !== undefined && typeof value !== 'boolean' && typeof value !== 'number') throw new AgentToolError("'value' must be a boolean or a number")
+    const controller = needController(ctx)
+    if (!controller.forcePlcValue) throw new AgentToolError('forcing is not available here')
+    const why = controller.forcePlcValue(name, value === undefined ? undefined : String(value))
+    if (why) throw new AgentToolError(why)
+    return { forces: controller.plcForces ?? {} }
+  },
+}
+
+const releaseForces: AgentTool = {
+  name: 'release_forces',
+  description: 'Release a forced variable (name), or every one (no name). The program writes it again from its next scan.',
+  inputSchema: {
+    type: 'object',
+    properties: { name: { type: 'string' } },
+    additionalProperties: false,
+  },
+  run: (ctx, args) => {
+    const controller = needController(ctx)
+    controller.releasePlcForces?.(args.name === undefined ? undefined : str(args, 'name'))
+    return { forces: controller.plcForces ?? {} }
   },
 }
 
@@ -807,6 +853,8 @@ export const AGENT_TOOLS: readonly AgentTool[] = [
   stop,
   getTags,
   setTag,
+  forceTag,
+  releaseForces,
   traceTags,
   getCargo,
   runTest,

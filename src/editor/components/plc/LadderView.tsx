@@ -87,6 +87,14 @@ const M = defineMessages('ladder', {
   addToWatchHint: 'Follow its live value in the Watch dock',
   toggleBitHint: 'Toggle the BOOL under the selection, once',
   toggleBitIdle: 'Toggle Bit works while the program runs',
+  toggleBitForcedHint: 'Hold the forced BOOL under the selection at the opposite value',
+  forceName: 'Force {name}',
+  forceHint: 'Hold it at its current value across scans until released, whatever the program writes',
+  releaseName: 'Release {name}',
+  releaseHint: 'Let the program write it again',
+  // a mark, not a word: the badge beside a forced operand (a translation may use its own letter)
+  forcedMark: 'F',
+  forcedTitle: 'Forced: held at {value} until released',
   crossReference: 'Cross Reference',
   crossReferenceHint: 'Everywhere the variable under the selection is used',
   findItem: 'Find…',
@@ -128,7 +136,7 @@ const M = defineMessages('ladder', {
   returnAddHint: 'End the selected rung in a RETURN: while it is on, the rest of the POU is skipped this scan',
   return: 'Return',
   paletteHint: '{what}: after the selected element, or at the start of the selected rung or level',
-  toggleBitButton: '{what}. A bit the program writes is written back by its next scan; one it only reads stays until toggled again',
+  toggleBitButton: '{what}. A bit the program writes is written back by its next scan, and one it only reads stays until toggled again. A forced bit is held at the new value',
   moreHint: 'Cut, copy, paste, delete, comment, move, cross reference, find: the same menu a right-click on a rung or element opens',
   elementSets: 'Element sets',
   unreadable: 'Part of this section does not read as a rung, so it is shown but cannot be edited here: {message} (line {line}). Fix it in the text: "Show as text" on its row in the organizer.',
@@ -191,8 +199,16 @@ interface LadderViewProps {
   /** write a value typed under an operand into the running program, by its watch key: null when it was written, else why
    *  not (EditorController.writePlcValue) */
   writeLive?: (key: string, text: string) => string | null
+  /** the running program's forced variables, by watch key: each operand on one is marked */
+  getForces?: () => Readonly<Record<string, number | boolean>>
+  /** told when a force is set or released; returns an unsubscribe */
+  onForcesChange?: (cb: () => void) => () => void
   /** Add to Watch: put a variable on the Watch dock's list (absent = no such item) */
   onWatch?: (name: string) => void
+  /** hold a variable of the running program at its current value, by watch key: null when held, else why not */
+  onForce?: (key: string) => string | null
+  /** release a forced variable, by watch key */
+  onRelease?: (key: string) => void
 }
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -202,7 +218,7 @@ const PLACE = /^\s*[A-Za-z_][A-Za-z0-9_]*(\s*(\.\s*[A-Za-z_0-9]+|\[[^\]]*\]))*\s
 
 const NO_FAULTS: readonly Diagnostic[] = []
 
-export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, onEdit, onUndo, onRedo, getDiagnostics, getWatch, live: running, readOnly, getTags, getDevices, revealRoutine = null, revealRung, onRevealedRoutine, idle, onShowText, onRenameTag, toggleBit, writeLive, onWatch }: LadderViewProps): ReactElement {
+export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, onEdit, onUndo, onRedo, getDiagnostics, getWatch, live: running, readOnly, getTags, getDevices, revealRoutine = null, revealRung, onRevealedRoutine, idle, onShowText, onRenameTag, toggleBit, writeLive, getForces, onForcesChange, onWatch, onForce, onRelease }: LadderViewProps): ReactElement {
   const routines = useMemo(() => LADDER.read(source, faults.length > 0 ? [...getDiagnostics(source), ...faults] : getDiagnostics(source)), [source, faults])
   // A PROGRAM drawn here that no task runs is not what is running, so nothing here is lit: its variables would
   // otherwise answer from the program that is running, which shares its names when it is another version of it
@@ -330,7 +346,7 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
   }, [revealProblem])
 
   // the values under the operands while the program runs (useLadderWatch.ts)
-  const { setWatch, valueOf, keyOf, roomFor, showsValues, writeValue } = useLadderWatch(live, getWatch, source, writeLive)
+  const { setWatch, valueOf, keyOf, roomFor, showsValues, writeValue, forcedOf, heldAt } = useLadderWatch(live, getWatch, source, writeLive, getForces, onForcesChange)
 
   // a selection the text moved out from under (an undo, a peer's edit) falls back to its rung
   const active = ((): Sel | null => {
@@ -683,6 +699,32 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     if (!use || !PLACE.test(use.text)) return null
     return keyOf(use.text) ?? use.text.replace(/\s+/g, '')
   }
+  /** The variable Force / Release acts on: the place in the selection's focused field, while the program runs and the
+   *  running image holds it as one value (its watch key). */
+  const forceTarget = (): { key: string; forced: boolean } | null => {
+    if (!live || !onForce || !active) return null
+    const r = routines[active.routine]
+    const el = r && elementAt(r.rungs, active)
+    if (!el || isBranch(el)) return null
+    const uses = LADDER.refs.uses(el)
+    const use = uses.find((u) => u.field === focusedField) ?? uses[0]
+    if (!use || !PLACE.test(use.text)) return null
+    const key = keyOf(use.text)
+    return key !== null ? { key, forced: forcedOf(use.text) } : null
+  }
+  const forceOrRelease = (target: { key: string; forced: boolean }): void => {
+    if (target.forced) {
+      onRelease?.(target.key)
+      setOpError(null)
+    } else setOpError(onForce?.(target.key) ?? null) // a force that worked says nothing, as a write does
+  }
+  /** The badge beside a forced operand. Drawn over the cell's edge (ladder.css), so a force set or released moves
+   *  nothing on the sheet. */
+  const forcedBadge = (value: number | boolean | undefined): ReactElement => {
+    // (TRUE / FALSE: the IEC literal, as the program spells it)
+    const held = t(M.forcedTitle, { value: typeof value === 'boolean' ? (value ? 'TRUE' : 'FALSE') : fmt(value) }) // i18n-ok
+    return <span className="ld-forced-badge" data-testid="ld-forced-badge" title={held} aria-label={held}>{t(M.forcedMark)}</span>
+  }
   const toggle = (): void => {
     const bit = toggleTarget()
     // shown at once: the frame that carries the new value is a step away, and a second Ctrl+T must read this one
@@ -990,14 +1032,18 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
                       (() => {
                         const v = row.watch === 'pin' ? (pin ?? undefined) : row.watch === null ? undefined : valueOf(row.watch)
                         const shown = fmt(v)
+                        const held = row.watch !== null && row.watch !== 'pin' ? heldAt(row.watch) : undefined
+                        const forced = held !== undefined
                         return (
                           <span
-                            className={`ld-live${writable ? ' writable' : ''}`}
+                            className={`ld-live${writable ? ' writable' : ''}${forced ? ' forced' : ''}`}
+                            {...(forced ? { 'data-forced': 'true' } : {})}
                             data-testid="ld-live"
                             style={{ minWidth: `${roomFor(row.watch ?? `${trail}#${row.field}`, shown, typeof v === 'number')}ch` }}
                             // the cell holds the pointer from the press, so its double-click hit-tests for this (onCellDoubleClick)
                             {...(writable ? { 'data-live-text': row.watch!, title: t(M.liveWritable, { name: row.watch! }) } : {})}
                           >
+                            {forced && forcedBadge(held)}
                             {shown}
                           </span>
                         )
@@ -1014,6 +1060,9 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     }
     // drawn TRUE the way an editor draws it online: a contact that passes, a coil whose variable is set
     const on = live && valueOf(s.lit.text) === s.lit.when
+    // held by a force (the Watch dock): marked, since the rung then runs on a value the program does not set
+    const held = heldAt(s.lit.text)
+    const forced = held !== undefined
     const glyph =
       s.kind === 'contact' ? (
         <span className={`ld-glyph ld-contact${on ? ' on' : ''}`}>{s.slash ? <i className="ld-slash" /> : <span className="ld-contact-mark">{s.mark}</span>}</span>
@@ -1021,9 +1070,10 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
         <span className={`ld-glyph ld-coil${on ? ' on' : ''}`}>{s.mark}</span>
       )
     return (
-      <span className={cls} {...handlers} data-testid="ld-element" data-kind={s.kind} data-mode={s.mode} data-on={on ? 'true' : 'false'} data-trail={trail} {...(s.title ? { title: s.title } : {})}>
+      <span className={`${cls}${forced ? ' forced' : ''}`} {...handlers} data-testid="ld-element" data-kind={s.kind} data-mode={s.mode} data-on={on ? 'true' : 'false'} data-forced={forced ? 'true' : 'false'} data-trail={trail} {...(s.title ? { title: s.title } : {})}>
         <span className={`ld-tag${selected && focusedField === 0 ? ' focus' : ''}${isFound(at, 0) ? ' found' : ''}`} data-field={0}>
           {isEditing(at, 0) ? field(at, 0) : <span className={s.tag === '?' ? 'blank' : ''} onContextMenu={(e) => F.current.fieldMenu(e, at, 0)}>{s.tag}</span>}
+          {forced && forcedBadge(held)}
         </span>
         <span className="ld-sym">
           {wire(pin, 'l', true)}
@@ -1344,7 +1394,8 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
   const liveSig = (rung: Rung, ri: number, i: number): string => {
     const stale = lastLive.current.get(rung)
     if (stale !== undefined && inView.current !== null && !inView.current.has(`${ri}/${i}`)) return stale
-    const now = textsOf(rung).map((t) => fmt(valueOf(t))).join('|')
+    // a forced operand is part of what it shows (its mark), so a release with no change of value still redraws it
+    const now = textsOf(rung).map((t) => `${fmt(valueOf(t))}${forcedOf(t) ? '!' : ''}`).join('|')
     lastLive.current.set(rung, now)
     return now
   }
@@ -1437,6 +1488,8 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
     const rungs = target?.rungs.length ?? 0
     const tag = focusedTag()
     const watched = watchTarget()
+    const bit = toggleTarget()
+    const forcing = forceTarget()
     const sep = SEPARATOR
     return [
       { label: t(M.cut), testid: 'ladder-cut', keys: primaryKey('edit.cut'), disabled: off || !has, title: why, onClick: later(() => { if (copySelection() !== '') deleteSelection() }) },
@@ -1449,8 +1502,11 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
       { label: t(M.moveRungDown), testid: 'ladder-rung-down', keys: primaryKey('edit.moveDown'), disabled: off || active.rung >= rungs - 1, title: why, onClick: later(() => moveSelectedRung(1)) },
       { label: t(M.addBranchLevel), testid: 'ladder-path', disabled: off || !canAddPath(target!.rungs, active), title: why ?? t(M.addBranchLevelHint), onClick: later(() => void apply(addPath)) },
       sep,
-      { label: t(M.toggleBit), testid: 'ladder-toggle-bit-item', keys: primaryKey('ladder.toggleBit'), disabled: !toggleTarget(), title: t(live ? M.toggleBitHint : M.toggleBitIdle), onClick: later(toggle) },
+      { label: t(M.toggleBit), testid: 'ladder-toggle-bit-item', keys: primaryKey('ladder.toggleBit'), disabled: !bit, title: t(!live ? M.toggleBitIdle : bit && forcedOf(bit.key) ? M.toggleBitForcedHint : M.toggleBitHint), onClick: later(toggle) },
       ...(onWatch ? [{ label: watched !== null ? t(M.addNameToWatch, { name: watched }) : t(M.addToWatch), testid: 'ladder-add-to-watch', disabled: watched === null, title: t(M.addToWatchHint), onClick: later(() => watched !== null && onWatch(watched)) }] : []),
+      ...(forcing
+        ? [{ label: t(forcing.forced ? M.releaseName : M.forceName, { name: forcing.key }), testid: 'ladder-force', title: t(forcing.forced ? M.releaseHint : M.forceHint), onClick: later(() => forceOrRelease(forcing)) }]
+        : []),
       { label: t(M.crossReference), testid: 'ladder-xref', keys: primaryKey('ladder.crossRef'), disabled: !tag, title: t(M.crossReferenceHint), onClick: later(() => tag && setXref(tag)) },
       { label: t(M.findItem), testid: 'ladder-find-open', keys: primaryKey('ladder.find'), title: t(M.findItemHint), onClick: later(() => openFind(false)) },
     ]

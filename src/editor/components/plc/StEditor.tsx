@@ -39,7 +39,7 @@ import { defineMessages, t } from '../../../core/i18n'
 import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { primaryKey } from '../../keyHint'
 import { activeClipboard } from '../../dialogHost'
-import { addToWatchList } from '../../program/plcWatchList'
+import { addToWatchList, resolveWatch } from '../../program/plcWatchList'
 
 const M = defineMessages('stEditor', {
   viewOnlyLink: 'Disabled on a view-only link',
@@ -70,6 +70,11 @@ const M = defineMessages('stEditor', {
   addToWatch: 'Add to Watch',
   addToWatchHint: 'Follow its live value in the Watch dock',
   addToWatchNone: 'Right-click a variable to watch it',
+  forceName: 'Force {name}',
+  forceHint: 'Hold it at its current value across scans until released, whatever the program writes',
+  releaseName: 'Release {name}',
+  releaseHint: 'Let the program write it again',
+  notForced: '{name} was not forced',
   cut: 'Cut',
   copy: 'Copy',
   paste: 'Paste',
@@ -386,6 +391,13 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
   const [initialSource] = useState(() => store.getState().stProgram)
   const ctrlRef = useRef(controller)
   ctrlRef.current = controller
+  // What hears a force set or released. Kept here and fed from the controller once there is one: a subscriber that
+  // arrives before the viewport makes the controller (the Devices list, memoised once) would otherwise never hear one.
+  const forceListeners = useRef(new Set<() => void>())
+  useEffect(() => controller?.onPlcForces(() => { for (const cb of forceListeners.current) cb() }), [controller])
+  // ...and what hears a program attach or detach, relayed the same way
+  const statusListeners = useRef(new Set<() => void>())
+  useEffect(() => controller?.onProgramStatus(() => { for (const cb of statusListeners.current) cb() }), [controller])
   // CodeMirror owns the buffer; sourceRef mirrors it for the run/attach handlers
   const editorRef = useRef<StCodeEditorHandle>(null)
   const sourceRef = useRef(initialSource)
@@ -723,6 +735,18 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     showReport,
     showLanded,
     watch: () => ctrlRef.current?.plcWatch,
+    forces: () => ctrlRef.current?.plcForces ?? {},
+    aliases: () => ctrlRef.current?.plcAliases ?? new Map(),
+    force: (key) => (ctrlRef.current ? ctrlRef.current.forcePlcValue(key) : t(M.notRunning)),
+    releaseForce: (key) => ctrlRef.current?.releasePlcForces(key),
+    onForces: (cb) => {
+      forceListeners.current.add(cb)
+      return () => forceListeners.current.delete(cb)
+    },
+    onProgramStatus: (cb) => {
+      statusListeners.current.add(cb)
+      return () => statusListeners.current.delete(cb)
+    },
     toggleBit: (key) => ctrlRef.current?.togglePlcBit(key) ?? false,
     // (NOT `?? 'not running'`: a write that WORKED answers null)
     writeLive: (key, text) => (ctrlRef.current ? ctrlRef.current.writePlcValue(key, text) : t(M.notRunning)),
@@ -785,6 +809,15 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     const caret = editor.caret()
     const has = at.selected !== ''
     const later = (fn: () => void) => () => void window.setTimeout(fn, 0)
+    // Force / Release: for a variable the running program holds as one value (its watch key), only while it runs
+    const image = ctx.live && at.name !== null ? ctx.watch() : null
+    const forceKey = image && at.name !== null ? resolveWatch(at.name, image).key : null
+    const forced = forceKey !== null && forceKey in ctx.forces()
+    const forceOrRelease = (key: string): void => {
+      if (forced) return ctx.releaseForce(key)
+      const refused = ctx.force(key)
+      if (refused !== null) showReport({ headline: t(M.notForced, { name: key }), detail: refused, items: [], tone: 'warn', keepOnEdit: false })
+    }
     const copyText = (): Promise<boolean> =>
       (activeClipboard()?.writeText(at.selected) ?? Promise.reject(new Error('no clipboard'))).then(
         () => true,
@@ -801,6 +834,9 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
           title: t(at.name !== null ? M.addToWatchHint : M.addToWatchNone),
           onClick: later(() => at.name !== null && addToWatch(at.name)),
         },
+        ...(forceKey !== null
+          ? [{ label: t(forced ? M.releaseName : M.forceName, { name: forceKey }), testid: 'st-force', title: t(forced ? M.releaseHint : M.forceHint), onClick: later(() => forceOrRelease(forceKey)) }]
+          : []),
         {
           label: caret?.word ? t(M.goToDefinitionOf, { name: caret.word }) : t(M.goToDefinition),
           testid: 'st-go-to-definition',

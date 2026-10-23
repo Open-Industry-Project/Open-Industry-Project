@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import { createPortal } from 'react-dom'
 import type { DeviceTags } from '../../../plc'
+import type { DeviceForcing } from './OrganizerTree'
+import { formatPlcValue } from '../../program/plcValueText'
 import { trapTab, useModalKeys } from '../inspector/menu'
 import { activeClipboard, dialogHost } from '../../dialogHost'
 import { CloseIcon } from '../toolbarIcons'
@@ -29,6 +31,12 @@ const M = defineMessages('deviceTags', {
   comms: 'Enable Comms',
   copyAllTitle: 'Copy every wired tag name, one per line',
   copyAll: 'Copy all',
+  force: 'Force',
+  forceTitle: 'Hold {tag} at its value until released. The program reads it and the parts see it, whatever the program writes',
+  release: 'Release',
+  releaseTitle: 'Give {tag} back to the program from its next scan',
+  forced: 'forced',
+  forcedTitle: 'Held at {value} until released, whatever the program writes or the part feeds',
 })
 
 /**
@@ -42,12 +50,15 @@ export function DeviceTagsDialog({
   readOnly,
   onSetTag,
   onSetComms,
+  forcing,
   onClose,
 }: {
   device: DeviceTags
   readOnly: boolean
   onSetTag: (key: string, value: string) => void
   onSetComms: (on: boolean) => void
+  /** force a tag while the program runs; absent = no force column */
+  forcing?: DeviceForcing
   onClose: () => void
 }): ReactElement {
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -55,6 +66,20 @@ export function DeviceTagsDialog({
   const dialogHostOnce = useRef(dialogHost())
   const [copied, setCopied] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  // the forces, and whether a program runs: a force is set here, in the Watch dock or by the agent, and Play or Stop
+  // happen while this is open, so both are re-read when they change
+  const [forces, setForces] = useState(() => forcing?.forces() ?? {})
+  const [, setStatusTick] = useState(0)
+  useEffect(() => {
+    if (!forcing) return
+    const offForces = forcing.onForces(() => setForces(forcing.forces()))
+    const offStatus = forcing.onProgramStatus(() => setStatusTick((n) => n + 1))
+    return () => {
+      offForces()
+      offStatus()
+    }
+  }, [forcing])
+  const [forceError, setForceError] = useState<string | null>(null)
   // the modal owns every key at the window (capture), so Enter on a field is committed from here, not the field
   useModalKeys(onClose, (e) => {
     // (tag name, not `instanceof`: in a popped-out window the input belongs to another realm)
@@ -84,6 +109,34 @@ export function DeviceTagsDialog({
     const field = device.fields.find((f) => f.key === key)
     if (field && v.trim() !== field.value) onSetTag(key, v.trim())
   }
+  /** Force / Release for one field, while the program runs and has the variable it names; an empty cell otherwise */
+  const forceCell = (fieldKey: string, tag: string): ReactElement => {
+    // a device whose comms switch is off reads none of its tags; keyOf is null for a STRING, which cannot be forced
+    const key = tag && device.enabled ? forcing!.keyOf(tag) : null
+    if (key === null) return <span />
+    const held = key in forces
+    return (
+      <span className="device-force-cell">
+        {held && (
+          <span className="device-forced-badge" data-testid={`device-forced-${fieldKey}`} title={t(M.forcedTitle, { value: formatPlcValue(forces[key]!) })}>
+            {t(M.forced)}
+          </span>
+        )}
+        <button
+        className={`plc-mini-btn device-force${held ? ' on' : ''}`}
+        data-testid={`device-force-${fieldKey}`}
+        aria-pressed={held}
+        title={t(held ? M.releaseTitle : M.forceTitle, { tag })}
+        onClick={() => {
+          if (held) forcing!.release(key)
+          else setForceError(forcing!.force(key))
+        }}
+      >
+        {t(held ? M.release : M.force)}
+        </button>
+      </span>
+    )
+  }
   return createPortal(
     <div className="author-backdrop" onPointerDown={onClose}>
       <div ref={dialogRef} className="author-dialog device-tags-dialog" role="dialog" aria-label={t(M.dialog, { name: device.name })} data-testid="device-tags-dialog" onPointerDown={(e) => e.stopPropagation()}>
@@ -96,11 +149,12 @@ export function DeviceTagsDialog({
           </button>
         </div>
         <p className="author-intro">{tNodes(M.intro, { input: <b>{t(M.introInput)}</b>, output: <b>{t(M.introOutput)}</b> })}</p>
-        <div className="device-tags-grid">
+        <div className={`device-tags-grid${forcing ? ' with-force' : ''}`}>
           <span className="hdr">{t(M.field)}</span>
           <span className="hdr">{t(M.direction)}</span>
           <span className="hdr">{t(M.tag)}</span>
           <span className="hdr" />
+          {forcing && <span className="hdr" />}
           {device.fields.map((f) => (
             <span key={f.key} style={{ display: 'contents' }}>
               <span title={f.label}>{f.label.replace(/\s*\(.*\)\s*$/, '')}</span>
@@ -121,13 +175,21 @@ export function DeviceTagsDialog({
               <button className="plc-mini-btn" data-testid={`device-copy-${f.key}`} disabled={!f.value} title={t(M.copyTitle)} onClick={() => copy(f.value)}>
                 {copied === f.value && f.value ? '✓' : t(M.copy)}
               </button>
+              {forcing && forceCell(f.key, f.value)}
             </span>
           ))}
         </div>
+        {forceError && (
+          <div className="ld-vars-error" role="alert" data-testid="device-force-error">
+            ⚠ {forceError}
+          </div>
+        )}
         <div className="device-tags-foot">
-          <label title={t(M.commsTitle)}>
-            <input type="checkbox" data-testid="device-comms" checked={device.enabled} disabled={readOnly} onChange={(e) => onSetComms(e.target.checked)} /> {t(M.comms)}
-          </label>
+          {device.switchable && (
+            <label title={t(M.commsTitle)}>
+              <input type="checkbox" data-testid="device-comms" checked={device.enabled} disabled={readOnly} onChange={(e) => onSetComms(e.target.checked)} /> {t(M.comms)}
+            </label>
+          )}
           <button onClick={() => copy(device.fields.filter((f) => f.value).map((f) => f.value).join('\n'))} disabled={!device.fields.some((f) => f.value)} title={t(M.copyAllTitle)}>
             {t(M.copyAll)}
           </button>

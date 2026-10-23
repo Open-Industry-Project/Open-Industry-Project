@@ -216,6 +216,52 @@
   background: #ff6b5e;
 }
 
+/* The running program's forced variables (ForcesStatus.tsx): the same chip, in the warning colour */
+.plc-link-dot.forced {
+  background: var(--warn);
+}
+
+/* loud on purpose: a force left on is the costliest commissioning mistake, so the chip must not read as one more
+   grey control beside the speed button */
+.toolbar .plc-forces-button,
+.plc-forces-button {
+  background: light-dark(#f2c94c, #e6b800);
+  border-color: light-dark(#c9a227, #b38f00);
+  color: #1f2023;
+  font-weight: 600;
+}
+.toolbar .plc-forces-button:hover,
+.plc-forces-button.active {
+  background: light-dark(#e8bd35, #f0c419);
+}
+.plc-forces-button .plc-link-dot.forced {
+  background: currentColor;
+}
+
+.plc-forces-list {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 4px 10px;
+  width: 100%;
+}
+
+.plc-forces-row {
+  display: contents;
+}
+
+.plc-forces-wired {
+  display: block;
+  color: var(--text-dim);
+  font: 11px ui-sans-serif, system-ui, sans-serif;
+}
+
+.plc-forces-name,
+.plc-forces-value {
+  font: 12px ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
 .plc-link-note {
   position: absolute;
   top: calc(100% + 6px);

@@ -8,6 +8,7 @@ import { DESKTOP_MAC, DESKTOP_SHELL, getOipMenuApi } from '../desktop/desktopMen
 import { keyHint, withKey } from '../keyHint'
 import type { EditorController } from '../controller'
 import type { EditorState, EditorStore } from '../store/store'
+import { ForcesStatus } from './plc/ForcesStatus'
 import { PlcLinkStatus } from './plc/PlcLinkStatus'
 import { ProjectMenu } from './ProjectMenu'
 import { focusFirstMenuItem, fromKeyboard, menuKeys, useDismiss } from './popover'
@@ -371,6 +372,8 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
         )}
         {/* while Play hands the scene to an external PLC: the link's state, where a vendor tool shows it is online */}
         {controller && <PlcLinkStatus state={state} controller={controller} />}
+        {/* while the running program has forced variables: how many, and the way to release them */}
+        {controller && <ForcesStatus controller={controller} state={state} />}
       </div>
       <div className="toolbar-right">
         {collab.room && (

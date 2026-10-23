@@ -50,8 +50,9 @@
 }
 
 /* a value that just changed: marked, then faded back as the next poll drops the class */
+/* blue, not amber: amber is a forced value's colour (.plc-watch-forced), and a value that just changed must not read as held */
 .plc-watch-value.plc-watch-flash {
-  background: light-dark(rgba(255, 196, 0, 0.35), rgba(255, 196, 0, 0.22));
+  background: light-dark(rgba(56, 139, 253, 0.22), rgba(56, 139, 253, 0.25));
   transition: none;
 }
 
@@ -130,6 +131,31 @@
 .plc-watch-btn:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* a forced value (EditorController.forcePlcValue): marked in the warning colour, since a forgotten force is the
+   commissioning mistake that costs the most time */
+.plc-watch-forced .plc-watch-cell {
+  color: var(--warn);
+}
+.plc-watch-forced-badge {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--warn);
+  color: light-dark(#fff, #1f2023);
+  font: bold 10px ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+.plc-watch-actions {
+  white-space: nowrap;
+}
+.plc-watch-force {
+  margin-right: 4px;
+}
+.plc-watch-force.on {
+  border-color: var(--warn);
+  color: var(--warn);
 }
 
 .plc-watch-add {

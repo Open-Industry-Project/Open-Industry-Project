@@ -1,13 +1,14 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { TagValue } from '../../../plc'
-import { deviceTags, devicesForTag, type DeviceTagUse } from '../../../plc/bindings'
+import { deviceTags } from '../../../plc/bindings'
 import { listTags } from '../../../plc/tags'
 import type { ScanTime } from '../../../sim/plcHost'
 import { commandChord, commandDisabledReason, commandEnabled, getCommand, runCommand } from '../../commands'
 import type { EditorController } from '../../controller'
 import type { EditorState, EditorStore } from '../../store/store'
 import { declaredTypeSets, formatPlcValue, typeOfKey, type DeclaredTypes } from '../../program/plcValueText'
+import { devicesWiredTo, usePlcForces } from '../../program/plcForces'
 import { addWatchNames, onWatchListChange, parseWatchNames, readWatchList, resolveWatch, saveWatchList, type WatchRow } from '../../program/plcWatchList'
 import { TrashIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
@@ -38,6 +39,16 @@ const M = defineMessages('plcWatch', {
   collapse: 'Hide the values under {name}',
   toggleTitle: 'Click to write the opposite value. A bit the program writes is written back by its next scan',
   editTitle: 'Click to write a new value. A variable the program writes is written back by its next scan',
+  toggleForcedTitle: 'Forced: click to hold the opposite value',
+  editForcedTitle: 'Forced: click to hold a new value',
+  forced: 'forced',
+  forcedTitle: 'Held at this value whatever the program writes or the scene feeds, until released',
+  force: 'Force',
+  forceTitle: 'Hold {name} at its value until released. The program reads it and the parts see it, whatever the program writes',
+  forceBoolTitle: 'Hold {name} at its value until released, then click the value to hold the opposite. The program reads it and the parts see it, whatever the program writes',
+  forceStoppedTitle: 'Press Play to force a value: a force holds a variable of the running program until released',
+  release: 'Release',
+  releaseTitle: 'Give {name} back to the program from its next scan',
   setLabel: 'New value for {name}',
   reads: '{part}: its {field} reads this',
   writes: '{part}: its {field} writes this',
@@ -99,29 +110,6 @@ function scanLine(s: ScanTime): string {
   return t(s.task === '' ? M.scanProgram : M.scanTask, p)
 }
 
-/**
- * Every part wired to the value: by the name as written, by the image's key, and by the key without its program
- * instance (a part may name `Run` for `Line.Run`, the bare-name rule in plc/DEVICE-IO.md).
- */
-function wiredParts(devices: ReturnType<typeof deviceTags>, name: string, key: string | null): DeviceTagUse[] {
-  const names = new Set([name.toUpperCase()])
-  if (key !== null) {
-    names.add(key.toUpperCase())
-    const dot = key.indexOf('.')
-    if (dot > 0) names.add(key.slice(dot + 1).toUpperCase())
-  }
-  const seen = new Set<string>()
-  const out: DeviceTagUse[] = []
-  for (const n of names)
-    for (const u of devicesForTag(devices, n)) {
-      const id = `${u.device.id}:${u.field}`
-      if (seen.has(id)) continue
-      seen.add(id)
-      out.push(u)
-    }
-  return out
-}
-
 interface ValueCellProps {
   name: string
   rowKey: string | null
@@ -129,6 +117,8 @@ interface ValueCellProps {
   type: string | undefined
   live: boolean
   flash: boolean
+  /** held by a force (EditorController.forcePlcValue): a write changes the held value */
+  forced: boolean
   controller: EditorController | null
   onError: (why: string | null) => void
 }
@@ -138,9 +128,14 @@ interface ValueCellProps {
  * leaving it writes nothing, since a value written into a running machine should be meant). Text is set in the
  * declaration, so a STRING only shows.
  */
-function ValueCell({ name, rowKey, value, type, live, flash, controller, onError }: ValueCellProps): ReactElement {
+function ValueCell({ name, rowKey, value, type, live, flash, forced, controller, onError }: ValueCellProps): ReactElement {
   const [draft, setDraft] = useState<string | null>(null)
-  const cls = `plc-watch-value${flash ? ' plc-watch-flash' : ''}`
+  const cls = `plc-watch-value${flash ? ' plc-watch-flash' : ''}${forced ? ' plc-watch-forced' : ''}`
+  const badge = forced ? (
+    <span className="plc-watch-forced-badge" data-testid="plc-watch-forced" title={t(M.forcedTitle)}>
+      {t(M.forced)}
+    </span>
+  ) : null
   if (value === undefined) return <td className={cls} data-testid="plc-watch-value" />
   const text = formatPlcValue(value, type, 80)
   const writable = live && rowKey !== null && controller !== null && typeof value !== 'string'
@@ -148,9 +143,10 @@ function ValueCell({ name, rowKey, value, type, live, flash, controller, onError
   if (typeof value === 'boolean')
     return (
       <td className={cls} data-testid="plc-watch-value">
-        <button type="button" className={`plc-watch-cell plc-watch-bool${value ? ' on' : ''}`} data-testid="plc-watch-write" title={t(M.toggleTitle)} onClick={() => onError(controller.togglePlcBit(rowKey) ? null : t(M.notInProgram))}>
+        <button type="button" className={`plc-watch-cell plc-watch-bool${value ? ' on' : ''}`} data-testid="plc-watch-write" title={t(forced ? M.toggleForcedTitle : M.toggleTitle)} onClick={() => onError(controller.togglePlcBit(rowKey) ? null : t(M.notInProgram))}>
           {text}
         </button>
+        {badge}
       </td>
     )
   if (draft !== null)
@@ -183,12 +179,13 @@ function ValueCell({ name, rowKey, value, type, live, flash, controller, onError
   return (
     <td className={cls} data-testid="plc-watch-value">
       {/* (the raw number to edit: a duration is milliseconds underneath, which is what a write takes) */}
-      <button type="button" className="plc-watch-cell" data-testid="plc-watch-write" title={t(M.editTitle)} onClick={() => {
+      <button type="button" className="plc-watch-cell" data-testid="plc-watch-write" title={t(forced ? M.editForcedTitle : M.editTitle)} onClick={() => {
           onError(null)
           setDraft(String(value))
         }}>
         {text}
       </button>
+      {badge}
     </td>
   )
 }
@@ -229,6 +226,9 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
     return controller.onProgramStatus(sync)
   }, [controller])
   const live = attached && state.running
+
+  // the held forces: set and released here, from the toolbar's count, or by Stop
+  const forces = usePlcForces(controller)
 
   const [image, setImage] = useState<Readonly<Record<string, TagValue>> | null>(null)
   const [times, setTimes] = useState<readonly ScanTime[]>([])
@@ -305,8 +305,28 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
       return next
     })
   }
+  // Force holds the value the row shows; Release gives it back to the program. Only for a value a write can change.
+  const forceButton = (name: string, key: string | null, value: TagValue | undefined): ReactElement | null => {
+    if (!live || key === null || !controller || value === undefined || typeof value === 'string') return null
+    const held = key in forces
+    return (
+      <button
+        type="button"
+        className={`plc-watch-btn plc-watch-force${held ? ' on' : ''}`}
+        data-testid="plc-watch-force"
+        aria-pressed={held}
+        title={t(held ? M.releaseTitle : typeof value === 'boolean' ? M.forceBoolTitle : M.forceTitle, { name })}
+        onClick={() => {
+          if (held) controller.releasePlcForces(key)
+          else setError(controller.forcePlcValue(key))
+        }}
+      >
+        {t(held ? M.release : M.force)}
+      </button>
+    )
+  }
   const wiredCell = (name: string, key: string | null): ReactElement => {
-    const uses = wiredParts(devices, name, key)
+    const uses = devicesWiredTo(devices, name, key, controller?.plcAliases)
     return (
       <td className="plc-watch-wired" data-testid="plc-watch-wired">
         {uses.slice(0, MAX_PARTS).map((u) => {
@@ -361,7 +381,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
               <th>{t(M.colValue)}</th>
               <th>{t(M.colType)}</th>
               <th>{t(M.colWired)}</th>
-              <th />
+              <th title={live ? undefined : t(M.forceStoppedTitle)} />
             </tr>
           </thead>
           <tbody>
@@ -391,13 +411,14 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
                         {t(M.notInProgram)}
                       </td>
                     ) : (
-                      <ValueCell name={r.name} rowKey={r.key} value={r.value} type={type} live={live} flash={flashing(r.key)} controller={controller} onError={setError} />
+                      <ValueCell name={r.name} rowKey={r.key} value={r.value} type={type} live={live} flash={flashing(r.key)} forced={r.key !== null && r.key in forces} controller={controller} onError={setError} />
                     )}
                     <td className="plc-watch-type ld-vars-dim" data-testid="plc-watch-type">
                       {type ?? ''}
                     </td>
                     {wiredCell(r.name, r.key)}
-                    <td>
+                    <td className="plc-watch-actions">
+                      {forceButton(r.name, r.key, r.value)}
                       <button type="button" className="ld-vars-btn" data-testid="plc-watch-remove" aria-label={t(M.remove, { name: r.name })} title={t(M.remove, { name: r.name })} onClick={() => setList(names.filter((n) => n !== r.name))}>
                         <TrashIcon size="1em" />
                       </button>
@@ -410,10 +431,10 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
                       return (
                         <tr key={m.key} data-testid="plc-watch-member" data-name={m.key}>
                           <td className="plc-watch-name plc-watch-member">{m.key}</td>
-                          <ValueCell name={m.key} rowKey={m.key} value={m.value} type={mType} live={live} flash={flashing(m.key)} controller={controller} onError={setError} />
+                          <ValueCell name={m.key} rowKey={m.key} value={m.value} type={mType} live={live} flash={flashing(m.key)} forced={m.key in forces} controller={controller} onError={setError} />
                           <td className="plc-watch-type ld-vars-dim">{mType ?? ''}</td>
                           {wiredCell(m.key, m.key)}
-                          <td />
+                          <td className="plc-watch-actions">{forceButton(m.key, m.key, m.value)}</td>
                         </tr>
                       )
                     })}

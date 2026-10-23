@@ -6,10 +6,33 @@ import type { TagValue } from '../../../plc/types'
 import { indexWatch, watchLookup, type WatchIndex } from './ladderWatch'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-export function useLadderWatch(live: boolean, getWatch: () => Readonly<Record<string, TagValue>> | null | undefined, source: string, writeLive: ((key: string, text: string) => string | null) | undefined) {
+export function useLadderWatch(
+  live: boolean,
+  getWatch: () => Readonly<Record<string, TagValue>> | null | undefined,
+  source: string,
+  writeLive: ((key: string, text: string) => string | null) | undefined,
+  getForces: (() => Readonly<Record<string, number | boolean>>) | undefined,
+  onForces: ((cb: () => void) => () => void) | undefined,
+) {
   const [watch, setWatch] = useState<Readonly<Record<string, TagValue>> | null>(null)
   const getWatchRef = useRef(getWatch)
   getWatchRef.current = getWatch
+  const getForcesRef = useRef(getForces)
+  getForcesRef.current = getForces
+  const onForcesRef = useRef(onForces)
+  onForcesRef.current = onForces
+  // the forced variables: a force is set in the Watch dock, the Inspector or here, so this listens for one being set or
+  // released (the panel's subscription, the same every surface uses) rather than polling
+  const [forces, setForces] = useState<Readonly<Record<string, number | boolean>>>({})
+  useEffect(() => {
+    if (!live) {
+      setForces({})
+      return
+    }
+    const read = (): void => setForces(getForcesRef.current?.() ?? {})
+    read()
+    return onForcesRef.current?.(read)
+  }, [live])
 
   // the image changes every scan, independent of any store update, so it is polled (as the text view's is)
   useEffect(() => {
@@ -60,5 +83,12 @@ export function useLadderWatch(live: boolean, getWatch: () => Readonly<Record<st
   }
   /** where a value typed under an operand goes: into the running program */
   const writeValue = live ? writeLive : undefined
-  return { setWatch, valueOf, keyOf, roomFor, showsValues, writeValue }
+  /** is the operand a forced variable of the running program */
+  const forcedOf = (text: string): boolean => heldAt(text) !== undefined
+  /** the value a forced operand is held at, or undefined when it is not forced */
+  const heldAt = (text: string): number | boolean | undefined => {
+    const key = live ? keyOf(text) : null
+    return key !== null && key !== undefined && key in forces ? forces[key] : undefined
+  }
+  return { setWatch, valueOf, keyOf, roomFor, showsValues, writeValue, forcedOf, heldAt }
 }

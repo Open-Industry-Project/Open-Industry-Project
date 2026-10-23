@@ -37,6 +37,8 @@ export class SimClient {
   /** the in-worker PLC's latest state (watch / %I / %Q / scan telemetry), refreshed with every
    *  frame while a program is attached; null when none is (or before the first frame lands) */
   plcState: PlcFrameState | null = null
+  /** the running program's held forces, last set by {@link setForces} */
+  forces: Readonly<Record<string, number | boolean>> = {}
 
   /** which Jolt build the worker initialized (set on its ready message); null until then.
    *  'wasm-multithread' only under ?joltthreads in a cross-origin isolated context. */
@@ -366,6 +368,17 @@ export class SimClient {
     this.post({ type: 'forceTag', name, value })
   }
 
+  /**
+   * Hold the running program's variables at these values until released: the whole table each time, {} to release
+   * them all. Kept here and sent again with every attach, so a program reloaded mid-run keeps them. A run's own
+   * state: Stop drops them.
+   */
+  setForces(forces: Readonly<Record<string, number | boolean>>): void {
+    this.forces = { ...forces }
+    if (!this._running) return
+    this.post({ type: 'setForces', forces: this.forces })
+  }
+
   /** start the running program's scan-time averages and maxima over */
   resetScanTimes(): void {
     if (!this._running) return
@@ -392,6 +405,7 @@ export class SimClient {
       ...(periodSec !== undefined ? { periodSec } : {}),
       ...(wired ? { wired } : {}),
     })
+    if (Object.keys(this.forces).length > 0) this.post({ type: 'setForces', forces: this.forces })
   }
 
   /** detach the ST program; custom-part behaviors idle on their next step */
@@ -430,6 +444,7 @@ export class SimClient {
     this._running = false
     this.runHz = null
     this.plcState = null // the worker drops its program with the world ('stop' handler)
+    this.forces = {}
     this.clock.reset()
     this.lastSent = null
     this.post({ type: 'stop' })

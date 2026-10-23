@@ -817,6 +817,16 @@ const COMMAND_DEFS: readonly Command[] = [
     run: ({ controller }) => controller?.reloadProgram(),
   },
   {
+    // The way out of a commissioning session in one move: every forced variable is the program's again from its
+    // next scan. The palette and the toolbar's forced count (ForcesStatus.tsx) run it. Not in the native menu:
+    // forces change without the app re-rendering, so a native menu item's enablement would go stale.
+    id: 'sim.releaseForces',
+    label: 'Release All Forces',
+    group: 'Simulation',
+    enabled: (ctx) => Object.keys(ctx.controller?.plcForces ?? {}).length > 0,
+    run: ({ controller }) => controller?.releasePlcForces(),
+  },
+  {
     // No chord: this is a deliberate, occasional action, and a command with neither
     // `keys` nor `accelerator` still reaches the palette and the native menu (which is the point of
     // the registry). Enablement is the count, so a project with no tests greys the item out rather

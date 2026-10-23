@@ -39,6 +39,8 @@ import type { Update } from './shared'
 import { runCommand } from '../../commands'
 import { closestOpcUaTagNames, matchOpcUaTag } from '../../../core/io/opcUa'
 import { TagField, TagSourcesContext } from './tagField'
+import { TagForce } from './tagForce'
+import type { TagForcing } from './tagForce'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('inspector.paramField', {
@@ -84,6 +86,7 @@ export function ParamField({
   onContext,
   capturePose,
   previewPose,
+  forcing,
 }: {
   spec: ParamSpec
   parts: readonly PartInstance[]
@@ -103,6 +106,8 @@ export function ParamField({
   capturePose?: () => number[] | null
   /** show a joint row on the selected rig (controller.previewRigPose): a waypoint's or a Move step's pose */
   previewPose?: (row: readonly number[]) => void
+  /** the controller while the scene runs, so a tag field can force the program variable its tag names; else null */
+  forcing?: TagForcing | null
 }) {
   const part = parts[0]!
   // the row shows the label's head (core labelHead: no explaining bracket, which truncated it), the tooltip the
@@ -498,6 +503,9 @@ export function ParamField({
                 byName={!mixed && !address}
                 connected={commsOn(part)}
               />
+              {/* one part only: a multi-selection may name several tags, and one button cannot say which it holds. A part
+                  whose comms switch is off reads none of its tags, so there is nothing for a force to reach */}
+              {forcing && parts.length === 1 && !mixed && current !== '' && commsOn(part) && <TagForce forcing={forcing} tag={current} paramKey={spec.key} />}
               {revertArrow}
             </>
           }
@@ -656,6 +664,7 @@ export function GroupSection({
   onContext,
   capturePose,
   previewPose,
+  forcing,
 }: {
   node: GroupNode
   depth: number
@@ -670,11 +679,12 @@ export function GroupSection({
   onContext: OpenCtx
   capturePose?: () => number[] | null
   previewPose?: (row: readonly number[]) => void
+  forcing?: TagForcing | null
 }) {
   return (
     <Fold title={titleCase(node.name)} path={node.path} depth={depth} collapsed={collapsed} toggle={toggle}>
       {node.specs.map((spec) => (
-        <ParamField key={spec.key} spec={spec} parts={parts} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints} disabled={disabled} update={update} onContext={onContext} capturePose={capturePose} previewPose={previewPose} />
+        <ParamField key={spec.key} spec={spec} parts={parts} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints} disabled={disabled} update={update} onContext={onContext} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
       ))}
       {node.children.map((child) => (
         <GroupSection
@@ -692,6 +702,7 @@ export function GroupSection({
           onContext={onContext}
           capturePose={capturePose}
           previewPose={previewPose}
+          forcing={forcing}
         />
       ))}
     </Fold>

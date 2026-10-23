@@ -424,6 +424,8 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
   const capturePose = !multi && part.type === 'part' && controller ? () => controller.captureRigPose(part.id) : undefined
   // ...and the way back: show a waypoint's (or a Move step's) joint row on the arm, while the scene is stopped
   const previewPose = !multi && part.type === 'part' && controller && !state.running ? (row: readonly number[]) => controller.previewRigPose(part.id, row) : undefined
+  // a tag field forces the program variable its tag names, only while the scene runs (inspector/tagForce.tsx)
+  const forcing = state.running ? controller : null
 
   return (
     <div className="inspector">
@@ -550,7 +552,7 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
         </div>
       )}
       {ungrouped.map((spec) => (
-        <ParamField key={spec.key} spec={spec} parts={targets} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints ?? undefined} disabled={false} update={update} onContext={openCtx} capturePose={capturePose} previewPose={previewPose} />
+        <ParamField key={spec.key} spec={spec} parts={targets} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints ?? undefined} disabled={false} update={update} onContext={openCtx} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
       ))}
       {groups.map((group) => (
         <GroupSection
@@ -568,6 +570,7 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
           onContext={openCtx}
           capturePose={capturePose}
           previewPose={previewPose}
+          forcing={forcing}
         />
       ))}
       {!multi && part.type === 'part' && <HoldsSection store={store} part={part as SdkPart} scene={state.scene} running={state.running} />}

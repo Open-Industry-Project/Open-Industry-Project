@@ -210,6 +210,8 @@ async function handle(msg: MainToWorker): Promise<void> {
       world?.setBehaviorInputTags(msg.tags)
     } else if (msg.type === 'forceTag') {
       plc?.force(msg.name, msg.value)
+    } else if (msg.type === 'setForces') {
+      plc?.setForces(msg.forces)
     } else if (msg.type === 'resetScanTimes') {
       plc?.resetScanTimes()
     } else if (msg.type === 'setDrivenTags') {

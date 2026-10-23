@@ -75,6 +75,8 @@ export class ProgramState {
   status: ProgramStatus = NO_PROGRAM
   // panels that want to re-render when the program status changes (the ST editor)
   readonly watchers = new Set<() => void>()
+  // what shows the held forces (the Watch dock, the toolbar's count): told when one is set or released
+  readonly forceWatchers = new Set<() => void>()
   /** see EditorController.plcFaults */
   lastFault: PlcFaults['fault'] = null
   /** the program those are about: `runningSource` is cleared when the program stops, and they outlive it */
@@ -122,6 +124,10 @@ export function runProgram(
     (p) => `${p.severity === 'error' ? 'Wiring error' : 'Wiring'} - ${p.tag}: ${p.message}`,
   )
   shipDriven(p, ec.sim, link.outputs)
+  // A force names a variable of the program it was set on. A reload keeps the ones this program still has with the
+  // same kind of value, and drops the rest, so nothing reports a force that holds nothing (or holds the wrong type).
+  const kept = keptForces(ec.sim.forces, link.watch)
+  if (kept !== ec.sim.forces) setForces(p, ec.sim, kept)
   // hand the program to the worker's scan host; the validation compile's initial variable image seeds
   // the watch table until the first frame carries live state
   ec.sim.runProgram(source, opts?.periodSec, wired)
@@ -248,6 +254,9 @@ export function syncScanPeriod(p: ProgramState, ec: Pick<EditorController, 'stor
 }
 
 export function stopProgram(p: ProgramState, ec: ProgramDeps): void {
+  // a force holds a variable of this program, so it goes with it. Unconditional: Stop has already emptied the
+  // client's table (SimClient.stop), and what shows the forces still has to hear it
+  setForces(p, ec.sim, {})
   p.plcAttached = false
   p.attached = null
   p.runningSource = null
@@ -267,7 +276,53 @@ export function stopProgram(p: ProgramState, ec: ProgramDeps): void {
   setProgramStatus(p, NO_PROGRAM)
 }
 
-export function togglePlcBit(ec: Pick<EditorController, 'plcWatch' | 'sim'>, key: string): boolean {
+/** What a write to a running program goes through: its value image, the worker, and the held forces' watchers. */
+export type PlcWriteDeps = { ec: Pick<EditorController, 'plcWatch' | 'sim'>; p: ProgramState }
+
+/** Replace the held forces and tell what shows them. */
+function setForces(p: ProgramState, sim: Pick<EditorController['sim'], 'setForces'>, forces: Readonly<Record<string, number | boolean>>): void {
+  sim.setForces(forces)
+  for (const cb of p.forceWatchers) cb()
+}
+
+/**
+ * A value for the running program: written once, or, when the variable is forced, held at it instead. One bit of a
+ * forced word (`Status.3` with `Status` held) changes the bit in the held word: a one-time write would be undone by
+ * the word's force before the next scan.
+ */
+function writeOrHold({ ec, p }: PlcWriteDeps, key: string, value: number | boolean): void {
+  const forces = ec.sim.forces
+  if (key in forces) {
+    setForces(p, ec.sim, { ...forces, [key]: value })
+    return
+  }
+  const bit = /^(.+)\.([0-9]+)$/.exec(key)
+  const word = bit ? forces[bit[1]!] : undefined
+  if (bit && typeof word === 'number' && typeof value === 'boolean') {
+    const mask = 2 ** Number(bit[2])
+    setForces(p, ec.sim, { ...forces, [bit[1]!]: value ? (word | mask) | 0 : (word & ~mask) | 0 })
+    return
+  }
+  ec.sim.forceTag(key, value)
+}
+
+/** `forces` without the ones `watch` (a program's variable image) has no value of the same kind for; the same object
+ *  when none goes. */
+export function keptForces(forces: Readonly<Record<string, number | boolean>>, watch: Readonly<Record<string, TagValue>>): Readonly<Record<string, number | boolean>> {
+  const keys = Object.keys(forces)
+  const kept = keys.filter((k) => typeof currentValue(watch, k) === typeof forces[k])
+  return kept.length === keys.length ? forces : Object.fromEntries(kept.map((k) => [k, forces[k]!]))
+}
+
+/** The current value of `key` in the running image: a variable, or one bit of a word (`Status.3`). */
+function currentValue(watch: Readonly<Record<string, TagValue>> | null, key: string): TagValue | undefined {
+  const bit = /^(.+)\.([0-9]+)$/.exec(key)
+  const word = bit ? watch?.[bit[1]!] : undefined
+  return watch?.[key] ?? (bit && typeof word === 'number' ? ((word >>> Number(bit[2])) & 1) === 1 : undefined)
+}
+
+export function togglePlcBit(deps: PlcWriteDeps, key: string): boolean {
+  const { ec } = deps
   const watch = ec.plcWatch
   const cur = watch?.[key]
   // `Status.3`: one bit of a word. The watch holds the word, so the bit is read out of it here and
@@ -277,36 +332,81 @@ export function togglePlcBit(ec: Pick<EditorController, 'plcWatch' | 'sim'>, key
   if (cur === undefined && bit && typeof word === 'number') {
     const mask = 2 ** Number(bit[2])
     const on = ((word >>> Number(bit[2])) & 1) === 1
-    ec.sim.forceTag(key, !on)
+    writeOrHold(deps, key, !on)
     if (ec.sim.plcState) ec.sim.plcState = { ...ec.sim.plcState, watch: { ...ec.sim.plcState.watch, [bit[1]!]: on ? (word & ~mask) | 0 : (word | mask) | 0 } }
     return true
   }
   if (typeof cur !== 'boolean') return false
-  ec.sim.forceTag(key, !cur)
+  writeOrHold(deps, key, !cur)
   // the frame that carries the new value is a step away; show it now, so a second Ctrl+T reads the toggled state
   if (ec.sim.plcState) ec.sim.plcState = { ...ec.sim.plcState, watch: { ...ec.sim.plcState.watch, [key]: !cur } }
   return true
 }
 
-export function writePlcValue(ec: Pick<EditorController, 'plcWatch' | 'sim'>, key: string, text: string): string | null {
-  const watch = ec.plcWatch
-  if (!watch) return 'The program is not running'
-  const bit = /^(.+)\.([0-9]+)$/.exec(key)
-  const cur = watch[key] ?? (bit && typeof watch[bit[1]!] === 'number' ? ((watch[bit[1]!] as number) >>> Number(bit[2]) & 1) === 1 : undefined)
-  if (cur === undefined) return `'${key}' is not a value of the running program`
+/** `text` as a value for `key` of the running program, or why it is not one. */
+function parsePlcValue(watch: Readonly<Record<string, TagValue>> | null, key: string, text: string): { value: number | boolean } | { error: string } {
+  if (!watch) return { error: 'The program is not running' }
+  const cur = currentValue(watch, key)
+  if (cur === undefined) return { error: `'${key}' is not a value of the running program` }
   const t = text.trim()
-  let value: number | boolean
   if (typeof cur === 'boolean') {
-    if (/^(1|true|on)$/i.test(t)) value = true
-    else if (/^(0|false|off)$/i.test(t)) value = false
-    else return `'${t}' is not 0 or 1`
-  } else if (typeof cur === 'number') {
+    if (/^(1|true|on)$/i.test(t)) return { value: true }
+    if (/^(0|false|off)$/i.test(t)) return { value: false }
+    return { error: `'${t}' is not 0 or 1` }
+  }
+  if (typeof cur === 'number') {
     const based = /^(2|8|16)#([0-9A-F_]+)$/i.exec(t)
-    value = based ? parseInt(based[2]!.replace(/_/g, ''), Number(based[1])) : Number(t.replace(/_/g, ''))
-    if (t === '' || !Number.isFinite(value)) return `'${t}' is not a number`
-  } else return 'Text is set in the declaration, not while running'
-  ec.sim.forceTag(key, value)
-  // the frame that carries it back is a step away: show it now (the worker coerces it to the tag's own type)
+    const value = based ? parseInt(based[2]!.replace(/_/g, ''), Number(based[1])) : Number(t.replace(/_/g, ''))
+    if (t === '' || !Number.isFinite(value)) return { error: `'${t}' is not a number` }
+    return { value }
+  }
+  return { error: 'Text is set in the declaration, not while running' }
+}
+
+/** Show a written value now: the frame that carries it back is a step away (the worker coerces it to the tag's type). */
+function showWritten(ec: PlcWriteDeps['ec'], key: string, value: number | boolean): void {
   if (ec.sim.plcState && key in ec.sim.plcState.watch) ec.sim.plcState = { ...ec.sim.plcState, watch: { ...ec.sim.plcState.watch, [key]: value } }
+}
+
+export function writePlcValue(deps: PlcWriteDeps, key: string, text: string): string | null {
+  const parsed = parsePlcValue(deps.ec.plcWatch, key, text)
+  if ('error' in parsed) return parsed.error
+  writeOrHold(deps, key, parsed.value)
+  showWritten(deps.ec, key, parsed.value)
   return null
+}
+
+/**
+ * Hold a variable of the running program at a value across scans until released: `text` when given, else the value it
+ * has now. The reason it was refused, or null when held.
+ */
+export function forcePlcValue(deps: PlcWriteDeps, key: string, text?: string): string | null {
+  const { ec, p } = deps
+  const watch = ec.plcWatch
+  let value: number | boolean
+  if (text === undefined) {
+    if (!watch) return 'The program is not running'
+    const cur = currentValue(watch, key)
+    if (cur === undefined) return `'${key}' is not a value of the running program`
+    if (typeof cur === 'string') return 'Text is set in the declaration, not while running'
+    value = cur
+  } else {
+    const parsed = parsePlcValue(watch, key, text)
+    if ('error' in parsed) return parsed.error
+    value = parsed.value
+  }
+  setForces(p, ec.sim, { ...ec.sim.forces, [key]: value })
+  showWritten(ec, key, value)
+  return null
+}
+
+/** Release one held force (`key`), or every one (no key). The program writes the variable again from its next scan. */
+export function releasePlcForces({ ec, p }: PlcWriteDeps, key?: string): void {
+  if (key === undefined) {
+    if (Object.keys(ec.sim.forces).length > 0) setForces(p, ec.sim, {})
+    return
+  }
+  if (!(key in ec.sim.forces)) return
+  const { [key]: _released, ...rest } = ec.sim.forces
+  setForces(p, ec.sim, rest)
 }

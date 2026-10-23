@@ -90,6 +90,18 @@ export interface PlcPanelCtx {
 
   // ---- the running program
   watch: () => Readonly<Record<string, TagValue>> | null | undefined
+  /** the running program's forced variables, by watch key (EditorController.plcForces) */
+  forces: () => Readonly<Record<string, number | boolean>>
+  /** the attached program's bare-name aliases (EditorController.plcAliases) */
+  aliases: () => ReadonlyMap<string, string>
+  /** hold a variable of the running program at its value (EditorController.forcePlcValue): null when held, else why not */
+  force: (key: string) => string | null
+  /** release one forced variable */
+  releaseForce: (key: string) => void
+  /** told when a force is set or released; returns an unsubscribe */
+  onForces: (cb: () => void) => () => void
+  /** told when a program attaches or detaches; returns an unsubscribe */
+  onProgramStatus: (cb: () => void) => () => void
   toggleBit: (key: string) => boolean
   writeLive: (key: string, text: string) => string | null
   /** Add to Watch: a variable onto the watch list, with the Watch dock brought forward */
@@ -246,6 +258,8 @@ export function PanelLadder({ ctx }: { ctx: PlcPanelCtx }): ReactElement {
         faults={ctx.faults.marks}
         revealProblem={ctx.faults.reveal}
         getWatch={ctx.watch}
+        getForces={ctx.forces}
+        onForcesChange={ctx.onForces}
         live={ctx.live}
         readOnly={ctx.readOnly}
         getTags={ctx.tags}
@@ -258,6 +272,8 @@ export function PanelLadder({ ctx }: { ctx: PlcPanelCtx }): ReactElement {
         toggleBit={ctx.toggleBit}
         writeLive={ctx.writeLive}
         onWatch={ctx.addToWatch}
+        onForce={ctx.force}
+        onRelease={ctx.releaseForce}
       />
     </Suspense>
   )

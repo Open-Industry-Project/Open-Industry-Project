@@ -135,8 +135,8 @@ Real panels distinguish RUN from PROGRAM mode: a controller in RUN owns the outp
 device is the operator's to hand-cycle. The bus models that as a **driven set**: the tag keys the attached program
 declares as outputs, or is bound to as outputs by wiring. It is static per program, so the controller ships it
 **once** on attach (`SimClient.setDrivenTags`, from `runProgram`) and clears it on detach (`stopProgram`); the
-worker hands it to each behavior beside the value table, as `ctx.tagDriven(name)`. Interactive comms devices gate
-their auto mode on it (`enableComms && tagDriven(tag) ? readTag(tag) : manualLatch`), so a hand Use works whenever
+worker hands it to each behavior beside the value table, as `ctx.tagDriven(name)`. Interactive devices gate
+their auto mode on it (`tagDriven(tag) ? readTag(tag) : manualLatch`), so a hand Use works whenever
 nothing is scanning (stopped scene, no program, undriven tag), and the program takes the device over as soon as it
 attaches. The controller mirrors the same set (`plcDrivenKeys`) for the pilot crosshair's "In auto - PLC controlled"
 prompt. It shows only for `'tag'` params marked `autoWhenDriven` in the part's schema, the ones the script's auto
@@ -171,6 +171,18 @@ reads a *frozen* copy of its inputs and writes its outputs once at the end. Two 
   the physics loop sheds wall-clock backlog and the sim slows down as one consistent unit, so control logic and
   physics cannot shed independently. The headless project-test runner uses the same scheduler, so a test scans on
   exactly the cadence Play does.
+- **Writes and forces.** A write from the Watch dock, the ladder's Toggle Bit or `set_tag` goes into the running
+  program once, between scans (`LocalPlcLink.force`), so a variable the program writes is overwritten by its next
+  scan. A force holds it instead (`LocalPlcLink.setForces`): the held value is written before every scan, so the
+  program reads it whatever the scene feeds, and again after the scan, so the output image and the parts see it
+  whatever the program wrote. A force is set from the Watch dock, a part's tag field in the Inspector, a device's tags
+  dialog (the PLC panel's Devices list), or the right-click menu on a rung's operand or a variable in the code; the
+  agent has `force_tag` / `release_forces`. It shows in the warning colour wherever the variable or its part appears:
+  the Watch dock, the rungs (an F beside the operand), the Inspector field, the Scene tree and Devices list rows, and
+  the toolbar's count, which lists them with the parts they reach and releases them. A write to a forced variable
+  changes the held value. The shared reading of it is `editor/program/plcForces.ts`. Forces belong to
+  the run (`SimClient.forces`, resent with every attach): never saved, never an undo step, and Stop or the program
+  detaching releases them all. Gated by `e2e/verify-plc-force.mjs`.
 - **Tasks.** A program that declares a `CONFIGURATION` brings its own tasks (`CompiledProgram.tasks`), and the
   scheduler keeps one accumulator per task instead of one for the program: each task comes due when its
   `INTERVAL` of sim time has elapsed, the scans a step makes due run in the order they came due, tasks due

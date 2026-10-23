@@ -187,7 +187,8 @@ indexed once per key set, a bit of a word (`Status.%X3`), and an index that is i
 - While the program runs, Toggle Bit (Ctrl+T, or the toolbar) flips the BOOL under the selection once, and a pin's live
   number takes a value on double-click. Both write into the running program between scans
   (`EditorController.togglePlcBit` / `writePlcValue`), never into its text, so a variable the program writes itself is
-  overwritten by its next scan.
+  overwritten by its next scan. A variable forced in the Watch dock is held instead, and either write changes the held
+  value (src/plc/DEVICE-IO.md, "Writes and forces").
 - An edit goes into the text editor as one ordinary edit (`StCodeEditorHandle.edit`), so the view's Ctrl+Z is that
   editor's history (and a room's shared one), a save is a save, and a peer sees it as typing. The text editor stays
   mounted under the view for that reason.

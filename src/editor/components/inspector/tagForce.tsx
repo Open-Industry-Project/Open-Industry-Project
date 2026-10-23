@@ -1,0 +1,126 @@
+// --- TagForce: Force / Release beside a tag field, while the program runs ---
+// A force is run state held by the controller (EditorController.forcePlcValue): it never writes the document, so
+// nothing here commits to the store or adds an undo step. The tag field beside it stays the wiring.
+
+import { useContext, useEffect, useMemo, useState } from 'react'
+import type { TagValue } from '../../../plc'
+import { forceKeyOf, usePlcForces, type ForceSource } from '../../program/plcForces'
+import { declaredTypeSets, formatPlcValue, typeOfKey } from '../../program/plcValueText'
+import { TagSourcesContext } from './tagField'
+import { defineMessages, t } from '../../../core/i18n'
+
+const M = defineMessages('inspector.tagForce', {
+  force: 'Force',
+  forceTitle: 'Hold {tag} at its value until released. The program reads it and the parts see it, whatever the program writes',
+  release: 'Release',
+  releaseTitle: 'Give {tag} back to the program from its next scan',
+  forcedAt: 'Forced: {value}',
+  heldAt: 'Held at {value} until released. The program reads it and the parts see it, whatever the program writes',
+  toggleHeld: 'Held at {value}. Click to hold the opposite',
+  editHeld: 'Held at {value}. Click to hold a new value',
+  newValue: 'New value to hold {tag} at',
+})
+
+/** What a tag field needs of the controller to force the variable its tag names. */
+export interface TagForcing extends ForceSource {
+  readonly plcWatch: Readonly<Record<string, TagValue>> | null
+  readonly plcAliases: ReadonlyMap<string, string>
+  forcePlcValue(key: string, text?: string): string | null
+  releasePlcForces(key?: string): void
+  onProgramStatus(cb: () => void): () => void
+}
+
+/**
+ * The Force / Release button for the program variable `tag` names, with a FORCED badge while it is held. Nothing
+ * when the program is not running or the tag is no program variable (forceKeyOf). The watch image changes every
+ * frame, so it is read at render time only: this re-renders when a force is set or released and when the program
+ * attaches or detaches, never per frame.
+ */
+export function TagForce({ forcing, tag, paramKey }: { forcing: TagForcing; tag: string; paramKey: string }) {
+  const forces = usePlcForces(forcing)
+  const [, setStatusTick] = useState(0)
+  useEffect(() => forcing.onProgramStatus(() => setStatusTick((n) => n + 1)), [forcing])
+  const [error, setError] = useState<string | null>(null)
+  // the held number being typed (Enter holds it; Escape or leaving the field holds nothing new)
+  const [draft, setDraft] = useState<string | null>(null)
+  const source = useContext(TagSourcesContext)?.check.source
+  const watch = forcing.plcWatch
+  const key = forceKeyOf(tag, watch, forcing.plcAliases)
+  const held = key !== null ? forces[key] : undefined
+  const isHeld = held !== undefined
+  // the declarations are parsed only for a held value, to show a duration or a date in its literal
+  const types = useMemo(() => (isHeld && source ? declaredTypeSets(source) : null), [isHeld, source])
+  if (!watch || key === null) return null
+  // a STRING cannot be forced (the Watch dock offers no Force for one either)
+  const value = watch[key]
+  if (!isHeld && (value === undefined || typeof value === 'string')) return null
+  const heldTip = isHeld ? t(M.heldAt, { value: formatPlcValue(held, types ? typeOfKey(types, key) : undefined) }) : undefined
+  return (
+    <span className={`tag-force${isHeld ? ' on' : ''}`} title={heldTip}>
+      {/* held, the force takes a line of its own under the field (inspector.css), so the tag stays readable. The badge
+          changes the held value, as a forced row of the Watch dock does: a BOOL flips on a click, a number opens a field */}
+      {isHeld && draft !== null && (
+        <input
+          className="tag-forced-input"
+          data-testid="inspector-forced-input"
+          aria-label={t(M.newValue, { tag })}
+          spellCheck={false}
+          autoFocus
+          value={draft}
+          size={Math.max(4, draft.length + 1)}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => setDraft(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              const why = forcing.forcePlcValue(key, draft)
+              setError(why)
+              if (why === null) setDraft(null)
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              setDraft(null)
+              setError(null)
+            }
+          }}
+        />
+      )}
+      {isHeld && draft === null && (
+        <button
+          type="button"
+          className="tag-forced-badge"
+          data-testid="inspector-forced"
+          title={t(typeof held === 'boolean' ? M.toggleHeld : M.editHeld, { value: formatPlcValue(held, types ? typeOfKey(types, key) : undefined) })}
+          onClick={() => {
+            if (typeof held === 'boolean') setError(forcing.forcePlcValue(key, String(!held)))
+            else {
+              setError(null)
+              setDraft(String(held))
+            }
+          }}
+        >
+          {t(M.forcedAt, { value: formatPlcValue(held, types ? typeOfKey(types, key) : undefined) })}
+        </button>
+      )}
+      <button
+        type="button"
+        className="tag-force-btn"
+        data-testid={`inspector-force-${paramKey}`}
+        aria-pressed={isHeld}
+        title={isHeld ? `${t(M.releaseTitle, { tag })}\n${heldTip}` : t(M.forceTitle, { tag })}
+        onClick={() => {
+          if (isHeld) {
+            forcing.releasePlcForces(key)
+            setError(null)
+          } else setError(forcing.forcePlcValue(key))
+        }}
+      >
+        {t(isHeld ? M.release : M.force)}
+      </button>
+      {error && (
+        <span className="tag-warn" role="alert" title={error} aria-label={error} data-testid="inspector-force-error">
+          {'!' /* i18n-ok: a mark, its words are the title */}
+        </span>
+      )}
+    </span>
+  )
+}
