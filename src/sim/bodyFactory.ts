@@ -39,10 +39,13 @@ export const BUILDING_FRICTION = 0.5
 // 150 kg stalled its line at 29-40 Hz); with 40/10, 150-1500 kg held at every rate from 60 to 500 Hz, worst
 // 1.2 cm at 60 Hz / 1500 kg. The velocity iterations are what matter (10/10 sank exactly like the
 // defaults), yet 40/2 still sank 1500 kg at 60 Hz (5.7 cm), 30/6 left 2.8 cm there, and 20/4 did not hold.
-// Cost on the demo cell, whose bodies are mostly cases standing on pallets: solver ~8.5 -> ~13 ms and the
-// whole step ~17 -> ~20 ms per sim-second at 60 Hz, headless. Below 60 Hz heavy loads sink even with this,
-// which is why MIN_SIM_HZ is 60. palletLoad.test.ts guards it, with a control that sinks without it.
-const PALLET_VELOCITY_STEPS = 40
+// 40/10 held only from some start positions: over 48 placed 2 mm apart, 1500 kg at 60 Hz sank past 4 cm from 13-20
+// of them and went through the deck from 1-3, with or without cargo damping. 60/10 holds from all 48, worst 1.4 cm,
+// for ~6% more solver time on that scene than 40/10. At 75 Hz 40/10 already held from all 48 (worst 1.0 cm).
+// Cost of 40/10 over the defaults on the demo cell, whose bodies are mostly cases standing on pallets: solver
+// ~8.5 -> ~13 ms and the whole step ~17 -> ~20 ms per sim-second at 60 Hz, headless. Below 60 Hz heavy loads sink
+// even with this, which is why MIN_SIM_HZ is 60. palletLoad.test.ts guards it, with a control that sinks without it.
+const PALLET_VELOCITY_STEPS = 60
 const PALLET_POSITION_STEPS = 10
 
 /**
@@ -337,6 +340,11 @@ export function makeCargoBody(
   J.destroy(pos)
   bcs.mFriction = friction
   bcs.mRestitution = BOX_RESTITUTION
+  // No linear damping: cargo loses no measurable speed to air at conveyor speeds. Jolt's default (0.05 per second)
+  // slows a box by 0.05 v on top of friction, which read as friction 0.01-0.02 above the surface's
+  // (conveyorFrictionFidelity.test.ts). Angular damping keeps its default: Jolt has no rolling resistance, and it is
+  // what slows a drum rolling on a floor.
+  bcs.mLinearDamping = 0
   // Cargo slides across conveyor surfaces built as compound bodies (curve
   // chords, belt run boxes + bend prisms); this makes Jolt drop the internal
   // edges between those facets so the box doesn't snag at every seam.

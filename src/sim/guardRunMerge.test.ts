@@ -84,11 +84,13 @@ function guardRideBump(parts: SdkPart[]): number {
     trace.push({ x: f.positions[0]!, z: f.positions[2]! })
   }
   world.dispose()
-  // steady-state ride z on the upstream bed, vs the furthest the box gets pushed off the wall past it
+  // steady-state ride z on the upstream bed, vs the furthest the box gets pushed off the wall past it. The window
+  // past it ends 0.5 m before the beds do (x = 3): a box riding at full roller speed reaches the end within the 400
+  // steps and drops off it, which moves it off the wall too.
   const ride = trace.filter((p) => p.x > -1.0 && p.x < -0.3).map((p) => p.z)
   const rideZ = ride.reduce((a, b) => a + b, 0) / Math.max(1, ride.length)
   let minAfter = Infinity
-  for (const p of trace) if (p.x > -0.2) minAfter = Math.min(minAfter, p.z)
+  for (const p of trace) if (p.x > -0.2 && p.x < 2.5) minAfter = Math.min(minAfter, p.z)
   return rideZ - minAfter
 }
 
