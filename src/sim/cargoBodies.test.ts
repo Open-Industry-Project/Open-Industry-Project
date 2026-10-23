@@ -60,6 +60,10 @@ function shove(w: SimWorld, id: string, vz: number): void {
   const bi = (w as unknown as { bodyInterface: Jolt.BodyInterface }).bodyInterface
   const v = new J.Vec3(0, 0, vz)
   bi.SetLinearVelocity(live(w, id).body.GetID(), v)
+  // A velocity set on an awake body leaves its sleep timer running, and after half a second at rest the body sleeps
+  // within the step and loses the shove. At 60 Hz the settle above happens to end asleep, which SetLinearVelocity
+  // wakes with a fresh timer; at 120 Hz it ends awake and the drum stopped dead.
+  bi.ResetSleepTimer(live(w, id).body.GetID())
   J.destroy(v)
 }
 

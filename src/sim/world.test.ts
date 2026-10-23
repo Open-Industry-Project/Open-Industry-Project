@@ -192,14 +192,24 @@ describe('chain transfer pop-up physically lifts + diverts cargo', () => {
     world.dispose()
   })
 
-  // Where the lowered deck rests is what makes a transfer installable in a bed at all. Its `conveys` deck rides
-  // the lift joint, so seated flush with the host roller line the two conveying surfaces are coplanar: a case
-  // touches both, and an idle chain deck is not neutral - it is a stopped belt (surface velocity zero at
-  // CONVEYOR_FRICTION), so it brakes the case the rollers are trying to carry. The part declares a recess for
-  // exactly this (examples/parts/chain-transfer, snap.track.targetLocalY = -0.03), so the track snap seats it
-  // below the bed and cargo rides the rollers alone until the pop-up takes it. This pins the physics that number
-  // exists for; the declaration itself is guarded in editor/parts/bundledPackageData.test.ts.
-  it('a lowered transfer resting in a running roller bed lets cargo pass; seated flush it brakes it', () => {
+  // Where the lowered deck rests is what makes a transfer installable in a bed at all. An idle chain deck is not
+  // neutral: it is a stopped belt (surface velocity zero), and its `conveys` deck rides the lift joint, so it is a
+  // kinematic body. The part declares a recess (examples/parts/chain-transfer, snap.track.targetLocalY = -0.03), so
+  // the track snap seats it below the bed and cargo rides the rollers alone until the pop-up takes it. This pins
+  // that the recess works; the declaration itself is guarded in editor/parts/bundledPackageData.test.ts.
+  //
+  // Seated flush, what holds the case back depends on the step rate, measured with the deck 0 to 5 mm proud of the
+  // rollers and 2 to 10 mm below them:
+  //   - below the rollers by 2 mm or more: the case rides through at every rate (3.9 m);
+  //   - proud by 2 mm or more: it catches on the deck's leading edge at every rate (0.5-0.7 m);
+  //   - exactly flush: at 60 Hz it catches on the leading edge (0.8 m), never reaching the deck; at 90 Hz it gets
+  //     onto the deck and is braked there (1.2 m); at 120 and 240 Hz it rides over with almost no drag (3.7-3.9 m).
+  // A real case on a stopped surface flush with the driven one would be dragged back while it crossed, so none of
+  // the flush results is the friction the stopped deck should give. A static coplanar seam (a running roller bed
+  // butted to a stopped one) behaves at every rate: the case crosses and friction stops it 0.1-0.2 m on. So the
+  // flush half below holds at the default 60 Hz, by the edge catch, and is a control for the recess, not a claim
+  // about flush seating.
+  it('a lowered transfer resting in a running roller bed lets cargo pass; seated flush it holds it back', () => {
     const DROP = 0.03 // snap.track.targetLocalY, as a positive depth
     /** how far the box travels along the bed in 4 s with a lowered, idle transfer seated at `chainY` */
     function travel(chainY: number): number {
@@ -216,7 +226,7 @@ describe('chain transfer pop-up physically lifts + diverts cargo', () => {
     const recessed = travel(0.75 - DROP)
     const flush = travel(0.75)
     expect(recessed).toBeGreaterThan(1.65) // clears the whole 1.65 m deck and keeps going (measured 3.89 m)
-    expect(flush).toBeLessThan(recessed - 2) // coplanar: braked at the deck edge (measured 0.80 m)
+    expect(flush).toBeLessThan(recessed - 2) // flush at 60 Hz: caught on the deck's leading edge (measured 0.79 m)
   })
 
   it('a raised transfer diverts the box 90° off the line, along −Z (the kinematic deck still conveys)', () => {
