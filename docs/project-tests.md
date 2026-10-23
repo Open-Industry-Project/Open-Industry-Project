@@ -285,7 +285,7 @@ finds the tags through what the package declares: its `'tag'` params with a `dir
 reads them (the param's default when the scene leaves it unset). Renaming a tag in the Inspector does not break the test. The flip side:
 a part that speaks tags through anything else (a plain string param, a fixed name) cannot be faulted, and
 the run refuses the fault rather than letting it touch nothing. A fault that silently did nothing would make
-every check after it pass for the wrong reason. The same holds for an unknown part id, comms switched off, or a tag param left blank.
+every check after it pass for the wrong reason. The same holds for an unknown part id, a tag param left blank, or a part whose declared comms switch is off.
 
 **Faults apply last on their side of the PLC.** A fault is the wire itself failing, so it outranks both what
 the device does and what a test `input` writes to the same tag.

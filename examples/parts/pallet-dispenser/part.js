@@ -162,7 +162,6 @@ definePart({
     id: 'oip.pallet-dispenser',
     name: 'Pallet Dispenser',
     category: 'Equipment',
-    commsParam: 'enableComms',
     // what it stores: pallets, one per magazine position, bottom first. Authored at those positions (the Inspector's
     // Fill), they are the stock a run starts with, and the stopped scene shows it
     holds: { part: 'oip.pallet', positions: POSITIONS, limitParam: 'capacity', params: { size: 'palletSize' } },
@@ -255,9 +254,8 @@ definePart({
     },
     palletColor: { type: 'color', default: '#ffffff', label: 'Pallet color', group: 'Pallet', desc: 'Tint over the pallet wood of the new pallets it is filled with (Pallets at start, Reload by itself). White leaves them untinted, like a hand-placed pallet. A pallet loaded into it keeps its own.' },
     mass: { type: 'number', default: 25, min: 1, max: 200, step: 1, label: 'Mass (kg)', group: 'Pallet', desc: 'Mass of the new pallets it is filled with. A pallet loaded into it keeps its own.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this part to a PLC program. Its tags appear once this is on.' },
     dispenseTag: { type: 'tag', dir: 'in', stType: 'BOOL', autoWhenDriven: true, default: '', label: 'Dispense tag (rising edge)', group: 'Comms', desc: 'Each rising edge dispenses ONE pallet; holding it true does not dispense more. While a program drives this tag it owns the machine: Use and Auto dispense stand aside.' },
-    enableTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Enable tag', group: 'Comms', desc: 'The dispenser moves only while this is true. Drop it and the carriage and forks stop where they are, holding the stack; raise it and the cycle carries on from there. A request while it is false is refused. Wire it to the line running, so a Stop or a trip holds the dispense and a Start finishes it. Leave it empty and the dispenser is always enabled.' },
+    enableTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '', label: 'Enable tag', group: 'Comms', desc: 'The dispenser moves only while this is true. Drop it and the carriage and forks stop where they are, holding the stack; raise it and the cycle carries on from there. A request while it is false is refused. Wire it to the line running, so a Stop or a trip holds the dispense and a Start finishes it. Until a program drives it, or with it empty, the dispenser is always enabled, so a merely-typed tag does not hold it.' },
     busyTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Busy tag', group: 'Comms', desc: 'True from a dispense request until the stack is lifted clear of the pallet it set down. Hold the conveyor under the magazine until it falls.' },
     bayTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Pallet in bay tag', group: 'Comms', desc: 'The bay photo-eye: true while a pallet stands under the magazine. A line that keeps one pallet waiting dispenses whenever this is false and it is not busy.' },
     countTag: { type: 'tag', dir: 'out', stType: 'DINT', default: '', label: 'Dispensed count tag', group: 'Comms', desc: 'Running total of pallets set down.' },
@@ -454,8 +452,8 @@ definePart({
       else if (stock > 0) { lift = HOLD; fork = 0; stackY = HOLD; fill(stock); phase = 'idle' }
       else { lift = 0; fork = STROKE; phase = 'idle' }
     }
-    const driven = p.enableComms && ctx.tagDriven(p.dispenseTag)
-    const enabled = !p.enableComms || !p.enableTag || ctx.readTag(p.enableTag) === true
+    const driven = ctx.tagDriven(p.dispenseTag)
+    const enabled = !ctx.tagDriven(p.enableTag) || ctx.readTag(p.enableTag) === true
     const bayClear = ctx.zone('bay') === 0
     const left = Math.max(0, cap - bottom)
 
@@ -572,11 +570,9 @@ definePart({
     blink = (blink + ctx.dt) % 1
     ctx.lamps.ready = !busy && nowLeft > 0
     ctx.lamps.low = nowLeft === 0 ? blink < 0.5 : nowLeft <= 2
-    if (p.enableComms) {
-      if (p.busyTag) ctx.writeTag(p.busyTag, busy)
-      if (p.bayTag) ctx.writeTag(p.bayTag, !bayClear)
-      if (p.countTag) ctx.writeNumber(p.countTag, dispensed)
-      if (p.levelTag) ctx.writeNumber(p.levelTag, nowLeft)
-    }
+    if (p.busyTag) ctx.writeTag(p.busyTag, busy)
+    if (p.bayTag) ctx.writeTag(p.bayTag, !bayClear)
+    if (p.countTag) ctx.writeNumber(p.countTag, dispensed)
+    if (p.levelTag) ctx.writeNumber(p.levelTag, nowLeft)
   },
 })

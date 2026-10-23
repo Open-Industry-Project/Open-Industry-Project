@@ -381,10 +381,10 @@ function refreshPilotPrompt(p: PilotState, ec: PilotDeps): boolean {
 
 /**
  * Is the part's Use in auto: a comms device whose command tag the attached program
- * drives (declares as an output)? Mirrors the interactive family's script gate (`enableComms &&
- * tagDriven(tag)`) from the host-visible side: only the package's `'tag'` params marked `autoWhenDriven`
+ * drives (declares as an output)? Mirrors the interactive family's script gate (`tagDriven(tag)`)
+ * from the host-visible side: only the package's `'tag'` params marked `autoWhenDriven`
  * count (the ones the script's auto gate actually reads - a driven indicator tag like a button's `lampTag`
- * never owns the press), the `enableComms` boolean gates them, and `ec.plcDrivenKeys` is the same output set
+ * never owns the press), a declared comms switch (`commsParam`) gates them, and `ec.plcDrivenKeys` is the same output set
  * the worker's ctx.tagDriven reads. A script that doesn't declare the convention just keeps plain hand
  * behavior. Serves both surfaces of the same rule: the pilot crosshair prompt (per-frame - hence the memo
  * on frame-stable keys: part id, attach rev, scene identity; resolving the scoped tag walks the parts

@@ -140,9 +140,10 @@ describe('withParamArgs', () => {
     expect([d.params.fpmUnits, d.params.speedFpm]).toEqual([true, 200])
   })
 
-  it('switches comms on when a tag is named', () => {
-    expect(fresh('oip.diffuse-sensor', 'e', { tag: 'Eye' }).params.enableComms).toBe(true)
-    expect(fresh('oip.diffuse-sensor', 'e', { tag: 'Eye', enableComms: false }).params.enableComms).toBe(false)
+  it('names a tag without adding a comms switch the part does not declare', () => {
+    const eye = fresh('oip.diffuse-sensor', 'e', { tag: 'Eye' })
+    expect(eye.params.tag).toBe('Eye')
+    expect('enableComms' in eye.params).toBe(false)
   })
 })
 
@@ -167,11 +168,10 @@ describe('scaffoldLine', () => {
     // held with that belt, so a stopped belt can't stack boxes under it (check-layout's feed warning)
     expect(src.params.conveyorId).toBe('belt')
     expect(src.params.keepSpacing).toBe(true)
-    // wiring: meaningful names, comms on, and a program that drives rather than passes through
+    // wiring: meaningful names, and a program that drives rather than passes through
     expect(belt.params.runTag).toBe('Belt1Run')
     expect(eye.params.tag).toBe('DischargeEye')
     expect(src.params.runTag).toBe('SpawnerRun')
-    expect(belt.params.enableComms).toBe(true)
     expect(out.program).toContain('Belt1Run := Running AND NOT DischargeEye;')
     expect(out.program).toContain('SpawnerRun := Running AND NOT DischargeEye;')
     expect(out.program).not.toMatch(/Cmd\b/)

@@ -43,7 +43,7 @@ function world(mix: Record<string, string | boolean>): SimWorld {
       { id: 'deck', type: 'part', packageId: 'acme.deck', position: [0, DECK_Y, 0], rotationY: 0, params: {} },
       { id: 'feed', type: 'part', packageId: 'oip.box-spawner', position: [-5, DECK_Y + 0.7, 0], rotationY: 0, params: { boxesPerMinute: 20, ...mix } },
       // its local Z (travel) turned onto the deck's +x
-      { id: 'scan', type: 'part', packageId: 'oip.barcode-scanner', position: [1, 0, 0], rotationY: Math.PI / 2, params: { width: 1.6, surfaceHeight: DECK_Y, enableComms: true, readTag: 'Read', countTag: 'Count', codeTag: 'Code' } },
+      { id: 'scan', type: 'part', packageId: 'oip.barcode-scanner', position: [1, 0, 0], rotationY: Math.PI / 2, params: { width: 1.6, surfaceHeight: DECK_Y, readTag: 'Read', countTag: 'Count', codeTag: 'Code' } },
     ],
   })
   if (!res.ok) throw new Error(`scene invalid: ${res.errors.join('; ')}`)

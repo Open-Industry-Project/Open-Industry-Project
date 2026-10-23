@@ -179,7 +179,7 @@ try {
   await page.evaluate(() => {
     const st = window.__oip.store
     const scene = st.getState().scene
-    st.commit('Wire a belt to Belt1', { ...scene, parts: [...scene.parts, { id: 'xrefbelt', type: 'part', name: 'Belt_X', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, enableComms: true, runTag: 'Belt1' } }] })
+    st.commit('Wire a belt to Belt1', { ...scene, parts: [...scene.parts, { id: 'xrefbelt', type: 'part', name: 'Belt_X', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, runTag: 'Belt1' } }] })
   })
   await page.waitForTimeout(400)
   // the second rung's contact: |Belt1|

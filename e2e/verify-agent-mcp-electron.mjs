@@ -156,12 +156,12 @@ try {
     package: 'oip.belt-conveyor',
     position: [0, 0.8, 0],
     name: 'Infeed',
-    params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, speed: 0.5, enableComms: true, runTag: 'Run' },
+    params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, speed: 0.5, runTag: 'Run' },
   })
   expect(belt.ok, `add_part places the belt (${belt.text})`)
   const box = await mcp.call('add_part', { package: 'oip.box', position: [0.6, 1.0, 0], params: { length: 0.4, width: 0.3, height: 0.3 } })
   expect(box.ok, `add_part places the box (${box.text})`)
-  const eye = await mcp.call('add_part', { package: 'oip.diffuse-sensor', position: [EYE_X, 1.5, 2], params: { enableComms: true, tag: 'Eye' } })
+  const eye = await mcp.call('add_part', { package: 'oip.diffuse-sensor', position: [EYE_X, 1.5, 2], params: { tag: 'Eye' } })
   expect(eye.ok, `add_part places the eye, anywhere (${eye.text})`)
   const seated = await mcp.call('snap_part', { id: eye.json?.id, onto: belt.json?.id, near: [EYE_X, 0.8, -0.5] })
   expect(seated.ok && Math.abs(seated.json.position[2] + 0.457) < 0.01 && Math.abs(seated.json.fits?.maxRange - 0.84) < 0.01, `snap_part seats it on the belt guard and fits its range across the belt (${seated.text.replace(/\s+/g, ' ').slice(0, 200)})`)

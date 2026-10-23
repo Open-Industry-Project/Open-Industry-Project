@@ -5,8 +5,8 @@
 // point, it blends through via points with no dependence on scan timing.
 //
 // A robot with NO jobs falls back to single moves: the command is a waypoint row, Execute moves there, the vacuum
-// tag drives the gripper. With comms off the arm holds its authored idle pose and does nothing — like a real robot,
-// it moves only when commanded.
+// tag drives the gripper. With no tags named the arm holds its authored idle pose and does nothing. Like a real
+// robot, it moves only when commanded.
 //
 // The kinematics are a rig: a tree of transform-only 'frame' links (the joint pivots) carrying per-node 'mesh'
 // links (the GLB linkages, geometry-only + placed by the rig), all wearing one shared ORM material built from the
@@ -225,7 +225,7 @@ let steps = []
 let pc = 0
 let started = false
 let waitLeft = 0
-// A comms move or job reports busy for at least this long, so even a degenerate one shows the PLC a real busy
+// A commanded move or job reports busy for at least this long, so even a degenerate one shows the PLC a real busy
 // window and the Execute/Done handshake can't miss it at any scan rate.
 const MIN_MOVE_SEC = 0.1
 let busySec = 0 // seconds since the active command was accepted
@@ -265,7 +265,6 @@ definePart({
     id: 'oip.six-axis-robot',
     name: 'Six-Axis Robot',
     category: 'Equipment',
-    commsParam: 'enableComms',
     // The arm wears its textures; the tool is plain finishes, colours LINEAR: orange paint (sRGB #d0601a) on the
     // plate and caps, black anodised aluminium rails, a steel adapter, blue rubber cups (sRGB #2b5ba8), and the
     // vacuum LED: a black plastic bezel round a lens that is dark green until it lights.
@@ -323,11 +322,10 @@ definePart({
     cupMarginX: { type: 'number', default: 0.05, min: 0, max: 0.5, step: 0.005, label: 'Cup margin X (m)', group: 'EOAT', desc: 'Inset from each end of the plate before the first cup, so the grid does not run off the edge.' },
     cupMarginZ: { type: 'number', default: 0.05, min: 0, max: 0.5, step: 0.005, label: 'Cup margin Z (m)', group: 'EOAT', desc: 'Inset from each side of the plate before the first cup.' },
     cupsEnabled: { type: 'boolean', default: true, label: 'Suction cups', group: 'EOAT', desc: 'Draw the cup grid under the plate. Appearance only - the grip itself comes from the vacuum tag, not from the cups being visible.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this robot to a PLC program. Its tags appear once this is on. Without a program the arm rests at its idle pose.' },
     commandTag: { type: 'tag', dir: 'in', stType: 'INT', default: '', label: 'Command tag (job number)', group: 'Comms', desc: 'Which job to run: 1 is the first job, 2 the second and so on. Set it BEFORE pulsing execute. A robot with no jobs takes a waypoint row here instead (0 is home). A number with no job or row behind it is ignored, and the arm stays put rather than guessing.' },
     executeTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Execute tag (rising edge runs it)', group: 'Comms', desc: 'Pulse this false-to-true to start the job. It is edge-triggered, so holding it true does NOT repeat - drop it and raise it again for each job.' },
     doneTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Done tag (true while idle)', group: 'Comms', desc: 'Handshake back to the program: true whenever the robot is ready for the next command. A job that ends on a Blend move reports done as it rounds that corner, so the next job can carry straight on. Wait for it before pulsing execute again, or the edge lands mid-job and is dropped.' },
-    enableTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Enable tag', group: 'Comms', desc: 'The robot moves only while this is true. Drop it and the arm brakes to a stop where it is and the job holds, timers and all; raise it and the job carries on. Wire it to the cell being safe to work in. Leave it empty and the robot is always enabled.' },
+    enableTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '', label: 'Enable tag', group: 'Comms', desc: 'The robot moves only while this is true. Drop it and the arm brakes to a stop where it is and the job holds, timers and all; raise it and the job carries on. Wire it to the cell being safe to work in. Until a program drives it, or with it empty, the robot is always enabled, so a merely-typed tag does not hold it.' },
     gripperTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Vacuum tag', group: 'Comms', desc: 'For a robot with no jobs: grip or release the load, read continuously, so hold it true for the whole carry. A robot with jobs switches its own vacuum with Vacuum steps and ignores this.' },
     in1Tag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Input 1 tag', group: 'Comms/Robot signals', desc: 'A signal a job can wait on (a Wait for step). Robots have banks of these; wire the ones your jobs use.' },
     in2Tag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Input 2 tag', group: 'Comms/Robot signals', desc: 'A signal a job can wait on (a Wait for step).' },
@@ -452,8 +450,8 @@ definePart({
     return out
   },
   init(ctx) {
-    // Seed the arm at its authored idle pose (the 'pose' param) so a freshly placed robot — and a comms robot
-    // waiting for its first Execute — rests where the author trained it. Falls back to home if it is ill-shaped.
+    // Seed the arm at its authored idle pose (the 'pose' param) so a freshly placed robot, and one
+    // waiting for its first Execute, rests where the author trained it. Falls back to home if it is ill-shaped.
     const p = ctx.params.pose
     const idle = Array.isArray(p) && p.length > 0 && p[0].length === 6 ? p[0] : DEFAULT_POSES[0]
     cur = idle.slice()
@@ -463,32 +461,29 @@ definePart({
     const P = ctx.params
     const POSES = P.waypoints.length ? P.waypoints : DEFAULT_POSES
     const jobs = jobCount(P.jobs, P.jobNames)
-    const comms = P.enableComms
-    const enabled = !comms || !P.enableTag || ctx.readTag(P.enableTag)
+    const enabled = !ctx.tagDriven(P.enableTag) || ctx.readTag(P.enableTag)
     const dt = ctx.dt
 
-    if (comms) {
-      // ctx.rising diffs the begin-of-tick snapshot, so an edge held over the async tag bus can't be lost.
-      if (ctx.rising(P.executeTag) && !moving) {
-        const cmd = Math.round(ctx.readNumber(P.commandTag))
-        // a command with nothing behind it ignores the edge: stay put, done stays true
-        if (jobs > 0 && cmd >= 1 && cmd <= jobs) {
-          job = cmd - 1
-          steps = []
-          P.jobs.forEach((values, row) => { if (values[0] === job) steps.push({ row, values }) })
-          pc = 0
-          started = false
-          moving = true
-          busySec = 0
-        } else if (jobs === 0 && cmd >= 0 && cmd < POSES.length) {
-          target = cmd
-          startMove(POSES[target])
-          moving = true
-          busySec = 0
-        }
+    // ctx.rising diffs the begin-of-tick snapshot, so an edge held over the async tag bus can't be lost.
+    if (ctx.rising(P.executeTag) && !moving) {
+      const cmd = Math.round(ctx.readNumber(P.commandTag))
+      // a command with nothing behind it ignores the edge: stay put, done stays true
+      if (jobs > 0 && cmd >= 1 && cmd <= jobs) {
+        job = cmd - 1
+        steps = []
+        P.jobs.forEach((values, row) => { if (values[0] === job) steps.push({ row, values }) })
+        pc = 0
+        started = false
+        moving = true
+        busySec = 0
+      } else if (jobs === 0 && cmd >= 0 && cmd < POSES.length) {
+        target = cmd
+        startMove(POSES[target])
+        moving = true
+        busySec = 0
       }
-      if (jobs === 0) gripClosed = ctx.readTag(P.gripperTag)
     }
+    if (jobs === 0) gripClosed = ctx.readTag(P.gripperTag)
     if (job >= 0 && enabled) runJob(ctx, POSES)
 
     // Coordinated trapezoidal motion, and corners blended by OVERLAP. Every move brakes to a stop at its own
@@ -515,14 +510,12 @@ definePart({
     if (moving) busySec += dt
     if (enabled && job >= 0) waitLeft -= dt
 
-    if (comms) {
-      // Done once the job has run its last step (a job ending on a pass-through move hands off as it rounds it),
-      // or the single move is over. The MIN_MOVE_SEC floor keeps one that would finish inside a PLC scan visible.
-      const over = job >= 0 ? pc >= steps.length : moveOver(P.blendWaypoints.some((r) => r[0] === target), P.blendDeg)
-      if (moving && over && busySec >= MIN_MOVE_SEC) {
-        moving = false
-        job = -1
-      }
+    // Done once the job has run its last step (a job ending on a pass-through move hands off as it rounds it),
+    // or the single move is over. The MIN_MOVE_SEC floor keeps one that would finish inside a PLC scan visible.
+    const over = job >= 0 ? pc >= steps.length : moveOver(P.blendWaypoints.some((r) => r[0] === target), P.blendDeg)
+    if (moving && over && busySec >= MIN_MOVE_SEC) {
+      moving = false
+      job = -1
     }
 
     ctx.joints.j1 = cur[0] * D2R
@@ -533,12 +526,10 @@ definePart({
     ctx.joints.j6 = cur[5] * D2R
     ctx.grips.gripper = gripClosed
     ctx.lamps.vacuumLamp = gripClosed // the cups compress off this same signal
-    if (comms) {
-      if (P.doneTag) ctx.writeTag(P.doneTag, !moving)
-      for (let i = 0; i < IO_COUNT; i++) {
-        const tag = P['out' + (i + 1) + 'Tag']
-        if (tag) ctx.writeTag(tag, outputs[i])
-      }
+    if (P.doneTag) ctx.writeTag(P.doneTag, !moving)
+    for (let i = 0; i < IO_COUNT; i++) {
+      const tag = P['out' + (i + 1) + 'Tag']
+      if (tag) ctx.writeTag(tag, outputs[i])
     }
     // the job row being run, for the Inspector to highlight (-1 = none)
     ctx.report('jobs', job >= 0 && pc < steps.length ? steps[pc].row : -1)

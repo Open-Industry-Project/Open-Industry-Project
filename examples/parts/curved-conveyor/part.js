@@ -22,7 +22,6 @@ definePart({
     name: 'Curved Belt Conveyor',
     category: 'Equipment',
     conveyor: { bed: 'arc', surface: 'belt', speedParam: 'speed', reverseParam: 'reverse' },
-    commsParam: 'enableComms',
     geometry: { kind: 'drawn', bounds: { length: OUTER, width: OUTER, top: 0.17 }, conveys: true },
   },
   params: {
@@ -59,10 +58,9 @@ definePart({
     guardHoles: { type: 'numberList', arity: 3, default: [], hidden: true, label: 'Guard holes [θ rad, y m, side ±1]', group: 'Guards', desc: 'Where sensor beams cross the side guards. Worked out by the host from the scene; not for editing.' },
     // rest:'surfaceBelow' → the host auto-fills this from the surface beneath at drop/snap.
     standHeight: { type: 'number', default: 2.0, min: 0.1, max: 3, step: 0.01, rest: 'surfaceBelow', label: 'Stand height (m)', desc: 'Height of the deck above whatever is beneath it, which sets the leg length. The host fills this in when you drop or snap the conveyor, so the legs reach the floor - or a platform crossing underneath - without you measuring. Pin it by hand when you want a deliberate height.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this conveyor to a PLC program. Its tags appear once this is on.' },
     speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag (m/s)', group: 'Comms', desc: 'The program commands surface speed here, replacing the Speed field above, which then shows the live value read-only. Careful: once BOUND this takes over even if no program drives it, and an undriven tag reads 0 - so a half-wired conveyor sits still rather than running at its authored speed.' },
     ...speedFpmTagParam('Comms'),
-    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Run tag (belt runs while true)', group: 'Comms', desc: 'Start/stop gate: false forces the speed to 0 whatever the setpoint says. Unlike the speed tag, this only takes effect once a program actually DRIVES it, so binding it alone will not stop the bed.' },
+    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '', label: 'Run tag (belt runs while true)', group: 'Comms', desc: 'Start/stop gate: false forces the speed to 0 whatever the setpoint says. Unlike the speed tag, this only takes effect once a program actually DRIVES it, so binding it alone will not stop the bed.' },
     runningTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Running tag (true while moving)', group: 'Comms', desc: 'Feedback the conveyor publishes for the program to read: true whenever it is actually moving. This is the EFFECTIVE speed, gates included, so a run tag holding it at zero reads false here.' },
     ...driveFeedbackParams(2, 'Comms'),
   },
@@ -214,14 +212,13 @@ definePart({
     return parts
   },
   step(ctx) {
-    // Comms precedence: 1. speedTag (REAL in) replaces the speed param; 2. runTag (BOOL) gates it to 0, but
+    // Tag precedence: 1. speedTag (REAL in) replaces the speed param; 2. runTag (BOOL) gates it to 0, but
     // ONLY while a controller drives the tag (ctx.tagDriven = output ownership) — undriven, the authored
     // speed rules; 3. runningTag (BOOL out) is written every step.
-    const comms = ctx.params.enableComms
     // the unit the conveyor is set up in: everything below this line is m/s
-    const cmd = commandedSpeed(ctx, comms)
+    const cmd = commandedSpeed(ctx)
     const fpm = cmd.fpm, commanded = cmd.commanded
-    const running = comms && ctx.tagDriven(ctx.params.runTag) ? ctx.readTag(ctx.params.runTag) : true
+    const running = ctx.tagDriven(ctx.params.runTag) ? ctx.readTag(ctx.params.runTag) : true
     // 'reverse' is a MOUNTING fact the snap owns, not a value the program owns, so it flips whichever speed is
     // in force — authored or tag-commanded.
     const ramped = rampedSpeed(ctx, drive, cmd, running ? commanded : 0)
@@ -229,7 +226,7 @@ definePart({
     // Inspector readout for speed: the effective m/s INCLUDING the reverse flip - the arc omega below is
     // derived from it, so a curve reports the linear rate its speed param is authored in, not rad/s.
     reportSpeed(ctx, fpm, speed)
-    if (comms && ctx.params.runningTag) ctx.writeTag(ctx.params.runningTag, speed !== 0)
+    if (ctx.params.runningTag) ctx.writeTag(ctx.params.runningTag, speed !== 0)
     // drive feedback: the velocity as a share of the speed at 30, an encoder pulse and the odometer
     publishDrive(ctx, drive, cmd, speed)
     // the arc centre is the part origin — the bed is authored around it.

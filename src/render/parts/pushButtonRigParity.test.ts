@@ -99,7 +99,7 @@ describe('Push Button custom-part rig - parity with the built-in', () => {
       const out: { pose: Pose; tag: boolean | undefined } = { pose: {}, tag: undefined }
       const ctx = {
         dt: 1 / 60,
-        params: { emergencyStop: true, momentary: true, normallyClosed: false, enableComms: true, tag: 'EStop', lampSource: 'off', lampTag: '' },
+        params: { emergencyStop: true, momentary: true, normallyClosed: false, tag: 'EStop', lampSource: 'off', lampTag: '' },
         lamps: {} as Record<string, boolean>,
         used: () => use,
         readTag: () => false,
@@ -173,7 +173,7 @@ describe('Push Button custom-part rig - parity with the built-in', () => {
       let tag: boolean | undefined
       const ctx = {
         dt: 1 / 60,
-        params: { emergencyStop: true, startStruck: true, momentary: true, normallyClosed: false, enableComms: true, tag: 'EStop', lampSource: 'off', lampTag: '' },
+        params: { emergencyStop: true, startStruck: true, momentary: true, normallyClosed: false, tag: 'EStop', lampSource: 'off', lampTag: '' },
         lamps: {} as Record<string, boolean>,
         used: () => false,
         readTag: () => false,

@@ -8,7 +8,6 @@
     "speedParam": "speed",
     "reverseParam": "reverse"
   },
-  "commsParam": "enableComms",
   "geometry": {
     "kind": "drawn",
     "bounds": {

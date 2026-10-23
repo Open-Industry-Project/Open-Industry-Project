@@ -27,7 +27,7 @@ import { SimWorld } from './world'
 const Jolt = await initJolt()
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-/** a committed example part: its rig.json is the manifest (holds, commsParam and all) */
+/** a committed example part: its rig.json is the manifest (holds and all) */
 function loadExample(dir: string): { manifest: PackageManifest; behavior: string } {
   const manifest = JSON.parse(readFileSync(join(repo, 'examples', 'parts', dir, 'rig.json'), 'utf8')) as PackageManifest
   const behavior = readFileSync(join(repo, 'examples', 'parts', dir, 'behavior.ts'), 'utf8')
@@ -233,9 +233,9 @@ describe('Pallet Dispenser (SDK part, headless)', () => {
   })
 
   it('holds the carriage, forks and stack where they are while its enable is down, then finishes the dispense', () => {
-    world = dispenserWorld({ fill: true, params: { enableComms: true, dispenseTag: 'Disp', enableTag: 'En', busyTag: 'Busy' } })
+    world = dispenserWorld({ fill: true, params: { dispenseTag: 'Disp', enableTag: 'En', busyTag: 'Busy' } })
     const w = world
-    w.setBehaviorDrivenTags(['Disp'])
+    w.setBehaviorDrivenTags(['Disp', 'En'])
     const busy = (): unknown => w.frame().tags?.['disp']?.['Busy']
     const joints = (): Record<string, number> => ({ ...(w.frame().joints?.['disp'] ?? {}) })
     w.setBehaviorInputTags({ Disp: false, En: true })

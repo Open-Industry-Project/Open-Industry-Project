@@ -81,7 +81,7 @@ async function main() {
       store.loadScene({
         version: store.getState().scene.version,
         parts: [
-          { id: 'conv1', type: 'part', packageId: 'oip.roller-conveyor', position: [0, 0.5, 0], rotationY: 0, params: { ...defaults(roller), enableComms: true, runTag: 'Conveyor' } },
+          { id: 'conv1', type: 'part', packageId: 'oip.roller-conveyor', position: [0, 0.5, 0], rotationY: 0, params: { ...defaults(roller), runTag: 'Conveyor' } },
           { id: 'sens1', type: 'part', packageId: 'oip.diffuse-sensor', position: [1.8, 0.7, 0.6], rotationY: 0, params: defaults(sensor) },
         ],
         packages: [roller, sensor],

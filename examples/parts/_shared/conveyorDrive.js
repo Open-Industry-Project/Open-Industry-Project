@@ -58,14 +58,14 @@ export function conveyorDrive() {
   }
 }
 
-/** In step(): the unit the conveyor is set up in and the commanded speed, `{ comms, fpm, setpointTag, commanded }`.
+/** In step(): the unit the conveyor is set up in and the commanded speed, `{ fpm, setpointTag, commanded }`.
  *  `commanded` is always m/s, so everything after this call is m/s. */
-export function commandedSpeed(ctx, comms) {
+export function commandedSpeed(ctx) {
   const fpm = ctx.params.fpmUnits === true
   const setpointTag = fpm ? ctx.params.speedFpmTag : ctx.params.speedTag
   const unit = fpm ? FPM_MS : 1
-  const commanded = (comms && setpointTag ? ctx.readNumber(setpointTag) : fpm ? ctx.params.speedFpm : ctx.params.speed) * unit
-  return { comms, fpm, setpointTag, commanded }
+  const commanded = (setpointTag ? ctx.readNumber(setpointTag) : fpm ? ctx.params.speedFpm : ctx.params.speed) * unit
+  return { fpm, setpointTag, commanded }
 }
 
 /** In step(), after commandedSpeed(): the speed the surface actually runs at (m/s), `target` (the command, gates
@@ -80,7 +80,7 @@ export function rampedSpeed(ctx, drive, cmd, target) {
   if (!drive.rampStarted) {
     drive.rampStarted = true
     // no program commands this conveyor: its authored speed is a belt that is running, not one being started
-    if (!(cmd.comms && (cmd.setpointTag || (ctx.params.runTag && ctx.tagDriven(ctx.params.runTag))))) drive.driven = want
+    if (!(cmd.setpointTag || (ctx.params.runTag && ctx.tagDriven(ctx.params.runTag)))) drive.driven = want
   }
   if (want * drive.driven < 0) { if (ctx.params.decelTime > 0) want = 0; else drive.driven = 0 } // reversing: stop first
   const rampTime = Math.abs(want) > Math.abs(drive.driven) ? ctx.params.accelTime : ctx.params.decelTime
@@ -90,16 +90,15 @@ export function rampedSpeed(ctx, drive, cmd, target) {
 
 /** In step(): the velocity feedback, the pulse and the encoder, from the effective speed `v` (m/s). */
 export function publishDrive(ctx, drive, cmd, v) {
-  const comms = cmd.comms
   // the velocity as a share of the speed at 30
   const at30 = cmd.fpm ? ctx.params.speedAt30Fpm * FPM_MS : ctx.params.speedAt30
-  if (comms && ctx.params.velocityTag) ctx.writeNumber(ctx.params.velocityTag, at30 > 0 ? (v / at30) * 30 : 0)
+  if (ctx.params.velocityTag) ctx.writeNumber(ctx.params.velocityTag, at30 > 0 ? (v / at30) * 30 : 0)
   // the encoder pulse
   const pitch = ctx.params.inchesPerPulse > 0 ? ctx.params.inchesPerPulse : 1
   drive.pulseTravel += (Math.abs(v) * ctx.dt) / 0.0254
   const pulse = drive.pulseTravel >= pitch - 1e-9 // (a hair of tolerance: twelve twelfths of an inch do not sum to exactly one)
   if (pulse) drive.pulseTravel = Math.max(0, drive.pulseTravel - pitch * Math.max(1, Math.floor(drive.pulseTravel / pitch + 1e-9)))
-  if (comms && ctx.params.pulseTag) ctx.writeTag(ctx.params.pulseTag, pulse)
+  if (ctx.params.pulseTag) ctx.writeTag(ctx.params.pulseTag, pulse)
   drive.odo += v * ctx.dt
-  if (comms && ctx.params.encoderTag) ctx.writeNumber(ctx.params.encoderTag, drive.odo)
+  if (ctx.params.encoderTag) ctx.writeNumber(ctx.params.encoderTag, drive.odo)
 }

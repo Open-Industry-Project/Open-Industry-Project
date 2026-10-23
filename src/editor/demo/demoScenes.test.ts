@@ -1720,7 +1720,7 @@ describe('PLC demo scene', () => {
     for (const pkg of scene.packages ?? []) registerPackage(pkg)
     const report = checkWiring(scene.parts, demoLink())
     expect(report.problems).toEqual([])
-    // ...and prove the check actually looked: a registry miss or a comms-disabled scene would also
+    // ...and prove the check actually looked: a registry miss or a scene with no tags wired would also
     // report zero problems, which is the shape a vacuous gate takes.
     expect(report.unresolvedPackages).toEqual([])
     expect(report.tags.length).toBeGreaterThanOrEqual(30)
@@ -1736,7 +1736,7 @@ describe('PLC demo scene', () => {
   it('wires each program tag to the right SDK part (over the device-IO bridge)', () => {
     const parts = createPlcDemoScene().parts
     const carriers = (tag: string): PartInstance[] =>
-      parts.filter((p) => p.type === 'part' && paramsOf(p).enableComms === true &&
+      parts.filter((p) => p.type === 'part' &&
         Object.values(paramsOf(p)).some((v) => v === tag))
     const carrierPkgs = (tag: string): string[] => [...new Set(carriers(tag).map((p) => pkgId(p)!))].sort()
     expect(carrierPkgs('Infeed')).toEqual(['oip.roller-conveyor'])
@@ -1896,7 +1896,6 @@ describe('PLC demo scene', () => {
     for (const tag of ESTOPS) {
       expect(byTag(tag), tag).toHaveLength(1)
       expect(paramsOf(byTag(tag)[0]!).emergencyStop, tag).toBe(true)
-      expect(paramsOf(byTag(tag)[0]!).enableComms, tag).toBe(true)
     }
     const at = (tag: string) => byTag(tag)[0]!
     const parentName = (q: PartInstance) => parts.find((g) => g.id === q.parent)?.name

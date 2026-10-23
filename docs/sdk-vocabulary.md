@@ -119,7 +119,8 @@ The host reads no param by its name. A part declares what it means:
 - **`conveyor: { bed?, surface, speedParam?, reverseParam? }`** in the manifest says the part is a conveyor to its
   neighbours: its bed kind (`'straight'`, `'spur'`, `'path'`, `'arc'`, `'turntable'`), what cargo rides on, and which
   params are the speed and the flow reversal. The viewport's drag handles only decorate it; they do not decide it.
-- **`commsParam`** names the boolean param that connects the part's tags to the PLC. The wiring check reads it.
+- **`commsParam`** names an optional boolean param that connects the part's tags to the PLC. The wiring check reads
+  it. A part without one is connected by each tag field that names a tag; no built-in declares one.
 
 These are on the manifest, not the param spec, because params are baked from behavior code and the manifest is what
 a stored part keeps.

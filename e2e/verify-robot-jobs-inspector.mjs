@@ -84,7 +84,6 @@ try {
       waypointNames: 'Home\nAbove pick\nPick\nAbove place\nPlace',
       jobs: JOBS,
       jobNames: 'Pick part\nPlace part',
-      enableComms: true,
       commandTag: 'RobotCmd',
       executeTag: 'RobotExec',
       doneTag: 'RobotDone',

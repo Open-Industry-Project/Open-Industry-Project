@@ -80,6 +80,9 @@ export interface DeviceTags {
   /** the package's display name (`Belt Conveyor`), what a tree groups by */
   kind: string
   enabled: boolean
+  /** the package declares a comms switch (`commsParam`), so `enabled` can be off; a part without one is connected
+   *  whenever a field names a tag */
+  switchable: boolean
   fields: DeviceTagField[]
 }
 
@@ -104,7 +107,7 @@ export function deviceTags(parts: readonly TaggedPart[]): DeviceTags[] {
       })
     }
     if (fields.length === 0) continue
-    out.push({ id: p.id, name: p.name ?? p.id, kind: pkg.name, enabled: isCommsEnabled(p), fields })
+    out.push({ id: p.id, name: p.name ?? p.id, kind: pkg.name, enabled: isCommsEnabled(p), switchable: pkg.commsParam !== undefined, fields })
   }
   return out
 }
@@ -189,7 +192,7 @@ export function unhandledProgramTags(
     // A display is a consumer too. An annotation reading a tag onto the layout handles it as surely as a
     // device driving one - so without this, every scene carrying a readout note reports that note's tag as
     // `unbound`, a false warning on the one feature whose entire job is to make a tag visible. It has no
-    // `enableComms` (there is no device to switch on) and its tag is a plain param, so it needs its own arm
+    // comms switch (there is no device to switch on) and its tag is a plain param, so it needs its own arm
     // rather than falling through the comms-enabled walk below.
     if (p.type === 'annotation') {
       const t = typeof paramsOf(p)['tag'] === 'string' ? (paramsOf(p)['tag'] as string).trim() : ''

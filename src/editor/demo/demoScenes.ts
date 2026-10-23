@@ -1947,7 +1947,7 @@ export function createPlcDemoScene(): SceneJSON {
   // The +z guard is dropped so the turner's blade can reach in across the lane.
   const infeed = placeSdk('oip.roller-conveyor', [-0.1, C.surface, C.bedZ], 0, 'Infeed', {
     length: 4.2, width: C.bedWidth, standHeight: C.surface, leftGuard: true, rightGuard: true,
-    enableComms: true, speedTag: 'Infeed',
+    speedTag: 'Infeed',
   })
   // The cases come off the trailer (see "Trailer unloading" below), down a flex conveyor that runs straight onto the
   // infeed tail, on the forming lane. The layer is assembled on that lane, so this fixes where every row
@@ -1993,7 +1993,7 @@ export function createPlcDemoScene(): SceneJSON {
   const flexLen = infeedTailX - 0.07 - flexOrigin[0]
   const flexPoints: [number, number][] = [[flexLen / 3, 0], [(2 * flexLen) / 3, 0], [flexLen, 0]]
   const flex = placeSdk('oip.flex-conveyor', [flexOrigin[0], C.surface, flexOrigin[1]], 0, 'Trailer flex', {
-    points: flexPoints, width: UNLOAD_W, standHeight: C.surface, speed: 1, enableComms: true, runTag: 'FlexRun',
+    points: flexPoints, width: UNLOAD_W, standHeight: C.surface, speed: 1, runTag: 'FlexRun',
     accumulate: true, releaseTag: 'SpawnRun', meterGap: 2, fullTag: 'FlexFull',
   })
   const flexFit = flexStations(flexPoints, flexPathOf(flex)?.sections ?? 1)
@@ -2002,7 +2002,7 @@ export function createPlcDemoScene(): SceneJSON {
   // lengthwise to the flow, a case length and FLEX_LOAD_GAP behind the first zone's eye (whose covering is FlexFull).
   const FEED_S = FLEX_EYE_AT * flexFit.pitch - CASE.length / 2 - FLEX_LOAD_GAP
   const boxSource = placeSdk('oip.box-spawner', [flexOrigin[0] + FEED_S, C.surface + 0.45, flexOrigin[1]], 0, 'Case source', {
-    boxesPerMinute: 30, boxColor: '#ffffff', enableComms: true, runTag: 'LoadFlex',
+    boxesPerMinute: 30, boxColor: '#ffffff', runTag: 'LoadFlex',
     length: CASE.length, width: CASE.width, height: CASE.height,
   })
   // The flex starts with a queue on it, the way it stands when the line has been waiting: one case to a zone from the
@@ -2074,7 +2074,7 @@ export function createPlcDemoScene(): SceneJSON {
   // puts the reflector there.
   const RELEASE_EYE_Z = C.bedZ + C.bedWidth / 2 + EYE_LENS_Z + EYE_MOUNT_OUTWARD
   const sortEye = placeSdk('oip.diffuse-sensor', [-1.5, C.surface - EYE_MOUNT_DROP, RELEASE_EYE_Z], Math.PI, 'Release eye', {
-    maxRange: C.bedWidth + 2 * EYE_MOUNT_OUTWARD, mode: 'retro', tag: 'BoxAtEye', enableComms: true,
+    maxRange: C.bedWidth + 2 * EYE_MOUNT_OUTWARD, mode: 'retro', tag: 'BoxAtEye',
   })
   // Turning plow: the pop-up diverter, mounted on the +z guard line (the conveyor-snap transform:
   // y = surface - 0.2, z = half-width + DIVERTER_PUSH_HALF_Z + a 0.05 clearance). It is not a pusher here and it
@@ -2100,7 +2100,7 @@ export function createPlcDemoScene(): SceneJSON {
   const bumpTurner = placeSdk('oip.diverter', [PLOW_X, C.surface - 0.2, PLOW_Z], 0, 'Turning plow', {
     // The stroke is fast because it is a changeover: it has to be standing in the lane before the
     // first case of a turned row reaches it, and the row behind it is already moving when the phase flips.
-    tag: 'Turn', divertTime: 0.12, divertDistance: PLOW_STROKE, enableComms: true,
+    tag: 'Turn', divertTime: 0.12, divertDistance: PLOW_STROKE,
     // it stands on its own legs, to the floor: what a drop or a snap would resolve (rest: 'surfaceBelow')
     standHeight: C.surface - 0.2 - FLOOR_SURFACE_Y,
   })
@@ -2150,7 +2150,7 @@ export function createPlcDemoScene(): SceneJSON {
     // the same width and centreline as the infeed - see BED_WIDTH. Two conveyors because they are driven
     // separately, one bed because a step in the far rail is a lip where cargo is being turned.
     length: ROW_FORMER_LEN, width: C.bedWidth, standHeight: C.surface, leftGuard: true, rightGuard: true,
-    enableComms: true, speedTag: 'RowForm',
+    speedTag: 'RowForm',
   })
   /** the bed's discharge end - the downstream steel the layer eye's post stands off */
   const ROW_FORMER_END_X = ROW_FORMER_X + ROW_FORMER_LEN / 2
@@ -2195,7 +2195,7 @@ export function createPlcDemoScene(): SceneJSON {
     // survives; halving the time quadruples the hop and the row comes down with its packing gone. The pop-up is ~0.15 s
     // of a ~2 s push anyway. A quicker lift needs easing (accelerate, then decelerate), not a shorter linear one.
     raiseTime: 0.15,
-    enableComms: true, popupTag: 'Shift', speedTag: 'ShiftSpeed',
+    popupTag: 'Shift', speedTag: 'ShiftSpeed',
   })
   // Row-complete eye, one row-length upstream of the stop, beaming (+z) across the forming lane only. It reads
   // true once the row has packed tight against the stop - the same for a 2-case row and a 3-case row, since both
@@ -2224,7 +2224,7 @@ export function createPlcDemoScene(): SceneJSON {
    */
   const ROW_EYE_FAR_Z = -0.028
   const rowEye = placeSdk('oip.diffuse-sensor', [C.rowStopX - 1.1, C.surface - EYE_MOUNT_DROP, ROW_EYE_Z], 0, 'Row complete', {
-    maxRange: ROW_EYE_FAR_Z - (ROW_EYE_Z + EYE_LENS_Z), tag: 'RowReady', enableComms: true,
+    maxRange: ROW_EYE_FAR_Z - (ROW_EYE_Z + EYE_LENS_Z), tag: 'RowReady',
   })
   // (What the pushed row squares against is the row former's own +z side guard, so there is no part to place here.
   // The chains keep driving while the row is held against it, which squares the row, and the row formed next butts
@@ -2253,7 +2253,7 @@ export function createPlcDemoScene(): SceneJSON {
   const layerEyeX = ROW_FORMER_END_X + 0.1 + EYE_STAND_POST / 2
   const layerEyeY = C.surface + (ROW_STOP_RAISE + CASE.height) / 2 - EYE_LENS_Y
   const [layerEye] = standEye([layerEyeX, layerEyeY, LAYER_EYE_Z], -Math.PI / 2, 'Layer complete', {
-    maxRange: 1.5 + (layerEyeX - (C.loadX + 0.75)), tag: 'LayerReady', enableComms: true,
+    maxRange: 1.5 + (layerEyeX - (C.loadX + 0.75)), tag: 'LayerReady',
   })
   // No zone border round the layer former: it stands hard against the cell's west and south boundary, so any
   // rectangle round it doubles the cell's own lines.
@@ -2268,19 +2268,19 @@ export function createPlcDemoScene(): SceneJSON {
   // Start would bring it back. That wiring is declared, not inferred from the binding: a bound lampTag alone does
   // not take the lamp over.
   const startBtn = placeSdk('oip.push-button', [BUTTON_X0, BUTTON_Y, BUTTON_Z], 0, 'Start', {
-    tag: 'Start', text: 'START', buttonColor: '#14b30f', enableComms: true, lampSource: 'tag', lampTag: 'StartLamp',
+    tag: 'Start', text: 'START', buttonColor: '#14b30f', lampSource: 'tag', lampTag: 'StartLamp',
   })
   // fail-safe Stop: normally-closed, so closed = run permit and pressed = open. Black, not the part's default red:
   // IEC 60204-1 prefers black for a stop and advises against red beside an emergency stop, which this one is.
   // Unlit, like a real black stop: a black lens has nothing to show
   const stopBtn = placeSdk('oip.push-button', [BUTTON_X0 + BUTTON_PITCH, BUTTON_Y, BUTTON_Z], 0, 'Stop', {
-    tag: 'Stop', normallyClosed: true, buttonColor: '#1a1a1a', enableComms: true, lampSource: 'off',
+    tag: 'Stop', normallyClosed: true, buttonColor: '#1a1a1a', lampSource: 'off',
   })
   // the E-stop: a mushroom head that latches in when struck and stays in until it is used again (the twist-out).
   // It is normally closed by construction, and it breaks the same run latch Stop does, so releasing it does not
   // restart the line - that still takes a Start
   const eStopBtn = placeSdk('oip.push-button', [BUTTON_X0 + 2 * BUTTON_PITCH, BUTTON_Y, BUTTON_Z], 0, 'Operator E-stop', {
-    emergencyStop: true, tag: 'EStop', text: 'E-STOP', enableComms: true, lampSource: 'off',
+    emergencyStop: true, tag: 'EStop', text: 'E-STOP', lampSource: 'off',
   })
   // three-tier status tower, driven by one INT bitmask tag (the SDK stack light's interface): bit0 green running,
   // bit1 amber outfeed blocked, bit2 red E-stop struck / guard open - the fixed SDK segment colours cycle bottom-up
@@ -2299,7 +2299,7 @@ export function createPlcDemoScene(): SceneJSON {
   //
   // It is that fence's child (filed below, once the fence exists), so moving the cell carries it.
   const tower = placeSdk('oip.stack-light', [CELL_FENCE_WEST_X, FENCE_CAP_TOP_Y, CELL_SOUTH_Z], 0, 'Status tower', {
-    segments: 3, value: 0, enableComms: true, tag: 'Tower',
+    segments: 3, value: 0, tag: 'Tower',
   })
   // The buttons are the infeed's children, as a snap onto its frame would make them.
   under(infeed, startBtn, stopBtn, eStopBtn)
@@ -2323,7 +2323,6 @@ export function createPlcDemoScene(): SceneJSON {
     // 1.2 x 1.0 m plate the stock 0.1 m pitch lays down ~120 cups, enough on its own to break the demo's draw budget.
     cupPitchX: 0.2,
     cupPitchZ: 0.2,
-    enableComms: true,
     commandTag: 'ArmCmd',
     executeTag: 'ArmExec',
     doneTag: 'ArmIdle',
@@ -2356,7 +2355,7 @@ export function createPlcDemoScene(): SceneJSON {
   const palletX = PALLET_X // = C.loadX - LOAD_DX; the trucks' routes are measured off it too, so it is shared
   const buildDeck = placeSdk('oip.roller-conveyor', [palletX, PALLET_DECK_H, C.palletZ], Math.PI / 2, 'Build deck', {
     length: BUILD_DECK_LEN, width: PALLET_LINE_W, standHeight: PALLET_DECK_H, leftGuard: false, rightGuard: false,
-    enableComms: true, speedTag: 'DeckRun',
+    speedTag: 'DeckRun',
   })
   // one pallet on it, positioned so its load centre is on the cell's load line
   const buildPallet = placeSdk('oip.pallet', [palletX, PALLET_DECK_H + 0.0675, C.palletZ], 0, 'Build pallet')
@@ -2374,7 +2373,7 @@ export function createPlcDemoScene(): SceneJSON {
   // on the deck's rollers. Seven lanes span a pallet's 1.02 m width; turned -90 degrees, its divert direction is +x.
   const palletXfer = placeSdk('oip.chain-transfer', [palletX, PALLET_DECK_H - C.chainDropZ, PALLET_XFER_Z], -Math.PI / 2, 'Pallet transfer', {
     chains: 7, distance: ROLLER_PITCH * 2, laneLength: PALLET_LINE_W, speed: 0.6,
-    enableComms: true, speedTag: 'PalletXfer', popupTag: 'PalletLift',
+    speedTag: 'PalletXfer', popupTag: 'PalletLift',
   })
   // The end stop: a bar on the deck's east edge, low enough to pass under the first course (0.13 m against a pallet's
   // 0.135), that the chains square the pallet against - so the load is built where the arm's poses were solved for,
@@ -2394,7 +2393,7 @@ export function createPlcDemoScene(): SceneJSON {
   const palletInEyeY = PALLET_DECK_H + 0.07 - 0.1
   const palletInEyeZ = C.palletZ + (PALLET_STOP_LEN / 2 + PALLET_SIZE[2] / 2) / 2
   const [palletInEye] = standEye([palletInEyeX, palletInEyeY, palletInEyeZ], -Math.PI / 2, 'Pallet in place', {
-    maxRange: 0.4, enableComms: true, tag: 'PalletIn',
+    maxRange: 0.4, tag: 'PalletIn',
   })
   // Guarding. The boundary encloses the hazard: the south run at CELL_SOUTH_Z, clear of the conveyor's +z rail,
   // puts the arm, the pallet station and the layer it picks from on one side of the fence, with the gate the only
@@ -2457,14 +2456,14 @@ export function createPlcDemoScene(): SceneJSON {
   // openAngle swings the leaf outward (+z, away from the cell) so it never sweeps into the arm's envelope and
   // egress follows the escape direction - the standard machine-guarding convention for a hazardous-cell gate.
   const gate = placeSdk('oip.safety-gate', [GATE_X, 0, CELL_SOUTH_Z], 0, 'Cell gate', {
-    length: GATE_LEN, open: false, normallyClosed: true, enableComms: true, tag: 'Guard', openAngle: -110,
+    length: GATE_LEN, open: false, normallyClosed: true, tag: 'Guard', openAngle: -110,
   })
   // ...and the three conveyor openings, each with its light curtain (see CURTAIN_SETBACK) and the two photo-eyes that
   // mute it for a load, which the program reads (MutingSeq): A1 A2 before the curtain along the conveyor's travel. The
   // curtain is a plain device; the muting is the program's.
   const curtain = (pos: [number, number, number], rotY: number, name: string, width: number, deck: number, tag: string, lampTag: string): PartInstance =>
     placeSdk('oip.light-curtain', pos, rotY, name, {
-      width, fieldBottom: deck + CURTAIN_OVER_DECK, fieldHeight: CURTAIN_SPAN, enableComms: true, tag, mutingLampTag: lampTag,
+      width, fieldBottom: deck + CURTAIN_OVER_DECK, fieldHeight: CURTAIN_SPAN, tag, mutingLampTag: lampTag,
     })
   /**
    * An opening's two muting eyes, on the conveyor's side the way the line's other eyes are mounted (on the guard line,
@@ -2487,7 +2486,7 @@ export function createPlcDemoScene(): SceneJSON {
     const rot = Math.atan2(-nx, -nz) // local +Z (the beam) looks back across the deck
     return ([['A1', -outer], ['A2', -0.25]] as const).map(([pin, s]) =>
       placeSdk('oip.diffuse-sensor', [at[0] + tx * s + nx * off, deck - EYE_MOUNT_DROP, at[2] + tz * s + nz * off], rot, `${name} muting ${pin}`, {
-        maxRange: bedWidth + 2 * EYE_MOUNT_OUTWARD, mode: 'retro', tag: `${prefix}Mute${pin}`, enableComms: true,
+        maxRange: bedWidth + 2 * EYE_MOUNT_OUTWARD, mode: 'retro', tag: `${prefix}Mute${pin}`,
       }))
   }
   const casePos: [number, number, number] = [CELL_FENCE_WEST_X - CURTAIN_SETBACK, 0, (CELL_FENCE_RETURN_Z + CELL_FENCE_FAR_RETURN_Z) / 2]
@@ -2550,10 +2549,10 @@ export function createPlcDemoScene(): SceneJSON {
   const supplyG = group('Pallet supply')
   const palletInfeed = placeSdk('oip.roller-conveyor', [(PALLET_INFEED_TAIL_X + PALLET_INFEED_HEAD_X) / 2, PALLET_INFEED_H, C.palletZ], 0, 'Pallet infeed', {
     length: PALLET_INFEED_HEAD_X - PALLET_INFEED_TAIL_X, width: PALLET_INFEED_W, standHeight: PALLET_INFEED_H, leftGuard: false, rightGuard: false,
-    enableComms: true, speedTag: 'PalletInfeed',
+    speedTag: 'PalletInfeed',
   })
   const dispenser = placeSdk('oip.pallet-dispenser', [DISPENSER_X, PALLET_INFEED_H, C.palletZ], 0, 'Pallet dispenser', {
-    standHeight: PALLET_INFEED_H, autoFeed: false, enableComms: true, dispenseTag: 'PalletDispense', enableTag: 'CycleEnable', busyTag: 'DispBusy', bayTag: 'PalletReady',
+    standHeight: PALLET_INFEED_H, autoFeed: false, dispenseTag: 'PalletDispense', enableTag: 'CycleEnable', busyTag: 'DispBusy', bayTag: 'PalletReady',
     levelTag: 'MagLevel',
   })
   under(supplyG, palletInfeed, dispenser)
@@ -2573,7 +2572,7 @@ export function createPlcDemoScene(): SceneJSON {
   const turnNear = TURNTABLE_Z + TURNTABLE_R
   const outfeed = placeSdk('oip.roller-conveyor', [palletX, PALLET_DECK_H, (deckEnd + turnNear) / 2], Math.PI / 2, 'Outfeed conveyor', {
     length: deckEnd - turnNear, width: PALLET_LINE_W, standHeight: PALLET_DECK_H, leftGuard: false, rightGuard: false,
-    enableComms: true, speedTag: 'PalletOut',
+    speedTag: 'PalletOut',
   })
   // The cell's output, beside the case count at its input: loads the program has sent out of the cell. Counted as a load
   // leaves rather than as the last course goes down, so the finished load the scene opens with counts too, and the note
@@ -2590,7 +2589,7 @@ export function createPlcDemoScene(): SceneJSON {
   // cycle, and carries on when the wrapper says done; the film it lays is the load's from then on (core/cargoWrap).
   // A Stop or a trip drops CycleEnable, which brakes the arm and holds the cycle until the next Start.
   const wrapper = placeSdk('oip.stretch-wrapper', [palletX, PALLET_DECK_H, WRAP_Z], 0, 'Stretch wrapper', {
-    standHeight: PALLET_DECK_H, enableComms: true, startTag: 'WrapStart', enableTag: 'CycleEnable', doneTag: 'WrapDone', inPositionTag: 'WrapInPos',
+    standHeight: PALLET_DECK_H, startTag: 'WrapStart', enableTag: 'CycleEnable', doneTag: 'WrapDone', inPositionTag: 'WrapInPos',
   })
   // The turntable. Its deck is square and it rotates about its own centre, so the same rollers that received the
   // load along the line drive it out at 90 degrees once indexed. angleTag is the command (0 = square with the line to
@@ -2599,7 +2598,7 @@ export function createPlcDemoScene(): SceneJSON {
   // hand and holds it until the next Start.
   const turntable = placeSdk('oip.turntable-conveyor', [palletX, PALLET_DECK_H, TURNTABLE_Z], Math.PI / 2, 'Outfeed turntable', {
     width: TURNTABLE_W, standHeight: PALLET_DECK_H, speed: 0.4, rotationSpeedDeg: 60,
-    enableComms: true, angleTag: 'TurnCmd', speedTag: 'TurnRun', doneTag: 'TurnDone', enableTag: 'CycleEnable',
+    angleTag: 'TurnCmd', speedTag: 'TurnRun', doneTag: 'TurnDone', enableTag: 'CycleEnable',
   })
   // A EUR pallet is 1.22 x 1.02, and it travels the line presenting 1.02 along it, so after the turntable's quarter
   // turn it presents 1.02 down the lane too. So a truck coming up the lane meets a load's long face and its
@@ -2607,7 +2606,7 @@ export function createPlcDemoScene(): SceneJSON {
   // should leave the load (LANE_EYE_X, up by RACK_ROUTE): down at the discharge end.
   const lane = placeSdk('oip.roller-conveyor', [palletX + TURNTABLE_R + STAGE_LANE_LEN / 2, PALLET_DECK_H, TURNTABLE_Z], 0, 'Staging lane', {
     length: STAGE_LANE_LEN, width: PALLET_LINE_W, standHeight: PALLET_DECK_H, leftGuard: false, rightGuard: false,
-    enableComms: true, speedTag: 'Lane',
+    speedTag: 'Lane',
   })
 
   // Eyes. Each beams across its lane rather than down it, so the beam is a station the load passes rather than a
@@ -2638,7 +2637,7 @@ export function createPlcDemoScene(): SceneJSON {
   const turnEyeDZ = 0.5
   const turnEyeDX = Math.sqrt((TURNTABLE_R + EYE_OFF) ** 2 - turnEyeDZ ** 2)
   const [turnEye] = standEye([palletX - turnEyeDX, eyeY, TURNTABLE_Z - turnEyeDZ], Math.PI / 2, 'On turntable', {
-    maxRange: 1.2 + (turnEyeDX - 1.15), tag: 'TurnEye', enableComms: true,
+    maxRange: 1.2 + (turnEyeDX - 1.15), tag: 'TurnEye',
   })
   // The lane's eye and the off-deck eye are on their conveyors' frames, the guardless rail the pallet infeed's muting
   // eyes bolt to, seated where a drag onto that rail puts them (EYE_MOUNT_*) and looking across the bed (the -z / -x
@@ -2646,12 +2645,12 @@ export function createPlcDemoScene(): SceneJSON {
   // standing on it: see EYE_FRAME_BEAM_Y. The lane eye's position along the lane is still LANE_EYE_X, which the
   // truck's pick is worked out from.
   const laneEye = placeSdk('oip.diffuse-sensor', [LANE_EYE_X, PALLET_DECK_H - EYE_MOUNT_DROP, TURNTABLE_Z - PALLET_LINE_W / 2 - EYE_LENS_Z - EYE_MOUNT_OUTWARD], 0, 'Lane staged', {
-    maxRange: PALLET_LINE_W + 2 * EYE_MOUNT_OUTWARD, tag: 'LaneFull', enableComms: true,
+    maxRange: PALLET_LINE_W + 2 * EYE_MOUNT_OUTWARD, tag: 'LaneFull',
   })
   // off the build deck: just past its north end, on the west side (the arm works the east one). The load passing it
   // and clearing it is what lets the next empty pallet in, a whole route earlier than waiting for the turntable.
   const loadOutEye = placeSdk('oip.diffuse-sensor', [palletX - PALLET_LINE_W / 2 - EYE_LENS_Z - EYE_MOUNT_OUTWARD, PALLET_DECK_H - EYE_MOUNT_DROP, deckEnd - 0.15], Math.PI / 2, 'Load off deck', {
-    maxRange: PALLET_LINE_W + 2 * EYE_MOUNT_OUTWARD, tag: 'LoadOut', enableComms: true,
+    maxRange: PALLET_LINE_W + 2 * EYE_MOUNT_OUTWARD, tag: 'LoadOut',
   })
 
   // The two trucks. A fork volume spans a loaded pallet, so each lifts the pallet and the stack riding on it as
@@ -2670,7 +2669,6 @@ export function createPlcDemoScene(): SceneJSON {
     return placeSdk('oip.agv', [home[0]!, 0, home[1]!], (home[2]! * Math.PI) / 180, name, {
       // 3.5: over the second shelf's beams (RACK_LEVELS) with room to spare, and short of where the mast runs out
       driveSpeed: 1.0, maxLiftHeight: 3.5, reverseRange: AGV_REVERSE_RANGE,
-      enableComms: true,
       commandTag: `${tag}Cmd`, executeTag: `${tag}Exec`, doneTag: `${tag}Idle`, forkTag: `${tag}Fork`,
       waypoints: route.map((w) => [w[0]!, w[1]!, w[2]!, w[3]!]),
     })
@@ -2932,7 +2930,7 @@ export function createPlcDemoScene(): SceneJSON {
   // like the magazine's pallet, so they mint new ids rather than renumbering the parts above. Each is a child of the
   // steel it is bolted to, as a snap onto that mount would make it, so moving the fence or the flex carries it.
   const eStop = (at: [number, number, number], rotY: number, tag: string, name: string): PartInstance =>
-    placeSdk('oip.push-button', at, rotY, name, { emergencyStop: true, tag, text: 'E-STOP', enableComms: true, lampSource: 'off' })
+    placeSdk('oip.push-button', at, rotY, name, { emergencyStop: true, tag, text: 'E-STOP', lampSource: 'off' })
   /** an E-stop on the `k`th post of a fence run (from its local -x end), its face toward `out`, the way off the guarding */
   const onFencePost = (fence: PartInstance, k: number, out: [number, number], tag: string, name: string): PartInstance => {
     const len = (fence.params as { length: number }).length

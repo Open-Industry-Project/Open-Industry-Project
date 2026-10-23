@@ -94,7 +94,7 @@ async function main() {
       const st = window.__oip.store
       st.loadScene({
         version: st.getState().scene.version,
-        parts: [{ id: 'belt', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { shapePreset: 'custom', segments: [[3, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, enableComms: true, runTag: 'Go' } }],
+        parts: [{ id: 'belt', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { shapePreset: 'custom', segments: [[3, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, runTag: 'Go' } }],
       })
       st.loadStProgram(src)
     }, PROGRAM)

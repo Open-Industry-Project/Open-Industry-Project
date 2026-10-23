@@ -44,7 +44,6 @@ definePart({
     codeMark: { type: 'string', default: 'code', label: 'Code attribute', desc: 'The product attribute the label carries, read off each case into the code tag: a number, or digits in text. A case without it reads 0.' },
     showBeam: { type: 'boolean', default: false, label: 'Show scan line', desc: 'Draw the scan line across the conveyor. A viewing aid only.' },
     beamColor: { type: 'color', default: '#f2bd0f', label: 'Beam color', desc: 'Paint of the crossbeam the head hangs from.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this part to a PLC program. Its tags appear once this is on.' },
     readTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Good read tag (pulse)', group: 'Comms', desc: 'Goes true for a quarter of a second each time a case is read. Take its rising edge to count or to act on a read.' },
     countTag: { type: 'tag', dir: 'out', stType: 'DINT', default: '', label: 'Read count tag', group: 'Comms', desc: 'Running total of cases read this run. It only ever climbs.' },
     codeTag: { type: 'tag', dir: 'out', stType: 'DINT', default: '', label: 'Code tag (the last code read)', group: 'Comms', desc: 'The code on the label of the last case read, set on the same scan the good-read pulse rises. It holds until the next read.' },
@@ -137,10 +136,8 @@ definePart({
     const good = pulse > 0
     ctx.lamps.scan = inZone > 0
     ctx.lamps.read = good
-    if (ctx.params.enableComms) {
-      if (ctx.params.readTag) ctx.writeTag(ctx.params.readTag, good)
-      if (ctx.params.countTag) ctx.writeNumber(ctx.params.countTag, count)
-      if (ctx.params.codeTag) ctx.writeNumber(ctx.params.codeTag, code)
-    }
+    if (ctx.params.readTag) ctx.writeTag(ctx.params.readTag, good)
+    if (ctx.params.countTag) ctx.writeNumber(ctx.params.countTag, count)
+    if (ctx.params.codeTag) ctx.writeNumber(ctx.params.codeTag, code)
   },
 })

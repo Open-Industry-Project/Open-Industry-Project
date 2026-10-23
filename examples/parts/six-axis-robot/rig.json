@@ -2,7 +2,6 @@
   "id": "oip.six-axis-robot",
   "name": "Six-Axis Robot",
   "category": "Equipment",
-  "commsParam": "enableComms",
   "geometry": {
     "kind": "rig",
     "links": [

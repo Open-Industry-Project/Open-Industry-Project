@@ -56,7 +56,7 @@ describe('a deck starting wakes its own cargo, not the whole scene', () => {
     const box = loadPkg('box')
     // a 4 m belt along +x, held at 0 by its speed tag until the start
     const conveyor = createSdkPart(belt, 'belt', [0, 1, 0], 0) as SdkPart
-    Object.assign(conveyor.params, { segments: [[4, 0]], speed: 0.5, enableComms: true, speedTag: 'sp' })
+    Object.assign(conveyor.params, { segments: [[4, 0]], speed: 0.5, speedTag: 'sp' })
     const parts: PartInstance[] = [conveyor, createSdkPart(box, 'ride', [1, 1.6, 0], 0)]
     // a three-high pile of cases on the floor, 6 m off the belt's side
     for (let i = 0; i < 3; i++) parts.push(createSdkPart(box, `pile${i}`, [2, 0.2 + 0.4 * i, 6], 0))

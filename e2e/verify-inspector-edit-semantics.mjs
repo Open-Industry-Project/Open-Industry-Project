@@ -138,9 +138,8 @@ async function main() {
       // fpmUnits: false pins the conveyor to metres per second, which is what every speed expectation
       // below is written in. The belt defaults to FPM, and the m/s Speed + `speedTag` rows are
       // `visibleWhen fpmUnits is false`, so on the default the script would wait for a row the Inspector
-      // rightly doesn't render, and time out mid-run without a verdict. enableComms: true for the same reason:
-      // the Inspector hides a part's tag fields while its PLC switch is off, and H1/H2 edit `speedTag`.
-      const belt = (id, z, params) => ({ id, type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0, z], rotationY: 0, params: { fpmUnits: false, enableComms: true, ...params } })
+      // rightly doesn't render, and time out mid-run without a verdict.
+      const belt = (id, z, params) => ({ id, type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0, z], rotationY: 0, params: { fpmUnits: false, ...params } })
       const note = (id, z, text) => ({ id, type: 'annotation', position: [4, 1.2, z], rotationY: 0, params: { text } })
       const parts = [
         { ...belt('b1', 0, { segments: [[4, 0]], speed: 1.25, beltColor: '#ff0000' }), position: [1.23456, 0, 0] },
@@ -331,8 +330,11 @@ async function main() {
     await select('b1')
     await openMenu('speed')
     check('I1 the menu takes focus on its first item', (await focusedText()) === 'Copy Property', `focused=${await focusedText()}`)
+    // the last enabled item is the whole part's Copy Properties (Paste Properties is off with nothing copied)
     await page.keyboard.press('End'); await settle()
-    check('I1 End moves to the last item', (await focusedText()) === 'Revert to Default', `focused=${await focusedText()}`)
+    check('I1 End moves to the last item', (await focusedText()) === 'Copy Properties', `focused=${await focusedText()}`)
+    await page.keyboard.press('ArrowUp'); await settle()
+    check('I1 ArrowUp steps back over the separator', (await focusedText()) === 'Revert to Default', `focused=${await focusedText()}`)
     await page.keyboard.press('Delete'); await settle()
     check('I2 Delete with the menu open does not delete the part', (await part('b1')) !== undefined && (await exists('.ctx-menu')))
     await page.keyboard.press('Enter'); await settle()

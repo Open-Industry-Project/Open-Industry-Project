@@ -15,7 +15,6 @@ definePart({
     width: { type: 'number', default: 2, min: 0.2, max: 4, step: 0.1, label: 'Width (m)', desc: 'Local Z extent of the volume that removes cargo.' },
     height: { type: 'number', default: 1, min: 0.2, max: 4, step: 0.1, label: 'Height (m)', desc: 'Local Y extent of the volume that removes cargo.' },
     countOnly: { type: 'string', product: true, default: '', label: 'Count only', desc: 'Count just this product, so a tote carrying a case counts once. Everything in the mouth is still removed. (none) counts every body that goes in.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this part to a PLC program. Its tags appear once this is on.' },
     countTag: { type: 'tag', dir: 'out', stType: 'INT', default: '', label: 'Throughput count tag', group: 'Comms', desc: 'Running total of everything this despawner has removed, published for the program to read. It only ever climbs, so take differences over time to get a rate.' },
     rateTag: { type: 'tag', dir: 'out', stType: 'REAL', default: '', label: 'Throughput rate tag (per min)', group: 'Comms', desc: 'Items removed per minute of simulated time, averaged over the whole run so far.' },
     cycleTag: { type: 'tag', dir: 'out', stType: 'REAL', default: '', label: 'Average cycle time tag (s)', group: 'Comms', desc: 'Average time, in simulated seconds, from an item coming into being (spawned, or already in the scene when the run started) to its removal here. 0 until the first item arrives.' },
@@ -23,7 +22,7 @@ definePart({
   },
   step(ctx) {
     const p = ctx.params
-    const blocked = p.enableComms && p.blockTag ? ctx.readTag(p.blockTag) : false
+    const blocked = p.blockTag ? ctx.readTag(p.blockTag) : false
     const n = ctx.zone('mouth')
     if (n > 0 && !blocked) {
       const only = p.countOnly ? { part: p.countOnly } : undefined
@@ -38,10 +37,8 @@ definePart({
     ctx.display('rate', rate)
     ctx.display('cycle', cycle)
     ctx.display('readout', total + ' done  ' + rate.toFixed(1) + '/min  ' + (total > 0 ? cycle.toFixed(1) + ' s' : '-'))
-    if (p.enableComms) {
-      if (p.countTag) ctx.writeNumber(p.countTag, total)
-      if (p.rateTag) ctx.writeNumber(p.rateTag, rate)
-      if (p.cycleTag) ctx.writeNumber(p.cycleTag, cycle)
-    }
+    if (p.countTag) ctx.writeNumber(p.countTag, total)
+    if (p.rateTag) ctx.writeNumber(p.rateTag, rate)
+    if (p.cycleTag) ctx.writeNumber(p.cycleTag, cycle)
   },
 })

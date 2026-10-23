@@ -29,7 +29,6 @@ function robot(overrides: Record<string, ParamValue> = {}) {
   const { def } = instantiatePartScript(SOURCE)
   if (!def?.init || !def.step) throw new Error('robot behavior did not load')
   const params = resolvePartParams(def.params, {
-    enableComms: true,
     commandTag: 'Cmd',
     executeTag: 'Exec',
     doneTag: 'Done',
@@ -47,6 +46,8 @@ function robot(overrides: Record<string, ParamValue> = {}) {
     rising: () => exec && !prevExec,
     readNumber: (t: string) => Number(tags[t] ?? 0),
     readTag: (t: string) => tags[t] === true,
+    // a tag the test sets stands for a program driving it (an enable tag counts only while driven)
+    tagDriven: (t: string) => t in tags,
     writeTag: (t: string, v: number | boolean) => { tags[t] = v },
     report: (p: string, v: number | boolean) => { reported[p] = v },
     approach: (c: number, t: number, max: number) => (t - c > max ? c + max : t - c < -max ? c - max : t),

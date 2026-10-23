@@ -30,7 +30,6 @@ definePart({
     name: 'Spur Belt Conveyor',
     category: 'Equipment',
     conveyor: { bed: 'spur', surface: 'belt', speedParam: 'speed' },
-    commsParam: 'enableComms',
     // `conveys` makes it a powered surface (the sim builds the flat length×width deck the sheared bed rides on)
     geometry: { kind: 'drawn', bounds: { length: OUTER, width: 1.524, top: 2.3 }, conveys: true },
   },
@@ -77,10 +76,9 @@ definePart({
     ...railCutsParam('Guards'),
     // deck height above the floor — drives the LEG length; host auto-fills it from the surface beneath at drop/snap.
     standHeight: { type: 'number', default: 2.0, min: 0.1, max: 3, step: 0.01, rest: 'surfaceBelow', label: 'Stand height (m)', desc: 'Height of the deck above whatever is beneath it, which sets the leg length. The host fills this in when you drop or snap the conveyor, so the legs reach the floor - or a platform crossing underneath - without you measuring. Pin it by hand when you want a deliberate height.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this conveyor to a PLC program. Its tags appear once this is on.' },
     speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag (m/s)', group: 'Comms', desc: 'The program commands surface speed here, replacing the Speed field above, which then shows the live value read-only. Careful: once BOUND this takes over even if no program drives it, and an undriven tag reads 0 - so a half-wired conveyor sits still rather than running at its authored speed.' },
     ...speedFpmTagParam('Comms'),
-    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Run tag (belt runs while true)', group: 'Comms', desc: 'Start/stop gate: false forces the speed to 0 whatever the setpoint says. Unlike the speed tag, this only takes effect once a program actually DRIVES it, so binding it alone will not stop the belt.' },
+    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '', label: 'Run tag (belt runs while true)', group: 'Comms', desc: 'Start/stop gate: false forces the speed to 0 whatever the setpoint says. Unlike the speed tag, this only takes effect once a program actually DRIVES it, so binding it alone will not stop the belt.' },
     runningTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Running tag (true while moving)', group: 'Comms', desc: 'Feedback the conveyor publishes for the program to read: true whenever it is actually moving. This is the EFFECTIVE speed, gates included, so a run tag holding it at zero reads false here.' },
     ...driveFeedbackParams(2, 'Comms'),
   },
@@ -400,19 +398,18 @@ definePart({
     return parts
   },
   step(ctx) {
-    // Comms precedence: speedTag (REAL in) replaces the speed param; runTag (BOOL) gates the commanded speed to 0
+    // Tag precedence: speedTag (REAL in) replaces the speed param; runTag (BOOL) gates the commanded speed to 0
     // only while a controller DRIVES it (ctx.tagDriven — undriven, the authored speed rules); runningTag (BOOL out)
     // = effective speed ≠ 0.
-    const comms = ctx.params.enableComms
     // the unit the conveyor is set up in: everything below this line is m/s
-    const cmd = commandedSpeed(ctx, comms)
+    const cmd = commandedSpeed(ctx)
     const fpm = cmd.fpm, commanded = cmd.commanded
-    const running = comms && ctx.tagDriven(ctx.params.runTag) ? ctx.readTag(ctx.params.runTag) : true
+    const running = ctx.tagDriven(ctx.params.runTag) ? ctx.readTag(ctx.params.runTag) : true
     const s = rampedSpeed(ctx, drive, cmd, running ? commanded : 0)
     // the readout the Inspector shows for 'speed' while a setpoint tag owns it: the EFFECTIVE value,
     // gates and all, not the raw setpoint (a runTag holding this at 0 must not read as the commanded rate)
     reportSpeed(ctx, fpm, s)
-    if (comms && ctx.params.runningTag) ctx.writeTag(ctx.params.runningTag, s !== 0)
+    if (ctx.params.runningTag) ctx.writeTag(ctx.params.runningTag, s !== 0)
     // drive feedback: the velocity as a share of the speed at 30, an encoder pulse and the odometer
     publishDrive(ctx, drive, cmd, s)
     ctx.setSurfaceVelocity({ x: ctx.forward.x * s, y: 0, z: ctx.forward.z * s })

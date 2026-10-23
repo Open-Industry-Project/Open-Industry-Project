@@ -54,9 +54,9 @@ async function main() {
         version: 4,
         packages: [sensor, belt],
         parts: [
-          { id: 's1', type: 'part', packageId: 'oip.diffuse-sensor', position: [0, 0, 0], rotationY: 0, params: { enableComms: true, tag: 'PE' } },
-          { id: 's2', type: 'part', packageId: 'oip.diffuse-sensor', position: [2, 0, 0], rotationY: 0, params: { enableComms: true, tag: 'PE' } },
-          { id: 'b1', type: 'part', packageId: 'oip.belt-conveyor', position: [6, 0, 0], rotationY: 0, params: { enableComms: true, runTag: 'Motor' } },
+          { id: 's1', type: 'part', packageId: 'oip.diffuse-sensor', position: [0, 0, 0], rotationY: 0, params: { tag: 'PE' } },
+          { id: 's2', type: 'part', packageId: 'oip.diffuse-sensor', position: [2, 0, 0], rotationY: 0, params: { tag: 'PE' } },
+          { id: 'b1', type: 'part', packageId: 'oip.belt-conveyor', position: [6, 0, 0], rotationY: 0, params: { runTag: 'Motor' } },
         ],
       })
       return { ok: true, parts: store.getState().scene.parts.length }

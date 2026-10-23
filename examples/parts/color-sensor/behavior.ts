@@ -152,7 +152,6 @@ definePart({
   params: {
     maxRange: { type: 'number', default: 2, min: 0.1, max: 10, step: 0.05, label: 'Max range (m)', desc: 'How far down the beam a target is still read. The beam is cast along local +Z, so aim the sensor by rotating it.' },
     showBeam: { type: 'boolean', default: true, label: 'Show beam', desc: 'Draw the beam line in the viewport. A viewing aid only - hiding it does not change what the sensor reads.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this part to a PLC program. Its tags appear once this is on.' },
     colorTag: { type: 'tag', values: [{ value: 0, label: 'none' }, { value: 1, label: 'red' }, { value: 2, label: 'green' }, { value: 3, label: 'blue' }], dir: 'out', stType: 'INT', default: '', label: 'Color code tag', group: 'Comms', desc: 'Where the detected colour code is published. It reads 0 both when nothing is in range and when the colour is too ambiguous to call, so pair it with a presence sensor if the difference matters.' },
   },
   // The Photo Eye's housing, drawn: body, lens window, top cap + pot, M8 plug, and the mounting bracket.
@@ -164,6 +163,6 @@ definePart({
     const present = s.hit && s.distance <= ctx.params.maxRange
     const code = present ? classify(s.color) : 0
     ctx.lamps.led = present
-    if (ctx.params.enableComms && ctx.params.colorTag) ctx.writeNumber(ctx.params.colorTag, code)
+    if (ctx.params.colorTag) ctx.writeNumber(ctx.params.colorTag, code)
   },
 })

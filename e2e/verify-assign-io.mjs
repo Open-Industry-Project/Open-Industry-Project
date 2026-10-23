@@ -51,9 +51,9 @@ try {
       version: st.getState().scene.version,
       parts: [
         { id: 'belt', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0,
-          params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, enableComms: true, runTag: 'Run' } },
+          params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, runTag: 'Run' } },
         { id: 'eye', type: 'part', packageId: 'oip.diffuse-sensor', position: [3, 0.75, -0.6], rotationY: 0,
-          params: { maxRange: 1.2, enableComms: true, tag: 'Eye' } },
+          params: { maxRange: 1.2, tag: 'Eye' } },
       ],
       packages: need,
     })

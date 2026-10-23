@@ -7,7 +7,6 @@
     "surface": "belt",
     "speedParam": "speed"
   },
-  "commsParam": "enableComms",
   "geometry": {
     "kind": "drawn",
     "bounds": {

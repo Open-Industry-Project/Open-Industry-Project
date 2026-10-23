@@ -50,7 +50,7 @@ try {
     const st = window.__oip.store
     const belt = st.getState().bundledPackages.find((p) => p.id === 'oip.belt-conveyor')
     if (!belt) return 'the belt conveyor package is missing'
-    const params = (speed, tag) => ({ shapePreset: 'custom', segments: [[4, 0]], width: 0.8, standHeight: 0.8, speed, enableComms: true, ...(tag ? { speedTag: tag } : {}) })
+    const params = (speed, tag) => ({ shapePreset: 'custom', segments: [[4, 0]], width: 0.8, standHeight: 0.8, speed, ...(tag ? { speedTag: tag } : {}) })
     st.loadScene({
       version: st.getState().scene.version,
       parts: [

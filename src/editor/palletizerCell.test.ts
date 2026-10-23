@@ -137,6 +137,8 @@ describe('palletizer cell waypoints', () => {
       rising: () => exec && !prevExec,
       readNumber: (t: string) => Number(tags[t] ?? 0),
       readTag: (t: string) => tags[t] === true,
+      // a tag the test sets stands for a program driving it (an enable tag counts only while driven)
+      tagDriven: (t: string) => t in tags,
       writeTag: (t: string, v: number | boolean) => { tags[t] = v },
       report: (p: string, v: number | boolean) => { if (p === 'jobs') row = Number(v) },
       approach: (c: number, t: number, max: number) => (t - c > max ? c + max : t - c < -max ? c - max : t),

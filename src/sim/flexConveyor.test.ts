@@ -135,7 +135,7 @@ describe('Flex Conveyor (SDK part, headless)', () => {
       packages: [buildPackage(flex.manifest, flex.behavior), buildPackage(box.manifest, box.behavior), buildPackage(takeaway.manifest, takeaway.behavior)],
       parts: [
         { id: 'flex', type: 'part', packageId: flex.manifest.id, position: [0, H, 0], rotationY: 0, params: {
-          standHeight: H, points, length, speed: 1, accumulate: true, enableComms: true, releaseTag: 'Rel', fullTag: 'Full', meterGap: 2,
+          standHeight: H, points, length, speed: 1, accumulate: true, releaseTag: 'Rel', fullTag: 'Full', meterGap: 2,
         } },
         // what the line would be: a takeaway past the discharge end (centre-origin, 6 m), so released cases are carried off
         { id: 'away', type: 'part', packageId: takeaway.manifest.id, position: [16.1 + 3, H, 0], rotationY: 0, params: {
@@ -192,7 +192,7 @@ describe('Flex Conveyor (SDK part, headless)', () => {
       packages: [buildPackage(flex.manifest, flex.behavior), buildPackage(box.manifest, box.behavior)],
       parts: [
         { id: 'flex', type: 'part', packageId: flex.manifest.id, position: [0, H, 0], rotationY: 0, params: {
-          standHeight: H, points, length, speed: 1, accumulate: true, enableComms: true, releaseTag: 'Rel',
+          standHeight: H, points, length, speed: 1, accumulate: true, releaseTag: 'Rel',
         } },
         { id: 'flat', type: 'part', packageId: box.manifest.id, position: [0.4, H + 0.03, 0], rotationY: 0, params: { length: 0.4, width: 0.3, height: 0.06 } },
       ],

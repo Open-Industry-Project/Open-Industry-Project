@@ -2,7 +2,6 @@
   "id": "oip.pallet-dispenser",
   "name": "Pallet Dispenser",
   "category": "Equipment",
-  "commsParam": "enableComms",
   "holds": {
     "part": "oip.pallet",
     "positions": [

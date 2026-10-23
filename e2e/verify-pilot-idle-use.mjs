@@ -66,7 +66,7 @@ async function main() {
       const scene = st.getState().scene
       const pkg = st.getState().bundledPackages.find((p) => p.id === 'oip.blade-stop')
       if (!pkg) return false
-      const parts = [{ id: 'blade_shot', type: 'part', packageId: 'oip.blade-stop', position: [0, 0.9, 0], rotationY: 0, params: { width: 0.5, active: false, raiseHeight: 0.06, enableComms: false, tag: '' } }]
+      const parts = [{ id: 'blade_shot', type: 'part', packageId: 'oip.blade-stop', position: [0, 0.9, 0], rotationY: 0, params: { width: 0.5, active: false, raiseHeight: 0.06, tag: '' } }]
       st.loadScene({ ...scene, parts, packages: [...(scene.packages ?? []).filter((p) => p.id !== pkg.id), pkg] })
       return true
     })

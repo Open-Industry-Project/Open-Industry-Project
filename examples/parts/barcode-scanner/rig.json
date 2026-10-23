@@ -2,7 +2,6 @@
   "id": "oip.barcode-scanner",
   "name": "Barcode Scanner",
   "category": "Devices",
-  "commsParam": "enableComms",
   "geometry": {
     "kind": "rig",
     "links": [

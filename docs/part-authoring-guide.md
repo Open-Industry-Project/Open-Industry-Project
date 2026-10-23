@@ -33,7 +33,8 @@ A part is one portable, deterministic package:
   function (`kind: 'drawn'`) for swept and lofted forms.
 - **What it is to the host**, declared in the manifest:
   - `conveyor`: what kind of conveyor it is, what cargo rides on, which params are its speed and reverse flag.
-  - `commsParam`: the boolean that switches its PLC link.
+  - `commsParam` (optional, and usually left out): a boolean that switches its PLC link. Without one, each tag
+    field that names a tag is connected and an empty one is not, which is how the built-in parts work.
   - `snap`: how it connects to other parts.
   - `holds`: the cargo it stores, `{ part, positions, limitParam?, params? }`: a cargo package id and its
     gripper links bottom first. `params` hands the items some of the holder's own params
@@ -967,8 +968,8 @@ These declarations change how a field is edited without changing the value the p
 
 **Groups and labels.** Follow the Inspector's conventions so every part reads the same:
 
-- The PLC switch (`commsParam`) and every `tag` param go in `group: 'Comms'`. While the switch is off the
-  Inspector hides the rest of that section.
+- Every `tag` param goes in `group: 'Comms'`. A part that declares a PLC switch (`commsParam`) puts it there
+  too, and while the switch is off the Inspector hides the rest of that section.
 - Detail a plant program reads back but few scenes set (a conveyor's drive feedback) goes in
   `'Comms/Feedback'`. A nested section starts folded.
 - A param that is only the state the device starts in, which Use then operates (a diverter's `diverted`, a
@@ -1173,7 +1174,7 @@ inside its footprint.
   `courses` param above 0 stacks the standard load itself (a 48 x 40 in pallet under courses of the
   0.6 x 0.4 x 0.4 case layer) as real cargo.
 
-### Auto vs hand: gate comms on `tagDriven`, not on the param alone
+### Auto vs hand: gate on `tagDriven`, not on the tag name
 
 A device that is both PLC-commanded and hand-operated (a diverter, a blade stop) follows plant-floor
 semantics: the tag is in control only while a controller drives it, meaning the tag is a declared output of the
@@ -1181,10 +1182,9 @@ attached, scanning program. The rest of the time (sim stopped, no program, tag n
 controls it:
 
 ```js
-if (ctx.used()) manual = !manual                              // hand toggle (pilot E / editor C)
-if (ctx.params.enableComms && ctx.tagDriven(ctx.params.tag))  // auto wins while a program owns the tag…
-                                                              // (enableComms: the manifest's `commsParam`)
-  manual = ctx.readTag(ctx.params.tag)                        // …by overwriting the latch (bumpless release)
+if (ctx.used()) manual = !manual          // hand toggle (pilot E / editor C)
+if (ctx.tagDriven(ctx.params.tag))        // auto wins while a program owns the tag…
+  manual = ctx.readTag(ctx.params.tag)    // …by overwriting the latch (bumpless release)
 const want = manual
 ```
 
@@ -1198,24 +1198,27 @@ Mark the tag your auto gate reads with **`autoWhenDriven: true`**:
 tag: { type: 'tag', dir: 'in', stType: 'BOOL', autoWhenDriven: true, default: '', label: 'Extend tag (true extends the pusher)', group: 'Comms' }
 ```
 
-That tells the host the tag commands the device. For a part with a `commsParam` and an `autoWhenDriven` tag,
-while a program drives it the pilot crosshair prompt reads **"In auto - PLC controlled"** and a C press on the
+That tells the host the tag commands the device. For a part with an `autoWhenDriven` tag, while a program
+drives it the pilot crosshair prompt reads **"In auto - PLC controlled"** and a C press on the
 selection flashes the same hint (the press is still delivered, so your gate still decides). Don't flag tags
 the device only publishes (a button's press, a sensor's beam) or reads as an indicator (a button's `lampTag`):
 a PLC driving those never takes the device out of hand control. Likewise a spawner whose hand Use is an
 independent kill (AND-ed with the tag, not overridden by it) keeps the plain "Use" prompt.
 
-Don't gate on the comms switch alone (`comms ? readTag(tag) : manual`): that locks the device to an undriven
-tag, ignoring hand presses and stuck at `false`, whenever no program is scanning. With the `tagDriven` gate, the
+Don't gate on the tag name alone (`tag ? readTag(tag) : manual`): that locks the device to an undriven tag,
+ignoring hand presses and stuck at `false`, whenever no program is scanning. With the `tagDriven` gate, the
 stopped-scene preview poses the device from hand presses and an attaching program still takes over instantly.
 
 **The same applies to every boolean command tag**, not just hand-operable devices. A conveyor's or spawner's
-`runTag` gated on the tag name stops the part as soon as a tag is typed, until a program attaches, while the
-Inspector shows a speed that does nothing. Gate it on `tagDriven` so the authored value applies until a controller
-takes over. Two kinds of tag are not command tags and keep a plain truthiness check:
+`runTag`, or a machine's `enableTag`, gated on the tag name stops the part as soon as a tag is typed, until a program
+attaches, while the Inspector shows a speed that does nothing. Gate it on `tagDriven` so the authored value applies
+until a controller takes over (`!ctx.tagDriven(runTag) || ctx.readTag(runTag)`), and mark the param
+**`onlyWhenDriven: true`**. That tells the wiring check the part runs on its own setting while nothing drives the
+tag, so its warning says that instead of "stays at its zero value". `autoWhenDriven` implies it. Two kinds of tag are
+not command tags and keep a plain truthiness check:
 
-- Setpoints (`speedTag`, a REAL that replaces a param). It is read whenever comms are on, so undriven it reads 0
-  and the part sits still. Declare `setpointFor` (below) so the Inspector shows that.
+- Setpoints (`speedTag`, a REAL that replaces a param). It is read whenever it names a tag, so undriven it reads
+  0 and the part sits still. Declare `setpointFor` (below) so the Inspector shows that.
 - Publish-only and indicator tags (a button's press tag, a gate's state-out, a `lampTag`). A driven one must
   never flag the device as owned (`e2e/verify-tag-driven-auto.mjs` covers this).
 
@@ -1246,7 +1249,7 @@ Your script needs nothing extra: each case is `ctx.used()` delivered to your beh
 
 ### `setpointFor`: say which param an analog setpoint replaces
 
-`speedTag` doesn't gate a conveyor; it substitutes for `speed`. With comms on, the Inspector's `speed` field
+`speedTag` doesn't gate a conveyor; it substitutes for `speed`. Once it names a tag, the Inspector's `speed` field
 would otherwise show a number nothing obeys. Name the param it replaces:
 
 ```js
@@ -1278,8 +1281,8 @@ Whether the tag owns the param follows `autoWhenDriven`, so declare it the way y
 
 | your `step` gate | declare | live field shows |
 |---|---|---|
-| `comms && tag ? readNumber(tag) : param` | `setpointFor` | the tag value whenever the tag is bound (0 if nothing drives it, and the part reads 0 too) |
-| `comms && tagDriven(tag) ? readNumber(tag) : param` | `setpointFor` + `autoWhenDriven` | the tag value only while a program owns it; undriven it falls back to the authored param, like your script |
+| `tag ? readNumber(tag) : param` | `setpointFor` | the tag value whenever the tag is bound (0 if nothing drives it, and the part reads 0 too) |
+| `tagDriven(tag) ? readNumber(tag) : param` | `setpointFor` + `autoWhenDriven` | the tag value only while a program owns it; undriven it falls back to the authored param, like your script |
 
 Boolean command params need nothing extra: `useParam` plus `autoWhenDriven` is enough. Covered by
 `e2e/verify-inspector-live-setpoint.mjs`.

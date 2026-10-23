@@ -61,8 +61,8 @@ async function main() {
         version: 4,
         packages: [belt],
         parts: [
-          { id: 'b1', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0, 0], rotationY: 0, params: { enableComms: true, runTag: 'Motor' } },
-          { id: 'b2', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0, 3], rotationY: 0, params: { enableComms: true, runTag: '' } },
+          { id: 'b1', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0, 0], rotationY: 0, params: { runTag: 'Motor' } },
+          { id: 'b2', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0, 3], rotationY: 0, params: { runTag: '' } },
         ],
       })
       store.loadStProgram(src, { persist: false })
@@ -192,7 +192,7 @@ async function main() {
         store.select('b2')
       }, params)
     await page.evaluate(() => window.__oip.store.loadStProgram('VAR\n  Start : BOOL;\n  Speed : BOOL;\nEND_VAR\n', { persist: false }))
-    await setB2({ enableComms: true, runTag: 'Strt', speedTag: 'Speed' })
+    await setB2({ runTag: 'Strt', speedTag: 'Speed' })
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="tag-warn"]').length >= 2, { timeout: 10000 }).catch(() => {})
     const runKinds = await kindsOf('^Run tag')
     const speedKinds = await kindsOf('^Speed tag')
@@ -201,10 +201,7 @@ async function main() {
     await page.evaluate(() => window.__oip.store.loadStProgram('VAR\n  Strt : BOOL;\n  Speed : REAL;\nEND_VAR\n', { persist: false }))
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="tag-warn"]').length === 0, { timeout: 10000 }).catch(() => {})
     check('declaring them clears both marks', (await kindsOf('^Run tag')) === '' && (await kindsOf('^Speed tag')) === '')
-    await setB2({ enableComms: false, runTag: 'Nope' })
-    await page.waitForTimeout(800)
-    check('a part with comms off gets no program mark', !(await kindsOf('^Run tag')).includes('undeclared'))
-    await setB2({ enableComms: true, runTag: '', speedTag: '' })
+    await setB2({ runTag: '', speedTag: '' })
 
     // ---- two instances of one program: each instance's variables, by the qualified names wiring binds
     await page.evaluate((src) => window.__oip.store.loadStProgram(src, { persist: false }), TWO_LINES)

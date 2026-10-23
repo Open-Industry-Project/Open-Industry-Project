@@ -251,8 +251,8 @@ async function main() {
       const st = window.__oip.store
       const scene = st.getState().scene
       st.commit('Add devices', { ...scene, parts: [...scene.parts,
-        { id: 'b1', type: 'part', name: 'Belt_1', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, enableComms: true, runTag: 'B_R_1' } },
-        { id: 's1', type: 'part', name: 'Sensor_1', packageId: 'oip.diffuse-sensor', position: [3, 0.75, 0], rotationY: 0, params: { maxRange: 1.2, enableComms: true, tag: 'S_1' } },
+        { id: 'b1', type: 'part', name: 'Belt_1', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { shapePreset: 'custom', segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: 0.5, runTag: 'B_R_1' } },
+        { id: 's1', type: 'part', name: 'Sensor_1', packageId: 'oip.diffuse-sensor', position: [3, 0.75, 0], rotationY: 0, params: { maxRange: 1.2, tag: 'S_1' } },
       ] })
     })
     await page.waitForTimeout(500)

@@ -38,7 +38,7 @@ let spawned = 0
 // by the host but still counted here.
 function publish(ctx) {
   ctx.display('spawned', spawned)
-  if (ctx.params.enableComms && ctx.params.countTag) ctx.writeNumber(ctx.params.countTag, spawned)
+  if (ctx.params.countTag) ctx.writeNumber(ctx.params.countTag, spawned)
 }
 
 // parse "#rrggbb" → [r, g, b] in 0..1
@@ -95,8 +95,7 @@ definePart({
     },
     keepSpacing: { type: 'boolean', default: false, visibleWhen: { param: 'release', is: 'interval' }, label: 'Keep spacing while held', desc: 'Hold the interval while the feed is held instead of letting it run down, so boxes dropped onto a conveyor that stops with this spawner (give both the same run tag) stay one pitch apart however often the pair stops.' },
     conveyorId: { type: 'partRef', default: '', label: 'Pause when conveyor stopped', desc: 'Interlock: while the named conveyor is stopped, this spawner holds. Wire that conveyor to the PLC and the feed gates itself, with no tag of its own.' },
-    enableComms: { type: 'boolean', default: false, label: 'Enable comms', group: 'Comms', desc: 'Connect this part to a PLC program. Its tags appear once this is on.' },
-    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Run tag (spawn only while true)', group: 'Comms', desc: 'Gate the feed from the program. Note this only takes over once a program actually DRIVES the tag - until then the spawner keeps running, so a merely-declared tag is not a stopped feed.' },
+    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '', label: 'Run tag (spawn only while true)', group: 'Comms', desc: 'Gate the feed from the program. Note this only takes over once a program actually DRIVES the tag - until then the spawner keeps running, so a merely-declared tag is not a stopped feed.' },
     countTag: { type: 'tag', dir: 'out', stType: 'DINT', default: '', label: 'Spawned count tag', group: 'Comms', desc: 'Running total of boxes this spawner has dispensed. Subtract the despawner counts to get the work in progress.' },
   },
   step(ctx) {
@@ -105,7 +104,7 @@ definePart({
     // hold while a linked conveyor is stopped, or while a controller DRIVES the run tag de-energized
     // (ctx.tagDriven = output ownership; gating on the tag NAME alone would stop the spawner the moment one
     // was typed).
-    const stopped = !ctx.conveyorRunning(p.conveyorId) || (p.enableComms && ctx.tagDriven(p.runTag) ? !ctx.readTag(p.runTag) : false)
+    const stopped = !ctx.conveyorRunning(p.conveyorId) || (ctx.tagDriven(p.runTag) && !ctx.readTag(p.runTag))
     const onEnable = p.release === 'enable'
     if (p.disable || usedOff || stopped || p.boxesPerMinute <= 0) {
       // on each enable: held off = disarmed, so the next open is a fresh command

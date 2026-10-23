@@ -99,11 +99,11 @@ END_IF;
 `
   // a 5 m belt with its deck 0.8 m up, a box dropped near its tail, and an eye 3 m along aimed across it
   const parts = [
-    { id: 'belt', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: FAST, enableComms: true, runTag: run, speedTag: speed } },
+    { id: 'belt', type: 'part', packageId: 'oip.belt-conveyor', position: [0, 0.8, 0], rotationY: 0, params: { segments: [[5, 0]], width: 0.8, standHeight: 0.8, speed: FAST, runTag: run, speedTag: speed } },
     { id: 'box', type: 'part', packageId: 'oip.box', position: [0.6, 1.0, 0], rotationY: 0, params: { length: 0.4, width: 0.3, height: 0.3 } },
-    { id: 'eye', type: 'part', packageId: 'oip.diffuse-sensor', position: [3, 0.75, -0.6], rotationY: 0, params: { maxRange: 1.2, enableComms: true, tag: eye } },
+    { id: 'eye', type: 'part', packageId: 'oip.diffuse-sensor', position: [3, 0.75, -0.6], rotationY: 0, params: { maxRange: 1.2, tag: eye } },
     // a laser across the belt 0.8 m before the eye: its distance is the ANALOG the PLC decides on
-    { id: 'laser', type: 'part', packageId: 'oip.laser-sensor', position: [2.2, 0.75, -0.6], rotationY: 0, params: { maxRange: 1.2, enableComms: true, distanceTag: range } },
+    { id: 'laser', type: 'part', packageId: 'oip.laser-sensor', position: [2.2, 0.75, -0.6], rotationY: 0, params: { maxRange: 1.2, distanceTag: range } },
   ]
   return { points, program, parts }
 }

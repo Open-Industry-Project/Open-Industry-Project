@@ -90,8 +90,7 @@
         </ol>
         <p>
           Now give the two devices I/O addresses instead of names. Select each one, find the
-          <span class="ui">Comms</span> group in the Inspector, tick <span class="ui">Enable Comms</span>, and type the address
-          into its tag field:
+          <span class="ui">Comms</span> group in the Inspector, and type the address into its tag field:
         </p>
         <div class="scroll-x">
           <table class="map">
@@ -108,8 +107,8 @@
           <code>Eye</code>, is only seen by the program running inside the simulator.
         </p>
         <figure class="shot">
-          <img src="img/inspector-comms.webp" width="376" height="248" loading="lazy" decoding="async"
-            alt="The Inspector's Comms group for the Belt Conveyor: Enable Comms ticked and the Run Tag set to %QX0.0." />
+          <img src="img/inspector-comms.webp" width="376" height="214" loading="lazy" decoding="async"
+            alt="The Inspector's Comms group for the Belt Conveyor, with the Run Tag set to %QX0.0." />
           <figcaption>The Belt Conveyor's Comms group, with its Run Tag on an output address.</figcaption>
         </figure>
         <div class="note tip">
@@ -140,10 +139,10 @@
         <p>
           The list underneath shows what Play will serve. For this scene it should read
           <code>%IX0.0&nbsp;&nbsp;discrete input 0</code> and <code>%QX0.0&nbsp;&nbsp;coil 0</code>. If it says no part is wired yet,
-          check that <span class="ui">Enable Comms</span> is ticked on both parts.
+          check that both parts have their address typed into the tag field.
         </p>
         <figure class="shot">
-          <img src="img/external-plc.webp" width="680" height="458" loading="lazy" decoding="async"
+          <img src="img/external-plc.webp" width="680" height="383" loading="lazy" decoding="async"
             alt="The External PLC settings: Runs on An external PLC, connecting with The PLC polls the simulator, Port 5020, Reachable from the network off, and the list of served points: %IX0.0 discrete input 0 and %QX0.0 coil 0." />
           <figcaption>Set up to serve, with the two points this scene puts on the wire.</figcaption>
         </figure>
@@ -415,7 +414,7 @@ END_PROGRAM</code></pre>
           <dt>The PLC is connected, but the belt never runs or never stops.</dt>
           <dd>
             The addresses on the two sides do not match. The usual causes are off-by-one (a 1-based tool shows discrete input 0 as <code>10001</code>), mixing up bit and byte numbers (<code>%IX1.0</code> is point 8, not 1), or
-            <span class="ui">Enable Comms</span> left off on a part. The External PLC dialog lists exactly which points it serves.
+            a tag field left empty on a part. The External PLC dialog lists exactly which points it serves.
           </dd>
 
           <dt>Analog values are nonsense, like a huge number or a tiny fraction.</dt>
