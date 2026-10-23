@@ -241,6 +241,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // An activating worker takes control of tabs that loaded without one (a first visit, Ctrl+Shift+R), so the
+        // Reload toast's controllerchange fires in every tab. It does not skip waiting: a new build still waits
+        // for Reload.
+        clientsClaim: true,
         // precache the app shell. The Jolt SIMD build ships a separate ~2 MB .wasm
         // and the three.js chunk is large, so the default 2 MiB cap would silently
         // drop them from the precache and break offline launch.
