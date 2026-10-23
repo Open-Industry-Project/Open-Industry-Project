@@ -80,13 +80,19 @@ export interface WiringReport {
 interface Decl {
   partId: string
   partLabel: string
-  paramKey: string
+  /** the param's label as its Inspector row shows it (core labelHead), which is what the problem text names */
+  paramLabel: string
   dir: 'in' | 'out'
   stType?: 'BOOL' | 'INT' | 'DINT' | 'REAL'
   /** the label of the param this tag replaces while bound (`setpointFor`): undriven, the part uses 0 in its place */
   replaces?: string
   /** the part reads the tag only while a program drives it (`onlyWhenDriven`): undriven, it runs on its own setting */
   gated?: boolean
+}
+
+/** A tag param as the problem text names it: the part, then the param as its Inspector row reads ("Belt1 (Run tag)"). */
+function named(d: Pick<Decl, 'partLabel' | 'paramLabel'>): string {
+  return `${d.partLabel} (${d.paramLabel})`
 }
 
 function paramsOf(p: WiringPart): Record<string, unknown> {
@@ -125,10 +131,10 @@ function undrivenCost(readers: readonly Decl[]): string {
   if (zero.length > 0) {
     const hit = zero.filter((r) => r.replaces !== undefined)
     const setpoints = hit.length > 0 ? `, so ${hit.map((r) => `${r.partLabel} uses 0 in place of its ${r.replaces}`).join(', ')}` : ''
-    out.push(`${own.length > 0 ? `for ${zero.map((r) => `${r.partLabel}.${r.paramKey}`).join(', ')} ` : ''}it stays at its zero value${setpoints}`)
+    out.push(`${own.length > 0 ? `for ${zero.map(named).join(', ')} ` : ''}it stays at its zero value${setpoints}`)
   }
   const names = [...new Set(own.map((r) => r.partLabel))]
-  if (names.length > 0) out.push(`${names.join(', ')} ${names.length === 1 ? 'runs on its' : 'run on their'} own setting until a program drives it`)
+  if (names.length > 0) out.push(`${names.join(', ')} ${names.length === 1 ? 'ignores it and runs on its' : 'ignore it and run on their'} own setting`)
   return out.join('; ')
 }
 
@@ -172,14 +178,14 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
       if (looksLikeAddress(tag)) {
         const why = addressProblem(tag, spec.dir, spec.stType)
         if (why) {
-          problems.push({ severity: 'error', kind: 'address', tag, message: `${p.name ?? p.id}.${spec.key}: ${why}`, parts: [p.id] })
+          problems.push({ severity: 'error', kind: 'address', tag, message: `${named({ partLabel: p.name ?? p.id, paramLabel: labelHead(spec.label) })}: ${why}`, parts: [p.id] })
           continue
         }
         tag = canonicalAddress(tag) ?? tag
       }
       const list = byTag.get(tag) ?? []
       const replaced = spec.setpointFor ? specs.find((s) => s.key === spec.setpointFor) : undefined
-      list.push({ partId: p.id, partLabel: p.name ?? p.id, paramKey: spec.key, dir: spec.dir, stType: spec.stType, ...(replaced ? { replaces: labelHead(replaced.label) } : {}), ...(spec.onlyWhenDriven ? { gated: true } : {}) })
+      list.push({ partId: p.id, partLabel: p.name ?? p.id, paramLabel: labelHead(spec.label), dir: spec.dir, stType: spec.stType, ...(replaced ? { replaces: labelHead(replaced.label) } : {}), ...(spec.onlyWhenDriven ? { gated: true } : {}) })
       byTag.set(tag, list)
     }
   }
@@ -202,7 +208,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         severity: 'error',
         kind: 'type-clash',
         tag,
-        message: `declared as ${declaredTypes.join(' and ')} by different parts (${decls.map((d) => `${d.partLabel}.${d.paramKey}`).join(', ')})`,
+        message: `declared as ${declaredTypes.join(' and ')} by different parts (${decls.map(named).join(', ')})`,
         parts: [...new Set(decls.map((d) => d.partId))],
       })
     }
@@ -210,7 +216,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
     // two things driving one tag: last writer wins, and which one that is depends on part order
     const driverCount = writers.length + (programWrites ? 1 : 0)
     if (driverCount > 1) {
-      const who = [...writers.map((w) => `${w.partLabel}.${w.paramKey}`), ...(programWrites ? ['the ST program'] : [])]
+      const who = [...writers.map(named), ...(programWrites ? ['the ST program'] : [])]
       problems.push({
         severity: 'error',
         kind: 'contested',
@@ -244,7 +250,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         severity: 'warning',
         kind: 'undriven',
         tag,
-        message: `read by ${readers.map((r) => `${r.partLabel}.${r.paramKey}`).join(', ')} but the program does not drive it - ${undrivenCost(readers)}${partsOnly}`,
+        message: `read by ${readers.map(named).join(', ')} but the program does not drive it - ${undrivenCost(readers)}${partsOnly}`,
         parts: readers.map((r) => r.partId),
       })
     }
@@ -253,7 +259,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         severity: 'warning',
         kind: 'unread',
         tag,
-        message: `written by ${writers.map((w) => `${w.partLabel}.${w.paramKey}`).join(', ')} but the program does not read it${partsOnly}`,
+        message: `written by ${writers.map(named).join(', ')} but the program does not read it${partsOnly}`,
         parts: writers.map((w) => w.partId),
       })
     }

@@ -120,7 +120,7 @@ Q := Level > 3;`)
     const msg = (tag: string) => report.problems.find((p) => p.kind === 'undriven' && p.tag === tag)?.message
     expect(msg('Rate')).toContain('so d1 uses 0 in place of its Speed (m/s)')
     // a gate read only while driven: undriven, the part runs on its own setting, so it does not read 0
-    expect(msg('Go')).toContain('d1 runs on its own setting until a program drives it')
+    expect(msg('Go')).toContain('d1 ignores it and runs on its own setting')
     expect(msg('Go')).not.toContain('zero value')
     // one read whenever it names a tag does read 0, and replaces no param
     expect(msg('Halt')).toContain('it stays at its zero value')
@@ -192,8 +192,8 @@ describe('checkWiring: a part wired to a direct address', () => {
     registerPackage(SENSOR)
     const report = checkWiring(scene(part('c1', 't.conveyor', { runTag: '%IX0.1' }), part('s1', 't.sensor', { tag: '%QX0.0' })))
     expect(report.problems.map((p) => [p.kind, p.parts, p.message])).toEqual([
-      ['address', ['c1'], "c1.runTag: this part is driven by the value, so it is the PLC's output: a %Q address (%QX0.1), not %IX0.1"],
-      ['address', ['s1'], "s1.tag: this part publishes the value, so it is the PLC's input: an %I address (%IX0.0), not %QX0.0"],
+      ['address', ['c1'], "c1 (runTag): this part is driven by the value, so it is the PLC's output: a %Q address (%QX0.1), not %IX0.1"],
+      ['address', ['s1'], "s1 (tag): this part publishes the value, so it is the PLC's input: an %I address (%IX0.0), not %QX0.0"],
     ])
   })
 

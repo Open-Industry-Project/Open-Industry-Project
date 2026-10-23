@@ -247,7 +247,7 @@ describe('the table a scene makes', () => {
     registerPackage(MOTOR)
     const { io, problems } = deriveExternalIo([part('e', 't.sensor', { tag: '%QX0.0' }), part('m', 't.motor', { runTag: '%QX0.0.0' })], DEFAULT_EXTERNAL_PLC)
     expect(io.points).toEqual([])
-    expect(problems).toEqual([expect.stringMatching(/^e\.tag: this part publishes the value, so it is the PLC's input/), expect.stringMatching(/^m\.runTag: a bit address is byte\.bit/)])
+    expect(problems).toEqual([expect.stringMatching(/^e \(tag\): this part publishes the value, so it is the PLC's input/), expect.stringMatching(/^m \(runTag\): a bit address is byte\.bit/)])
   })
 })
 
