@@ -87,7 +87,7 @@ try {
   const visible = find(rows, 'Visible')
   check(!!visible && visible.title.includes('still collides'), 'the built-in Visible row carries its description')
   const pos = find(rows, 'Position')
-  check(!!pos && pos.title.includes('meters'), 'the built-in Position row carries its description')
+  check(!!pos && pos.title.includes('World position'), 'the built-in Position row carries its description')
 
   // --- F: a conveyor, the highest-traffic part in the app ------------------------------------------------
   // Its two most misread fields: speed (reversing is a negative speed, not a 180° rotation) and the setpoint
