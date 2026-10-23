@@ -8,8 +8,8 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PlcTagList } from '../../links/externalPlc'
-import type { ProgramCheck } from '../../program/tagVerdicts'
-import { loadProgramTags, programTagChoices, rankTagNames } from './tagSuggest'
+import type { ProgramCheck, ProgramTag } from '../../program/tagVerdicts'
+import { loadProgramTags, programTagChoices, rankTagNames, tagMisfit } from './tagSuggest'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('inspector.tagField', {
@@ -29,6 +29,16 @@ const M = defineMessages('inspector.tagField', {
   noTags: 'The PLC published no tags a part can be wired to.',
   noneFits: 'None fits what is typed.',
   truncated: 'The PLC has more tags than were read, so one not listed may still be there.',
+  misfitInput: 'program reads it',
+  misfitInputWhy: 'The program reads this, so nothing drives it for this part to read. Declare it as an output, or pick another.',
+  misfitWritten: 'another part writes it',
+  misfitWrittenWhy: 'Another part writes this, so the program reads it and nothing drives it for this part to read.',
+  misfitOutput: 'program drives it',
+  misfitOutputWhy: 'The program drives this, so it does not read what this part writes. Declare it as an input, or pick another.',
+  noProgram: 'No program yet. Type a name, then declare it in the program.',
+  noneOfType: 'The program declares no {type} variables yet. Type a name, then declare it in the program.',
+  noneOfAny: 'The program declares no variables a part can be wired to yet. Type a name, then declare it in the program.',
+  newName: 'Nothing in the program fits. A new name connects once the program declares it.',
 })
 
 /** Where a tag field's suggestions come from beyond the scene: the Inspector provides it. */
@@ -42,6 +52,8 @@ export interface TagSources {
   readPlc: () => void
   /** the link is OPC UA, so a PLC section belongs in the list (it may still be empty) */
   plcLinked: boolean
+  /** an external PLC link is on (any protocol): parts may be wired to its tags, so an empty program is not a gap */
+  external: boolean
 }
 
 export const TagSourcesContext = createContext<TagSources | null>(null)
@@ -54,7 +66,16 @@ const PLC_LIMIT = 50
 const LIST_MAX_HEIGHT = 300
 const EDGE = 8
 
-type Row = { kind: 'name'; name: string; detail?: string; uses?: number } | { kind: 'action'; label: string; run: () => void }
+type Row =
+  | {
+      kind: 'name'
+      name: string
+      detail?: string
+      uses?: number
+      /** picking it would leave this field unconnected: a short note shown in the row, and the full reason */
+      misfit?: { note: string; why: string }
+    }
+  | { kind: 'action'; label: string; run: () => void }
 interface Section {
   id: 'program' | 'plc'
   title: string
@@ -72,7 +93,9 @@ export function TagField({
   labelExtra,
   extra,
   sceneUses,
+  written,
   stType,
+  dir,
   onCommit,
 }: {
   label: string
@@ -84,8 +107,12 @@ export function TagField({
   extra?: ReactNode
   /** the tags the scene's parts hold, already filtered (not another type), with how many tag fields hold each */
   sceneUses: ReadonlyMap<string, number>
+  /** the scene's tags some part writes, which a field the part reads cannot be driven through */
+  written: ReadonlySet<string>
   /** the field's declared ST type, which the program's and the scene's suggestions match */
   stType?: string
+  /** which way the part uses the tag: the program variables that connect that way are listed first */
+  dir?: 'in' | 'out'
   onCommit: (v: string) => void
 }) {
   const sources = useContext(TagSourcesContext)
@@ -101,7 +128,8 @@ export function TagField({
   const [typed, setTyped] = useState(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
-  const [programTags, setProgramTags] = useState<readonly { name: string; type: string }[]>([])
+  // null until first read, so the list does not say the program has nothing while it loads
+  const [programTags, setProgramTags] = useState<readonly ProgramTag[] | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const [at, setAt] = useState<{ left: number; top?: number; bottom?: number; width: number; maxHeight: number } | null>(null)
 
@@ -163,7 +191,7 @@ export function TagField({
   }
 
   const query = typed ? text : ''
-  const sections = open ? buildSections(query, sceneUses, programTags, stType, sources) : []
+  const sections = open ? buildSections(query, sceneUses, programTags, stType, sources, dir, written) : []
   const rows = sections.flatMap((s) => s.rows)
   const activate = (row: Row): void => {
     if (row.kind === 'name') pick(row.name)
@@ -195,6 +223,10 @@ export function TagField({
             setTyped(false)
             setActive(-1)
             setOpen(true)
+          }}
+          // Escape with nothing typed closes the list and keeps the box focused, so focus alone would not reopen it
+          onClick={() => {
+            if (!open) setOpen(true)
           }}
           onBlur={() => {
             focused.current = false
@@ -259,14 +291,16 @@ export function TagField({
                     key={row.kind === 'name' ? `n:${row.name}` : `a:${row.label}`}
                     role="option"
                     aria-selected={i === active}
-                    className={`tag-suggest-row${row.kind === 'action' ? ' tag-suggest-action' : ''}${i === active ? ' active' : ''}`}
+                    className={`tag-suggest-row${row.kind === 'action' ? ' tag-suggest-action' : ''}${row.kind === 'name' && row.misfit ? ' misfit' : ''}${i === active ? ' active' : ''}`}
+                    title={row.kind === 'name' ? row.misfit?.why : undefined}
                     data-testid={row.kind === 'name' ? 'tag-suggest-item' : 'tag-suggest-action'}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => activate(row)}
                   >
                     <span className="tag-suggest-name">{row.kind === 'name' ? row.name : row.label}</span>
-                    {row.kind === 'name' && (row.detail || row.uses) && (
+                    {row.kind === 'name' && (row.detail || row.uses || row.misfit) && (
                       <span className="tag-suggest-meta">
+                        {row.misfit && <span className="tag-suggest-misfit">{row.misfit.note}</span>}
                         {row.uses ? <span className="tag-suggest-detail">{t(M.uses, { count: row.uses, n: row.uses.toLocaleString() })}</span> : null}
                         {row.detail && <span className="tag-suggest-detail">{row.detail}</span>}
                       </span>
@@ -290,30 +324,67 @@ export function TagField({
 /** "{n} more, keep typing": `count` picks the plural form, `n` is the count as shown. */
 const moreNote = (n: number): string => t(M.more, { count: n, n: n.toLocaleString() })
 
+const MISFIT = {
+  input: { note: M.misfitInput, why: M.misfitInputWhy },
+  written: { note: M.misfitWritten, why: M.misfitWrittenWhy },
+  output: { note: M.misfitOutput, why: M.misfitOutputWhy },
+} as const
+
 /**
  * The list's sections for what is typed: the program's variables of the field's type, each with how many of the
  * scene's tag fields hold it, then the PLC's. A name the program does not declare is not offered, even when parts
  * hold it: a part's tag connects only to the program (sim/behaviorBus.ts), so such a name connects to nothing, and
- * offering it would spread a typo. The field's mark says so instead. `program` is every tag the program has, of any
- * type. Exported for its spec.
+ * offering it would spread a typo. The field's mark says so instead. A variable declared the other way round for
+ * the field (`dir`, `tagMisfit`) is offered after the ones that connect, saying why it would not: the user may be
+ * looking for it, and the reason tells them what to change in the program. `program` is every tag the program has,
+ * of any type, or null while it loads. With nothing to offer, the section says why and what to do. Exported for its
+ * spec.
  */
 export function buildSections(
   query: string,
   sceneUses: ReadonlyMap<string, number>,
-  program: readonly { name: string; type: string }[],
+  program: readonly ProgramTag[] | null,
   stType: string | undefined,
   sources: TagSources | null,
+  dir?: 'in' | 'out',
+  written: ReadonlySet<string> = new Set(),
 ): Section[] {
   const out: Section[] = []
   const taken = new Set<string>()
   const uses = new Map([...sceneUses].map(([name, n]) => [name.toLowerCase(), n]))
-  const choices = programTagChoices(program, stType)
-  const types = new Map(choices.map((c) => [c.name, c.type]))
-  const prog = rankTagNames(query, choices.map((c) => c.name), PROGRAM_LIMIT)
-  if (prog.shown.length > 0) {
-    for (const n of prog.shown) taken.add(n.toLowerCase())
-    const rows: Row[] = prog.shown.map((name) => ({ kind: 'name', name, detail: types.get(name), uses: uses.get(name.toLowerCase()) ?? 0 }))
-    out.push({ id: 'program', title: t(M.inProgram), rows, notes: prog.more > 0 ? [moreNote(prog.more)] : [] })
+  const choices = programTagChoices(program ?? [], stType)
+  const byName = new Map(choices.map((c) => [c.name, c]))
+  // ranked by what is typed, then the ones that connect first, each half in the ranking's order
+  const ranked = rankTagNames(query, choices.map((c) => c.name), Infinity).shown
+  const misfitOf = new Map(ranked.map((name) => [name, tagMisfit(byName.get(name)!, dir, written)]))
+  const ordered = [...ranked.filter((n) => !misfitOf.get(n)), ...ranked.filter((n) => misfitOf.get(n))]
+  const shown = ordered.slice(0, PROGRAM_LIMIT)
+  if (shown.length > 0) {
+    for (const n of shown) taken.add(n.toLowerCase())
+    const rows: Row[] = shown.map((name) => {
+      const misfit = misfitOf.get(name)
+      return {
+        kind: 'name',
+        name,
+        detail: byName.get(name)!.type,
+        uses: uses.get(name.toLowerCase()) ?? 0,
+        ...(misfit ? { misfit: { note: t(MISFIT[misfit].note), why: t(MISFIT[misfit].why) } } : {}),
+      }
+    })
+    const more = ordered.length - shown.length
+    out.push({ id: 'program', title: t(M.inProgram), rows, notes: more > 0 ? [moreNote(more)] : [] })
+  } else if (program !== null && sources && !sources.external) {
+    // nothing to pick: say why, so an empty list does not read as a broken one. Not with an external PLC, whose tags
+    // are the ones wired to
+    const none =
+      sources.check.source.trim() === ''
+        ? t(M.noProgram)
+        : query.trim() !== ''
+          ? t(M.newName)
+          : stType
+            ? t(M.noneOfType, { type: stType })
+            : t(M.noneOfAny)
+    out.push({ id: 'program', title: t(M.inProgram), rows: [], notes: [none] })
   }
   if (sources?.plcLinked) out.push(plcSection(query, sources, taken))
   return out

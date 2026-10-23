@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { declaredTags, programTagChoices, rankTagNames } from './tagSuggest'
+import { declaredTags, programTagChoices, rankTagNames, tagMisfit } from './tagSuggest'
 import { buildSections } from './tagField'
 import type { TagSources } from './tagField'
 import type { TagRow } from '../../../plc/tags'
@@ -32,6 +32,28 @@ describe('the program\'s tags a field offers', () => {
   it('offers any bit or number when the field declares no type, never a block', () => {
     expect(programTagChoices(declaredTags(rows), undefined).map((c) => c.name)).toEqual(['Start', 'Speed'])
   })
+  it('carries how each one is declared', () => {
+    expect(declaredTags([row('Eye', 'BOOL', { section: 'VAR_INPUT' }), row('Run', 'BOOL', { section: 'VAR_OUTPUT' }), row('Flag', 'BOOL')])).toEqual([
+      { name: 'Eye', type: 'BOOL', dir: 'in' },
+      { name: 'Run', type: 'BOOL', dir: 'out' },
+      { name: 'Flag', type: 'BOOL' },
+    ])
+  })
+})
+
+describe('which program variables would leave a field unconnected', () => {
+  const none = new Set<string>()
+  it('a field the part reads misses an input, and an undirected tag another part writes', () => {
+    expect(tagMisfit({ name: 'Eye', type: 'BOOL', dir: 'in' }, 'in', none)).toBe('input')
+    expect(tagMisfit({ name: 'Run', type: 'BOOL', dir: 'out' }, 'in', none)).toBeNull()
+    expect(tagMisfit({ name: 'Flag', type: 'BOOL' }, 'in', none)).toBeNull()
+    expect(tagMisfit({ name: 'Flag', type: 'BOOL' }, 'in', new Set(['Flag']))).toBe('written')
+  })
+  it('a field the part writes misses an output', () => {
+    expect(tagMisfit({ name: 'Run', type: 'BOOL', dir: 'out' }, 'out', none)).toBe('output')
+    expect(tagMisfit({ name: 'Eye', type: 'BOOL', dir: 'in' }, 'out', none)).toBeNull()
+    expect(tagMisfit({ name: 'Flag', type: 'BOOL' }, 'out', new Set(['Flag']))).toBeNull()
+  })
 })
 
 describe('the sections of the list', () => {
@@ -39,7 +61,7 @@ describe('the sections of the list', () => {
     { path: ['PLC1', 'MAIN', 'Motor'], nodeId: 'a' },
     { path: ['PLC1', 'MAIN', 'Eye'], nodeId: 'b' },
   ]
-  const sources = (over: Partial<TagSources> = {}): TagSources => ({ check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, ...over })
+  const sources = (over: Partial<TagSources> = {}): TagSources => ({ check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, external: true, ...over })
 
   const program = [{ name: 'Motor1', type: 'BOOL' }, { name: 'Start', type: 'BOOL' }, { name: 'Speed', type: 'REAL' }]
 
@@ -75,6 +97,30 @@ describe('the sections of the list', () => {
 
   it('leaves the PLC out when the link is not OPC UA', () => {
     expect(buildSections('', new Map(), [], undefined, sources({ plcLinked: false }))).toEqual([])
+  })
+
+  it('lists the variables that connect first, then the others with why not', () => {
+    const io = [{ name: 'Eye', type: 'BOOL', dir: 'in' as const }, { name: 'Run', type: 'BOOL', dir: 'out' as const }, { name: 'Flag', type: 'BOOL' }]
+    const reads = buildSections('', new Map(), io, 'BOOL', sources({ plcLinked: false, external: false }), 'in', new Set(['Flag']))[0]!.rows
+    expect(reads.map((r) => (r.kind === 'name' ? [r.name, r.misfit?.note ?? ''] : []))).toEqual([
+      ['Run', ''],
+      ['Eye', 'program reads it'],
+      ['Flag', 'another part writes it'],
+    ])
+    const writes = buildSections('', new Map(), io, 'BOOL', sources({ plcLinked: false, external: false }), 'out')[0]!.rows
+    expect(writes.map((r) => (r.kind === 'name' ? r.name : ''))).toEqual(['Eye', 'Flag', 'Run'])
+  })
+
+  it('says why there is nothing to pick', () => {
+    const notes = (program: { name: string; type: string }[] | null, src: string, query = '') =>
+      buildSections(query, new Map(), program, 'BOOL', sources({ plcLinked: false, external: false, check: { source: src, dialect: undefined, controller: null, scanMs: 10 } }))[0]?.notes
+    expect(notes([], '')).toEqual(['No program yet. Type a name, then declare it in the program.'])
+    expect(notes([{ name: 'Speed', type: 'REAL' }], 'x')).toEqual(['The program declares no BOOL variables yet. Type a name, then declare it in the program.'])
+    expect(notes([{ name: 'Run', type: 'BOOL' }], 'x', 'zz')).toEqual(['Nothing in the program fits. A new name connects once the program declares it.'])
+    // still loading: no note that would claim the program has nothing
+    expect(notes(null, 'x')).toBeUndefined()
+    // an external PLC's tags are the ones wired to: an empty program is no gap
+    expect(buildSections('', new Map(), [], 'BOOL', sources({ plcLinked: false }))).toEqual([])
   })
 })
 

@@ -248,11 +248,29 @@ async function main() {
       return { kinds: mark?.getAttribute('data-kinds') ?? '', title: mark?.getAttribute('title') ?? '' }
     })
     check('an undriven speed tag warns that the part uses 0 for its Speed', stall.kinds.split(' ').includes('undriven') && /uses 0 in place of its Speed/.test(stall.title), JSON.stringify(stall))
+    // the list still offers the program's input, after any that connect, saying why it would not
+    const runField = page.locator('label.field', { has: page.locator('.field-label', { hasText: /^Run tag/i }) }).locator('input[data-testid="tag-field"]')
+    await runField.click()
+    await list.waitFor({ timeout: 5000 })
+    await page.waitForFunction(() => /program reads it/.test(document.querySelector('[data-testid="tag-suggest-program"]')?.textContent ?? ''), { timeout: 10000 }).catch(() => {})
+    const misfit = await page.evaluate(() => {
+      const row = document.querySelector('[data-testid="tag-suggest-program"] .tag-suggest-row.misfit')
+      return { text: row?.textContent ?? '', title: row?.getAttribute('title') ?? '' }
+    })
+    check("a program input is listed for a field the part reads, saying the program reads it", /^Strt/.test(misfit.text) && /program reads it/.test(misfit.text) && /Declare it as an output/.test(misfit.title), JSON.stringify(misfit))
+    await page.keyboard.press('Escape')
 
     // no program at all
     await page.evaluate(() => window.__oip.store.loadStProgram('', { persist: false }))
     await statusIs('^Run tag', 'no-program')
     check('with no program the field says so', (await statusOf('^Run tag'))?.kind === 'no-program', JSON.stringify(await statusOf('^Run tag')))
+    // Escape left the box focused: a click on it reopens the list
+    await runField.click()
+    await list.waitFor({ timeout: 5000 }).catch(() => {})
+    await page.waitForFunction(() => /No program yet/.test(document.querySelector('[data-testid="tag-suggest-program"]')?.textContent ?? ''), { timeout: 10000 }).catch(() => {})
+    const emptyNote = await page.evaluate(() => document.querySelector('[data-testid="tag-suggest-program"] .tag-suggest-note')?.textContent ?? '')
+    check('with no program the list says what to do', /No program yet/.test(emptyNote), emptyNote)
+    await page.keyboard.press('Escape')
     await setB2({ runTag: '', speedTag: '' })
 
     // ---- two instances of one program: each instance's variables, by the qualified names wiring binds

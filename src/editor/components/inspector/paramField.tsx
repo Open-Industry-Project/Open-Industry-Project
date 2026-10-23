@@ -495,7 +495,9 @@ export function ParamField({
           tooltip={tooltip}
           disabled={disabled}
           sceneUses={new Map(suggestions.map((name) => [name, signals.get(name)?.uses ?? 0]))}
+          written={new Set([...signals].filter(([, s]) => s.writers > 0).map(([name]) => name))}
           stType={spec.stType}
+          dir={spec.dir}
           labelExtra={
             <>
               {dirHint && (
@@ -817,10 +819,12 @@ function TagMark({ tag, spec, replaces, parts, reasons, byName, connected }: { t
  * program that does not compile (Problems says why), or for '' (no tag, or not one to ask about).
  */
 function useProgramTagWord(tag: string, spec: TagMarkSpec, replaces: string | undefined, parts: readonly PartInstance[]): { warn: TagWarning } | { status: TagStatus } | null {
-  const check = useContext(TagSourcesContext)?.check
+  const sources = useContext(TagSourcesContext)
+  const check = sources?.check
   const verdict = useProgramVerdicts(parts, tag === '' ? undefined : check)?.get(tag)
   if (tag === '' || !check) return null
-  if (!verdict) return check.source.trim() === '' ? { status: { kind: 'no-program', why: t(M.noProgram, { tag }) } } : null
+  // with an external PLC on, the part is wired to the PLC's tags, so an empty program says nothing about it
+  if (!verdict) return check.source.trim() === '' && !sources.external ? { status: { kind: 'no-program', why: t(M.noProgram, { tag }) } } : null
   if (!verdict.declared) return { warn: { kind: 'undeclared', why: t(M.notInProgram, { tag }) } }
   const { stType } = spec
   if (stType && verdict.type && (verdict.type === 'BOOL') !== (stType === 'BOOL')) {

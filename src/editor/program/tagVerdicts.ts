@@ -47,22 +47,37 @@ function compiledFor(check: ProgramCheck): CompiledProgram | null {
 }
 
 /**
+ * A program variable a part's tag can name. `dir` is how the program declares it: `in` a VAR_INPUT (the program reads
+ * it), `out` a VAR_OUTPUT (it drives it). Absent for a variable with no declared direction, which takes the one the
+ * parts give it (plc/wiring.ts wiredBindings).
+ */
+export interface ProgramTag {
+  name: string
+  type: string
+  dir?: 'in' | 'out'
+}
+
+/**
  * Every program variable a part's tag can name, with its declared type, in declaration order: the declared inputs and
  * outputs and what wiring binds (`CompiledProgram.bindable`, a program instance's variables as `Main.Eye` among them).
  * A sole instance's variables go by their bare names, which the link answers to (plcLink.ts soleInstanceAliases).
  * Null when the program does not compile, so the caller can fall back to reading its declarations.
  */
-export function programTagNames(check: ProgramCheck): { name: string; type: string }[] | null {
+export function programTagNames(check: ProgramCheck): ProgramTag[] | null {
   const program = compiledFor(check)
   if (!program) return null
   const bare = new Map([...new LocalPlcLink(program).aliases].map(([alias, name]) => [name, alias]))
-  const out: { name: string; type: string }[] = []
+  const inputs = new Set(program.inputs)
+  const outputs = new Set(program.outputs)
+  const out: ProgramTag[] = []
   const seen = new Set<string>()
   for (const name of [...program.inputs, ...program.outputs, ...program.bindable]) {
     if (seen.has(name)) continue
     seen.add(name)
     const info = program.varInfo(name)
-    if (info && !info.constant) out.push({ name: bare.get(name) ?? name, type: info.type })
+    if (!info || info.constant) continue
+    const dir = inputs.has(name) ? 'in' : outputs.has(name) ? 'out' : undefined
+    out.push({ name: bare.get(name) ?? name, type: info.type, ...(dir ? { dir } : {}) })
   }
   return out
 }
