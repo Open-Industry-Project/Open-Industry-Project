@@ -216,8 +216,9 @@ keeps upstream's `repository` and `homepage` fields. Those point at
 <https://github.com/jrouwe/JoltPhysics.js>, which has no `1.1.0-oip.8` and none of the
 changes listed here.
 
-**The fork's source is public:** <https://github.com/ryevdokimov/JoltPhysics.js>,
-branch `oip/1.1.0`, which is upstream's `1.1.0` tag plus three commits.
+**The fork's source is in this repository:** upstream's `1.1.0` tag plus the three patches
+in `vendor/jolt-physics-src/`, which `node scripts/jolt-src.mjs <dir>` applies to a fresh
+upstream clone.
 
 - **Upstream:** JoltPhysics.js by Jorrit Rouwe (MIT), a WASM build of Jolt Physics.
 - **License:** unchanged. The MIT text travels with the binary inside the tarball at
@@ -237,8 +238,8 @@ branch `oip/1.1.0`, which is upstream's `1.1.0` tag plus three commits.
   coupled-planar-friction patch to the Jolt C++ source the build pulls in. The shipped
   single-threaded builds are also compiled with SIMD, a build option rather than a source
   change (`vendor/README.md`).
-- **Rebuilding:** see [vendor/README.md](vendor/README.md). The fork's
-  `patches/README.md` explains the friction patch.
+- **Rebuilding:** see [vendor/README.md](vendor/README.md). The `patches/README.md` that
+  the first patch adds explains the friction patch.
 - **Traceability:** the `-oip.N` suffix is applied when the tarball is packaged, and
   the fork's own `package.json` reads `1.1.0`. So `-oip.8` does not name a commit of
   the fork.
