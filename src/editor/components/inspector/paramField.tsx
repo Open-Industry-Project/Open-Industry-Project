@@ -49,7 +49,7 @@ const M = defineMessages('inspector.paramField', {
   authored: 'Authored: {value} (restored on Stop)',
   differs: 'Differs across {count} parts. Select one to edit.',
   plcCommanded: 'PLC-commanded: the program is driving “{tag}”, which replaces this value while the scene runs.',
-  plcComms: 'PLC comms: this part reads “{tag}” instead of this value, and nothing is driving that tag, so it is running at {value}.',
+  plcComms: 'Not driven: this part reads “{tag}” instead of this value, and nothing drives that tag, so it is running at {value}.',
   plcCommandedDevice: 'PLC-commanded: the program is driving “{tag}”, which owns this device while the scene runs.',
   on: 'On',
   off: 'Off',
