@@ -295,6 +295,15 @@
   padding: 0 6px;
   font-size: 11px;
 }
+/* the tag's live value while the program runs (tagForce.tsx), beside Force */
+.tag-live {
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 11px ui-monospace, Consolas, monospace;
+  color: var(--text-strong);
+}
 .tag-force.on .tag-force-btn {
   border-color: var(--warn);
   color: var(--warn);

@@ -247,10 +247,17 @@ async function main() {
     const inspForce = page.locator('[data-testid="inspector-force-runTag"]')
     await inspForce.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
     check("the Inspector offers to force the selected belt's run tag while running", (await inspForce.count()) === 1 && (await inspForce.innerText()) === 'Force', await inspForce.innerText().catch(() => 'none'))
+    // the live value beside each tag field: what the program holds for the variable the field names
+    const liveOf = (key) =>
+      page.evaluate((key) => document.querySelector(`[data-param="${key}"] [data-testid="inspector-live-value"]`)?.textContent ?? null, key)
+    const lampNow = await page.evaluate(() => window.__oip.controller.plcWatch?.Lamp)
+    check('the run tag field shows the live value of its variable', (await liveOf('runTag')) === (lampNow ? 'TRUE' : 'FALSE'), `${await liveOf('runTag')} vs ${lampNow}`)
+    check('...and the speed tag field its number', (await liveOf('speedTag')) === '1', String(await liveOf('speedTag')))
     await inspForce.click().catch(() => {})
     await page.waitForTimeout(400)
     check('...which holds the variable the field names', 'Lamp' in (await forces(page)), JSON.stringify(await forces(page)))
     check('...and badges the field', (await page.locator('[data-testid="inspector-forced"]').count()) === 1)
+    check('...the badge takes the live value\'s place', (await liveOf('runTag')) === null, String(await liveOf('runTag')))
     // the badge changes the held value: a BOOL flips on a click
     const heldBefore = (await forces(page)).Lamp
     await page.locator('[data-testid="inspector-forced"]').click().catch(() => {})
@@ -260,6 +267,7 @@ async function main() {
     await inspForce.click().catch(() => {})
     await page.waitForTimeout(400)
     check('...and Release there gives it back', JSON.stringify(await forces(page)) === '{}', JSON.stringify(await forces(page)))
+    check('...and the live value is back', /^(TRUE|FALSE)$/.test((await liveOf('runTag')) ?? ''), String(await liveOf('runTag')))
     // ...and a number opens a field: Enter holds what was typed, Escape holds nothing new
     const speedForce = page.locator('[data-testid="inspector-force-speedTag"]')
     await speedForce.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})

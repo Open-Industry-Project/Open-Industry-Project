@@ -1,4 +1,4 @@
-// --- TagForce: Force / Release beside a tag field, while the program runs ---
+// --- TagForce: the tag's live value and Force / Release beside a tag field, while the program runs ---
 // A force is run state held by the controller (EditorController.forcePlcValue): it never writes the document, so
 // nothing here commits to the store or adds an undo step. The tag field beside it stays the wiring.
 
@@ -19,7 +19,30 @@ const M = defineMessages('inspector.tagForce', {
   toggleHeld: 'Held at {value}. Click to hold the opposite',
   editHeld: 'Held at {value}. Click to hold a new value',
   newValue: 'New value to hold {tag} at',
+  liveTitle: '{tag} is {value} now, as the program holds it',
 })
+
+/** How often the live value is read: the Inspector's live-setpoint cadence (Inspector.tsx useLiveSetpoints). */
+const LIVE_MS = 120
+
+/**
+ * The value the running program holds for `key` (a watch key, forceKeyOf), polled: the watch image changes every
+ * scan, independent of any store update. A value that holds still sets the same state, so it re-renders nothing.
+ */
+function useLiveValue(forcing: TagForcing, key: string | null): TagValue | undefined {
+  const [value, setValue] = useState<TagValue | undefined>(() => (key !== null ? forcing.plcWatch?.[key] : undefined))
+  useEffect(() => {
+    if (key === null) {
+      setValue(undefined)
+      return
+    }
+    const read = (): void => setValue(forcing.plcWatch?.[key])
+    read()
+    const id = setInterval(read, LIVE_MS)
+    return () => clearInterval(id)
+  }, [forcing, key])
+  return value
+}
 
 /** What a tag field needs of the controller to force the variable its tag names. */
 export interface TagForcing extends ForceSource {
@@ -31,10 +54,11 @@ export interface TagForcing extends ForceSource {
 }
 
 /**
- * The Force / Release button for the program variable `tag` names, with a FORCED badge while it is held. Nothing
- * when the program is not running or the tag is no program variable (forceKeyOf). The watch image changes every
- * frame, so it is read at render time only: this re-renders when a force is set or released and when the program
- * attaches or detaches, never per frame.
+ * The live value of the program variable `tag` names, then its Force / Release button, with a FORCED badge in place
+ * of the value while it is held. The value is what tells a user the binding is live: a sensor's tag flips as cargo
+ * passes, a speed tag reads what the program commands. Nothing when the program is not running or the tag is no
+ * program variable (forceKeyOf). The force state re-renders when a force is set or released and when the program
+ * attaches or detaches; the value is polled (useLiveValue).
  */
 export function TagForce({ forcing, tag, paramKey }: { forcing: TagForcing; tag: string; paramKey: string }) {
   const forces = usePlcForces(forcing)
@@ -48,12 +72,15 @@ export function TagForce({ forcing, tag, paramKey }: { forcing: TagForcing; tag:
   const key = forceKeyOf(tag, watch, forcing.plcAliases)
   const held = key !== null ? forces[key] : undefined
   const isHeld = held !== undefined
-  // the declarations are parsed only for a held value, to show a duration or a date in its literal
-  const types = useMemo(() => (isHeld && source ? declaredTypeSets(source) : null), [isHeld, source])
+  const live = useLiveValue(forcing, watch ? key : null)
+  // the declarations are parsed once per program while it runs, to show a duration or a date in its literal
+  const running = watch !== null
+  const types = useMemo(() => (running && source ? declaredTypeSets(source) : null), [running, source])
   if (!watch || key === null) return null
   // a STRING cannot be forced (the Watch dock offers no Force for one either)
   const value = watch[key]
   if (!isHeld && (value === undefined || typeof value === 'string')) return null
+  const liveText = !isHeld && live !== undefined && typeof live !== 'string' ? formatPlcValue(live, types ? typeOfKey(types, key) : undefined, 8) : null
   const heldTip = isHeld ? t(M.heldAt, { value: formatPlcValue(held, types ? typeOfKey(types, key) : undefined) }) : undefined
   return (
     <span className={`tag-force${isHeld ? ' on' : ''}`} title={heldTip}>
@@ -100,6 +127,11 @@ export function TagForce({ forcing, tag, paramKey }: { forcing: TagForcing; tag:
         >
           {t(M.forcedAt, { value: formatPlcValue(held, types ? typeOfKey(types, key) : undefined) })}
         </button>
+      )}
+      {liveText !== null && (
+        <span className="tag-live" data-testid="inspector-live-value" title={t(M.liveTitle, { tag, value: liveText })}>
+          {liveText}
+        </span>
       )}
       <button
         type="button"
