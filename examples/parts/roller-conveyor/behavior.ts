@@ -118,6 +118,14 @@ function publishDrive(ctx, drive, cmd, v) {
   if (ctx.params.encoderTag) ctx.writeNumber(ctx.params.encoderTag, drive.odo)
 }
 
+// ---- from examples/parts/_shared/conveyorFriction.js ----
+/** The `friction` param, with the surface's default grip against a carton. */
+function frictionParam(carton) {
+  return {
+    friction: { type: 'number', default: carton, min: 0, step: 0.01, label: 'Carton friction', desc: 'Grip between the running surface and a standard carton, the figure a belt datasheet quotes. A smooth PVC belt is about 0.4, a rough-top incline belt about 0.9 and a low-friction plastic modular belt about 0.2, made for product to slide while it accumulates. Bare steel rollers are about 0.4. Other cargo grips by its own friction against the same surface.' },
+  }
+}
+
 // ---- from examples/parts/_shared/rollerBed.js ----
 /** the drive-band urethane (a warm amber, matte) as a package material: linear RGB of #d9772b */
 
@@ -326,6 +334,7 @@ definePart({
     ...speedUnitParams(1.0),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 1.0, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried along the bed. Negative runs the rollers backwards, which is the ONLY way to reverse flow - rotating the part 180 degrees moves its ends instead. A program can command this through the speed tag below.' },
     ...driveRampParams(0.2, 0.2),
+    ...frictionParam(0.42),
     // skew — angle the rollers for angled product movement: cargo tracks across the bed and squares against
     // a side guard. layoutRollers() rotates the rollers (lengthened to width/cos, clipped to the frame
     // corners) and step() angles the surface velocity to match; the guard collision does the squaring.

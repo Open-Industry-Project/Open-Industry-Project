@@ -10,6 +10,7 @@
 // rig compiled from rig()).
 
 import { commandedSpeed, conveyorDrive, driveFeedbackParams, driveRampParams, publishDrive, rampedSpeed } from '../_shared/conveyorDrive.js'
+import { frictionParam } from '../_shared/conveyorFriction.js'
 import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../_shared/conveyorUnits.js'
 import { rollerBandMaterial, rollerBed } from '../_shared/rollerBed.js'
 import { frameHeightParam } from '../_shared/rollerFrame.js'
@@ -73,7 +74,7 @@ definePart({
     id: 'oip.roller-conveyor',
     name: 'Roller Conveyor',
     category: 'Equipment',
-    conveyor: { bed: 'straight', surface: 'roller', speedParam: 'speed' },
+    conveyor: { bed: 'straight', surface: 'roller', speedParam: 'speed', frictionParam: 'friction' },
     // the drive bands' urethane; everything else takes the shared conveyor materials through its links' finishes
     materials: [rollerBandMaterial('band')],
   },
@@ -136,6 +137,7 @@ definePart({
     ...speedUnitParams(1.0),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 1.0, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried along the bed. Negative runs the rollers backwards, which is the ONLY way to reverse flow - rotating the part 180 degrees moves its ends instead. A program can command this through the speed tag below.' },
     ...driveRampParams(0.2, 0.2),
+    ...frictionParam(0.42),
     // skew — angle the rollers for angled product movement: cargo tracks across the bed and squares against
     // a side guard. layoutRollers() rotates the rollers (lengthened to width/cos, clipped to the frame
     // corners) and step() angles the surface velocity to match; the guard collision does the squaring.

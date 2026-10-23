@@ -660,6 +660,7 @@ function validateConveyor(p: Record<string, unknown> | undefined, problems: Pack
   }
   named('speedParam', (c as { speedParam?: unknown }).speedParam, 'number')
   named('reverseParam', (c as { reverseParam?: unknown }).reverseParam, 'boolean')
+  named('frictionParam', (c as { frictionParam?: unknown }).frictionParam, 'number')
   if (c.bed === undefined) return
   if (!CONVEYOR_BEDS.includes(c.bed as string)) {
     problems.push({ field: 'conveyor.bed', message: `conveyor.bed must be one of ${CONVEYOR_BEDS.map((b) => `'${b}'`).join(', ')}` })

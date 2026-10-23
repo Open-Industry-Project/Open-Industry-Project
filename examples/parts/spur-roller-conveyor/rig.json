@@ -5,7 +5,8 @@
   "conveyor": {
     "bed": "spur",
     "surface": "roller",
-    "speedParam": "speed"
+    "speedParam": "speed",
+    "frictionParam": "friction"
   },
   "geometry": {
     "kind": "drawn",

@@ -12,6 +12,7 @@
 // _shared/ modules it imports joined in and `manifest` left out) and rig.json (the manifest).
 
 import { commandedSpeed, conveyorDrive, driveFeedbackParams, driveRampParams, publishDrive, rampedSpeed } from '../_shared/conveyorDrive.js'
+import { frictionParam } from '../_shared/conveyorFriction.js'
 import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../_shared/conveyorUnits.js'
 import { arcGuard, arcHolePanels } from '../_shared/guardArc.js'
 import { LEG_CLEARANCE, LEG_END_INSET, LEG_SPACING, legPieces } from '../_shared/legs.js'
@@ -28,7 +29,7 @@ definePart({
     id: 'oip.curved-roller-conveyor',
     name: 'Curved Roller Conveyor',
     category: 'Equipment',
-    conveyor: { bed: 'arc', surface: 'roller', speedParam: 'speed', reverseParam: 'reverse' },
+    conveyor: { bed: 'arc', surface: 'roller', speedParam: 'speed', frictionParam: 'friction', reverseParam: 'reverse' },
     geometry: { kind: 'drawn', bounds: { length: OUTER, width: OUTER, top: 0.17 }, conveys: true },
   },
   params: {
@@ -42,6 +43,7 @@ definePart({
     ...speedUnitParams(1),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 1, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed at the centreline of the curve; the outer edge moves faster, which carries a box round square. Negative reverses flow, the ONLY way to turn a curve around (spinning it would swap its inner and outer radius).' },
     ...driveRampParams(0.2, 0.2),
+    ...frictionParam(0.42),
     // Engine storage, never an Inspector field (hidden): the SNAP flips this
     // when it mates two ends that both discharge into the junction — a curve can't just be spun 180°, that
     // would swap inner/outer radius. Reversing by hand stays a negative speed; step() folds the two below.

@@ -117,6 +117,14 @@ function publishDrive(ctx, drive, cmd, v) {
   if (ctx.params.encoderTag) ctx.writeNumber(ctx.params.encoderTag, drive.odo)
 }
 
+// ---- from examples/parts/_shared/conveyorFriction.js ----
+/** The `friction` param, with the surface's default grip against a carton. */
+function frictionParam(carton) {
+  return {
+    friction: { type: 'number', default: carton, min: 0, step: 0.01, label: 'Carton friction', desc: 'Grip between the running surface and a standard carton, the figure a belt datasheet quotes. A smooth PVC belt is about 0.4, a rough-top incline belt about 0.9 and a low-friction plastic modular belt about 0.2, made for product to slide while it accumulates. Bare steel rollers are about 0.4. Other cargo grips by its own friction against the same surface.' },
+  }
+}
+
 // ---- from examples/parts/_shared/guardHolePanel.js ----
 // A side guard's sensor-beam hole panel, drawn once for every function conveyor whose guard is a formed sheet
 // (belt, spur, spur roller, curved, curved roller). The rig roller draws the same plate from core (guardHoles.ts
@@ -320,6 +328,7 @@ definePart({
     ...speedUnitParams(2),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 2, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried along the bed. Negative runs the belt backwards, which is the ONLY way to reverse flow - rotating the part 180 degrees moves its ends instead. A program can command this through the speed tag below.' },
     ...driveRampParams(0.5, 0.5),
+    ...frictionParam(0.59),
     // fabric tint, multiplied into the belt-surface material — white leaves the weave at full brightness, a
     // dark tint multiplies it down toward black.
     beltColor: { type: 'color', default: '#ffffff', label: 'Belt color', desc: 'Tint multiplied into the belt weave. White leaves the fabric at full brightness; a dark tint multiplies it down toward black.' },

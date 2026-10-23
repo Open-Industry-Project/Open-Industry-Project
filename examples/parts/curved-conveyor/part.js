@@ -7,6 +7,7 @@
 // _shared/ modules it imports joined in and `manifest` left out) and rig.json (the manifest).
 
 import { commandedSpeed, conveyorDrive, driveFeedbackParams, driveRampParams, publishDrive, rampedSpeed } from '../_shared/conveyorDrive.js'
+import { frictionParam } from '../_shared/conveyorFriction.js'
 import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../_shared/conveyorUnits.js'
 import { arcGuard, arcHolePanels } from '../_shared/guardArc.js'
 import { LEG_CLEARANCE, LEG_END_INSET, LEG_SPACING, legPieces } from '../_shared/legs.js'
@@ -21,7 +22,7 @@ definePart({
     id: 'oip.curved-conveyor',
     name: 'Curved Belt Conveyor',
     category: 'Equipment',
-    conveyor: { bed: 'arc', surface: 'belt', speedParam: 'speed', reverseParam: 'reverse' },
+    conveyor: { bed: 'arc', surface: 'belt', speedParam: 'speed', frictionParam: 'friction', reverseParam: 'reverse' },
     geometry: { kind: 'drawn', bounds: { length: OUTER, width: OUTER, top: 0.17 }, conveys: true },
   },
   params: {
@@ -37,6 +38,7 @@ definePart({
     ...speedUnitParams(2),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 2, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried around the curve. Negative reverses flow, which is the ONLY way to turn a curve around - spinning the part would swap its inner and outer radius. A program can command this through the speed tag below.' },
     ...driveRampParams(0.5, 0.5),
+    ...frictionParam(0.59),
     // Engine storage, never an Inspector field (hidden): the SNAP flips this
     // when it mates two ends that both discharge into the junction — a curve can't just be spun 180°, that
     // would swap inner/outer radius. Reversing by hand stays a negative speed; step() folds the two below.

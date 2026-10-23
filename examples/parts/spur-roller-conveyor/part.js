@@ -12,6 +12,7 @@
 // _shared/ modules it imports joined in and `manifest` left out) and rig.json (the manifest).
 
 import { commandedSpeed, conveyorDrive, driveFeedbackParams, driveRampParams, publishDrive, rampedSpeed } from '../_shared/conveyorDrive.js'
+import { frictionParam } from '../_shared/conveyorFriction.js'
 import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../_shared/conveyorUnits.js'
 import { guardGapRuns, guardGapsParam } from '../_shared/guardGaps.js'
 import { HOLE_PANEL, holePanel } from '../_shared/guardHolePanel.js'
@@ -30,7 +31,7 @@ definePart({
     id: 'oip.spur-roller-conveyor',
     name: 'Spur Roller Conveyor',
     category: 'Equipment',
-    conveyor: { bed: 'spur', surface: 'roller', speedParam: 'speed' },
+    conveyor: { bed: 'spur', surface: 'roller', speedParam: 'speed', frictionParam: 'friction' },
     // `conveys` makes it a powered surface (the sim builds the flat length×width deck)
     geometry: { kind: 'drawn', bounds: { length: OUTER, width: 1.524, top: 2.3 }, conveys: true },
     // the drive bands' urethane
@@ -47,6 +48,7 @@ definePart({
     ...speedUnitParams(1),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 1, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried along the bed. Negative runs it backwards, which is the ONLY way to reverse flow - rotating the part 180 degrees moves its ends and their splay instead. A program can command this through the speed tag below.' },
     ...driveRampParams(0.2, 0.2),
+    ...frictionParam(0.42),
     angleFrontDeg: { type: 'number', default: 30, min: -60, max: 60, step: 5, label: 'Front angle (°)', group: 'Ends', desc: 'Splay angle of the DISCHARGE end face. This is what makes the part a spur: an angled face merges flush onto the side of a straight conveyor instead of butting square against it. 0 leaves the end square.' },
     angleBackDeg: { type: 'number', default: 0, min: -60, max: 60, step: 5, label: 'Back angle (°)', group: 'Ends', desc: 'Splay angle of the INFEED end face. Leave it at 0 for a spur fed square from behind; angle it too when the piece has to sit between two angled neighbours.' },
     rollerClass: {

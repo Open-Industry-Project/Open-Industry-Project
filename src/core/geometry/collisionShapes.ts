@@ -46,8 +46,10 @@ export type ConveyorEntry =
   // tangent {x: along-belt horizontal, y: vertical}: when present, a behavior-driven belt recomputes vx/vy/vz
   // each tick from its commanded speed × this tangent (rotated by the part's forward), so cargo is carried up
   // an incline run rather than pushed flat. Absent ⇒ vx/vy/vz are used directly (a flat deck / static belt).
-  | { kind: 'linear'; vx: number; vy: number; vz: number; tan?: { x: number; y: number } }
-  | { kind: 'arc'; cx: number; cz: number; omega: number }
+  // `friction` (optional) is the facet's own surface friction, for a merged deck whose members grip differently: the
+  // contact listener combines it with the cargo's in place of the body's. Absent ⇒ the body's friction applies.
+  | { kind: 'linear'; vx: number; vy: number; vz: number; tan?: { x: number; y: number }; friction?: number }
+  | { kind: 'arc'; cx: number; cz: number; omega: number; friction?: number }
 
 /**
  * One sub-shape of a compound conveyor body: a CollisionShape that also carries a

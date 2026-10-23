@@ -405,6 +405,10 @@ side-merge snapping, deck merging), declare it in the manifest:
 - `speedParam` names the number param the host reads outside your tick (belt scroll, roller spin, the flow
   arrow, the pilot riding the surface, the spawner-interlock seed before the first tick). Any name works.
 - `reverseParam` names a hidden boolean the snap flips to turn a curve's flow around.
+- `frictionParam` names the number param that is the surface's friction against a standard carton, the figure a
+  belt datasheet quotes (a smooth PVC belt about 0.4, a rough-top about 0.9, a low-friction modular belt about
+  0.2). Other cargo grips by its own friction against it. Without one the surface grips as its `surface` kind
+  does: 0.59 against a carton for a belt, 0.42 for rollers. The shipped conveyors call theirs `friction`.
 
 ### Tier 1: `rig` (links and joints)
 

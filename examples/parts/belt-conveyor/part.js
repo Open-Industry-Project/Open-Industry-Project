@@ -9,6 +9,7 @@
 // _shared/ modules it imports joined in and `manifest` left out) and rig.json (the manifest).
 
 import { commandedSpeed, conveyorDrive, driveFeedbackParams, driveRampParams, publishDrive, rampedSpeed } from '../_shared/conveyorDrive.js'
+import { frictionParam } from '../_shared/conveyorFriction.js'
 import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../_shared/conveyorUnits.js'
 import { HOLE_PANEL, holePanel } from '../_shared/guardHolePanel.js'
 import { guardMitresParam, mitreLookup, railCutLookup, railCutsParam, railEndBands } from '../_shared/guardMitre.js'
@@ -21,7 +22,7 @@ definePart({
     id: 'oip.belt-conveyor',
     name: 'Belt Conveyor',
     category: 'Equipment',
-    conveyor: { bed: 'path', surface: 'belt', speedParam: 'speed' },
+    conveyor: { bed: 'path', surface: 'belt', speedParam: 'speed', frictionParam: 'friction' },
     // `bounds` = the baked footprint of the default straight belt, so Inspector/snapping work without running
     // the code; the live mesh comes from geometry(). `conveys` makes it a powered surface (the sim builds the
     // deck body).
@@ -58,6 +59,7 @@ definePart({
     ...speedUnitParams(2),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 2, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried along the bed. Negative runs the belt backwards, which is the ONLY way to reverse flow - rotating the part 180 degrees moves its ends instead. A program can command this through the speed tag below.' },
     ...driveRampParams(0.5, 0.5),
+    ...frictionParam(0.59),
     // fabric tint, multiplied into the belt-surface material — white leaves the weave at full brightness, a
     // dark tint multiplies it down toward black.
     beltColor: { type: 'color', default: '#ffffff', label: 'Belt color', desc: 'Tint multiplied into the belt weave. White leaves the fabric at full brightness; a dark tint multiplies it down toward black.' },

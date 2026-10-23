@@ -57,7 +57,7 @@ export interface CatalogEntry {
   category?: string
   geometry: string
   /** the conveyor bed / surface kind it declares, if any */
-  conveyor?: { bed?: string; surface: string; speedParam?: string }
+  conveyor?: { bed?: string; surface: string; speedParam?: string; frictionParam?: string }
   signals: CatalogSignal[]
   params: CatalogParam[]
   interactive?: true

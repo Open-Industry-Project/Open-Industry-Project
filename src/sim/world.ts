@@ -16,6 +16,7 @@ import { resolvePartParams } from '../core/geometry/geometryEval'
 import { clearPartDiagnostics, reportPartDiagnostic } from '../core/parts/partDiagnostics'
 import type { ParamValue } from '../core/parts/partApi'
 import { conveyorSpeedParams } from '../core/conveyor/conveyorDirection'
+import { conveyorSurfaceFriction, packageSurfaceFriction } from '../core/conveyor/conveyorFriction'
 import type { GuardOpenings } from '../core/guards/guardOpenings'
 import type { GuardExtents } from '../core/guards/guardExtents'
 import type { StructureConnections } from '../core/structureConnections'
@@ -52,7 +53,7 @@ import {
   toSimRate,
 } from '../core/types'
 import { BehaviorBus } from './behaviorBus'
-import { BUILDING_FRICTION, deckFriction, GROUND_FRICTION, surfaceFriction } from './bodyFactory'
+import { BUILDING_FRICTION, deckFriction, GROUND_FRICTION } from './bodyFactory'
 import { BodyHolds } from './bodyHolds'
 import { buildingBoxes } from './buildingColliders'
 import { CargoFlow } from './cargoFlow'
@@ -655,7 +656,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     // box gets the full world orientation (partYaw ∘ link tilt) and the surface velocity gets the deck tangent
     // {cos, sin}; tickBehaviors then carries cargo up the grade (× commanded speed), same path as a tilted belt run.
     const tan = inclineRad !== 0 ? { x: Math.cos(inclineRad), y: Math.sin(inclineRad) } : undefined
-    const friction = surfaceFriction(getPackage(part.packageId)) // the declared surface's grip (roller unless it says belt)
+    const friction = conveyorSurfaceFriction(part) // its friction param's grip, else its declared surface's
     for (const link of decks) {
       const lp = rest.get(link.name)
       if (!lp) continue
@@ -826,8 +827,8 @@ export class SimWorld implements SimCore<BoxFrame> {
     const subs = conveyorDeckSubs(part)
     if (subs.length === 0) return false
     const [x, y, z] = part.position
-    // a curve declared a belt surface grips like the built-in curved belt; a curved roller stays 0.8
-    const friction = surfaceFriction(pkg)
+    // its friction param's grip, else its declared surface's
+    const friction = conveyorSurfaceFriction(part)
     const body = this.bodies.addCompoundConveyor(subs, x, y, z, part.rotationY, friction)
     const handle = behavior.create(pkg.behavior, JSON.stringify(part.params))
     if (handle <= 0) return false
@@ -864,13 +865,13 @@ export class SimWorld implements SimCore<BoxFrame> {
       if (segs && path) {
         const hv = resolved(path.heightKey)
         const height = typeof hv === 'number' && hv > 0 ? hv : pkg.geometry.bounds.top
-        if (this.spawnScriptedBeltConveyor(position, rotationY, segs, height, wid, pkg.behavior, paramsJson, surfaceFriction(pkg))) return true
+        if (this.spawnScriptedBeltConveyor(position, rotationY, segs, height, wid, pkg.behavior, paramsJson, packageSurfaceFriction(pkg, overrides))) return true
       }
       const lv = resolved(face.lengthKey)
       const len = typeof lv === 'number' && lv > 0 ? lv : pkg.geometry.bounds.length
-      // the flat fallback still serves belt-bedded parts (the SDK spur belt has no segments): give a
-      // declared belt surface the belt grip, matching the built-in spur_belt_conveyor's deck friction.
-      const friction = surfaceFriction(pkg)
+      // the flat fallback still serves belt-bedded parts (the SDK spur belt has no segments): its friction param's
+      // grip, else its declared surface's
+      const friction = packageSurfaceFriction(pkg, overrides)
       return this.spawnScriptedConveyor(position, rotationY, len, wid, pkg.behavior, paramsJson, friction)
     }
     return false
@@ -1087,7 +1088,7 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  behavior, so the splay overhang past ±length/2 is real conveying deck, not air, and cargo rides the
    *  sheared bed across the merge. A declared belt surface grips like the built-in spur belt (BELT_FRICTION). */
   private spawnSdkSpurConveyor(part: SdkPart, pkg: PartPackage, view: SpurConveyorView): boolean {
-    const friction = surfaceFriction(pkg)
+    const friction = conveyorSurfaceFriction(part)
     const [px, py, pz] = part.position
     const corners = sdkSpurCorners(view)
     // One prism. The sheared bed's flanks wall rather than convey because the facet declares its
@@ -1518,8 +1519,12 @@ export class SimWorld implements SimCore<BoxFrame> {
       // a behavior-driven (SDK) belt member carries zero-velocity `tan` facets the host drives each tick; keep
       // each such member's entries so the owner can attach its script to drive them inside the merged body.
       const customMembers: { part: SdkPart; entries: ConveyorEntry[] }[] = []
-      for (const m of cluster.members) {
+      // members that grip differently stamp their own friction on their facets; one body has one friction
+      const frictions = cluster.members.map(conveyorSurfaceFriction)
+      const mixed = frictions.some((f) => f !== frictions[0])
+      cluster.members.forEach((m, i) => {
         const memberSubs = conveyorDeckSubs(m).map((s) => worldSub(s, m))
+        if (mixed) for (const s of memberSubs) if (s.entry) s.entry.friction = frictions[i]
         for (const s of memberSubs) subs.push(s)
         if (m.type === 'part') {
           const entries: ConveyorEntry[] = []
@@ -1527,7 +1532,7 @@ export class SimWorld implements SimCore<BoxFrame> {
           for (const s of memberSubs) if (s.entry && !seen.has(s.entry)) { seen.add(s.entry); entries.push(s.entry) }
           if (entries.length > 0) customMembers.push({ part: m as SdkPart, entries })
         }
-      }
+      })
       if (subs.length === 0) return
       const body = this.bodies.addCompoundConveyor(subs, 0, 0, 0, 0, deckFriction(cluster.members))
       // the owner attaches every custom member's behavior (a non-owner member skips this branch entirely), so

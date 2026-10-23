@@ -781,6 +781,10 @@ export type CargoMarkValue = number | boolean | string;
  * - `reverseParam`: a hidden `boolean` param the snap flips to turn a curve's flow around when it mates two ends
  *   that both discharge into the junction (rotating a curve 180 degrees would swap its radii). The effective speed
  *   is `speed x (reverse ? -1 : 1)`; the behavior folds it the same way.
+ * - `frictionParam`: the `number` param that is the running surface's friction against a standard carton, the
+ *   figure a belt datasheet quotes (a smooth PVC belt about 0.4, a rough-top about 0.9, a low-friction modular
+ *   belt about 0.2). Other cargo grips by its own friction against the same surface. Without it the surface grips
+ *   as its `surface` kind does: about 0.59 against a carton for a belt, 0.42 for rollers.
  *
  * The handles are only the viewport's drag affordances; they don't decide what a part is.
  */
@@ -789,6 +793,7 @@ export interface ConveyorDecl {
     surface: 'belt' | 'roller';
     speedParam?: string;
     reverseParam?: string;
+    frictionParam?: string;
 }
 
 export interface PartPackage {

@@ -5,11 +5,10 @@ import type Jolt from 'jolt-physics'
 import { runningSurfaceFlow, runningSurfaceNormal } from '../core/geometry/collisionShapes'
 import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
 import type { CargoPiece } from '../core/cargoBody'
-import type { PartPackage } from '../core/parts/partPackage'
-import { getPackage } from '../core/parts/partRegistry'
+import { conveyorSurfaceFriction } from '../core/conveyor/conveyorFriction'
 import type { Quat, Vec3 } from '../core/rig/rigPose'
 import type { PartInstance } from '../core/types'
-import { BELT_FRICTION, BOX_RESTITUTION, CONVEYOR_FRICTION, PALLET_SIZE } from '../core/types'
+import { BOX_RESTITUTION, CONVEYOR_FRICTION, PALLET_SIZE } from '../core/types'
 import { palletCollider } from '../core/pallet'
 import { toteCollider } from '../core/tote'
 import { axesAgree } from './conveyorContacts'
@@ -17,18 +16,13 @@ import type { FacetAxes } from './conveyorContacts'
 import { LAYER_MOVING, LAYER_NON_MOVING } from './layers'
 import type { JoltModule } from './worldTypes'
 
-/** The grip of a part's conveying surface, from its declared `conveyor.surface` (partPackage.ts ConveyorDecl): a
- *  belt grips like the built-in belt, anything else (a roller bed, or a conveying part that declares nothing) like
- *  a roller bed. */
-export function surfaceFriction(pkg: PartPackage | undefined): number {
-  return pkg?.conveyor?.surface === 'belt' ? BELT_FRICTION : CONVEYOR_FRICTION
-}
-export function isBeltSurface(p: PartInstance): boolean {
-  return p.type === 'part' && getPackage(p.packageId)?.conveyor?.surface === 'belt'
-}
-/** a merged deck is belt-friction only if every member is a belt; mixed/roller clusters stay roller-grip */
+/** A merged deck's body friction: its members' when they agree, else the lowest. A member's own grip reaches its
+ *  facets through their entries' `friction` (see SimWorld.addConveyorDeck), so the body's value only serves
+ *  contacts no facet conveys (a flank), and a listener build that predates per-facet friction. */
 export function deckFriction(parts: readonly PartInstance[]): number {
-  return parts.every(isBeltSurface) ? BELT_FRICTION : CONVEYOR_FRICTION
+  let lo = Infinity
+  for (const p of parts) lo = Math.min(lo, conveyorSurfaceFriction(p))
+  return lo === Infinity ? CONVEYOR_FRICTION : lo
 }
 
 export const GROUND_FRICTION = 0.6
