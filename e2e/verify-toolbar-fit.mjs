@@ -88,11 +88,16 @@ const measure = () => {
     mobile: document.querySelector('.app').classList.contains('mobile'),
     cut: ctrls.filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5).map(name),
     overlaps: (() => {
-      const boxes = ctrls.map((el) => ({ n: name(el), r: el.getBoundingClientRect() })).sort((a, b) => a.r.left - b.r.left)
+      const boxes = ctrls.map((el) => ({ el, n: name(el), r: el.getBoundingClientRect() })).sort((a, b) => a.r.left - b.r.left)
       const hits = []
       for (let i = 1; i < boxes.length; i++) {
-        // 0.5px of tolerance for sub-pixel layout; anything more is a real stack
-        if (boxes[i].r.left < boxes[i - 1].r.right - 0.5) hits.push(`${boxes[i - 1].n} / ${boxes[i].n}`)
+        const a = boxes[i - 1]
+        const b = boxes[i]
+        // a segmented group's buttons share one border on purpose (toolbar.css `.segmented`: each after the first is
+        // pulled 1px left), so neighbours in one group may overlap by that border; anywhere else 0.5px of tolerance
+        // covers sub-pixel layout, and anything more is a real stack
+        const shared = a.el.parentElement === b.el.parentElement && a.el.parentElement?.matches('.segmented')
+        if (b.r.left < a.r.right - (shared ? 1.5 : 0.5)) hits.push(`${a.n} / ${b.n}`)
       }
       return hits
     })(),
