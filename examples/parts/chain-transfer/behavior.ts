@@ -34,7 +34,7 @@ function speedUnitParams(speedMs) {
 /** The param to stand right AFTER the part's own `speedTag`: the same setpoint, in FPM. */
 function speedFpmTagParam(group) {
   return {
-    speedFpmTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'speedFpm', default: '', label: 'Speed tag (FPM)', ...paramGroup(group), visibleWhen: { param: 'fpmUnits', is: true }, desc: 'The program commands surface speed here in feet per minute, replacing the Speed field above, which then shows the live value read-only. Once BOUND this takes over even if no program writes it, so an unwritten tag holds the conveyor at 0.' },
+    speedFpmTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'speedFpm', default: '', label: 'Speed tag', ...paramGroup(group), visibleWhen: { param: 'fpmUnits', is: true }, desc: 'The program commands surface speed here in feet per minute, replacing the Speed field above, which then shows the live value read-only. Once BOUND this takes over even if no program writes it, so an unwritten tag holds the conveyor at 0.' },
   }
 }
 
@@ -77,7 +77,7 @@ definePart({
     // carrying on for v²/2g. The default throws cargo ~20 mm, which a packed row survives; halving the time
     // quadruples that, and by ~0.07 s a row is thrown ~94 mm and lands with its packing gone.
     raiseTime: { type: 'number', default: 0.15, min: 0.02, max: 2, step: 0.01, label: 'Pop-up time (s)', desc: 'How long the chains take to rise or drop. A program must wait this out before running the transfer, and a quicker pop-up throws the load harder: at the default a packed row moves about 20 mm, and below about 0.07 s it loses its packing.' },
-    speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag (m/s)', group: 'Comms', desc: 'The program commands chain speed here, replacing the Speed field above. Careful: once BOUND this takes over even if no program drives it, and an undriven tag reads 0.' },
+    speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag', group: 'Comms', desc: 'The program commands chain speed here, replacing the Speed field above. Careful: once BOUND this takes over even if no program drives it, and an undriven tag reads 0.' },
     ...speedFpmTagParam('Comms'),
     // autoWhenDriven: this tag COMMANDS the pop-up (the step's auto gate reads it), so a program driving it
     // owns the device — the pilot prompt shows "In auto - PLC controlled" instead of a dead "Use".

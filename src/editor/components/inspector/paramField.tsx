@@ -504,6 +504,7 @@ export function ParamField({
                 <span className="field-badge">
                   {dirHint}
                   {spec.stType ? ` ${spec.stType}` : ''}
+                  {spec.unit && <span className="field-badge-unit"> {spec.unit}</span>}
                 </span>
               )}
               {locatedName && (

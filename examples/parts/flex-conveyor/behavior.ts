@@ -38,7 +38,7 @@ function speedUnitParams(speedMs) {
 /** The param to stand right AFTER the part's own `speedTag`: the same setpoint, in FPM. */
 function speedFpmTagParam(group) {
   return {
-    speedFpmTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'speedFpm', default: '', label: 'Speed tag (FPM)', ...paramGroup(group), visibleWhen: { param: 'fpmUnits', is: true }, desc: 'The program commands surface speed here in feet per minute, replacing the Speed field above, which then shows the live value read-only. Once BOUND this takes over even if no program writes it, so an unwritten tag holds the conveyor at 0.' },
+    speedFpmTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'speedFpm', default: '', label: 'Speed tag', ...paramGroup(group), visibleWhen: { param: 'fpmUnits', is: true }, desc: 'The program commands surface speed here in feet per minute, replacing the Speed field above, which then shows the live value read-only. Once BOUND this takes over even if no program writes it, so an unwritten tag holds the conveyor at 0.' },
   }
 }
 
@@ -175,7 +175,7 @@ definePart({
     standHeight: { type: 'number', default: STAND_DEFAULT, min: 0.4, max: 1.6, step: 0.01, label: 'Stand height (m)', desc: 'Height of the roller tops above the floor. The legs under every hinge reach down to their casters.' },
     ...speedUnitParams(1),
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 1, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed along the bed. Negative runs it back toward the infeed.' },
-    speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag (m/s)', group: 'Comms', desc: 'The program commands the bed speed here, replacing the Speed field above. Once bound it takes over even if no program drives it, and an undriven tag reads 0.' },
+    speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag', group: 'Comms', desc: 'The program commands the bed speed here, replacing the Speed field above. Once bound it takes over even if no program drives it, and an undriven tag reads 0.' },
     ...speedFpmTagParam('Comms'),
     runTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '', label: 'Run tag (rollers run while true)', group: 'Comms', desc: 'Start/stop gate: while a program drives this tag false the bed stands still, and true it runs at its speed. Until a program actually drives it the bed runs, so a merely-typed tag does not stop it.' },
     accumulate: { type: 'boolean', default: false, label: 'Zone accumulation', group: 'Accumulation', desc: 'Zero-pressure accumulation: each section is a zone with its own photo-eye, and a zone holding a case stops while the zone ahead is full, so product queues with gaps and never pushes. Off, the whole bed runs as one. Sections must be longer than the product.' },

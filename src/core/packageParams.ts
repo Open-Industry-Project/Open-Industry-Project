@@ -124,6 +124,8 @@ export function schemaToParamSpecs(schema: ParamSchema): ParamSpec[] {
       // to find undriven tags, contested ones, and type clashes.
       if (s.dir === 'in' || s.dir === 'out') spec.dir = s.dir
       if (s.stType === 'BOOL' || s.stType === 'INT' || s.stType === 'DINT' || s.stType === 'REAL') spec.stType = s.stType
+      // the unit the value travels in, shown beside the type (a setpoint tag without one takes its param's, below)
+      if (typeof s.unit === 'string' && s.unit) spec.unit = s.unit
       // read only while a program drives it: undriven, the part runs on its own setting rather than on a 0
       if (s.onlyWhenDriven === true || s.autoWhenDriven === true) spec.onlyWhenDriven = true
       // a code tag's meanings, for the field's listing
@@ -192,6 +194,12 @@ export function schemaToParamSpecs(schema: ParamSchema): ParamSpec[] {
     // renamed or repackaged, and so a user-authored part documents itself.
     if (typeof s.desc === 'string' && s.desc) spec.desc = s.desc
     specs.push(spec)
+  }
+  // a setpoint tag carries its param's value, so by contract (TagRefParamSpec.setpointFor) it is in that param's unit
+  for (const spec of specs) {
+    if (spec.kind !== 'tagRef' || spec.unit || !spec.setpointFor) continue
+    const target = specs.find((t) => t.key === spec.setpointFor)
+    if (target?.kind === 'number' && target.unit) spec.unit = target.unit
   }
   return specs
 }

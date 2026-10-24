@@ -156,6 +156,25 @@ describe('schemaToParamSpecs - a switch between two ways of saying one thing', (
   })
 })
 
+// A tag's unit is the unit of the value on the wire. A setpoint tag carries its param's value, so it is in that
+// param's unit unless it says otherwise (TagRefParamSpec.unit).
+describe('schemaToParamSpecs - the unit a tag carries', () => {
+  const schema: ParamSchema = {
+    speed: { type: 'number', default: 2, unit: 'm/s', label: 'Speed' },
+    speedTag: { type: 'tag', dir: 'in', stType: 'REAL', default: '', setpointFor: 'speed', label: 'Speed tag' },
+    distanceTag: { type: 'tag', dir: 'out', stType: 'REAL', default: '', unit: 'm', label: 'Distance tag' },
+    rateTag: { type: 'tag', dir: 'in', stType: 'REAL', default: '', setpointFor: 'speed', unit: 'FPM', label: 'Rate tag' },
+    runTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Run tag' },
+  }
+  const byKey = (key: string): Record<string, unknown> => schemaToParamSpecs(schema).find((s) => s.key === key) as unknown as Record<string, unknown>
+  it("carries a declared unit, and gives a setpoint tag that declares none its param's", () => {
+    expect(byKey('distanceTag').unit).toBe('m')
+    expect(byKey('speedTag').unit).toBe('m/s')
+    expect(byKey('rateTag').unit).toBe('FPM') // a declared unit wins over the param's
+    expect(byKey('runTag').unit).toBeUndefined()
+  })
+})
+
 // A part with modes (the gantry: waypoints / position / follow): an enum switch, and fields some modes share.
 describe('visibleWhen on an enum switch', () => {
   const schema: ParamSchema = {

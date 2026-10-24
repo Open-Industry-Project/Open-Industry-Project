@@ -223,6 +223,10 @@
   color: var(--text-dim);
   vertical-align: middle;
 }
+/* a unit as written: uppercased, "m/s" and "s" read as other units ("M/S", siemens) */
+.field-badge-unit {
+  text-transform: none;
+}
 
 /* everything wrong with a tag field's tag (inspector/paramField.tsx TagMark): beside the box, which it outlines.
    The amber the GLB-material warning already uses; there is no --warn token */

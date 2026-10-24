@@ -16,8 +16,8 @@ definePart({
     height: { type: 'number', default: 1, min: 0.2, max: 4, step: 0.1, label: 'Height (m)', desc: 'Local Y extent of the volume that removes cargo.' },
     countOnly: { type: 'string', product: true, default: '', label: 'Count only', desc: 'Count just this product, so a tote carrying a case counts once. Everything in the mouth is still removed. (none) counts every body that goes in.' },
     countTag: { type: 'tag', dir: 'out', stType: 'INT', default: '', label: 'Throughput count tag', group: 'Comms', desc: 'Running total of everything this despawner has removed, published for the program to read. It only ever climbs, so take differences over time to get a rate.' },
-    rateTag: { type: 'tag', dir: 'out', stType: 'REAL', default: '', label: 'Throughput rate tag (per min)', group: 'Comms', desc: 'Items removed per minute of simulated time, averaged over the whole run so far.' },
-    cycleTag: { type: 'tag', dir: 'out', stType: 'REAL', default: '', label: 'Average cycle time tag (s)', group: 'Comms', desc: 'Average time, in simulated seconds, from an item coming into being (spawned, or already in the scene when the run started) to its removal here. 0 until the first item arrives.' },
+    rateTag: { type: 'tag', dir: 'out', stType: 'REAL', default: '', label: 'Throughput rate tag', unit: '/min', group: 'Comms', desc: 'Items removed per minute of simulated time, averaged over the whole run so far.' },
+    cycleTag: { type: 'tag', dir: 'out', stType: 'REAL', default: '', label: 'Average cycle time tag', unit: 's', group: 'Comms', desc: 'Average time, in simulated seconds, from an item coming into being (spawned, or already in the scene when the run started) to its removal here. 0 until the first item arrives.' },
     blockTag: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', label: 'Block tag (pause removal while true)', group: 'Comms', desc: 'While the program holds this true, nothing is removed and cargo backs up into the mouth - the way to model a downstream line that has stopped taking product.' },
   },
   step(ctx) {

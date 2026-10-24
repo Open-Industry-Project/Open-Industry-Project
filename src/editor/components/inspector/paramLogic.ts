@@ -74,7 +74,9 @@ function formatParamDefault(spec: ParamSpec, system: DisplayUnits): string {
  * the newlines) from the spec + its registered description.
  */
 export function buildParamTooltip(spec: ParamSpec, label: string, desc: string | undefined, system: DisplayUnits = 'metric'): string {
-  const lines: string[] = [label]
+  // a tag's first line says what it carries, as the row's badge does: `Speed tag · REAL, m/s`
+  const carries = spec.kind === 'tagRef' ? [spec.stType, spec.unit].filter(Boolean).join(', ') : ''
+  const lines: string[] = [carries ? `${label} · ${carries}` : label]
   if (desc) lines.push(desc)
   const meta: string[] = []
   if (spec.kind === 'number') {

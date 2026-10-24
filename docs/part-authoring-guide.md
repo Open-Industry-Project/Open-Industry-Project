@@ -916,7 +916,7 @@ types to catch it. The check reads the source, so a read through a destructured 
 | `number` | slider/field | `min` / `max` / `step`, `unit`. With both `min` and `max` it is a slider; without them it is typed or stepped, so give an unbounded size a viewport handle instead. `unit: '%'` stores a fraction (0 to 1) and shows a percentage. See units below |
 | `boolean` | toggle | |
 | `string` | text field | |
-| `tag` | PLC tag picker | autocompletes from the scene's tags. Use it for every tag-name param |
+| `tag` | PLC tag picker | autocompletes from the scene's tags. Use it for every tag-name param. `dir`, `stType` and `unit` say what the program declares; see units below |
 | `numberList` | typed grid | fixed `arity` per row; arrives as `number[][]` (waypoints, poses). See below |
 | `color` | swatch | `#rrggbb`. `list: true` makes a row of swatches with add / remove; the value stays a `string` of `#rrggbb` entries joined by commas (`''` = none). `alpha: true` adds an A slider and makes the value `#rrggbbaa` |
 | `enum` | dropdown | options can carry `rows` + `stamps: '<numberList param>'` to stamp templates |
@@ -947,6 +947,10 @@ trailing `(m)` in the label is also read as the unit, but only when it is exactl
 Put extra explanation in `desc`. `unit: 'rpm'`, `'°'` and `'°/s'` show as suffixes without converting. A
 length or speed field displays in the scene's Units (a metre field reads inches in an imperial scene, an
 `'FPM'` one reads m/s in a metric one); `step()` always reads the unit you declared.
+
+A `tag` param's `unit` is the unit of the value on the wire, shown after its type in the field's badge
+(`READ REAL m/s`) and in Device Tags, so a program declares and scales it right. Put it there, not in the label.
+The scene's Units never convert it. A `setpointFor` tag that declares none takes its param's unit.
 
 **Hidden params.** `hidden: true` makes a param storage rather than a field: resolved, defaulted, clamped and
 persisted, but never shown. Use it for engine-owned state the user must not hand-edit (compare `rest`, which the

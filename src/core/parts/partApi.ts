@@ -220,7 +220,12 @@ export interface ParamSpec {
    * `(unit)` in the label is read as the unit instead (`label: 'Width (m)'` ⇒ `Width` with an `m` suffix), so
    * existing parts get suffixes without an edit. `'%'` is the one unit that also scales: the value is stored
    * as a fraction (0 to 1) and the field shows and takes it as a percentage (0.42 reads 42 %), so a part
-   * keeps multiplying by the raw value. Ignored for other kinds.
+   * keeps multiplying by the raw value.
+   *
+   * For a `'tag'` param: the unit of the value the tag carries (`'m/s'`, `'FPM'`, `'m'`, `'s'`), shown after its
+   * type in the Inspector's badge (`READ REAL m/s`) and the Device Tags dialog, so a program declares and scales it
+   * right. Put it here rather than in the label. The scene's Units never convert it: the program reads and writes
+   * the value in this unit. A `setpointFor` tag that declares none takes its param's unit. Ignored for other kinds.
    */
   unit?: string
   label?: string

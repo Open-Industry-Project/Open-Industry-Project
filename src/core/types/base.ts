@@ -263,6 +263,10 @@ export interface TagRefParamSpec {
   dir?: 'in' | 'out'
   /** the ST scalar the tag carries (the SDK's `ParamSpec.stType`) - pairs with {@link dir} */
   stType?: 'BOOL' | 'INT' | 'DINT' | 'REAL'
+  /** the unit of the value the tag carries (the SDK's `ParamSpec.unit`): `'m/s'`, `'FPM'`, `'m'`. A setpoint tag
+   *  that declares none takes its {@link setpointFor} param's. Shown as declared: the program reads and writes the
+   *  value in it, so the scene's Units never convert it. */
+  unit?: string
   /**
    * This tag is an analog setpoint that replaces the named number param while it's bound (the SDK's
    * `setpointFor`): a conveyor's `speedTag` replaces `speed`. The Inspector shows the live commanded

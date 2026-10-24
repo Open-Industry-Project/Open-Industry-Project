@@ -170,7 +170,7 @@ function speedUnitParams(speedMs) {
 /** The param to stand right AFTER the part's own `speedTag`: the same setpoint, in FPM. */
 function speedFpmTagParam(group) {
   return {
-    speedFpmTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'speedFpm', default: '', label: 'Speed tag (FPM)', ...paramGroup(group), visibleWhen: { param: 'fpmUnits', is: true }, desc: 'The program commands surface speed here in feet per minute, replacing the Speed field above, which then shows the live value read-only. Once BOUND this takes over even if no program writes it, so an unwritten tag holds the conveyor at 0.' },
+    speedFpmTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'speedFpm', default: '', label: 'Speed tag', ...paramGroup(group), visibleWhen: { param: 'fpmUnits', is: true }, desc: 'The program commands surface speed here in feet per minute, replacing the Speed field above, which then shows the live value read-only. Once BOUND this takes over even if no program writes it, so an unwritten tag holds the conveyor at 0.' },
   }
 }
 
@@ -228,8 +228,8 @@ definePart({
     // where real units sit (3-6 s); the old 45°/s default was about double industry practice, and combined
     // with an instant start it demanded more of the deck than any real drive delivers.
     rotationSpeedDeg: { type: 'number', unit: '°/s', default: 20, min: 1, max: 360, step: 5, label: 'Rotation speed', desc: 'TOP slew rate, reached through a fixed acceleration ramp rather than instantly. The default indexes 90 degrees in about 5 seconds including both ramps, which is where real units sit - winding it much higher asks more of the deck than a real drive delivers, and product slides.' },
-    angleTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'deckAngleDeg', default: '', label: 'Target angle tag (°)', group: 'Comms', desc: 'The program commands the deck angle here, replacing the Deck angle field above. On the first scan the part SEEDS the tag with the authored angle, so a program that has not written yet does not slam the deck to zero.' },
-    speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag (m/s)', group: 'Comms', desc: 'The program commands lane speed here, replacing the Speed field above. Careful: once BOUND this takes over even if no program drives it, and an undriven tag reads 0.' },
+    angleTag: { type: 'tag', dir: 'in', stType: 'REAL', setpointFor: 'deckAngleDeg', default: '', label: 'Target angle tag', group: 'Comms', desc: 'The program commands the deck angle here, replacing the Deck angle field above. On the first scan the part SEEDS the tag with the authored angle, so a program that has not written yet does not slam the deck to zero.' },
+    speedTag: { type: 'tag', ...METRIC_ONLY, dir: 'in', stType: 'REAL', setpointFor: 'speed', default: '', label: 'Speed tag', group: 'Comms', desc: 'The program commands lane speed here, replacing the Speed field above. Careful: once BOUND this takes over even if no program drives it, and an undriven tag reads 0.' },
     ...speedFpmTagParam('Comms'),
     doneTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Done tag (true once settled)', group: 'Comms', desc: 'Handshake back to the program: true once the deck has stopped at its target angle. Wait on this before commanding the lane to run, or product is pushed at a deck still turning under it.' },
     enableTag: { type: 'tag', dir: 'in', stType: 'BOOL', onlyWhenDriven: true, default: '', label: 'Enable tag', group: 'Comms', desc: 'The deck turns only while this is true. Drop it mid-turn and the deck brakes to a stop where it is, still holding its load; raise it and the turn finishes. Lane speed is not affected: command that through the speed tag. Until a program drives it, or with it empty, the deck is always enabled, so a merely-typed tag does not hold it.' },

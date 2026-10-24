@@ -69,6 +69,8 @@ export interface DeviceTagField {
   label: string
   section: 'VAR_INPUT' | 'VAR_OUTPUT' | null
   type: 'BOOL' | 'INT' | 'DINT' | 'REAL' | null
+  /** the unit of the value it carries (TagRefParamSpec.unit), absent when it has none */
+  unit?: string
   /** the tag name wired in, `''` when unbound */
   value: string
 }
@@ -103,6 +105,7 @@ export function deviceTags(parts: readonly TaggedPart[]): DeviceTags[] {
         label: spec.label,
         section: spec.dir === 'in' ? 'VAR_OUTPUT' : spec.dir === 'out' ? 'VAR_INPUT' : null,
         type: spec.stType ?? null,
+        ...(spec.unit ? { unit: spec.unit } : {}),
         value: typeof v === 'string' ? v.trim() : '',
       })
     }

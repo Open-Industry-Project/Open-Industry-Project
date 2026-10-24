@@ -161,6 +161,7 @@ export function DeviceTagsDialog({
               <span className={`dir ${f.section === 'VAR_INPUT' ? 'in' : f.section === 'VAR_OUTPUT' ? 'out' : ''}`} title={t(f.section === 'VAR_INPUT' ? M.writesIt : f.section === 'VAR_OUTPUT' ? M.readsIt : M.noDirection)}>
                 {f.section === 'VAR_INPUT' ? t(M.input) : f.section === 'VAR_OUTPUT' ? t(M.output) : '?'}
                 {f.type ? ` ${f.type}` : ''}
+                {f.unit ? ` ${f.unit}` : ''}
               </span>
               <input
                 data-testid={`device-tag-${f.key}`}
