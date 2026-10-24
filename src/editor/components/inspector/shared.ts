@@ -3,9 +3,12 @@
 import type { PartInstance } from '../../../core/types'
 import { unitTable } from '../../../core/units'
 
-/** Title Case each word (capitalises every property word) */
+/** Title Case each word (capitalises every property word). A trailing bracket is kept as written: it holds a unit or
+ *  an explanation, and capitalising one turns "(m/s)" into "(M/S)" and "(s)" into "(S)", which are other units. */
 export function titleCase(s: string): string {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase())
+  const m = /^(.*?)(\s*\([^()]*\))$/.exec(s)
+  const head = m ? m[1]! : s
+  return head.replace(/\b\w/g, (c) => c.toUpperCase()) + (m ? m[2]! : '')
 }
 
 /** how many decimals `n` needs to print exactly, up to `cap` */

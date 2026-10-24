@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { decimalsForStep, evalNumeric, gridDecimals, parseOffset, snapToStep } from './shared'
+import { decimalsForStep, evalNumeric, gridDecimals, parseOffset, snapToStep, titleCase } from './shared'
+
+describe('titleCase', () => {
+  it('capitalises each word of the name', () => {
+    expect(titleCase('stand height')).toBe('Stand Height')
+    expect(titleCase('PLC speed in FPM')).toBe('PLC Speed In FPM')
+  })
+
+  it('keeps a trailing bracket as written: a unit or an explanation, not part of the name', () => {
+    expect(titleCase('Speed tag (m/s)')).toBe('Speed Tag (m/s)')
+    expect(titleCase('Average cycle time tag (s)')).toBe('Average Cycle Time Tag (s)')
+    expect(titleCase('Run tag (belt runs while true)')).toBe('Run Tag (belt runs while true)')
+  })
+
+  it('title-cases a bracket inside the name, since only a trailing one is kept', () => {
+    expect(titleCase('move to X/Y/Z (gantry) slowly')).toBe('Move To X/Y/Z (Gantry) Slowly')
+  })
+})
 
 describe('parseOffset', () => {
   it('reads += and -= as an offset, converting units like a value', () => {
