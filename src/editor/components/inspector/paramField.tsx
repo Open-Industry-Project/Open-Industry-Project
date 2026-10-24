@@ -37,6 +37,8 @@ import type { GroupNode, SceneTagIndex } from './paramLogic'
 import { decimalsForStep, titleCase } from './shared'
 import type { Update } from './shared'
 import { runCommand } from '../../commands'
+import type { EditorStore } from '../../store/store'
+import { useLiveValue } from '../../useLiveValue'
 import { closestOpcUaTagNames, matchOpcUaTag } from '../../../core/io/opcUa'
 import { TagField, TagSourcesContext } from './tagField'
 import { TagForce } from './tagForce'
@@ -85,8 +87,9 @@ export { buildGroupTree } from './paramLogic'
 const ProductSettings = lazy(() => import('./productSettings').then((m) => ({ default: m.ProductSettings })))
 
 export function ParamField({
+  store,
   spec,
-  parts,
+  parts: committedParts,
   allParts,
   tagIndex,
   liveSetpoints,
@@ -97,6 +100,7 @@ export function ParamField({
   previewPose,
   forcing,
 }: {
+  store: EditorStore
   spec: ParamSpec
   parts: readonly PartInstance[]
   /** every part in the scene - a `partRef` picker lists these (the selection alone isn't enough) */
@@ -118,6 +122,7 @@ export function ParamField({
   /** the controller while the scene runs, so a tag field can force the program variable its tag names; else null */
   forcing?: TagForcing | null
 }) {
+  const parts = useLiveParam(store, committedParts, spec.key)
   const part = parts[0]!
   // the row shows the label's head (core labelHead: no explaining bracket, which truncated it), the tooltip the
   // whole label as its first line
@@ -673,6 +678,7 @@ export function ParamField({
 }
 
 export function GroupSection({
+  store,
   node,
   depth,
   collapsed,
@@ -688,6 +694,7 @@ export function GroupSection({
   previewPose,
   forcing,
 }: {
+  store: EditorStore
   node: GroupNode
   depth: number
   collapsed: Record<string, boolean>
@@ -706,11 +713,12 @@ export function GroupSection({
   return (
     <Fold title={titleCase(node.name)} path={node.path} depth={depth} collapsed={collapsed} toggle={toggle}>
       {node.specs.map((spec) => (
-        <ParamField key={spec.key} spec={spec} parts={parts} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints} disabled={disabled} update={update} onContext={onContext} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
+        <ParamField key={spec.key} store={store} spec={spec} parts={parts} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints} disabled={disabled} update={update} onContext={onContext} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
       ))}
       {node.children.map((child) => (
         <GroupSection
           key={child.path}
+          store={store}
           node={child}
           depth={depth + 1}
           collapsed={collapsed}
@@ -728,6 +736,46 @@ export function GroupSection({
         />
       ))}
     </Fold>
+  )
+}
+
+const MISSING = Symbol('missing')
+
+// One id index per scene parts array, shared by every field: a find per field per selected part costs
+// ~8 ms a frame with 20 parts selected in a 2000-part scene, the index ~0.1 ms.
+const partIndexes = new WeakMap<readonly PartInstance[], Map<string, PartInstance>>()
+function partIndexOf(parts: readonly PartInstance[]): Map<string, PartInstance> {
+  let index = partIndexes.get(parts)
+  if (!index) {
+    index = new Map()
+    for (const p of parts) index.set(p.id, p)
+    partIndexes.set(parts, index)
+  }
+  return index
+}
+
+/**
+ * The selected parts with `key` read from the live scene. A gizmo drag (a conveyor's length handle) streams
+ * transient scenes the React stream skips, so the committed parts lag the drag until release. Only this
+ * param's value is taken from the live scene, so a field re-renders when its own value moves and every
+ * other field of the part stays as committed.
+ */
+function useLiveParam(store: EditorStore, parts: readonly PartInstance[], key: string): readonly PartInstance[] {
+  const read = (p: PartInstance): unknown => (p.params as unknown as Record<string, unknown>)[key]
+  const live = useLiveValue(
+    store,
+    (s) => {
+      const byId = partIndexOf(s.scene.parts)
+      return parts.map((c) => {
+        const p = byId.get(c.id)
+        return p ? read(p) : MISSING
+      })
+    },
+    (a, b) => a.length === b.length && a.every((v, i) => Object.is(v, b[i])),
+  )
+  if (live.every((v, i) => v === MISSING || Object.is(v, read(parts[i]!)))) return parts
+  return parts.map((p, i) =>
+    live[i] === MISSING || Object.is(live[i], read(p)) ? p : ({ ...p, params: { ...p.params, [key]: live[i] } } as PartInstance),
   )
 }
 

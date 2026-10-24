@@ -552,11 +552,12 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
         </div>
       )}
       {ungrouped.map((spec) => (
-        <ParamField key={spec.key} spec={spec} parts={targets} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints ?? undefined} disabled={false} update={update} onContext={openCtx} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
+        <ParamField key={spec.key} store={store} spec={spec} parts={targets} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints ?? undefined} disabled={false} update={update} onContext={openCtx} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
       ))}
       {groups.map((group) => (
         <GroupSection
           key={group.path}
+          store={store}
           node={group}
           depth={0}
           collapsed={effCollapsed}
