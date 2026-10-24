@@ -6,7 +6,7 @@
 //   - `?library=<url>` (repeatable) names the libraries for this session, and nothing else is read
 //   - the official libraries (OFFICIAL_PART_LIBRARIES), part of the build: adding one is a change to this file, which
 //     every deploy carries, so no request is made for the list; each can be switched off in Settings
-//   - the viewer's own libraries, added in Settings (a team's library, a self-hosted mirror)
+//   - the viewer's own libraries, added in Settings (another publisher's library, a self-hosted mirror)
 
 /**
  * The project's own libraries and the listed library of other publishers' parts (Community, built from the parts

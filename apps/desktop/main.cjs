@@ -7,7 +7,7 @@ const { existsSync, mkdirSync, realpathSync, writeFileSync, readFileSync } = req
 const { spawn } = require('node:child_process')
 const { pathToFileURL } = require('node:url')
 const { listWorkspace } = require('./partsWorkspace.cjs')
-const { listShelf, readChosenShelf, writeChosenShelf, writeShelfPart } = require('./partsShelf.cjs')
+const { listShelf, readChosenShelf, shelfSignature, writeChosenShelf, writeShelfPart } = require('./partsShelf.cjs')
 const { documentFileArg, readDocumentFile } = require('./fileOpen.cjs')
 const { applyFolderWrites, folderSignature, hasProjectManifest, readProjectFolder } = require('./projectFolderIo.cjs')
 const { createFolderRegistry } = require('./folderRegistry.cjs')
@@ -597,8 +597,8 @@ function openDocumentFile(path) {
 }
 
 // Pick a folder of parts and scan it (null if cancelled), for the renderer to IMPORT into the open project's parts
-// (src/editor/parts/packageSource.ts). Read once: the folder is a source, not a live second home for those parts. Shared by
-// the renderer IPC (window.oipParts.pickWorkspace) and the File menu so both paths behave identically.
+// (src/editor/parts/packageSource.ts, Import part > A folder of parts…). Read once: the folder is a source, not a live
+// second home for those parts.
 async function pickWorkspace(win) {
   const result = await dialog.showOpenDialog(win, {
     title: 'Import Parts from Folder',
@@ -810,7 +810,8 @@ function registerIpc() {
   // The parts SHELF (partsShelf.cjs, docs/parts-shelf.md): parts kept outside any project, for projects to copy
   // from. The page never names a path: it lists the shelf, and hands a part over by id to be written into it.
   ipcMain.handle('shelf:list', () => listShelf(shelfRoot()))
-  ipcMain.handle('shelf:write', (_event, id, manifestJson, behaviorSource) => writeShelfPart(shelfRoot(), id, manifestJson, behaviorSource))
+  ipcMain.handle('shelf:signature', () => shelfSignature(shelfRoot()))
+  ipcMain.handle('shelf:write', (_event, id, manifestJson, behaviorSource, thumbnail) => writeShelfPart(shelfRoot(), id, manifestJson, behaviorSource, thumbnail))
   ipcMain.handle('shelf:pickFolder', async (event) => {
     const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
       title: 'Choose Parts Shelf Folder',
@@ -1002,16 +1003,6 @@ function showAbout(win) {
 /** Items main owns outright - nothing here needs the renderer's state. */
 function shellMenuItem(kind, win) {
   switch (kind) {
-    case 'partsFolder':
-      return {
-        // the renderer imports the scan into the open project's parts (packageSource.ts)
-        label: 'Import Parts from Folder…',
-        accelerator: 'CmdOrCtrl+Shift+O',
-        click: async () => {
-          const scan = await pickWorkspace(win)
-          if (scan) win.webContents.send('parts:workspace', scan)
-        },
-      }
     case 'recent': {
       // Main owns this one because it owns the list (folderRegistry.cjs). A click hands the folder to the
       // renderer, which opens it exactly as if it had been picked.
@@ -1114,8 +1105,6 @@ const BOOTSTRAP_MENU = [
   {
     label: 'File',
     items: [
-      { type: 'shell', id: 'partsFolder' },
-      { type: 'separator' },
       { type: 'shell', id: 'quit' },
     ],
   },

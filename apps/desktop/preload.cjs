@@ -14,17 +14,6 @@ contextBridge.exposeInMainWorld('oipParts', {
   pickWorkspace: () => ipcRenderer.invoke('parts:pickFolder'),
 
   /**
-   * Subscribe to folder scans from the native File menu (Import Parts from Folder…), so a menu-driven pick reaches
-   * the renderer the same as pickWorkspace(). Returns an unsubscribe fn.
-   * @param {(scan: { root: string, parts: Array<object>, problems: Array<object> }) => void} cb
-   */
-  onWorkspace: (cb) => {
-    const listener = (_event, scan) => cb(scan)
-    ipcRenderer.on('parts:workspace', listener)
-    return () => ipcRenderer.removeListener('parts:workspace', listener)
-  },
-
-  /**
    * Open a part's behavior.js for editing - in $OIP_EDITOR/$VISUAL/$EDITOR if set, else the OS default app
    * ("open in external editor"). @param {string} dir the part's folder.
    * @returns {Promise<string>} '' on success, else a short error message.
@@ -48,10 +37,12 @@ contextBridge.exposeInMainWorld('oipParts', {
 // The parts shelf (apps/desktop/partsShelf.cjs; src/editor/parts/partShelf.ts is the typed twin): parts kept outside
 // any project, for projects to copy from. No paths cross: the page lists the shelf, and hands a part over by id.
 contextBridge.exposeInMainWorld('oipShelf', {
-  /** @returns {Promise<{ root: string, parts: Array<{dir,id,name,manifestJson,behaviorSource}>, problems: Array<{dir,message}> }>} */
+  /** @returns {Promise<{ root: string, parts: Array<{dir,id,name,manifestJson,behaviorSource,thumbnail?}>, problems: Array<{dir,message}> }>} */
   list: () => ipcRenderer.invoke('shelf:list'),
-  /** Put a part on the shelf (replacing that id's folder). @returns {Promise<string>} '' or the error to show */
-  write: (id, manifestJson, behaviorSource) => ipcRenderer.invoke('shelf:write', id, manifestJson, behaviorSource),
+  /** The shelf's files by name, size and change time, to tell cheaply whether it changed. @returns {Promise<string>} */
+  signature: () => ipcRenderer.invoke('shelf:signature'),
+  /** Put a part on the shelf (replacing that id's folder), with its card image as a PNG data URL. @returns {Promise<string>} '' or the error to show */
+  write: (id, manifestJson, behaviorSource, thumbnail) => ipcRenderer.invoke('shelf:write', id, manifestJson, behaviorSource, thumbnail),
   /** Choose another shelf folder. @returns {Promise<null | { root, parts, problems }>} null when cancelled */
   pickFolder: () => ipcRenderer.invoke('shelf:pickFolder'),
   /** Show the shelf folder in the OS file manager. @returns {Promise<string>} '' or the OS's reason */

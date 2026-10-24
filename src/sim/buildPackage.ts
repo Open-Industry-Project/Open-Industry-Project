@@ -31,7 +31,7 @@ export function buildPackage(manifest: PackageManifest, behaviorSource: string):
 
 /**
  * Inverse of buildPackage: serialize a registered package back into the on-disk workspace-folder format
- * (`manifest.json` + `behavior.js`), the format a part folder holds and File > Import Parts from Folder… reads
+ * (`manifest.json` + `behavior.js`), the format a part folder holds and Import part > A folder of parts… reads
  * (apps/desktop/partsWorkspace.cjs). Its tests pin that buildPackage reads back exactly what this writes.
  */
 export function packageToWorkspaceFiles(pkg: PartPackage): { manifestJson: string; behaviorJs: string } {

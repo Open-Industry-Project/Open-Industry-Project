@@ -1,5 +1,5 @@
 // The .oippart archive: one part's folder, zipped, as a .oip is a project's (core/project/projectArchive.ts). Unzipped it is
-// exactly the folder a project's parts/<slug>/, the shelf and Import Parts from Folder hold:
+// exactly the folder a project's parts/<slug>/, the shelf and a folder import (Import part > A folder of parts…) hold:
 //
 //   manifest.json            the package manifest (baked fields dropped: the behavior re-derives them)
 //   behavior.js              the behavior, verbatim

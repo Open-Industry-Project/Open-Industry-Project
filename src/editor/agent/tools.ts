@@ -60,6 +60,7 @@ import {
 } from './toolKit'
 import { checkPart, createPart, editPartDefinition, getPartSdk, getPartSource, importModel } from './partTools'
 import { installLibraryPart, listLibraryParts } from './libraryTools'
+import { installShelfPart, listShelfParts, putPartOnShelf } from './shelfTools'
 import { checkProgram, getPou, listPous, setPou, traceTags } from './programTools'
 import { captureView, deleteTest, duplicatePartsTool, getCargo, undoTool } from './viewTools'
 import { getContext } from './contextTools'
@@ -837,6 +838,9 @@ export const AGENT_TOOLS: readonly AgentTool[] = [
   importModel,
   listLibraryParts,
   installLibraryPart,
+  listShelfParts,
+  installShelfPart,
+  putPartOnShelf,
   getProgram,
   setProgram,
   listPous,

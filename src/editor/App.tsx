@@ -64,6 +64,7 @@ import { OtherTabBanner } from './components/OtherTabBanner'
 import { NewerBuildBanner } from './components/NewerBuildBanner'
 import { RoomCodePrompt } from './components/RoomCodePrompt'
 import { NameDialogHost } from './components/NameDialog'
+import { PartChangeDialogHost } from './components/PartChangeDialog'
 import { ExportProjectDialog } from './components/ExportProjectDialog'
 import { Toolbar } from './components/Toolbar'
 import { ViewportSelectMenu } from './components/ViewportSelectMenu'
@@ -951,7 +952,7 @@ export function App({ store, sim }: AppProps) {
       // Electron only: stream a desktop parts folder into the catalog (no-op in the browser). Surface
       // each build result so a part that fails to compile on save raises a toast + catalog badge instead
       // of silently keeping its last-good version.
-      const pkgSource = connectDesktopPackages(store, (statuses) => store.applyPackageStatuses(statuses))
+      const pkgSource = connectDesktopPackages(store)
       // Desktop only: serve the agent tools to the shell's MCP server (agent/desktopAgent.ts, docs/agent-tools.md)
       const stopAgent = connectDesktopAgent(store, ctrl, setAgentSession)
       if (import.meta.env.DEV || new URLSearchParams(location.search).has('hook')) {
@@ -1588,6 +1589,7 @@ export function App({ store, sim }: AppProps) {
       <TranslateToast />
       {/* answers askName() (nameDialog.ts): the app's own prompt, since window.prompt throws in Electron */}
       <NameDialogHost />
+      <PartChangeDialogHost />
       {exportChoices && <ExportProjectDialog store={store} project={exportChoices} onClose={() => setExportChoices(null)} />}
       {/* in a room: asks before other people's part code runs here (the gate already holds it back) */}
       <RoomCodePrompt parts={state.scene.parts} />

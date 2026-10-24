@@ -13,7 +13,7 @@ export interface PartFile {
   behaviorSource: string
 }
 
-/** A folder of parts as the shell scanned it (File > Import Parts from Folder…, window.oipParts.onWorkspace). */
+/** A folder of parts as the shell scanned it (Import part > A folder of parts…, window.oipParts.pickWorkspace). */
 export interface WorkspaceScan {
   root: string
   parts: PartFile[]
@@ -24,8 +24,6 @@ export interface WorkspaceScan {
 export interface OipPartsApi {
   /** Pick a folder of parts and scan it (null: cancelled). The renderer imports what it finds. */
   pickWorkspace(): Promise<WorkspaceScan | null>
-  /** A folder scan the menu's Import Parts from Folder… pushes. Returns an unsubscribe. */
-  onWorkspace(cb: (scan: WorkspaceScan) => void): () => void
   /** Open a part folder's behavior.js in an external editor ('' or a reason). Optional: absent on older preloads. */
   openScript?(dir: string): Promise<string>
   /** The parts in the old profile-wide custom-parts folder, names only, to mention once. Optional: older preloads. */

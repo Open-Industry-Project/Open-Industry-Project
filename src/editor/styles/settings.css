@@ -208,6 +208,16 @@
   gap: 6px;
 }
 
+/* a folder path beside its buttons (the parts shelf): ellipsized, the whole path is its title */
+.setting-path {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 /* Reload-scoped settings say so. A live shadow-map resize destroys a texture that recorded WebGPU
    bundles hold by handle (quality.ts), so these genuinely cannot apply until the next load - and a
    control that silently does nothing until you reload is the reason the toolbar popover was cut. */

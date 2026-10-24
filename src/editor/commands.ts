@@ -46,6 +46,9 @@ import { manageAgentDoor } from './agent/desktopAgent'
 import { DESKTOP_DOWNLOAD_URL, openInDesktopApp } from './desktop/desktopLink'
 import { canOpenExternal, openExternal, partFolderOf } from './parts/externalEditor'
 import { getOipPartsApi } from './desktop/desktopPartsBridge'
+import { getShelfApi } from './parts/partShelf'
+import { sameAsBuiltIn } from '../core/builtInVersion'
+import type { PartPackage } from '../core/parts/partPackage'
 import type { SdkPart } from '../core/types'
 
 /** The UI-only affordances a command needs and the store can't provide (pickers, overlays, layout). */
@@ -268,6 +271,13 @@ const targetPackage = (ctx: CommandCtx): string | null => ctx.target?.packageId 
 const partScriptDir = (ctx: CommandCtx): string | null => {
   const pkg = targetPackage(ctx)
   return pkg ? partFolderOf(ctx.state, pkg) : null
+}
+
+/** the target part as this project made or changed it, which is what can go on the shelf; undefined for a stock built-in */
+const shelvablePart = (ctx: CommandCtx): PartPackage | undefined => {
+  const id = targetPackage(ctx)
+  const copy = id === null ? undefined : ctx.state.userPackages.find((p) => p.id === id)
+  return copy && !sameAsBuiltIn(copy, ctx.state.bundledPackages.find((b) => b.id === copy.id)) ? copy : undefined
 }
 
 /** an axis view's command, under its keymap action's id and chord */
@@ -716,6 +726,19 @@ const COMMAND_DEFS: readonly Command[] = [
     run: (ctx) => {
       const id = targetPackage(ctx)
       if (id) ctx.ui.showPublishPart(id)
+    },
+  },
+  {
+    // a part this project made or changed, onto the parts shelf for other projects to place (docs/parts-shelf.md). A stock
+    // built-in is in every project already. Asks first, and over a different shelf version lists what changes there.
+    id: 'part.putOnShelf',
+    label: 'Put on Shelf…',
+    group: 'Edit',
+    shellOnly: true,
+    enabled: (ctx) => !ctx.state.readOnly && getShelfApi() !== null && shelvablePart(ctx) !== undefined,
+    run: (ctx) => {
+      const part = shelvablePart(ctx)
+      if (part) void import('./parts/shelfActions').then((a) => a.putPartOnShelf(ctx.store, part))
     },
   },
   {
@@ -1204,7 +1227,7 @@ export type MenuNode =
   | { command: string }
   | { separator: true }
   | { role: string; label?: string; accelerator?: string }
-  | { shell: 'partsFolder' | 'recent' | 'quit' | 'docs' | 'github' | 'issues' | 'updates' | 'licenses' | 'about' }
+  | { shell: 'recent' | 'quit' | 'docs' | 'github' | 'issues' | 'updates' | 'licenses' | 'about' }
 
 export interface MenuSection {
   label: string
@@ -1244,7 +1267,6 @@ export const DESKTOP_MENU: readonly MenuSection[] = [
       { command: 'file.showProjectFolder' },
       { separator: true },
       { command: 'file.getParts' },
-      { shell: 'partsFolder' },
       { separator: true },
       { shell: 'quit' },
     ],

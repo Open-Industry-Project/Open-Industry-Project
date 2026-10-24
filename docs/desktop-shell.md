@@ -87,7 +87,7 @@ File/Edit/Simulation/View/Help structure that arranges them. The renderer sends 
 on `menu:command`, which the renderer dispatches through the same registry the toolbar and the
 command palette use.
 
-Main still owns what never touches the document: Electron roles, Import Parts from Folder…, quit, and
+Main still owns what never touches the document: Electron roles, quit, and
 the Help links. Before the model arrives (a second or two against a cold dev server) those are the
 whole menu, rather than a stand-in copy of the app menu whose commands would dispatch
 into a renderer that isn't listening yet.

@@ -43,15 +43,21 @@ or its git history shows the change, and the only way to get the old conveyor ba
    | changed | same | edited here |
    | changed | changed | changed in both |
 
-4. **Nothing changes until someone says so.** An app update never changes a project's parts. When a project opens
-   and newer versions of its parts exist, the app says so ("4 parts in this project have updates") with **Update
-   all** and **Review** (components/PartUpdatesNotice.tsx). The catalog cards carry the same badges. An update is one
+4. **Nothing changes until someone says so, and every source says so the same way.** A newer version never changes
+   a project's parts. Wherever a part came from (the app, a part library, the parts shelf), a newer version there
+   shows the same way (editor/parts/partUpdates.ts): an "Update" badge on the part's card, which opens one dialog
+   listing what changes here (components/PartChangeDialog.tsx), and one notice above the cards ("4 parts in this
+   project have updates") with **Update all** and **Review** (components/PartUpdatesNotice.tsx). An update is one
    part at a time or all at once, confirms when it would replace this project's own edits ("changed in both"), and
    is a library change, not an undo step, like Import part. Update all asks first, naming the parts whose project
-   changes it discards. Review lists each part with the same two answers as the catalog badge and the Inspector.
-   The prompt stays up until answered or dismissed, and a dismiss lasts this opening of the project. "Use the app's
-   new version" everywhere is `store.updateFromApp`, a fresh stamped copy. The prompt covers app updates only:
-   shelf updates stay on the Shelf tab, since asking means reading the shelf folder.
+   changes it discards. Review lists each update with where it comes from. The app's updates also offer "Keep this
+   project's version", which records the answer so the app stops asking until it changes the part again (the
+   Inspector asks the same). A declined library or shelf update keeps its badge. The prompt stays up until answered
+   or dismissed, and a dismiss lasts this opening of the project. "Use the app's new version" is
+   `store.updateFromApp`, a fresh stamped copy. A part library is read for this only when the project holds a part
+   from one ([part-libraries.md](part-libraries.md)); the shelf is read as it always is
+   ([parts-shelf.md](parts-shelf.md)). When one part has newer versions in two places, its card offers the most
+   specific: the shelf, then a library, then the app.
 5. **History is the folder's job.** The copies live in `<project>/parts/<slug>/`, so git, or a copy of the folder,
    keeps every version a project ever had. The app keeps no version store of its own.
 

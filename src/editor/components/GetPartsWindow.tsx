@@ -24,11 +24,13 @@ import type { PartPackage } from '../../core/parts/partPackage'
 import { PART_SDK_LEVEL } from '../../core/parts/partSdk'
 import { dialogHost } from '../dialogHost'
 import { addLibrary, downloadVersion, installFromLibrary, readLibrary } from '../parts/partLibraries'
+import { noteLibraryListings } from '../parts/libraryUpdates'
+import { getShelfApi } from '../parts/partShelf'
 import type { LibraryListing } from '../parts/partLibraries'
 import { LIBRARIES_CHANGED, libraryUrls } from '../parts/partLibraryUrls'
 import { documentSceneOf, type EditorState, type EditorStore } from '../store/store'
 import { trapTab, useModalKeys } from './inspector/menu'
-import { ShelfChangeDialog } from './ShelfChangeDialog'
+import { PartChangeDialog } from './PartChangeDialog'
 import { CloseIcon, PartGlyph } from './toolbarIcons'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 
@@ -87,11 +89,13 @@ const M = defineMessages('getParts', {
   cancel: 'Cancel',
   readingOne: 'Reading…',
   add: 'Add',
-  addHint: "A team's library or a mirror: the address of its index.json. Settings, Part libraries removes one.",
+  addHint: "Another publisher's library or a mirror: the address of its index.json. Settings, Part libraries removes one.",
+  addHintShelf:
+    "Another publisher's library or a mirror: the address of its index.json. Settings, Part libraries removes one. To share parts within a team, use the parts shelf.",
   addLibrary: '+ Add a library',
   yourParts: 'Your parts',
   noOwnParts: 'Publishing starts from a part of your own: make one with New part in the Parts dock, or Save as New Part on a built-in.',
-  noLibrary: "No part library yet. Add one with Add a library: a team's library, or a mirror of one, by the address of its index.json.",
+  noLibrary: "No part library yet. Add one with Add a library: another publisher's library, or a mirror of one, by the address of its index.json.",
   emptyLibrary: 'No parts listed here yet. A part you make can be the first.',
   choose: 'Choose a part to see what it is.',
 })
@@ -142,7 +146,7 @@ export function GetPartsWindow({ store, state, onClose, onPublish }: Props): Rea
   const [query, setQuery] = useState('')
   // "More from <publisher>": the library's parts narrowed to one publisher's, shown as a removable filter by the search
   const [byPublisher, setByPublisher] = useState<string | null>(null)
-  const [review, setReview] = useState<Parameters<typeof ShelfChangeDialog>[0] | null>(null)
+  const [review, setReview] = useState<Parameters<typeof PartChangeDialog>[0] | null>(null)
   // adding a library happens here, not in Settings: Settings would open under this window
   const [adding, setAdding] = useState<{ draft: string; busy: boolean; error: string } | null>(null)
   const addSource = async (): Promise<void> => {
@@ -177,6 +181,8 @@ export function GetPartsWindow({ store, state, onClose, onPublish }: Props): Rea
     void Promise.all(urlsKey === '' ? [] : urlsKey.split('\n').map((u) => readLibrary(u))).then((read) => {
       if (!live) return
       setListings(read)
+      // the Catalog's "Update" badges read the same listing (editor/parts/libraryUpdates.ts)
+      noteLibraryListings(read)
       for (const l of read) {
         for (const part of l.index?.parts ?? []) {
           const { version } = offeredVersion(part)
@@ -455,7 +461,7 @@ export function GetPartsWindow({ store, state, onClose, onPublish }: Props): Rea
                     {adding.busy ? t(M.readingOne) : t(M.add)}
                   </button>
                 </div>
-                <p className="getparts-hint">{t(M.addHint)}</p>
+                <p className="getparts-hint">{t(getShelfApi() ? M.addHintShelf : M.addHint)}</p>
               </div>
             ) : (
               <button type="button" className="getparts-secondary getparts-add-library" data-testid="get-parts-add-library" onClick={() => setAdding({ draft: '', busy: false, error: '' })}>
@@ -516,7 +522,7 @@ export function GetPartsWindow({ store, state, onClose, onPublish }: Props): Rea
           <aside className="getparts-side">{source?.index && chosen ? detail(source, chosen) : <p className="getparts-hint">{t(M.choose)}</p>}</aside>
         </div>
       </div>
-      {review && <ShelfChangeDialog {...review} />}
+      {review && <PartChangeDialog {...review} />}
     </div>,
     host,
   )

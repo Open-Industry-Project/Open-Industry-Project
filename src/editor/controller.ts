@@ -9,7 +9,7 @@ import type { PartDiagnostic } from '../sim/validatePart'
 import { moveViewportState, persistViewportState } from './store/storePrefs'
 import { onCurrentDocumentChange, SCENE_SLOT, sceneSlotKey, slotDocumentId } from './project/documentStore'
 import type { SnapCandidate, SnapPose } from '../core/snap/snapFeatures'
-import type { PartDef, PartInstance, PartType, SceneJSON } from '../core/types'
+import type { PartInstance, PartType, SceneJSON } from '../core/types'
 import type { DisplayUnits } from '../core/units'
 import { sceneUnits } from '../core/scene/sceneUnits'
 import type { BoxPick, IRenderView, ResizeHandle } from '../render/api'
@@ -1054,7 +1054,7 @@ export class EditorController {
   }
 
   /** A part's own name and catalog category (the definition's, not a placed copy's). Returns '' or why not. */
-  setPartInfo(packageId: string, patch: { name?: string; category?: PartDef['category'] }): string {
+  setPartInfo(packageId: string, patch: { name?: string; category?: string }): string {
     return authoringOps.setPartInfo(this, packageId, patch)
   }
 

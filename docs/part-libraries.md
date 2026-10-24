@@ -21,12 +21,18 @@ part and signs the index.
   Community. Structure is left out because it repeats parts the app ships. Settings > Preferences > Part libraries
   switches an official library off and adds or removes the viewer's own. A library is read before it is added, so a
   wrong address or a host without CORS is reported there.
+- **Updates in the Parts dock:** [libraryUpdates.ts](../src/editor/parts/libraryUpdates.ts). A project that holds a part
+  from a library (recorded `origin.library`, or a copy of a built-in the app no longer ships) reads its libraries
+  once, after the scene's first paint, and downloads and checks each newer version. That part's card then carries the
+  same "Update" badge an app or shelf update does, and the updates notice counts it ([part-sources.md](part-sources.md)).
+  A project with no library part makes no request, and a library that cannot be reached says nothing. Get parts hands
+  the listings it reads to the same place, so the cards follow what that window shows.
 - **Get parts:** [GetPartsWindow.tsx](../src/editor/components/GetPartsWindow.tsx), opened from the Parts dock's Get
   parts button or File > Get Parts…. Libraries are listed down the side and their parts as cards. A card shows the
   part's description and what it is to the machines around it (rolls, forks can pick it up, carries a stack), read
   from the part itself rather than the publisher's text. Each listed part is downloaded and checked when the window
   opens. Add to project copies it into the project's parts (`origin.library`) without placing it. Update opens the
-  shelf's change dialog, and Update all takes every newer version after one confirmation. A listed part names its
+  part change dialog, and Update all takes every newer version after one confirmation. A listed part names its
   publisher, linked to their GitHub account. More from <publisher> filters the library to their parts. Add a library
   adds one by the address of its index.json, with the same check as Settings (`addLibrary`). Under "Your parts",
   Publish a part opens Publish to Part Library for the selected part, the project's only part of its own, or a list

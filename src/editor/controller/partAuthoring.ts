@@ -2,7 +2,8 @@
 // behavior script, importing and creating parts. No state of its own: every edit is a package commit through
 // the store, so each function takes only the narrow slice of the controller it uses (AuthoringDeps).
 
-import { getPackage, hasPackage, registerPackage } from '../../core/parts/partRegistry'
+import { getPackage, hasPackage, listPackages, registerPackage } from '../../core/parts/partRegistry'
+import { packageCategory, sameCategory } from '../../core/parts/partCategory'
 import { behaviorMentions, renameRigJoint as renamedJoints, renameRigLink, renameRigNameRefs } from '../../core/parts/partPackage'
 import { validatePartPackage } from '../../core/parts/partValidate'
 import { asNewPartFrom } from '../../core/builtInVersion'
@@ -14,7 +15,7 @@ import type { PackageManifest } from '../../sim/buildPackage'
 import { parsePartBytes, parsePartText } from '../parts/partFile'
 import { validatePart } from '../../sim/validatePart'
 import type { PartDiagnostic } from '../../sim/validatePart'
-import type { PartDef, SdkPart } from '../../core/types'
+import type { SdkPart } from '../../core/types'
 import type { EditorController } from '../controller'
 
 /** what part authoring reads and drives: the store (packages, selection, undo), the view (the rig gizmo's held pose),
@@ -242,14 +243,22 @@ export function saveAsNewPart(ec: AuthoringDeps, packageId: string): string | nu
  * Change a part's own name and catalog category (the definition, not a placed copy's name). Refused for a built-in's
  * copy, whose name is the built-in's (Save as New Part makes one to name). Returns '' or why not.
  */
-export function setPartInfo(ec: AuthoringDeps, packageId: string, patch: { name?: string; category?: PartDef['category'] }): string {
+export function setPartInfo(ec: AuthoringDeps, packageId: string, patch: { name?: string; category?: string }): string {
   if (ec.readOnly) return 'This project is view only.'
   const pkg = getPackage(packageId)
   if (!pkg) return 'This part is not loaded.'
   if (ec.store.getState().bundledPackages.some((b) => b.id === packageId)) return `“${pkg.name}” is a built-in part. Save it as a new part to name your own.`
   const name = patch.name?.trim() ?? pkg.name
   if (name === '') return 'A part needs a name.'
-  const category = patch.category ?? pkg.category
+  // a category spelled as the one it already is: a standard name as the app spells it, another as the first part
+  // that named it, so a difference of case does not split a tab
+  let category = pkg.category
+  if (patch.category !== undefined) {
+    const named = packageCategory({ category: patch.category })
+    if (named.length > 64) return 'A category name can be at most 64 characters.'
+    const known = listPackages().find((p) => p.id !== packageId && p.category !== undefined && sameCategory(p.category, named))
+    category = known ? packageCategory(known) : named
+  }
   if (name === pkg.name && category === pkg.category) return ''
   const next: PartPackage = { ...pkg, name }
   if (category !== undefined) next.category = category

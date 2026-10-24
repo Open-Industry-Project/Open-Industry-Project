@@ -549,6 +549,10 @@ More fields, each documented in [`manifest.d.ts`](../packages/part-sdk/manifest.
   `cargo: { forkPockets: true, heavy: true, loadBase: true }`. The built-in pallet and tote have these by kind
   ([cargo-bodies.md](cargo-bodies.md)).
 - A top-level `thumbnail` (a data URL) is the catalog card's picture.
+- A top-level `category` is the catalog tab the part is listed under. `Equipment`, `Devices`, `Products` and
+  `Structure` match in any case. Any other name (up to 64 characters) gets a tab of its own after those four, and
+  names that differ only in case share one. A part with no category is Equipment. `check-part` warns when a name is
+  a letter or two off a standard one (`Device`), since that makes a separate tab.
 
 A roller bed draws its rollers in `geometry()` on the grid `ctx.deltas` hands it; that is how
 [roller-conveyor](../examples/parts/roller-conveyor/part.js) skews its bank so cargo tracks across the bed

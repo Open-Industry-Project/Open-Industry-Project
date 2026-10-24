@@ -16,7 +16,7 @@ describe('tellAboutLegacyParts', () => {
     tellAboutLegacyParts(store, 'C:/p/custom-parts', ['Belt', 'Arm', 'Lift', 'Stop'])
     expect(notices).toHaveLength(1)
     expect(notices[0]![1]).toContain('4 parts in C:/p/custom-parts (Belt, Arm, Lift and 1 more) are no longer loaded')
-    expect(notices[0]![1]).toContain('File > Import Parts from Folder')
+    expect(notices[0]![1]).toContain('Import part in the Parts panel')
     expect(notices[0]![1]).not.toMatch(/\u2014/) // UI text uses hyphens, never an em dash
     tellAboutLegacyParts(store, 'C:/p/custom-parts', ['Belt'])
     expect(notices).toHaveLength(1) // once per profile

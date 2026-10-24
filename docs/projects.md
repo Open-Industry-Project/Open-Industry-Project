@@ -164,7 +164,7 @@ The same data model is used everywhere ([architecture.md](./architecture.md)). I
 embedded assets are real files beside its manifest, `parts/<id>/assets/<sha256>.glb`, named by the hash of their
 bytes (`core/parts/partAssets.ts`). The folder codec, the `.oip` and Put on Shelf write them. Every host that reads a
 part folder joins them back into base64 `data` before baking: the codec, the `.oip`, the desktop folder IO and
-sync, the browser folder link, the CLIs, the shelf and Import Parts from Folder. Nothing else in the app sees the
+sync, the browser folder link, the CLIs, the shelf and a folder import (Import part > A folder of parts…). Nothing else in the app sees the
 difference. A missing file, or one that does not hash to its name, fails the open. In memory, and in the browser
 autosave, a room and a scene file, assets stay base64. `url` assets (a built-in copy naming an app-served model)
 are untouched ([part-sources.md](part-sources.md) "Assets").
@@ -198,7 +198,7 @@ out of every round, so it never writes, loads or removes one, and removing a par
 ordinary project content: the two-way folder sync below writes them and reads outside edits back, so a
 `behavior.js` edit on disk is re-baked and reaches the running app like any other changed file. The shell keeps
 no parts of its own and watches no parts folder (`apps/desktop/main.cjs`). `partsWorkspace.cjs` scans only a
-folder picked for **Import Parts from Folder**.
+folder picked for **Import part > A folder of parts…**.
 
 #### The program as files (format 7)
 
@@ -241,7 +241,7 @@ manifest-driven, so stale or extra files are ignored rather than fatal. Reassemb
 `validateProject`, so a folder edited by hand or by an agent gets every clamp and migration an untrusted `.oip`
 upload does.
 
-A part folder is the parts-workspace format that **Import Parts from Folder** scans (`partsWorkspace.cjs`, which
+A part folder is the parts-workspace format that **Import part > A folder of parts…** scans (`partsWorkspace.cjs`, which
 can read a project's `parts/` directly). `manifest.json` omits the fields baked from the behavior (`params`,
 `format`, `interactive`, `snap`; `core/parts/partPackage.manifestOfPackage`), so the script is the source of truth.
 Rebuilding a part therefore runs the behavior once. Core's codec stays execution-free by taking an injected

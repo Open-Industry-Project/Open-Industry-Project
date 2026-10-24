@@ -43,6 +43,8 @@ import {
 } from '../parts/partLibraryUrls'
 import type { EditorState, EditorStore } from '../store/store'
 import { CloseIcon } from './toolbarIcons'
+import { getShelfApi } from '../parts/partShelf'
+import { refreshShelf, useShelf } from '../parts/shelfListing'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { tNodes } from '../i18nNodes'
 
@@ -122,9 +124,16 @@ const M = defineMessages('settings', {
   officialLibrary: 'official library',
   remove: 'Remove',
   addLibrary: 'Add a library',
-  addLibraryHint: "a team's library or a mirror: the address of its index.json",
+  addLibraryHint: "another publisher's library or a mirror: the address of its index.json",
+  addLibraryHintShelf: "another publisher's library or a mirror: the address of its index.json. A team shares its own parts on the parts shelf, below.",
   reading: 'Reading…',
   add: 'Add',
+  partsShelf: 'Parts shelf',
+  shelfFolder: 'Folder',
+  shelfFolderHint: 'parts kept outside any project, for every project to place and update from. A shared drive or a git repository lets a team work from one set.',
+  shelfNotRead: 'not read yet',
+  showFolder: 'Show folder',
+  changeFolder: 'Change folder…',
   keysIntro:
     "Tools, snapping and fly/walk movement follow each key's {position}, so the clusters stay put on an AZERTY or QWERTZ keyboard. {ctrl} shortcuts follow the printed letter, the way every other app does it. Click a shortcut to change it.",
   position: 'position',
@@ -369,6 +378,8 @@ function PreferencesSection({ store, state }: { store: EditorStore; state: Edito
 
       <PartLibrariesGroup />
 
+      <PartsShelfGroup />
+
       <section className="settings-group">
         <h3>{t(M.graphics)}</h3>
         {/* First, because this is the instrument you read while turning the two knobs below it, and
@@ -518,7 +529,7 @@ function libraryLabel(url: string): string {
 
 /**
  * The part libraries the Catalog's Libraries tab reads (docs/part-libraries.md): the project's official ones, each of
- * which can be switched off, and the viewer's own (a team's library, a self-hosted mirror). A library is read before
+ * which can be switched off, and the viewer's own (another publisher's library, a self-hosted mirror). A library is read before
  * it is added, so a wrong address or a host without CORS is said here rather than saved.
  */
 function PartLibrariesGroup(): ReactElement {
@@ -564,7 +575,7 @@ function PartLibrariesGroup(): ReactElement {
           </button>
         </Row>
       ))}
-      <Row label={t(M.addLibrary)} hint={status.error || t(M.addLibraryHint)}>
+      <Row label={t(M.addLibrary)} hint={status.error || t(getShelfApi() ? M.addLibraryHintShelf : M.addLibraryHint)}>
         <span className="setting-control-pair">
           <input
             className="setting-input"
@@ -582,6 +593,43 @@ function PartLibrariesGroup(): ReactElement {
           />
           <button type="button" className="setting-button" data-testid="setting-add-library" disabled={status.busy || draft.trim() === ''} onClick={() => void add()}>
             {t(status.busy ? M.reading : M.add)}
+          </button>
+        </span>
+      </Row>
+    </section>
+  )
+}
+
+/**
+ * Where the parts shelf is (docs/parts-shelf.md), and the way to change it. Desktop only: the browser has no shelf.
+ * A shelf folder that cannot be read is said above the Catalog's cards, where its parts would be missing.
+ */
+function PartsShelfGroup(): ReactElement | null {
+  const shelf = useShelf()
+  const api = getShelfApi()
+  if (!shelf || !api) return null
+  return (
+    <section className="settings-group" data-testid="settings-parts-shelf">
+      <h3>{t(M.partsShelf)}</h3>
+      <Row label={t(M.shelfFolder)} hint={t(M.shelfFolderHint)}>
+        <span className="setting-control-pair">
+          <span className="setting-path" data-testid="setting-shelf-path" title={shelf.listing?.root ?? ''}>
+            {shelf.listing?.root ?? t(M.shelfNotRead)}
+          </span>
+          <button type="button" className="setting-button" onClick={() => void api.reveal()}>
+            {t(M.showFolder)}
+          </button>
+          <button
+            type="button"
+            className="setting-button"
+            data-testid="setting-shelf-change"
+            onClick={() =>
+              void api.pickFolder().then((scan) => {
+                if (scan) void refreshShelf()
+              })
+            }
+          >
+            {t(M.changeFolder)}
           </button>
         </span>
       </Row>

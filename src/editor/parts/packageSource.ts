@@ -2,7 +2,7 @@
 //
 // A project's part definitions live only in its own copies (store.userPackages). On the desktop they are stored in the
 // project folder's parts/, which the project folder sync writes and reads like any other project file
-// (externalEditor.ts). So a folder of parts the user points at (File > Import Parts from Folder…) is imported: each
+// (externalEditor.ts). So a folder of parts the user points at (Import part > A folder of parts…) is imported: each
 // part is built, checked and added to this project, and from then on belongs to this project.
 // The folder is not watched. A watched folder would load its parts into whatever project is open, so a part edited in
 // one project would show up in another.
@@ -49,7 +49,7 @@ export function tellAboutLegacyParts(store: Pick<EditorStore, 'showSaveNotice'>,
   const shown = names.slice(0, 3).join(', ') + (n > 3 ? ` and ${n - 3} more` : '')
   store.showSaveNotice(
     'Parts now live in each project',
-    `${n} part${n === 1 ? '' : 's'} in ${root} (${shown}) ${n === 1 ? 'is' : 'are'} no longer loaded on ${n === 1 ? 'its' : 'their'} own. Copies already placed in a scene keep working. To use the rest in a project, File > Import Parts from Folder… brings them in.`,
+    `${n} part${n === 1 ? '' : 's'} in ${root} (${shown}) ${n === 1 ? 'is' : 'are'} no longer loaded on ${n === 1 ? 'its' : 'their'} own. Copies already placed in a scene keep working. To use the rest in a project, Import part in the Parts panel brings them in: choose A folder of parts.`,
   )
 }
 
@@ -77,24 +77,25 @@ export function importScannedParts(store: EditorStore, scan: WorkspaceScan): Pac
 }
 
 /**
- * Wire the shell's part folders into the editor: File > Import Parts from Folder… (the shell picks the folder and
- * pushes its scan) imports into the project's parts, and the old profile-wide folder is mentioned once. Returns
- * null in the browser. `onStatus` reports per-part build results for a toast / badge.
+ * Import part's "A folder of parts…" (Catalog.tsx), on the desktop: the shell picks the folder and scans it, and its
+ * parts are imported into the project's parts, each one's build result reported on its card and in a toast.
  */
-export function connectDesktopPackages(store: EditorStore, onStatus?: (statuses: PackageStatus[]) => void): DesktopPackageSource | null {
+export async function importPartsFolder(store: EditorStore): Promise<void> {
+  const scan = await getOipPartsApi()?.pickWorkspace()
+  if (!scan) return
+  const statuses = importScannedParts(store, scan)
+  store.applyPackageStatuses(statuses)
+  const n = statuses.filter((s) => s.ok).length
+  if (n > 0) store.showSaveNotice('Parts imported', `${n} part${n === 1 ? '' : 's'} from ${scan.root} ${n === 1 ? 'is' : 'are'} now in this project.`)
+}
+
+/**
+ * On the desktop, mention once where the parts in the old profile-wide folder went (tellAboutLegacyParts). Returns
+ * null in the browser.
+ */
+export function connectDesktopPackages(store: EditorStore): DesktopPackageSource | null {
   const api = getOipPartsApi()
   if (!api) return null
-  const offWorkspace = api.onWorkspace((scan) => {
-    const statuses = importScannedParts(store, scan)
-    onStatus?.(statuses)
-    const n = statuses.filter((s) => s.ok).length
-    if (n > 0) store.showSaveNotice('Parts imported', `${n} part${n === 1 ? '' : 's'} from ${scan.root} ${n === 1 ? 'is' : 'are'} now in this project.`)
-  })
-  // The parts left in the old profile-wide folder: say once where they went (tellAboutLegacyParts)
   void api.legacyParts?.().then(({ root, names }) => tellAboutLegacyParts(store, root, names)).catch(() => {})
-  return {
-    disconnect() {
-      offWorkspace()
-    },
-  }
+  return { disconnect() {} }
 }

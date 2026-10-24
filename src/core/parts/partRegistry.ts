@@ -10,7 +10,6 @@
 // can react.
 
 import type { PartPackage } from './partPackage'
-import type { PartDef } from '../types'
 
 const packages = new Map<string, PartPackage>()
 // Ids whose local copy is authoritative: bundled first-party parts and the user's own library. A scene
@@ -85,19 +84,6 @@ export function registryRevision(): number {
 
 export function getPackage(id: string): PartPackage | undefined {
   return packages.get(id)
-}
-
-/** the catalog's tabs, in order */
-export const PART_CATEGORIES: readonly PartDef['category'][] = ['Equipment', 'Devices', 'Products', 'Structure']
-
-/**
- * The section a package files under: its declared category when it names one (case-insensitively, since
- * `category` is a free string in the manifest), else Equipment, so a typo'd category still lands somewhere
- * visible. The catalog tabs and the Scene dock's row glyphs both read it: every placed part is a package
- * part, whose generic PART_DEFS entry says Equipment for all of them.
- */
-export function packageCategory(pkg: PartPackage | undefined): PartDef['category'] {
-  return PART_CATEGORIES.find((c) => c.toLowerCase() === pkg?.category?.toLowerCase()) ?? 'Equipment'
 }
 
 export function hasPackage(id: string): boolean {

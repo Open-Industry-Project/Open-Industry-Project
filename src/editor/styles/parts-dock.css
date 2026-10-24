@@ -56,6 +56,11 @@
 .catalog-tab {
   flex: none;
   padding: 4px 10px;
+  /* a category a part names itself can be long: its tab ellipsizes, and the whole name is its title */
+  max-width: 14em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .catalog-tab.active {

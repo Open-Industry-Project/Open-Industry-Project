@@ -3,7 +3,8 @@ import type { DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, 
 import { effectivelyHiddenSet, orderedTree, subtreeIds } from '../../core/scene/hierarchy'
 import { PART_DEFS } from '../../core/types'
 import type { SdkPart, PartDef, PartInstance } from '../../core/types'
-import { getPackage, packageCategory } from '../../core/parts/partRegistry'
+import { getPackage } from '../../core/parts/partRegistry'
+import { isStandardCategory, packageCategory } from '../../core/parts/partCategory'
 import { partDisplayNames } from '../../core/parts/partDisplayName'
 import { resolveKeyAction } from '../../core/keymap'
 import { runCommand, runCommandOn } from '../commands'
@@ -26,11 +27,16 @@ import { ChevronIcon, PencilIcon, SceneIcon, ScriptIcon, TreeGlyph } from './too
 import type { TreeGlyphKind } from './toolbarIcons'
 import { defineMessages, t } from '../../core/i18n'
 
-export const CATEGORY_ICONS: Record<PartDef['category'], TreeGlyphKind> = {
+const CATEGORY_ICONS: Record<PartDef['category'], TreeGlyphKind> = {
   Equipment: 'equipment',
   Devices: 'devices',
   Products: 'products',
   Structure: 'structure',
+}
+
+/** a category's row glyph: a category a part names itself has no glyph of its own, so it takes Equipment's */
+export function categoryIcon(category: string): TreeGlyphKind {
+  return isStandardCategory(category) ? CATEGORY_ICONS[category] : 'equipment'
 }
 
 /** indentation per tree depth, in px */
@@ -1083,7 +1089,7 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
                 rowId={part.id}
                 label={displayName}
                 depth={depth}
-                icon={CATEGORY_ICONS[isCustom ? packageCategory(getPackage((part as SdkPart).packageId)) : def.category]}
+                icon={categoryIcon(isCustom ? packageCategory(getPackage((part as SdkPart).packageId)) : def.category)}
                 typeLabel={state.treeTypes ? typeSub : ''}
                 // with the type column toggled off, the type stays discoverable on hover
                 rowTitle={!state.treeTypes && typeSub ? typeSub : undefined}

@@ -20,6 +20,8 @@
 //                  is a warning with the fix (an off-centre import, stale bounds, a missing bounds.bottom).
 //   4. host facts - a drawn part's host-fed params (src/core/parts/hostFacts.ts): one its own declarations say it
 //                  needs and it leaves out is a warning, since that fact then never reaches it.
+//   A category one or two letters off a standard one, or off one an earlier folder in the run names, is a warning
+//   too: any name is a catalog tab of its own (src/core/parts/partCategory.ts).
 //
 // Before this existed a part could only be checked by building a whole project folder around it and running
 // validate-project (in two agent trials, both routed through a project just to see a bake error).
@@ -66,6 +68,9 @@ try {
   const { instantiatePartScript } = await vite.ssrLoadModule('/src/core/parts/partScript.ts')
   const { compileRig } = await vite.ssrLoadModule('/src/core/rig/rigCompile.ts')
   const { hostFactWarnings } = await vite.ssrLoadModule('/src/core/parts/hostFacts.ts')
+  const { PART_CATEGORIES, nearCategory } = await vite.ssrLoadModule('/src/core/parts/partCategory.ts')
+  // the categories a part's could be a misspelling of: the standard four, and those the folders checked before it name
+  const knownCategories = [...PART_CATEGORIES]
 
   for (const target of targets) {
     const report = { folder: target, ok: false, problems: [] }
@@ -319,6 +324,12 @@ try {
       for (const w of hostFactWarnings(pkg, createSdkPart(pkg, 'check-part-probe', [0, 0, 0]))) report.warnings.push(w)
     } catch (e) {
       report.warnings.push(`could not check the host-fed params: ${e.message}`)
+    }
+    // any category name is a catalog tab of its own, so one a letter or two off a known one ("Device") is probably a typo
+    if (typeof pkg.category === 'string') {
+      const near = nearCategory(pkg.category, knownCategories)
+      if (near) report.warnings.push(`category "${pkg.category}" makes a catalog tab of its own, beside "${near}". If you meant "${near}", use that`)
+      knownCategories.push(pkg.category)
     }
     report.ok = report.problems.length === 0
   }

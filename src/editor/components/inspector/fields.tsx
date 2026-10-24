@@ -532,10 +532,12 @@ export interface TextFieldProps {
   list?: string
   /** an identifier, not prose: no spellcheck, no browser autofill */
   code?: boolean
+  /** the input's data-testid */
+  testid?: string
   onCommit: (v: string) => void
 }
 
-export function TextField({ label, value, placeholder, disabled, mixed, tooltip, extra, labelExtra, list, code, onCommit }: TextFieldProps) {
+export function TextField({ label, value, placeholder, disabled, mixed, tooltip, extra, labelExtra, list, code, testid, onCommit }: TextFieldProps) {
   const [text, setText] = useState(value)
   // read by the handlers instead of `text`, for the same reason as SpinSlider's: Enter / Escape blur from
   // inside keydown, where the render's `text` is one keystroke behind
@@ -571,6 +573,7 @@ export function TextField({ label, value, placeholder, disabled, mixed, tooltip,
           placeholder={mixed ? '--' : placeholder}
           disabled={disabled}
           list={list}
+          data-testid={testid}
           spellCheck={code ? false : undefined}
           autoComplete={code ? 'off' : undefined}
           onFocus={() => {
