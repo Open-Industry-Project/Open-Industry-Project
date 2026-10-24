@@ -26,6 +26,9 @@ export interface KinematicScratch {
   readonly quat: Jolt.Quat
 }
 
+/** CargoRegistry.placeBody: the one writer of a cargo body's pose (position, rotation or both) outside the solver */
+export type PlaceBody = (id: Jolt.BodyID, pos: Jolt.RVec3 | null, rot: Jolt.Quat | null) => void
+
 /** a body's frame / registry key: its BodyID's index and sequence number */
 export function bodyKey(body: Jolt.Body): number {
   return body.GetID().GetIndexAndSequenceNumber()

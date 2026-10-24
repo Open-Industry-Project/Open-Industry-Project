@@ -746,6 +746,40 @@ describe('freeze body (gizmo grab)', () => {
     expect(world.frame().positions[1]!).toBeLessThan(1.5)
     world.dispose()
   })
+
+  it('a step reads a body moved since the frame, not the frame snapshot it would reuse', () => {
+    const world = new SimWorld(Jolt, scene(belt('b1', 0, 0.75, 0, 4, 0.5), boxPart('bx1', 0, 0.95, 0)))
+    world.step()
+    expect(world.frame().count).toBe(1) // the frame's snapshot is kept for the next step
+    // dragged below the cull height between steps: the next step's cull must see it there
+    world.moveBody('bx1', [0, -10, 0], null)
+    world.step()
+    expect(world.frame().count).toBe(0)
+    world.dispose()
+  })
+
+  it('a body moved between steps after something read the snapshot is still seen by the next step', () => {
+    const world = new SimWorld(Jolt, scene(belt('b1', 0, 0.75, 0, 4, 0.5), boxPart('bx1', 0, 0.95, 0)))
+    world.step()
+    world.frame()
+    // a query between steps reads the cached snapshot first; that must not stop the move below from invalidating it
+    ;(world as unknown as { cargo: { stepSnapshot(): unknown } }).cargo.stepSnapshot()
+    world.moveBody('bx1', [0, -10, 0], null)
+    world.step()
+    expect(world.frame().count).toBe(0)
+    world.dispose()
+  })
+
+  it('a step reads a grip pose set since the frame', () => {
+    const world = new SimWorld(Jolt, scene(belt('b1', 0, 0.75, 0, 4, 0.5), boxPart('bx1', 0, 0.95, 0)))
+    world.step()
+    const id = world.frame().ids[0]!
+    world.grabBody(id)
+    world.setGrabbedPose(id, [0, -10, 0], [0, 0, 0, 1])
+    world.step()
+    expect(world.frame().count).toBe(0)
+    world.dispose()
+  })
 })
 
 describe('tilted cargo (full orientation)', () => {

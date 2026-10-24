@@ -47,7 +47,7 @@ export class SimFlowFacts {
   step(): void {
     const boxes = this.boxes
     const n = boxes.length
-    let rows: ArrayLike<number> | null = this.cargo.beamSnapshot()
+    let rows: ArrayLike<number> | null = this.cargo.stepSnapshot()
     if (!rows) {
       if (this.poses.length < n * 7) this.poses = new Float32Array(Math.max(64, n * 2) * 7)
       const out = this.poses

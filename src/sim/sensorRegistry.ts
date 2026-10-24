@@ -84,7 +84,7 @@ export class SensorRegistry {
   // Cast one world beam against every cargo box; return the nearest hit (or a clear result at full range).
   castBeam(origin: Vec3, dir: Vec3, range: number): FrameBeamHit {
     const cargo = this.cargo
-    const snap = cargo.beamSnapshot() // one batched read per tick shared by every beam; null = stock build
+    const snap = cargo.stepSnapshot() // one batched read per tick shared by every beam; null = stock build
     // only the rows near the beam (rowsNear): the segment's box, widened by the largest body's bounding radius,
     // which is exactly as far as castBeamRows' sphere prefilter lets a body's centre sit off the beam
     if (snap && this.boxes.length >= GRID_MIN_ROWS) cargo.ensureRowGrid(snap)
@@ -107,7 +107,7 @@ export class SensorRegistry {
     const boxes = this.boxes
     const holds = this.holds
     // zone polls run per behavior per tick - read the batched snapshot rows, not per-box WASM getters
-    const snap = this.cargo.beamSnapshot()
+    const snap = this.cargo.stepSnapshot()
     // only the rows standing in the floor cells under the zone's footprint (rowsNear), else all of them
     const ex = Math.abs(z.hx * z.cos) + Math.abs(z.hz * z.sin) + 1e-6
     const ez = Math.abs(z.hx * z.sin) + Math.abs(z.hz * z.cos) + 1e-6

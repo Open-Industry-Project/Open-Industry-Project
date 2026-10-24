@@ -95,7 +95,7 @@ export class CargoFlow {
       // fetch per zone pass: a removal below bumps boxesRev, so the next zone re-snapshots rather than
       // reading shifted rows. Within one pass the downward iteration keeps row i aligned with boxes[i]
       // across removals (splice leaves lower indices untouched - same pattern as the cull loop).
-      const snap = this.cargo.beamSnapshot()
+      const snap = this.cargo.stepSnapshot()
       for (let i = this.boxes.length - 1; i >= 0; i--) {
         const box = this.boxes[i]
         if (!box || this.holds.personHeld(box)) continue

@@ -44,10 +44,12 @@ export class CargoRegistry {
   private snapOut: Float32Array | null = null
   /** the stock-build snapshot buffer (see snapshotBoxes) */
   private snapJs: Float32Array | null = null
-  /** (step, boxesRev) the cached beam snapshot was taken at - see beamSnapshot() */
-  private beamSnapStep = -1
-  private beamSnapRev = -1
-  private beamSnap: Float32Array | null = null
+  /** (step, boxesRev) the cached step snapshot was taken at - see stepSnapshot() */
+  private stepSnapStep = -1
+  private stepSnapRev = -1
+  private stepSnap: Float32Array | null = null
+  /** a step is running (beginStep..endStep): a pose write then leaves the step's snapshot as it is (placeBody) */
+  private stepping = false
   /** the pallet colliders (bodyFactory buildPalletShape), built once per footprint (mm) and shared by every pallet body
    *  of that size */
   private readonly palletShapes = new Map<string, Jolt.Shape>()
@@ -329,7 +331,31 @@ export class CargoRegistry {
 
   /** every live cargo body as the load measure sees it (core/cargoWrap), row for row with this.boxes */
   wrapBodies(): WrapBody[] {
-    return wrapBodies(this.boxes, this.beamSnapshot())
+    return wrapBodies(this.boxes, this.stepSnapshot())
+  }
+
+  /**
+   * Set a cargo body's position, rotation or both, and wake it: a gizmo drag, a gripper carrying its load, the pilot
+   * turning what it holds. Every cargo pose write outside the solver goes through here (eslint bans the raw calls
+   * elsewhere in src/sim). A write between steps makes the cached snapshot stale, so the next step fills afresh (see
+   * frameSnapshot). A write during a step leaves it as it is: the step's consumers all read the poses the step began
+   * with.
+   */
+  placeBody(id: Jolt.BodyID, pos: Jolt.RVec3 | null, rot: Jolt.Quat | null): void {
+    const J = this.J
+    if (pos && rot) this.bodyInterface.SetPositionAndRotation(id, pos, rot, J.EActivation_Activate)
+    else if (pos) this.bodyInterface.SetPosition(id, pos, J.EActivation_Activate)
+    else if (rot) this.bodyInterface.SetRotation(id, rot, J.EActivation_Activate)
+    if (!this.stepping) this.stepSnapStep = -1
+  }
+
+  /** SimWorld.step brackets the step with these, so placeBody knows which side of one a write is on */
+  beginStep(): void {
+    this.stepping = true
+  }
+
+  endStep(): void {
+    this.stepping = false
   }
 
   /** grow-on-demand accessors for the native snapshot's shared buffers; null on a stock build */
@@ -377,16 +403,30 @@ export class CargoRegistry {
     return out
   }
 
-  /** per-step cached snapshot shared by every per-box consumer that runs before the solver - cull, beam
-   *  casts, zone counts/despawns, the gripper's grab search; invalidated by boxesRev so a spawn/despawn
-   *  mid-tick can't leave a consumer reading stale rows for shifted boxes */
-  beamSnapshot(): Float32Array | null {
-    if (this.beamSnapStep !== this.clock.step || this.beamSnapRev !== this.boxesRev) {
-      this.beamSnap = this.snapshotBoxes()
-      this.beamSnapStep = this.clock.step
-      this.beamSnapRev = this.boxesRev
-    }
-    return this.beamSnap
+  /**
+   * The snapshot every per-box consumer before the solver shares in one step: cull, beam casts, zone counts and
+   * despawns, load cells, cargo ops, flow facts, the gripper's grab search. Keyed by (step, boxesRev), so a spawn or
+   * despawn mid-step re-reads rows for the shifted list, and a pose written between steps re-reads them (placeBody).
+   */
+  stepSnapshot(): Float32Array | null {
+    if (this.stepSnapStep !== this.clock.step || this.stepSnapRev !== this.boxesRev) this.keepAsStepSnapshot(this.snapshotBoxes())
+    return this.stepSnap
+  }
+
+  /**
+   * The frame's snapshot, taken after the solver. The step counter has already moved on, so these are the poses the
+   * next step begins with, unless something moves a body (placeBody) or changes the list (boxesRev) first. Kept as
+   * that step's snapshot, which saves the next step a second fill of every body.
+   */
+  frameSnapshot(): Float32Array | null {
+    return this.keepAsStepSnapshot(this.snapshotBoxes())
+  }
+
+  private keepAsStepSnapshot(snap: Float32Array | null): Float32Array | null {
+    this.stepSnap = snap
+    this.stepSnapStep = this.clock.step
+    this.stepSnapRev = this.boxesRev
+    return snap
   }
 
   ensureRowGrid(snap: Float32Array): void {
@@ -438,7 +478,7 @@ export class CargoRegistry {
     if (this.bodySnapshot) {
       this.J.destroy(this.bodySnapshot)
       this.bodySnapshot = null
-      this.snapIds = this.snapOut = this.beamSnap = null
+      this.snapIds = this.snapOut = this.stepSnap = null
     }
   }
 }

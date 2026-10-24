@@ -293,7 +293,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     // the order of their dependencies. The cargo list is the registry's to fill; the holds, sensors, rigs and flow
     // read it, and so does everything here (`boxes`).
     const boxes: LiveBox[] = []
-    this.holds = new BodyHolds(J, this.bodyInterface, this.axisY, this.kin, boxes, this.partGroups)
+    this.holds = new BodyHolds(J, this.bodyInterface, this.axisY, this.kin, boxes, this.partGroups, (id, pos, rot) => this.cargo.placeBody(id, pos, rot))
     this.pilot = new PilotCapsule(J, this.bodyInterface, this.axisY, this.kin)
     this.cargo = new CargoRegistry(J, this.system, this.bodyInterface, this.axisY, this.clock, this.hz, boxes, this.holds, this.partGroups)
     this.sensors = new SensorRegistry(this.cargo, boxes, this.holds, this.pilot, this.clock, this.hz)
@@ -358,15 +358,16 @@ export class SimWorld implements SimCore<BoxFrame> {
   step(): void {
     const t0 = performance.now()
     const boxesIn = this.boxes.length
+    this.cargo.beginStep()
     if (this.flow.seedDue) this.flow.seedAuthoredUnits(this.sceneParts)
     // Cull cargo that has fallen off the world (SDK sinks remove in-zone cargo via CargoFlow.fulfillDespawns).
     // Heights come from the batched pose snapshot when the forked build provides one - one WASM
-    // crossing for every body, shared with beams via the (stepCount, boxesRev) cache - instead of two
+    // crossing for every body, shared with beams via the step snapshot (CargoRegistry.stepSnapshot) - instead of two
     // getters per box. Downward iteration keeps row i aligned with boxes[i] across removals, and a
     // removal bumps boxesRev so any later consumer re-snapshots rather than reading shifted rows.
     const cargo = this.cargo
     const boxes = this.boxes
-    const cullSnap = cargo.beamSnapshot()
+    const cullSnap = cargo.stepSnapshot()
     for (let i = boxes.length - 1; i >= 0; i--) {
       const box = boxes[i]
       if (!box) continue
@@ -413,6 +414,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       w.facets = t4 - t3
       w.solver = t5 - t4
     }
+    this.cargo.endStep()
     this.clock.step++
   }
 
@@ -1168,8 +1170,9 @@ export class SimWorld implements SimCore<BoxFrame> {
   }
 
   frame(): BoxFrame {
-    // one WASM call for all pos+quats (snapshotBoxes); null = stock-build fallback, read per box in buildFrame
-    return buildFrame(this.boxes, this.cargo.snapshotBoxes(), this.bus.behaviors, this.units, this.dressings, this.conveyorSpeeds, this.clock.step / this.hz, this.cargo.shapeRefs)
+    // one WASM call for all pos+quats, kept as the next step's snapshot (frameSnapshot); null = stock-build fallback,
+    // read per box in buildFrame
+    return buildFrame(this.boxes, this.cargo.frameSnapshot(), this.bus.behaviors, this.units, this.dressings, this.conveyorSpeeds, this.clock.step / this.hz, this.cargo.shapeRefs)
   }
 
   /** each cargo row's marks (ctx.mark, markHit, product attributes), index-aligned with frame(); null for a row with
@@ -1328,10 +1331,10 @@ export class SimWorld implements SimCore<BoxFrame> {
       if (box.unit) this.cargo.splitUnit(box.unit) // a hand moving one piece takes the load apart
       const id = box.body.GetID()
       if (rotation === null) {
-        this.bodyInterface.SetPosition(id, pos, J.EActivation_Activate)
+        this.cargo.placeBody(id, pos, null)
       } else {
         const rot = new J.Quat(rotation[0], rotation[1], rotation[2], rotation[3])
-        this.bodyInterface.SetPositionAndRotation(id, pos, rot, J.EActivation_Activate)
+        this.cargo.placeBody(id, pos, rot)
         J.destroy(rot)
       }
       this.bodyInterface.SetLinearAndAngularVelocity(id, zero, zero)

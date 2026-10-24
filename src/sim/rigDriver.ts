@@ -186,7 +186,7 @@ export class RigDriver {
         if (zone) {
           const half: Vec3 = [zone.half[0] * s, zone.half[1] * s, zone.half[2] * s]
           const centre: Vec3 = [zone.offset[0] * s, zone.offset[1] * s, zone.offset[2] * s]
-          picked = grabbableBoxesInZone(this.boxes, this.holds.holders, this.cargo.beamSnapshot(), gw.pos, gw.quat, half, centre)
+          picked = grabbableBoxesInZone(this.boxes, this.holds.holders, this.cargo.stepSnapshot(), gw.pos, gw.quat, half, centre)
         } else {
           // No zone: fall back to the grabRadius sphere beyond the link's max half-extent (0.2 m when the rig
           // doesn't say; grabParams grows it with instance params). Still every body it touches, measured to the
@@ -194,7 +194,7 @@ export class RigDriver {
           // zones existed. A shipped gripper should declare one, because a sphere wide enough to span a 1.2 m
           // plate also takes whatever stands beside the tool.
           const he = shapeHalfExtents(link.shape, linkCollisionBox(link))
-          picked = grabbableBoxesInReach(this.boxes, this.holds.holders, this.cargo.beamSnapshot(), gw.pos, (Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, rig.params)) * s)
+          picked = grabbableBoxesInReach(this.boxes, this.holds.holders, this.cargo.stepSnapshot(), gw.pos, (Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, rig.params)) * s)
         }
         // a gripper that closes on any piece of a unit load takes the whole unit, held as the one body it is (by its
         // anchor piece, whose body is the unit's)

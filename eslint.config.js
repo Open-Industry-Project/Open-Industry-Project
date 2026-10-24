@@ -62,6 +62,11 @@ const stProgramSeamBan = {
     "the ST program lives in store state: read store.getState().stProgram / .stScanMs, and write via store.loadStProgram / setStProgram / setStScanMs. stProgram.ts's localStorage half is the store's own persistence seam (see EditorState.stProgram).",
 }
 
+const rotateXZRedefinition = {
+  selector: ":matches(FunctionDeclaration, VariableDeclarator)[id.name=/^(rotateXZ|rotXZ|yawAboutPivot)$/]",
+  message: 'Import rotateXZ / yawAboutPivot from core/transforms — do not redefine the planar rotation convention.',
+}
+
 export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -114,15 +119,7 @@ export default tseslint.config(
     // import the canonical one instead. (Scoped out: the seam itself.)
     ignores: ['src/core/transforms.ts'],
     rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector:
-            ":matches(FunctionDeclaration, VariableDeclarator)[id.name=/^(rotateXZ|rotXZ|yawAboutPivot)$/]",
-          message:
-            'Import rotateXZ / yawAboutPivot from core/transforms — do not redefine the planar rotation convention.',
-        },
-      ],
+      'no-restricted-syntax': ['error', rotateXZRedefinition],
     },
   },
   {
@@ -261,6 +258,24 @@ export default tseslint.config(
             { group: ['three', 'three/*', 'react', 'react-dom', 'react-dom/*', '**/render/**', '**/editor/**'], message: 'sim may only depend on core, jolt-physics, and plc (the in-worker scan host)' },
             gplOracleBan,
           ],
+        },
+      ],
+    },
+  },
+  {
+    // A cargo body's pose is set only through CargoRegistry.placeBody: a write there can make the frame's pose
+    // snapshot stale before the next step reads it, and a raw write elsewhere would leave that step reading old
+    // poses. The ban can't tell a cargo body from another; today only cargo bodies have their pose set (rig and pilot
+    // bodies move by MoveKinematic). Restates the rotateXZ ban, because a later no-restricted-syntax replaces it.
+    files: ['src/sim/**'],
+    ignores: ['src/sim/**/*.test.ts', 'src/sim/cargoRegistry.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        rotateXZRedefinition,
+        {
+          selector: "CallExpression[callee.property.name=/^Set(Position|Rotation|PositionAndRotation)$/]",
+          message: "Set a cargo body's pose through CargoRegistry.placeBody, so the next step's pose snapshot sees the move.",
         },
       ],
     },

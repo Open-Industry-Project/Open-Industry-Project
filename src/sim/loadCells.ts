@@ -149,7 +149,7 @@ export class LoadCells {
 
   private measure(cell: LoadCell): number {
     const boxes = this.boxes
-    const snap = this.cargo.beamSnapshot()
+    const snap = this.cargo.stepSnapshot()
     const p = cell.body.GetPosition()
     const r = cell.body.GetRotation()
     const dp: Vec3 = [p.GetX(), p.GetY(), p.GetZ()]
