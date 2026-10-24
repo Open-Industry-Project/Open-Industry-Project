@@ -10,6 +10,7 @@ import {
   DEFAULT_BOTTOM_HEIGHT,
   defaultDockLayout,
   DOCK_SIZES_VERSION,
+  dockGridCorners,
   dockSizeVar,
   floatDockPanel,
   isFloating,
@@ -282,6 +283,40 @@ describe('buildDockGrid / collapsed bottom dock', () => {
     const collapsed = clickBottomDockTab(defaultDockLayout(), 'catalog')
     const reopened = clickBottomDockTab(collapsed, 'catalog')
     expect(buildDockGrid(reopened, SIZES).gridTemplateRows).toContain('240px')
+  })
+})
+
+describe('dockGridCorners', () => {
+  const cellAt = (layout: DockLayout, row: number, column: number): string => {
+    const rows = [...buildDockGrid(layout, SIZES).gridTemplateAreas.matchAll(/"([^"]+)"/g)].map((m) => m[1]!.split(' '))
+    return rows[row - 1]![column - 1]!
+  }
+
+  it('crosses the height gutter at each left gutter, and ends it at the innermost right one', () => {
+    const l: DockLayout = { ...defaultDockLayout(), leftTop: ['tree'], leftTop2: ['history'], rightTop2: ['problems'] }
+    const corners = dockGridCorners(l)
+    expect(corners.map((c) => c.widthKey)).toEqual(['left', 'left2', 'right2'])
+    const gutter = { left: 'gutlA', left2: 'gutlB', right: 'gutrA', right2: 'gutrB' } as const
+    for (const c of corners) {
+      // the width gutter runs through the cell's track, one row up
+      expect(cellAt(l, c.row - 1, c.column)).toBe(gutter[c.widthKey])
+      if (c.side === 'left') expect(cellAt(l, c.row, c.column)).toBe('gutd')
+      else {
+        // the right gutter carries on down, and the height gutter stops against it
+        expect(cellAt(l, c.row, c.column)).toBe(gutter[c.widthKey])
+        expect(cellAt(l, c.row, c.column - 1)).toBe('gutd')
+      }
+    }
+  })
+
+  it('uses the outer right gutter when the inner right column is empty', () => {
+    expect(dockGridCorners(defaultDockLayout()).map((c) => c.widthKey)).toEqual(['left', 'right'])
+  })
+
+  it('needs an open bottom dock', () => {
+    expect(dockGridCorners(clickBottomDockTab(defaultDockLayout(), 'catalog'))).toEqual([])
+    const noLeft: DockLayout = { ...defaultDockLayout(), leftTop: [], leftBottom: [] }
+    expect(dockGridCorners(noLeft).map((c) => c.widthKey)).toEqual(['right'])
   })
 })
 

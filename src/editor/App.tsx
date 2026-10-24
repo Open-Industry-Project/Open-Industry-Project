@@ -33,7 +33,7 @@ import { FollowBadge } from './components/FollowBadge'
 import { ViewportHint } from './components/ViewportHint'
 import { PilotTouchControls } from './components/PilotTouchControls'
 import { PilotFab } from './components/PilotFab'
-import { ResizeGutter } from './components/ResizeGutter'
+import { ResizeCorner, ResizeGutter, type ResizeTrack } from './components/ResizeGutter'
 import { SceneTree } from './components/SceneTree'
 import { PlcPanel } from './components/plc/PlcPanel'
 import type { SettingsTab } from './components/SettingsOverlay'
@@ -87,6 +87,7 @@ import {
   clickBottomDockTab,
   defaultDockLayout,
   DOCK_SIZES_VERSION,
+  dockGridCorners,
   dockSizeVar,
   dockPanelTitle,
   floatDockPanel,
@@ -1116,6 +1117,26 @@ export function App({ store, sim }: AppProps) {
   // the bottom dock stands at the height of the panel in front (dockLayout's BottomHeights), so switching tabs moves it
   const bottomFront = dockLayout.active.bottom
   const dockTrack = bottomDockHeight(bottomFront, bottomHeights)
+  // the bottom dock's height drag, shared by its gutter and the corners where a left column's gutter crosses it
+  const bottomResize: ResizeTrack = {
+    axis: 'y',
+    sign: -1,
+    value: bottomDockOnScreen,
+    cssVar: dockSizeVar('dock'),
+    // the height is the front panel's own: dragging with the PLC in front leaves Parts where it was
+    onResize: (h) => bottomFront && setBottomHeights((b) => ({ ...b, [bottomFront]: Math.round(h) })),
+    min: BOTTOM_MIN,
+    max: bottomDockMax,
+  }
+  const widthResize = (widthKey: 'left' | 'right' | 'left2' | 'right2', sign: 1 | -1): ResizeTrack => ({
+    axis: 'x',
+    sign,
+    value: sizes[widthKey],
+    cssVar: dockSizeVar(widthKey),
+    onResize: (v) => setSizes((s) => ({ ...s, [widthKey]: v })),
+    min: 160,
+    max: 560,
+  })
   const sizeVars = useMemo(
     () => ({
       ...Object.fromEntries(Object.entries(sizes).map(([key, px]) => [dockSizeVar(key), `${px}px`])),
@@ -1225,13 +1246,7 @@ export function App({ store, sim }: AppProps) {
         key={`${spec.gridArea}-gut`}
         className="gutter"
         style={{ gridArea: spec.gutterArea, cursor: 'col-resize' }}
-        axis="x"
-        sign={sign}
-        value={sizes[spec.widthKey]}
-        cssVar={dockSizeVar(spec.widthKey)}
-        onResize={(v) => setSizes((s) => ({ ...s, [spec.widthKey]: v }))}
-        min={160}
-        max={560}
+        {...widthResize(spec.widthKey, sign)}
       />
     )
     return sign === 1 ? [column, gutter] : [gutter, column]
@@ -1362,19 +1377,16 @@ export function App({ store, sim }: AppProps) {
       {showDocks && dockLayout.bottom.length > 0 && (
         <>
           {/* collapsed = no height to drag, and buildDockGrid drops the `gutd` row it lives in */}
-          {!dockLayout.bottomCollapsed && (
-            <ResizeGutter
-              className="gutter gutter-dock"
-              axis="y"
-              sign={-1}
-              value={bottomDockOnScreen}
-              cssVar={dockSizeVar('dock')}
-              // the height is the front panel's own: dragging with the PLC in front leaves Parts where it was
-              onResize={(h) => bottomFront && setBottomHeights((b) => ({ ...b, [bottomFront]: Math.round(h) }))}
-              min={BOTTOM_MIN}
-              max={bottomDockMax}
+          {!dockLayout.bottomCollapsed && <ResizeGutter className="gutter gutter-dock" {...bottomResize} />}
+          {/* where a column's width gutter meets the height gutter: one drag sets both */}
+          {dockGridCorners(dockLayout).map((c) => (
+            <ResizeCorner
+              key={c.widthKey}
+              className={`gutter gutter-corner gutter-corner-${c.side}`}
+              style={{ gridRow: c.row, gridColumn: c.column }}
+              tracks={[widthResize(c.widthKey, c.side === 'left' ? 1 : -1), bottomResize]}
             />
-          )}
+          ))}
           <DockSlot
             slot="bottom"
             panels={dockLayout.bottom}

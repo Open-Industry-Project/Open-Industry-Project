@@ -805,3 +805,39 @@ export function buildDockGrid(layout: DockLayout, sizes: DockSizes): DockGridSty
     gridTemplateAreas: areas.map((a) => `"${a}"`).join(' '),
   }
 }
+
+/** a cell of `buildDockGrid` where a column's width gutter meets the bottom dock's height gutter */
+export interface DockGridCorner {
+  side: DockSide
+  widthKey: 'left' | 'left2' | 'right' | 'right2'
+  /** grid lines, 1-based */
+  row: number
+  column: number
+}
+
+/**
+ * Where the column width gutters meet the bottom dock's height gutter. Each left gutter crosses it, in a cell of the
+ * `gutd` area. On the right the height gutter ends against the innermost right gutter, which carries on down, so
+ * that T is a corner too, in a cell of that gutter's area. Either way the cell belongs to an area, so a corner
+ * handle is placed by line, over it.
+ */
+export function dockGridCorners(layout: DockLayout): DockGridCorner[] {
+  if (layout.maximized || layout.bottom.length === 0 || layout.bottomCollapsed) return []
+  const occupied = (top: DockSlotId, bottom: DockSlotId): boolean =>
+    layout[top].length > 0 || layout[bottom].length > 0
+  const corners: DockGridCorner[] = []
+  // left columns are laid out as [column, gutter] pairs from the edge, so a gutter's track is 2, 4
+  let column = 0
+  if (occupied('leftTop', 'leftBottom')) {
+    column += 2
+    corners.push({ side: 'left', widthKey: 'left', row: 3, column })
+  }
+  if (occupied('leftTop2', 'leftBottom2')) {
+    column += 2
+    corners.push({ side: 'left', widthKey: 'left2', row: 3, column })
+  }
+  // the viewport's track, then the first right gutter: B's when that column is shown, else A's
+  const inner = occupied('rightTop2', 'rightBottom2') ? 'right2' : occupied('rightTop', 'rightBottom') ? 'right' : null
+  if (inner) corners.push({ side: 'right', widthKey: inner, row: 3, column: column + 2 })
+  return corners
+}
