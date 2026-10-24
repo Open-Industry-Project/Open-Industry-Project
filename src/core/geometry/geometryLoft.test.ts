@@ -59,8 +59,8 @@ describe('g.loft', () => {
     const path: P[] = [[0, 0, 0], [0.1, 0, 0], [0.2, 0, 0], [2, 0, 0]]
     const d = g.loft([sq(1), sq(0)], path, { caps: true })
     const v = verts(d)
-    // station 2 sits at x 0.2 of 2: its square is 0.9 wide
-    const ring = v.slice(8, 12)
+    // station 2 sits at x 0.2 of 2: its square is 0.9 wide (8 vertices a ring: every corner is a hard edge)
+    const ring = v.slice(16, 24)
     for (const p of ring) {
       expect(p[0]).toBeCloseTo(0.2, 12)
       expect(Math.abs(p[1])).toBeCloseTo(0.45, 12)
@@ -101,15 +101,16 @@ describe("sweep frame: 'transport'", () => {
 
   it('carries the section round the bend without turning it: the width side stays on +Z all the way up', () => {
     const v = verts(g.sweep(marker, path, { frame: 'transport' }))
+    const ringSize = v.length / path.length // a sharp corner has a vertex per edge
     for (let i = 0; i < path.length; i++) {
-      const p = v[i * marker.length]!
+      const p = v[i * ringSize]!
       expect(p[2]).toBeCloseTo(0.1, 9)
     }
   })
 
   it("is why it exists: 'level' cannot hold the width side once the path is vertical", () => {
     const v = verts(g.sweep(marker, path))
-    const top = v[(path.length - 1) * marker.length]!
+    const top = v[(path.length - 1) * (v.length / path.length)]!
     expect(Math.abs(top[2] - 0.1)).toBeGreaterThan(0.05)
   })
 

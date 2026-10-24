@@ -635,7 +635,7 @@ definePart({
           var bArc = bsg === -1 ? railArcL : railArcR
           var bA = Math.max(pathSplit.bends[bi2].s0, bArc[0]), bB = Math.min(pathSplit.bends[bi2].s1, bArc[1])
           if (bB - bA < 1e-4) continue
-          var bpoly = subPolyline(framePath, bA, bB)
+          var bpoly = bendPolyline(pathSplit.bends[bi2], bA, bB)
           if (bpoly.length < 2) continue
           var z0 = bsg * hw, z1 = bsg * (hw + 0.01), z2 = bsg * (hw + 0.03)
           bendRails.push(g.sweep([[FB, z0], [FB, z1], [-0.005, z1], [-0.005, z0]], bpoly, CAPS))
@@ -665,6 +665,14 @@ definePart({
       var pts = [at(a)], cum = 0
       for (var j = 1; j < poly.length; j++) { cum += Math.hypot(poly[j][0] - poly[j - 1][0], poly[j][1] - poly[j - 1][1]); if (cum > a + 1e-6 && cum < b - 1e-6) pts.push([poly[j][0], poly[j][1], 0]) }
       pts.push(at(b)); return pts
+    }
+    // the polyline a bend piece is swept along, a..b of the bend's range. A sweep squares its end to the last chord, and
+    // the fillet's end chords turn short of the run, so a bend end met by a straight piece opened a wedge gap (~6 mm at
+    // the bottom of the rail on a 15° bend). Such an end starts 1 mm back inside the straight piece, on the run.
+    function bendPolyline(bend, a, b) {
+      var pa = a === bend.s0 && a > 1e-4 ? a - 0.001 : a
+      var pb = b === bend.s1 && b < frameLen - 1e-4 ? b + 0.001 : b
+      return subPolyline(framePath, pa, pb)
     }
     // complementary KEPT spans of [0,total] after removing the opening ranges (sorted, clamped, merged).
     function keptSpans(total, ranges) {
@@ -768,7 +776,7 @@ definePart({
           var gbend = pathSplit.bends[bi3]
           var ba = Math.max(sp0, gbend.s0), bb = Math.min(sp1, gbend.s1)
           if (bb - ba < 1e-4) continue
-          var gpoly = subPolyline(framePath, ba, bb)
+          var gpoly = bendPolyline(gbend, ba, bb)
           if (gpoly.length >= 2) guardSweeps.push(g.sweep(gSection, gpoly, CAPS))
         }
       }

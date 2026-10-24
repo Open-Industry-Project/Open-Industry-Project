@@ -128,6 +128,28 @@ function sectionWidthAxes(path: readonly Vec3[], tangentAt: (i: number) => Vec3,
   return out
 }
 
+/** the turn (radians) past which a section corner is a hard edge; a 12-sided tube turns 30° and stays smooth */
+const CREASE_TURN = (40 * Math.PI) / 180
+
+/** which section points are hard edges: a corner counts when it turns past CREASE_TURN at any station whose two
+ *  edges there have length (a loft's cone tip has none) */
+function sharpCorners(sectionAt: (i: number) => ReadonlyArray<readonly [number, number]>, m: number, n: number): boolean[] {
+  const cosLimit = Math.cos(CREASE_TURN)
+  const sharp: boolean[] = new Array<boolean>(m).fill(false)
+  for (let i = 0; i < n; i++) {
+    const s = sectionAt(i)
+    for (let j = 0; j < m; j++) {
+      if (sharp[j]) continue
+      const a = s[(j + m - 1) % m]!, b = s[j]!, c = s[(j + 1) % m]!
+      const ux = b[0] - a[0], uy = b[1] - a[1], vx = c[0] - b[0], vy = c[1] - b[1]
+      const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy)
+      if (lu < 1e-12 || lv < 1e-12) continue
+      if ((ux * vx + uy * vy) / (lu * lv) < cosLimit) sharp[j] = true
+    }
+  }
+  return sharp
+}
+
 /** the shared body of sweep and loft: `sectionAt(i)` is station i's section, each `m` points */
 function loftSectionsAlongPath(
   sectionAt: (i: number) => ReadonlyArray<readonly [number, number]>,
@@ -137,7 +159,22 @@ function loftSectionsAlongPath(
 ): MeshDescription {
   const n = path.length
   const caps = opts?.caps === true
-  const vertCount = m * n + (caps ? 2 * m : 0)
+  // A section corner that turns more than CREASE_TURN is a hard edge: each edge leaving it gets a vertex of its own,
+  // so the host's averaged normals never blend two faces of an angular section. Shared corners smoothed a flat guard
+  // face into a light/dark wedge on a bend, where the stations fan out unevenly. A round section (16+ sides) turns
+  // less per corner and stays smooth.
+  const sharp = sharpCorners(sectionAt, m, n)
+  // ring layout: point j's vertex for the edge arriving at it is inV[j], for the edge leaving it outV[j]
+  const inV: number[] = []
+  const outV: number[] = []
+  let ringSize = 0
+  for (let j = 0; j < m; j++) {
+    inV.push(ringSize)
+    if (sharp[j]) ringSize++
+    outV.push(ringSize)
+    ringSize++
+  }
+  const vertCount = ringSize * n + (caps ? 2 * m : 0)
   if (vertCount > MAX_DESCRIPTION_VERTICES) throw new GeometryBudgetError(vertCount)
 
   // tangent at a station: the adjacent segment at an end, the central difference in the interior
@@ -175,19 +212,23 @@ function loftSectionsAlongPath(
     for (let j = 0; j < m; j++) {
       const pu = profile[j]![0]
       const pw = profile[j]![1]
-      positions.push(c[0] + up[0] * pu + w[0] * pw, c[1] + up[1] * pu + w[1] * pw, c[2] + up[2] * pu + w[2] * pw)
-      uvs.push(u, vAt[j]! / vTotal)
+      const x = c[0] + up[0] * pu + w[0] * pw, y = c[1] + up[1] * pu + w[1] * pw, z = c[2] + up[2] * pu + w[2] * pw
+      for (let k = sharp[j] ? 2 : 1; k > 0; k--) {
+        positions.push(x, y, z)
+        uvs.push(u, vAt[j]! / vTotal)
+      }
     }
   }
   // quads between consecutive rings; the profile is closed, so j wraps modulo m
   const indices: number[] = []
   for (let i = 0; i < n - 1; i++) {
-    const a = i * m
-    const b = (i + 1) * m
+    const a = i * ringSize
+    const b = (i + 1) * ringSize
     for (let j = 0; j < m; j++) {
-      const j1 = (j + 1) % m
-      // two CCW triangles per quad: (a+j, a+j1, b+j1) and (a+j, b+j1, b+j)
-      indices.push(a + j, a + j1, b + j1, a + j, b + j1, b + j)
+      const p0 = outV[j]!
+      const p1 = inV[(j + 1) % m]!
+      // two CCW triangles per quad: (a+p0, a+p1, b+p1) and (a+p0, b+p1, b+p0)
+      indices.push(a + p0, a + p1, b + p1, a + p0, b + p1, b + p0)
     }
   }
   if (caps) {
@@ -198,13 +239,14 @@ function loftSectionsAlongPath(
       const tris = triangulatePolygon(profile)
       // the facing summed over the whole section, so a sliver first triangle can't decide it; a section shrunk
       // to a point (a loft's cone tip) has nothing to close
-      const p = (k: number): Vec3 => [positions[(ring * m + k) * 3]!, positions[(ring * m + k) * 3 + 1]!, positions[(ring * m + k) * 3 + 2]!]
+      const at = (k: number): number => (ring * ringSize + outV[k]!) * 3
+      const p = (k: number): Vec3 => [positions[at(k)]!, positions[at(k) + 1]!, positions[at(k) + 2]!]
       let facing = 0
       for (const [a, b, c] of tris) facing += dot(cross(sub(p(b), p(a)), sub(p(c), p(a))), outward)
       if (tris.length === 0 || Math.abs(facing) < 1e-18) return
       const base = positions.length / 3
       for (let j = 0; j < m; j++) {
-        const v = (ring * m + j) * 3
+        const v = at(j)
         positions.push(positions[v]!, positions[v + 1]!, positions[v + 2]!)
         uvs.push(profile[j]![1], profile[j]![0])
       }

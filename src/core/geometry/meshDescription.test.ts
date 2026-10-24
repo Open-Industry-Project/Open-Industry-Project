@@ -24,10 +24,10 @@ describe('meshDescription - sweepProfileAlongX (geometry-tier spine)', () => {
       thickness = 0.1
     const mesh = sweepProfileAlongX(deckSection(width, thickness), [0, length])
 
-    // 2 stations × 4 profile points = 8 verts; 1 segment × 4 quads × 2 tris × 3 = 24 indices
-    expect(mesh.positions).toHaveLength(8 * 3)
+    // 2 stations × 4 corners × 2 (a hard edge has a vertex per face) = 16 verts; 1 segment × 4 quads × 6 = 24 indices
+    expect(mesh.positions).toHaveLength(16 * 3)
     expect(mesh.indices).toHaveLength(24)
-    expect(mesh.uvs).toHaveLength(8 * 2)
+    expect(mesh.uvs).toHaveLength(16 * 2)
 
     // bounding box matches the deck slab: X∈[0,length], Y∈[-thickness,0], Z∈[-width/2,width/2]
     const xs = mesh.positions.filter((_, i) => i % 3 === 0)
@@ -46,8 +46,32 @@ describe('meshDescription - sweepProfileAlongX (geometry-tier spine)', () => {
 
   it('places one ring of the profile per station (a multi-segment sweep)', () => {
     const mesh = sweepProfileAlongX(deckSection(1, 0.1), [0, 1, 2]) // 3 stations
-    expect(mesh.positions).toHaveLength(3 * 4 * 3) // 3 rings × 4 pts × xyz
+    expect(mesh.positions).toHaveLength(3 * 8 * 3) // 3 rings × 4 hard corners × 2 × xyz
     expect(mesh.indices).toHaveLength(2 * 4 * 6) // 2 segments × 4 quads × 6
+  })
+
+  it('splits a section corner sharper than 40 degrees into a hard edge and keeps a round section smooth', () => {
+    const round = Array.from({ length: 16 }, (_, i) => [Math.cos((i / 16) * 2 * Math.PI), Math.sin((i / 16) * 2 * Math.PI)] as [number, number])
+    expect(sweepProfileAlongX(round, [0, 1]).positions).toHaveLength(2 * 16 * 3)
+    // a guard's L section: every corner turns 90 degrees, so each face of the sheet has vertices of its own
+    const L: Array<[number, number]> = [[-0.005, 0], [-0.005, 0.005], [0.145, 0.005], [0.145, 0.025], [0.15, 0.025], [0.15, 0]]
+    const mesh = sweepProfileAlongX(L, [0, 1])
+    expect(mesh.positions).toHaveLength(2 * 12 * 3)
+    // no vertex is shared by two faces, so averaged normals can't blend them: every triangle on a vertex has the
+    // same facing (the sweep runs along +X, so a face's normal is ±Y or ±Z)
+    const facing = new Map<number, string>()
+    const p = (v: number): number[] => [mesh.positions[v * 3]!, mesh.positions[v * 3 + 1]!, mesh.positions[v * 3 + 2]!]
+    for (let t = 0; t < mesh.indices.length; t += 3) {
+      const [a, b, c] = [0, 1, 2].map((k) => p(mesh.indices[t + k]!)) as [number[], number[], number[]]
+      const u = [b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!], w = [c[0]! - a[0]!, c[1]! - a[1]!, c[2]! - a[2]!]
+      const ny = u[2]! * w[0]! - u[0]! * w[2]!, nz = u[0]! * w[1]! - u[1]! * w[0]!
+      const face = Math.abs(ny) > Math.abs(nz) ? (ny > 0 ? '+y' : '-y') : nz > 0 ? '+z' : '-z'
+      for (let k = 0; k < 3; k++) {
+        const v = mesh.indices[t + k]!
+        expect(facing.get(v) ?? face).toBe(face)
+        facing.set(v, face)
+      }
+    }
   })
 
   it('caps runaway geometry at the vertex budget', () => {
@@ -80,10 +104,10 @@ describe('meshDescription - sweepProfileAlongX (geometry-tier spine)', () => {
     const ring = (a: number): Vec3 => [R * Math.cos(a), 0, R * Math.sin(a)]
     const path = [ring(0), ring(Math.PI / 4), ring(Math.PI / 2)] // a quarter turn
     const mesh = sweepProfileAlongPath(deckSection(1, 0.1), path)
-    // the deck top (profile points 2,3 have up-offset 0) stays at y = 0 all the way round
-    const M = 4
+    // the deck top (profile points 2,3 have up-offset 0, vertices 4..7 of each 8-vertex ring) stays at y = 0
+    const M = 8
     for (let i = 0; i < path.length; i++) {
-      for (const j of [2, 3]) {
+      for (const j of [4, 5, 6, 7]) {
         expect(mesh.positions[(i * M + j) * 3 + 1]).toBeCloseTo(0, 6)
       }
     }

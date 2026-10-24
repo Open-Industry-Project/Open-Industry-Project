@@ -38,8 +38,8 @@ describe('geometryBuilder - general ops (sweep/fillet/arc/box/merge); a bent bel
   it('sweeps a profile along a single straight run (filleted no-op) into a flat bed', () => {
     const g = createGeometryBuilder()
     const mesh = g.sweep(deckSection(1.0, 0.1), g.fillet(beltCorners([[2, 0]]), 0.2))
-    // a straight run = 2 corners; fillet has no interior corner to round → 2 stations × 4 profile pts = 8 verts
-    expect(mesh.positions).toHaveLength(8 * 3)
+    // a straight run = 2 corners; fillet has no interior corner to round → 2 stations × 4 hard-edged corners × 2
+    expect(mesh.positions).toHaveLength(16 * 3)
     expect(mesh.indices).toHaveLength(24)
     const y = ys(mesh.positions)
     expect(Math.max(...y) - Math.min(...y)).toBeCloseTo(0.1, 6) // flat: just the slab thickness
