@@ -90,7 +90,9 @@ Computed once per definition ([typed/layout.ts](../src/plc/typed/layout.ts)), fr
 - **A FUNCTION**: one region per definition, reused by every call (never live twice: recursion is refused when
   compiled). When every initial value is a literal, the region's starting bytes are kept after the first call and
   copied back on each (one `U8.set`, because resetting through the initialisers makes function-heavy code slower than
-  generated code on records). A whole array or struct result is copied into a region of the call site's own, found by a walk of the program
+  generated code on records). A positional call whose inputs and result all hold their values is written out at the
+  call site: the arguments evaluated, `enter()` (the reset), each one stored into its input's slot, `exec()`, the
+  result read. A formal call, or one with a whole array or struct input, goes through the runner's argument list. A whole array or struct result is copied into a region of the call site's own, found by a walk of the program
   before the arena is made ([typed/calls.ts](../src/plc/typed/calls.ts)), so `Total(MakePt(1), MakePt(2))` holds two
   results at once. A call site that walk missed is refused, not run wrong.
 - **VAR_IN_OUT** (a function block's): a scalar is copied in and back out, as the walker does. A whole array or struct
@@ -143,7 +145,12 @@ implementations of each rule, not one read twice.
    layout the corpus produces lies inside its holder, aligned, overlapping nothing.
 3. The speed gate ([scanSpeed.test.ts](../src/plc/scanSpeed.test.ts)): the typed:walker ratio on four program shapes,
    each floor measured to fail with the optimisation it guards switched off.
-4. `npm run bench-sim` on a real line: the fingerprint must not move across an engine change.
+4. The shape gate ([scanShape.test.ts](../src/plc/scanShape.test.ts)): what the speed gate cannot separate from noise.
+   V8 inlines helper calls only up to a budget per function, so in a long body a helper call can stay a real call. The
+   generated source is checked for a subscript read from storage being checked in place (not through `ix()`), a
+   positional FUNCTION call having no argument array, and a block input that its type already proves going in
+   uncoerced.
+5. `npm run bench-sim` on a real line: the fingerprint must not move across an engine change.
 
 These checks fail on each layout bug they exist for: wrong strides, addresses without their base, an in-out read
 without its dereference, an unbound in-out at address 0, aggregate inputs copied the wrong way, results sharing the

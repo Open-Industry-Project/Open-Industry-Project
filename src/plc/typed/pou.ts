@@ -309,6 +309,12 @@ export class TypedFn {
   readonly aggregate: readonly boolean[]
   /** the layout of a whole array or struct result (null for a scalar one): copied out to the call site's own region */
   readonly result: TypeLayout | null
+  /** each input's absolute address and layout, in declaration order, and the result's: where a generated call site
+   *  stores its arguments and reads the answer (scanCodegen.ts typedFnCall) */
+  readonly inputSlots: readonly { off: number; layout: TypeLayout }[]
+  readonly resultSlot: { off: number; layout: TypeLayout }
+  /** every input holds its value (no whole array or struct, no reference or interface) and so does the result */
+  readonly direct: boolean
   /** set when any code calls it: only those are generated (an unused function refuses nothing) */
   called = false
   #inputs: ((v: unknown) => void)[] = []
@@ -329,6 +335,11 @@ export class TypedFn {
     this.aggregate = def.decls.filter((d) => d.section === 'VAR_INPUT').map((d) => this.layout.byKey.get(identKey(d.name))!.layout.kind !== 'scalar')
     const ret = this.layout.byKey.get(identKey(def.name))!
     this.result = ret.layout.kind === 'scalar' ? null : ret.layout
+    const inputs = def.decls.filter((d) => d.section === 'VAR_INPUT').map((d) => this.layout.byKey.get(identKey(d.name))!)
+    this.inputSlots = inputs.map((f) => ({ off: this.base + f.off, layout: f.layout }))
+    this.resultSlot = { off: this.base + ret.off, layout: ret.layout }
+    const holds = (f: typeof ret): boolean => f.layout.kind === 'scalar' && !f.layout.pointer && !f.ref && f.iface === undefined
+    this.direct = holds(ret) && inputs.every(holds)
   }
 
   get ready(): boolean {
@@ -371,21 +382,31 @@ export class TypedFn {
   }
 
   #run(given: unknown[], slots: readonly number[] | undefined): void {
+    this.enter()
+    for (let i = 0; i < this.#inputs.length; i++) {
+      const k = slots ? slots.indexOf(i) : i
+      if (k < 0 || k >= given.length) continue
+      this.#inputs[i]!(given[k])
+    }
+    this.exec()
+  }
+
+  /** the region back to its starting values, ready for a call's arguments */
+  enter(): void {
     if (!this.#body) this.prepare()
     const a = this.tp.arena!
-    // back to its starting values: when every initial value is a literal they are the same on every call, so the region
-    // as the first reset left it is kept and copied back (the walker caches literal initial values the same way)
+    // when every initial value is a literal they are the same on every call, so the region as the first reset left it
+    // is kept and copied back (the walker caches literal initial values the same way)
     if (this.#start) a.U8.set(this.#start, this.base)
     else {
       zeroRegion(a, this.layout, this.base)
       initDecls(this.tp, this.decls, this.layout, this.scope, this.base)
       if (this.decls.every(literalInits)) this.#start = a.U8.slice(this.base, this.base + this.layout.size)
     }
-    for (let i = 0; i < this.#inputs.length; i++) {
-      const k = slots ? slots.indexOf(i) : i
-      if (k < 0 || k >= given.length) continue
-      this.#inputs[i]!(given[k])
-    }
+  }
+
+  /** the body, on the arguments stored since enter() */
+  exec(): void {
     this.#body!(this.base, 0) // a function is stateless and block-free: no timer reads the clock
   }
 }
