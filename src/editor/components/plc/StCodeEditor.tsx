@@ -62,6 +62,8 @@ export interface StCodeEditorHandle {
   /** replace the selection with `text` (Paste, Cut), as one step of this editor's history */
   replaceSelection: (text: string, userEvent: 'input.paste' | 'delete.cut') => void
   selectAll: () => void
+  /** put the keyboard in the text, keeping the selection where it was */
+  focus: () => void
   /** fold every VAR section, TYPE and STRUCT (stFolding.ts); false when there was none left to fold */
   foldDeclarations: () => boolean
   /** open every folded block; false when none was folded */
@@ -328,6 +330,7 @@ export const StCodeEditor = forwardRef<StCodeEditorHandle, StCodeEditorProps>(fu
       v.dispatch({ selection: { anchor: 0, head: v.state.doc.length } })
       v.focus()
     },
+    focus: () => view.current?.focus(),
     refresh: () => view.current?.requestMeasure(),
     setWatchValues: (values: Record<string, TagValue>) => {
       if (view.current) pushWatchValues(view.current, values)

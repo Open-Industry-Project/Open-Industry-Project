@@ -16,6 +16,7 @@ import {
   isFloating,
   isPoppedOut,
   locate,
+  tabShowsPanel,
   MAXIMIZABLE_PANELS,
   migrateDockLayout,
   migrateDockSizes,
@@ -44,6 +45,23 @@ function plcFront(): DockLayout {
 function plcFloating(): DockLayout {
   return floatDockPanel(defaultDockLayout(), 'st')
 }
+
+describe('tabShowsPanel (a tab click that leaves the PLC panel open focuses its code)', () => {
+  it('is true for the open front tab only', () => {
+    expect(tabShowsPanel(plcFront(), 'st')).toBe(true)
+    expect(tabShowsPanel(defaultDockLayout(), 'st')).toBe(false) // behind Parts
+  })
+
+  it('is false once the click rolls the bottom dock up, and true when the next click opens it', () => {
+    const collapsed = clickBottomDockTab(plcFront(), 'st')
+    expect(tabShowsPanel(collapsed, 'st')).toBe(false)
+    expect(tabShowsPanel(clickBottomDockTab(collapsed, 'st'), 'st')).toBe(true)
+  })
+
+  it('is false for a floating panel (it has no tab)', () => {
+    expect(tabShowsPanel(plcFloating(), 'st')).toBe(false)
+  })
+})
 
 describe('bottom dock collapse (bottom-panel toggle)', () => {
   it('starts expanded', () => {

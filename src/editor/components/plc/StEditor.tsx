@@ -451,6 +451,8 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
   // A code reveal that came before the lazy text editor did: a jump from a background tab mounts this panel, and the
   // editor's chunk lands after it, so the store's replay of the request finds no editor yet. Served on its onReady.
   const pendingReveal = useRef<number | null>(null)
+  // the same for a dock-tab click's focus request (store.focusStCode)
+  const pendingFocus = useRef(false)
   // the File command menu: placed by its top edge (opening down from ⋯, which sits in the header row) or, when a short
   // dock leaves no room below, by its bottom edge
   // the attach error is the controller table's, so the line under the code points at the organizer's tasks
@@ -888,6 +890,18 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     setOrganizer((cur) => (saveOrganizerPref(cur), cur))
   }
 
+  // A click on this panel's dock tab: take the keyboard, but only in the text view. The ladder sheet and the organizer
+  // keep their own keys, and focus decides whether a key edits the program or drives the viewport.
+  useEffect(
+    () =>
+      store.onFocusStCode(() => {
+        if (viewRef.current !== 'text') return
+        if (editorRef.current) editorRef.current.focus()
+        else pendingFocus.current = true
+      }),
+    [store],
+  )
+
   // "Go to the line" from outside this panel (the Problems dock clicking a compile error). Only a
   // MOUNTED editor can answer, which is exactly why it is a subscription and not a prop: docked,
   // floating and popped-out instances all subscribe, and whichever is on screen serves the request.
@@ -1165,6 +1179,8 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
                         const at = pendingReveal.current
                         pendingReveal.current = null
                         if (at !== null && viewRef.current === 'text') editorRef.current?.revealOffset(at)
+                        else if (pendingFocus.current && viewRef.current === 'text') editorRef.current?.focus()
+                        pendingFocus.current = false
                       }}
                       style={editorHost}
                     />

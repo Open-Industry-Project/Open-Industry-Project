@@ -487,6 +487,14 @@ export class EditorStore {
     this.reveals.revealStOffset(offset)
   }
 
+  /** subscribe to "type into the code" requests (the mounted ST editor serves them while it shows text) */
+  onFocusStCode = (cb: () => void): (() => void) => this.reveals.onFocusStCode(cb)
+
+  /** ask the ST editor to take the keyboard (a click on the PLC panel's dock tab) */
+  focusStCode(): void {
+    this.reveals.focusStCode()
+  }
+
   /** subscribe to "show the tasks" requests (the mounted PLC panel's organizer serves them) */
   onRevealStOrganizer = (cb: () => void): (() => void) => this.reveals.onRevealStOrganizer(cb)
 

@@ -54,6 +54,31 @@ export class RevealRequests {
     for (const cb of this.revealStOffsetListeners) cb(offset)
   }
 
+  // "Type into the code": a click on the PLC panel's dock tab puts the keyboard in the text, so the click that brings the
+  // panel up is also the one that starts typing. A background tab mounts its panel on the next render, so the request
+  // waits briefly for it, like revealStOffset.
+  private focusStListeners = new Set<() => void>()
+  private pendingStFocus: number | null = null
+
+  /** subscribe to "type into the code" requests (the mounted ST editor serves them while it shows text) */
+  onFocusStCode(cb: () => void): () => void {
+    this.focusStListeners.add(cb)
+    const at = this.pendingStFocus
+    this.pendingStFocus = null
+    if (at !== null && Date.now() - at <= ST_REVEAL_HOLD_MS) cb()
+    return () => this.focusStListeners.delete(cb)
+  }
+
+  /** ask the ST editor to take the keyboard */
+  focusStCode(): void {
+    if (this.focusStListeners.size === 0) {
+      this.pendingStFocus = Date.now()
+      return
+    }
+    this.pendingStFocus = null
+    for (const cb of this.focusStListeners) cb()
+  }
+
   // "Show the tasks": the PLC panel's organizer brings its Tasks section into view, unfolded. The same shape as
   // revealStOffset and for the same reason - a controller table's problem (Problems) has no line in the text, and the
   // panel it pairs with (revealPanel('st')) may only mount on the next render, so the request waits briefly for it.

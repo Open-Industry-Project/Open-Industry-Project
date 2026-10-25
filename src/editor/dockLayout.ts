@@ -558,6 +558,13 @@ export function revealNeedsDocks(layout: DockLayout, panel: DockPanelId): boolea
   return loc !== 'floating' && loc !== 'popout'
 }
 
+/** Whether `panel` is the open front tab of a slot: not behind another tab, not in a rolled-up bottom dock. */
+export function tabShowsPanel(layout: DockLayout, panel: DockPanelId): boolean {
+  const loc = locate(layout, panel)
+  if (loc === 'floating' || loc === 'popout' || layout.active[loc] !== panel) return false
+  return !(loc === 'bottom' && layout.bottomCollapsed)
+}
+
 /** Bring a tab to the front of its slot. No-op for a floating or popped-out panel. */
 export function activateDockPanel(layout: DockLayout, panel: DockPanelId): DockLayout {
   const loc = locate(layout, panel)

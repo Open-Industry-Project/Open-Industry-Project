@@ -28,11 +28,9 @@ import { CatalogPlaceButton } from './CatalogPlaceButton'
 import { getOipPartsApi } from '../desktop/desktopPartsBridge'
 import { importPartsFolder } from '../parts/packageSource'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
+import { importPartFiles, partFilesOf } from '../parts/importPartFiles'
 
 const M = defineMessages('catalog', {
-  replaceLoaded: 'A part “{name}” is already loaded. Replace it with the one from “{file}”?',
-  importErrorLine: '{file}: {error}',
-  importFailed: "Couldn't import:\n{errors}",
   title: 'Parts',
   viewOnly: 'View only: editing is disabled',
   viewOnlyLink: 'View only: editing is disabled on this link',
@@ -214,14 +212,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   // button); reached from the header button (multi-select) and by dropping files anywhere on the dock
   const importFiles = async (files: File[]): Promise<void> => {
     if (!controller || state.readOnly || files.length === 0) return
-    const errors: string[] = []
-    for (const file of files) {
-      const error = await controller.importPart(new Uint8Array(await file.arrayBuffer()), (name) =>
-        window.confirm(t(M.replaceLoaded, { name, file: file.name })),
-      )
-      if (error) errors.push(t(M.importErrorLine, { file: file.name, error }))
-    }
-    if (errors.length > 0) alert(t(M.importFailed, { errors: errors.join('\n') }))
+    await importPartFiles(controller, files)
   }
   const onImportFile = (e: ChangeEvent<HTMLInputElement>): void => {
     const files = Array.from(e.target.files ?? [])
@@ -345,11 +336,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         setDropping(false)
         if (state.readOnly || !dragHasFiles(e)) return
         e.preventDefault()
-        void importFiles(
-          Array.from(e.dataTransfer.files).filter(
-            (f) => /\.(json|oippart)$/i.test(f.name) || f.type === 'application/json',
-          ),
-        )
+        void importFiles(partFilesOf(e.dataTransfer.files))
       }}
     >
       <div className="dock-header">

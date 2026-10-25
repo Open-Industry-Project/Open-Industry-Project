@@ -1032,6 +1032,15 @@ export class EditorController {
     return authoringOps.importPart(this, file, confirmReplace)
   }
 
+  /** importPart, then place one copy where the file was dropped on the viewport (the drop point stands in for a card
+   *  dragged there). Declining the replace places nothing. */
+  async dropPartFile(file: Uint8Array, clientX: number, clientY: number, confirmReplace?: (existingName: string) => boolean): Promise<string | null> {
+    const res = await authoringOps.importPartFile(this, file, confirmReplace)
+    if ('error' in res) return res.error
+    if (res.id !== null) catalogOps.placePackageAt(this, res.id, clientX, clientY)
+    return null
+  }
+
   /**
    * "Save as a New Part": a copy of this part under its own id and name, added to the project's library, so a variant
    * (a heavy-duty conveyor beside the standard one) sits next to the original instead of replacing it. Placed parts

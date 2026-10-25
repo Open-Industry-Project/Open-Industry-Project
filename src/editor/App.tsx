@@ -107,6 +107,7 @@ import {
   revealDockPanel,
   revealNeedsDocks,
   saveDockLayout,
+  tabShowsPanel,
   toggleMaximizePanel,
   type BottomHeights,
   type DockLayout,
@@ -120,6 +121,7 @@ import { commandEnabled, desktopMenuModel, menuEnablement, runCommand, runMenuCo
 import type { EditorStore } from './store/store'
 import type { ProjectJSON } from '../core/project/project'
 import { RestoreIcon } from './components/toolbarIcons'
+import { importPartFiles, partFilesOf } from './parts/importPartFiles'
 import { defineMessages, t } from '../core/i18n'
 
 // Lazy so Monaco + its TS worker stay OUT of the main bundle and only download when the editor is opened.
@@ -711,7 +713,17 @@ export function App({ store, sim }: AppProps) {
   )
   // left-click on a bottom dock tab: the roll-up toggle (see clickBottomDockTab).
   // Wired only to the bottom slot - side tabs keep plain activate-on-click.
-  const clickBottomTab = useCallback((panel: DockPanelId) => setDockLayout((l) => clickBottomDockTab(l, panel)), [])
+  // A left-click that leaves the PLC panel open also puts the keyboard in its code, so the click that brings it up is
+  // the one that starts typing. Judged on the current layout, like onRevealPanel below.
+  const clickTabWith = useCallback(
+    (click: (l: DockLayout, panel: DockPanelId) => DockLayout) => (panel: DockPanelId) => {
+      setDockLayout((l) => click(l, panel))
+      if (panel === 'st' && tabShowsPanel(click(dockLayout, panel), panel)) store.focusStCode()
+    },
+    [store, dockLayout],
+  )
+  const clickSideTab = useMemo(() => clickTabWith(activateDockPanel), [clickTabWith])
+  const clickBottomTab = useMemo(() => clickTabWith(clickBottomDockTab), [clickTabWith])
   const floatDock = useCallback((panel: DockPanelId) => setDockLayout((l) => floatDockPanel(l, panel)), [])
   const canFloat = useCallback((panel: DockPanelId) => FLOATABLE_PANELS.includes(panel), [])
   // Where a popped-out panel came from, so closing its window puts it back there rather than at
@@ -1232,6 +1244,7 @@ export function App({ store, sim }: AppProps) {
         sizeVar={dockSizeVar(spec.splitKey)}
         onResizeSplit={(v) => setSizes((s) => ({ ...s, [spec.splitKey]: v }))}
         onActivate={activateDock}
+        onTabClick={clickSideTab}
         onMaximize={maximizeDock}
         canMaximize={canMaximize}
         onMove={moveDock}
@@ -1295,7 +1308,22 @@ export function App({ store, sim }: AppProps) {
           sized to something real and keeps the live WebGL/WebGPU context (and the render
           bundles holding baked resource handles) intact across the toggle. It also stops the
           canvas taking pointer events from underneath the panel. */}
-      <div className="viewport" ref={viewportRef} style={maxPanel ? { visibility: 'hidden' } : undefined}>
+      <div
+        className="viewport"
+        ref={viewportRef}
+        style={maxPanel ? { visibility: 'hidden' } : undefined}
+        // A part file dropped here is imported and placed where it landed. Any file drag is taken (names aren't readable
+        // until the drop), so a drop with no part file does nothing rather than the browser opening the file.
+        onDragOver={(e) => {
+          if (!state.readOnly && e.dataTransfer.types.includes('Files')) e.preventDefault()
+        }}
+        onDrop={(e) => {
+          if (state.readOnly || !e.dataTransfer.types.includes('Files')) return
+          e.preventDefault()
+          const files = partFilesOf(e.dataTransfer.files)
+          if (controller && files.length > 0) void importPartFiles(controller, files, { x: e.clientX, y: e.clientY })
+        }}
+      >
         {viewError && <div className="viewport-fallback">{t(M.rendererUnavailable, { error: viewError })}</div>}
         {state.mode !== 'pilot' && !isPhone && <ViewportToolbar store={store} state={state} controller={controller} />}
         {state.showStats && (

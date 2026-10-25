@@ -212,13 +212,23 @@ export async function importPart(
   file: string | Uint8Array,
   confirmReplace?: (existingName: string) => boolean,
 ): Promise<string | null> {
+  const res = await importPartFile(ec, file, confirmReplace)
+  return 'error' in res ? res.error : null
+}
+
+/** importPart, answering with the imported part's id: null when the person declined to replace one already here */
+export async function importPartFile(
+  ec: AuthoringDeps,
+  file: string | Uint8Array,
+  confirmReplace?: (existingName: string) => boolean,
+): Promise<{ error: string } | { id: string | null }> {
   const res = typeof file === 'string' ? parsePartText(file) : await parsePartBytes(file)
-  if ('error' in res) return res.error
+  if ('error' in res) return { error: res.error }
   const existing = getPackage(res.pkg.id)
-  if (existing && confirmReplace && !confirmReplace(existing.name)) return null
+  if (existing && confirmReplace && !confirmReplace(existing.name)) return { id: null }
   registerPackage(res.pkg, true)
   ec.store.addUserPackage(res.pkg)
-  return null
+  return { id: res.pkg.id }
 }
 
 export function saveAsNewPart(ec: AuthoringDeps, packageId: string): string | null {
