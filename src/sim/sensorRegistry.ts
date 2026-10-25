@@ -147,6 +147,12 @@ export class SensorRegistry {
     return n
   }
 
+  /** drop a part's beams and zones (it is rebuilt or deleted) */
+  forget(partId: string): void {
+    this.beamsByPartId.delete(partId)
+    this.zonesByPartId.delete(partId)
+  }
+
   /** drop every sensor's geometry (the world is going) */
   clear(): void {
     this.beamsByPartId.clear()

@@ -987,6 +987,52 @@ describe('live editing (updateScene)', () => {
     }
   })
 
+  it('a rebuilt or deleted part leaves no behavior running', SLOW, () => {
+    const count = (w: SimWorld): number => (w as unknown as { bus: { behaviors: unknown[] } }).bus.behaviors.length
+    const tagged = (tag: string): SdkPart => {
+      const p = belt('b1', 0, 0.75, 0, 4, 0.5)
+      p.params.runningTag = tag
+      return p
+    }
+    const world = new SimWorld(Jolt, scene(tagged('B1_RUN')))
+    world.step()
+    expect(world.behaviorTagWrites()).toMatchObject({ B1_RUN: true })
+    // renaming the tag rebuilds the part: only the new tag is written, by one behavior
+    world.updateScene(scene(tagged('B1_RUN_2')))
+    world.step()
+    expect(count(world)).toBe(1)
+    expect(world.behaviorTagWrites()).toHaveProperty('B1_RUN_2', true)
+    expect(world.behaviorTagWrites()).not.toHaveProperty('B1_RUN')
+    // deleting it stops it
+    world.updateScene(scene())
+    world.step()
+    expect(count(world)).toBe(0)
+    expect(world.behaviorTagWrites()).not.toHaveProperty('B1_RUN_2')
+    world.dispose()
+  })
+
+  it('editing one belt of a merged deck keeps every member conveying', SLOW, () => {
+    // the cluster owner attaches every member's behavior, and any member's edit rebuilds them all
+    const count = (w: SimWorld): number => (w as unknown as { bus: { behaviors: unknown[] } }).bus.behaviors.length
+    const pair = (upSpeed: number, downSpeed: number): SceneJSON => scene(belt('up', -2.25, 0.75, 0, 4, upSpeed), belt('down', 2.25, 0.75, 0, 4, downSpeed))
+    const world = new SimWorld(Jolt, pair(0.5, 0.5))
+    expect(count(world)).toBe(2)
+    for (const [up, down] of [[0.6, 0.5], [0.6, 0.7]] as const) {
+      world.updateScene(pair(up, down))
+      expect(count(world)).toBe(2)
+    }
+    // a box on each belt still moves at its belt's speed
+    world.spawnBoxAt(-3.5, 0.97, 0, 0.15, 0.2, 0.15)
+    world.spawnBoxAt(1, 0.97, 0, 0.15, 0.2, 0.15)
+    for (let i = 0; i < 60; i++) world.step()
+    const x0 = [world.frame().positions[0]!, world.frame().positions[3]!]
+    for (let i = 0; i < 30; i++) world.step()
+    const v = [(world.frame().positions[0]! - x0[0]!) * 2, (world.frame().positions[3]! - x0[1]!) * 2]
+    expect(v[0]).toBeGreaterThan(0.45)
+    expect(v[1]).toBeGreaterThan(0.6)
+    world.dispose()
+  })
+
   it('a part added to a full physics world is built without bodies and reported, never half built', SLOW, () => {
     const world = new SimWorld(Jolt, scene())
     // fill Jolt's body table with cargo (nothing caps cargo: a line with no outlet piles up like this)

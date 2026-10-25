@@ -110,6 +110,15 @@ export class BehaviorBus {
     return this.conveyorSnapshot
   }
 
+  /** destroy these behavior instances and drop their records (their part is rebuilt or deleted) */
+  remove(recs: readonly BehaviorRecord[]): void {
+    const gone = new Set(recs)
+    for (const b of recs) behavior.destroy(b.handle)
+    let n = 0
+    for (const b of this.behaviors) if (!gone.has(b)) this.behaviors[n++] = b
+    this.behaviors.length = n
+  }
+
   /** destroy every behavior instance and drop the records (the world is going) */
   destroyAll(): void {
     for (const b of this.behaviors) behavior.destroy(b.handle)

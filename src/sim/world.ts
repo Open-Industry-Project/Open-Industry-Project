@@ -346,19 +346,28 @@ export class SimWorld implements SimCore<BoxFrame> {
     const speedKey = conveyorSpeedParams(part).speed
     const speedParam = speedKey ? (part.params as Record<string, unknown>)[speedKey] : undefined
     if (typeof speedParam === 'number') this.bus.setConveyorSpeed(part.id, speedParam)
+    // the bus and the rig list only append, so what this build attaches is what lands past these marks
+    const behaviorsFrom = this.bus.behaviors.length
+    const rigsFrom = this.rigDriver.rigs.length
+    const fileAttached = (): void => {
+      if (this.bus.behaviors.length > behaviorsFrom) group.behaviors = this.bus.behaviors.slice(behaviorsFrom)
+      if (this.rigDriver.rigs.length > rigsFrom) group.rigs = this.rigDriver.rigs.slice(rigsFrom)
+    }
     try {
       // dispatch table mirrors render/parts/registry.ts; types with no physics
       // bodies (sensors, controls, manipulators, floor_marking, group) have no
       // entry and fall through as a no-op.
       const builder = SimWorld.partBuilders.get(part.type)
       builder?.(this, part, { ctx })
+      fileAttached()
     } catch (e) {
       if (!(e instanceof BodyTableFull)) throw e
+      fileAttached()
       this.bodies.end()
       // take down what the part had built, then file it bodiless under the same signature: it builds again on its
       // next edit or the next run, not on every scene update while the world stays full
       this.destroyPart(part.id)
-      this.bodies.begin(part.id, { ...group, bodies: [], conveyorKeys: [], boxIds: [] })
+      this.bodies.begin(part.id, { signature: group.signature, sigPart: group.sigPart, sigKey: group.sigKey, sigRev: group.sigRev, bodies: [], conveyorKeys: [], boxIds: [] })
       reportPartDiagnostic({ source: 'build', partId: part.id, message: 'the physics world holds as many bodies as it can, so this part was built without collision. Stop clears the cargo that filled it.' })
     } finally {
       this.bodies.end()
@@ -1487,6 +1496,10 @@ export class SimWorld implements SimCore<BoxFrame> {
     const group = this.partGroups.get(id)
     if (!group) return
     this.bodies.destroyBodies(group)
+    // its scripts stop with it: a stale one would keep writing its old PLC tags
+    if (group.behaviors) this.bus.remove(group.behaviors)
+    if (group.rigs) this.rigDriver.remove(group.rigs)
+    this.sensors.forget(id)
     this.bus.deleteConveyorSpeed(id) // a speed-bearing part no longer exists to interlock against
     this.loadCells.set(id, []) // its platforms' bodies are gone
     this.holds.forgetPart(id)

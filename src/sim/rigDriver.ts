@@ -257,6 +257,14 @@ export class RigDriver {
     })
   }
 
+  /** drop these rigs (their part is rebuilt or deleted; its group tears down the bodies) */
+  remove(rigs: readonly RigInstance[]): void {
+    const gone = new Set(rigs)
+    let n = 0
+    for (const r of this.rigs) if (!gone.has(r)) this.rigs[n++] = r
+    this.rigs.length = n
+  }
+
   /** drop every rig (their bodies are torn down via their part groups; these are just stale refs) */
   clear(): void {
     this.rigs.length = 0

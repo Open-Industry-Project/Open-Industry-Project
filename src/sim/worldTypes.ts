@@ -123,6 +123,10 @@ export interface PartGroup {
   bodies: Jolt.Body[]
   conveyorKeys: number[]
   boxIds: number[]
+  /** the behaviors and rigs this part's build attached. A clustered deck's owner attaches every member's behavior,
+   *  so they are filed under the owner, which every member's edit rebuilds (deckClusterKey). */
+  behaviors?: BehaviorRecord[]
+  rigs?: RigInstance[]
 }
 
 /** One attached custom-part behavior script. Drives a deck's surface velocity and/or a rig's joints. */
