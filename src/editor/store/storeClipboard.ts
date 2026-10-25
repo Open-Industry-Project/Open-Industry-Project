@@ -2,12 +2,20 @@
 // (clone, position compare, internal-reference rewiring). Extracted from store.ts verbatim; the
 // module-level in-memory clipboard is the fallback when localStorage is unavailable/corrupt.
 import { partParamSpecs } from '../../core/packageParams'
-import { PART_DEFS } from '../../core/types'
+import type { PartPackage } from '../../core/parts/partPackage'
+import { validateScene } from '../../core/scene/scene'
+import { PART_DEFS, SCENE_VERSION } from '../../core/types'
 import type { PartInstance } from '../../core/types'
 
 export const CLIPBOARD_KEY = 'oip-web/clipboard'
 
-let memoryClipboard: PartInstance[] | null = null
+/** What a copy holds: the parts, and the definitions they use that another project may not have (copySelection) */
+export interface ClipboardContent {
+  parts: PartInstance[]
+  packages: PartPackage[]
+}
+
+let memoryClipboard: ClipboardContent | null = null
 
 export function clonePart(part: PartInstance): PartInstance {
   return {
@@ -60,15 +68,22 @@ function isClipboardPart(v: unknown): v is PartInstance {
   )
 }
 
-export function readClipboard(): PartInstance[] | null {
+/** the stored definitions, checked and upgraded the way a scene file's are; none when any fails */
+function clipboardPackages(raw: unknown): PartPackage[] {
+  if (!Array.isArray(raw) || raw.length === 0) return []
+  const res = validateScene({ version: SCENE_VERSION, parts: [], packages: raw })
+  return res.ok ? (res.scene.packages ?? []) : []
+}
+
+export function readClipboard(): ClipboardContent | null {
   if (typeof localStorage !== 'undefined') {
     try {
       const raw = localStorage.getItem(CLIPBOARD_KEY)
       if (raw) {
-        const data = JSON.parse(raw) as { parts?: unknown }
+        const data = JSON.parse(raw) as { parts?: unknown; packages?: unknown }
         if (Array.isArray(data.parts)) {
           const parts = data.parts.filter(isClipboardPart)
-          if (parts.length > 0) return parts
+          if (parts.length > 0) return { parts, packages: clipboardPackages(data.packages) }
         }
       }
     } catch {
@@ -79,12 +94,18 @@ export function readClipboard(): PartInstance[] | null {
 }
 
 /** replace the clipboard: the in-memory copy always, localStorage best-effort (copySelection) */
-export function writeClipboard(parts: PartInstance[]): void {
-  memoryClipboard = parts
+export function writeClipboard(content: ClipboardContent): void {
+  memoryClipboard = content
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.setItem(CLIPBOARD_KEY, JSON.stringify({ parts: memoryClipboard }))
+    localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(content))
   } catch {
-    // in-memory clipboard still works
+    // Over the storage quota (definitions can be large): the in-memory clipboard still works, and the stored one
+    // goes, since readClipboard prefers it and would paste the copy before this one.
+    try {
+      localStorage.removeItem(CLIPBOARD_KEY)
+    } catch {
+      // storage unavailable
+    }
   }
 }

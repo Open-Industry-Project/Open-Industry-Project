@@ -4,7 +4,7 @@ import type { SdkPart, PartInstance, SceneJSON } from '../../core/types'
 import { partFootprint } from '../../core/parts/partGeometry'
 import { partDisplayName } from '../../core/parts/partDisplayName'
 import { EditorStore, documentSceneOf, GRIDSNAP_KEY, SPACE_KEY, USERPKG_KEY, VSNAP_COLLISION_KEY, VSNAP_ORIGIN_KEY, editStack, editTarget, editTargetFocusId, rigNodeKey } from './store'
-import { loadStoredProject, PROJECT_KEY } from '../project/projectFile'
+import { assembleProject, loadStoredProject, PROJECT_KEY } from '../project/projectFile'
 
 /**
  * The scene a reload would restore: the project document's active scene. Not the legacy
@@ -16,7 +16,7 @@ function reloadedScene(): SceneJSON {
   const doc = JSON.parse(localStorage.getItem(PROJECT_KEY) ?? '{}') as { scene?: SceneJSON }
   return doc.scene ?? ({ version: SCENE_VERSION, parts: [] } as SceneJSON)
 }
-import { getPackage, registerPackage, unregisterPackage } from '../../core/parts/partRegistry'
+import { getPackage, registerPackage, setBuiltInPackages, unregisterPackage } from '../../core/parts/partRegistry'
 import type { PartPackage } from '../../core/parts/partPackage'
 import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
 
@@ -1222,6 +1222,77 @@ describe('EditorStore', () => {
     } finally {
       unregisterPackage('paste.belt')
     }
+  })
+
+  describe('paste into another project', () => {
+    // A part from project A's own library, naming a product of A's: copied in A, pasted after B is open. B's registry
+    // never held either (adoptProjectLibrary replaces the library on a project switch).
+    const spawner = (): PartPackage => ({
+      ...pkg('a.spawner', 'definePart({ step() {} })'),
+      params: { product: { type: 'string', default: 'a.crate', product: true } },
+    } as unknown as PartPackage)
+    const copyInA = (): void => {
+      registerPackage(spawner())
+      registerPackage(pkg('a.crate', 'definePart({ step() {} })'))
+      const a = new EditorStore(scene({ ...part('sp_1'), packageId: 'a.spawner', params: {} } as PartInstance))
+      a.select('sp_1')
+      a.copySelection()
+      unregisterPackage('a.spawner')
+      unregisterPackage('a.crate')
+    }
+    afterEach(() => {
+      unregisterPackage('a.spawner')
+      unregisterPackage('a.crate')
+      setBuiltInPackages([])
+    })
+
+    it('brings the part and what it names along, and saving keeps them in the library', () => {
+      copyInA()
+      const b = new EditorStore(scene())
+      b.paste()
+      expect(getPackage('a.spawner')).toBeDefined()
+      expect(getPackage('a.crate')).toBeDefined()
+      expect(b.getState().scene.packages?.map((p) => p.id).sort()).toEqual(['a.crate', 'a.spawner'])
+      // a save moves a scene copy nothing else holds into the project's library (keepDefinitionsOnce needs a host
+      // that has declared its built-ins)
+      setBuiltInPackages([pkg('oip.stand-in', 'definePart({ step() {} })')])
+      const project = assembleProject(b.getState().scene, '', [])
+      expect(project.packages?.map((p) => p.id).sort()).toEqual(['a.crate', 'a.spawner'])
+      expect(project.scene.packages).toBeUndefined()
+    })
+
+    it('survives the stored clipboard (checked as a scene file is)', () => {
+      vi.stubGlobal('localStorage', fakeStorage())
+      copyInA()
+      const b = new EditorStore(scene())
+      b.paste()
+      expect(b.getState().scene.packages?.map((p) => p.id).sort()).toEqual(['a.crate', 'a.spawner'])
+    })
+
+    it('keeps the version of a part this project already has', () => {
+      copyInA()
+      const own = pkg('a.spawner', 'definePart({ step() { /* B */ } })')
+      registerPackage(own)
+      const b = new EditorStore(scene())
+      b.paste()
+      expect(getPackage('a.spawner')?.behavior).toBe(own.behavior)
+    })
+
+    it('a copy too big to store leaves no older stored copy to paste', () => {
+      const storage = fakeStorage()
+      vi.stubGlobal('localStorage', storage)
+      const a = new EditorStore(scene(part('pt_1'), part('pt_9', 4)))
+      a.select('pt_1')
+      a.copySelection()
+      storage.setItem = () => {
+        throw new Error('QuotaExceededError')
+      }
+      a.select('pt_9')
+      a.copySelection()
+      const b = new EditorStore(scene())
+      b.paste()
+      expect(b.getState().scene.parts.map((p) => p.position[0])).toEqual([4])
+    })
   })
 
   it('pastes without a nudge when the source position is free', () => {
