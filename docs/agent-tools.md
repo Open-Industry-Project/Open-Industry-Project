@@ -79,7 +79,7 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `run` / `stop` / `get_tags` / `set_tag` / `force_tag` / `release_forces` | operate the live sim; a force holds a variable across scans until released, through Stop into the next run |
 | `trace_tags` | the changes of some tags over a window of the live run |
 | `get_cargo` | the running sim's boxes, totes and pallets: pose, size, colour, tilt |
-| `run_test` | run a project test spec headless and deterministic, against the open scene; no spec = every kept test. `summary` counts tests and checks passed; `trace` records tags through the run (the CLI's `--trace`) |
+| `run_test` | run a project test spec headless and deterministic, against the open scene; no spec = every kept test. `summary` counts tests and checks passed; `trace` records tags through the run (the CLI's `--trace`); `cargo` lists the cargo with its tilt at chosen sim times (the CLI's `--cargo`, at most 20 times, each capped like `get_cargo`) |
 | `save_test` / `list_tests` / `delete_test` | keep a named spec in the project (store `saveProjectTest`: project structure, so not an undo step) / list them / drop one |
 | `undo` | take back (or redo) the agent's own last step; it refuses a step that is the user's |
 

@@ -144,6 +144,17 @@ export interface CargoRow {
   colorName?: 'red' | 'green' | 'blue'
   /** centre, world metres, to the millimetre */
   pos: [number, number, number]
+  /** how far it is tilted from upright, whole degrees (about 90 = on its side) */
+  tiltDeg: number
+}
+
+/** The angle between body `i`'s own up axis and world up, in degrees: its tilt from upright. */
+export function cargoTiltDeg(frame: Pick<BoxFrame, 'quats'>, i: number): number {
+  const qx = frame.quats[i * 4]!
+  const qz = frame.quats[i * 4 + 2]!
+  // the y component of the body's local +Y in world space
+  const upY = 1 - 2 * (qx * qx + qz * qz)
+  return (Math.acos(Math.max(-1, Math.min(1, upY))) * 180) / Math.PI
 }
 
 /** Every live cargo body in a frame, in frame order: the headless answer to "where are the boxes". */
@@ -166,9 +177,39 @@ export function cargoRows(frame: BoxFrame): CargoRow[] {
       color: toHex(r, g, b),
       ...(name ? { colorName: name } : {}),
       pos: [mm(frame.positions[c]!), mm(frame.positions[c + 1]!), mm(frame.positions[c + 2]!)],
+      tiltDeg: Math.round(cargoTiltDeg(frame, i)),
     })
   }
   return out
+}
+
+/** The live cargo at one asked-for time: `at` is the time asked for, `t` the first step that reached it. */
+export interface CargoSnapshot {
+  at: number
+  t: number
+  bodies: CargoRow[]
+}
+
+/** Where the cargo is at chosen sim times of a test run (`test-project --cargo`, run_test's `cargo`). Hand
+ *  {@link onFrame} to the runner as its `onFrame`. */
+export class CargoSnapshots {
+  readonly snapshots: CargoSnapshot[] = []
+  private readonly pending: number[]
+
+  constructor(times: readonly number[]) {
+    this.pending = [...times].sort((a, b) => a - b)
+  }
+
+  readonly onFrame = (frame: Readonly<BoxFrame>): void => {
+    while (this.pending.length > 0 && frame.simTime + 1e-9 >= this.pending[0]!) {
+      this.snapshots.push({ at: this.pending.shift()!, t: frame.simTime, bodies: cargoRows(frame) })
+    }
+  }
+
+  /** the asked-for times the run ended before */
+  missed(): number[] {
+    return [...this.pending]
+  }
 }
 
 /**

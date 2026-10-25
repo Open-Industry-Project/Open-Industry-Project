@@ -525,6 +525,29 @@ describe('agent tools: run_test', () => {
     expect(await refused(c, 'run_test', { spec, trace: [] })).toMatch(/'trace' must be a non-empty array/)
   })
 
+  it('lists the cargo at the times asked for, capped per snapshot, and names the times the run ended before', async () => {
+    const c = ctx()
+    const row = (id: number) => ({ id, part: null, kind: 'box', color: '#ffffff', pos: [id, 0.5, 0], tiltDeg: 47 })
+    runProjectTests.mockResolvedValue([
+      {
+        name: 'test-1',
+        ok: true,
+        result: { ok: true, checks: [{ ok: true, detail: 'Run = true at t=1s' }] },
+        cargo: [{ at: 1, t: 1.0000001, bodies: Array.from({ length: 250 }, (_, i) => row(i)) }],
+        cargoMissed: [9],
+      },
+    ])
+    const spec = { duration: 2, checks: [{ tag: 'Run', at: 1, equals: true }] }
+    const r = (await ok(c, 'run_test', { spec, cargo: [1, 9] })) as { cargo: { at: number; t: number; count: number; bodies: unknown[]; omitted?: number }[]; cargoMissed: string }
+    expect(runProjectTests.mock.calls[0]![2]).toEqual({ cargo: [1, 9] })
+    expect(r.cargo[0]).toMatchObject({ at: 1, t: 1, count: 250, omitted: 50 })
+    expect(r.cargo[0]!.bodies).toHaveLength(200)
+    expect(r.cargo[0]!.bodies[3]).toEqual(row(3))
+    expect(r.cargoMissed).toBe('the run ended before t=9')
+    expect(await refused(c, 'run_test', { spec, cargo: [-1] })).toMatch(/'cargo' must be a non-empty array of sim times/)
+    expect(await refused(c, 'run_test', { spec, cargo: Array.from({ length: 21 }, (_, i) => i) })).toMatch(/at most 20 times/)
+  })
+
   it('refuses an invalid spec with the validator\'s reasons, and reports a run that threw', async () => {
     const c = ctx()
     expect(await refused(c, 'run_test', { spec: { checks: [] } })).toMatch(/invalid test spec/)

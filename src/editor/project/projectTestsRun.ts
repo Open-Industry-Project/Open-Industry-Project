@@ -10,6 +10,7 @@
 // 'wasm-compat' build in alongside it.
 
 import type { ProjectJSON } from '../../core/project/project'
+import type { CargoSnapshot } from '../../core/project/projectProbe'
 import type { TagTrace, TestResult } from '../../core/project/projectTest'
 import type { SimWorld } from '../../sim/world'
 import type { TestFactsView } from './testFacts'
@@ -29,6 +30,10 @@ export interface ProjectTestRun {
   error?: string
   /** the tags `opts.trace` asked for, through the whole run: the value at the start and every change */
   trace?: TagTrace[]
+  /** the live cargo at each time `opts.cargo` asked for */
+  cargo?: CargoSnapshot[]
+  /** the asked-for times the run ended before */
+  cargoMissed?: number[]
 }
 
 /** The display name of the spec at `index`, matching what the CLI prints for a document-carried test. */
@@ -47,16 +52,17 @@ export function testName(spec: { name?: string }, index: number): string {
 export async function runProjectTests(
   project: ProjectJSON,
   onVerdict?: (run: ProjectTestRun, done: number, total: number) => void,
-  opts?: { trace?: readonly string[] },
+  opts?: { trace?: readonly string[]; cargo?: readonly number[] },
 ): Promise<ProjectTestRun[]> {
   const specs = project.tests ?? []
   if (specs.length === 0) return []
 
-  const [joltMod, runnerMod, factsMod, testMod] = await Promise.all([
+  const [joltMod, runnerMod, factsMod, testMod, probeMod] = await Promise.all([
     import('jolt-physics/wasm'),
     import('./projectTestRunner'),
     import('./testFacts'),
     import('../../core/project/projectTest'),
+    import('../../core/project/projectProbe'),
   ])
   const Jolt = (await joltMod.default()) as unknown as JoltModule
 
@@ -68,8 +74,16 @@ export async function runProjectTests(
     let run: ProjectTestRun
     try {
       const trace = opts?.trace ? new testMod.TraceRecorder(opts.trace) : undefined
-      const { facts, factsOverflow, ...result } = runnerMod.runProjectTest(Jolt, project, spec, trace ? { trace } : undefined)
-      run = { name: testName(spec, i), ok: result.ok, result, facts: factsMod.testFactsView(result.checks, facts, factsOverflow, spec.duration), ...(trace ? { trace: trace.result() } : {}) }
+      const snaps = opts?.cargo ? new probeMod.CargoSnapshots(opts.cargo) : undefined
+      const { facts, factsOverflow, ...result } = runnerMod.runProjectTest(Jolt, project, spec, { ...(trace ? { trace } : {}), ...(snaps ? { onFrame: snaps.onFrame } : {}) })
+      run = {
+        name: testName(spec, i),
+        ok: result.ok,
+        result,
+        facts: factsMod.testFactsView(result.checks, facts, factsOverflow, spec.duration),
+        ...(trace ? { trace: trace.result() } : {}),
+        ...(snaps ? { cargo: snaps.snapshots, cargoMissed: snaps.missed() } : {}),
+      }
     } catch (e) {
       run = { name: testName(spec, i), ok: false, error: e instanceof Error ? e.message : String(e) }
     }

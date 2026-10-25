@@ -63,7 +63,7 @@ import { checkPart, createPart, editPartDefinition, getPartSdk, getPartSource, i
 import { installLibraryPart, listLibraryParts } from './libraryTools'
 import { installShelfPart, listShelfParts, putPartOnShelf } from './shelfTools'
 import { checkProgram, getPou, listPous, setPou, traceTags } from './programTools'
-import { captureView, deleteTest, duplicatePartsTool, getCargo, undoTool } from './viewTools'
+import { CARGO_LIST_MAX, captureView, deleteTest, duplicatePartsTool, getCargo, undoTool } from './viewTools'
 import { getContext } from './contextTools'
 
 export { AGENT_LABEL, AgentImageResult, AgentToolError }
@@ -759,6 +759,9 @@ function summary(runs: readonly ProjectTestRun[]): string {
 /** run_test's `trace`: a tag that changes more than this many times keeps its first and last halves (an encoder) */
 const TRACE_MAX_CHANGES = 200
 
+/** run_test's `cargo`: at most this many times, each snapshot capped like get_cargo */
+const CARGO_TIMES_MAX = 20
+
 function traceView(trace: ProjectTestRun['trace'], asked: readonly string[]): Record<string, unknown> {
   if (!trace) return {}
   const cut = (changes: { t: number; v: unknown }[]) =>
@@ -785,32 +788,61 @@ const runTest: AgentTool = {
     'reaches the program only through its inputs (VAR_INPUT, or a variable a part is wired to). Without `spec` it ' +
     'runs every test the project keeps (save_test). This is how to prove a change works. The editor is busy while it runs. ' +
     "`summary` says how many tests and checks passed. `trace` records tags through the whole run (each one's value " +
-    'at the start and every change with its time): how to read what a value was, or why a check failed.',
+    'at the start and every change with its time): how to read what a value was, or why a check failed. `cargo` ' +
+    'lists every box, tote and pallet at chosen sim times: id, part, kind, colour, centre [x,y,z] in metres and ' +
+    'tilt from upright in degrees, so a box tipping or falling can be followed step by step through the same run.',
   inputSchema: {
     type: 'object',
     properties: {
       spec: { type: 'object', description: 'a test spec: { name?, duration, inputs?, faults?, checks, scanMs? }' },
       trace: { type: 'array', items: { type: 'string' }, description: 'tag names to record through the run' },
+      cargo: { type: 'array', items: { type: 'number' }, description: `sim times (s) at which to list the cargo, at most ${CARGO_TIMES_MAX}` },
     },
     additionalProperties: false,
   },
   run: async ({ store }, args) => {
     const project = store.snapshotProject()
     const trace = args.trace === undefined ? undefined : strList(args, 'trace')
+    const cargo = cargoTimes(args)
+    const opts = trace || cargo ? { ...(trace ? { trace } : {}), ...(cargo ? { cargo } : {}) } : undefined
     const { runProjectTests } = await import('../project/projectTestsRun')
     if (args.spec === undefined) {
       if ((project.tests ?? []).length === 0) throw new AgentToolError('the project keeps no tests yet: pass a `spec`, or keep one with save_test')
-      const runs = await runProjectTests(project, undefined, trace ? { trace } : undefined)
-      return { ok: runs.every((r) => r.ok), summary: summary(runs), tests: runs.map((r) => ({ ...verdict(r), ...traceView(r.trace, trace ?? []) })) }
+      const runs = await runProjectTests(project, undefined, opts)
+      return { ok: runs.every((r) => r.ok), summary: summary(runs), tests: runs.map((r) => ({ ...verdict(r), ...traceView(r.trace, trace ?? []), ...cargoView(r) })) }
     }
     const spec = checkedSpec(args)
     const warnings = unreachableInputs(store, spec.inputs ?? [])
-    const [r] = await runProjectTests({ ...project, tests: [spec] }, undefined, trace ? { trace } : undefined)
+    const [r] = await runProjectTests({ ...project, tests: [spec] }, undefined, opts)
     if (!r) throw new AgentToolError('the test did not run')
     if (r.error) throw new AgentToolError(r.error)
     const { name: _name, ...v } = verdict(r)
-    return { summary: summary([r]), ...v, ...(warnings.length > 0 ? { warnings } : {}), ...traceView(r.trace, trace ?? []) }
+    return { summary: summary([r]), ...v, ...(warnings.length > 0 ? { warnings } : {}), ...traceView(r.trace, trace ?? []), ...cargoView(r) }
   },
+}
+
+function cargoTimes(args: Record<string, unknown>): number[] | undefined {
+  const v = args.cargo
+  if (v === undefined) return undefined
+  if (!Array.isArray(v) || v.length === 0 || !v.every((t) => typeof t === 'number' && Number.isFinite(t) && t >= 0)) {
+    throw new AgentToolError("'cargo' must be a non-empty array of sim times in seconds, each 0 or more")
+  }
+  if (v.length > CARGO_TIMES_MAX) throw new AgentToolError(`'cargo' takes at most ${CARGO_TIMES_MAX} times; run the test again for more`)
+  return v as number[]
+}
+
+function cargoView(r: ProjectTestRun): Record<string, unknown> {
+  if (!r.cargo) return {}
+  return {
+    cargo: r.cargo.map((s) => ({
+      at: s.at,
+      t: round(s.t),
+      count: s.bodies.length,
+      bodies: s.bodies.slice(0, CARGO_LIST_MAX),
+      ...(s.bodies.length > CARGO_LIST_MAX ? { omitted: s.bodies.length - CARGO_LIST_MAX } : {}),
+    })),
+    ...(r.cargoMissed && r.cargoMissed.length > 0 ? { cargoMissed: `the run ended before t=${r.cargoMissed.join(', ')}` } : {}),
+  }
 }
 
 const saveTest: AgentTool = {

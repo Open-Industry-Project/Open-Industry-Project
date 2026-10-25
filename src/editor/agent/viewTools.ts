@@ -3,6 +3,7 @@
 // taking back the agent's own last edit, and dropping a kept test.
 
 import { cargoKindName } from '../../core/frame'
+import { cargoTiltDeg } from '../../core/project/projectProbe'
 import { duplicateParts } from '../../core/parts/partDuplicate'
 import { assetsBusy, whenAssetsQuiet } from '../../render/gltf'
 import type { SceneJSON } from '../../core/types'
@@ -175,8 +176,8 @@ export const captureView: AgentTool = {
 
 // ── get_cargo ───────────────────────────────────────────────────────────────────────────────────────
 
-/** get_cargo lists at most this many bodies (the rest are counted) */
-const CARGO_LIST_MAX = 200
+/** get_cargo, and each of run_test's cargo snapshots, lists at most this many bodies (the rest are counted) */
+export const CARGO_LIST_MAX = 200
 
 export const getCargo: AgentTool = {
   name: 'get_cargo',
@@ -204,11 +205,6 @@ export const getCargo: AgentTool = {
       if (min && max && pos.some((v, k) => v < min[k]! || v > max[k]!)) continue
       matched++
       if (cargo.length >= CARGO_LIST_MAX) continue
-      const qx = f.quats[i * 4]!
-      const qz = f.quats[i * 4 + 2]!
-      // the y component of the body's local +Y in world space; its angle to world +Y is the tilt
-      const upY = 1 - 2 * (qx * qx + qz * qz)
-      const tilt = (Math.acos(Math.max(-1, Math.min(1, upY))) * 180) / Math.PI
       const hex = (k: number): string => Math.round(Math.max(0, Math.min(1, f.colors[i * 3 + k]!)) * 255).toString(16).padStart(2, '0')
       const key = f.shapes?.[i]
       const product = key ? f.shapeRefs?.[key]?.packageId : undefined
@@ -219,7 +215,7 @@ export const getCargo: AgentTool = {
         position: pos.map(round),
         size: [f.halfExtents[i * 3]! * 2, f.halfExtents[i * 3 + 1]! * 2, f.halfExtents[i * 3 + 2]! * 2].map(round),
         color: `#${hex(0)}${hex(1)}${hex(2)}`,
-        tiltDeg: Math.round(tilt),
+        tiltDeg: Math.round(cargoTiltDeg(f, i)),
         ...(f.partIds[i] ? { part: f.partIds[i] } : {}),
       })
     }

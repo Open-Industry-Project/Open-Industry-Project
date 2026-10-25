@@ -339,8 +339,10 @@ not `lane2-full-logic` too. A report leads with the file name. A manifest that l
 too, with a note that the app will not run it until it is listed.
 
 **`--cargo 5,10.5` lists every live cargo body at those times**: id, part (or `-` for a spawned box), kind, tint
-(`#e01010 (red)`) and centre in world metres. It is the headless answer to "where are the boxes", which is what you
-need to place a `count` zone or a `passed` gate; `--json` carries it as `cargo` per test.
+(`#e01010 (red)`), centre in world metres and tilt from upright in whole degrees. It is the headless answer to "where
+are the boxes", which is what you need to place a `count` zone or a `passed` gate, and close-together times follow a
+box that tips or falls. `--json` carries it as `cargo` per test, and the agent's `run_test` takes the same times as
+`cargo` (core/project/projectProbe.ts `CargoSnapshots` serves both).
 
 **Why a check failed is printed with it.** A failed check says what was wrong; the cause is in the other tags
 just before (a stop went on, an eye saw a box). The run is deterministic, so a failed test is run a second time

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CARGO_KIND_BOX, CARGO_KIND_PALLET } from '../frame'
 import type { BoxFrame } from '../frame'
 import { quatFromYXZ } from '../math'
-import { cargoColorName, cargoRows, ProbeSampler } from './projectProbe'
+import { CargoSnapshots, cargoColorName, cargoRows, ProbeSampler } from './projectProbe'
 import { operandProbeKey, probeKey } from './projectTest'
 import type { TestCheck } from './projectTest'
 
@@ -235,12 +235,29 @@ describe('ProbeSampler - a probe on the right-hand side of a predicate', () => {
 })
 
 describe('cargoRows', () => {
-  it('lists each body: id, part, kind, tint and its name, centre to the millimetre', () => {
+  it('lists each body: id, part, kind, tint and its name, centre to the millimetre, tilt', () => {
     const rows = cargoRows(frame([{ id: 7, part: 'p1', pos: [1.23456, 1, -0.5], color: RED, kind: CARGO_KIND_PALLET }, { id: 8, pos: [0, 0, 0], color: [1, 1, 1] }]))
     expect(rows).toEqual([
-      { id: 7, part: 'p1', kind: 'pallet', color: '#e01010', colorName: 'red', pos: [1.235, 1, -0.5] },
-      { id: 8, part: null, kind: 'box', color: '#ffffff', pos: [0, 0, 0] },
+      { id: 7, part: 'p1', kind: 'pallet', color: '#e01010', colorName: 'red', pos: [1.235, 1, -0.5], tiltDeg: 0 },
+      { id: 8, part: null, kind: 'box', color: '#ffffff', pos: [0, 0, 0], tiltDeg: 0 },
     ])
+  })
+
+  it('tilt is the up axis from vertical: a yaw leaves it upright, a roll onto its side is 90', () => {
+    const rows = cargoRows(frame([{ pos: [0, 0, 0], quat: quatFromYXZ(0, 1.2, 0) }, { pos: [0, 0, 0], quat: quatFromYXZ(Math.PI / 2, 0, 0) }, { pos: [0, 0, 0], quat: quatFromYXZ(0, 0.7, Math.PI / 6) }]))
+    expect(rows.map((r) => r.tiltDeg)).toEqual([0, 90, 30])
+  })
+})
+
+describe('CargoSnapshots', () => {
+  it('keeps the rows at the first step reaching each time, in time order, and names the times the run never reached', () => {
+    const snaps = new CargoSnapshots([0.5, 0.1, 9])
+    for (const t of [0, 1 / 60, 0.1, 0.25, 0.5000001, 0.6]) snaps.onFrame(frame([{ pos: [t, 0, 0] }], { simTime: t }))
+    expect(snaps.snapshots.map((s) => [s.at, s.t, s.bodies[0]!.pos[0]])).toEqual([
+      [0.1, 0.1, 0.1],
+      [0.5, 0.5000001, 0.5],
+    ])
+    expect(snaps.missed()).toEqual([9])
   })
 })
 

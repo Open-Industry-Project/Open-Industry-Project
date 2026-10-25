@@ -716,8 +716,8 @@ export function agentGuideMarkdown(doc: GuideDoc, opts?: { measure?: MeasureExte
     '`always` + `max: 0`), one tag against another ("Sorted1 equals Lane1Out"), a window round the state you mean.',
     'An exact count at an exact time breaks the moment an unrelated change moves the boxes by a tenth of a second.',
     tools
-      ? '`get_cargo` during a live `run` lists where every box is. A `passed` gate counts only from the moment some box enters it, so "nothing ever gets here" is `count` + `always` + `max: 0` instead.'
-      : '`npm run test-project -- <folder> --cargo 5,10` lists where every box is at those times.',
+      ? '`run_test` with `cargo: [5, 10]` lists where every box is at those sim times, and how far it is tilted, the same on every run: use it to follow a box that tips or falls. `get_cargo` during a live `run` shows the boxes now, at wall-clock pace. A `passed` gate counts only from the moment some box enters it, so "nothing ever gets here" is `count` + `always` + `max: 0` instead.'
+      : '`npm run test-project -- <folder> --cargo 5,10` lists where every box is at those times, and how far it is tilted.',
     '',
     'Optional: `scanMs` (the PLC scan period).',
     '',

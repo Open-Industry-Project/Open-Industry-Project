@@ -91,7 +91,7 @@ try {
   await declareBuiltIns(vite)
   const { folderFilesToProject } = await vite.ssrLoadModule('/src/core/project/projectFolder.ts')
   const { validateTestSpec, TraceRecorder, formatTrace } = await vite.ssrLoadModule('/src/core/project/projectTest.ts')
-  const { cargoRows } = await vite.ssrLoadModule('/src/core/project/projectProbe.ts')
+  const { CargoSnapshots } = await vite.ssrLoadModule('/src/core/project/projectProbe.ts')
   const { runProjectTest } = await vite.ssrLoadModule('/src/editor/project/projectTestRunner.ts')
   const { formatFlowFact, summarizeFlowFacts } = await vite.ssrLoadModule('/src/core/flow/flowFacts.ts')
   const { validatePart, formatPartDiagnostics } = await vite.ssrLoadModule('/src/sim/validatePart.ts')
@@ -162,13 +162,8 @@ try {
     let result
     const trace = traceTags !== null ? new TraceRecorder(traceTags) : null
     // --cargo: the live cargo at the first step reaching each asked-for time
-    const cargo = []
-    const pending = cargoTimes ? [...cargoTimes] : []
-    const onFrame = cargoTimes
-      ? (frame) => {
-          while (pending.length > 0 && frame.simTime + 1e-9 >= pending[0]) cargo.push({ at: pending.shift(), t: frame.simTime, bodies: cargoRows(frame) })
-        }
-      : undefined
+    const snaps = cargoTimes ? new CargoSnapshots(cargoTimes) : null
+    const onFrame = snaps?.onFrame
     try {
       result = runProjectTest(Jolt, project, spec, { ...(trace ? { trace } : {}), ...(onFrame ? { onFrame } : {}) })
     } catch (e) {
@@ -213,7 +208,7 @@ try {
       facts: result.facts,
       ...(result.factsOverflow > 0 ? { factsOverflow: result.factsOverflow } : {}),
       ...(trace ? { trace: trace.result() } : {}),
-      ...(cargoTimes ? { cargo } : {}),
+      ...(snaps ? { cargo: snaps.snapshots } : {}),
     })
     if (!result.ok) failures++
     if (json) continue
@@ -259,14 +254,14 @@ try {
         if (missing.length > 0) console.log(`      never published: ${missing.join(', ')}`)
       }
     }
-    if (cargoTimes) {
-      for (const snap of cargo) {
-        console.log(`    cargo at t=${snap.t.toFixed(3)}s (${snap.bodies.length} bod${snap.bodies.length === 1 ? 'y' : 'ies'}): id  part  kind  colour  [x, y, z]`)
+    if (snaps) {
+      for (const snap of snaps.snapshots) {
+        console.log(`    cargo at t=${snap.t.toFixed(3)}s (${snap.bodies.length} bod${snap.bodies.length === 1 ? 'y' : 'ies'}): id  part  kind  colour  [x, y, z]  tilt`)
         for (const b of snap.bodies) {
-          console.log(`        ${b.id}  ${b.part ?? '-'}  ${b.kind}  ${b.color}${b.colorName ? ` (${b.colorName})` : ''}  [${b.pos.join(', ')}]`)
+          console.log(`        ${b.id}  ${b.part ?? '-'}  ${b.kind}  ${b.color}${b.colorName ? ` (${b.colorName})` : ''}  [${b.pos.join(', ')}]  ${b.tiltDeg}°`)
         }
       }
-      const missed = pending.filter((t) => t > spec.duration)
+      const missed = snaps.missed()
       if (missed.length > 0) console.log(`    cargo: the run ended (${spec.duration}s) before t=${missed.join(', ')}`)
     }
   }
