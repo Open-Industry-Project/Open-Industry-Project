@@ -1207,6 +1207,23 @@ describe('EditorStore', () => {
     expect(store.getState().scene.parts).toHaveLength(1)
   })
 
+  it('embeds the package of a pasted part the scene does not carry yet', () => {
+    // the clipboard outlives the project it was copied from: the destination scene has never held this part
+    registerPackage(pkg('paste.belt', 'definePart({ step() {} })'))
+    try {
+      const from = new EditorStore(scene({ ...part('pt_1'), packageId: 'paste.belt' } as PartInstance))
+      from.select('pt_1')
+      from.copySelection()
+      const to = new EditorStore(scene())
+      to.paste()
+      expect(to.getState().scene.packages?.map((p) => p.id)).toEqual(['paste.belt'])
+      to.paste() // a second paste embeds nothing twice
+      expect(to.getState().scene.packages?.map((p) => p.id)).toEqual(['paste.belt'])
+    } finally {
+      unregisterPackage('paste.belt')
+    }
+  })
+
   it('pastes without a nudge when the source position is free', () => {
     const store = new EditorStore(scene(part('rc_1', 3)))
     store.select('rc_1')

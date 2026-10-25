@@ -267,7 +267,8 @@ export function createStaticBody(
   bcs.mRestitution = 0
   const body = bodyInterface.CreateBody(bcs)
   J.destroy(bcs)
-  bodyInterface.AddBody(body.GetID(), J.EActivation_DontActivate)
+  // a NULL body (the body table is full, see makeCargoBody) has no id to add; PartBodies reports it
+  if (J.getPointer(body) !== 0) bodyInterface.AddBody(body.GetID(), J.EActivation_DontActivate)
   return body
 }
 
@@ -296,7 +297,8 @@ export function createStaticBoxQuat(
   bcs.mRestitution = 0
   const body = bodyInterface.CreateBody(bcs)
   J.destroy(bcs)
-  bodyInterface.AddBody(body.GetID(), J.EActivation_DontActivate)
+  // a NULL body (the body table is full, see makeCargoBody) has no id to add; PartBodies reports it
+  if (J.getPointer(body) !== 0) bodyInterface.AddBody(body.GetID(), J.EActivation_DontActivate)
   return body
 }
 
@@ -312,7 +314,7 @@ export function createKinematicBoxQuat(J: JoltModule, bodyInterface: Jolt.BodyIn
   bcs.mRestitution = 0
   const body = bodyInterface.CreateBody(bcs)
   J.destroy(bcs)
-  bodyInterface.AddBody(body.GetID(), J.EActivation_Activate)
+  if (J.getPointer(body) !== 0) bodyInterface.AddBody(body.GetID(), J.EActivation_Activate)
   return body
 }
 

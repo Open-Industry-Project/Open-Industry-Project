@@ -15,6 +15,7 @@ export type PartDiagnosticSource =
   | 'geometry' // geometry() threw or exceeded the vertex budget (the host falls back to manifest geometry)
   | 'unknown-name' // the behavior commanded a joint/gripper/lamp/subpose name the rig doesn't declare
   | 'fit' // the part took cargo it does not physically fit (forks through a pallet face whose channels they miss)
+  | 'build' // the sim built the part without its bodies (its package never reached the sim, or the physics world is full)
 
 export interface RuntimePartDiagnostic {
   source: PartDiagnosticSource

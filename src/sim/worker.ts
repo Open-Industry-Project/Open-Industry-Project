@@ -3,7 +3,7 @@
 // First: part behaviors step in this worker, so it locks down before anything else runs (core/lockdownBoot.ts)
 import '../core/lockdownBoot'
 import { subscribePartDiagnostics } from '../core/parts/partDiagnostics'
-import { listPackages } from '../core/parts/partRegistry'
+import { clearPackages, listPackages } from '../core/parts/partRegistry'
 import { setPartCallBeacon } from '../core/parts/partScript'
 import { DEFAULT_SIM_HZ } from '../core/types'
 import type { SceneJSON } from '../core/types'
@@ -160,6 +160,9 @@ async function handle(msg: MainToWorker): Promise<void> {
       stepMsTotal = stepMsMax = stepsDone = frameMsTotal = framesDone = plcMsTotal = 0
       resetFrameWire()
       stepsRequested = 0
+      // This worker outlives its runs. A run knows only the packages its scene hands it (SimWorld registers them), so
+      // a part whose package the scene lacks fails the same way on every run, not just when no earlier run had it.
+      clearPackages()
       world = new SimWorld(jolt, msg.scene, { benchRaw, forceJsListener, perfParts, hz: msg.hz })
       liveScene = msg.scene
       // ...but don't step it yet when the caller says it has more to send. Ownership ('setDrivenTags') and

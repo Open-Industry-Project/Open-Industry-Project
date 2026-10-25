@@ -64,7 +64,7 @@ import { driveDeckEntries } from './deckDrive'
 import { SimFlowFacts } from './flowFacts'
 import { buildFrame } from './frameBuild'
 import { LAYER_MOVING, LAYER_NON_MOVING, NUM_BROAD_PHASE_LAYERS, NUM_OBJECT_LAYERS } from './layers'
-import { PartBodies } from './partBodies'
+import { BodyTableFull, PartBodies } from './partBodies'
 import { PilotCapsule } from './pilotCapsule'
 import { buildRigBodies, linkDrivenByJoint } from './rigBuild'
 import type { RigBodySink } from './rigBuild'
@@ -336,6 +336,8 @@ export class SimWorld implements SimCore<BoxFrame> {
       conveyorKeys: [],
       boxIds: [],
     }
+    // a (re)build starts this part's runtime diagnostics fresh - anything still wrong re-reports
+    clearPartDiagnostics(part.id)
     this.bodies.begin(part.id, group)
     // track any speed-bearing part's commanded speed so a spawner can interlock against it
     // ("pause when conveyor stopped"). Rewritten on every rebuild, incl. PLC speed edits.
@@ -350,6 +352,14 @@ export class SimWorld implements SimCore<BoxFrame> {
       // entry and fall through as a no-op.
       const builder = SimWorld.partBuilders.get(part.type)
       builder?.(this, part, { ctx })
+    } catch (e) {
+      if (!(e instanceof BodyTableFull)) throw e
+      this.bodies.end()
+      // take down what the part had built, then file it bodiless under the same signature: it builds again on its
+      // next edit or the next run, not on every scene update while the world stays full
+      this.destroyPart(part.id)
+      this.bodies.begin(part.id, { ...group, bodies: [], conveyorKeys: [], boxIds: [] })
+      reportPartDiagnostic({ source: 'build', partId: part.id, message: 'the physics world holds as many bodies as it can, so this part was built without collision. Stop clears the cargo that filled it.' })
     } finally {
       this.bodies.end()
     }
@@ -888,9 +898,12 @@ export class SimWorld implements SimCore<BoxFrame> {
    */
   private addSdkPart(part: SdkPart, cluster?: DeckCluster, openings?: GuardOpenings, extents?: GuardExtents, structConn?: StructureConnections, guardRun?: GuardRun): void {
     const pkg = getPackage(part.packageId)
-    if (!pkg) return
-    // a (re)build starts this part's runtime diagnostics fresh - anything still wrong re-reports
-    clearPartDiagnostics(part.id)
+    if (!pkg) {
+      // The render resolves packages on the main thread, so the part still draws. Without this report a conveyor
+      // with no package here looks normal and cargo falls through it.
+      reportPartDiagnostic({ source: 'build', partId: part.id, packageId: part.packageId, message: `the sim was not given part package "${part.packageId}", so this part has no collision or behavior` })
+      return
+    }
     if (isCargoPackage(pkg)) {
       // C-cargo: the part is dynamic cargo (a box, pallet or tote, or a rig with its own body, core/cargoBody.ts), one dynamic body through the same pipeline as the built-in
       // box/pallet (frame → instanced batch render, gizmo grab/freeze, pilot carry). No behavior attach:

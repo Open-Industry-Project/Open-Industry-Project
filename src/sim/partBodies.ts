@@ -11,6 +11,10 @@ import type { ConveyorFacets } from './conveyorFacets'
 import { bodyKey } from './worldTypes'
 import type { JoltModule, PartGroup } from './worldTypes'
 
+/** Thrown when Jolt's body table (JoltSettings.mMaxBodies) is full: CreateBody returned a NULL body without throwing.
+ *  SimWorld.buildPart catches it and tears the part down, so a part is never left half built. */
+export class BodyTableFull extends Error {}
+
 export class PartBodies {
   /** everything the sim created for each scene part, by part id; read anywhere, filed and dropped only here */
   readonly groups = new Map<string, PartGroup>()
@@ -34,6 +38,13 @@ export class PartBodies {
 
   end(): void {
     this.current = null
+  }
+
+  /** File a body under the part being built, or the ground. A NULL body is never filed or handed back: its id is
+   *  garbage, and a builder would register it with the rig driver or a behavior. */
+  private file(body: Jolt.Body): void {
+    if (this.J.getPointer(body) === 0) throw new BodyTableFull()
+    ;(this.current ? this.current.bodies : this.groundBodies).push(body)
   }
 
   /** an authored cargo body built for the part being built */
@@ -80,7 +91,7 @@ export class PartBodies {
   // arbitrarily rotated, not just yawed. Driven each step by the behavior's joint output via MoveKinematic.
   addKinematicBoxQuat(hx: number, hy: number, hz: number, pos: Vec3, quat: Quat, friction: number): Jolt.Body {
     const body = createKinematicBoxQuat(this.J, this.bodyInterface, hx, hy, hz, pos, quat, friction)
-    ;(this.current ? this.current.bodies : this.groundBodies).push(body)
+    this.file(body)
     return body
   }
 
@@ -159,7 +170,7 @@ export class PartBodies {
     friction: number,
   ): Jolt.Body {
     const body = createStaticBody(this.J, this.bodyInterface, this.axisY, shape, x, y, z, rotationY, friction)
-    ;(this.current ? this.current.bodies : this.groundBodies).push(body)
+    this.file(body)
     return body
   }
 
@@ -175,7 +186,7 @@ export class PartBodies {
     friction: number,
   ): Jolt.Body {
     const body = createStaticBoxQuat(this.J, this.bodyInterface, hx, hy, hz, x, y, z, q, friction)
-    ;(this.current ? this.current.bodies : this.groundBodies).push(body)
+    this.file(body)
     return body
   }
 

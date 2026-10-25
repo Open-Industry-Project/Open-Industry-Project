@@ -4,6 +4,7 @@
 import { isCargoPart } from '../../core/frame'
 import { subtreeIds } from '../../core/scene/hierarchy'
 import { uniqueName } from '../../core/parts/partDisplayName'
+import { getPackage } from '../../core/parts/partRegistry'
 import { idAllocator } from '../../core/scene/scene'
 import type { PartInstance, SceneJSON } from '../../core/types'
 import type { EditorStore } from './store'
@@ -76,9 +77,18 @@ export function paste(store: EditorStore, host: LiveCargoHost | null): void {
     return clone
   })
   const clones = cloneWithFreshIds(store, host, moved)
+  // the clipboard outlives the project it was copied from, so a pasted part can name a package this scene doesn't
+  // carry yet: embed it, as placement does (a scene is self-contained for the sim worker, a room and a scene file)
+  let packages = scene.packages
+  for (const c of clones) {
+    if (c.type !== 'part' || (packages ?? []).some((p) => p.id === c.packageId)) continue
+    const pkg = getPackage(c.packageId)
+    if (pkg) packages = [...(packages ?? []), pkg]
+  }
   store.commit(clones.length > 1 ? 'Paste parts' : 'Paste part', {
     ...scene,
     parts: [...scene.parts, ...clones],
+    ...(packages ? { packages } : {}),
   })
   store.setState({ selectedIds: clones.map((p) => p.id) })
 }

@@ -7,7 +7,8 @@ import { PALLET_SIZE, SCENE_VERSION, DEFAULT_SIM_HZ } from '../core/types'
 import type { BuildingPart, SdkPart, PartInstance, SceneJSON } from '../core/types'
 import type { PartAsset, PartMaterial, PartPackage, PartPackageGeometry } from '../core/parts/partPackage'
 import { createSdkPart } from '../core/scene/scene'
-import { registerPackage } from '../core/parts/partRegistry'
+import { clearPartDiagnostics, partDiagnosticsFor } from '../core/parts/partDiagnostics'
+import { registerPackage, unregisterPackage } from '../core/parts/partRegistry'
 import { buildPackage } from './buildPackage'
 import { SimWorld } from './world'
 
@@ -960,6 +961,48 @@ describe('live editing (updateScene)', () => {
     for (let i = 0; i < 30; i++) world.step()
     expect(world.frame().positions[0]!).toBeGreaterThan(before) // still conveying +x
     world.dispose()
+  })
+
+  it('a part whose package the sim was not given reports it, and builds once the package arrives', SLOW, () => {
+    // The worker knows only the packages a scene hands it. A belt pasted into a scene that never embedded its
+    // package still draws, but here it has no deck: a box spawned over it falls to the floor.
+    unregisterPackage(BELT_PKG.id)
+    clearPartDiagnostics()
+    try {
+      const world = new SimWorld(Jolt, scene(belt('b1', 0, 0.75, 0, 4, 0)))
+      expect(partDiagnosticsFor('b1').map((d) => d.source)).toEqual(['build'])
+      world.spawnBoxAt(0, 1.2, 0, 0.15, 0.2, 0.15)
+      for (let i = 0; i < 90; i++) world.step()
+      expect(world.frame().positions[1]!).toBeLessThan(0.5)
+
+      // the next push carries the package: the part rebuilds, its report clears, and the deck catches cargo
+      world.updateScene({ ...scene(belt('b1', 0, 0.75, 0, 4, 0)), packages: [BELT_PKG] })
+      expect(partDiagnosticsFor('b1')).toEqual([])
+      world.spawnBoxAt(0, 1.2, 0, 0.15, 0.2, 0.15)
+      for (let i = 0; i < 90; i++) world.step()
+      expect(world.frame().positions[4]!).toBeGreaterThan(0.85)
+      world.dispose()
+    } finally {
+      registerPackage(BELT_PKG)
+    }
+  })
+
+  it('a part added to a full physics world is built without bodies and reported, never half built', SLOW, () => {
+    const world = new SimWorld(Jolt, scene())
+    // fill Jolt's body table with cargo (nothing caps cargo: a line with no outlet piles up like this)
+    let n = 0
+    while (world.spawnBoxAt((n % 100) * 0.5, 1 + Math.floor(n / 100) * 0.5, 0, 0.1, 0.1, 0.1) >= 0) n++
+    expect(n).toBeGreaterThan(1000)
+    clearPartDiagnostics()
+    world.updateScene(scene(belt('b1', 0, 0.75, 0, 4, 0.5)))
+    expect(partDiagnosticsFor('b1').map((d) => d.source)).toEqual(['build'])
+    expect((world as unknown as { partGroups: Map<string, { bodies: unknown[] }> }).partGroups.get('b1')?.bodies).toEqual([])
+    expect(() => world.step()).not.toThrow()
+    // an unrelated edit leaves the bodiless part alone (same signature), so it does not retry on every update
+    world.updateScene(scene(belt('b1', 0, 0.75, 0, 4, 0.5)))
+    expect(partDiagnosticsFor('b1')[0]?.count).toBe(1)
+    world.dispose()
+    clearPartDiagnostics()
   })
 })
 
