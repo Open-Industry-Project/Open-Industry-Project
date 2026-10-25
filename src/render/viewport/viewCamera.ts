@@ -8,6 +8,7 @@ import { activeNav } from '../../core/navigation'
 import { partFootprint, toWorldXZ } from '../../core/parts/partGeometry'
 import type { ProjectionMode } from '../api'
 import { worldPerPixel } from './editorCamera'
+import { snapOrbitAngles, wrapAngle } from './orbitSnap'
 import { WHEEL_ZOOM, applyWheelZoom } from './wheelZoom'
 import type { Entry, FocusAnim } from './viewTypes'
 import type { RenderView } from './view'
@@ -26,6 +27,12 @@ export class CameraNavState {
   readonly orbitStartTarget = new Vector3()
   /** the corner gizmo's orbit pivot for its current drag: the same pick as an OrbitControls drag */
   gizmoPivot: Vector3 | null = null
+  /** Alt is down: an orbit snaps to the nearest 45° view (applyOrbitSnap) */
+  altHeld = false
+  // Orbit snapping for the current drag (applyOrbitSnap): the orbit's own angles, which keep taking the drag while the
+  // camera shows a snapped stop, and the angles last written to the camera, so each step's turn is the difference.
+  // null = not snapping (no Alt, or the drag hasn't turned yet).
+  orbitSnap: { theta: number; phi: number; wroteTheta: number; wrotePhi: number; snapped: boolean } | null = null
   // camera + target when an OrbitControls orbit/pan drag began, for a right-click /
   // Esc abort that snaps them back (cancel navigation)
   readonly navStartPos = new Vector3()
@@ -304,6 +311,7 @@ export function snapToAxis(view: CameraHost, dir: Vector3): void {
 /** orbit-gizmo drag start: snapshot the camera so a right-click abort can restore it */
 export function beginOrbit(view: CameraHost): void {
   view.nav.focusAnim = null
+  view.nav.orbitSnap = null
   view.nav.orbitStartPos.copy(view.camera.position)
   view.nav.orbitStartTarget.copy(view.controls.target)
   view.nav.navStartProjection = snapshotProjection(view)
@@ -353,12 +361,61 @@ export function pickOrbitPivot(view: CameraHost): Vector3 | null {
  */
 export function updateOrbitControls(view: CameraHost, update: (deltaTime?: number | null) => boolean, deltaTime?: number | null): boolean {
   const pivot = view.nav.orbitPivot
-  if (!pivot) return update(deltaTime)
+  if (!pivot) {
+    const changed = update(deltaTime)
+    return (view.nav.navigating && applyOrbitSnap(view)) || changed
+  }
   notePivotStart(view)
-  const changed = update(deltaTime)
+  // the snap turns the rig before the pivot shift, so the shift carries the snapped turn about the pivot too
+  const turned = update(deltaTime)
+  const changed = (view.nav.navigating && applyOrbitSnap(view)) || turned
   if (shiftToPivot(view, pivot)) return true
   if (!view.nav.navigating) view.nav.orbitPivot = null
   return changed
+}
+
+/**
+ * After an orbit step, with Alt held: fold the step's turn into the orbit's own angles, and put the camera at the
+ * snap stop they are near (orbitSnap.ts), or at those angles when they are near none. Reaching a straight view turns
+ * the projection auto-orthographic, as an axis click does, and turning off it reverts that (syncProjection). A
+ * drag that only pans never turns, so it never snaps. Returns whether it moved the camera.
+ */
+export function applyOrbitSnap(view: CameraHost): boolean {
+  const nav = view.nav
+  if (!nav.altHeld) {
+    nav.orbitSnap = null
+    return false
+  }
+  const target = view.controls.target
+  const sph = nav.orbitSph.setFromVector3(nav.orbitOffset.copy(view.camera.position).sub(target))
+  const s = nav.orbitSnap
+  if (!s) {
+    nav.orbitSnap = { theta: sph.theta, phi: sph.phi, wroteTheta: sph.theta, wrotePhi: sph.phi, snapped: false }
+    return false
+  }
+  const dTheta = wrapAngle(sph.theta - s.wroteTheta)
+  const dPhi = sph.phi - s.wrotePhi
+  // the pole guard (Spherical.makeSafe) nudges phi by 1e-6 at the top view; that is not a turn
+  if (Math.abs(dTheta) < 1e-5 && Math.abs(dPhi) < 1e-5) return false
+  s.theta += dTheta
+  s.phi = Math.min(Math.max(s.phi + dPhi, view.controls.minPolarAngle), view.controls.maxPolarAngle)
+  const stop = snapOrbitAngles(s.theta, s.phi, view.controls.minPolarAngle, view.controls.maxPolarAngle)
+  sph.theta = stop ? stop.theta : s.theta
+  sph.phi = stop ? stop.phi : s.phi
+  sph.makeSafe()
+  view.camera.position.copy(target).add(nav.orbitOffset.setFromSpherical(sph))
+  view.camera.lookAt(target)
+  s.wroteTheta = sph.theta
+  s.wrotePhi = sph.phi
+  s.snapped = stop !== null
+  if (stop?.axis && !view.camera.orthographic) view.applyProjection('orthographic', true)
+  return true
+}
+
+/** An OrbitControls drag ended: a snapped camera stays where it snapped, rather than drifting on the damping tail. */
+export function endOrbitSnap(view: CameraHost): void {
+  if (view.nav.orbitSnap?.snapped) (view.controls as unknown as { _sphericalDelta: Spherical })._sphericalDelta.set(0, 0, 0)
+  view.nav.orbitSnap = null
 }
 
 /** before a turn about the target: note the target and the rig's orientation (as lookAt gives it) */
@@ -444,6 +501,7 @@ export function orbitBy(view: CameraHost, dxPx: number, dyPx: number): void {
   view.nav.orbitOffset.setFromSpherical(view.nav.orbitSph)
   view.camera.position.copy(target).add(view.nav.orbitOffset)
   view.camera.lookAt(target)
+  applyOrbitSnap(view)
   if (pivot) shiftToPivot(view, pivot)
 }
 

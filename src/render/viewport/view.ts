@@ -487,6 +487,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     // without a reload. Don't also swap MIDDLE on Shift: that cancels three's swap, so Shift+middle orbits.
     window.addEventListener('keydown', this.onShiftChange)
     window.addEventListener('keyup', this.onShiftChange)
+    window.addEventListener('blur', this.onWindowBlur)
     this.renderer.domElement.addEventListener('pointerdown', this.onShiftChange)
 
     // cancel navigation: snapshot on an orbit/pan drag start so a right-click
@@ -1607,6 +1608,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.nav.navStartTarget.copy(this.controls.target)
     this.nav.navStartProjection = this.snapshotProjection()
     this.nav.orbitPivot = this.pickOrbitPivot()
+    this.nav.orbitSnap = null
     this.nav.navigating = true
     this.nav.navCancelled = false
     // a chorded right-click fires pointermove (not pointerdown); watch moves for
@@ -1624,6 +1626,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
 
   /** drag released: clear the navigation snapshot and lift any abort freeze */
   private onNavEnd = (): void => {
+    viewCamera.endOrbitSnap(this)
     this.nav.navigating = false
     this.container.removeEventListener('pointermove', this.onNavAbortMove, true)
     if (this.nav.navCancelled) {
@@ -1641,6 +1644,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
   }
 
   private onNavAbortMove = (e: PointerEvent): void => {
+    this.nav.altHeld = e.altKey // orbit snapping follows Alt pressed or released mid-drag
     if (this.nav.navigating && !this.nav.navCancelled && (e.buttons & 2) !== 0) {
       this.cancelNavigation()
     }
@@ -1911,6 +1915,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.pilot.dispose()
     window.removeEventListener('keydown', this.onShiftChange)
     window.removeEventListener('keyup', this.onShiftChange)
+    window.removeEventListener('blur', this.onWindowBlur)
     this.renderer.domElement.removeEventListener('pointerdown', this.onShiftChange)
     this.renderer.domElement.removeEventListener('wheel', this.onZoomWheel)
     this.controls.removeEventListener('start', this.onNavStart)
@@ -2301,6 +2306,12 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     // the ruler's per-axis components are revealed only while Shift is held; the per-frame
     // updateRulerLabel() reads this so the bracket appears/vanishes live (even mid-measure).
     this.overlays.rulerShift = e.shiftKey
+    this.nav.altHeld = e.altKey
+  }
+
+  // Alt+Tab away loses Alt's keyup: drop it so the next orbit doesn't snap
+  private readonly onWindowBlur = (): void => {
+    this.nav.altHeld = false
   }
 
   /** Dynamic-resolution hook: re-point the renderer + composer at a new pixel ratio, clamped to the

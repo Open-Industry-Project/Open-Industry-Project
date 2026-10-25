@@ -115,7 +115,8 @@ These use public API but lean on r186 *behavior*. Each has a canary or gate.
   notch, toward two different points), so the check after a bump is: one wheel
   notch over the demo moves the camera exactly `WHEEL_ZOOM.perNotch`, no console warning.
   `cancelNavigation` / `setCameraPose` ([viewCamera.ts](../src/render/viewport/viewCamera.ts)) also zero `_sphericalDelta` and `_panOffset` to flush the
-  damping. Gate: `e2e/verify-wheel-zoom.mjs`.
+  damping, and `endOrbitSnap` zeroes `_sphericalDelta` so an orbit released on a snapped view stays there. Gates:
+  `e2e/verify-wheel-zoom.mjs`, `e2e/verify-orbit-snap.mjs`.
 
 - **OrbitControls modifier swap + `update` override** ([view.ts](../src/render/viewport/view.ts)) - two
   behaviours of r186's OrbitControls the camera navigation (core/navigation.ts) is built on. (1) At
