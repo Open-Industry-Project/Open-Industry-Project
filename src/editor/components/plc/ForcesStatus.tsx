@@ -15,15 +15,20 @@ const M = defineMessages('plcForces', {
     one: '{count} variable is held at a forced value. Click to see it or release it',
     other: '{count} variables are held at forced values. Click to see them or release them',
   },
+  titleStopped: {
+    one: '{count} variable stays forced and is held from the first scan when you press Play. Click to see it or release it',
+    other: '{count} variables stay forced and are held from the first scan when you press Play. Click to see them or release them',
+  },
   popover: 'Forced variables',
   release: 'Release',
   releaseTitle: 'Give {name} back to the program from its next scan',
   wiredTo: 'wired to {parts}',
 })
 
-// The running program's forced variables, beside Play and Stop, while there are any: a force left on is the
-// commissioning mistake that costs the most time, since the line then runs on a value nobody is looking at. Forces are
-// set in the Watch dock (WatchPanel.tsx); this is where they stay in view and where they all go at once.
+// The program's forced variables, beside Play and Stop, while there are any, running or stopped: a force left on is
+// the commissioning mistake that costs the most time, since the line then runs on a value nobody is looking at, and a
+// force stays through Stop into the next run. Forces are set in the Watch dock (WatchPanel.tsx); this is where they
+// stay in view and where they all go at once.
 
 export function ForcesStatus({ controller, state }: { controller: EditorController; state: EditorState }): ReactElement | null {
   const forces = usePlcForces(controller)
@@ -47,7 +52,7 @@ export function ForcesStatus({ controller, state }: { controller: EditorControll
         data-testid="plc-forces-status"
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={t(M.title, { count: names.length })}
+        title={t(state.running ? M.title : M.titleStopped, { count: names.length })}
         onClick={() => setOpen((v) => !v)}
       >
         <span className="plc-link-dot forced" aria-hidden="true" />

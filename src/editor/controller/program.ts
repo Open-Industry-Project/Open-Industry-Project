@@ -124,10 +124,16 @@ export function runProgram(
     (p) => `${p.severity === 'error' ? 'Wiring error' : 'Wiring'} - ${p.tag}: ${p.message}`,
   )
   shipDriven(p, ec.sim, link.outputs)
-  // A force names a variable of the program it was set on. A reload keeps the ones this program still has with the
-  // same kind of value, and drops the rest, so nothing reports a force that holds nothing (or holds the wrong type).
-  const kept = keptForces(ec.sim.forces, link.watch)
-  if (kept !== ec.sim.forces) setForces(p, ec.sim, kept)
+  // A force names a variable of the program it was set on, and outlives Stop. An attach keeps the ones this program
+  // still has with the same kind of value, and drops the rest, so nothing reports a force that holds nothing (or holds
+  // the wrong type). The ones still held show on the toolbar's count; a dropped one gets a notice, since it would
+  // otherwise vanish from there unexplained.
+  const before = ec.sim.forces
+  const kept = keptForces(before, link.watch)
+  if (kept !== before) {
+    setForces(p, ec.sim, kept)
+    announceDroppedForces(ec.store, Object.keys(before).filter((k) => !(k in kept)))
+  }
   // hand the program to the worker's scan host; the validation compile's initial variable image seeds
   // the watch table until the first frame carries live state
   ec.sim.runProgram(source, opts?.periodSec, wired)
@@ -254,9 +260,7 @@ export function syncScanPeriod(p: ProgramState, ec: Pick<EditorController, 'stor
 }
 
 export function stopProgram(p: ProgramState, ec: ProgramDeps): void {
-  // a force holds a variable of this program, so it goes with it. Unconditional: Stop has already emptied the
-  // client's table (SimClient.stop), and what shows the forces still has to hear it
-  setForces(p, ec.sim, {})
+  // the forces stay (SimClient.forces): the next attach checks them against its program (runProgram)
   p.plcAttached = false
   p.attached = null
   p.runningSource = null
@@ -304,6 +308,18 @@ function writeOrHold({ ec, p }: PlcWriteDeps, key: string, value: number | boole
     return
   }
   ec.sim.forceTag(key, value)
+}
+
+/** Variable names for a notice: the first few, then how many more. */
+function nameList(names: readonly string[]): string {
+  const shown = names.slice(0, 4).join(', ')
+  return names.length > 4 ? `${shown} and ${names.length - 4} more` : shown
+}
+
+/** Tell the user which forces an attach released because its program no longer has that variable (or not as that type). */
+export function announceDroppedForces(store: Pick<ProgramDeps['store'], 'showSaveNotice'>, dropped: readonly string[]): void {
+  if (dropped.length === 0) return
+  store.showSaveNotice('Forces released', `Released ${nameList(dropped)}: the program no longer has ${dropped.length === 1 ? 'that variable' : 'those variables'} with the same type.`)
 }
 
 /** `forces` without the ones `watch` (a program's variable image) has no value of the same kind for; the same object

@@ -180,9 +180,11 @@ reads a *frozen* copy of its inputs and writes its outputs once at the end. Two 
   agent has `force_tag` / `release_forces`. It shows in the warning colour wherever the variable or its part appears:
   the Watch dock, the rungs (an F beside the operand), the Inspector field, the Scene tree and Devices list rows, and
   the toolbar's count, which lists them with the parts they reach and releases them. A write to a forced variable
-  changes the held value. The shared reading of it is `editor/program/plcForces.ts`. Forces belong to
-  the run (`SimClient.forces`, resent with every attach): never saved, never an undo step, and Stop or the program
-  detaching releases them all. Gated by `e2e/verify-plc-force.mjs`.
+  changes the held value. The shared reading of it is `editor/program/plcForces.ts`. A force stays until
+  released, as on a controller: through Stop, a fault or a reload, and into the next run from its first scan
+  (`SimClient.forces`, resent with every attach). An attach drops a force whose variable its program no longer has
+  with the same type and names it in a notice; the ones still held show on the toolbar's count. Loading another scene
+  releases them all. Never saved, never an undo step. Gated by `e2e/verify-plc-force.mjs`.
 - **Tasks.** A program that declares a `CONFIGURATION` brings its own tasks (`CompiledProgram.tasks`), and the
   scheduler keeps one accumulator per task instead of one for the program: each task comes due when its
   `INTERVAL` of sim time has elapsed, the scans a step makes due run in the order they came due, tasks due

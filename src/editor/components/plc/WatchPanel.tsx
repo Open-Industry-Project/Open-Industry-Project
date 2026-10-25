@@ -46,7 +46,7 @@ const M = defineMessages('plcWatch', {
   force: 'Force',
   forceTitle: 'Hold {name} at its value until released. The program reads it and the parts see it, whatever the program writes',
   forceBoolTitle: 'Hold {name} at its value until released, then click the value to hold the opposite. The program reads it and the parts see it, whatever the program writes',
-  forceStoppedTitle: 'Press Play to force a value: a force holds a variable of the running program until released',
+  forceStoppedTitle: 'Press Play to force a value: a force holds a variable of the program until released, through Stop and the next Play',
   release: 'Release',
   releaseTitle: 'Give {name} back to the program from its next scan',
   setLabel: 'New value for {name}',
@@ -227,7 +227,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
   }, [controller])
   const live = attached && state.running
 
-  // the held forces: set and released here, from the toolbar's count, or by Stop
+  // the held forces: set and released here or from the toolbar's count; they stay through Stop
   const forces = usePlcForces(controller)
 
   const [image, setImage] = useState<Readonly<Record<string, TagValue>> | null>(null)

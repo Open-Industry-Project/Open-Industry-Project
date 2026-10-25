@@ -1,6 +1,7 @@
 // Forcing, in the browser: the Watch dock's Force holds a variable across scans against the program that writes it, a
-// write to a forced variable changes the held value, the toolbar counts the forces and releases them, and Stop ends
-// them (EditorController.forcePlcValue, plc/link/plcLink.ts setForces, components/plc/ForcesStatus.tsx). Then the
+// write to a forced variable changes the held value, the toolbar counts the forces and releases them, a force stays
+// through Stop and holds from the next run's first scan, a reload drops one its program no longer has, and a scene load
+// releases them all (EditorController.forcePlcValue, plc/link/plcLink.ts setForces, components/plc/ForcesStatus.tsx). Then the
 // other two places a force shows or is set: the rungs mark a forced contact, and a device's tags (the PLC panel's
 // Devices list) force and release the variable a field names.
 //
@@ -23,12 +24,22 @@ function check(name, ok, info = '') {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? `  (${info})` : ''}`)
 }
 
-// the program writes both variables every scan, so only a force can hold either
+// the program writes both variables every scan, so only a force can hold either. Seen latches when a scan starts with
+// Go TRUE, which an unforced run does from its second scan: it stays FALSE only if a force held Go from the first.
 const PROGRAM = `VAR
   Go : BOOL;
   Count : INT;
+  Seen : BOOL;
 END_VAR
+IF Go THEN Seen := TRUE; END_IF
 Go := TRUE;
+Count := Count + 1;
+`
+
+// PROGRAM without Go: a reload of it has to drop a force on Go
+const PROGRAM_NO_GO = `VAR
+  Count : INT;
+END_VAR
 Count := Count + 1;
 `
 
@@ -148,14 +159,43 @@ async function main() {
     check('...and no row is marked forced', !(await forcedMark(page, 'Go')) && !(await forcedMark(page, 'Count')))
     check('...nor the part in the Scene tree', !(await treeForced('belt')))
 
-    // Stop ends a force
-    await click(page, `${row('Go')} [data-testid="plc-watch-force"]`)
+    // A force stays through Stop, and the next run holds it from its first scan
+    await page.evaluate(() => window.__oip.controller.forcePlcValue('Go', 'false'))
     await page.waitForTimeout(200)
     check('forced again before Stop', (await toolbarCount(page)) === '1 forced', await toolbarCount(page))
     await page.evaluate(() => window.__oip.controller.stop())
     await page.waitForTimeout(400)
-    check('Stop releases every force, and the count goes', JSON.stringify(await forces(page)) === '{}' && (await toolbarCount(page)) === null, `${JSON.stringify(await forces(page))} ${await toolbarCount(page)}`)
+    check('Stop keeps the force, and the count stays', JSON.stringify(await forces(page)) === '{"Go":false}' && (await toolbarCount(page)) === '1 forced', `${JSON.stringify(await forces(page))} ${await toolbarCount(page)}`)
     check('none of it was an edit of the project', (await edits(page)) === editsBefore, `${editsBefore} -> ${await edits(page)}`)
+    await page.evaluate(() => window.__oip.controller.run())
+    const rerun = await page
+      .waitForFunction(() => (window.__oip.controller.sim.plcState?.watch?.Count ?? 0) > 20, null, { timeout: 90000 })
+      .then(() => page.evaluate(() => ({ ...window.__oip.controller.sim.plcState.watch })), () => null)
+    check('the next run holds Go FALSE', rerun?.Go === false, JSON.stringify(rerun))
+    check('...from its first scan: no scan started with Go TRUE', rerun?.Seen === false, JSON.stringify(rerun))
+    check('...shown by the toolbar count, with no notice over the work', (await toolbarCount(page)) === '1 forced' && (await page.locator('[data-testid="save-notice"]').count()) === 0, await toolbarCount(page))
+
+    // A reload whose program no longer has the variable drops its force, and says so
+    await page.evaluate((src) => {
+      window.__oip.store.loadStProgram(src)
+      window.__oip.controller.reloadProgram()
+    }, PROGRAM_NO_GO)
+    await page.waitForTimeout(400)
+    check('a reload drops a force its program no longer has', JSON.stringify(await forces(page)) === '{}' && (await toolbarCount(page)) === null, JSON.stringify(await forces(page)))
+    const dropNotice = await page.evaluate(() => document.querySelector('[data-testid="save-notice"]')?.textContent ?? '')
+    check('...and says which', /Forces released/.test(dropNotice) && /Go/.test(dropNotice), dropNotice)
+
+    // Loading a scene releases every force: another project's program can reuse the name
+    await page.evaluate(() => window.__oip.controller.forcePlcValue('Count', '5'))
+    await page.waitForTimeout(200)
+    await page.evaluate(() => window.__oip.controller.stop())
+    check('forced before the scene load', JSON.stringify(await forces(page)) === '{"Count":5}', JSON.stringify(await forces(page)))
+    await page.evaluate(() => {
+      const st = window.__oip.store
+      st.loadScene({ ...st.getState().scene })
+    })
+    await page.waitForTimeout(200)
+    check('loading a scene releases every force, and the count goes', JSON.stringify(await forces(page)) === '{}' && (await toolbarCount(page)) === null, `${JSON.stringify(await forces(page))} ${await toolbarCount(page)}`)
 
     // ---- the rungs mark a forced contact
     await page.evaluate((src) => {

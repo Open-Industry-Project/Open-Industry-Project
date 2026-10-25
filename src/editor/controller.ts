@@ -706,8 +706,10 @@ export class EditorController {
   /**
    * Force a variable of the running program: hold it at `text`, or at the value it has now, until released. The
    * program reads the held value and the parts see it, whatever the scene feeds or the program writes. A write
-   * ({@link writePlcValue}, {@link togglePlcBit}) to a forced variable changes the held value. Forces belong to
-   * the run: Stop, or the program detaching, releases them. The reason it was refused, or null when held.
+   * ({@link writePlcValue}, {@link togglePlcBit}) to a forced variable changes the held value. A force stays until
+   * released, through Stop and into the next run from its first scan, as on a controller; an attach drops one its
+   * program no longer has, and loading another scene drops them all. Never saved. The reason it was refused, or null
+   * when held.
    */
   forcePlcValue(key: string, text?: string): string | null {
     return programOps.forcePlcValue({ ec: this, p: this.program }, key, text)
@@ -1169,6 +1171,8 @@ export class EditorController {
     // cover is decided right after it, in the same task, before any frame paints (sceneSwapCover.ts).
     const sceneLoaded = this.store.sceneLoads !== this.prevSceneLoads
     this.prevSceneLoads = this.store.sceneLoads
+    // forces outlive Stop but not the scene: another project's program can reuse a variable name
+    if (sceneLoaded) this.releasePlcForces()
     // a definition session (Catalog ✎) swaps the document's scene for its own: the document's parts are held, not
     // disposed, while it is open, and come back on Back without a rebuild (~0.5 s on the demo scene, plus the shader
     // programs three would release and recompile). Set before the sync it governs: on at the session's opening sync,

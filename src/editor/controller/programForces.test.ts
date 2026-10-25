@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { forcePlcValue, keptForces, ProgramState, releasePlcForces, togglePlcBit, writePlcValue, type PlcWriteDeps } from './program'
+import { announceDroppedForces, forcePlcValue, keptForces, ProgramState, releasePlcForces, togglePlcBit, writePlcValue, type PlcWriteDeps } from './program'
 
 // The controller's side of forcing (controller/program.ts): what a write to a forced variable does, and which forces
 // a reloaded program keeps. The hold itself is LocalPlcLink's (plc.test.ts); the path to the worker is e2e/verify-plc-force.mjs.
@@ -62,5 +62,16 @@ describe('forcing, controller side', () => {
     expect(keptForces(forces, { Run: false, Speed: false, Status: 0 })).toEqual({ Run: true, Status: 3 })
     // nothing to drop: the same object, so the caller sends nothing
     expect(keptForces(forces, { Run: false, Speed: 1, Gone: false, Status: 0 })).toBe(forces)
+  })
+
+  it('an attach names the forces it dropped, and says nothing when it dropped none', () => {
+    const shown: { title: string; message: string }[] = []
+    const store = { showSaveNotice: (title: string, message: string) => void shown.push({ title, message }) }
+    announceDroppedForces(store, [])
+    expect(shown).toEqual([])
+    announceDroppedForces(store, ['Gone'])
+    expect(shown[0]).toEqual({ title: 'Forces released', message: 'Released Gone: the program no longer has that variable with the same type.' })
+    announceDroppedForces(store, ['A', 'B', 'C', 'D', 'E', 'F'])
+    expect(shown[1]).toEqual({ title: 'Forces released', message: 'Released A, B, C, D and 2 more: the program no longer has those variables with the same type.' })
   })
 })

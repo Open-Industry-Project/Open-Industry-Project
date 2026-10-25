@@ -370,8 +370,8 @@ export class SimClient {
 
   /**
    * Hold the running program's variables at these values until released: the whole table each time, {} to release
-   * them all. Kept here and sent again with every attach, so a program reloaded mid-run keeps them. A run's own
-   * state: Stop drops them.
+   * them all. Kept here and sent again with every attach, so a program reloaded mid-run or run again after Stop keeps
+   * them from its first scan, as a controller keeps a force until it is removed. Session state: never saved.
    */
   setForces(forces: Readonly<Record<string, number | boolean>>): void {
     this.forces = { ...forces }
@@ -443,8 +443,7 @@ export class SimClient {
     if (!this._running) return
     this._running = false
     this.runHz = null
-    this.plcState = null // the worker drops its program with the world ('stop' handler)
-    this.forces = {}
+    this.plcState = null // the worker drops its program with the world ('stop' handler); `forces` stay for the next run
     this.clock.reset()
     this.lastSent = null
     this.post({ type: 'stop' })

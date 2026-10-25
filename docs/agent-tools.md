@@ -76,7 +76,7 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `assign_io` / `get_io_list` | give wired tags I/O addresses (picked, or from a CSV I/O list) / the I/O list as CSV, which `assign_io` reads back |
 | `get_problems` | what the Problems panel reports (program, wiring, parts, layout), via `collectProblems`, plus the folder banner's text as `folderError` / `folderNote` (outside the counts), so an agent writing into the folder learns when a file it added was ignored |
 | `capture_view` | a picture of the 3D view alone, framed on parts (default: every part but the building) from a side; the user's camera is put back. Refused while the user walks the scene or is in VR, since that owns the camera. `from: 'window'` takes the whole main window as the user sees it instead (not a popped-out panel), for questions about the editor itself |
-| `run` / `stop` / `get_tags` / `set_tag` / `force_tag` / `release_forces` | operate the live sim; a force holds a variable across scans until released or Stop |
+| `run` / `stop` / `get_tags` / `set_tag` / `force_tag` / `release_forces` | operate the live sim; a force holds a variable across scans until released, through Stop into the next run |
 | `trace_tags` | the changes of some tags over a window of the live run |
 | `get_cargo` | the running sim's boxes, totes and pallets: pose, size, colour, tilt |
 | `run_test` | run a project test spec headless and deterministic, against the open scene; no spec = every kept test. `summary` counts tests and checks passed; `trace` records tags through the run (the CLI's `--trace`) |

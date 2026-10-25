@@ -705,7 +705,8 @@ const forceTag: AgentTool = {
   description:
     'Force a variable of the running PLC program: hold it at a value across scans until released, whatever the program ' +
     'writes or the parts feed (commissioning: run a conveyor by hand, block a sensor). Omit `value` to hold the value it ' +
-    'has now. Stop, or release_forces, releases it. Never written to the document.',
+    'has now. It stays until release_forces, through stop and into the next run from its first scan; opening another ' +
+    'project releases it. Never written to the document.',
   inputSchema: {
     type: 'object',
     properties: { name: { type: 'string' }, value: { type: ['boolean', 'number'] } },
