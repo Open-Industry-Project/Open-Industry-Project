@@ -112,6 +112,18 @@ async function main() {
     await new Promise((r) => setImmediate(r))
     host.drop(3, 'the editor reloaded', true)
     assert.deepEqual(await plain, { ok: false, error: 'the editor reloaded' })
+    // a navigation the page announced says why, once
+    host.serve(win, TOOLS)
+    const cut = host.call('hang', {})
+    await new Promise((r) => setImmediate(r))
+    host.leaving(3, 'the dev server reloaded the page after src/render/view.ts changed')
+    host.reloaded(3)
+    assert.match((await cut).error, /^the editor reloaded \(the dev server reloaded the page after src\/render\/view\.ts changed\); call again/)
+    host.serve(win, TOOLS)
+    const next1 = host.call('hang', {})
+    await new Promise((r) => setImmediate(r))
+    host.reloaded(3)
+    assert.match((await next1).error, /^the editor reloaded; call again/, 'the reason is not reused for the next reload')
     // nextServe waits for the next announcement, not the one already there
     host.serve(win, TOOLS)
     assert.equal(await host.nextServe(30), false, 'tools already served are not a new announcement')

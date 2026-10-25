@@ -261,6 +261,9 @@ contextBridge.exposeInMainWorld('oipAgent', {
   },
   /** @param {number} id @param {{ok: true, text: string, images?: Array<{data: string, mimeType: string}>} | {ok: false, error: string}} reply */
   reply: (id, reply) => ipcRenderer.send('agent:result', { id, reply }),
+  /** the page is about to reload for a reason main cannot see (the dev server); said to an agent whose call it cuts off
+   *  @param {string} why */
+  leaving: (why) => ipcRenderer.send('agent:leaving', String(why)),
   /** capture_view: this window's pixels inside `rect` (CSS px). @returns {Promise<{data: string, mimeType: string} | null>} */
   capture: (rect) => ipcRenderer.invoke('agent:capture', rect),
   /** import_model: a .glb / .step / .stp file's bytes by absolute path. @returns {Promise<{name: string, bytes: Uint8Array} | {error: string}>} */

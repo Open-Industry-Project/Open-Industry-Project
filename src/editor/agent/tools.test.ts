@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AGENT_TOOLS, agentToolDefinitions, callAgentTool, type AgentController, type AgentToolContext } from './tools'
+import { AGENT_TOOLS, agentResultText, agentToolDefinitions, callAgentTool, type AgentController, type AgentToolContext } from './tools'
 import { EditorStore } from '../store/store'
 import { registerPackage, unregisterPackage } from '../../core/parts/partRegistry'
 import type { PartPackage } from '../../core/parts/partPackage'
@@ -175,6 +175,35 @@ describe('agent tools: authoring is ordinary editing', () => {
     expect(pkg.params.speed).toMatchObject({ min: 0, max: 3, unit: 'm/s' })
     expect('secret' in pkg.params).toBe(false)
     expect(await refused(c, 'get_package', { id: 'agent.nope' })).toMatch(/no package/)
+  })
+
+  it('get_scene caps a large scene, counts it by package, and narrows by package, box and parent', async () => {
+    const c = ctx()
+    const belts = Array.from({ length: 250 }, (_, i) => ({ id: `b${i}`, type: 'part', packageId: BELT.id, position: [i, 0, 0], rotationY: 0, params: {}, ...(i < 3 ? { parent: 'g' } : {}) }) as SdkPart)
+    const group = { id: 'g', type: 'group', position: [0, 0, 0], rotationY: 0, params: {} }
+    c.store.loadScene({ ...c.store.getState().scene, parts: [group, ...belts] as SdkPart[] }, { persist: false })
+    type Listed = { parts: { id: string }[]; omitted?: number; byPackage?: Record<string, number>; sceneParts?: number }
+    const all = (await ok(c, 'get_scene')) as Listed
+    expect(all.parts).toHaveLength(200)
+    expect(all.omitted).toBe(51)
+    expect(all.byPackage).toEqual({ group: 1, 'agent.belt': 250 })
+    const groups = (await ok(c, 'get_scene', { package: 'group' })) as Listed
+    expect(groups).toMatchObject({ parts: [{ id: 'g' }], sceneParts: 251 })
+    expect('omitted' in groups).toBe(false)
+    const boxed = (await ok(c, 'get_scene', { package: BELT.id, within: { min: [9.5, -1, -1], max: [12.5, 1, 1] } })) as Listed
+    expect(boxed.parts.map((p) => p.id)).toEqual(['b10', 'b11', 'b12'])
+    expect(((await ok(c, 'get_scene', { parent: 'g' })) as Listed).parts.map((p) => p.id)).toEqual(['b0', 'b1', 'b2'])
+    expect(await refused(c, 'get_scene', { within: { min: [0, 0, 0] } })).toMatch(/needs min and max/)
+  })
+
+  it('a result is indented JSON with each array of plain values on one line', () => {
+    const value = { parts: [{ id: 'a', position: [1, 2.5, -3], tags: ['x, y', 'z'] }], empty: [], nested: [[1, 2]], bracketed: ['[z]'] }
+    const text = agentResultText(value)
+    expect(text).toContain('"position": [1, 2.5, -3]')
+    expect(text).toContain('"tags": ["x, y", "z"]')
+    // a string holding a bracket keeps its array indented, and every result still parses back to the value
+    expect(JSON.parse(text)).toEqual(value)
+    expect(agentResultText('as it is')).toBe('as it is')
   })
 
   it('keeps the whole real catalog listing small enough for one result', async () => {

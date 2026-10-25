@@ -22,7 +22,7 @@
 // Timing: the folder's fingerprint is checked once a second (cheap - sizes and dates, no contents);
 // the project is serialized only when the fingerprint moved or the app saved something since.
 
-import { AGENT_GUIDE, PROGRAM_DIR, PROGRAM_FILE, PROJECT_MANIFEST, folderFilesToProject, projectToFolderFiles, unreferencedProjectFiles } from '../../core/project/projectFolder'
+import { AGENT_GUIDE, PROGRAM_DIR, PROGRAM_FILE, PROJECT_MANIFEST, folderFilesToProject, partFolderPaths, projectToFolderFiles, unreferencedProjectFiles } from '../../core/project/projectFolder'
 import type { ProjectFolderFile } from '../../core/project/projectFolder'
 import type { ProjectJSON } from '../../core/project/project'
 import {
@@ -114,6 +114,8 @@ let generation = 0
 let stopListening: (() => void) | null = null
 let stopArming: (() => void) | null = null
 let unloadHooked = false
+/** what the last round that loaded the folder took in, for sync_folder's answer (agent/contextTools.ts) */
+let lastLoad: FolderSyncReport | null = null
 
 const fileText = (files: readonly ProjectFolderFile[] | null, path: string): string | undefined => {
   const contents = files?.find((f) => f.path === path)?.contents
@@ -276,8 +278,10 @@ async function round(reason: 'poll' | 'write'): Promise<void> {
   if (loaded !== null) {
     const state = s.getState()
     const keep = !state.demoSession && sceneUntouched(plan.take, l.agreedManifest, fileText(after, PROJECT_MANIFEST))
+    const wasRunning = state.running
     if (!keep && !state.demoSession) controller?.leaveForSceneSwap()
     s.refreshProject(loaded, { keepLiveScene: keep })
+    lastLoad = { loaded: [...plan.take], stoppedRun: wasRunning && !s.getState().running }
   }
 
   // A parts/ folder that just appeared (the first authored part, from either side) has to become the
@@ -624,6 +628,40 @@ export async function syncFolderNow(): Promise<void> {
 }
 
 /**
+ * A library part's build source in the followed folder, `parts/<slug>/part.js`, as the sync last read it, or null.
+ * The app never reads a part.js (core/project/projectFolder.ts isPartSourceFile); the agent tools name it, so an
+ * agent editing such a part knows its manifest.json and behavior.js are build output.
+ */
+export function partSourceInFolder(packageId: string): { root: string; path: string; text: string } | null {
+  const l = link
+  const s = store
+  if (!l || !s || !l.theirs) return null
+  const dir = partFolderPaths(s.snapshotProject().packages ?? []).get(packageId)
+  const text = dir === undefined ? undefined : fileText(l.theirs, `${dir}/part.js`)
+  return text === undefined ? null : { root: l.root, path: `${dir}/part.js`, text }
+}
+
+/** What one {@link syncFolderAndReport} round did. */
+export interface FolderSyncReport {
+  /** the folder's files the round loaded into the app (empty: nothing had changed there) */
+  loaded: string[]
+  /** loading them stopped the run: a change to the scene, the program or a part rebuilds the scene */
+  stoppedRun: boolean
+}
+
+/**
+ * Run a round now and say what it loaded: an agent that wrote files in the folder learns when they are in the
+ * app, rather than guessing at the once-a-second poll. Null when no folder is followed.
+ */
+export async function syncFolderAndReport(): Promise<FolderSyncReport | null> {
+  if (running) await running
+  if (!link) return null
+  lastLoad = null
+  await syncFolderNow()
+  return lastLoad ?? { loaded: [], stoppedRun: false }
+}
+
+/**
  * Settle a conflict: 'disk' keeps the folder's version of every conflicted file (the app loads it),
  * 'mine' keeps the app's (it is written, guarded against the folder version the user was shown). The
  * folder is read again first, so "keep mine" replaces what is there at that moment and nothing newer.
@@ -671,4 +709,5 @@ export function resetFolderSyncForTests(): void {
   running = null
   rerun = null
   unloadHooked = false
+  lastLoad = null
 }

@@ -138,9 +138,10 @@ const DEV_ASSET_MIME: Record<string, string> = {
 // the rest of the app keeps fast HMR. Dev-only (handleHotUpdate never runs in a build).
 const renderFullReload = {
   name: 'oip-render-full-reload',
-  handleHotUpdate({ file, server }: { file: string; server: { ws: { send: (p: { type: 'full-reload' }) => void } } }) {
+  handleHotUpdate({ file, server }: { file: string; server: { ws: { send: (p: { type: 'full-reload'; path: string; triggeredBy: string }) => void } } }) {
     if (file.replace(/\\/g, '/').includes('/src/render/')) {
-      server.ws.send({ type: 'full-reload' })
+      // triggeredBy names the file to an agent whose call the reload cut off (editor/agent/desktopAgent.ts)
+      server.ws.send({ type: 'full-reload', path: '*', triggeredBy: file })
       return [] // skip the default partial HMR - we've triggered a full reload instead
     }
   },

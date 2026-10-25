@@ -198,7 +198,7 @@ export function frameBounds(view: CameraHost, entries: readonly Entry[]): { cent
   return { center, radius }
 }
 
-export function focusOn(view: CameraHost, ids: readonly string[]): void {
+export function focusOn(view: CameraHost, ids: readonly string[], opts?: { instant?: boolean }): void {
   const entries = ids.length
     ? ids.map((id) => view.entries.get(id)).filter((e): e is Entry => e !== undefined)
     : [...view.entries.values()]
@@ -207,6 +207,11 @@ export function focusOn(view: CameraHost, ids: readonly string[]): void {
   if (dir.lengthSq() < 1e-6) dir.set(1, 1, 1)
   dir.normalize()
   const dist = Math.min(Math.max(radius * FOCUS_DISTANCE_FACTOR, FOCUS_MIN_DISTANCE), view.controls.maxDistance)
+  if (opts?.instant) {
+    const to = center.clone().addScaledVector(dir, dist)
+    setCameraPose(view, { px: to.x, py: to.y, pz: to.z, tx: center.x, ty: center.y, tz: center.z }, { instant: true })
+    return
+  }
   view.nav.orbitPivot = null
   view.nav.focusAnim = {
     t: 0,

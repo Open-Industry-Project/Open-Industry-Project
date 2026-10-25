@@ -259,6 +259,24 @@ describe('CargoSnapshots', () => {
     ])
     expect(snaps.missed()).toEqual([9])
   })
+
+  it("gives each body its velocity over the step before, and none to a body that step spawned", () => {
+    const snaps = new CargoSnapshots([0.5])
+    snaps.onFrame(frame([{ id: 1, pos: [1, 0.5, 0] }], { simTime: 0.4 }))
+    snaps.onFrame(frame([{ id: 1, pos: [1.2, 0.3, 0] }, { id: 2, pos: [0, 0, 0] }], { simTime: 0.5 }))
+    const [a, b] = snaps.snapshots[0]!.bodies
+    expect(a!.vel).toEqual([2, -2, 0])
+    expect(b!.vel).toBeUndefined()
+  })
+
+  it('asks the runner what each body touches only at a snapshot, and leaves it out when the runner cannot say', () => {
+    const snaps = new CargoSnapshots([0.2])
+    let asked = 0
+    const contacts = (): ReadonlyMap<number, readonly string[]> => (asked++, new Map([[1, ['belt', 'cargo 2']]]))
+    for (const t of [0, 0.1, 0.2, 0.3]) snaps.onFrame(frame([{ id: 1, pos: [t, 0, 0] }, { id: 2, pos: [t + 1, 0, 0] }], { simTime: t }), { contacts })
+    expect(asked).toBe(1)
+    expect(snaps.snapshots[0]!.bodies.map((b) => b.touching)).toEqual([['belt', 'cargo 2'], undefined])
+  })
 })
 
 describe('ProbeSampler - the marked filter', () => {

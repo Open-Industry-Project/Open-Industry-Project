@@ -183,11 +183,26 @@ export function cargoRows(frame: BoxFrame): CargoRow[] {
   return out
 }
 
+/** A body in a {@link CargoSnapshot}: its row, and how fast it was moving. */
+export interface CargoSnapshotRow extends CargoRow {
+  /** velocity over the step before the snapshot, m/s to the millimetre per second; absent for a body that step spawned */
+  vel?: [number, number, number]
+  /** what its body had a contact with in that step: scene part ids, `cargo <id>`, `floor` (absent when the runner
+   *  cannot say) */
+  touching?: string[]
+}
+
+/** What a runner can tell {@link CargoSnapshots} beyond the frame, asked for only when a snapshot is taken. */
+export interface FrameExtras {
+  /** by frame id, what each cargo body touched in the step (sim/cargoContacts.ts) */
+  contacts?: () => ReadonlyMap<number, readonly string[]>
+}
+
 /** The live cargo at one asked-for time: `at` is the time asked for, `t` the first step that reached it. */
 export interface CargoSnapshot {
   at: number
   t: number
-  bodies: CargoRow[]
+  bodies: CargoSnapshotRow[]
 }
 
 /** Where the cargo is at chosen sim times of a test run (`test-project --cargo`, run_test's `cargo`). Hand
@@ -195,15 +210,40 @@ export interface CargoSnapshot {
 export class CargoSnapshots {
   readonly snapshots: CargoSnapshot[] = []
   private readonly pending: number[]
+  // the previous step's centres by body id, for each snapshot's velocities (a launched or teleported box shows as a
+  // speed no conveyor gives)
+  private prev = new Map<number, [number, number, number]>()
+  private prevT = 0
 
   constructor(times: readonly number[]) {
     this.pending = [...times].sort((a, b) => a - b)
   }
 
-  readonly onFrame = (frame: Readonly<BoxFrame>): void => {
+  readonly onFrame = (frame: Readonly<BoxFrame>, extras?: FrameExtras): void => {
+    if (this.pending.length === 0) return
     while (this.pending.length > 0 && frame.simTime + 1e-9 >= this.pending[0]!) {
-      this.snapshots.push({ at: this.pending.shift()!, t: frame.simTime, bodies: cargoRows(frame) })
+      const contacts = extras?.contacts?.()
+      const bodies = this.rowsWithVelocity(frame).map((row) => {
+        const touching = contacts?.get(row.id)
+        return touching ? { ...row, touching: [...touching] } : row
+      })
+      this.snapshots.push({ at: this.pending.shift()!, t: frame.simTime, bodies })
     }
+    const prev = new Map<number, [number, number, number]>()
+    for (let i = 0; i < frame.count; i++) prev.set(frame.ids[i]!, [frame.positions[i * 3]!, frame.positions[i * 3 + 1]!, frame.positions[i * 3 + 2]!])
+    this.prev = prev
+    this.prevT = frame.simTime
+  }
+
+  private rowsWithVelocity(frame: Readonly<BoxFrame>): CargoSnapshotRow[] {
+    const dt = frame.simTime - this.prevT
+    const mm = (v: number): number => Math.round(v * 1000) / 1000
+    return cargoRows(frame).map((row, i) => {
+      const was = this.prev.get(row.id)
+      if (!was || !(dt > 0)) return row
+      const at = [frame.positions[i * 3]!, frame.positions[i * 3 + 1]!, frame.positions[i * 3 + 2]!]
+      return { ...row, vel: [mm((at[0]! - was[0]) / dt), mm((at[1]! - was[1]) / dt), mm((at[2]! - was[2]) / dt)] }
+    })
   }
 
   /** the asked-for times the run ended before */

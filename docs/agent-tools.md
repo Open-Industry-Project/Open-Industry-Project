@@ -55,14 +55,15 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `open_project` / `new_project` | open a project by name or folder path / start an empty one in its own folder under the default projects folder. Either replaces the open project, which stays saved, and reloads the editor; the call answers once the reloaded editor serves its tools again |
 | `get_guide` | the project guide (`src/core/agentGuide.ts`), derived from the open document: units, tags, test format. Its tools version (`door: 'tools'`): which tool does what, where the folder's AGENTS.md names files and CLIs |
 | `get_context` | what the person is looking at (the selection, an isolated part, the PLC panel's POU, cursor line and word, the run state) and the review of the agent's edits: steps not yet answered, what they changed, and the person's last answer |
-| `get_scene` / `get_part` | the parts, their poses and wired tags / one part in full with its param declarations |
+| `sync_folder` | a folder sync round now (`projectFolderSync.ts` `syncFolderAndReport`), for an agent that also writes files in the project folder: which files loaded, whether loading them stopped the run, a conflict, or why the folder did not load |
+| `get_scene` / `get_part` | the parts, their poses and wired tags, at most 200 with `omitted` and a count by package past that, narrowed by `package`, `within` or `parent` / one part in full with its param declarations |
 | `list_catalog` | placeable packages and their params (a tag param's `dir`: `in` = the PLC drives the part) |
 | `get_package` | one catalog part in full: every param with its type, default, range, unit and, for a tag, its direction, ST type and what each value means (`values`); and its `frame` (`core/parts/partCatalog.ts`, the `catalog` CLI's): footprint, origin, conveying ends, zones, beams |
 | `add_part` / `update_part` / `delete_parts` | author the scene; params are checked against the package |
 | `snap_part` | seat a part where the editor's snap engine puts a dropped one (a sensor on a belt guard, a conveyor on another's end), fitting what the snap fits |
 | `duplicate_parts` | copy a group by an offset, renaming its tags (`core/parts/partDuplicate.ts`, the `duplicate-parts` CLI's engine) |
 | `get_part_sdk` | the part authoring guide by section, and one Part SDK declaration by name |
-| `get_part_source` | a part definition as its folder holds it: manifest, behavior script, params, footprint, which placed parts use it |
+| `get_part_source` | a part definition as its folder holds it: manifest, behavior script, params, footprint, which placed parts use it, and `partJs` (its source and build command) when the folder builds it from a `part.js` |
 | `check_part` | a draft definition checked and not kept: the manifest schema (a misspelt field the bake ignores) and the app's bake (`validatePart`) |
 | `create_part` / `edit_part_definition` | a new part in the project / a change to one, checked the same way; a change is one undo step, and changing a built-in makes the project's own version |
 | `import_model` | a .glb or STEP file on disk becomes one rig link's mesh, converted as the Inspector converts it. It measures where the model sits in the part (`core/glbBox.ts`, as `check-part` does) and says when the declared footprint is far from it |
@@ -79,8 +80,8 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `run` / `stop` / `get_tags` / `set_tag` / `force_tag` / `release_forces` | operate the live sim; a force holds a variable across scans until released, through Stop into the next run |
 | `pause` / `resume` / `step` | hold the live sim and step it on: the toolbar's Pause and Step, so the person sees it paused too. `step` takes `steps`, `seconds` or `until` (a sim time; a running sim pauses first, so it is "run to t and stop"), at most 120 s of sim time a call. The worker runs a long request over several ticks, posting a frame after each, and answers when done (`stepped` in sim/protocol.ts), so the view, `get_tags` and `get_cargo` show the moment the call returns. A resume during a step ends it with `interrupted` |
 | `trace_tags` | the changes of some tags over a window of the live run |
-| `get_cargo` | the running sim's boxes, totes and pallets: pose, size, colour, tilt. Paused, also each body's velocity (Jolt's, not a difference of frames) and what it touches, asked of the worker on the call (`inspectCargo`), since the per-frame wire carries neither |
-| `run_test` | run a project test spec headless and deterministic, against the open scene; no spec = every kept test. `summary` counts tests and checks passed; `trace` records tags through the run (the CLI's `--trace`); `cargo` lists the cargo with its tilt at chosen sim times (the CLI's `--cargo`, at most 20 times, each capped like `get_cargo`) |
+| `get_cargo` | the running sim's boxes, totes and pallets as the last frame has them: pose, size, colour, tilt. Paused, also each body's velocity (Jolt's, not a difference of frames) and what it touches, asked of the worker on the call (`inspectCargo`), since the per-frame wire carries neither. The live sim runs on wall-clock time, so the description points at `run_test` for a known sim time the same on every run |
+| `run_test` | run a project test spec headless and deterministic, against the open scene; no spec = every kept test. `summary` counts tests and checks passed; `trace` records tags through the run (the CLI's `--trace`); `cargo` lists the cargo with its tilt, velocity and what each body touches at chosen sim times (the CLI's `--cargo`, at most 20 times, each capped like `get_cargo`; velocity is over the step before, contacts are a narrow-phase query at the snapshot, `sim/cargoContacts.ts`) |
 | `save_test` / `list_tests` / `delete_test` | keep a named spec in the project (store `saveProjectTest`: project structure, so not an undo step) / list them / drop one |
 | `undo` | take back (or redo) the agent's own last step; it refuses a step that is the user's |
 
@@ -118,19 +119,31 @@ in a view-only editor. `get_context` reads the PLC panel through one slot the pa
   warns when a spec input names a program variable that is not one of the program's inputs. The runner drops such a
   value without saying so, and a live `set_tag` still reaches it, which makes the mistake hard to see.
   `verify-agent-mcp-electron.mjs` checks the warning.
+- **The folder and the tools are one project.** On the desktop the project's folder syncs both ways
+  ([projects.md](projects.md)): a tool edit is written to the folder a moment after, and a file written there loads
+  in. Loading a change to the scene, the program or a part rebuilds the scene and stops a running sim, which an
+  agent writing files learns from `sync_folder`'s `stoppedRun`. The guide says so in both its versions.
 - **Some tools need the shell.** `capture_view` and `import_model` ask the desktop shell for what a page cannot do:
   the window's pixels (`webContents.capturePage`) and a model file's bytes. The editor hands them in as
   `AgentShell` (`toolKit.ts`); without it they refuse. A result with images is an `AgentImageResult`, which the
   transport sends as a text block and one image block per image.
-- **A picture waits for the scene.** `capture_view` waits until no asset is loading and no part is held back from the
-  draw, frames, waits for the camera to settle, hides the editor around the canvas (as `e2e/_shot.mjs` does) and
-  restores everything after. The asset wait stops at 6 s, since a cold load after a project reload can outlast a
-  client's request timeout. A picture taken before loading finished says `assetsSettled: false`.
+- **A picture waits for the scene, within one deadline.** `capture_view` waits until no asset is loading and no part
+  is held back from the draw, places the camera at once (`focusOn` with `instant`), hides the editor around the canvas
+  (as `e2e/_shot.mjs` does), waits for two drawn frames and restores everything after. Every wait shares one 6 s
+  deadline, and the frames always get 2.5 s: a minimized window still draws, but about one frame a second, and an
+  eased camera or a frame wait with no deadline made a capture there take 9 s or hang. A picture taken before loading
+  finished says `assetsSettled: false`, one with parts still held back says `partsHeld: <n>`, and one taken when no
+  frame came says `viewNotDrawing`.
 - **The project tools run in main.** Opening a project reloads the editor page, so a page-side tool could not
   answer, and main owns which folders may open (the folder registry, the grants, the native dialog). Main
   (`agentProjects.cjs`) decides and grants the folder, then asks the editor on a channel of its own (`agent:shell`,
   which no MCP call can name) to open it through the same boot path as File > Open, without the person's confirm.
   A reload before the editor answers counts as its answer, and the call returns once the new page serves again.
+- **A reload says why when it can.** A call cut off by a page reload fails with "the editor reloaded; call again". In
+  the dev shell the page first reports a forced reload by the dev server (`vite:beforeFullReload`, with the file that
+  triggered it) on `agent:leaving`, and main adds it to that error. A `src/` edit made by someone else working in
+  the tree is the usual cause.
+- **A result is compact JSON.** `agentResultText` indents a result but keeps each array of plain values on one line.
 - **The tools are defined once.** A tool is a name, a description, a JSON Schema and a handler, with no MCP
   code in it. A second door (a browser panel, a CLI) renders the same `AGENT_TOOLS` list.
 

@@ -20,12 +20,16 @@ the procedure only.
 | Start from an example | `get_part_source` on the nearest built-in | `examples/parts/<name>/` |
 | Check a draft | `check_part` (keeps nothing) | `npm run check-part -- <folder>` |
 | Make it | `create_part` | write `manifest.json` + `behavior.js` in the project's `parts/<slug>/`, or one `part.js` there and `npm run build-parts -- <folder>` |
-| Change it | `edit_part_definition` (one undo step) | edit the folder (its `part.js` if it has one, then build); the desktop app's folder sync reads it back |
+| Change it | `edit_part_definition` (one undo step) | edit the folder (its `part.js` if it has one, then build); the desktop app's folder sync reads it back, and `sync_folder` says when it has (a part change stops a running sim) |
 | Bring a model | `import_model` (.glb, .step, .stp) | `npm run import-model`, `npm run inspect-glb` |
 | Look at it | `add_part`, then `capture_view` | `npm run shot-part -- <folder>` |
 | Prove it | `run_test` with a spec on a scene using it | `npm run test-project -- <project>` |
+| Tune how it moves cargo | `run_test` with `cargo: [t, ...]`: every body's position, tilt, velocity and what it touches at those sim times, the same each run | `npm run test-project -- <project> --cargo 3,4,5` |
 
-The MCP tools take a manifest object and a behavior script. They never read or write a `part.js`.
+The MCP tools take a manifest object and a behavior script. They never write a `part.js`: for a part the project
+folder builds from one, `get_part_source` returns it as `partJs` with the build command, and `edit_part_definition`
+warns that it changed only the build output. Build such a part in its own folder (`npm run build-parts --
+<project>/parts/<slug>`), not in a copy, then `sync_folder`.
 
 On the CLI side a part can be one `part.js`: a `definePart` holding `manifest`, the params, `rig(p)` computed from
 the params, `geometry()` and `step()`, importing shared modules by relative path (a project keeps them in

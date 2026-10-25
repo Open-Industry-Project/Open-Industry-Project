@@ -156,6 +156,17 @@ export function catalogPackages(store: EditorStore): PartPackage[] {
 
 export const round = (n: number): number => Math.round(n * 1000) / 1000
 
+/**
+ * A tool's result as the text the transport sends: a string as it is, anything else as indented JSON with each array
+ * of plain values on one line. Indented JSON puts every number of a position on its own line, which made a large
+ * scene's get_scene several times longer than its data.
+ */
+export function agentResultText(value: unknown): string {
+  if (typeof value === 'string') return value
+  // an array holding no object or array: JSON strings never hold a raw newline, so a newline here is layout
+  return JSON.stringify(value ?? null, null, 2).replace(/\[\n\s+([^[\]{}]*?)\n\s*\]/g, (_m, inner: string) => `[${inner.split(/,\n\s+/).join(', ')}]`)
+}
+
 export function needController(ctx: AgentToolContext): AgentController {
   if (!ctx.controller) throw new AgentToolError('the viewport is still loading; try again in a moment')
   return ctx.controller

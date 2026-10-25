@@ -151,8 +151,15 @@ describe('the honesty clauses', () => {
     expect(agentGuideMarkdown(doc(scene(TAG_SPECS, {})))).toContain('Almost nothing checks geometry')
   })
 
-  it('tells the agent the app does not write back while following the folder', () => {
-    expect(agentGuideMarkdown(doc(scene(TAG_SPECS, {})))).toContain('does not write back')
+  // an agent told it was the only writer treated the folder as the one source, never used the editing tools, and
+  // was surprised when a file load stopped its run
+  it('tells the agent the folder syncs both ways and that a load stops the run', () => {
+    for (const door of ['files', 'tools'] as const) {
+      const md = agentGuideMarkdown(doc(scene(TAG_SPECS, {})), { door })
+      expect(md).toMatch(/both ways/)
+      expect(md).toMatch(/stops a running sim/)
+      expect(md).toContain('sync_folder')
+    }
   })
 })
 

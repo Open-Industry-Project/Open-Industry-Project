@@ -42,6 +42,7 @@ import {
   AGENT_LABEL,
   AgentImageResult,
   AgentToolError,
+  agentResultText,
   assertEditable,
   catalogPackages,
   findPart,
@@ -65,9 +66,9 @@ import { installShelfPart, listShelfParts, putPartOnShelf } from './shelfTools'
 import { checkProgram, getPou, listPous, setPou, traceTags } from './programTools'
 import { CARGO_LIST_MAX, captureView, deleteTest, duplicatePartsTool, getCargo, undoTool } from './viewTools'
 import { pauseTool, resumeTool, stepTool } from './simTools'
-import { getContext } from './contextTools'
+import { getContext, syncFolder } from './contextTools'
 
-export { AGENT_LABEL, AgentImageResult, AgentToolError }
+export { AGENT_LABEL, AgentImageResult, AgentToolError, agentResultText }
 export type { AgentController, AgentImage, AgentShell, AgentTool, AgentToolContext, JsonSchema } from './toolKit'
 
 /** A param declaration as the agent needs it: type, default, range, and for a tag its direction and ST type. */
@@ -154,18 +155,49 @@ const getGuide: AgentTool = {
   },
 }
 
+/** get_scene lists at most this many parts: a large scene came to 79k characters, more than a client takes in one result */
+const SCENE_LIST_MAX = 200
+
 const getScene: AgentTool = {
   name: 'get_scene',
   description:
     'List the open scene: every part with its id, name, package, position [x,y,z] in metres (+Y up), rotationY in ' +
-    'radians, parent, and the PLC tags it is wired to. Also whether the simulation is running.',
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  run: ({ store }) => {
+    'radians, parent, and the PLC tags it is wired to. Also whether the simulation is running. A large scene lists ' +
+    `its first ${SCENE_LIST_MAX} parts, says how many it left out and counts every part by package: narrow it with ` +
+    '`package` (a package id or type), `within` (a box { min:[x,y,z], max:[x,y,z] } the part\'s origin is inside) or ' +
+    '`parent` (the children of one part).',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      package: { type: 'string', description: 'only parts of this package id (or type, for a group or a building)' },
+      within: { type: 'object', description: '{ min: [x,y,z], max: [x,y,z] } in metres' },
+      parent: { type: 'string', description: 'only the children of this part id' },
+    },
+    additionalProperties: false,
+  },
+  run: ({ store }, args) => {
     const s = store.getState()
+    const pkgWanted = optStr(args, 'package')
+    const parent = optStr(args, 'parent')
+    const within = optObj(args, 'within')
+    const min = within ? optVec3(within, 'min') : undefined
+    const max = within ? optVec3(within, 'max') : undefined
+    if (within && (!min || !max)) throw new AgentToolError("'within' needs min and max, each [x, y, z]")
+    const kindOf = (p: PartInstance): string => (p.type === 'part' ? (p as SdkPart).packageId : p.type)
+    const matched = s.scene.parts.filter(
+      (p) =>
+        (pkgWanted === undefined || kindOf(p) === pkgWanted) &&
+        (parent === undefined || p.parent === parent) &&
+        (!min || !max || p.position.every((v, k) => v >= min[k]! && v <= max[k]!)),
+    )
+    const shown = matched.slice(0, SCENE_LIST_MAX)
+    const byPackage: Record<string, number> = {}
+    if (shown.length < matched.length) for (const p of matched) byPackage[kindOf(p)] = (byPackage[kindOf(p)] ?? 0) + 1
     return {
       project: s.projectName,
       running: s.running,
-      parts: s.scene.parts.map((p) => {
+      ...(matched.length < s.scene.parts.length ? { sceneParts: s.scene.parts.length } : {}),
+      parts: shown.map((p) => {
         const pkg = p.type === 'part' ? getPackage((p as SdkPart).packageId) : undefined
         const tags = wiredTags(p, pkg)
         return {
@@ -178,6 +210,7 @@ const getScene: AgentTool = {
           ...(Object.keys(tags).length > 0 ? { tags } : {}),
         }
       }),
+      ...(shown.length < matched.length ? { omitted: matched.length - shown.length, byPackage } : {}),
     }
   },
 }
@@ -790,8 +823,11 @@ const runTest: AgentTool = {
     'runs every test the project keeps (save_test). This is how to prove a change works. The editor is busy while it runs. ' +
     "`summary` says how many tests and checks passed. `trace` records tags through the whole run (each one's value " +
     'at the start and every change with its time): how to read what a value was, or why a check failed. `cargo` ' +
-    'lists every box, tote and pallet at chosen sim times: id, part, kind, colour, centre [x,y,z] in metres and ' +
-    'tilt from upright in degrees, so a box tipping or falling can be followed step by step through the same run.',
+    'lists every box, tote and pallet at chosen sim times: id, part, kind, colour, centre [x,y,z] in metres, ' +
+    'tilt from upright in degrees, velocity `vel` [x,y,z] in m/s and what it is `touching` (part ids, `cargo <id>`, ' +
+    '`floor`), so a box tipping, falling or launched, and what pushed it, can be ' +
+    'followed step by step through the same run. Every run of a spec is the same run, so this is how to inspect the ' +
+    'cargo at a known time; the live sim (run, get_cargo) runs on wall-clock time.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -901,6 +937,7 @@ function unreachableInputs(store: EditorStore, inputs: readonly { tag: string }[
 export const AGENT_TOOLS: readonly AgentTool[] = [
   getGuide,
   getContext,
+  syncFolder,
   getScene,
   getPart,
   listCatalog,

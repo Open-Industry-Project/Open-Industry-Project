@@ -14,6 +14,7 @@ import { checkManifestAgainst, type SchemaProblem } from '../../core/manifestSch
 import { stepUpAxisGuess, type StepUpAxis } from '../../core/stepToGlb'
 import { validatePart, type PartDiagnostic } from '../../sim/validatePart'
 import { setLinkMesh } from '../controller/partAuthoring'
+import { partSourceInFolder } from '../project/projectFolderSync'
 import type { SdkPart } from '../../core/types'
 import {
   AGENT_LABEL,
@@ -172,7 +173,9 @@ export const getPartSource: AgentTool = {
   description:
     'Read a part definition the way its folder holds it: the manifest (geometry, snap, conveyor...; embedded models ' +
     'are summarized by size), the behavior script, the params the script declares, its footprint at default params, ' +
-    'whether it is a built-in, this project\'s own, or this project\'s version of a built-in, and which placed parts use it.',
+    'whether it is a built-in, this project\'s own, or this project\'s version of a built-in, and which placed parts use it. ' +
+    "When the project folder builds the part from a part.js, `partJs` holds that source and the command that builds it: " +
+    'the manifest and behavior are then its output.',
   inputSchema: {
     type: 'object',
     properties: { id: { type: 'string', description: 'package id, from list_catalog or a placed part\'s package' } },
@@ -193,8 +196,30 @@ export const getPartSource: AgentTool = {
       params: pkg.params,
       footprint: footprintOf(pkg),
       placed: s.scene.parts.filter((p) => p.type === 'part' && (p as SdkPart).packageId === pkg.id).map((p) => p.id),
+      ...partJsOf(pkg.id),
     }
   },
+}
+
+/**
+ * get_part_source's `partJs` for a part the project folder builds from a part.js: its text, and how to build it. The
+ * manifest and behavior above are then that build's output.
+ */
+function partJsOf(id: string): { partJs?: { path: string; source: string; build: string; note: string } } {
+  const src = partSourceInFolder(id)
+  if (!src) return {}
+  const dir = src.path.slice(0, -'/part.js'.length)
+  return {
+    partJs: {
+      path: src.path,
+      source: src.text,
+      build: `npm run build-parts -- "${src.root.replace(/\\/g, '/')}/${dir}"`,
+      note:
+        'this part is built from part.js: the manifest and behavior are its output. To change it, edit part.js in the ' +
+        'project folder, run the build on that folder (in an oip-web checkout), then sync_folder. edit_part_definition ' +
+        'changes the output only, and the next build refuses to overwrite it until the change is also in part.js.',
+    },
+  }
 }
 
 export const checkPart: AgentTool = {
@@ -286,7 +311,8 @@ export const editPartDefinition: AgentTool = {
     'Change a part definition: its `behavior` script and/or `manifest` fields (name, category, geometry, snap, ' +
     'conveyor, commsParam, holds, materials; a field given replaces that field whole). Checked as check_part checks ' +
     'it and refused with the problems otherwise. Every placed part of this definition follows. One undo step. ' +
-    "Changing a built-in makes this project's own version of it; other projects keep the app's.",
+    "Changing a built-in makes this project's own version of it; other projects keep the app's. A part built from a " +
+    'part.js (get_part_source says) is edited in its part.js instead: this tool changes only the build output, and says so.',
   inputSchema: {
     type: 'object',
     properties: { id: { type: 'string' }, behavior: { type: 'string' }, manifest: { type: 'object' } },
@@ -304,12 +330,20 @@ export const editPartDefinition: AgentTool = {
     ctx.store.commitPackage(`${AGENT_LABEL}: edit part ${next.name}`, next)
     const error = ctx.store.getState().packageBuildErrors[pkg.id]
     if (error) throw new AgentToolError(`the app refused the change: ${typeof error === 'string' ? error : JSON.stringify(error)}`)
+    const source = partSourceInFolder(next.id)
     return {
       id: next.id,
       params: next.params,
       footprint: footprintOf(next),
       placed: ctx.store.getState().scene.parts.filter((p) => p.type === 'part' && (p as SdkPart).packageId === next.id).length,
       ...(wasLibrary ? {} : { note: "this project now has its own version of this part" }),
+      ...(source
+        ? {
+            warning:
+              `this part is built from ${source.path}, and this edit changed only its build output (manifest.json, ` +
+              'behavior.js). Copy the change into part.js, or the next build-parts refuses to overwrite it (--force throws it away).',
+          }
+        : {}),
     }
   },
 }

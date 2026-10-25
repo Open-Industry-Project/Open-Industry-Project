@@ -18,6 +18,7 @@ import type { ProjectJSON } from '../../core/project/project'
 import type { BoxFrame } from '../../core/frame'
 import type { FlowFact } from '../../core/flow/flowFacts'
 import { cargoInZone, ProbeSampler } from '../../core/project/projectProbe'
+import type { FrameExtras } from '../../core/project/projectProbe'
 import { describeFault, faultActive, FaultInjector, probePartErrors, TestEvaluator } from '../../core/project/projectTest'
 import type { ResolvedFault, TestFault, TestResult, TestSpec, TestValue, TraceRecorder } from '../../core/project/projectTest'
 import { packageParamSpecs } from '../../core/packageParams'
@@ -179,7 +180,7 @@ export function runProjectTest(
   Jolt: JoltModule,
   project: ProjectJSON,
   spec: TestSpec,
-  opts?: { lockstep?: Lockstep; trace?: TraceRecorder; onFrame?: (frame: Readonly<BoxFrame>) => void; flowFacts?: boolean },
+  opts?: { lockstep?: Lockstep; trace?: TraceRecorder; onFrame?: (frame: Readonly<BoxFrame>, extras: FrameExtras) => void; flowFacts?: boolean },
 ): ProjectTestOutcome {
   const { scene, stProgram, controller, stScanMs, hz } = prepareScene(project)
   const badProbes = probePartErrors(scene.parts, spec.checks)
@@ -188,6 +189,8 @@ export function runProjectTest(
   // stepping at another one validates a different machine: sensors sampled coarser or finer, PLC
   // outputs landing a different number of milliseconds after the input that caused them.
   const world = new SimWorld(Jolt, scene, { hz, ...(opts?.flowFacts === false ? { flowFacts: false } : {}) })
+  // what onFrame may ask beyond the frame, each read only when asked (the cargo snapshots' contacts)
+  const frameExtras: FrameExtras = { contacts: () => world.cargoContacts() }
   // the program with the CONFIGURATION of the table it runs from, the same source the editor attaches: its own
   // table, or for a program with a PROGRAM and none, the default one at the spec's scan time (else the scene's)
   const defaultMs = spec.scanMs ?? stScanMs ?? 1000 / hz
@@ -310,7 +313,7 @@ export function runProjectTest(
         ...probes.values(frame, needsMarks ? world.cargoMarks() : undefined),
       }
       evaluator.sample(frame.simTime, sample)
-      opts?.onFrame?.(frame)
+      opts?.onFrame?.(frame, frameExtras)
       // the trace also shows each fault coming and going (`actuatorDead(m1)  FALSE -> 1.000s TRUE`), so a failure's
       // lead-up names its cause beside its effects. Trace only: no check can name a fault row
       if (opts?.trace) {

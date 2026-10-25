@@ -549,8 +549,9 @@ export interface IRenderView {
    */
   snapToAxis(dir: Vector3): void
 
-  /** animate the camera to frame these parts (F key) */
-  focusOn(ids: readonly string[]): void
+  /** animate the camera to frame these parts (F key); `instant` places it in this call (capture_view, which may
+   *  run while the window is minimized and frames come about once a second) */
+  focusOn(ids: readonly string[], opts?: { instant?: boolean }): void
 
   /** start follow mode: the camera rig tracks these parts' center as they move (double-F) */
   startFollow(ids: readonly string[]): void

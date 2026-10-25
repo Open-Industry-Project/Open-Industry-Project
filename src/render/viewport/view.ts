@@ -1569,8 +1569,8 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.handles.endDrag()
   }
 
-  focusOn(ids: readonly string[]): void {
-    viewCamera.focusOn(this, ids)
+  focusOn(ids: readonly string[], opts?: { instant?: boolean }): void {
+    viewCamera.focusOn(this, ids, opts)
   }
 
   startFollow(ids: readonly string[]): void {

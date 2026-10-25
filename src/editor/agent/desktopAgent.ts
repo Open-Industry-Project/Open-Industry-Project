@@ -34,6 +34,8 @@ interface OipAgentApi {
   serve(tools: unknown[] | null): void
   onCall(cb: (call: AgentCall) => void): () => void
   reply(id: number, reply: AgentReply): void
+  /** the page is about to reload for a reason main cannot see; main tells an agent whose call it cuts off */
+  leaving?(why: string): void
   /** main's project tools (apps/desktop/agentProjects.cjs) asking the editor to open or start a project */
   onShell?(cb: (req: ShellRequest) => void): () => void
   /** capture_view: this window's pixels inside a CSS-px rectangle */
@@ -60,11 +62,10 @@ export function connectDesktopAgent(store: EditorStore, controller: AgentControl
   let off: (() => void) | null = null
   let offShell: (() => void) | null = null
   const shell: AgentShell = { capture: api.capture, readModel: api.readModel }
-  void Promise.all([import('./tools'), import('./agentSession')]).then(([{ AgentImageResult, agentToolDefinitions, callAgentTool }, { AgentSession }]) => {
+  void Promise.all([import('./tools'), import('./agentSession')]).then(([{ AgentImageResult, agentResultText: text, agentToolDefinitions, callAgentTool }, { AgentSession }]) => {
     if (cancelled) return
     const agentSession = new AgentSession(store)
     onSession?.(agentSession)
-    const text = (value: unknown): string => (typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2))
     off = api.onCall(({ id, name, args }) => {
       void callAgentTool({ store, controller, shell, session: agentSession }, name, args).then((r) => {
         if (!r.ok) api.reply(id, r)
@@ -75,6 +76,15 @@ export function connectDesktopAgent(store: EditorStore, controller: AgentControl
     offShell = api.onShell?.((req) => void shellRequest(store, req).then((reply) => api.reply(req.id, reply))) ?? null
     api.serve(agentToolDefinitions())
   })
+  // In the dev shell the dev server reloads the page when a source file changes that hot updates cannot take (any
+  // file under src/render/, vite.config.ts oip-render-full-reload) or when it re-bundles its dependencies. An agent
+  // whose call that cut off saw only "the editor reloaded", often caused by another agent editing the tree.
+  if (import.meta.hot) {
+    import.meta.hot.on('vite:beforeFullReload', (p: { triggeredBy?: string }) => {
+      const file = p.triggeredBy?.replace(/\\/g, '/').replace(/^.*?\/((?:src|examples|packages|app|public)\/)/, '$1')
+      api.leaving?.(file ? `the dev server reloaded the page after ${file} changed` : 'the dev server reloaded the page, after re-bundling its dependencies or a restart')
+    })
+  }
   return () => {
     cancelled = true
     off?.()

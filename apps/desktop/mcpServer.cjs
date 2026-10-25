@@ -76,6 +76,23 @@ class AgentHost {
     this.waiters = new Set()
     /** nextServe's waiters: woken by a window's next announcement only */
     this.serveWaiters = new Set()
+    /** why each window said it is about to reload, for the drop its navigation causes */
+    this.leavingWhy = new Map()
+  }
+
+  /**
+   * Window `senderId` is about to reload for a reason only the page knows (the dev server forcing a full reload).
+   * Kept for {@link reloaded}, so an agent whose call the reload cut off is told why.
+   */
+  leaving(senderId, why) {
+    if (typeof why === 'string' && why !== '') this.leavingWhy.set(senderId, why.slice(0, 300))
+  }
+
+  /** Window `senderId` navigated: drop it, with the reason the page gave before it went, if it gave one. */
+  reloaded(senderId) {
+    const why = this.leavingWhy.get(senderId)
+    this.leavingWhy.delete(senderId)
+    this.drop(senderId, `the editor reloaded${why ? ` (${why})` : ''}; call again in a moment, once it serves its tools again`, true)
   }
 
   /** A window announced its tools (or withdrew them with null). */
@@ -381,7 +398,7 @@ function registerAgentHost(ipcMain, host) {
       // a reload or a closed window stops serving without saying so. did-navigate is the main frame's
       // cross-document commit only (in-page history moves are did-navigate-in-page), and it fires before the new
       // page's scripts run, so the drop cannot race the reloaded page announcing its tools again
-      wc.on('did-navigate', () => host.drop(id, 'the editor reloaded', true))
+      wc.on('did-navigate', () => host.reloaded(id))
       wc.once('destroyed', () => {
         watched.delete(id)
         host.drop(id, 'the editor window closed')
@@ -389,6 +406,7 @@ function registerAgentHost(ipcMain, host) {
     }
   })
   ipcMain.on('agent:result', (_event, msg) => host.answer(msg?.id, msg?.reply))
+  ipcMain.on('agent:leaving', (event, why) => host.leaving(event.sender.id, why))
   // capture_view: the window's pixels inside the 3D view's rectangle, as the user sees them
   ipcMain.handle('agent:capture', async (event, rect) => {
     const r = rect && typeof rect === 'object' ? rect : {}

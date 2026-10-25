@@ -39,21 +39,28 @@ const VIEW_FROM: Record<string, [number, number, number]> = {
 
 const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()))
 
-// How long capture_view waits for loading assets before it shoots anyway. whenAssetsQuiet's own cap is 30 s: after a
-// project reload a cold scene loads that long, and an MCP client gave up on the call first.
-const CAPTURE_ASSET_WAIT_MS = 6000
+// How long capture_view waits in all (loading assets, held parts, the camera) before it shoots anyway. whenAssetsQuiet's
+// own cap is 30 s: after a project reload a cold scene loads that long, and an MCP client gave up on the call first.
+// The waits share this one deadline: run one after another (6 s, 5 s, 3 s) they outlasted a client's timeout on a
+// scene with many-link parts.
+const CAPTURE_WAIT_MS = 6000
+/** the frames that draw the framed, outline-free view get this long, even when loading used up the deadline: a
+ *  minimized window draws about one frame a second */
+const FRAMES_MIN_MS = 2500
+/** frames drawn after the camera moves and the outline goes, before the shot */
+const FRAMES_BEFORE_SHOT = 2
 
-/** Wait for the camera's eased move to finish: the pose holds still for a few frames, or 3 s pass. */
-async function cameraSettled(pose: () => { px: number; py: number; pz: number; tx: number; ty: number; tz: number }): Promise<void> {
-  let prev = JSON.stringify(pose())
-  let still = 0
-  const end = performance.now() + 3000
-  while (still < 3 && performance.now() < end) {
-    await nextFrame()
-    const now = JSON.stringify(pose())
-    still = now === prev ? still + 1 : 0
-    prev = now
-  }
+/** Resolve true when `p` does, or false once `deadline` (a performance.now() time) passes. */
+function byDeadline(p: Promise<unknown>, deadline: number): Promise<boolean> {
+  return Promise.race([p.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), Math.max(0, deadline - performance.now())))])
+}
+
+/** Wait for `n` frames to be drawn, or `ms` to pass; true when they were. A minimized or hidden window draws few or
+ *  none, and a frame wait without a deadline hung the call. */
+async function framesDrawn(n: number, ms: number): Promise<boolean> {
+  const end = performance.now() + ms
+  for (let i = 0; i < n; i++) if (!(await byDeadline(nextFrame(), end))) return false
+  return true
 }
 
 /**
@@ -89,8 +96,9 @@ export const captureView: AgentTool = {
     'was built: whether parts meet, a sensor faces the belt, a model sits inside its footprint, boxes flow or pile ' +
     'up (call it while running). Frames `parts` (default: every part but the building) from `from`: iso (default), top, front ' +
     '(from +Z), back, left (from -X), right, or current (the camera as it is). The camera goes back to where the ' +
-    "user had it unless `keepCamera` is true. Returns an image; if the scene is still loading it shoots anyway and " +
-    "the result carries `assetsSettled: false`, so call it again in a moment for the settled view. `from: 'window'` instead takes the whole editor " +
+    "user had it unless `keepCamera` is true. Returns an image within about 6 s; if the scene is still loading it " +
+    'shoots anyway and the result carries `assetsSettled: false` or `partsHeld` (parts not drawn yet), so call it ' +
+    "again in a moment for the settled view. `from: 'window'` instead takes the whole editor " +
     'window as the user sees it (panels, banners, dialogs, the selection), without moving the camera: use it only ' +
     'for a question about the editor itself, since the 3D view alone shows a build better.',
   inputSchema: {
@@ -129,13 +137,9 @@ export const captureView: AgentTool = {
     let bare: ReturnType<typeof bareCanvas> = null
     // a part placed a moment ago may still be loading or held back from the draw (the canvas keeps its last
     // painted frame meanwhile), and a picture taken then shows the scene before the edit
-    const assetsSettled = assetsBusy()
-      ? await Promise.race([
-          whenAssetsQuiet().then(() => true),
-          new Promise<boolean>((r) => setTimeout(() => r(false), CAPTURE_ASSET_WAIT_MS)),
-        ])
-      : true
-    await Promise.race([view.whenPartsRevealed(), new Promise((r) => setTimeout(r, 5000))])
+    const deadline = performance.now() + CAPTURE_WAIT_MS
+    const assetsSettled = assetsBusy() ? await byDeadline(whenAssetsQuiet(), deadline) : true
+    await byDeadline(view.whenPartsRevealed(), deadline)
     try {
       if (from !== 'current') {
         // aim from the asked side at the current target, then let focusOn frame the parts along that direction
@@ -144,17 +148,17 @@ export const captureView: AgentTool = {
         const dist = Math.hypot(pose0.px - pose0.tx, pose0.py - pose0.ty, pose0.pz - pose0.tz) || 10
         view.setCameraPose({ px: pose0.tx + (dx / len) * dist, py: pose0.ty + (dy / len) * dist, pz: pose0.tz + (dz / len) * dist, tx: pose0.tx, ty: pose0.ty, tz: pose0.tz }, { instant: true })
       }
-      if (from !== 'current' || parts) {
-        view.focusOn(parts ?? [])
-        await cameraSettled(() => view.cameraPose())
-      }
+      // placed at once, not eased: an ease advances per frame, and a minimized window draws about one a second
+      if (from !== 'current' || parts) view.focusOn(parts ?? [], { instant: true })
       if (selected.length > 0) ctx.store.selectMany([])
       bare = bareCanvas()
       if (!bare) throw new AgentToolError('the 3D view is not on screen')
-      for (let i = 0; i < 3; i++) await nextFrame() // the outline-free, overlay-free frame reaches the screen
+      // the framed, outline-free, overlay-free frame reaches the screen
+      const drawn = await framesDrawn(FRAMES_BEFORE_SHOT, Math.max(FRAMES_MIN_MS, deadline - performance.now()))
       const image = await capture(bare.rect)
       if (!image) throw new AgentToolError('the window could not be captured (is it minimized?)')
       const p = view.cameraPose()
+      const held = view.heldParts()
       return new AgentImageResult(
         {
           from,
@@ -163,6 +167,10 @@ export const captureView: AgentTool = {
           running: ctx.store.getState().running,
           // the shot may show the scene part-loaded: capture again in a moment
           ...(assetsSettled ? {} : { assetsSettled: false }),
+          // parts placed or rebuilt a moment ago that the view had not drawn yet
+          ...(held > 0 ? { partsHeld: held } : {}),
+          // the window drew no new frame in time (minimized, or behind something): the picture is its last one
+          ...(drawn ? {} : { viewNotDrawing: 'the editor window drew no new frame (is it minimized?): this picture may show the view from before the camera moved' }),
         },
         [image],
       )

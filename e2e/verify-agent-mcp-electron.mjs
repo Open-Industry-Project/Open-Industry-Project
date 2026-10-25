@@ -10,12 +10,13 @@
 // wiring together, set_task retimes a task, and assign_io puts the wired tags on I/O addresses. capture_view returns
 // an image of the view through the shell and puts the camera back; get_cargo, check_part, create_part and set_pou
 // reach the live editor. new_project and open_project reload the editor and answer once it serves again; a folder
-// outside Open Recent and the projects folder asks first (the native dialog is stubbed).
+// outside Open Recent and the projects folder asks first (the native dialog is stubbed). sync_folder loads a file
+// written in the project folder and says that loading it stopped the run.
 //
 //   node e2e/verify-agent-mcp-electron.mjs
 /* global process, console, window, document, localStorage, setTimeout, URL, fetch, Buffer */
 
-import { cpSync, mkdtempSync, realpathSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
@@ -192,6 +193,10 @@ try {
   expect((await page.evaluate(() => window.__oip.store.getState().stProgram)) === PROGRAM, 'the program is in the live editor')
   const pass = await mcp.call('run_test', { spec: SPEC(boxId, true) })
   expect(pass.ok && pass.json.ok === true && !pass.json.warnings, `run_test: with Start pressed the belt runs, the eye sees the box, the belt stops and the box is AT the eye (${pass.text.slice(0, 400)})`)
+  // at t = 4 the box rides the running belt at 0.5 m/s: the snapshot gives its speed and the belt under it
+  const snap = await mcp.call('run_test', { spec: SPEC(boxId, true), cargo: [4] })
+  const rider = snap.json?.cargo?.[0]?.bodies?.find((b) => b.part === boxId)
+  expect(snap.ok && Math.abs((rider?.vel?.[0] ?? 0) - 0.5) < 0.05 && rider?.touching?.includes(belt.json?.id), `run_test's cargo snapshot gives the box's velocity and what it touches (${JSON.stringify(rider)})`)
   const kept = await mcp.call('save_test', { spec: { name: 'box stops at the eye', ...SPEC(boxId, true) } })
   expect(kept.ok && kept.json.tests.includes('box stops at the eye'), `save_test keeps it in the project (${kept.text.replace(/\s+/g, ' ').slice(0, 160)})`)
   const all = await mcp.call('run_test')
@@ -247,6 +252,15 @@ try {
   const wholeInfo = JSON.parse(whole.content?.[0]?.text ?? '{}')
   const reach = wholeInfo.camera ? Math.hypot(...wholeInfo.camera.position.map((v, i) => v - wholeInfo.camera.target[i])) : Infinity
   expect(!whole.isError && wholeInfo.framed === 'every part but the building' && reach < 20, `capture_view's default frames the parts, not the building (${wholeInfo.framed}, camera ${reach.toFixed(1)} m out)`)
+  // minimized, the window draws about one frame a second: the capture still answers at once, framed as it is shown
+  const shownTop = JSON.parse((await mcp.request('tools/call', { name: 'capture_view', arguments: { from: 'top' } })).content?.[0]?.text ?? '{}')
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize())
+  const t0 = Date.now()
+  const hidden = await mcp.request('tools/call', { name: 'capture_view', arguments: { from: 'top' } })
+  const hiddenMs = Date.now() - t0
+  const hiddenInfo = JSON.parse(hidden.content?.[0]?.text ?? '{}')
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].restore())
+  expect(!hidden.isError && hidden.content?.some((c) => c.type === 'image') && hiddenMs < 5000 && JSON.stringify(hiddenInfo.camera) === JSON.stringify(shownTop.camera), `capture_view answers with the framed view while the window is minimized (${hiddenMs} ms, ${hidden.content?.[0]?.text?.replace(/\s+/g, ' ').slice(0, 160)})`)
   const stopped = await mcp.call('stop')
   expect(stopped.ok && stopped.json.running === false, 'stop ends the run')
   const docAfter = await page.evaluate(() => JSON.stringify(window.__oip.store.getState().scene.parts))
@@ -340,6 +354,19 @@ try {
   expect(allowed.ok && (await projectName()) === 'Agent Two', `Open in that dialog opens it (${allowed.text.slice(0, 120)})`)
   const tools2 = (await mcp.request('tools/list')).tools.map((t) => t.name)
   expect(['get_scene', 'list_projects', 'open_project', 'new_project'].every((t) => tools2.includes(t)), 'the reloaded editor serves its tools again, with main\'s beside them')
+
+  // an agent that writes files in the folder: sync_folder loads them at once and says the load stopped the run
+  const programPath = 'plc/program.st'
+  const started = await mcp.call('run')
+  const manifest = JSON.parse(readFileSync(join(stranger, 'project.json'), 'utf8'))
+  mkdirSync(join(stranger, 'plc'), { recursive: true })
+  writeFileSync(join(stranger, programPath), 'VAR\n  Seen : BOOL; (* written in the folder *)\nEND_VAR\n')
+  writeFileSync(join(stranger, 'project.json'), JSON.stringify({ ...manifest, program: [programPath] }, null, 2))
+  const synced = await mcp.call('sync_folder')
+  const program = await page.evaluate(() => window.__oip.store.getState().stProgram)
+  expect(started.ok && synced.ok && synced.json.loaded?.includes(programPath) && synced.json.stoppedRun === true && program.includes('written in the folder'), `sync_folder loads a file written in the folder and says the load stopped the run (${synced.text.slice(0, 200)})`)
+  const quiet = await mcp.call('sync_folder')
+  expect(quiet.ok && quiet.json.loaded?.length === 0 && quiet.json.stoppedRun === false, `a second sync_folder loads nothing (${quiet.text.slice(0, 160)})`)
 
   expect(pageErrors.length === 0, `no page errors (${pageErrors.join(' | ')})`)
 } catch (err) {

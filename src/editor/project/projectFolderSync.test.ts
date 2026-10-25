@@ -12,7 +12,9 @@ import {
   resolveFolderConflict,
   restoreFolderSync,
   saveIntoFolder,
+  partSourceInFolder,
   saveToFolderNow,
+  syncFolderAndReport,
   syncFolderNow,
 } from './projectFolderSync'
 import type { FolderRecord, FolderRecordPatch, OipProjectApi } from '../desktop/desktopProjectApi'
@@ -23,6 +25,9 @@ import { AGENT_GUIDE, PROJECT_MANIFEST, folderFilesToProject, projectToFolderFil
 import { PROJECT_VERSION } from '../../core/project/project'
 import type { ProjectJSON } from '../../core/project/project'
 import { SCENE_VERSION } from '../../core/types'
+import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
+import { validatePartPackage } from '../../core/parts/partValidate'
+import type { PartPackage } from '../../core/parts/partPackage'
 import type { PartInstance } from '../../core/types'
 import { EditorStore } from '../store/store'
 import { CURRENT_DOC_KEY } from './documentStore'
@@ -280,6 +285,35 @@ describe('an edit made in the folder', () => {
     expect(store.canUndo).toBe(true)
     expect(store.getState().selectedIds).toEqual(['made-here'])
     expect(guard.leaveForSceneSwap).not.toHaveBeenCalled()
+  })
+
+  it('is reported to an agent that asks for a round: which files loaded, and that the load stopped the run', async () => {
+    const { store, guard } = await openedFromFolder()
+    guard.leaveForSceneSwap.mockImplementation(() => store.setRunning(false))
+    store.setRunning(true)
+    shell.put(ROOT, 'plc/program.st', RUN.replace('Run', 'Ready'))
+    expect(await syncFolderAndReport()).toEqual({ loaded: ['plc/program.st'], stoppedRun: true })
+    expect(await syncFolderAndReport()).toEqual({ loaded: [], stoppedRun: false })
+  })
+
+  it("names a library part's part.js, which it never loads, to the agent tools", async () => {
+    const pkg = {
+      format: PACKAGE_FORMAT,
+      id: 'user.pusher',
+      name: 'Pusher',
+      params: {},
+      behavior: 'definePart({ step() {} })',
+      geometry: { kind: 'rig', links: [{ name: 'body', shape: { kind: 'box', size: [1, 1, 1] }, offset: [0, 0.5, 0] }], joints: [] },
+    } as unknown as PartPackage
+    // the library drops a definition that does not validate, and a project keeps only the ones its placed parts use
+    expect(validatePartPackage(pkg)).toEqual([])
+    const placed = { id: 'p1', type: 'part', packageId: pkg.id, position: [0, 0, 0], rotationY: 0, params: {} } as PartInstance
+    await openedFromFolder({ ...lineProject(), scene: { version: SCENE_VERSION, parts: [placed] }, packages: [pkg] })
+    expect(partSourceInFolder('user.pusher')).toBeNull()
+    shell.put(ROOT, 'parts/user.pusher/part.js', 'definePart({ manifest: {} })\n')
+    await syncFolderNow()
+    expect(partSourceInFolder('user.pusher')).toEqual({ root: ROOT, path: 'parts/user.pusher/part.js', text: 'definePart({ manifest: {} })\n' })
+    expect(partSourceInFolder('user.other')).toBeNull()
   })
 
   it('carries both directions in one round when they touch different files', async () => {
