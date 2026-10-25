@@ -5,8 +5,9 @@
 > [partTools.ts](../src/editor/agent/partTools.ts), [programTools.ts](../src/editor/agent/programTools.ts) and
 > [viewTools.ts](../src/editor/agent/viewTools.ts) (part definitions; the program by POU; seeing the scene),
 > [src/editor/agent/desktopAgent.ts](../src/editor/agent/desktopAgent.ts) (serving them),
-> [apps/desktop/mcpServer.cjs](../apps/desktop/mcpServer.cjs) (the MCP transport).
-> Gates: `src/editor/agent/tools.test.ts`, `node apps/desktop/mcpServer.test.cjs`,
+> [apps/desktop/mcpServer.cjs](../apps/desktop/mcpServer.cjs) (the MCP transport),
+> [apps/desktop/agentProjects.cjs](../apps/desktop/agentProjects.cjs) (the project tools, which run in main).
+> Gates: `src/editor/agent/tools.test.ts`, `node apps/desktop/mcpServer.test.cjs`, `node apps/desktop/agentProjects.test.cjs`,
 > `node e2e/verify-agent-mcp-electron.mjs`.
 
 ## Why
@@ -50,6 +51,8 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 
 | Tool | Does |
 |---|---|
+| `list_projects` | the user's projects: the ones opened in the app (Open Recent's list), then any other project folder in the default projects folder, with the open one marked |
+| `open_project` / `new_project` | open a project by name or folder path / start an empty one in its own folder under the default projects folder. Either replaces the open project, which stays saved, and reloads the editor; the call answers once the reloaded editor serves its tools again |
 | `get_guide` | the project's AGENTS.md (`src/core/agentGuide.ts`), derived from the open document: units, tags, test format |
 | `get_context` | what the person is looking at (the selection, an isolated part, the PLC panel's POU, cursor line and word, the run state) and the review of the agent's edits: steps not yet answered, what they changed, and the person's last answer |
 | `get_scene` / `get_part` | the parts, their poses and wired tags / one part in full with its param declarations |
@@ -121,6 +124,11 @@ in a view-only editor. `get_context` reads the PLC panel through one slot the pa
 - **A picture waits for the scene.** `capture_view` waits until no asset is loading and no part is held back from the
   draw, frames, waits for the camera to settle, hides the editor around the canvas (as `e2e/_shot.mjs` does) and
   restores everything after.
+- **The project tools run in main.** Opening a project reloads the editor page, so a page-side tool could not
+  answer, and main owns which folders may open (the folder registry, the grants, the native dialog). Main
+  (`agentProjects.cjs`) decides and grants the folder, then asks the editor on a channel of its own (`agent:shell`,
+  which no MCP call can name) to open it through the same boot path as File > Open, without the person's confirm.
+  A reload before the editor answers counts as its answer, and the call returns once the new page serves again.
 - **The tools are defined once.** A tool is a name, a description, a JSON Schema and a handler, with no MCP
   code in it. A second door (a browser panel, a CLI) renders the same `AGENT_TOOLS` list.
 
@@ -135,9 +143,14 @@ A local process can connect, as it can to any loopback service, and so can anoth
 is why an installed app keeps the server off until the user allows it, rather than relying on a token. A token would
 sit in the user's own data folder, readable by anything running as the user. It would only keep out the other
 accounts, and every agent user would have to paste it into their client. Each tool call is one undoable edit, and
-nothing the tools do reaches outside the open document, with one exception: `import_model` reads a file by path. The
-shell reads only an absolute path to a .glb, .step or .stp file of at most 200 MB. The document is saved like any
-other edit, so on the desktop the edits are also written to the project's folder.
+nothing the tools do reaches outside the open document, with two exceptions:
+- `import_model` reads a file by path. The shell reads only an absolute path to a .glb, .step or .stp file of at most
+  200 MB. The document is saved like any other edit, so on the desktop the edits are also written to the project's
+  folder.
+- `open_project` opens another project, whose contents then reach the agent. A folder in Open Recent or directly
+  inside the default projects folder opens without asking, since the user opened it before or the app made it. Any
+  other folder asks the user in a native dialog first, so another account on the machine cannot read folders through
+  the app. Joining a collab room, importing a project file and connecting to a PLC stay a person's steps.
 
 ## Limits
 
@@ -147,4 +160,6 @@ other edit, so on the desktop the edits are also written to the project's folder
 - **No external PLC link.** Connecting to a real or soft PLC (OpenPLC, snap7) and reading its status is a person's
   step in the PLC panel. No tool reaches it.
 - **No ladder rungs.** A ladder POU reads and writes as our text form (`set_pou`). There is no rung-level edit.
-- **One scene.** A project holds one scene, and the tools act on it.
+- **One scene, one project at a time.** A project holds one scene, and the tools act on the open project.
+  `open_project` switches it. No tool joins a collab room or imports a project file (.oip), whose code comes from
+  someone else.

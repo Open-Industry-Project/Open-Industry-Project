@@ -89,6 +89,40 @@ async function main() {
     console.log('ok: model reads')
   }
 
+  // 1d. main's own tools: listed after the window's, run here, never forwarded; their requests to the editor go on
+  // agent:shell, and a reload before the answer reads as 'reloading'
+  {
+    const sent = []
+    const own = {
+      definition: { name: 'own', description: 'runs in main', inputSchema: { type: 'object' } },
+      run: async (h, args) => ({ ok: true, text: JSON.stringify(await h.request('openFolder', args)) }),
+    }
+    const host = new AgentHost({ readyWaitMs: 50, shellTools: [own] })
+    const win = { id: 3, isDestroyed: () => false, send: (ch, msg) => sent.push([ch, msg]) }
+    host.serve(win, TOOLS)
+    assert.deepEqual((await handleMessage(host, rpc(1, 'tools/list'))).result.tools.map((t) => t.name), ['echo', 'fail', 'own'])
+    const call = handleMessage(host, rpc(2, 'tools/call', { name: 'own', arguments: { root: '/p' } }))
+    await new Promise((r) => setImmediate(r))
+    assert.deepEqual(sent.map(([ch, m]) => [ch, m.op, m.args]), [['agent:shell', 'openFolder', { root: '/p' }]], 'a shell tool asks on agent:shell, not as a tool call')
+    host.drop(3, 'the editor reloaded', true)
+    assert.equal((await call).result.content[0].text, '{"ok":true,"text":"reloading"}', 'the page reloading answers a shell request')
+    // a plain tool call dropped by a reload still fails
+    host.serve(win, TOOLS)
+    const plain = host.call('hang', {})
+    await new Promise((r) => setImmediate(r))
+    host.drop(3, 'the editor reloaded', true)
+    assert.deepEqual(await plain, { ok: false, error: 'the editor reloaded' })
+    // nextServe waits for the next announcement, not the one already there
+    host.serve(win, TOOLS)
+    assert.equal(await host.nextServe(30), false, 'tools already served are not a new announcement')
+    const next = host.nextServe(1000)
+    host.serve(win, TOOLS)
+    assert.equal(await next, true)
+    host.serve(win, null)
+    assert.equal(await host.nextServe(30), false, 'no window came back')
+    console.log('ok: shell tools')
+  }
+
   // 2. over HTTP, with a window serving
   const host = new AgentHost({ readyWaitMs: 2000, callTimeoutMs: 300 })
   const started = await startMcpServer(host, { port: 0, version: '1.2.3' })

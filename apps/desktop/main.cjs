@@ -19,6 +19,7 @@ const { registerEipIo, shutdownEip } = require('./eipIo.cjs')
 const { registerAdsIo, shutdownAds } = require('./adsIo.cjs')
 const { registerOpcUaServer } = require('./opcUaServer.cjs')
 const { AgentHost, DEFAULT_PORT: MCP_DEFAULT_PORT, registerAgentHost, startMcpServer } = require('./mcpServer.cjs')
+const { createProjectTools } = require('./agentProjects.cjs')
 const { guardIpc, isAppUrl, isTrustedSender, navigateDisposition, openDisposition, originOf } = require('./shellTrust.cjs')
 const { APP_URL, registerScheme, serve: serveDistProtocol } = require('./distProtocol.cjs')
 const { distIsBuilt } = require('./pagesHost.cjs')
@@ -1276,7 +1277,36 @@ if (!app.requestSingleInstanceLock()) {
 // At a FIXED port, because a client is configured with the URL once. Whether it is open is the user's choice
 // (agentDoorSetting.cjs: an installed app starts shut, the development shell open; OIP_MCP=0 / OIP_MCP_PORT
 // override), made and changed in Help > Agent Connections... (manageAgentDoor) and remembered in userData.
-const agentHost = new AgentHost()
+// list_projects, open_project and new_project run here (agentProjects.cjs): main owns which folders may open
+const agentHost = new AgentHost({
+  shellTools: createProjectTools({
+    registry,
+    grants,
+    projectsRoot: defaultProjectsRoot,
+    currentRoot: () => projectRoot,
+    canonical: canonicalRoot,
+    askToOpen: askAgentOpen,
+  }),
+})
+
+// open_project on a folder outside Open Recent and the projects folder: the user says whether the agent may open it
+async function askAgentOpen(root, name) {
+  const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  if (win?.isMinimized()) win.restore()
+  win?.focus()
+  const opts = {
+    type: 'question',
+    title: 'Open Project',
+    message: `An AI agent asks to open "${name}".`,
+    detail: `${root}\n\nThis folder is not one you have opened in the app. The project you have open now stays saved.`,
+    buttons: ['Open', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  }
+  const { response } = await (win ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts))
+  return response === 0
+}
 const DOOR_SETTING_FILE = join(app.getPath('userData'), 'agent-door.json')
 const doorStart = doorAtStartup({
   env: process.env,

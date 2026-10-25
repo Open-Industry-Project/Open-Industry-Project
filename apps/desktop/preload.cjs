@@ -252,6 +252,13 @@ contextBridge.exposeInMainWorld('oipAgent', {
     ipcRenderer.on('agent:call', listener)
     return () => ipcRenderer.removeListener('agent:call', listener)
   },
+  /** main's own project tools (agentProjects.cjs) asking the editor to open or start a project; answered with reply
+   *  @param {(req: {id: number, op: string, args: unknown}) => void} cb @returns {() => void} unsubscribe */
+  onShell: (cb) => {
+    const listener = (_event, req) => cb(req)
+    ipcRenderer.on('agent:shell', listener)
+    return () => ipcRenderer.removeListener('agent:shell', listener)
+  },
   /** @param {number} id @param {{ok: true, text: string, images?: Array<{data: string, mimeType: string}>} | {ok: false, error: string}} reply */
   reply: (id, reply) => ipcRenderer.send('agent:result', { id, reply }),
   /** capture_view: this window's pixels inside `rect` (CSS px). @returns {Promise<{data: string, mimeType: string} | null>} */

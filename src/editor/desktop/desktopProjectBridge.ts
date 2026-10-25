@@ -42,22 +42,13 @@ export async function openProjectFolderPath(store: EditorStore, root: string): P
  * and the folder is recorded against the document before the reload so the next boot keeps it in sync.
  */
 async function openFolderRead(store: EditorStore, read: FolderRead): Promise<void> {
-  const api = getOipProjectApi()
-  if (!api) return
-  if (read.error !== undefined) {
-    alert(`Couldn't read the project folder:\n${read.error}`)
+  const ready = await readyToOpen(store, read)
+  if ('error' in ready) {
+    alert(ready.error)
     return
   }
-  const result = folderFilesToProject(read.files, { bakePart })
-  if (!result.ok) {
-    alert(`Couldn't open the project folder:\n${result.errors.join('\n')}`)
-    return
-  }
-  if (read.docId !== null && read.docId === currentDocumentId() && !store.getState().demoSession) {
-    // already the project on screen: the sync is following that folder, so there is nothing to open
-    await syncFolderNow()
-    return
-  }
+  if (ready.already) return
+  const { result } = ready
   if (read.docId === null) {
     // Same wording split as the web import: with a library this opens the folder beside the project on
     // screen; without one it is a replacement, and the question has to say so.
@@ -68,6 +59,42 @@ async function openFolderRead(store: EditorStore, read: FolderRead): Promise<voi
   }
   const error = await adoptFolderProject(store, read.root, read.docId, result)
   if (error !== null) alert(`Couldn't open "${result.project.name}":\n${error}`)
+}
+
+/**
+ * An agent's open_project (apps/desktop/agentProjects.cjs). Main has already decided the folder may open and
+ * granted it, so nothing here asks the person, and a refusal comes back as text rather than an alert. Resolves to
+ * 'already' (it is the project on screen) or 'reloading' (the page is about to reload into it).
+ */
+export async function openFolderForAgent(store: EditorStore, root: string): Promise<{ error: string } | 'already' | 'reloading'> {
+  const api = getOipProjectApi()
+  if (!api) return { error: 'Opening a project folder needs the desktop app.' }
+  if (store.getState().collab) return { error: 'a collab room is open: the person leaves it before another project can open' }
+  const read = await api.readAt(root)
+  if (!read) return { error: `Couldn't read ${root}: no answer from the app shell` }
+  const ready = await readyToOpen(store, read)
+  if ('error' in ready) return ready
+  if (ready.already) return 'already'
+  // without a library the open project's only copy would be overwritten, which the person has to agree to
+  if (read.docId === null && !supportsDocumentLibrary()) return { error: 'opening it would replace the open project, which has no other copy; the person opens it from File > Open Project Folder' }
+  const error = await adoptFolderProject(store, read.root, read.docId, ready.result)
+  return error === null ? 'reloading' : { error: `Couldn't open "${ready.result.project.name}": ${error}` }
+}
+
+/** A folder read checked as a project: why it cannot open, that it is the open project already, or the project. */
+async function readyToOpen(
+  store: EditorStore,
+  read: FolderRead,
+): Promise<{ error: string } | { already: true } | { already: false; result: Extract<ReturnType<typeof folderFilesToProject>, { ok: true }> }> {
+  if (read.error !== undefined) return { error: `Couldn't read the project folder:\n${read.error}` }
+  const result = folderFilesToProject(read.files, { bakePart })
+  if (!result.ok) return { error: `Couldn't open the project folder:\n${result.errors.join('\n')}` }
+  if (read.docId !== null && read.docId === currentDocumentId() && !store.getState().demoSession) {
+    // already the project on screen: the sync is following that folder, so there is nothing to open
+    await syncFolderNow()
+    return { already: true }
+  }
+  return { already: false, result }
 }
 
 /**

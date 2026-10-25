@@ -5,7 +5,9 @@
 // definitions over IPC and answers each call against the live store, so an agent's edit is an ordinary edit: the
 // same edit gate, undo step and autosave as a person's. Nothing here knows what a tool does. Main does two things
 // for the tools that a page cannot: capture the window's pixels (capture_view) and read a model file by path
-// (import_model), each asked for over IPC by the editor while it runs a call.
+// (import_model), each asked for over IPC by the editor while it runs a call. The project tools (list_projects,
+// open_project, new_project) are main's own (agentProjects.cjs): opening a project reloads the page, and main owns
+// which folders may open.
 //
 // The protocol subset is small and hand-written rather than an SDK dependency: Streamable HTTP, POST
 // only, one JSON response per request (no SSE stream, no sessions), and the methods a tools-only server needs:
@@ -50,23 +52,30 @@ const INSTRUCTIONS =
   'for production lines, robot cells and machines, driven by PLC programs. Call get_guide first for units, ' +
   'conventions and the test spec format. Edits are ordinary edits (each call is one undo step the user can take ' +
   'back). A change is done when run_test passes; capture_view shows what was built. To write or change a part ' +
-  'definition, start with get_part_sdk.'
+  'definition, start with get_part_sdk. To work on another project, list_projects then open_project, or new_project.'
 
 /**
  * The renderer that serves the tools, and the calls in flight to it. One editor window serves at a time: the one
  * that announced last (the app is single-instance, so in practice there is one).
  */
 class AgentHost {
+  /**
+   * `opts.shellTools`: tools main runs itself (agentProjects.cjs), each `{ definition, run(host, args) }`. They are
+   * listed after the renderer's and never forwarded to it.
+   */
   constructor(opts = {}) {
     this.callTimeoutMs = opts.callTimeoutMs ?? CALL_TIMEOUT_MS
     this.readyWaitMs = opts.readyWaitMs ?? READY_WAIT_MS
+    this.shellTools = new Map((opts.shellTools ?? []).map((t) => [t.definition.name, t]))
     /** @type {{ id: number, send: (channel: string, msg: unknown) => void, isDestroyed: () => boolean } | null} */
     this.server = null
     this.tools = null
     this.nextId = 1
-    /** @type {Map<number, { resolve: (r: object) => void, timer: NodeJS.Timeout, serverId: number }>} */
+    /** @type {Map<number, { resolve: (r: object) => void, timer: NodeJS.Timeout, serverId: number, reloadOk?: boolean }>} */
     this.pending = new Map()
     this.waiters = new Set()
+    /** nextServe's waiters: woken by a window's next announcement only */
+    this.serveWaiters = new Set()
   }
 
   /** A window announced its tools (or withdrew them with null). */
@@ -78,12 +87,16 @@ class AgentHost {
     if (this.server && this.server.id !== sender.id) this.drop(this.server.id, 'another editor window took over')
     this.server = sender
     this.tools = tools
-    for (const wake of this.waiters) wake()
+    for (const wake of [...this.waiters, ...this.serveWaiters]) wake()
     this.waiters.clear()
+    this.serveWaiters.clear()
   }
 
-  /** Forget window `senderId`: its tools go, and its calls in flight fail with `why`. */
-  drop(senderId, why) {
+  /**
+   * Forget window `senderId`: its tools go, and its calls in flight fail with `why`. `reloaded`: the page reloaded,
+   * which a request that reloads the editor (reloadOk) reads as its answer.
+   */
+  drop(senderId, why, reloaded = false) {
     if (!this.server || this.server.id !== senderId) return
     this.server = null
     this.tools = null
@@ -91,26 +104,64 @@ class AgentHost {
       if (p.serverId !== senderId) continue
       clearTimeout(p.timer)
       this.pending.delete(id)
-      p.resolve({ ok: false, error: why })
+      p.resolve(reloaded && p.reloadOk ? { ok: true, text: 'reloading' } : { ok: false, error: why })
     }
+  }
+
+  /** Every tool: the renderer's, then main's own. */
+  listed(tools) {
+    return [...tools, ...[...this.shellTools.values()].map((t) => t.definition)]
   }
 
   /** The tool list, once a window serves one; null if none does within `ms`. */
   async waitForTools(ms = this.readyWaitMs) {
-    if (this.tools) return this.tools
-    await new Promise((resolve) => {
-      const timer = setTimeout(done, ms)
-      function done() {
-        clearTimeout(timer)
-        resolve()
-      }
-      this.waiters.add(done)
-    })
-    return this.tools
+    if (this.tools) return this.listed(this.tools)
+    await this.wakeOn(this.waiters, ms)
+    return this.tools ? this.listed(this.tools) : null
   }
 
-  /** Forward one call; resolves with the renderer's reply ({ok, text} | {ok: false, error}). Never rejects. */
+  /** True once a window next announces its tools (a reloaded editor is ready again), false if none does within `ms`. */
+  nextServe(ms) {
+    return this.wakeOn(this.serveWaiters, ms)
+  }
+
+  /** Resolves true when `set` is woken, false after `ms`. */
+  wakeOn(set, ms) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => finish(false), ms)
+      const finish = (woken) => {
+        clearTimeout(timer)
+        set.delete(done)
+        resolve(woken)
+      }
+      const done = () => finish(true)
+      set.add(done)
+    })
+  }
+
+  /** Run one call: main's own tool here, any other forwarded to the editor. Resolves {ok, text} | {ok: false, error}; never rejects. */
   async call(name, args) {
+    const own = this.shellTools.get(name)
+    if (own) {
+      if (!(await this.waitForTools())) return { ok: false, error: 'no editor window is open in Open Industry Project' }
+      try {
+        return await own.run(this, args ?? {})
+      } catch (e) {
+        return { ok: false, error: String(e?.message ?? e) }
+      }
+    }
+    return this.send('agent:call', { name, args: args ?? {} }, `'${name}'`)
+  }
+
+  /**
+   * Ask the editor for something only main may ask (agentProjects.cjs: 'openFolder', 'newProject'). On its own
+   * channel, so an MCP client cannot name one as a tool. A reload before the answer is read as 'reloading'.
+   */
+  request(op, args) {
+    return this.send('agent:shell', { op, args }, `the editor's ${op}`, true)
+  }
+
+  async send(channel, msg, what, reloadOk = false) {
     if (!(await this.waitForTools())) return { ok: false, error: 'no editor window is open in Open Industry Project' }
     const server = this.server
     if (!server || server.isDestroyed()) return { ok: false, error: 'the editor window closed' }
@@ -118,10 +169,10 @@ class AgentHost {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        resolve({ ok: false, error: `'${name}' did not answer within ${Math.round(this.callTimeoutMs / 1000)} s` })
+        resolve({ ok: false, error: `${what} did not answer within ${Math.round(this.callTimeoutMs / 1000)} s` })
       }, this.callTimeoutMs)
-      this.pending.set(id, { resolve, timer, serverId: server.id })
-      server.send('agent:call', { id, name, args: args ?? {} })
+      this.pending.set(id, { resolve, timer, serverId: server.id, reloadOk })
+      server.send(channel, { id, ...msg })
     })
   }
 
@@ -330,7 +381,7 @@ function registerAgentHost(ipcMain, host) {
       // a reload or a closed window stops serving without saying so. did-navigate is the main frame's
       // cross-document commit only (in-page history moves are did-navigate-in-page), and it fires before the new
       // page's scripts run, so the drop cannot race the reloaded page announcing its tools again
-      wc.on('did-navigate', () => host.drop(id, 'the editor reloaded'))
+      wc.on('did-navigate', () => host.drop(id, 'the editor reloaded', true))
       wc.once('destroyed', () => {
         watched.delete(id)
         host.drop(id, 'the editor window closed')

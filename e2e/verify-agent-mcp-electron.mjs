@@ -9,12 +9,13 @@
 // set_tag and get_tags drive the live sim, and Stop leaves the document untouched. rename_tag moves the code and the
 // wiring together, set_task retimes a task, and assign_io puts the wired tags on I/O addresses. capture_view returns
 // an image of the view through the shell and puts the camera back; get_cargo, check_part, create_part and set_pou
-// reach the live editor.
+// reach the live editor. new_project and open_project reload the editor and answer once it serves again; a folder
+// outside Open Recent and the projects folder asks first (the native dialog is stubbed).
 //
 //   node e2e/verify-agent-mcp-electron.mjs
 /* global process, console, window, document, localStorage, setTimeout, URL, fetch, Buffer */
 
-import { mkdtempSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
@@ -304,6 +305,36 @@ try {
   expect(!notModel.ok && /a model is a \.glb, \.step or \.stp file/.test(notModel.text), 'import_model refuses a file that is not a model')
   const pou = await mcp.call('set_pou', { name: 'Debounce', source: 'FUNCTION_BLOCK Debounce\nVAR_INPUT\n  In : BOOL;\nEND_VAR\nEND_FUNCTION_BLOCK' })
   expect(pou.ok && pou.json.pous.includes('Debounce'), `set_pou adds a POU (${pou.text.replace(/\s+/g, ' ').slice(0, 160)})`)
+
+  console.log('--- projects (main runs these; each open reloads the editor) ---')
+  const projectName = () => page.evaluate(() => window.__oip.store.getState().projectName)
+  const first = await mcp.call('new_project', { name: 'Agent Made' })
+  expect(first.ok && first.json.path?.startsWith(join(realpathSync.native(profileDir), 'Projects')) && (await projectName()) === 'Agent Made', `new_project makes a folder in the projects folder and the editor reloads into it (${first.text.slice(0, 160)})`)
+  const second = await mcp.call('new_project', { name: 'Agent Two' })
+  expect(second.ok && (await projectName()) === 'Agent Two', 'a second new_project replaces it on screen')
+  const listed = await mcp.call('list_projects')
+  const rows = listed.json?.projects ?? []
+  expect(['Agent Made', 'Agent Two'].every((n) => rows.some((p) => p.name === n)) && rows.find((p) => p.open)?.name === 'Agent Two', `list_projects lists both and marks the open one (${JSON.stringify(rows.map((p) => [p.name, p.open]))})`)
+  const back = await mcp.call('open_project', { project: 'Agent Made' })
+  expect(back.ok && back.json.opened === 'Agent Made' && (await projectName()) === 'Agent Made', `open_project by name reopens a listed project unasked (${back.text.slice(0, 120)})`)
+  const again = await mcp.call('open_project', { project: 'Agent Made' })
+  expect(again.ok && /already the open project/.test(again.json?.note ?? ''), 'opening the open project says so')
+  // a folder outside Open Recent and the projects folder asks; the stand-in for the native dialog answers
+  const stranger = join(mkdtempSync(join(tmpdir(), 'oip-stranger-')), 'Stranger')
+  cpSync(second.json.path, stranger, { recursive: true })
+  const answerDialog = (response) => app.evaluate(({ dialog }, r) => {
+    globalThis.__oipAsked = []
+    dialog.showMessageBox = async (...a) => (globalThis.__oipAsked.push(a.at(-1).message), { response: r })
+  }, response)
+  await answerDialog(1)
+  const declined = await mcp.call('open_project', { project: stranger })
+  const askedOnce = await app.evaluate(() => globalThis.__oipAsked)
+  expect(!declined.ok && /declined/.test(declined.text) && askedOnce.length === 1 && (await projectName()) === 'Agent Made', `a folder elsewhere asks first, and Cancel opens nothing (${declined.text}; ${askedOnce[0]})`)
+  await answerDialog(0)
+  const allowed = await mcp.call('open_project', { project: stranger })
+  expect(allowed.ok && (await projectName()) === 'Agent Two', `Open in that dialog opens it (${allowed.text.slice(0, 120)})`)
+  const tools2 = (await mcp.request('tools/list')).tools.map((t) => t.name)
+  expect(['get_scene', 'list_projects', 'open_project', 'new_project'].every((t) => tools2.includes(t)), 'the reloaded editor serves its tools again, with main\'s beside them')
 
   expect(pageErrors.length === 0, `no page errors (${pageErrors.join(' | ')})`)
 } catch (err) {
