@@ -85,7 +85,7 @@ import {
   bottomDockHeight,
   buildDockGrid,
   clearMaximized,
-  clickBottomDockTab,
+  clickDockTab,
   defaultDockLayout,
   DOCK_SIZES_VERSION,
   dockGridCorners,
@@ -93,6 +93,7 @@ import {
   dockPanelTitle,
   floatDockPanel,
   FLOATABLE_PANELS,
+  isColumnCollapsed,
   isFloating,
   isPoppedOut,
   locate,
@@ -711,19 +712,16 @@ export function App({ store, sim }: AppProps) {
     (panel: DockPanelId) => setDockLayout((l) => activateDockPanel(l, panel)),
     [],
   )
-  // left-click on a bottom dock tab: the roll-up toggle (see clickBottomDockTab).
-  // Wired only to the bottom slot - side tabs keep plain activate-on-click.
+  // left-click on a dock tab: the fold toggle (clickDockTab rolls up the bottom dock or folds a side column to a rail).
   // A left-click that leaves the PLC panel open also puts the keyboard in its code, so the click that brings it up is
   // the one that starts typing. Judged on the current layout, like onRevealPanel below.
-  const clickTabWith = useCallback(
-    (click: (l: DockLayout, panel: DockPanelId) => DockLayout) => (panel: DockPanelId) => {
-      setDockLayout((l) => click(l, panel))
-      if (panel === 'st' && tabShowsPanel(click(dockLayout, panel), panel)) store.focusStCode()
+  const clickTab = useCallback(
+    (panel: DockPanelId) => {
+      setDockLayout((l) => clickDockTab(l, panel))
+      if (panel === 'st' && tabShowsPanel(clickDockTab(dockLayout, panel), panel)) store.focusStCode()
     },
     [store, dockLayout],
   )
-  const clickSideTab = useMemo(() => clickTabWith(activateDockPanel), [clickTabWith])
-  const clickBottomTab = useMemo(() => clickTabWith(clickBottomDockTab), [clickTabWith])
   const floatDock = useCallback((panel: DockPanelId) => setDockLayout((l) => floatDockPanel(l, panel)), [])
   const canFloat = useCallback((panel: DockPanelId) => FLOATABLE_PANELS.includes(panel), [])
   // Where a popped-out panel came from, so closing its window puts it back there rather than at
@@ -1244,7 +1242,7 @@ export function App({ store, sim }: AppProps) {
         sizeVar={dockSizeVar(spec.splitKey)}
         onResizeSplit={(v) => setSizes((s) => ({ ...s, [spec.splitKey]: v }))}
         onActivate={activateDock}
-        onTabClick={clickSideTab}
+        onTabClick={clickTab}
         onMaximize={maximizeDock}
         canMaximize={canMaximize}
         onMove={moveDock}
@@ -1263,6 +1261,7 @@ export function App({ store, sim }: AppProps) {
         {...widthResize(spec.widthKey, sign)}
       />
     )
+    if (isColumnCollapsed(dockLayout, spec.widthKey)) return column // a rail: no width to drag, and no gutter area
     return sign === 1 ? [column, gutter] : [gutter, column]
   }
 
@@ -1422,7 +1421,7 @@ export function App({ store, sim }: AppProps) {
             active={dockLayout.active.bottom}
             collapsed={dockLayout.bottomCollapsed}
             onActivate={activateDock}
-            onTabClick={clickBottomTab}
+            onTabClick={clickTab}
             onMaximize={maximizeDock}
             canMaximize={canMaximize}
             onMove={moveDock}

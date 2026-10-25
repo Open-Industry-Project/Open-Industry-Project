@@ -7,12 +7,15 @@ import {
   buildDockGrid,
   clearMaximized,
   clickBottomDockTab,
+  clickDockTab,
+  clickSideDockTab,
   DEFAULT_BOTTOM_HEIGHT,
   defaultDockLayout,
   DOCK_SIZES_VERSION,
   dockGridCorners,
   dockSizeVar,
   floatDockPanel,
+  isColumnCollapsed,
   isFloating,
   isPoppedOut,
   locate,
@@ -95,11 +98,19 @@ describe('bottom dock collapse (bottom-panel toggle)', () => {
     expect(next.active.bottom).toBe('catalog')
   })
 
-  it('leaves side-dock tabs alone: re-clicking an active one is still a no-op', () => {
+  it('leaves side-dock tabs alone: re-clicking an active one is a no-op', () => {
     const l = defaultDockLayout() // 'tree' is front of leftTop
     expect(clickBottomDockTab(l, 'tree')).toBe(l)
     expect(clickBottomDockTab(l, 'history').active.leftTop).toBe('history')
     expect(clickBottomDockTab(l, 'history').bottomCollapsed).toBe(false)
+  })
+
+  it('clickDockTab sends each tab to its own dock toggle', () => {
+    const l = defaultDockLayout()
+    expect(clickDockTab(l, 'catalog').bottomCollapsed).toBe(true)
+    expect(clickDockTab(l, 'catalog').collapsedColumns).toEqual([])
+    expect(clickDockTab(l, 'inspector').collapsedColumns).toEqual(['right'])
+    expect(clickDockTab(l, 'inspector').bottomCollapsed).toBe(false)
   })
 
   it('docking a panel into a collapsed bottom dock re-opens it', () => {
@@ -118,6 +129,80 @@ describe('bottom dock collapse (bottom-panel toggle)', () => {
     const emptied = moveDockPanel(oneLeft, 'watch', 'leftBottom')
     expect(emptied.bottom).toEqual([])
     expect(emptied.bottomCollapsed).toBe(false)
+  })
+})
+
+describe('side column fold (a rail of vertical tabs)', () => {
+  it('starts with every column open', () => {
+    expect(defaultDockLayout().collapsedColumns).toEqual([])
+  })
+
+  it('clicking the front tab folds the column, clicking any rail tab opens it with that tab in front', () => {
+    const folded = clickSideDockTab(defaultDockLayout(), 'tree')
+    expect(isColumnCollapsed(folded, 'left')).toBe(true)
+    expect(isColumnCollapsed(folded, 'right')).toBe(false)
+    const opened = clickSideDockTab(folded, 'history')
+    expect(opened.collapsedColumns).toEqual([])
+    expect(opened.active.leftTop).toBe('history')
+  })
+
+  it('clicking a background tab switches without folding', () => {
+    const next = clickSideDockTab(defaultDockLayout(), 'history')
+    expect(next.active.leftTop).toBe('history')
+    expect(next.collapsedColumns).toEqual([])
+  })
+
+  it('folds the whole column from either sub-slot', () => {
+    const l = moveDockPanel(defaultDockLayout(), 'history', 'leftBottom')
+    const folded = clickSideDockTab(l, 'history')
+    expect(folded.collapsedColumns).toEqual(['left'])
+    expect(tabShowsPanel(folded, 'tree')).toBe(false)
+    expect(tabShowsPanel(folded, 'history')).toBe(false)
+  })
+
+  it('leaves the bottom dock to its own toggle', () => {
+    const l = defaultDockLayout() // Parts is the bottom dock's front tab
+    expect(clickSideDockTab(l, 'catalog')).toBe(l)
+    expect(clickSideDockTab(l, 'st').active.bottom).toBe('st')
+  })
+
+  it('docking a panel into a folded column opens it, and emptying one drops it from the list', () => {
+    const folded = clickSideDockTab(defaultDockLayout(), 'inspector')
+    expect(folded.collapsedColumns).toEqual(['right'])
+    expect(moveDockPanel(folded, 'history', 'rightBottom').collapsedColumns).toEqual([])
+    expect(moveDockPanel(folded, 'inspector', 'leftTop').collapsedColumns).toEqual([])
+  })
+
+  it('reveal opens the folded column', () => {
+    const folded = clickSideDockTab(defaultDockLayout(), 'tree')
+    const shown = revealDockPanel(folded, 'history')
+    expect(shown.collapsedColumns).toEqual([])
+    expect(shown.active.leftTop).toBe('history')
+    expect(revealDockPanel(folded, 'inspector')).toBe(folded) // another column, already showing
+  })
+
+  it('round-trips through storage, and normalize drops junk and empty columns', () => {
+    const folded = clickSideDockTab(defaultDockLayout(), 'tree')
+    expect(normalizeDockLayout(JSON.parse(JSON.stringify(folded))).collapsedColumns).toEqual(['left'])
+    expect(normalizeDockLayout({}).collapsedColumns).toEqual([])
+    expect(normalizeDockLayout({ ...defaultDockLayout(), collapsedColumns: 'left' }).collapsedColumns).toEqual([])
+    expect(normalizeDockLayout({ ...defaultDockLayout(), collapsedColumns: ['left', 'left2', 'up'] }).collapsedColumns).toEqual(['left'])
+  })
+
+  it('gives a folded column an auto track and no gutter', () => {
+    const grid = buildDockGrid(clickSideDockTab(defaultDockLayout(), 'tree'), SIZES)
+    expect(grid.gridTemplateColumns.startsWith('auto minmax(0, 1fr)')).toBe(true)
+    expect(grid.gridTemplateAreas).not.toContain('gutlA')
+    expect(grid.gridTemplateAreas).toContain('leftA')
+  })
+
+  it('has no corner where a folded column has no gutter', () => {
+    const leftFolded = clickSideDockTab(defaultDockLayout(), 'tree')
+    expect(dockGridCorners(leftFolded).map((c) => c.widthKey)).toEqual(['right'])
+    // the right corner sits one track in: the rail, then the viewport, then the right gutter
+    expect(dockGridCorners(leftFolded)[0]!.column).toBe(3)
+    const rightFolded = clickSideDockTab(defaultDockLayout(), 'inspector')
+    expect(dockGridCorners(rightFolded).map((c) => c.widthKey)).toEqual(['left'])
   })
 })
 
