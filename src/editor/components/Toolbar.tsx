@@ -248,6 +248,7 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
   }, [speedShort])
 
   const shortcutsKey = keyHint('ui.shortcuts')
+  const paletteKey = keyHint('ui.commands')
   const tutorialCmd = getCommand('help.tutorial')
 
   return (
@@ -580,6 +581,19 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
           </button>
           {helpOpen && (
             <div className="help-popover" role="menu" aria-label={t(M.help)} ref={helpListRef} onKeyDown={menuKeys(closeHelp)}>
+              {/* The web has no menu bar, so without this row the palette is reachable only by its chord.
+                  The chord badge teaches it. */}
+              <button
+                className="help-item"
+                role="menuitem"
+                onClick={() => {
+                  closeHelp()
+                  runCommand('view.commandPalette')
+                }}
+              >
+                <span className="help-item-label">{getCommand('view.commandPalette')?.label}</span>
+                {paletteKey && <kbd className="help-item-key">{paletteKey}</kbd>}
+              </button>
               <button
                 className="help-item"
                 role="menuitem"

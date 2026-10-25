@@ -145,7 +145,7 @@ try {
   )
   check('Help menu entries opt out of dragging', helpOpen && helpDraggable.length === 0, helpDraggable.join(', '))
   if (helpOpen) {
-    await page.locator('.help-popover [role="menuitem"]').first().click()
+    await page.locator('.help-popover [role="menuitem"]', { hasText: /shortcuts/i }).click()
     const shortcuts = await page
       .waitForSelector('.shortcuts-groups', { timeout: 10000 })
       .then(() => true)
