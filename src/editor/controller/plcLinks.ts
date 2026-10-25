@@ -213,6 +213,10 @@ export function attachExternalPlc(l: PlcLinkState, p: ProgramState, ec: PlcLinkD
     const { io, problems } = m.deriveS7Io(s.scene.parts, s.externalPlc)
     session = m.s7Link(host, io, problems, onChange)
     points = io.points.length
+  } else if (s.externalPlc.mode === 'slmp') {
+    const { io, problems } = m.deriveSlmpIo(s.scene.parts, s.externalPlc)
+    session = m.slmpLink(host, io, problems, onChange)
+    points = io.points.length
   } else if (s.externalPlc.mode === 'poll') {
     const { io, problems } = m.deriveClientIo(s.scene.parts, s.externalPlc)
     session = new m.ExternalPlcClientSession(host, io, problems, onChange)
@@ -231,7 +235,9 @@ export function attachExternalPlc(l: PlcLinkState, p: ProgramState, ec: PlcLinkD
         ? `An external PLC runs this project (Controller Properties), so the program here is not attached.`
         : s.externalPlc.mode === 'opcua' || s.externalPlc.mode === 'eip' || s.externalPlc.mode === 'ads'
           ? `An external PLC runs this project over ${s.externalPlc.mode === 'eip' ? 'EtherNet/IP' : s.externalPlc.mode === 'ads' ? 'ADS' : 'OPC UA'}, but no part has a PLC tag (the PLC's name for it, like ${s.externalPlc.mode === 'eip' ? 'Eye' : 'MAIN.Eye'}), so it has nothing to read or drive.`
-          : 'An external PLC runs this project, but no part is wired to an I/O address (a PLC tag like %IX0.0), so it has nothing to read or drive.',
+          : s.externalPlc.mode === 'slmp'
+            ? 'An external PLC runs this project, but no part is wired to a device address (a PLC tag like D100, M10, X1A or Y0), so it has nothing to read or drive.'
+            : 'An external PLC runs this project, but no part is wired to an I/O address (a PLC tag like %IX0.0), so it has nothing to read or drive.',
     ],
   })
   void session.start(flattenFrameTags(ec.lastFrame?.tags)).then(() => {

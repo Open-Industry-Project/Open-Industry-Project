@@ -10,6 +10,8 @@
 //   ExternalPlcEipSession     a Logix controller's tags over EtherNet/IP, by name (core/io/eip.ts; libplctag)
 //   ExternalPlcS7Session      an S7-1200/1500 CPU's memory over PUT/GET, at the scene's addresses
 //                             (core/io/s7Io.ts, plc/link/s7Client.ts; editor/links/s7Link.ts, loaded on Play as a DeferredLink)
+//   ExternalPlcSlmpSession    a MELSEC CPU's devices over SLMP, at the scene's addresses
+//                             (core/io/slmpIo.ts, plc/link/slmpClient.ts; editor/links/slmpLink.ts, loaded on Play as a DeferredLink)
 //
 // Each sim frame, the parts' tag writes become the PLC's inputs and what the PLC wrote goes to
 // SimClient.setTags for the parts' next step.
@@ -31,6 +33,8 @@ import { adsPointsFromTags } from '../../core/io/ads'
 import type { AdsBinding, AdsPoint } from '../../core/io/ads'
 import { describeS7Point, s7ClientFromTags, s7DrivenTags, s7Endpoint } from '../../core/io/s7Io'
 import type { S7ClientIo } from '../../core/io/s7Io'
+import { describeSlmpPoint, slmpClientFromTags, slmpDrivenTags, slmpEndpoint } from '../../core/io/slmpIo'
+import type { SlmpClientIo } from '../../core/io/slmpIo'
 import type { PartInstance } from '../../core/types'
 import { ModbusClientStream, ModbusPoller } from '../../plc/link/modbusClient'
 import { describeStats, ModbusServerIo } from '../../plc/link/modbusServer'
@@ -83,6 +87,18 @@ export function deriveS7Io(parts: readonly PartInstance[], settings: Pick<Extern
   const wiring = checkWiring(parts as Parameters<typeof checkWiring>[0])
   const tags = wiring.tags.map((t) => ({ name: t.name, type: t.type, writers: t.writers.length }))
   const derived = s7ClientFromTags({ host: settings.s7Host, port: settings.s7Port, rack: settings.s7Rack, slot: settings.s7Slot }, tags)
+  const problems = wiring.problems.filter((p) => p.kind === 'address').map((p) => p.message)
+  return { io: derived.io, problems: [...problems, ...derived.problems.map((p) => `${p.tag}: ${p.message}`)] }
+}
+
+/**
+ * The table a scene makes for a MELSEC CPU over SLMP: every X, Y, M and D tag at its device (core/io/slmpIo.ts).
+ * Each tag carries how many parts write it, which is what decides a Y, M or D tag's direction.
+ */
+export function deriveSlmpIo(parts: readonly PartInstance[], settings: Pick<ExternalPlcSettings, 'slmpHost' | 'slmpPort'>): { io: SlmpClientIo; problems: string[] } {
+  const wiring = checkWiring(parts as Parameters<typeof checkWiring>[0])
+  const tags = wiring.tags.map((t) => ({ name: t.name, type: t.type, writers: t.writers.length }))
+  const derived = slmpClientFromTags({ host: settings.slmpHost, port: settings.slmpPort }, tags)
   const problems = wiring.problems.filter((p) => p.kind === 'address').map((p) => p.message)
   return { io: derived.io, problems: [...problems, ...derived.problems.map((p) => `${p.tag}: ${p.message}`)] }
 }
@@ -144,6 +160,10 @@ export function plannedLink(parts: readonly PartInstance[], settings: ExternalPl
   if (settings.mode === 's7') {
     const { io, problems } = deriveS7Io(parts, settings)
     return { points: io.points.map(describeS7Point), problems }
+  }
+  if (settings.mode === 'slmp') {
+    const { io, problems } = deriveSlmpIo(parts, settings)
+    return { points: io.points.map(describeSlmpPoint), problems }
   }
   if (settings.mode === 'poll') {
     const { io, problems } = deriveClientIo(parts, settings)
@@ -692,6 +712,20 @@ export function s7Link(host: PlcIoHost, io: S7ClientIo, problems: string[], onCh
     endpoint: s7Endpoint(io),
     driven,
     points: io.points.map(describeS7Point),
+    problems,
+  })
+}
+
+/** One run's link to a MELSEC CPU: the SLMP session, loaded when the run starts (editor/links/slmpLink.ts). */
+export function slmpLink(host: PlcIoHost, io: SlmpClientIo, problems: string[], onChange: () => void): DeferredLink {
+  const driven = slmpDrivenTags(io)
+  return new DeferredLink(driven, async () => new (await import('./slmpLink')).ExternalPlcSlmpSession(host, io, problems, onChange), {
+    ...EXTERNAL_PLC_OFF,
+    mode: 'slmp',
+    state: 'starting',
+    endpoint: slmpEndpoint(io),
+    driven,
+    points: io.points.map(describeSlmpPoint),
     problems,
   })
 }
