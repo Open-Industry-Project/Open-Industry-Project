@@ -660,7 +660,7 @@ describe('a format-4 document is its scene', () => {
 })
 
 describe('what Export Project may leave out (unusedLibraryParts, trimForExport)', () => {
-  const placedOf = (id: string, pkg: string) => ({ id, type: 'part', packageId: pkg, position: [0, 0, 0], rotationY: 0 }) as unknown as SceneJSON['parts'][number]
+  const placedOf = (id: string, pkg: string) => ({ id, type: 'part', packageId: pkg, position: [0, 0, 0], rotationY: 0, params: {} }) as unknown as SceneJSON['parts'][number]
   const spec = (name: string) => ({ name, duration: 1, checks: [{ always: true, tag: 'Never', equals: false }] })
   // the scene places a widget; nothing uses the gadget or the spare
   const full = (): ProjectJSON => ({
@@ -687,6 +687,12 @@ describe('what Export Project may leave out (unusedLibraryParts, trimForExport)'
     expect(bare.packages?.map((p) => p.id)).toEqual(['acme.widget'])
     expect(bare.tests).toBeUndefined()
     expect(validateProject(bare).ok).toBe(true) // and what is left still opens
+  })
+
+  it('a part named by a placed part (a spawner’s product) is used', () => {
+    const spawner = { ...samplePackage('acme.widget'), params: { product: { type: 'string', default: 'acme.gadget', product: true } } } as unknown as PartPackage
+    const project = { ...full(), packages: [spawner, samplePackage('acme.gadget'), samplePackage('acme.spare')] }
+    expect(unusedLibraryParts(project).map((p) => p.id)).toEqual(['acme.spare'])
   })
 
   it('leaves the project it was given untouched', () => {

@@ -9,7 +9,9 @@ import { DEFAULT_SCAN_MS } from '../program/stProgram'
 import type { EditorController } from '../controller'
 import type { EditorState, EditorStore, SceneFileContents } from '../store/store'
 import { documentSceneOf } from '../store/store'
-import { placedPackageIds, sceneToProject } from '../../core/project/project'
+import { sceneToProject } from '../../core/project/project'
+import { definitionsUsedBy } from '../../core/parts/partPackage'
+import { getPackage } from '../../core/parts/partRegistry'
 import { canCreateProject, createProjectFrom } from './newProject'
 import { clearEntryParams, fileOutgoingDocument } from './documentStore'
 
@@ -78,11 +80,11 @@ export function leaveDemo(): void {
 export function sceneFileText(state: EditorState): string {
   // the document's scene, also while a definition session has its own scene on screen
   const scene = documentSceneOf(state)
-  // Only the definitions its parts place: a scene file is the scene, not the project's parts, so that is made true
-  // here rather than trusted to the live scene.
-  const used = placedPackageIds(scene)
-  const { packages: all, ...rest } = scene
-  const packages = (all ?? []).filter((p) => used.has(p.id))
+  // Only the definitions its parts use, products included: a scene file is the scene, not the project's parts. Worked out
+  // from the parts rather than trusted to the live scene's copies, which a part added without its copy lacks.
+  const { packages: stored, ...rest } = scene
+  const byId = new Map((stored ?? []).map((p) => [p.id, p]))
+  const packages = definitionsUsedBy(scene.parts, (id) => getPackage(id) ?? byId.get(id))
   const out = packages.length > 0 ? { ...rest, packages } : rest
   return serializeScene(out, state.stProgram, state.stScanMs, undefined, state.controller, state.stDialect, state.simHz)
 }

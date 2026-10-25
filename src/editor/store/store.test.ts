@@ -1295,6 +1295,20 @@ describe('EditorStore', () => {
     })
   })
 
+  it('a save keeps the definitions the parts use, not the copies the scene happens to hold', () => {
+    // a part whose definition is neither the library nor a built-in, added without its copy (a path that forgot to
+    // embed it), keeps it; a copy no part uses any more is not carried
+    registerPackage(pkg('save.widget', 'definePart({ step() {} })'))
+    try {
+      const store = new EditorStore()
+      store.loadScene({ ...scene({ ...part('w_1'), packageId: 'save.widget' } as PartInstance), packages: [pkg('save.stale', 'definePart({ step() {} })')] })
+      expect(store.snapshotProject().scene.packages?.map((p) => p.id)).toEqual(['save.widget'])
+    } finally {
+      unregisterPackage('save.widget')
+      unregisterPackage('save.stale')
+    }
+  })
+
   it('pastes without a nudge when the source position is free', () => {
     const store = new EditorStore(scene(part('rc_1', 3)))
     store.select('rc_1')

@@ -144,4 +144,15 @@ describe('a scene file carries only the custom parts its scene places', () => {
     const written = JSON.parse(sceneFileText(store.getState())) as { packages?: { id: string }[] }
     expect(written.packages?.map((p) => p.id)).toEqual([SENSOR.id])
   })
+
+  it('carries what its parts use even when the live scene holds no copy, products included', () => {
+    const crate: PartPackage = { ...SENSOR, id: 't.crate', name: 't.crate' }
+    const spawner = { ...SENSOR, id: 't.spawner', name: 't.spawner', params: { product: { type: 'string', default: crate.id, product: true } } } as unknown as PartPackage
+    const placed = { id: 'sp1', type: 'part', packageId: spawner.id, position: [0, 0.2, 0], rotationY: 0, params: {} } as unknown as PartInstance
+    const store = new EditorStore()
+    store.loadScene({ version: SCENE_VERSION, parts: [], packages: [spawner, crate] }) // registers both
+    store.loadScene({ version: SCENE_VERSION, parts: [placed] }) // a scene that names the spawner, with no copies
+    const written = JSON.parse(sceneFileText(store.getState())) as { packages?: { id: string }[] }
+    expect(written.packages?.map((p) => p.id)).toEqual([spawner.id, crate.id])
+  })
 })

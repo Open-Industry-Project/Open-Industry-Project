@@ -360,9 +360,10 @@ function validateMachine(
   }
 }
 
-/** The packages a scene's parts name: what it uses of a library (see {@link usedLibraryOnly} for why that is all). */
-export function placedPackageIds(scene: SceneJSON): Set<string> {
-  return new Set(scene.parts.flatMap((p) => ('packageId' in p && typeof p.packageId === 'string' ? [p.packageId] : [])))
+/** The ids of every definition `scene` uses (definitionsUsedBy), resolved through `packages` and the app's built-ins */
+export function usedPackageIds(scene: SceneJSON, packages: readonly PartPackage[]): Set<string> {
+  const byId = new Map(packages.map((p) => [p.id, p]))
+  return new Set(definitionsUsedBy(scene.parts, (id) => byId.get(id) ?? builtInPackage(id)).map((p) => p.id))
 }
 
 /**
@@ -375,9 +376,10 @@ export interface ExportLeaveOut {
   tests?: boolean
 }
 
-/** The library parts an export would carry that nothing in it uses: not placed in the scene. */
+/** The library parts an export would carry that nothing in it uses: not placed in the scene, nor named by what is
+ *  (a spawner's product). */
 export function unusedLibraryParts(project: ProjectJSON): PartPackage[] {
-  const used = placedPackageIds(project.scene)
+  const used = usedPackageIds(project.scene, project.packages ?? [])
   return (project.packages ?? []).filter((p) => !used.has(p.id))
 }
 
@@ -395,13 +397,12 @@ export function trimForExport(project: ProjectJSON, leave: ExportLeaveOut): Proj
 
 /**
  * A project split off an older multi-scene document, trimmed to what its own scene uses: the library parts it
- * places. All of it stays in the project it came from, the library's home; copying it into
- * every split-off project would put parts one scene never used into files that get shared and
- * exported on their own. A part names its package by `packageId` and nowhere else (a `partRef` param names a
- * scene part; part code spawns only boxes and pallets), so the scene's parts are the whole list.
+ * places, and what those name (a spawner's product). All of it stays in the project it came from, the library's home;
+ * copying it into every split-off project would put parts one scene never used into files that get shared and
+ * exported on their own.
  */
 function usedLibraryOnly(project: ProjectJSON): ProjectJSON {
-  const used = placedPackageIds(project.scene)
+  const used = usedPackageIds(project.scene, project.packages ?? [])
   const packages = (project.packages ?? []).filter((p) => used.has(p.id))
   const { packages: _library, ...rest } = project
   return { ...rest, ...(packages.length > 0 ? { packages } : {}) }

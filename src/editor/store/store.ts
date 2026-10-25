@@ -1,6 +1,7 @@
 import { partDisplayName } from '../../core/parts/partDisplayName'
 import { dockOpeningBlocker } from '../../core/building/buildingDocks'
 import { builtInPackage, getPackage, registerPackage, registerScenePackages } from '../../core/parts/partRegistry'
+import { definitionsUsedBy } from '../../core/parts/partPackage'
 import type { PartPackage } from '../../core/parts/partPackage'
 import type { PackageStatus } from '../parts/packageSource'
 import { DEMO_SCENE_NAME } from '../demo/demoScenes'
@@ -1674,7 +1675,7 @@ export class EditorStore {
         // legacy / pre-loadProject path: assemble + persist a one-scene project
         result = saveStoredProject(
           assembleProject(
-            this.sceneSansDraft(),
+            this.sceneWithBroughtDefinitions(),
             this.state.stProgram,
             this.state.userPackages,
             undefined,
@@ -2088,7 +2089,7 @@ export class EditorStore {
   private ensureProject(): ProjectJSON {
     if (!this.project) {
       this.project = assembleProject(
-        this.sceneSansDraft(),
+        this.sceneWithBroughtDefinitions(),
         this.state.stProgram,
         this.state.userPackages,
         this.state.projectName,
@@ -2143,11 +2144,7 @@ export class EditorStore {
     if (this.state.demoSession) return
     const prog = this.state.stProgram
     const sans = this.sceneSansDraft()
-    // The project keeps each definition once (core/project/project.ts): the library holds the project's parts and a built-in
-    // is the app's, so the scene keeps no copy of either. Only a copy that is neither is kept here (a part a scene
-    // file brought in that nothing else holds), and saving moves it into the library (keepDefinitionsOnce).
-    const libraryIds = new Set(this.state.userPackages.map((p) => p.id))
-    const pkgs = (sans.packages ?? []).filter((p) => !libraryIds.has(p.id) && !builtInPackage(p.id)).map((p) => getPackage(p.id) ?? p)
+    const pkgs = this.broughtDefinitions(sans)
     project.scene = { version: SCENE_VERSION, parts: sans.parts, ...(pkgs.length > 0 ? { packages: pkgs } : {}), ...(sans.units !== undefined ? { units: sans.units } : {}) }
     if (prog !== '') {
       project.stProgram = prog
@@ -2169,6 +2166,18 @@ export class EditorStore {
     const library = this.libraryPackages()
     if (library.length > 0) project.packages = library
     else delete project.packages
+  }
+
+  /**
+   * The definitions `scene`'s parts use that are neither the project's library nor the app's built-ins: a part a scene
+   * file or a paste from another project brought in. The project keeps each definition once (core/project/project.ts),
+   * so these are the only copies a saved scene keeps, and saving moves them into the library (keepDefinitionsOnce).
+   * Worked out from the parts, not read from the scene's stored copies, so a part added without its copy is not lost.
+   */
+  private broughtDefinitions(scene: SceneJSON): PartPackage[] {
+    const libraryIds = new Set(this.state.userPackages.map((p) => p.id))
+    const stored = new Map((scene.packages ?? []).map((p) => [p.id, p]))
+    return definitionsUsedBy(scene.parts, (id) => getPackage(id) ?? stored.get(id)).filter((p) => !libraryIds.has(p.id) && !builtInPackage(p.id))
   }
 
   /** The shared library = the authored parts only (userPackages). A placed part's snapshot stays in the scene's
@@ -2237,6 +2246,14 @@ export class EditorStore {
    *  mid-session returns to the scene as it was), else the live scene minus the run's cargo (documentOf). */
   private sceneSansDraft(): SceneJSON {
     return this.state.packageEdit?.document ?? this.run.documentOf(this.state.scene)
+  }
+
+  /** the document's scene carrying {@link broughtDefinitions} as its copies: what a project is assembled from */
+  private sceneWithBroughtDefinitions(): SceneJSON {
+    const scene = this.sceneSansDraft()
+    const brought = this.broughtDefinitions(scene)
+    const { packages: _stored, ...sans } = scene
+    return brought.length > 0 ? { ...sans, packages: brought } : sans
   }
 }
 
