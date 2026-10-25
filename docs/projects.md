@@ -233,8 +233,11 @@ A folder from formats 4-6 keeps the program in one `program.st` (the manifest's 
 folder sync lays it out on its first round. A folder can name program files other than the ones the app writes:
 that old file, or POUs an agent put in one file. When it does, the manifest and those files read as changed in
 the app. The round writes the app's files and removes the folder's others, guarded like any write
-(`programLayoutBaseline`). Treating the difference as a rendering difference would lose a later program edit,
-because the app's per-POU files are not named by the folder's manifest.
+(`layoutBaseline`). Treating the difference as a rendering difference would lose a later program edit,
+because the app's per-POU files are not named by the folder's manifest. Tests get the same treatment: the app names
+each test's file from the test's name, so a folder that lists `tests/sort.test.json` for a test called "Sort by
+colour" is relaid as the app's file, and the old one removed. Otherwise an edit made in the app would go to a file
+the manifest does not list, and the next open would read the stale test.
 
 The ST program and every part behavior are real text files, so PLC and part logic can be reviewed. Loading is
 manifest-driven, so stale or extra files are ignored rather than fatal. Reassembly goes through

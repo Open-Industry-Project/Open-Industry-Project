@@ -18,7 +18,7 @@ import { cargoKindName } from '../frame'
 import type { BoxFrame, CargoKindName } from '../frame'
 import { quatToYXZ } from '../math'
 import { isOperand, operandProbeKey, probeKey } from './projectTest'
-import type { CargoColor, CountProbe, JointProbe, LampProbe, MarkFilter, PassedProbe, PoseProbe, TestCheck, TestProbe, TestValue, Zone } from './projectTest'
+import type { CargoColor, CountProbe, JointProbe, LampProbe, MarkFilter, PassedProbe, PoseProbe, SquareProbe, TestCheck, TestProbe, TestValue, Zone } from './projectTest'
 
 /** each frame row's marks (SimWorld.cargoMarks), index-aligned with the frame; null for a row with none */
 export type RowMarks = readonly (Readonly<Record<string, number | boolean | string>> | null)[]
@@ -116,6 +116,26 @@ function matchesFilters(spec: CountProbe, frame: BoxFrame, i: number, marks?: Ro
   return true
 }
 
+/** How far a heading is off square to `heading`, folded by 90 so any edge parallel counts: degrees in [0, 45]. */
+export function offSquareDeg(yawDeg: number, heading: number): number {
+  const d = (((yawDeg - heading) % 90) + 90) % 90
+  return Math.min(d, 90 - d)
+}
+
+/** The worst {@link offSquareDeg} of the matching bodies inside the zone, or undefined when none is inside. */
+function readSquare(spec: SquareProbe, frame: BoxFrame, marks?: RowMarks): number | undefined {
+  let worst: number | undefined
+  for (let i = 0; i < frame.count; i++) {
+    const p = i * 3
+    if (!inZone(spec.zone, frame.positions[p]!, frame.positions[p + 1]!, frame.positions[p + 2]!)) continue
+    if (!matchesFilters(spec, frame, i, marks)) continue
+    const off = offSquareDeg(cargoYawDeg(frame, i), spec.heading)
+    if (worst === undefined || off > worst) worst = off
+  }
+  // to a tenth of a degree, so a failed check reads `became 7.6`
+  return worst === undefined ? undefined : Math.round(worst * 10) / 10
+}
+
 /** How many live cargo bodies match every filter. */
 function countCargo(spec: CountProbe, frame: BoxFrame, marks?: RowMarks): number {
   let n = 0
@@ -146,6 +166,17 @@ export interface CargoRow {
   pos: [number, number, number]
   /** how far it is tilted from upright, whole degrees (about 90 = on its side) */
   tiltDeg: number
+  /** its heading about world +Y, whole degrees in (-180, 180], the same angle a part's `rotationY` and a `pose` probe's
+   *  `yaw` measure. A box is symmetric, so 90 apart can be the same footprint */
+  yawDeg: number
+}
+
+/** Body `i`'s heading about world +Y in degrees (YXZ order, as a part's rotationY). */
+export function cargoYawDeg(frame: Pick<BoxFrame, 'quats'>, i: number): number {
+  const q = i * 4
+  const deg = (quatToYXZ(frame.quats[q]!, frame.quats[q + 1]!, frame.quats[q + 2]!, frame.quats[q + 3]!)[1] * 180) / Math.PI
+  // -180 and 180 are one heading; `+ 0` turns a -0 into 0
+  return deg <= -179.5 ? 180 : deg + 0
 }
 
 /** The angle between body `i`'s own up axis and world up, in degrees: its tilt from upright. */
@@ -178,6 +209,7 @@ export function cargoRows(frame: BoxFrame): CargoRow[] {
       ...(name ? { colorName: name } : {}),
       pos: [mm(frame.positions[c]!), mm(frame.positions[c + 1]!), mm(frame.positions[c + 2]!)],
       tiltDeg: Math.round(cargoTiltDeg(frame, i)),
+      yawDeg: Math.round(cargoYawDeg(frame, i)),
     })
   }
   return out
@@ -295,7 +327,10 @@ export class ProbeSampler {
 
   /** Does a probe filter on marks, so the runner has to hand {@link values} each row's marks? */
   get needsMarks(): boolean {
-    return this.probes.some(({ probe }) => ('count' in probe && probe.count.marked !== undefined) || ('passed' in probe && probe.passed.marked !== undefined))
+    return this.probes.some(
+      ({ probe }) =>
+        ('count' in probe && probe.count.marked !== undefined) || ('passed' in probe && probe.passed.marked !== undefined) || ('square' in probe && probe.square.marked !== undefined),
+    )
   }
 
   /** Read every probe against one step's frame, keyed for the evaluator's sample table. `marks` is each row's marks,
@@ -312,6 +347,7 @@ export class ProbeSampler {
       let v: TestValue | undefined
       if ('count' in probe) v = this.colorWitnessed(probe.count.color) ? countCargo(probe.count, frame, marks) : undefined
       else if ('passed' in probe) v = this.readPassed(key, probe.passed)
+      else if ('square' in probe) v = this.colorWitnessed(probe.square.color) ? readSquare(probe.square, frame, marks) : undefined
       else if ('joint' in probe) v = this.readJoint(probe.joint)
       else if ('lamp' in probe) v = this.readLamp(probe.lamp)
       else v = this.readPose(probe.pose, frame)
@@ -328,7 +364,7 @@ export class ProbeSampler {
 
   private trackColors(frame: BoxFrame): void {
     for (const { probe } of this.probes) {
-      const color = 'count' in probe ? probe.count.color : 'passed' in probe ? probe.passed.color : undefined
+      const color = 'count' in probe ? probe.count.color : 'passed' in probe ? probe.passed.color : 'square' in probe ? probe.square.color : undefined
       if (color === undefined || this.colorsSeen.has(color)) continue
       for (let i = 0; i < frame.count; i++) {
         if (!colorMatches(color, frame, i)) continue

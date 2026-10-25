@@ -246,13 +246,14 @@ describe('agent tools: seeing the scene', () => {
     }
   })
 
-  it('get_cargo lists the last frame’s bodies with their tilt, filtered to a box', async () => {
+  it('get_cargo lists the last frame’s bodies with their tilt and heading, filtered to a box', async () => {
     const tipped = Math.SQRT1_2 // 90° about X
+    const s = Math.sin(Math.PI / 8) // 45° about Y
     const frame = {
       count: 2,
       ids: new Uint32Array([7, 8]),
       positions: new Float32Array([1, 0.9, 0, 5, 0.1, 0]),
-      quats: new Float32Array([0, 0, 0, 1, tipped, 0, 0, tipped]),
+      quats: new Float32Array([0, s, 0, Math.cos(Math.PI / 8), tipped, 0, 0, tipped]),
       halfExtents: new Float32Array([0.2, 0.15, 0.2, 0.2, 0.15, 0.2]),
       colors: new Float32Array([1, 0, 0, 1, 1, 1]),
       kinds: new Uint8Array([CARGO_KIND_BOX, CARGO_KIND_BOX]),
@@ -264,8 +265,8 @@ describe('agent tools: seeing the scene', () => {
     c.store.setState({ running: true })
     const all = (await ok(c, 'get_cargo')) as { count: number; cargo: Record<string, unknown>[] }
     expect(all.count).toBe(2)
-    expect(all.cargo[0]).toEqual({ id: 7, kind: 'box', position: [1, 0.9, 0], size: [0.4, 0.3, 0.4], color: '#ff0000', tiltDeg: 0 })
-    expect(all.cargo[1]).toMatchObject({ id: 8, tiltDeg: 90, part: 'box_3' })
+    expect(all.cargo[0]).toEqual({ id: 7, kind: 'box', position: [1, 0.9, 0], size: [0.4, 0.3, 0.4], color: '#ff0000', tiltDeg: 0, yawDeg: 45 })
+    expect(all.cargo[1]).toMatchObject({ id: 8, tiltDeg: 90, yawDeg: 0, part: 'box_3' })
     const near = (await ok(c, 'get_cargo', { within: { min: [0, 0, -1], max: [2, 2, 1] } })) as { count: number }
     expect(near.count).toBe(1)
   })

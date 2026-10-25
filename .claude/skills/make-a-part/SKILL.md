@@ -24,7 +24,7 @@ the procedure only.
 | Bring a model | `import_model` (.glb, .step, .stp) | `npm run import-model`, `npm run inspect-glb` |
 | Look at it | `add_part`, then `capture_view` | `npm run shot-part -- <folder>` |
 | Prove it | `run_test` with a spec on a scene using it | `npm run test-project -- <project>` |
-| Tune how it moves cargo | `run_test` with `cargo: [t, ...]`: every body's position, tilt, velocity and what it touches at those sim times, the same each run | `npm run test-project -- <project> --cargo 3,4,5` |
+| Tune how it moves cargo | `run_test` with `cargo: [t, ...]`: every body's position, tilt, heading, velocity and what it touches at those sim times, the same each run | `npm run test-project -- <project> --cargo 3,4,5` |
 
 The MCP tools take a manifest object and a behavior script. They never write a `part.js`: for a part the project
 folder builds from one, `get_part_source` returns it as `partJs` with the build command, and `edit_part_definition`

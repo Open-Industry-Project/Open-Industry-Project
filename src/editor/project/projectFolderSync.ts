@@ -29,7 +29,7 @@ import {
   advanceBaseline,
   agreedBaseline,
   diskAfter,
-  programLayoutBaseline,
+  layoutBaseline,
   planFolderSync,
   resolveConflicts,
   sceneUntouched,
@@ -211,13 +211,13 @@ async function round(reason: 'poll' | 'write'): Promise<void> {
 
   // First round after the working copy was built from this folder: the two are the same project, so
   // whatever differs between them is rendering, not an edit. Agree on it and move nothing - unless the folder names
-  // other program files than the app writes, which is a layout to rewrite, not a rendering (core/project/folderSync.ts
-  // programLayoutBaseline; checked every round, since an agent can write that layout at any time).
+  // other program or test files than the app writes, which is a layout to rewrite, not a rendering (core/project/folderSync.ts
+  // layoutBaseline; checked every round, since an agent can write that layout at any time).
   if (l.baseline === null && l.trustDisk) {
     l.baseline = { disk: {}, mine: agreedBaseline(mine, mine).mine }
   } else if (l.baseline === null) {
     const agreed = agreedBaseline(mine, theirs)
-    const relaid = programLayoutBaseline(agreed, mine, theirs)
+    const relaid = layoutBaseline(agreed, mine, theirs)
     if (relaid === null) {
       l.baseline = agreed
       l.agreedManifest = fileText(theirs, PROJECT_MANIFEST)
@@ -228,7 +228,7 @@ async function round(reason: 'poll' | 'write'): Promise<void> {
     l.baseline = relaid
     l.agreedManifest = fileText(theirs, PROJECT_MANIFEST)
   } else {
-    l.baseline = programLayoutBaseline(l.baseline, mine, theirs) ?? l.baseline
+    l.baseline = layoutBaseline(l.baseline, mine, theirs) ?? l.baseline
   }
 
   const plan = planFolderSync(l.baseline, mine, theirs)

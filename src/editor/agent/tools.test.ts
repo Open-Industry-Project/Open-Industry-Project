@@ -556,7 +556,7 @@ describe('agent tools: run_test', () => {
 
   it('lists the cargo at the times asked for, capped per snapshot, and names the times the run ended before', async () => {
     const c = ctx()
-    const row = (id: number) => ({ id, part: null, kind: 'box', color: '#ffffff', pos: [id, 0.5, 0], tiltDeg: 47 })
+    const row = (id: number) => ({ id, part: null, kind: 'box', color: '#ffffff', pos: [id, 0.5, 0], tiltDeg: 47, yawDeg: 0 })
     runProjectTests.mockResolvedValue([
       {
         name: 'test-1',

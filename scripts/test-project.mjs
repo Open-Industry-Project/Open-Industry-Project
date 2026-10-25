@@ -256,9 +256,9 @@ try {
     }
     if (snaps) {
       for (const snap of snaps.snapshots) {
-        console.log(`    cargo at t=${snap.t.toFixed(3)}s (${snap.bodies.length} bod${snap.bodies.length === 1 ? 'y' : 'ies'}): id  part  kind  colour  [x, y, z]  tilt  velocity m/s  touching`)
+        console.log(`    cargo at t=${snap.t.toFixed(3)}s (${snap.bodies.length} bod${snap.bodies.length === 1 ? 'y' : 'ies'}): id  part  kind  colour  [x, y, z]  tilt  yaw  velocity m/s  touching`)
         for (const b of snap.bodies) {
-          console.log(`        ${b.id}  ${b.part ?? '-'}  ${b.kind}  ${b.color}${b.colorName ? ` (${b.colorName})` : ''}  [${b.pos.join(', ')}]  ${b.tiltDeg}°  ${b.vel ? `[${b.vel.join(', ')}]` : '-'}  ${b.touching?.length ? b.touching.join(', ') : '-'}`)
+          console.log(`        ${b.id}  ${b.part ?? '-'}  ${b.kind}  ${b.color}${b.colorName ? ` (${b.colorName})` : ''}  [${b.pos.join(', ')}]  ${b.tiltDeg}°  ${b.yawDeg}°  ${b.vel ? `[${b.vel.join(', ')}]` : '-'}  ${b.touching?.length ? b.touching.join(', ') : '-'}`)
         }
       }
       const missed = snaps.missed()

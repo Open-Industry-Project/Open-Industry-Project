@@ -5,7 +5,7 @@ import {
   diskAfter,
   hashText,
   planFolderSync,
-  programLayoutBaseline,
+  layoutBaseline,
   resolveConflicts,
   sceneUntouched,
   writeOpsFor,
@@ -291,7 +291,7 @@ describe('rewriting the program layout (format 7)', () => {
   })
 
   it('is not needed when the folder names the files the app writes', () => {
-    expect(programLayoutBaseline(agreedBaseline(mine, mine), mine, mine)).toBeNull()
+    expect(layoutBaseline(agreedBaseline(mine, mine), mine, mine)).toBeNull()
   })
 
   it('writes the app files and manifest over a one-file program.st, removes it, and leaves the rest alone', () => {
@@ -301,7 +301,7 @@ describe('rewriting the program layout (format 7)', () => {
       'scene.json': '{ "parts": [] }',
       'program.st': 'FUNCTION_BLOCK Latch\nEND_FUNCTION_BLOCK\n\nRun := TRUE;\n',
     })
-    const baseline = programLayoutBaseline(agreedBaseline(mine, theirs), mine, theirs)!
+    const baseline = layoutBaseline(agreedBaseline(mine, theirs), mine, theirs)!
     const plan = planFolderSync(baseline, mine, theirs)
     expect(plan.write.map((f) => f.path).sort()).toEqual(['plc/Latch.st', 'plc/program.st', 'project.json'])
     expect(plan.remove).toEqual(['program.st'])
@@ -319,7 +319,7 @@ describe('rewriting the program layout (format 7)', () => {
       'scene.json': '{"parts":[]}',
       'plc/program.st': 'FUNCTION_BLOCK Latch\nEND_FUNCTION_BLOCK\n\nRun := TRUE;\n',
     })
-    const plan = planFolderSync(programLayoutBaseline(agreedBaseline(mine, theirs), mine, theirs)!, mine, theirs)
+    const plan = planFolderSync(layoutBaseline(agreedBaseline(mine, theirs), mine, theirs)!, mine, theirs)
     expect(plan.write.map((f) => f.path).sort()).toEqual(['plc/Latch.st', 'plc/program.st', 'project.json'])
     expect(plan.remove).toEqual([])
   })
@@ -327,6 +327,51 @@ describe('rewriting the program layout (format 7)', () => {
   it('waits while the folder is changing those files, so its change is loaded first', () => {
     const before = files({ 'project.json': manifest({ program: ['plc/Latch.st', 'plc/program.st'] }), 'plc/Latch.st': 'x', 'plc/program.st': 'y' })
     const theirs = files({ 'project.json': manifest({ program: ['plc/program.st'] }), 'plc/program.st': 'x\n\ny' })
-    expect(programLayoutBaseline(agreedBaseline(before, before), mine, theirs)).toBeNull()
+    expect(layoutBaseline(agreedBaseline(before, before), mine, theirs)).toBeNull()
+  })
+})
+
+describe('rewriting the test layout', () => {
+  const manifest = (tests: string[]): string => JSON.stringify({ name: 'P', scene: 'scene.json', program: ['plc/program.st'], tests })
+  const spec = '{"name":"Sort by colour","duration":10,"checks":[]}'
+  const mine = files({
+    'project.json': manifest(['tests/Sort_by_colour.test.json']),
+    'scene.json': '{"parts":[]}',
+    'plc/program.st': 'Run := TRUE;\n',
+    'tests/Sort_by_colour.test.json': spec,
+  })
+
+  it('relays a test file not named from its test: writes the app file and the manifest, removes the old one, leaves the program', () => {
+    const theirs = files({
+      'project.json': manifest(['tests/sort.test.json']),
+      'scene.json': '{"parts":[]}',
+      // formatted by someone else: a rendering difference, which stays
+      'plc/program.st': 'Run := TRUE;',
+      'tests/sort.test.json': '{ "name": "Sort by colour", "duration": 10, "checks": [] }',
+    })
+    const baseline = layoutBaseline(agreedBaseline(mine, theirs), mine, theirs)!
+    const plan = planFolderSync(baseline, mine, theirs)
+    expect(plan.write.map((f) => f.path).sort()).toEqual(['project.json', 'tests/Sort_by_colour.test.json'])
+    expect(plan.remove).toEqual(['tests/sort.test.json'])
+    expect(plan.take).toEqual([])
+    expect(plan.conflicts).toEqual([])
+  })
+
+  it('finishes the relay after an app edit already wrote the new file, which is how the bug left a folder', () => {
+    // the app wrote its file; the manifest still names the old one, which keeps the stale spec
+    const theirs = files({
+      'project.json': manifest(['tests/sort.test.json']),
+      'scene.json': '{"parts":[]}',
+      'plc/program.st': 'Run := TRUE;\n',
+      'tests/sort.test.json': '{"name":"Sort by colour","duration":5,"checks":[]}',
+      'tests/Sort_by_colour.test.json': spec,
+    })
+    const plan = planFolderSync(layoutBaseline(agreedBaseline(mine, theirs), mine, theirs)!, mine, theirs)
+    expect(plan.write.map((f) => f.path)).toEqual(['project.json'])
+    expect(plan.remove).toEqual(['tests/sort.test.json'])
+  })
+
+  it('is not needed when the folder names the test files the app writes', () => {
+    expect(layoutBaseline(agreedBaseline(mine, mine), mine, mine)).toBeNull()
   })
 })

@@ -186,6 +186,17 @@ export interface PassedProbe {
   marked?: MarkFilter
 }
 
+/**
+ * How far the cargo in `zone` is turned off `heading`: the worst of the matching bodies inside it this step, in degrees
+ * from 0 (square) to 45, to a tenth of a degree. The angle is folded by 90, so any edge parallel to the heading counts as square, which is what
+ * "square to the spur" means for a rectangular case. `heading` is degrees about +Y as a part's `rotationY` measures it
+ * (a spur's own rotationY, in degrees). Absent on a step with no matching body in the zone, so `always` + `max` holds
+ * over the bodies that pass through, and a zone off their path fails as never appeared. The filters are `count`'s.
+ */
+export interface SquareProbe extends PassedProbe {
+  heading: number
+}
+
 /** Where a part actually is: a mobile part's driven base (ctx.drive) or an authored cargo body. */
 export interface PoseProbe {
   part: string
@@ -217,7 +228,7 @@ export interface LampProbe {
   lamp: string
 }
 
-export type TestProbe = { count: CountProbe } | { passed: PassedProbe } | { pose: PoseProbe } | { joint: JointProbe } | { lamp: LampProbe }
+export type TestProbe = { count: CountProbe } | { passed: PassedProbe } | { square: SquareProbe } | { pose: PoseProbe } | { joint: JointProbe } | { lamp: LampProbe }
 
 /**
  * The other side of a comparison, read at the same step as the check's source: another tag, or a probe. What lets a
@@ -295,7 +306,7 @@ const TEMPORAL_KEYS = ['at', 'always', 'eventually'] as const
 const PREDICATE_KEYS = ['equals', 'min', 'max', 'near', 'notEquals'] as const
 type PredicateKey = (typeof PREDICATE_KEYS)[number]
 const SOURCE_KEYS = ['tag', 'probe'] as const
-const PROBE_KINDS = ['count', 'pose', 'joint', 'lamp', 'passed'] as const
+const PROBE_KINDS = ['count', 'pose', 'joint', 'lamp', 'passed', 'square'] as const
 const FAULT_KINDS: readonly FaultKind[] = ['sensorStuck', 'actuatorDead', 'commsLoss', 'jam']
 const POSE_AXES: readonly PoseAxis[] = ['x', 'y', 'z', 'yaw']
 
@@ -316,14 +327,15 @@ export function describeProbe(p: TestProbe): string {
   if ('pose' in p) return `pose(${p.pose.part}.${p.pose.axis})`
   if ('joint' in p) return `joint(${p.joint.part}.${p.joint.joint})`
   if ('lamp' in p) return `lamp(${p.lamp.part}.${p.lamp.lamp})`
-  const f: CountProbe = 'passed' in p ? p.passed : p.count
+  const f: CountProbe = 'passed' in p ? p.passed : 'square' in p ? p.square : p.count
   const filters: string[] = []
+  if ('square' in p) filters.push(`heading ${p.square.heading}°`)
   if (f.part !== undefined) filters.push(`part ${f.part}`)
   if (f.color !== undefined) filters.push(f.color)
   if (f.kind !== undefined) filters.push(f.kind)
   if (f.marked !== undefined) filters.push(typeof f.marked === 'string' ? `marked ${f.marked}` : `marked ${Object.entries(f.marked).map(([k, v]) => `${k}=${v}`).join('')}`)
   if (f.zone) filters.push(`zone ${fmtVec(f.zone.min)}..${fmtVec(f.zone.max)}`)
-  return `${'passed' in p ? 'passed' : 'count'}(${filters.length > 0 ? filters.join(', ') : 'all cargo'})`
+  return `${'passed' in p ? 'passed' : 'square' in p ? 'square' : 'count'}(${filters.length > 0 ? filters.join(', ') : 'all cargo'})`
 }
 
 /** Is a predicate's right-hand side another tag or a probe, rather than a literal? */
@@ -377,21 +389,35 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
     return undefined
   }
 
-  if (kinds[0] === 'count' || kinds[0] === 'passed') {
+  if (kinds[0] === 'count' || kinds[0] === 'passed' || kinds[0] === 'square') {
     const kind = kinds[0]
     const c = p[kind]
     if (typeof c !== 'object' || c === null || Array.isArray(c)) {
-      errors.push(kind === 'count' ? `${path}.count must be an object of filters (use {} to count all cargo)` : `${path}.passed must be an object with a zone (and optional filters)`)
+      errors.push(
+        kind === 'count'
+          ? `${path}.count must be an object of filters (use {} to count all cargo)`
+          : kind === 'passed'
+            ? `${path}.passed must be an object with a zone (and optional filters)`
+            : `${path}.square must be an object with a zone and a heading (and optional filters)`,
+      )
       return undefined
     }
     const f = c as Record<string, unknown>
     const out: CountProbe = {}
     let ok = true
     for (const k of Object.keys(f)) {
+      if (k === 'heading' && kind === 'square') continue
       if (k !== 'part' && k !== 'kind' && k !== 'zone' && k !== 'color' && k !== 'marked') {
-        errors.push(`${path}.${kind}.${k} is not a filter (part/kind/color/marked/zone)`)
+        errors.push(`${path}.${kind}.${k} is not a filter (part/kind/color/marked/zone${kind === 'square' ? '/heading' : ''})`)
         ok = false
       }
+    }
+    let heading: number | undefined
+    if (kind === 'square') {
+      if (typeof f.heading !== 'number' || !Number.isFinite(f.heading)) {
+        errors.push(`${path}.square.heading is required: the direction in degrees about +Y the cargo should be square to (a spur's rotationY, in degrees)`)
+        ok = false
+      } else heading = f.heading
     }
     if (f.part !== undefined) {
       if (typeof f.part !== 'string' || f.part === '') {
@@ -429,8 +455,12 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
     } else if (kind === 'passed') {
       errors.push(`${path}.passed.zone is required: the place the cargo passes`)
       ok = false
+    } else if (kind === 'square') {
+      errors.push(`${path}.square.zone is required: the place the cargo should be square in`)
+      ok = false
     }
     if (!ok) return undefined
+    if (kind === 'square') return { square: { ...(out as PassedProbe), heading: heading! } }
     return kind === 'count' ? { count: out } : { passed: out as PassedProbe }
   }
 
@@ -565,7 +595,7 @@ export function probePartErrors(parts: readonly { id: string; packageId?: string
     const operands = (['equals', 'notEquals', 'min', 'max', 'near'] as const).map((k) => c[k])
     const probes = [c.probe, ...operands.map((o) => (o !== null && typeof o === 'object' && 'probe' in o ? o.probe : undefined))]
     for (const p of probes) {
-      const part = p && 'count' in p ? p.count.part : p && 'passed' in p ? p.passed.part : undefined
+      const part = p && 'count' in p ? p.count.part : p && 'passed' in p ? p.passed.part : p && 'square' in p ? p.square.part : undefined
       if (part === undefined || ids.has(part)) continue
       const ofType = parts.filter((q) => q.packageId === part).map((q) => q.id)
       errors.push(
@@ -962,6 +992,10 @@ export class TestEvaluator {
     if ('passed' in p) {
       const why = 'no cargo at all entered its zone in the whole run - is the zone on the cargo\'s path?'
       return p.passed.color !== undefined ? `${why} Or no ${p.passed.color} cargo existed in the run` : why
+    }
+    if ('square' in p) {
+      const why = 'no matching cargo was ever inside its zone - is the zone on the cargo\'s path?'
+      return p.square.color !== undefined ? `${why} Or no ${p.square.color} cargo existed in the run` : why
     }
     return `no ${p.count.color} cargo existed in the whole run - is the colour right?`
   }

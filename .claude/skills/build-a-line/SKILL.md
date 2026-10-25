@@ -63,7 +63,8 @@ pose or param skips both.
 ## 3. Test so that a wrong program fails
 
 - Assert what happened physically, not only the tags. Use `passed` probes with a `color` filter for "boxes went
-  down this lane", and `count` with `always` + `max: 0` for "nothing ever reached the floor".
+  down this lane", and `count` with `always` + `max: 0` for "nothing ever reached the floor". On a divert or a turn,
+  a `square` probe with `always` + `max` on the middle of each spur checks the cases ride it square, not skewed.
 - Prefer windows (`from` / `until`), tag-against-tag checks (`"max": {"tag": "Sorted1"}`) and `notEquals` over an
   exact count at an exact time. An exact count breaks when an unrelated change moves an arrival by a tenth of
   a second.

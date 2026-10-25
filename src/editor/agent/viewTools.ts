@@ -3,7 +3,7 @@
 // taking back the agent's own last edit, and dropping a kept test.
 
 import { cargoKindName } from '../../core/frame'
-import { cargoTiltDeg } from '../../core/project/projectProbe'
+import { cargoTiltDeg, cargoYawDeg } from '../../core/project/projectProbe'
 import { duplicateParts } from '../../core/parts/partDuplicate'
 import { assetsBusy, whenAssetsQuiet } from '../../render/gltf'
 import type { SceneJSON } from '../../core/types'
@@ -191,7 +191,8 @@ export const getCargo: AgentTool = {
   name: 'get_cargo',
   description:
     'List the cargo of the running sim (boxes, totes, pallets) as the last frame has it: id, kind, position [x,y,z] ' +
-    'in metres, size, colour, how far it is tilted from upright in degrees (about 90 = on its side), and the scene ' +
+    'in metres, size, colour, how far it is tilted from upright in degrees (about 90 = on its side), its heading ' +
+    '`yawDeg` about +Y in degrees (as a part\'s rotationY; a box turned 90 has the same footprint), and the scene ' +
     'part it is, for authored cargo. Optional `within`: only bodies whose centre is inside a box { min:[x,y,z], ' +
     'max:[x,y,z] }. Empty while stopped. Running, this is wherever the sim has got to. Paused (pause / step), each ' +
     'body also has its velocity `vel` [x,y,z] in m/s and what it is `touching` (part ids, `cargo <id>`, `floor`). ' +
@@ -234,6 +235,7 @@ export const getCargo: AgentTool = {
         size: [f.halfExtents[i * 3]! * 2, f.halfExtents[i * 3 + 1]! * 2, f.halfExtents[i * 3 + 2]! * 2].map(round),
         color: `#${hex(0)}${hex(1)}${hex(2)}`,
         tiltDeg: Math.round(cargoTiltDeg(f, i)),
+        yawDeg: Math.round(cargoYawDeg(f, i)),
         ...(f.partIds[i] ? { part: f.partIds[i] } : {}),
         ...(vel.has(f.ids[i]!) ? { vel: vel.get(f.ids[i]!)!.map(round) } : {}),
         ...(touching.has(f.ids[i]!) ? { touching: touching.get(f.ids[i]!) } : {}),

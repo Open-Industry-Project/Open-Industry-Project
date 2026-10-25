@@ -137,6 +137,7 @@ takes the place of `tag`, and the temporal modes and predicates above apply to i
 |---|---|
 | `{ "count": { "zone": {"min":[x,y,z], "max":[x,y,z]}, "part": "id", "kind": "box"\|"pallet"\|"tote", "color": "red", "marked": "sealed" } }` | how many live cargo bodies match now - every filter optional and ANDed, `{}` counts all cargo |
 | `{ "passed": { "zone": {...}, "part", "kind", "color" } }` | how many cargo bodies have entered `zone` since the run began: cumulative, each body once, despawned ones included. "Boxes that passed this point", whenever they arrived. The zone is required, the filters are `count`'s |
+| `{ "square": { "zone": {...}, "heading": 30, "part", "kind", "color" } }` | how far the cargo in `zone` is turned off square to `heading`: the worst matching body inside it this step, in degrees from 0 to 45, to a tenth of a degree. Folded by 90, so any edge parallel to the heading is square. `heading` is degrees about +Y, as a part's `rotationY` (a spur's, in degrees). Absent while no matching body is inside. The zone and heading are required, the filters are `count`'s |
 | `{ "pose": { "part": "id", "axis": "x"\|"y"\|"z"\|"yaw" } }` | where that part is - a mobile part's driven base (`ctx.drive`), else an authored cargo body |
 | `{ "joint": { "part": "id", "joint": "name" } }` | a rig part's joint value (rad / m): the last one it commanded, latched; absent until it commands that joint |
 | `{ "lamp": { "part": "id", "lamp": "name" } }` | whether a part's lamp is lit (`true` / `false`): the last value its behavior commanded, latched; absent until it commands that lamp. It reads the command, so a lamp lit at rest only by its `param` is absent |
@@ -167,7 +168,14 @@ out or filter by `kind`.
 
 // at least 3 blue boxes went down lane 2 (a thin gate across the lane)
 { "eventually": true, "min": 3, "probe": { "passed": { "zone": { "min": [5.5,0.8,-1.2], "max": [6.5,1.5,-1.0] }, "color": "blue" } } }
+
+// every case rides the 30-degree spur within 10 degrees of square
+{ "always": true, "max": 10, "probe": { "square": { "zone": { "min": [4.4,0.7,-1.3], "max": [5.0,1.3,-0.9] }, "heading": 30 } } }
 ```
+
+**`square` is for a place cargo rides through settled**, such as the middle of a spur, not the transfer onto it, where a
+case turns on purpose. Its zone has the same witness rule as `passed`: absent until a matching body is inside, so a
+zone beside the lane fails as never appeared instead of passing every `max`.
 
 **Colour** is `red`, `green` or `blue`, called by the rule the colour sensor part uses (a saturated tint whose channel
 dominates; white, grey, yellow and anything too dark are none of them), or an exact `#rrggbb` as the scene authors it
@@ -339,7 +347,9 @@ not `lane2-full-logic` too. A report leads with the file name. A manifest that l
 too, with a note that the app will not run it until it is listed.
 
 **`--cargo 5,10.5` lists every live cargo body at those times**: id, part (or `-` for a spawned box), kind, tint
-(`#e01010 (red)`), centre in world metres and tilt from upright in whole degrees. It is the headless answer to "where
+(`#e01010 (red)`), centre in world metres, tilt from upright and heading about +Y (`yawDeg`, measured as a part's `rotationY`), in
+whole degrees. A spawned box has no part id, so a `pose` probe's `yaw` cannot follow it, and its heading here is how
+to see a case turn through a divert. It is the headless answer to "where
 are the boxes", which is what you need to place a `count` zone or a `passed` gate, and close-together times follow a
 box that tips or falls. `--json` carries it as `cargo` per test, and the agent's `run_test` takes the same times as
 `cargo` (core/project/projectProbe.ts `CargoSnapshots` serves both).

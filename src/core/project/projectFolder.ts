@@ -25,7 +25,7 @@
 // edited folder gets every clamp/migration a .oip does. Loading is manifest-driven: unreferenced files are ignored.
 //
 // A folder from formats 4-6 keeps the whole program in one `program.st` (the manifest's `stProgram`). It still reads,
-// and the folder sync rewrites it in this layout on its first round (core/project/folderSync.ts `programLayoutBaseline`).
+// and the folder sync rewrites it in this layout on its first round (core/project/folderSync.ts `layoutBaseline`).
 //
 // A pre-format-4 folder lists scenes (scenes/<id>.scene.json + scenes/<id>.st). It still reads: validateProject
 // splits it, the other scenes returned in `splitOff` for folders of their own (editor/folderSplit.ts); saving writes

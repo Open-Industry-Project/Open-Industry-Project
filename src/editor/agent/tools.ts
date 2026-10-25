@@ -824,8 +824,8 @@ const runTest: AgentTool = {
     "`summary` says how many tests and checks passed. `trace` records tags through the whole run (each one's value " +
     'at the start and every change with its time): how to read what a value was, or why a check failed. `cargo` ' +
     'lists every box, tote and pallet at chosen sim times: id, part, kind, colour, centre [x,y,z] in metres, ' +
-    'tilt from upright in degrees, velocity `vel` [x,y,z] in m/s and what it is `touching` (part ids, `cargo <id>`, ' +
-    '`floor`), so a box tipping, falling or launched, and what pushed it, can be ' +
+    'tilt from upright in degrees, heading `yawDeg` about +Y in degrees, velocity `vel` [x,y,z] in m/s and what it is ' +
+    '`touching` (part ids, `cargo <id>`, `floor`), so a box tipping, turning, falling or launched, and what pushed it, can be ' +
     'followed step by step through the same run. Every run of a spec is the same run, so this is how to inspect the ' +
     'cargo at a known time; the live sim (run, get_cargo) runs on wall-clock time.',
   inputSchema: {

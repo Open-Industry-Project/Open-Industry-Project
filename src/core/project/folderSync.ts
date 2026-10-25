@@ -196,6 +196,7 @@ export function resolveConflicts(
 interface ManifestMachine {
   scene?: unknown
   program?: unknown
+  tests?: unknown
   stProgram?: unknown
   scenes?: unknown
   stScanMs?: unknown
@@ -239,33 +240,38 @@ export function sceneUntouched(taken: readonly string[], manifestBefore: string 
   return shape(before) === shape(after)
 }
 
-/** The program files a manifest names, in order: format 7's `program` list, or the one `stProgram` of formats 4-6. */
-function programPathsOf(files: readonly ProjectFolderFile[]): string[] | null {
+/** The files a manifest names for each kind the app lays out itself, in order: the program (format 7's `program`
+ *  list, or the one `stProgram` of formats 4-6) and the tests (one file per test, named from the test's name). */
+function layoutPathsOf(files: readonly ProjectFolderFile[]): { program: string[]; tests: string[] } | null {
   const text = files.find((f) => f.path === PROJECT_MANIFEST)?.contents
   const m = parseManifest(typeof text === 'string' ? text : undefined)
   // a folder listing scenes is split before it is synced (editor/project/projectSplit.ts)
   if (!m || m.scenes !== undefined) return null
   const norm = (p: unknown): string => String(p).replace(/\\/g, '/').replace(/^\.\//, '')
-  if (Array.isArray(m.program)) return m.program.map(norm)
-  return typeof m.stProgram === 'string' ? [norm(m.stProgram)] : []
+  const program = Array.isArray(m.program) ? m.program.map(norm) : typeof m.stProgram === 'string' ? [norm(m.stProgram)] : []
+  return { program, tests: Array.isArray(m.tests) ? m.tests.map(norm) : [] }
 }
 
 /**
- * `baseline`, made to rewrite the program's layout when the folder names other program files than the app writes: the
- * one `program.st` of formats 4-6, or POUs an agent put in one file. The manifest and every program file on either
- * side then read as changed in the app, so the round writes the app's files and the manifest naming them and removes
- * the folder's others, each guarded like any write. Null when the two name the same files, and while the folder has
- * changed any of them since the baseline: that change is loaded first, and the next round lays it out.
+ * `baseline`, made to rewrite the folder's layout when it names other program or test files than the app writes: the
+ * one `program.st` of formats 4-6, POUs an agent put in one file, or a test file not named from its test's name. The
+ * manifest and every file of that kind on either side then read as changed in the app, so the round writes the app's
+ * files and the manifest naming them and removes the folder's others, each guarded like any write. Null when the two
+ * name the same files, and while the folder has changed any of them since the baseline: that change is loaded first,
+ * and the next round lays it out.
  *
  * Without this the rule that leaves a file the app only renders differently alone would leave the folder's layout, and
- * a later program edit would write only the app's files, which the folder's manifest does not name: the next open
- * would read the stale program.
+ * a later edit would write only the app's files, which the folder's manifest does not name: the next open would read
+ * the stale program or test.
  */
-export function programLayoutBaseline(baseline: FolderBaseline, mine: readonly ProjectFolderFile[], theirs: readonly ProjectFolderFile[]): FolderBaseline | null {
-  const minePaths = programPathsOf(mine)
-  const diskPaths = programPathsOf(theirs)
-  if (minePaths === null || diskPaths === null || JSON.stringify(minePaths) === JSON.stringify(diskPaths)) return null
-  const moving = [...new Set([PROJECT_MANIFEST, ...minePaths, ...diskPaths])]
+export function layoutBaseline(baseline: FolderBaseline, mine: readonly ProjectFolderFile[], theirs: readonly ProjectFolderFile[]): FolderBaseline | null {
+  const minePaths = layoutPathsOf(mine)
+  const diskPaths = layoutPathsOf(theirs)
+  if (minePaths === null || diskPaths === null) return null
+  // each kind on its own, so a renamed test never rewrites the program files
+  const kinds = (['program', 'tests'] as const).filter((k) => JSON.stringify(minePaths[k]) !== JSON.stringify(diskPaths[k]))
+  if (kinds.length === 0) return null
+  const moving = [...new Set([PROJECT_MANIFEST, ...kinds.flatMap((k) => [...minePaths[k], ...diskPaths[k]])])]
   const disk = syncable(theirs)
   const unchangedOnDisk = (path: string): boolean => {
     const contents = disk.get(path)
