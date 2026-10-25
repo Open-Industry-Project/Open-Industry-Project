@@ -150,7 +150,7 @@ plugs []
 params reserved=[] tags=[countTag:out:INT,rateTag:out:REAL,cycleTag:out:REAL,blockTag:in:BOOL]
 lamps [] animates=false
   link mouth {outline:true,shape:box,zone:true}
-  link readout {shape:label}
+  link readout {shape:label,toggledBy:showReadout}
 
 ## oip.diffuse-sensor (rig)
 class {}
