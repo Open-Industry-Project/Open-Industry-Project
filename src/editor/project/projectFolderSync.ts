@@ -22,7 +22,7 @@
 // Timing: the folder's fingerprint is checked once a second (cheap - sizes and dates, no contents);
 // the project is serialized only when the fingerprint moved or the app saved something since.
 
-import { AGENT_GUIDE, PROJECT_MANIFEST, folderFilesToProject, projectToFolderFiles, unreferencedProjectFiles } from '../../core/project/projectFolder'
+import { AGENT_GUIDE, PROGRAM_DIR, PROGRAM_FILE, PROJECT_MANIFEST, folderFilesToProject, projectToFolderFiles, unreferencedProjectFiles } from '../../core/project/projectFolder'
 import type { ProjectFolderFile } from '../../core/project/projectFolder'
 import type { ProjectJSON } from '../../core/project/project'
 import {
@@ -157,10 +157,14 @@ export function noteForUnreferenced(paths: readonly string[]): string | null {
   if (paths.length === 0) return null
   const shown = paths.slice(0, 4).join(', ')
   const rest = paths.length > 4 ? `, +${paths.length - 4} more` : ''
-  return (
-    `Ignored ${paths.length} file${paths.length === 1 ? '' : 's'} this project does not reference: ${shown}${rest}. ` +
-    `Add it to ${PROJECT_MANIFEST} (the "program" array, or the "tests" array) for it to take effect.`
-  )
+  // each kind of file joins the project through its own array, so the hint names only the ones that apply
+  // (a part folder told to go in "program" would be listed in the wrong place)
+  const hints: string[] = []
+  if (paths.some((p) => p.startsWith('parts/'))) hints.push('a part folder (parts/<id>) in "packages"')
+  if (paths.some((p) => p.startsWith(`${PROGRAM_DIR}/`) || p === PROGRAM_FILE)) hints.push('a program file in "program"')
+  if (paths.some((p) => p.startsWith('tests/'))) hints.push('a test in "tests"')
+  const head = `Ignored ${paths.length} file${paths.length === 1 ? '' : 's'} this project does not reference: ${shown}${rest}.`
+  return hints.length > 0 ? `${head} To use one, list it in ${PROJECT_MANIFEST}: ${hints.join(', ')}.` : head
 }
 
 /** What the folder holds that the project never references, for the banner. */

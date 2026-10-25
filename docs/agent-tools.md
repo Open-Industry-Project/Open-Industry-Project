@@ -53,11 +53,11 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 |---|---|
 | `list_projects` | the user's projects: the ones opened in the app (Open Recent's list), then any other project folder in the default projects folder, with the open one marked |
 | `open_project` / `new_project` | open a project by name or folder path / start an empty one in its own folder under the default projects folder. Either replaces the open project, which stays saved, and reloads the editor; the call answers once the reloaded editor serves its tools again |
-| `get_guide` | the project's AGENTS.md (`src/core/agentGuide.ts`), derived from the open document: units, tags, test format |
+| `get_guide` | the project guide (`src/core/agentGuide.ts`), derived from the open document: units, tags, test format. Its tools version (`door: 'tools'`): which tool does what, where the folder's AGENTS.md names files and CLIs |
 | `get_context` | what the person is looking at (the selection, an isolated part, the PLC panel's POU, cursor line and word, the run state) and the review of the agent's edits: steps not yet answered, what they changed, and the person's last answer |
 | `get_scene` / `get_part` | the parts, their poses and wired tags / one part in full with its param declarations |
 | `list_catalog` | placeable packages and their params (a tag param's `dir`: `in` = the PLC drives the part) |
-| `get_package` | one catalog part in full: every param with its type, default, range, unit and, for a tag, its direction and ST type |
+| `get_package` | one catalog part in full: every param with its type, default, range, unit and, for a tag, its direction, ST type and what each value means (`values`); and its `frame` (`core/parts/partCatalog.ts`, the `catalog` CLI's): footprint, origin, conveying ends, zones, beams |
 | `add_part` / `update_part` / `delete_parts` | author the scene; params are checked against the package |
 | `snap_part` | seat a part where the editor's snap engine puts a dropped one (a sensor on a belt guard, a conveyor on another's end), fitting what the snap fits |
 | `duplicate_parts` | copy a group by an offset, renaming its tags (`core/parts/partDuplicate.ts`, the `duplicate-parts` CLI's engine) |
@@ -74,12 +74,12 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `rename_tag` | rename a tag in the code and rewire every part wired to it, as one step (`set_program` leaves the wiring behind) |
 | `set_task` | a task's interval and priority |
 | `assign_io` / `get_io_list` | give wired tags I/O addresses (picked, or from a CSV I/O list) / the I/O list as CSV, which `assign_io` reads back |
-| `get_problems` | what the Problems panel reports (program, wiring, parts, layout), via `collectProblems` |
-| `capture_view` | a picture of the 3D view alone, framed on parts from a side; the user's camera is put back. Refused while the user walks the scene or is in VR, since that owns the camera |
+| `get_problems` | what the Problems panel reports (program, wiring, parts, layout), via `collectProblems`, plus the folder banner's text as `folderError` / `folderNote` (outside the counts), so an agent writing into the folder learns when a file it added was ignored |
+| `capture_view` | a picture of the 3D view alone, framed on parts (default: every part but the building) from a side; the user's camera is put back. Refused while the user walks the scene or is in VR, since that owns the camera. `from: 'window'` takes the whole main window as the user sees it instead (not a popped-out panel), for questions about the editor itself |
 | `run` / `stop` / `get_tags` / `set_tag` / `force_tag` / `release_forces` | operate the live sim; a force holds a variable across scans until released or Stop |
 | `trace_tags` | the changes of some tags over a window of the live run |
 | `get_cargo` | the running sim's boxes, totes and pallets: pose, size, colour, tilt |
-| `run_test` | run a project test spec headless and deterministic, against the open scene; no spec = every kept test |
+| `run_test` | run a project test spec headless and deterministic, against the open scene; no spec = every kept test. `summary` counts tests and checks passed; `trace` records tags through the run (the CLI's `--trace`) |
 | `save_test` / `list_tests` / `delete_test` | keep a named spec in the project (store `saveProjectTest`: project structure, so not an undo step) / list them / drop one |
 | `undo` | take back (or redo) the agent's own last step; it refuses a step that is the user's |
 
@@ -123,7 +123,8 @@ in a view-only editor. `get_context` reads the PLC panel through one slot the pa
   transport sends as a text block and one image block per image.
 - **A picture waits for the scene.** `capture_view` waits until no asset is loading and no part is held back from the
   draw, frames, waits for the camera to settle, hides the editor around the canvas (as `e2e/_shot.mjs` does) and
-  restores everything after.
+  restores everything after. The asset wait stops at 6 s, since a cold load after a project reload can outlast a
+  client's request timeout. A picture taken before loading finished says `assetsSettled: false`.
 - **The project tools run in main.** Opening a project reloads the editor page, so a page-side tool could not
   answer, and main owns which folders may open (the folder registry, the grants, the native dialog). Main
   (`agentProjects.cjs`) decides and grants the folder, then asks the editor on a channel of its own (`agent:shell`,

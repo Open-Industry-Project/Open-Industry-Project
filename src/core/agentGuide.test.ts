@@ -331,3 +331,26 @@ describe('the ST section teaches the language as it stands', () => {
     expect(md).toContain('--context')
   })
 })
+
+describe('the guide an agent reads through the tools (get_guide)', () => {
+  const files = agentGuideMarkdown(doc(scene(TAG_SPECS, { runTag: 'Motor' })))
+  const tools = agentGuideMarkdown(doc(scene(TAG_SPECS, { runTag: 'Motor' })), { door: 'tools' })
+
+  it('names the tools, and none of the files or CLIs an agent at the folder uses', () => {
+    for (const tool of ['set_pou', 'run_test', 'save_test', 'snap_part', 'get_package', 'capture_view', 'open_project']) expect(tools).toContain(`\`${tool}\``)
+    expect(tools).toMatch(/`trace: \["A", "B"\]`/)
+    expect(tools).not.toMatch(/npm run|project\.json|scene\.json|tests\/|AGENTS\.md|GENERATED/)
+  })
+
+  it('keeps what both doors share: the tag table, the ST notes, the test format', () => {
+    expect(tools).toContain('| `Motor` |')
+    expect(tools).toContain('Writing the Structured Text program')
+    expect(tools).toContain('Each check names exactly one **source**')
+  })
+
+  it('leaves the folder guide as it was', () => {
+    expect(files).toContain('npm run test-project')
+    expect(files).toContain('### Adding a file')
+    expect(files).not.toContain('## What you can do with the tools')
+  })
+})

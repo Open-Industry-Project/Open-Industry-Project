@@ -242,6 +242,11 @@ try {
   }
   const viewAfter = await viewState()
   expect(viewAfter.pose === viewBefore.pose && viewAfter.hidden === viewBefore.hidden, 'capture_view puts the camera and the editor chrome back')
+  // with no parts it frames the line, not the building around it (which put the camera ~50 m out)
+  const whole = await mcp.request('tools/call', { name: 'capture_view', arguments: {} })
+  const wholeInfo = JSON.parse(whole.content?.[0]?.text ?? '{}')
+  const reach = wholeInfo.camera ? Math.hypot(...wholeInfo.camera.position.map((v, i) => v - wholeInfo.camera.target[i])) : Infinity
+  expect(!whole.isError && wholeInfo.framed === 'every part but the building' && reach < 20, `capture_view's default frames the parts, not the building (${wholeInfo.framed}, camera ${reach.toFixed(1)} m out)`)
   const stopped = await mcp.call('stop')
   expect(stopped.ok && stopped.json.running === false, 'stop ends the run')
   const docAfter = await page.evaluate(() => JSON.stringify(window.__oip.store.getState().scene.parts))

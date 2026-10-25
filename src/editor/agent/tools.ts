@@ -36,6 +36,7 @@ import { planTagRename, testsNamingTag } from '../program/tagRename'
 import { assignIo, importIoList, ioListCsv, ioTargetFor, reportSummary } from '../program/ioAssign'
 import type { EditorStore } from '../store/store'
 import type { ProjectTestRun } from '../project/projectTestsRun'
+import { catalogFrame } from '../../core/parts/partCatalog'
 import { FOLDER_OPTIONS } from '../project/folderOptions'
 import {
   AGENT_LABEL,
@@ -76,6 +77,8 @@ function describeParam(spec: ParamSpec): Record<string, unknown> {
     if (v !== undefined) out[k] = v
   }
   if (spec.options) out.options = spec.options.map((o) => o.value)
+  // what each number a tag publishes means (a colour sensor's 1 = red)
+  if (Array.isArray(spec.values)) out.values = spec.values.map((v) => ({ value: v.value, label: v.label }))
   return out
 }
 
@@ -141,11 +144,11 @@ const getGuide: AgentTool = {
   name: 'get_guide',
   description:
     'Read the project guide: units and conventions, the tags this scene wires and which way each flows, the parts ' +
-    'placed, what the ST dialect allows and the test spec format. The same AGENTS.md a saved project folder carries, ' +
-    'derived from the open document. Read it first.',
+    'placed, what the ST dialect allows, the test spec format, and which tool does what. Derived from the open ' +
+    "document, like the AGENTS.md a saved project folder carries, but written for these tools. Read it first.",
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   run: ({ store }) => {
-    const guide = projectToFolderFiles(store.snapshotProject(), FOLDER_OPTIONS).find((f) => f.path === AGENT_GUIDE)
+    const guide = projectToFolderFiles(store.snapshotProject(), { ...FOLDER_OPTIONS, guideDoor: 'tools' }).find((f) => f.path === AGENT_GUIDE)
     return guide?.contents ?? ''
   },
 }
@@ -222,7 +225,10 @@ const listCatalog: AgentTool = {
 
 const getPackageTool: AgentTool = {
   name: 'get_package',
-  description: 'Read one catalog part in full: every param with its type, default, range, unit and, for a tag, its direction and ST type.',
+  description:
+    'Read one catalog part in full: every param with its type, default, range, unit and, for a tag, its direction, ' +
+    "ST type and what each value means (`values`). `frame` gives the part's own frame at its defaults: footprint " +
+    'extents, where the origin sits, conveying ends, detection zones and sensor beams, all part-local in metres.',
   inputSchema: {
     type: 'object',
     properties: { id: { type: 'string', description: 'package id from list_catalog' } },
@@ -233,7 +239,13 @@ const getPackageTool: AgentTool = {
     const id = str(args, 'id')
     const pkg = knownPackages(store).find((p) => p.id === id) ?? getPackage(id)
     if (!pkg) throw new AgentToolError(`no package '${id}' (list_catalog lists them)`)
-    return { id: pkg.id, name: pkg.name, ...(pkg.category ? { category: pkg.category } : {}), params: visibleParams(pkg) }
+    let frame: Record<string, unknown>
+    try {
+      frame = { frame: catalogFrame(pkg) }
+    } catch (e) {
+      frame = { frameError: e instanceof Error ? e.message : String(e) }
+    }
+    return { id: pkg.id, name: pkg.name, ...(pkg.category ? { category: pkg.category } : {}), params: visibleParams(pkg), ...frame }
   },
 }
 
@@ -576,12 +588,18 @@ const getProblems: AgentTool = {
     'Check the scene the way the Problems panel does: program compile errors, wiring (tags nothing drives or reads, ' +
     'two writers, type clashes), part build and runtime errors. Also notes on what could not be checked. `flowFacts` ' +
     '(not shown in the panel) lists what physically happened in the current or last run (a box dropped, tipped, held still on a running ' +
-    'conveyor, an eye flickering): facts, not errors, so judge them against what the line is meant to do.',
+    'conveyor, an eye flickering): facts, not errors, so judge them against what the line is meant to do. ' +
+    '`folderError` (the project folder cannot be read or synced, so edits made there do not load) and `folderNote` ' +
+    '(files in the folder that project.json does not list, so loading ignored them) are the folder banner\'s text.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   run: (ctx) => {
     const r = problems(ctx)
     const facts = ctx.controller?.sim?.flowFacts.all() ?? []
+    // the folder banner: an agent writing files into the folder has no other way to learn a write did nothing
+    const { folderError, folderNote } = ctx.store.getState()
     return {
+      ...(folderError ? { folderError } : {}),
+      ...(folderNote ? { folderNote } : {}),
       ...(facts.length > 0
         ? {
             flowFacts: facts.slice(-AGENT_FLOW_FACTS).map((f) => ({ kind: f.kind, t: f.t, message: f.message, ...(f.part ? { part: f.part } : {}) })),
@@ -729,6 +747,28 @@ function verdict(r: ProjectTestRun): Record<string, unknown> {
   return { name: r.name, ok: r.ok, checks: r.result?.checks.map((c) => ({ ok: c.ok, detail: c.detail, ...(c.warning ? { warning: c.warning } : {}), ...(c.failedAt !== undefined ? { failedAt: c.failedAt } : {}) })), ...facts }
 }
 
+/** One line an agent reads first: tests and checks passed of those run. */
+function summary(runs: readonly ProjectTestRun[]): string {
+  const checks = runs.flatMap((r) => r.result?.checks ?? [])
+  const errors = runs.filter((r) => r.error).length
+  const tests = `${runs.filter((r) => r.ok).length}/${runs.length} test${runs.length === 1 ? '' : 's'} pass`
+  return `${tests}, ${checks.filter((c) => c.ok).length}/${checks.length} checks${errors > 0 ? `, ${errors} could not run` : ''}`
+}
+
+/** run_test's `trace`: a tag that changes more than this many times keeps its first and last halves (an encoder) */
+const TRACE_MAX_CHANGES = 200
+
+function traceView(trace: ProjectTestRun['trace'], asked: readonly string[]): Record<string, unknown> {
+  if (!trace) return {}
+  const cut = (changes: { t: number; v: unknown }[]) =>
+    changes.length <= TRACE_MAX_CHANGES ? changes : [...changes.slice(0, TRACE_MAX_CHANGES / 2), { omitted: changes.length - TRACE_MAX_CHANGES }, ...changes.slice(-TRACE_MAX_CHANGES / 2)]
+  const missing = asked.filter((t) => !trace.some((x) => x.tag === t))
+  return {
+    trace: trace.map((t) => ({ tag: t.tag, start: t.start ?? null, changes: cut(t.changes.map((c) => ({ t: round(c.t), v: c.v }))) })),
+    ...(missing.length > 0 ? { traceMissing: `never published in the run: ${missing.join(', ')}` } : {}),
+  }
+}
+
 function checkedSpec(args: Record<string, unknown>): TestSpec {
   const v = validateTestSpec(optObj(args, 'spec'))
   if (!v.ok) throw new AgentToolError(`invalid test spec:\n${v.errors.map((e) => `- ${e}`).join('\n')}`)
@@ -742,27 +782,33 @@ const runTest: AgentTool = {
     'simulated seconds, drive `inputs` at set times, fail devices, comms or cargo flow with `faults`, and evaluate `checks` on tags and world probes. The spec ' +
     'format is in get_guide. It runs the open scene as it is now, unsaved edits included. An input ' +
     'reaches the program only through its inputs (VAR_INPUT, or a variable a part is wired to). Without `spec` it ' +
-    'runs every test the project keeps (save_test). This is how to prove a change works. The editor is busy while it runs.',
+    'runs every test the project keeps (save_test). This is how to prove a change works. The editor is busy while it runs. ' +
+    "`summary` says how many tests and checks passed. `trace` records tags through the whole run (each one's value " +
+    'at the start and every change with its time): how to read what a value was, or why a check failed.',
   inputSchema: {
     type: 'object',
-    properties: { spec: { type: 'object', description: 'a test spec: { name?, duration, inputs?, faults?, checks, scanMs? }' } },
+    properties: {
+      spec: { type: 'object', description: 'a test spec: { name?, duration, inputs?, faults?, checks, scanMs? }' },
+      trace: { type: 'array', items: { type: 'string' }, description: 'tag names to record through the run' },
+    },
     additionalProperties: false,
   },
   run: async ({ store }, args) => {
     const project = store.snapshotProject()
+    const trace = args.trace === undefined ? undefined : strList(args, 'trace')
     const { runProjectTests } = await import('../project/projectTestsRun')
     if (args.spec === undefined) {
       if ((project.tests ?? []).length === 0) throw new AgentToolError('the project keeps no tests yet: pass a `spec`, or keep one with save_test')
-      const runs = await runProjectTests(project)
-      return { ok: runs.every((r) => r.ok), tests: runs.map(verdict) }
+      const runs = await runProjectTests(project, undefined, trace ? { trace } : undefined)
+      return { ok: runs.every((r) => r.ok), summary: summary(runs), tests: runs.map((r) => ({ ...verdict(r), ...traceView(r.trace, trace ?? []) })) }
     }
     const spec = checkedSpec(args)
     const warnings = unreachableInputs(store, spec.inputs ?? [])
-    const [r] = await runProjectTests({ ...project, tests: [spec] })
+    const [r] = await runProjectTests({ ...project, tests: [spec] }, undefined, trace ? { trace } : undefined)
     if (!r) throw new AgentToolError('the test did not run')
     if (r.error) throw new AgentToolError(r.error)
     const { name: _name, ...v } = verdict(r)
-    return { ...v, ...(warnings.length > 0 ? { warnings } : {}) }
+    return { summary: summary([r]), ...v, ...(warnings.length > 0 ? { warnings } : {}), ...traceView(r.trace, trace ?? []) }
   },
 }
 

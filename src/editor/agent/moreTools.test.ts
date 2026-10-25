@@ -1,7 +1,7 @@
 // The agent tools for part definitions, the program by POU, seeing the scene, and the agent's own history
 // (partTools.ts, programTools.ts, viewTools.ts). tools.test.ts covers the original list and the shared rules.
 import { readFileSync } from 'node:fs'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentImageResult, callAgentTool, type AgentController, type AgentToolContext } from './tools'
 import { EditorStore } from '../store/store'
 import { getPackage, registerPackage, unregisterPackage } from '../../core/parts/partRegistry'
@@ -227,6 +227,23 @@ describe('agent tools: seeing the scene', () => {
     const view = { pilotPose: () => ({ position: [0, 0, 0], yaw: 0 }), isVRPresenting: () => false }
     const c = { ...ctx({ view, plcFault: null } as unknown as AgentController), shell: { capture: async () => null } }
     expect(await refused(c, 'capture_view')).toMatch(/walking the scene/)
+  })
+
+  it("capture_view from 'window' takes the whole window and leaves the camera alone", async () => {
+    vi.stubGlobal('window', { innerWidth: 1280, innerHeight: 720 })
+    try {
+      const rects: unknown[] = []
+      // walking owns the camera, but a window picture never touches it
+      const view = { pilotPose: () => ({ position: [0, 0, 0], yaw: 0 }), isVRPresenting: () => false }
+      const shell = { capture: async (rect: unknown) => (rects.push(rect), { data: 'AA==', mimeType: 'image/jpeg' }) }
+      const c = { ...ctx({ view, plcFault: null } as unknown as AgentController), shell }
+      const r = (await ok(c, 'capture_view', { from: 'window' })) as unknown as AgentImageResult
+      expect(rects).toEqual([{ x: 0, y: 0, width: 1280, height: 720 }])
+      expect(r.images).toHaveLength(1)
+      expect(await refused(c, 'capture_view', { from: 'window', parts: ['belt'] })).toMatch(/does not go with/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('get_cargo lists the last frame’s bodies with their tilt, filtered to a box', async () => {

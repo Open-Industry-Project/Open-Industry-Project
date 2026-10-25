@@ -186,6 +186,27 @@ describe('agent tools: authoring is ordinary editing', () => {
     expect(text.length).toBeLessThan(20_000)
   })
 
+  it("get_package says what a tag's numbers mean and gives the part's frame", async () => {
+    const behaviors = bundledBehaviors()
+    const store = new EditorStore()
+    store.setBundledPackages(bundledManifests().map((m) => buildPackage(m, behaviors.get(m.id)!)))
+    const pkg = (await ok({ store, controller: null }, 'get_package', { id: 'oip.color-sensor' })) as {
+      params: Record<string, { values?: unknown }>
+      frame?: { footprint?: unknown; origin?: unknown; beams?: unknown[] }
+      frameError?: string
+    }
+    // the colour code a benchmark agent had to find by experiment
+    expect(pkg.params.colorTag!.values).toEqual([
+      { value: 0, label: 'none' },
+      { value: 1, label: 'red' },
+      { value: 2, label: 'green' },
+      { value: 3, label: 'blue' },
+    ])
+    expect(pkg.frameError).toBeUndefined()
+    expect(pkg.frame).toMatchObject({ footprint: expect.anything(), origin: expect.anything() })
+    expect(pkg.frame!.beams?.length).toBeGreaterThan(0)
+  })
+
   it('offers the Spawner, not the Pallet Spawner it replaced, which a named lookup still finds', async () => {
     const behaviors = bundledBehaviors()
     const store = new EditorStore()
@@ -343,6 +364,16 @@ describe('agent tools: the program', () => {
     // no run yet: no field at all
     expect('flowFacts' in ((await ok(ctx(), 'get_problems')) as object)).toBe(false)
   })
+
+  it("get_problems carries the folder banner's error and note, outside the counts", async () => {
+    const c = ctx()
+    expect(Object.keys((await ok(c, 'get_problems')) as object)).not.toContain('folderNote')
+    c.store.setFolderLink('Line', 'Lost access to the project folder: gone', 'Ignored 1 file this project does not reference: plc/Latch.st.')
+    const r = (await ok(c, 'get_problems')) as { errors: number; warnings: number; folderError?: string; folderNote?: string }
+    expect(r.folderError).toMatch(/Lost access/)
+    expect(r.folderNote).toContain('plc/Latch.st')
+    expect([r.errors, r.warnings]).toEqual([0, 0])
+  })
 })
 
 describe('agent tools: operating', () => {
@@ -425,7 +456,7 @@ describe('agent tools: run_test', () => {
     runProjectTests.mockResolvedValue([{ name: 'test-1', ok: false, result: { ok: false, checks: [{ ok: false, detail: 'Run was FALSE', failedAt: 1.5 }] } }])
     const spec = { duration: 2, checks: [{ tag: 'Run', at: 1, equals: true }] }
     const r = await ok(c, 'run_test', { spec })
-    expect(r).toEqual({ ok: false, checks: [{ ok: false, detail: 'Run was FALSE', failedAt: 1.5 }] })
+    expect(r).toEqual({ summary: '0/1 test pass, 0/1 checks', ok: false, checks: [{ ok: false, detail: 'Run was FALSE', failedAt: 1.5 }] })
     // the project it ran is the live one, carrying exactly this spec
     const project = runProjectTests.mock.calls[0]![0] as { tests: unknown[]; scene: { parts: unknown[] } }
     expect(project.tests).toEqual([spec])
@@ -464,8 +495,34 @@ describe('agent tools: run_test', () => {
     expect(await ok(c, 'list_tests')).toEqual([spec])
 
     runProjectTests.mockResolvedValue([{ name: 'belt runs', ok: true, result: { ok: true, checks: [{ ok: true, detail: 'Run = true at t=1s' }] } }])
-    expect(await ok(c, 'run_test', {})).toEqual({ ok: true, tests: [{ name: 'belt runs', ok: true, checks: [{ ok: true, detail: 'Run = true at t=1s' }] }] })
+    expect(await ok(c, 'run_test', {})).toEqual({
+      ok: true,
+      summary: '1/1 test pass, 1/1 checks',
+      tests: [{ name: 'belt runs', ok: true, checks: [{ ok: true, detail: 'Run = true at t=1s' }] }],
+    })
     expect((runProjectTests.mock.calls[0]![0] as { tests: unknown[] }).tests).toHaveLength(1)
+  })
+
+  it('traces the tags asked for through the run, and names one the run never published', async () => {
+    const c = ctx()
+    const changes = Array.from({ length: 250 }, (_, i) => ({ t: i / 100, v: i }))
+    runProjectTests.mockResolvedValue([
+      {
+        name: 'test-1',
+        ok: true,
+        result: { ok: true, checks: [{ ok: true, detail: 'Run = true at t=1s' }] },
+        trace: [{ tag: 'Run', start: false, changes: [{ t: 0.51666, v: true }] }, { tag: 'Enc', start: 0, changes }],
+      },
+    ])
+    const spec = { duration: 2, checks: [{ tag: 'Run', at: 1, equals: true }] }
+    const r = (await ok(c, 'run_test', { spec, trace: ['Run', 'Enc', 'Nope'] })) as { trace: { tag: string; changes: unknown[] }[]; traceMissing: string }
+    expect(runProjectTests.mock.calls[0]![2]).toEqual({ trace: ['Run', 'Enc', 'Nope'] })
+    expect(r.trace[0]).toEqual({ tag: 'Run', start: false, changes: [{ t: 0.517, v: true }] })
+    // an encoder keeps its first and last 100 changes, with the count between
+    expect(r.trace[1]!.changes).toHaveLength(201)
+    expect(r.trace[1]!.changes[100]).toEqual({ omitted: 50 })
+    expect(r.traceMissing).toBe('never published in the run: Nope')
+    expect(await refused(c, 'run_test', { spec, trace: [] })).toMatch(/'trace' must be a non-empty array/)
   })
 
   it('refuses an invalid spec with the validator\'s reasons, and reports a run that threw', async () => {

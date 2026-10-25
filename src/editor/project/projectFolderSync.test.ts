@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   detachProjectFolder,
   flushFolderSyncNow,
+  noteForUnreferenced,
   resetFolderSyncForTests,
   resolveFolderConflict,
   restoreFolderSync,
@@ -157,6 +158,23 @@ async function openedFromFolder(project = lineProject()) {
   shell.written.length = 0
   return { store, guard }
 }
+
+describe('the note for files a load ignored', () => {
+  it('names the array each kind of file joins through', () => {
+    const part = noteForUnreferenced(['parts/oip.diverter/behavior.js', 'parts/oip.diverter/manifest.json'])!
+    expect(part).toContain('"packages"')
+    expect(part).not.toContain('"program"')
+    const mixed = noteForUnreferenced(['plc/Latch.st', 'tests/smoke.test.json'])!
+    expect(mixed).toContain('"program"')
+    expect(mixed).toContain('"tests"')
+    expect(mixed).not.toContain('"packages"')
+  })
+
+  it('offers no array for a stale scene, which is not meant to be listed', () => {
+    expect(noteForUnreferenced(['scenes/old-line.scene.json'])).not.toMatch(/"(packages|program|tests)"/)
+    expect(noteForUnreferenced([])).toBeNull()
+  })
+})
 
 describe('opening a folder', () => {
   it('agrees with the folder and writes nothing', async () => {

@@ -38,6 +38,10 @@ const VIEW_FROM: Record<string, [number, number, number]> = {
 
 const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()))
 
+// How long capture_view waits for loading assets before it shoots anyway. whenAssetsQuiet's own cap is 30 s: after a
+// project reload a cold scene loads that long, and an MCP client gave up on the call first.
+const CAPTURE_ASSET_WAIT_MS = 6000
+
 /** Wait for the camera's eased move to finish: the pose holds still for a few frames, or 3 s pass. */
 async function cameraSettled(pose: () => { px: number; py: number; pz: number; tx: number; ty: number; tz: number }): Promise<void> {
   let prev = JSON.stringify(pose())
@@ -82,14 +86,17 @@ export const captureView: AgentTool = {
   description:
     'Take a picture of the 3D view, without the editor around it, the selection outline or the gizmo, to see what ' +
     'was built: whether parts meet, a sensor faces the belt, a model sits inside its footprint, boxes flow or pile ' +
-    'up (call it while running). Frames `parts` (default: the whole scene) from `from`: iso (default), top, front ' +
+    'up (call it while running). Frames `parts` (default: every part but the building) from `from`: iso (default), top, front ' +
     '(from +Z), back, left (from -X), right, or current (the camera as it is). The camera goes back to where the ' +
-    "user had it unless `keepCamera` is true. Returns an image.",
+    "user had it unless `keepCamera` is true. Returns an image; if the scene is still loading it shoots anyway and " +
+    "the result carries `assetsSettled: false`, so call it again in a moment for the settled view. `from: 'window'` instead takes the whole editor " +
+    'window as the user sees it (panels, banners, dialogs, the selection), without moving the camera: use it only ' +
+    'for a question about the editor itself, since the 3D view alone shows a build better.',
   inputSchema: {
     type: 'object',
     properties: {
       parts: { type: 'array', items: { type: 'string' }, description: 'part ids to frame' },
-      from: { type: 'string', enum: [...Object.keys(VIEW_FROM), 'current'] },
+      from: { type: 'string', enum: [...Object.keys(VIEW_FROM), 'current', 'window'] },
       keepCamera: { type: 'boolean' },
     },
     additionalProperties: false,
@@ -97,22 +104,36 @@ export const captureView: AgentTool = {
   run: async (ctx, args) => {
     const capture = ctx.shell?.capture
     if (!capture) throw new AgentToolError('capture_view needs the desktop app')
+    if (optStr(args, 'from') === 'window') {
+      if (args.parts !== undefined) throw new AgentToolError("'parts' frames the 3D view, so it does not go with from: 'window'")
+      const image = await capture({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight })
+      if (!image) throw new AgentToolError('the window could not be captured (is it minimized?)')
+      return new AgentImageResult({ from: 'window', running: ctx.store.getState().running }, [image])
+    }
     const view = needController(ctx).view
     if (!view) throw new AgentToolError('the viewport is still loading; try again in a moment')
     // the walking character or the headset owns the camera then, and framing would fight it
     if (view.pilotPose() !== null || view.isVRPresenting()) throw new AgentToolError('the user is walking the scene (or in VR), which owns the camera: try again once they leave walk mode')
-    const parts = args.parts === undefined ? undefined : strList(args, 'parts')
+    const asked = args.parts === undefined ? undefined : strList(args, 'parts')
     const scene = ctx.store.getState().scene
-    for (const id of parts ?? []) findPart(scene, id)
+    for (const id of asked ?? []) findPart(scene, id)
+    // the default frames what was built, not the building: every first picture of a new line was a speck in it
+    const line = scene.parts.filter((p) => p.type !== 'building').map((p) => p.id)
+    const parts = asked ?? (line.length > 0 ? line : undefined)
     const from = optStr(args, 'from') ?? 'iso'
-    if (from !== 'current' && !VIEW_FROM[from]) throw new AgentToolError(`'from' must be one of: ${[...Object.keys(VIEW_FROM), 'current'].join(', ')}`)
+    if (from !== 'current' && !VIEW_FROM[from]) throw new AgentToolError(`'from' must be one of: ${[...Object.keys(VIEW_FROM), 'current', 'window'].join(', ')}`)
     const keepCamera = optBool(args, 'keepCamera') ?? false
     const pose0 = view.cameraPose()
     const selected = ctx.store.getState().selectedIds
     let bare: ReturnType<typeof bareCanvas> = null
     // a part placed a moment ago may still be loading or held back from the draw (the canvas keeps its last
     // painted frame meanwhile), and a picture taken then shows the scene before the edit
-    if (assetsBusy()) await whenAssetsQuiet()
+    const assetsSettled = assetsBusy()
+      ? await Promise.race([
+          whenAssetsQuiet().then(() => true),
+          new Promise<boolean>((r) => setTimeout(() => r(false), CAPTURE_ASSET_WAIT_MS)),
+        ])
+      : true
     await Promise.race([view.whenPartsRevealed(), new Promise((r) => setTimeout(r, 5000))])
     try {
       if (from !== 'current') {
@@ -136,9 +157,11 @@ export const captureView: AgentTool = {
       return new AgentImageResult(
         {
           from,
-          framed: parts ?? 'the whole scene',
+          framed: asked ?? (parts ? 'every part but the building' : 'the whole scene'),
           camera: { position: [p.px, p.py, p.pz].map(round), target: [p.tx, p.ty, p.tz].map(round) },
           running: ctx.store.getState().running,
+          // the shot may show the scene part-loaded: capture again in a moment
+          ...(assetsSettled ? {} : { assetsSettled: false }),
         },
         [image],
       )
