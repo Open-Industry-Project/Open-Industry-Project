@@ -185,19 +185,29 @@ export const getCargo: AgentTool = {
     'List the cargo of the running sim (boxes, totes, pallets) as the last frame has it: id, kind, position [x,y,z] ' +
     'in metres, size, colour, how far it is tilted from upright in degrees (about 90 = on its side), and the scene ' +
     'part it is, for authored cargo. Optional `within`: only bodies whose centre is inside a box { min:[x,y,z], ' +
-    'max:[x,y,z] }. Empty while stopped.',
+    'max:[x,y,z] }. Empty while stopped. Running, this is wherever the sim has got to. Paused (pause / step), each ' +
+    'body also has its velocity `vel` [x,y,z] in m/s and what it is `touching` (part ids, `cargo <id>`, `floor`). ' +
+    'For the cargo at a known sim time the same on every run, use run_test with `cargo`.',
   inputSchema: {
     type: 'object',
     properties: { within: { type: 'object', description: '{ min: [x,y,z], max: [x,y,z] } in metres' } },
     additionalProperties: false,
   },
-  run: (ctx, args) => {
-    const f = needController(ctx).lastFrame
-    if (!f || !ctx.store.getState().running) return { running: false, count: 0, cargo: [] }
+  run: async (ctx, args) => {
+    const c = needController(ctx)
+    if (!c.lastFrame || !ctx.store.getState().running) return { running: false, count: 0, cargo: [] }
     const within = optObj(args, 'within')
     const min = within ? optVec3(within, 'min') : undefined
     const max = within ? optVec3(within, 'max') : undefined
     if (within && (!min || !max)) throw new AgentToolError("'within' needs min and max, each [x, y, z]")
+    // paused, the world stands where the last frame shows it, so the worker's velocities and contacts match its rows
+    const paused = ctx.store.getState().paused
+    const detail = paused ? await c.sim?.inspectCargo() : null
+    const f = c.lastFrame
+    if (!f) return { running: false, count: 0, cargo: [] }
+    const vel = new Map<number, [number, number, number]>()
+    if (detail) for (let i = 0; i < detail.ids.length; i++) vel.set(detail.ids[i]!, [detail.velocities[i * 3]!, detail.velocities[i * 3 + 1]!, detail.velocities[i * 3 + 2]!])
+    const touching = new Map(detail?.touching)
     const cargo: Record<string, unknown>[] = []
     let matched = 0
     for (let i = 0; i < f.count; i++) {
@@ -217,9 +227,11 @@ export const getCargo: AgentTool = {
         color: `#${hex(0)}${hex(1)}${hex(2)}`,
         tiltDeg: Math.round(cargoTiltDeg(f, i)),
         ...(f.partIds[i] ? { part: f.partIds[i] } : {}),
+        ...(vel.has(f.ids[i]!) ? { vel: vel.get(f.ids[i]!)!.map(round) } : {}),
+        ...(touching.has(f.ids[i]!) ? { touching: touching.get(f.ids[i]!) } : {}),
       })
     }
-    return { running: true, simTime: round(f.simTime), count: matched, cargo, ...(matched > cargo.length ? { omitted: matched - cargo.length } : {}) }
+    return { running: true, ...(paused ? { paused: true } : {}), simTime: round(f.simTime), count: matched, cargo, ...(matched > cargo.length ? { omitted: matched - cargo.length } : {}) }
   },
 }
 

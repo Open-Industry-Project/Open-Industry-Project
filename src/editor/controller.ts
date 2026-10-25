@@ -13,7 +13,7 @@ import type { PartInstance, PartType, SceneJSON } from '../core/types'
 import type { DisplayUnits } from '../core/units'
 import { sceneUnits } from '../core/scene/sceneUnits'
 import type { BoxPick, IRenderView, ResizeHandle } from '../render/api'
-import type { PlcFault, SimClient } from '../sim/client'
+import type { PlcFault, SimClient, StepDone } from '../sim/client'
 import type { StepStats } from '../sim/protocol'
 import type { ScanTime } from '../sim/plcHost'
 import type { ProcessImageSnapshot, TagValue } from '../plc'
@@ -473,8 +473,16 @@ export class EditorController {
     runOps.togglePause(this)
   }
 
+  setPaused(paused: boolean): void {
+    runOps.setPaused(this, paused)
+  }
+
   step(): void {
     runOps.step(this)
+  }
+
+  stepBy(opts: { steps?: number; until?: number }): Promise<StepDone | null> {
+    return runOps.stepBy(this, opts)
   }
 
   /** Set the simulation speed multiplier. Applies live to a

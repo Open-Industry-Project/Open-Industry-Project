@@ -48,8 +48,18 @@ const HELD_EDITS = new Set<MainToWorker['type']>(['update', 'updatePatch', 'adop
 let liveScene: SceneJSON | null = null
 // a held edit landed while paused and no frame has shown it yet
 let heldDirty = false
-// Step presses not yet run. The paused loop runs them on its next tick, so a step queued behind an edit sees it.
-let stepsRequested = 0
+// Step requests not yet done, oldest first. The paused loop runs them on its next tick, so a step queued behind an
+// edit sees it. `left` counts down a request by steps; `until` ends one at a sim time instead.
+interface StepRequest {
+  left: number
+  until?: number
+  seq?: number
+  done: number
+}
+let stepQueue: StepRequest[] = []
+// how long one paused tick may spend stepping before it posts a frame and yields: a long request (seconds of sim
+// time) then still feeds the view and the hang watchdog (sim/client.ts) while it runs
+const STEP_TICK_BUDGET_MS = 40
 
 self.onmessage = (e: MessageEvent<MainToWorker>) => {
   if (e.data.type === 'beacon') {
@@ -159,7 +169,7 @@ async function handle(msg: MainToWorker): Promise<void> {
       plc = null // fresh world, fresh program: the controller's attach message follows its 'start'
       stepMsTotal = stepMsMax = stepsDone = frameMsTotal = framesDone = plcMsTotal = 0
       resetFrameWire()
-      stepsRequested = 0
+      stepQueue = [] // the client drops its waiters on start and stop: nothing to answer
       // This worker outlives its runs. A run knows only the packages its scene hands it (SimWorld registers them), so
       // a part whose package the scene lacks fails the same way on every run, not just when no earlier run had it.
       clearPackages()
@@ -202,9 +212,20 @@ async function handle(msg: MainToWorker): Promise<void> {
     } else if (msg.type === 'setPaused') {
       // hold the world but stop stepping; the loop keeps running so resume is instant
       paused = msg.paused
-      stepsRequested = 0
+      // a resume ends the steps still queued. Pausing again while paused (the page hiding) keeps them.
+      if (!paused) endSteps(stepQueue.splice(0), true)
     } else if (msg.type === 'step') {
-      if (paused && world) stepsRequested++
+      const req: StepRequest = { left: msg.steps ?? 1, done: 0, ...(msg.until !== undefined ? { until: msg.until } : {}), ...(msg.seq !== undefined ? { seq: msg.seq } : {}) }
+      if (paused && world) stepQueue.push(req)
+      else endSteps([req], true)
+    } else if (msg.type === 'inspectCargo') {
+      if (world) {
+        const { ids, velocities } = world.cargoVelocities()
+        const touching = [...world.cargoContacts()]
+        post({ type: 'cargoDetail', seq: msg.seq, simTime: world.stepCount / world.hz, ids, velocities, touching }, [ids.buffer, velocities.buffer])
+      } else {
+        post({ type: 'cargoDetail', seq: msg.seq, simTime: 0, ids: new Uint32Array(0), velocities: new Float32Array(0), touching: [] })
+      }
     } else if (msg.type === 'setTimeScale') {
       // applied live by the running loop on its next tick
       timeScale = msg.scale
@@ -242,7 +263,7 @@ async function handle(msg: MainToWorker): Promise<void> {
     } else {
       stopLoop()
       paused = false
-      stepsRequested = 0
+      stepQueue = []
       plc = null
       world?.dispose()
       world = null
@@ -273,13 +294,24 @@ function startLoop(): void {
     if (paused) {
       last = performance.now()
       wasPaused = true
-      if (stepsRequested > 0) {
-        const n = stepsRequested
-        stepsRequested = 0
+      if (stepQueue.length > 0) {
         heldDirty = false // the stepped frame shows any held edit too
         try {
-          for (let i = 0; i < n; i++) advance(w, stepSec)
+          const ended: StepRequest[] = []
+          const t0 = performance.now()
+          while (stepQueue.length > 0) {
+            const req = stepQueue[0]!
+            if (req.until !== undefined ? w.stepCount / hz + 1e-9 >= req.until : req.left <= 0) {
+              ended.push(stepQueue.shift()!)
+              continue
+            }
+            if (performance.now() - t0 >= STEP_TICK_BUDGET_MS) break
+            advance(w, stepSec)
+            req.left--
+            req.done++
+          }
           postFrame(w, true, true)
+          endSteps(ended, false)
         } catch (err) {
           stopLoop()
           post({ type: 'error', message: err instanceof Error ? err.message : String(err) })
@@ -337,6 +369,15 @@ function startLoop(): void {
       post({ type: 'error', message: err instanceof Error ? err.message : String(err) })
     }
   }, 8)
+}
+
+/** answer the step requests that asked for an answer (a `seq`) */
+function endSteps(reqs: readonly StepRequest[], interrupted: boolean): void {
+  const simTime = world ? world.stepCount / world.hz : 0
+  for (const r of reqs) {
+    if (r.seq === undefined) continue
+    post({ type: 'stepped', seq: r.seq, simTime, steps: r.done, ...(interrupted ? { interrupted: true as const } : {}) })
+  }
 }
 
 /** one fixed step: the PLC scans that fall due, then physics. The running loop and a paused Step both come here. */

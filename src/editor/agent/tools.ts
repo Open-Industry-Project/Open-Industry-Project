@@ -64,6 +64,7 @@ import { installLibraryPart, listLibraryParts } from './libraryTools'
 import { installShelfPart, listShelfParts, putPartOnShelf } from './shelfTools'
 import { checkProgram, getPou, listPous, setPou, traceTags } from './programTools'
 import { CARGO_LIST_MAX, captureView, deleteTest, duplicatePartsTool, getCargo, undoTool } from './viewTools'
+import { pauseTool, resumeTool, stepTool } from './simTools'
 import { getContext } from './contextTools'
 
 export { AGENT_LABEL, AgentImageResult, AgentToolError }
@@ -934,6 +935,9 @@ export const AGENT_TOOLS: readonly AgentTool[] = [
   captureView,
   run,
   stop,
+  pauseTool,
+  resumeTool,
+  stepTool,
   getTags,
   setTag,
   forceTag,

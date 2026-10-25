@@ -40,6 +40,11 @@ export class PartBodies {
     this.current = null
   }
 
+  /** the bodies built outside any part: the floor */
+  get ground(): readonly Jolt.Body[] {
+    return this.groundBodies
+  }
+
   /** File a body under the part being built, or the ground. A NULL body is never filed or handed back: its id is
    *  garbage, and a builder would register it with the rig driver or a behavior. */
   private file(body: Jolt.Body): void {

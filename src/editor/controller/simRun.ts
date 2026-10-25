@@ -5,6 +5,7 @@
 
 import { isCargoPart } from '../../core/frame'
 import type { PartInstance } from '../../core/types'
+import type { StepDone } from '../../sim/client'
 import * as dragOps from './drag'
 import type { EditorController } from '../controller'
 
@@ -53,9 +54,12 @@ export function run(ec: EditorController): void {
 }
 
 export function togglePause(ec: EditorController): void {
+  setPaused(ec, !ec.store.getState().paused)
+}
+
+export function setPaused(ec: EditorController, paused: boolean): void {
   const s = ec.store.getState()
-  if (!s.running) return
-  const paused = !s.paused
+  if (!s.running || s.paused === paused) return
   ec.store.setPaused(paused)
   ec.sim.setPaused(paused)
 }
@@ -65,6 +69,14 @@ export function step(ec: EditorController): void {
   const s = ec.store.getState()
   if (!s.running || !s.paused) return
   ec.sim.step()
+}
+
+/** advance a paused run by `steps` physics steps, or to the sim time `until`; resolves when the view has the last
+ *  step's frame (null when the run is not paused, or ends first) */
+export function stepBy(ec: EditorController, opts: { steps?: number; until?: number }): Promise<StepDone | null> {
+  const s = ec.store.getState()
+  if (!s.running || !s.paused) return Promise.resolve(null)
+  return ec.sim.stepBy(opts)
 }
 
 export function stop(ec: EditorController): void {

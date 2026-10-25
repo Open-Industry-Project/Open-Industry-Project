@@ -380,6 +380,7 @@ export function agentGuideMarkdown(doc: GuideDoc, opts?: { measure?: MeasureExte
       '| Wire parts to the program | a part\'s tag params (`update_part`), `rename_tag`, `assign_io` |',
       '| A part type the catalog lacks | `get_part_sdk`, `check_part`, `create_part`, `edit_part_definition` |',
       '| See and operate the line | `capture_view`, `run` / `stop`, `get_tags`, `set_tag`, `trace_tags`, `get_cargo` |',
+      '| Stop the live sim on a moment, look, step on | `pause`, `step` (`steps`, `seconds`, or `until` a sim time), `resume`; paused, `get_cargo` adds velocity and what each box touches |',
       '| Another project | `list_projects`, `open_project`, `new_project` |',
       '',
       '## The program',

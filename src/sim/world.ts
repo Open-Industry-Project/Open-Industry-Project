@@ -71,6 +71,7 @@ import type { RigBodySink } from './rigBuild'
 import { RigDriver } from './rigDriver'
 import { SensorRegistry } from './sensorRegistry'
 import { LoadCells } from './loadCells'
+import { cargoContacts } from './cargoContacts'
 import { behaviorRecord, marksOf, partPackageRev, partSignature } from './worldTypes'
 import type { BehaviorRecord, BodyHolder, JoltModule, KinematicScratch, LiveBox, PartGroup, StepClock, UnitLoad } from './worldTypes'
 
@@ -1201,6 +1202,27 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  none. The frame carries marks only for authored parts, and a test's `marked` filter reads spawned cargo too */
   cargoMarks(): (Readonly<Record<string, number | boolean | string>> | null)[] {
     return this.boxes.map((b) => marksOf(b))
+  }
+
+  /** What each cargo body touches, by frame id (cargoContacts.ts). For a test run's snapshots only: it runs a
+   *  collision query per body. */
+  cargoContacts(): Map<number, string[]> {
+    return cargoContacts(this.J, { system: this.system, boxes: this.boxes, groups: this.bodies.groups, ground: this.bodies.ground })
+  }
+
+  /** Each cargo row's frame id and linear velocity in m/s (x, y, z), index-aligned with frame(). A unit load's pieces
+   *  read the load's body, so a piece on a spinning load shows the load's centre velocity. */
+  cargoVelocities(): { ids: Uint32Array; velocities: Float32Array } {
+    const ids = new Uint32Array(this.boxes.length)
+    const velocities = new Float32Array(this.boxes.length * 3)
+    for (const [i, b] of this.boxes.entries()) {
+      const v = b.body.GetLinearVelocity()
+      ids[i] = b.id
+      velocities[i * 3] = v.GetX()
+      velocities[i * 3 + 1] = v.GetY()
+      velocities[i * 3 + 2] = v.GetZ()
+    }
+    return { ids, velocities }
   }
 
   /** cumulative stepDirect cost split from the behavior runtime - merged into StepStats.phases

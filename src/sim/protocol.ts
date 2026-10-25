@@ -46,8 +46,13 @@ export type MainToWorker =
   | { type: 'setGrabbedPose'; bodyId: number; position: [number, number, number]; quat: [number, number, number, number] }
   | { type: 'releaseBody'; bodyId: number }
   | { type: 'setPaused'; paused: boolean }
-  // while paused: advance one fixed physics step, with the PLC scans that fall due in it. Ignored while running.
-  | { type: 'step' }
+  // while paused: advance fixed physics steps, with the PLC scans that fall due in them. `steps` (default 1), or
+  // `until`: step until the sim time reaches it. A long request runs over several loop ticks, posting a frame
+  // after each. With `seq`, the worker answers 'stepped' when the request ends: done, refused because the world
+  // was running, or cut short by a resume. Ignored while running.
+  | { type: 'step'; steps?: number; until?: number; seq?: number }
+  // what the frame cannot carry about each cargo body: its velocity and what it touches. Answered with 'cargoDetail'.
+  | { type: 'inspectCargo'; seq: number }
   | { type: 'setTimeScale'; scale: number }
   // the PLC→part half of the device-IO bus, injected from the main thread: tag values fed to custom-part
   // behaviors as the tags they read (ctx.readTag/readNumber). The local program's scans do not route
@@ -195,6 +200,13 @@ export type WorkerToMain =
       flowFacts?: FlowFact[]
       stepStats: StepStats
     }
+  // the end of a 'step' that carried a `seq`: the sim time reached and the steps taken. `interrupted`: a resume (or a
+  // world that was running) ended it before it was done. Posted after the frame that shows the last step.
+  | { type: 'stepped'; seq: number; simTime: number; steps: number; interrupted?: true }
+  // the answer to 'inspectCargo', index-aligned with the frame the world would post now: `ids` names each row,
+  // `velocities` is m/s (x, y, z per row; a unit load's pieces share the load's body), and `touching` lists what
+  // each body touches, by id (sim/cargoContacts.ts)
+  | { type: 'cargoDetail'; seq: number; simTime: number; ids: Uint32Array; velocities: Float32Array; touching: [id: number, touching: string[]][] }
   | { type: 'error'; message: string }
   // a custom-part runtime diagnostic (core/parts/partDiagnostics) raised inside the worker; the sim's module
   // instance is separate from the main thread's, so events are mirrored across for the editor to surface

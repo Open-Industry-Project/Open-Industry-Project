@@ -12,6 +12,11 @@ import type { MainToWorker, StepStats, WorkerToMain } from './protocol'
 import { SimClockRate } from './simClockRate'
 import { FrameWireDecoder } from './frameWire'
 
+/** how a {@link SimClient.stepBy} request ended (protocol.ts 'stepped') */
+export type StepDone = Omit<Extract<WorkerToMain, { type: 'stepped' }>, 'type' | 'seq'>
+/** each cargo body's velocity and contacts (protocol.ts 'cargoDetail') */
+export type CargoDetail = Omit<Extract<WorkerToMain, { type: 'cargoDetail' }>, 'type' | 'seq'>
+
 /** an attached ST program faulting in the worker (runtime scan fault / backstop compile failure) */
 export interface PlcFault {
   message: string
@@ -83,6 +88,9 @@ export class SimClient {
   private lastFrameAt = 0
   private framed = false
   private watchdog: ReturnType<typeof setInterval> | null = null
+  /** callers waiting on a 'stepped' or 'cargoDetail' answer, by seq; each gets null when the run ends first */
+  private readonly waiters = new Map<number, (msg: StepDone | CargoDetail | null) => void>()
+  private nextSeq = 1
 
   /** create + wire the worker on first use; idempotent */
   private ensureWorker(): Worker {
@@ -147,6 +155,10 @@ export class SimClient {
           ...(msg.marks ? { marks: msg.marks } : {}),
           ...(this.frameWire.shapes ? { shapes: this.frameWire.shapes, shapeRefs: this.frameWire.shapeRefs } : {}),
         })
+      } else if (msg.type === 'stepped' || msg.type === 'cargoDetail') {
+        const done = this.waiters.get(msg.seq)
+        this.waiters.delete(msg.seq)
+        done?.(msg)
       } else if (msg.type === 'error') {
         this.onError(msg.message)
       } else if (msg.type === 'plcFault') {
@@ -253,6 +265,7 @@ export class SimClient {
     this.worker?.terminate()
     this.worker = null
     this.beacon = null
+    this.dropWaiters()
   }
 
   /** Release a world started with `deferStepping`. Idempotent, and ignored when not running. */
@@ -341,6 +354,31 @@ export class SimClient {
   step(): void {
     if (!this._running) return
     this.post({ type: 'step' })
+  }
+
+  /** While paused: advance `steps` fixed steps, or until the sim time reaches `until`. Resolves once the frame that
+   *  shows the last step has been handed on; null when the run ends first. */
+  stepBy(opts: { steps?: number; until?: number }): Promise<StepDone | null> {
+    return this.ask((seq) => ({ type: 'step', ...opts, seq })) as Promise<StepDone | null>
+  }
+
+  /** Each cargo body's velocity and what it touches, from the world as it stands; null when the run ends first. */
+  inspectCargo(): Promise<CargoDetail | null> {
+    return this.ask((seq) => ({ type: 'inspectCargo', seq })) as Promise<CargoDetail | null>
+  }
+
+  private ask(msg: (seq: number) => MainToWorker): Promise<StepDone | CargoDetail | null> {
+    if (!this._running) return Promise.resolve(null)
+    const seq = this.nextSeq++
+    return new Promise((resolve) => {
+      this.waiters.set(seq, resolve)
+      this.post(msg(seq))
+    })
+  }
+
+  private dropWaiters(): void {
+    for (const done of this.waiters.values()) done(null)
+    this.waiters.clear()
   }
 
   /** scale the sim clock (slow-motion <1, fast-forward >1); applied live while running.
@@ -448,6 +486,7 @@ export class SimClient {
     this.lastSent = null
     this.post({ type: 'stop' })
     this.disarmWatchdog()
+    this.dropWaiters()
   }
 
   dispose(): void {
@@ -455,6 +494,7 @@ export class SimClient {
     this.worker?.terminate()
     this.worker = null
     this.lastSent = null
+    this.dropWaiters()
   }
 
   private post(msg: MainToWorker): void {
