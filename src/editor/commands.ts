@@ -935,6 +935,26 @@ const COMMAND_DEFS: readonly Command[] = [
     enabled: (ctx) => ctx.state.scene.parts.some((p) => p.type === 'annotation'),
     run: ({ store }) => store.toggleShowNotes(),
   },
+  // The viewport toolbar's display toggles and the Settings read-out, here so a palette search finds them
+  {
+    id: 'view.grid',
+    label: 'Show Grid',
+    group: 'View',
+    run: ({ store }) => store.toggleGrid(),
+  },
+  {
+    id: 'view.flowArrows',
+    label: 'Show Flow Arrows',
+    group: 'View',
+    keys: 'view.flowArrows',
+    run: ({ store }) => store.toggleFlowArrows(),
+  },
+  {
+    id: 'view.stats',
+    label: 'Show Performance Read-out',
+    group: 'View',
+    run: ({ store }) => store.toggleShowStats(),
+  },
   {
     // The camera is remembered per scene (editor/store/storePrefs viewport state), so this is Reset Panel
     // Layout's counterpart: the way back from a view left somewhere useless, without hunting for a
