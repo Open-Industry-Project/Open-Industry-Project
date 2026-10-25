@@ -15,6 +15,7 @@ import {
   metaMap,
   partsMap,
   orderArray,
+  packagesMap,
   readRoomBuild,
   readSimHz,
   readStDoc,
@@ -654,6 +655,49 @@ describe('live drag streaming', () => {
   })
 })
 
+/** a minimal EditorStore stand-in: holds the scene + run flag and notifies the bridge the way setState does */
+function fakeStore(initial: SceneJSON): {
+  store: BridgeStore
+  scene: () => SceneJSON
+  setRunning: (r: boolean) => void
+  commit: (next: SceneJSON) => void
+} {
+  let scene = initial
+  let running = false
+  let notify = (): void => {}
+  return {
+    store: {
+      getState: () => ({ scene, selectedIds: [], running }),
+      subscribe: (cb) => {
+        notify = cb
+        return () => {}
+      },
+      applyRemote: (s) => void (scene = s),
+      setTransient: (s) => void (scene = s),
+      selectMany: () => {},
+      setUndoDelegate: () => {},
+      applyRemotePackages: () => {},
+      setPackageSink: () => {},
+      setEditEventSink: () => {},
+      applyRemoteEditFeed: () => {},
+      setStProgramSink: () => {},
+      applyRemoteStProgram: () => {},
+      setSimHzSink: () => {},
+      applyRemoteSimHz: () => {},
+      setProgramTransaction: () => {},
+    },
+    scene: () => scene,
+    setRunning: (r) => {
+      running = r
+      notify()
+    },
+    commit: (next) => {
+      scene = next
+      notify()
+    },
+  }
+}
+
 /**
  * "Shared design, personal run" (docs/collab.md): the sim is a private per-client preview, so its
  * runtime must not reach the shared doc. Handling a live box (pilot pick-up, click/band-select of a
@@ -682,49 +726,6 @@ describe('cargo while the local sim runs stays out of the shared doc', () => {
   }
 
   const box = (id: string, at: [number, number, number]): PartInstance => createSdkPart(BOX, id, at, 0)
-
-  /** a minimal EditorStore stand-in: holds the scene + run flag and notifies the bridge the way setState does */
-  function fakeStore(initial: SceneJSON): {
-    store: BridgeStore
-    scene: () => SceneJSON
-    setRunning: (r: boolean) => void
-    commit: (next: SceneJSON) => void
-  } {
-    let scene = initial
-    let running = false
-    let notify = (): void => {}
-    return {
-      store: {
-        getState: () => ({ scene, selectedIds: [], running }),
-        subscribe: (cb) => {
-          notify = cb
-          return () => {}
-        },
-        applyRemote: (s) => void (scene = s),
-        setTransient: (s) => void (scene = s),
-        selectMany: () => {},
-        setUndoDelegate: () => {},
-        applyRemotePackages: () => {},
-        setPackageSink: () => {},
-        setEditEventSink: () => {},
-        applyRemoteEditFeed: () => {},
-        setStProgramSink: () => {},
-        applyRemoteStProgram: () => {},
-        setSimHzSink: () => {},
-        applyRemoteSimHz: () => {},
-        setProgramTransaction: () => {},
-      },
-      scene: () => scene,
-      setRunning: (r) => {
-        running = r
-        notify()
-      },
-      commit: (next) => {
-        scene = next
-        notify()
-      },
-    }
-  }
 
   const docIds = (doc: Y.Doc): string[] => docToScene(doc).parts.map((p) => p.id)
   const docPart = (doc: Y.Doc, id: string): PartInstance => docToScene(doc).parts.find((p) => p.id === id)!
@@ -959,5 +960,32 @@ describe('the scene unit system in a room (UNITS_META)', () => {
     expect(docToScene(ydoc).units).toBe('imperial')
     ydoc.transact(() => applySceneDiff(ydoc, { ...scene, units: 'imperial' }, { version: SCENE_VERSION, parts: [] }), LOCAL_ORIGIN)
     expect('units' in docToScene(ydoc)).toBe(false)
+  })
+})
+
+describe('the room gets every definition the scene uses', () => {
+  afterEach(() => clearPackages())
+
+  it('a spawner product nothing places still reaches the room', () => {
+    // the safety net for parts this client brought (bridge.syncReferencedPackages): a product named only in a
+    // spawner's params is needed by whoever presses Play, so it travels like the spawner
+    const pkgOf = (id: string, params: PartPackage['params'] = {}): PartPackage => ({
+      format: PACKAGE_FORMAT,
+      id,
+      name: id,
+      params,
+      behavior: 'definePart({ step(){} })',
+      geometry: { kind: 'rig', links: [{ name: 'base', shape: { kind: 'box', size: [1, 0.1, 1] }, offset: [0, 0, 0] }], joints: [], bounds: { length: 1, width: 1, top: 0.1, bottom: 0 } },
+    }) as PartPackage
+    const spawner = pkgOf('room.spawner', { product: { type: 'string', default: 'room.crate', product: true } } as unknown as PartPackage['params'])
+    registerPackage(spawner)
+    registerPackage(pkgOf('room.crate'))
+    const empty: SceneJSON = { version: SCENE_VERSION, parts: [] }
+    const doc = seededDoc(empty)
+    const fake = fakeStore(empty)
+    const bridge = new CollabBridge(fake.store, doc)
+    fake.commit({ version: SCENE_VERSION, parts: [createSdkPart(spawner, 'sp_1', [0, 0, 0], 0)] })
+    expect([...packagesMap(doc).keys()].sort()).toEqual(['room.crate', 'room.spawner'])
+    bridge.destroy()
   })
 })

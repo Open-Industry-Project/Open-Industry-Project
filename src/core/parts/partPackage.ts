@@ -1,4 +1,5 @@
 import type { Finish, ParamSchema, SnapSpec, UnitLoadDecl } from './partApi'
+import type { PartInstance } from '../types'
 
 // A custom part as a portable, distributable artifact, authored in a real IDE against the part SDK
 // (src/sdk) and then imported by the web or native runtime. Neither surface is an authoring surface. Both
@@ -1083,6 +1084,40 @@ export function productRefsOf(params: Readonly<Record<string, unknown>>, pkg: Pa
     if (spec.type !== 'string' || spec.product !== true) continue
     const v = params[key] ?? spec.default
     if (typeof v === 'string' && v && v !== pkg.id) out.push(v)
+  }
+  return out
+}
+
+/**
+ * Every definition `parts` need, through `resolve`: each part's own, the products its params name (productRefsOf), and
+ * what each of those names in turn (packageDependencies). In the order first resolved, the parts' own in scene order
+ * first. An id `resolve` has no definition for is skipped. The one answer to "what do these parts need": the sim
+ * (forSim), a save (missingLibraryCopies), a copy (storeCopy) and a room (syncReferencedPackages) each filter it.
+ */
+export function definitionsUsedBy(parts: Iterable<PartInstance>, resolve: (id: string) => PartPackage | undefined): PartPackage[] {
+  const out: PartPackage[] = []
+  const resolved = new Map<string, PartPackage | undefined>()
+  const lookup = (id: string): PartPackage | undefined => {
+    if (resolved.has(id)) return resolved.get(id)
+    const pkg = resolve(id)
+    resolved.set(id, pkg)
+    if (pkg) out.push(pkg)
+    return pkg
+  }
+  const queue: string[] = []
+  for (const p of parts) {
+    if (!('packageId' in p) || typeof p.packageId !== 'string') continue
+    queue.push(p.packageId)
+    const pkg = lookup(p.packageId)
+    if (pkg) queue.push(...productRefsOf(p.params, pkg))
+  }
+  const seen = new Set<string>()
+  while (queue.length > 0) {
+    const id = queue.pop()!
+    if (seen.has(id)) continue
+    seen.add(id)
+    const pkg = lookup(id)
+    if (pkg) queue.push(...packageDependencies(pkg))
   }
   return out
 }

@@ -4,7 +4,7 @@
 import { isCargoPart } from '../../core/frame'
 import { subtreeIds } from '../../core/scene/hierarchy'
 import { uniqueName } from '../../core/parts/partDisplayName'
-import { packageDependencies, productRefsOf } from '../../core/parts/partPackage'
+import { definitionsUsedBy } from '../../core/parts/partPackage'
 import type { PartPackage } from '../../core/parts/partPackage'
 import { builtInPackage, getPackage, hasPackage, registerPackage } from '../../core/parts/partRegistry'
 import { idAllocator } from '../../core/scene/scene'
@@ -45,25 +45,7 @@ export function copySelection(store: EditorStore, host: LiveCargoHost | null): v
  * this project's own library would otherwise paste into another project as a part nothing defines.
  */
 function definitionsOf(parts: readonly PartInstance[]): PartPackage[] {
-  const queue: string[] = []
-  for (const p of parts) {
-    if (p.type !== 'part') continue
-    queue.push(p.packageId)
-    const pkg = getPackage(p.packageId)
-    if (pkg) queue.push(...productRefsOf(p.params, pkg))
-  }
-  const seen = new Set<string>()
-  const out: PartPackage[] = []
-  while (queue.length > 0) {
-    const id = queue.pop()!
-    if (seen.has(id)) continue
-    seen.add(id)
-    const pkg = getPackage(id)
-    if (!pkg) continue
-    queue.push(...packageDependencies(pkg))
-    if (!builtInPackage(id)) out.push(pkg)
-  }
-  return out
+  return definitionsUsedBy(parts, getPackage).filter((pkg) => !builtInPackage(pkg.id))
 }
 
 /**

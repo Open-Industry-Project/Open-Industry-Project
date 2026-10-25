@@ -12,7 +12,7 @@
 // validation wholesale, so it inherits every clamp/migration scene validation does.
 
 import { savedParts, validateScene } from '../scene/scene'
-import { packageDependencies, productRefsOf } from '../parts/partPackage'
+import { definitionsUsedBy } from '../parts/partPackage'
 import { validatePartPackage } from '../parts/partValidate'
 import { upgradeStoredPackage } from '../parts/partUpgrade'
 import { originOf, partFingerprint, withOrigin } from '../parts/partOrigin'
@@ -193,37 +193,12 @@ function unresolvedPackageIds(parts: unknown, resolving: readonly PartPackage[])
 export function missingLibraryCopies(library: readonly PartPackage[], partLists: readonly (readonly PartInstance[])[]): PartPackage[] {
   if (!hasBuiltInPackages()) return []
   const byId = new Map(library.map((p) => [p.id, p]))
-  const seen = new Set<string>()
-  const out: PartPackage[] = []
-  // the library's copy of `id`, adding the app's built-in when it lacks one; undefined when neither has it
+  // the library's copy of `id`, else the app's built-in stamped as a copy of this version
   const resolve = (id: string): PartPackage | undefined => {
-    let pkg = byId.get(id)
-    if (pkg === undefined) {
-      const builtIn = builtInPackage(id)
-      if (builtIn === undefined) return undefined
-      pkg = withOrigin(builtIn, 'app', partFingerprint(builtIn))
-      out.push(pkg)
-      byId.set(id, pkg)
-    }
-    return pkg
+    const builtIn = byId.has(id) ? undefined : builtInPackage(id)
+    return byId.get(id) ?? (builtIn && withOrigin(builtIn, 'app', partFingerprint(builtIn)))
   }
-  const queue: string[] = []
-  for (const parts of partLists) {
-    for (const p of parts) {
-      if (!('packageId' in p) || typeof p.packageId !== 'string') continue
-      queue.push(p.packageId)
-      const pkg = resolve(p.packageId)
-      if (pkg) queue.push(...productRefsOf(p.params, pkg))
-    }
-  }
-  while (queue.length > 0) {
-    const id = queue.pop()!
-    if (seen.has(id)) continue
-    seen.add(id)
-    const pkg = resolve(id)
-    if (pkg) queue.push(...packageDependencies(pkg))
-  }
-  return out
+  return definitionsUsedBy(partLists.flat(), resolve).filter((p) => !byId.has(p.id))
 }
 
 /**

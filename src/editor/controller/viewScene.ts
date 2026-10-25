@@ -5,7 +5,7 @@
 
 import { ancestorIds, subtreeIds } from '../../core/scene/hierarchy'
 import { getPackage } from '../../core/parts/partRegistry'
-import { productRefsOf, servoJointsJson, unitPiecesOf } from '../../core/parts/partPackage'
+import { definitionsUsedBy, servoJointsJson } from '../../core/parts/partPackage'
 import { settleIdlePose, withJointRests } from '../../sim/idlePose'
 import { withFlexPose } from '../../core/parts/partGeometry'
 import type { FlexPose } from '../../core/parts/partGeometry'
@@ -177,29 +177,10 @@ export function forSim(w: WalkOverlays, store: EditorStore, scene: SceneJSON): S
   const base = focusId !== null ? isolatedRunScene(walked, focusId) : walked
   const pkgs = [...(base.packages ?? [])]
   const have = new Set(pkgs.map((p) => p.id))
-  const add = (id: string): void => {
-    const pkg = have.has(id) ? undefined : getPackage(id)
-    if (!pkg) return
-    have.add(id)
-    pkgs.push(pkg)
-  }
-  // The worker only knows the packages it is handed. Each part's own package: only placement embeds one in the
-  // scene, so a pasted part (the clipboard outlives the project it was copied from) can name a package the scene
-  // lacks. It still draws, but the sim would build it with no bodies and cargo would fall through it. A unit load
-  // that stacks itself builds its pallet and cases from their packages (core/frame unitPieces), and a spawner makes
-  // the product its params name (productRefsOf), which no placed part embeds when nothing else in the scene uses them.
-  for (const part of base.parts) {
-    if (part.type !== 'part') continue
-    const own = getPackage(part.packageId)
-    if (!own) continue
-    add(own.id)
-    const pieces = unitPiecesOf(own)
-    if (pieces) {
-      add(pieces.pallet)
-      add(pieces.case)
-    }
-    for (const id of productRefsOf(part.params, own)) add(id)
-  }
+  // The worker only knows the packages it is handed: every one the parts use, whether or not the scene embeds it. A
+  // part whose package is missing there still draws, but the sim builds it with no bodies and cargo falls through it.
+  // That covers the products a spawner makes and a unit load's pieces, which no placed part may embed.
+  for (const pkg of definitionsUsedBy(base.parts, getPackage)) if (!have.has(pkg.id)) pkgs.push(pkg)
   if (pkgs.length === 0) return base
   return { ...base, packages: pkgs.map((p) => getPackage(p.id) ?? p) }
 }

@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
-import type { SdkPart, PartInstance, SceneJSON, SimRate } from '../core/types'
+import type { PartInstance, SceneJSON, SimRate } from '../core/types'
 import type { PartPackage } from '../core/parts/partPackage'
+import { definitionsUsedBy } from '../core/parts/partPackage'
 import { sameController, type Controller } from '../core/controller'
 import { carryCargoPose, carryingAncestor, cargoPoseOf, isCargoPart, sameCargoPose, withCargoPose } from '../core/frame'
 import { getPackage } from '../core/parts/partRegistry'
@@ -544,19 +545,17 @@ export class CollabBridge {
   }
 
   /**
-   * Make sure every custom part in the scene has its package definition in the room. Authored parts and edits
-   * already arrive through the package sink; this is the safety net for a part PLACED from a package that
-   * never went through the sink (e.g. one a desktop user loaded from a parts folder). Only writes packages
+   * Make sure every definition the scene uses is in the room: each custom part's, and what those name (a spawner's
+   * product, a unit load's pieces), which whoever presses Play needs. Authored parts and edits already arrive
+   * through the package sink; this is the safety net for a part PLACED from a package that never went through the
+   * sink (e.g. one a desktop user loaded from a parts folder, or pasted from another project). Only writes packages
    * the doc is MISSING - never overwrites a sink-pushed/edited version with a placement snapshot.
    */
   private syncReferencedPackages(scene: SceneJSON): void {
     const map = packagesMap(this.ydoc)
-    for (const p of scene.parts) {
-      if (p.type !== 'part') continue
-      const id = (p as SdkPart).packageId
+    for (const pkg of definitionsUsedBy(scene.parts, getPackage)) {
+      const id = pkg.id
       if (map.has(id)) continue
-      const pkg = getPackage(id)
-      if (!pkg) continue
       const out = this.gate.docForm(pkg) // never a held package's stand-in
       // a part this client brought (its project's parts, a parts folder), not a room package it is restoring
       if (out === pkg && !this.gate.cameFromRoom(id)) this.gate.noteOwn(pkg.behavior)
