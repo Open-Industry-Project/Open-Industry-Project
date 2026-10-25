@@ -73,14 +73,25 @@ outputs.set(
 // author surface, so they're dropped statement by statement (a statement's full text carries its JSDoc).
 const pkgSource = ts.createSourceFile('partPackage.d.ts', readEmitted('partPackage'), ts.ScriptTarget.ES2022, true)
 const kept = []
+const otherImports = []
 for (const st of pkgSource.statements) {
   if (ts.isImportDeclaration(st)) {
     const from = st.moduleSpecifier.text
-    if (from !== './partApi') throw new Error(`partPackage.d.ts imports ${from}; teach build-part-sdk.mjs where it lives in the SDK`)
-    kept.push(st.getFullText().replace("'./partApi'", "'./index'").trim())
+    if (from === './partApi') kept.push(st.getFullText().replace("'./partApi'", "'./index'").trim())
+    else otherImports.push(st)
   } else if (ts.isInterfaceDeclaration(st) || ts.isTypeAliasDeclaration(st)) {
     kept.push(st.getFullText().trim())
   }
+}
+// An import from elsewhere in core is fine while only the dropped helpers use it. A kept type that names it
+// would leave manifest.d.ts pointing at a module the SDK doesn't ship.
+const keptText = kept.join('\n')
+for (const st of otherImports) {
+  const names = st.importClause?.namedBindings && ts.isNamedImports(st.importClause.namedBindings)
+    ? st.importClause.namedBindings.elements.map((e) => e.name.text)
+    : [st.importClause?.name?.text ?? st.moduleSpecifier.text]
+  const used = names.filter((n) => new RegExp(`\\b${n}\\b`).test(keptText))
+  if (used.length) throw new Error(`manifest.d.ts types use ${used.join(', ')} from ${st.moduleSpecifier.text}; teach build-part-sdk.mjs where it lives in the SDK`)
 }
 outputs.set(
   'manifest.d.ts',
