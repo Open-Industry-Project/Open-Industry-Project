@@ -145,6 +145,15 @@ button:disabled {
   margin-left: 78px;
 }
 
+/* A fullscreen window has no caption buttons, but env(titlebar-area-*) still reports their strip, so the
+   shell says so (preload.cjs 'shell:fullscreen') and the groups take that room back. */
+:root[data-shell-fullscreen] .app.desktop-shell:not(.desktop-mac) .toolbar-right {
+  margin-right: 0;
+}
+:root[data-shell-fullscreen] .app.desktop-shell.desktop-mac .toolbar-left {
+  margin-left: 0;
+}
+
 /* A popped-out panel's window gets the same one row (Windows/Linux; main.cjs popoutTitleBar): its header row
    [data-titlebar] is the title bar. It moves to the top edge (the panel drops its top padding), bleeds out to
    both window edges so the strip sits on ONE colour, takes the strip's height (POPOUT_TITLE_BAR_HEIGHT), and

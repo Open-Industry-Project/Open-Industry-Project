@@ -334,6 +334,11 @@ contextBridge.exposeInMainWorld('oipMenu', {
   platform: process.platform,
 })
 
+// Fullscreen drops the caption buttons (main.cjs sendFullScreen); toolbar.css stops reserving their room.
+ipcRenderer.on('shell:fullscreen', (_event, on) => {
+  document.documentElement.toggleAttribute('data-shell-fullscreen', on === true)
+})
+
 // The frame the app's toolbar first paints on. Until then this window is empty, or holds a bare
 // document while the module graph loads, and the shell paints the caption strip to match that background
 // (main.cjs TITLE_BAR). From then on the row those buttons sit in is the toolbar, so main repaints the

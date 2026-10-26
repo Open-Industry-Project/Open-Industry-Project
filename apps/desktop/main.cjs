@@ -415,6 +415,20 @@ function createWindow(url = TARGET_URL) {
   }
   win.on('close', saveWindowState)
 
+  // A fullscreen window has no frame, so the caption buttons go, but Chromium keeps reporting their strip
+  // as env(titlebar-area-*) and the toolbar would keep an empty gap for them. The page drops its inset on
+  // this instead (preload.cjs, toolbar.css). Covers F11 and the page's own requestFullscreen. Each event
+  // sends its own state: on Windows, F11's enter/leave events fire while isFullScreen() still reads the old one.
+  const sendFullScreen = (on) => {
+    if (!win.isDestroyed()) win.webContents.send('shell:fullscreen', on)
+  }
+  for (const [ev, on] of [['enter-full-screen', true], ['leave-full-screen', false], ['enter-html-full-screen', true], ['leave-html-full-screen', false]]) {
+    win.on(ev, () => sendFullScreen(on))
+  }
+  win.webContents.on('did-finish-load', () => {
+    if (win.isFullScreen()) sendFullScreen(true)
+  })
+
   // `url` may be a promise (a caller resolving where the app is): the window is on screen meanwhile.
   Promise.resolve(url).then(
     (u) => {
