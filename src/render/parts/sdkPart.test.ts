@@ -124,6 +124,24 @@ describe('createCustomVisual (rig geometry)', () => {
     v.dispose()
   })
 
+  it('resetRunPose drops the run\'s subPoses, so a refresh after Stop lays the link at rest', () => {
+    // a jointless rig driven only by setSubPose (a sorter's shoes): applyJoints({}) has nothing to clear
+    registerPackage(rigPkg())
+    const part = rigPart()
+    const v = createCustomVisual(part)
+    const arm = findLink(v.object, 'arm')!
+    const rest = arm.position.toArray()
+    ;(v.object.userData.applySubPoses as (p: Record<string, { position?: [number, number, number] }>) => void)({ arm: { position: [1, 2, 3] } })
+    v.update(part)
+    expect(arm.position.toArray()).toEqual([1, 2, 3]) // a refresh alone keeps the run's last subPose
+    const before = v.object.userData.poseRev as number
+    ;(v.object.userData.resetRunPose as () => void)()
+    v.update(part)
+    expect(arm.position.toArray()).toEqual(rest)
+    expect(v.object.userData.poseRev as number).toBeGreaterThan(before)
+    v.dispose()
+  })
+
   // the matrix freeze (viewMatrices.ts) keeps every rig frozen and relies on these self-reports to know
   // when to re-bake - a mutator that moves transforms without bumping poseRev renders stale
   it('applyJoints bumps the visual poseRev (frozen-subtree self-invalidation)', () => {

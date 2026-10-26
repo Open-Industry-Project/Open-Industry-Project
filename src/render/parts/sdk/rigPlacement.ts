@@ -27,6 +27,8 @@ export interface RigPlacement {
   applyJoints(values: Record<string, number>): void
   applyRestPose(g2: Extract<PartPackage['geometry'], { kind: 'rig' }>): void
   applySubPoses(subPoses: Record<string, SubPose>): void
+  /** Stop: forget the run's joint values and setSubPose overrides and lay every link at rest */
+  resetRunPose(): void
 }
 
 export function createRigPlacement(deps: RigPlacementDeps): RigPlacement {
@@ -162,6 +164,16 @@ export function createRigPlacement(deps: RigPlacementDeps): RigPlacement {
     bumpPoseRev()
   }
 
+  // A link keeps its last subPose (lastSubPoses), and applyJoints({}) only clears joints, so a part moved by
+  // setSubPose alone (a sorter's shoes) stayed where the run left it after Stop.
+  const resetRunPose = (): void => {
+    lastJoints = {}
+    lastSubPoses = {}
+    placeLinks()
+    if (hasLinkBanks) replaceLinkBanks()
+    bumpPoseRev()
+  }
+
   return {
     place: (params) => {
       lastParams = params
@@ -170,5 +182,6 @@ export function createRigPlacement(deps: RigPlacementDeps): RigPlacement {
     applyJoints,
     applyRestPose,
     applySubPoses,
+    resetRunPose,
   }
 }

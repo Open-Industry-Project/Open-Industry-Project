@@ -684,7 +684,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
 
   const { beamVisuals, probeTick } = createRigBeams(geo, root, linkGroups)
 
-  const { applyJoints, applyRestPose, applySubPoses, ...placement } = createRigPlacement({ geo, root, linkGroups, linkByName, hasLinkBanks: linkBanks.length > 0, replaceLinkBanks, bumpPoseRev })
+  const { applyJoints, applyRestPose, applySubPoses, resetRunPose, ...placement } = createRigPlacement({ geo, root, linkGroups, linkByName, hasLinkBanks: linkBanks.length > 0, replaceLinkBanks, bumpPoseRev })
 
   // squash links: the driving lamp's frame.lamps signal also sets the compression target (0/1), eased toward
   // by the tick (below). The signal is a different link than the squash (the cups squash off the tool's LED).
@@ -956,6 +956,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
     applyJoints,
     applySubPoses,
     applyRestPose,
+    resetRunPose,
     ...(applyLamps ? { applyLamps } : {}),
     ...(applyDisplays ? { applyDisplays } : {}),
     // per-frame animation: roller-bed spin + squash cup ease (combined). Roller beds also follow the

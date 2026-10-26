@@ -1218,7 +1218,10 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     for (const [id, entry] of this.entries) {
       const applyJoints = entry.visual.object.userData.applyJoints as ((j: Record<string, number>) => void) | undefined
       if (!applyJoints && !this.routing.baseDriven.has(id)) continue
-      applyJoints?.({})
+      // a rig drops its subPoses too; applyJoints({}) alone left a setSubPose-driven link where the run put it
+      const resetRunPose = entry.visual.object.userData.resetRunPose as (() => void) | undefined
+      if (resetRunPose) resetRunPose()
+      else applyJoints?.({})
       entry.visual.update(entry.part, this.lastResolved?.get(id))
       this.ensureFreshPose(entry) // re-bake the frozen subtree now (mirrors refreshPackage)
       entry.boundsDirty = true
