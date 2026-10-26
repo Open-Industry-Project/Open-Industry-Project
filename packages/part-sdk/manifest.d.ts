@@ -437,6 +437,10 @@ export interface RigLink {
      *  does not snag on its edges. It joins the conveyor contact gates with no surface velocity. A guard must stop
      *  cargo, so a {@link sideGuard} never needs it. */
     bed?: boolean;
+    /** The friction of this link's surface, on the scale a conveyor's `frictionParam` uses (0 to 2; cargo's own friction
+     *  combines with it): a slide's low-friction plate, a rubber stop pad. Omitted keeps the host's default of 0.6. A
+     *  {@link sideGuard} always has none, and a `conveys` deck takes the conveyor's `frictionParam` instead. */
+    friction?: number;
     /** This box is the part's walking deck: its resolved size is the deck's extent, and where a neighbour's edge
      *  mount `notch`es the deck, the host carves the box into the strips around the stairwell. */
     notchable?: boolean;

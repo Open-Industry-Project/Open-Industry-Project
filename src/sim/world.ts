@@ -1155,7 +1155,7 @@ export class SimWorld implements SimCore<BoxFrame> {
         if (hi - lo <= 1e-4) continue
         // span midpoint along the box's own local +X, then the whole local offset rotated into world
         const r = rotateXZ(w.localCx + (lo + hi) / 2, w.localCz, part.rotationY)
-        this.bodies.addStaticBox((hi - lo) / 2, w.hy, w.hz, part.position[0] + r.x, part.position[1] + w.localCy, part.position[2] + r.z, part.rotationY, 0)
+        this.bodies.addStaticBox((hi - lo) / 2, w.hy, w.hz, part.position[0] + r.x, part.position[1] + w.localCy, part.position[2] + r.z, part.rotationY, w.friction ?? 0)
       }
     }
   }
@@ -1164,11 +1164,12 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  part pose: the channel for a solid an AABB would misrepresent (a round pillar, a wedge/ramp). The hull points
    *  are the submesh's own vertices, so the collider is the visible surface; addStaticHull composes them with the
    *  part's position + yaw exactly like the box channel. Unlike guards these never merge across parts, so there
-   *  is no run/override to consult. Friction matches the building shell - a hulled solid is scenery cargo bumps
-   *  into or slides down, not a guard rail it should skate along frictionlessly. */
+   *  is no run/override to consult. Friction is the submesh's declared surface (MeshPart.friction: a slide chute's
+   *  plate), else the building shell's - a hulled solid is scenery cargo bumps into or slides down, not a guard rail
+   *  it should skate along frictionlessly. */
   private addFunctionStaticHulls(part: SdkPart, pkg: PartPackage): void {
     for (const h of functionStaticHulls(part, pkg)) {
-      this.bodies.addStaticHull(h.points, part.position[0], part.position[1], part.position[2], part.rotationY, BUILDING_FRICTION)
+      this.bodies.addStaticHull(h.points, part.position[0], part.position[1], part.position[2], part.rotationY, h.friction ?? BUILDING_FRICTION)
     }
   }
 

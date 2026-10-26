@@ -108,6 +108,8 @@ export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geom
     // classified unconditionally: a merged guard run overrides this side's spans even when the part has no
     // openings/extents of its own (two pristine beds butted end-to-end is the common case).
     const guardSide = rigGuardSide(link)
+    // the link's own surface (RigLink.friction: a slide plate, a rubber pad), else the plain solid default
+    const friction = link.friction ?? GROUND_FRICTION
     const guardOverride = guardSide ? guardRun?.walls[`rig:${link.name}`] : undefined
     const frameSide = !guardSide && extents ? rigFrameSide(link) : null
     const cutSide = guardSide ?? frameSide
@@ -124,9 +126,9 @@ export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geom
       if (segments) {
         for (const [lo, hi] of segments) {
           const d = qApply(world.quat, [(lo + hi) / 2, 0, 0])
-          // guard segments keep friction 0 (cargo slides along them); frame segments keep GROUND_FRICTION and
+          // guard segments keep friction 0 (cargo slides along them); frame segments keep the link's friction and
           // the ghost-gate admission the unsplit rail gets below (flush top edge must never snag cargo)
-          const body = sink.kinematicBoxQuat((hi - lo) / 2, he[1], he[2], [world.pos[0] + d[0], world.pos[1] + d[1], world.pos[2] + d[2]], world.quat, guardSide ? 0 : GROUND_FRICTION)
+          const body = sink.kinematicBoxQuat((hi - lo) / 2, he[1], he[2], [world.pos[0] + d[0], world.pos[1] + d[1], world.pos[2] + d[2]], world.quat, guardSide ? 0 : friction)
           if (frameSide && rigConveys && link.bed) sink.registerConveyor(body, [])
         }
         continue
@@ -140,13 +142,13 @@ export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geom
       const seam = { worldPos: pos, worldRotY: rotationY }
       for (const delta of arrayInstanceDeltas(link.array, params, seam, link.showParam)) {
         const d = qApply(world.quat, delta) // instance offset (container-local) → world
-        sink.staticBox(he[0], he[1], he[2], world.pos[0] + d[0], world.pos[1] + d[1], world.pos[2] + d[2], rotationY, GROUND_FRICTION)
+        sink.staticBox(he[0], he[1], he[2], world.pos[0] + d[0], world.pos[1] + d[1], world.pos[2] + d[2], rotationY, friction)
       }
       continue
     }
     // a guard is friction 0 (same as the function-belt guards in
     // addScriptedBeltGuards): cargo squared against it by skew/merges must slide along, not wedge-stop.
-    const body = sink.kinematicBoxQuat(he[0], he[1], he[2], world.pos, world.quat, link.sideGuard ? 0 : GROUND_FRICTION)
+    const body = sink.kinematicBoxQuat(he[0], he[1], he[2], world.pos, world.quat, link.sideGuard ? 0 : friction)
     // a conveying rig's frame rail (top at/under the deck plane): admit it to the conveyor ghost gates
     // with an empty entry list (plain collision, no surface velocity), so cargo sliding sideways off the
     // bed (a diverter kick onto a perpendicular takeaway) can't snag/pop on the rail's flush top edge.

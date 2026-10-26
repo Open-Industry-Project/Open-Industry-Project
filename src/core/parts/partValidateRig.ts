@@ -317,6 +317,12 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
       if (v !== undefined && typeof v !== 'boolean') add(`${at}.${key}`, `${key} must be a boolean`)
     }
     if ((l as { notchable?: unknown }).notchable === true && (l as { shape?: { kind?: unknown } }).shape?.kind !== 'box') add(`${at}.notchable`, 'notchable is for a box link (the deck slab the host carves)')
+    const friction = (l as { friction?: unknown }).friction
+    if (friction !== undefined) {
+      if (!isFiniteNum(friction) || friction < 0 || friction > 2) add(`${at}.friction`, 'friction must be a number from 0 to 2 (the scale a conveyor frictionParam uses)')
+      else if ((l as { sideGuard?: unknown }).sideGuard !== undefined) add(`${at}.friction`, 'a sideGuard has no friction (cargo slides along it); drop friction or the sideGuard')
+      else if ((l as { conveys?: unknown }).conveys === true) add(`${at}.friction`, "a conveys deck's friction is the conveyor's frictionParam; drop friction here")
+    }
     validateLinkLamps(l as { name?: unknown; shape?: { kind?: unknown; materials?: unknown }; lamps?: unknown; squash?: unknown }, at, add, lampNames)
     const beam = (l as { beam?: unknown }).beam as { range?: unknown; rangeParam?: unknown; showParam?: unknown; axis?: unknown; tint?: unknown } | undefined
     if (beam !== undefined) {

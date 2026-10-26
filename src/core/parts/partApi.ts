@@ -1072,6 +1072,13 @@ export interface MeshPart {
    */
   collision?: 'box' | 'hull'
   /**
+   * The friction of this solid's surface, on the scale a conveyor's `frictionParam` uses (0 to 2; cargo's own friction
+   * combines with it): a slide chute's low-friction plate, a rubber stop pad. Only for a submesh with a
+   * {@link collision}. Omitted keeps the host's default: 0 for a `'box'` (walls cargo slides along) and 0.5 for a
+   * `'hull'`, which a standard carton only slides down past about 27 degrees. A side guard always has none.
+   */
+  friction?: number
+  /**
    * Render this submesh as one InstancedMesh: `desc` becomes a unit template drawn at each of these
    * per-instance transforms, for any author geometry (a roller bed's tubes, a rail's posts). N
    * copies of one shape cost one draw call, and because the host keys instancing on geometry content, the

@@ -676,7 +676,18 @@ A `geometry()` submesh is decorative until it declares a channel. You say what i
 | `collision: 'hull'` | a convex hull of the submesh's vertices | anything an AABB misrepresents: a round pillar, a ramp, a chamfered plinth. The submesh must be convex (split a concave solid into several submeshes). Never merged, so don't use it for guards |
 
 A hulled submesh past the host's hull-point cap falls back to its AABB box, so hull the simple shape, not a
-dense visual mesh. Example: [shape](../examples/parts/shape/behavior.ts), whose box/cylinder/cone/ramp
+dense visual mesh.
+
+A solid's surface takes a `friction`, on the scale a conveyor's `frictionParam` uses (0 to 2; the cargo's own friction
+combines with it): a slide chute's plate, a rubber stop pad. Without one, a `'box'` has none, so cargo slides along it
+like a wall, and a `'hull'` has 0.5, which a standard carton only slides down past about 27 degrees. A rig link takes
+the same field (its default is 0.6). A side guard never has friction, and a `conveys` deck takes its conveyor's
+`frictionParam`, so `check_part` refuses `friction` on either.
+
+```js
+// a slide chute's plate: a carton starts sliding at about 10 degrees
+parts.push({ desc: plate, collision: 'hull', friction: 0.06, material: 'steel' })
+``` Example: [shape](../examples/parts/shape/behavior.ts), whose box/cylinder/cone/ramp
 primitives are each one convex, hulled submesh.
 
 #### Repeated hardware: `MeshPart.instances` (instanced templates)

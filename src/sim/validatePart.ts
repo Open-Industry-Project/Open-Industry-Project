@@ -229,6 +229,15 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
       diagnostics.push({ kind: 'package', message: `geometry(): a spinning instanced bank turns each instance about its own local Z, so its spin.axis must be [0, 0, 1] or [0, 0, -1] (got ${JSON.stringify(p.spin.axis)}); lay the template's axle along Z` })
     }
   }
+  // A surface friction only means something on a solid, and a guard has none; either would be ignored without a word.
+  for (const p of drawn) {
+    const f = (p as { friction?: unknown }).friction
+    if (f === undefined) continue
+    if (typeof f !== 'number' || !Number.isFinite(f) || f < 0 || f > 2) diagnostics.push({ kind: 'package', message: `geometry(): a submesh's friction must be a number from 0 to 2, the scale a conveyor frictionParam uses (got ${JSON.stringify(f)})` })
+    else if (p.collision === undefined) diagnostics.push({ kind: 'package', message: "geometry(): a submesh has a friction but no collision, so nothing collides with it; give it collision: 'hull' or 'box'" })
+    else if (p.sideGuard !== undefined) diagnostics.push({ kind: 'package', message: 'geometry(): a side guard has no friction (cargo slides along it); drop friction or the sideGuard' })
+    else if (manifest.geometry.kind === 'rig') diagnostics.push({ kind: 'package', message: "geometry(): on a rig, geometry() is render-only, so a submesh's friction does nothing; set friction on the link" })
+  }
   // A squash compresses along a rig link off one of the rig's lamps; anything else would sit still with no word why.
   for (const p of drawn) {
     const s = p.squash

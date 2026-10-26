@@ -77,6 +77,19 @@ describe('functionStaticHulls', () => {
     expect(functionStaticWalls(boxedPart, boxed).length).toBe(1)
   })
 
+  it("carries a submesh's surface friction to its hull and its wall, and leaves it off when undeclared", () => {
+    const p = pkg(HULLED.replace("collision: 'hull' }", "collision: 'hull', friction: 0.06 }"), { id: 'acme.slick' })
+    registerPackage(p)
+    const slickPart = { ...part(), packageId: 'acme.slick' } as unknown as SdkPart
+    expect(functionStaticHulls(slickPart, p)[0]!.friction).toBe(0.06)
+    const plain = pkg(HULLED)
+    registerPackage(plain)
+    expect(functionStaticHulls(part(), plain)[0]!.friction).toBeUndefined()
+    const boxed = pkg(HULLED.replace("collision: 'hull' }", "collision: 'box', friction: 0.9 }"), { id: 'acme.pad' })
+    registerPackage(boxed)
+    expect(functionStaticWalls({ ...part(), packageId: 'acme.pad' } as unknown as SdkPart, boxed)[0]!.friction).toBe(0.9)
+  })
+
   it('ignores a submesh with too little volume to collide (under a tetrahedron)', () => {
     const flat = `definePart({
       geometry(g) {
