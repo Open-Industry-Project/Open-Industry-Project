@@ -683,8 +683,10 @@ export function locateTags(source: string, assignments: readonly IoAssignment[])
     })
   }
 
-  // later edits first, so earlier offsets stay true; two at one offset keep the order they were made in
-  const ordered = edits.map((e, i) => ({ e, i })).sort((a, b) => b.e.from - a.e.from || b.i - a.i)
+  // later edits first, so earlier offsets stay true. At one offset a deletion goes before an insertion, or the
+  // deletion would cut the inserted text (an emptied input block that opens the program shares its line with the
+  // new located block); two insertions keep the order they were made in
+  const ordered = edits.map((e, i) => ({ e, i })).sort((a, b) => b.e.from - a.e.from || b.e.to - a.e.to || b.i - a.i)
   let out = source
   for (const { e } of ordered) out = out.slice(0, e.from) + e.text + out.slice(e.to)
   return out
