@@ -347,8 +347,9 @@ not `lane2-full-logic` too. A report leads with the file name. A manifest that l
 too, with a note that the app will not run it until it is listed.
 
 **`--cargo 5,10.5` lists every live cargo body at those times**: id, part (or `-` for a spawned box), kind, tint
-(`#e01010 (red)`), centre in world metres, tilt from upright and heading about +Y (`yawDeg`, measured as a part's `rotationY`), in
-whole degrees. A spawned box has no part id, so a `pose` probe's `yaw` cannot follow it, and its heading here is how
+(`#e01010 (red)`), centre in world metres, tilt from upright and heading about +Y (`yawDeg`), in whole degrees. The heading is the plan
+direction of the body's more nearly level edge: a part's `rotationY` for an upright body, and the way its edges run
+for one tilted on a cross slope, such as a chute falling away from a sorter. A spawned box has no part id, so a `pose` probe's `yaw` cannot follow it, and its heading here is how
 to see a case turn through a divert. It is the headless answer to "where
 are the boxes", which is what you need to place a `count` zone or a `passed` gate, and close-together times follow a
 box that tips or falls. `--json` carries it as `cargo` per test, and the agent's `run_test` takes the same times as

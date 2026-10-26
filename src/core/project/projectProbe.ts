@@ -166,15 +166,24 @@ export interface CargoRow {
   pos: [number, number, number]
   /** how far it is tilted from upright, whole degrees (about 90 = on its side) */
   tiltDeg: number
-  /** its heading about world +Y, whole degrees in (-180, 180], the same angle a part's `rotationY` and a `pose` probe's
-   *  `yaw` measure. A box is symmetric, so 90 apart can be the same footprint */
+  /** its heading about world +Y, whole degrees in (-180, 180]: for an upright body the angle a part's `rotationY`
+   *  measures, and for a tilted one the plan direction of its more nearly level edge ({@link cargoYawDeg}). A box is
+   *  symmetric, so 90 apart can be the same footprint */
   yawDeg: number
 }
 
-/** Body `i`'s heading about world +Y in degrees (YXZ order, as a part's rotationY). */
+/** Body `i`'s heading about world +Y in degrees: the plan direction of its more nearly level edge, its local X (as a
+ *  part's rotationY measures it) or else its local Z. For an upright body the two agree, and that is its rotationY. A
+ *  case rolled on a cross slope (a chute falling away from a sorter) still reads the way its edges run in plan, where
+ *  a YXZ yaw would read its rolled cross edge, several degrees off. */
 export function cargoYawDeg(frame: Pick<BoxFrame, 'quats'>, i: number): number {
   const q = i * 4
-  const deg = (quatToYXZ(frame.quats[q]!, frame.quats[q + 1]!, frame.quats[q + 2]!, frame.quats[q + 3]!)[1] * 180) / Math.PI
+  const x = frame.quats[q]!, y = frame.quats[q + 1]!, z = frame.quats[q + 2]!, w = frame.quats[q + 3]!
+  // the body's local X and Z in world space
+  const ex = [1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w)]
+  const ez = [2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y)]
+  const rad = Math.abs(ex[1]!) <= Math.abs(ez[1]!) ? Math.atan2(-ex[2]!, ex[0]!) : Math.atan2(ez[0]!, ez[2]!)
+  const deg = (rad * 180) / Math.PI
   // -180 and 180 are one heading; `+ 0` turns a -0 into 0
   return deg <= -179.5 ? 180 : deg + 0
 }

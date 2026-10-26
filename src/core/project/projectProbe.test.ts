@@ -267,6 +267,22 @@ describe('cargoRows', () => {
     ])
   })
 
+  it('yaw of a case resting on a cross slope is the way its edges run in plan, not its rolled cross edge', () => {
+    // a 24 degree slide falling toward -Z, the case's X edge along a 30 degree run: X lies in the slide, Y is its normal
+    const t = Math.tan((24 * Math.PI) / 180)
+    const unit = (v: number[]): number[] => v.map((c) => c / Math.hypot(...v))
+    const X = unit([Math.cos(Math.PI / 6), -Math.sin(Math.PI / 6) * t, -Math.sin(Math.PI / 6)])
+    const Y = unit([0, 1, -t]) // the normal of y = t z
+    expect(Math.abs(X[0]! * Y[0]! + X[1]! * Y[1]! + X[2]! * Y[2]!)).toBeLessThan(1e-12) // a real rotation: X in the slide
+    const Z = [X[1]! * Y[2]! - X[2]! * Y[1]!, X[2]! * Y[0]! - X[0]! * Y[2]!, X[0]! * Y[1]! - X[1]! * Y[0]!]
+    // the rotation whose columns are X, Y, Z, as a quaternion (the trace is positive here)
+    const w = Math.sqrt(1 + X[0]! + Y[1]! + Z[2]!) / 2
+    const quat: [number, number, number, number] = [(Y[2]! - Z[1]!) / (4 * w), (Z[0]! - X[2]!) / (4 * w), (X[1]! - Y[0]!) / (4 * w), w]
+    const [row] = cargoRows(frame([{ pos: [0, 0, 0], quat }]))
+    expect(row!.yawDeg).toBe(30)
+    expect(row!.tiltDeg).toBe(24)
+  })
+
   it('yaw is the heading about +Y as rotationY measures it, kept apart from a tilt, and a half turn reads 180', () => {
     const rows = cargoRows(frame([{ pos: [0, 0, 0], quat: quatFromYXZ(0, Math.PI / 4, 0) }, { pos: [0, 0, 0], quat: quatFromYXZ(0, -Math.PI / 2, 0) }, { pos: [0, 0, 0], quat: quatFromYXZ(0, 0.7, Math.PI / 6) }, { pos: [0, 0, 0], quat: quatFromYXZ(0, -Math.PI, 0) }]))
     expect(rows.map((r) => r.yawDeg)).toEqual([45, -90, 40, 180])
