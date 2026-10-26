@@ -177,7 +177,7 @@
 }
 
 /* The external PLC link's state beside Play and Stop (PlcLinkStatus.tsx): a chip with a dot, only while Play hands the
-   scene to a PLC. Its popover hangs under it, the points it serves and the way to Controller Properties. */
+   scene to a PLC. A click opens Controller Properties. */
 .plc-link {
   position: relative;
   display: flex;
