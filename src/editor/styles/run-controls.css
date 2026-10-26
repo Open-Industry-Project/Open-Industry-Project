@@ -98,6 +98,18 @@
   background: #9d6e17;
 }
 
+/* Off 1x while an external PLC runs the logic: the PLC keeps real time, so the same amber says its timing no
+   longer matches the sim (Toolbar.tsx plcClock) */
+.run-button.speed.boosted.plc-clock {
+  background: #8a6114;
+  border-color: transparent;
+  color: #fff;
+}
+
+.run-button.speed.boosted.plc-clock:hover:not(:disabled) {
+  background: #9d6e17;
+}
+
 /* A run button that can't act drops its colour instead of fading it: the generic 0.4 opacity turned an
    idle Stop pink and a running Play mint, so saturated colour no longer meant "press this". Neutral fill,
    dim glyph, full opacity. The :is() takes its heaviest argument's weight, so this outranks every variant

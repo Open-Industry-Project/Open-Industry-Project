@@ -37,7 +37,7 @@ export class PlcLinkState {
 }
 
 /** what the links read: the document's link settings (store), the worker (sim), the latest frame and program watch,
- *  which Play this is, the hosts the shell (or a test) hands in, and the speed control an external PLC pins to 1x */
+ *  which Play this is, the hosts the shell (or a test) hands in, and the speed control Play with an external PLC resets to 1x */
 export type PlcLinkDeps = Pick<
   EditorController,
   'store' | 'sim' | 'lastFrame' | 'plcWatch' | 'runSerial' | 'plcIoHost' | 'opcUaHost' | 'eipHost' | 'adsHost' | 'opcUaServerHost' | 'setTimeScale'
@@ -179,9 +179,9 @@ export function publishDocumentProgram(l: PlcLinkState, store: EditorStore): voi
 /**
  * Play with an external PLC: carry the scene's I/O addresses over Modbus instead of running the program
  * in-process - serving them to a PLC that polls, or polling a PLC that serves, as Controller Properties
- * says. The PLC drives what it writes (ctx.tagDriven, as an attached program's outputs do), the speed is
- * held at 1x because the PLC keeps wall-clock time, and the program here is not attached, which the PLC
- * panel says.
+ * says. The PLC drives what it writes (ctx.tagDriven, as an attached program's outputs do), and the program
+ * here is not attached, which the PLC panel says. The PLC keeps wall-clock time, so Play starts at 1x; another
+ * speed is allowed afterwards, and the toolbar's speed button warns that the PLC's timing no longer matches.
  */
 export function attachExternalPlc(l: PlcLinkState, p: ProgramState, ec: PlcLinkDeps, m: ExternalPlcModule): void {
   const host = ec.plcIoHost

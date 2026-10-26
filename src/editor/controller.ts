@@ -488,8 +488,6 @@ export class EditorController {
   /** Set the simulation speed multiplier. Applies live to a
    *  running sim and persists for the next run; usable while stopped. */
   setTimeScale(scale: number): void {
-    // an external PLC keeps wall-clock time, so the sim does too while one is connected
-    if (this.links.externalSession && scale !== 1) return
     this.store.setTimeScale(scale)
     this.sim.setTimeScale(scale) // no-op when stopped; run() re-pushes the current value
   }

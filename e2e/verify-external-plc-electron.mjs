@@ -7,8 +7,8 @@
 // belt (coil 800) with the rung `Run := NOT Eye`, the way OpenPLC's master did in `npm run openplc-loop`.
 //
 // It checks what only the running app can show: Controller Properties lists the points before Play; Play opens the
-// port and reports the PLC connecting; the box rides to the eye and the PLC's coil stops it; the speed is
-// held at 1x; Stop closes the port. A browser tab cannot listen, and the last check is that it says so.
+// port and reports the PLC connecting; the box rides to the eye and the PLC's coil stops it; Play starts at 1x
+// and another speed warns on the speed button; Stop closes the port. A browser tab cannot listen, and the last check is that it says so.
 //
 //   node e2e/verify-external-plc-electron.mjs
 /* global process, console, window, document, URL, localStorage, setTimeout */
@@ -429,8 +429,13 @@ try {
   await page.evaluate(() => window.__oip.controller.run())
   await page.waitForFunction(() => window.__oip.controller.externalPlcStatus.state === 'listening', null, { timeout: 15000, polling: 100 })
   expect((await page.evaluate(() => window.__oip.store.getState().timeScale)) === 1, 'Play with an external PLC runs at 1x, whatever speed was chosen')
-  await page.evaluate(() => window.__oip.controller.setTimeScale(3))
-  expect((await page.evaluate(() => window.__oip.store.getState().timeScale)) === 1, 'and a speed change is refused while the PLC is connected')
+  await page.evaluate(() => window.__oip.controller.setTimeScale(2))
+  expect((await page.evaluate(() => window.__oip.store.getState().timeScale)) === 2, 'a speed can still be chosen while the PLC is connected')
+  const speed = page.locator('[data-testid="sim-speed"]')
+  await page.waitForFunction(() => document.querySelector('[data-testid="sim-speed"]')?.classList.contains('plc-clock'), null, { timeout: 5000, polling: 100 })
+  expect(/runs in real time/.test((await speed.getAttribute('title')) ?? ''), 'and the speed button warns that the PLC keeps real time')
+  // the box checks below time the PLC's stop against the sim, so they run at 1x
+  await page.evaluate(() => window.__oip.controller.setTimeScale(1))
   const note = await page.evaluate(() => window.__oip.controller.programStatus.warnings.join(' '))
   expect(/external PLC runs this project/.test(note), `the PLC panel says the program here is not attached (${note})`)
 

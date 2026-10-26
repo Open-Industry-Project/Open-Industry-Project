@@ -332,8 +332,9 @@ END_PROGRAM</code></pre>
             does the same. The simulator keeps stepping, so the line coasts to a halt the way it would on the floor.
           </p>
           <p>
-            While an external PLC is connected, simulation speed is fixed at real time, because the PLC scans on its own clock
-            and the simulator cannot run faster than it.
+            The PLC scans on its own clock, so Play with an external PLC starts at real time (1x). You can still change the
+            speed during the run, to fill a buffer quickly or watch a handoff slowly, and the speed button turns amber: away
+            from 1x the PLC's timers and reaction times no longer match the simulation, so the line can behave differently.
           </p>
         </div>
       </div>

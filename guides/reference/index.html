@@ -253,7 +253,7 @@
           <li>When the PLC goes quiet, every tag it drives is set OFF (a coil false, a register 0) and the line coasts to a stop; the run continues, and the PLC's values come back the moment it answers.</li>
           <li>The watchdog is not armed before the first poll. Until the PLC has connected once, the status line says what it is waiting for instead.</li>
           <li>An OPC UA server, or a TwinCAT runtime over ADS, can hide a stopped program. Each belongs to the runtime and keeps answering with the last values; only a lost connection or a silent server trips the watchdog.</li>
-          <li>A real PLC scans on its own clock, so the simulation speed is held at 1x while one is connected.</li>
+          <li>A real PLC scans on its own clock, so Play starts at 1x. Another speed can still be chosen during the run, and the speed button turns amber: the PLC's timers and reaction times no longer match the simulation's.</li>
         </ul>
       </div>
     </section>

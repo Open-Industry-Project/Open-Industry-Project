@@ -49,6 +49,8 @@ const M = defineMessages('toolbar', {
   speedShortTitle:
     "Simulation Speed: {requested}× requested, ~{actual}× actual. This machine can't step the world any faster, so the sim advances slower than {requested}× real time (its own timing stays exact).",
   speedTitle: 'Simulation Speed: click to cycle 0.5×, 1×, 2×, 4×, 8× (Shift+click to step back)',
+  speedPlcClockTitle:
+    'Simulation Speed: {speed}×. The external PLC runs in real time, so away from 1× its timers and reaction times no longer match the simulation and the line can behave differently. Click to cycle (Shift+click to step back)',
   speedShortAria: 'Simulation is advancing at about {rate} times real time. Why?',
   speedNote: 'Simulation speed',
   runningAt: 'Running at ~{rate}× real time',
@@ -237,9 +239,14 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
   // overstate what is happening; state.speedActual is the measured rate when it does (null when
   // it's keeping up). Sim results stay exact either way - only wall-clock progress falls short.
   const speedShort = state.speedActual !== null
-  const speedTitle = speedShort
-    ? t(M.speedShortTitle, { requested: state.timeScale, actual: state.speedActual ?? 0 })
-    : t(M.speedTitle)
+  // A real PLC scans on its own clock, so off 1x its timers and reactions drift from the sim's. Allowed (filling a
+  // buffer fast, watching a handoff slowly), but flagged; Play itself resets to 1x (plcLinks.ts attachExternalPlc).
+  const plcClock = state.running && state.timeScale !== 1 && state.externalPlc.enabled && (controller?.externalPlcAvailable ?? false)
+  const speedTitle = plcClock
+    ? t(M.speedPlcClockTitle, { speed: state.timeScale })
+    : speedShort
+      ? t(M.speedShortTitle, { requested: state.timeScale, actual: state.speedActual ?? 0 })
+      : t(M.speedTitle)
 
   // A shortfall that clears unmounts the badge; reopening later should start closed rather than
   // restoring a panel the user dismissed by the machine catching up.
@@ -332,7 +339,8 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
           </button>
         </div>
         <button
-          className={`run-button speed${state.timeScale !== 1 ? ' boosted' : ''}${speedShort ? ' short' : ''}`}
+          className={`run-button speed${state.timeScale !== 1 ? ' boosted' : ''}${speedShort ? ' short' : ''}${plcClock ? ' plc-clock' : ''}`}
+          data-testid="sim-speed"
           title={speedTitle}
           disabled={!controller}
           onClick={cycleSpeed}
