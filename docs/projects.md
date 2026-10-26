@@ -94,7 +94,11 @@ The main design choices:
    [plc/taskTree.ts](../src/plc/taskTree.ts)). The tree lists Main (the top-level code), the tasks and the
    program instances each runs, then the POUs by kind, the data types and the global variables. Double-clicking a
    task or a program opens a properties dialog
-   ([ControllerPropertiesDialogs.tsx](../src/editor/components/plc/ControllerPropertiesDialogs.tsx)).
+   ([ControllerPropertiesDialogs.tsx](../src/editor/components/plc/ControllerPropertiesDialogs.tsx)). While it runs, the
+   code shows each name's live value as the POU it is written in reads it
+   ([plc/watchScope.ts](../src/plc/watchScope.ts)). For a `PROGRAM` that runs as several instances, those are one
+   instance's: the first, until another is picked by clicking its row or the chip on the `PROGRAM`'s header, which says
+   which one is shown. The pick is a view, not part of the document.
 
    There is no separate Controller dock. The tree's first node, Controller, holds Main. Its properties are the
    external PLC link ([ControllerDialog.tsx](../src/editor/components/plc/ControllerDialog.tsx)), a machine setting

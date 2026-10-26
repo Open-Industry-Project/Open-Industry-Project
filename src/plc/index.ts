@@ -64,6 +64,9 @@ export { compile } from './interpreter'
 // those commands use it and they load it when run; a re-export here would put it in the first frame
 export { locatedVariables } from './locatedIndex'
 export { KEYWORDS, valueRefs } from './lexer'
+// which watch-table entry a name in the text stands for, read in the POU it is written in
+export { watchInstances, watchScopes } from './watchScope'
+export type { MonitoredProgram, WatchInstance, WatchScopes } from './watchScope'
 export { toTypeScript } from './emit'
 // Not re-exported here: the portability doors, a program leaving as a spec-legal IEC file or PLCopen XML (./export)
 // and coming back in (./importText, ./importXml). Import them from their modules. The app loads this barrel before its

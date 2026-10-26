@@ -53,6 +53,8 @@ const M = defineMessages('plcOrganizer', {
   deleteHint: 'Deletes it and the comment written above it. {undo} undoes it',
   undo: 'Undo',
   newNameFor: 'New name for {kind} {name}',
+  shownBadge: 'shown',
+  shownHint: "The live values in {type}'s code are {instance}'s. Click another {type} instance to show its values.",
   topBodyRuns: 'The top-level code and variables: the code outside every POU, and the statements its Main instance runs',
   topVariables: 'The top-level variables: the code outside every POU, which the scene is wired to by name',
   blockTitleNamed: '{kind} {name}',
@@ -140,6 +142,9 @@ export interface PlcOrganizerProps {
   /** the scene's parts that speak tags, for the tree's Devices section (components/plc/plcDevices.ts) */
   devices: OrganizerDevices
   actions: OrganizerActions
+  /** the instance whose live values the code shows for a PROGRAM that runs as several (by type upper-cased; else the
+   *  first), and picking one */
+  monitoring?: { picked: Readonly<Record<string, string>>; pick: (type: string, instance: string) => void }
 }
 
 /** What "+" at the top offers, in the tree's own words. A program is made in a language, and every surface that makes
@@ -194,13 +199,22 @@ function deleteHint(): string {
 }
 
 export function PlcOrganizer(props: PlcOrganizerProps): ReactElement {
-  const { blocks, facts, controller, ownConfiguration, problems, activeBlock, onLadder, readOnly, readOnlyNote, revealTasks, onPicked, runsOn, devices, actions } = props
+  const { blocks, facts, controller, ownConfiguration, problems, activeBlock, onLadder, readOnly, readOnlyNote, revealTasks, onPicked, runsOn, devices, actions, monitoring } = props
   const groups = useMemo(() => organizerGroups(blocks, facts), [blocks, facts])
   const types = useMemo(() => groups.programs.map((r) => r.name), [groups])
   const tree = useMemo(() => taskTree(types, controller, facts.bodyRuns), [types, controller, facts.bodyRuns])
   // a name field outlives the render that opened it (an added block is named once it is in the blocks): its commit reads these
   const blocksRef = useRef(blocks)
   blocksRef.current = blocks
+
+  /** The instances running a PROGRAM type, in run order. */
+  const instancesOf = (type: string): string[] => controller.programs.filter((q) => q.type?.toUpperCase() === type.toUpperCase()).map((q) => q.name)
+  /** The instance whose values the code shows for its type: the one picked while it still runs, else the first. */
+  const shownOf = (type: string): string | undefined => {
+    const names = instancesOf(type)
+    const pick = monitoring?.picked[type.toUpperCase()]
+    return names.find((n) => pick !== undefined && n.toUpperCase() === pick.toUpperCase()) ?? names[0]
+  }
 
   /** The block a program instance runs: its PROGRAM, or the code outside every PROGRAM. */
   const blockOfProgram = (type: string | null): number =>
@@ -397,6 +411,11 @@ export function PlcOrganizer(props: PlcOrganizerProps): ReactElement {
       open: actions.open,
       menu: (_p, parts, scheduled) => (scheduled ? [parts.showCode, parts.properties, { label: '-', onClick: () => {} }, parts.runEarlier, parts.runLater, parts.stopRunning] : [parts.showCode, parts.schedule]),
       pinned: (p) => (p.type === null && facts.bodyRuns ? t(M.pinned) : null),
+      monitor: (p) => {
+        if (p.type !== null && instancesOf(p.type).length > 1) monitoring?.pick(p.type, p.name)
+      },
+      shown: (p) =>
+        p.type !== null && instancesOf(p.type).length > 1 && shownOf(p.type) === p.name ? { label: t(M.shownBadge), title: t(M.shownHint, { type: p.type, instance: p.name }) } : null,
     },
     // PROGRAMs no instance runs, and the top-level statements when no instance runs them
     unscheduled: (tree) => [...(tree.topLevelUnrun ? [null] : []), ...tree.unscheduled],

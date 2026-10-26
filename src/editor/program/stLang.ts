@@ -13,9 +13,11 @@ import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/sea
 import { EditorState, StateEffect, StateField, type Extension, type Text } from '@codemirror/state'
 import { Decoration, drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers, WidgetType } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'
-import { BUILTIN_FUNCTIONS, controllerDiagnostics, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs } from '../../plc'
+import { BUILTIN_FUNCTIONS, controllerDiagnostics, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs, watchScopes } from '../../plc'
 import type { Controller } from '../../core/controller'
-import type { TagValue } from '../../plc'
+import type { MonitoredProgram, TagValue, WatchInstance } from '../../plc'
+// `t` is the highlighter's tags here; the i18n lookup is `msg`
+import { defineMessages, t as msg } from '../../core/i18n'
 import { declaredTypes, formatPlcValue, refType } from './plcValueText'
 import { stFolding } from './stFolding'
 
@@ -179,6 +181,7 @@ const stTheme = EditorView.theme(
     '.cm-selectionMatch': { backgroundColor: 'rgba(86,182,194,0.16)' },
     // inline runtime values (online monitoring): a small box trailing each variable
     '.cm-st-value': { display: 'inline-block', margin: '0 1px 0 5px', padding: '0 5px', borderRadius: '3px', background: 'rgba(86,182,194,0.12)', border: '1px solid var(--line-soft)', color: 'light-dark(#1b74a4, #9cdcfe)', fontSize: '11px', lineHeight: '1.3', verticalAlign: 'baseline' },
+    '.cm-st-monitor': { margin: '0 0 0 10px', padding: '0 6px', borderRadius: '3px', border: '1px solid var(--line-soft)', background: 'rgba(86,182,194,0.12)', color: 'light-dark(#1b74a4, #9cdcfe)', font: 'inherit', fontSize: '11px', lineHeight: '1.3', cursor: 'pointer', verticalAlign: 'baseline' },
     '.cm-st-value-true': { color: 'light-dark(#1d8135, #3fd463)', borderColor: '#1f6f3a', background: 'rgba(63,212,99,0.12)' },
     '.cm-st-value-false': { color: 'light-dark(#52575d, #9aa0a6)', background: 'light-dark(rgba(0, 0, 0, 0.028), rgba(255,255,255,0.04))' },
   },
@@ -283,6 +286,31 @@ function docValueRefs(doc: Text): ReturnType<typeof valueRefs> {
   return refs
 }
 
+/** The watch key each reference stands for, in the POU it is written in (plc/watchScope.ts), aligned with
+ *  {@link docValueRefs} (null where the controller publishes nothing for it), and the programs that run as several
+ *  instances. Memoized like the references, and again when the instances or the picks change. */
+const keysByDoc = new WeakMap<Text, { scope: string; keys: (string | null)[]; shared: MonitoredProgram[] }>()
+function docWatchKeys(doc: Text, live: LiveImage): { keys: (string | null)[]; shared: MonitoredProgram[] } {
+  const kept = keysByDoc.get(doc)
+  if (kept && kept.scope === live.scopeKey) return kept
+  const scopes = watchScopes(doc.toString(), live.instances, live.picked)
+  const out = { scope: live.scopeKey, keys: docValueRefs(doc).map((ref) => scopes.keyAt(ref.from, ref.name)), shared: scopes.shared }
+  keysByDoc.set(doc, out)
+  return out
+}
+
+/** A watch image's keys by their upper-cased spelling: IEC names ignore case, and the text may spell one differently
+ *  from its declaration. */
+const upperKeys = new WeakMap<Readonly<Record<string, TagValue>>, Map<string, string>>()
+function keysByUpper(values: Readonly<Record<string, TagValue>>): Map<string, string> {
+  let m = upperKeys.get(values)
+  if (!m) {
+    m = new Map(Object.keys(values).map((k) => [k.toUpperCase(), k]))
+    upperKeys.set(values, m)
+  }
+  return m
+}
+
 /** The type each variable is declared with, folded name -> type as written (`TIME`, `DT`, `TON`), for showing a
  *  duration or a date as its literal. Keyed on the document revision like the references above; a program that
  *  does not read has no types to give, and its values show as plain numbers. */
@@ -296,36 +324,101 @@ function docTypes(doc: Text): Map<string, string> {
   return types
 }
 
-/** Replace the monitored variable image; an empty map removes all inline values. */
-const setWatchEffect = StateEffect.define<Record<string, TagValue>>()
+/** The monitored variable image, the program instances running it, and which instance is shown for a PROGRAM that
+ *  runs as several. */
+interface LiveImage {
+  values: Readonly<Record<string, TagValue>>
+  instances: readonly WatchInstance[]
+  /** the instance picked for a type, keyed by the type upper-cased */
+  picked: Readonly<Record<string, string>>
+  /** the instances and picks as one string, for the memo */
+  scopeKey: string
+  /** pick the instance shown for a type (the header chip's click) */
+  pick?: (type: string, instance: string) => void
+}
+const NO_IMAGE: LiveImage = { values: {}, instances: [], picked: {}, scopeKey: '' }
 
-// Holds the live variable image and derives one inline widget per matching identifier.
-// Recomputes on value pushes and on edits ('doc'), so widgets always track the current
-// text - a renamed/removed variable stops showing a value.
-const watchField = StateField.define<Record<string, TagValue>>({
-  create: () => ({}),
+const M = defineMessages('stLang', {
+  monitoring: 'Showing {instance} ({at} of {count})',
+  monitoringHint: "{type} runs as {list}. The values shown are {instance}'s. Click to show the next one, or pick an instance in the organizer.",
+})
+
+/** On the header of a PROGRAM that runs as several instances: which one the values are, and a click to the next. */
+class MonitorWidget extends WidgetType {
+  constructor(
+    readonly program: MonitoredProgram,
+    readonly pick: ((type: string, instance: string) => void) | undefined,
+  ) {
+    super()
+  }
+  eq(other: MonitorWidget): boolean {
+    return other.program.monitored === this.program.monitored && other.program.type === this.program.type && other.program.instances.join() === this.program.instances.join() && other.pick === this.pick
+  }
+  toDOM(): HTMLElement {
+    const { type, instances, monitored } = this.program
+    const at = instances.indexOf(monitored)
+    const el = document.createElement('button')
+    el.type = 'button'
+    el.className = 'cm-st-monitor'
+    el.dataset.testid = 'st-monitor'
+    el.textContent = msg(M.monitoring, { instance: monitored, at: at + 1, count: instances.length })
+    el.title = msg(M.monitoringHint, { type, list: instances.join(', '), instance: monitored })
+    // a click must not move the caret into the header
+    el.addEventListener('mousedown', (e) => e.preventDefault())
+    el.addEventListener('click', () => this.pick?.(type, instances[(at + 1) % instances.length]!))
+    return el
+  }
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+/** Replace the monitored variable image; an empty map removes all inline values. */
+const setWatchEffect = StateEffect.define<LiveImage>()
+
+// Holds the live variable image and derives one inline widget per identifier that has a value in the POU it is
+// written in, and a chip on each PROGRAM that runs as several instances. Recomputes on value pushes and on edits
+// ('doc'), so widgets always track the current text - a renamed/removed variable stops showing a value.
+const watchField = StateField.define<LiveImage>({
+  create: () => NO_IMAGE,
   update(value, tr) {
     for (const e of tr.effects) if (e.is(setWatchEffect)) return e.value
     return value
   },
   provide: (f) =>
     EditorView.decorations.compute([f, 'doc'], (state) => {
-      const values = state.field(f)
+      const live = state.field(f)
+      const values = live.values
       if (Object.keys(values).length === 0) return Decoration.none
       const ranges = []
       const types = docTypes(state.doc)
-      for (const ref of docValueRefs(state.doc)) {
-        if (Object.prototype.hasOwnProperty.call(values, ref.name)) {
-          ranges.push(Decoration.widget({ widget: new ValueWidget(values[ref.name]!, refType(types, ref.name)), side: 1 }).range(ref.to))
-        }
+      const refs = docValueRefs(state.doc)
+      const { keys, shared } = docWatchKeys(state.doc, live)
+      const upper = keysByUpper(values)
+      for (let i = 0; i < refs.length; i++) {
+        const want = keys[i]
+        const key = want == null ? undefined : upper.get(want.toUpperCase())
+        if (key !== undefined) ranges.push(Decoration.widget({ widget: new ValueWidget(values[key]!, refType(types, refs[i]!.name)), side: 1 }).range(refs[i]!.to))
+      }
+      for (const program of shared) {
+        if (program.start > state.doc.length) continue
+        ranges.push(Decoration.widget({ widget: new MonitorWidget(program, live.pick), side: 1 }).range(state.doc.lineAt(program.start).to))
       }
       return Decoration.set(ranges, true)
     }),
 })
 
-/** Push the latest variable image into an editor's inline overlay (call each scan). */
-export function pushWatchValues(view: EditorView, values: Record<string, TagValue>): void {
-  view.dispatch({ effects: setWatchEffect.of(values) })
+/** Push the latest variable image into an editor's inline overlay (call each scan), with the program instances that
+ *  run it and the instance picked for a PROGRAM that runs as several, which say whose variable each name in it is. */
+export function pushWatchValues(
+  view: EditorView,
+  values: Readonly<Record<string, TagValue>>,
+  instances: readonly WatchInstance[] = [],
+  picked: Readonly<Record<string, string>> = {},
+  pick?: (type: string, instance: string) => void,
+): void {
+  const scopeKey = `${instances.map((i) => `${i.name}:${i.type ?? ''}`).join(',')}|${Object.entries(picked).map(([k, v]) => `${k}=${v}`).join(',')}`
+  view.dispatch({ effects: setWatchEffect.of({ values, instances, picked, scopeKey, ...(pick ? { pick } : {}) }) })
 }
 
 /**

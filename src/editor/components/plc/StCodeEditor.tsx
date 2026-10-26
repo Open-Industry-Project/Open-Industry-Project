@@ -7,7 +7,7 @@ import type { Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder, runScopeHandlers } from '@codemirror/view'
 import { unfoldAll } from '@codemirror/language'
 import { changedSpan } from '../../../core/textDiff'
-import type { TagValue } from '../../../plc'
+import type { TagValue, WatchInstance } from '../../../plc'
 import { pushWatchValues, stExtensions } from '../../program/stLang'
 import { foldDeclarations } from '../../program/stFolding'
 import { watchNameAt, watchNameOfSelection } from '../../program/plcWatchList'
@@ -70,8 +70,13 @@ export interface StCodeEditorHandle {
   unfoldAll: () => boolean
   /** re-measure: the editor was hidden (`display: none`, under another view of the panel) and is back on screen */
   refresh: () => void
-  /** push the live variable image for inline value overlays; `{}` clears them */
-  setWatchValues: (values: Record<string, TagValue>) => void
+  /** push the live variable image for inline value overlays, with the program instances that run it; `{}` clears them */
+  setWatchValues: (
+    values: Readonly<Record<string, TagValue>>,
+    instances?: readonly WatchInstance[],
+    picked?: Readonly<Record<string, string>>,
+    pick?: (type: string, instance: string) => void,
+  ) => void
   /**
    * Put the cursor at `offset` and scroll it to the top of the viewport.
    *
@@ -332,8 +337,8 @@ export const StCodeEditor = forwardRef<StCodeEditorHandle, StCodeEditorProps>(fu
     },
     focus: () => view.current?.focus(),
     refresh: () => view.current?.requestMeasure(),
-    setWatchValues: (values: Record<string, TagValue>) => {
-      if (view.current) pushWatchValues(view.current, values)
+    setWatchValues: (values, instances, picked, pick) => {
+      if (view.current) pushWatchValues(view.current, values, instances, picked, pick)
     },
     revealOffset: (offset: number) => {
       const v = view.current

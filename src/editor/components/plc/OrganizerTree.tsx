@@ -181,6 +181,10 @@ export interface OrganizerContent {
     menu: (p: TaskTreeProgram, parts: ProgramMenuParts & { schedule: MenuItem }, scheduled: boolean) => MenuItem[]
     /** why it cannot stop running (the one that runs the statements outside every PROGRAM), or null */
     pinned: (p: TaskTreeProgram) => string | null
+    /** a click on a running instance also makes it the one whose live values the code shows */
+    monitor: (p: TaskTreeProgram) => void
+    /** for a PROGRAM that runs as several instances, the badge on the one whose values the code shows; else null */
+    shown: (p: TaskTreeProgram) => { label: string; title: string } | null
   }
   /** what the unscheduled list holds: PROGRAM types, and null for the code outside every PROGRAM */
   unscheduled: (tree: TaskTree) => (string | null)[]
@@ -602,11 +606,13 @@ export function OrganizerTree(props: OrganizerTreeProps): ReactElement {
   const programRow = (p: TaskTreeProgram, scheduled: boolean): ReactElement => {
     const index = content.program.block(p)
     const open = (): void => {
+      if (scheduled) content.program.monitor(p)
       if (index < 0) return
       content.program.open(index)
       picked()
     }
     const pinned = content.program.pinned(p)
+    const shown = scheduled ? content.program.shown(p) : null
     const stop = (): void => editTable(removeProgram(controller, p.index), [], t(M.undoStopRunning, { name: p.name }))
     const run = (): void => editTable(scheduleProgram(controller, p.type), [], t(M.undoRun, { name: p.type ?? content.program.label(p) }))
     const firstTask = controller.tasks[0]?.name
@@ -656,6 +662,11 @@ export function OrganizerTree(props: OrganizerTreeProps): ReactElement {
       >
         <span className="org-name">{content.program.label(p)}</span>
         {kind !== null && <span className="org-kind">{kind}</span>}
+        {shown && (
+          <span className="org-kind" data-testid="org-monitored" title={shown.title}>
+            {shown.label}
+          </span>
+        )}
         {!p.exists && (
           <span className="org-kind warn" title={t(M.missingHint)}>
             {t(M.missing)}

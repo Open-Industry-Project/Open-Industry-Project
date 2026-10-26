@@ -10,6 +10,9 @@ import {
   type DocumentEdit,
   type StBlock,
   type TagRename,
+  type WatchInstance,
+  watchInstances,
+  watchScopes,
 } from '../../../plc'
 import type { Controller } from '../../../core/controller'
 import { dialectRefusal, foreignDialectNote, isKnownDialect } from '../../../core/dialect'
@@ -382,6 +385,12 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
   // physics steps in the sim worker, so this only climbs when the cycle time is set below what
   // one physics step can drain (sim/plcHost.ts) - the cue to raise scan time
   const [overruns, setOverruns] = useState(0)
+  // which instance's values the code shows for a PROGRAM that runs as several, by type upper-cased: picked on the
+  // organizer's instance rows or the chip on the PROGRAM's header (plc/watchScope.ts). Not the document's: a view.
+  const [picked, setPicked] = useState<Readonly<Record<string, string>>>({})
+  const pickedRef = useRef(picked)
+  pickedRef.current = picked
+  const [pickInstance] = useState(() => (type: string, instance: string) => setPicked((was) => ({ ...was, [type.toUpperCase()]: instance })))
   // collaborative room binding (null in solo mode): the shared ST Y.Text + its CodeMirror
   // extension. In a room CodeMirror binds STRAIGHT to the shared text (that's what makes
   // co-editing work); the store mirrors it so everything else has one place to read.
@@ -737,6 +746,8 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     showReport,
     showLanded,
     watch: () => ctrlRef.current?.plcWatch,
+    monitored: picked,
+    pickInstance,
     forces: () => ctrlRef.current?.plcForces ?? {},
     aliases: () => ctrlRef.current?.plcAliases ?? new Map(),
     force: (key) => (ctrlRef.current ? ctrlRef.current.forcePlcValue(key) : t(M.notRunning)),
@@ -812,8 +823,11 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     const has = at.selected !== ''
     const later = (fn: () => void) => () => void window.setTimeout(fn, 0)
     // Force / Release: for a variable the running program holds as one value (its watch key), only while it runs
+    // read in the POU the click is in, so a block's local is never forced as the program's variable of that name
     const image = ctx.live && at.name !== null ? ctx.watch() : null
-    const forceKey = image && at.name !== null ? resolveWatch(at.name, image).key : null
+    const src = editor.getValue()
+    const scoped = image && at.name !== null && caret ? watchScopes(src, watchInstances(src, controllerFor(src, stateRef.current.controller, stateRef.current.stScanMs)), pickedRef.current).keyAt(caret.offset, at.name) : null
+    const forceKey = image && scoped !== null ? resolveWatch(scoped, image).key : null
     const forced = forceKey !== null && forceKey in ctx.forces()
     const forceOrRelease = (key: string): void => {
       if (forced) return ctx.releaseForce(key)
@@ -927,12 +941,23 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
 
   // Poll the live variable image while a program is running (it changes every scan, independent of store updates, so
   // it can't ride the normal React subscription). It feeds the editor's inline value overlays; the cleanup clears them
-  // when monitoring ends (the sim stops, or a runtime fault drops the program).
+  // when monitoring ends (the sim stops, or a runtime fault drops the program). The program instances go with the
+  // image: the `x` written in a PROGRAM is published as its instance's `Main.x` (plc/watchScope.ts). They are read
+  // again only when the text changes.
   useEffect(() => {
     if (!attached || !state.running) return
+    let instancesOf = ''
+    let instances: WatchInstance[] = []
     const id = setInterval(() => {
       const w = ctrlRef.current?.plcWatch
-      if (w) editorRef.current?.setWatchValues(w)
+      if (w) {
+        const src = sourceRef.current
+        if (src !== instancesOf) {
+          instancesOf = src
+          instances = watchInstances(src, controllerFor(src, stateRef.current.controller, stateRef.current.stScanMs))
+        }
+        editorRef.current?.setWatchValues(w, instances, pickedRef.current, pickInstance)
+      }
       setOverruns(ctrlRef.current?.plcScanStats?.overruns ?? 0)
     }, 120)
     return () => {

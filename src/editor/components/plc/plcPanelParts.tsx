@@ -90,6 +90,9 @@ export interface PlcPanelCtx {
 
   // ---- the running program
   watch: () => Readonly<Record<string, TagValue>> | null | undefined
+  /** the instance shown for a PROGRAM that runs as several, by type upper-cased, and picking one */
+  monitored: Readonly<Record<string, string>>
+  pickInstance: (type: string, instance: string) => void
   /** the running program's forced variables, by watch key (EditorController.plcForces) */
   forces: () => Readonly<Record<string, number | boolean>>
   /** the attached program's bare-name aliases (EditorController.plcAliases) */
@@ -209,6 +212,7 @@ export function PanelOrganizer({ ctx }: { ctx: PlcPanelCtx }): ReactElement {
         onPicked={ctx.onPicked}
         devices={devices}
         actions={organizerActions(ctx)}
+        monitoring={{ picked: ctx.monitored, pick: ctx.pickInstance }}
       />
     </Suspense>
   )
