@@ -18,7 +18,7 @@ import { cargoKindName } from '../frame'
 import type { BoxFrame, CargoKindName } from '../frame'
 import { quatToYXZ } from '../math'
 import { isOperand, operandProbeKey, probeKey } from './projectTest'
-import type { CargoColor, CountProbe, JointProbe, LampProbe, MarkFilter, PassedProbe, PoseProbe, SquareProbe, TestCheck, TestProbe, TestValue, Zone } from './projectTest'
+import type { CargoColor, CargoColorName, CountProbe, JointProbe, LampProbe, MarkFilter, PassedProbe, PoseProbe, SquareProbe, TestCheck, TestProbe, TestValue, Zone } from './projectTest'
 
 /** each frame row's marks (SimWorld.cargoMarks), index-aligned with the frame; null for a row with none */
 export type RowMarks = readonly (Readonly<Record<string, number | boolean | string>> | null)[]
@@ -74,17 +74,18 @@ function segmentHitsZone(z: Zone, a: readonly [number, number, number], b: reado
 }
 
 /**
- * The colour name a tint is called by: `red` / `green` / `blue` for a saturated tint whose channel dominates, else
- * undefined (too dark, or washed out: white, grey, yellow). The same rule the colour sensor part classifies by
- * (examples/parts/color-sensor), so a test filtering on `red` sees the boxes that sensor would call red. `rgb` is
+ * The colour name a tint is called by: `red` / `green` / `blue` for a saturated tint whose channel dominates,
+ * `yellow` for red and green together over a low blue, else undefined (too dark, or washed out: white, grey, cyan,
+ * magenta). A colour sensor matches its own list of colours instead; this is the test filter's fixed rule. `rgb` is
  * sRGB 0..1, as {@link BoxFrame.colors} carries it.
  */
-export function cargoColorName(r: number, g: number, b: number): 'red' | 'green' | 'blue' | undefined {
+export function cargoColorName(r: number, g: number, b: number): CargoColorName | undefined {
   const max = Math.max(r, g, b)
   if (max < 0.25) return undefined
-  const mid = r + g + b - max - Math.min(r, g, b)
-  if (mid > max * 0.6) return undefined
-  return max === r ? 'red' : max === g ? 'green' : 'blue'
+  const min = Math.min(r, g, b)
+  const mid = r + g + b - max - min
+  if (mid <= max * 0.6) return max === r ? 'red' : max === g ? 'green' : 'blue'
+  return min === b && b < mid * 0.5 ? 'yellow' : undefined
 }
 
 /** `#rrggbb` of an sRGB 0..1 tint. */
@@ -161,7 +162,7 @@ export interface CargoRow {
   /** its tint, `#rrggbb` */
   color: string
   /** what a colour filter calls it, when it is a saturated primary */
-  colorName?: 'red' | 'green' | 'blue'
+  colorName?: CargoColorName
   /** centre, world metres, to the millimetre */
   pos: [number, number, number]
   /** how far it is tilted from upright, whole degrees (about 90 = on its side) */

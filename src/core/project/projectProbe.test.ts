@@ -186,7 +186,8 @@ describe('count probe - colour filter', () => {
     expect(cargoColorName(...BLUE)).toBe('blue')
     expect(cargoColorName(1, 1, 1)).toBeUndefined()
     expect(cargoColorName(0.1, 0.05, 0.05)).toBeUndefined() // too dark
-    expect(cargoColorName(1, 0.9, 0)).toBeUndefined() // yellow
+    expect(cargoColorName(1, 0.9, 0)).toBe('yellow')
+    expect(cargoColorName(0, 1, 1)).toBeUndefined() // cyan
   })
 })
 

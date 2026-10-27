@@ -148,12 +148,13 @@ export interface Zone {
 export type PoseAxis = 'x' | 'y' | 'z' | 'yaw'
 
 /**
- * A cargo colour filter: `red` / `green` / `blue`, called the way the colour sensor part calls them (the dominant
- * channel of a saturated tint; see projectProbe.ts `cargoColorName`), or an exact `#rrggbb` tint as the scene
+ * A cargo colour filter: `red` / `green` / `blue` / `yellow` (the dominant channel of a saturated tint, or red and
+ * green together over a low blue; see projectProbe.ts `cargoColorName`), or an exact `#rrggbb` tint as the scene
  * authors it (a spawner's `boxColors`, a box's `color`).
  */
-export type CargoColor = 'red' | 'green' | 'blue' | `#${string}`
-const COLOR_NAMES = ['red', 'green', 'blue'] as const
+export type CargoColorName = 'red' | 'green' | 'blue' | 'yellow'
+export type CargoColor = CargoColorName | `#${string}`
+const COLOR_NAMES = ['red', 'green', 'blue', 'yellow'] as const
 
 /** A mark a body must carry (ctx.mark / markHit, or a product attribute): a key whose value is truthy (`"sealed"`), or
  *  one key and the value it must have (`{ "code": 2 }`). */

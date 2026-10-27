@@ -177,10 +177,10 @@ out or filter by `kind`.
 case turns on purpose. Its zone has the same witness rule as `passed`: absent until a matching body is inside, so a
 zone beside the lane fails as never appeared instead of passing every `max`.
 
-**Colour** is `red`, `green` or `blue`, called by the rule the colour sensor part uses (a saturated tint whose channel
-dominates; white, grey, yellow and anything too dark are none of them), or an exact `#rrggbb` as the scene authors it
-(a spawner's `boxColors`, a box's `color`). It replaces the extra colour sensors a test otherwise adds to the scene
-just to see what went where.
+**Colour** is `red`, `green`, `blue` or `yellow` (a saturated tint whose channel dominates, or red and green together
+over a low blue for yellow; white, grey, cyan, magenta and anything too dark are none of them), or an exact `#rrggbb`
+as the scene authors it (a spawner's `boxColors`, a box's `color`). It replaces the extra colour sensors a test
+otherwise adds to the scene just to see what went where.
 
 **`passed` sees a body go through, not stand in.** Entry is tested on the segment its centre swept since the last
 step, so a gate thinner than one step's travel (a box thrown off a diverter covers 5 cm a step) still counts it. A

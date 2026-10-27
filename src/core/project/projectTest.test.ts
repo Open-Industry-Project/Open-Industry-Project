@@ -516,7 +516,7 @@ describe('validateTestSpec - notEquals, a tag or probe on the right, windows, pa
 
   it('needs a zone on passed, a known colour, and no filter it does not have', () => {
     expect(errorsOf({ at: 1, probe: { passed: {} }, min: 0 }).join()).toMatch(/passed\.zone is required/)
-    expect(errorsOf({ at: 1, probe: { passed: { zone, color: 'purple' } }, min: 0 }).join()).toMatch(/color must be red\/green\/blue or a "#rrggbb" tint/)
+    expect(errorsOf({ at: 1, probe: { passed: { zone, color: 'purple' } }, min: 0 }).join()).toMatch(/color must be red\/green\/blue\/yellow or a "#rrggbb" tint/)
     expect(errorsOf({ at: 1, probe: { count: { color: '#e0101' } }, min: 0 }).join()).toMatch(/color must be/)
     expect(errorsOf({ at: 1, probe: { count: { colour: 'red' } }, min: 0 }).join()).toMatch(/count\.colour is not a filter/)
   })

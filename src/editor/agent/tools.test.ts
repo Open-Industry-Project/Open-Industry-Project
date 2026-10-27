@@ -224,13 +224,9 @@ describe('agent tools: authoring is ordinary editing', () => {
       frame?: { footprint?: unknown; origin?: unknown; beams?: unknown[] }
       frameError?: string
     }
-    // the colour code a benchmark agent had to find by experiment
-    expect(pkg.params.colorTag!.values).toEqual([
-      { value: 0, label: 'none' },
-      { value: 1, label: 'red' },
-      { value: 2, label: 'green' },
-      { value: 3, label: 'blue' },
-    ])
+    // the colour code a benchmark agent had to find by experiment: 0 is none, any other code a position in `colors`
+    expect(pkg.params.colorTag!.values).toEqual([{ value: 0, label: 'none' }])
+    expect(pkg.params.colors).toMatchObject({ type: 'color', default: '#ff0000,#00ff00,#0000ff' })
     expect(pkg.frameError).toBeUndefined()
     expect(pkg.frame).toMatchObject({ footprint: expect.anything(), origin: expect.anything() })
     expect(pkg.frame!.beams?.length).toBeGreaterThan(0)
