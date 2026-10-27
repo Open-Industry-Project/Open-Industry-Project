@@ -13,7 +13,7 @@ import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
 import { mergeRigPiece as mergedGeometry, reparentRigLink as reparentedGeometry, setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
 import type { AuthorableShapeKind } from '../rigTree'
-import type { PartPackage, RigJoint, RigLink, RigShape } from '../../core/parts/partPackage'
+import type { PartPackage, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
 import type { PackageManifest } from '../../sim/buildPackage'
 import { parsePartBytes, parsePartText } from '../parts/partFile'
@@ -247,7 +247,7 @@ export function setRigJoint(
   ec: AuthoringDeps,
   packageId: string,
   linkName: string,
-  joint: { type: 'revolute' | 'prismatic'; axis: [number, number, number]; min: number; max: number } | null,
+  joint: { type: 'revolute' | 'prismatic'; axis: [number, number, number]; min: number; max: number; servo?: RigServo | null } | null,
 ): void {
   const pkg = getPackage(packageId)
   if (!pkg || pkg.geometry.kind !== 'rig') return
@@ -267,6 +267,9 @@ export function setRigJoint(
       const { modulo: _modulo, ...servo } = next.servo
       next.servo = servo
     }
+    // a servo the panel sets or clears itself (Spins endlessly) comes after those rules
+    if (joint.servo === null) delete next.servo
+    else if (joint.servo) next.servo = joint.servo
     // in place: the idle pose rows and the servo list follow the joints' order
     joints = existing ? all.map((j) => (j === existing ? next : j)) : [...joints, next]
   }

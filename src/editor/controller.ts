@@ -1015,7 +1015,7 @@ export class EditorController {
    * the node articulated - the part's behavior script commands it by name via ctx.setJoint(name, value). The
    * joint name is kept stable across edits so an existing setJoint reference stays valid. Applied live.
    */
-  setRigJoint(packageId: string, linkName: string, joint: { type: 'revolute' | 'prismatic'; axis: [number, number, number]; min: number; max: number } | null): void {
+  setRigJoint(packageId: string, linkName: string, joint: Parameters<typeof authoringOps.setRigJoint>[3]): void {
     authoringOps.setRigJoint(this, packageId, linkName, joint)
   }
 

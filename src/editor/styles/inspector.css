@@ -38,6 +38,19 @@
   margin-bottom: 4px;
 }
 
+/* the behavior lines a spinning joint needs (rig-node Joint section), styled as the GLB contents box */
+.rig-code {
+  margin: 4px 0 8px;
+  padding: 6px 8px;
+  background: light-dark(#f6f6f7, #1f2125);
+  border: 1px solid light-dark(#e4e6e8, #2c2f34);
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
 /* a storing part's Stock row (inspector/holds.tsx): the count, then Fill / Empty */
 .inspector-holds {
   margin: 10px 0 6px;

@@ -8,7 +8,7 @@ import type { SdkPart } from '../../../core/types'
 import { getPackage } from '../../../core/parts/partRegistry'
 import { partDisplayName } from '../../../core/parts/partDisplayName'
 import { inspectGlb } from '../../parts/glbInspect'
-import type { RigJoint, RigLink, RigShape } from '../../../core/parts/partPackage'
+import type { RigJoint, RigLink, RigServo, RigShape } from '../../../core/parts/partPackage'
 import { behaviorMentions } from '../../../core/parts/partPackage'
 import { linkCollisionBox, partLinkOwnership } from '../../../core/rig/rigPose'
 import type { LinkFieldOwner, LinkNote } from '../../../core/rig/rigPose'
@@ -156,6 +156,13 @@ const M = defineMessages('inspector.rigNode', {
   lengthUnit: 'Length unit',
   lengthUnitTip: 'How this panel shows offsets, sizes, travel and pivots. The part always stores metres, so this changes nothing in the part.',
   parentSelectTip: 'Move this node under another one. Its offset changes so it stays where it is.',
+  spin: 'Spins endlessly',
+  spinTip: 'Make this joint turn without end, like a drill spindle or a rotary table, instead of between Min and Max. The behavior runs it at a speed.',
+  spinSpeed: 'Speed',
+  spinSpeedTip: 'The top speed the spindle runs at, in turns per minute. The behavior can ask for less, never more.',
+  spinUp: 'Spin-up time',
+  spinUpTip: 'How long the spindle takes to get from standstill to the speed above, and to stop again.',
+  spinHint: 'A spinning joint is run by the host, so the behavior starts and stops it with these lines (on is your start condition, for example a PLC tag):',
   testMotion: 'Test motion',
   stopTest: 'Stop test',
   testMotionTip: 'Move the joint from Min to Max and back twice, then return it to rest, to check the axis and limits. Works while the simulation is stopped.',
@@ -288,7 +295,8 @@ export function RigNodePanel({
 }) {
   const [msg, setMsg] = useState<string | null>(null)
   // the sections' folds, as the part Inspector's (Fold): open until closed, for as long as the panel is up
-  const [folds, setFolds] = useState<Record<string, boolean>>({})
+  // the Mesh details (asset, scale, the model's material list) start folded: they run long and are rarely needed
+  const [folds, setFolds] = useState<Record<string, boolean>>({ 'Shape/Mesh': true })
   const toggle = (path: string): void => setFolds((c) => ({ ...c, [path]: !(c[path] ?? false) }))
   const editable = controller !== null
   // Lengths show in the unit picked here (m, cm or mm) in a metric scene. An imperial scene keeps its inches, which
@@ -581,8 +589,14 @@ export function RigNodePanel({
   const revolute = joint?.type === 'revolute'
   const addJoint = (): void => controller?.setRigJoint(part.packageId, link.name, { type: 'revolute', axis: [0, 1, 0], min: -Math.PI / 2, max: Math.PI / 2 })
   const removeJoint = (): void => controller?.setRigJoint(part.packageId, link.name, null)
-  const editJoint = (patch: { type?: 'revolute' | 'prismatic'; axis?: [number, number, number]; min?: number; max?: number }): void => {
+  // Spins endlessly: a revolute servo that wraps a full turn (servo.modulo), run at a speed by the behavior with
+  // ctx.servos.<name>.moveVelocity. Its min / max must cover 0 to the turn, and the host poses it, not ctx.joints.
+  const TURN = 2 * Math.PI
+  const spinning = revolute && joint?.servo?.modulo !== undefined
+  const editJoint = (patch: { type?: 'revolute' | 'prismatic'; axis?: [number, number, number]; min?: number; max?: number; servo?: RigServo | null }): void => {
     if (!joint) return
+    // leaving revolute ends the spin, and its 0..360° limits would read as metres
+    if (spinning && patch.type === 'prismatic') patch = { min: 0, max: 0.1, servo: null, ...patch }
     // limits never cross: the bound being edited stops at the other one rather than inverting the range
     let min = patch.min ?? joint.min
     let max = patch.max ?? joint.max
@@ -595,9 +609,28 @@ export function RigNodePanel({
       axis: patch.axis ?? [joint.axis[0], joint.axis[1], joint.axis[2]],
       min,
       max,
+      ...(patch.servo !== undefined ? { servo: patch.servo } : {}),
     })
   }
   const toRad = (deg: number): number => (deg * Math.PI) / 180
+  const rpmToRad = (rpm: number): number => (rpm * TURN) / 60
+  const radToRpm = (w: number): number => (w * 60) / TURN
+  // on: 60 rpm, up to speed in 0.5 s. Off: back to a plain joint with the default quarter-turn limits.
+  const setSpinning = (on: boolean): void =>
+    on
+      ? editJoint({ min: 0, max: TURN, servo: { maxVelocity: rpmToRad(60), maxAccel: rpmToRad(60) / 0.5, modulo: TURN } })
+      : editJoint({ min: -Math.PI / 2, max: Math.PI / 2, servo: null })
+  const spinServo = spinning ? joint!.servo! : null
+  const setSpinSpeed = (rpm: number): void => {
+    if (!spinServo) return
+    const w = rpmToRad(Math.max(1, rpm))
+    const rampS = spinServo.maxVelocity / spinServo.maxAccel
+    editJoint({ servo: { ...spinServo, maxVelocity: w, maxAccel: w / rampS } })
+  }
+  const setSpinUp = (seconds: number): void => {
+    if (!spinServo) return
+    editJoint({ servo: { ...spinServo, maxAccel: spinServo.maxVelocity / Math.max(0.01, seconds) } })
+  }
 
   // Test motion: sweep the joint Min -> Max -> Min twice through the view's idle-pose path (the one a stopped part's
   // settled pose uses), then put every joint back at rest. Nothing is written to the part.
@@ -615,12 +648,14 @@ export function RigNodePanel({
     const { name, min, max } = joint
     const periodMs = 3000
     const cycles = 2
+    // a spinning joint turns at its speed for the same time instead of sweeping its limits
+    const spinRate = spinning && joint.servo ? joint.servo.maxVelocity : null
     const t0 = performance.now()
     const tick = (now: number): void => {
       const t = (now - t0) / periodMs
       if (t >= cycles) return stopTest()
-      // starts at Min, reaches Max at half a period, eases at both ends
-      const v = min + ((max - min) * (1 - Math.cos(2 * Math.PI * t))) / 2
+      // a sweep starts at Min, reaches Max at half a period, eases at both ends
+      const v = spinRate !== null ? (spinRate * (now - t0) / 1000) % TURN : min + ((max - min) * (1 - Math.cos(2 * Math.PI * t))) / 2
       view.applyIdlePose(part.id, { joints: { [name]: v } })
       testFrame.current = requestAnimationFrame(tick)
     }
@@ -639,6 +674,35 @@ export function RigNodePanel({
   // Merge back: a split piece goes back into the model node it came from
   const mergeSource = link.shape.kind === 'mesh' && link.shape.keepNode ? splitSource : null
 
+  // the length unit picker, shown in the Joint section where travel and pivots are set; it applies to every
+  // length in the panel
+  const unitPicker = metricScene && (
+    <label className="field">
+      <span className="field-label" title={t(M.lengthUnitTip)}>
+        {t(M.lengthUnit)}
+      </span>
+      <span className="field-control">
+        <select
+          className="rig-select"
+          data-testid="rig-length-unit"
+          value={lu}
+          onChange={(e) => {
+            if (!isRigLengthUnit(e.target.value)) return
+            setPickedUnit(e.target.value)
+            writeRigLengthUnit(e.target.value)
+          }}
+        >
+          {RIG_LENGTH_UNITS.map((u) => (
+            // i18n-ok: unit symbols
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      </span>
+    </label>
+  )
+
   const s = link.shape
   return (
     <div className="inspector" data-testid="rig-node-panel">
@@ -655,32 +719,6 @@ export function RigNodePanel({
           : t(M.rigNodeCopies, { count: placedCopies, part: partDisplayName(part, [part]) })}
       </p>
       <Fold title={t(M.link)} path="Link" collapsed={folds} toggle={toggle}>
-        {metricScene && (
-          <label className="field">
-            <span className="field-label" title={t(M.lengthUnitTip)}>
-              {t(M.lengthUnit)}
-            </span>
-            <span className="field-control">
-              <select
-                className="rig-select"
-                data-testid="rig-length-unit"
-                value={lu}
-                onChange={(e) => {
-                  if (!isRigLengthUnit(e.target.value)) return
-                  setPickedUnit(e.target.value)
-                  writeRigLengthUnit(e.target.value)
-                }}
-              >
-                {RIG_LENGTH_UNITS.map((u) => (
-                  // i18n-ok: unit symbols
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
-        )}
         {editable && parentOptions.length > 1 ? (
           <label className="field">
             <span className="field-label" title={t(M.parentTip)}>
@@ -986,6 +1024,7 @@ export function RigNodePanel({
                 </select>
               </span>
             </label>
+            {unitPicker}
             {(['X', 'Y', 'Z'] as const).map((ax, i) => (
               <NumberField
                 key={ax}
@@ -1005,8 +1044,23 @@ export function RigNodePanel({
             ))}
             {revolute ? (
               <>
-                <NumberField label={t(M.min)} unit="°" tooltip={t(M.minRotTip)} value={(joint.min * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ min: toRad(v) })} />
-                <NumberField label={t(M.max)} unit="°" tooltip={t(M.maxRotTip)} value={(joint.max * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ max: toRad(v) })} />
+                <BoolRow label={t(M.spin)} checked={spinning} disabled={!editable} tooltip={t(M.spinTip)} onChange={setSpinning} />
+                {spinServo ? (
+                  <>
+                    <NumberField label={t(M.spinSpeed)} unit="rpm" tooltip={t(M.spinSpeedTip)} value={radToRpm(spinServo.maxVelocity)} decimals={0} step={10} min={1} disabled={!editable} onCommit={setSpinSpeed} />
+                    <NumberField label={t(M.spinUp)} unit="s" tooltip={t(M.spinUpTip)} value={spinServo.maxVelocity / spinServo.maxAccel} decimals={2} step={0.1} min={0.01} disabled={!editable} onCommit={setSpinUp} />
+                    <p className="inspector-hint" data-testid="spin-hint">
+                      {t(M.spinHint)}
+                    </p>
+                    {/* i18n-ok: behavior code, as the script spells it */}
+                    <pre className="rig-code" data-testid="spin-code">{`servos: [${JSON.stringify(joint.name)}],\nstep(ctx) {\n  const s = ctx.servos[${JSON.stringify(joint.name)}]\n  s.power(true)\n  s.moveVelocity(on ? ${Number(spinServo.maxVelocity.toFixed(3))} : 0) // rad/s\n},`}</pre>
+                  </>
+                ) : (
+                  <>
+                    <NumberField label={t(M.min)} unit="°" tooltip={t(M.minRotTip)} value={(joint.min * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ min: toRad(v) })} />
+                    <NumberField label={t(M.max)} unit="°" tooltip={t(M.maxRotTip)} value={(joint.max * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ max: toRad(v) })} />
+                  </>
+                )}
                 {pivot ? (
                   <>
                     <VectorRow label={t(M.pivot, { unit: lengthUnit })} tooltip={t(M.pivotTip)}>
