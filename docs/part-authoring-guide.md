@@ -1020,7 +1020,8 @@ The Part Editor writes the same carving for you. Import the model onto a node (*
    above it to carry the joint, with the same joint name, so the rest pose and the behavior script are unchanged.
 
 5. **Test motion** moves the joint from Min to Max and back twice, then returns it to rest, without running the
-   simulation or writing anything to the part.
+   simulation or writing anything to the part. **Position** poses it by hand: drag across the field between Min
+   and Max (0 to 360° for a spinning joint), or type a value. Both go back to rest when another node is selected.
 6. **Spins endlessly** on a revolute joint makes it a wrapping servo (`servo.modulo` 2π, limits 0 to 2π) with a
    **Speed** in rpm (`maxVelocity`) and a **Spin-up time** (`maxVelocity / maxAccel`). A servo is posed by the host,
    so the behavior runs it with `ctx.servos[name].moveVelocity(...)` instead of `setJoint`. The panel shows those

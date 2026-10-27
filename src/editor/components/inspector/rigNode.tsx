@@ -163,6 +163,8 @@ const M = defineMessages('inspector.rigNode', {
   spinUp: 'Spin-up time',
   spinUpTip: 'How long the spindle takes to get from standstill to the speed above, and to stop again.',
   spinHint: 'A spinning joint is run by the host, so the behavior starts and stops it with these lines (on is your start condition, for example a PLC tag):',
+  position: 'Position',
+  positionTip: 'Drag across the field to move the joint between Min and Max and check it by eye, or type a value. Nothing is saved: the joint goes back to rest when you select another node.',
   testMotion: 'Test motion',
   stopTest: 'Stop test',
   testMotionTip: 'Move the joint from Min to Max and back twice, then return it to rest, to check the axis and limits. Works while the simulation is stopped.',
@@ -637,10 +639,22 @@ export function RigNodePanel({
   const view = controller?.view ?? null
   const testFrame = useRef<number | null>(null)
   const [testing, setTesting] = useState(false)
+  // Position: the joint posed by hand from the panel (its own units: radians or metres), through the same idle-pose
+  // path as Test motion. Panel-local, never written to the part; back to rest when the joint changes or the panel goes.
+  const [posed, setPosed] = useState(0)
+  const jointKey = joint ? `${joint.name}:${joint.type}:${joint.min}:${joint.max}` : ''
+  const poseRange: [number, number] | null = joint ? (spinning ? [0, TURN] : [joint.min, joint.max]) : null
+  const poseJoint = (v: number): void => {
+    if (!joint || !view || !poseRange) return
+    const at = Math.min(Math.max(v, poseRange[0]), poseRange[1])
+    setPosed(at)
+    view.applyIdlePose(part.id, { joints: { [joint.name]: at } })
+  }
   const stopTest = (): void => {
     if (testFrame.current !== null) cancelAnimationFrame(testFrame.current)
     testFrame.current = null
     setTesting(false)
+    setPosed(0)
     view?.applyIdlePose(part.id, { joints: {} })
   }
   const startTest = (): void => {
@@ -662,12 +676,19 @@ export function RigNodePanel({
     setTesting(true)
     testFrame.current = requestAnimationFrame(tick)
   }
-  // a test still running when the panel goes (another node selected) stops and leaves the part at rest
+  // A test still running, or a joint posed by hand, goes back to rest when another node is selected (the Inspector
+  // keeps this panel and swaps its props, so that is a change of link, not an unmount), when the joint's limits or
+  // type change, and when the panel goes. Only then: a rest pose on every open would undo a behavior-settled one.
   const stopTestRef = useRef(stopTest)
   stopTestRef.current = stopTest
-  useEffect(() => () => {
-    if (testFrame.current !== null) stopTestRef.current()
-  }, [])
+  const posedRef = useRef(posed)
+  posedRef.current = posed
+  useEffect(
+    () => () => {
+      if (testFrame.current !== null || posedRef.current !== 0) stopTestRef.current()
+    },
+    [part.id, link.name, jointKey],
+  )
 
   // Parent: the nodes this one can move under while staying in place (rigSplit.reparentTargets)
   const parentOptions = rig ? reparentTargets(rig, link.name) : []
@@ -1097,6 +1118,12 @@ export function RigNodePanel({
                 <NumberField label={t(M.max)} unit={lu} tooltip={t(M.maxTravelTip)} value={toShown(joint.max)} decimals={lenDecimals} step={lenStep} disabled={!editable} onCommit={(v) => editJoint({ max: fromShown(v) })} />
               </>
             )}
+            {poseRange &&
+              (revolute ? (
+                <NumberField label={t(M.position)} unit="°" tooltip={t(M.positionTip)} value={(posed * 180) / Math.PI} decimals={1} step={1} min={(poseRange[0] * 180) / Math.PI} max={(poseRange[1] * 180) / Math.PI} disabled={!view || testing} onCommit={(v) => poseJoint(toRad(v))} />
+              ) : (
+                <NumberField label={t(M.position)} unit={lu} tooltip={t(M.positionTip)} value={toShown(posed)} decimals={lenDecimals} step={lenStep / 10} min={toShown(poseRange[0])} max={toShown(poseRange[1])} disabled={!view || testing} onCommit={(v) => poseJoint(fromShown(v))} />
+              ))}
             <div className="rig-script-actions">
               <button type="button" className="array-add" data-testid="joint-test" disabled={!view} title={t(M.testMotionTip)} onClick={testing ? stopTest : startTest}>
                 {t(testing ? M.stopTest : M.testMotion)}
