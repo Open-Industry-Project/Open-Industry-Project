@@ -229,9 +229,10 @@ definePart({
         { name: 'forkW', link: 'forkW', type: 'prismatic', axis: [-1, 0, 0], min: 0, max: r8(STROKE + 0.01) },
         { name: 'forkE', link: 'forkE', type: 'prismatic', axis: [1, 0, 0], min: 0, max: r8(STROKE + 0.01) },
       ],
-      // footprint: in x the fork cylinders, which stand furthest out; in z the base plates. bottom is the underside at
-      // the default conveyor height, so a bare-floor drop stands the columns on the floor.
-      bounds: { length: 2.56, width: 1.66, top: r8(TOPY + 0.2), bottom: -STAND_DEFAULT },
+      // footprint: in x the fork cylinders, which stand furthest out; in z the -Z base plates (0.83 out) to the rain hood
+      // of the operator station on the +Z column (0.215 past its centre). bottom is the underside at the default
+      // conveyor height, so a bare-floor drop stands the columns on the floor.
+      bounds: { length: 2.56, width: r8(0.83 + COL_Z + 0.215), centerZ: r8((COL_Z + 0.215 - 0.83) / 2), top: r8(TOPY + 0.2), bottom: -STAND_DEFAULT },
     }
   },
   interactive: true, // Use dispenses one pallet (by hand, when no program owns the dispense tag)

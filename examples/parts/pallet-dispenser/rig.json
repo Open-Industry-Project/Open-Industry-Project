@@ -457,7 +457,8 @@
     ],
     "bounds": {
       "length": 2.56,
-      "width": 1.66,
+      "width": 1.745,
+      "centerZ": 0.0425,
       "top": 2.15,
       "bottom": -1
     }

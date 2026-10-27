@@ -524,8 +524,8 @@ definePart({
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 1, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried along the bed. Negative runs it backwards, which is the ONLY way to reverse flow - rotating the part 180 degrees moves its ends and their splay instead. A program can command this through the speed tag below.' },
     ...driveRampParams(0.2, 0.2),
     ...frictionParam(0.42),
-    angleFrontDeg: { type: 'number', default: 30, min: -60, max: 60, step: 5, label: 'Front angle (°)', group: 'Ends', desc: 'Splay angle of the DISCHARGE end face. This is what makes the part a spur: an angled face merges flush onto the side of a straight conveyor instead of butting square against it. 0 leaves the end square.' },
-    angleBackDeg: { type: 'number', default: 0, min: -60, max: 60, step: 5, label: 'Back angle (°)', group: 'Ends', desc: 'Splay angle of the INFEED end face. Leave it at 0 for a spur fed square from behind; angle it too when the piece has to sit between two angled neighbours.' },
+    angleFrontDeg: { type: 'number', default: 30, min: -60, max: 60, step: 1, label: 'Front angle (°)', group: 'Ends', desc: 'Splay angle of the DISCHARGE end face. This is what makes the part a spur: an angled face merges flush onto the side of a straight conveyor instead of butting square against it. 0 leaves the end square.' },
+    angleBackDeg: { type: 'number', default: 0, min: -60, max: 60, step: 1, label: 'Back angle (°)', group: 'Ends', desc: 'Splay angle of the INFEED end face. Leave it at 0 for a spur fed square from behind; angle it too when the piece has to sit between two angled neighbours.' },
     rollerClass: {
       type: 'enum', default: 'light', label: 'Roller class', group: 'Size',
       desc: 'Duty rating, which sets how thick the rollers are and how closely they are pitched: light 24 mm at 75 mm centres, medium 30 at 100, heavy 40 at 130. Heavier rollers sit further apart, so small product needs the lighter class to stay supported.',
