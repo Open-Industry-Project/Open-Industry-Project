@@ -330,7 +330,9 @@ const dockBtn: CSSProperties = {
   padding: '0 4px',
   font: '13px ui-sans-serif, system-ui, sans-serif',
 }
-const controls: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }
+// the status lines under the code: capped and scrolled, or in a short docked panel a long list of bind warnings
+// pushes the code editor down to no height at all
+const controls: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0, maxHeight: '40%', overflowY: 'auto' }
 // the commands at the header row's right end (marginLeft: auto keeps them there whatever stands to their left)
 const commandGroup: CSSProperties = { display: 'flex', alignItems: 'center', gap: 4, flex: 'none', marginLeft: 'auto', padding: '3px 6px' }
 // sized to the toggle beside them, so the row stays one control tall
