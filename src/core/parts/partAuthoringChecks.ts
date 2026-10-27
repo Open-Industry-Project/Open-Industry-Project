@@ -231,6 +231,7 @@ export function checkGeometryRefs(geometry: PartPackageGeometry, params: ParamSc
   geometry.links.forEach((l: RigLink, i) => {
     const at = `geometry.links[${i}]`
     refs(`${at}.offsetParams`, l.offsetParams)
+    refs(`${at}.rotationParams`, l.rotationParams)
     refs(`${at}.grip.radiusParams`, l.grip?.radiusParams)
     refs(`${at}.zone.sizeParams`, l.zone?.sizeParams)
     refs(`${at}.grip.zone.sizeParams`, l.grip?.zone?.sizeParams)

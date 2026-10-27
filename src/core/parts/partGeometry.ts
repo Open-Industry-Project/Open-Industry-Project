@@ -12,7 +12,7 @@ import { flexStations } from '../conveyor/flexPath'
 import { cargoView } from '../frame'
 import { getPackage } from './partRegistry'
 import { resolvedParam } from './partScript'
-import { resolvedRef, rigRestExtent, type RigParams } from '../rig/rigPose'
+import { foldedRef, rigRestExtent, type RigParams } from '../rig/rigPose'
 import type { PartBounds } from './partPackage'
 import { rotateXZ, toLocalXZ, toWorldXZ } from '../transforms'
 import { memoByParams, memoByPkg } from './partMemo'
@@ -747,7 +747,7 @@ export function resolvedBounds(
   const out = { length: bounds.length, width: bounds.width, top: bounds.top, bottom: bounds.bottom ?? 0, centerX: bounds.centerX ?? 0, centerZ: bounds.centerZ ?? 0 }
   if (!bounds.params?.length) return out
   for (const ref of bounds.params) {
-    const v = resolvedRef(ref, params)
+    const v = foldedRef(out[ref.field], ref, params)
     if (v === null) continue
     if ((ref.field === 'length' || ref.field === 'width') && !(v > 0)) continue
     out[ref.field] = v

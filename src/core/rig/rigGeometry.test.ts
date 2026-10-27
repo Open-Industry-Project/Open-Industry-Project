@@ -51,6 +51,14 @@ describe('rig geometry validation', () => {
     expect(fields(leg({ param: 'frameHeight', add: 'x' }))).toContain('geometry.links[0].shape.frameDepthParam.add')
   })
 
+  it('checks rotationParams like offsetParams, a plus flag, and refuses rotationParams beside a quat', () => {
+    const arm = (extra: Record<string, unknown>): unknown => rigPackage({ links: [{ name: 'arm', shape: { kind: 'box', size: [1, 1, 1] }, offset: [0, 0, 0], ...extra }], joints: [] })
+    expect(fields(arm({ rotation: [0, 0, 0], rotationParams: [{ axis: 1, param: 'splay', scale: 0.0174 }, { axis: 1, param: 'trim', plus: true }] }))).toEqual([])
+    expect(fields(arm({ rotationParams: [{ axis: 3, param: 'splay' }] }))).toContain('geometry.links[0].rotationParams[0].axis')
+    expect(fields(arm({ offsetParams: [{ axis: 0, param: 'gap', plus: 'yes' }] }))).toContain('geometry.links[0].offsetParams[0].plus')
+    expect(fields(arm({ quat: [0, 0, 0, 1], rotationParams: [{ axis: 1, param: 'splay' }] }))).toContain('geometry.links[0].rotationParams')
+  })
+
   it('rejects duplicate link names', () => {
     const pkg = rigPackage({
       links: [

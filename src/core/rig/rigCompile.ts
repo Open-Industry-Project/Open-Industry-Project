@@ -6,9 +6,11 @@
 // defaults and at many points across each param's range, and turns every number that moves into a ref. It fits:
 //   - a straight line in one param, or a straight line between two flat ends (the flats become min / max);
 //   - a product of two params plus a constant (`mulParam`);
-// on a link offset axis, a box size axis, a cylinder's radius or height, a grip zone's size axis, an array's
-// step axis, a leg row's frame depth, a joint's min or max (`minParam` / `maxParam`, the static limit set to the
-// widest value over the param's range), and a bounds field (`bounds.params`). It refuses anything else: a number
+//   - a sum of two such lines, one in each param (two refs, the second marked `plus`);
+// on a link offset or rotation axis, a box size axis, a cylinder's radius or height, a grip zone's or a detection
+// zone's size axis, an array's step axis, a leg row's frame depth, a joint's min or max (`minParam` / `maxParam`, the
+// static limit set to the widest value over the param's range; one param or a product only), and a bounds field
+// (`bounds.params`). It refuses anything else: a number
 // that follows three params, isn't one of those shapes, sits in a field with no param ref, or a rig whose shape
 // changes (a link appearing, a kind switching). The refusal names the field, so the author can move that shape into
 // `geometry()`. The output is then resolved against `rig()` at every point it was probed at, and at points where
@@ -31,6 +33,8 @@ export type RigCompileResult = { geometry: RigGeometry; problems: [] } | { geome
 
 // 8 decimals, near-zero to 0, so manifests diff cleanly
 const round = (n: number): number => (Math.abs(n) < 1e-9 ? 0 : +n.toFixed(8))
+// a slope 8 decimals can't carry to TOLERANCE over its param's range (degrees to radians over 45°) keeps 12
+const roundFine = (n: number): number => (Math.abs(n) < 1e-13 ? 0 : +n.toFixed(12))
 // a compiled ref must reproduce rig() to this tolerance at every probe
 const TOLERANCE = 1e-7
 // two numbers rig() returned are the same number (a flat end, a leaf that did not move)
@@ -41,11 +45,11 @@ const SAMPLES = 48
 type Leaf = { path: string; value: number }
 type Point = [number, number]
 /** A fitted ref before it is written into a field: `param [× mulParam] × scale + add`, clamped to [min, max]. */
-type Fit = { param: string; mulParam?: string; scale: number; add: number; min?: number; max?: number }
+type Fit = { param: string; mulParam?: string; scale: number; add: number; min?: number; max?: number; plus?: boolean }
 
 /** Where a number that follows a param lands in the manifest. */
 type Target =
-  | { kind: 'offset' | 'box' | 'zone' | 'step'; link: number; axis: 0 | 1 | 2 }
+  | { kind: 'offset' | 'rotation' | 'box' | 'zone' | 'detectZone' | 'step'; link: number; axis: 0 | 1 | 2 }
   | { kind: 'cylinder'; link: number; axis: 0 | 1 }
   | { kind: 'frameDepth'; link: number }
   | { kind: 'joint'; joint: number; end: 'min' | 'max' }
@@ -57,6 +61,10 @@ const BOUNDS_FIELDS = ['length', 'centerX', 'width', 'centerZ', 'top', 'bottom']
 function targetOf(path: string, base: RigSource): Target | null {
   let m = /^\.links\[(\d+)\]\.offset\[([012])\]$/.exec(path)
   if (m) return { kind: 'offset', link: +m[1]!, axis: +m[2]! as 0 | 1 | 2 }
+  m = /^\.links\[(\d+)\]\.rotation\[([012])\]$/.exec(path)
+  if (m && !base.links[+m[1]!]?.quat) return { kind: 'rotation', link: +m[1]!, axis: +m[2]! as 0 | 1 | 2 }
+  m = /^\.links\[(\d+)\]\.zone\.size\[([012])\]$/.exec(path)
+  if (m) return { kind: 'detectZone', link: +m[1]!, axis: +m[2]! as 0 | 1 | 2 }
   m = /^\.links\[(\d+)\]\.shape\.size\[([012])\]$/.exec(path)
   if (m && base.links[+m[1]!]?.shape.kind === 'box') return { kind: 'box', link: +m[1]!, axis: +m[2]! as 0 | 1 | 2 }
   m = /^\.links\[(\d+)\]\.shape\.(radius|height)$/.exec(path)
@@ -168,14 +176,17 @@ function fitClampedLine(points: readonly Point[]): LineFit {
     if (i1 === 1) return { refine: [p[n - 2]![0], p[n - 1]![0]] }
     hi = xR
   }
-  const fit: Omit<Fit, 'param'> = { scale: round(scale), add: round(add) }
   // rising, the left flat is the floor; falling, it is the ceiling
   const [min, max] = scale > 0 ? [lo, hi] : [hi, lo]
-  if (min !== undefined) fit.min = min
-  if (max !== undefined) fit.max = max
   if (min !== undefined && max !== undefined && !(min < max)) return { fail: true }
-  const f = { param: '', ...fit }
-  return p.every(([v, x]) => Math.abs(atFit(f, v) - x) <= TOLERANCE) ? { fit } : { fail: true }
+  for (const r of [round, roundFine]) {
+    const fit: Omit<Fit, 'param'> = { scale: r(scale), add: r(add) }
+    if (min !== undefined) fit.min = min
+    if (max !== undefined) fit.max = max
+    const f = { param: '', ...fit }
+    if (p.every(([v, x]) => Math.abs(atFit(f, v) - x) <= TOLERANCE)) return { fit }
+  }
+  return { fail: true }
 }
 
 /** The ref as the manifest writes it. A one-param ref on a box size, link offset or grip zone axis always carries
@@ -188,6 +199,7 @@ function refFields(fit: Fit, alwaysScale: boolean): ParamRef {
   if (fit.add !== 0) ref.add = fit.add
   if (fit.min !== undefined) ref.min = fit.min
   if (fit.max !== undefined) ref.max = fit.max
+  if (fit.plus) ref.plus = true
   return ref
 }
 
@@ -199,6 +211,7 @@ function resolvedNumbers(g: RigSource, params: RigParams): [string, number][] {
   g.links.forEach((link, i) => {
     const at = `links[${i}] (${link.name})`
     put(`${at} offset`, resolvedOffset(link.offset, link.offsetParams, params))
+    if (link.rotation) put(`${at} rotation`, resolvedOffset(link.rotation, link.rotationParams, params))
     const s = link.shape
     if (s.kind === 'box') put(`${at} size`, resolvedBoxSize(s.size, s.sizeParams, params))
     else if (s.kind === 'cylinder') {
@@ -209,6 +222,7 @@ function resolvedNumbers(g: RigSource, params: RigParams): [string, number][] {
     else if (s.kind === 'leg') put(`${at} frameDepth`, [legFrameDepth(s, params)])
     const zone = link.grip?.zone
     if (zone) put(`${at} grip zone size`, resolvedBoxSize(zone.size, zone.sizeParams, params))
+    if (link.zone) put(`${at} zone size`, resolvedBoxSize(link.zone.size, link.zone.sizeParams, params))
     if (link.array?.step) put(`${at} array step`, resolvedOffset(link.array.step, link.array.stepParams, params))
   })
   ;(g.joints ?? []).forEach((j, i) => {
@@ -232,8 +246,10 @@ function hasOwnRef(t: Target, g: RigSource): boolean {
   if (t.kind === 'bounds') return !!g.bounds?.params?.some((r) => r.field === t.field)
   const link = g.links[t.link]!
   if (t.kind === 'offset') return !!link.offsetParams?.some((r) => r.axis === t.axis)
+  if (t.kind === 'rotation') return !!link.rotationParams?.some((r) => r.axis === t.axis)
   if (t.kind === 'frameDepth') return link.shape.kind === 'leg' && !!link.shape.frameDepthParam
-  const own = t.kind === 'zone' ? link.grip?.zone?.sizeParams : t.kind === 'step' ? link.array?.stepParams : (link.shape as { sizeParams?: SizeParamRef[] }).sizeParams
+  const own =
+    t.kind === 'zone' ? link.grip?.zone?.sizeParams : t.kind === 'detectZone' ? link.zone?.sizeParams : t.kind === 'step' ? link.array?.stepParams : (link.shape as { sizeParams?: SizeParamRef[] }).sizeParams
   if (t.kind === 'cylinder') return !!own?.some((r) => (r.axis === 1) === (t.axis === 1))
   return !!own?.some((r) => r.axis === t.axis)
 }
@@ -333,12 +349,29 @@ export function compileRig(rig: RigSourceFn, schema: ParamSchema): RigCompileRes
     return null
   }
 
-  /** `p × q × scale + add`: each param alone must be a plain line, and the cross grid must land on the product. */
-  const fitProduct = (path: string, p: string, q: string, k: number): Fit | null => {
-    const refuse = (): null => {
-      problems.push(`${path} follows both ${p} and ${q} and isn't their product plus a constant; a manifest ref follows one param, or param × mulParam × scale + add`)
-      return null
+  /** Does `x(p, q)` land on what `at` says on a 3 × 3 grid over both params' ranges, and on every single-param probe?
+   *  Undefined when a grid run failed (its problem is already listed). */
+  const onGrid = (p: string, q: string, k: number, at: (pv: number, qv: number) => number): boolean | undefined => {
+    const [pl, ph] = ranges.get(p)!
+    const [ql, qh] = ranges.get(q)!
+    for (const pv of [pl, (pl + ph) / 2, ph]) {
+      for (const qv of [ql, (ql + qh) / 2, qh]) {
+        const leaves = sample({ [p]: pv, [q]: qv })
+        if (!leaves) return undefined
+        if (Math.abs(at(pv, qv) - leaves[k]!) > TOLERANCE) return false
+      }
     }
+    const p0 = defaults[p] as number
+    const q0 = defaults[q] as number
+    for (const [v, x] of pointsOf(p, k)) if (Math.abs(at(v, q0) - x) > TOLERANCE) return false
+    for (const [v, x] of pointsOf(q, k)) if (Math.abs(at(p0, v) - x) > TOLERANCE) return false
+    return true
+  }
+
+  /** `p × q × scale + add`: each param alone must be a plain line, and the cross grid must land on the product.
+   *  Null when it is not one, with nothing listed (fitTwo tries a sum next); undefined when a run failed. */
+  const fitProduct = (p: string, q: string, k: number): Fit | null | undefined => {
+    const refuse = (): null => null
     const lp = fitClampedLine(pointsOf(p, k))
     const lq = fitClampedLine(pointsOf(q, k))
     if (!('fit' in lp) || !('fit' in lq) || lp.fit.min !== undefined || lp.fit.max !== undefined || lq.fit.min !== undefined || lq.fit.max !== undefined) return refuse()
@@ -351,22 +384,43 @@ export function compileRig(rig: RigSourceFn, schema: ParamSchema): RigCompileRes
     const scale = (xb - xa) / (vb - va) / q0
     const x0 = baseLeaves[k]!.value
     const fit: Fit = { param: p, mulParam: q, scale: round(scale), add: round(x0 - scale * p0 * q0) }
-    const [pl, ph] = ranges.get(p)!
-    const [ql, qh] = ranges.get(q)!
-    for (const pv of [pl, (pl + ph) / 2, ph]) {
-      for (const qv of [ql, (ql + qh) / 2, qh]) {
-        const leaves = sample({ [p]: pv, [q]: qv })
-        if (!leaves) return null
-        if (Math.abs(atFit(fit, pv, qv) - leaves[k]!) > TOLERANCE) return refuse()
-      }
-    }
-    for (const [v, x] of pointsOf(p, k)) if (Math.abs(atFit(fit, v, q0) - x) > TOLERANCE) return refuse()
-    for (const [v, x] of pointsOf(q, k)) if (Math.abs(atFit(fit, p0, v) - x) > TOLERANCE) return refuse()
-    return fit
+    const ok = onGrid(p, q, k, (pv, qv) => atFit(fit, pv, qv))
+    return ok === undefined ? undefined : ok ? fit : refuse()
+  }
+
+  /** `line(p) + line(q)`, each a clamped line in its own param: the first ref replaces the field with its line at the
+   *  other param's default, the second adds its own line less that shared value. Null when it is not one. */
+  const fitSum = (p: string, q: string, k: number): Fit[] | null | undefined => {
+    const lp = fitClampedLine(pointsOf(p, k))
+    const lq = fitClampedLine(pointsOf(q, k))
+    if (!('fit' in lp) || !('fit' in lq)) return null
+    const x0 = baseLeaves[k]!.value
+    const first: Fit = { param: p, ...lp.fit }
+    const second: Fit = { param: q, scale: lq.fit.scale, add: round(lq.fit.add - x0), plus: true }
+    if (lq.fit.min !== undefined) second.min = round(lq.fit.min - x0)
+    if (lq.fit.max !== undefined) second.max = round(lq.fit.max - x0)
+    const ok = onGrid(p, q, k, (pv, qv) => atFit(first, pv) + atFit(second, qv))
+    return ok === undefined ? undefined : ok ? [first, second] : null
+  }
+
+  /** A leaf that follows two params: their product, else (where the field holds more than one ref) their sum. */
+  const fitTwo = (path: string, p: string, q: string, k: number, single: boolean): Fit[] | null => {
+    const product = fitProduct(p, q, k)
+    if (product === undefined) return null
+    if (product) return [product]
+    const sum = single ? null : fitSum(p, q, k)
+    if (sum === undefined) return null
+    if (sum) return sum
+    problems.push(
+      single
+        ? `${path} follows both ${p} and ${q} and isn't their product plus a constant; this field holds one ref, which follows one param or param × mulParam × scale + add`
+        : `${path} follows both ${p} and ${q} and is neither their product plus a constant nor a line in each added together; a manifest ref follows one param, or param × mulParam × scale + add, and a plus ref adds a second`,
+    )
+    return null
   }
 
   const order = Object.keys(schema)
-  const fits: { target: Target; fit: Fit }[] = []
+  const fits: { target: Target; fit: Fit }[] = [] // a sum is two, in order: the replacing ref, then the plus one
   baseLeaves.forEach((leaf, k) => {
     const movers = [...probes.keys()].filter((param) => probes.get(param)!.some((s) => Math.abs(s.leaves[k]! - leaf.value) > SAME))
     if (movers.length === 0) return
@@ -380,12 +434,16 @@ export function compileRig(rig: RigSourceFn, schema: ParamSchema): RigCompileRes
       return
     }
     if (movers.length > 2) {
-      problems.push(`${leaf.path} follows ${movers.join(', ')}; a manifest ref follows one param, or the product of two`)
+      problems.push(`${leaf.path} follows ${movers.join(', ')}; a manifest ref follows one param, the product of two, or a sum of two refs`)
       return
     }
     const [p, q] = [...movers].sort((a, b) => order.indexOf(a) - order.indexOf(b))
-    const fit = q === undefined ? fitOne(leaf.path, p!, k) : fitProduct(leaf.path, p!, q, k)
-    if (!fit) return
+    // a joint limit and a leg's frame depth hold one ref, so no sum
+    const single = target.kind === 'joint' || target.kind === 'frameDepth'
+    const one = q === undefined ? fitOne(leaf.path, p!, k) : null
+    const fitted = q === undefined ? (one ? [one] : null) : fitTwo(leaf.path, p!, q, k, single)
+    if (!fitted) return
+    const fit = fitted[0]!
     if (target.kind === 'joint') {
       // the static limit is the outer envelope: the widest the ref reaches over its params' ranges
       for (const param of [fit.param, fit.mulParam].filter((x): x is string => x !== undefined)) {
@@ -396,7 +454,7 @@ export function compileRig(rig: RigSourceFn, schema: ParamSchema): RigCompileRes
         }
       }
     }
-    fits.push({ target, fit })
+    for (const f of fitted) fits.push({ target, fit: f })
   })
   if (problems.length) return { geometry: null, problems: [...new Set(problems)] }
 
@@ -404,7 +462,7 @@ export function compileRig(rig: RigSourceFn, schema: ParamSchema): RigCompileRes
   const geometry: RigGeometry = { kind: 'rig', ...copyData(base), joints: copyData((base.joints ?? []) as RigJoint[]) }
   const links = geometry.links as (RigLink & Record<string, unknown>)[]
   const byAxis = (a: SizeParamRef, b: SizeParamRef): number => a.axis - b.axis
-  const added = new Map<object, SizeParamRef[]>() // each sizeParams / offsetParams owner and its compiled refs
+  const added = new Map<object, SizeParamRef[]>() // each sizeParams / offsetParams / rotationParams owner and its compiled refs
   const addAxisRef = (owner: object, ref: SizeParamRef): void => {
     added.set(owner, [...(added.get(owner) ?? []), ref])
   }
@@ -441,6 +499,13 @@ export function compileRig(rig: RigSourceFn, schema: ParamSchema): RigCompileRes
     if (t.kind === 'offset') {
       link.offset[t.axis] = round(link.offset[t.axis]!)
       addAxisRef(link, ref)
+    } else if (t.kind === 'rotation') {
+      link.rotation![t.axis] = round(link.rotation![t.axis]!)
+      addAxisRef(link.rotation!, ref)
+    } else if (t.kind === 'detectZone') {
+      const zone = link.zone!
+      zone.size[t.axis] = round(zone.size[t.axis]!)
+      addAxisRef(zone, ref)
     } else if (t.kind === 'box') {
       const size = (link.shape as { size: number[] }).size
       size[t.axis] = round(size[t.axis]!)
@@ -464,6 +529,10 @@ export function compileRig(rig: RigSourceFn, schema: ParamSchema): RigCompileRes
     const offset = added.get(link)
     let out = link
     if (offset) out = insertAfter(out, 'offset', 'offsetParams', [...(out.offsetParams ?? []), ...offset].sort(byAxis))
+    const rotation = link.rotation && added.get(link.rotation)
+    if (rotation) out = insertAfter(out, 'rotation', 'rotationParams', [...(out.rotationParams ?? []), ...rotation].sort(byAxis))
+    const detect = link.zone && added.get(link.zone)
+    if (link.zone && detect) out = { ...out, zone: insertAfter(link.zone, 'size', 'sizeParams', [...(link.zone.sizeParams ?? []), ...detect].sort(byAxis)) }
     const shapeRefs = added.get(link.shape)
     if (shapeRefs) {
       const shape = link.shape as RigLink['shape'] & { sizeParams?: SizeParamRef[] }

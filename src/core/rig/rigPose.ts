@@ -37,7 +37,7 @@ export interface InstancePose {
 }
 
 /** Euler XYZ (radians, the setSubPose convention) as a quaternion, written into `out` at `o`. */
-export function eulerXYZQuatInto(e: readonly number[], out: Float64Array | number[], o = 0): void {
+export function eulerXYZQuatInto(e: ArrayLike<number>, out: Float64Array | number[], o = 0): void {
   const c1 = Math.cos(e[0]! / 2)
   const c2 = Math.cos(e[1]! / 2)
   const c3 = Math.cos(e[2]! / 2)
@@ -191,9 +191,11 @@ export function qApply(q: Quat, v: Vec3): Vec3 {
  * joint applied - revolute rotates about the axis (in the link's local frame), prismatic slides along
  * it. Matches render/parts/sdkPart.ts's per-joint math exactly.
  */
-/** A link's rest rotation: the explicit quaternion if set, else Euler XYZ, else identity. */
-export function restQuatOf(link: RigLink): Quat {
+/** A link's rest rotation: the explicit quaternion if set, else Euler XYZ (with its `rotationParams` resolved
+ *  against `params`, when given), else identity. */
+export function restQuatOf(link: RigLink, params?: RigParams): Quat {
   if (link.quat) return link.quat
+  if (params && link.rotationParams?.length) return qFromEulerXYZ(resolvedOffset(link.rotation ?? [0, 0, 0], link.rotationParams, params))
   return link.rotation ? qFromEulerXYZ(link.rotation) : IDENTITY_QUAT
 }
 
@@ -223,7 +225,7 @@ export function legFrameDepth(shape: Pick<RigLegShape, 'frameDepth' | 'frameDept
 }
 
 export function rigLocalPose(link: RigLink, joint: RigJoint | undefined, value: number, params?: RigParams): LinkPose {
-  const restQuat = restQuatOf(link)
+  const restQuat = restQuatOf(link, params)
   const restPos = link.offset
   if (!joint) return { pos: restPos, quat: restQuat }
   const [lo, hi] = jointLimits(joint, params)
@@ -240,7 +242,7 @@ export function rigLocalPose(link: RigLink, joint: RigJoint | undefined, value: 
 /** A link's local pose with a setSubPose override taking precedence over its rest+joint transform. */
 export function rigLinkLocalPose(link: RigLink, joint: RigJoint | undefined, value: number, subPose: SubPose | undefined, params?: RigParams): LinkPose {
   if (subPose) {
-    const quat = subPose.quat ?? (subPose.rotation ? qFromEulerXYZ(subPose.rotation) : restQuatOf(link))
+    const quat = subPose.quat ?? (subPose.rotation ? qFromEulerXYZ(subPose.rotation) : restQuatOf(link, params))
     return { pos: subPose.position ?? link.offset, quat }
   }
   return rigLocalPose(link, joint, value, params)
@@ -432,7 +434,7 @@ function resolvedOffsetInto(offset: Vec3, offsetParams: readonly SizeParamRef[],
   out[1] = offset[1]
   out[2] = offset[2]
   for (const sp of offsetParams) {
-    const resolved = resolvedRef(sp, params)
+    const resolved = foldedRef(out[sp.axis]!, sp, params)
     if (resolved !== null) out[sp.axis] = resolved
   }
 }
@@ -506,6 +508,15 @@ function writeLocalPose(t: RigTables, i: number, values: Record<string, number>,
   let qy = t.restQuats[rq + 1]!
   let qz = t.restQuats[rq + 2]!
   let qw = t.restQuats[rq + 3]!
+  // a param-driven rest rotation (rotationParams; validation keeps it off a quat link) resolves per call
+  if (link.rotationParams && !link.quat) {
+    resolvedOffsetInto(link.rotation ?? [0, 0, 0], link.rotationParams, params, OFF)
+    eulerXYZQuatInto(OFF, EQ)
+    qx = EQ[0]!
+    qy = EQ[1]!
+    qz = EQ[2]!
+    qw = EQ[3]!
+  }
   // C-paramgeo: resolve a param-driven offset (e.g. a hinge at -length/2) before composing.
   let px: number
   let py: number
@@ -840,6 +851,13 @@ export function resolvedRef(sp: Omit<SizeParamRef, 'axis'>, params: RigParams): 
   return out
 }
 
+/** What one entry makes of a field that holds `current` so far: its resolved value, or that added to `current` for a
+ *  `plus` entry (entries for one field apply in order). Null when the entry does not resolve (the field stands). */
+export function foldedRef(current: number, sp: Omit<SizeParamRef, 'axis'>, params: RigParams): number | null {
+  const v = resolvedRef(sp, params)
+  return v === null ? null : sp.plus ? current + v : v
+}
+
 /**
  * A box's size with any C-paramgeo overrides applied: each `sizeParams` entry replaces one axis with
  * `params[param] * scale + add` (clamped to the entry's `[min, max]`) when that param is a finite number,
@@ -850,7 +868,7 @@ export function resolvedBoxSize(size: Vec3, sizeParams: readonly SizeParamRef[] 
   if (!sizeParams || sizeParams.length === 0) return size
   const out: Vec3 = [size[0], size[1], size[2]]
   for (const sp of sizeParams) {
-    const resolved = resolvedRef(sp, params)
+    const resolved = foldedRef(out[sp.axis], sp, params)
     if (resolved !== null && resolved > 0) out[sp.axis] = resolved
   }
   return out
@@ -862,7 +880,7 @@ export function resolvedOffset(offset: Vec3, offsetParams: readonly SizeParamRef
   if (!offsetParams || offsetParams.length === 0) return offset
   const out: Vec3 = [offset[0], offset[1], offset[2]]
   for (const sp of offsetParams) {
-    const resolved = resolvedRef(sp, params)
+    const resolved = foldedRef(out[sp.axis], sp, params)
     if (resolved !== null) out[sp.axis] = resolved
   }
   return out
@@ -875,7 +893,7 @@ export function resolvedMeshScale(sizeParams: readonly SizeParamRef[] | undefine
   const out: Vec3 = [1, 1, 1]
   if (!sizeParams) return out
   for (const sp of sizeParams) {
-    const f = resolvedRef(sp, params)
+    const f = foldedRef(out[sp.axis], sp, params)
     if (f !== null && f > 0) out[sp.axis] = f
   }
   return out
@@ -888,7 +906,7 @@ export function resolvedCylinder(shape: Extract<RigShape, { kind: 'cylinder' }>,
   let radius = shape.radius
   let height = shape.height
   for (const sp of shape.sizeParams ?? []) {
-    const resolved = resolvedRef(sp, params)
+    const resolved = foldedRef(sp.axis === 1 ? height : radius, sp, params)
     if (resolved !== null && resolved > 0) {
       if (sp.axis === 1) height = resolved
       else radius = resolved
@@ -1314,7 +1332,8 @@ export function linkFieldOwnership(geo: RigGeometry, linkName: string, params: R
   const offset: LinkFieldOwnership['offset'] = [null, null, null]
   // the last resolving ref for an axis owns it, since resolvedOffset applies them in order
   for (const sp of link.offsetParams ?? []) offset[sp.axis] = refOwner(sp, params, false) ?? offset[sp.axis]
-  const rotation: LinkFieldOwner | null = link.aim ? { by: 'aim', target: link.aim.target } : null
+  let rotation: LinkFieldOwner | null = link.aim ? { by: 'aim', target: link.aim.target } : null
+  if (!rotation && !link.quat) for (const sp of link.rotationParams ?? []) rotation = refOwner(sp, params, false) ?? rotation
   let boxSize: LinkFieldOwnership['boxSize'] = null
   let cylinder: LinkFieldOwnership['cylinder'] = null
   const shape = link.shape

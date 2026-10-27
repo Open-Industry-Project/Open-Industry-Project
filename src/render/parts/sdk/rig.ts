@@ -289,7 +289,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
   // ...and those of them that re-tile a repeating texture along the stretch instead of smearing it (tileUv)
   const tiledMeshLinks: TiledMeshLink[] = []
   // a param-driven offset (C-paramgeo) or a whole-bed incline makes the refresh re-place the links (placeLinks)
-  const paramPose = !!geo.inclineParam || geo.links.some((l) => !!l.offsetParams)
+  const paramPose = !!geo.inclineParam || geo.links.some((l) => !!l.offsetParams || !!l.rotationParams)
   // C-emissive: a link with a lamp (`lamps`) gets its own material so it can be lit per-tick. `off` is the
   // colour shown when dark - the lamp's authored `offColor` (its unlit albedo) else LAMP_OFF for a primitive, or a
   // mesh lamp's base (remapped) colour so e.g. a push-button cap reads as its matte colour when unlit, not a

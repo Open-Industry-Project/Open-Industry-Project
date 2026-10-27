@@ -516,6 +516,7 @@ Every field is data the host reads; no field changes what another means.
 | Layout and motion | |
 |---|---|
 | `offsetParams` | param-driven placement (a hinge at `±length/2`) |
+| `rotationParams` | param-driven turn, per Euler axis in radians (a splay of `angle` degrees is `scale: π/180`); not with `quat` |
 | `showParam` | a boolean param; the link exists (mesh and body) only while true. Works on arrayed links (zero instances), as with the platform's railing and support toggles |
 | `array` | repeat the link: `count` (a param name) + `step` (optionally `centered`; `stepParams` makes a step axis track a param); or `distribute` along a span (`spanAdd` lengthens it past the param, so a railing just outside a deck reaches the corner; `worldPhase` pins copies to the world pitch grid so butted beds align); or a `grid` crossing two param-driven axes into an X×Z lattice (a pitch per axis, or a fixed `maxSpacing`). `grid` works on a `mesh` link too. `omitFirstParam` / `omitLastParam` name booleans that drop the end copy of a 1-D array, so butted barriers don't double a post. `pitch` fits round(span ÷ pitch) copies exactly `pitch` apart (span = `spanParam × spanScale + spanAdd`, plus `param × scale` for each of `spanTerms`; at most 1024 copies), the count for carriers on a loop. `posable: true` lets the behavior move each copy ([Rows of moving carriers](#rows-of-moving-carriers-posable-arrays)) |
 | `aim` | a two-point look-at (hydraulics that stay connected as a parent moves) |
@@ -525,7 +526,9 @@ More fields, each documented in [`manifest.d.ts`](../packages/part-sdk/manifest.
 - A `sizeParams` / `offsetParams` entry (and a joint's `minParam` / `maxParam`) is `param * scale + add`, with
   optional `min` / `max` clamps for a floor or ceiling the linear map can't express (a corner section that must
   stop at the centreline on a narrow lane). `mulParam` multiplies by a second param first (the chain transfer's
-  deck width = `chains` × `distance`).
+  deck width = `chains` × `distance`). Entries for one axis apply in order, each replacing it, unless it says
+  `plus: true`, which adds its value instead: an offset at `length/2 + gap` is a `length` entry, then a `gap` entry
+  with `plus`. A joint limit and a leg's `frameDepthParam` hold one ref, so they take no sum.
 - `leg` is `{ spanParam, widthParam, standParam, frameDepth, frameDepthParam?, arc? }`: a trestle row along the
   span, its height tracking the stand param; `arc: { radiusParam, sweepDeg }` fans it round a curve.
 - `label` takes `size: [w, h]` (m, default 0.05 × 0.05) and `color` (the text, r,g,b 0..1, default black).
@@ -963,7 +966,7 @@ from the `inspect-glb` boxes before choosing the range.
 - When the origin is a mount point, give the box's centre with `centerX` / `centerZ` (m from the origin). When
   the part's size is a param, tie the box to it with `bounds.params`: each entry sets one field (`length`,
   `width`, `top`, `bottom`, `centerX`, `centerZ`) to a linear map of a param, with the same rule as
-  `sizeParams` (`param`, `scale`, `add`, `mulParam`, `min`, `max`). Snapping, selection and drop-rest then see
+  `sizeParams` (`param`, `scale`, `add`, `mulParam`, `min`, `max`, and `plus` to add a second param's term). Snapping, selection and drop-rest then see
   the part at every setting. The [diverter](../examples/parts/diverter/rig.json) does both: its origin sits
   toward the guard it mounts on, its length and centre follow its stroke, and its bottom follows its stand
   height.

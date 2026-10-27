@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ParamSchema, ParamValue } from '../parts/partApi'
 import { compileRig, type RigSource } from './rigCompile'
-import { resolvedBoxSize, resolvedOffset } from './rigPose'
+import { resolvedBounds } from '../parts/partGeometry'
+import { resolvedBoxSize, resolvedOffset, rigWorldPoses } from './rigPose'
 
 const schema: ParamSchema = {
   width: { type: 'number', default: 1, min: 0.2, max: 2 },
@@ -116,9 +117,9 @@ describe('compileRig', () => {
     expect(link.offsetParams).toEqual([{ axis: 1, param: 'width', mulParam: 'height', scale: 0.5 }])
   })
 
-  it('refuses a number that follows two params but is not their product', () => {
-    const sum = compileRig(rigOf((p) => [box([num(p, 'width') + num(p, 'height'), 1, 1])]), schema)
-    expect(sum.problems).toEqual([expect.stringContaining('follows both width and height')])
+  it('refuses a number that follows two params but is neither their product nor a sum of lines', () => {
+    const curve = compileRig(rigOf((p) => [box([num(p, 'width') * num(p, 'width') + num(p, 'height'), 1, 1])]), schema)
+    expect(curve.problems).toEqual([expect.stringContaining('follows both width and height')])
     const clamped = compileRig(rigOf((p) => [box([Math.min(num(p, 'width') * num(p, 'height'), 1), 1, 1])]), schema)
     expect(clamped.problems).toEqual([expect.stringContaining('follows both width and height')])
     const three = compileRig(rigOf((p) => [box([num(p, 'width') * num(p, 'height') * num(p, 'depth'), 1, 1])]), {
@@ -216,9 +217,67 @@ describe('compileRig', () => {
     expect(result.problems).toEqual([expect.stringContaining('a size must stay positive')])
   })
 
-  it('refuses a number that follows two params', () => {
-    const sum = compileRig(rigOf((p) => [box([num(p, 'width') + num(p, 'height'), 1, 1])]), schema)
-    expect(sum.problems).toEqual([expect.stringContaining('follows both width and height')])
+  it('fits a sum of two params as a replacing ref and a plus ref', () => {
+    const result = compileRig(rigOf((p) => [box([num(p, 'width') + num(p, 'height'), 1, 1], [num(p, 'width') / 2 + num(p, 'height') + 0.1, 0, 0])]), schema)
+    expect(result.problems).toEqual([])
+    const link = result.geometry!.links[0]!
+    expect((link.shape as { sizeParams?: unknown }).sizeParams).toEqual([
+      { axis: 0, param: 'width', scale: 1, add: 0.5 },
+      { axis: 0, param: 'height', scale: 1, add: -0.5, plus: true },
+    ])
+    // the first ref is the line in width at the default height, the plus ref the line in height less the default's value
+    expect(link.offsetParams).toEqual([
+      { axis: 0, param: 'width', scale: 0.5, add: 0.6 },
+      { axis: 0, param: 'height', scale: 1, add: -0.5, plus: true },
+    ])
+    const params = { width: 1.7, height: 0.2 }
+    expect(resolvedOffset(link.offset, link.offsetParams, params)[0]).toBeCloseTo(1.15, 9)
+  })
+
+  it('fits a clamped line in each param of a sum, and a bounds field that sums two params', () => {
+    const result = compileRig(
+      (p) => ({ links: [box([1, 1, 1], [Math.max(num(p, 'width'), 0.5) + Math.min(num(p, 'height'), 0.8), 0, 0])], joints: [], bounds: { length: num(p, 'width') + 2 * num(p, 'height'), width: 1, top: 1 } }),
+      schema,
+    )
+    expect(result.problems).toEqual([])
+    const link = result.geometry!.links[0]!
+    expect(link.offsetParams).toEqual([
+      { axis: 0, param: 'width', scale: 1, add: 0.5, min: 1 },
+      { axis: 0, param: 'height', scale: 1, add: -0.5, max: 0.3, plus: true },
+    ])
+    expect(result.geometry!.bounds!.params).toEqual([
+      { field: 'length', param: 'width', add: 1 },
+      { field: 'length', param: 'height', scale: 2, add: -1, plus: true },
+    ])
+    expect(resolvedBounds(result.geometry!.bounds!, { width: 0.4, height: 0.9 }).length).toBeCloseTo(2.2, 9)
+  })
+
+  it('refuses a sum on a joint limit, which holds one ref', () => {
+    const result = compileRig(
+      (p) => ({ links: [box([1, 1, 1])], joints: [{ name: 'x', link: 'deck', type: 'prismatic', axis: [1, 0, 0], min: 0, max: num(p, 'width') + num(p, 'height') }] }),
+      schema,
+    )
+    expect(result.problems).toEqual([expect.stringContaining('this field holds one ref')])
+  })
+
+  it("fits a detection zone's size and a link rotation that follow a param", () => {
+    const angled: ParamSchema = { ...schema, angle: { type: 'number', default: 30, min: 0, max: 45 } }
+    const result = compileRig(
+      rigOf((p) => [
+        { ...box([1, 1, 1]), zone: { size: [num(p, 'width'), 0.5, 1] } },
+        { ...box([1, 1, 1]), name: 'arm', rotation: [0, (num(p, 'angle') * Math.PI) / 180, 0] },
+      ]),
+      angled,
+    )
+    expect(result.problems).toEqual([])
+    const [deck, arm] = result.geometry!.links
+    expect(deck!.zone).toEqual({ size: [1, 0.5, 1], sizeParams: [{ axis: 0, param: 'width', scale: 1 }] })
+    expect(arm!.rotation).toEqual([0, 0.52359878, 0])
+    expect(arm!.rotationParams).toEqual([{ axis: 1, param: 'angle', scale: 0.017453292520 }])
+    // the host turns the link by the param
+    const q = rigWorldPoses(result.geometry!, {}, undefined, 1, { angle: 90 }).get('arm')!.quat
+    expect(q[1]).toBeCloseTo(Math.SQRT1_2, 6)
+    expect(q[3]).toBeCloseTo(Math.SQRT1_2, 6)
   })
 
   it('refuses a product of two params, which only the all-params-moved check sees', () => {
@@ -234,10 +293,10 @@ describe('compileRig', () => {
 
   it('refuses a number in a field no ref can drive', () => {
     const result = compileRig(
-      (p) => ({ links: [{ ...box([1, 1, 1]), rotation: [0, num(p, 'height'), 0] }], joints: [] }),
+      (p) => ({ links: [{ ...box([1, 1, 1]), color: [num(p, 'height'), 0, 0] }], joints: [] }),
       schema,
     )
-    expect(result.problems).toEqual([expect.stringContaining(".links[0].rotation[1] changes with height, and that field can't follow a param")])
+    expect(result.problems).toEqual([expect.stringContaining(".links[0].color[0] changes with height, and that field can't follow a param")])
   })
 
   it('refuses a number that follows a boolean', () => {

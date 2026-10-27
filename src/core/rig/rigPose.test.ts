@@ -93,6 +93,29 @@ describe('param-driven box size resolution', () => {
     expect(resolvedBoxSize([2, 0.06, 1.65], deckZ, { chains: 5, distance: 'wide' })).toEqual([2, 0.06, 1.65])
   })
 
+  it('a plus entry adds to the axis instead of replacing it, in order', () => {
+    const refs = [
+      { axis: 0 as const, param: 'length', scale: 0.5 },
+      { axis: 0 as const, param: 'gap', plus: true },
+    ]
+    expect(resolvedOffset([9, 0, 0], refs, { length: 2, gap: 0.3 })[0]).toBeCloseTo(1.3, 9)
+    // a lone plus entry shifts the static value; an entry that does not resolve leaves the axis as it is
+    expect(resolvedOffset([1, 0, 0], [refs[1]!], { gap: 0.3 })[0]).toBeCloseTo(1.3, 9)
+    expect(resolvedOffset([9, 0, 0], refs, { length: 2 })[0]).toBe(1)
+    expect(resolvedBoxSize([1, 1, 1], [{ axis: 1, param: 'h' }, { axis: 1, param: 'lip', scale: 2, plus: true }], { h: 0.5, lip: 0.1 })[1]).toBeCloseTo(0.7, 9)
+  })
+
+  it('rotationParams turn a link by a param, through the flat composition and rigLocalPose alike', () => {
+    const arm: RigLink = { name: 'arm', shape: { kind: 'box', size: [1, 0.1, 0.1] }, offset: [0, 0, 0], rotation: [0, 0, 0], rotationParams: [{ axis: 1, param: 'splay', scale: Math.PI / 180 }] }
+    const geo: RigGeometry = { kind: 'rig', links: [arm], joints: [] }
+    const q = rigWorldPoses(geo, {}, undefined, 1, { splay: 90 }).get('arm')!.quat
+    expect(q[1]).toBeCloseTo(Math.SQRT1_2, 9)
+    expect(q[3]).toBeCloseTo(Math.SQRT1_2, 9)
+    expect(rigLocalPose(arm, undefined, 0, { splay: 90 }).quat[1]).toBeCloseTo(Math.SQRT1_2, 9)
+    // without the param the authored rotation stands
+    expect(rigWorldPoses(geo, {}, undefined, 1, {}).get('arm')!.quat).toEqual([0, 0, 0, 1])
+  })
+
   it('rigWorldPoses resolves a param-driven hinge offset through a revolute joint', () => {
     // a hinge frame at -length/2 with a leaf child at +length/2 (so the leaf centres at the part origin when
     // closed); a 90° swing pivots the leaf about the hinge.

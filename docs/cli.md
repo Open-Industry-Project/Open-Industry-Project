@@ -33,10 +33,11 @@ Scene conventions the tools assume (rotationY direction, +X downstream, left = -
   the params, `rig(params)` (or a static `manifest.geometry`), `geometry()` and `step()`, importing other modules by
   relative path. From it this writes the behavior (the imports joined in, comments kept, `manifest` / `rig()` and
   unused helpers left out: scripts/lib/bundlePart.mjs) and the manifest (src/core/rig/rigCompile.ts turns each number that follows a param into a
-  ref: a straight line in one param, a straight line between two flat ends (the ref's `min` / `max`), or a product of
-  two params plus a constant (`mulParam`), on a link offset, a box, cylinder or grip zone size, an array step, a leg
-  row's frame depth, a joint's limits (`minParam` / `maxParam`, the static limit the widest over the range) or a bounds
-  field (`bounds.params`); it refuses one it can't express and passes through any ref `rig()` writes itself).
+  ref: a straight line in one param, a straight line between two flat ends (the ref's `min` / `max`), a product of
+  two params plus a constant (`mulParam`), or a sum of a line in each of two params (two refs, the second `plus`), on a
+  link offset or rotation, a box, cylinder, grip zone or detection zone size, an array step, a leg row's frame depth, a
+  joint's limits (`minParam` / `maxParam`, the static limit the widest over the range; no sums) or a bounds field
+  (`bounds.params`); it refuses one it can't express and passes through any ref `rig()` writes itself).
   - A bare name is `examples/parts/<dir>`, and no name means every one of those with a `part.js`. There the files are
     `behavior.ts` and `rig.json`, and shared code is in `examples/parts/_shared/`.
   - A path (anything with a slash) is any folder holding a `part.js`: a project's `parts/<slug>/`, a library's source

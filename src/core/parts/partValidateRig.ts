@@ -22,7 +22,7 @@ export function validateSizeParams(sizeParams: unknown, at: string, add: (field:
     return
   }
   sizeParams.forEach((raw, i) => {
-    const sp = raw as { axis?: unknown; param?: unknown; mulParam?: unknown; scale?: unknown; add?: unknown; min?: unknown; max?: unknown }
+    const sp = raw as { axis?: unknown; param?: unknown; mulParam?: unknown; scale?: unknown; add?: unknown; min?: unknown; max?: unknown; plus?: unknown }
     const where = `${at}[${i}]`
     if (sp?.axis !== 0 && sp?.axis !== 1 && sp?.axis !== 2) add(`${where}.axis`, 'axis must be 0, 1 or 2')
     if (typeof sp?.param !== 'string' || sp.param === '') add(`${where}.param`, 'param must be a non-empty string')
@@ -32,6 +32,7 @@ export function validateSizeParams(sizeParams: unknown, at: string, add: (field:
     if (sp?.min !== undefined && !isFiniteNum(sp.min)) add(`${where}.min`, 'min must be a finite number')
     if (sp?.max !== undefined && !isFiniteNum(sp.max)) add(`${where}.max`, 'max must be a finite number')
     if (isFiniteNum(sp?.min) && isFiniteNum(sp?.max) && (sp.min as number) > (sp.max as number)) add(`${where}.min`, 'min must be <= max')
+    if (sp?.plus !== undefined && typeof sp.plus !== 'boolean') add(`${where}.plus`, 'plus must be a boolean')
   })
 }
 
@@ -309,6 +310,9 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
     parents.set(l.name, typeof l.parent === 'string' ? l.parent : undefined)
     if (!isVec3(l.offset)) add(`${at}.offset`, 'offset must be 3 finite numbers')
     validateSizeParams((l as { offsetParams?: unknown }).offsetParams, `${at}.offsetParams`, add)
+    const rotationParams = (l as { rotationParams?: unknown }).rotationParams
+    validateSizeParams(rotationParams, `${at}.rotationParams`, add)
+    if (rotationParams !== undefined && (l as { quat?: unknown }).quat !== undefined) add(`${at}.rotationParams`, 'rotationParams drive the Euler rotation, which a quat replaces: give the link a rotation instead of a quat')
     const color = (l as { color?: unknown }).color
     if (color !== undefined && !isVec3(color)) add(`${at}.color`, 'color must be 3 finite numbers (r, g, b in 0..1)')
     const colorParam = (l as { colorParam?: unknown }).colorParam

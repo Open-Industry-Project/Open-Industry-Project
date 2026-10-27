@@ -41,6 +41,10 @@ export interface SizeParamRef {
     min?: number;
     /** clamp the resolved value from above (after scale+add) - the mirror floor for a negative-side offset */
     max?: number;
+    /** add this entry's value to the axis instead of replacing it: entries for one axis apply in order, so a
+     *  replacing entry then a `plus` one makes a sum of two params (an offset at `length/2 + gap`), and a lone `plus`
+     *  entry shifts the static value. Default false (the entry replaces the axis). */
+    plus?: boolean;
 }
 
 /** One indicator lamp a rig link carries ({@link RigLink.lamps}): a light the behavior switches with
@@ -372,6 +376,9 @@ export interface RigLink {
     /** per-axis overrides that make this link's `offset` track an instance param (e.g. a hinge at
      *  `-length/2`), so a length/width param repositions the sub-part per instance */
     offsetParams?: SizeParamRef[];
+    /** per-axis overrides that make this link's `rotation` (Euler XYZ, radians) track an instance param, the same
+     *  rule as `offsetParams` (a spur's splay angle in degrees is `scale: π/180`). Not with `quat`. */
+    rotationParams?: SizeParamRef[];
     /** The base material colour [r, g, b] (0..1, linear) of this primitive link - gives it its own tinted
      *  material instead of the shared neutral fallback (so a belt reads as steel, a rack's shelves as wood,
      *  etc.). Not on a lamp link: a lamp's colours are its own, lit `emissive` and dark `offColor` ({@link RigLamp}).
@@ -736,6 +743,9 @@ export interface BoundsParamRef {
     min?: number;
     /** clamp the resolved value from above (after scale+add) */
     max?: number;
+    /** add this entry's value to the field instead of replacing it, as a link's {@link SizeParamRef.plus}: a bounds
+     *  length of `length + 2 × overhang` is a replacing entry then a `plus` one */
+    plus?: boolean;
 }
 
 /** A cargo box's size (m), centred on its origin: `length` along X, `height` along Y, `width` along Z. */

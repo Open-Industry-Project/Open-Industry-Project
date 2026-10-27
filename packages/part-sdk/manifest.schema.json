@@ -208,6 +208,13 @@
             "$ref": "#/$defs/SizeParamRef"
           }
         },
+        "rotationParams": {
+          "description": "per-axis overrides that make this link's `rotation` (Euler XYZ, radians) track an instance param, the same\nrule as `offsetParams` (a spur's splay angle in degrees is `scale: π/180`). Not with `quat`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SizeParamRef"
+          }
+        },
         "color": {
           "description": "The base material colour [r, g, b] (0..1, linear) of this primitive link - gives it its own tinted\nmaterial instead of the shared neutral fallback (so a belt reads as steel, a rack's shelves as wood,\netc.). Not on a lamp link: a lamp's colours are its own, lit `emissive` and dark `offColor` ({@link RigLamp}).\nRender-only; ignored on mesh/frame links (a mesh keeps its GLB/`material`).",
           "$ref": "#/$defs/Vec3Tuple"
@@ -734,6 +741,10 @@
         "max": {
           "description": "clamp the resolved value from above (after scale+add) - the mirror floor for a negative-side offset",
           "type": "number"
+        },
+        "plus": {
+          "description": "add this entry's value to the axis instead of replacing it: entries for one axis apply in order, so a\nreplacing entry then a `plus` one makes a sum of two params (an offset at `length/2 + gap`), and a lone `plus`\nentry shifts the static value. Default false (the entry replaces the axis).",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -1025,6 +1036,10 @@
         "max": {
           "description": "clamp the resolved value from above (after scale+add) - the mirror floor for a negative-side offset",
           "type": "number"
+        },
+        "plus": {
+          "description": "add this entry's value to the axis instead of replacing it: entries for one axis apply in order, so a\nreplacing entry then a `plus` one makes a sum of two params (an offset at `length/2 + gap`), and a lone `plus`\nentry shifts the static value. Default false (the entry replaces the axis).",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -1363,6 +1378,10 @@
         "max": {
           "description": "clamp the resolved value from above (after scale+add)",
           "type": "number"
+        },
+        "plus": {
+          "description": "add this entry's value to the field instead of replacing it, as a link's {@link SizeParamRef.plus}: a bounds\nlength of `length + 2 × overhang` is a replacing entry then a `plus` one",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
