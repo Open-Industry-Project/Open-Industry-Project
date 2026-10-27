@@ -346,6 +346,28 @@ describe('runProjectTest - step rate', () => {
   })
 })
 
+// --- scan time ----------------------------------------------------------------------------------------
+// A test scans the program as Play does: at the project's scan time, else the editor's 10 ms default. A test that
+// scanned once per 16.7 ms step instead passed a one-scan pulse that Play, scanning twice a step, never showed a part.
+describe('runProjectTest - scan time', () => {
+  afterEach(() => unregisterPackage('test.echo'))
+  const counting = (stScanMs?: number): ProjectJSON => ({
+    ...project(),
+    stProgram: 'VAR_OUTPUT Scans : INT; END_VAR\nScans := Scans + 1;',
+    ...(stScanMs !== undefined ? { stScanMs } : {}),
+  })
+  // whether the program scanned `scans` times (±3) in the first second
+  const scanned = (p: ProjectJSON, scans: number, scanMs?: number): boolean =>
+    runProjectTest(Jolt, p, { duration: 1, ...(scanMs !== undefined ? { scanMs } : {}), checks: [{ at: 1, tag: 'Scans', near: scans, tolerance: 3 }] }).ok
+
+  it("scans at the project's scan time, the editor's default when it saved none, and a spec's scanMs over both", () => {
+    expect(scanned(counting(), 100)).toBe(true) // 10 ms
+    expect(scanned(counting(), 60)).toBe(false) // not one scan per 16.7 ms step
+    expect(scanned(counting(50), 20)).toBe(true)
+    expect(scanned(counting(50), 40, 25)).toBe(true)
+  })
+})
+
 // --- binding by wiring -----------------------------------------------------------------------------
 // A program written with controller tags that carry no direction on any of them. The parts
 // give it: an eye publishes Eye, so Eye is the program's input; a belt only reads Run, so Run is its

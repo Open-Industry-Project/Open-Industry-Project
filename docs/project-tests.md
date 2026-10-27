@@ -57,8 +57,8 @@ that document splits on load (docs/projects.md "Splitting an older project"), an
 {
   "name": "start latches",    // optional display name (the CLI defaults to the file name)
   "duration": 30,             // simulated seconds, fixed-step; wall-clock ≈ much less
-  "scanMs": 10,               // optional PLC scan period; defaults to one scan per sim step. Only a program with
-                              // no controller table / CONFIGURATION uses it: a table's own task interval wins
+  "scanMs": 10,               // optional PLC scan period; defaults to the project's scan time, as Play scans. Only
+                              // a program with no controller table / CONFIGURATION uses it: a table's task interval wins
   "inputs": [                 // optional stimulus timeline (PLC/behavior input tags)
     { "at": 0,  "tag": "StartPB", "value": true },
     { "at": 0.5, "tag": "StartPB", "value": false }

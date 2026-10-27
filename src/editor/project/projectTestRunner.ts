@@ -28,6 +28,7 @@ import { deviceTags } from '../../plc/bindings'
 import { canonicalAddress, looksLikeAddress } from '../../core/io/iecAddress'
 import { SimWorld } from '../../sim/world'
 import { MAX_SCANS_PER_STEP } from '../../sim/plcHost'
+import { DEFAULT_SCAN_MS } from '../program/stProgram'
 import { LocalPlcLink } from '../../plc/link/plcLink'
 import { wiredBindings } from '../../plc/wiring'
 import { controllerFor, runnableSource } from '../../plc/controller'
@@ -191,9 +192,10 @@ export function runProjectTest(
   const world = new SimWorld(Jolt, scene, { hz, ...(opts?.flowFacts === false ? { flowFacts: false } : {}) })
   // what onFrame may ask beyond the frame, each read only when asked (the cargo snapshots' contacts)
   const frameExtras: FrameExtras = { contacts: () => world.cargoContacts() }
-  // the program with the CONFIGURATION of the table it runs from, the same source the editor attaches: its own
-  // table, or for a program with a PROGRAM and none, the default one at the spec's scan time (else the scene's)
-  const defaultMs = spec.scanMs ?? stScanMs ?? 1000 / hz
+  // The scan time Play uses: the project's own (what the editor loads, sceneFile.ts), or the editor's default when it
+  // saved none. A spec's scanMs overrides it. The program runs from its own table if it has one, else a default
+  // table at this time.
+  const defaultMs = spec.scanMs ?? stScanMs ?? DEFAULT_SCAN_MS
   // bound as Play binds it: declared I/O, plus the program's own tags the scene's parts are wired to by name
   const declared = stProgram !== '' ? new LocalPlcLink(runnableSource(stProgram, controllerFor(stProgram, controller, defaultMs)), undefined) : null
   const plc = declared ? declared.withBindings(wiredBindings(scene.parts, declared)) : null
@@ -223,7 +225,7 @@ export function runProjectTest(
   const jams = (spec.faults ?? []).flatMap((fault, index) => (fault.kind === 'jam' ? [{ fault, index, body: null as number | null, caught: false }] : []))
 
   const dt = 1 / hz
-  const scanPeriod = spec.scanMs !== undefined ? spec.scanMs / 1000 : dt
+  const scanPeriod = defaultMs / 1000
   // The scheduler the live sim runs (sim/plcHost.ts), so a test scans on the cadence Play does: one
   // program every `scanPeriod`, or a CONFIGURATION's tasks each on its own interval. A hand-rolled
   // accumulator that runs at most one scan per step would quietly slow every timer whenever a spec

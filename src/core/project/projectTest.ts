@@ -276,7 +276,7 @@ export interface TestSpec {
   name?: string
   /** simulated seconds to run */
   duration: number
-  /** PLC scan period in ms (defaults to one scan per sim step) */
+  /** PLC scan period in ms (defaults to the project's scan time, as Play scans) */
   scanMs?: number
   inputs?: TestInput[]
   /** devices that fail during the run (sensor stuck, actuator dead), each from `at` until `until` */
