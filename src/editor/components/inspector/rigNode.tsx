@@ -13,6 +13,9 @@ import { behaviorMentions } from '../../../core/parts/partPackage'
 import { linkCollisionBox, partLinkOwnership } from '../../../core/rig/rigPose'
 import type { LinkFieldOwner, LinkNote } from '../../../core/rig/rigPose'
 import { AUTHORABLE_SHAPE_KINDS, canDeleteRigNode, convertShape, isAuthorableShapeKind, shapeLabel } from '../../rigTree'
+import { movingPartCentre, rigPivot, splitSourcesFor } from '../../rigSplit'
+import { meshLinkBox, parseGlb } from '../../../core/glbBox'
+import { base64ToBytes } from '../../../core/parts/partAssets'
 import type { AuthorableShapeKind } from '../../rigTree'
 import type { EditorStore } from '../../store/store'
 import type { EditorController } from '../../controller'
@@ -136,6 +139,17 @@ const M = defineMessages('inspector.rigNode', {
     "Hard lower limit on the travel. A script commanding past it is clamped, not ignored, so the node parks at the limit instead of failing. 0 is the node's rest position; a negative limit lets it retract behind that.",
   maxTravelTip:
     "Hard upper limit on the travel: the node's stroke measured from its rest position along the axis above. A script commanding past it is clamped, not ignored.",
+  pivot: 'Pivot ({unit})',
+  pivotTip:
+    "The point this joint turns about, in the part's coordinates. Changing it keeps everything where it is at rest: on a node that draws something, a frame is added above it to carry the joint, and the joint keeps its name.",
+  pivotCentre: 'Pivot at centre',
+  pivotCentreTip: 'Put the pivot at the centre of everything this joint moves. Type the pivot above to put it on a hinge line instead.',
+  pivotLocked: 'A node above this one is rotated or placed by a parameter, so the pivot is set with Offset on the nodes instead.',
+  split: 'Split into pieces',
+  splitHereHint: 'Click a piece of the model to give it its own node under this one. It stays where it is, and can then get a joint.',
+  splitUnderHint: 'Click a piece of “{source}” to move it with this node. It stays where it is at rest.',
+  splitPieceTip: 'Split “{node}” out into its own node',
+  splitNone: 'Every piece of this model is already split out.',
   removeJoint: 'Remove joint',
   addJointTip: 'Make this node articulated: add a joint the behavior script drives with ctx.setJoint(name, …)',
   addJoint: 'Add joint',
@@ -502,6 +516,47 @@ export function RigNodePanel({
     link.shape.kind === 'mesh' ? (getPackage(part.packageId)?.assets ?? []).find((a) => a.id === (link.shape as Extract<RigShape, { kind: 'mesh' }>).asset) : undefined
   const glb = useMemo(() => (meshAsset?.data ? inspectGlb(meshAsset.data) : null), [meshAsset?.data])
 
+  // Split into pieces: the whole-scene model this node can take pieces from (itself, or an ancestor it lines up
+  // with), and that model's nodes still drawn there. Nodes come from the asset's own GLB, not this link's.
+  const pkgAssets = ownPkg?.assets
+  const rig = pkgGeometry?.kind === 'rig' ? pkgGeometry : null
+  const splitSource = rig ? (splitSourcesFor(rig, link.name)[0] ?? null) : null
+  const splitAsset = splitSource?.shape.kind === 'mesh' ? splitSource.shape.asset : undefined
+  const splitAssetData = (pkgAssets ?? []).find((a) => a.id === splitAsset)?.data
+  const splitGlb = useMemo(() => (splitAssetData ? inspectGlb(splitAssetData) : null), [splitAssetData])
+  const splitHidden = splitSource?.shape.kind === 'mesh' ? new Set(splitSource.shape.hideNodes ?? []) : new Set<string>()
+  // a node another link already keeps is not offered again, so a piece is never drawn twice
+  const keptElsewhere = new Set((rig?.links ?? []).flatMap((l) => (l.shape.kind === 'mesh' && l.shape.asset === splitAsset && l.shape.keepNode ? [l.shape.keepNode] : [])))
+  const splitCandidates = splitGlb ? splitGlb.nodes.filter((n) => !splitHidden.has(n) && !keptElsewhere.has(n)) : []
+  // glTF JSON per embedded asset, parsed once, for measuring mesh links (pivot at centre)
+  const glbJson = useMemo(() => {
+    const out = new Map<string, unknown>()
+    for (const a of pkgAssets ?? []) {
+      if (a.mime !== 'model/gltf-binary' || !a.data) continue
+      const bytes = base64ToBytes(a.data)
+      if (!bytes) continue
+      try {
+        out.set(a.id, parseGlb(bytes).json)
+      } catch {
+        // not a GLB: nothing to measure
+      }
+    }
+    return out
+  }, [pkgAssets])
+  const pivot = rig && joint ? rigPivot(rig, link.name) : null
+  const setPivot = (p: [number, number, number]): void => {
+    controller?.setRigJointPivot(part.packageId, link.name, p)
+  }
+  const centrePivot = (): void => {
+    if (!rig) return
+    const c = movingPartCentre(rig, link.name, (l) => {
+      if (l.shape.kind !== 'mesh') return null
+      const json = glbJson.get(l.shape.asset)
+      return json ? meshLinkBox(json, l.shape) : null
+    })
+    if (c) setPivot(c)
+  }
+
   // M4: add / edit / remove the joint that articulates this node (the script drives it by name).
   const revolute = joint?.type === 'revolute'
   const addJoint = (): void => controller?.setRigJoint(part.packageId, link.name, { type: 'revolute', axis: [0, 1, 0], min: -Math.PI / 2, max: Math.PI / 2 })
@@ -685,13 +740,15 @@ export function RigNodePanel({
           <Fold title={t(M.mesh)} path="Shape/Mesh" depth={1} collapsed={folds} toggle={toggle}>
             {row(
               t(M.asset),
-              s.node ? `${s.asset} · ${s.node}` : s.asset,
+              s.node ? `${s.asset} · ${s.node}` : s.keepNode ? `${s.asset} · ${s.keepNode}` : s.asset,
               t(M.assetTip),
             )}
             <NumberField label={t(M.scale)} unit="" tooltip={t(M.scaleTip)} value={s.scale ?? 1} decimals={3} step={0.01} min={0.001} disabled={!editable} onCommit={(v) => setShape({ ...s, scale: Math.max(0.001, v) })} />
             {glb && (glb.nodes.length > 0 || glb.materials.length > 0) && (
               <div className="glb-contents">
-                {glb.nodes.length > 0 && (
+                {/* a carved link (a split piece, or a model with pieces split off) cannot also take `node`: the
+                    validator refuses the mix, so its pieces are managed under Split into pieces instead */}
+                {glb.nodes.length > 0 && !s.keepNode && !s.hideNodes?.length && (
                   <>
                     <div className="glb-group-label">{t(M.glbNodes)}</div>
                     <div className="glb-chips">
@@ -738,6 +795,29 @@ export function RigNodePanel({
         )}
 
       </Fold>
+      {splitSource && splitGlb && splitGlb.nodes.length > 0 && (
+        <Fold title={t(M.split)} path="Split" collapsed={folds} toggle={toggle}>
+          <p className="inspector-hint">{splitSource.name === link.name ? t(M.splitHereHint) : t(M.splitUnderHint, { source: splitSource.name })}</p>
+          {splitCandidates.length > 0 ? (
+            <div className="glb-chips" data-testid="split-pieces">
+              {splitCandidates.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className="glb-chip"
+                  disabled={!editable}
+                  title={t(M.splitPieceTip, { node: n })}
+                  onClick={() => controller?.splitRigMeshNode(part.packageId, splitSource.name, n, link.name)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="inspector-hint">{t(M.splitNone)}</p>
+          )}
+        </Fold>
+      )}
       <Fold title={t(M.joint)} path="Joint" collapsed={folds} toggle={toggle}>
         {joint ? (
           <>
@@ -808,6 +888,35 @@ export function RigNodePanel({
               <>
                 <NumberField label={t(M.min)} unit="°" tooltip={t(M.minRotTip)} value={(joint.min * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ min: toRad(v) })} />
                 <NumberField label={t(M.max)} unit="°" tooltip={t(M.maxRotTip)} value={(joint.max * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ max: toRad(v) })} />
+                {pivot ? (
+                  <>
+                    <VectorRow label={t(M.pivot, { unit: lengthUnit })} tooltip={t(M.pivotTip)}>
+                      {([0, 1, 2] as const).map((axis) => (
+                        <AxisInput
+                          key={axis}
+                          prefix={['X', 'Y', 'Z'][axis]!}
+                          value={pivot[axis]}
+                          decimals={3}
+                          step={0.01}
+                          entryUnit="m"
+                          disabled={!editable}
+                          onCommit={(v) => {
+                            const p: [number, number, number] = [pivot[0], pivot[1], pivot[2]]
+                            p[axis] = v
+                            setPivot(p)
+                          }}
+                        />
+                      ))}
+                    </VectorRow>
+                    <div className="rig-script-actions">
+                      <button type="button" className="array-add" data-testid="pivot-centre" disabled={!editable} title={t(M.pivotCentreTip)} onClick={centrePivot}>
+                        {t(M.pivotCentre)}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="inspector-hint">{t(M.pivotLocked)}</p>
+                )}
               </>
             ) : (
               <>

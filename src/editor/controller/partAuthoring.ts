@@ -11,6 +11,7 @@ import { bytesToBase64 } from '../../core/parts/partAssets'
 import { fitRigToModel } from '../../core/parts/modelFit'
 import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
+import { setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
 import type { AuthorableShapeKind } from '../rigTree'
 import type { PartPackage, RigJoint, RigLink, RigShape } from '../../core/parts/partPackage'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
@@ -154,6 +155,33 @@ export function addRigNode(ec: AuthoringDeps, packageId: string, parentLinkName:
   ec.store.commitPackage('Add node', { ...pkg, geometry: { ...pkg.geometry, links: [...links, node] } })
   const focused = ec.store.getState().focusedPartId
   if (focused) ec.store.selectRigNode(focused, name)
+}
+
+/** Split a GLB node out of a whole-scene mesh link into a new node under `parentLinkName` (rigSplit.splitRigNode),
+ *  and select the new node so its joint can be added next. False when the split would not line up. */
+export function splitRigMeshNode(ec: AuthoringDeps, packageId: string, sourceLinkName: string, glbNode: string, parentLinkName: string): boolean {
+  const pkg = getPackage(packageId)
+  if (!pkg || pkg.geometry.kind !== 'rig') return false
+  const out = splitGeometry(pkg.geometry, sourceLinkName, glbNode, parentLinkName)
+  if (!out) return false
+  ec.store.commitPackage('Split out node', { ...pkg, geometry: out.geometry })
+  const focused = ec.store.getState().focusedPartId
+  if (focused) ec.store.selectRigNode(focused, out.name)
+  return true
+}
+
+/** Move the pivot of a link's joint to a point in part coordinates, keeping the rest pose (rigSplit.setRigPivot).
+ *  When a frame had to be inserted to carry the joint, it is selected, since the joint now lives there. */
+export function setRigJointPivot(ec: AuthoringDeps, packageId: string, linkName: string, pivot: [number, number, number]): boolean {
+  const pkg = getPackage(packageId)
+  if (!pkg || pkg.geometry.kind !== 'rig') return false
+  const out = pivotedGeometry(pkg.geometry, linkName, pivot)
+  if (!out) return false
+  if (out.geometry === pkg.geometry) return true
+  ec.store.commitPackage('Move pivot', { ...pkg, geometry: out.geometry }, { coalesceKey: `pivot:${packageId}:${out.jointLink}` })
+  const focused = ec.store.getState().focusedPartId
+  if (focused && out.jointLink !== linkName) ec.store.selectRigNode(focused, out.jointLink)
+  return true
 }
 
 export function captureRigPose(ec: AuthoringDeps, partId: string): number[] | null {

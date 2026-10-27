@@ -1005,6 +1005,23 @@ from the `inspect-glb` boxes before choosing the range.
   indicator head) is outside the footprint. Leave the handle off a param that is not the whole extent, and tie
   `bounds` to it with `bounds.params` instead.
 
+#### Carving in the editor
+
+The Part Editor writes the same carving for you. Import the model onto a node (**Import model…**), then:
+
+1. **Split into pieces** on that node lists the model's nodes. Click one to give it its own node: the model
+   node hides it (`hideNodes`) and the new node keeps only it (`keepNode`) from the same asset, at the offset
+   that keeps it in place. Nothing is imported twice.
+2. To make several pieces move together, select the first split piece and click the others under its own
+   **Split into pieces**. They become its children and follow its joint.
+3. **Add joint** on the piece and set its type, axis and limits.
+4. For a revolute joint, **Pivot** sets the point it turns about, in part coordinates, and **Pivot at centre**
+   puts it at the centre of everything the joint moves. A node that draws something gets a `frame` inserted
+   above it to carry the joint, with the same joint name, so the rest pose and the behavior script are unchanged.
+
+Pieces are offered only where they still line up: the nodes between the model node and the selected node must
+carry plain offsets (no rotation, no param-driven placement).
+
 ### 4. Behavior and verify
 
 Drive the joint from a tag as a primitive rig does (`ctx.setJoint`, gated on `tagDriven`; see

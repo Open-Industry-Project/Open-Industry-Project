@@ -13,5 +13,7 @@ The first public source release. The [README](README.md#features) lists what it 
 - An external PLC link over SLMP (MELSEC 3E binary frames): a Q, L, iQ-R or iQ-F CPU reads and
   writes the scene's tags as its own devices (`M10`, `Y0`, `D100`, `B1A`, `W10`, `TN5`), with a
   connection guide ([guides/slmp/](guides/slmp/)).
+- Part Editor: **Split into pieces** turns an imported model's nodes into their own nodes without importing it
+  again, and a revolute joint's **Pivot** (with **Pivot at centre**) sets the point it turns about.
 
 Earlier development history is not part of this repository.

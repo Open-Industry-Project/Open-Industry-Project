@@ -1020,6 +1020,23 @@ export class EditorController {
   }
 
   /**
+   * Author mode: split one node of an imported model out of a whole-scene mesh link into its own child node of
+   * `parentLinkName`, which can then carry a joint. Same asset, no copy: the source hides the node and the new
+   * node keeps only it, so it stays where it was. Selects the new node. False when it would not line up.
+   */
+  splitRigMeshNode(packageId: string, sourceLinkName: string, glbNode: string, parentLinkName: string): boolean {
+    return authoringOps.splitRigMeshNode(this, packageId, sourceLinkName, glbNode, parentLinkName)
+  }
+
+  /**
+   * Author mode: move the pivot a link's joint turns about to a point in part coordinates, with the rest pose
+   * unchanged. A link that draws something gets a frame inserted above it to carry the joint (same joint name).
+   */
+  setRigJointPivot(packageId: string, linkName: string, pivot: [number, number, number]): boolean {
+    return authoringOps.setRigJointPivot(this, packageId, linkName, pivot)
+  }
+
+  /**
    * Author mode (in-browser behavior editor): validate a candidate behavior script against the part's own
    * rig the same way the desktop hot-reload loop does, without committing. Reuses validatePart so the browser
    * path can never drift from disk import. Returns all diagnostics (located, typed) - [] when clean. Drives
