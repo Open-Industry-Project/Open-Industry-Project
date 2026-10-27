@@ -11,7 +11,7 @@ import { bytesToBase64 } from '../../core/parts/partAssets'
 import { fitRigToModel } from '../../core/parts/modelFit'
 import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
-import { setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
+import { mergeRigPiece as mergedGeometry, reparentRigLink as reparentedGeometry, setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
 import type { AuthorableShapeKind } from '../rigTree'
 import type { PartPackage, RigJoint, RigLink, RigShape } from '../../core/parts/partPackage'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
@@ -181,6 +181,28 @@ export function setRigJointPivot(ec: AuthoringDeps, packageId: string, linkName:
   ec.store.commitPackage('Move pivot', { ...pkg, geometry: out.geometry }, { coalesceKey: `pivot:${packageId}:${out.jointLink}` })
   const focused = ec.store.getState().focusedPartId
   if (focused && out.jointLink !== linkName) ec.store.selectRigNode(focused, out.jointLink)
+  return true
+}
+
+/** Put a split piece back into the model node it came from (rigSplit.mergeRigPiece), selecting that node. */
+export function mergeRigPiece(ec: AuthoringDeps, packageId: string, linkName: string): boolean {
+  const pkg = getPackage(packageId)
+  if (!pkg || pkg.geometry.kind !== 'rig') return false
+  const out = mergedGeometry(pkg.geometry, linkName)
+  if (!out) return false
+  ec.store.commitPackage('Merge node back', { ...pkg, geometry: out.geometry })
+  const focused = ec.store.getState().focusedPartId
+  if (focused) ec.store.selectRigNode(focused, out.select)
+  return true
+}
+
+/** Move a node under another (undefined = the part root) without it moving at rest (rigSplit.reparentRigLink). */
+export function reparentRigLink(ec: AuthoringDeps, packageId: string, linkName: string, parent: string | undefined): boolean {
+  const pkg = getPackage(packageId)
+  if (!pkg || pkg.geometry.kind !== 'rig') return false
+  const geometry = reparentedGeometry(pkg.geometry, linkName, parent)
+  if (!geometry) return false
+  ec.store.commitPackage('Change parent', { ...pkg, geometry })
   return true
 }
 

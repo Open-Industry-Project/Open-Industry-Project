@@ -1019,21 +1019,21 @@ export class EditorController {
     authoringOps.setRigJoint(this, packageId, linkName, joint)
   }
 
-  /**
-   * Author mode: split one node of an imported model out of a whole-scene mesh link into its own child node of
-   * `parentLinkName`, which can then carry a joint. Same asset, no copy: the source hides the node and the new
-   * node keeps only it, so it stays where it was. Selects the new node. False when it would not line up.
-   */
+  /** Author mode: split a GLB node out of a whole-scene mesh link into a child of `parentLinkName` (rigSplit.ts). */
   splitRigMeshNode(packageId: string, sourceLinkName: string, glbNode: string, parentLinkName: string): boolean {
     return authoringOps.splitRigMeshNode(this, packageId, sourceLinkName, glbNode, parentLinkName)
   }
-
-  /**
-   * Author mode: move the pivot a link's joint turns about to a point in part coordinates, with the rest pose
-   * unchanged. A link that draws something gets a frame inserted above it to carry the joint (same joint name).
-   */
+  /** Author mode: move a joint's pivot to a point in part coordinates, rest pose unchanged (rigSplit.ts). */
   setRigJointPivot(packageId: string, linkName: string, pivot: [number, number, number]): boolean {
     return authoringOps.setRigJointPivot(this, packageId, linkName, pivot)
+  }
+  /** Author mode: undo a split, putting the piece back into the model node it came from (rigSplit.ts). */
+  mergeRigPiece(packageId: string, linkName: string): boolean {
+    return authoringOps.mergeRigPiece(this, packageId, linkName)
+  }
+  /** Author mode: move a node under another (undefined = the root), staying in place (rigSplit.ts). */
+  reparentRigLink(packageId: string, linkName: string, parent: string | undefined): boolean {
+    return authoringOps.reparentRigLink(this, packageId, linkName, parent)
   }
 
   /**

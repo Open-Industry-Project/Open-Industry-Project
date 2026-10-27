@@ -1019,6 +1019,14 @@ The Part Editor writes the same carving for you. Import the model onto a node (*
    puts it at the centre of everything the joint moves. A node that draws something gets a `frame` inserted
    above it to carry the joint, with the same joint name, so the rest pose and the behavior script are unchanged.
 
+5. **Test motion** moves the joint from Min to Max and back twice, then returns it to rest, without running the
+   simulation or writing anything to the part.
+
+A piece split under the wrong node can be fixed two ways. **Merge back into model** puts it back into the model
+node and removes it with its joint, and the pieces under it move up. **Parent** moves any node under another one,
+changing its offset so it stays where it is. **Length unit** shows the panel's lengths in m, cm or mm. The part
+always stores metres.
+
 Pieces are offered only where they still line up: the nodes between the model node and the selected node must
 carry plain offsets (no rotation, no param-driven placement).
 

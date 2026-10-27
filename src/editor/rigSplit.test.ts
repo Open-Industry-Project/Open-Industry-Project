@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { movingPartCentre, rigPivot, setRigPivot, splitRigNode, splitSourcesFor } from './rigSplit'
+import { mergeRigPiece, movingPartCentre, reparentRigLink, reparentTargets, rigPivot, setRigPivot, splitRigNode, splitSourcesFor } from './rigSplit'
 import type { RigGeometry } from './rigTree'
 import type { RigJoint, RigLink } from '../core/parts/partPackage'
 
@@ -88,6 +88,59 @@ describe('setRigPivot', () => {
 
   it('refuses a link with no joint', () => {
     expect(setRigPivot(geom([model('body')]), 'body', [0, 0, 0])).toBeNull()
+  })
+})
+
+describe('mergeRigPiece', () => {
+  it('puts the node back into the model and removes the piece with its joint', () => {
+    const g = splitRigNode(geom([model('body')]), 'body', 'Bit', 'body')!.geometry
+    const out = mergeRigPiece({ ...g, joints: [{ name: 'spin', link: 'Bit', type: 'revolute', axis: [0, 1, 0], min: -1, max: 1 }] }, 'Bit')!
+    expect(out.select).toBe('body')
+    expect(out.geometry.links).toEqual([model('body')])
+    expect(out.geometry.joints).toEqual([])
+  })
+
+  it('moves its children up and keeps them in place, removing a pivot frame it leaves empty', () => {
+    let g = splitRigNode(geom([model('body')]), 'body', 'Motors', 'body')!.geometry
+    g = splitRigNode(g, 'body', 'Bit', 'Motors')!.geometry
+    g = setRigPivot({ ...g, joints: [{ name: 'turn', link: 'Motors', type: 'revolute', axis: [0, 1, 0], min: -1, max: 1 }] }, 'Motors', [0.1, 0.6, 0])!.geometry
+    const before = rigPivot(g, 'Bit')!
+    const out = mergeRigPiece(g, 'Motors')!.geometry
+    expect(out.links.map((l) => l.name)).toEqual(['body', 'Bit'])
+    expect(linkOf(out, 'Bit').parent).toBe('body')
+    rigPivot(out, 'Bit')!.forEach((v, k) => expect(v).toBeCloseTo(before[k]!))
+    expect(linkOf(out, 'body').shape).toMatchObject({ hideNodes: ['Bit'] })
+    expect(out.joints).toEqual([])
+  })
+
+  it('refuses a node that is not a split piece', () => {
+    expect(mergeRigPiece(geom([model('body')]), 'body')).toBeNull()
+  })
+})
+
+describe('reparentRigLink', () => {
+  it('moves a node under another and keeps it in place', () => {
+    let g = splitRigNode(geom([model('body')]), 'body', 'Motors', 'body')!.geometry
+    g = splitRigNode(g, 'body', 'Bit', 'body')!.geometry
+    g = { ...g, links: g.links.map((l) => (l.name === 'Motors' ? { ...l, offset: [0, 0.1, 0] as [number, number, number] } : l)) }
+    const out = reparentRigLink(g, 'Bit', 'Motors')!
+    expect(linkOf(out, 'Bit')).toMatchObject({ parent: 'Motors' })
+    expect(linkOf(out, 'Bit').offset[1]).toBeCloseTo(-0.1)
+    expect(rigPivot(out, 'Bit')![1]).toBeCloseTo(rigPivot(g, 'Bit')![1])
+  })
+
+  it('moves a node to the root', () => {
+    const g = splitRigNode(geom([model('body')]), 'body', 'Bit', 'body')!.geometry
+    const bit = linkOf(reparentRigLink(g, 'Bit', undefined)!, 'Bit')
+    expect(bit.parent).toBeUndefined()
+    expect(bit.offset).toEqual([0, 0.4, 0])
+  })
+
+  it('never offers a node inside its own subtree', () => {
+    let g = splitRigNode(geom([model('body')]), 'body', 'Motors', 'body')!.geometry
+    g = splitRigNode(g, 'body', 'Bit', 'Motors')!.geometry
+    expect(reparentTargets(g, 'Motors')).toEqual([undefined, 'body'])
+    expect(reparentRigLink(g, 'Motors', 'Bit')).toBeNull()
   })
 })
 

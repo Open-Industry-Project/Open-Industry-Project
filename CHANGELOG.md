@@ -14,6 +14,8 @@ The first public source release. The [README](README.md#features) lists what it 
   writes the scene's tags as its own devices (`M10`, `Y0`, `D100`, `B1A`, `W10`, `TN5`), with a
   connection guide ([guides/slmp/](guides/slmp/)).
 - Part Editor: **Split into pieces** turns an imported model's nodes into their own nodes without importing it
-  again, and a revolute joint's **Pivot** (with **Pivot at centre**) sets the point it turns about.
+  again, and a revolute joint's **Pivot** (with **Pivot at centre**) sets the point it turns about. A split piece
+  can be merged back, any node can change **Parent** in place, **Test motion** sweeps a joint between its limits,
+  and lengths can be shown in m, cm or mm.
 
 Earlier development history is not part of this repository.

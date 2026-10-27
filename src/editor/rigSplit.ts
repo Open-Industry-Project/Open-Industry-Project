@@ -96,21 +96,96 @@ export function splitRigNode(geometry: RigGeometry, sourceName: string, glbNode:
 }
 
 /**
- * The position of a link's origin in part coordinates (the frame the part's Inspector and gizmo use), which is
- * where its joint turns. Null when a link on the way to the root is rotated or placed by a param, since the
- * pivot is then not a plain point the panel can edit.
+ * A link's origin in part coordinates. `selfToo` also requires the link's own frame to be a plain offset, which
+ * matters when its children are placed from it; its origin alone only depends on the links above it.
  */
-export function rigPivot(geometry: RigGeometry, linkName: string): Vec3 | null {
+function linkOrigin(geometry: RigGeometry, linkName: string, selfToo: boolean): Vec3 | null {
   const chain = chainToRoot(geometry, linkName)
   if (chain.length === 0) return null
   const p: Vec3 = [0, 0, 0]
-  for (const l of chain) {
-    if (!isPlainOffset(l)) return null
+  for (const [i, l] of chain.entries()) {
+    if ((i > 0 || selfToo) && !isPlainOffset(l)) return null
     p[0] += l.offset[0]
     p[1] += l.offset[1]
     p[2] += l.offset[2]
   }
   return p
+}
+
+/**
+ * The position of a link's origin in part coordinates (the frame the part's Inspector and gizmo use), which is
+ * where its joint turns. Null when a link on the way to the root is rotated or placed by a param, since the
+ * pivot is then not a plain point the panel can edit.
+ */
+export function rigPivot(geometry: RigGeometry, linkName: string): Vec3 | null {
+  return linkOrigin(geometry, linkName, true)
+}
+
+/**
+ * The nodes `linkName` can be moved under without moving on screen: every node outside its own subtree whose
+ * origin is a plain point, plus the part root (undefined). Empty when the link itself cannot be placed that way.
+ */
+export function reparentTargets(geometry: RigGeometry, linkName: string): (string | undefined)[] {
+  if (!linkOrigin(geometry, linkName, false)) return []
+  const own = rigSubtree(geometry, linkName)
+  return [undefined, ...geometry.links.filter((l) => !own.has(l.name) && rigPivot(geometry, l.name) !== null).map((l) => l.name)]
+}
+
+/** Move `linkName` under `parent` (undefined = the part root), changing its offset so it stays where it is at rest. */
+export function reparentRigLink(geometry: RigGeometry, linkName: string, parent: string | undefined): RigGeometry | null {
+  if (!reparentTargets(geometry, linkName).includes(parent)) return null
+  const at = linkOrigin(geometry, linkName, false)!
+  const base: Vec3 = parent === undefined ? [0, 0, 0] : rigPivot(geometry, parent)!
+  const links = geometry.links.map((l): RigLink => {
+    if (l.name !== linkName) return l
+    const next: RigLink = { ...l, offset: [at[0] - base[0], at[1] - base[1], at[2] - base[2]] }
+    if (parent === undefined) delete next.parent
+    else next.parent = parent
+    return next
+  })
+  return { ...geometry, links }
+}
+
+/**
+ * Undo a split: put a `keepNode` piece back into the whole-scene model node that hides it, and delete it with its
+ * joint. Its children move up to its parent and keep their place. A `<name>-pivot` frame left holding nothing
+ * goes too, since only the pivot editor made it. Returns the node to select next.
+ */
+export function mergeRigPiece(geometry: RigGeometry, linkName: string): { geometry: RigGeometry; select: string } | null {
+  const link = geometry.links.find((l) => l.name === linkName)
+  if (!link || link.shape.kind !== 'mesh' || !link.shape.keepNode || !isPlainOffset(link)) return null
+  const { asset, keepNode } = link.shape
+  const source = chainToRoot(geometry, linkName)
+    .slice(1)
+    .find((l) => isWholeSceneMesh(l.shape) && l.shape.asset === asset && (l.shape.hideNodes ?? []).includes(keepNode))
+  if (!source || source.shape.kind !== 'mesh') return null
+  const hideNodes = (source.shape.hideNodes ?? []).filter((n) => n !== keepNode)
+  const pivotFrame = geometry.links.find(
+    (l) => l.name === link.parent && l.name === `${linkName}-pivot` && l.shape.kind === 'frame' && geometry.links.filter((c) => c.parent === l.name).length === 1,
+  )
+  const gone = new Set([linkName, ...(pivotFrame ? [pivotFrame.name] : [])])
+  // the children's new parent: the piece's parent, or above the pivot frame when that goes too
+  const up = pivotFrame ? pivotFrame.parent : link.parent
+  const shift: Vec3 = pivotFrame
+    ? [link.offset[0] + pivotFrame.offset[0], link.offset[1] + pivotFrame.offset[1], link.offset[2] + pivotFrame.offset[2]]
+    : [link.offset[0], link.offset[1], link.offset[2]]
+  const links: RigLink[] = []
+  for (const l of geometry.links) {
+    if (gone.has(l.name)) continue
+    if (l.name === source.name) {
+      const shape: MeshShape = { ...(l.shape as MeshShape) }
+      if (hideNodes.length > 0) shape.hideNodes = hideNodes
+      else delete shape.hideNodes
+      links.push({ ...l, shape })
+    } else if (l.parent === linkName) {
+      const next: RigLink = { ...l, offset: [l.offset[0] + shift[0], l.offset[1] + shift[1], l.offset[2] + shift[2]] }
+      if (up === undefined) delete next.parent
+      else next.parent = up
+      links.push(next)
+    } else links.push(l)
+  }
+  const joints = geometry.joints.filter((j) => !gone.has(j.link))
+  return { geometry: { ...geometry, links, joints }, select: source.name }
 }
 
 /**
