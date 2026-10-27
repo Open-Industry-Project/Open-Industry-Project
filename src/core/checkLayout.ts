@@ -30,6 +30,7 @@
 // registered (true anywhere a scene is loaded).
 
 import { getPackage } from './parts/partRegistry'
+import { packageParamSpecs, switchValue, visibleWhenHolds } from './packageParams'
 import { bedOf, conveyorEndsOf, isConveyorLike, partFootprint, toLocalXZ, toWorldXZ } from './parts/partGeometry'
 import { commsOn } from './conveyor/conveyorDirection'
 import { INTERIOR_COLUMN_SIZE, interiorColumnHeight, interiorColumns } from './building/buildingColumns'
@@ -411,6 +412,8 @@ function dropTarget(feed: PartInstance, parts: readonly PartInstance[]): PartIns
  *     first box after a restart lands on the one the stopped belt still carries under the drop. Explicit pairing
  *     only: through program logic (a copy, an implication) this check cannot tell a belt stopped every cycle from
  *     one stopped by an E-stop, and the box spawner's own doc names this pairing as where keepSpacing belongs.
+ *     Not while `keepSpacing` is switched out (the spawner's On each enable release, which drops at every enable on
+ *     purpose and ignores it): then it is neither the cause nor the fix.
  */
 function feedFindings(parts: readonly PartInstance[], driven: ReadonlySet<string>, seen: LayoutCheckOptions['feedRunsWithoutBelt']): LayoutFinding[] {
   const byId = new Map(parts.map((p) => [p.id, p]))
@@ -431,11 +434,17 @@ function feedFindings(parts: readonly PartInstance[], driven: ReadonlySet<string
     const interlocked = ref !== undefined && (ref.id === belt.id || runTagOf(ref) === beltTag)
     const feedTag = runTagOf(feed)
     const gated = feedTag !== '' && driven.has(feedTag) // a merely-named tag gates nothing (the spawner's runTag doc)
+    // keepSpacing counts only while its switch shows it, the rule the Inspector shows it by
+    const specs = packageParamSpecs(pkg)
+    const vw = specs.find((s) => s.key === 'keepSpacing')?.visibleWhen
+    const spacing = visibleWhenHolds(vw, vw ? switchValue(specs, feed.params, vw.param) : undefined)
     const keep = paramOf(feed, 'keepSpacing') === true
-    const fix = `Fix: conveyorId = "${belt.id}"${keep ? '' : ' and keepSpacing = true'} (holds the feed while the belt is stopped, and keeps one pitch between boxes across the stop)`
+    const fix = spacing
+      ? `Fix: conveyorId = "${belt.id}"${keep ? '' : ' and keepSpacing = true'} (holds the feed while the belt is stopped, and keeps one pitch between boxes across the stop)`
+      : `Fix: conveyorId = "${belt.id}" (holds the feed while the belt is stopped)`
     let detail: string
     if (interlocked || (gated && feedTag === beltTag)) {
-      if (keep) continue
+      if (keep || !spacing) continue
       detail =
         `holds with ${beltName} (${interlocked ? `conveyorId "${ref!.id}"` : `runTag "${beltTag}"`}) but keepSpacing is off: ` +
         'while held its interval runs down, so the first box after the belt restarts drops at once, onto the box ' +

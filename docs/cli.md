@@ -23,8 +23,10 @@ Scene conventions the tools assume (rotationY direction, +X downstream, left = -
 - **`npm run import-model -- <file.step|.stp> [--out <file.glb>]`** - STEP to GLB through the app's own conversion:
   `--up z|y` (default guessed from the exporting program), `--detail normal|coarse`, `--min-part-mm <n>` (default
   10), `--no-merge`, `--json`. Exit 1 = the file could not be converted.
-- **`npm run shot-part -- <part-folder> [--pose j=v,...] [--focus x,y,z,r]`** - PNG views of one part at rest /
-  posed, through the real renderer; `--focus` is a close-up of a part-local sphere.
+- **`npm run shot-part -- <part-folder> [--pose j=v,...] [--sub-pose link=<json>]... [--focus x,y,z,r]`** - PNG views of
+  one part at rest / posed, through the real renderer. `--sub-pose` poses a link as `ctx.setSubPose` does
+  (`'carriage={"position":[0,0.2,0]}'`, `'slat[3]={"rotation":[0,0,1]}'` for one copy of a posable array);
+  `--focus` is a close-up of a part-local sphere.
 - **`npm run build-part-sdk`** - regenerates `packages/part-sdk` from src/core, refusing output that doesn't compile;
   `-- --check` is the CI gate. It also fails when the SDK's surface changed without a raise of `PART_SDK_LEVEL`
   (src/core/parts/partSdk.ts; the levels are recorded in `packages/part-sdk/levels.json`, docs/part-sources.md).

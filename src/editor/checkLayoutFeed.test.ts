@@ -58,6 +58,16 @@ describe('box feed onto a driven belt', () => {
     expect(feeds([belt(), spawner({ runTag: 'BeltRun', keepSpacing: true })], driven('BeltRun'))).toEqual([])
   })
 
+  it('does not ask for keepSpacing on an On each enable spawner, which drops at every enable and ignores it', () => {
+    for (const held of [{ conveyorId: 'belt' }, { runTag: 'BeltRun' }] as SdkPartParams[]) {
+      expect(feeds([belt(), spawner({ ...held, release: 'enable' })], driven('BeltRun'))).toEqual([])
+    }
+    const [f] = feeds([belt(), spawner({ release: 'enable' })], driven('BeltRun'))
+    expect(f?.detail).toMatch(/nothing holds it/)
+    expect(f?.detail).toContain('Fix: conveyorId = "belt" (')
+    expect(f?.detail).not.toContain('keepSpacing')
+  })
+
   it('still warns with keepSpacing on when nothing holds the feed: spacing only matters while held', () => {
     const [f] = feeds([belt(), spawner({ keepSpacing: true })], driven('BeltRun'))
     expect(f?.detail).toMatch(/nothing holds it/)

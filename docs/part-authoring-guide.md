@@ -296,6 +296,8 @@ drop is proposed; `--json` prints JSON.
 
 **Looks.** `npm run shot-part -- ./my-part [--pose lift=0]` renders the part through the real renderer from
 four sides, at rest and posed, as PNGs: use it for a texture, a carve or a lamp, which no probe reads.
+`--sub-pose 'carriage={"position":[0,0.2,0]}'` poses a link the way `ctx.setSubPose` does (`slat[3]=...` for one
+copy of a posable array), once per link.
 `--params k=v,...` sets instance params first, `--focus x,y,z,r` frames a close-up of a part-local sphere, and
 `--out <dir>` picks the folder (default `<part>/shots/`).
 
