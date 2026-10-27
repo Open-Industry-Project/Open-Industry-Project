@@ -192,8 +192,8 @@ npm run add-part -- my-test ./my-part oip.roller-conveyor oip.box --place
 ```
 
 This creates `my-test/` if needed, bakes your part into the project, and checks that the built-ins
-you name exist (`npm run catalog` lists the ids). `--place` drops one of each at the origin; then set each
-part's `position` in `scene.json`.
+you name exist (`npm run catalog` lists the ids). `--place` rests one of each on the floor at the origin; give a
+part `--at x,z` after it to rest it elsewhere, or `--at x,y,z` to put its origin exactly there.
 
 `--scaffold` instead of `--place` lays out a straight line through the editor's snap engine (code:
 [lineScaffold.ts](../src/core/lineScaffold.ts)):
@@ -214,7 +214,8 @@ physically moves (reaches the discharge eye, rides the belt, or is fed on). Repl
 do. Without a conveyor and cargo it writes no test and says why.
 
 The project holds a copy of your part. After editing, rerun `npm run add-part -- my-test ./my-part` (no
-`--place`) to refresh it, or edit `my-test/parts/<id>/` directly and treat that as the source. A part written as a
+`--place`) to refresh it, or edit `my-test/parts/<id>/` directly and treat that as the source. A part written
+straight into `my-test/parts/` is added by its id (`npm run add-part -- my-test acme.my-part --at 2,0`). A part written as a
 `part.js` is copied as its built files, so build it first: `add-part` refuses a folder whose built files are not what
 its `part.js` builds.
 

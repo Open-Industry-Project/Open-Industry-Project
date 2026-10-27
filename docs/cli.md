@@ -87,8 +87,10 @@ Scene conventions the tools assume (rotationY direction, +X downstream, left = -
 
 Never hand-edit scene.json; these go through the same checks the editor does.
 
-- **`npm run add-part -- <project-folder> <built-in id | part-folder> [--params k=v,...] [--id <id>] [--at x,y,z] [--rot <deg>]... [--place | --scaffold]`**
+- **`npm run add-part -- <project-folder> <built-in id | own part id | part-folder> [--params k=v,...] [--id <id>] [--at x,z | x,y,z] [--rot <deg>]... [--place | --scaffold]`**
   - The options after a part apply to that part, and place it: a part given any of them is placed without `--place`.
+  - `--at x,z` rests the part on the floor there by the editor's drop rule (its underside on the floor, a legged deck
+    at its stand height), as does a placed part with no `--at`. `--at x,y,z` puts its origin exactly there.
   - `--params` values are checked against each param's declared type, and a given value is never written over. One
     that needs a switch setting turns the switch and says so (`speedFpm=200` sets `fpmUnits=true`). One equal to
     what the part already has is printed as not stored. A list is one comma-joined value:
@@ -96,7 +98,8 @@ Never hand-edit scene.json; these go through the same checks the editor does.
     written as one: `--params 'segments=[[3,0],[1,10]]'`.
   - All or nothing: any bad part or value writes nothing and lists every error.
   - A built-in needs only its id (checked, then placed); an authored part is baked and added to the library. Creates
-    the project if missing.
+    the project if missing. A part in the project's `parts/` is named by its id, listed or not. A folder already in
+    `parts/` is listed, not copied, and moved to `parts/<id>/` (with its `part.js`) when it has another name.
   - `--scaffold` lays out a straight line with the real snap engine (eyes on a guard across the belt, buttons on the
     frame, a spawner over the infeed). It wires only the tags its program and starter test use, uniquely named
     (`Belt1Run`, `DischargeEye`, `StartPB`, `SpawnerRun`) unless a tag is named in `--params`. Other tag params stay

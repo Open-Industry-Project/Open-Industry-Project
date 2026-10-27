@@ -4,12 +4,13 @@
 // a freshly placed part's params.
 //
 //   const lib = await projectLibrary(vite, folder, { create: true, log })
-//   lib.addPart(arg)            // built-in id or part folder -> { pkg } or { error, exit }
+//   lib.resolvePart(arg)        // built-in id, the project's own part id, or part folder -> { pkg } or { error, exit }
+//   lib.addPart(arg)            // the same, then copied into or listed in the library
 //   lib.place(packageId, id?)   // a fresh scene part at the origin (not yet pushed)
 //   lib.save()                  // scene.json + project.json, in the current format
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildPart, hasPartSource } from './buildPart.mjs'
 import { readProjectFolder } from './projectFolderFiles.mjs'
@@ -97,6 +98,7 @@ export async function projectLibrary(vite, folder, { create = true, log = consol
   const { PROJECT_VERSION } = await vite.ssrLoadModule('/src/core/project/project.ts')
   const { manifestOfPackage, packageDependencies, productRefsOf } = await vite.ssrLoadModule('/src/core/parts/partPackage.ts')
   const { partFingerprint, withOrigin } = await vite.ssrLoadModule('/src/core/parts/partOrigin.ts')
+  const { partFolderPaths } = await vite.ssrLoadModule('/src/core/project/projectFolder.ts')
 
   const manifestPath = join(folder, 'project.json')
   let project
@@ -152,35 +154,90 @@ export async function projectLibrary(vite, folder, { create = true, log = consol
     }
   }
 
-  /** Add a built-in id or an authored part folder to the library: { pkg } or { error, exit }. */
+  // The folder the app keeps a part in (core/project/projectFolder.ts partFolderPaths), project-relative, `/`-separated.
+  const homeOf = (id) => partFolderPaths([{ id }]).get(id)
+  const partsRoot = resolve(folder, 'parts')
+  const inParts = (dir) => {
+    const rel = relative(partsRoot, resolve(dir))
+    return rel !== '' && !rel.startsWith('..') && !rel.includes(sep) && !rel.includes('/')
+  }
+  const refOf = (dir) => relative(resolve(folder), resolve(dir)).split(sep).join('/')
+
+  // A part folder under parts/ whose manifest has the id `id`, listed or not: a part authored in the project is found
+  // by its id, as a built-in is.
+  const ownFolder = (id) => {
+    if (!existsSync(partsRoot)) return undefined
+    for (const e of readdirSync(partsRoot, { withFileTypes: true })) {
+      if (!e.isDirectory() || e.name.startsWith('_')) continue
+      const m = pick(join(partsRoot, e.name), ['manifest.json', 'rig.json'])
+      try {
+        if (m && readJson(m).id === id) return join(partsRoot, e.name)
+      } catch {
+        // a manifest that does not parse names no id; bakeFolder says why if the folder is named directly
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * What `arg` adds, checked and nothing written: { pkg, from? } or { error, exit }. `from` is the authored folder
+   * it comes from. A folder already under parts/ is the project's own part: it is listed where the app keeps it,
+   * never copied beside itself.
+   */
+  const resolvePart = async (arg) => {
+    const dir = isFolder(arg) ? arg : bundled.has(arg) ? undefined : ownFolder(arg)
+    if (dir === undefined) {
+      const pkg = bundled.get(arg)
+      if (pkg) return { pkg }
+      const near = [...bundled.keys()].filter((id) => id.includes(arg.replace(/^oip\./, '')))
+      return { error: `"${arg}" is neither a folder, a built-in part id, nor the id of a part in ${join(folder, 'parts')}${near.length ? ` - did you mean ${near.join(', ')}?` : ' (npm run catalog lists the built-ins)'}`, exit: 1 }
+    }
+    const baked = await bakeFolder(vite, dir)
+    if (baked.error) return baked
+    const pkg = baked.pkg
+    if (bundled.has(pkg.id)) {
+      return { error: `${dir}: id "${pkg.id}" is a BUILT-IN id - an authored part under it would shadow the bundled part. Give your part its own id (e.g. "acme.${pkg.id.replace(/^oip\./, '')}").`, exit: 1 }
+    }
+    const home = join(folder, homeOf(pkg.id))
+    if (inParts(dir) && resolve(dir) !== resolve(home) && existsSync(home)) {
+      return { error: `${refOf(dir)}/ and ${homeOf(pkg.id)}/ both hold "${pkg.id}". Keep one: the app reads ${homeOf(pkg.id)}/.`, exit: 1 }
+    }
+    return { pkg, from: { dir, baked } }
+  }
+
+  /** Add a built-in id, the project's own part id, or an authored part folder to the library: { pkg } or { error, exit }. */
   const addPart = async (arg) => {
-    if (isFolder(arg)) {
-      const baked = await bakeFolder(vite, arg)
-      if (baked.error) return baked
-      const pkg = baked.pkg
-      if (bundled.has(pkg.id)) {
-        return { error: `${arg}: id "${pkg.id}" is a BUILT-IN id - an authored part under it would shadow the bundled part. Give your part its own id (e.g. "acme.${pkg.id.replace(/^oip\./, '')}").`, exit: 1 }
-      }
-      const dest = join(folder, 'parts', pkg.id)
-      if (resolve(dest) !== resolve(arg)) {
-        mkdirSync(dest, { recursive: true })
-        copyFileSync(baked.manifestPath, join(dest, 'manifest.json'))
-        copyFileSync(baked.behaviorPath, join(dest, 'behavior.js'))
-      }
-      const ref = `parts/${pkg.id}`
-      if (!project.packages.includes(ref)) project.packages.push(ref)
-      log(`+ ${pkg.id}: authored part → ${ref}/ (listed in project.json "packages")`)
-      copyNamed(pkg)
+    const r = await resolvePart(arg)
+    if (r.error) return r
+    const { pkg, from } = r
+    if (!from) {
+      // a stale copy an older save left in the scene is dropped: the project's copy is the one in parts/
+      if (Array.isArray(scene.packages)) scene.packages = scene.packages.filter((p) => p?.id !== pkg.id)
+      copyBuiltIn(pkg, '')
       return { pkg }
     }
-    const pkg = bundled.get(arg)
-    if (!pkg) {
-      const near = [...bundled.keys()].filter((id) => id.includes(arg.replace(/^oip\./, '')))
-      return { error: `"${arg}" is neither a folder nor a built-in part id${near.length ? ` - did you mean ${near.join(', ')}?` : ' (npm run catalog lists them)'}`, exit: 1 }
+    const ref = homeOf(pkg.id)
+    const dest = join(folder, ref)
+    if (resolve(dest) !== resolve(from.dir)) {
+      if (inParts(from.dir)) {
+        // the project's own part under another folder name: moved, with its part.js and assets, to where the app
+        // reads it, so no unlisted copy stays behind
+        const old = refOf(from.dir)
+        renameSync(from.dir, dest)
+        project.packages = project.packages.filter((p) => p !== old)
+        log(`  ${pkg.id}: moved ${old}/ to ${ref}/, the folder the app keeps it in`)
+      } else {
+        mkdirSync(dest, { recursive: true })
+        copyFileSync(from.baked.manifestPath, join(dest, 'manifest.json'))
+        copyFileSync(from.baked.behaviorPath, join(dest, 'behavior.js'))
+        // the models and textures its manifest names as assets/<sha256>.<ext>
+        if (existsSync(join(from.dir, 'assets'))) cpSync(join(from.dir, 'assets'), join(dest, 'assets'), { recursive: true })
+      }
     }
-    // a stale copy an older save left in the scene is dropped: the project's copy is the one in parts/
-    if (Array.isArray(scene.packages)) scene.packages = scene.packages.filter((p) => p?.id !== pkg.id)
-    copyBuiltIn(pkg, '')
+    const listedBefore = project.packages.includes(ref)
+    if (!listedBefore) project.packages.push(ref)
+    log(`${listedBefore ? '=' : '+'} ${pkg.id}: authored part → ${ref}/ (${listedBefore ? 'already listed' : 'listed'} in project.json "packages")`)
+    copyNamed(pkg)
     return { pkg }
   }
 
@@ -214,7 +271,7 @@ export async function projectLibrary(vite, folder, { create = true, log = consol
     writeJson(manifestPath, out)
   }
 
-  return { project, scene, scenePath, manifestPath, bundled, addPart, place, save }
+  return { project, scene, scenePath, manifestPath, bundled, resolvePart, addPart, place, save }
 }
 
 /**
