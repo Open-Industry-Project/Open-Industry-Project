@@ -222,12 +222,20 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   // conveyor there is nothing to turn with, and it would sit frozen while the sim runs.
   const unnamed = pkg.conveyor?.speedParam === undefined && drawn.some((p) => (p.spin && p.spin.speed === undefined) || (p.scroll && p.scroll.speed === undefined))
   if (unnamed) diagnostics.push({ kind: 'package', message: "geometry(): a submesh's spin or scroll names no speed, and this part declares no conveyor speed param to turn with; name the param that drives it (spin: { ..., speed: 'fanSpeed' })" })
+  // A bank turns its material's grain, not its geometry: one with no grain to turn would hold still.
+  const objectGrain = new Set((manifest.materials ?? []).filter((m) => m.triplanar?.space === 'object').map((m) => m.id))
   for (const p of drawn) {
     if (!p.spin || !p.instances) continue
     const [x, y, z] = p.spin.axis
     const len = Math.hypot(x, y, z)
     if (!(len > 0) || Math.abs(z / len) < 1 - 1e-6) {
       diagnostics.push({ kind: 'package', message: `geometry(): a spinning instanced bank turns each instance about its own local Z, so its spin.axis must be [0, 0, 1] or [0, 0, -1] (got ${JSON.stringify(p.spin.axis)}); lay the template's axle along Z` })
+    }
+    if (p.material ? !objectGrain.has(p.material) : p.finish !== 'roller') {
+      diagnostics.push({
+        kind: 'package',
+        message: `geometry(): a spinning instanced bank turns its material's grain, not its geometry, and ${p.material ? `material "${p.material}" has no object-space triplanar grain` : `finish ${JSON.stringify(p.finish ?? 'mesh')} has no grain`} to turn, so it holds still. Give it finish 'roller' or a material with triplanar: { space: 'object' }, or draw each one as its own submesh, which turns its mesh (a toothed sprocket)`,
+      })
     }
   }
   // A surface friction only means something on a solid, and a guard has none; either would be ignored without a word.

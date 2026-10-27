@@ -347,3 +347,21 @@ describe('the Part SDK level stamp (core/parts/partSdk.ts)', () => {
     expect(storedPackageHash(unstamped)).toBe(storedPackageHash(made))
   })
 })
+
+describe('geometry(): a spinning instanced bank', () => {
+  const bank = (look: string): string =>
+    `definePart({ params: { speed: { type: 'number', default: 1 } }, geometry(g) { return [{ desc: g.box([1, 1, 1], [0, 0, 0]), ${look}, instances: [{ position: [0, 0, 0] }, { position: [1, 0, 0] }], spin: { axis: [0, 0, 1], radius: 0.1, speed: 'speed' } }] }, step() {} })`
+  const messages = (m: PackageManifest, src: string): string[] => validatePart(m, src).diagnostics.map((d) => d.message)
+
+  it('says a bank whose material has no grain to turn holds still, and how to turn its teeth instead', () => {
+    expect(messages(rig, bank("finish: 'bolt'"))).toEqual([expect.stringContaining('finish "bolt" has no grain to turn, so it holds still')])
+    const plain = { ...rig, materials: [{ id: 'steel', color: [0.5, 0.5, 0.5] as [number, number, number] }] }
+    expect(messages(plain, bank("material: 'steel'"))).toEqual([expect.stringContaining('draw each one as its own submesh, which turns its mesh')])
+  })
+
+  it("is quiet for a roller finish or an object-space triplanar material, whose grain turns", () => {
+    expect(messages(rig, bank("finish: 'roller'"))).toEqual([])
+    const grained = { ...rig, assets: [{ id: 'tex', mime: 'image/webp', url: '/textures/x.webp' }], materials: [{ id: 'arm', albedo: 'tex', triplanar: { space: 'object' as const, scale: 2 } }] }
+    expect(messages(grained, bank("material: 'arm'"))).toEqual([])
+  })
+})

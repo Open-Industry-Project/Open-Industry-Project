@@ -645,14 +645,15 @@ is not a conveyor must name it (`speed: 'fanSpeed'`) or it is refused when built
   in texture tiles along the direction of travel (`u = metres × tilesPerMeter`); the pattern travels at
   `speed` m/s toward +U. For a chain's links, a belt's weave, a cable carrier.
 - `spin: { axis, radius, center?, speed? }`: the submesh turns about `axis` through `center` at
-  `speed ÷ radius` rad/s, right-handed for a positive speed. For a pulley, fan, sprocket. On an `instances`
-  bank, every instance turns about its own axis (a roller bed). The host turns the material's grain rather
-  than the geometry, which adds no per-frame work and sets two rules:
+  `speed ÷ radius` rad/s, right-handed for a positive speed. For a pulley, fan, sprocket: the mesh itself turns,
+  teeth and all. On an `instances` bank, every instance turns about its own axis (a roller bed). The host turns
+  the material's grain rather than the geometry, which adds no per-frame work, so a bank's shape never turns
+  (draw toothed wheels as submeshes of their own), and sets two rules:
   - lay the template's axle along local Z through its origin (`axis` must be `[0, 0, 1]` or `[0, 0, -1]`;
     `check-part` reports anything else);
   - draw it in a material whose grain can turn: finish `'roller'`, or a package material with
-    `triplanar: { space: 'object' }`. The grain is sampled in the template's own units, so a template at
-    another scale shows a coarser or finer grain.
+    `triplanar: { space: 'object' }` (`check-part` reports a bank in anything else, which holds still). The
+    grain is sampled in the template's own units, so a template at another scale shows a coarser or finer grain.
 
   A roller bed carrying cargo toward +X turns about `[0, 0, -1]`.
 

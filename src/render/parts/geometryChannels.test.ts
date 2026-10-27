@@ -97,6 +97,20 @@ describe('geometry() animation channels', () => {
     expect(spinner.quaternion.angleTo(before)).toBeCloseTo(0, 9)
     v.dispose()
   })
+
+  it('turns a drawn part\'s spinning submesh the same way, its mesh and not its grain, and keeps it out of the pool', () => {
+    registerPackage({ ...pkg(), id: 'acme.animated-drawn', geometry: { kind: 'drawn' } } as PartPackage)
+    const v = createCustomVisual({ id: 'd', type: 'part', packageId: 'acme.animated-drawn', position: [0, 0, 0], rotationY: 0, params: {} })
+    const meshes = v.object.children.filter((c) => (c as Mesh).isMesh) as Mesh[]
+    const spinner = meshes.find((m) => Math.abs(m.geometry.getAttribute('position').getY(0) - 1) < 0.2)!
+    expect(spinner.userData.poolUnit).toBeUndefined()
+    const hooks = v.object.userData as unknown as Hooks
+    hooks.tick(0.5, true) // the fan param, 0.5 m/s at r 0.25 → 2 rad/s → 1 rad
+    expect(spinner.quaternion.angleTo(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 1))).toBeCloseTo(0, 6)
+    const c = new Vector3(0, 1, 0)
+    expect(c.clone().applyQuaternion(spinner.quaternion).add(spinner.position).distanceTo(c)).toBeCloseTo(0, 9)
+    v.dispose()
+  })
 })
 
 // MeshPart.instances + MeshPart.spin: a spinning bank (a roller bed) turns every instance about its own local Z by

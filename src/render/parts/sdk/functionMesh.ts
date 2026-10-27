@@ -1,4 +1,4 @@
-import { DoubleSide, MeshStandardMaterial } from 'three'
+import { DoubleSide, MeshStandardMaterial, Quaternion, Vector3 } from 'three'
 import type { Group, InstancedMesh, Material, Mesh } from 'three'
 import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
@@ -29,6 +29,9 @@ import { descEqual, FN_NEUTRAL } from './shared'
 import { advanceBankSpins, bankSpinSign, spinUniformOf } from './bankSpin'
 import type { BankSpin } from './bankSpin'
 import { buildMaterial } from './materials'
+
+const _spinQ = new Quaternion()
+const _spinV = new Vector3()
 
 // ---- drawn geometry (geometry.kind: 'drawn': the shape comes from the part's geometry()) -------------
 // The Tier-2 escape hatch (docs/procedural-geometry.md): a part's geometry(g, params) callback emits one or
@@ -188,6 +191,9 @@ export function buildFunctionMesh(geo: Extract<PartPackage['geometry'], { kind: 
     }
     return m
   }
+  // MeshPart.spin on a plain submesh: the mesh itself turns about the axis through `center`, as a rig's geometry()
+  // submesh does (rigProcedural.ts), so a toothed sprocket's teeth go round
+  const meshSpins: { mesh: Mesh; axis: Vector3; center: Vector3; radius: number; speed: string; angle: number }[] = []
   let lastParams: Record<string, ParamValue> = {}
   // a spin's speed: the conveyor's declared speed param is the conveyor's own (live while running, else the param -
   // the belt convention above); any other name reads that param; '' (no name on a part that is no conveyor) is 0
@@ -327,8 +333,25 @@ export function buildFunctionMesh(geo: Extract<PartPackage['geometry'], { kind: 
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i]!
         const fabric = part.finish === 'belt' || (!part.finish && geo.conveys)
-        if (fabric) delete meshes[i]!.mesh.userData.poolUnit
+        // a spinning submesh moves relative to its part every frame, so it never merges across parts either
+        if (fabric || part.spin) delete meshes[i]!.mesh.userData.poolUnit
         else meshes[i]!.mesh.userData.poolUnit = true
+      }
+      // the spinning submeshes, re-registered on every emit; a reused mesh keeps its angle, and one that no longer
+      // spins goes back to rest
+      const prevAngle = new Map(meshSpins.map((sp) => [sp.mesh, sp.angle] as const))
+      meshSpins.length = 0
+      for (let i = 0; i < parts.length; i++) {
+        const spin = parts[i]!.spin
+        const mesh = meshes[i]!.mesh
+        const axis = spin ? new Vector3(spin.axis[0], spin.axis[1], spin.axis[2]) : null
+        if (spin && axis && axis.lengthSq() > 0) {
+          const c = spin.center ?? [0, 0, 0]
+          meshSpins.push({ mesh, axis: axis.normalize(), center: new Vector3(c[0], c[1], c[2]), radius: spin.radius, speed: spin.speed ?? pkg.conveyor?.speedParam ?? '', angle: prevAngle.get(mesh) ?? 0 })
+        } else if (prevAngle.has(mesh)) {
+          mesh.quaternion.identity()
+          mesh.position.set(0, 0, 0)
+        }
       }
       // instanced-template banks (MeshPart.instances): one InstancedMesh per bank, reconciled by stable emit
       // index. Reuse the slot when the template desc is unchanged and the new count still fits the buffer -
@@ -454,6 +477,19 @@ export function buildFunctionMesh(geo: Extract<PartPackage['geometry'], { kind: 
         }
       }
       if (running && advanceBankSpins(bankSpins, spinSpeed, dt)) markTickUniformsAdvanced() // tick group: no walk
+      // a spinning submesh's own transform moves: that one needs the walk
+      if (running) {
+        for (const sp of meshSpins) {
+          const v = spinSpeed(sp.speed)
+          if (v === 0 || !(sp.radius > 0)) continue
+          sp.angle = (sp.angle + (v / sp.radius) * dt) % (Math.PI * 2)
+          _spinQ.setFromAxisAngle(sp.axis, sp.angle)
+          sp.mesh.quaternion.copy(_spinQ)
+          // turn about `center`, not the mesh origin: p' = q(p - c) + c, so the mesh sits at c - q c
+          sp.mesh.position.copy(sp.center).sub(_spinV.copy(sp.center).applyQuaternion(_spinQ))
+          mutated = true
+        }
+      }
       return mutated
     },
     dispose(): void {

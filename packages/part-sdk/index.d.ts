@@ -1128,12 +1128,14 @@ export interface MeshPart {
      * (the no-slip rate of a surface moving at `speed` m/s at `radius`). `axis` is its direction, `center` a point on
      * it (default the origin of the submesh's link); a positive speed turns right-handed about `axis`. `speed` names a
      * reported value as for {@link scroll}, and is defaulted and required the same way. Frozen while stopped. A spinning submesh never merges across parts.
+     * The submesh's own mesh turns, so its shape goes round with it (a sprocket's teeth).
      *
      * On an {@link instances} bank it turns every instance about its own axis (each roller of a bed on its own
      * axle). The host turns the bank's material grain for that, not the geometry, so there is no per-frame geometry work:
      * the template's axle must run along its local Z through its origin (`axis` `[0, 0, ±1]`; `center` is not
      * read), and the material must be one whose grain can turn - finish `'roller'`, or a package material with
-     * `triplanar: { space: 'object' }`. Anything else holds still. A roller bed carrying cargo toward +X turns about
+     * `triplanar: { space: 'object' }`. Anything else holds still (check-part says so). The shape of a bank never
+     * turns, so draw toothed wheels as submeshes of their own. A roller bed carrying cargo toward +X turns about
      * `[0, 0, -1]`.
      */
     spin?: {
