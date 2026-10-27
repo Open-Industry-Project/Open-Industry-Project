@@ -144,6 +144,7 @@ export class SimClient {
           simTime: msg.simTime,
           ...(msg.joints ? { joints: msg.joints } : {}),
           ...(msg.subPoses ? { subPoses: msg.subPoses } : {}),
+          ...(msg.copySpeeds ? { copySpeeds: msg.copySpeeds } : {}),
           ...(msg.lamps ? { lamps: msg.lamps } : {}),
           ...(msg.values ? { values: msg.values } : {}),
           ...(msg.displays ? { displays: msg.displays } : {}),

@@ -13,10 +13,10 @@ import type { GuardOpenings } from '../core/guards/guardOpenings'
 import type { GuardExtents } from '../core/guards/guardExtents'
 import type { GuardRun } from '../core/guards/guardRuns'
 import { rigLinkEmitsBody } from '../core/rig/rigGuards'
-import { arrayInstanceDeltas, linkHalfExtents, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rig/rigPose'
+import { arrayInstanceDeltas, linkHalfExtents, parseCopyGripName, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rig/rigPose'
 import type { LinkPose, Quat, RigParams, Vec3 } from '../core/rig/rigPose'
 import { GROUND_FRICTION } from './bodyFactory'
-import type { BehaviorRecord } from './worldTypes'
+import type { BehaviorRecord, RigBody } from './worldTypes'
 
 /** how buildRigBodies makes the bodies it decides on: SimWorld's own constructors, which file each body under the
  *  part being built */
@@ -44,6 +44,21 @@ export function linkDrivenByJoint(geo: Extract<PartPackage['geometry'], { kind: 
   return false
 }
 
+// True if a rig link moves while the sim runs: it, or an ancestor via `parent`, is a joint's driven link or is
+// posed by the behavior's setSubPose (`subPosed`, the static scan of its script: a computed name counts every link).
+// A conveying deck that moves must be a kinematic body that follows it, not a static one left at rest.
+export function linkMovesAtRuntime(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, linkName: string, subPosed: { names: Set<string>; unresolved: boolean }): boolean {
+  if (linkDrivenByJoint(geo, linkName)) return true
+  if (subPosed.unresolved) return true
+  const parentOf = new Map(geo.links.map((l) => [l.name, l.parent]))
+  const seen = new Set<string>()
+  for (let name: string | undefined = linkName; name && !seen.has(name); name = parentOf.get(name)) {
+    seen.add(name)
+    if (subPosed.names.has(name)) return true
+  }
+  return false
+}
+
 // Compose a link's part-local pose with the part's world pose (position + yaw) into a world pose.
 export function composeRigLink(partPos: readonly [number, number, number], partQuat: Quat, lp: LinkPose): { pos: Vec3; quat: Quat } {
   const wp = qApply(partQuat, lp.pos)
@@ -53,7 +68,7 @@ export function composeRigLink(partPos: readonly [number, number, number], partQ
 // One kinematic box (LAYER_MOVING) per link at its rest world pose; driven each step by RigDriver.drive.
 // `params` resolves C-paramgeo box sizes (a width/length param reshaping a link) so the collision body is
 // built at the same size the visual draws.
-export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, pos: [number, number, number], rotationY: number, scale = 1, params: RigParams = {}, paramSpecs?: PartPackage['params'], inclineRad = 0, openings?: GuardOpenings, extents?: GuardExtents, guardRun?: GuardRun): { name: string; body: Jolt.Body; id: Jolt.BodyID; offset?: Vec3 }[] {
+export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, pos: [number, number, number], rotationY: number, scale = 1, params: RigParams = {}, paramSpecs?: PartPackage['params'], inclineRad = 0, openings?: GuardOpenings, extents?: GuardExtents, guardRun?: GuardRun): RigBody[] {
   const partQuat = qFromAxisAngle([0, 1, 0], rotationY)
   // inclineRad tilts every non-leg link's world pose (pos + quat) about the rig root - so a conveyor's
   // wall/guard kinematic bodies ride the grade automatically (they're built from the link quat below).
@@ -64,7 +79,7 @@ export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geom
   // resolve params (with defaults) only for the showParam gate: a default-true guard toggle must keep its
   // body when the instance leaves the param unset. Sizing below stays on the raw params.
   const resolved = paramSpecs ? resolvePartParams(paramSpecs, params as Record<string, ParamValue>) : params
-  const out: { name: string; body: Jolt.Body; id: Jolt.BodyID; offset?: Vec3 }[] = []
+  const out: RigBody[] = []
   for (const [name, lp] of rest) {
     const link = linkByName.get(name)
     if (!link) continue
@@ -134,6 +149,16 @@ export function buildRigBodies(sink: RigBodySink, geo: Extract<PartPackage['geom
         continue
       }
     }
+    if (link.array?.posable) {
+      // a posable array: one kinematic body per instance, each carrying its index and rest place so
+      // RigDriver.drive poses it from the behavior's setSubPose(link, pose, i) inside the link's frame
+      arrayInstanceDeltas(link.array, params, undefined, link.showParam).forEach((delta, i) => {
+        const d = qApply(world.quat, delta)
+        const body = sink.kinematicBoxQuat(he[0], he[1], he[2], [world.pos[0] + d[0], world.pos[1] + d[1], world.pos[2] + d[2]], world.quat, friction)
+        out.push({ name, body, id: body.GetID(), instance: i, rest: delta })
+      })
+      continue
+    }
     if (link.array) {
     // array-links: N static instance bodies (legs/posts/rollers don't move), not added to `out` so the
     // FK-driver doesn't collapse the N copies (keyed by one link name) onto a single pose.
@@ -190,6 +215,6 @@ export function reportUnknownRigNames(rig: { rec: BehaviorRecord; geo: Extract<P
     if (!names.links.has(s)) reportPartDiagnostic({ source: 'unknown-name', partId, message: `setSubPose link "${s}" is not a rig link (the pose is a no-op)` })
   }
   for (const g of Object.keys(rec.grips ?? {})) {
-    if (!names.links.has(g)) reportPartDiagnostic({ source: 'unknown-name', partId, message: `commanded gripper "${g}" is not a rig link (setGrip/ctx.grips is a no-op)` })
+    if (!names.links.has(parseCopyGripName(g)?.link ?? g)) reportPartDiagnostic({ source: 'unknown-name', partId, message: `commanded gripper "${g}" is not a rig link (setGrip/ctx.grips is a no-op)` })
   }
 }

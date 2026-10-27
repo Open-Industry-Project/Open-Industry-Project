@@ -2,6 +2,7 @@ import type { Vector3 } from 'three'
 import type { BoxFrame, CargoKindName, CargoShapeRef } from '../core/frame'
 import type { PartInstance, SceneJSON } from '../core/types'
 import type { DisplayUnits } from '../core/units'
+import type { SubPose } from '../core/rig/rigPose'
 
 export interface RenderStats {
   drawCalls: number
@@ -398,7 +399,7 @@ export interface IRenderView {
    *  actuation preview - e.g. a blade stop shown raised so an author can check placement without
    *  pressing Play). Routes to the same joint/subPose/lamp appliers the running frame uses. No-op
    *  while running (applyBoxFrame owns the rig then) unless the part is hand-posed, or for a part with no rig. */
-  applyIdlePose(partId: string, pose: { joints?: Record<string, number>; subPoses?: Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>; lamps?: Record<string, boolean> }): void
+  applyIdlePose(partId: string, pose: { joints?: Record<string, number>; subPoses?: Record<string, SubPose>; lamps?: Record<string, boolean> }): void
   /** the parts whose rig joints the editor poses (applyIdlePose) even while running, the sim's joint frames for them
    *  ignored: a flex conveyor the walking character is pulling, whose shape is ahead of the sim's */
   setHandPosed(partIds: readonly string[]): void

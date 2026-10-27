@@ -6,6 +6,7 @@
 import { ancestorIds, subtreeIds } from '../../core/scene/hierarchy'
 import { getPackage } from '../../core/parts/partRegistry'
 import { definitionsUsedBy, servoJointsJson } from '../../core/parts/partPackage'
+import { posableArraysJson } from '../../core/rig/rigPose'
 import { settleIdlePose, withJointRests } from '../../sim/idlePose'
 import { withFlexPose } from '../../core/parts/partGeometry'
 import type { FlexPose } from '../../core/parts/partGeometry'
@@ -86,7 +87,7 @@ export function poseWalkedFlexes(view: IRenderView, s: EditorState, scene: Scene
     const pkg = part?.type === 'part' ? getPackage((part as SdkPart).packageId) : undefined
     if (!part || !pkg || pkg.geometry.kind !== 'rig') continue
     const params = (part as SdkPart).params ?? {}
-    const pose = withJointRests(settleIdlePose(pkg.behavior, params, 0, undefined, servoJointsJson(pkg.geometry)), pkg.geometry.joints, params)
+    const pose = withJointRests(settleIdlePose(pkg.behavior, params, 0, undefined, servoJointsJson(pkg.geometry), posableArraysJson(pkg.geometry)), pkg.geometry.joints, params)
     if (pose) view.applyIdlePose(id, pose)
   }
 }

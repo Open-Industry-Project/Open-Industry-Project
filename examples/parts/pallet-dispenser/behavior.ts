@@ -5,7 +5,8 @@
 // pallet pitch, the forks go back in (into the second pallet), and the carriage lifts the stack clear — leaving the
 // bottom pallet on the conveyor.
 //
-// Every pallet in the magazine is a REAL pallet, held by the gripper of the magazine position it stands in (p0..p9).
+// Every pallet in the magazine is a REAL pallet, held by the gripper of the magazine position it stands in (a copy of
+// the posable gripper array `pos`, one per position the capacity allows).
 // Nothing is deleted and nothing is made to stand in for it: a pallet a truck loads is the pallet that comes out, with
 // its tint, mass and marks. A dispense opens the bottom position's gripper as the forks come out of it; the rest stay
 // held, so the stack never stands on its own and the conveyor under it may keep running.
@@ -219,8 +220,8 @@ const SET_GAP = 0.012
 const CLEAR = 0.01
 const SPAWN_BATCH = 8 // the host's ctx.spawn limit per tick (sim/embeddedBehavior MAX_SPAWNS_PER_TICK)
 
-// The magazine positions, p0 (bottom) up: a gripper link each (see rig()).
-const POSITIONS = Array.from({ length: MAX }, (_, i) => `p${i}`)
+// The magazine positions, bottom first: the copies of the gripper array `pos` (see rig()), named `pos#i`
+const POSITIONS = Array.from({ length: MAX }, (_, i) => `pos#${i}`)
 
 let phase = 'start' // start | idle | lower | release | index | engage | separate | takeup | raise | refill
 let lift = HOLD // the underside of the pallet the forks are in (the carriage datum)
@@ -250,7 +251,6 @@ function hexRgb(hex) {
 definePart({
   interactive: true, // Use dispenses one pallet (by hand, when no program owns the dispense tag)
   joints: ['lift', 'forkW', 'forkE'],
-  grippers: POSITIONS,
   lamps: ['ready', 'low'],
   params: {
     capacity: { type: 'number', default: MAX, min: 1, max: MAX, step: 1, label: 'Magazine capacity', desc: 'How many empty pallets a full magazine holds: the positions it grips, from the bottom up. A stack loaded taller than this keeps the pallets above the top position, standing loose on the stack.' },
@@ -524,8 +524,8 @@ definePart({
       // Lost = seen gripping, then not: a gripper that has never reported a hold (the stopped editor's preview, which
       // has no sim to grip in, or one a tick after it closed) is not taken for an empty position
       const got = ctx.measured && ctx.measured.grips
-      if (got) for (let i = 0; i < MAX; i++) if (got['p' + i]) gripped[i] = true
-      while (held && got && bottom < cap && gripped[bottom] && !got['p' + bottom]) { gripped[bottom] = false; bottom++ }
+      if (got) for (let i = 0; i < cap; i++) if (got[POSITIONS[i]]) gripped[i] = true
+      while (held && got && bottom < cap && gripped[bottom] && !got[POSITIONS[bottom]]) { gripped[bottom] = false; bottom++ }
       if (pending && cap - bottom > 0 && bayClear) { pending = false; phase = 'lower' }
     } else if (phase === 'lower') {
       lift = ctx.approach(lift, SET_GAP, v)
@@ -576,10 +576,10 @@ definePart({
     // the stack is held where it stood, eased CLEAR of the pallet under it
     const between = phase === 'release' || phase === 'index' || phase === 'engage'
     stackY = between ? ctx.approach(stackY, setAt + PITCH + CLEAR, v) : lift
-    for (let i = 0; i < MAX; i++) {
+    for (let i = 0; i < ctx.arrayCount('pos'); i++) {
       const inUse = i >= bottom && i < cap
-      ctx.setSubPose('p' + i, { position: [0, inUse ? stackY + (i - bottom) * PITCH : PARK, 0] })
-      ctx.grips['p' + i] = held && inUse
+      ctx.setSubPose('pos', { position: [0, inUse ? stackY + (i - bottom) * PITCH : PARK, 0] }, i)
+      ctx.setGrip('pos', held && inUse, i)
     }
 
     const nowLeft = Math.max(0, cap - bottom)

@@ -62,6 +62,7 @@ export function buildFrame(
   // plus any PLC tags behaviors wrote (the part→PLC half of the bus), keyed by part id for the controller.
   let joints: Record<string, Record<string, number>> | undefined
   let subPoses: Record<string, Record<string, SubPose>> | undefined
+  let copySpeeds: Record<string, Record<string, number[]>> | undefined
   let lamps: Record<string, Record<string, boolean>> | undefined
   let tags: Record<string, Record<string, number | boolean>> | undefined
   // C-drive: the live root pose of any part that has driven its base (ctx.drive), keyed by part id, so the
@@ -108,6 +109,7 @@ export function buildFrame(
     if (!b.partId) continue
     if (b.joints && Object.keys(b.joints).length > 0) (joints ??= {})[b.partId] = b.joints
     if (b.subPoses && Object.keys(b.subPoses).length > 0) (subPoses ??= {})[b.partId] = b.subPoses
+    if (b.copySpeeds) (copySpeeds ??= {})[b.partId] = b.copySpeeds
     if (b.lamps && Object.keys(b.lamps).length > 0) (lamps ??= {})[b.partId] = b.lamps
     if (b.values && Object.keys(b.values).length > 0) (values ??= {})[b.partId] = b.values
     if (b.displays && Object.keys(b.displays).length > 0) (displays ??= {})[b.partId] = b.displays
@@ -119,5 +121,5 @@ export function buildFrame(
       if (v !== undefined) (conveyorSpeeds ??= {})[b.partId] = v
     }
   }
-  return { count, ids, positions, quats, halfExtents, colors, kinds, caps, partIds, simTime, ...(joints ? { joints } : {}), ...(subPoses ? { subPoses } : {}), ...(lamps ? { lamps } : {}), ...(values ? { values } : {}), ...(displays ? { displays } : {}), ...(tags ? { tags } : {}), ...(basePoses ? { basePoses } : {}), ...(conveyorSpeeds ? { conveyorSpeeds } : {}), ...(beamHits ? { beamHits } : {}), ...(dressings ? { dressings } : {}), ...(marks ? { marks } : {}), ...(shapes ? { shapes } : {}), ...(refs ? { shapeRefs: refs } : {}) }
+  return { count, ids, positions, quats, halfExtents, colors, kinds, caps, partIds, simTime, ...(joints ? { joints } : {}), ...(subPoses ? { subPoses } : {}), ...(copySpeeds ? { copySpeeds } : {}), ...(lamps ? { lamps } : {}), ...(values ? { values } : {}), ...(displays ? { displays } : {}), ...(tags ? { tags } : {}), ...(basePoses ? { basePoses } : {}), ...(conveyorSpeeds ? { conveyorSpeeds } : {}), ...(beamHits ? { beamHits } : {}), ...(dressings ? { dressings } : {}), ...(marks ? { marks } : {}), ...(shapes ? { shapes } : {}), ...(refs ? { shapeRefs: refs } : {}) }
 }

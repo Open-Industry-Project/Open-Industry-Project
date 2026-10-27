@@ -84,6 +84,7 @@ export function createCustomVisual(part: PartInstance): PartVisual {
     // expose joint articulation to the running frame loop + the editor IK gizmo (rig only)
     group.userData.applyJoints = content.applyJoints
     group.userData.applySubPoses = content.applySubPoses
+    group.userData.applyCopySpeeds = content.applyCopySpeeds
     group.userData.resetRunPose = content.resetRunPose // the view's Stop reset (resetRunPoses)
     group.userData.applyLamps = content.applyLamps // the view routes frame.lamps here to light rig lamps
     group.userData.applyDisplays = content.applyDisplays // ...and frame.displays here, to paint live caption plates

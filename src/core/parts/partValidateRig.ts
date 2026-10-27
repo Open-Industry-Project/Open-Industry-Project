@@ -76,9 +76,9 @@ function validateGridAxis(axis: unknown, at: string, add: (field: string, messag
 
 /** Validate a link's optional `array` spec (array-links): exactly one of `distribute`, `count`+`step`, or
  *  `grid`. (Switching a link off with a param is the link's `showParam`, arrayed or not.) */
-function validateArray(array: unknown, at: string, add: (field: string, message: string) => void): void {
+function validateArray(array: unknown, at: string, add: (field: string, message: string) => void, link: Record<string, unknown> = {}): void {
   if (array === undefined) return
-  const a = array as { distribute?: { axis?: unknown; spanParam?: unknown; spanAdd?: unknown; maxSpacing?: unknown; worldPhase?: unknown }; count?: unknown; step?: unknown; stepParams?: unknown; enabledParam?: unknown; omitFirstParam?: unknown; omitLastParam?: unknown; grid?: { x?: unknown; z?: unknown; enabledParam?: unknown } }
+  const a = array as { distribute?: { axis?: unknown; spanParam?: unknown; spanAdd?: unknown; maxSpacing?: unknown; worldPhase?: unknown }; pitch?: { axis?: unknown; spanParam?: unknown; spanScale?: unknown; spanAdd?: unknown; spanTerms?: unknown; pitch?: unknown }; posable?: unknown; count?: unknown; step?: unknown; stepParams?: unknown; enabledParam?: unknown; omitFirstParam?: unknown; omitLastParam?: unknown; grid?: { x?: unknown; z?: unknown; enabledParam?: unknown } }
   if (a.enabledParam !== undefined) add(`${at}.enabledParam`, 'array.enabledParam was retired (package format 4): give the link `showParam` instead (it switches the whole link, arrayed or not)')
   for (const key of ['omitFirstParam', 'omitLastParam'] as const) {
     const v = (a as Record<string, unknown>)[key]
@@ -87,10 +87,39 @@ function validateArray(array: unknown, at: string, add: (field: string, message:
   const hasDistribute = a.distribute !== undefined
   const hasCount = a.count !== undefined
   const hasGrid = a.grid !== undefined
-  const forms = (hasDistribute ? 1 : 0) + (hasCount ? 1 : 0) + (hasGrid ? 1 : 0)
+  const hasPitch = a.pitch !== undefined
+  const forms = (hasDistribute ? 1 : 0) + (hasCount ? 1 : 0) + (hasGrid ? 1 : 0) + (hasPitch ? 1 : 0)
   if (forms === 0 && a.enabledParam !== undefined) return // reported above: the whole array was only a gate
   if (forms !== 1) {
-    add(at, 'array needs exactly one of `distribute`, `count`+`step`, or `grid` (a link that only switches on and off needs no array: use `showParam`)')
+    add(at, 'array needs exactly one of `distribute`, `pitch`, `count`+`step`, or `grid` (a link that only switches on and off needs no array: use `showParam`)')
+    return
+  }
+  if (a.posable !== undefined && typeof a.posable !== 'boolean') add(`${at}.posable`, 'posable must be a boolean')
+  else if (a.posable === true) {
+    const kind = (link.shape as { kind?: unknown } | undefined)?.kind
+    if (kind !== 'box' && kind !== 'cylinder' && kind !== 'cone' && kind !== 'frame') add(`${at}.posable`, 'a posable array is a box, cylinder, cone or frame link (for a model, attach its look from geometry() to a frame)')
+    if (a.distribute?.worldPhase === true) add(`${at}.posable`, 'a posable array cannot use worldPhase: its count would depend on where the part stands')
+    // a posable array may convey or grip (each copy a deck or a gripper of its own); a perimeter, a scale or a guard may not
+    for (const key of ['onEdge', 'loadCell', 'sideGuard', 'sideRail', 'notchable'] as const) {
+      if (link[key] !== undefined && link[key] !== false) add(`${at}.posable`, `a posable array cannot also be \`${key}\``)
+    }
+  }
+  if (hasPitch) {
+    const p = a.pitch!
+    if (a.stepParams !== undefined) add(`${at}.stepParams`, 'stepParams applies to the `count`+`step` form only')
+    if (p.axis !== 0 && p.axis !== 1 && p.axis !== 2) add(`${at}.pitch.axis`, 'axis must be 0, 1 or 2')
+    if (typeof p.spanParam !== 'string' || p.spanParam === '') add(`${at}.pitch.spanParam`, 'spanParam must be a non-empty string')
+    if (p.spanScale !== undefined && !isFiniteNum(p.spanScale)) add(`${at}.pitch.spanScale`, 'spanScale must be a number (the span param is multiplied by it)')
+    if (p.spanAdd !== undefined && !isFiniteNum(p.spanAdd)) add(`${at}.pitch.spanAdd`, 'spanAdd must be a number (metres added to the span)')
+    if (p.spanTerms !== undefined) {
+      const terms = p.spanTerms
+      if (!Array.isArray(terms)) add(`${at}.pitch.spanTerms`, 'spanTerms must be a list of { param, scale? }')
+      else terms.forEach((t: { param?: unknown; scale?: unknown }, i) => {
+        if (typeof t?.param !== 'string' || t.param === '') add(`${at}.pitch.spanTerms[${i}].param`, 'param must be a non-empty string')
+        if (t?.scale !== undefined && !isFiniteNum(t.scale)) add(`${at}.pitch.spanTerms[${i}].scale`, 'scale must be a number (the param is multiplied by it)')
+      })
+    }
+    if (!isFiniteNum(p.pitch) || p.pitch <= 0) add(`${at}.pitch.pitch`, 'pitch must be > 0 (metres between instances)')
     return
   }
   if (hasGrid) {
@@ -298,7 +327,7 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
     if (collision !== undefined && collision !== 'none') {
       const box = (collision as { box?: unknown } | null)?.box
       if (!isVec3(box) || box.some((n) => n <= 0)) add(`${at}.collision`, "collision must be 'none' or { box: [x, y, z] } (3 positive numbers)")
-      else if ((l as { shape?: { kind?: unknown } }).shape?.kind !== 'mesh') add(`${at}.collision.box`, "collision.box is for a mesh link (a primitive collides as its own shape; use 'none' to turn that off)")
+      else if (!['mesh', 'frame'].includes((l as { shape?: { kind?: unknown } }).shape?.kind as string)) add(`${at}.collision.box`, "collision.box is for a mesh or frame link (a primitive collides as its own shape; use 'none' to turn that off)")
     }
     const finish = (l as { finish?: unknown }).finish
     if (finish !== undefined && !RIG_FINISHES.includes(finish as Finish)) add(`${at}.finish`, `finish must be one of ${RIG_FINISHES.map((f) => `'${f}'`).join(',')}`)
@@ -391,7 +420,7 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
     if (dropWhenMounted !== undefined && typeof dropWhenMounted !== 'boolean') add(`${at}.dropWhenMounted`, 'dropWhenMounted must be a boolean')
     if ((l as { railing?: unknown }).railing !== undefined) add(`${at}.railing`, 'railing was renamed onEdge (package format 3)')
     if ((l as { stairFoot?: unknown }).stairFoot !== undefined) add(`${at}.stairFoot`, "stairFoot was renamed anchor: 'floor' (package format 3)")
-    validateArray((l as { array?: unknown }).array, `${at}.array`, add)
+    validateArray((l as { array?: unknown }).array, `${at}.array`, add, l as Record<string, unknown>)
     if (l.rotation !== undefined && !isVec3(l.rotation)) add(`${at}.rotation`, 'rotation must be 3 finite numbers')
     if ((l as { quat?: unknown }).quat !== undefined && !isVec4((l as { quat?: unknown }).quat)) add(`${at}.quat`, 'quat must be 4 finite numbers (x, y, z, w)')
     validateRigShape(l.shape, `${at}.shape`, add, assetIds, materialIds)
@@ -404,6 +433,12 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
     }
   })
   if (hasParentCycle(parents)) add('geometry.links', 'link parent hierarchy has a cycle')
+  // a link under a posable array would ride the row's frame, not one instance: say so instead of drawing it once
+  const posableNames = new Set(links.filter((raw) => (raw as { array?: { posable?: unknown } }).array?.posable === true).map((raw) => (raw as { name?: unknown }).name))
+  links.forEach((raw, i) => {
+    const parent = (raw as { parent?: unknown }).parent
+    if (posableNames.has(parent)) add(`geometry.links[${i}].parent`, 'a link cannot hang under a posable array: it would follow the row, not an instance. Give it its own posable array with the same count and pose it with the same index')
+  })
   // C-aim: a two-point look-at target must resolve to a declared link; up (if given) must be a valid axis
   links.forEach((raw, i) => {
     const aim = (raw as { aim?: unknown }).aim as { target?: unknown; up?: unknown } | undefined

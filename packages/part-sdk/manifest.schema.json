@@ -370,7 +370,7 @@
           "$ref": "#/$defs/RigGrip"
         },
         "collision": {
-          "description": "Is this link solid, and as what? Omitted = the shape's own default: a `box` / `cylinder` collides as itself,\nand a `mesh` (a model), `cone`, `frame`, `label` or `leg` does not.\n- `'none'`: render it but build no body. For cosmetic geometry that must not touch cargo: a roller\n  conveyor's rollers (the separate `conveys` deck is the real surface), a railing's decorative rails.\n- `{ box: [x, y, z] }` (a `mesh` link only): collide as a box of that full size, **centred on the link\n  origin** (not on the model's bounds). For an off-centre model, use a hidden `box` link at the right offset.\nA drawn submesh says the same thing with `collision: 'box' | 'hull'` (partApi `MeshPart`).",
+          "description": "Is this link solid, and as what? Omitted = the shape's own default: a `box` / `cylinder` collides as itself,\nand a `mesh` (a model), `cone`, `frame`, `label` or `leg` does not.\n- `'none'`: render it but build no body. For cosmetic geometry that must not touch cargo: a roller\n  conveyor's rollers (the separate `conveys` deck is the real surface), a railing's decorative rails.\n- `{ box: [x, y, z] }` (a `mesh` or `frame` link): collide as a box of that full size, **centred on the link\n  origin** (not on the model's bounds). For an off-centre model, use a hidden `box` link at the right offset.\n  On a `frame` it is a solid that draws nothing of its own, so the meshes `geometry()` attaches to the link\n  (`MeshPart.link`) are its look. A `hidden` box link can't do that: hiding a link hides what is attached to it.\nA drawn submesh says the same thing with `collision: 'box' | 'hull'` (partApi `MeshPart`).",
           "anyOf": [
             {
               "const": "none"
@@ -390,7 +390,7 @@
           ]
         },
         "conveys": {
-          "description": "This (box) link is a conveyor surface: its top face carries cargo at the velocity the behavior\nsets via `ctx.setSurfaceVelocity` (a powered belt/roller deck). The host builds it as a static conveyor\nbody, so cargo rides it; other links (frame, guards) stay normal. A `conveys` link under a joint (a lift's\ncarriage, a pop-up transfer) is built kinematic instead and follows the joint each tick, carrying its cargo\nwith it: a vertical lift is a `conveys` deck on a prismatic joint. A `conveys` link turned in the part is built\nat that turn, and its running face is its local +Y wherever that points: a side belt is a `conveys` box stood\non its edge. A running face meeting cargo from the side needs a firm squeeze to grip it: a contact up to\n2 mm deep on a sideways face reads as a seam snag between butted conveyors and is ignored.",
+          "description": "This box link (or `frame` with a `collision` box: a deck that draws nothing, dressed from `geometry()`) is a\nconveyor surface: its top face carries cargo at the velocity the behavior\nsets via `ctx.setSurfaceVelocity` (a powered belt/roller deck). The host builds it as a static conveyor\nbody, so cargo rides it; other links (frame, guards) stay normal. A `conveys` link under a joint (a lift's\ncarriage, a pop-up transfer) is built kinematic instead and follows the joint each tick, carrying its cargo\nwith it: a vertical lift is a `conveys` deck on a prismatic joint. So is one the behavior poses with\n`ctx.setSubPose` (a shuttle's roller top), or one under such a link. A posable array that conveys is a deck per\ncopy (a cross-belt sorter's carriers), each run by `ctx.setSurfaceSpeed(speed, link, i)` and never by the\npart-wide surface commands. A `conveys` link turned in the part is built\nat that turn, and its running face is its local +Y wherever that points: a side belt is a `conveys` box stood\non its edge. A running face meeting cargo from the side needs a firm squeeze to grip it: a contact up to\n2 mm deep on a sideways face reads as a seam snag between butted conveyors and is ignored.",
           "type": "boolean"
         },
         "hidden": {
@@ -421,7 +421,7 @@
           "type": "boolean"
         },
         "array": {
-          "description": "array-links: repeat this link into N static instances, a count-driven sub-part array (a\nbelt's legs, a roller bed's rollers, a fence's posts, a rack's shelves). Three forms:\n - `distribute`: spread instances evenly along `axis`, centred on the link offset, across the span the\n   `spanParam` gives (count = ceil(span/maxSpacing)+1 - e.g. fence posts auto-spaced as the length grows).\n   `spanAdd` (metres) lengthens that span past the param (a railing whose posts stand just outside the deck\n   runs `2 × that offset` further, so each end post stands on the true corner).\n   Set `worldPhase` (axis 0 only) to lock copies to the world pitch grid instead (`maxSpacing` becomes the\n   exact pitch), so collinear beds (butted roller conveyors) share grid lines without the snap having to\n   pass anything between them. Falls back to the centred spread when the host has no placement to lock to.\n - `count` + `step`: place `params[count]` instances `step` apart (optionally `centered`) - e.g. rack\n   shelves stacked by a numShelves param. `stepParams` (same shape as sizeParams) makes a `step` axis track\n   an instance param (the chain transfer's lane spacing following `distance`), the static `step` the fallback.\n - `grid`: a 2-D X×Z lattice with param-driven span + pitch (the EOAT suction-cup bed).\n   Per axis: usable = max(params[sizeParam] − 2·params[marginParam], 0),\n   count = floor(usable/params[pitchParam]) + 1 (clamped 1..64), instances\n   spread edge-to-edge across ±usable/2 (actual spacing = usable/(count−1) ≈ pitch). Uniquely usable on a\n   `mesh` link (the cup GLB node cloned per cell).\nTo switch the whole array off with a param, give the link a {@link showParam}: false ⇒ zero instances, mesh\nand collision (format 3's `enabledParam` inside the array).\nEach instance is a copy of the shape (sizeParams applied uniformly). Render + sim build N meshes/bodies.",
+          "description": "array-links: repeat this link into N static instances, a count-driven sub-part array (a\nbelt's legs, a roller bed's rollers, a fence's posts, a rack's shelves). Three forms:\n - `distribute`: spread instances evenly along `axis`, centred on the link offset, across the span the\n   `spanParam` gives (count = ceil(span/maxSpacing)+1 - e.g. fence posts auto-spaced as the length grows).\n   `spanAdd` (metres) lengthens that span past the param (a railing whose posts stand just outside the deck\n   runs `2 × that offset` further, so each end post stands on the true corner).\n   Set `worldPhase` (axis 0 only) to lock copies to the world pitch grid instead (`maxSpacing` becomes the\n   exact pitch), so collinear beds (butted roller conveyors) share grid lines without the snap having to\n   pass anything between them. Falls back to the centred spread when the host has no placement to lock to.\n - `count` + `step`: place `params[count]` instances `step` apart (optionally `centered`) - e.g. rack\n   shelves stacked by a numShelves param. `stepParams` (same shape as sizeParams) makes a `step` axis track\n   an instance param (the chain transfer's lane spacing following `distance`), the static `step` the fallback.\n - `grid`: a 2-D X×Z lattice with param-driven span + pitch (the EOAT suction-cup bed).\n   Per axis: usable = max(params[sizeParam] − 2·params[marginParam], 0),\n   count = floor(usable/params[pitchParam]) + 1 (clamped 1..64), instances\n   spread edge-to-edge across ±usable/2 (actual spacing = usable/(count−1) ≈ pitch). Uniquely usable on a\n   `mesh` link (the cup GLB node cloned per cell).\n - `pitch`: as many instances as fit a span at a fixed pitch, count = round(span / pitch) (at least 1, at most\n   1024), laid `pitch` apart along `axis` and centred on the link offset. span = `params[spanParam] × spanScale +\n   spanAdd`, plus `params[param] × scale` for each of `spanTerms`: a loop of two straights and two half turns\n   is `spanParam: 'length', spanScale: 2, spanTerms: [{ param: 'radius', scale: 2π }]`. A span param whose range\n   reaches past 1024 copies is an authoring problem, and a part that hits the limit says so on the part.\n   The form for carriers on a loop: a sorter's slats at a 76 mm pitch, round a chain whose length follows the\n   section's length (`spanScale: 2` for the top and return runs, `spanAdd` for the turns).\nTo switch the whole array off with a param, give the link a {@link showParam}: false ⇒ zero instances, mesh\nand collision (format 3's `enabledParam` inside the array).\nEach instance is a copy of the shape (sizeParams applied uniformly). Render + sim build N meshes/bodies.\n\n`posable: true` lets the behavior move each instance on its own: `ctx.setSubPose(link, pose, i)` places\ninstance `i` where `ctx.setSubPose(link, pose)` would place the link, in its parent's frame, and\n`ctx.arrayCount(link)` says how many there are. Each instance gets a kinematic body (a static one otherwise),\nand a `geometry()` submesh attached to the link (`MeshPart.link`) is drawn once per instance and moves with it.\nAn instance not posed this tick stands at its rest place in the row, so the link's offset and the array form\nsay only how the row stands at rest. For a carrier's look, make the link a `frame` with a `collision` box and\nattach the look from `geometry()`. With `conveys`, each copy is also a deck of its own, run by\n`ctx.setSurfaceSpeed(speed, link, i)`; with `grip`, a gripper of its own, closed by `ctx.setGrip(link, on, i)`. Not with `worldPhase` (the count would depend on where the part stands)\nor on a `mesh` link.",
           "type": "object",
           "properties": {
             "distribute": {
@@ -453,6 +453,57 @@
                 "spanParam",
                 "maxSpacing"
               ]
+            },
+            "pitch": {
+              "type": "object",
+              "properties": {
+                "axis": {
+                  "enum": [
+                    0,
+                    1,
+                    2
+                  ]
+                },
+                "spanParam": {
+                  "type": "string"
+                },
+                "spanScale": {
+                  "type": "number"
+                },
+                "spanAdd": {
+                  "type": "number"
+                },
+                "spanTerms": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "param": {
+                        "type": "string"
+                      },
+                      "scale": {
+                        "type": "number"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "param"
+                    ]
+                  }
+                },
+                "pitch": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "axis",
+                "spanParam",
+                "pitch"
+              ]
+            },
+            "posable": {
+              "type": "boolean"
             },
             "count": {
               "type": "string"
@@ -1904,7 +1955,7 @@
       ]
     },
     "HoldsDecl": {
-      "description": "The cargo a part stores: a magazine, a buffer, a rack position. The stored items are real cargo held on the part's\ngrippers, one per position (never despawned and remade), so what a run starts with is authored like any other\ncargo: parts of `part` placed at the positions, parented to the holder. The editor's Fill / Empty place and remove\nthem; the behavior grips what it finds there when the run starts.\n\n- `part`: the package id of the cargo part a position holds (`'oip.pallet'`).\n- `positions`: gripper link names, bottom first (the order they fill in). Each must be a rig link with a\n  `grip.zone`; the item stands at the zone's centre, at the part's rest pose.\n- `limitParam`: a `number` param capping how many positions are in use (a magazine's capacity). Absent = all.\n- `params`: params Fill gives each item it places, from the holder's own: `{ size: 'palletSize' }` places pallets\n  of the size the magazine is set to. Item param name -> holder param name.",
+      "description": "The cargo a part stores: a magazine, a buffer, a rack position. The stored items are real cargo held on the part's\ngrippers, one per position (never despawned and remade), so what a run starts with is authored like any other\ncargo: parts of `part` placed at the positions, parented to the holder. The editor's Fill / Empty place and remove\nthem; the behavior grips what it finds there when the run starts.\n\n- `part`: the package id of the cargo part a position holds (`'oip.pallet'`).\n- `positions`: gripper link names, bottom first (the order they fill in). Each must be a rig link with a\n  `grip.zone`; the item stands at the zone's centre, at the part's rest pose. A copy of a posable gripper array is\n  named `link#i` (`'pos#0'`, `'pos#1'`, ...) and stands at its rest place in the row; a copy the array's count\n  leaves out is not a position.\n- `limitParam`: a `number` param capping how many positions are in use (a magazine's capacity). Absent = all.\n- `params`: params Fill gives each item it places, from the holder's own: `{ size: 'palletSize' }` places pallets\n  of the size the magazine is set to. Item param name -> holder param name.",
       "type": "object",
       "properties": {
         "part": {

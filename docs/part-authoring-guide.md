@@ -485,7 +485,7 @@ Every field is data the host reads; no field changes what another means.
 
 | Body | |
 |---|---|
-| `collision` | omitted = the shape's default (`box` / `cylinder` collide as themselves; `mesh`, `cone`, `frame`, `label`, `leg` do not). `'none'` = drawn but never solid (a roller bed's rollers, where the conveying box is the real surface). `{ box: [x, y, z] }` on a `mesh` link = collide as that box, centred on the link origin |
+| `collision` | omitted = the shape's default (`box` / `cylinder` collide as themselves; `mesh`, `cone`, `frame`, `label`, `leg` do not). `'none'` = drawn but never solid (a roller bed's rollers, where the conveying box is the real surface). `{ box: [x, y, z] }` on a `mesh` or `frame` link = collide as that box, centred on the link origin (on a `frame`, a solid whose look comes from `geometry()`) |
 | `conveys` | this box is a conveying surface: cargo on its top rides at the velocity the behavior sets. Under a jointed parent it follows the joint and carries its cargo along, so a vertical lift is a `conveys` deck on a prismatic joint. Turned in the part, it is built at that turn and runs on its local +Y face: a side belt is a `conveys` box stood on its edge (it grips only on a firm squeeze, since a contact up to 2 mm deep on a sideways face is ignored as a seam snag) |
 
 | On a conveyor (`'left'` is −Z; the bed runs along +X) | |
@@ -517,7 +517,7 @@ Every field is data the host reads; no field changes what another means.
 |---|---|
 | `offsetParams` | param-driven placement (a hinge at `±length/2`) |
 | `showParam` | a boolean param; the link exists (mesh and body) only while true. Works on arrayed links (zero instances), as with the platform's railing and support toggles |
-| `array` | repeat the link: `count` (a param name) + `step` (optionally `centered`; `stepParams` makes a step axis track a param); or `distribute` along a span (`spanAdd` lengthens it past the param, so a railing just outside a deck reaches the corner; `worldPhase` pins copies to the world pitch grid so butted beds align); or a `grid` crossing two param-driven axes into an X×Z lattice (a pitch per axis, or a fixed `maxSpacing`). `grid` works on a `mesh` link too. `omitFirstParam` / `omitLastParam` name booleans that drop the end copy of a 1-D array, so butted barriers don't double a post |
+| `array` | repeat the link: `count` (a param name) + `step` (optionally `centered`; `stepParams` makes a step axis track a param); or `distribute` along a span (`spanAdd` lengthens it past the param, so a railing just outside a deck reaches the corner; `worldPhase` pins copies to the world pitch grid so butted beds align); or a `grid` crossing two param-driven axes into an X×Z lattice (a pitch per axis, or a fixed `maxSpacing`). `grid` works on a `mesh` link too. `omitFirstParam` / `omitLastParam` name booleans that drop the end copy of a 1-D array, so butted barriers don't double a post. `pitch` fits round(span ÷ pitch) copies exactly `pitch` apart (span = `spanParam × spanScale + spanAdd`, plus `param × scale` for each of `spanTerms`; at most 1024 copies), the count for carriers on a loop. `posable: true` lets the behavior move each copy ([Rows of moving carriers](#rows-of-moving-carriers-posable-arrays)) |
 | `aim` | a two-point look-at (hydraulics that stay connected as a parent moves) |
 
 More fields, each documented in [`manifest.d.ts`](../packages/part-sdk/manifest.d.ts):
@@ -728,6 +728,65 @@ link (collision only) dressed by a procedural mesh. The SDK **Fence** and **Safe
 collision box (a full-span barrier, or a swinging leaf) plus a wire-mesh grid and e-stop from `geometry()`,
 with the leaf's mesh tagged `link: 'leaf'` so it swings with the hinge. See
 [fence](../examples/parts/fence/part.js) and [safety-gate](../examples/parts/safety-gate/part.js).
+
+`hidden` hides a link and everything attached to it, so the dressing can't go on the hidden box itself. For a
+solid that moves and carries its own look, make the link a `frame` with `collision: { box: [x, y, z] }` and tag
+the mesh with that link: one link, one pose, and the collider and the look move together.
+
+#### Rows of moving carriers: posable arrays
+
+A sorter's slats and shoes, a slat conveyor's pushers, a bucket elevator's buckets: many identical solids, each
+moving on its own, as many as the machine's length holds. Declare them as one array link with `posable: true`,
+counted by the `pitch` form, and pose each copy from `step()`:
+
+```js
+// rig(): one link per kind of carrier, whatever the length; the offset is where the row stands at rest
+{ name: 'shoe', shape: { kind: 'frame' }, offset: [0, 0.025, 0.34], collision: { box: [0.06, 0.05, 0.14] },
+  array: { pitch: { axis: 0, spanParam: 'length', spanAdd: -0.04, pitch: 0.076 }, posable: true } }
+
+// geometry(): the shoe's look, drawn once per instance and moving with it
+parts.push({ desc: shoeBody, material: 'shoe', link: 'shoe' })
+
+// step(): place every carrier on the chain, in the part's frame (the link's parent), as setSubPose places a link
+const n = ctx.arrayCount('shoe')
+for (let i = 0; i < n; i++) ctx.setSubPose('shoe', { position: [x(i), y(i), z(i)], rotation: [0, 0, turn(i)] }, i)
+```
+
+Each copy is a kinematic body moved like any posed link, so it pushes cargo. A pose places a copy where the same
+pose would place the link itself, so the link's offset and the array form only say how the row stands at rest: on
+a stopped part, and for any copy not posed this tick. Put the rest row somewhere sensible (a sorter's shoes home
+along the top run) and pose in the parent's frame. `ctx.arrayCount` reads the count the host built for this part's params, so the script
+never repeats the count rule. Things that ride a carrier and move against it (a shoe sliding across its slat) are
+a second posable array with the same count, posed with the same index; a link can't hang under a posable array,
+because it would follow the row, not one copy. All copies of an array draw as one instanced mesh.
+
+A carrier with its own belt (a cross-belt sorter, a vertical conveyor's powered platforms) is a posable array that
+`conveys`: each copy is a deck of its own, posed like any copy, and run on its own with
+`ctx.setSurfaceSpeed(speed, link, i)` along the copy's local +X (`ctx.setSurfaceSpeed(speed, link)` runs every
+copy). Cargo on a copy moves with the copy and along its belt. A copy given no speed this tick stands still, and
+the part-wide `setSurfaceVelocity` / `setSurfaceSpeed(speed)` never run the copies. A single deck the behavior moves
+with `setSubPose` (a shuttle's roller top) is a plain `conveys` link: it follows its pose and carries its cargo.
+A `finish: 'belt'` submesh attached to a conveying array is each copy's belt fabric, and it scrolls at that copy's
+speed; draw it as a box with its length along +X, the direction the deck conveys, so the weave runs the right way.
+A posable array with a `grip` is a gripper per copy (a magazine's positions, each holding the load it stands
+under): `ctx.setGrip(link, on, i)` closes copy `i` from where it stands, and it reports under `link#i` in
+`ctx.measured.grips`.
+
+A row whose length follows more than one param counts with `spanTerms`: a racetrack loop of two straights and two
+half turns is `{ spanParam: 'straightLength', spanScale: 2, spanTerms: [{ param: 'curveRadius', scale: 6.2832 }], pitch: 0.6 }`.
+A pose that turns about more than one axis at once (a tray tilting toward its chute while it follows a curve) is
+easiest as a quaternion: `setSubPose(link, { position, quat: [x, y, z, w] }, i)`, composed from the heading and the
+tilt, in place of Euler `rotation`.
+
+A part whose copies keep moving while the scene is stopped (a chain that runs on its own) never settles, so the
+stopped editor can't show a settled pose. It shows where the copies stood after 5 s of settling instead of their
+rest row; a whole link that never settles still goes back to rest.
+
+Publish the carriers' positions as tags rather than leaving the program to work them out. A program that
+repeats the part's count rule, pitch and loop length to track cargo breaks the moment the part's geometry changes
+(a size param, a count rule merged into one array). A real sorter's controller reads a carrier-number count and a
+home flag from the machine, so give the part outputs that say which carrier stands at each station, and let the
+program track cargo by carrier number.
 
 #### Geometry that has to meet a neighbour: the third argument, `ctx: GeometryContext`
 
@@ -1157,7 +1216,7 @@ never share one. There is no `ctx.state`.
 | Time + pose | `dt`, `simTime`, `position`, `forward`, `heading()` |
 | Motion math (pure) | `approach`, `approachAngle`, `approachVec`, `angleDelta`, `clamp`, `steer` |
 | Conveying | `setSurfaceVelocity(v)`, `setArcSurfaceVelocity({ center, omega })`, `setSurfaceSpeed(s \| [s…])` (along each `conveys` link's own +X, re-read every tick for hinged beds; an array runs each deck at its own speed), `conveyorRunning(id)` (is the conveyor a `partRef` param names running?) |
-| Articulation | `joints.name = rad\|m` (`setJoint(name, v)` for a computed name like `'h' + i`, which the typed bag refuses), `measured.joints` feedback, `setSubPose` |
+| Articulation | `joints.name = rad\|m` (`setJoint(name, v)` for a computed name like `'h' + i`, which the typed bag refuses), `measured.joints` feedback, `setSubPose` (with an index, one copy of a posable array), `arrayCount(link)` |
 | Servos | `servos.name` (a joint the manifest marks `servo`; `servo(name)` for a computed name): `power(on)`, `moveAbsolute(pos, { velocity, accel?, decel?, direction? })`, `moveRelative`, `moveVelocity(v)`, `follow(setpoint)`, `halt`, `stop` / `releaseStop`, `reset`, `home`; reads `position`, `velocity`, `state`, `inPosition`, `error`, `done(id)` / `aborted(id)`. See [Servos](#servos-let-the-host-run-the-motion) |
 | Grippers | `grips.name = bool` (`setGrip(name, on)` for a computed name), `measured.grips` (true = actually carrying). If something takes the load out of a closed gripper (the walking pilot, a drag), it drops its whole load, reads false, and stays open until you command it false again |
 | Mobility | `drive(forward, turn)` moves the live root; steer closed-loop off `position` / `forward` |

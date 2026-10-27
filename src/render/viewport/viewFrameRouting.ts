@@ -2,6 +2,8 @@
 // poses, rig joints and subPoses, lamps, displays, conveyor speeds and reported values, change-gated.
 
 import type { BoxFrame } from '../../core/frame'
+import { subPoseEq } from '../../core/rig/rigPose'
+import type { SubPose } from '../../core/rig/rigPose'
 import { markBundleDirtyPart } from '../bundleGroups'
 import type { SubPoseMap } from './viewTypes'
 import type { RenderView } from './view'
@@ -61,18 +63,11 @@ function sameFlatValues<T>(a: Record<string, T>, b: Record<string, T>): boolean 
   return true
 }
 
-function sameVec3(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
-  if (a === b) return true
-  if (!a || !b) return false
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
-}
-
-/** same link names, each with the same position + rotation */
+/** same link names, each with the same position, rotation and instance poses */
 function sameSubPoses(a: SubPoseMap, b: SubPoseMap): boolean {
   for (const k in b) {
     const x = a[k]
-    const y = b[k]!
-    if (!x || !sameVec3(x.position, y.position) || !sameVec3(x.rotation, y.rotation)) return false
+    if (!x || !subPoseEq(x, b[k])) return false
   }
   for (const k in a) if (!(k in b)) return false
   return true
@@ -128,7 +123,7 @@ export function applyBoxFrame(view: FrameRoutingHost, frame: BoxFrame): void {
   if (frame.subPoses) {
     for (const partId in frame.subPoses) {
       const obj = view.entries.get(partId)?.visual.object
-      const applySubPoses = obj?.userData.applySubPoses as ((p: Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>) => void) | undefined
+      const applySubPoses = obj?.userData.applySubPoses as ((p: Record<string, SubPose>) => void) | undefined
       if (!obj || !applySubPoses) continue
       const sp = frame.subPoses[partId]!
       const rev = (obj.userData.poseRev as number | undefined) ?? 0
@@ -136,6 +131,13 @@ export function applyBoxFrame(view: FrameRoutingHost, frame: BoxFrame): void {
       if (prev && prev.rev === rev && sameSubPoses(prev.poses, sp)) continue
       applySubPoses(sp)
       view.routing.lastRoutedSubPoses.set(applySubPoses, { rev: (obj.userData.poseRev as number | undefined) ?? 0, poses: sp })
+    }
+  }
+  if (frame.copySpeeds) {
+    // conveying copies' belt speeds: the rig rewrites a copy's scroll only when its speed changed
+    for (const partId in frame.copySpeeds) {
+      const apply = view.entries.get(partId)?.visual.object.userData.applyCopySpeeds as ((s: Record<string, number[]>) => void) | undefined
+      apply?.(frame.copySpeeds[partId]!)
     }
   }
   if (frame.lamps) {

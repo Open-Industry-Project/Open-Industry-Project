@@ -142,7 +142,7 @@ try {
       beams: links.filter((l) => l.beam).map((l) => l.name),
       zones: links.filter((l) => l.zone).map((l) => l.name),
       loadCells: links.filter((l) => l.loadCell).map((l) => l.name),
-      colliders: links.filter((l) => l.collision !== 'none' && ['box', 'cylinder'].includes(l.shape.kind)).map((l) => l.name).concat(links.filter((l) => l.shape.kind === 'mesh' && l.collision?.box).map((l) => l.name)),
+      colliders: links.filter((l) => l.collision !== 'none' && ['box', 'cylinder'].includes(l.shape.kind)).map((l) => l.name).concat(links.filter((l) => ['mesh', 'frame'].includes(l.shape.kind) && l.collision?.box).map((l) => l.name)),
       conveys: links.filter((l) => l.conveys).map((l) => l.name).concat('conveys' in geo && geo.conveys ? ['(whole part)'] : []),
       snap: pkg.snap ? Object.keys(pkg.snap).filter((k) => pkg.snap[k] !== undefined) : [],
       ...(pkg.useParam ? { useParam: pkg.useParam } : {}),
@@ -195,7 +195,11 @@ try {
         }
         const model = emptyBox()
         const colliders = emptyBox()
-        const shown = (l) => !l.showParam || defaults[l.showParam] !== false
+        // a posable array's copies stand wherever the behavior puts them (round a sorter's chain), so their rest row
+        // says nothing about the part's size: they and what geometry() hangs on them are left out of the measure
+        const shown = (l) => (!l.showParam || defaults[l.showParam] !== false) && !l.array?.posable
+        const posableRows = geo.links.some((l) => l.array?.posable)
+        if (posableRows) report.summary.posableRows = geo.links.filter((l) => l.array?.posable).map((l) => l.name)
         for (const l of geo.links) {
           const pose = poses.get(l.name)
           if (!pose || !shown(l)) continue
@@ -212,7 +216,7 @@ try {
             const h = linkHalfExtents(l, defaults)
             place({ min: [-h[0], -h[1], -h[2]], max: h }, pose, model)
           }
-          const collides = (primitive && l.collision !== 'none') || (l.shape.kind === 'mesh' && l.collision?.box)
+          const collides = (primitive && l.collision !== 'none') || (['mesh', 'frame'].includes(l.shape.kind) && l.collision?.box)
           if (collides) {
             const h = linkHalfExtents(l, defaults)
             place({ min: [-h[0], -h[1], -h[2]], max: h }, pose, colliders)
@@ -286,7 +290,8 @@ try {
         if (!isEmpty(colliders)) {
           report.summary.measured = { ...report.summary.measured, colliders: fmt(colliders) }
           // a collider a little proud of the mesh is common and deliberate (a blade's contact face); 5 cm is a mistake
-          if (!isEmpty(model)) outside(colliders, model, 'a collider', 'the model', 0.05)
+          // with posable rows left out the model is not the whole part, so a collider past it says nothing
+          if (!isEmpty(model) && !posableRows) outside(colliders, model, 'a collider', 'the model', 0.05)
         }
       } catch (e) {
         report.warnings.push(`could not measure the rig: ${e.message}`)
@@ -352,7 +357,7 @@ if (asJson) {
     if (!s) continue
     const box = (b) => `x ${b.x.join('..')}  y ${b.y.join('..')}  z ${b.z.join('..')}`
     if (s.footprint) console.log(`    footprint at default params (m, part-local): ${box(s.footprint)}${s.footprintFrom ? `   ← ${s.footprintFrom}` : ''}`)
-    if (s.measured?.model) console.log(`    measured model at rest:                     ${box(s.measured.model)}`)
+    if (s.measured?.model) console.log(`    measured model at rest:                     ${box(s.measured.model)}${s.posableRows ? `  (without the posable rows ${s.posableRows.join(', ')}, which stand where step() puts them)` : ''}`)
     if (s.measured?.colliders) console.log(`    measured colliders at rest:                 ${box(s.measured.colliders)}`)
     for (const g of s.signals) console.log(`    signal  ${(g.dir ?? '?').padEnd(3)} ${(g.type ?? '?').padEnd(4)} ${g.name}${g.fixed ? ' (fixed name)' : ` = "${g.tag}"`}`)
     for (const j of s.joints) console.log(`    joint   ${j.name} (${j.type} on ${j.link}, ${j.range.join('..')})${j.servo ? `  servo: ${j.servo.maxVelocity}/s, ${j.servo.maxAccel}/s²${j.servo.modulo ? `, wraps at ${j.servo.modulo}` : ''}` : ''}`)

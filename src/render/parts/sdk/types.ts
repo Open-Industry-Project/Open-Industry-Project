@@ -40,6 +40,8 @@ export interface Content {
   applyJoints?: (joints: Record<string, number>) => void
   /** apply free-form link pose overrides (rig setSubPose); undefined for a deck */
   applySubPoses?: (subPoses: Record<string, SubPose>) => void
+  /** each conveying copy's belt speed (frame.copySpeeds), by posable array link; runs the copies' belt fabric */
+  applyCopySpeeds?: (speeds: Record<string, number[]>) => void
   /** Stop: drop the run's joint values and subPoses and lay every link at rest (rig only); undefined for a deck */
   resetRunPose?: () => void
   /** light/darken emissive lamp links (rig setEmissive/ctx.lamps); undefined for a deck/no-lamp rig */

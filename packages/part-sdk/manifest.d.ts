@@ -512,17 +512,23 @@ export interface RigLink {
      *  and a `mesh` (a model), `cone`, `frame`, `label` or `leg` does not.
      *  - `'none'`: render it but build no body. For cosmetic geometry that must not touch cargo: a roller
      *    conveyor's rollers (the separate `conveys` deck is the real surface), a railing's decorative rails.
-     *  - `{ box: [x, y, z] }` (a `mesh` link only): collide as a box of that full size, **centred on the link
+     *  - `{ box: [x, y, z] }` (a `mesh` or `frame` link): collide as a box of that full size, **centred on the link
      *    origin** (not on the model's bounds). For an off-centre model, use a hidden `box` link at the right offset.
+     *    On a `frame` it is a solid that draws nothing of its own, so the meshes `geometry()` attaches to the link
+     *    (`MeshPart.link`) are its look. A `hidden` box link can't do that: hiding a link hides what is attached to it.
      *  A drawn submesh says the same thing with `collision: 'box' | 'hull'` (partApi `MeshPart`). */
     collision?: 'none' | {
         box: Vec3Tuple;
     };
-    /** This (box) link is a conveyor surface: its top face carries cargo at the velocity the behavior
+    /** This box link (or `frame` with a `collision` box: a deck that draws nothing, dressed from `geometry()`) is a
+     *  conveyor surface: its top face carries cargo at the velocity the behavior
      *  sets via `ctx.setSurfaceVelocity` (a powered belt/roller deck). The host builds it as a static conveyor
      *  body, so cargo rides it; other links (frame, guards) stay normal. A `conveys` link under a joint (a lift's
      *  carriage, a pop-up transfer) is built kinematic instead and follows the joint each tick, carrying its cargo
-     *  with it: a vertical lift is a `conveys` deck on a prismatic joint. A `conveys` link turned in the part is built
+     *  with it: a vertical lift is a `conveys` deck on a prismatic joint. So is one the behavior poses with
+     *  `ctx.setSubPose` (a shuttle's roller top), or one under such a link. A posable array that conveys is a deck per
+     *  copy (a cross-belt sorter's carriers), each run by `ctx.setSurfaceSpeed(speed, link, i)` and never by the
+     *  part-wide surface commands. A `conveys` link turned in the part is built
      *  at that turn, and its running face is its local +Y wherever that points: a side belt is a `conveys` box stood
      *  on its edge. A running face meeting cargo from the side needs a firm squeeze to grip it: a contact up to
      *  2 mm deep on a sideways face reads as a seam snag between butted conveyors and is ignored. */
@@ -569,9 +575,26 @@ export interface RigLink {
      *     count = floor(usable/params[pitchParam]) + 1 (clamped 1..64), instances
      *     spread edge-to-edge across ±usable/2 (actual spacing = usable/(count−1) ≈ pitch). Uniquely usable on a
      *     `mesh` link (the cup GLB node cloned per cell).
+     *   - `pitch`: as many instances as fit a span at a fixed pitch, count = round(span / pitch) (at least 1, at most
+     *     1024), laid `pitch` apart along `axis` and centred on the link offset. span = `params[spanParam] × spanScale +
+     *     spanAdd`, plus `params[param] × scale` for each of `spanTerms`: a loop of two straights and two half turns
+     *     is `spanParam: 'length', spanScale: 2, spanTerms: [{ param: 'radius', scale: 2π }]`. A span param whose range
+     *     reaches past 1024 copies is an authoring problem, and a part that hits the limit says so on the part.
+     *     The form for carriers on a loop: a sorter's slats at a 76 mm pitch, round a chain whose length follows the
+     *     section's length (`spanScale: 2` for the top and return runs, `spanAdd` for the turns).
      *  To switch the whole array off with a param, give the link a {@link showParam}: false ⇒ zero instances, mesh
      *  and collision (format 3's `enabledParam` inside the array).
-     *  Each instance is a copy of the shape (sizeParams applied uniformly). Render + sim build N meshes/bodies. */
+     *  Each instance is a copy of the shape (sizeParams applied uniformly). Render + sim build N meshes/bodies.
+     *
+     *  `posable: true` lets the behavior move each instance on its own: `ctx.setSubPose(link, pose, i)` places
+     *  instance `i` where `ctx.setSubPose(link, pose)` would place the link, in its parent's frame, and
+     *  `ctx.arrayCount(link)` says how many there are. Each instance gets a kinematic body (a static one otherwise),
+     *  and a `geometry()` submesh attached to the link (`MeshPart.link`) is drawn once per instance and moves with it.
+     *  An instance not posed this tick stands at its rest place in the row, so the link's offset and the array form
+     *  say only how the row stands at rest. For a carrier's look, make the link a `frame` with a `collision` box and
+     *  attach the look from `geometry()`. With `conveys`, each copy is also a deck of its own, run by
+     *  `ctx.setSurfaceSpeed(speed, link, i)`; with `grip`, a gripper of its own, closed by `ctx.setGrip(link, on, i)`. Not with `worldPhase` (the count would depend on where the part stands)
+     *  or on a `mesh` link. */
     array?: {
         distribute?: {
             axis: 0 | 1 | 2;
@@ -580,6 +603,18 @@ export interface RigLink {
             maxSpacing: number;
             worldPhase?: boolean;
         };
+        pitch?: {
+            axis: 0 | 1 | 2;
+            spanParam: string;
+            spanScale?: number;
+            spanAdd?: number;
+            spanTerms?: {
+                param: string;
+                scale?: number;
+            }[];
+            pitch: number;
+        };
+        posable?: boolean;
         count?: string;
         step?: Vec3Tuple;
         stepParams?: SizeParamRef[];
@@ -945,7 +980,9 @@ export interface PartOrigin {
  *
  * - `part`: the package id of the cargo part a position holds (`'oip.pallet'`).
  * - `positions`: gripper link names, bottom first (the order they fill in). Each must be a rig link with a
- *   `grip.zone`; the item stands at the zone's centre, at the part's rest pose.
+ *   `grip.zone`; the item stands at the zone's centre, at the part's rest pose. A copy of a posable gripper array is
+ *   named `link#i` (`'pos#0'`, `'pos#1'`, ...) and stands at its rest place in the row; a copy the array's count
+ *   leaves out is not a position.
  * - `limitParam`: a `number` param capping how many positions are in use (a magazine's capacity). Absent = all.
  * - `params`: params Fill gives each item it places, from the holder's own: `{ size: 'palletSize' }` places pallets
  *   of the size the magazine is set to. Item param name -> holder param name.

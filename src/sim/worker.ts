@@ -437,6 +437,7 @@ function postFrame(w: SimWorld, held: boolean, fullWatch = false): void {
       ...frameWire.encode(f.partIds, f.dressings, f.shapes, f.shapeRefs),
       ...(f.joints ? { joints: f.joints } : {}),
       ...(f.subPoses ? { subPoses: f.subPoses } : {}),
+      ...(f.copySpeeds ? { copySpeeds: f.copySpeeds } : {}),
       ...(f.lamps ? { lamps: f.lamps } : {}),
       ...(f.values ? { values: f.values } : {}),
       ...(f.displays ? { displays: f.displays } : {}),

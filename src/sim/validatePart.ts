@@ -12,6 +12,7 @@
 
 import { cargoCentreOffset, cargoPieces, cargoPiecesBounds } from '../core/cargoBody'
 import type { RigParams } from '../core/rig/rigPose'
+import { posableArraysJson } from '../core/rig/rigPose'
 import { checkDeterminism } from '../core/determinism'
 import type { ParamSchema } from '../core/parts/partApi'
 import type { PartPackage } from '../core/parts/partPackage'
@@ -57,7 +58,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   }
 
   // 2) Load - run the script once through the single eval chokepoint to bake the schema + read decls.
-  const handle = create(behaviorSource, '{}', servoJointsJson(manifest.geometry))
+  const handle = create(behaviorSource, '{}', servoJointsJson(manifest.geometry), posableArraysJson(manifest.geometry))
   if (handle <= 0) {
     const e = error() // also clears the runtime's error buffer
     // When determinism already explained the failure, don't duplicate it as an opaque load error.

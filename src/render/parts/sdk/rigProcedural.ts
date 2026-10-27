@@ -7,13 +7,17 @@ import type { InstancedMesh, Material, Texture } from 'three'
 import { getPackage } from '../../../core/parts/partRegistry'
 import { evalPartGeometry, geometryAnimates, partDeclaredLamps, partHasGeometry, resolvePartParams } from '../../../core/geometry/geometryEval'
 import type { GeometryContext, MeshDescription, MeshPart, ParamValue } from '../../../core/parts/partApi'
-import type { PartAsset, PartMaterial, PartPackage } from '../../../core/parts/partPackage'
+import type { PartAsset, PartMaterial, PartPackage, RigLink } from '../../../core/parts/partPackage'
+import { arrayInstanceDeltas } from '../../../core/rig/rigPose'
+import type { RigParams } from '../../../core/rig/rigPose'
 import type { SdkPart } from '../../../core/types'
 import { realizeMeshDescription, rewriteMeshDescription } from '../meshDescriptionGeometry'
 import { boltMaterial, scrollMaterial, createBeltSurface, deckTriplanarMaterial, gapFillMaterial, guardMaterial, legMaterial, markTickUniformsAdvanced, railMaterial, rollerMaterial, shadowMesh } from '../common'
 import { FN_NEUTRAL, descEqual } from './shared'
 import { buildMaterial } from './materials'
 import { realizeInstancedTemplate, writeInstanceMatricesHeld } from '../instancedTemplate'
+import { beltBankMaterial, beltClockEpoch, rebaseBeltScroll, rebaseBeltScrollForWrap, writeFabricBankAttributes, writeFabricBankScrolls } from '../beltFabricBank'
+import { BELT_TEX_PERIOD } from '../common'
 import { bumpRepaintEpoch, bumpStructureVersion } from '../structureRev'
 import { retireGeometry, retireInstancedMesh, retireTexture } from '../../gpuRetire'
 import { markLazyColliderBVH } from '../../bvh'
@@ -59,6 +63,10 @@ export interface ProcGeometry {
   applyValues(v: Record<string, number | boolean>): void
   /** the per-tick lamp state: a squash channel compresses while its lamp is lit */
   setLampTargets(lamps: Record<string, boolean>): void
+  /** the banks drawn once per instance of the posable array link `link` (its attached submeshes) */
+  banksOn(link: string): InstancedMesh[]
+  /** each conveying copy's belt speed (frame.copySpeeds), by link: a copy's belt fabric runs at its own speed */
+  setCopySpeeds(speeds: Record<string, number[]>): void
   dispose(): void
 }
 
@@ -73,7 +81,15 @@ export function createProcGeometry(deps: ProcGeometryDeps): ProcGeometry {
   // number the Inspector's live readout shows), so a program-commanded speed drives it; otherwise the part's param
   // of that name. The procedural refresh registers the channels as it emits the submeshes; the hook they run in has
   // to exist from the start, so it is built whenever the script's geometry() animates at its default params.
-  const procMayAnimate = partHasGeometry(pkg.behavior) && geometryAnimates(pkg.behavior, paramSpecs)
+  // the posable array links (array.posable), whose attached submeshes draw once per instance
+  const posableLinks = new Map<string, RigLink>(pkg.geometry.kind === 'rig' ? pkg.geometry.links.filter((l) => l.array?.posable).map((l) => [l.name, l]) : [])
+  // A belt submesh (finish 'belt') on a posable conveying array is drawn as belt fabric (beltFabricBank.ts) whose
+  // copies scroll at their own copy's belt speed: [base, rate] per copy, the shader integrating base + rate·clock, so
+  // a copy's scroll is rewritten only when its speed changes or the clock wraps.
+  const copyBelts: { link: string; mesh: InstancedMesh; base: Float64Array; rate: Float64Array; epoch: number }[] = []
+  let copySpeeds: Record<string, number[]> = {}
+  const conveyingCopies = [...posableLinks.values()].some((l) => l.conveys === true)
+  const procMayAnimate = (partHasGeometry(pkg.behavior) && geometryAnimates(pkg.behavior, paramSpecs)) || conveyingCopies
   let liveValues: Record<string, number | boolean> | null = null
   let procResolved: Record<string, ParamValue> = {}
   // a scroll/spin channel names the param that turns it; left out, it is the conveyor's declared speed param
@@ -94,6 +110,26 @@ export function createProcGeometry(deps: ProcGeometryDeps): ProcGeometry {
   const procTick = procMayAnimate
     ? (dt: number, running: boolean): boolean => {
         if (!running) liveValues = null // a stale reported speed must not outlive the run
+        // conveying copies' belts: a copy's rate follows its speed (0 while stopped, freezing it where it stands)
+        const epoch = beltClockEpoch()
+        for (const cb of copyBelts) {
+          const speeds = copySpeeds[cb.link]
+          let changed = false
+          if (epoch !== cb.epoch) {
+            for (let i = 0; i < cb.base.length; i++) cb.base[i] = rebaseBeltScrollForWrap(cb.base[i]!, cb.rate[i]!, epoch - cb.epoch)
+            cb.epoch = epoch
+            changed = true
+          }
+          for (let i = 0; i < cb.rate.length; i++) {
+            // the weave walks backwards at the belt speed so the pattern moves along +u, the copy's +X
+            const rate = running ? -(speeds?.[i] ?? 0) / BELT_TEX_PERIOD : 0
+            if (rate === cb.rate[i]) continue
+            cb.base[i] = rebaseBeltScroll(cb.base[i]!, cb.rate[i]!, rate)
+            cb.rate[i] = rate
+            changed = true
+          }
+          if (changed) writeFabricBankScrolls(cb.mesh, cb.base, cb.rate)
+        }
         let scrolled = false
         for (const sc of procScrolls) {
           // the shared texture decoded after this part's copy was made: the copy shares its image, but only the
@@ -272,7 +308,7 @@ export function createProcGeometry(deps: ProcGeometryDeps): ProcGeometry {
   const procSlots: { group: Group; mesh: Mesh; desc: MeshDescription; mat: Material }[] = []
   // MeshPart.instances banks: one InstancedMesh per emitted bank (stable emit order among the banks), the function
   // tier's realization (instancedTemplate.ts) hung on the bank's link group
-  const procBanks: { group: Group; mesh: InstancedMesh; desc: MeshDescription; mat: Material }[] = []
+  const procBanks: { group: Group; mesh: InstancedMesh; desc: MeshDescription; mat: Material; perInstance?: string }[] = []
   let procKey = '' // last (behavior-source + resolved-params) key; re-emit only when it changes
   let procDisabled = false
   /** returns whether it actually removed anything (a draw-list change - see the bump below) */
@@ -314,7 +350,19 @@ export function createProcGeometry(deps: ProcGeometryDeps): ProcGeometry {
       procDisabled = !partHasGeometry(source)
       return
     }
-    const drawn = emitted.filter((mp) => mp.desc.positions.length > 0) // drop empty descs (render-only roller banks)
+    // a submesh on a posable array link is drawn once per instance: a bank at the instances' rest places, which the
+    // rig re-places as the behavior moves them (rigArrayPose.ts)
+    const perInstance = new Set<MeshPart>()
+    const drawn = emitted
+      .filter((mp) => mp.desc.positions.length > 0) // drop empty descs (render-only roller banks)
+      .map((mp) => {
+        const link = mp.instances === undefined && mp.link ? posableLinks.get(mp.link) : undefined
+        if (!link) return mp
+        const rest = arrayInstanceDeltas(link.array!, resolved as RigParams, undefined, link.showParam)
+        const banked: MeshPart = { ...mp, instances: rest.map((d) => ({ position: d })) }
+        perInstance.add(banked)
+        return banked
+      })
     const parts = drawn.filter((mp) => mp.instances === undefined)
     const bankParts = drawn.filter((mp) => mp.instances !== undefined)
     // adding / swapping / dropping a submesh is a draw-list change; an unchanged slot is not (see the bump below)
@@ -327,7 +375,8 @@ export function createProcGeometry(deps: ProcGeometryDeps): ProcGeometry {
       const part = bankParts[i]!
       const insts = part.instances!
       const group = (part.link ? linkGroups.get(part.link) : undefined) ?? root
-      let mat = procMatFor(part)
+      const copyBelt = perInstance.has(part) && part.finish === 'belt' && posableLinks.get(part.link!)?.conveys === true
+      let mat = copyBelt ? beltBankMaterial('standard', '#ffffff') : procMatFor(part)
       if (part.doubleSided) {
         if (part.lamps?.length || part.colorParam || part.scroll || part.spin) mat.side = DoubleSide
         else mat = asDoubleProc(mat)
@@ -344,6 +393,29 @@ export function createProcGeometry(deps: ProcGeometryDeps): ProcGeometry {
       if (part.castShadow === false) mesh.castShadow = false
       group.add(mesh)
       procBanks[i] = { group, mesh, desc: part.desc, mat }
+    }
+    for (let i = 0; i < bankParts.length; i++) procBanks[i]!.perInstance = perInstance.has(bankParts[i]!) ? bankParts[i]!.link : undefined
+    // (re)attach the fabric attributes of each copy belt: its u tiles by the submesh's length along X (a builder box
+    // maps u 0..1 across it), and a copy keeps its scroll phase and rate across a re-emit
+    const keptBelts = new Map(copyBelts.map((cb) => [cb.mesh, cb] as const))
+    copyBelts.length = 0
+    for (let i = 0; i < bankParts.length; i++) {
+      const part = bankParts[i]!
+      const mesh = procBanks[i]!.mesh
+      if (!(perInstance.has(part) && part.finish === 'belt' && posableLinks.get(part.link!)?.conveys === true)) continue
+      const xs = part.desc.positions.filter((_, k) => k % 3 === 0)
+      const uLen = xs.length ? Math.max(...xs) - Math.min(...xs) : 1
+      const n = part.instances!.length
+      writeFabricBankAttributes(mesh, part.instances!.map((t) => ({ ...t, data: [uLen, 0, 1, 0] })), 0, 0)
+      const was = keptBelts.get(mesh)
+      const cb = { link: part.link!, mesh, base: new Float64Array(n), rate: new Float64Array(n), epoch: beltClockEpoch() }
+      if (was) {
+        cb.base.set(was.base.subarray(0, Math.min(n, was.base.length)))
+        cb.rate.set(was.rate.subarray(0, Math.min(n, was.rate.length)))
+        cb.epoch = was.epoch
+      }
+      writeFabricBankScrolls(mesh, cb.base, cb.rate)
+      copyBelts.push(cb)
     }
     for (let i = procBanks.length - 1; i >= bankParts.length; i--) {
       const b = procBanks.pop()!
@@ -471,6 +543,8 @@ export function createProcGeometry(deps: ProcGeometryDeps): ProcGeometry {
     tick: procTick,
     applyValues: (v) => { liveValues = v },
     setLampTargets: (lamps) => { for (const s of procSquashes) s.target = lamps[s.signal] === true ? 1 : 0 },
+    banksOn: (link) => procBanks.filter((b) => b.perInstance === link).map((b) => b.mesh),
+    setCopySpeeds: (speeds) => { copySpeeds = speeds },
     dispose: () => {
       clearProcSlots() // the submesh geometries (their materials are in allMaterials)
       for (const t of scrollTexClones) retireTexture(t) // private scroll-channel texture copies (not the shared package texture)

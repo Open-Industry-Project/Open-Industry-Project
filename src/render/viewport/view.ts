@@ -121,6 +121,7 @@ import * as viewCamera from './viewCamera'
 import { CameraNavState } from './viewCamera'
 import * as viewOverlays from './viewOverlays'
 import { ViewOverlayState } from './viewOverlays'
+import type { SubPose } from '../../core/rig/rigPose'
 export type { Entry, IRenderViewTestSurface, MergeCoherenceCheck, MergeCoherenceReport, RenderViewOptions, VRState } from './viewTypes'
 
 /** how close (CSS px) the pointer must come to a guard wall for guard-openings mode to treat it as ON the guard */
@@ -1008,7 +1009,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.routing.handPosed = new Set(partIds)
   }
 
-  applyIdlePose(partId: string, pose: { joints?: Record<string, number>; subPoses?: Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>; lamps?: Record<string, boolean> }): void {
+  applyIdlePose(partId: string, pose: { joints?: Record<string, number>; subPoses?: Record<string, SubPose>; lamps?: Record<string, boolean> }): void {
     // stopped-sim only: while running, applyBoxFrame drives this rig every frame and would fight this pose (unless
     // the rig is hand-posed, when the frames stand aside for it)
     if (this.running && !this.routing.handPosed.has(partId)) return
@@ -1016,7 +1017,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     if (!obj) return
     // same appliers the running frame routes to (applyBoxFrame): joints first, then subPose overrides win.
     if (pose.joints) (obj.userData.applyJoints as ((j: Record<string, number>) => void) | undefined)?.(pose.joints)
-    if (pose.subPoses) (obj.userData.applySubPoses as ((p: Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>) => void) | undefined)?.(pose.subPoses)
+    if (pose.subPoses) (obj.userData.applySubPoses as ((p: Record<string, SubPose>) => void) | undefined)?.(pose.subPoses)
     // a beam on a link this pose moved casts from where the link now stands. Stopped, the beam probe reruns only on
     // a scene, cargo or registry change, so without this the beam stays drawn where the link was (a lift's deck
     // eye left at the lower level). Running, the frame's probe pass re-aims it.

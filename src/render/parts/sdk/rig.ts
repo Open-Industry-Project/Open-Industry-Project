@@ -1,7 +1,8 @@
 import { Box3, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, EdgesGeometry, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshStandardMaterial } from 'three'
 import type { Material, Object3D, Texture } from 'three'
-import { arrayInstanceDeltas, resolvedBoxSize, resolvedCylinder, resolvedMeshScale, restQuatOf } from '../../../core/rig/rigPose'
-import type { SeamContext } from '../../../core/rig/rigPose'
+import { arrayInstanceDeltas, pitchCapMessage, resolvedBoxSize, resolvedCylinder, resolvedMeshScale, restQuatOf } from '../../../core/rig/rigPose'
+import { reportPartDiagnostic } from '../../../core/parts/partDiagnostics'
+import type { SeamContext, SubPose } from '../../../core/rig/rigPose'
 import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
 import { resolvePartParams } from '../../../core/geometry/geometryEval'
@@ -35,6 +36,8 @@ import { paintLamp, SQUASH_TAU } from './rigLamps'
 import type { LampMat } from './rigLamps'
 import { createProcGeometry } from './rigProcedural'
 import { createRigPlacement } from './rigPlacement'
+import { placePosedArray } from './rigArrayPose'
+import type { PosedArray } from './rigArrayPose'
 import { createRigBeams } from './rigBeams'
 import { addLabelPlane, paintLabelPlates } from './rigLabels'
 import type { RigLabel } from './rigLabels'
@@ -238,7 +241,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
   // depressing), which no geometry field declares. A dynamically-named call can't be resolved statically
   // and conservatively grounds the whole rig (subPosedLinkNames).
   const subPosed = subPosedLinkNames(pkg.behavior)
-  const mobileLink = (l: RigLink): boolean => jointedLinks.has(l.name) || !!l.aim || subPosed.unresolved || subPosed.names.has(l.name)
+  const mobileLink = (l: RigLink): boolean => jointedLinks.has(l.name) || !!l.aim || !!l.array?.posable || subPosed.unresolved || subPosed.names.has(l.name)
   // Per link, not per rig: a whole-rig rule lets one joint keep every link of the part out, including
   // hardware that never moves (the turntable's legs, feet and base frame, a blade stop's housing). What
   // makes that safe is `poolMobile` below: a mobile link's group
@@ -684,7 +687,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
 
   const { beamVisuals, probeTick } = createRigBeams(geo, root, linkGroups)
 
-  const { applyJoints, applyRestPose, applySubPoses, resetRunPose, ...placement } = createRigPlacement({ geo, root, linkGroups, linkByName, hasLinkBanks: linkBanks.length > 0, replaceLinkBanks, bumpPoseRev })
+  const { applyJoints, applyRestPose, applySubPoses: placeSubPoses, resetRunPose: placeRunReset, instancePoseInto, ...placement } = createRigPlacement({ geo, root, linkGroups, linkByName, hasLinkBanks: linkBanks.length > 0, replaceLinkBanks, bumpPoseRev })
 
   // squash links: the driving lamp's frame.lamps signal also sets the compression target (0/1), eased toward
   // by the tick (below). The signal is a different link than the squash (the cups squash off the tool's LED).
@@ -693,6 +696,52 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
   // submesh can be a lamp too (MeshPart.lamps) - those register on the first refresh, after this is built, so a rig
   // whose script has geometry() and declares lamps gets the hook up front (the loop reads lampMats at call time).
   const proc = createProcGeometry({ root, linkGroups, pkg, paramSpecs, materials, assets, allMaterials, lampMats, bumpPoseRev })
+
+  // posable array links (array.posable): each instance's draws follow setSubPose(link, pose, i) (rigArrayPose.ts)
+  const posedArrays = new Map<string, PosedArray>()
+  for (const link of geo.links) {
+    if (!link.array?.posable) continue
+    const ial = instancedArrayLinks.find((x) => x.group === linkGroups.get(link.name))
+    posedArrays.set(link.name, {
+      rest: [],
+      poses: undefined,
+      primitive: () => (ial?.pool && ial.scale ? { mesh: ial.pool.mesh, scale: ial.scale } : null),
+      banks: () => proc.banksOn(link.name),
+      place: (out, pose, rest) => instancePoseInto(out, link.name, pose, rest),
+    })
+  }
+  // a refresh re-lays the rows at rest: take the new rest places and put back the run's poses
+  const refreshPosedArrays = (params: RigParams): void => {
+    for (const [name, pa] of posedArrays) {
+      const link = linkByName.get(name)!
+      pa.rest = arrayInstanceDeltas(link.array!, params, undefined, link.showParam)
+      const capped = pitchCapMessage(link, params)
+      if (capped) reportPartDiagnostic({ source: 'geometry', partId: typeof root.userData.partId === 'string' ? root.userData.partId : '', packageId: pkg.id, message: capped })
+      placePosedArray(pa)
+    }
+  }
+  const applySubPoses = (subPoses: Record<string, SubPose>): void => {
+    placeSubPoses(subPoses)
+    let moved = false
+    for (const name in subPoses) {
+      const pa = posedArrays.get(name)
+      const poses = subPoses[name]!.instances
+      if (!pa || (!poses && !pa.poses)) continue
+      pa.poses = poses
+      placePosedArray(pa)
+      moved = true
+    }
+    if (moved) bumpPoseRev()
+  }
+  const resetRunPose = (): void => {
+    placeRunReset()
+    proc.setCopySpeeds({}) // Stop: every copy's belt stops where it stands
+    for (const pa of posedArrays.values()) {
+      if (!pa.poses) continue
+      pa.poses = undefined
+      placePosedArray(pa)
+    }
+  }
   const procMayLight = proc.mayLight
   const applyLamps = lampMats.length || squashLinks.length || procMayLight
     ? (lamps: Record<string, boolean>): void => {
@@ -864,6 +913,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
       // (re)emit the behavior's geometry() into the rig links (MeshPart.link) - before the param-geo early-out,
       // so a purely-static procedural rig (a fence: dressing only, no param-driven primitive links) still draws.
       proc.realize(p, geoCtx)
+      if (posedArrays.size > 0) refreshPosedArrays(params)
       if (paramBoxes.length === 0 && guardSplitLinks.length === 0 && deckCutLinks.length === 0 && paramCylinders.length === 0 && !paramPose && instancedArrayLinks.length === 0 && legLinks.length === 0 && meshArrayLinks.length === 0 && paramMeshes.length === 0 && labels.length === 0) return
       // C-label: redraw each text plane from its static text or its (Inspector-editable) param value.
       //
@@ -940,6 +990,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
       for (const ial of instancedArrayLinks) {
         layoutArrayLink(ial, params, seam, platformCut, root, pkg.id)
       }
+      if (posedArrays.size > 0) refreshPosedArrays(params)
       // a changed neighbour cut reshaped draws that live inside this part's recorded render bundle (instanced
       // rail segments/posts, deck strips) while the part itself was never dragged/ejected. Bump the structural
       // counter so the bundle re-records, or WebGPU keeps replaying the old railing/deck until a dev restart.
@@ -957,6 +1008,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
     applySubPoses,
     applyRestPose,
     resetRunPose,
+    ...(posedArrays.size > 0 ? { applyCopySpeeds: proc.setCopySpeeds } : {}),
     ...(applyLamps ? { applyLamps } : {}),
     ...(applyDisplays ? { applyDisplays } : {}),
     // per-frame animation: roller-bed spin + squash cup ease (combined). Roller beds also follow the

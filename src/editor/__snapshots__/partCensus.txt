@@ -417,16 +417,7 @@ lamps [low,ready] animates=false
   link carriage {shape:frame}
   link forkW {shape:frame}
   link forkE {shape:frame}
-  link p0 {gripZone:true,shape:frame}
-  link p1 {gripZone:true,shape:frame}
-  link p2 {gripZone:true,shape:frame}
-  link p3 {gripZone:true,shape:frame}
-  link p4 {gripZone:true,shape:frame}
-  link p5 {gripZone:true,shape:frame}
-  link p6 {gripZone:true,shape:frame}
-  link p7 {gripZone:true,shape:frame}
-  link p8 {gripZone:true,shape:frame}
-  link p9 {gripZone:true,shape:frame}
+  link pos {gripZone:true,shape:frame}
   link colWN {body:true,hidden:true,shape:box}
   link colWS {body:true,hidden:true,shape:box}
   link colEN {body:true,hidden:true,shape:box}

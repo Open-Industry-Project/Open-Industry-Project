@@ -2,8 +2,8 @@
 // per-frame paths that re-pose only the links a joint or a sub-pose moves.
 
 import { Group } from 'three'
-import { POSE_STRIDE, rigLinkLocalPoseInto, rigPoseBuffer, rigWorldPosesInto } from '../../../core/rig/rigPose'
-import type { RigParams, SubPose } from '../../../core/rig/rigPose'
+import { POSE_STRIDE, posedInstanceInto, rigLinkLocalPoseInto, rigPoseBuffer, rigWorldPosesInto } from '../../../core/rig/rigPose'
+import type { InstancePose, RigParams, SubPose } from '../../../core/rig/rigPose'
 import { rigInclineRad } from '../../../core/parts/partGeometry'
 import type { PartPackage, RigLink } from '../../../core/parts/partPackage'
 import { bumpStructureVersion } from '../structureRev'
@@ -29,6 +29,8 @@ export interface RigPlacement {
   applySubPoses(subPoses: Record<string, SubPose>): void
   /** Stop: forget the run's joint values and setSubPose overrides and lay every link at rest */
   resetRunPose(): void
+  /** a posable array instance's place in its link's frame (core posedInstanceInto), with the pose state last placed */
+  instancePoseInto(out: Float64Array, link: string, pose: InstancePose | null | undefined, rest: readonly number[]): void
 }
 
 export function createRigPlacement(deps: RigPlacementDeps): RigPlacement {
@@ -183,5 +185,10 @@ export function createRigPlacement(deps: RigPlacementDeps): RigPlacement {
     applyRestPose,
     applySubPoses,
     resetRunPose,
+    instancePoseInto: (out, link, pose, rest) => {
+      const i = linkIndex.get(link)
+      if (i === undefined) return
+      posedInstanceInto(out, poseGeo, i, lastJoints, lastSubPoses, lastParams, lastIncline, pose, rest)
+    },
   }
 }

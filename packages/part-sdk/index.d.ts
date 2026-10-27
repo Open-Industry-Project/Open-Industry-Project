@@ -672,8 +672,14 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
      * entry stands still): the zones of an accumulating bed, each stopping on its own photo-eye. A spawner interlocked
      * on the part (`ctx.conveyorRunning`) then reads the first deck, the infeed.
      * Overrides {@link setSurfaceVelocity} for this tick when both are set; an arc overrides it.
+     *
+     * With a `link`, it runs the copies of a posable conveying array (`conveys` + `array.posable`: a cross-belt
+     * sorter's carriers) instead: copy `index` at `speed` along its own local +X, or every copy when `index` is left
+     * out. Each copy is a deck of its own that rides where {@link setSubPose} puts it, and cargo on it moves with the
+     * copy and along its belt. A copy not given a speed this tick stands still, and the part-wide surface commands
+     * never run these copies. An index outside the row is ignored.
      */
-    setSurfaceSpeed(speed: number | readonly number[]): void;
+    setSurfaceSpeed(speed: number | readonly number[], link?: string, index?: number): void;
     /**
      * Drive the part's base - the mobility primitive (AGVs, mobile robots). `forward` is the speed (m/s) along
      * the part's current facing (its local +X), `turn` is the yaw rate (rad/s, + turns left). The host integrates
@@ -697,19 +703,39 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
      * with it rigidly, opening (`on=false`) drops it. Choreograph pick-and-place open-loop: command the joints to
      * the pickup pose, `setGrip(true)`, move to the drop pose, `setGrip(false)`. Deterministic; command it
      * every tick like the joints. Setting it on a non-gripper/unknown link is a no-op.
+     *
+     * With `index`, copy `index` of a posable array link grips on its own, from where that copy stands (its `grip`
+     * volume is the link's), and holds and reports under the name `link#index`: `ctx.measured.grips['p#3']`. A row of
+     * magazine positions, each holding the pallet it stands under. An index outside the row is ignored.
      */
-    setGrip(gripper: string, on: boolean): void;
+    setGrip(gripper: string, on: boolean, index?: number): void;
     /**
      * Pose a rig link freely each tick, in all six degrees of freedom, for motion a single revolute/prismatic
      * joint can't express (an end-effector tracing a path, a platform tilting on two axes). `position` is
      * the link's local offset from its parent (metres), `rotation` is its local Euler XYZ (radians); either
-     * omitted keeps the rest value. Overrides the link's joint/rest transform for this tick - command it
+     * omitted keeps the rest value. `quat` ([x, y, z, w], normalised by the host) gives the rotation as a
+     * quaternion instead, and wins over `rotation`: for an orientation built from turns about moving axes, such as
+     * a tray that tilts about its direction of travel while following a curve, compose the turns as quaternions
+     * rather than finding the Euler angles. Overrides the link's joint/rest transform for this tick - command it
      * every tick. Deterministic. Setting an unknown link is ignored.
+     *
+     * With `index`, it poses one instance of a posable array link (`array.posable`): instance `index` of
+     * {@link arrayCount}, placed as the pose would place the link itself (in its parent's frame), its body and every
+     * `geometry()` submesh attached to the link moving with it. An instance not posed this tick stands at its rest
+     * place in the row. An index outside the row, or a link that is not a posable array, is ignored. A sorter's slats
+     * round a chain: `for (let i = 0; i < n; i++) ctx.setSubPose('slat', { position: [x, y, 0], rotation: [0, 0, turn] }, i)`.
      */
     setSubPose(link: string, pose: {
         position?: [number, number, number];
         rotation?: [number, number, number];
-    }): void;
+        quat?: [number, number, number, number];
+    }, index?: number): void;
+    /**
+     * How many instances a posable array link (`array.posable`) has for this part's params, the count its
+     * {@link setSubPose} index runs over. A `pitch` array's count follows its span param: a longer sorter has more
+     * slats. Fixed for the run (a param edit rebuilds the part). 0 for a link that is not a posable array.
+     */
+    arrayCount(link: string): number;
     /**
      * The part's joints as a typed property bag - the primary articulation idiom. Declare joint names in
      * `definePart({ joints: [...] })` and they autocomplete here, fully type-checked: `ctx.joints.shoulder =
@@ -1136,6 +1162,11 @@ export interface MeshPart {
      * collider (a `hidden` box link = a collision-only barrier the procedural mesh dresses), so a link-tagged
      * submesh is render-only. Omit ⇒ the part/rig root. An unknown link name falls back to the root. Ignored by
      * a `function`-geometry part (which has no links); there every submesh sits on the part root.
+     *
+     * On a posable array link (`array.posable`) the submesh is drawn once per copy and moves with it. On one that also
+     * `conveys`, a `finish: 'belt'` submesh is that copy's belt: its weave scrolls at the copy's own belt speed
+     * (`ctx.setSurfaceSpeed(speed, link, i)`), along the submesh's u, which a builder box runs along its length in +X. So
+     * draw the belt with its length along the copy's +X, the way the deck conveys.
      */
     link?: string;
     /**

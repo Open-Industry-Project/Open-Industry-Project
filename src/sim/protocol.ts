@@ -2,6 +2,7 @@ import type { PartInstance, SceneJSON, SimRate } from '../core/types'
 import type { PartPackage } from '../core/parts/partPackage'
 import type { CargoShapeRef, FrameBeamHit, FrameDressing } from '../core/frame'
 import type { FlowFact } from '../core/flow/flowFacts'
+import type { SubPose } from '../core/rig/rigPose'
 import type { PartDiagnosticsEvent } from '../core/parts/partDiagnostics'
 import type { PlcFrameWire } from './plcHost'
 import type { WiredBindings } from '../plc/link/plcLink'
@@ -171,7 +172,8 @@ export type WorkerToMain =
       partIds?: readonly (string | null)[]
       partIdsKept?: true
       joints?: Record<string, Record<string, number>>
-      subPoses?: Record<string, Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>>
+      subPoses?: Record<string, Record<string, SubPose>>
+      copySpeeds?: Record<string, Record<string, number[]>>
       lamps?: Record<string, Record<string, boolean>>
       values?: Record<string, Record<string, number | boolean>>
       displays?: Record<string, Record<string, number | boolean | string>>

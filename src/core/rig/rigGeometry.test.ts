@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { behaviorMentions, PACKAGE_FORMAT, renameRigJoint, renameRigLink, renameRigNameRefs, subPosedLinkNames } from '../parts/partPackage'
 import { validatePartPackage } from '../parts/partValidate'
+import { checkGeometryRefs } from '../parts/partAuthoringChecks'
+import type { ParamSchema } from '../parts/partApi'
 import { dropRetiredRigLinks } from '../parts/partUpgrade'
 import type { PartPackage, RigJoint, RigLink } from '../parts/partPackage'
 
@@ -521,5 +523,67 @@ describe('renameRigJoint + behaviorMentions (joint rename, script never rewritte
     ]) expect(behaviorMentions(src, 'shoulder')).toBe(true)
     expect(behaviorMentions('definePart({ step() {} })', 'shoulder')).toBe(false)
     expect(behaviorMentions('definePart({ step() {} })', '')).toBe(false)
+  })
+})
+
+// A posable array (array.posable): a row of carriers the behavior moves one by one, counted by the `pitch` form
+describe('posable arrays and the pitch form', () => {
+  const carrier = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    name: 'shoe', shape: { kind: 'frame' }, offset: [0, 0, 0], collision: { box: [0.06, 0.05, 0.14] },
+    array: { pitch: { axis: 0, spanParam: 'length', pitch: 0.076 }, posable: true },
+    ...over,
+  })
+  const rig = (...links: Record<string, unknown>[]): unknown => rigPackage({ links, joints: [] })
+
+  it('accepts a frame with a collision box as a posable pitch array', () => {
+    expect(validatePartPackage(rig(carrier()))).toEqual([])
+  })
+
+  it('a collision box is for a mesh or a frame, not a primitive', () => {
+    expect(fields(rig(carrier({ shape: { kind: 'box', size: [1, 1, 1] } })))).toContain('geometry.links[0].collision.box')
+  })
+
+  it('checks the pitch form: a positive pitch, a span param, and one form only', () => {
+    expect(fields(rig(carrier({ array: { pitch: { axis: 0, spanParam: 'length', pitch: 0 } } })))).toContain('geometry.links[0].array.pitch.pitch')
+    expect(fields(rig(carrier({ array: { pitch: { axis: 0, spanParam: '', pitch: 0.1 } } })))).toContain('geometry.links[0].array.pitch.spanParam')
+    expect(fields(rig(carrier({ array: { pitch: { axis: 0, spanParam: 'length', pitch: 0.1 }, count: 'n', step: [1, 0, 0] } })))).toContain('geometry.links[0].array')
+  })
+
+  it('refuses a posable label link, a posable worldPhase row, and a posable load cell', () => {
+    expect(fields(rig(carrier({ shape: { kind: 'label', text: 'x' } })))).toContain('geometry.links[0].array.posable')
+    expect(fields(rig(carrier({ array: { distribute: { axis: 0, spanParam: 'length', maxSpacing: 0.1, worldPhase: true }, posable: true } })))).toContain('geometry.links[0].array.posable')
+    expect(fields(rig(carrier({ shape: { kind: 'box', size: [0.1, 0.1, 0.1] }, collision: undefined, loadCell: true })))).toContain('geometry.links[0].array.posable')
+  })
+
+  it('accepts a posable gripper: a magazine position per copy', () => {
+    expect(validatePartPackage(rig(carrier({ grip: { radius: 0.1 } })))).toEqual([])
+  })
+
+  it('accepts a posable conveying deck: a cross-belt carrier is a box that conveys', () => {
+    expect(validatePartPackage(rig(carrier({ shape: { kind: 'box', size: [0.5, 0.06, 0.7] }, collision: undefined, conveys: true })))).toEqual([])
+  })
+
+  it("reports a pitch array whose span param can ask for more copies than the row holds", () => {
+    const shoes = carrier() as unknown as RigLink
+    const geo = { kind: 'rig' as const, links: [shoes], joints: [] }
+    const length = (max?: number): ParamSchema => ({ length: { type: 'number', default: 3, ...(max !== undefined ? { max } : {}) } })
+    expect(checkGeometryRefs(geo, length(8))).toEqual([]) // 8 / 0.076 = 105
+    expect(checkGeometryRefs(geo, length(100)).map((p) => p.message).join()).toMatch(/needs 1316 copies/)
+    expect(checkGeometryRefs(geo, length()).map((p) => p.message).join()).toMatch(/has no max/)
+  })
+
+  it("checks span terms: each names a param, and the row at every param's max must fit", () => {
+    const loop = carrier({ array: { pitch: { axis: 0, spanParam: 'length', spanTerms: [{ param: 'radius', scale: 6.3 }], pitch: 0.076 }, posable: true } }) as unknown as RigLink
+    const geo = { kind: 'rig' as const, links: [loop], joints: [] }
+    const both = (radiusMax?: number): ParamSchema => ({ length: { type: 'number', default: 3, max: 8 }, radius: { type: 'number', default: 1, ...(radiusMax !== undefined ? { max: radiusMax } : {}) } })
+    expect(checkGeometryRefs(geo, both(4))).toEqual([]) // (8 + 25.2) / 0.076 = 437
+    expect(checkGeometryRefs(geo, both(20)).map((p) => p.message).join()).toMatch(/radius = 20 the row needs/)
+    expect(checkGeometryRefs(geo, both()).map((p) => p.message).join()).toMatch(/"radius" has no max/)
+    expect(checkGeometryRefs(geo, { length: { type: 'number', default: 3, max: 8 } }).map((p) => p.field)).toContain('geometry.links[0].array.pitch.spanTerms[0].param')
+    expect(fields(rig(carrier({ array: { pitch: { axis: 0, spanParam: 'length', spanTerms: [{ param: '' }], pitch: 0.1 }, posable: true } })))).toContain('geometry.links[0].array.pitch.spanTerms[0].param')
+  })
+
+  it('refuses a link hung under a posable array: it would follow the row, not an instance', () => {
+    expect(fields(rig(carrier(), { name: 'tip', parent: 'shoe', shape: { kind: 'box', size: [0.1, 0.1, 0.1] }, offset: [0, 0, 0] }))).toContain('geometry.links[1].parent')
   })
 })

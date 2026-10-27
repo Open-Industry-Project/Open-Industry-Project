@@ -29,10 +29,10 @@ import { beltDeckSubsLocal, conveyorDeckSubs, worldSub } from '../core/geometry/
 import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
 import type { BeltSegmentSpec } from '../core/types'
 import type { PartPackage } from '../core/parts/partPackage'
-import { isCargoPackage, servoJointsJson } from '../core/parts/partPackage'
+import { isCargoPackage, servoJointsJson, subPosedLinkNames } from '../core/parts/partPackage'
 import * as behavior from './embeddedBehavior'
 import { getPackage, registerNewScenePackages, registerScenePackages } from '../core/parts/partRegistry'
-import { linkHalfExtents, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rig/rigPose'
+import { arrayInstanceDeltas, linkHalfExtents, pitchCapMessage, posableArraysJson, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rig/rigPose'
 import type { RigParams } from '../core/rig/rigPose'
 import type { Vec3 } from '../core/rig/rigPose'
 import type {
@@ -66,14 +66,14 @@ import { buildFrame } from './frameBuild'
 import { LAYER_MOVING, LAYER_NON_MOVING, NUM_BROAD_PHASE_LAYERS, NUM_OBJECT_LAYERS } from './layers'
 import { BodyTableFull, PartBodies } from './partBodies'
 import { PilotCapsule } from './pilotCapsule'
-import { buildRigBodies, linkDrivenByJoint } from './rigBuild'
+import { buildRigBodies, linkMovesAtRuntime } from './rigBuild'
 import type { RigBodySink } from './rigBuild'
 import { RigDriver } from './rigDriver'
 import { SensorRegistry } from './sensorRegistry'
 import { LoadCells } from './loadCells'
 import { cargoContacts } from './cargoContacts'
 import { behaviorRecord, marksOf, partPackageRev, partSignature } from './worldTypes'
-import type { BehaviorRecord, BodyHolder, JoltModule, KinematicScratch, LiveBox, PartGroup, StepClock, UnitLoad } from './worldTypes'
+import type { BehaviorRecord, BodyHolder, JoltModule, KinematicScratch, LiveBox, PartGroup, RigBody, StepClock, UnitLoad } from './worldTypes'
 
 export type { JoltModule } from './worldTypes'
 
@@ -542,6 +542,17 @@ export class SimWorld implements SimCore<BoxFrame> {
       try {
         const sv = parsed.surfaceVelocity
         driveDeckEntries(b, parsed, sv) // C-convey (deckDrive.ts): every conveying deck, in place, arc over linear
+        if (b.copyDecks) {
+          // a copy whose belt starts wakes the cargo asleep on it, as a zone of an accumulating bed does
+          for (const cd of b.copyDecks) {
+            const speeds = parsed.copySpeeds?.[cd.link]
+            for (let i = 0; i < cd.bodies.length; i++) {
+              const on = (speeds?.[i] ?? 0) !== 0
+              if (on && !cd.was[i]) startedDecks.push(cd.bodies[i]!)
+              cd.was[i] = on
+            }
+          }
+        }
         // stopped→running edge for this deck (linear speed = sv·forward, or arc omega): flag a cargo wake below.
         if (b.conveyorEntries || b.entry) {
           const conveying = parsed.arc ? parsed.arc.omega !== 0 : parsed.deckSpeed !== undefined ? (typeof parsed.deckSpeed === 'number' ? parsed.deckSpeed !== 0 : parsed.deckSpeed.some((v) => v !== 0)) : sv ? sv[0] * b.fwd[0] + sv[2] * b.fwd[2] !== 0 : false
@@ -576,6 +587,7 @@ export class SimWorld implements SimCore<BoxFrame> {
           b.values = parsed.values ?? {}
           b.displays = parsed.displays ?? {}
           b.subPoses = parsed.subPoses ?? {}
+          if (b.copyDecks) b.copySpeeds = parsed.copySpeeds ?? {}
         }
         // a behavior's tag writes are captured for any part (deck or rig): the part→PLC half of the bus.
         b.tags = parsed.tags ?? {}
@@ -668,9 +680,10 @@ export class SimWorld implements SimCore<BoxFrame> {
   // carries cargo. The behavior's setSurfaceVelocity drives the (first) link's ConveyorEntry, so a belt's deck
   // conveys exactly like the deck-geometry path, but inside a rich rig (frame, guards, …).
   // Returns the deck bodies by link name.
-  private attachRigConveyors(rec: BehaviorRecord, part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number, bodies: { name: string; body: Jolt.Body; id: Jolt.BodyID; offset?: Vec3 }[], inclineRad = 0): Map<string, Jolt.Body> {
+  private attachRigConveyors(rec: BehaviorRecord, part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number, bodies: RigBody[], inclineRad = 0, behaviorSource?: string): Map<string, Jolt.Body> {
     const built = new Map<string, Jolt.Body>()
-    const decks = geo.links.filter((l) => l.conveys && l.shape.kind === 'box')
+    // a box deck, or a frame with a collision box: a deck that draws nothing, its look attached from geometry()
+    const decks = geo.links.filter((l) => l.conveys && (l.shape.kind === 'box' || (l.shape.kind === 'frame' && typeof l.collision === 'object')))
     if (decks.length === 0) return built
     const partQuat = qFromAxisAngle([0, 1, 0], part.rotationY)
     const rest = rigWorldPoses(geo, {}, undefined, scale, part.params as RigParams, inclineRad)
@@ -679,9 +692,31 @@ export class SimWorld implements SimCore<BoxFrame> {
     // {cos, sin}; tickBehaviors then carries cargo up the grade (× commanded speed), same path as a tilted belt run.
     const tan = inclineRad !== 0 ? { x: Math.cos(inclineRad), y: Math.sin(inclineRad) } : undefined
     const friction = conveyorSurfaceFriction(part) // its friction param's grip, else its declared surface's
+    const subPosed = subPosedLinkNames(behaviorSource)
     for (const link of decks) {
       const lp = rest.get(link.name)
       if (!lp) continue
+      if (link.array?.posable) {
+        // a posable conveying array (a cross-belt sorter's carriers): one kinematic deck per copy, each with its own
+        // entry, posed by RigDriver.drive like any posable instance and run only by setSurfaceSpeed(speed, link, i)
+        const he = linkHalfExtents(link, part.params as RigParams)
+        const copies: NonNullable<BehaviorRecord['copyDecks']>[number] = { link: link.name, entries: [], bodies: [], was: [] }
+        const dq = qMul(partQuat, lp.quat) // the row's world orientation
+        const wp = qApply(partQuat, lp.pos)
+        arrayInstanceDeltas(link.array, part.params as RigParams, undefined, link.showParam).forEach((delta, i) => {
+          // built at its rest place in the row; the driver poses it from the first step
+          const d = qApply(dq, delta)
+          const body = this.bodies.addKinematicBoxQuat(he[0], he[1], he[2], [part.position[0] + wp[0] + d[0], part.position[1] + wp[1] + d[1], part.position[2] + wp[2] + d[2]], dq, friction)
+          const entry: Extract<ConveyorEntry, { kind: 'linear' }> = { kind: 'linear', vx: 0, vy: 0, vz: 0 }
+          this.bodies.registerConveyorBody(body, [entry], DECK_AXES)
+          copies.entries.push(entry)
+          copies.bodies.push(body)
+          copies.was.push(false)
+          bodies.push({ name: link.name, body, id: body.GetID(), instance: i, rest: delta })
+        })
+        ;(rec.copyDecks ??= []).push(copies)
+        continue
+      }
       const wp = qApply(partQuat, lp.pos)
       const he = linkHalfExtents(link, part.params as RigParams) // resolved box half-extents (C-paramgeo aware)
       const cx = part.position[0] + wp[0], cy = part.position[1] + wp[1], cz = part.position[2] + wp[2]
@@ -692,7 +727,8 @@ export class SimWorld implements SimCore<BoxFrame> {
       // `bodies` so RigDriver.drive re-poses it each tick from FK: it then both lifts cargo (kinematic push) and
       // carries it (surface velocity). A plain (unjointed) belt/roller deck stays static: a moving body would
       // shove its cargo (buildRigBodies skips conveys links for exactly that reason).
-      const jointDriven = linkDrivenByJoint(geo, link.name)
+      // ...and so must one the behavior poses with setSubPose, or a deck under a posed link (a shuttle's top)
+      const jointDriven = linkMovesAtRuntime(geo, link.name, subPosed)
       // One body at the declared box. Conveying is scoped to the running surface by the facet axes
       // below, not by geometry: the listener drives only contacts on the deck's top face, and treats
       // a contact on a side as the wall it is. One body works because the listener can keep a
@@ -1015,7 +1051,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       // rig: a joint-emitting behavior + a kinematic collision body per link. tickBehaviors captures the
       // joints, RigDriver.drive runs FK (shared with the renderer) and MoveKinematic's each body so the
       // links both push cargo and animate the visual identically.
-      const rec = this.attachJointBehavior(part.id, pkg.behavior, JSON.stringify(part.params), part.position, part.rotationY, servoJointsJson(pkg.geometry))
+      const rec = this.attachJointBehavior(part.id, pkg.behavior, JSON.stringify(part.params), part.position, part.rotationY, servoJointsJson(pkg.geometry), posableArraysJson(pkg.geometry))
       if (!rec) this.reportAttachFailure(part)
       if (rec) {
         // The bodies are built from the default-resolved params, as the renderer draws the links (rig.ts refresh): a
@@ -1030,10 +1066,14 @@ export class SimWorld implements SimCore<BoxFrame> {
         const scale = typeof params.scale === 'number' && params.scale > 0 ? params.scale : 1
         const inclineRad = rigInclineRad(geo, params)
         const bodies = this.buildRigBodies(geo, part.position, part.rotationY, scale, params as RigParams, pkg.params, inclineRad, openings, extents, guardRun)
+        for (const link of geo.links) {
+          const capped = pitchCapMessage(link, params as RigParams)
+          if (capped) reportPartDiagnostic({ source: 'geometry', partId: part.id, packageId: pkg.id, message: capped })
+        }
         this.rigDriver.add({ rec, geo, pkg, pos: part.position, rotationY: part.rotationY, scale, params: params as RigParams, inclineRad, bodies, grips: new Map(), emptied: new Set() })
         this.sensors.collectBeams(resolved, geo, scale, params)
         this.sensors.collectZones(resolved, geo, scale)
-        const decks = this.attachRigConveyors(rec, resolved, geo, scale, bodies, inclineRad)
+        const decks = this.attachRigConveyors(rec, resolved, geo, scale, bodies, inclineRad, pkg.behavior)
         const cells: { name: string; body: Jolt.Body; he: Vec3 }[] = []
         for (const link of geo.links) {
           if (!link.loadCell) continue
@@ -1174,8 +1214,8 @@ export class SimWorld implements SimCore<BoxFrame> {
   }
 
   /** Attach a joint-only rig behavior (no deck body/conveyor entry), tracked by part id for the frame. */
-  private attachJointBehavior(partId: string, source: string, paramsJson: string, position: [number, number, number], rotationY: number, servosJson?: string): BehaviorRecord | null {
-    const handle = behavior.create(source, paramsJson, servosJson)
+  private attachJointBehavior(partId: string, source: string, paramsJson: string, position: [number, number, number], rotationY: number, servosJson?: string, arraysJson?: string): BehaviorRecord | null {
+    const handle = behavior.create(source, paramsJson, servosJson, arraysJson)
     if (handle <= 0) return null
     const rec = behaviorRecord(handle, position, [Math.cos(rotationY), 0, -Math.sin(rotationY)], null, { partId, joints: {} })
     this.bus.add(rec)
@@ -1184,7 +1224,7 @@ export class SimWorld implements SimCore<BoxFrame> {
 
   // One kinematic box (LAYER_MOVING) per link at its rest world pose (rigBuild buildRigBodies), made by this
   // world's own constructors so each body is filed in the part group being built.
-  private buildRigBodies(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, pos: [number, number, number], rotationY: number, scale = 1, params: RigParams = {}, paramSpecs?: PartPackage['params'], inclineRad = 0, openings?: GuardOpenings, extents?: GuardExtents, guardRun?: GuardRun): { name: string; body: Jolt.Body; id: Jolt.BodyID; offset?: Vec3 }[] {
+  private buildRigBodies(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, pos: [number, number, number], rotationY: number, scale = 1, params: RigParams = {}, paramSpecs?: PartPackage['params'], inclineRad = 0, openings?: GuardOpenings, extents?: GuardExtents, guardRun?: GuardRun): RigBody[] {
     const sink: RigBodySink = {
       kinematicBoxQuat: (hx, hy, hz, p, q, friction) => this.bodies.addKinematicBoxQuat(hx, hy, hz, p, q, friction),
       staticBox: (hx, hy, hz, x, y, z, rotY, friction) => this.bodies.addStaticBox(hx, hy, hz, x, y, z, rotY, friction),

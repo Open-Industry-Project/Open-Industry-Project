@@ -8,10 +8,11 @@
 // and the sandbox's copy-in / validate-out rule (docs/part-sandbox.md).
 //
 // Boundary (everything a host needs):
-//   create(source, paramsJson[, servosJson]) -> handle (>0), or 0 on error (see error()); servosJson = the
-//                                  rig's servo joints (RigJoint[] with `servo`), whose motion the instance runs
+//   create(source, paramsJson[, servosJson[, arraysJson]]) -> handle (>0), or 0 on error (see error()); servosJson = the
+//                                  rig's servo joints (RigJoint[] with `servo`), whose motion the instance runs;
+//                                  arraysJson = its posable array links (PosableArraySpec[]), what ctx.arrayCount reads
 //   meta(handle)                -> JSON {param: {type, default, ...}} - drives the Inspector
-//   step(handle, inputJson, dt) -> JSON {surfaceVelocity:[x,y,z], tags:{name:bool}, joints:{name:number}, grips:{name:bool}, lamps:{name:bool}, subPoses:{link:{position?,rotation?}}}
+//   step(handle, inputJson, dt) -> JSON {surfaceVelocity:[x,y,z], tags:{name:bool}, joints:{name:number}, grips:{name:bool}, lamps:{name:bool}, subPoses:{link:{position?,rotation?,instances?}}}
 //   destroy(handle)             -> void
 //   error()                     -> last error message (and clears it)
 //
@@ -24,7 +25,7 @@ import { hostCopy } from '../core/hostCopy'
 import { canonicalAddress } from '../core/io/iecAddress'
 import { instantiatePartScript, resolvePartParams } from '../core/parts/partScript'
 import { Rng } from '../core/rng'
-import { jointLimits, type RigParams } from '../core/rig/rigPose'
+import { arrayInstanceDeltas, copyGripName, jointLimits, type PosableArraySpec, type RigParams, type SubPose } from '../core/rig/rigPose'
 import type { RigJoint } from '../core/parts/partPackage'
 import {
   axisCommandAborted, axisCommandDone, axisCommandQueued, axisFollow, axisHalt, axisHome, axisInPosition, axisMoveAbsolute, axisMoveRelative, axisMoveVelocity,
@@ -49,13 +50,14 @@ interface Instance {
     lamps: Record<string, boolean>
     values: Record<string, TagVal>
     displays: Record<string, number | boolean | string>
-    subPoses: Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>
+    subPoses: Record<string, SubPose>
     spawns: SpawnReq[]
     despawns: string[]
     cargo: CargoOp[]
     drive: { forward: number; turn: number } | null
     arc: { cx: number; cz: number; omega: number } | null
     deckSpeed: number | number[] | null
+    copySpeeds: Record<string, number[]> | null
   }
   /** host tag tables held by reference (never copied): cur = this tick's, prev = last tick's (backs
    *  ctx.rising/falling), driven = the controller's output-ownership set. Safe to share because hosts
@@ -142,8 +144,25 @@ function readVec3(v: unknown): [number, number, number] | null {
   const c = finiteOrUndef(v[2])
   return a === undefined || b === undefined || c === undefined ? null : [a, b, c]
 }
+/** the first four entries of `v` as a unit quaternion, each read once, when all are finite and not all zero */
+function readQuat(v: unknown): [number, number, number, number] | null {
+  if (!Array.isArray(v)) return null
+  const q = [finiteOrUndef(v[0]), finiteOrUndef(v[1]), finiteOrUndef(v[2]), finiteOrUndef(v[3])]
+  if (q.some((c) => c === undefined)) return null
+  const [x, y, z, w] = q as number[]
+  const len = Math.hypot(x!, y!, z!, w!)
+  return len > 1e-9 ? [x! / len, y! / len, z! / len, w! / len] : null
+}
 /** The servo axes of a rig's servo joints, limits resolved against this instance's params, each starting at its
  *  joint's rest value (clamped into its limits). Bad entries are skipped: validatePart reports them. */
+/** Each posable array link's instance count for these params: the count the sim builds its instance bodies to. */
+function buildArrayCounts(arraysJson: string | undefined, params: Record<string, ParamValue>): Map<string, number> {
+  const counts = new Map<string, number>()
+  if (!arraysJson) return counts
+  for (const a of JSON.parse(arraysJson) as PosableArraySpec[]) counts.set(a.name, arrayInstanceDeltas(a.array, params as RigParams, undefined, a.showParam).length)
+  return counts
+}
+
 function buildServos(servosJson: string | undefined, params: Record<string, ParamValue>): Map<string, Axis> {
   const servos = new Map<string, Axis>()
   if (!servosJson) return servos
@@ -272,7 +291,7 @@ export interface BehaviorOutput {
   /** Named display values the behavior published this tick (ctx.display) - what its own screens/labels show.
    *  Strings allowed (a display is shown on the part, never sent to a PLC). Keyed by display name. */
   displays: Record<string, number | boolean | string>
-  subPoses: Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>
+  subPoses: Record<string, SubPose>
   spawns: SpawnReq[]
   despawns: string[]
   /** product-state requests this tick (ctx.mark / dress / join / split), in call order. Present only when there are
@@ -283,6 +302,9 @@ export interface BehaviorOutput {
   /** ctx.setSurfaceSpeed: every conveying deck runs along its own local +X at this speed - or, as an array, each deck
    *  (in the rig's `conveys` link order) at its own, a missing entry standing still */
   deckSpeed?: number | number[]
+  /** ctx.setSurfaceSpeed(speed, link, i): each copy of a posable conveying array at its own speed along its own
+   *  local +X, by link, in copy order (0 = stopped). Present only when commanded this tick. */
+  copySpeeds?: Record<string, number[]>
 }
 
 const instances = new Map<number, Instance>()
@@ -333,7 +355,7 @@ function seedFrom(paramsJson: string): number {
   return h >>> 0
 }
 
-export function create(source: string, paramsJson = '{}', servosJson?: string): number {
+export function create(source: string, paramsJson = '{}', servosJson?: string, arraysJson?: string): number {
   try {
     // The one eval chokepoint for part code lives in core/parts/partScript.ts, shared with the render/headless
     // geometry evaluator so the two can never drift: the determinism scan rejects Date/Math.random/fetch
@@ -353,6 +375,7 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
     const params = resolvePartParams(def.params, overrides)
     const rng = new Rng(seedFrom(JSON.stringify(params)))
     const servos = buildServos(servosJson, params)
+    const arrayCounts = buildArrayCounts(arraysJson, params)
     const servoHandles: Record<string, Servo> = {}
     for (const [name, ax] of servos) servoHandles[name] = servoHandle(ax)
     Object.freeze(servoHandles)
@@ -364,13 +387,14 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
       lamps: {} as Record<string, boolean>,
       values: {} as Record<string, TagVal>,
       displays: {} as Record<string, number | boolean | string>,
-      subPoses: {} as Record<string, { position?: [number, number, number]; rotation?: [number, number, number] }>,
+      subPoses: {} as Record<string, SubPose>,
       spawns: [] as SpawnReq[],
       despawns: [] as string[],
       cargo: [] as CargoOp[],
       drive: null as { forward: number; turn: number } | null,
       arc: null as { cx: number; cz: number; omega: number } | null,
       deckSpeed: null as number | number[] | null,
+      copySpeeds: null as Record<string, number[]> | null,
     }
     // host tag tables by reference (cur = this tick, prev = last tick, driven = output ownership) - the
     // ctx closures below read through this box, so stepDirect retargets the references each tick (same
@@ -498,7 +522,17 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
         const omega = finiteOrUndef(opts?.omega)
         if (cx !== undefined && cz !== undefined && omega !== undefined) out.arc = { cx, cz, omega }
       },
-      setSurfaceSpeed: (speed: number | readonly number[]) => {
+      setSurfaceSpeed: (speed: number | readonly number[], link?: string, index?: number) => {
+        if (link !== undefined) {
+          // one copy (or, with no index, every copy) of a posable conveying array
+          const n = typeof link === 'string' ? (arrayCounts.get(link) ?? 0) : 0
+          const s = finiteOrUndef(speed as number)
+          if (n === 0 || s === undefined) return
+          const copies = ((out.copySpeeds ??= {})[link] ??= new Array<number>(n).fill(0))
+          if (index === undefined) copies.fill(s)
+          else if (typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < n) copies[index] = s
+          return
+        }
         if (Array.isArray(speed)) {
           const n = Math.min(Number(speed.length) >>> 0, MAX_DECK_SPEEDS)
           const deck: number[] = []
@@ -513,17 +547,35 @@ export function create(source: string, paramsJson = '{}', servosJson?: string): 
         if (Number.isFinite(forward) && Number.isFinite(turn)) out.drive = { forward, turn }
       },
       setJoint: commandJoint,
-      setGrip: commandGrip,
+      setGrip: (name: string, on: boolean, index?: number) => {
+        if (index === undefined) return commandGrip(name, on)
+        // one copy of a posable array: it grips under the name link#index (an index outside the row is ignored)
+        const n = typeof name === 'string' ? (arrayCounts.get(name) ?? 0) : 0
+        if (typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < n) commandGrip(copyGripName(name, index), on)
+      },
       setEmissive: commandLamp,
-      setSubPose: (link: string, pose: { position?: [number, number, number]; rotation?: [number, number, number] }) => {
+      setSubPose: (link: string, pose: { position?: [number, number, number]; rotation?: [number, number, number]; quat?: [number, number, number, number] }, index?: number) => {
         if (typeof link !== 'string' || link === '' || link === '__proto__') return
-        const p: { position?: [number, number, number]; rotation?: [number, number, number] } = {}
+        const p: { position?: [number, number, number]; rotation?: [number, number, number]; quat?: [number, number, number, number] } = {}
         const position = readVec3(pose?.position)
         const rotation = readVec3(pose?.rotation)
+        const quat = readQuat(pose?.quat)
         if (position) p.position = position
-        if (rotation) p.rotation = rotation
-        out.subPoses[link] = p
+        if (quat) p.quat = quat
+        else if (rotation) p.rotation = rotation
+        const prev = out.subPoses[link]
+        if (index === undefined) {
+          out.subPoses[link] = prev?.instances ? { ...p, instances: prev.instances } : p
+          return
+        }
+        // one instance of a posable array: an index outside the row (or a link that is not a posable array) is ignored
+        const n = arrayCounts.get(link) ?? 0
+        if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= n) return
+        const sub = prev ?? (out.subPoses[link] = {})
+        const list = (sub.instances ??= new Array<null>(n).fill(null))
+        list[index] = p
       },
+      arrayCount: (link: string) => (typeof link === 'string' ? (arrayCounts.get(link) ?? 0) : 0),
       // typed property bags: `ctx.joints.shoulder = v` / `ctx.grips.hand = true`. Writes funnel through the
       // same validated command path as setJoint/setGrip; reads return the last-commanded state.
       joints: new Proxy(jointState, {
@@ -870,6 +922,7 @@ export function stepDirect(handle: number, input: BehaviorInput, dt: number): Be
     inst.out.drive = null
     inst.out.arc = null
     inst.out.deckSpeed = null
+    inst.out.copySpeeds = null
     const t2 = timed ? now() : 0
 
     if (inst.needsInit) {
@@ -907,6 +960,7 @@ export function stepDirect(handle: number, input: BehaviorInput, dt: number): Be
       drive: o.drive ?? undefined,
       arc: o.arc ?? undefined,
       deckSpeed: o.deckSpeed ?? undefined,
+      copySpeeds: o.copySpeeds ?? undefined,
     }
   } catch (e) {
     fail(e instanceof Error ? e.message : String(e))

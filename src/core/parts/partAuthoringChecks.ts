@@ -14,6 +14,7 @@ import { blankNonCode } from '../determinism'
 import { editDistance } from '../editDistance'
 import { rigLampNames } from './partPackage'
 import { RIG_FINISHES } from './partValidateRig'
+import { MAX_PITCH_INSTANCES, pitchArrayWanted } from '../rig/rigPose'
 import type { PartPackageGeometry, RigLink, SizeParamRef } from './partPackage'
 
 export interface AuthoringProblem {
@@ -259,6 +260,27 @@ export function checkGeometryRefs(geometry: PartPackageGeometry, params: ParamSc
     const a = l.array
     if (a) {
       if (a.distribute) ref(`${at}.array.distribute.spanParam`, a.distribute.spanParam, 'number')
+      if (a.pitch) {
+        ref(`${at}.array.pitch.spanParam`, a.pitch.spanParam, 'number')
+        ;(a.pitch.spanTerms ?? []).forEach((t, i) => ref(`${at}.array.pitch.spanTerms[${i}].param`, t.param, 'number'))
+        // the row stops at MAX_PITCH_INSTANCES; span params that can ask for more would spread the copies out. Checked
+        // with every span param at its max (a negative scale makes that a high bound, which only errs toward warning)
+        const names = [a.pitch.spanParam, ...(a.pitch.spanTerms ?? []).map((t) => t.param)]
+        const specs = names.map((n) => params[n])
+        if (specs.every((sp) => sp?.type === 'number')) {
+          const unbounded = names.filter((n) => typeof (params[n] as { max?: unknown }).max !== 'number')
+          const atMax = Object.fromEntries(names.map((n) => [n, (params[n] as { max?: number }).max ?? 0]))
+          const most = unbounded.length ? Infinity : pitchArrayWanted(a.pitch, atMax)
+          if (most > MAX_PITCH_INSTANCES) {
+            out.push({
+              field: `${at}.array.pitch`,
+              message: unbounded.length
+                ? `"${unbounded[0]}" has no max, so the row can need more than the ${MAX_PITCH_INSTANCES} copies a pitch array holds: give the param a max`
+                : `at ${names.map((n) => `${n} = ${atMax[n]}`).join(', ')} the row needs ${most} copies, past the ${MAX_PITCH_INSTANCES} a pitch array holds: lower a param's max or widen the pitch`,
+            })
+          }
+        }
+      }
       if (a.count !== undefined) ref(`${at}.array.count`, a.count, 'number')
       refs(`${at}.array.stepParams`, a.stepParams)
       for (const f of ['omitFirstParam', 'omitLastParam'] as const) if (a[f] !== undefined) ref(`${at}.array.${f}`, a[f], 'boolean')

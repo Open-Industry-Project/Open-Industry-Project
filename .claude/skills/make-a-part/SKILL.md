@@ -45,7 +45,11 @@ on: a belt's origin is its tail, a roller conveyor's is its centre, and a part's
 snapping see.
 
 Decide early between a rig (links and joints, Tier 1) and procedural geometry (`geometry()`, Tier 2). A model
-from CAD is a rig: each moving piece is its own link.
+from CAD is a rig: each moving piece is its own link. The two mix: a rig's moving links can take their look from
+`geometry()` (`MeshPart.link`). A row of identical moving solids (a sorter's slats or shoes, pushers, buckets) is
+one posable array link, never numbered links: see "Rows of moving carriers" in docs/part-authoring-guide.md.
+A machine with carriers publishes which carrier stands at each station as tags, so its program tracks cargo by
+carrier number instead of repeating the part's geometry.
 
 ## 2. Check, then make
 

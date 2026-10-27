@@ -64,7 +64,7 @@ export type ArrayShape = Exclude<RigShape, { kind: 'mesh' } | { kind: 'frame' } 
 
 export type GuardSplitLink = { group: Group; size: Vec3Tuple; sizeParams: NonNullable<Extract<RigShape, { kind: 'box' }>['sizeParams']>; mat: Material; side: 'left' | 'right'; frame: boolean; offsetY: number; link: RigLink; children: Mesh[]; panels: Mesh[]; wedges: Mesh[] }
 export type DeckCutLink = { group: Group; size: Vec3Tuple; sizeParams?: Extract<RigShape, { kind: 'box' }>['sizeParams']; mat: Material; children: Mesh[]; walk?: WalkFinish; strips?: DeckSurface[] }
-export type InstancedArrayLink = { group: Group; shape: ArrayShape; array: NonNullable<RigLink['array']>; showParam?: string; pool: InstancePool | null; mat: Material; geom: BufferGeometry; cast: boolean; railing?: { edge: keyof PlatformCut['openings']; axis: 0 | 2; segment: boolean } }
+export type InstancedArrayLink = { group: Group; shape: ArrayShape; array: NonNullable<RigLink['array']>; showParam?: string; pool: InstancePool | null; mat: Material; geom: BufferGeometry; cast: boolean; railing?: { edge: keyof PlatformCut['openings']; axis: 0 | 2; segment: boolean }; /** per-copy size, from the last layout (a posed array re-places its copies at it) */ scale?: Vec3Tuple }
 export type LegLink = { pool: LegPool; spanParam: string; widthParam: string; standParam: string; shape: RigLegShape; arc?: { radiusParam: string; sweepDeg: number } }
 
 // Write an array of grid deltas into a pool's InstancedMesh at one uniform scale (per-copy position varies,
@@ -301,6 +301,7 @@ export function layoutArrayLink(ial: InstancedArrayLink, params: RigParams, seam
     const c = ial.shape.kind === 'cylinder' && ial.shape.sizeParams ? resolvedCylinder(ial.shape, params) : { radius: ial.shape.radius, height: ial.shape.height }
     sx = c.radius; sy = c.height; sz = c.radius
   }
+  ial.scale = [sx, sy, sz]
   // stair→platform railing cut, applied in place like the conveyor guard merge (no rig rebuild):
   // a rail/toe box (`segment`) becomes one instance per kept segment of its run, each scaled to the
   // segment length; a post run drops instances in the gap + gains a framing post at each gap edge

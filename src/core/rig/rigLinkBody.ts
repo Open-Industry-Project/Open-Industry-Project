@@ -12,13 +12,13 @@ import type { RigLink } from '../parts/partPackage'
  * must not be counted as a wall.
  */
 export function rigLinkEmitsBody(link: RigLink, resolved: Record<string, unknown>): boolean {
-  // a transform-only 'frame' link is a pure pivot; 'label' is a render-only text plane; 'leg' is a render-only
-  // support trestle; 'cone' is a render-only schematic cue
+  // 'label' is a render-only text plane; 'leg' is a render-only support trestle; 'cone' is a render-only schematic cue
   const kind = link.shape.kind
-  if (kind === 'frame' || kind === 'label' || kind === 'leg' || kind === 'cone') return false
+  if (kind === 'label' || kind === 'leg' || kind === 'cone') return false
   if (link.collision === 'none') return false // a decorative primitive renders but never collides
   if (link.showParam && resolved[link.showParam] === false) return false // a structural toggle switched off
-  if (kind === 'mesh' && typeof link.collision !== 'object') return false // a visual-only mesh link has no collision box
+  // a visual-only mesh link, and a transform-only 'frame' pivot, have no body unless they declare a collision box
+  if ((kind === 'mesh' || kind === 'frame') && typeof link.collision !== 'object') return false
   if (link.conveys) return false // built as a static conveyor body (attachRigConveyors), not a link body
   return true
 }

@@ -3,7 +3,7 @@
 
 import { isFiniteNum, isVec3, validateRig, validateSizeParams } from './partValidateRig'
 import { RETIRED_SNAP_ADVICE, RETIRED_SNAP_KINDS, RETIRED_SWEEP_ADVICE, RETIRED_SWEEP_KIND } from './partUpgrade'
-import { PACKAGE_FORMAT, type PackageProblem, type PartCredit, type PartPackage } from './partPackage'
+import { PACKAGE_FORMAT, parseCopyGripName, type PackageProblem, type PartCredit, type PartPackage } from './partPackage'
 
 /** Structural validation of an untrusted, imported package. Returns [] when OK. */
 export function validatePartPackage(pkg: unknown): PackageProblem[] {
@@ -107,12 +107,16 @@ function validateHolds(p: Partial<PartPackage> | null | undefined, problems: Pac
     return
   }
   if (typeof h.part !== 'string' || !h.part) problems.push({ field: 'holds.part', message: "holds.part must name the cargo part's package id" })
-  const geo = p?.geometry as { kind?: unknown; links?: { name?: unknown; grip?: { zone?: unknown } }[] } | undefined
-  const gripping = new Set((geo?.kind === 'rig' ? (geo.links ?? []) : []).filter((l) => l.grip?.zone).map((l) => l.name))
+  const geo = p?.geometry as { kind?: unknown; links?: { name?: unknown; grip?: { zone?: unknown }; array?: { posable?: unknown } }[] } | undefined
+  const links = geo?.kind === 'rig' ? (geo.links ?? []) : []
+  const gripping = new Set(links.filter((l) => l.grip?.zone).map((l) => l.name))
+  const gripRows = new Set(links.filter((l) => l.grip?.zone && l.array?.posable === true).map((l) => l.name))
+  // a plain gripper link, or `link#i`: a copy of a posable gripper array
+  const names = (n: string): boolean => gripping.has(n) || (!!parseCopyGripName(n) && gripRows.has(parseCopyGripName(n)!.link))
   if (!Array.isArray(h.positions) || h.positions.length === 0) problems.push({ field: 'holds.positions', message: 'holds.positions must list one or more gripper links, bottom first' })
   else
     h.positions.forEach((n: unknown, i: number) => {
-      if (typeof n !== 'string' || !gripping.has(n)) problems.push({ field: `holds.positions[${i}]`, message: `must name a rig link with a grip.zone (got ${JSON.stringify(n)})` })
+      if (typeof n !== 'string' || !names(n)) problems.push({ field: `holds.positions[${i}]`, message: `must name a rig link with a grip.zone, or a copy of a posable one as link#i (got ${JSON.stringify(n)})` })
     })
   if (h.limitParam !== undefined) {
     const spec = typeof h.limitParam === 'string' ? (p?.params as Record<string, { type?: unknown } | undefined> | undefined)?.[h.limitParam] : undefined

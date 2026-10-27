@@ -116,6 +116,26 @@ export function writeFabricBankAttributes(mesh: InstancedMesh, instances: readon
 }
 
 /**
+ * Write a bank's scroll state with a pair per instance: a posable conveying array's copies, each running its belt at
+ * its own speed. Like writeFabricBankScroll, a call only when a rate changes or the clock wraps, never per frame.
+ */
+export function writeFabricBankScrolls(mesh: InstancedMesh, base: ArrayLike<number>, rate: ArrayLike<number>): void {
+  const geo = mesh.geometry
+  let fScroll = geo.getAttribute('fabricScroll') as InstancedBufferAttribute | undefined
+  if (!fScroll || fScroll.count < mesh.instanceMatrix.count || fScroll.itemSize !== 2) {
+    fScroll = new InstancedBufferAttribute(new Float32Array(mesh.instanceMatrix.count * 2), 2)
+    geo.setAttribute('fabricScroll', fScroll)
+  }
+  const arr = fScroll.array as Float32Array
+  const n = Math.min(base.length, fScroll.count)
+  for (let i = 0; i < n; i++) {
+    arr[i * 2] = base[i]!
+    arr[i * 2 + 1] = rate[i]!
+  }
+  fScroll.needsUpdate = true
+}
+
+/**
  * Write a bank's scroll state: [base, rate] per instance, the same pair on every instance of one
  * part's bank. Not a per-frame call. The shader integrates `base + rate·beltClock` itself, so the
  * conveyor tick calls this only when the rate changed or the clock wrapped.
