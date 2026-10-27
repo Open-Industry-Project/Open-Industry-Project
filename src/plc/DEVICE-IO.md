@@ -59,7 +59,7 @@ scans at once. The project-test runner keeps the same rule (`world.stepCount > 0
 same first scan. The PLC's clock therefore starts one step after the world's: a program output reaches the parts
 one step after the first scan, and a timer started on scan 1 ends one step later in sim time.
 
-External PLCs (Modbus, S7, OPC UA, EtherNet/IP, ADS) are untouched by this: a real PLC scans on its own clock and
+External PLCs (Modbus, S7, SLMP, OPC UA, EtherNet/IP, ADS) are untouched by this: a real PLC scans on its own clock and
 exchanges the image per frame on the main thread, and the Modbus server starts with the scene's tags in its
 image so the PLC's first poll does not read zeros (`ExternalPlcSession.start` in `editor/links/externalPlc.ts`).
 
@@ -455,6 +455,39 @@ has byte offsets: a new DB on a 1200/1500 uses OPTIMIZED block access, and the l
 again, what snap7's users report, not measured here. `npm run s7-loop -- --db` runs the case with the laser's
 distance in DB10.DBD0 and the speed command in DB10.DBD4, against a DB10 snap7 holds. The same verdict applies, and
 a client that sends DB 0 instead fails it.
+
+## By address: SLMP to a MELSEC CPU
+
+The dock's "SLMP" mode reads and writes a MELSEC CPU's X, Y, M and D devices over SLMP (the 3E frame, TCP port
+5000 unless something forwards it), which every Q, L, iQ-R and iQ-F CPU answers on its Ethernet settings. No
+license and no OPC UA server: a part's tag is the CPU's own device address (`M10`, `Y10`, `D100`, `B1A`, `W10`,
+`TN5`), and `core/io/slmpIo.ts` decides direction and type: every device goes the way the parts use it (a part
+writes it: to the PLC), and X is the CPU's inputs, so on a CPU with input modules at that address the input
+refresh overwrites what the simulator wrote every scan (the S7 I rule).
+The device set is SH-080008's list minus the long devices (LTS/LTC/LTN, LSTS/LSTC/LSTN, LCS/LCC/LCN, LZ), which
+only the extended frame names. A bit device carries a BOOL; a register carries INT (one register) or DINT/REAL
+(two, low word first). X, Y, B, W, SB, SW, DX and DY count in hexadecimal, the rest in decimal. Settings: the
+CPU's address and its SLMP port.
+
+**The protocol is ours**, from the SLMP reference (SH-080956), in
+`src/plc/link/slmpClient.ts`, with no socket of its own: the desktop shell's plain TCP connection carries it, as it
+does the Modbus client and S7. Each 20 ms cycle: one batch write (1401) per run of consecutive points and one
+batch read (0401) per device run, cut to 960 word registers or 1024 bits per request. The device spec is the QnA
+form (a 24-bit number and a one-byte code), which every family accepts; the iQ-R's extended form is out of scope.
+SLMP answers in order and carries no request id, so `SlmpStream` matches answers to requests by their order, one
+request in flight. Bits pack two points per byte, the even point in the high nibble - not LSB-first. The session
+(`editor/links/slmpLink.ts`) and the protocol are a lazy chunk, loaded on Play. Retries and the watchdog are the
+Modbus client's; a REFUSED request (an end code) keeps the connection and is asked again once a second.
+`guides/slmp/` is the step-by-step page.
+
+**What has proved it, and what has not.** The unit tests pin the bytes to the 3E frame layout of the SLMP
+reference and run the client against a strict fake CPU (`src/plc/link/slmpFakeCpu.ts`: the route, subcommand per
+device kind, the frame limits, the nibble packing).
+`src/plc/link/slmpLive.test.ts` runs the same against a live PLC when `OIP_SLMP_ENDPOINT` names one: registers and
+bits round-trip low word first, a span of 2001 words goes out as 3 frames and 2001 bits as 2, and a device number
+past the CPU's range answers an end code. Which end codes a CPU answers with is the manual's table
+(`slmpClient.ts` END_CODES, where to correct it), and the iQ-R device ranges are the manual's
+(`core/io/slmpIo.ts` MAX_NUMBER).
 
 ## The simulated PLC's own OPC UA server: a SCADA beside the program
 

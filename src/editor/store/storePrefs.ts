@@ -336,9 +336,10 @@ export interface ExternalPlcSettings {
    * both exist. `opcua`: the simulator reads and writes the PLC's tags by name on its OPC UA server
    * (core/io/opcUa.ts). `eip`: the same, by name, on a Logix controller over EtherNet/IP (core/io/eip.ts). `s7`: the
    * simulator reads and writes an S7-1200/1500 CPU's I, Q and M memory and data blocks over PUT/GET (core/io/s7Io.ts).
+   * `slmp`: the simulator reads and writes a MELSEC CPU's devices (X, Y, M, D) over SLMP (core/io/slmpIo.ts).
    * `ads`: a TwinCAT PLC's symbols by name, through TwinCAT's own router on this PC (core/io/ads.ts).
    */
-  mode: 'serve' | 'poll' | 'opcua' | 'eip' | 's7' | 'ads'
+  mode: 'serve' | 'poll' | 'opcua' | 'eip' | 's7' | 'slmp' | 'ads'
   /** serve: the port the simulator listens on */
   port: number
   /** serve: listen on every interface (a PLC on the network), not only this machine */
@@ -360,6 +361,9 @@ export interface ExternalPlcSettings {
   s7Port: number
   s7Rack: number
   s7Slot: number
+  /** slmp: the MELSEC CPU's address, and the port its SLMP server answers on (5000 unless something forwards it) */
+  slmpHost: string
+  slmpPort: number
   /** ads: the PLC's AMS Net ID ('' = the TwinCAT runtime on this PC) and its AMS port (851 = the first PLC) */
   adsNetId: string
   adsPort: number
@@ -396,6 +400,8 @@ export const DEFAULT_EXTERNAL_PLC: ExternalPlcSettings = {
   s7Port: 102,
   s7Rack: 0,
   s7Slot: 1,
+  slmpHost: '192.168.0.1',
+  slmpPort: 5000,
   adsNetId: '',
   adsPort: 851,
   uaServer: false,
@@ -421,7 +427,7 @@ export function sanitizeExternalPlc(raw: unknown): ExternalPlcSettings {
   const d = DEFAULT_EXTERNAL_PLC
   return {
     enabled: o.enabled === true,
-    mode: o.mode === 'poll' || o.mode === 'opcua' || o.mode === 'eip' || o.mode === 's7' || o.mode === 'ads' ? o.mode : 'serve',
+    mode: o.mode === 'poll' || o.mode === 'opcua' || o.mode === 'eip' || o.mode === 's7' || o.mode === 'slmp' || o.mode === 'ads' ? o.mode : 'serve',
     port: isPort(o.port) ? o.port : d.port,
     network: o.network === true,
     plcHost: isPlcHost(o.plcHost) ? o.plcHost : d.plcHost,
@@ -435,6 +441,8 @@ export function sanitizeExternalPlc(raw: unknown): ExternalPlcSettings {
     s7Port: isPort(o.s7Port) ? o.s7Port : d.s7Port,
     s7Rack: isWhole(o.s7Rack, 0, 7) ? o.s7Rack : d.s7Rack,
     s7Slot: isWhole(o.s7Slot, 0, 31) ? o.s7Slot : d.s7Slot,
+    slmpHost: isPlcHost(o.slmpHost) ? o.slmpHost : d.slmpHost,
+    slmpPort: isPort(o.slmpPort) ? o.slmpPort : d.slmpPort,
     adsNetId: isAmsNetId(o.adsNetId) ? o.adsNetId : d.adsNetId,
     adsPort: isPort(o.adsPort) ? o.adsPort : d.adsPort,
     uaServer: o.uaServer === true,

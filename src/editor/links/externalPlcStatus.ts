@@ -96,8 +96,8 @@ export function adsEndpoint(netId: string, port: number): string {
 }
 
 export interface ExternalPlcStatus {
-  /** how the link runs: the PLC polls (`serve`), the simulator polls a Modbus server (`poll`), an OPC UA one (`opcua`), a Logix controller (`eip`), an S7 CPU (`s7`) or a TwinCAT runtime (`ads`) */
-  mode: 'serve' | 'poll' | 'opcua' | 'eip' | 's7' | 'ads'
+  /** how the link runs: the PLC polls (`serve`), the simulator polls a Modbus server (`poll`), an OPC UA one (`opcua`), a Logix controller (`eip`), an S7 CPU (`s7`), a MELSEC CPU over SLMP (`slmp`) or a TwinCAT runtime (`ads`) */
+  mode: 'serve' | 'poll' | 'opcua' | 'eip' | 's7' | 'slmp' | 'ads'
   /** serve: starting, then listening. poll: starting (connecting, retrying until the PLC answers), then polling */
   state: 'off' | 'starting' | 'listening' | 'polling' | 'failed'
   /** serve: where the simulator listens. poll: the PLC's server. `host:port` */
@@ -163,10 +163,11 @@ export function flattenFrameTags(tags: Readonly<Record<string, Readonly<Record<s
 export function statusLine(s: ExternalPlcStatus, running: boolean, settings: ExternalPlcSettings): string {
   const mode = running ? s.mode : settings.mode
   // the client modes connect out, retry, and time out the same way
-  const poll = mode === 'poll' || mode === 'opcua' || mode === 'eip' || mode === 's7' || mode === 'ads'
+  const poll = mode === 'poll' || mode === 'opcua' || mode === 'eip' || mode === 's7' || mode === 'slmp' || mode === 'ads'
   if (!running) {
     if (mode === 'ads') return `Press Play to connect to ${adsEndpoint(settings.adsNetId, settings.adsPort)} over ADS; the program here is not run while the PLC is.`
     if (mode === 's7') return `Press Play to connect to the S7 CPU at ${settings.s7Host}${settings.s7Port === 102 ? '' : `:${settings.s7Port}`} (rack ${settings.s7Rack}, slot ${settings.s7Slot}) over S7 PUT/GET; the program here is not run while the PLC is.`
+    if (mode === 'slmp') return `Press Play to connect to the MELSEC CPU at ${settings.slmpHost}${settings.slmpPort === 5000 ? '' : `:${settings.slmpPort}`} over SLMP; the program here is not run while the PLC is.`
     if (mode === 'eip') return `Press Play to connect to the controller at ${settings.eipGateway}${settings.eipPath ? ` (path ${settings.eipPath})` : ''} over EtherNet/IP; the program here is not run while the PLC is.`
     if (mode === 'opcua') return `Press Play to connect to the PLC's OPC UA server at ${settings.opcUaEndpoint}; the program here is not run while the PLC is.`
     return poll
@@ -189,7 +190,7 @@ export function statusLine(s: ExternalPlcStatus, running: boolean, settings: Ext
   if (poll) {
     if (s.state === 'starting') return s.error ? `Waiting for the PLC at ${s.endpoint}: ${s.error}. Trying again every second.` : `Connecting to the PLC at ${s.endpoint}...`
     const doing =
-      mode === 'opcua' || mode === 'eip' || mode === 'ads' ? `Reading and writing the PLC's tags at ${s.endpoint}` : mode === 's7' ? `Reading and writing the CPU's memory at ${s.endpoint}` : `Polling the PLC at ${s.endpoint}`
+      mode === 'opcua' || mode === 'eip' || mode === 'ads' ? `Reading and writing the PLC's tags at ${s.endpoint}` : mode === 's7' ? `Reading and writing the CPU's memory at ${s.endpoint}` : mode === 'slmp' ? `Reading and writing the CPU's devices at ${s.endpoint}` : `Polling the PLC at ${s.endpoint}`
     return `${doing}${traffic}${s.error ? `. ${s.error}` : ''}`
   }
   if (s.state === 'starting') return 'Opening the port…'
@@ -239,9 +240,9 @@ export function statusHint(s: ExternalPlcStatus, running: boolean): string | nul
   // the shell's errors name the address they tried (S7's endpoint leaves the standard port out)
   const n = portIn(s.error) ?? portIn(s.endpoint)
   const port = n === null ? 'its port' : `port ${n}`
-  const standard = s.mode === 's7' ? ' (S7 uses 102)' : s.mode === 'opcua' ? " (OPC UA's standard is 4840)" : s.mode === 'poll' ? " (Modbus TCP's standard is 502)" : ''
+  const standard = s.mode === 's7' ? ' (S7 uses 102)' : s.mode === 'slmp' ? " (SLMP's standard port is 5000)" : s.mode === 'opcua' ? " (OPC UA's standard is 4840)" : s.mode === 'poll' ? " (Modbus TCP's standard is 502)" : ''
   if (/^nothing is listening on /.test(s.error)) {
-    const server = s.mode === 's7' ? "and that the address is the CPU's own" : "and that the PLC's Modbus TCP server is switched on"
+    const server = s.mode === 's7' ? "and that the address is the CPU's own" : s.mode === 'slmp' ? 'and that the CPU answers SLMP on that port (its Ethernet module\'s SLMP connection, or the simulator\'s SLMP setting)' : "and that the PLC's Modbus TCP server is switched on"
     return `The PLC's address answered, but refused ${port}: check the port${standard} ${server}.`
   }
   if (/^no answer from .* within \d+ s$/.test(s.error) || /^nothing answered at /.test(s.error)) {

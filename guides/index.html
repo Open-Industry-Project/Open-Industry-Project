@@ -50,7 +50,7 @@
         <p class="lede">
           Step-by-step guides for connecting a real PLC, SCADA or HMI to the simulator. Three guides are tested by
           following them in the desktop app: Modbus against OpenPLC, OPC UA against an OPC UA client (node-opcua),
-          and S7 against a stand-in S7 CPU in this repository. The PLC-server and ADS guides are not tested this way.
+          and S7 against a stand-in S7 CPU in this repository. The PLC-server, SLMP and ADS guides are not tested this way.
         </p>
       </section>
     </main>
@@ -69,6 +69,10 @@
           <a class="panel guide-card" href="/guides/s7/">
             <h3>An S7-1200 or S7-1500 (S7 PUT/GET)</h3>
             <p>The simulator reads and writes the CPU's inputs, outputs, memory and data blocks at the scene's own addresses. Covers the setting the CPU needs before it allows PUT/GET.</p>
+          </a>
+          <a class="panel guide-card" href="/guides/slmp/">
+            <h3>A MELSEC PLC (SLMP)</h3>
+            <p>The simulator reads and writes the CPU's X, Y, M and D devices at the scene's own addresses, over the 3E frame every Q, L, iQ-R and iQ-F CPU answers.</p>
           </a>
           <a class="panel guide-card" href="/guides/ads/">
             <h3>A TwinCAT PLC (ADS)</h3>

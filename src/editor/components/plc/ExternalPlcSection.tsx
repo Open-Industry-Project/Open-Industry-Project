@@ -22,13 +22,14 @@ import type { MessageId } from '../../../core/i18n'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('externalPlc', {
-  onPlay: "On Play, connect the scene's PLC tags to a real PLC over Modbus TCP, OPC UA, EtherNet/IP, S7 or ADS, instead of running the program here",
+  onPlay: "On Play, connect the scene's PLC tags to a real PLC over Modbus TCP, OPC UA, EtherNet/IP, S7, SLMP or ADS, instead of running the program here",
   here: 'Play runs the program in the PLC panel, here in the simulator',
   whyNot: 'Connecting to a PLC needs the desktop app: a browser tab cannot open a network connection.',
   guideServe: 'Step-by-step guide: connect a PLC over Modbus TCP',
   guidePoll: "Step-by-step guide: connect to a PLC's Modbus TCP server",
   guideOpcUa: "Step-by-step guide: connect to a PLC's OPC UA server",
   guideS7: 'Step-by-step guide: connect an S7-1200 or S7-1500 over PUT/GET',
+  guideSlmp: 'Step-by-step guide: connect a MELSEC PLC over SLMP',
   guideAds: 'Step-by-step guide: connect a TwinCAT PLC over ADS',
   sceneScopeTitle: 'Saved with the project, for everyone who opens it',
   computerScopeTitle: 'Saved on this computer, not in the project: an address belongs to the bench it sits on',
@@ -55,6 +56,8 @@ const M = defineMessages('externalPlc', {
   eipNote: '(a Logix controller)',
   s7Title: 'The simulator connects to an S7-1200 or S7-1500 CPU and reads and writes its I, Q and M memory and its data blocks over PUT/GET',
   s7Note: '(an S7-1200 or S7-1500)',
+  slmpTitle: 'The simulator connects to a MELSEC CPU (Q, L, iQ-R, iQ-F) and reads and writes its X, Y, M and D devices over SLMP',
+  slmpNote: '(a MELSEC PLC)',
   adsTitle: "The simulator reads and writes a TwinCAT PLC's variables by name over ADS, through the TwinCAT router on this PC",
   ads: 'ADS, tags by name',
   adsNote: '(a TwinCAT PLC)',
@@ -79,6 +82,11 @@ const M = defineMessages('externalPlc', {
   s7Slot: 'Slot',
   s7PutGet:
     'The CPU must allow PUT/GET: turn on "Permit access with PUT/GET communication from remote partner" in its settings and download the hardware configuration. A part\'s address is the CPU\'s own: %IX80.4 is I80.4, %QW4 is QW4, %MD10 is MD10, and a data block address uses the S7 data-block spelling, without the %: DB10.DBW4. A data block must not use optimized block access.',
+  slmpHostTitle: "The CPU's IP address, or its host name",
+  slmpPortTitle: '5000, the port an SLMP server answers on, unless something forwards it (the GX Works3 simulator shows its own)',
+  slmpUnsecuredTitle: 'SLMP has no authentication and no encryption.',
+  slmpUnsecured: 'Unsecured (no authentication, no encryption): use it on this machine or a test bench, not a plant network.',
+  slmpDevices: "A part's PLC tag is a device address: D100 (a data register), M10 (an internal relay), X1A (an input), Y0 (an output), B1A (a link relay), W10 (a link register), TN5 (a timer's current value) or CN3 (a counter's). X, Y, B, W, SB, SW, DX and DY count in hexadecimal, the rest in decimal. A bit device carries a BOOL; a register carries INT, DINT or REAL. On a CPU with input modules, wire a part that publishes to X addresses no module occupies: the CPU's input refresh overwrites them every scan.",
   plcHostTitle: "The PLC's IP address or host name",
   plcHost: 'PLC',
   plcPortTitle: 'The port its Modbus TCP server device listens on (502 unless it was changed)',
@@ -95,6 +103,7 @@ const M = defineMessages('externalPlc', {
   noTagByName: "No part has a PLC tag yet. Give each part the PLC's name for its signal, like MAIN.Eye (a sensor) or MAIN.Run (a motor).",
   noAddress:
     'No part is wired to an I/O address yet. Give a part a PLC tag like %IX0.0 (a sensor) or %QX0.0 (a motor), or run Assign I/O Addresses (right-click Main in the organizer) to put every top-level variable on a point.',
+  noAddressSlmp: 'No part is wired to a device address yet. Give a part a PLC tag like D100 (a register), M10 (a bit), X1A (an input) or Y0 (an output).',
 })
 
 /** Why the switch is greyed out, said on the switch as well as under it: a disabled control with no reason
@@ -108,6 +117,7 @@ const GUIDES: Partial<Record<ExternalPlcSettings['mode'], { href: string; label:
   poll: { href: 'https://www.openindustryproject.org/guides/plc-server/#modbus', label: M.guidePoll },
   opcua: { href: 'https://www.openindustryproject.org/guides/plc-server/#opcua', label: M.guideOpcUa },
   s7: { href: 'https://www.openindustryproject.org/guides/s7/', label: M.guideS7 },
+  slmp: { href: 'https://www.openindustryproject.org/guides/slmp/', label: M.guideSlmp },
   ads: { href: 'https://www.openindustryproject.org/guides/ads/', label: M.guideAds },
 }
 
@@ -199,13 +209,14 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
   const opcua = settings.mode === 'opcua'
   const eip = settings.mode === 'eip'
   const s7 = settings.mode === 's7'
+  const slmp = settings.mode === 'slmp'
   const ads = settings.mode === 'ads'
   /** a part's PLC tag is the PLC's own name for the signal, so nothing is addressed */
   const byName = opcua || eip || ads
   const guide = GUIDES[settings.mode]
 
   /** a numeric setting, refused outside its range (the field then snaps back) */
-  const whole = (key: 'port' | 'plcPort' | 'inputBase' | 'outputBase' | 's7Port' | 's7Rack' | 's7Slot' | 'adsPort', min: number, max: number) => (text: string): boolean => {
+  const whole = (key: 'port' | 'plcPort' | 'inputBase' | 'outputBase' | 's7Port' | 's7Rack' | 's7Slot' | 'slmpPort' | 'adsPort', min: number, max: number) => (text: string): boolean => {
     const n = wholeIn(text, min, max)
     if (n === null) return false
     store.setExternalPlc({ [key]: n })
@@ -258,6 +269,11 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
               <input type="radio" name="external-plc-mode" checked={s7} disabled={locked} onChange={() => store.setExternalPlc({ mode: 's7' })} data-testid="external-plc-mode-s7" />
               {/* i18n-ok: protocol name */}
               S7 PUT/GET <span className="ctl-dim">{t(M.s7Note)}</span>
+            </label>
+            <label className="ctl-ext-field" title={t(M.slmpTitle)}>
+              <input type="radio" name="external-plc-mode" checked={slmp} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'slmp' })} data-testid="external-plc-mode-slmp" />
+              {/* i18n-ok: protocol name */}
+              SLMP <span className="ctl-dim">{t(M.slmpNote)}</span>
             </label>
             <label className="ctl-ext-field" title={t(M.adsTitle)}>
               <input type="radio" name="external-plc-mode" checked={ads} disabled={locked} onChange={() => store.setExternalPlc({ mode: 'ads' })} data-testid="external-plc-mode-ads" />
@@ -405,8 +421,39 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
               </div>
             </>
           )}
+          {slmp && (
+            <>
+              <div className="ctl-ext-row">
+                <label className="ctl-ext-field" title={t(M.slmpHostTitle)}>
+                  {t(M.plcHost)}
+                  <CommitField
+                    value={settings.slmpHost}
+                    wide
+                    disabled={locked}
+                    commit={(text) => {
+                      if (!isPlcHost(text)) return false
+                      store.setExternalPlc({ slmpHost: text })
+                      return true
+                    }}
+                    testId="external-plc-slmp-host"
+                  />
+                </label>
+                <label className="ctl-ext-field" title={t(M.slmpPortTitle)}>
+                  {t(M.port)}
+                  <CommitField value={String(settings.slmpPort)} numeric disabled={locked} commit={whole('slmpPort', 1, 65535)} testId="external-plc-slmp-port" />
+                </label>
+              </div>
+              <div className="ctl-warn" data-testid="external-plc-slmp-unsecured" title={t(M.slmpUnsecuredTitle)}>
+                {t(M.slmpUnsecured)}
+              </div>
+              <div className="ctl-dim" data-testid="external-plc-slmp-devices">
+                {t(M.slmpDevices)}
+              </div>
+            </>
+          )}
           {!byName &&
             !s7 &&
+            !slmp &&
             (poll ? (
               <>
                 <div className="ctl-ext-row">
@@ -463,7 +510,7 @@ export function ExternalPlcSection({ store, state, controller }: ExternalPlcSect
           <div className="ctl-ext-points" data-testid="external-plc-points">
             {points.length === 0 ? (
               <span className="ctl-dim">
-                {t(byName ? (eip ? M.noTagEip : M.noTagByName) : M.noAddress)}
+                {t(byName ? (eip ? M.noTagEip : M.noTagByName) : slmp ? M.noAddressSlmp : M.noAddress)}
               </span>
             ) : (
               points.map((line) => (
