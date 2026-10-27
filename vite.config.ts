@@ -349,6 +349,7 @@ export default defineConfig({
         guideOpcua: entry('./guides/opcua/index.html'),
         guidePlcServer: entry('./guides/plc-server/index.html'),
         guideS7: entry('./guides/s7/index.html'),
+        guideSlmp: entry('./guides/slmp/index.html'),
         guideAds: entry('./guides/ads/index.html'),
         guideReference: entry('./guides/reference/index.html'),
         guides: entry('./guides/index.html'),

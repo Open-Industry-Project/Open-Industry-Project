@@ -358,6 +358,7 @@ and their names appear in this repository. None of them are ours:
 - **CODESYS** - a trademark of CODESYS GmbH.
 - **TwinCAT, Beckhoff** - trademarks of Beckhoff Automation GmbH & Co. KG.
 - **TIA Portal, S7-1200, S7-1500, Siemens** - trademarks of Siemens AG.
+- **Mitsubishi Electric, MELSEC, GX Works3, iQ-R, iQ-F** - trademarks of Mitsubishi Electric Corporation.
 - **Ignition** - a trademark of Inductive Automation, LLC.
 - **EtherNet/IP** - a trademark of ODVA, Inc.
 - **OPC UA** - a trademark of the OPC Foundation.

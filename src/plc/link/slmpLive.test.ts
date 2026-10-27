@@ -1,9 +1,8 @@
 // Live checks against a real MELSEC CPU or any SLMP server this machine can reach. The suite skips them:
 // they need a PLC answering SLMP, so `OIP_SLMP_ENDPOINT` has to name one -
-//   $env:OIP_SLMP_ENDPOINT='127.0.0.1:5511'; npx vitest run src/plc/link/slmpLive.test.ts
+//   $env:OIP_SLMP_ENDPOINT='192.168.3.250:5000'; npx vitest run src/plc/link/slmpLive.test.ts
 // (in the QnA form only: registers and bits round-trip, low word first, the
-// nibble packing, X read-only, spans past one frame, and a device this CPU does not reach). The simulator is
-// checked first with pymcprotocol (Type3E("iQ-R"), D10-D14 = [0, 10, 20, 30, 40]), so the two clients agree.
+// nibble packing, X read-only, spans past one frame, and a device this CPU does not reach).
 
 /// <reference types="node" />
 

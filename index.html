@@ -515,15 +515,15 @@ Clear := Ossd <span class="kw">OR</span> Muted;</pre>
           </p>
 
           <div class="wiring">
-            <svg viewBox="0 0 1000 200" role="img" aria-label="Wiring: your PLC connects to the simulated line over Modbus TCP, OPC UA, EtherNet/IP, S7 or ADS; the simulator serves tags over OPC UA to a SCADA or HMI.">
+            <svg viewBox="0 0 1000 200" role="img" aria-label="Wiring: your PLC connects to the simulated line over Modbus TCP, OPC UA, EtherNet/IP, S7, SLMP or ADS; the simulator serves tags over OPC UA to a SCADA or HMI.">
               <rect class="box" x="1" y="50" width="190" height="100" />
               <text class="title" x="20" y="92">Your PLC</text>
               <text x="20" y="118">hardware or soft PLC</text>
 
               <path class="wire live" d="M191 92 H400" />
               <path class="wire live" d="M400 108 H191" />
-              <text class="proto" x="206" y="80">Modbus TCP &middot; OPC UA</text>
-              <text class="proto" x="206" y="132">EtherNet/IP &middot; S7 &middot; ADS</text>
+              <text class="proto" x="206" y="80">Modbus TCP &middot; OPC UA &middot; S7</text>
+              <text class="proto" x="206" y="132">EtherNet/IP &middot; SLMP &middot; ADS</text>
 
               <rect class="box us" x="400" y="20" width="270" height="160" />
               <text class="title" x="420" y="58">Open Industry Project</text>
@@ -569,7 +569,7 @@ Clear := Ossd <span class="kw">OR</span> Muted;</pre>
           <table class="datasheet">
             <tr><th>PLC languages</th><td>IEC 61131-3 Structured Text and Ladder Diagram, a working subset; not certified. <a href="/plc/">Full list</a></td></tr>
             <tr><th>Exchange</th><td><code>.st</code> files, PLCopen XML 2.01</td></tr>
-            <tr><th>Connections</th><td>External PLCs over Modbus TCP, OPC UA, EtherNet/IP, S7 PUT/GET or ADS; an OPC UA server for a SCADA or HMI (desktop app)</td></tr>
+            <tr><th>Connections</th><td>External PLCs over Modbus TCP, OPC UA, EtherNet/IP, S7 PUT/GET, SLMP or ADS; an OPC UA server for a SCADA or HMI (desktop app)</td></tr>
             <tr><th>Physics</th><td>Jolt, compiled to WebAssembly, multi-threaded</td></tr>
             <tr><th>Runs on</th><td>Any modern browser; Windows (signed installer); Linux (.deb, AppImage)</td></tr>
             <tr><th>Price</th><td>Free. No account, no licence key.</td></tr>

@@ -88,7 +88,7 @@ a choice is unclear, take the conservative one. Concretely:
   (THIRD_PARTY_NOTICES.md).
 - **No vendor-derived data or behaviour**: nothing captured from a vendor's software, and no behaviour fitted to its
   output. Where IEC leaves a choice open, the engine's rule is ours and documented as ours.
-- **Connecting is fine**: protocol clients talk to equipment the user owns (Modbus, OPC UA, S7, ADS through the user's
+- **Connecting is fine**: protocol clients talk to equipment the user owns (Modbus, OPC UA, S7, SLMP, ADS through the user's
   own TcAdsDll, EtherNet/IP through libplctag). Reading another tool's spellings on input and writing IEC is fine.
 - **Claims**: "a subset of IEC 61131-3 ... not certified"; never "compliant", "certified" or a logo. Vendor names only
   to identify a product (THIRD_PARTY_NOTICES.md lists the marks), never as our specification ("as CODESYS does").

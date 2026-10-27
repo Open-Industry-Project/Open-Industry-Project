@@ -59,10 +59,10 @@
         <h2>You need</h2>
         <ul class="dash">
           <li>The desktop app, for <a href="/#desktop">Windows or Linux</a>. A browser tab cannot open a network connection.</li>
-          <li>A MELSEC CPU with an Ethernet module or built-in Ethernet port, and its engineering software (GX Works3 for an iQ-R or iQ-F). The GX Works3 simulator's SLMP connection works too, on this machine.</li>
+          <li>A MELSEC CPU with an Ethernet module or built-in Ethernet port, and its engineering software (GX Works3 for an iQ-R or iQ-F).</li>
           <li>
-            A network path from this computer to the CPU, on the port its SLMP connection answers on. The protocol's
-            standard port is <b>5000</b>; the GX Works3 simulator uses whatever port its SLMP connection is set to.
+            A network path from this computer to the CPU, on the port its SLMP connection answers on. The usual port
+            is <b>5000</b>. A simulated CPU works only if its simulator opens an SLMP connection this computer can reach.
           </li>
         </ul>
 
@@ -142,15 +142,14 @@
         <h2>3. Set up the CPU</h2>
         <p>
           Configure and download the CPU in its own engineering software; its documentation shows where each setting
-          lives. This guide needs the CPU to answer SLMP, to be reachable, and to run the program below. On the GX
-          Works3 simulator, the SLMP connection is set on the project's Ethernet module.
+          lives. This guide needs the CPU to answer SLMP, to be reachable, and to run the program below.
         </p>
 
         <h3>3a. Allow SLMP</h3>
         <ol class="steps">
           <li>The CPU's Ethernet settings have an SLMP connection: the protocol this speaks is the <b>3E frame, binary</b>, over TCP. Give it the port you will type in step 4; the standard is <b>5000</b>.</li>
           <li>The CPU has an IP address this computer can reach. Note it for step 4.</li>
-          <li>The CPU is in RUN (or the simulator is running), so it answers at all.</li>
+          <li>The CPU is in RUN, so it answers at all.</li>
         </ol>
 
         <h3>3b. The program</h3>
@@ -171,7 +170,7 @@
           <li><span class="ui">Runs on</span>: <b>An external PLC</b>.</li>
           <li><span class="ui">How the PLC connects</span>: <b>SLMP</b>.</li>
           <li><span class="ui">PLC</span>: the CPU's IP address from step 3a.</li>
-          <li><span class="ui">Port</span>: <b>5000</b>, or the port its SLMP connection answers on (the GX Works3 simulator shows its own, for example 5511).</li>
+          <li><span class="ui">Port</span>: <b>5000</b>, or the port its SLMP connection answers on.</li>
         </ol>
         <p>
           The list underneath should read <code>M10&nbsp;&nbsp;written to the PLC</code> and
