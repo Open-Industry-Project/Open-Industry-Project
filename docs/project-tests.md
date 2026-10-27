@@ -397,11 +397,13 @@ setpoint (`setpointFor`, a conveyor's `speedTag`) or a despawner's `blockTag`, w
 despawner directly. A blank tag param un-wires the part: it reads and writes nothing, the wiring check leaves it out,
 and a blank command tag is never driven, so that part runs on its own params whatever the program does.
 
-**`check-wiring` counts the tests as wiring.** It finds a project's specs the way this runner does (listed, and
+**`check-wiring` and the Problems dock count the tests as wiring.** The CLI finds a project's specs the way this runner does (listed, and
 unlisted `tests/*.test.json`), and a tag a check reads (as its `tag` or a right-hand `{ "tag": ... }` operand)
 counts as read, while a tag an input drives (or a `commsLoss` fault's `statusTag`) counts as written. So a feedback
 tag only a test reads, or a despawner's block tag only a test drives, is not an "unread" / "undriven" warning, and
 the report says who covers it (`Lane1Blocked: nothing in the scene writes it; written by tests/lane-full.test.json`).
+The dock applies the same rule (`coverByTests`, core/project/projectTestTags.ts) to the tests the project keeps, and
+drops the covered row.
 
 This is the same path every part uses (the whole catalog is authored on the SDK,
 [architecture.md](architecture.md)), so the runner needs no special path for tests. Layering: the pure evaluator

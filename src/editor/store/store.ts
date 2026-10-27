@@ -2232,6 +2232,12 @@ export class EditorStore {
     return true
   }
 
+  /** The tests the project keeps, read without building or capturing a project (snapshotProject does both). A new
+   *  array after every save or delete, so a memo can depend on it. */
+  projectTests(): readonly TestSpec[] {
+    return this.project?.tests ?? []
+  }
+
   /** Drop the kept test named `name`, as {@link saveProjectTest} keeps one: not an undo step. False when not kept. */
   deleteProjectTest(name: string): boolean {
     if (this.readOnly || this.collab) return false

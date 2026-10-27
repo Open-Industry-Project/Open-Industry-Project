@@ -27,6 +27,8 @@ import { dialectRefusal, isKnownDialect } from '../core/dialect'
 import { packageParamSpecs } from '../core/packageParams'
 import { getPackage } from '../core/parts/partRegistry'
 import { newerSdkLevel, PART_SDK_LEVEL } from '../core/parts/partSdk'
+import type { TestSpec } from '../core/project/projectTest'
+import { coverByTests } from '../core/project/projectTestTags'
 import { MAX_SIM_HZ, type PartInstance, type SimRate } from '../core/types'
 import type { CompiledProgram } from '../plc'
 import { timeToString } from '../plc/runtime'
@@ -97,6 +99,9 @@ export interface ProblemsInput {
   readonly heldCode?: number
   /** Play serves the scene to an external PLC, so the program in this app is not what runs */
   readonly externalPlc?: boolean
+  /** the tests the project keeps: a tag only a test reads or drives is not an `unread` / `undriven` warning, as the
+   *  check-wiring CLI counts it (core/project/projectTestTags.ts) */
+  readonly tests?: readonly TestSpec[]
 }
 
 /** The offset of a 1-based line and column in `src`, or undefined when the line is past its end (the part of a
@@ -290,7 +295,9 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   // A tag the program never declares is always undriven or unread too, since a part's tag connects only to the
   // program. That row names the parts and can be clicked, so it carries the likelier cause instead of a second row.
   const undeclared = new Set(unwired)
-  for (const p of wiring.problems) {
+  // what the project's tests read and drive answers an `unread` / `undriven` warning, as in check-wiring
+  const tests = (input.tests ?? []).map((spec, i) => ({ label: spec.name ?? `test-${i + 1}`, spec }))
+  for (const p of coverByTests(wiring.problems, tests).problems) {
     // `undriven`/`unread` ask whether anything drives or reads a tag, and the program counts as a
     // writer/reader. So with no link they fire on every tag the program handles. Those warnings are
     // wrong, caused by the blind spot rather than by the scene: one stray semicolon turns the demo's

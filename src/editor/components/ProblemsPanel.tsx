@@ -102,6 +102,9 @@ export function ProblemsPanel({ store, state, controller }: ProblemsPanelProps) 
   const plcFault = fault && fault.source === program ? fault : null
   // Play hands the logic to an external PLC only where one can be served (the desktop app), and only when it is on
   const externalPlc = (controller?.externalPlcAvailable ?? false) && state.externalPlc.enabled
+  // a tag only a kept test reads or drives is covered, as check-wiring counts it. A save or delete sets testCount, so
+  // this render reads the new array
+  const tests = store.projectTests()
 
   const report = useMemo(
     () =>
@@ -120,8 +123,9 @@ export function ProblemsPanel({ store, state, controller }: ProblemsPanelProps) 
         heldCode: held.length,
         externalPlc,
         plcFault,
+        tests,
       }),
-    [state.scene, program, state.stDialect, state.controller, state.stScanMs, state.packageBuildErrors, state.userPackages, state.bundledPackages, state.simHz, diagnosticsRev, held, externalPlc, plcFault],
+    [state.scene, program, state.stDialect, state.controller, state.stScanMs, state.packageBuildErrors, state.userPackages, state.bundledPackages, state.simHz, diagnosticsRev, held, externalPlc, plcFault, tests],
   )
 
   const problemRows = showWarnings ? report.problems : report.problems.filter((p) => p.severity === 'error')

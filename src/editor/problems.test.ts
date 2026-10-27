@@ -176,6 +176,26 @@ describe('collectProblems - wiring', () => {
     expect(r.warnings).toBeGreaterThan(0)
   })
 
+  it('drops an unread or undriven warning a kept test answers, as check-wiring does', () => {
+    registerPackage(CONVEYOR)
+    registerPackage(SENSOR)
+    // the belt's runningTag Done is read by nothing in the scene, and its runTag Go is driven by nothing
+    const parts = [part('c1', 't.conveyor', { runTag: 'Go', runningTag: 'Done' })]
+    const keys = (r: ReturnType<typeof collectProblems>) => r.problems.map((p) => p.key)
+    expect(keys(collectProblems(input({ parts })))).toEqual(expect.arrayContaining(['wiring:undriven:Go', 'wiring:unread:Done']))
+    const tests = [{ name: 'runs', duration: 1, inputs: [{ at: 0, tag: 'Go', value: true }], checks: [{ at: 1, tag: 'Done', equals: true }] }]
+    const covered = keys(collectProblems(input({ parts, tests })))
+    expect(covered).not.toContain('wiring:undriven:Go')
+    expect(covered).not.toContain('wiring:unread:Done')
+  })
+
+  it('keeps a warning a test does not answer: a test that drives a tag does not read it', () => {
+    registerPackage(CONVEYOR)
+    const parts = [part('c1', 't.conveyor', { runningTag: 'Done' })]
+    const tests = [{ name: 'drives', duration: 1, inputs: [{ at: 0, tag: 'Done', value: true }], checks: [] }]
+    expect(collectProblems(input({ parts, tests })).problems.map((p) => p.key)).toContain('wiring:unread:Done')
+  })
+
   it('reports an unloaded package as unknown tags rather than as a clean part', () => {
     const r = collectProblems(input({ parts: [part('x1', 't.missing', { tag: 'PE' })] }))
     expect(r.notes.join(' ')).toMatch(/t\.missing/)
