@@ -14,12 +14,15 @@ export function desktopPlcIo() {
   const listeners = new Map()
   registerPlcIo({ handle: (channel, fn) => handlers.set(channel, fn), on: (channel, fn) => listeners.set(channel, fn) })
   const subscribers = new Map()
-  const gone = []
+  const gone = new Set()
   const sender = {
     id: 1,
     isDestroyed: () => false,
     send: (channel, payload) => subscribers.get(channel)?.forEach((cb) => cb(payload)),
-    once: (event, fn) => event === 'destroyed' && gone.push(fn),
+    once: (event, fn) => event === 'destroyed' && gone.add(fn),
+    // no page here navigates, so only 'destroyed' is ever fired
+    on: () => {},
+    removeListener: (event, fn) => event === 'destroyed' && gone.delete(fn),
   }
   const event = { sender }
   const subscribe = (channel, cb) => {
@@ -38,5 +41,5 @@ export function desktopPlcIo() {
     drop: (id) => listeners.get('plcio:drop')(event, { id }),
   }
   // the window going: every link it holds closes
-  return { host, calls, close: () => gone.forEach((fn) => fn()) }
+  return { host, calls, close: () => [...gone].forEach((fn) => fn()) }
 }
