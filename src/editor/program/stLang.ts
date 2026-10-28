@@ -20,6 +20,7 @@ import type { MonitoredProgram, TagValue, WatchInstance } from '../../plc'
 import { defineMessages, t as msg } from '../../core/i18n'
 import { declaredTypes, formatPlcValue, refType } from './plcValueText'
 import { stFolding } from './stFolding'
+import { stSearchPanel } from './stSearchPanel'
 
 // Keyword classes, derived from the lexer's own reserved-word set rather than re-listed
 // here. A hand-copy goes stale when the language gains a keyword, and then the
@@ -162,15 +163,37 @@ const stTheme = EditorView.theme(
     // find/replace panel - CM's dark base theme is a generic gray; match the panel chrome
     '.cm-panels': { backgroundColor: 'light-dark(#f7f7f8, #1f2023)', color: 'var(--text-strong)' },
     '.cm-panels.cm-panels-top': { borderBottom: '1px solid var(--line-soft)' },
-    '.cm-panel.cm-search': { padding: '6px 8px', fontSize: '11px' },
-    '.cm-panel.cm-search label': { color: 'light-dark(#52575d, #9aa0a6)' },
-    '.cm-panel.cm-search input[type=checkbox]': { accentColor: '#2d5a8c' },
-    '.cm-textfield': { backgroundColor: 'light-dark(#ffffff, #141517)', border: '1px solid var(--line-soft)', borderRadius: '3px', color: 'var(--text-strong)', padding: '2px 5px' },
+    // stSearchPanel.ts builds the panel. The rules repeat `.cm-panel.cm-search` to outrank CM's base
+    // theme for it, which sets margins on every input and button and pins [name=close] absolutely.
+    '.cm-panel.cm-search': { display: 'flex', alignItems: 'flex-start', gap: '2px', padding: '4px 6px', fontSize: '12px' },
+    '.cm-panel.cm-search input, .cm-panel.cm-search button': { margin: '0' },
+    '.cm-st-search-rows': { display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: '0' },
+    '.cm-st-search-row': { display: 'flex', alignItems: 'center', gap: '2px' },
+    '.cm-st-search-row[hidden]': { display: 'none' },
+    '.cm-st-search-field': { position: 'relative', display: 'flex', alignItems: 'center', flex: '0 1 300px', minWidth: '140px', marginRight: '4px' },
+    '.cm-panel.cm-search .cm-textfield': { width: '100%', height: '24px', boxSizing: 'border-box', fontSize: '12px', fontFamily: 'inherit' },
+    // room for the three toggles that sit inside the find field's right edge
+    '.cm-panel.cm-search .cm-textfield[name=search]': { paddingRight: '72px' },
+    '.cm-st-search-field .cm-st-search-toggle': { position: 'absolute', top: '3px', width: '20px', height: '18px', fontSize: '11px' },
+    '.cm-st-search-field .cm-st-search-toggle[name=case]': { right: '46px' },
+    '.cm-st-search-field .cm-st-search-toggle[name=word]': { right: '24px' },
+    '.cm-st-search-field .cm-st-search-toggle[name=re]': { right: '2px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
+    '.cm-textfield.cm-st-search-invalid, .cm-textfield.cm-st-search-invalid:focus': { borderColor: '#c0504d' },
+    '.cm-panel.cm-search .cm-st-search-btn': { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '24px', height: '24px', padding: '0 4px', background: 'none', border: '1px solid transparent', borderRadius: '3px', color: 'light-dark(#52575d, #9aa0a6)', font: 'inherit', fontSize: '14px', lineHeight: '1', cursor: 'pointer' },
+    '.cm-panel.cm-search .cm-st-search-btn:hover': { backgroundColor: 'light-dark(#e4e5e8, #2f3237)', color: 'var(--text-strong)' },
+    '.cm-panel.cm-search .cm-st-search-toggle': { minWidth: '0', padding: '0', fontSize: '11px', fontWeight: '600' },
+    '.cm-panel.cm-search .cm-st-search-toggle[aria-pressed=true]': { backgroundColor: 'light-dark(#cce0f7, rgba(45,90,140,0.45))', borderColor: '#2d5a8c', color: 'var(--text-strong)' },
+    '.cm-panel.cm-search .cm-st-search-chevron': { transition: 'transform 120ms' },
+    '.cm-panel.cm-search .cm-st-search-chevron[aria-expanded=true]': { transform: 'rotate(90deg)' },
+    '.cm-panel.cm-search [name=close]': { position: 'static', marginLeft: 'auto' },
+    '.cm-st-search-count': { minWidth: '84px', padding: '0 6px', color: 'light-dark(#52575d, #9aa0a6)', fontSize: '11px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' },
+    '.cm-st-search-count.cm-st-search-none': { color: 'light-dark(#b03a37, #e0807d)' },
+    '.cm-textfield': { backgroundColor: 'light-dark(#ffffff, #141517)', border: '1px solid var(--line-soft)', borderRadius: '3px', color: 'var(--text-strong)', padding: '2px 6px' },
     '.cm-textfield:focus': { outline: 'none', borderColor: '#2d5a8c' },
     // CM's base button is a light linear-gradient; flatten it before recolouring
     '.cm-button': { backgroundColor: 'light-dark(#eeeff1, #26282c)', backgroundImage: 'none', border: '1px solid var(--line-soft)', borderRadius: '3px', color: 'var(--text-strong)' },
+    '.cm-panel.cm-search .cm-button': { height: '24px', padding: '0 10px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer' },
     '.cm-button:hover': { backgroundColor: 'light-dark(#dee0e3, #2f3237)' },
-    '.cm-panel.cm-search [name=close]': { color: 'light-dark(#52575d, #9aa0a6)', fontSize: '14px', padding: '0 4px' },
     // Every hit gets a dim amber box. The current hit also carries the editor selection
     // (findNext selects it), so it's already blue - filling it amber on top just muddies the
     // two into gray. Ring it instead: dim amber box = a hit, blue fill + crisp amber ring =
@@ -445,7 +468,7 @@ export function stExtensions(
     // renders under the editor. searchKeymap goes before defaultKeymap: it binds Mod-f (which
     // the browser otherwise takes for its own find) and Mod-d (select next occurrence), and the
     // first binding for a key in the array wins.
-    search({ top: true }),
+    search({ top: true, createPanel: stSearchPanel }),
     highlightSelectionMatches(),
     // without this facet CM collapses every selection to the main range, so Mod-d
     // (select next occurrence) and Mod-Shift-l (select all matches) silently no-op -
