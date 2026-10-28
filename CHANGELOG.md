@@ -17,6 +17,8 @@ The first public source release. The [README](README.md#features) lists what it 
   again, and a revolute joint's **Pivot** (with **Pivot at centre**) sets the point it turns about. A split piece
   can be merged back, any node can change **Parent** in place, **Test motion** sweeps a joint between its limits and **Position** drags it by hand,
   lengths can be shown in m, cm or mm, and a revolute joint can **spin endlessly** at a set rpm (a wrapping servo).
+  A joint's **PLC control** can be set to **Two positions**, which writes a behavior with a BOOL command tag, two
+  end-position tags and a stroke time, so a PLC moves the joint with no code in the part.
   Editing a joint in the panel no longer drops its `servo`, `rest`, `cosmetic` or param-driven limits.
 
 Earlier development history is not part of this repository.

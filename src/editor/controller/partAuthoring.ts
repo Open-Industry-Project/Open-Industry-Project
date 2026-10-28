@@ -11,6 +11,7 @@ import { bytesToBase64 } from '../../core/parts/partAssets'
 import { fitRigToModel } from '../../core/parts/modelFit'
 import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
+import { isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig } from '../jointPlcControl'
 import { mergeRigPiece as mergedGeometry, reparentRigLink as reparentedGeometry, setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
 import type { AuthorableShapeKind } from '../rigTree'
 import type { PartPackage, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
@@ -273,7 +274,40 @@ export function setRigJoint(
     // in place: the idle pose rows and the servo list follow the joints' order
     joints = existing ? all.map((j) => (j === existing ? next : j)) : [...joints, next]
   }
-  ec.store.commitPackage(joint ? 'Edit joint' : 'Remove joint', { ...pkg, geometry: { ...pkg.geometry, joints } })
+  const edited: PartPackage = { ...pkg, geometry: { ...pkg.geometry, joints } }
+  ec.store.commitPackage(joint ? 'Edit joint' : 'Remove joint', withJointPlcScript(edited) ?? edited)
+}
+
+/** A panel-written PLC control script follows the joints it drives (their limits, or their removal); null when
+ *  the behavior is not one the panel wrote, or the rewrite does not build. */
+function withJointPlcScript(pkg: PartPackage): PartPackage | null {
+  const config = readJointPlcConfig(pkg.behavior)
+  if (!config || pkg.geometry.kind !== 'rig') return null
+  const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints))
+  return result.ok && result.package ? result.package : null
+}
+
+/**
+ * Turn the panel's PLC control for one joint on (`time`, the stroke time in seconds) or off (null), by writing the
+ * behavior script. A script the panel did not write is replaced only after `confirmReplace`.
+ */
+export function setJointPlcControl(
+  ec: AuthoringDeps,
+  packageId: string,
+  jointName: string,
+  time: number | null,
+  confirmReplace?: () => boolean,
+): boolean {
+  const pkg = getPackage(packageId)
+  if (!pkg || pkg.geometry.kind !== 'rig') return false
+  if (!isReplaceableBehavior(pkg.behavior) && !confirmReplace?.()) return false
+  const config = { ...readJointPlcConfig(pkg.behavior) }
+  if (time === null) delete config[jointName]
+  else config[jointName] = { mode: 'twoPositions', time }
+  const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints))
+  if (!result.ok || !result.package) return false
+  ec.store.commitPackage('PLC control', result.package, { coalesceKey: `plc:${packageId}:${jointName}` })
+  return true
 }
 
 /** The rig edits the Inspector calls, bound to the controller (EditorController.rig, kept off the class itself). */
@@ -284,6 +318,8 @@ export function rigEdits(ec: AuthoringDeps) {
     setRigJointPivot: (packageId: string, linkName: string, pivot: [number, number, number]): boolean => setRigJointPivot(ec, packageId, linkName, pivot),
     mergeRigPiece: (packageId: string, linkName: string): boolean => mergeRigPiece(ec, packageId, linkName),
     reparentRigLink: (packageId: string, linkName: string, parent: string | undefined): boolean => reparentRigLink(ec, packageId, linkName, parent),
+    setJointPlcControl: (packageId: string, jointName: string, time: number | null, confirmReplace?: () => boolean): boolean =>
+      setJointPlcControl(ec, packageId, jointName, time, confirmReplace),
   }
 }
 

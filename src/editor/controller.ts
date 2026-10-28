@@ -1016,7 +1016,7 @@ export class EditorController {
     authoringOps.setRigJoint(this, packageId, linkName, joint)
   }
 
-  /** Author mode: the Part Editor's rig edits (split, pivot, merge back, parent), in controller/partAuthoring.ts. */
+  /** Author mode: the Part Editor's rig edits (split, pivot, merge back, parent, PLC control), in controller/partAuthoring.ts. */
   readonly rig = authoringOps.rigEdits(this)
 
   /**
