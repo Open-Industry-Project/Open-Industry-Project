@@ -132,7 +132,7 @@ jobs:
         run: xvfb-run -a node scripts/desktop-smoke.mjs "$(ls "$OIP_RELEASE_DIR"/Open-Industry-Project-*.AppImage)" --software-gl --out "$RUNNER_TEMP/smoke-appimage-ubuntu" --timeout 90
 
       - name: Keep the packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-linux
           path: |
@@ -145,7 +145,7 @@ jobs:
           if-no-files-found: error
       - name: Keep the screenshots
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-linux-screenshots
           path: |
@@ -229,7 +229,7 @@ jobs:
         run: node scripts/desktop-smoke.mjs "$OIP_RELEASE_DIR/win-unpacked/Open Industry Project.exe" --software-gl --out "$RUNNER_TEMP/smoke-win"
 
       - name: Keep the installer
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-windows
           path: |
@@ -240,7 +240,7 @@ jobs:
           if-no-files-found: error
       - name: Keep the screenshot
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-windows-screenshot
           path: ${{ runner.temp }}/smoke-win/*.png

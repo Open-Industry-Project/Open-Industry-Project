@@ -164,7 +164,7 @@ jobs:
 
       - name: Upload generated programs and MATIEC output
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: st-oracle-output
           path: .oracle/
@@ -219,7 +219,7 @@ jobs:
 
       - name: Upload generated programs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: st-oracle-ed3-output
           path: .oracle-ed3/
@@ -258,7 +258,7 @@ jobs:
 
       - name: Upload generated documents
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: st-oracle-xml-output
           path: .oracle-xml/
@@ -301,7 +301,7 @@ jobs:
 
       - name: Upload what the importers made of them
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: st-oracle-import-output
           path: .oracle-import/imported/
@@ -339,7 +339,7 @@ jobs:
 
       - name: Upload the project folders and regenerated programs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: st-oracle-openplc-output
           path: .oracle-openplc/cases/
@@ -417,7 +417,7 @@ jobs:
 
       - name: Upload the program and the runtime log
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: openplc-loop-output
           path: .oracle-openplc/loop/
