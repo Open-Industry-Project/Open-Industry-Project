@@ -81,3 +81,17 @@ describe('the named controllers', () => {
   })
 })
 
+
+describe('OPC UA browse start points', () => {
+  it('keeps the start points that read as a path or a NodeId, for each link on its own', async () => {
+    const { sanitizeExternalPlc } = await import('./storePrefs')
+    expect(sanitizeExternalPlc({}).opcUaBrowseFrom).toEqual([])
+    const s = sanitizeExternalPlc({
+      opcUaBrowseFrom: ['DeviceSet.PLC.Programs', 'Main..Eye', 7, 'ns=4;s=GVL'],
+      controllers: [{ name: 'Cell2', opcUaBrowseFrom: ['Cnc'] }],
+    })
+    expect(s.opcUaBrowseFrom).toEqual(['DeviceSet.PLC.Programs', 'ns=4;s=GVL'])
+    expect(s.controllers[0]!.opcUaBrowseFrom).toEqual(['Cnc'])
+    expect(sanitizeExternalPlc({ opcUaBrowseFrom: 'Programs' }).opcUaBrowseFrom).toEqual([])
+  })
+})

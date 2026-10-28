@@ -13,6 +13,9 @@
 // when both exist. A tag that matches more than one variable is refused with the candidates named, rather
 // than bound to whichever the server listed first. A NodeId written out (`ns=4;s=...`, `ns=3;i=...`) is taken as it is.
 //
+// Where the browse starts. Objects by default, or the start points a link names (OpcUaBrowseRoot). A variable found
+// under a path start point keeps its whole path from Objects, so a tag binds the same with start points as without.
+//
 // This module is pure: the browse itself, and every byte on the wire, belong to the desktop shell
 // (apps/desktop/opcUaIo.cjs, with node-opcua), and the session that joins them to the running scene to
 // editor/links/externalPlc.ts.
@@ -87,6 +90,46 @@ export function opcUaPointsFromTags(tags: readonly SceneTagWiring[]): { points: 
 }
 
 const NODE_ID = /^(ns=\d+;)?[isgb]=.+$/
+
+/** A tag written as a NodeId (`ns=4;s=Main.Eye`), which names its node without a browse. */
+export const isOpcUaNodeId = (tag: string): boolean => NODE_ID.test(tag)
+
+/**
+ * Where a browse starts, instead of Objects: a path of browse names from Objects (`DeviceSet.PLC.Programs`), or a
+ * NodeId. A server that also runs a CNC or a drive can hold tens of thousands of variables a program never uses.
+ */
+export type OpcUaBrowseRoot = { path: string[] } | { nodeId: string }
+
+/** How many start points a link keeps. */
+export const MAX_BROWSE_ROOTS = 16
+
+/** A start point as typed: a NodeId, or a path of browse names written as a tag is. */
+export function opcUaBrowseRoot(text: string): OpcUaBrowseRoot | null {
+  const s = text.trim()
+  if (s === '' || s.length > 512) return null
+  if (NODE_ID.test(s)) return { nodeId: s }
+  const path = tagSegments(s)
+  return path.some((seg) => seg === '' || /[[\]]/.test(seg)) ? null : { path }
+}
+
+/**
+ * The start points a field holds, separated by commas outside double quotes (`Programs, "Cell.A".Data`); null when one
+ * of them is not a path or a NodeId, or there are more than {@link MAX_BROWSE_ROOTS}. Empty text is none: browse Objects.
+ */
+export function parseOpcUaBrowseRoots(text: string): string[] | null {
+  const out: string[] = []
+  let cur = ''
+  let quoted = false
+  for (const ch of `${text},`) {
+    if (ch === '"') quoted = !quoted
+    if (ch === ',' && !quoted) {
+      if (cur.trim() !== '') out.push(cur.trim())
+      cur = ''
+    } else cur += ch
+  }
+  if (quoted || out.length > MAX_BROWSE_ROOTS || out.some((r) => opcUaBrowseRoot(r) === null)) return null
+  return out
+}
 
 /** A tag's name as browse-name segments: `"Conveyor".Eye` is Conveyor, Eye (a quoted segment may hold a dot; the quotes are not part of the name). */
 export function tagSegments(tag: string): string[] {

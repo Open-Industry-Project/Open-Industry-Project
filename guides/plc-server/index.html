@@ -205,6 +205,12 @@ END_PROGRAM</code></pre>
           The connection is unsecured, with security policy None and an anonymous login, so the PLC's server has to allow both.
           Use it on a test bench, not a plant network.
         </p>
+        <p>
+          On Play the simulator reads the server's whole tree under Objects to find each tag. If the server holds far more
+          than the program, as a controller that also runs a CNC or drives does, put where the program's variables are in
+          <span class="ui">Browse from</span>: a path from Objects like <code>DeviceSet.PLC.Programs</code>, or a NodeId,
+          several separated by commas. Tags keep the names they have; only less of the tree is read.
+        </p>
 
         <h3>B3. The PLC program</h3>
         <pre class="code" translate="no"><code>PROGRAM PLC_PRG
@@ -278,6 +284,12 @@ END_PROGRAM</code></pre>
 
           <dt>OPC UA: a tag is read only.</dt>
           <dd>The simulator writes the sensors, so their variables must be writable, which means a plain variable rather than a located input.</dd>
+
+          <dt>OPC UA: connecting takes long, or "a branch of the PLC's tags did not answer in time".</dt>
+          <dd>The server's tree is large, or part of it answers slowly. Set <span class="ui">Browse from</span> (see <a href="#opcua">B2</a>) to the folder that holds the program's variables.</dd>
+
+          <dt>OPC UA: "the PLC has no ... to browse from".</dt>
+          <dd>A <span class="ui">Browse from</span> path does not match the server's tree. Check the names under Objects in an OPC UA browser, or give the folder's NodeId.</dd>
 
           <dt>OPC UA: "... is an OPC UA discovery server, not a PLC".</dt>
           <dd>The PLC's server is on another port. See <a href="#opcua">B4</a>.</dd>

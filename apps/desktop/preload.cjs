@@ -189,7 +189,7 @@ contextBridge.exposeInMainWorld('oipPlcIo', {
 contextBridge.exposeInMainWorld('oipOpcUa', {
   /** @param {{endpoint: string}} opts @returns {Promise<{error: string, discovery?: {name: string, urls: string[]}[]}>} discovery: a discovery server, not a PLC */
   connect: (opts) => ipcRenderer.invoke('opcua:connect', opts),
-  /** @param {{link?: number}} [opts] @returns {Promise<{error: string, variables?: {path: string[], nodeId: string}[], truncated?: boolean}>} */
+  /** @param {{link?: number, roots?: ({path: string[]} | {nodeId: string})[]}} [opts] @returns {Promise<{error: string, variables?: {path: string[], nodeId: string}[], truncated?: boolean, skipped?: string[]}>} */
   browse: (opts) => ipcRenderer.invoke('opcua:browse', opts),
   /** @param {{nodeIds: string[]}} opts @returns {Promise<{error: string, nodes?: {dataType: string, access: number}[]}>} */
   describe: (opts) => ipcRenderer.invoke('opcua:describe', opts),
@@ -202,6 +202,12 @@ contextBridge.exposeInMainWorld('oipOpcUa', {
     const listener = (_event, e) => cb(e)
     ipcRenderer.on('opcua:closed', listener)
     return () => ipcRenderer.removeListener('opcua:closed', listener)
+  },
+  /** @param {(e: {link: number, found: number}) => void} cb @returns {() => void} unsubscribe; a browse under way, and how many variables it has found */
+  onProgress: (cb) => {
+    const listener = (_event, e) => cb(e)
+    ipcRenderer.on('opcua:progress', listener)
+    return () => ipcRenderer.removeListener('opcua:progress', listener)
   },
 })
 

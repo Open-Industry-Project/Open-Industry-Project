@@ -51,11 +51,12 @@ export function opcUaForLink(host: OpcUaHost, link: number): OpcUaHost {
   const ours = mine(link)
   return {
     connect: (opts) => host.connect({ ...opts, link }),
-    browse: () => host.browse({ link }),
+    browse: (opts) => host.browse({ ...opts, link }),
     describe: (opts) => host.describe({ ...opts, link }),
     exchange: (opts) => host.exchange({ ...opts, link }),
     close: () => host.close({ link }),
     onClosed: (cb) => host.onClosed((e) => ours(e) && cb(e)),
+    ...(host.onProgress ? { onProgress: (cb: Parameters<NonNullable<OpcUaHost['onProgress']>>[0]) => host.onProgress!((e) => ours(e) && cb(e)) } : {}),
   }
 }
 

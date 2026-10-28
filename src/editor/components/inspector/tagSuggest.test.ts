@@ -81,7 +81,7 @@ describe('the sections of the list', () => {
   })
 
   it('lists the PLC\'s tags only once something is typed', () => {
-    const plc = plcTagListOf('opc.tcp://plc:4840', { variables, truncated: false })
+    const plc = plcTagListOf('opc.tcp://plc:4840', [], { variables, truncated: false })
     const idle = buildSections('', new Map(), [], undefined, sources({ plc }))
     expect(idle[0]!.title).toBe('On the PLC (2 tags)')
     expect(idle[0]!.rows.filter((r) => r.kind === 'name')).toEqual([])
@@ -91,7 +91,7 @@ describe('the sections of the list', () => {
   })
 
   it('says when the PLC holds more than was read', () => {
-    const plc = plcTagListOf('opc.tcp://plc:4840', { variables, truncated: true })
+    const plc = plcTagListOf('opc.tcp://plc:4840', [], { variables, truncated: true })
     expect(buildSections('e', new Map(), [], undefined, sources({ plc, canReadPlc: false }))[0]!.notes).toEqual([expect.stringContaining('more tags than were read')])
   })
 
@@ -143,20 +143,20 @@ describe('reading the PLC\'s tags while stopped', () => {
 
   it('connects, browses and lets go', async () => {
     const h = host()
-    const list = await readOpcUaTagList(h, 'opc.tcp://plc:4840', () => true)
+    const list = await readOpcUaTagList(h, 'opc.tcp://plc:4840', [], () => true)
     expect(list).toMatchObject({ state: 'ready', names: ['Eye'], truncated: false })
     expect(h.closed).toBe(1)
   })
 
   it('never closes a link a run has taken over meanwhile', async () => {
     const h = host()
-    await readOpcUaTagList(h, 'opc.tcp://plc:4840', () => false)
+    await readOpcUaTagList(h, 'opc.tcp://plc:4840', [], () => false)
     expect(h.closed).toBe(0)
   })
 
   it('says why it could not read', async () => {
-    expect(await readOpcUaTagList(host({ connect: async () => ({ error: 'refused' }) }), 'opc.tcp://plc:4840', () => true)).toMatchObject({ state: 'failed', error: 'refused' })
-    const lds = await readOpcUaTagList(host({ connect: async () => ({ error: '', discovery: [] }) }), 'opc.tcp://pc:4840', () => true)
+    expect(await readOpcUaTagList(host({ connect: async () => ({ error: 'refused' }) }), 'opc.tcp://plc:4840', [], () => true)).toMatchObject({ state: 'failed', error: 'refused' })
+    const lds = await readOpcUaTagList(host({ connect: async () => ({ error: '', discovery: [] }) }), 'opc.tcp://pc:4840', [], () => true)
     expect(lds.error).toMatch(/discovery server/)
   })
 })

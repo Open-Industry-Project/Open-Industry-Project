@@ -673,6 +673,34 @@ try {
   while (ua.sessions() > 0 && Date.now() < sessionsUntil) await sleep(100)
   expect(ua.sessions() === 0, 'Stop ends the OPC UA session')
 
+  // Browse from: the browse starts where the field says, through the preload and the shell. A start point the server
+  // does not hold is said; one it holds binds the tags under their whole paths, matched ignoring case; a field that is
+  // not a path or a NodeId snaps back
+  const browseFrom = page.locator('[data-testid="external-plc-opcua-browse-from"]')
+  const setBrowseFrom = async (text) => {
+    await browseFrom.fill(text)
+    await browseFrom.press('Enter')
+  }
+  await setBrowseFrom('Nope')
+  expect(JSON.stringify(await page.evaluate(() => window.__oip.store.getState().externalPlc.opcUaBrowseFrom)) === '["Nope"]', 'Browse from saves a start point')
+  await page.evaluate(() => window.__oip.controller.run())
+  await page.waitForFunction(() => /the PLC has no Nope to browse from/.test(window.__oip.controller.externalPlcStatus.error ?? ''), null, { timeout: 20000, polling: 100 })
+  const noStart = await page.locator('[data-testid="external-plc-status"]').innerText()
+  expect(/the PLC has no Nope to browse from/.test(noStart), `a start point the server does not hold is said (${noStart})`)
+  await page.evaluate(() => window.__oip.controller.stop())
+  await page.waitForFunction(() => window.__oip.controller.externalPlcStatus.state === 'off', null, { timeout: 5000, polling: 100 })
+  await setBrowseFrom('main')
+  await page.evaluate(() => window.__oip.controller.run())
+  await page.waitForFunction(() => window.__oip.controller.externalPlcStatus.state === 'polling', null, { timeout: 20000, polling: 100 })
+  const fromMain = await page.locator('[data-testid="external-plc-points"]').innerText()
+  expect(/Eye\s+Main\.Eye\s+Boolean/.test(fromMain) && /Main\.Run\s+Main\.Run\s+Boolean/.test(fromMain), `browsing from main finds the tags under their whole paths (${fromMain.replace(/\s+/g, ' ')})`)
+  await page.evaluate(() => window.__oip.controller.stop())
+  await page.waitForFunction(() => window.__oip.controller.externalPlcStatus.state === 'off', null, { timeout: 5000, polling: 100 })
+  await setBrowseFrom('Main..Eye')
+  expect((await browseFrom.inputValue()) === 'main', `a field that is not a path snaps back (${await browseFrom.inputValue()})`)
+  await setBrowseFrom('')
+  expect(JSON.stringify(await page.evaluate(() => window.__oip.store.getState().externalPlc.opcUaBrowseFrom)) === '[]', 'and an empty field browses Objects again')
+
   // EtherNet/IP: the same belt and eye on a Logix controller, by its tag names, through libplctag in the shell. The
   // controller is libplctag's own simulator (ab_server) holding Eye and Run, and this script runs its scan.
   console.log('--- EtherNet/IP: a Logix controller\'s tags by name ---')

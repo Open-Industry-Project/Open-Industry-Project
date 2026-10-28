@@ -19,7 +19,9 @@ import {
   ExternalPlcSession,
   flattenFrameTags,
   plannedLink,
+  plcTagListOf,
   POLL_TIMEOUT_MS,
+  readOpcUaTagList,
   statusHint,
   statusLine,
 } from './externalPlc'
@@ -587,6 +589,84 @@ describe('an OPC UA session', () => {
     expect(ua.ctl.closes).toBe(1)
     expect(ua.listeners()).toBe(0)
     expect(session.status()).toMatchObject({ state: 'off', masters: [] })
+  })
+
+  it('runs with what a browse found when a branch never answered, and names the branch', async () => {
+    const ua = uaServer()
+    const browse = ua.host.browse
+    const host: OpcUaHost = { ...ua.host, browse: async (opts) => ({ ...(await browse(opts)), skipped: ['DeviceSet.Cnc'] }) }
+    const session = new ExternalPlcOpcUaSession(host, 'opc.tcp://127.0.0.1:4840', POINTS, [], () => {})
+    await session.start({ Eye: false })
+    expect(session.status()).toMatchObject({ state: 'polling' })
+    expect(session.status().problems).toEqual(["a branch of the PLC's tags did not answer in time (DeviceSet.Cnc); a tag under it reads as missing"])
+    expect(session.browsed?.truncated).toBe(true) // the tag picker's list is incomplete
+    expect(session.exchange({})).toMatchObject({ 'Main.Run': true })
+  })
+
+  it('browses from the start points the link names, and gives the tag picker the list with them', async () => {
+    const ua = uaServer()
+    const asked: unknown[] = []
+    const browse = ua.host.browse
+    const host: OpcUaHost = {
+      ...ua.host,
+      browse: async (opts) => {
+        asked.push(opts?.roots)
+        return browse(opts)
+      },
+    }
+    const from = ['DeviceSet.PLC.Programs', 'ns=4;s=GVL']
+    const session = new ExternalPlcOpcUaSession(host, 'opc.tcp://127.0.0.1:4840', POINTS, [], () => {}, from)
+    await session.start({})
+    expect(asked).toEqual([[{ path: ['DeviceSet', 'PLC', 'Programs'] }, { nodeId: 'ns=4;s=GVL' }]])
+    expect(plcTagListOf(session.endpoint, session.from, session.browsed!)).toMatchObject({ from, state: 'ready' })
+    await session.stop()
+    asked.length = 0
+    const list = await readOpcUaTagList(host, 'opc.tcp://127.0.0.1:4840', ['Programs'], () => true)
+    expect(asked).toEqual([[{ path: ['Programs'] }]])
+    expect(list).toMatchObject({ from: ['Programs'], state: 'ready' })
+  })
+
+  it('says how many tags it has found while a long browse runs, and stops saying it once bound', async () => {
+    const ua = uaServer()
+    const heard = new Set<(e: { found: number }) => void>()
+    let finish = (): void => {}
+    const browse = ua.host.browse
+    const host: OpcUaHost = {
+      ...ua.host,
+      browse: async (opts) => {
+        await new Promise<void>((resolve) => (finish = resolve))
+        return browse(opts)
+      },
+      onProgress: (cb) => {
+        heard.add(cb)
+        return () => heard.delete(cb)
+      },
+    }
+    const session = new ExternalPlcOpcUaSession(host, 'opc.tcp://127.0.0.1:4840', POINTS, [], () => {})
+    const started = session.start({})
+    await vi.advanceTimersByTimeAsync(0)
+    heard.forEach((cb) => cb({ found: 1200 }))
+    expect(session.status()).toMatchObject({ state: 'starting', reading: 1200 })
+    expect(statusLine(session.status(), true, { ...DEFAULT_EXTERNAL_PLC, mode: 'opcua' })).toBe("Reading the PLC's tags at opc.tcp://127.0.0.1:4840: 1200 found so far...")
+    finish()
+    await started
+    expect(session.status().state).toBe('polling')
+    expect(session.status().reading).toBeUndefined()
+    expect(heard.size).toBe(0)
+  })
+
+  it('does not read the tree when every tag is a NodeId', async () => {
+    const ua = uaServer()
+    const points: OpcUaPoint[] = [
+      { tag: 'ns=4;s=Main.Eye', dir: 'toPlc', type: 'BOOL' },
+      { tag: 'ns=4;s=Main.Run', dir: 'fromPlc', type: 'BOOL' },
+    ]
+    const session = new ExternalPlcOpcUaSession(ua.host, 'opc.tcp://127.0.0.1:4840', points, [], () => {})
+    await session.start({ 'ns=4;s=Main.Eye': true })
+    expect(ua.ctl.browses).toBe(0)
+    expect(session.browsed).toBeNull()
+    expect(session.status()).toMatchObject({ state: 'polling', problems: [] })
+    expect(session.exchange({})).toEqual({ 'ns=4;s=Main.Run': false })
   })
 })
 

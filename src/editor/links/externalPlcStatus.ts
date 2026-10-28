@@ -4,7 +4,7 @@
 // warms at startup when one is), so a browser tab, which can never run a link, never parses them. That module
 // re-exports everything here, so a caller that already loads it imports from either.
 
-import type { DiscoveredServer, OpcUaNodeInfo, OpcUaVariable } from '../../core/io/opcUa'
+import type { DiscoveredServer, OpcUaBrowseRoot, OpcUaNodeInfo, OpcUaVariable } from '../../core/io/opcUa'
 import type { TagValue } from '../../plc/types'
 import type { PlcLinkSettings } from '../store/storePrefs'
 
@@ -36,11 +36,14 @@ export interface PlcIoHost {
 export interface OpcUaHost {
   /** `discovery`: the address is a discovery server, not a PLC, and these are the servers it lists */
   connect(opts: { endpoint: string } & LinkOpt): Promise<{ error: string; discovery?: DiscoveredServer[] }>
-  browse(opts?: LinkOpt): Promise<{ error: string; variables?: OpcUaVariable[]; truncated?: boolean }>
+  /** under Objects, or under `roots`; `skipped`: the paths of nodes that never answered in time, left out of `variables` */
+  browse(opts?: { roots?: OpcUaBrowseRoot[] } & LinkOpt): Promise<{ error: string; variables?: OpcUaVariable[]; truncated?: boolean; skipped?: string[] }>
   describe(opts: { nodeIds: string[] } & LinkOpt): Promise<{ error: string; nodes?: OpcUaNodeInfo[] }>
   exchange(opts: { writes: { nodeId: string; builtin: number; value: boolean | number }[]; reads: string[] } & LinkOpt): Promise<{ error: string; writes?: string[]; reads?: { value: unknown; status: string }[] }>
   close(opts?: LinkOpt): Promise<void>
   onClosed(cb: (e: { why: string } & LinkOpt) => void): () => void
+  /** a browse under way, and how many variables it has found; absent on a host that does not say */
+  onProgress?(cb: (e: { found: number } & LinkOpt) => void): () => void
 }
 
 /**
@@ -127,6 +130,8 @@ export interface ExternalPlcStatus {
   points: string[]
   error: string | null
   problems: string[]
+  /** opcua: reading the PLC's tags, with how many variables it has found so far */
+  reading?: number
 }
 
 export const EXTERNAL_PLC_OFF: ExternalPlcStatus = { mode: 'serve', state: 'off', endpoint: '', masters: [], requests: '', stale: false, sinceLastRequestMs: null, driven: [], points: [], error: null, problems: [] }
@@ -151,6 +156,8 @@ export interface ExternalPlcLink {
  */
 export interface PlcTagList {
   endpoint: string
+  /** the start points the browse began at (PlcLinkSettings.opcUaBrowseFrom); empty: Objects */
+  from: readonly string[]
   state: 'reading' | 'ready' | 'failed'
   names: string[]
   variables: OpcUaVariable[]
@@ -198,6 +205,7 @@ export function statusLine(s: ExternalPlcStatus, running: boolean, settings: Plc
   }
   const traffic = s.requests && s.requests !== 'no requests' ? `, ${s.requests}` : ''
   if (poll) {
+    if (s.state === 'starting' && s.reading !== undefined) return `Reading the PLC's tags at ${s.endpoint}: ${s.reading} found so far...`
     if (s.state === 'starting') return s.error ? `Waiting for the PLC at ${s.endpoint}: ${s.error}. Trying again every second.` : `Connecting to the PLC at ${s.endpoint}...`
     const doing =
       mode === 'opcua' || mode === 'eip' || mode === 'ads' ? `Reading and writing the PLC's tags at ${s.endpoint}` : mode === 's7' ? `Reading and writing the CPU's memory at ${s.endpoint}` : mode === 'slmp' ? `Reading and writing the CPU's devices at ${s.endpoint}` : `Polling the PLC at ${s.endpoint}`

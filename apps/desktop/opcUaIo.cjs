@@ -27,9 +27,23 @@ function opcua() {
 const MAX_DEPTH = 12
 const MAX_NODES = 20000
 const BROWSE_BATCH = 200
+/**
+ * A cycle's requests fail in seconds, since the app's watchdog has already de-energised the PLC's outputs after one.
+ * node-opcua raises any shorter timeout to its minTransactionTimeout, 5 s, a static shared by every link in the process.
+ */
+const CYCLE_TIMEOUT_MS = 5000
+/** A browse request's timeout. A PLC with a large tree can take longer than a cycle to answer one. */
+const BROWSE_TIMEOUT_MS = 30000
+/** References per node in one browse answer; the rest follow by continuation point. Large answers are slow to build. */
+const MAX_REFERENCES = 1000
 /** The reference type for properties (EngineeringUnits and the like), which are not a program's variables. */
 const HAS_PROPERTY = 'ns=0;i=46'
 const HAS_SUBTYPE = 'ns=0;i=45'
+const OBJECTS = 'ns=0;i=85'
+/** How many start points a browse takes (core/io/opcUa.ts MAX_BROWSE_ROOTS). */
+const MAX_ROOTS = 16
+/** How often a browse says how far it has got: often enough to look alive, rarely enough not to flood the window. */
+const PROGRESS_MS = 250
 /** The standard Enumeration DataType, and the abstract ones: BaseDataType, Number, Integer, UInteger. */
 const ENUMERATION = 29
 const ABSTRACT = new Set([24, 26, 27, 28])
@@ -53,9 +67,33 @@ function say(e) {
   return text
 }
 
+/**
+ * Start points from the app (core/io/opcUa.ts OpcUaBrowseRoot): `{path: [names]}` or `{nodeId}`. Null when one is
+ * neither, or there are too many.
+ */
+function browseRoots(raw) {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw) || raw.length > MAX_ROOTS) return null
+  const name = (s) => typeof s === 'string' && s !== '' && s.length <= 512
+  const ok = raw.every((r) => (Array.isArray(r?.path) && r.path.length > 0 && r.path.every(name)) || name(r?.nodeId))
+  return ok ? raw.map((r) => (Array.isArray(r.path) ? { path: [...r.path] } : { nodeId: r.nodeId })) : null
+}
+
+/** A Browse of a node's children: every hierarchical reference, every node class, every field of the answer. */
+function childrenOf(n) {
+  return { nodeId: n.nodeId, browseDirection: opcua().BrowseDirection.Forward, referenceTypeId: 'HierarchicalReferences', includeSubtypes: true, nodeClassMask: 0, resultMask: 63 }
+}
+
+/** A request our client gave up on, or one the server says ran out of time. */
+const timedOut = (e) => /timed out|BadTimeout/i.test(String(e?.message ?? e))
+
 class OpcUaLink {
-  /** @param {string} pkiRoot @param {(why: string) => void} onClosed */
-  constructor(pkiRoot, onClosed) {
+  /**
+   * @param {string} pkiRoot @param {(why: string) => void} onClosed
+   * @param {{progressMs?: number}} [opts] how often a browse reports progress (a test sets 0 to hear every batch)
+   */
+  constructor(pkiRoot, onClosed, { progressMs = PROGRESS_MS } = {}) {
+    this.progressMs = progressMs
     this.pkiRoot = pkiRoot
     this.onClosed = onClosed
     this.client = null
@@ -80,9 +118,8 @@ class OpcUaLink {
       securityPolicy: ua.SecurityPolicy.None,
       endpointMustExist: false,
       keepSessionAlive: false,
-      // a request left unanswered fails the cycle in seconds, not the library's default minute; the app's
-      // watchdog has already de-energised the PLC's outputs after one
-      defaultTransactionTimeout: 3000,
+      // a request left unanswered fails the cycle in seconds, not the library's default minute
+      defaultTransactionTimeout: CYCLE_TIMEOUT_MS,
       // the app retries on its own schedule, and says so; the library's own backoff would hide a dead PLC
       connectionStrategy: { maxRetry: 0, initialDelay: 100, maxDelay: 200 },
       clientCertificateManager: new ua.OPCUACertificateManager({ rootFolder: this.pkiRoot, automaticallyAcceptUnknownCertificate: true }),
@@ -103,9 +140,8 @@ class OpcUaLink {
       }
       client.on('connection_lost', () => this.lost('the connection to the PLC was lost'))
       client.on('close', () => this.lost('the PLC closed the connection'))
-      this.session = await client.createSession()
+      await this.openSession()
       if (this.closed) throw new Error('closed')
-      this.session.on('session_closed', () => this.lost('the PLC closed the session'))
       // node-opcua does not split requests, and a server rejects one over its limits with BadTooManyOperations.
       // A limit the server does not publish is taken as none. (The library's readOperationLimits reads twelve
       // limits and logs a warning for each one a server leaves out.)
@@ -129,39 +165,69 @@ class OpcUaLink {
     void this.close()
   }
 
+  /** Open the session, and close the link when the PLC closes it. */
+  async openSession() {
+    const session = await this.client.createSession()
+    session.requestedMaxReferencesPerNode = MAX_REFERENCES
+    session.on('session_closed', () => this.lost('the PLC closed the session'))
+    this.session = session
+  }
+
   /**
-   * Every variable under Objects, with its path of browse names. The standard namespace (0) holds the
+   * Swap the session for a new one on the same connection, after a browse request timed out. The server may still
+   * answer that request, and hold its continuation points for this session until the session ends. A server allows
+   * only a few per session, so without this every later browse could fail with BadNoContinuationPoints.
+   */
+  async renew() {
+    const old = this.session
+    const maxReferences = old.requestedMaxReferencesPerNode
+    // closing our own session fires session_closed, which would close the link
+    old.removeAllListeners('session_closed')
+    await old.close().catch(() => {})
+    if (this.closed) throw new Error('closed')
+    await this.openSession()
+    this.session.requestedMaxReferencesPerNode = maxReferences
+  }
+
+  /**
+   * Every variable under Objects, or under the start points `roots` names, with its path of browse names. The standard namespace (0) holds the
    * server's own model, never a program's variables, so it is not entered; nor are properties. A variable
    * is entered too, because a structure's members are its children.
+   *
+   * A batch that times out goes again in halves on a new session, and later batches keep the smaller size. A node
+   * that times out alone, twice, is left out and listed in `skipped` by its path, so one slow branch does not
+   * cost the whole list. `onProgress` hears how many variables it has found, every `progressMs` at most.
    */
-  async browse() {
+  async browse(roots = [], onProgress = () => {}) {
     const ua = opcua()
     const variables = []
-    let level = [{ nodeId: 'ns=0;i=85', path: [] }]
+    const skipped = []
+    let told = Date.now()
+    let level = await this.startPoints(roots)
     let seen = 0
     let truncated = false
-    const size = this.limits.browse > 0 ? Math.min(BROWSE_BATCH, this.limits.browse) : BROWSE_BATCH
-    const children = (n) => ({ nodeId: n.nodeId, browseDirection: ua.BrowseDirection.Forward, referenceTypeId: 'HierarchicalReferences', includeSubtypes: true, nodeClassMask: 0, resultMask: 63 })
+    let size = this.limits.browse > 0 ? Math.min(BROWSE_BATCH, this.limits.browse) : BROWSE_BATCH
+    const retried = new Set()
     for (let depth = 0; depth < MAX_DEPTH && level.length > 0 && !truncated; depth++) {
       const next = []
-      for (let at = 0; at < level.length && !truncated; at += size) {
+      let at = 0
+      while (at < level.length && !truncated) {
         const batch = level.slice(at, at + size)
-        const results = await this.session.browse(batch.map(children))
-        const found = []
-        const retry = []
-        for (let i = 0; i < results.length; i++) {
-          const status = results[i].statusCode
-          if (status.name === 'BadNoContinuationPoints') retry.push(batch[i])
-          else if (status.isGood()) found.push([batch[i], await this.pages(results[i])])
-          // any other status is a node this session may not browse, and it is left out
+        let found
+        try {
+          found = await this.browseBatch(batch)
+        } catch (e) {
+          if (!timedOut(e)) throw e
+          await this.renew()
+          if (batch.length > 1) size = Math.ceil(batch.length / 2)
+          else if (!retried.has(batch[0])) retried.add(batch[0])
+          else {
+            skipped.push(batch[0].path.join('.') || 'Objects')
+            at += 1
+          }
+          continue
         }
-        // A server holds only so many continuation points per session, and answers the rest of a request with
-        // BadNoContinuationPoints. Those nodes go again one at a time, each one's points released before the next.
-        for (const node of retry) {
-          const [result] = await this.session.browse([children(node)])
-          if (!result.statusCode.isGood()) throw new Error(`could not browse ${node.path.join('.') || 'Objects'} (${result.statusCode.name})`)
-          found.push([node, await this.pages(result)])
-        }
+        at += batch.length
         for (const [node, refs] of found) {
           for (const ref of refs) {
             if (ref.nodeId.namespace === 0 || ref.referenceTypeId.toString() === HAS_PROPERTY) continue
@@ -172,10 +238,98 @@ class OpcUaLink {
             if (++seen >= MAX_NODES) truncated = true
           }
         }
+        if (Date.now() - told >= this.progressMs) {
+          told = Date.now()
+          onProgress(variables.length)
+        }
       }
       level = next
     }
-    return { variables, truncated }
+    return { variables, truncated, skipped }
+  }
+
+  /**
+   * The nodes a browse starts from, each with its path: Objects when `roots` is empty. A path is followed from Objects
+   * one browse name at a time, ignoring case and preferring the exact spelling, as a tag is matched, so its variables
+   * keep their whole path. A NodeId's path starts at its own browse name. A start point the server does not hold, or a
+   * path that names two nodes, fails the browse: skipping it would only show up later as tags reported missing.
+   */
+  async startPoints(roots) {
+    if (roots.length === 0) return [{ nodeId: OBJECTS, path: [] }]
+    const ua = opcua()
+    const out = []
+    for (const root of roots) {
+      let node
+      if (root.nodeId !== undefined) {
+        const [dv] = await this.session.read([{ nodeId: root.nodeId, attributeId: ua.AttributeIds.BrowseName }])
+        if (!dv.statusCode.isGood()) throw new Error(`the PLC has no node ${root.nodeId} to browse from (${dv.statusCode.name})`)
+        node = { nodeId: ua.resolveNodeId(root.nodeId).toString(), path: [dv.value.value.name], fromObjects: false }
+      } else {
+        node = { nodeId: OBJECTS, path: [], fromObjects: true }
+        for (const want of root.path) {
+          const [result] = await this.browseOnce([childrenOf(node)])
+          const refs = result.statusCode.isGood() ? await this.pages(result) : []
+          let found = refs.filter((r) => r.browseName.name?.toLowerCase() === want.toLowerCase())
+          if (found.length > 1 && found.some((r) => r.browseName.name === want)) found = found.filter((r) => r.browseName.name === want)
+          const ids = new Set(found.map((r) => r.nodeId.toString()))
+          const where = [...node.path, want].join('.')
+          if (ids.size === 0) throw new Error(`the PLC has no ${where} to browse from`)
+          if (ids.size > 1) throw new Error(`${where} names ${ids.size} nodes on the PLC: browse from its NodeId instead`)
+          node = { nodeId: [...ids][0], path: [...node.path, found[0].browseName.name], fromObjects: true }
+        }
+      }
+      if (!out.some((o) => o.nodeId === node.nodeId)) out.push(node)
+    }
+    // a path start point under another one would list its variables twice
+    const under = (inner, outer) => inner !== outer && inner.fromObjects && outer.fromObjects && outer.path.length < inner.path.length && outer.path.every((seg, i) => seg === inner.path[i])
+    return out.filter((o) => !out.some((p) => under(o, p))).map(({ nodeId, path }) => ({ nodeId, path }))
+  }
+
+  /** Each node of `batch` with its references, every page of them. A node this session may not browse is left out. */
+  async browseBatch(batch) {
+    const results = await this.browseOnce(batch.map(childrenOf))
+    const found = []
+    const retry = []
+    for (let i = 0; i < results.length; i++) {
+      const status = results[i].statusCode
+      if (status.name === 'BadNoContinuationPoints') retry.push(batch[i])
+      else if (status.isGood()) found.push([batch[i], await this.pages(results[i])])
+    }
+    // A server holds only so many continuation points per session, and answers the rest of a request with
+    // BadNoContinuationPoints. Those nodes go again one at a time, each one's points released before the next.
+    for (const node of retry) {
+      const [result] = await this.browseOnce([childrenOf(node)])
+      if (!result.statusCode.isGood()) throw new Error(`could not browse ${node.path.join('.') || 'Objects'} (${result.statusCode.name})`)
+      found.push([node, await this.pages(result)])
+    }
+    return found
+  }
+
+  /**
+   * One Browse request, with the browse timeout. session.browse builds its request with the client's default
+   * timeout, which a cycle needs short, so the request is built here.
+   */
+  browseOnce(nodes) {
+    const ua = opcua()
+    return this.send(
+      new ua.BrowseRequest({
+        nodesToBrowse: nodes.map((n) => new ua.BrowseDescription({ ...n, nodeId: ua.resolveNodeId(n.nodeId), referenceTypeId: ua.resolveNodeId(n.referenceTypeId) })),
+        requestedMaxReferencesPerNode: this.session.requestedMaxReferencesPerNode,
+      }),
+    )
+  }
+
+  /** A request's results, sent with the browse timeout. */
+  send(request) {
+    request.requestHeader.timeoutHint = BROWSE_TIMEOUT_MS
+    return new Promise((resolve, reject) =>
+      this.session.performMessageTransaction(request, (err, response) => {
+        if (err) return reject(err)
+        const results = response.results ?? []
+        for (const r of results) r.references ??= []
+        resolve(results)
+      }),
+    )
   }
 
   /** A browse result's references, with every page behind its continuation point. */
@@ -183,7 +337,7 @@ class OpcUaLink {
     const refs = [...(result.references ?? [])]
     let cp = result.continuationPoint
     while (cp && cp.length > 0) {
-      const [more] = await this.session.browseNext([cp], false)
+      const [more] = await this.send(new (opcua().BrowseNextRequest)({ continuationPoints: [cp], releaseContinuationPoints: false }))
       // a point the server dropped (BadContinuationPointInvalid) would otherwise end the list early without a word
       if (!more.statusCode.isGood()) throw new Error(`browsing the PLC's tags stopped part way (${more.statusCode.name})`)
       refs.push(...(more.references ?? []))
@@ -247,7 +401,7 @@ class OpcUaLink {
         else if (id.value >= 1 && id.value <= 25 && !ABSTRACT.has(id.value)) found = id.value
         if (found !== 0 || ABSTRACT.has(id.value)) break
       }
-      const [r] = await this.session.browse([{ nodeId: id, browseDirection: ua.BrowseDirection.Inverse, referenceTypeId: HAS_SUBTYPE, includeSubtypes: false, nodeClassMask: 0, resultMask: 63 }])
+      const [r] = await this.browseOnce([{ nodeId: id, browseDirection: ua.BrowseDirection.Inverse, referenceTypeId: HAS_SUBTYPE, includeSubtypes: false, nodeClassMask: 0, resultMask: 63 }])
       const up = r.statusCode.isGood() ? r.references?.[0]?.nodeId : null
       if (!up) break
       id = up
@@ -329,12 +483,16 @@ async function withLink(event, opts, fn) {
  *   opcua:connect  {endpoint} -> {error, discovery?}                connect and open an anonymous session;
  *                                                                   discovery: [{name, urls}] when the address
  *                                                                   is a discovery server, not a PLC
- *   opcua:browse   -> {error, variables: [{path, nodeId}], truncated} every variable under Objects
+ *   opcua:browse   {roots?} -> {error, variables: [{path, nodeId}], truncated, skipped}
+ *                                                                   every variable under Objects, or under the start
+ *                                                                   points roots names ([{path} | {nodeId}]); skipped:
+ *                                                                   the paths of nodes that never answered in time
  *   opcua:describe {nodeIds} -> {error, nodes: [{dataType, builtin, access}]}
  *   opcua:exchange {writes: [{nodeId, builtin, value}], reads: [nodeId]} -> {error, writes: [status], reads: [{value, status}]}
  *   opcua:close                                                     end the session
  * and pushes
  *   opcua:closed {link, why}                                        the PLC went away
+ *   opcua:progress {link, found}                                    a browse under way has found this many variables
  * `consent` (endpointConsent.cjs `allows`) is asked before connecting to another host; without it every endpoint
  * is allowed (a caller that is not the app's window, such as a test).
  */
@@ -370,7 +528,12 @@ function registerOpcUaIo(ipcMain, { pkiRoot, consent }) {
     })
     return { error: '' }
   })
-  ipcMain.handle('opcua:browse', (event, opts) => withLink(event, opts, (l) => l.browse()))
+  ipcMain.handle('opcua:browse', (event, opts) => {
+    const roots = browseRoots(opts?.roots)
+    if (roots === null) return { error: 'the start points are not browse paths or NodeIds' }
+    const link = linkNo(opts)
+    return withLink(event, opts, (l) => l.browse(roots, (found) => send(event.sender, 'opcua:progress', { link, found })))
+  })
   ipcMain.handle('opcua:describe', (event, opts) => withLink(event, opts, async (l) => ({ nodes: await l.describe(Array.isArray(opts?.nodeIds) ? opts.nodeIds : []) })))
   ipcMain.handle('opcua:exchange', (event, opts) => withLink(event, opts, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
   ipcMain.handle('opcua:close', (event, opts) => {

@@ -18,6 +18,7 @@ import { plannedLink, statusHint, statusLine } from '../../links/externalPlc'
 import type { ExternalPlcStatus } from '../../links/externalPlc'
 import type { EditorState, EditorStore } from '../../store/store'
 import { isAmsNetId } from '../../../core/io/ads'
+import { parseOpcUaBrowseRoots } from '../../../core/io/opcUa'
 import { partsForController } from '../../../core/io/controllerTag'
 import type { PartInstance } from '../../../core/types'
 import { isEipPath, isOpcUaEndpoint, isPlcHost, servePortClash } from '../../store/storePrefs'
@@ -73,6 +74,9 @@ const M = defineMessages('externalPlc', {
   adsNote: '(a TwinCAT PLC)',
   serverTitle: "The PLC's OPC UA server, like opc.tcp://192.168.0.10:4840",
   server: 'Server',
+  browseFromTitle:
+    "Where to look for the PLC's tags, when its server holds far more than the program (a CNC, drives): a path of browse names from Objects, like DeviceSet.PLC.Programs, or a NodeId. Separate several with commas. Empty: everything under Objects. A tag found under a path keeps its whole path, so a tag's name works the same either way.",
+  browseFrom: 'Browse from',
   opcUaUnsecuredTitle: "No certificates and an anonymous login, so the PLC's OPC UA server has to allow the None security policy.",
   opcUaUnsecured: 'Unsecured (security policy None, anonymous login): use it on this machine or a test bench, not a plant network.',
   eipGatewayTitle: "The controller's IP address, or its Ethernet module's (an EN2T): host, or host:port when it is not 44818",
@@ -160,7 +164,7 @@ interface ExternalPlcSectionProps {
 }
 
 /** A text field that commits on Enter or blur, and snaps back to the stored value when `commit` refuses the text. */
-export function CommitField({ value, commit, disabled, testId, wide, numeric, className }: { value: string; commit: (text: string) => boolean; disabled: boolean; testId: string; wide?: boolean; numeric?: boolean; className?: string }): ReactElement {
+export function CommitField({ value, commit, disabled, testId, wide, numeric, className, placeholder }: { value: string; commit: (text: string) => boolean; disabled: boolean; testId: string; wide?: boolean; numeric?: boolean; className?: string; placeholder?: string }): ReactElement {
   const [text, setText] = useState(value)
   useEffect(() => setText(value), [value])
   const done = (): void => {
@@ -171,6 +175,7 @@ export function CommitField({ value, commit, disabled, testId, wide, numeric, cl
       type="text"
       className={className ?? (wide ? 'ctl-ext-wide' : undefined)}
       inputMode={numeric ? 'numeric' : undefined}
+      placeholder={placeholder}
       value={text}
       disabled={disabled}
       onChange={(e) => setText(e.target.value)}
@@ -403,6 +408,25 @@ export function PlcLinkFields({ tid, settings, update, status, parts, running, l
                   return true
                 }}
                 testId={`${tid}-opcua-endpoint`}
+              />
+            </label>
+          </div>
+          <div className="ctl-ext-row">
+            <label className="ctl-ext-field" title={t(M.browseFromTitle)}>
+              {t(M.browseFrom)}
+              <CommitField
+                value={settings.opcUaBrowseFrom.join(', ')}
+                className="ctl-ext-endpoint"
+                // i18n-ok: the OPC UA Objects folder's name
+                placeholder="Objects"
+                disabled={locked}
+                commit={(text) => {
+                  const roots = parseOpcUaBrowseRoots(text)
+                  if (roots === null) return false
+                  update({ opcUaBrowseFrom: roots })
+                  return true
+                }}
+                testId={`${tid}-opcua-browse-from`}
               />
             </label>
           </div>

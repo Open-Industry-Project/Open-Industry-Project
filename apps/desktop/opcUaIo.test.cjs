@@ -76,6 +76,35 @@ async function ownTypes(port, pki) {
   return server
 }
 
+/**
+ * A server laid out as a controller with more than a PLC: DeviceSet.PLC.Programs.Main holds Eye and Run, and beside it
+ * DeviceSet.Cnc holds an axis. Under Twins are two folders whose names differ only in case. Returns the Programs NodeId.
+ */
+async function layered(port, pki) {
+  const server = new OPCUAServer({
+    port,
+    serverCertificateManager: new OPCUACertificateManager({ rootFolder: join(pki, `server-${port}`) }),
+    securityPolicies: [SecurityPolicy.None],
+    securityModes: [MessageSecurityMode.None],
+    allowAnonymous: true,
+  })
+  await server.initialize()
+  const ns = server.engine.addressSpace.getOwnNamespace()
+  const folder = (parent, browseName) => ns.addFolder(parent, { browseName })
+  const bool = (parent, browseName) => ns.addVariable({ componentOf: parent, browseName, dataType: 'Boolean', value: { dataType: 'Boolean', value: false } })
+  const devices = folder(server.engine.addressSpace.rootFolder.objects, 'DeviceSet')
+  const programs = folder(folder(devices, 'PLC'), 'Programs')
+  const main = folder(programs, 'Main')
+  bool(main, 'Eye')
+  bool(main, 'Run')
+  bool(folder(folder(devices, 'Cnc'), 'Axis1'), 'Enabled')
+  const twins = folder(server.engine.addressSpace.rootFolder.objects, 'Twins')
+  folder(twins, 'Cell')
+  folder(twins, 'CELL')
+  await server.start()
+  return { server, programs: programs.nodeId.toString() }
+}
+
 async function main() {
   const pki = mkdtempSync(join(tmpdir(), 'oip-opcua-'))
   const server = await plc(48411, pki)
@@ -193,6 +222,102 @@ async function main() {
       await link.close()
     } finally {
       await typed.shutdown(0)
+    }
+    // 10. a browse request carries the browse timeout and a bounded reference count; a cycle keeps the short one
+    const timed = await crowded(48417, pki, 30, ['A'])
+    try {
+      const link = new OpcUaLink(join(pki, 'client'), () => {})
+      assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48417'), { error: '' })
+      const sent = []
+      const watch = (session) => {
+        const real = session.performMessageTransaction.bind(session)
+        session.performMessageTransaction = (request, cb) => {
+          sent.push({ kind: request.constructor.name, timeout: request.requestHeader.timeoutHint, max: request.requestedMaxReferencesPerNode })
+          return real(request, cb)
+        }
+      }
+      watch(link.session)
+      const { variables } = await link.browse()
+      assert.equal(variables.length, 30)
+      const browses = sent.filter((s) => s.kind === 'BrowseRequest')
+      assert.ok(browses.length > 0)
+      assert.ok(browses.every((s) => s.timeout === 30000 && s.max === 1000))
+      sent.length = 0
+      await link.exchange([], [variables[0].nodeId])
+      // no hint of its own: the client's 5 s default applies
+      assert.ok(sent.every((s) => !s.timeout))
+
+      // 11. a batch that times out goes again in halves, each time on a new session; later batches keep the size
+      const sizes = []
+      const sessions = new Set()
+      let failOver = 8
+      const realBatch = link.browseBatch.bind(link)
+      link.browseBatch = async (batch) => {
+        sizes.push(batch.length)
+        sessions.add(link.session)
+        if (batch.length > failOver) throw new Error('Transaction has timed out ( timeout = 30000 ms , request = BrowseRequest)')
+        return realBatch(batch)
+      }
+      let again = await link.browse()
+      assert.equal(again.variables.length, 30)
+      assert.deepEqual(again.skipped, [])
+      // the root, then 30 objects: 30 fails, 15 fails, 8 passes and the rest go 8 at a time; their 30 variables too
+      assert.deepEqual(sizes, [1, 30, 15, 8, 8, 8, 6, 8, 8, 8, 6])
+      assert.equal(sessions.size, 3) // the first session, and one after each timeout
+
+      // 12. a node that times out alone twice is left out, by its path, and the rest are still found
+      sizes.length = 0
+      failOver = Infinity
+      link.browseBatch = async (batch) => {
+        sizes.push(batch.length)
+        if (batch.some((n) => n.path.join('.') === 'M7')) throw new Error('BadTimeout')
+        return realBatch(batch)
+      }
+      again = await link.browse()
+      assert.deepEqual(again.skipped, ['M7'])
+      assert.equal(again.variables.length, 29) // M7.A sits under the skipped node
+      assert.ok(!again.variables.some((v) => v.path[0] === 'M7'))
+      // a link whose session was swapped still works
+      assert.deepEqual((await link.exchange([], [variables[0].nodeId])).reads[0].status, 'Good')
+      await link.close()
+    } finally {
+      await timed.shutdown(0)
+    }
+    // 13. a browse says how many variables it has found as it goes, ending at the whole count
+    const counted = await crowded(48420, pki, 40, ['A', 'B'], { operationLimits: { maxNodesPerBrowse: 10 } })
+    try {
+      const link = new OpcUaLink(join(pki, 'client'), () => {}, { progressMs: 0 })
+      assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48420'), { error: '' })
+      const heard = []
+      const { variables } = await link.browse([], (found) => heard.push(found))
+      assert.equal(variables.length, 80)
+      assert.ok(heard.length > 2, `heard ${heard.length} reports`)
+      assert.ok(heard.every((n, i) => i === 0 || n >= heard[i - 1]))
+      assert.equal(heard.at(-1), 80)
+      await link.close()
+    } finally {
+      await counted.shutdown(0)
+    }
+
+    // 14. start points: a path keeps each variable's whole path, a NodeId starts at its own name, overlaps list once
+    const tree = await layered(48418, pki)
+    try {
+      const link = new OpcUaLink(join(pki, 'client'), () => {})
+      assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48418'), { error: '' })
+      const paths = (r) => r.variables.map((v) => v.path.join('.')).sort()
+      assert.deepEqual(paths(await link.browse()), ['DeviceSet.Cnc.Axis1.Enabled', 'DeviceSet.PLC.Programs.Main.Eye', 'DeviceSet.PLC.Programs.Main.Run'])
+      // matched ignoring case, and spelled as the server spells it
+      assert.deepEqual(paths(await link.browse([{ path: ['deviceset', 'PLC', 'programs'] }])), ['DeviceSet.PLC.Programs.Main.Eye', 'DeviceSet.PLC.Programs.Main.Run'])
+      assert.deepEqual(paths(await link.browse([{ nodeId: tree.programs }])), ['Programs.Main.Eye', 'Programs.Main.Run'])
+      assert.deepEqual(paths(await link.browse([{ path: ['DeviceSet', 'PLC'] }, { path: ['DeviceSet'] }, { path: ['DeviceSet'] }])), paths(await link.browse()))
+      // the exact spelling wins over a match ignoring case; two matches ignoring case, neither exact, are refused
+      assert.deepEqual((await link.browse([{ path: ['Twins', 'Cell'] }])).variables, [])
+      await assert.rejects(link.browse([{ path: ['Twins', 'cell'] }]), /Twins\.cell names 2 nodes on the PLC: browse from its NodeId instead/)
+      await assert.rejects(link.browse([{ path: ['DeviceSet', 'Nope'] }]), /the PLC has no DeviceSet\.Nope to browse from/)
+      await assert.rejects(link.browse([{ nodeId: 'ns=1;s=Nope' }]), /the PLC has no node ns=1;s=Nope to browse from/)
+      await link.close()
+    } finally {
+      await tree.server.shutdown(0)
     }
     console.log('opcUaIo: all checks passed')
   } finally {

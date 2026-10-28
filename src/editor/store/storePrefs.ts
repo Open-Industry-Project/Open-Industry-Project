@@ -3,6 +3,7 @@
 // methods persist through. Extracted from store.ts verbatim - keys and defaults must stay stable
 // (they're the user's persisted preferences).
 import { isAmsNetId } from '../../core/io/ads'
+import { MAX_BROWSE_ROOTS, opcUaBrowseRoot } from '../../core/io/opcUa'
 import { isControllerName } from '../../core/io/controllerTag'
 import { MAX_SCENE_PLCS } from '../../core/scene/scenePlcs'
 import type { PlcProtocol } from '../../core/scene/scenePlcs'
@@ -353,6 +354,8 @@ export interface PlcLinkSettings {
   outputBase: number
   /** opcua: the PLC's OPC UA server */
   opcUaEndpoint: string
+  /** opcua: where the browse for tags starts, as typed (core/io/opcUa.ts opcUaBrowseRoot); empty: Objects */
+  opcUaBrowseFrom: readonly string[]
   /** eip: the controller's address (or its Ethernet module's), host[:port] */
   eipGateway: string
   /** eip: the route from that module to the controller's CPU, `1,0` = the backplane, slot 0; '' for none */
@@ -418,6 +421,7 @@ export const DEFAULT_EXTERNAL_PLC: ExternalPlcSettings = {
   inputBase: 0,
   outputBase: 0,
   opcUaEndpoint: 'opc.tcp://127.0.0.1:4840',
+  opcUaBrowseFrom: [],
   eipGateway: '127.0.0.1',
   eipPath: '1,0',
   s7Host: '192.168.0.1',
@@ -515,6 +519,10 @@ export function sanitizePlcLink(raw: unknown): PlcLinkSettings {
     inputBase: isWord(o.inputBase) ? o.inputBase : d.inputBase,
     outputBase: isWord(o.outputBase) ? o.outputBase : d.outputBase,
     opcUaEndpoint: isOpcUaEndpoint(o.opcUaEndpoint) ? o.opcUaEndpoint : d.opcUaEndpoint,
+    // a start point that is not a path or a NodeId is dropped, and the rest kept
+    opcUaBrowseFrom: Array.isArray(o.opcUaBrowseFrom)
+      ? o.opcUaBrowseFrom.filter((r): r is string => typeof r === 'string' && opcUaBrowseRoot(r) !== null).slice(0, MAX_BROWSE_ROOTS)
+      : d.opcUaBrowseFrom,
     eipGateway: isPlcHost(o.eipGateway) ? o.eipGateway : d.eipGateway,
     eipPath: isEipPath(o.eipPath) ? o.eipPath : d.eipPath,
     s7Host: isPlcHost(o.s7Host) ? o.s7Host : d.s7Host,

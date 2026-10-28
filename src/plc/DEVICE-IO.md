@@ -303,6 +303,21 @@ more than one variable is refused with the candidates listed; a NodeId written o
 is checked before use: a bit on a Boolean, a number on a numeric type, and the user's access level allowing
 the write or the read. The dock lists every tag against the node it found.
 
+**Where the browse starts.** Objects, unless the link names start points in "Browse from": paths of browse names
+from Objects (`DeviceSet.PLC.Programs`) or NodeIds, set per link on this computer like its address. A controller
+that also runs a CNC or drives can hold tens of thousands of variables a program never uses, and reading them all
+makes every connect slow and the tag list long. A path is followed one browse name at a time, matched as a tag is,
+and its variables keep their whole path from Objects, so a tag binds the same with start points as without. A
+NodeId's variables start at its own browse name. A start point the server does not hold, or a path that fits two
+nodes, fails the read with that said, rather than showing up later as tags reported missing. When every tag a
+link carries is a NodeId it does not browse at all.
+
+**A large tree.** A browse request asks for at most 1000 references per node (the rest follow by continuation
+point) and gets 30 s to answer, where a cycle's requests get 5 s. A batch that still times out goes again in
+halves, each time on a new session, since the server may keep continuation points reserved for an answer the
+client gave up on. A node that times out alone, twice, is left out, and the dock names it: `a branch of the
+PLC's tags did not answer in time`. While the run's browse is under way the dock counts the variables found.
+
 **Picking a name** ([`inspector/tagField.tsx`](../editor/components/inspector/tagField.tsx)). A tag field suggests
 the scene's tags, the program's (of the field's type), and, in this mode, the PLC's: what the run's link last
 browsed, kept after Stop (`controller.plcTagList`), or a one-shot connect-browse-close from the list's "Read the

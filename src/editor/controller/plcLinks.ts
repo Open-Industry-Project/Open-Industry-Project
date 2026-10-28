@@ -121,13 +121,13 @@ export function startExternalPlc(l: PlcLinkState, p: ProgramState, ec: PlcLinkDe
 
 export function readPlcTags(l: PlcLinkState, ec: PlcLinkDeps): void {
   const host = ec.opcUaHost
-  const endpoint = ec.store.getState().externalPlc.opcUaEndpoint
+  const { opcUaEndpoint: endpoint, opcUaBrowseFrom: from } = ec.store.getState().externalPlc
   if (!host || l.externalSession || l.plcTags?.state === 'reading') return
-  const reading: PlcTagList = { endpoint, state: 'reading', names: [], variables: [], truncated: false, error: null }
+  const reading: PlcTagList = { endpoint, from, state: 'reading', names: [], variables: [], truncated: false, error: null }
   l.plcTags = reading
   notifyExternal(l)
   void loadExternalPlc(l)
-    .then((m) => m.readOpcUaTagList(host, endpoint, () => l.externalSession === null))
+    .then((m) => m.readOpcUaTagList(host, endpoint, from, () => l.externalSession === null))
     .then(
       (list) => {
         // a run that started meanwhile has taken the link over, and its browse is the one to keep
@@ -148,7 +148,7 @@ export function takeLinkBrowse(l: PlcLinkState): void {
   const m = l.externalPlc
   if (!m || !(s instanceof m.ExternalPlcOpcUaSession) || !s.browsed) return
   if (l.plcTags?.state === 'ready' && l.plcTags.variables === s.browsed.variables) return
-  l.plcTags = m.plcTagListOf(s.endpoint, s.browsed)
+  l.plcTags = m.plcTagListOf(s.endpoint, s.from, s.browsed)
 }
 
 /**
@@ -329,7 +329,7 @@ function openLink(
   if (settings.mode === 'opcua') {
     if (!ec.opcUaHost) return null
     const { points, problems } = m.deriveOpcUaPoints(parts)
-    return { session: new m.ExternalPlcOpcUaSession(opcUaForLink(ec.opcUaHost, link), settings.opcUaEndpoint, points, problems, onChange), points: points.length }
+    return { session: new m.ExternalPlcOpcUaSession(opcUaForLink(ec.opcUaHost, link), settings.opcUaEndpoint, points, problems, onChange, settings.opcUaBrowseFrom), points: points.length }
   }
   if (settings.mode === 's7') {
     const { io, problems } = m.deriveS7Io(parts, settings)

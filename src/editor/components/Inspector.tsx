@@ -200,7 +200,9 @@ function useTagSources(controller: EditorController | null, state: EditorState):
   }, [controller])
   const settings = state.externalPlc
   const linked = !!controller?.plcTagsAvailable && settings.mode === 'opcua'
-  const plc = linked && plcList?.endpoint === settings.opcUaEndpoint ? plcList : null
+  // a list read from another server, or from other start points, is not this link's
+  const from = settings.opcUaBrowseFrom
+  const plc = linked && plcList?.endpoint === settings.opcUaEndpoint && plcList.from.join(',') === from.join(',') ? plcList : null
   const canReadPlc = linked && !state.running && settings.opcUaEndpoint.trim() !== ''
   const program = state.stProgram
   const { stDialect: dialect, controller: table, stScanMs: scanMs } = state
