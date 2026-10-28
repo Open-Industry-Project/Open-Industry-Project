@@ -36,6 +36,15 @@ contextBridge.exposeInMainWorld('oipParts', {
 
 // The parts shelf (apps/desktop/partsShelf.cjs; src/editor/parts/partShelf.ts is the typed twin): parts kept outside
 // any project, for projects to copy from. No paths cross: the page lists the shelf, and hands a part over by id.
+// Model import (editor/usdImport.ts): a USD model file is often one layer of several in its folder, which a page can
+// only read when handed them all. Here the picked file's own path leads main to the layers and images beside it.
+contextBridge.exposeInMainWorld('oipModel', {
+  /** the file's path on disk ('' for a file that has none, such as one built in the page) */
+  pathOf: (file) => webUtils.getPathForFile(file),
+  /** a .usd / .usda / .usdc root layer with the USD layers and images under its folder (mcpServer.cjs readModel) */
+  readUsd: (path) => ipcRenderer.invoke('model:readUsd', path),
+})
+
 contextBridge.exposeInMainWorld('oipShelf', {
   /** @returns {Promise<{ root: string, parts: Array<{dir,id,name,manifestJson,behaviorSource,thumbnail?}>, problems: Array<{dir,message}> }>} */
   list: () => ipcRenderer.invoke('shelf:list'),

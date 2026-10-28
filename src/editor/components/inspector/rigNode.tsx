@@ -2,7 +2,7 @@
 // Its own module so the first frame does not carry it: it renders only once a node is selected, and the Inspector
 // loads it lazily (rigNodeChunk.ts), starting when a part is opened as a scene.
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent as ReactChangeEvent } from 'react'
 import type { SdkPart } from '../../../core/types'
 import { getPackage } from '../../../core/parts/partRegistry'
@@ -18,7 +18,19 @@ import type { EditorStore } from '../../store/store'
 import type { EditorController } from '../../controller'
 import { AxisInput, BoolRow, Fold, NumberField, TextField, useShownLengthUnit, VectorRow } from './fields'
 import { InspectorHeader } from './header'
-import { bytesToBase64, DEFAULT_STEP_OPTIONS, importStep, isStepFile, type StepImportOptions } from '../../stepImport'
+import { DEFAULT_STEP_OPTIONS, importStep, isStepFile, type StepImportOptions } from '../../stepImport'
+import { takePendingModel } from '../../parts/modelPartImport'
+import {
+  DEFAULT_USD_OPTIONS,
+  importUsd,
+  isUsdFile,
+  missingUsdLayers,
+  USD_TEXTURE_SIZES,
+  usdFolderOf,
+  usdRootCandidates,
+  type UsdDetail,
+  type UsdImportOptions,
+} from '../../usdImport'
 import type { StepDetail } from '../../stepConvert'
 import { stepUpAxisGuess, type StepUpAxis, type StepUpAxisGuess } from '../../../core/stepToGlb'
 import { PartActions, PartStatus } from './rig'
@@ -136,7 +148,8 @@ const M = defineMessages('inspector.rigNode', {
   onlyNodeTip: 'A part needs at least one node, and deleting this one would take every node with it',
   deleteNodeTip: 'Delete this node and its children',
   deleteNode: 'Delete node',
-  importTip: "Replace this node's shape with an imported model, embedded in the part: a .glb, or a STEP file (.step / .stp) from CAD",
+  importTip:
+    "Replace this node's shape with an imported model, embedded in the part: a .glb, a STEP file (.step / .stp) from CAD, or a USD model (.usd / .usda / .usdc / .usdz)",
   converting: 'Converting…',
   importModel: 'Import model…',
   stepFileSize: '{name} ({mb} MB). Converting takes about 2 s per MB.',
@@ -160,7 +173,62 @@ const M = defineMessages('inspector.rigNode', {
     'One mesh per color instead of one per solid. A machine assembly of hundreds of solids then draws as a handful of meshes.\n\nTurn it off to keep each solid as its own named node, for example to split moving parts into nodes of their own.',
   convertAndImport: 'Convert and import',
   cancel: 'Cancel',
+  usdFile: '{name} ({size}).',
+  usdFolder: { one: 'Folder {name}: {count} file.', other: 'Folder {name}: {count} files.' },
+  usdChecking: 'Checking which files the model pulls in…',
+  usdNeedsFolder: {
+    one: 'This file is the index of a model: it pulls in {count} file that is not here, a layer or texture beside it. Pick the folder it is in to import the whole model.',
+    other: 'This file is the index of a model: it pulls in {count} files that are not here, layers and textures beside it. Pick the folder it is in to import the whole model.',
+  },
+  usdPickFolder: 'Pick its folder…',
+  usdPickFolderTip: "Pick the model's folder, so every file the model pulls in comes with it",
+  usdNoModelInFolder: 'The folder {name} has no USD file (.usd / .usda / .usdc / .usdz).',
+  usdRoot: 'Model file',
+  usdRootTip: 'The file the model starts from. Its folder has several USD files at the top level; the others are usually variants or parts of it.',
+  usdDetailTip:
+    'Reduced simplifies each mesh to about a quarter of its triangles, keeping texture seams in place. Models made for rendering are often far heavier than a simulation needs; cargo spawned by the hundred needs reduced.',
+  usdDetailFull: 'full',
+  usdDetailReduced: 'reduced',
+  usdTextureSize: 'Texture size',
+  usdTextureSizeTip: 'The longest side of each imported texture. Larger is sharper up close and heavier to download and draw.',
+  convertingUsd: 'Converting {file} from USD… {pct}%',
+  usdImportSummary: {
+    one: 'Imported {file}: {parts} parts, {count} mesh, {k}k triangles, {size} m.',
+    other: 'Imported {file}: {parts} parts, {count} meshes, {k}k triangles, {size} m.',
+  },
+  usdImportSummaryReduced: {
+    one: 'Imported {file}: {parts} parts, {count} mesh, {k}k triangles (from {k0}k), {size} m.',
+    other: 'Imported {file}: {parts} parts, {count} meshes, {k}k triangles (from {k0}k), {size} m.',
+  },
+  usdWarnings: { one: '{count} thing could not be shown as authored: {first}', other: '{count} things could not be shown as authored, for example: {first}' },
+  usdMissingLayers: 'Some files the model pulls in were not found: import its folder to include them.',
+  usdNothingDrawn: 'Nothing to import: {file} has no meshes this importer can read.',
+  usdHeavy: 'At {k}k triangles this model is heavy for a simulation, above all as cargo placed many times: import it again with Detail reduced for about a quarter of that.',
+  fittedToModel: "The part now fits the model: it stands on the floor, and its footprint and collider are the model's size.",
+  placeFitted: 'To place it, go back to the scene (‹ Scene, top left) and drag “{name}” from the Parts dock.',
 })
+
+/** past this, a full-detail import suggests reduced: a few such models fill a scene's triangle budget */
+const HEAVY_TRIANGLES = 100_000
+
+/** a file's size as people read it: KB under a megabyte */
+const fileSize = (bytes: number): string => (bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1e3))} KB` : `${(bytes / 1e6).toFixed(1)} MB`) // i18n-ok: units
+
+/** A USD model picked for import: one file, or a folder and the file in it the model starts from. */
+interface UsdPick {
+  /** every picked file, keyed by its path inside the pick (what the USD reader resolves layer paths against) */
+  files: Map<string, Blob>
+  /** the files the model could start from; more than one only for a folder */
+  roots: string[]
+  root: string
+  /** the file or folder name, as shown */
+  label: string
+  /** a lone file's size; 0 for a folder */
+  bytes: number
+  folder: boolean
+  /** layers and textures a lone file pulls in that were not handed over: null while that is checked, 0 for a folder */
+  missing: number | null
+}
 
 /**
  * Author-mode editor for a rig-node selection: one internal link of a custom part, picked inside its open
@@ -277,11 +345,35 @@ export function RigNodePanel({
   const [stepOptions, setStepOptions] = useState<StepImportOptions>({ detail: 'normal', ...DEFAULT_STEP_OPTIONS })
   const [stepGuess, setStepGuess] = useState<StepUpAxisGuess | null>(null)
   const [converting, setConverting] = useState(false)
+  // A USD model stops at its options too (usdPick). It is often several files - a root layer pulling in others
+  // beside it - and a page can only read files it was handed, so a model can also be picked as its folder.
+  const folderRef = useRef<HTMLInputElement>(null)
+  const [usdPick, setUsdPick] = useState<UsdPick | null>(null)
+  const [usdOptions, setUsdOptions] = useState<UsdImportOptions>(DEFAULT_USD_OPTIONS)
   const onPickModel = (e: ReactChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0]
     e.target.value = '' // let the same file be re-picked
-    if (!file || !controller) return
+    if (file) pickModelFile(file)
+  }
+  // a model file handed over by Import part (parts/modelPartImport.ts), which made this part for it
+  useEffect(() => {
+    const file = takePendingModel(part.packageId)
+    if (file) pickModelFile(file)
+    // once per part opened: the hand-over is taken once
+  }, [part.packageId])
+  const pickModelFile = (file: File): void => {
+    if (!controller) return
+    if (isUsdFile(file.name)) {
+      setMsg(null)
+      setStepFile(null)
+      // a .usdz carries everything it needs; another USD file may be only an index of the files beside it
+      const packaged = /\.usdz$/i.test(file.name)
+      setUsdPick({ files: new Map([[file.name, file]]), roots: [file.name], root: file.name, label: file.name, bytes: file.size, folder: false, missing: packaged ? 0 : null })
+      if (!packaged) void completeLoneUsd(file)
+      return
+    }
     if (isStepFile(file.name)) {
+      setUsdPick(null)
       setMsg(null)
       // the header names the exporting program, whose default up axis preselects the choice
       void file
@@ -299,17 +391,19 @@ export function RigNodePanel({
       return
     }
     setMsg(t(M.importing, { file: file.name }))
-    const reader = new FileReader()
-    reader.onload = () => {
-      const url = String(reader.result)
-      const b64 = url.slice(url.indexOf(',') + 1)
-      // a big model still imports; the warning is advisory (the autosave banner is the real alarm)
-      const warning = controller.setLinkMesh(part.packageId, link.name, b64)
-      setMsg(warning ? t(M.importedWarn, { file: file.name, warning }) : t(M.imported, { file: file.name }))
-    }
-    reader.onerror = () => setMsg(t(M.readFailed))
-    reader.readAsDataURL(file)
+    file.arrayBuffer().then(
+      (buf) => {
+        // a big model still imports; the warning is advisory (the autosave banner is the real alarm)
+        const { warning, fitted } = controller.setLinkMesh(part.packageId, link.name, new Uint8Array(buf))
+        setMsg(withFit(warning ? t(M.importedWarn, { file: file.name, warning }) : t(M.imported, { file: file.name }), fitted))
+      },
+      () => setMsg(t(M.readFailed)),
+    )
   }
+  /** an import's message, and the line saying the part was fitted to the model when it was */
+  const withFit = (summary: string, fitted: boolean): string => (fitted ? `${summary} ${fittedLine()}` : summary)
+  // a part that is just its model is ready to place: say where it went and how to put it in the scene
+  const fittedLine = (): string => `${t(M.fittedToModel)} ${t(M.placeFitted, { name: getPackage(part.packageId)?.name ?? '' })}`
   // the node is captured at the start: a conversion outlives a selection change and still lands where it began
   const convertStepFile = async (): Promise<void> => {
     const file = stepFile
@@ -324,15 +418,79 @@ export function RigNodePanel({
         setMsg(t(M.nothingToImport, { solids: stats.solids, file: file.name, mm: options.minPartMm }))
         return
       }
-      const warning = controller.setLinkMesh(part.packageId, link.name, bytesToBase64(glb))
+      const { warning, fitted } = controller.setLinkMesh(part.packageId, link.name, glb)
       const size = stats.size.map((s) => s.toFixed(2)).join(' x ')
       const counts = { file: file.name, solids: stats.solids, count: stats.meshes, k: Math.round(stats.triangles / 1000), size }
-      const summary = stats.skipped
-        ? t(M.importSummarySkipped, { ...counts, skipped: stats.skipped, mm: options.minPartMm })
-        : t(M.importSummary, counts)
+      const summary = withFit(
+        stats.skipped ? t(M.importSummarySkipped, { ...counts, skipped: stats.skipped, mm: options.minPartMm }) : t(M.importSummary, counts),
+        fitted,
+      )
       setMsg(warning ? t(M.summaryWarn, { summary, warning }) : summary)
     } catch (err) {
       setMsg(t(M.importFailed, { file: file.name, error: err instanceof Error ? err.message : String(err) }))
+    } finally {
+      setConverting(false)
+    }
+  }
+  // A lone USD layer, before anything is converted. On the desktop its folder is read with it, so the model comes
+  // whole; in a browser, which reads only what it was handed, whatever it pulls in that is missing is counted, and
+  // the panel asks for the folder rather than converting an index into nothing.
+  const completeLoneUsd = async (file: File): Promise<void> => {
+    const still = (p: UsdPick | null): p is UsdPick => !!p && !p.folder && p.root === file.name
+    const desktop = await usdFolderOf(file).catch(() => null)
+    if (desktop) {
+      setUsdPick((p) => (still(p) ? { files: desktop.files, roots: [desktop.root], root: desktop.root, label: desktop.folder, bytes: 0, folder: true, missing: 0 } : p))
+      return
+    }
+    const missing = await missingUsdLayers(new Map([[file.name, file]]), file.name)
+    setUsdPick((p) => (still(p) ? { ...p, missing } : p))
+  }
+  const onPickFolder = (e: ReactChangeEvent<HTMLInputElement>): void => {
+    const picked = [...(e.target.files ?? [])]
+    e.target.value = ''
+    if (picked.length === 0 || !controller) return
+    // keyed as the reader resolves them: each file's path inside the picked folder
+    const files = new Map<string, Blob>(picked.map((f) => [f.webkitRelativePath || f.name, f]))
+    const folder = (picked[0]!.webkitRelativePath || picked[0]!.name).split('/')[0]!
+    const roots = usdRootCandidates([...files.keys()])
+    if (roots.length === 0) {
+      setMsg(t(M.usdNoModelInFolder, { name: folder }))
+      return
+    }
+    // the file picked first, if it is one of the folder's candidates
+    const first = usdPick && !usdPick.folder ? roots.find((r) => r.endsWith('/' + usdPick.root)) : undefined
+    setMsg(null)
+    setUsdPick({ files, roots, root: first ?? roots[0]!, label: folder, bytes: 0, folder: true, missing: 0 })
+  }
+  const convertUsdFile = async (): Promise<void> => {
+    const pick = usdPick
+    if (!pick || !controller) return
+    const options = usdOptions
+    const file = pick.root.split('/').pop()!
+    setUsdPick(null)
+    setConverting(true)
+    setMsg(t(M.convertingUsd, { file, pct: 0 }))
+    try {
+      const { glb, stats } = await importUsd(pick.files, pick.root, options, (f) => setMsg(t(M.convertingUsd, { file, pct: Math.round(f * 100) })))
+      // a lone file whose layers are elsewhere: say so first, it is the likely reason for whatever went missing
+      const missingLayers = !pick.folder && stats.warnings.some((w) => w.code === 'layer-missing')
+      if (stats.meshes === 0) {
+        setMsg([t(M.usdNothingDrawn, { file }), ...(missingLayers ? [t(M.usdMissingLayers)] : [])].join(' '))
+        return
+      }
+      const { warning, fitted } = controller.setLinkMesh(part.packageId, link.name, glb)
+      const counts = { file, parts: stats.parts, count: stats.meshes, k: Math.round(stats.triangles / 1000), size: stats.size.map((s) => s.toFixed(2)).join(' x ') }
+      const reduced = stats.triangles < stats.sourceTriangles
+      const lines = [reduced ? t(M.usdImportSummaryReduced, { ...counts, k0: Math.round(stats.sourceTriangles / 1000) }) : t(M.usdImportSummary, counts)]
+      if (fitted) lines.push(fittedLine())
+      // a heavy model at full detail: say what reduced would give, since only now is its size known
+      if (!reduced && stats.triangles > HEAVY_TRIANGLES) lines.push(t(M.usdHeavy, { k: Math.round(stats.triangles / 1000) }))
+      if (missingLayers) lines.push(t(M.usdMissingLayers))
+      else if (stats.warnings.length) lines.push(t(M.usdWarnings, { count: stats.warnings.length, first: stats.warnings[0]!.message }))
+      if (warning) lines.push(warning)
+      setMsg(lines.join(' '))
+    } catch (err) {
+      setMsg(t(M.importFailed, { file, error: err instanceof Error ? err.message : String(err) }))
     } finally {
       setConverting(false)
     }
@@ -553,7 +711,8 @@ export function RigNodePanel({
                     <div className="glb-group-label">{t(M.glbMaterials)}</div>
                     <ul className="glb-mats">
                       {glb.materials.map((m) => {
-                        const dark = m.metalness >= 0.5 && !m.textured // fully-metallic + untextured renders near-black (no scene envMap)
+                        // fully-metallic + untextured renders near-black (no scene envMap); a metalness texture decides for itself
+                        const dark = m.metalness >= 0.5 && !m.textured && !m.metalnessTextured
                         return (
                           <li key={m.name} className={`glb-mat${dark ? ' warn' : ''}`} title={dark ? t(M.darkTip) : undefined}>
                             <span className="glb-mat-name">{m.name}</span>
@@ -718,8 +877,103 @@ export function RigNodePanel({
           >
             {t(converting ? M.converting : M.importModel)}
           </button>
-          <input ref={fileRef} type="file" accept=".glb,.step,.stp,model/gltf-binary" style={{ display: 'none' }} onChange={onPickModel} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".glb,.step,.stp,.usd,.usda,.usdc,.usdz,model/gltf-binary"
+            style={{ display: 'none' }}
+            onChange={onPickModel}
+            data-testid="model-file-input"
+          />
+          {/* webkitdirectory is not in React's input attributes; every browser and Electron read it */}
+          <input ref={folderRef} type="file" style={{ display: 'none' }} onChange={onPickFolder} data-testid="usd-folder-input" {...{ webkitdirectory: '' }} />
         </div>
+        {usdPick && (
+          <div data-testid="usd-import-options">
+            <p className="inspector-hint">
+              {usdPick.folder
+                ? t(M.usdFolder, { name: usdPick.label, count: usdPick.files.size })
+                : t(M.usdFile, { name: usdPick.label, size: fileSize(usdPick.bytes) })}
+            </p>
+            {usdPick.missing === null && (
+              <p className="inspector-hint" data-testid="usd-checking">
+                {t(M.usdChecking)}
+              </p>
+            )}
+            {!!usdPick.missing && (
+              <>
+                <p className="inspector-hint" data-testid="usd-needs-folder">
+                  {t(M.usdNeedsFolder, { count: usdPick.missing })}
+                </p>
+                <div className="rig-script-actions">
+                  <button type="button" className="array-add" data-testid="usd-pick-folder" title={t(M.usdPickFolderTip)} onClick={() => folderRef.current?.click()}>
+                    {t(M.usdPickFolder)}
+                  </button>
+                  <button type="button" className="array-add" onClick={() => setUsdPick(null)}>
+                    {t(M.cancel)}
+                  </button>
+                </div>
+              </>
+            )}
+            {usdPick.missing === 0 && (
+              <>
+                {usdPick.roots.length > 1 && (
+                  <label className="field">
+                    <span className="field-label" title={t(M.usdRootTip)}>
+                      {t(M.usdRoot)}
+                    </span>
+                    <span className="field-control">
+                      <select className="rig-select" data-testid="usd-root" value={usdPick.root} onChange={(e) => setUsdPick({ ...usdPick, root: e.target.value })}>
+                        {usdPick.roots.map((r) => (
+                          <option key={r} value={r}>
+                            {r.split('/').pop()}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  </label>
+                )}
+                <label className="field">
+                  <span className="field-label" title={t(M.usdDetailTip)}>
+                    {t(M.detail)}
+                  </span>
+                  <span className="field-control">
+                    <select className="rig-select" data-testid="usd-detail" value={usdOptions.detail} onChange={(e) => setUsdOptions({ ...usdOptions, detail: e.target.value as UsdDetail })}>
+                      <option value="full">{t(M.usdDetailFull)}</option>
+                      <option value="reduced">{t(M.usdDetailReduced)}</option>
+                    </select>
+                  </span>
+                </label>
+                <label className="field">
+                  <span className="field-label" title={t(M.usdTextureSizeTip)}>
+                    {t(M.usdTextureSize)}
+                  </span>
+                  <span className="field-control">
+                    <select
+                      className="rig-select"
+                      data-testid="usd-texture-size"
+                      value={usdOptions.maxTextureSize}
+                      onChange={(e) => setUsdOptions({ ...usdOptions, maxTextureSize: Number(e.target.value) })}
+                    >
+                      {USD_TEXTURE_SIZES.map((s) => (
+                        // i18n-ok: units
+                        <option key={s} value={s}>{`${s} px`}</option>
+                      ))}
+                    </select>
+                  </span>
+                </label>
+                <div className="rig-script-actions">
+                  <button type="button" className="array-add" data-testid="usd-convert" onClick={() => void convertUsdFile()}>
+                    {t(M.convertAndImport)}
+                  </button>
+                  <button type="button" className="array-add" onClick={() => setUsdPick(null)}>
+                    {t(M.cancel)}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {stepFile && (
           <div data-testid="step-import-options">
             <p className="inspector-hint">

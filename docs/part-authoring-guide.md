@@ -880,6 +880,12 @@ A model becomes a working part as a rig (Tier 1) whose visible links are `mesh` 
 
 ### Formats
 
+The quickest way in is **Import part** in the Parts dock (or a drop on it) with a model file: it makes a new part
+named after the file and opens it at the file's import options. When a model replaces the only node of a part (a
+new part, or one made by New part), the part is fitted to it: the model stands on the origin, a hidden `collider`
+box link of its size is added, and `bounds` are set to its box. A part with other nodes is the author's arrangement
+and is left as it is.
+
 The app reads **GLB** (Draco-compressed is fine) and **STEP** (`.step` / `.stp`). **Import model…** converts
 STEP to GLB: it reads the file's units, turns its up axis into +Y, and sets the model on the node's origin
 (base at 0, centred across). It offers four choices first:
@@ -894,7 +900,27 @@ STEP to GLB: it reads the file's units, turns its up axis into +Y, and sets the 
 
 A large assembly takes about 2 s per MB of STEP. Headless, `npm run import-model -- model.step` runs the same
 conversion to `model.glb`, with the same choices as options (`--up z|y`, `--detail coarse`, `--min-part-mm <n>`,
-`--no-merge`) and the up axis guessed from the header when `--up` is not given. Convert anything else first:
+`--no-merge`) and the up axis guessed from the header when `--up` is not given.
+
+It also reads **USD** (`.usd` / `.usda` / `.usdc` / `.usdz`). A USD model is often several files: a model file
+that is only an index of layers and textures in folders beside it. A `.usdz` holds them all. On the desktop,
+picking the model file reads its folder with it. In a browser, which can read only the files it is handed, the
+model file is checked first, and one that pulls in files that are not there asks for its folder (**Pick its
+folder…**) instead of converting. The folder's model file is the USD file nearest its top (a choice is offered when
+there are several). The reader composes the model as USD does (references, payloads,
+variants as selected, overrides, instancing), takes its units and up axis from the file, and the import writes
+one mesh per material, on the node's origin like STEP. The choices:
+
+- **Detail**: reduced simplifies each mesh to about a quarter of its triangles. Models made for rendering are
+  often far heavier than a simulation needs: a 2 m roller conveyor came in at 290k triangles (72k reduced), a
+  cardboard box at 15k. Cargo spawned by the hundred needs reduced.
+- **Texture size**: the longest side of each texture, 512 to 2048 px (1024 by default).
+
+What it leaves out: physics values (mass, friction, colliders: give the part its own), animation, lights, and
+geometry other than meshes and the basic shapes (curves, points). A model's own licence travels with it and the
+import does not record it: one that asks for credit (CC BY) still does. The reader runs only in the app (the
+browser or the desktop app), not in `import-model`; an agent uses `import_model`, which reads a `.usd` model file
+with the layers and images under its folder. Convert anything else first:
 
 - `.gltf` + separate files → `npx gltf-transform copy model.gltf model.glb` (in this repo's devDependencies).
 - OBJ → `npx gltfpack -i model.obj -o model.glb` (also in the devDependencies).

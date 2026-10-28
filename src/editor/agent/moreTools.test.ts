@@ -112,17 +112,43 @@ describe('agent tools: part definitions', () => {
     expect(await refused(c, 'edit_part_definition', { id: 'agent.lift' })).toMatch(/give 'behavior', 'manifest' or both/)
   })
 
-  it('import_model measures the model against the footprint, and says when they disagree', async () => {
+  it('import_model fits a part that is just the model, and measures any other against its footprint', async () => {
     // a tracked part asset: 0.5 x 0.136 x 0.5 m, its underside at y -0.105 in its own frame
     const bytes = new Uint8Array(readFileSync(new URL('../../../public/part-assets/929d5eae36c065f460ac5bb80c287977bcf7c7d5596680a56ab2946d483cdb32.glb', import.meta.url)))
     const shell = { readModel: async () => ({ name: 'm.glb', bytes }) }
     const c = { ...ctx(), shell }
-    // the default new part: a 0.6 m box link at y 0.3, so the model floats and the footprint is far bigger
-    const loose = (await ok(c, 'create_part', { name: 'Loose' })) as { id: string }
+    // the default new part: one 0.6 m box node at y 0.3. The model replaces it whole, so the part is fitted to it:
+    // it stands on the floor, with bounds and a collider of its size
+    const single = (await ok(c, 'create_part', { name: 'Single' })) as { id: string }
+    created.push(single.id)
+    const r0 = (await ok(c, 'import_model', { id: single.id, link: 'body', path: 'C:/m.glb' })) as { fitted?: boolean; model: { min: number[] }; boundsHint?: string }
+    expect(r0.fitted).toBe(true)
+    expect(r0.model.min[1]).toBeCloseTo(0, 3)
+    expect(r0.boundsHint).toBeUndefined()
+    const geometry = getPackage(single.id)!.geometry as { links: { name: string; hidden?: boolean }[]; bounds?: { top: number } }
+    expect(geometry.links.map((l) => l.name)).toEqual(['body', 'collider'])
+    expect(geometry.bounds?.top).toBeCloseTo(0.136, 2)
+    // a part with more than the model is the author's arrangement: left as it is, and measured against its footprint
+    const loose = (await ok(c, 'create_part', {
+      name: 'Loose',
+      manifest: {
+        geometry: {
+          kind: 'rig',
+          links: [
+            { name: 'body', shape: { kind: 'box', size: [0.6, 0.6, 0.6] }, offset: [0, 0.3, 0] },
+            { name: 'lamp', parent: 'body', shape: { kind: 'box', size: [0.1, 0.1, 0.1] }, offset: [0, 0.35, 0] },
+          ],
+          joints: [],
+          // declared smaller than the model, which then sticks out of it
+          bounds: { length: 0.2, width: 0.2, top: 0.2 },
+        },
+      },
+    })) as { id: string }
     created.push(loose.id)
-    const r1 = (await ok(c, 'import_model', { id: loose.id, link: 'body', path: 'C:/m.glb' })) as { model: { min: number[]; max: number[] }; boundsHint?: string }
+    const r1 = (await ok(c, 'import_model', { id: loose.id, link: 'body', path: 'C:/m.glb' })) as { fitted?: boolean; model: { min: number[]; max: number[] }; boundsHint?: string }
+    expect(r1.fitted).toBeUndefined()
     expect(r1.model.min[1]).toBeCloseTo(0.195, 2)
-    expect(r1.boundsHint).toMatch(/footprint is .* \(much bigger than the model\)\..*underside is at y 0\.195/)
+    expect(r1.boundsHint).toMatch(/underside is at y 0\.195/)
     // a part whose link and bounds already fit the model gets no hint
     const fitted = (await ok(c, 'create_part', {
       name: 'Fitted',

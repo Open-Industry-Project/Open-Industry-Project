@@ -35,9 +35,13 @@ const MODERN_VERSIONS = ['2026-07-28']
 const META = 'io.modelcontextprotocol/'
 /** A captured view wider than this is scaled down: a model reads a 1600 px frame as well as a 4K one, for less. */
 const CAPTURE_MAX_WIDTH = 1600
-/** The model files import_model reads, and the largest it reads (a big STEP assembly is tens of MB). */
-const MODEL_EXTENSIONS = new Set(['.glb', '.step', '.stp'])
+/** The model files import_model reads, and the most it reads (a big STEP assembly is tens of MB). */
+const MODEL_EXTENSIONS = new Set(['.glb', '.step', '.stp', '.usd', '.usda', '.usdc', '.usdz'])
 const MODEL_MAX_BYTES = 200 * 1024 * 1024
+/** A USD root layer pulls in layers and textures from beside it: these are read with it, from under its folder. */
+const USD_LAYER_EXTENSIONS = new Set(['.usd', '.usda', '.usdc'])
+const USD_SIDE_EXTENSIONS = new Set(['.usd', '.usda', '.usdc', '.usdz', '.png', '.jpg', '.jpeg', '.webp'])
+const USD_MAX_FILES = 4000
 /** How long a modern client may cache tools/list and server/discover. The tools change only with the app version. */
 const LIST_TTL_MS = 5 * 60_000
 const DEFAULT_PORT = 5189
@@ -423,16 +427,42 @@ function registerAgentHost(ipcMain, host) {
   ipcMain.handle('agent:readModel', async (_event, path) => readModel(path))
 }
 
-/** A model file's bytes for import_model, or why not: an absolute path to a .glb / .step / .stp of a sane size. */
+/**
+ * A model file's bytes for import_model, or why not: an absolute path to a .glb / .step / .stp / USD file of a sane
+ * size. A .usd / .usda / .usdc root also brings `files`: the USD layers and images under its folder (hidden folders
+ * such as .thumbs left out), keyed by their path from that folder, with `root` the root layer's own key.
+ */
 async function readModel(path) {
   if (typeof path !== 'string' || !isAbsolute(path)) return { error: 'give the model file as an absolute path' }
   const ext = extname(path).toLowerCase()
-  if (!MODEL_EXTENSIONS.has(ext)) return { error: `a model is a .glb, .step or .stp file, not '${ext || 'no extension'}'` }
+  if (!MODEL_EXTENSIONS.has(ext)) return { error: `a model is a .glb, .step, .stp or USD (.usd, .usda, .usdc, .usdz) file, not '${ext || 'no extension'}'` }
   try {
     const info = await stat(path)
     if (!info.isFile()) return { error: `${path} is not a file` }
     if (info.size > MODEL_MAX_BYTES) return { error: `${basename(path)} is ${Math.round(info.size / 1e6)} MB; the largest model read is ${MODEL_MAX_BYTES / 1024 / 1024} MB` }
-    return { name: basename(path), bytes: new Uint8Array(await readFile(path)) }
+    const bytes = new Uint8Array(await readFile(path))
+    if (!USD_LAYER_EXTENSIONS.has(ext)) return { name: basename(path), bytes }
+    const dir = dirname(path)
+    const files = []
+    let total = 0
+    const walk = async (at) => {
+      for (const entry of await readdir(at, { withFileTypes: true })) {
+        if (entry.name.startsWith('.')) continue
+        const full = join(at, entry.name)
+        if (entry.isDirectory()) {
+          await walk(full)
+          continue
+        }
+        if (!entry.isFile() || !USD_SIDE_EXTENSIONS.has(extname(entry.name).toLowerCase())) continue
+        if (files.length >= USD_MAX_FILES) throw new Error(`more than ${USD_MAX_FILES} USD layers and images under ${dir}`)
+        const data = full === path ? bytes : new Uint8Array(await readFile(full))
+        total += data.length
+        if (total > MODEL_MAX_BYTES) throw new Error(`the USD layers and images under ${dir} are over ${MODEL_MAX_BYTES / 1024 / 1024} MB`)
+        files.push({ path: relative(dir, full).replaceAll('\\', '/'), bytes: data })
+      }
+    }
+    await walk(dir)
+    return { name: basename(path), bytes, files, root: basename(path) }
   } catch (e) {
     return { error: `could not read ${path}: ${e?.code === 'ENOENT' ? 'no such file' : String(e?.message ?? e)}` }
   }

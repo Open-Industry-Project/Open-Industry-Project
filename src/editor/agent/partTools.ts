@@ -393,8 +393,9 @@ function modelFit(pkg: PartPackage, linkName: string, glb: Uint8Array): { model:
 export const importModel: AgentTool = {
   name: 'import_model',
   description:
-    "Make one link of a part's rig a mesh of a model file on this computer: a .glb, or a STEP file (.step / .stp) " +
-    'from CAD, converted as the Inspector converts it. The model is embedded in the part. One undo step. A rig\'s ' +
+    "Make one link of a part's rig a mesh of a model file on this computer: a .glb, a STEP file (.step / .stp) " +
+    'from CAD, or a USD model (.usdz, or a .usd / .usda / .usdc root layer, read with the layers and images under ' +
+    'its folder), converted as the Inspector converts it. The model is embedded in the part. One undo step. A rig\'s ' +
     '`bounds` are declared, not measured from the model: compare the footprint with capture_view and set ' +
     'geometry.bounds with edit_part_definition when they disagree.',
   inputSchema: {
@@ -402,9 +403,11 @@ export const importModel: AgentTool = {
     properties: {
       id: { type: 'string', description: 'the part definition (package id)' },
       link: { type: 'string', description: 'the rig link to give the mesh' },
-      path: { type: 'string', description: 'absolute path of the .glb / .step / .stp file' },
+      path: { type: 'string', description: 'absolute path of the .glb / .step / .stp / .usd / .usda / .usdc / .usdz file' },
       upAxis: { type: 'string', enum: ['z', 'y'], description: "STEP only: the model's up axis; default guessed from the file's header" },
       minPartMm: { type: 'number', description: 'STEP only: skip solids smaller than this (default 10)' },
+      detail: { type: 'string', enum: ['full', 'reduced'], description: 'USD only: reduced simplifies each mesh to about a quarter of its triangles (default full)' },
+      maxTextureSize: { type: 'number', enum: [512, 1024, 2048], description: 'USD only: the longest side of an imported texture in pixels (default 1024)' },
     },
     required: ['id', 'link', 'path'],
     additionalProperties: false,
@@ -419,7 +422,7 @@ export const importModel: AgentTool = {
     if (!pkg.geometry.links.some((l) => l.name === link)) throw new AgentToolError(`'${pkg.id}' has no link '${link}' (it has: ${pkg.geometry.links.map((l) => l.name).join(', ')})`)
     const file = await readModel(str(args, 'path'))
     if ('error' in file) throw new AgentToolError(file.error)
-    const { bytesToBase64, DEFAULT_STEP_OPTIONS, importStep, isStepFile } = await import('../stepImport')
+    const { DEFAULT_STEP_OPTIONS, importStep, isStepFile } = await import('../stepImport')
     let glb = file.bytes
     let stats: Record<string, unknown> | undefined
     if (isStepFile(file.name)) {
@@ -430,7 +433,26 @@ export const importModel: AgentTool = {
       glb = r.glb
       stats = { solids: r.stats.solids, meshes: r.stats.meshes, triangles: r.stats.triangles, size: r.stats.size.map(round), upAxis: up }
     }
-    const warning = setLinkMesh({ store: ctx.store }, pkg.id, link, bytesToBase64(glb), `${AGENT_LABEL}: import model into ${pkg.name}`)
+    let usd: Record<string, unknown> | undefined
+    const { DEFAULT_USD_OPTIONS, importUsd, isUsdFile } = await import('../usdImport')
+    if (isUsdFile(file.name)) {
+      const files = new Map<string, Blob>((file.files ?? [{ path: file.name, bytes: file.bytes }]).map((f) => [f.path, new Blob([f.bytes as Uint8Array<ArrayBuffer>])]))
+      const detail = optStr(args, 'detail') === 'reduced' ? 'reduced' : DEFAULT_USD_OPTIONS.detail
+      const maxTextureSize = optNum(args, 'maxTextureSize') ?? DEFAULT_USD_OPTIONS.maxTextureSize
+      const r = await importUsd(files, file.root ?? file.name, { detail, maxTextureSize })
+      if (r.stats.meshes === 0) throw new AgentToolError(`nothing to import: ${file.name} has no meshes this importer can read`)
+      glb = r.glb
+      usd = {
+        parts: r.stats.parts,
+        meshes: r.stats.meshes,
+        triangles: r.stats.triangles,
+        ...(r.stats.triangles < r.stats.sourceTriangles ? { sourceTriangles: r.stats.sourceTriangles } : {}),
+        size: r.stats.size.map(round),
+        images: r.stats.images,
+        ...(r.stats.warnings.length ? { warnings: r.stats.warnings.slice(0, 5).map((w) => w.message) } : {}),
+      }
+    }
+    const { warning, fitted } = setLinkMesh({ store: ctx.store }, pkg.id, link, glb, `${AGENT_LABEL}: import model into ${pkg.name}`)
     const now = getPackage(pkg.id)
     const footprint = now ? footprintOf(now) : null
     const fit = now ? modelFit(now, link, glb) : null
@@ -439,6 +461,9 @@ export const importModel: AgentTool = {
       link,
       bytes: glb.length,
       ...(stats ? { step: stats } : {}),
+      ...(usd ? { usd } : {}),
+      // a part that is just this model was stood on the origin, given a collider and bounds of its size
+      ...(fitted ? { fitted } : {}),
       ...(footprint ? { footprint } : {}),
       ...(fit ? { model: fit.model } : {}),
       ...(fit?.hint ? { boundsHint: fit.hint } : {}),

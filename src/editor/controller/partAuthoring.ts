@@ -7,6 +7,9 @@ import { packageCategory, sameCategory } from '../../core/parts/partCategory'
 import { behaviorMentions, renameRigJoint as renamedJoints, renameRigLink, renameRigNameRefs } from '../../core/parts/partPackage'
 import { validatePartPackage } from '../../core/parts/partValidate'
 import { asNewPartFrom } from '../../core/builtInVersion'
+import { bytesToBase64 } from '../../core/parts/partAssets'
+import { fitRigToModel } from '../../core/parts/modelFit'
+import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
 import type { AuthorableShapeKind } from '../rigTree'
 import type { PartPackage, RigJoint, RigLink, RigShape } from '../../core/parts/partPackage'
@@ -101,19 +104,43 @@ export function renameRigJoint(ec: AuthoringDeps, packageId: string, jointName: 
   return true
 }
 
-export function setLinkMesh(ec: Pick<AuthoringDeps, 'store'>, packageId: string, linkName: string, dataBase64: string, label = 'Import model'): string | null {
+/**
+ * Make `linkName` a mesh of the GLB `glb`, embedded in the part, as one undo step. When the part is just that model
+ * (core/parts/modelFit.ts) it is fitted to it in the same step: standing on the origin, with a collider and bounds
+ * of the model's size. `warning` is the advisory for a large embed.
+ */
+export function setLinkMesh(
+  ec: Pick<AuthoringDeps, 'store'>,
+  packageId: string,
+  linkName: string,
+  glb: Uint8Array,
+  label = 'Import model',
+): { warning: string | null; fitted: boolean } {
   const pkg = getPackage(packageId)
-  if (!pkg || pkg.geometry.kind !== 'rig') return null
+  if (!pkg || pkg.geometry.kind !== 'rig') return { warning: null, fitted: false }
+  const dataBase64 = bytesToBase64(glb)
   const assets = [...(pkg.assets ?? [])]
   let n = assets.length + 1
   let assetId = `mesh-${n}`
   while (assets.some((a) => a.id === assetId)) assetId = `mesh-${++n}`
   assets.push({ id: assetId, mime: 'model/gltf-binary', data: dataBase64 })
-  const links = pkg.geometry.links.map((l): RigLink => (l.name === linkName ? { ...l, shape: { kind: 'mesh', asset: assetId } } : l))
-  ec.store.commitPackage(label, { ...pkg, geometry: { ...pkg.geometry, links }, assets })
-  if (dataBase64.length <= LARGE_EMBED_B64) return null
+  const shape = { kind: 'mesh' as const, asset: assetId }
+  const geometry = { ...pkg.geometry, links: pkg.geometry.links.map((l): RigLink => (l.name === linkName ? { ...l, shape } : l)) }
+  let box: Box3Like | null = null
+  try {
+    // the whole model, as the new shape draws it (no node, carving or scale yet)
+    box = meshLinkBox(parseGlb(glb).json, {})
+  } catch {
+    // not a readable GLB: it is embedded as given and draws nothing, and there is nothing to fit to
+  }
+  const fitted = box ? fitRigToModel(geometry, linkName, box) : null
+  ec.store.commitPackage(label, { ...pkg, geometry: fitted ?? geometry, assets })
+  if (dataBase64.length <= LARGE_EMBED_B64) return { warning: null, fitted: !!fitted }
   const mb = (dataBase64.length / (4 / 3) / 1e6).toFixed(1)
-  return `This model is ${mb} MB. Embedded models are stored base64 (+33%) inside the project, and browsers cap local storage at a few MB per site - the autosave may stop. Export the project to a file to keep your work.`
+  return {
+    warning: `This model is ${mb} MB. Embedded models are stored base64 (+33%) inside the project, and browsers cap local storage at a few MB per site - the autosave may stop. Export the project to a file to keep your work.`,
+    fitted: !!fitted,
+  }
 }
 
 export function addRigNode(ec: AuthoringDeps, packageId: string, parentLinkName: string, kind: AuthorableShapeKind = 'box'): void {

@@ -44,6 +44,12 @@ describe('inspectGlb', () => {
     expect(mats.find((m) => m.name === 'color-2')).toMatchObject({ metalness: 1, textured: false })
   })
 
+  it('says when a texture sets the metalness, so a factor of 1 is not taken for a fully metallic surface', () => {
+    const c = inspectGlb(makeGlb({ materials: [{ name: 'decal', pbrMetallicRoughness: { metallicFactor: 1, metallicRoughnessTexture: { index: 0 } } }] }))
+    expect(c.materials[0]).toMatchObject({ metalness: 1, textured: false, metalnessTextured: true })
+    expect(inspectGlb(SENSOR_LIKE).materials.every((m) => !m.metalnessTextured)).toBe(true)
+  })
+
   it('defaults metalness to 1 when unspecified (glTF default)', () => {
     const c = inspectGlb(makeGlb({ materials: [{ name: 'plain' }] }))
     expect(c.materials[0]).toMatchObject({ name: 'plain', metalness: 1, textured: false })

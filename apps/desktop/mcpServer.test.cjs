@@ -80,7 +80,20 @@ async function main() {
       const got = await readModel(join(dir, 'm.glb'))
       assert.equal(got.name, 'm.glb')
       assert.deepEqual([...got.bytes], [1, 2, 3])
-      assert.match((await readModel(join(dir, 'notes.txt'))).error, /a model is a \.glb, \.step or \.stp file/)
+      assert.match((await readModel(join(dir, 'notes.txt'))).error, /a model is a \.glb, \.step, \.stp or USD/)
+      // a USD root brings the layers and images under its folder, keyed from there; hidden folders and other files stay out
+      mkdirSync(join(dir, 'payloads'))
+      mkdirSync(join(dir, '.thumbs'))
+      writeFileSync(join(dir, 'root.usda'), '#usda 1.0')
+      writeFileSync(join(dir, 'payloads', 'geo.usdc'), Buffer.from([4]))
+      writeFileSync(join(dir, 'payloads', 'albedo.png'), Buffer.from([5]))
+      writeFileSync(join(dir, '.thumbs', 'thumb.png'), Buffer.from([6]))
+      const usd = await readModel(join(dir, 'root.usda'))
+      assert.equal(usd.root, 'root.usda')
+      assert.deepEqual(usd.files.map((f) => f.path).sort(), ['payloads/albedo.png', 'payloads/geo.usdc', 'root.usda'])
+      // a .usdz is one file
+      writeFileSync(join(dir, 'm.usdz'), Buffer.from([7]))
+      assert.equal((await readModel(join(dir, 'm.usdz'))).files, undefined)
       assert.match((await readModel('m.glb')).error, /absolute path/)
       assert.match((await readModel(join(dir, 'gone.step'))).error, /no such file/)
     } finally {

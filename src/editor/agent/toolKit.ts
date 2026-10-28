@@ -38,8 +38,9 @@ export interface AgentImage {
 export interface AgentShell {
   /** the window's pixels inside `rect`, as composited on screen */
   capture?(rect: CaptureRect): Promise<AgentImage | null>
-  /** a model file's bytes (.glb, .step, .stp), or why not */
-  readModel?(path: string): Promise<{ name: string; bytes: Uint8Array } | { error: string }>
+  /** a model file's bytes (.glb, .step, .stp, USD), or why not. A .usd / .usda / .usdc root also brings the layers
+   *  and images under its folder (`files`, keyed by path from that folder; `root` is its own key). */
+  readModel?(path: string): Promise<{ name: string; bytes: Uint8Array; files?: { path: string; bytes: Uint8Array }[]; root?: string } | { error: string }>
 }
 
 export interface AgentToolContext {

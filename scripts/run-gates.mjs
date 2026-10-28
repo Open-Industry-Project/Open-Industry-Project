@@ -209,6 +209,10 @@ const GATES = [
     why: "a STEP file imports through a rig node's Import model...: the CAD kernel (occt-import-js, 7.6 MB of wasm) loads in a worker of its own only when a STEP file is converted, the page keeps drawing while it reads, and the node becomes an embedded GLB with one mesh per colour. What it guards is the part nothing else exercises: a worker that imports a CommonJS emscripten loader and a ?url wasm, which a vite or dependency upgrade can break without a single unit test noticing (the kernel's own tests run it in node, not through the bundler)",
   },
   {
+    script: 'verify-usd-import.mjs',
+    why: "a USD model imports through a rig node's Import model..., as one file or as its folder: the USD reader (@huggingface/usd-web-viewer, 2.3 MB of wasm in its own worker) loads only when a model is converted, and the node becomes an embedded GLB with composition honoured (a payload, a reference, a variant, an override from the stronger layer, centimetres and Z up) and one mesh per material. A lone root layer whose payload is elsewhere imports nothing and says to pick the folder. The model is written by the gate itself, first-party.",
+  },
+  {
     script: 'verify-named-plcs-electron.mjs',
     why: "several PLCs in one run (src/plc/DEVICE-IO.md, \"Several controllers\"): the program here runs one line while two Modbus masters stand in for Cell2 and Cell3 on the same addresses, each on a port of its own, and each drives only its own belt. It caught the in-worker program wiping what the links wrote, which no unit test saw. Then the authoring side: Controller Properties' free ports and clash warning, the Inspector's Controller row, a name written in its set-up spelling, the Scene tree's badges, Assign to Controller and rename. Launches the dev Electron shell on a throwaway profile",
   },

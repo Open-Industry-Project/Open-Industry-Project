@@ -29,6 +29,7 @@ import { getOipPartsApi } from '../desktop/desktopPartsBridge'
 import { importPartsFolder } from '../parts/packageSource'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { importPartFiles, partFilesOf } from '../parts/importPartFiles'
+import { isModelFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
 
 const M = defineMessages('catalog', {
   title: 'Parts',
@@ -37,8 +38,12 @@ const M = defineMessages('catalog', {
   partEditorInRoom: 'The Part Editor is unavailable in a shared room',
   newPartTitle: 'New blank part:a single box you can reshape, add nodes to, and script (the same portable format the built-ins use)',
   newPart: '＋ New part',
-  importTitle: 'Import a shared part file (.oippart or .part.json) into this project',
-  importTitleDesktop: 'Import shared part files, or a folder of parts, into this project',
+  importTitle: 'Import a shared part file (.oippart or .part.json) into this project, or make a new part from a model (.glb, STEP or USD)',
+  importTitleDesktop: 'Import shared part files or a folder of parts into this project, or make a new part from a model',
+  importModel: 'A model…',
+  importModelTitle: 'Make a new part from a model: a .glb, a STEP file from CAD, or a USD model (.usd, .usda, .usdc, .usdz)',
+  oneModelAtATime: 'A model opens as a new part of its own, so one is imported at a time: {file} was imported.',
+  modelInRoom: 'A new part opens in the Part Editor, which is not available in a shared room.',
   importFiles: 'Part files…',
   importFilesTitle: 'Import shared part files (.oippart or .part.json) into this project',
   importFolder: 'A folder of parts…',
@@ -203,6 +208,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   const updateById = new Map<string, PartUpdate>()
   for (const u of updates) if (!updateById.has(u.id)) updateById.set(u.id, u)
   const importRef = useRef<HTMLInputElement>(null)
+  const importModelRef = useRef<HTMLInputElement>(null)
   const q = query.trim().toLowerCase()
   const searching = q !== ''
   const store = controller?.store ?? null
@@ -210,9 +216,19 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
 
   // import shared part files (.oippart, or the older .part.json) into the library (the file-level counterpart of the scene Load
   // button); reached from the header button (multi-select) and by dropping files anywhere on the dock
+  // A model file becomes a new part of its own, opened to convert it (parts/modelPartImport.ts); part files import.
   const importFiles = async (files: File[]): Promise<void> => {
     if (!controller || state.readOnly || files.length === 0) return
-    await importPartFiles(controller, files)
+    const models = files.filter((f) => isModelFile(f.name))
+    const parts = partFilesOf(files.filter((f) => !isModelFile(f.name)))
+    if (parts.length > 0) await importPartFiles(controller, parts)
+    if (models.length === 0) return
+    if (state.collab) {
+      alert(t(M.modelInRoom))
+      return
+    }
+    newPartFromModel(controller, models[0]!)
+    if (models.length > 1) alert(t(M.oneModelAtATime, { file: models[0]!.name }))
   }
   const onImportFile = (e: ChangeEvent<HTMLInputElement>): void => {
     const files = Array.from(e.target.files ?? [])
@@ -336,7 +352,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         setDropping(false)
         if (state.readOnly || !dragHasFiles(e)) return
         e.preventDefault()
-        void importFiles(partFilesOf(e.dataTransfer.files))
+        void importFiles(Array.from(e.dataTransfer.files))
       }}
     >
       <div className="dock-header">
@@ -375,6 +391,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
               items: [
                 { label: t(M.importFiles), title: t(M.importFilesTitle), testid: 'catalog-import-files', onClick: () => importRef.current?.click() },
                 { label: t(M.importFolder), title: t(M.importFolderTitle), testid: 'catalog-import-folder', onClick: () => void importPartsFolder(store) },
+                { label: t(M.importModel), title: t(M.importModelTitle), testid: 'catalog-import-model', onClick: () => importModelRef.current?.click() },
               ],
             })
           }}
@@ -391,7 +408,8 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         >
           {t(M.getParts)}
         </button>
-        <input ref={importRef} type="file" accept=".oippart,.json,application/json" multiple hidden onChange={onImportFile} />
+        <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT}`} multiple hidden onChange={onImportFile} />
+        <input ref={importModelRef} type="file" accept={MODEL_ACCEPT} hidden onChange={onImportFile} data-testid="catalog-import-model-input" />
         {/* the row scrolls sideways when the categories outgrow it; the wheel scrolls it, since its scrollbar is hidden */}
         <div
           className="catalog-tabs segmented"

@@ -957,16 +957,16 @@ export class EditorController {
   /**
    * Author mode: import a GLB model and apply it to a rig link - the link's shape becomes a `mesh`
    * referencing the embedded GLB (base64, so the part stays self-contained + portable). Applied live
-   * (registerPackage → rebuild → attachMesh loads it). `dataBase64` is the file's raw bytes, base64-encoded
-   * (no `data:` prefix). Replaces the link's current shape; persist with "Save part".
+   * (registerPackage → rebuild → attachMesh loads it). Replaces the link's current shape; a part that is just
+   * this model is fitted to it in the same step (core/parts/modelFit.ts), and `fitted` says so.
    *
-   * Returns an advisory warning string (or null). The import always proceeds (the embedded model is what
+   * `warning` is advisory (or null). The import always proceeds (the embedded model is what
    * makes the part self-contained, and we don't know the browser's real quota), but the embedding is what
    * pushes the project doc over localStorage, so an oversized model is called out at the moment it's
    * picked rather than only via the autosave banner later. See LARGE_EMBED_B64 and projectFile.SaveResult.
    */
-  setLinkMesh(packageId: string, linkName: string, dataBase64: string): string | null {
-    return authoringOps.setLinkMesh(this, packageId, linkName, dataBase64)
+  setLinkMesh(packageId: string, linkName: string, glb: Uint8Array): { warning: string | null; fitted: boolean } {
+    return authoringOps.setLinkMesh(this, packageId, linkName, glb)
   }
 
   /**

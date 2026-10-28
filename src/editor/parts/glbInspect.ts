@@ -10,6 +10,8 @@ export interface GlbMaterialInfo {
   metalness: number
   /** does the material carry a base-color texture? (a textured metal still shows its albedo) */
   textured: boolean
+  /** does a metallic-roughness texture set its metalness? metallicFactor then only scales the texture's values */
+  metalnessTextured: boolean
 }
 
 export interface GlbContents {
@@ -18,6 +20,8 @@ export interface GlbContents {
   /** materials by name (remap each via shape.materials → a package material id) */
   materials: GlbMaterialInfo[]
 }
+
+type Pbr = { metallicFactor?: number; baseColorTexture?: unknown; metallicRoughnessTexture?: unknown }
 
 /** Decode a base64 string (no `data:` prefix) to bytes. Uses the platform atob (browser + node). */
 function b64ToBytes(b64: string): Uint8Array {
@@ -40,15 +44,16 @@ export function inspectGlb(dataBase64: string): GlbContents {
     const jsonLen = view.getUint32(12, true)
     const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLen))) as {
       nodes?: { name?: string }[]
-      materials?: { name?: string; pbrMetallicRoughness?: { metallicFactor?: number; baseColorTexture?: unknown } }[]
+      materials?: { name?: string; pbrMetallicRoughness?: Pbr }[]
     }
     const nodes = (json.nodes ?? []).map((n) => n.name).filter((n): n is string => typeof n === 'string' && n !== '')
     const materials = (json.materials ?? [])
-      .filter((m): m is { name: string; pbrMetallicRoughness?: { metallicFactor?: number; baseColorTexture?: unknown } } => typeof m.name === 'string' && m.name !== '')
+      .filter((m): m is { name: string; pbrMetallicRoughness?: Pbr } => typeof m.name === 'string' && m.name !== '')
       .map((m) => ({
         name: m.name,
         metalness: m.pbrMetallicRoughness?.metallicFactor ?? 1,
         textured: m.pbrMetallicRoughness?.baseColorTexture != null,
+        metalnessTextured: m.pbrMetallicRoughness?.metallicRoughnessTexture != null,
       }))
     return { nodes, materials }
   } catch {

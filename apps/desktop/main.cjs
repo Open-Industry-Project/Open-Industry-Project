@@ -18,7 +18,7 @@ const { registerOpcUaIo } = require('./opcUaIo.cjs')
 const { registerEipIo, shutdownEip } = require('./eipIo.cjs')
 const { registerAdsIo, shutdownAds } = require('./adsIo.cjs')
 const { registerOpcUaServer } = require('./opcUaServer.cjs')
-const { AgentHost, DEFAULT_PORT: MCP_DEFAULT_PORT, registerAgentHost, startMcpServer } = require('./mcpServer.cjs')
+const { AgentHost, DEFAULT_PORT: MCP_DEFAULT_PORT, readModel, registerAgentHost, startMcpServer } = require('./mcpServer.cjs')
 const { createProjectTools } = require('./agentProjects.cjs')
 const { guardIpc, isAppUrl, isTrustedSender, navigateDisposition, openDisposition, originOf } = require('./shellTrust.cjs')
 const { APP_URL, registerScheme, serve: serveDistProtocol } = require('./distProtocol.cjs')
@@ -879,6 +879,9 @@ function registerIpc() {
   registerOpcUaServer(ipcMain, { pkiRoot: join(app.getPath('userData'), 'opcua-pki'), consent: allows })
   // The agent door: tool calls from the MCP server (mcpServer.cjs) go to the editor window that serves them
   registerAgentHost(ipcMain, agentHost)
+  // The Inspector's USD import: a root layer the person picked, read with the layers and images beside it. USD layers
+  // only, the one kind whose model is spread over its folder (editor/usdImport.ts)
+  ipcMain.handle('model:readUsd', (_event, path) => (typeof path === 'string' && /\.(usd|usda|usdc)$/i.test(path) ? readModel(path) : { error: 'not a USD layer file' }))
   // ...and whether it is open at all: Help > Agent Connections... asks main, which owns the server and the choice
   // Help > Check for Updates..., and the newer-build banner's "Get the update" (updater.cjs)
   // the downloaded update the page's notice offers (DesktopUpdateToast): which version, and its Restart
