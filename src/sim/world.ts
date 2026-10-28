@@ -659,6 +659,12 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.bus.setInputTags(tags)
   }
 
+  /** PLC→part from the links to PLCs outside the app (the main thread's setTags): a layer of its own beside the
+   *  program's, so a run with both keeps both (sim/behaviorBus.ts). */
+  setBehaviorLinkTags(tags: Record<string, number | boolean>): void {
+    this.bus.setLinkTags(tags)
+  }
+
   /** part→PLC: the tags behaviors wrote on the last step, flattened across parts - the in-worker
    *  PLC scan's %I source (PlcHost.interleave). Same order + last-wins as frame().tags, and the
    *  same partId gate, so the scan reads exactly what a main-thread controller would. */

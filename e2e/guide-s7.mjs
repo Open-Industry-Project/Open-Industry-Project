@@ -6,7 +6,7 @@
 // and each label, default and status line the page quotes is looked up on the page first.
 //
 //   step 2  the parts' Comms fields set through the Inspector, to the page's addresses
-//   step 4  External PLC... from the palette; "S7 PUT/GET"; the CPU, port, rack and slot defaults; the PUT/GET reminder;
+//   step 4  PLC Controllers... from the palette; "S7 PUT/GET"; the CPU, port, rack and slot defaults; the PUT/GET reminder;
 //           the two points it lists; the consent prompt's wording, read from the shell's source
 //   step 5  Play with nothing listening waits and says so; a wrong slot is refused with the page's advice; PUT/GET off
 //           names the checkbox and holds the belt; ticking it (the stand-in allowing PUT/GET) mid-run lets the belt

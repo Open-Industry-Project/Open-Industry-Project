@@ -9,7 +9,8 @@ import { DEFAULT_SIM_HZ } from '../core/types'
 import type { SceneJSON } from '../core/types'
 import { StError } from '../plc'
 import { catchUpSteps } from './catchUp'
-import { PlcHost, WATCH_HZ } from './plcHost'
+import { WATCH_HZ } from './plcHost'
+import { PlcGroup } from './plcGroup'
 import type { PlcFrameWire } from './plcHost'
 import type { MainToWorker, WorkerToMain } from './protocol'
 import { FrameWireEncoder } from './frameWire'
@@ -21,7 +22,7 @@ let joltPromise: Promise<JoltModule> | null = null
 let world: SimWorld | null = null
 // the attached ST program, scanning in lockstep with the step loop (null = none). Owned by the
 // world lifecycle: 'start'/'stop' clear it, and the attach ('runProgram') always follows 'start'.
-let plc: PlcHost | null = null
+let plc: PlcGroup | null = null
 let intervalId: ReturnType<typeof setInterval> | null = null
 let paused = false
 // sim-clock multiplier (a time-scale factor): the loop accrues scaled time so the
@@ -90,8 +91,8 @@ function post(msg: WorkerToMain, transfer: Transferable[] = []): void {
 // the variable table rides a frame WATCH_HZ times a second, not on every one (PlcHost.snapshot says why); a
 // program just attached sends it at once, so nothing waits a tenth of a second for its first values
 let watchSentAt = -Infinity
-let watchSentFor: PlcHost | null = null
-function plcFrame(host: PlcHost, force: boolean): PlcFrameWire {
+let watchSentFor: PlcGroup | null = null
+function plcFrame(host: PlcGroup, force: boolean): PlcFrameWire {
   const now = performance.now()
   if (!force && watchSentFor === host && now - watchSentAt < 1000 / WATCH_HZ) return host.snapshot({ watch: false })
   watchSentAt = now
@@ -230,8 +231,8 @@ async function handle(msg: MainToWorker): Promise<void> {
       // applied live by the running loop on its next tick
       timeScale = msg.scale
     } else if (msg.type === 'setTags') {
-      // PLC→part: hold the latest ST tag values for custom-part behaviors to read next step
-      world?.setBehaviorInputTags(msg.tags)
+      // PLC→part from the external PLCs' links: held beside the in-worker program's outputs for behaviors to read next step
+      world?.setBehaviorLinkTags(msg.tags)
     } else if (msg.type === 'forceTag') {
       plc?.force(msg.name, msg.value)
     } else if (msg.type === 'setForces') {
@@ -247,7 +248,7 @@ async function handle(msg: MainToWorker): Promise<void> {
       // attach (or live re-attach): compile here and scan in the step loop. The main thread already
       // compiled this source for validation, so a failure is a backstop - report it and stay detached.
       try {
-        plc = new PlcHost(msg.source, msg.periodSec, msg.wired)
+        plc = new PlcGroup(msg.runs)
       } catch (err) {
         plc = null
         post(plcFaultMsg(err))
@@ -259,7 +260,7 @@ async function handle(msg: MainToWorker): Promise<void> {
     } else if (msg.type === 'setScanPeriod') {
       plc?.setPeriod(msg.periodSec)
     } else if (msg.type === 'rebindProgram') {
-      plc?.rebind(msg.wired)
+      plc?.rebind(msg.wired, msg.controller ?? null)
     } else {
       stopLoop()
       paused = false

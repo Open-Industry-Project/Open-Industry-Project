@@ -209,6 +209,10 @@ const GATES = [
     why: "a STEP file imports through a rig node's Import model...: the CAD kernel (occt-import-js, 7.6 MB of wasm) loads in a worker of its own only when a STEP file is converted, the page keeps drawing while it reads, and the node becomes an embedded GLB with one mesh per colour. What it guards is the part nothing else exercises: a worker that imports a CommonJS emscripten loader and a ?url wasm, which a vite or dependency upgrade can break without a single unit test noticing (the kernel's own tests run it in node, not through the bundler)",
   },
   {
+    script: 'verify-named-plcs-electron.mjs',
+    why: "several PLCs in one run (src/plc/DEVICE-IO.md, \"Several controllers\"): the program here runs one line while two Modbus masters stand in for Cell2 and Cell3 on the same addresses, each on a port of its own, and each drives only its own belt. It caught the in-worker program wiping what the links wrote, which no unit test saw. Then the authoring side: Controller Properties' free ports and clash warning, the Inspector's Controller row, a name written in its set-up spelling, the Scene tree's badges, Assign to Controller and rename. Launches the dev Electron shell on a throwaway profile",
+  },
+  {
     script: 'verify-agent-mcp-electron.mjs',
     why: "the agent door end to end (docs/agent-tools.md): a real MCP client talks to the desktop shell's server and builds a line from nothing, proves it with run_test (and that the test fails without its stimulus), runs it live (set_tag, trace_tags, get_cargo), renames, retimes and assigns I/O, then makes a part, imports a GLB and a STEP model into it and adds a POU. What only the shell can show: capture_view's picture comes back as an MCP image and the user's camera and the editor around the view are put back, and import_model reads a model file by path and refuses one that is not a model. Every edit is one 'Agent: ...' undo step. The unit tests (src/editor/agent/*.test.ts) run the tools against a store; this runs them through IPC and a live viewport. Launches the dev Electron shell on a throwaway profile",
   },

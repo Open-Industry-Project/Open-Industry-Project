@@ -33,6 +33,15 @@ on:
       - 'scripts/lib/openplc-editor.mjs'
       # the external-PLC loop: its I/O table and its runtime/socket halves
       - 'scripts/openplc-loop.mjs'
+      - 'scripts/openplc-cells-loop.mjs'
+      - 'scripts/lib/desktop-plcio.mjs'
+      - 'scripts/lib/conveyor-loop.mjs'
+      - 'scripts/lib/openplc-deploy.mjs'
+      - 'apps/desktop/plcIo.cjs'
+      - 'src/core/io/controllerTag.ts'
+      - 'src/editor/controller/plcLinks.ts'
+      - 'src/editor/links/**'
+      - 'src/sim/behaviorBus.ts'
       - 'scripts/lib/openplc-runtime.mjs'
       - 'scripts/lib/modbus-tcp-listen.mjs'
       - 'src/core/io/externalIo.ts'
@@ -50,6 +59,15 @@ on:
       - 'scripts/lib/openplc-editor.mjs'
       # the external-PLC loop: its I/O table and its runtime/socket halves
       - 'scripts/openplc-loop.mjs'
+      - 'scripts/openplc-cells-loop.mjs'
+      - 'scripts/lib/desktop-plcio.mjs'
+      - 'scripts/lib/conveyor-loop.mjs'
+      - 'scripts/lib/openplc-deploy.mjs'
+      - 'apps/desktop/plcIo.cjs'
+      - 'src/core/io/controllerTag.ts'
+      - 'src/editor/controller/plcLinks.ts'
+      - 'src/editor/links/**'
+      - 'src/sim/behaviorBus.ts'
       - 'scripts/lib/openplc-runtime.mjs'
       - 'scripts/lib/modbus-tcp-listen.mjs'
       - 'src/core/io/externalIo.ts'
@@ -363,6 +381,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           OPENPLC_URL: https://127.0.0.1:8443
         run: npm run openplc-loop
+
+      # the same runtime as a second controller beside the program here: one line each, same addresses
+      # (scripts/openplc-cells-loop.mjs, src/plc/DEVICE-IO.md "Several controllers")
+      - name: Drive one line from OpenPLC and one from the program here
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENPLC_URL: https://127.0.0.1:8443
+        run: npm run openplc-loop:cells
 
       - name: Keep the runtime's log
         if: always()

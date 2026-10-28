@@ -4,9 +4,16 @@
 // The list is the app's own rather than a <datalist>, because a datalist cannot say where a name comes from, show its
 // type, or say that a thousand more PLC tags fit what is typed. A PLC's tags are listed only once something is typed:
 // a large program's tree runs to thousands of names, which no one scrolls.
+//
+// Once the project has a controller besides the default one (`Cell2::%IX0.0`, core/io/controllerTag.ts), the box holds
+// the tag without the name. Which controller it is on is said once for the part, by the Controller row above
+// (controllerRow.tsx); a picker in front of the box says it per field when the part's tags disagree, or when the part
+// has no tag yet. Typing `Cell2::` in the box still works. The program's suggestions are the default controller's, so
+// a named controller's tag gets none.
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { controllerSpelledAs, controllerTag, splitControllerTag } from '../../../core/io/controllerTag'
 import type { PlcTagList } from '../../links/externalPlc'
 import type { ProgramCheck, ProgramTag } from '../../program/tagVerdicts'
 import { loadProgramTags, programTagChoices, rankTagNames, tagMisfit } from './tagSuggest'
@@ -39,6 +46,10 @@ const M = defineMessages('inspector.tagField', {
   noneOfType: 'The program declares no {type} variables yet. Type a name, then declare it in the program.',
   noneOfAny: 'The program declares no variables a part can be wired to yet. Type a name, then declare it in the program.',
   newName: 'Nothing in the program fits. A new name connects once the program declares it.',
+  controller: 'Controller',
+  controllerTitle: 'Which PLC this tag is on: the program in this app (or the external PLC that runs instead of it), or one of the other controllers set up in Controller Properties.',
+  main: 'Program',
+  mainExternal: 'External PLC',
 })
 
 /** Where a tag field's suggestions come from beyond the scene: the Inspector provides it. */
@@ -54,9 +65,22 @@ export interface TagSources {
   plcLinked: boolean
   /** an external PLC link is on (any protocol): parts may be wired to its tags, so an empty program is not a gap */
   external: boolean
+  /** the named controllers a tag may be put on: the ones the project lists and the ones the scene's tags name */
+  controllers: readonly string[]
+  /** the default controller's name: a tag typed with it in front is written without it, as its tags are */
+  defaultName?: string
+  /**
+   * the controller the part's Controller row names for every tag (inspector/controllerRow.tsx; null: the default one).
+   * The field then shows no picker of its own, and a tag typed into it empty goes there. Absent with no row, or while
+   * the part's tags disagree.
+   */
+  partController?: string | null
 }
 
 export const TagSourcesContext = createContext<TagSources | null>(null)
+
+/** The part's Controller row (controllerRow.tsx), and the tag field it is drawn above, by param key. */
+export const ControllerRowContext = createContext<{ above: string; row: ReactNode } | null>(null)
 
 /** How many of each source the list shows before saying how many more fit. */
 const PROGRAM_LIMIT = 8
@@ -116,7 +140,17 @@ export function TagField({
   onCommit: (v: string) => void
 }) {
   const sources = useContext(TagSourcesContext)
-  const [text, setText] = useState(value)
+  // the controller the tag names, picked in front of the box, and the tag on it, which the box holds
+  const stored = splitControllerTag(value)
+  // the part's Controller row: when it names one controller, an empty field's tag goes there
+  const partController = sources?.partController
+  const startOn = (c: string | null, local: string): string | null => (local.trim() === '' ? (partController ?? null) : c)
+  const [controller, setController] = useState<string | null>(startOn(stored.controller, stored.local))
+  const controllerRef = useRef(controller)
+  const named = sources?.controllers ?? []
+  const choices = stored.controller !== null && !named.includes(stored.controller) ? [...named, stored.controller] : named
+  const picker = choices.length > 0 && partController === undefined
+  const [text, setText] = useState(stored.local)
   const textRef = useRef(text)
   const show = (t: string): void => {
     textRef.current = t
@@ -134,8 +168,19 @@ export function TagField({
   const [at, setAt] = useState<{ left: number; top?: number; bottom?: number; width: number; maxHeight: number } | null>(null)
 
   useEffect(() => {
-    if (!focused.current) show(mixed ? '' : value)
-  }, [value, mixed])
+    if (focused.current) return
+    const { controller: c, local } = splitControllerTag(value)
+    show(mixed ? '' : local)
+    controllerRef.current = mixed ? null : startOn(c, local)
+    setController(controllerRef.current)
+  }, [value, mixed, partController])
+  /** the tag a typed text stands for: on the picked controller, unless the text names one itself, which is then written
+   *  as the controller is known (IEC names ignore case), so `cell2::` joins Cell2's tags */
+  const full = (typed: string): string => {
+    const { controller: c, local } = splitControllerTag(typed)
+    if (c === null) return controllerTag(controllerRef.current, typed)
+    return sources?.defaultName?.toLowerCase() === c.toLowerCase() ? local : controllerSpelledAs(typed, named)
+  }
 
   // the program's tags, read when the list first opens (and again if the program changes while it is open)
   const check = sources?.check
@@ -179,7 +224,7 @@ export function TagField({
   }, [open])
 
   const commit = (t: string): void => {
-    if (edited.current && (mixed || t !== value)) onCommit(t)
+    if (edited.current && (mixed || full(t) !== value)) onCommit(full(t))
     edited.current = false
   }
   const pick = (name: string): void => {
@@ -191,7 +236,8 @@ export function TagField({
   }
 
   const query = typed ? text : ''
-  const sections = open ? buildSections(query, sceneUses, programTags, stType, sources, dir, written) : []
+  // the program and the PLC browse are the default controller's: a named controller's tag has no suggestions here
+  const sections = open && controller === null ? buildSections(query, sceneUses, programTags, stType, sources, dir, written) : []
   const rows = sections.flatMap((s) => s.rows)
   const activate = (row: Row): void => {
     if (row.kind === 'name') pick(row.name)
@@ -205,6 +251,37 @@ export function TagField({
         {labelExtra}
       </span>
       <span className="field-control">
+        {picker && (
+          <select
+            className="tag-controller"
+            aria-label={t(M.controller)}
+            title={t(M.controllerTitle)}
+            value={mixed ? MIXED : (controller ?? '')}
+            disabled={disabled || mixed}
+            data-testid="tag-controller"
+            onChange={(e) => {
+              const next = e.target.value === '' ? null : e.target.value
+              controllerRef.current = next
+              setController(next)
+              // an empty tag stays empty: the pick applies to what is typed next
+              if (textRef.current.trim() !== '') onCommit(controllerTag(next, textRef.current.trim()))
+            }}
+          >
+            {mixed && (
+              <option value={MIXED} disabled>
+                --
+              </option>
+            )}
+            {/* a tag with no name: the program here, or the external PLC that runs instead of it */}
+            <option value="">{t(sources?.external ? M.mainExternal : M.main)}</option>
+            {choices.map((c) => (
+              <option key={c} value={c}>
+                {/* i18n-ok: the controller's name, as the tags spell it */}
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           ref={input}
           type="text"
@@ -264,7 +341,7 @@ export function TagField({
                 if (!edited.current) return
               }
               edited.current = false
-              show(mixed ? '' : value)
+              show(mixed ? '' : stored.local)
               ;(e.target as HTMLInputElement).blur()
             }
           }}
@@ -321,6 +398,9 @@ export function TagField({
   )
 }
 
+/** a mixed picker's value: `::` is in no controller name, so no option can share it */
+const MIXED = '::'
+
 /** "{n} more, keep typing": `count` picks the plural form, `n` is the count as shown. */
 const moreNote = (n: number): string => t(M.more, { count: n, n: n.toLocaleString() })
 
@@ -368,11 +448,23 @@ export function buildSections(
         name,
         detail: byName.get(name)!.type,
         uses: uses.get(name.toLowerCase()) ?? 0,
-        ...(misfit ? { misfit: { note: t(MISFIT[misfit].note), why: t(MISFIT[misfit].why) } } : {}),
+        ...(misfit
+          ? {
+              misfit: {
+                note: t(MISFIT[misfit].note),
+                why: t(MISFIT[misfit].why),
+              },
+            }
+          : {}),
       }
     })
     const more = ordered.length - shown.length
-    out.push({ id: 'program', title: t(M.inProgram), rows, notes: more > 0 ? [moreNote(more)] : [] })
+    out.push({
+      id: 'program',
+      title: t(M.inProgram),
+      rows,
+      notes: more > 0 ? [moreNote(more)] : [],
+    })
   } else if (program !== null && sources && !sources.external) {
     // nothing to pick: say why, so an empty list does not read as a broken one. Not with an external PLC, whose tags
     // are the ones wired to

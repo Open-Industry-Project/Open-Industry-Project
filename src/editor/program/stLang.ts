@@ -245,14 +245,15 @@ function stCompletions(getTags: () => string[]) {
  * program that runs PROGRAMs from a table is not flagged for declaring no CONFIGURATION. The table's own
  * problems stay out of the gutter: they have no place in this text, and the Problems panel lists them.
  */
-function stLinter(getController: (source: string) => Controller | null, lints: () => boolean): Extension {
+function stLinter(getController: (source: string) => Controller | null, lints: () => boolean, getDefaultPlc: () => string | undefined): Extension {
   return linter(
     (view) => {
       // a program in a dialect this build does not read is not IEC, so the IEC check has nothing true to say about it
       if (!lints()) return []
       const src = view.state.doc.toString()
       const len = src.length
-      return controllerDiagnostics(src, getController(src)).source.map((d): CmDiagnostic => {
+      const defaultName = getDefaultPlc()
+      return controllerDiagnostics(src, getController(src), defaultName !== undefined ? { defaultName } : {}).source.map((d): CmDiagnostic => {
         const from = Math.min(d.pos.offset, len)
         const to = Math.min(from + Math.max(1, d.length), len)
         return { from, to, severity: d.severity === 'warning' ? 'warning' : 'error', message: d.message }
@@ -454,7 +455,7 @@ export function pushWatchValues(
  */
 export function stExtensions(
   getTags: () => string[],
-  opts?: { history?: boolean; getController?: (source: string) => Controller | null; lints?: () => boolean },
+  opts?: { history?: boolean; getController?: (source: string) => Controller | null; getDefaultPlc?: () => string | undefined; lints?: () => boolean },
 ): Extension {
   const useHistory = opts?.history ?? true
   return [
@@ -478,7 +479,7 @@ export function stExtensions(
     stLanguage,
     syntaxHighlighting(stHighlight),
     autocompletion({ override: [stCompletions(getTags)] }),
-    stLinter(opts?.getController ?? (() => null), opts?.lints ?? (() => true)),
+    stLinter(opts?.getController ?? (() => null), opts?.lints ?? (() => true), opts?.getDefaultPlc ?? (() => undefined)),
     watchField,
     stTheme,
   ]

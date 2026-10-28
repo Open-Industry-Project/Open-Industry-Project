@@ -25,6 +25,7 @@ import {
   readSimHz,
   readStDoc,
   ST_CONTROLLER_META,
+  PLCS_META,
   UNITS_META,
   stProgramText,
   writePackage,
@@ -322,12 +323,13 @@ export class CollabBridge {
     // viewport work. That includes the typist's own machine, because CodeMirror's binding writes under
     // its own origin, not LOCAL_ORIGIN, so the echo guard below does not catch it.
     const sceneTypes = [partsMap(ydoc), orderArray(ydoc), packagesMap(ydoc)]
-    // ...plus one key of `meta`, the scene's unit system (schema.ts UNITS_META); the rest of meta has its own observers
+    // ...plus two keys of `meta`, the scene's unit system and its controllers (schema.ts UNITS_META, PLCS_META); the rest
+    // of meta has its own observers
     const meta = metaMap(ydoc)
     const movedScene = (txn: Y.Transaction): boolean => {
       for (const t of txn.changedParentTypes.keys()) if ((sceneTypes as readonly unknown[]).includes(t)) return true
       // (a loop, not a spread: this runs on every transaction, one per keystroke in the room's program)
-      for (const [t, keys] of txn.changed) if ((t as unknown) === meta && keys.has(UNITS_META)) return true
+      for (const [t, keys] of txn.changed) if ((t as unknown) === meta && (keys.has(UNITS_META) || keys.has(PLCS_META))) return true
       return false
     }
     this.afterTxn = (txn: Y.Transaction): void => {

@@ -2,7 +2,7 @@
 // process. Runs in an isolated context with contextIsolation on, so the renderer never gets raw Node.
 // It sees only the small, explicit `window.oip*` surfaces below.
 
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 contextBridge.exposeInMainWorld('oipParts', {
   /**
@@ -148,20 +148,22 @@ contextBridge.exposeInMainWorld('oipProject', {
 
 // An external PLC reaches the app over TCP, which the sandboxed renderer cannot open: main listens or
 // connects (plcIo.cjs) and carries raw bytes. src/editor/links/externalPlc.ts is the typed twin; the protocol is the app's.
+// Every call and push names the window's link it is for (`link`, one per controller: linkKeys.cjs), 0 when absent;
+// src/editor/links/linkHosts.ts fills it in.
 contextBridge.exposeInMainWorld('oipPlcIo', {
-  /** @param {{host: string, port: number}} opts @returns {Promise<{error: string}>} '' once listening */
+  /** @param {{link?: number, host: string, port: number}} opts @returns {Promise<{error: string}>} '' once listening */
   listen: (opts) => ipcRenderer.invoke('plcio:listen', opts),
-  /** @param {{host: string, port: number}} opts @returns {Promise<{error: string, id: number}>} connect to a PLC's server */
+  /** @param {{link?: number, host: string, port: number}} opts @returns {Promise<{error: string, id: number}>} connect to a PLC's server */
   connect: (opts) => ipcRenderer.invoke('plcio:connect', opts),
-  /** stop listening and drop every connection */
-  close: () => ipcRenderer.invoke('plcio:close'),
-  /** @param {(e: {id: number, remote: string, open: boolean}) => void} cb @returns {() => void} unsubscribe */
+  /** stop listening and drop every connection @param {{link?: number}} [opts] */
+  close: (opts) => ipcRenderer.invoke('plcio:close', opts),
+  /** @param {(e: {link: number, id: number, remote: string, open: boolean}) => void} cb @returns {() => void} unsubscribe */
   onConnection: (cb) => {
     const listener = (_event, e) => cb(e)
     ipcRenderer.on('plcio:connection', listener)
     return () => ipcRenderer.removeListener('plcio:connection', listener)
   },
-  /** @param {(e: {id: number, bytes: Uint8Array}) => void} cb @returns {() => void} unsubscribe */
+  /** @param {(e: {link: number, id: number, bytes: Uint8Array}) => void} cb @returns {() => void} unsubscribe */
   onData: (cb) => {
     const listener = (_event, e) => cb(e)
     ipcRenderer.on('plcio:data', listener)
@@ -178,14 +180,15 @@ contextBridge.exposeInMainWorld('oipPlcIo', {
 contextBridge.exposeInMainWorld('oipOpcUa', {
   /** @param {{endpoint: string}} opts @returns {Promise<{error: string, discovery?: {name: string, urls: string[]}[]}>} discovery: a discovery server, not a PLC */
   connect: (opts) => ipcRenderer.invoke('opcua:connect', opts),
-  /** @returns {Promise<{error: string, variables?: {path: string[], nodeId: string}[], truncated?: boolean}>} */
-  browse: () => ipcRenderer.invoke('opcua:browse'),
+  /** @param {{link?: number}} [opts] @returns {Promise<{error: string, variables?: {path: string[], nodeId: string}[], truncated?: boolean}>} */
+  browse: (opts) => ipcRenderer.invoke('opcua:browse', opts),
   /** @param {{nodeIds: string[]}} opts @returns {Promise<{error: string, nodes?: {dataType: string, access: number}[]}>} */
   describe: (opts) => ipcRenderer.invoke('opcua:describe', opts),
   /** @param {{writes: {nodeId: string, builtin: number, value: boolean|number}[], reads: string[]}} opts */
   exchange: (opts) => ipcRenderer.invoke('opcua:exchange', opts),
-  close: () => ipcRenderer.invoke('opcua:close'),
-  /** @param {(e: {why: string}) => void} cb @returns {() => void} unsubscribe */
+  /** @param {{link?: number}} [opts] */
+  close: (opts) => ipcRenderer.invoke('opcua:close', opts),
+  /** @param {(e: {link: number, why: string}) => void} cb @returns {() => void} unsubscribe */
   onClosed: (cb) => {
     const listener = (_event, e) => cb(e)
     ipcRenderer.on('opcua:closed', listener)
@@ -202,7 +205,8 @@ contextBridge.exposeInMainWorld('oipEip', {
   bind: (opts) => ipcRenderer.invoke('eip:bind', opts),
   /** @param {{writes: {name: string, value: boolean|number}[], reads: string[]}} opts */
   exchange: (opts) => ipcRenderer.invoke('eip:exchange', opts),
-  close: () => ipcRenderer.invoke('eip:close'),
+  /** @param {{link?: number}} [opts] */
+  close: (opts) => ipcRenderer.invoke('eip:close', opts),
 })
 
 // ...and over ADS to a TwinCAT runtime, through TwinCAT's own router by Beckhoff's TcAdsDll in main (adsIo.cjs). The app
@@ -214,7 +218,8 @@ contextBridge.exposeInMainWorld('oipAds', {
   bind: (opts) => ipcRenderer.invoke('ads:bind', opts),
   /** @param {{writes: {name: string, value: boolean|number}[], reads: string[]}} opts */
   exchange: (opts) => ipcRenderer.invoke('ads:exchange', opts),
-  close: () => ipcRenderer.invoke('ads:close'),
+  /** @param {{link?: number}} [opts] */
+  close: (opts) => ipcRenderer.invoke('ads:close', opts),
 })
 
 // The simulated PLC's own OPC UA server, for a SCADA or HMI (opcUaServer.cjs). The app decides what is
@@ -226,7 +231,7 @@ contextBridge.exposeInMainWorld('oipOpcUaServer', {
   define: (opts) => ipcRenderer.invoke('opcuaserver:define', opts),
   /** @param {{values: Record<string, unknown>, running: boolean}} opts */
   update: (opts) => ipcRenderer.send('opcuaserver:update', opts),
-  stop: () => ipcRenderer.invoke('opcuaserver:stop'),
+  stop: (opts) => ipcRenderer.invoke('opcuaserver:stop', opts),
   /** @param {(e: {name: string, value: unknown}) => void} cb @returns {() => void} unsubscribe */
   onWrite: (cb) => {
     const listener = (_event, e) => cb(e)

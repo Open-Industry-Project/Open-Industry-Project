@@ -6,6 +6,7 @@ import type { SubPose } from '../core/rig/rigPose'
 import type { PartDiagnosticsEvent } from '../core/parts/partDiagnostics'
 import type { PlcFrameWire } from './plcHost'
 import type { WiredBindings } from '../plc/link/plcLink'
+import type { PlcRun } from './plcGroup'
 import type { TagValue } from '../plc/types'
 
 export type MainToWorker =
@@ -77,9 +78,10 @@ export type MainToWorker =
   // same source first (it throws StError at the caller), so a worker-side compile error is a backstop.
   // `wired`: the scene's bindings by wiring (plc/wiring.ts wiredBindings), which the main thread works out,
   // since the scene's parts are there
-  | { type: 'runProgram'; source: string; periodSec?: number; wired?: WiredBindings }
-  // the scene was rewired while the program runs: bind it anew in place, keeping its state (PlcHost.rebind)
-  | { type: 'rebindProgram'; wired: WiredBindings }
+  // `runs`: one for each controller the simulator runs, each its own program (sim/plcGroup.ts)
+  | { type: 'runProgram'; runs: PlcRun[] }
+  // the scene was rewired while the program runs: bind one controller's anew in place, keeping its state (PlcHost.rebind)
+  | { type: 'rebindProgram'; wired: WiredBindings; controller?: string }
   // detach the ST program (Stop / program panel Detach); behaviors idle on their next step
   | { type: 'stopProgram' }
   // write the attached program's variables by name before its next scan: an HMI or SCADA writing a PLC's

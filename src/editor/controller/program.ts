@@ -3,9 +3,10 @@
 // output-ownership mirror are this area's own state (ProgramState, held by the controller); the store, the sim
 // and the link-side hooks come in as narrow dependencies (ProgramDeps).
 
+import { controllerOf, controllerTag, partsForController } from '../../core/io/controllerTag'
 import type { SceneJSON } from '../../core/types'
 import type { PlcFault, SimClient } from '../../sim/client'
-import { commsTags, ControllerError, controllerFor, LocalPlcLink, runnableSource, StError, unhandledProgramTags } from '../../plc'
+import { commsTags, ControllerError, controllerRuns, LocalPlcLink, runnableSource, StError, unhandledProgramTags } from '../../plc'
 import type { TagValue } from '../../plc'
 // deep import: the wiring check is a checker, not part of the runtime PLC surface the barrel exposes
 import { checkWiring, wiredBindings } from '../../plc/wiring'
@@ -39,6 +40,9 @@ export const NO_PROGRAM: ProgramStatus = { attached: false, unbound: [], unwired
 
 /** The status line under an attach error when the program from before it is still running (attachProgram). */
 const PREVIOUS_STILL_RUNNING = 'The program has an error, so the PLC is still running the previous one. Fix it, then Reload.'
+/** The status line while an external PLC runs the default controller and the simulator runs other controllers: one
+ *  owner (the attach) says it, so the default link's start and the attach cannot overwrite each other's line. */
+export const DEFAULT_ON_PLC = 'An external PLC runs the default controller (Controller Properties), so its part of the program is not attached here.'
 
 /** The attached ST program as the editor knows it: what is attached and running, its status and faults, and who it drives. */
 export class ProgramState {
@@ -59,18 +63,24 @@ export class ProgramState {
    *  status line clears on Stop, and this is what the Problems dock keeps (see EditorController.plcFault) */
   fault: (PlcFault & { source: string }) | null = null
   attachedScanMs = 0
-  // What the attached program binds by wiring, kept so a scene edit mid-run can re-bind it (rebindProgram):
-  // the program as declared, and the bindings last shipped. Null when it binds nothing that way, which is
-  // every program whose tags are all VAR_INPUT / VAR_OUTPUT or located.
-  wiring: { declared: LocalPlcLink; shipped: string } | null = null
+  // Each controller the simulator runs, kept so a scene edit mid-run can re-bind it (rebindProgram): its program as
+  // declared, and the bindings last shipped. The default controller's has controller null; another one's binds to the
+  // parts' tags that name it (core/io/controllerTag.ts partsForController).
+  runs: { controller: string | null; declared: LocalPlcLink; shipped: string }[] = []
   // the validation compile's initial variable image, shown by the watch getters until the first
   // worker frame carries live state (or indefinitely for a program attached while not running)
   seedWatch: Readonly<Record<string, TagValue>> | null = null
   // Output ownership, mirrored for the editor's own UI (the pilot "In auto" prompt): the tag keys the
   // attached program drives (its outputs, declared or bound by wiring): the same set shipped to the worker as
   // setDrivenTags. Static per attach; drivenRev bumps on attach/detach so per-frame consumers can memoize.
+  // Three parts make it, each set by its own owner so none overwrites another: what the default controller drives (the
+  // program here, or the external PLC run instead of it), what the named controllers the simulator runs drive, and
+  // what the named controllers' links drive (`Cell2::...`, controller/plcLinks.ts).
   drivenKeys: ReadonlySet<string> = new Set()
   drivenRev = 0
+  ownDriven: readonly string[] = []
+  simDriven: readonly string[] = []
+  linkDriven: readonly string[] = []
   // last attach result (bindings + compile error), surfaced to the ST editor panel
   status: ProgramStatus = NO_PROGRAM
   // panels that want to re-render when the program status changes (the ST editor)
@@ -87,7 +97,26 @@ export class ProgramState {
 
 /** what attaching reads and drives: the document (store), the worker (sim), and the link side - an external PLC
  *  that owns the I/O, and the simulated PLC's OPC UA server that publishes the program */
-export type ProgramDeps = Pick<EditorController, 'store' | 'sim' | 'commsScene' | 'publishToUaServer' | 'externalSession' | 'uaServer'>
+export type ProgramDeps = Pick<EditorController, 'store' | 'sim' | 'commsScene' | 'publishToUaServer' | 'updateUaServers' | 'externalSession' | 'externalPlcAvailable'>
+
+/** Another controller the simulator runs beside the default one: its share of the program (plc/controller.ts controllerRuns). */
+export interface OtherRun {
+  controller: string
+  source: string
+  instances: readonly string[]
+}
+
+/** One controller's program bound to the parts as it sees them: its own tags, without its name (partsForController). */
+function bindRun(parts: SceneJSON['parts'], controller: string | null, source: string) {
+  const declared = new LocalPlcLink(source)
+  const seen = controller === null ? parts : partsForController(parts, controller)
+  const wired = wiredBindings(seen, declared)
+  const link = declared.withBindings(wired)
+  return { controller, source, declared, wired, link, seen }
+}
+
+/** A name of `controller`'s, as the parts and the Problems dock spell it. */
+const onController = (controller: string | null, name: string): string => controllerTag(controller, name)
 
 /** Set the program status and tell its watchers (the ST editor panel). */
 export function setProgramStatus(p: ProgramState, next: ProgramStatus): void {
@@ -95,54 +124,94 @@ export function setProgramStatus(p: ProgramState, next: ProgramStatus): void {
   for (const cb of p.watchers) cb()
 }
 
-/** Who the PLC drives now: the mirror the editor's UI reads, and the set shipped to the worker (ctx.tagDriven). */
+/** Who the default controller drives now. With the named links' half, that is the mirror the editor's UI reads and the
+ *  set shipped to the worker (ctx.tagDriven). */
 export function setDriven(p: ProgramState, sim: SimClient, driven: readonly string[]): void {
-  p.drivenKeys = new Set(driven)
+  p.ownDriven = [...driven]
+  shipAllDriven(p, sim)
+}
+
+/** Who the named controllers' links drive now (controller/plcLinks.ts). */
+export function setLinkDriven(p: ProgramState, sim: SimClient, driven: readonly string[]): void {
+  p.linkDriven = [...driven]
+  shipAllDriven(p, sim)
+}
+
+function shipAllDriven(p: ProgramState, sim: SimClient): void {
+  const all = [...p.ownDriven, ...p.simDriven, ...p.linkDriven]
+  p.drivenKeys = new Set(all)
   p.drivenRev++
-  sim.setDrivenTags([...driven])
+  sim.setDrivenTags(all)
 }
 
 export function runProgram(
   p: ProgramState,
   ec: ProgramDeps,
-  source: string,
+  source: string | null,
   opts?: { periodSec?: number },
+  others: readonly OtherRun[] = [],
 ): { unbound: string[]; unwired: string[]; warnings: string[] } {
   // The program's own tags a part is wired to by name connect too, not only its VAR_INPUT / VAR_OUTPUT,
   // with the parts saying which way (plc/wiring.ts wiredBindings). Worked out here, where the scene is,
-  // and shipped with the source so the worker's link binds exactly what these warnings describe.
-  const declared = new LocalPlcLink(source)
-  const wired = wiredBindings(ec.store.getState().scene.parts, declared)
-  const link = declared.withBindings(wired)
-  const { unbound, unwired } = unhandledProgramTags(ec.store.getState().scene.parts, link)
-  // The direction/type-aware half (plc/wiring.ts). unbound/unwired only ask whether a name is
-  // mentioned somewhere, so the mistakes that survive them are exactly the ones that look fine and
-  // behave wrong: two parts driving one tag (last writer wins, by part order), one tag declared as
-  // two types, a BOOL wired to a numeric program var. Folded into `warnings` - the panel already
-  // renders that list, and a wiring problem is the same kind of "this will not do what you meant".
-  const wiringWarnings = checkWiring(ec.store.getState().scene.parts, link).problems.map(
-    (p) => `${p.severity === 'error' ? 'Wiring error' : 'Wiring'} - ${p.tag}: ${p.message}`,
-  )
-  shipDriven(p, ec.sim, link.outputs)
+  // and shipped with the source so the worker's link binds exactly what these warnings describe. Each controller
+  // binds to its own tags, and what is said about them names it.
+  const parts = ec.store.getState().scene.parts
+  const built = [...(source !== null ? [bindRun(parts, null, source)] : []), ...others.map((o) => bindRun(parts, o.controller, o.source))]
+  const unbound: string[] = []
+  const unwired: string[] = []
+  const warnings: string[] = []
+  for (const b of built) {
+    const missing = unhandledProgramTags(b.seen, b.link)
+    unbound.push(...missing.unbound.map((n) => onController(b.controller, n)))
+    unwired.push(...missing.unwired.map((n) => onController(b.controller, n)))
+    // The direction/type-aware half (plc/wiring.ts). unbound/unwired only ask whether a name is
+    // mentioned somewhere, so the mistakes that survive them are exactly the ones that look fine and
+    // behave wrong: two parts driving one tag (last writer wins, by part order), one tag declared as
+    // two types, a BOOL wired to a numeric program var. Folded into `warnings` - the panel already
+    // renders that list, and a wiring problem is the same kind of "this will not do what you meant".
+    for (const w of checkWiring(b.seen, b.link).problems) {
+      warnings.push(`${w.severity === 'error' ? 'Wiring error' : 'Wiring'} - ${onController(b.controller, w.tag)}: ${w.message}`)
+    }
+  }
+  shipDriven(p, ec.sim, built)
+  // every controller's variables are one table, the default controller's own names winning over another's copy
+  const watch: Record<string, TagValue> = {}
+  for (const b of built) if (b.controller !== null) Object.assign(watch, b.link.watch)
+  for (const b of built) if (b.controller === null) Object.assign(watch, b.link.watch)
   // A force names a variable of the program it was set on, and outlives Stop. An attach keeps the ones this program
   // still has with the same kind of value, and drops the rest, so nothing reports a force that holds nothing (or holds
   // the wrong type). The ones still held show on the toolbar's count; a dropped one gets a notice, since it would
   // otherwise vanish from there unexplained.
   const before = ec.sim.forces
-  const kept = keptForces(before, link.watch)
+  const kept = keptForces(before, watch)
   if (kept !== before) {
     setForces(p, ec.sim, kept)
     announceDroppedForces(ec.store, Object.keys(before).filter((k) => !(k in kept)))
   }
-  // hand the program to the worker's scan host; the validation compile's initial variable image seeds
+  // hand the programs to the worker's scan hosts; the validation compile's initial variable image seeds
   // the watch table until the first frame carries live state
-  ec.sim.runProgram(source, opts?.periodSec, wired)
-  p.wiring = declared.bindable.length > 0 ? { declared, shipped: JSON.stringify(wired) } : null
-  p.seedWatch = link.watch
+  ec.sim.runProgram(
+    built.map((b) => ({
+      controller: b.controller,
+      source: b.source,
+      ...(opts?.periodSec !== undefined ? { periodSec: opts.periodSec } : {}),
+      wired: b.wired,
+      instances: others.find((o) => o.controller === b.controller)?.instances ?? [],
+    })),
+  )
+  p.runs = built.map((b) => ({ controller: b.controller, declared: b.declared, shipped: JSON.stringify(b.wired) }))
+  p.seedWatch = watch
   p.plcAttached = true
-  p.uaProgram = link
-  ec.publishToUaServer(link)
-  return { unbound, unwired, warnings: wiringWarnings }
+  // the OPC UA server publishes the default controller's program
+  const main = built.find((b) => b.controller === null)
+  p.uaProgram = main?.link ?? null
+  ec.publishToUaServer(main?.link ?? null)
+  return { unbound, unwired, warnings }
+}
+
+/** What the programs of `built` drive: the default controller's outputs as they are, another's with its name on. */
+function outputsOf(built: readonly { controller: string | null; link: LocalPlcLink }[]): string[] {
+  return built.flatMap((b) => b.link.outputs.map((o) => onController(b.controller, o)))
 }
 
 /**
@@ -151,8 +220,11 @@ export function runProgram(
  * worker (ctx.tagDriven) and mirror it here for the pilot's "In auto" prompt. Once per attach, and again
  * when a scene edit re-binds the program ({@link rebindProgram}).
  */
-export function shipDriven(p: ProgramState, sim: SimClient, outputs: readonly string[]): void {
-  setDriven(p, sim, outputs)
+export function shipDriven(p: ProgramState, sim: SimClient, built: readonly { controller: string | null; link: LocalPlcLink }[]): void {
+  p.simDriven = outputsOf(built.filter((b) => b.controller !== null))
+  // with no program here for the default controller, an external PLC runs it, and its link owns that part (plcLinks.ts)
+  if (built.some((b) => b.controller === null)) setDriven(p, sim, outputsOf(built.filter((b) => b.controller === null)))
+  else shipAllDriven(p, sim)
 }
 
 /**
@@ -162,23 +234,42 @@ export function shipDriven(p: ProgramState, sim: SimClient, outputs: readonly st
  * ownership with it. Nothing is sent unless the bindings actually changed.
  */
 export function rebindProgram(p: ProgramState, sim: SimClient, parts: SceneJSON['parts']): void {
-  const w = p.wiring
-  if (!w || !p.plcAttached) return
-  const wired = wiredBindings(parts, w.declared)
-  const shipped = JSON.stringify(wired)
-  if (shipped === w.shipped) return
-  w.shipped = shipped
-  const link = w.declared.withBindings(wired)
-  shipDriven(p, sim, link.outputs)
-  sim.rebindProgram(wired)
+  if (!p.plcAttached || p.runs.length === 0) return
+  let moved = false
+  const links = p.runs.map((r) => {
+    if (r.declared.bindable.length === 0) return { controller: r.controller, link: r.declared }
+    const wired = wiredBindings(r.controller === null ? parts : partsForController(parts, r.controller), r.declared)
+    const shipped = JSON.stringify(wired)
+    if (shipped !== r.shipped) {
+      r.shipped = shipped
+      moved = true
+      sim.rebindProgram(wired, r.controller ?? undefined)
+    }
+    return { controller: r.controller, link: r.declared.withBindings(wired) }
+  })
+  if (moved) shipDriven(p, sim, links)
+}
+
+/** Run `fn`, putting the controller's name before the message of a compile error it throws, so the error says whose. */
+function compiledFor<T>(controller: string, fn: () => T): T {
+  try {
+    return fn()
+  } catch (e) {
+    // defineProperty, not assignment: under lockdown Error.prototype is frozen, and assigning a property it has throws
+    if (e instanceof StError) Object.defineProperty(e, 'message', { value: `${controller}: ${e.message}` })
+    throw e
+  }
 }
 
 export function attachProgram(p: ProgramState, ec: ProgramDeps): void {
-  // an external PLC owns the I/O for this run; a second controller writing the same tags would fight it
-  if (ec.externalSession) return
   // a part scene runs its part's own behavior, and the factory program targets parts that are not in it (run())
   if (ec.store.getState().focusedPartId !== null) return
-  const { stProgram, stScanMs, controller, stDialect } = ec.store.getState()
+  const { stProgram, stScanMs, controller, stDialect, externalPlc: setup } = ec.store.getState()
+  // which controllers the simulator runs: the default one unless an external PLC runs it in its place (a second
+  // controller writing its tags would fight that PLC), and every named one set to run here (core/scene/scenePlcs.ts)
+  const defaultHere = !(ec.externalPlcAvailable && setup.enabled)
+  const simulated = setup.controllers.filter((c) => c.runsOn === 'app' && c.enabled).map((c) => c.name)
+  if (!defaultHere && simulated.length === 0) return
   // recorded whether or not it compiles: the same text is not offered for a reload again until it changes
   p.attached = attachedProgram({ stProgram, controller, stScanMs, stDialect })
   // A program written for a dialect this build does not have is refused before anything reads it (programRefusal).
@@ -195,10 +286,14 @@ export function attachProgram(p: ProgramState, ec: ProgramDeps): void {
   p.faultSource = stProgram
   try {
     // the program runs from its controller table (plc/controller.ts): its own, or the default one at the scan
-    // time; a program whose text runs as written (no table, no PROGRAM) scans on the scan time itself
-    const res = runProgram(p, ec, runnableSource(stProgram, controllerFor(stProgram, controller, stScanMs)), {
-      periodSec: stScanMs / 1000,
-    })
+    // time; a program whose text runs as written (no table, no PROGRAM) scans on the scan time itself. Each
+    // controller the simulator runs compiles its own share of it (controllerRuns), a problem in one naming it.
+    const runs = controllerRuns(stProgram, controller, stScanMs, { defaultName: setup.mainName, simulated })
+    const main = runs.find((r) => r.controller === null)
+    const others = runs.flatMap((r) =>
+      r.controller === null ? [] : [{ controller: r.controller, source: compiledFor(r.controller, () => runnableSource(r.source, r.table)), instances: r.table?.programs.map((q) => q.name) ?? [] }],
+    )
+    const res = runProgram(p, ec, defaultHere && main ? runnableSource(main.source, main.table) : null, { periodSec: stScanMs / 1000 }, others)
     p.fault = null // a new attach is a new run: the old fault is history (setProgramStatus below notifies)
     p.attachFailed = false
     p.runningSource = stProgram
@@ -210,7 +305,9 @@ export function attachProgram(p: ProgramState, ec: ProgramDeps): void {
     // control, so the line just sits there. That is indistinguishable from a healthy attach
     // unless we say so, and it is the shared symptom of every way a program can go missing
     // (an unseeded room, a scene file exported without its logic, a doc still syncing).
-    if (p.drivenKeys.size === 0 && commsTags(ec.store.getState().scene.parts).length > 0) {
+    // (with an external PLC running the default controller, its tags are that PLC's to drive, and it says so)
+    if (!defaultHere) warnings.unshift(DEFAULT_ON_PLC)
+    else if (p.ownDriven.length === 0 && commsTags(ec.store.getState().scene.parts).some((t) => controllerOf(t) === null)) {
       warnings.push(
         stProgram.trim() === ''
           ? 'No PLC program is attached, so every comms device is in hand control and the line will not start. Load or write a program, or operate devices by hand with C.'
@@ -243,7 +340,7 @@ export function attachProgram(p: ProgramState, ec: ProgramDeps): void {
 export function adoptLateProgram(p: ProgramState, ec: ProgramDeps): void {
   const s = ec.store.getState()
   if (!s.running || !p.plcAttached) return
-  if (p.drivenKeys.size > 0) return // already driving something: leave it alone
+  if (p.ownDriven.length > 0) return // already driving something: leave it alone
   if (s.stProgram === (p.attached?.source ?? '') || s.stProgram.trim() === '') return
   if (s.focusedPartId !== null) return // a part scene runs its own behavior, not the factory program
   attachProgram(p, ec)
@@ -267,11 +364,12 @@ export function stopProgram(p: ProgramState, ec: ProgramDeps): void {
   p.attachFailed = false
   p.attachedScanMs = 0
   p.seedWatch = null
-  p.wiring = null
+  p.runs = []
   p.uaProgram = null
-  ec.uaServer?.update(null, false) // out of service until a program runs here again
+  ec.updateUaServers(null, false) // out of service until a program runs here again
   ec.sim.stopProgram()
   // ownership releases with the program (PROGRAM mode): every device is hand-operable again
+  p.simDriven = []
   setDriven(p, ec.sim, []) // the worker drops it when already stopped - the next run starts with a fresh world
   // Custom parts read their PLC tags off the device-IO bridge and drive their own visuals from their
   // behavior; with no program left to feed those tags, the parts idle on their next step. Push the scene

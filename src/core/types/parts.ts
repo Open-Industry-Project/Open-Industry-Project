@@ -3,6 +3,7 @@
 // the scene container. The `Record<PartType, PartDef>` annotation on PART_DEFS is
 // the exhaustiveness gate - a family that forgets to register a type fails the build here.
 import type { PartPackage } from '../parts/partPackage'
+import type { ScenePlc } from '../scene/scenePlcs'
 import { SCENE_VERSION, num, tagRef, text, type EnumParamSpec, type PartBase, type PartDef, type PartType } from './base'
 import { STRUCTURE_DEFS, type BuildingPart } from './structure'
 
@@ -90,6 +91,12 @@ export interface SceneJSON {
    * a new scene, and what a scene saved before it existed already is (its conveyors predate the switch).
    */
   units?: SceneUnits
+  /**
+   * The scene's controllers (core/scene/scenePlcs.ts): the first is the default one, which tags with no controller name
+   * belong to, and the rest are PLCs a tag reaches by name (`Cell2::%IX0.0`). Absent: the scene has not set them, and
+   * the app derives them as it did before scenes carried them (editor/store/storePlcs.ts).
+   */
+  plcs?: ScenePlc[]
 }
 
 export type SceneUnits = 'imperial' | 'metric'

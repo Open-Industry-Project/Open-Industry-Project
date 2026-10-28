@@ -3,6 +3,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { versionedAssetUrl } from '../../core/assetVersions'
 import { sameAsBuiltIn } from '../../core/builtInVersion'
+import { controllersUsed } from '../../core/io/controllerTag'
+import { ControllerScope } from './inspector/controllerRow'
 import { PART_DEFS } from '../../core/types'
 import type { ParamSpec, PartInstance, PartType, SdkPart } from '../../core/types'
 import { partParamSpecs, switchValue, visibleWhenHolds } from '../../core/packageParams'
@@ -21,7 +23,7 @@ import type { LiveEditGate } from './inspector/fields'
 import { ContextMenu, menuItemsFor } from './inspector/menu'
 import type { OpenCtx, PropMenuState } from './inspector/menu'
 import { GroupSection, ParamField, buildGroupTree } from './inspector/paramField'
-import { buildSceneTagIndex } from './inspector/paramLogic'
+import { buildSceneTagIndex, firstTagKey } from './inspector/paramLogic'
 import type { SceneTagIndex } from './inspector/paramLogic'
 import { HoldsSection } from './inspector/holds'
 import { PartActions, PartInfoFields, PartStatus } from './inspector/rig'
@@ -203,9 +205,16 @@ function useTagSources(controller: EditorController | null, state: EditorState):
   const program = state.stProgram
   const { stDialect: dialect, controller: table, stScanMs: scanMs } = state
   const check = useMemo(() => ({ source: program, dialect, controller: table, scanMs }), [program, dialect, table, scanMs])
+  // the named controllers a tag field offers: the ones the project lists, then any other the scene's tags name
+  const setUp = settings.controllers
+  const parts = state.scene.parts
+  const controllers = useMemo(() => {
+    const names = setUp.map((c) => c.name)
+    return [...names, ...controllersUsed(parts).filter((n) => !names.includes(n))]
+  }, [setUp, parts])
   return useMemo(
-    () => ({ check, plc, plcLinked: linked, external: settings.enabled, canReadPlc, readPlc: () => controller?.readPlcTags() }),
-    [check, plc, linked, settings.enabled, canReadPlc, controller],
+    () => ({ check, plc, plcLinked: linked, external: settings.enabled, canReadPlc, readPlc: () => controller?.readPlcTags(), controllers, defaultName: settings.mainName }),
+    [check, plc, linked, settings.enabled, canReadPlc, controller, controllers, settings.mainName],
   )
 }
 
@@ -551,29 +560,32 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
           </button>
         </div>
       )}
-      {ungrouped.map((spec) => (
-        <ParamField key={spec.key} store={store} spec={spec} parts={targets} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints ?? undefined} disabled={false} update={update} onContext={openCtx} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
-      ))}
-      {groups.map((group) => (
-        <GroupSection
-          key={group.path}
-          store={store}
-          node={group}
-          depth={0}
-          collapsed={effCollapsed}
-          toggle={toggle}
-          parts={targets}
-          allParts={allParts}
-          tagIndex={tagIndex}
-          liveSetpoints={liveSetpoints ?? undefined}
-          disabled={false}
-          update={update}
-          onContext={openCtx}
-          capturePose={capturePose}
-          previewPose={previewPose}
-          forcing={forcing}
-        />
-      ))}
+      {/* one Controller row for every tag of the part, above its first tag field (inspector/controllerRow.tsx) */}
+      <ControllerScope store={store} parts={targets} firstTag={firstTagKey(ungrouped, groups)}>
+        {ungrouped.map((spec) => (
+          <ParamField key={spec.key} store={store} spec={spec} parts={targets} allParts={allParts} tagIndex={tagIndex} liveSetpoints={liveSetpoints ?? undefined} disabled={false} update={update} onContext={openCtx} capturePose={capturePose} previewPose={previewPose} forcing={forcing} />
+        ))}
+        {groups.map((group) => (
+          <GroupSection
+            key={group.path}
+            store={store}
+            node={group}
+            depth={0}
+            collapsed={effCollapsed}
+            toggle={toggle}
+            parts={targets}
+            allParts={allParts}
+            tagIndex={tagIndex}
+            liveSetpoints={liveSetpoints ?? undefined}
+            disabled={false}
+            update={update}
+            onContext={openCtx}
+            capturePose={capturePose}
+            previewPose={previewPose}
+            forcing={forcing}
+          />
+        ))}
+      </ControllerScope>
       {!multi && part.type === 'part' && <HoldsSection store={store} part={part as SdkPart} scene={state.scene} running={state.running} />}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItemsFor(menu)} onClose={() => setMenu(null)} />}
     </div>

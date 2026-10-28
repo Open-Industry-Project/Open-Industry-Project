@@ -12,6 +12,7 @@
 // validation wholesale, so it inherits every clamp/migration scene validation does.
 
 import { savedParts, validateScene } from '../scene/scene'
+import { sceneSettings } from '../scene/scenePlcs'
 import { definitionsUsedBy } from '../parts/partPackage'
 import { validatePartPackage } from '../parts/partValidate'
 import { upgradeStoredPackage } from '../parts/partUpgrade'
@@ -255,7 +256,7 @@ function sceneWithPackages(
     version: SCENE_VERSION,
     parts: scene.parts,
     ...(packages.length > 0 ? { packages } : {}),
-    ...(scene.units !== undefined ? { units: scene.units } : {}),
+    ...sceneSettings(scene),
     ...(typeof stProgram === 'string' && stProgram !== ''
       ? { stProgram, ...(typeof stScanMs === 'number' ? { stScanMs } : {}) }
       : {}),
@@ -316,8 +317,8 @@ function validateMachine(
     return undefined
   }
   const candidate = sceneWithPackages(
-    // units as written: validateScene keeps a valid one and reports anything else
-    { version: SCENE_VERSION, parts: rawParts, ...(rawScene.units !== undefined ? { units: rawScene.units as SceneJSON['units'] } : {}) },
+    // the scene's settings as written: validateScene keeps what it can read and reports the rest
+    { version: SCENE_VERSION, parts: rawParts, ...sceneSettings(rawScene as Pick<SceneJSON, 'units' | 'plcs'>) },
     resolving,
     stProgram,
     stScanMs,
@@ -346,7 +347,7 @@ function validateMachine(
       version: SCENE_VERSION,
       parts: validated.scene.parts,
       ...(scenePkgs.length > 0 ? { packages: scenePkgs } : {}),
-      ...(validated.scene.units !== undefined ? { units: validated.scene.units } : {}),
+      ...sceneSettings(validated.scene),
     },
     ...(validated.stProgram !== undefined && validated.stProgram !== ''
       ? {
@@ -607,7 +608,7 @@ export function serializeProject(
         version: PROJECT_VERSION,
         name: project.name,
         ...(library.length > 0 ? { packages: library } : {}),
-        scene: { version: SCENE_VERSION, parts, ...(own.length > 0 ? { packages: own } : {}), ...(project.scene.units !== undefined ? { units: project.scene.units } : {}) },
+        scene: { version: SCENE_VERSION, parts, ...(own.length > 0 ? { packages: own } : {}), ...sceneSettings(project.scene) },
         ...(typeof project.stProgram === 'string' && project.stProgram !== ''
           ? {
               stProgram: project.stProgram,
@@ -651,7 +652,7 @@ export function sceneToProject(
       version: SCENE_VERSION,
       parts: scene.parts,
       ...(scene.packages && scene.packages.length > 0 ? { packages: scene.packages } : {}),
-      ...(scene.units !== undefined ? { units: scene.units } : {}),
+      ...sceneSettings(scene),
     },
     ...(typeof stProgram === 'string' && stProgram !== ''
       ? {
@@ -685,7 +686,7 @@ export function projectToScene(project: ProjectJSON): {
       version: SCENE_VERSION,
       parts: project.scene.parts,
       ...(packages.length > 0 ? { packages } : {}),
-      ...(project.scene.units !== undefined ? { units: project.scene.units } : {}),
+      ...sceneSettings(project.scene),
     },
     stProgram: project.stProgram ?? '',
     ...(project.stScanMs !== undefined ? { stScanMs: project.stScanMs } : {}),

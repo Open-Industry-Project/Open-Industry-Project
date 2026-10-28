@@ -126,7 +126,7 @@
     <section class="section" id="serve">
       <div class="wrap">
         <h2>2. Serve the I/O over Modbus TCP</h2>
-        <p>Open <span class="ui">Simulation &gt; External PLC…</span> (or double-click the Controller node at the top of the PLC panel's organizer) and set:</p>
+        <p>Open <span class="ui">Simulation &gt; PLC Controllers…</span> (or double-click the Controller node at the top of the PLC panel's organizer) and set:</p>
         <ol class="steps">
           <li><span class="ui">Runs on</span>: <b>An external PLC</b>. On Play, the simulator hands the scene's I/O to your PLC instead of running the program in its own PLC panel.</li>
           <li>Under it, how the PLC connects: <b>The PLC polls the simulator</b> (the PLC is the Modbus master).</li>
@@ -199,7 +199,7 @@
           <li>Addresses are 0-based protocol addresses. Tools that print 1-based labels show discrete input 0 as <code>10001</code> and coil 0 as <code>00001</code>.</li>
           <li>A REAL or DINT takes two registers, low word first. Some masters call this "swapped words" or "little-endian word order". A REAL travels as its IEEE 754 bit pattern, with no scaling.</li>
           <li>The unit ID is ignored. Use 1, or whatever your master defaults to.</li>
-          <li>Bytes (<code>%IB</code>), 64-bit values (<code>%IL</code>) and memory (<code>%M</code>) are not sent. The External PLC dialog lists anything it cannot carry, and why.</li>
+          <li>Bytes (<code>%IB</code>), 64-bit values (<code>%IL</code>) and memory (<code>%M</code>) are not sent. Controller Properties lists anything it cannot carry, and why.</li>
         </ul>
       </div>
     </section>
@@ -303,7 +303,7 @@ END_PROGRAM</code></pre>
     <section class="section" id="run">
       <div class="wrap">
         <h2>5. Run it</h2>
-        <p>Back in the simulator, press Play. The status line in the External PLC dialog (and the link status in the toolbar) shows each stage:</p>
+        <p>Back in the simulator, press Play. The status line in Controller Properties (and the link status in the toolbar) shows each stage:</p>
         <ul class="dash">
           <li><code>Serving on 127.0.0.1:5020: no PLC connected yet</code> means the port is open and waiting. Start the PLC now if it is not running.</li>
           <li><code>Serving on 127.0.0.1:5020: 1 connected (...)</code>, with a count of requests, means the PLC is polling.</li>
@@ -403,7 +403,7 @@ END_PROGRAM</code></pre>
           <dd>You are in a browser tab. Connecting needs the desktop app. You can still wire the scene and run Assign I/O in the browser, then open the scene in the desktop app.</dd>
 
           <dt>"Could not serve: ..." when you press Play.</dt>
-          <dd>Something else is using the port. Pick another one in the External PLC dialog, and give the PLC the same number.</dd>
+          <dd>Something else is using the port. Pick another one in Controller Properties, and give the PLC the same number.</dd>
 
           <dt>It stays on "no PLC connected yet".</dt>
           <dd>
@@ -415,7 +415,7 @@ END_PROGRAM</code></pre>
           <dt>The PLC is connected, but the belt never runs or never stops.</dt>
           <dd>
             The addresses on the two sides do not match. The usual causes are off-by-one (a 1-based tool shows discrete input 0 as <code>10001</code>), mixing up bit and byte numbers (<code>%IX1.0</code> is point 8, not 1), or
-            a tag field left empty on a part. The External PLC dialog lists exactly which points it serves.
+            a tag field left empty on a part. Controller Properties lists exactly which points it serves.
           </dd>
 
           <dt>Analog values are nonsense, like a huge number or a tiny fraction.</dt>

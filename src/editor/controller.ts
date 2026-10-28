@@ -22,7 +22,7 @@ import { keepProjectVersion } from './store/storePackages'
 import { desktopAdsHost, desktopEipHost, desktopOpcUaHost, desktopPlcIoHost, flattenFrameTags } from './links/externalPlcStatus'
 import type { AdsHost, EipHost, ExternalPlcLink, ExternalPlcStatus, OpcUaHost, PlcIoHost, PlcTagList } from './links/externalPlcStatus'
 import { desktopOpcUaServerHost, OPC_UA_SERVER_OFF } from './links/opcUaServer'
-import type { OpcUaServerHost, OpcUaServerSession, OpcUaServerStatus, PublishedProgram } from './links/opcUaServer'
+import type { OpcUaServerHost, OpcUaServerStatus, PublishedProgram } from './links/opcUaServer'
 import { programOutOfDate, type ReloadBlocker } from './program/programReload'
 import { coverSceneSwapIfArriving } from './sceneSwapCover'
 import type { EditorState, EditorStore, LiveCargoPose, ToolMode, TransformSpace } from './store/store'
@@ -225,13 +225,14 @@ export class EditorController {
 
     sim.onFrame = (frame) => {
       this.lastFrame = frame
-      // an external PLC exchanges its I/O once per frame, like a fieldbus (editor/links/externalPlc.ts)
-      if (this.links.externalSession) {
-        const out = this.links.externalSession.exchange(flattenFrameTags(frame.tags))
+      // an external PLC exchanges its I/O once per frame, like a fieldbus (editor/links/externalPlc.ts), and so does
+      // each named controller's (controller/plcLinks.ts)
+      if (this.links.externalSession || this.links.named.length > 0) {
+        const out = linkOps.exchangeLinks(this.links, flattenFrameTags(frame.tags))
         if (out) this.sim.setTags(out)
       }
-      // the simulated PLC's OPC UA server reads the program's variables as the watch table does
-      this.links.uaServer?.update(this.plcWatch, this.program.plcAttached)
+      // the simulated PLC's OPC UA servers read the program's variables as the watch table does
+      this.updateUaServers(this.plcWatch, this.program.plcAttached)
       this.view.applyBoxFrame(frame)
       this.boxCount = frame.count
       this.trackSelectedBox(frame)
@@ -378,7 +379,7 @@ export class EditorController {
     // a SCADA may be waiting for the simulated PLC's OPC UA server from the moment the app opens
     this.syncOpcUaServer()
     // a scene that runs on an external PLC: have the link's code in hand before Play needs it
-    if (this.externalPlcAvailable && s.externalPlc.enabled) void linkOps.loadExternalPlc(this.links).catch(() => {})
+    if (this.externalPlcAvailable && linkOps.anyLinkOn(s.externalPlc)) void linkOps.loadExternalPlc(this.links).catch(() => {})
   }
 
   run(): void {
@@ -429,6 +430,14 @@ export class EditorController {
     return this.links.externalSession ? this.links.externalSession.status() : this.links.externalStatus
   }
 
+  /**
+   * A named controller's link state (`Cell2::...` tags, core/io/controllerTag.ts), for Controller Properties and the
+   * toolbar's link status: its run's, or its last one, kept after Stop. Changes notify through {@link onExternalPlcStatus}.
+   */
+  namedPlcStatus(name: string): Readonly<ExternalPlcStatus> {
+    return linkOps.namedStatus(this.links, name)
+  }
+
   /** Subscribe to external-PLC status changes (listening, a master connecting, a failure); returns an unsubscribe. */
   onExternalPlcStatus(cb: () => void): () => void {
     this.links.watchers.add(cb)
@@ -438,11 +447,6 @@ export class EditorController {
   /** the external-PLC link of the current run, or null (internal - for controller/program.ts: it owns the I/O) */
   get externalSession(): ExternalPlcLink | null {
     return this.links.externalSession
-  }
-
-  /** the simulated PLC's OPC UA server while it is switched on, or null (internal - for controller/program.ts) */
-  get uaServer(): OpcUaServerSession | null {
-    return this.links.uaServer
   }
 
   /** The simulated PLC's OPC UA server's state, for Controller Properties. */
@@ -459,14 +463,27 @@ export class EditorController {
     linkOps.syncOpcUaServer(this.links, this.program, this)
   }
 
-  /** internal - for controller/program.ts */
-  publishToUaServer(program: PublishedProgram): void {
-    linkOps.publishToUaServer(this.links, this.store, program)
+  /** internal - for controller/program.ts: the default controller's program (null when it runs on an external PLC), and
+   *  each simulated controller's own on its own server */
+  publishToUaServer(program: PublishedProgram | null): void {
+    if (program) linkOps.publishToUaServer(this.links, this.store, program)
+    linkOps.publishNamedUaServers(this.links, this.program, this)
+  }
+
+  /** internal - for controller/program.ts: every OPC UA server's values, and whether a program runs here */
+  updateUaServers(watch: Readonly<Record<string, TagValue>> | null, live: boolean): void {
+    linkOps.updateUaServers(this.links, watch, live)
+  }
+
+  /** A simulated controller's own OPC UA server's state, for Controller Properties. */
+  namedUaServerStatus(name: string): Readonly<OpcUaServerStatus> {
+    return linkOps.namedUaServerStatus(this.links, name)
   }
 
   /** internal - for controller/simRun.ts */
   detachExternalPlc(): void {
     linkOps.detachExternalPlc(this.links)
+    programOps.setLinkDriven(this.program, this.sim, [])
   }
 
   togglePause(): void {
@@ -881,8 +898,7 @@ export class EditorController {
     this.view.onCameraSettled = null
     this.store.setLiveCargoHost(null)
     this.sim.onFrame = () => {}
-    void this.links.uaServer?.stop()
-    this.links.uaServer = null
+    linkOps.stopUaServers(this.links)
   }
 
   /**

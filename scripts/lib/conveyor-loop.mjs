@@ -110,8 +110,12 @@ END_IF;
 
 // ---- loading our side ----
 
-/** This repo's modules, loaded through vite (they are TypeScript), with the bundled parts registered and Jolt up. */
-export async function loadOurs() {
+/**
+ * This repo's modules, loaded through vite (they are TypeScript), with the bundled parts registered and Jolt up.
+ * `more` names further modules by key; each comes back as its own namespace under `ours.more`, loaded in the same
+ * module graph, so it sees the same registered parts.
+ */
+export async function loadOurs(more = {}) {
   const vite = await createServer({ configFile: false, root: ROOT, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false, watch: null }, appType: 'custom', optimizeDeps: { noDiscovery: true } })
   try {
     const m = (p) => vite.ssrLoadModule(p)
@@ -139,6 +143,8 @@ export async function loadOurs() {
       ...(await m('/src/editor/parts/bundledPackageData.ts')),
       ...(await m('/src/core/types/index.ts')),
     }
+    ours.more = {}
+    for (const [key, path] of Object.entries(more)) ours.more[key] = await m(path)
     const initJolt = (await m('jolt-physics')).default
     for (const pkg of ours.bundledPackagesFromData()) ours.registerPackage(pkg, true)
     ours.Jolt = await initJolt()
@@ -178,11 +184,13 @@ export function flattenTags(tags) {
 /** Records what the checks need: when the belt started and stopped, when the eye saw the box, where the box went. */
 export class Trace {
   rows = []
-  constructor(points) {
+  /** `box` is the part id of the box to follow */
+  constructor(points, box = 'box') {
     this.points = points
+    this.box = box
   }
   add(t, tags, frame) {
-    const i = frame.partIds.indexOf('box')
+    const i = frame.partIds.indexOf(this.box)
     const { eye, run, range, speed } = this.points
     this.rows.push({
       t,

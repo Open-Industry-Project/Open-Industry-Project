@@ -7,6 +7,7 @@ import { isCargoPart } from '../../core/frame'
 import type { PartInstance } from '../../core/types'
 import type { StepDone } from '../../sim/client'
 import * as dragOps from './drag'
+import { anyLinkOn } from './plcLinks'
 import type { EditorController } from '../controller'
 
 export function run(ec: EditorController): void {
@@ -43,8 +44,10 @@ export function run(ec: EditorController): void {
     // a part scene is open: the factory program targets parts that aren't in the isolated scene, and the
     // part's own behavior already runs per-part in the sim.
     if (s.focusedPartId === null) {
-      if (ec.externalPlcAvailable && s.externalPlc.enabled) held = ec.startExternalPlc()
-      else ec.attachProgram()
+      // the named controllers' links run beside the simulator's programs; the attach runs every controller the
+      // simulator runs, the default one unless an external PLC runs it in its place
+      if (ec.externalPlcAvailable && anyLinkOn(s.externalPlc)) held = ec.startExternalPlc()
+      ec.attachProgram()
     }
   } finally {
     // in a finally because a world that never steps is a far worse failure than one that steps

@@ -41,7 +41,7 @@ import { describeStats, ModbusServerIo } from '../../plc/link/modbusServer'
 import type { ModbusStream } from '../../plc/link/modbusServer'
 import type { TagValue } from '../../plc/types'
 import { checkWiring } from '../../plc/wiring'
-import type { ExternalPlcSettings } from '../store/storePrefs'
+import type { ExternalPlcSettings, PlcLinkSettings } from '../store/storePrefs'
 import { CLIENT_ANSWER_MS, CLIENT_POLL_MS, CLIENT_RETRY_MS, NamedLink, NOT_CONNECTED, POLL_TIMEOUT_MS, SocketLink } from './clientLink'
 
 export { CLIENT_ANSWER_MS, CLIENT_POLL_MS, CLIENT_RETRY_MS, POLL_TIMEOUT_MS }
@@ -144,7 +144,7 @@ export function describeAdsPoint(p: AdsPoint | AdsBinding): string {
 }
 
 /** What Play would carry with these settings, as the dock lists it before Play. */
-export function plannedLink(parts: readonly PartInstance[], settings: ExternalPlcSettings): { points: string[]; problems: string[] } {
+export function plannedLink(parts: readonly PartInstance[], settings: PlcLinkSettings): { points: string[]; problems: string[] } {
   if (settings.mode === 'ads') {
     const { points, problems } = deriveAdsPoints(parts)
     return { points: points.map(describeAdsPoint), problems }

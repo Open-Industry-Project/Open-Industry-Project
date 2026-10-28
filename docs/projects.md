@@ -17,7 +17,8 @@ A `ProjectJSON` (`src/core/project/project.ts`) is a manifest over pieces that a
 ProjectJSON {
   version                    // 7 (1-6 accepted + migrated on load, splitting a multi-scene one; only 7 is written; 6 = asset files, 7 = program files)
   name
-  scene: SceneJSON           // the layout; its parts name their packages by id, and it carries no copies
+  scene: SceneJSON           // the layout; its parts name their packages by id, and it carries no copies;
+                             //   also its Units and its controllers (plcs, src/plc/DEVICE-IO.md)
   stProgram?, stScanMs?,     // the PLC program and its cycle time
   controller?, stDialect?    //   its task table; stDialect is a compatibility marker (below)
   simHz?                     // the physics step rate (below)
@@ -101,9 +102,11 @@ The main design choices:
    which one is shown. The pick is a view, not part of the document.
 
    There is no separate Controller dock. The tree's first node, Controller, holds Main. Its properties are the
-   external PLC link ([ControllerDialog.tsx](../src/editor/components/plc/ControllerDialog.tsx)), a machine setting
-   kept in the browser, never in the project. While Play hands the scene to an external PLC, the toolbar shows
-   the link's state beside Play and Stop ([PlcLinkStatus.tsx](../src/editor/components/plc/PlcLinkStatus.tsx)).
+   scene's controllers ([ControllerDialog.tsx](../src/editor/components/plc/ControllerDialog.tsx)): which the program
+   here runs, which are PLCs and how Play reaches them, saved in the scene (`SceneJSON.plcs`). Each PLC's address
+   is a machine setting kept in the browser, never in the project ([src/plc/DEVICE-IO.md](../src/plc/DEVICE-IO.md),
+   "Several controllers"). While Play connects a PLC, the toolbar shows the link's state beside Play and Stop
+   ([PlcLinkStatus.tsx](../src/editor/components/plc/PlcLinkStatus.tsx)).
 
    A program with no table sees the default one, and its task interval is where the scan time is edited.
    Retiming the default table sets `stScanMs` and stores no table. "+ Program" asks for a name, then adds a

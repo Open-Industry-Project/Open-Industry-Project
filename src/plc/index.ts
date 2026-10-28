@@ -25,6 +25,10 @@ export {
   ControllerError,
   controllerDiagnostics,
   controllerFor,
+  controllerRuns,
+  plcOfProgram,
+  plcOfTask,
+  pinnedTaskMessages,
   controllerSource,
   declaresConfiguration,
   defaultController,
@@ -36,7 +40,7 @@ export {
   runnableSource,
   topLevelStatements,
 } from './controller'
-export type { ControllerDiagnostics } from './controller'
+export type { ControllerDiagnostics, ControllerRun } from './controller'
 // ...and the edits an organizer makes to one, with the tag renames they cause
 export {
   addProgram,
@@ -51,6 +55,8 @@ export {
   renameTask,
   scheduleProgram,
   setProgramTask,
+  setProgramPlc,
+  setTaskPlc,
   setProgramType,
   setTaskTiming,
   taskNameError,

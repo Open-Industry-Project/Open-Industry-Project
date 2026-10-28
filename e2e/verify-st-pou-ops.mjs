@@ -86,7 +86,7 @@ async function main() {
 
     await setDoc(page, PROGRAM)
     await page.waitForTimeout(600)
-    check('the tree lists the program it was given', (await rowNames(page)) === 'Main,Latch,Other', await rowNames(page))
+    check('the tree lists the program it was given', (await rowNames(page)) === 'Top-level code,Latch,Other', await rowNames(page))
 
     // ---- New: "+ New" adds a block and asks what it is called ----
     await page.locator('[data-testid="org-new"]').click()
@@ -100,7 +100,7 @@ async function main() {
     await page.keyboard.type('Debounce')
     await page.keyboard.press('Enter')
     await page.waitForTimeout(600)
-    check('the name typed is the name kept', (await rowNames(page)) === 'Main,Latch,Other,Debounce', await rowNames(page))
+    check('the name typed is the name kept', (await rowNames(page)) === 'Top-level code,Latch,Other,Debounce', await rowNames(page))
     const afterAdd = await stored(page)
     check('the new POU lands ABOVE the program body, where the grammar needs it',
       afterAdd.indexOf('FUNCTION_BLOCK Debounce') < afterAdd.indexOf('seal(S := Start'),
@@ -145,7 +145,7 @@ async function main() {
     await page.waitForTimeout(250)
 
     // ---- the program body is not a POU among POUs ----
-    await row(page, 'Main').click({ button: 'right' })
+    await row(page, 'Top-level code').click({ button: 'right' })
     await page.locator('.ctx-menu').waitFor({ state: 'visible', timeout: 4000 })
     check('the top-level code offers no Delete', (await page.locator('[data-testid="org-delete-item"]').count()) === 0)
     await page.keyboard.press('Escape')
@@ -154,7 +154,7 @@ async function main() {
     // ---- Delete, and Ctrl-Z ----
     await rowMenu(page, 'Debounce', 'org-delete-item')
     await page.waitForTimeout(300)
-    check('deleting a block drops it from the tree', (await rowNames(page)) === 'Main,Interlock,Other', await rowNames(page))
+    check('deleting a block drops it from the tree', (await rowNames(page)) === 'Top-level code,Interlock,Other', await rowNames(page))
     check('and from the program', !(await stored(page)).includes('Debounce'))
     await page.locator('.cm-content').focus()
     await page.keyboard.press('Control+z')
@@ -227,7 +227,7 @@ async function main() {
     const filler = (tag) => Array.from({ length: 60 }, (_, k) => `(* ${tag} note ${k} *)`).join('\n')
     await setDoc(page, `FUNCTION_BLOCK Alpha\n${filler('alpha')}\nEND_FUNCTION_BLOCK\n\nFUNCTION_BLOCK Beta\n${filler('beta')}\nEND_FUNCTION_BLOCK\n\nVAR_INPUT X : BOOL; END_VAR\nX := X;`)
     await page.waitForTimeout(600)
-    check('the row of the block the cursor is in is lit (typing ends in the body)', (await litRows(page)) === 'Main', await litRows(page))
+    check('the row of the block the cursor is in is lit (typing ends in the body)', (await litRows(page)) === 'Top-level code', await litRows(page))
     await row(page, 'Alpha').click()
     await page.waitForTimeout(300)
     check('opening a row lights that row, and only that one', (await litRows(page)) === 'Alpha', await litRows(page))
@@ -241,7 +241,7 @@ async function main() {
     await page.locator('.cm-content').focus()
     await page.keyboard.press('Control+End')
     await page.waitForTimeout(300)
-    check('moving the cursor lights its block again', (await litRows(page)) === 'Main', await litRows(page))
+    check('moving the cursor lights its block again', (await litRows(page)) === 'Top-level code', await litRows(page))
 
     // ---- Devices: the scene's parts that use tags, in the organizer tree ----
     // The section is the tree's (components/plc/OrganizerTree.tsx): it is what the scene offers the program, so an

@@ -1,3 +1,4 @@
+import { sceneSettings } from '../../core/scene/scenePlcs'
 import { partDisplayName } from '../../core/parts/partDisplayName'
 import { dockOpeningBlocker } from '../../core/building/buildingDocks'
 import { builtInPackage, getPackage, registerPackage, registerScenePackages } from '../../core/parts/partRegistry'
@@ -39,9 +40,9 @@ import {
   VSNAP_COLLISION_KEY,
   VSNAP_ORIGIN_KEY,
   persistPref,
-  sanitizeExternalPlc,
 } from './storePrefs'
-import type { ExternalPlcSettings } from './storePrefs'
+import type { ExternalPlcSettings, PlcLinkSettings, UaServerSettings } from './storePrefs'
+import { addPlc, plcSetupOf, removePlc, renamePlc, setPlcLink, setRunsOn } from './storePlcs'
 import { restoreUserPackages as restoreUserPackagesFromStorage, syncUserCatalog } from './storePackages'
 import * as library from './storePackages'
 import type { LibraryAreas } from './storePackages'
@@ -1018,17 +1019,37 @@ export class EditorStore {
     this.setState({ selectedGuardOpening: sel })
   }
 
-  /** Change the external-PLC link settings (any subset); an invalid value keeps the last valid one. Applies on the next Play,
-   *  except the simulated PLC's OPC UA server, which the controller starts and stops as it is switched (editor/links/opcUaServer.ts). */
+  /** Change the default controller's link (any subset): what runs it and its protocol are edits, the rest this computer's
+   *  address (storePlcs.ts). Applies on the next Play, except the OPC UA server, which starts and stops as it is switched. */
   setExternalPlc(patch: Partial<ExternalPlcSettings>): void {
-    const cur = this.state.externalPlc
-    const next = sanitizeExternalPlc({ ...cur, ...patch })
-    for (const key of ['port', 'plcHost', 'plcPort', 'inputBase', 'outputBase', 'opcUaEndpoint', 'eipGateway', 'eipPath', 'uaServerPort'] as const) {
-      if (patch[key] !== undefined && next[key] !== patch[key]) (next as Record<typeof key, unknown>)[key] = cur[key]
-    }
-    if ((Object.keys(next) as (keyof ExternalPlcSettings)[]).every((k) => next[k] === cur[k])) return
-    this.setState({ externalPlc: next })
-    persistPref(EXTERNAL_PLC_KEY, JSON.stringify(next))
+    setPlcLink(this, null, patch)
+  }
+
+  /** This computer's PLC preferences (storePlcs.ts), kept in localStorage. */
+  setPlcPrefs(plcPrefs: ExternalPlcSettings): void {
+    this.setState({ plcPrefs })
+    persistPref(EXTERNAL_PLC_KEY, JSON.stringify(plcPrefs))
+  }
+
+  /** Add a PLC controller to the scene, as an edit; false when the name is refused or the list is full. */
+  addNamedPlc(name: string): boolean {
+    return addPlc(this, name)
+  }
+
+  /** Rename a controller and every tag on it, as one edit (storePlcs.ts renamePlc); false when refused. */
+  renameNamedPlc(from: string, to: string): boolean {
+    return renamePlc(this, from, to)
+  }
+
+  /** Run a controller (null: the default one) in the simulator or on a PLC outside it, as an edit (storePlcs.ts). */
+  setPlcRunsOn(name: string | null, runsOn: 'app' | 'plc'): void {
+    setRunsOn(this, name, runsOn)
+  }
+
+  /** Change a named controller's link (any subset), or remove it from the scene (null). */
+  setNamedPlc(name: string, patch: Partial<PlcLinkSettings & UaServerSettings> | null): void {
+    if (patch === null) removePlc(this, name)
+    else setPlcLink(this, name, patch)
   }
 
   setShowGrid(showGrid: boolean): void {
@@ -1591,6 +1612,8 @@ export class EditorStore {
       if (next.sideGuardMode && touched && !guardOpeningsTarget(next)) partial = { ...partial, sideGuardMode: false, selectedGuardOpening: null }
     }
     this.state = { ...this.state, ...partial }
+    // the controllers as Play uses them follow the document's list and this computer's addresses (storePlcs.ts)
+    if (partial.scene || partial.plcPrefs || partial.packageEdit !== undefined) this.state.externalPlc = plcSetupOf(documentSceneOf(this.state), this.state.plcPrefs)
     // the view always tracks the live scene (smooth gizmo drag); React skips the
     // transient stream and re-renders only on structural changes / commits (StoreSubscribers.notify)
     this.subscribers.notify(transient)
@@ -2126,7 +2149,7 @@ export class EditorStore {
       version: SCENE_VERSION,
       parts: project.scene.parts,
       ...(own.length > 0 ? { packages: own } : {}),
-      ...(project.scene.units !== undefined ? { units: project.scene.units } : {}),
+      ...sceneSettings(project.scene),
     }
     // The step rate goes in first: loading the program below persists, and that persist captures the live state into
     // this project. With the outgoing rate still live it would write that over this project's own (and a 120 Hz
@@ -2153,7 +2176,7 @@ export class EditorStore {
     const prog = this.state.stProgram
     const sans = this.sceneSansDraft()
     const pkgs = this.broughtDefinitions(sans)
-    project.scene = { version: SCENE_VERSION, parts: sans.parts, ...(pkgs.length > 0 ? { packages: pkgs } : {}), ...(sans.units !== undefined ? { units: sans.units } : {}) }
+    project.scene = { version: SCENE_VERSION, parts: sans.parts, ...(pkgs.length > 0 ? { packages: pkgs } : {}), ...sceneSettings(sans) }
     if (prog !== '') {
       project.stProgram = prog
       project.stScanMs = this.state.stScanMs

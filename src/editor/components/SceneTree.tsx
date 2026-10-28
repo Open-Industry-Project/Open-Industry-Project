@@ -16,6 +16,7 @@ import { partLinkOwnership } from '../../core/rig/rigPose'
 import type { EditorState, EditorStore } from '../store/store'
 import { rigNodeKey } from '../store/store'
 import type { EditorController } from '../controller'
+import { controllerBadges } from '../program/controllerBadges'
 import { partsWithForces, usePlcForces } from '../program/plcForces'
 import { matchesTreeFilter, sessionDefinitionScope } from '../treeNode'
 import type { TreeNodeSource } from '../treeNode'
@@ -179,6 +180,8 @@ interface TreeRowProps {
   running: boolean
   /** a tag of the part is forced while the program runs (EditorController.forcePlcValue) */
   forced?: boolean
+  /** the controller its PLC tags are on, when the row names one (program/controllerBadges.ts) */
+  controllerBadge?: string
   onRowClick: (e: ReactMouseEvent, desc: RowDesc) => void
   onRowContextMenu: (e: ReactMouseEvent, desc: RowDesc) => void
   onBeginRename: (desc: RowDesc) => void
@@ -206,6 +209,7 @@ const M = defineMessages('sceneTree', {
   // a mark, not a word: the forced badge the rungs draw beside an operand (LadderView)
   forced: 'F',
   forcedTitle: 'A tag of this part is forced: the running program holds it until released',
+  controllerTitle: 'Its PLC tags are on {name}',
   tagParam: 'param',
   whyParam: "Its position is partly set by the part's params: {params}",
   tagAim: 'aim',
@@ -353,6 +357,12 @@ const TreeRow = memo(function TreeRow(props: TreeRowProps) {
               {t(M.forced)}
             </span>
           )}
+          {props.controllerBadge ? (
+            <span className="tree-controller" data-testid="tree-controller" title={t(M.controllerTitle, { name: props.controllerBadge })}>
+              {/* i18n-ok: the controller's name, as the tags spell it */}
+              {props.controllerBadge}
+            </span>
+          ) : null}
           {props.nodeBadges ? (
             <span className="tree-node-badges" data-testid="tree-node-badges">
               {props.nodeBadges}
@@ -472,6 +482,8 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
   // custom part's label comes from its package name, which can change with `parts` untouched; hence
   // packageRev, as in renderRows below.
   const displayNames = useMemo(() => partDisplayNames(parts), [parts, state.packageRev])
+  // which rows name the PLC their tags are on: few, since a group on one controller is named once
+  const badgeOf = useMemo(() => controllerBadges(parts, filtering), [parts, filtering, state.packageRev])
   // filtered view is a flat list (no nesting/DnD); otherwise a nested pre-order walk
   const allRows = useMemo(
     () =>
@@ -1110,6 +1122,7 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
                 canReorder={canReorder}
                 running={state.running}
                 forced={forcedParts.has(part.id)}
+                controllerBadge={badgeOf.get(part.id)}
                 onRowClick={onRowClickDesc}
                 onRowContextMenu={onRowContextMenuDesc}
                 onBeginRename={onBeginRenameDesc}

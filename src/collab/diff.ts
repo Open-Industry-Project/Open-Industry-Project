@@ -1,6 +1,6 @@
 import * as Y from 'yjs'
 import type { PartInstance, SceneJSON } from '../core/types'
-import { makePartMap, orderArray, paramEntries, partScalars, partsMap, writeUnits } from './schema'
+import { makePartMap, orderArray, paramEntries, partScalars, partsMap, writePlcs, writeUnits } from './schema'
 
 /**
  * Translate a local scene change (prev -> next) into minimal Yjs ops. Called by the bridge
@@ -13,8 +13,9 @@ import { makePartMap, orderArray, paramEntries, partScalars, partsMap, writeUnit
 export function applySceneDiff(ydoc: Y.Doc, prev: SceneJSON, next: SceneJSON): void {
   const parts = partsMap(ydoc)
   const order = orderArray(ydoc)
-  // the scene's unit system rides in `meta` (schema.ts UNITS_META)
+  // the scene's unit system and its controllers ride in `meta` (schema.ts UNITS_META, PLCS_META)
   if (prev.units !== next.units) writeUnits(ydoc, next.units)
+  if (prev.plcs !== next.plcs) writePlcs(ydoc, next.plcs)
   const prevById = new Map(prev.parts.map((p) => [p.id, p]))
   const nextById = new Map(next.parts.map((p) => [p.id, p]))
 

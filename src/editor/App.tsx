@@ -130,8 +130,9 @@ import { defineMessages, t } from '../core/i18n'
 // The import lives in behaviorEditorChunk so the </> / Edit-script triggers can preload it on hover.
 const BehaviorEditor = lazy(importBehaviorEditor)
 // Lazy for the same reason as the panels' own chunks: Controller Properties is a dialog opened on demand (the
-// organizer's Controller node, the toolbar's link status, Simulation > External PLC…), never before the first frame
+// organizer's Controller node, the toolbar's link status, Simulation > PLC Controllers…), never before the first frame
 const ControllerDialog = lazy(() => import('./components/plc/ControllerDialog').then((m) => ({ default: m.ControllerDialog })))
+const AssignControllerDialog = lazy(() => import('./components/plc/AssignControllerDialog').then((m) => ({ default: m.AssignControllerDialog })))
 // Settings and the test results are opened on demand too; lazy, they kept the eager-JS budget (scripts/lib/eager-js.mjs)
 // from a raise when the flow-facts and rig-gizmo work grew the first frame
 const SettingsOverlay = lazy(() => import('./components/SettingsOverlay').then((m) => ({ default: m.SettingsOverlay })))
@@ -514,6 +515,7 @@ export function App({ store, sim }: AppProps) {
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [controllerPropsOpen, setControllerPropsOpen] = useState(false)
+  const [assignControllerOpen, setAssignControllerOpen] = useState(false)
   // The project a test run is grading. Cloned at open (see commandUi) so the run is judged against the
   // document as it was when the user asked, not as it drifts while the specs step.
   const [testProject, setTestProject] = useState<ProjectJSON | null>(null)
@@ -595,6 +597,7 @@ export function App({ store, sim }: AppProps) {
       showPublishPart: (packageId) => setPublishPartId(packageId),
       showCommandPalette: () => setPaletteOpen(true),
       showControllerProperties: () => setControllerPropsOpen(true),
+      showAssignController: () => setAssignControllerOpen(true),
       showProjects: () => setProjectsOpen(true),
       // snapshotProject returns the store's own held document ("serialize it immediately, don't hold
       // or mutate it"), and a run outlives this call - so clone before handing it to the overlay
@@ -1580,12 +1583,11 @@ export function App({ store, sim }: AppProps) {
       )}
       {/* every command, searchable - and the only path to the ones with no button (Ctrl+Shift+P) */}
       {paletteOpen && <CommandPalette store={store} state={state} controller={controller} onClose={() => setPaletteOpen(false)} />}
-      {/* where the program runs: here, or on an external PLC (Simulation > External PLC…, the organizer's Controller) */}
-      {controllerPropsOpen && controller && (
-        <Suspense fallback={null}>
-          <ControllerDialog store={store} state={state} controller={controller} onClose={() => setControllerPropsOpen(false)} />
-        </Suspense>
-      )}
+      {/* where the program and the PLCs run (Simulation > PLC Controllers…), and which one parts' tags go to (Assign to Controller…) */}
+      <Suspense fallback={null}>
+        {controllerPropsOpen && controller && <ControllerDialog store={store} state={state} controller={controller} onClose={() => setControllerPropsOpen(false)} />}
+        {assignControllerOpen && <AssignControllerDialog store={store} state={state} onClose={() => setAssignControllerOpen(false)} />}
+      </Suspense>
       {/* active onboarding tour - desktop only (it drives the catalog + PLC panel, absent on mobile) */}
       {!isMobile && controller && <TutorialOverlay store={store} state={state} controller={controller} view={view} />}
       {/* in-browser behavior-script editor (Monaco) - one shared mount, opened from anywhere via the store */}

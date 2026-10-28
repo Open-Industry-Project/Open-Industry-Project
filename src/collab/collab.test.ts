@@ -963,6 +963,25 @@ describe('the scene unit system in a room (UNITS_META)', () => {
   })
 })
 
+describe("the scene's controllers in a room (PLCS_META)", () => {
+  it('seeds, reads back, follows a local edit, and refuses what is not a controller list', () => {
+    const ydoc = new Y.Doc()
+    const plcs = [
+      { name: 'PLC1', runsOn: 'app' as const, protocol: 'serve' as const, connect: true },
+      { name: 'Cell2', runsOn: 'plc' as const, protocol: 's7' as const, connect: true },
+    ]
+    const scene: SceneJSON = { version: SCENE_VERSION, parts: [], plcs }
+    sceneToDoc(scene, ydoc)
+    expect(docToScene(ydoc).plcs).toEqual(plcs)
+    const renamed = [plcs[0]!, { ...plcs[1]!, name: 'Packing' }]
+    ydoc.transact(() => applySceneDiff(ydoc, scene, { ...scene, plcs: renamed }), LOCAL_ORIGIN)
+    expect(docToScene(ydoc).plcs?.map((p) => p.name)).toEqual(['PLC1', 'Packing'])
+    // a peer's malformed value reads as no list, never as code or a half list
+    ydoc.getMap('meta').set('plcs', '{not json')
+    expect('plcs' in docToScene(ydoc)).toBe(false)
+  })
+})
+
 describe('the room gets every definition the scene uses', () => {
   afterEach(() => clearPackages())
 

@@ -16,12 +16,13 @@
 // Nothing here blocks main. Every ADS call runs on koffi's worker thread (`fn.async`), and the router gives up on an
 // unanswered request after ANSWER_MS. A synchronous call would freeze every window for as long as a dead PLC takes.
 //
-// One link per window, closed with it. Plain Node. Its tests never reach a TwinCAT router: they set OIP_TCADSDLL_PATH
+// One link per controller in a window (linkKeys.cjs), all closed with it. Plain Node. Its tests never reach a TwinCAT router: they set OIP_TCADSDLL_PATH
 // to a file that is not there and check what this module itself says (argument checks, the missing-DLL answer).
 
 const { execFileSync } = require('node:child_process')
 const { existsSync } = require('node:fs')
 const { join } = require('node:path')
+const { BAD_LINK, linkKey, linkNo, onPageGone, windowKeys } = require('./linkKeys.cjs')
 
 /** How long the router waits for an answer before failing a request (0x745): inside the app's 1 s watchdog. */
 const ANSWER_MS = 500
@@ -342,7 +343,7 @@ class AdsLink {
   }
 }
 
-/** @type {Map<number, AdsLink>} */
+/** @type {Map<string, AdsLink>} by linkKey (linkKeys.cjs) */
 const links = new Map()
 const watched = new Set()
 
@@ -354,7 +355,7 @@ async function shutdownAds() {
 }
 
 /**
- * Register the `ads:*` channels.
+ * Register the `ads:*` channels. Each call may name one of the window's links as `link` (linkKeys.cjs), 0 when absent.
  *   ads:open     {netId, port} -> {error, localNetId, target}   an ADS port on this PC's router; '' netId = this PC's runtime
  *   ads:bind     {tags: [{name}]} -> {error, tags: [{code, adsType, size, typeName}]}
  *                                                              each symbol's info and a handle
@@ -366,8 +367,11 @@ async function shutdownAds() {
 function registerAdsIo(ipcMain, { consent }) {
   ipcMain.handle('ads:open', async (event, opts) => {
     const sender = event.sender
-    const old = links.get(sender.id)
-    links.delete(sender.id)
+    const n = linkNo(opts)
+    if (n === null) return { error: BAD_LINK }
+    const key = linkKey(sender.id, n)
+    const old = links.get(key)
+    links.delete(key)
     await old?.close()
     const netId = typeof opts?.netId === 'string' ? opts.netId.trim() : ''
     const port = Number(opts?.port)
@@ -382,20 +386,19 @@ function registerAdsIo(ipcMain, { consent }) {
       await link.close()
       return opened
     }
-    links.set(sender.id, link)
-    if (!watched.has(sender.id)) {
-      watched.add(sender.id)
-      const id = sender.id
-      sender.once('destroyed', () => {
-        watched.delete(id)
-        void links.get(id)?.close()
-        links.delete(id)
-      })
-    }
+    links.set(key, link)
+    onPageGone(sender, watched, (id) => {
+      for (const k of windowKeys(links, id)) {
+        void links.get(k)?.close()
+        links.delete(k)
+      }
+    })
     return opened
   })
-  const withLink = async (event, fn) => {
-    const link = links.get(event.sender.id)
+  const withLink = async (event, opts, fn) => {
+    const n = linkNo(opts)
+    if (n === null) return { error: BAD_LINK }
+    const link = links.get(linkKey(event.sender.id, n))
     if (!link) return { error: 'not connected' }
     try {
       return await fn(link)
@@ -403,11 +406,14 @@ function registerAdsIo(ipcMain, { consent }) {
       return { error: String(e?.message ?? e) }
     }
   }
-  ipcMain.handle('ads:bind', (event, opts) => withLink(event, (l) => l.bind(Array.isArray(opts?.tags) ? opts.tags : [])))
-  ipcMain.handle('ads:exchange', (event, opts) => withLink(event, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
-  ipcMain.handle('ads:close', async (event) => {
-    const link = links.get(event.sender.id)
-    links.delete(event.sender.id)
+  ipcMain.handle('ads:bind', (event, opts) => withLink(event, opts, (l) => l.bind(Array.isArray(opts?.tags) ? opts.tags : [])))
+  ipcMain.handle('ads:exchange', (event, opts) => withLink(event, opts, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
+  ipcMain.handle('ads:close', async (event, opts) => {
+    const n = linkNo(opts)
+    if (n === null) return
+    const key = linkKey(event.sender.id, n)
+    const link = links.get(key)
+    links.delete(key)
     await link?.close()
   })
 }

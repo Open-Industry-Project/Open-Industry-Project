@@ -51,6 +51,9 @@ export interface StFileReportData {
    *  controller rename moved, and the parts it rewired) is a plain list - tick boxes there would
    *  promise work nobody has left, and cost a short dock a line for the count */
   checklist?: boolean
+  /** a transfer that carried the whole program, which says so when it has nothing to list. Absent on every other
+   *  report: a notice, or one controller's file, which leaves the rest out on purpose */
+  whole?: boolean
 }
 
 const TONE: Record<StReportTone, { color: string; mark: string }> = {
@@ -158,7 +161,7 @@ export function StFileReport({ report, onDismiss }: { report: StFileReportData; 
         </button>
       </div>
       {report.items.length === 0 ? (
-        <div style={summary}>{t(M.nothingDropped)}</div>
+        report.whole === true && <div style={summary}>{t(M.nothingDropped)}</div>
       ) : (
         <>
           {tickable && (

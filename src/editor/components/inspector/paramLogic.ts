@@ -192,6 +192,13 @@ export function buildGroupTree(specs: readonly ParamSpec[]): { ungrouped: ParamS
   return { ungrouped, groups }
 }
 
+/** The first tag field in the order the Inspector draws them: the ungrouped fields, then each group's own before its
+ *  subsections. The part's Controller row is drawn above it (controllerRow.tsx). */
+export function firstTagKey(ungrouped: readonly ParamSpec[], groups: readonly GroupNode[]): string | undefined {
+  const inGroup = (g: GroupNode): string | undefined => g.specs.find((s) => s.kind === 'tagRef')?.key ?? g.children.map(inGroup).find((k) => k !== undefined)
+  return ungrouped.find((s) => s.kind === 'tagRef')?.key ?? groups.map(inGroup).find((k) => k !== undefined)
+}
+
 /**
  * The product marks a scene knows, for a field that suggests them (ParamSpec.suggest 'marks'): every param a package
  * declares a product attribute, which becomes the product's mark of the same name at Run. Sorted and deduplicated.

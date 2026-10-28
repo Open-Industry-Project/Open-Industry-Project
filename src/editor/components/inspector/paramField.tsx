@@ -7,6 +7,7 @@ import { labelHead, partParamSpecs } from '../../../core/packageParams'
 import { listPackages } from '../../../core/parts/partRegistry'
 import { isCargoPackage } from '../../../core/parts/partPackage'
 import { canonicalAddress, looksLikeAddress, parseDirectAddress } from '../../../core/io/iecAddress'
+import { controllerOf, controllerTag, splitControllerTag } from '../../../core/io/controllerTag'
 import { normalizeHexColorList } from '../../../core/math'
 import { partDisplayNames } from '../../../core/parts/partDisplayName'
 import { commsOn } from '../../../core/conveyor/conveyorDirection'
@@ -40,7 +41,7 @@ import { runCommand } from '../../commands'
 import type { EditorStore } from '../../store/store'
 import { useLiveValue } from '../../useLiveValue'
 import { closestOpcUaTagNames, matchOpcUaTag } from '../../../core/io/opcUa'
-import { TagField, TagSourcesContext } from './tagField'
+import { ControllerRowContext, TagField, TagSourcesContext } from './tagField'
 import { TagForce } from './tagForce'
 import type { TagForcing } from './tagForce'
 import { defineMessages, t } from '../../../core/i18n'
@@ -131,6 +132,7 @@ export function ParamField({
   // to the host's table, which now only carries the rows/types the packages don't own.
   const system = useContext(DisplayUnitsContext)
   const guardMode = useContext(GuardOpeningsModeContext)
+  const controllerRow = useContext(ControllerRowContext)
   const tooltip = buildParamTooltip(spec, titleCase(spec.label), spec.desc ?? paramDesc(part.type, spec.key), system)
   const { value: shared, mixed } = sharedParam(parts, spec.key)
   const setParam = (value: ParamValue) =>
@@ -198,13 +200,21 @@ export function ParamField({
     [tooltip, '', t(M.liveProduct), t(M.authored, { value: authoredText })].join('\n')
 
   const row = (node: ReactNode) => (
-    <div
-      className={`prop-row${live ? ' prop-row-plc' : ''}`}
-      data-param={spec.key}
-      onContextMenu={ctx}
-    >
-      {node}
-    </div>
+    <>
+      {/* the part's Controller row sits above its first tag field, with the tags (controllerRow.tsx) */}
+      {controllerRow?.above === spec.key && (
+        <div className="prop-row" data-param="controller">
+          {controllerRow.row}
+        </div>
+      )}
+      <div
+        className={`prop-row${live ? ' prop-row-plc' : ''}`}
+        data-param={spec.key}
+        onContextMenu={ctx}
+      >
+        {node}
+      </div>
+    </>
   )
 
   // A table has no "mixed" display, and its editors write the whole table, so one cell edit would stamp the
@@ -484,9 +494,11 @@ export function ParamField({
           : null
       // A tag that is an I/O address (%IX100.0) is wired to that point; say what the program calls it, or what
       // is wrong with the address. The full direction and size check is the wiring check's (Problems panel).
-      const address = !mixed && looksLikeAddress(current) ? parseDirectAddress(current) : null
+      // behind a controller's name (`Cell2::%IX0.0`) the address is the same; only the default controller's is this program's
+      const { controller: onController, local } = splitControllerTag(current)
+      const address = !mixed && looksLikeAddress(local) ? parseDirectAddress(local) : null
       const addressError = address && 'error' in address ? address.error : null
-      const locatedName = address && !('error' in address) ? located.get(address.text) : undefined
+      const locatedName = address && !('error' in address) && onController === null ? located.get(address.text) : undefined
       // the param a setpoint tag stands in for (a speed tag's Speed), named when the tag is undriven
       const replacedSpec = spec.setpointFor ? partParamSpecs(part).find((s) => s.key === spec.setpointFor) : undefined
       const replaces = replacedSpec ? labelHead(replacedSpec.label) : undefined
@@ -538,8 +550,8 @@ export function ParamField({
           }
           onCommit={(v) => {
             // an address is kept in its one spelling, which is how the tag tables meet it
-            const t = v.trim()
-            setParam(looksLikeAddress(t) ? (canonicalAddress(t) ?? t) : t)
+            const { controller: c, local: tag } = splitControllerTag(v.trim())
+            setParam(controllerTag(c, looksLikeAddress(tag) ? (canonicalAddress(tag) ?? tag) : tag))
           }}
         />,
       )
@@ -871,7 +883,8 @@ function useProgramTagWord(tag: string, spec: TagMarkSpec, replaces: string | un
   const sources = useContext(TagSourcesContext)
   const check = sources?.check
   const verdict = useProgramVerdicts(parts, tag === '' ? undefined : check)?.get(tag)
-  if (tag === '' || !check) return null
+  // a tag on another controller is that PLC's: the program here says nothing about it
+  if (tag === '' || !check || controllerOf(tag) !== null) return null
   // with an external PLC on, the part is wired to the PLC's tags, so an empty program says nothing about it
   if (!verdict) return check.source.trim() === '' && !sources.external ? { status: { kind: 'no-program', why: t(M.noProgram, { tag }) } } : null
   if (!verdict.declared) return { warn: { kind: 'undeclared', why: t(M.notInProgram, { tag }) } }
@@ -900,7 +913,7 @@ function useProgramTagWord(tag: string, spec: TagMarkSpec, replaces: string | un
 function usePlcTagWarning(tag: string): TagWarning | null {
   const plc = useContext(TagSourcesContext)?.plc
   return useMemo(() => {
-    if (!plc || plc.state !== 'ready' || tag === '' || tag.includes('/')) return null
+    if (!plc || plc.state !== 'ready' || tag === '' || tag.includes('/') || controllerOf(tag) !== null) return null
     const m = matchOpcUaTag(tag, plc.variables)
     if (!('error' in m)) return null
     const missing = m.error.startsWith('the PLC has no tag')

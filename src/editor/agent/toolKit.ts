@@ -15,7 +15,7 @@ import { collectProblems } from '../problems'
 
 /** The slice of the controller the tools use, so a test can hand in a stand-in (null = no viewport mounted yet). */
 export type AgentController = Pick<EditorController, 'run' | 'stop' | 'plcWatch' | 'writePlcValue' | 'plcFault'> &
-  Partial<Pick<EditorController, 'sim' | 'view' | 'lastFrame' | 'plcScanTimes' | 'plcForces' | 'forcePlcValue' | 'releasePlcForces' | 'setPaused' | 'stepBy'>>
+  Partial<Pick<EditorController, 'sim' | 'view' | 'lastFrame' | 'plcScanTimes' | 'plcForces' | 'forcePlcValue' | 'releasePlcForces' | 'setPaused' | 'stepBy' | 'externalPlcAvailable'>>
 
 /** A rectangle of the editor window in CSS pixels. */
 export interface CaptureRect {
@@ -188,5 +188,7 @@ export function problems({ store, controller }: AgentToolContext, candidate?: st
     stepHz: s.simHz,
     runtimeOverflowed: partDiagnosticsOverflowed(),
     plcFault: fault && fault.source === source ? fault : null,
+    namedPlcs: s.externalPlc.controllers,
+    mainPlcName: s.externalPlc.mainName,
   })
 }

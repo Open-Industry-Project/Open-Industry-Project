@@ -10,11 +10,12 @@
 // usually forbids it, and the dock says the connection is unsecured. node-opcua still keeps a client
 // certificate store even for None, so it gets one of its own under the app's data folder.
 //
-// One link per window, closed with it. node-opcua is loaded on the first connect, not at startup: most
+// One link per controller in a window (linkKeys.cjs), all closed with it. node-opcua is loaded on the first connect, not at startup: most
 // sessions never use OPC UA, and the library is large.
 
 const { join } = require('node:path')
 const { opcUaHost } = require('./endpointConsent.cjs')
+const { BAD_LINK, linkKey, linkNo, onPageGone, windowKeys } = require('./linkKeys.cjs')
 
 let lib = null
 function opcua() {
@@ -290,7 +291,7 @@ class OpcUaLink {
   }
 }
 
-/** @type {Map<number, OpcUaLink>} */
+/** @type {Map<string, OpcUaLink>} by linkKey (linkKeys.cjs): a window has one link per controller */
 const links = new Map()
 const watched = new Set()
 const generation = new Map()
@@ -310,9 +311,11 @@ async function closeFor(id) {
   await link?.close()
 }
 
-/** Run `fn` on the window's link, turning a missing link or a library error into `{error}`. */
-async function withLink(event, fn) {
-  const link = links.get(event.sender.id)
+/** Run `fn` on the link a call names, turning a missing link or a library error into `{error}`. */
+async function withLink(event, opts, fn) {
+  const n = linkNo(opts)
+  if (n === null) return { error: BAD_LINK }
+  const link = links.get(linkKey(event.sender.id, n))
   if (!link) return { error: 'not connected' }
   try {
     return { error: '', ...(await fn(link)) }
@@ -322,7 +325,7 @@ async function withLink(event, fn) {
 }
 
 /**
- * Register the `opcua:*` channels.
+ * Register the `opcua:*` channels. Each call may name one of the window's links as `link` (linkKeys.cjs), 0 when absent.
  *   opcua:connect  {endpoint} -> {error, discovery?}                connect and open an anonymous session;
  *                                                                   discovery: [{name, urls}] when the address
  *                                                                   is a discovery server, not a PLC
@@ -331,50 +334,51 @@ async function withLink(event, fn) {
  *   opcua:exchange {writes: [{nodeId, builtin, value}], reads: [nodeId]} -> {error, writes: [status], reads: [{value, status}]}
  *   opcua:close                                                     end the session
  * and pushes
- *   opcua:closed {why}                                              the PLC went away
+ *   opcua:closed {link, why}                                        the PLC went away
  * `consent` (endpointConsent.cjs `allows`) is asked before connecting to another host; without it every endpoint
  * is allowed (a caller that is not the app's window, such as a test).
  */
 function registerOpcUaIo(ipcMain, { pkiRoot, consent }) {
   ipcMain.handle('opcua:connect', async (event, opts) => {
     const sender = event.sender
-    const mine = bump(sender.id)
-    await closeFor(sender.id)
+    const n = linkNo(opts)
+    if (n === null) return { error: BAD_LINK }
+    const key = linkKey(sender.id, n)
+    const mine = bump(key)
+    await closeFor(key)
     const endpoint = typeof opts?.endpoint === 'string' ? opts.endpoint : ''
     if (!/^opc\.tcp:\/\/\S+$/.test(endpoint)) return { error: `${endpoint || 'an empty endpoint'} is not an opc.tcp:// address` }
     const host = opcUaHost(endpoint)
     if (consent && !(await consent({ host, key: `opcua connect ${endpoint}`, what: `connect to the OPC UA server at ${endpoint}` }, sender)))
       return { error: `the connection to ${endpoint} was not allowed` }
-    if (generation.get(sender.id) !== mine) return { error: 'superseded by a newer connect' }
+    if (generation.get(key) !== mine) return { error: 'superseded by a newer connect' }
     const link = new OpcUaLink(join(pkiRoot), (why) => {
-      if (links.get(sender.id) === link) {
-        links.delete(sender.id)
-        send(sender, 'opcua:closed', { why })
+      if (links.get(key) === link) {
+        links.delete(key)
+        send(sender, 'opcua:closed', { link: n, why })
       }
     })
     const connected = await link.connect(endpoint)
     if (connected.error) return connected
-    if (generation.get(sender.id) !== mine) {
+    if (generation.get(key) !== mine) {
       await link.close()
       return { error: 'superseded by a newer link' }
     }
-    links.set(sender.id, link)
-    if (!watched.has(sender.id)) {
-      watched.add(sender.id)
-      const id = sender.id
-      sender.once('destroyed', () => {
-        watched.delete(id)
-        void closeFor(id)
-      })
-    }
+    links.set(key, link)
+    onPageGone(sender, watched, (id) => {
+      for (const k of windowKeys(links, id)) void closeFor(k)
+    })
     return { error: '' }
   })
-  ipcMain.handle('opcua:browse', (event) => withLink(event, (l) => l.browse()))
-  ipcMain.handle('opcua:describe', (event, opts) => withLink(event, async (l) => ({ nodes: await l.describe(Array.isArray(opts?.nodeIds) ? opts.nodeIds : []) })))
-  ipcMain.handle('opcua:exchange', (event, opts) => withLink(event, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
-  ipcMain.handle('opcua:close', (event) => {
-    bump(event.sender.id)
-    return closeFor(event.sender.id)
+  ipcMain.handle('opcua:browse', (event, opts) => withLink(event, opts, (l) => l.browse()))
+  ipcMain.handle('opcua:describe', (event, opts) => withLink(event, opts, async (l) => ({ nodes: await l.describe(Array.isArray(opts?.nodeIds) ? opts.nodeIds : []) })))
+  ipcMain.handle('opcua:exchange', (event, opts) => withLink(event, opts, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
+  ipcMain.handle('opcua:close', (event, opts) => {
+    const n = linkNo(opts)
+    if (n === null) return
+    const key = linkKey(event.sender.id, n)
+    bump(key)
+    return closeFor(key)
   })
 }
 

@@ -61,7 +61,7 @@ describe('the sections of the list', () => {
     { path: ['PLC1', 'MAIN', 'Motor'], nodeId: 'a' },
     { path: ['PLC1', 'MAIN', 'Eye'], nodeId: 'b' },
   ]
-  const sources = (over: Partial<TagSources> = {}): TagSources => ({ check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, external: true, ...over })
+  const sources = (over: Partial<TagSources> = {}): TagSources => ({ check: { source: '', dialect: undefined, controller: null, scanMs: 10 }, plc: null, canReadPlc: true, readPlc: () => {}, plcLinked: true, external: true, controllers: [], ...over })
 
   const program = [{ name: 'Motor1', type: 'BOOL' }, { name: 'Start', type: 'BOOL' }, { name: 'Speed', type: 'REAL' }]
 

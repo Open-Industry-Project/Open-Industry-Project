@@ -5,6 +5,7 @@
 // handle (unbound), and which scene tags does the program never declare (unwired) - surfaced by the ST
 // editor. See src/plc/DEVICE-IO.md.
 
+import { controllerOf } from '../core/io/controllerTag'
 import { packageParamSpecs, switchValue, visibleWhenHolds } from '../core/packageParams'
 import type { VisibleWhen } from '../core/types'
 import { commsOn } from '../core/conveyor/conveyorDirection'
@@ -223,6 +224,7 @@ export function unhandledProgramTags(
     return true
   })
   const declared = new Set([...link.inputs, ...link.outputs])
-  const unwired = commsTags(parts).filter((t) => !declared.has(t))
+  // a tag on another controller (`Cell2::Eye`, core/io/controllerTag.ts) is not this program's to declare
+  const unwired = commsTags(parts).filter((t) => !declared.has(t) && controllerOf(t) === null)
   return { unbound, unwired }
 }

@@ -25,8 +25,8 @@
 // A local process can still connect, as it can to every other loopback service. It already runs as the user.
 
 const http = require('node:http')
-const { readFile, stat } = require('node:fs/promises')
-const { basename, extname, isAbsolute } = require('node:path')
+const { readdir, readFile, stat } = require('node:fs/promises')
+const { basename, dirname, extname, isAbsolute, join, relative } = require('node:path')
 
 /** Legacy revisions (opened with initialize); the first is what initialize offers a client asking for one it does not know. */
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-11-25', '2025-03-26', '2024-11-05']

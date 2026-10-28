@@ -35,6 +35,7 @@ import type { EditorController } from './controller'
 import type { AxisViewId } from './controller/camera'
 import { guardOpeningsTarget } from './store/store'
 import { canPasteProperties, copyProperties, pasteProperties, propertiesSource } from './store/storeProperties'
+import { hasTags } from './program/assignController'
 import type { EditorState, EditorStore } from './store/store'
 // Lazy: the PLC file doors carry the PLCopen writer and readers, which nothing needs until a file actually moves, and the
 // build budgets what loads before the first frame (optimize-assets.mjs, eager JS)
@@ -77,6 +78,8 @@ export interface CommandUi {
   runTests(): void
   /** Controller Properties: where the program runs, here or on an external PLC, and how the link reaches it */
   showControllerProperties(): void
+  /** Assign to Controller: which PLC the selected parts' tags go to (components/plc/AssignControllerDialog.tsx) */
+  showAssignController(): void
 }
 
 export interface CommandCtx {
@@ -637,6 +640,15 @@ const COMMAND_DEFS: readonly Command[] = [
     run: ({ store }) => pasteProperties(store),
   },
   {
+    // A part's tag names the PLC it goes to (`Cell2::%IX0.0`, core/io/controllerTag.ts). This rewrites that name on
+    // every tag of the selection at once, so a copied cell goes to a second PLC in one step and one undo.
+    id: 'edit.assignController',
+    label: 'Assign to Controller…',
+    group: 'Edit',
+    enabled: (ctx) => editable(ctx) && ctx.state.packageEdit === null && hasTags(ctx.state.scene, ctx.state.selectedIds),
+    run: ({ ui }) => ui.showAssignController(),
+  },
+  {
     id: 'edit.delete',
     label: 'Delete',
     group: 'Edit',
@@ -873,9 +885,9 @@ const COMMAND_DEFS: readonly Command[] = [
   {
     // Where the program runs: here, or on a real PLC that Play hands the scene's I/O to (Modbus TCP either way round,
     // or OPC UA). The organizer's Controller node and the toolbar's link status open the same dialog; this is the way
-    // in for someone who searches the palette for "PLC", "Modbus" or "OPC".
+    // in for someone who searches the palette for "PLC", "Modbus" or "OPC", and the name says it lists every controller.
     id: 'sim.externalPlc',
-    label: 'External PLC…',
+    label: 'PLC Controllers…',
     group: 'Simulation',
     run: ({ ui }) => ui.showControllerProperties(),
   },

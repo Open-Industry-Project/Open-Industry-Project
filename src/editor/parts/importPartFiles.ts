@@ -10,7 +10,7 @@ const M = defineMessages('partImport', {
 })
 
 /** the files in a drop that can be part files (.oippart, .part.json or any JSON) */
-export function partFilesOf(files: FileList): File[] {
+export function partFilesOf(files: FileList | readonly File[]): File[] {
   return Array.from(files).filter((f) => /\.(json|oippart)$/i.test(f.name) || f.type === 'application/json')
 }
 

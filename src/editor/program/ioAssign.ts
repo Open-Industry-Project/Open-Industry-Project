@@ -12,6 +12,7 @@
 
 import { ioDirection, registerImagePointWhere } from '../../core/io/externalIo'
 import { commsOn as partCommsOn } from '../../core/conveyor/conveyorDirection'
+import { controllerOf } from '../../core/io/controllerTag'
 import { canonicalAddress, looksLikeAddress } from '../../core/io/iecAddress'
 import { packageParamSpecs } from '../../core/packageParams'
 import { partDisplayNames } from '../../core/parts/partDisplayName'
@@ -60,7 +61,8 @@ const commsOn = (part: PartInstance): boolean => part.type === 'part' && partCom
 function tagValue(raw: unknown): { address: string } | { name: string } | null {
   if (typeof raw !== 'string') return null
   const v = raw.trim()
-  if (v === '') return null
+  // a tag on another controller (`Cell2::%IX0.0`, core/io/controllerTag.ts) is that PLC's, not this program's to place
+  if (v === '' || controllerOf(v) !== null) return null
   return looksLikeAddress(v) ? { address: canonicalAddress(v) ?? v } : { name: v }
 }
 

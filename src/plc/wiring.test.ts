@@ -363,3 +363,63 @@ describe('a word inside a double word', () => {
     expect(overlaps(r)).toEqual([])
   })
 })
+
+describe('a tag on another controller', () => {
+  // `Cell2::%IX0.0` (core/io/controllerTag.ts): its address and its writers are checked, but not against the program
+  // here, which does not run it
+  const PROGRAM = new LocalPlcLink(`VAR_INPUT
+  PE : BOOL;
+END_VAR
+VAR_OUTPUT
+  Motor : BOOL;
+END_VAR
+Motor := PE;`)
+
+  it('checks the address behind the name, and keys it canonically', () => {
+    registerPackage(SENSOR)
+    registerPackage(CONVEYOR)
+    const r = checkWiring(scene(part('s', 't.sensor', { tag: 'Cell2::%i0.0' }), part('c', 't.conveyor', { runTag: 'Cell2::%IX0.1' })))
+    // a tag with an address error is left out of the tags, as on the default controller
+    expect(r.tags.map((t) => t.name)).toEqual(['Cell2::%IX0.0'])
+    expect(r.problems).toEqual([expect.objectContaining({ kind: 'address', tag: 'Cell2::%IX0.1' })])
+    expect(r.problems[0]!.message).toMatch(/a %Q address \(%QX0\.1\)/)
+  })
+
+  it('is not undriven or unread by the program, and the program does not miss it', () => {
+    registerPackage(SENSOR)
+    registerPackage(CONVEYOR)
+    const parts = scene(part('s', 't.sensor', { tag: 'PE' }), part('c', 't.conveyor', { runTag: 'Motor' }), part('s2', 't.sensor', { tag: 'Cell2::PE' }), part('c2', 't.conveyor', { runTag: 'Cell2::Motor' }))
+    expect(checkWiring(parts, PROGRAM).problems).toEqual([])
+    expect(unhandledProgramTags(parts, PROGRAM)).toEqual({ unbound: [], unwired: [] })
+    // the program's own PE and Motor bind; Cell2's do not
+    expect(wiredBindings(parts, { inputs: [], outputs: [], bindable: ['PE', 'Motor'] })).toEqual({ inputs: ['PE'], outputs: ['Motor'] })
+  })
+
+  it('lets two controllers use the same address, and still catches two writers on one', () => {
+    registerPackage(SENSOR)
+    const r = checkWiring(scene(part('a', 't.sensor', { tag: '%IX0.0' }), part('b', 't.sensor', { tag: 'Cell2::%IX0.0' }), part('c', 't.sensor', { tag: 'Cell3::%IX0.0' }), part('d', 't.sensor', { tag: 'Cell3::%IX0.0' })))
+    const contested = r.problems.filter((p) => p.kind === 'contested')
+    expect(contested.map((p) => p.tag)).toEqual(['Cell3::%IX0.0'])
+  })
+
+  it('finds a word inside a double word within one controller, not across two', () => {
+    registerPackage(COUNTER)
+    const across = checkWiring(scene(part('a', 't.counter', { countTag: '%ID100' }), part('b', 't.counter', { countTag: 'Cell2::%IW201' })))
+    expect(across.problems.filter((p) => p.kind === 'overlap')).toEqual([])
+    const within = checkWiring(scene(part('a', 't.counter', { countTag: 'Cell2::%ID100' }), part('b', 't.counter', { countTag: 'Cell2::%IW201' })))
+    expect(within.problems.filter((p) => p.kind === 'overlap').map((p) => p.tag)).toEqual(['Cell2::%IW201'])
+  })
+
+  it('refuses a prefix that is not a controller name', () => {
+    registerPackage(SENSOR)
+    const r = checkWiring(scene(part('s', 't.sensor', { tag: '2nd::Eye' })))
+    expect(r.problems).toEqual([expect.objectContaining({ severity: 'error', kind: 'controller', tag: '2nd::Eye' })])
+    expect(r.tags).toEqual([])
+  })
+
+  it('reports one controller spelled two ways, since the sim matches tags exactly', () => {
+    registerPackage(SENSOR)
+    const r = checkWiring(scene(part('a', 't.sensor', { tag: 'Cell2::%IX0.0' }), part('b', 't.sensor', { tag: 'cell2::%IX0.1' })))
+    expect(r.problems).toEqual([expect.objectContaining({ severity: 'error', kind: 'controller', tag: 'cell2', parts: ['b'] })])
+  })
+})

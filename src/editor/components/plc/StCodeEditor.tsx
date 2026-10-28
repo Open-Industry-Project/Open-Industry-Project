@@ -96,6 +96,8 @@ interface StCodeEditorProps {
   getTags: () => string[]
   /** the scene's controller table, read on each lint pass: the program is checked together with it */
   getController?: (source: string) => Controller | null
+  /** the default controller's name, which a task may spell (plc controllerDiagnostics) */
+  getDefaultPlc?: () => string | undefined
   /** false while the program is in a dialect this build does not read: no lint pass then (default true) */
   lints?: boolean
   /** invoked by Ctrl/Cmd-Enter (not F5, see the keymap below): the panel starts a stopped sim or reloads a running one */
@@ -152,7 +154,7 @@ function readOnlyExtension(readOnly: boolean | undefined): Extension {
 }
 
 export const StCodeEditor = forwardRef<StCodeEditorHandle, StCodeEditorProps>(function StCodeEditor(
-  { initialValue, onChange, getTags, getController, lints = true, onRun, onUndo, onRedo, collabExtension, readOnly, onReadingPosition, onReady, style },
+  { initialValue, onChange, getTags, getController, getDefaultPlc, lints = true, onRun, onUndo, onRedo, collabExtension, readOnly, onReadingPosition, onReady, style },
   ref,
 ) {
   // captured once: the editor is built a single time in the mount effect
@@ -170,6 +172,8 @@ export const StCodeEditor = forwardRef<StCodeEditorHandle, StCodeEditorProps>(fu
   getTagsRef.current = getTags
   const getControllerRef = useRef(getController)
   getControllerRef.current = getController
+  const getDefaultPlcRef = useRef(getDefaultPlc)
+  getDefaultPlcRef.current = getDefaultPlc
   const lintsRef = useRef(lints)
   lintsRef.current = lints
   const onRunRef = useRef(onRun)
@@ -225,6 +229,7 @@ export const StCodeEditor = forwardRef<StCodeEditorHandle, StCodeEditorProps>(fu
           stExtensions(() => getTagsRef.current(), {
             ...(collab ? { history: false } : {}),
             getController: (src) => getControllerRef.current?.(src) ?? null,
+            getDefaultPlc: () => getDefaultPlcRef.current?.(),
             lints: () => lintsRef.current,
           }),
           ...(collab ? [collab] : []),

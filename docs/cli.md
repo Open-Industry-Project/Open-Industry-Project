@@ -181,6 +181,10 @@ Never hand-edit scene.json; these go through the same checks the editor does.
   - `npm run openplc-loop` - a real OpenPLC Runtime v4 polls the headless sim over Modbus TCP and must stop a box
     where the in-process program does, bits and analog (a REAL each way). Uses `OPENPLC_URL`, else the per-user
     Windows install of the runtime's `Setup.exe`, started and stopped for the run.
+  - `npm run openplc-loop:cells` - two lines in one scene: the program here runs one, and OpenPLC runs the other as
+    the named controller Cell2 (`Cell2::%IX100.0`), on the same addresses. It goes through the app's Play path for
+    several controllers (the link area, the session, the shell's `plcIo.cjs` on link 1, the sim's two tag layers),
+    and both lines must behave as the in-process run. Same runtime and environment as `openplc-loop`.
   - `npm run s7-loop` - the same case over S7 PUT/GET: the app's own S7 session against snap7's S7 server
     (python-snap7 2.x: `python -m pip install --target .s7-loop/snap7 python-snap7==2.0.2`), the program on the far
     side transcribed into Python over the server's memory. It tests the bytes, not a Siemens CPU. snap7 enforces no

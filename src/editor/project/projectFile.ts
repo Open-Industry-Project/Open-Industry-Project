@@ -9,6 +9,7 @@ import { keepDefinitionsOnce, PROJECT_VERSION, projectToScene, serializeProject,
 import { warmShippedAssets } from '../parts/shippedAssetCache'
 import type { ExportLeaveOut, ProjectJSON } from '../../core/project/project'
 import { validateScene } from '../../core/scene/scene'
+import { sceneSettings } from '../../core/scene/scenePlcs'
 import { DEFAULT_SIM_HZ, SCENE_VERSION } from '../../core/types'
 import type { SceneJSON, SimRate } from '../../core/types'
 import type { PartPackage } from '../../core/parts/partPackage'
@@ -88,7 +89,7 @@ export function assembleProject(
       version: SCENE_VERSION,
       parts: scene.parts,
       ...(scene.packages && scene.packages.length > 0 ? { packages: scene.packages } : {}),
-      ...(scene.units !== undefined ? { units: scene.units } : {}),
+      ...sceneSettings(scene),
     },
     ...(stProgram !== ''
       ? {

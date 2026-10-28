@@ -174,6 +174,8 @@ function organizerActions(ctx: PlcPanelCtx): OrganizerActions {
     },
     deleteBlock: (i) => ctx.applyBlockEdit(deleteBlock(ctx.currentSource(), i)),
     editController: (next, renames, label) => ctx.applyController(next, renames, label),
+    // lazy, as the File menu's export is (commands.ts): the PLCopen writer loads only when a file moves
+    exportController: (plc, target) => void import('../../program/stFileTransfer').then((m) => m.exportStProgram(ctx.store, target, plc)),
     adoptConfiguration: () => {
       const split = extractController(ctx.store.getState().stProgram)
       if (!split) {
@@ -208,7 +210,11 @@ export function PanelOrganizer({ ctx }: { ctx: PlcPanelCtx }): ReactElement {
         readOnly={ctx.readOnly}
         readOnlyNote={ctx.readOnlyNote}
         revealTasks={ctx.revealTasks}
-        runsOn={ctx.state.externalPlc.enabled && (ctx.controller?.externalPlcAvailable ?? false) ? 'external PLC' : 'simulated'}
+        plcs={{
+          defaultName: ctx.state.externalPlc.mainName,
+          defaultSimulated: !(ctx.state.externalPlc.enabled && (ctx.controller?.externalPlcAvailable ?? false)),
+          named: ctx.state.externalPlc.controllers.map((c) => ({ name: c.name, simulated: c.runsOn === 'app' })),
+        }}
         onPicked={ctx.onPicked}
         devices={devices}
         actions={organizerActions(ctx)}
@@ -258,7 +264,7 @@ export function PanelLadder({ ctx }: { ctx: PlcPanelCtx }): ReactElement {
         onEdit={ctx.applyLadderEdit}
         onUndo={ctx.undo}
         onRedo={ctx.redo}
-        getDiagnostics={(src) => controllerDiagnostics(src, ctx.store.getState().controller).source}
+        getDiagnostics={(src) => controllerDiagnostics(src, ctx.store.getState().controller, { defaultName: ctx.store.getState().externalPlc.mainName }).source}
         faults={ctx.faults.marks}
         revealProblem={ctx.faults.reveal}
         getWatch={ctx.watch}

@@ -4,7 +4,7 @@
 // the shell and the app together in e2e/verify-agent-mcp-electron.mjs.
 
 const assert = require('node:assert/strict')
-const { mkdtempSync, rmSync, writeFileSync } = require('node:fs')
+const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const { AgentHost, MODERN_VERSIONS, PROTOCOL_VERSIONS, handleMessage, readModel, requestEra, startMcpServer } = require('./mcpServer.cjs')

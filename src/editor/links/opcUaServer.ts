@@ -19,6 +19,7 @@
 // listen on a port, so there the host is null and the option is not offered. src/plc/DEVICE-IO.md has the design.
 
 import type { TagValue, VarInfo } from '../../plc/types'
+import type { LinkOpt } from './externalPlcStatus'
 
 /** A variable as the shell publishes it. */
 export interface ServerNode {
@@ -31,13 +32,15 @@ export interface ServerNode {
 }
 
 /** What the desktop shell offers (`window.oipOpcUaServer`, apps/desktop/opcUaServer.cjs). */
+/** The desktop shell's OPC UA servers, one per controller in a window: `link` is the controller's number, as its PLC
+ *  link's (links/linkHosts.ts opcUaServerForLink), 0 for the default controller and when absent. */
 export interface OpcUaServerHost {
-  start(opts: { port: number; network: boolean }): Promise<{ error: string; endpoint: string }>
-  define(opts: { nodes: ServerNode[] }): Promise<{ error: string }>
-  update(opts: { values: Record<string, TagValue>; running: boolean }): void
-  stop(): Promise<void>
-  onWrite(cb: (e: { name: string; value: unknown }) => void): () => void
-  onClients(cb: (e: { clients: string[] }) => void): () => void
+  start(opts: { port: number; network: boolean } & LinkOpt): Promise<{ error: string; endpoint: string }>
+  define(opts: { nodes: ServerNode[] } & LinkOpt): Promise<{ error: string }>
+  update(opts: { values: Record<string, TagValue>; running: boolean } & LinkOpt): void
+  stop(opts?: LinkOpt): Promise<void>
+  onWrite(cb: (e: { name: string; value: unknown } & LinkOpt) => void): () => void
+  onClients(cb: (e: { clients: string[] } & LinkOpt) => void): () => void
 }
 
 declare global {

@@ -14,6 +14,7 @@
 import type { SdkPart, PartInstance } from '../core/types'
 import { PART_DEFS } from '../core/types'
 import { partDisplayName, partTypeName } from '../core/parts/partDisplayName'
+import { controllersUsed } from '../core/io/controllerTag'
 import type { RigLink } from '../core/parts/partPackage'
 import type { RigGeometry } from './rigTree'
 import { canDeleteRigNode } from './rigTree'
@@ -141,7 +142,9 @@ export function matchesTreeFilter(part: PartInstance, label: string, q: string):
     // the type name (a custom part's package name - def.label is only the generic "Custom Part")
     partTypeName(part).toLowerCase().includes(q) ||
     def.label.toLowerCase().includes(q) ||
-    def.category.toLowerCase().includes(q)
+    def.category.toLowerCase().includes(q) ||
+    // the controller its tags are on, so filtering by Cell2 lists Cell2's parts
+    controllersUsed([part]).some((c) => c.toLowerCase().includes(q))
   )
 }
 

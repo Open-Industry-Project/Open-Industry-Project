@@ -135,7 +135,7 @@ export async function wire(page, row, { expect, says, partIds }) {
   expect(stored, `${row.part}: "${row.field}" holds ${row.address}`)
 }
 
-/** Simulation > External PLC…, through the command palette (the native menu is out of a script's reach). */
+/** Simulation > PLC Controllers…, through the command palette (the native menu is out of a script's reach). */
 export async function openExternalPlc(page, { expect, says }) {
   // the palette's chord is the app's, and a focused code editor keeps it (a reader in the PLC panel's editor reaches
   // for the menu instead): leave any text field first
@@ -143,7 +143,7 @@ export async function openExternalPlc(page, { expect, says }) {
   await page.keyboard.press('Control+Shift+P')
   const input = page.locator('.palette-input')
   await input.waitFor({ timeout: 10000 })
-  const command = says('External PLC…')
+  const command = says('PLC Controllers…')
   await input.fill(command)
   const item = page.locator('.palette-item', { has: page.locator('.palette-label', { hasText: labelled(command) }) }).first()
   expect((await item.locator('.palette-group').innerText()).trim() === says('Simulation'), `"${command}" is under Simulation, as the guide's menu path says`)

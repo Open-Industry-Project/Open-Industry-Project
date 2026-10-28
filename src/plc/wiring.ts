@@ -20,6 +20,12 @@
 //   address     a part's tag is a direct address (%IX100.0) that cannot carry it: malformed, memory,
 //               the wrong way round (a sensor is the PLC's input, so %I; an actuator its output, %Q),
 //               or the wrong size for the value (a BOOL is a bit, a REAL a double word).
+//   controller  a part's tag has `::` in it but no controller name before it (core/io/controllerTag.ts), or names
+//               a controller in a spelling other tags spell differently (`cell2::` beside `Cell2::`). IEC names
+//               ignore case, but the sim matches tags exactly, so the two would not meet.
+//
+// A tag that names another controller (`Cell2::%IX0.0`) is checked as that controller's: its address, its writers
+// and its type, but not against the program here, which does not run it. Whether Cell2 drives it is Cell2's business.
 //
 // The first three, and address, are errors. Undriven and unread are warnings: an undeclared program tag is
 // a forward reference (see TagRefParamSpec's doc), mid-authoring scenes are full of them, and a check that cries wolf
@@ -30,6 +36,7 @@
 //   • only tag params with a non-empty value - an unset tag is unwired by intent, not by error;
 //   • only parts whose package is loaded: `unresolvedPackages` carries the others out so the caller can say so.
 
+import { badControllerPrefix, controllerOf, controllerTag, splitControllerTag } from '../core/io/controllerTag'
 import { canonicalAddress, looksLikeAddress, parseDirectAddress, sizeWord } from '../core/io/iecAddress'
 import type { IoSize } from '../core/io/iecAddress'
 import { labelHead, packageParamSpecs } from '../core/packageParams'
@@ -44,7 +51,7 @@ export interface WiringPart extends TaggedPart {
   name?: string
 }
 
-export type WiringKind = 'contested' | 'type-clash' | 'program-type' | 'undriven' | 'unread' | 'undeclared' | 'address' | 'overlap'
+export type WiringKind = 'contested' | 'type-clash' | 'program-type' | 'undriven' | 'unread' | 'undeclared' | 'address' | 'overlap' | 'controller'
 
 export interface WiringProblem {
   severity: 'error' | 'warning'
@@ -175,13 +182,20 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         })
         continue
       }
-      if (looksLikeAddress(tag)) {
-        const why = addressProblem(tag, spec.dir, spec.stType)
+      const bad = badControllerPrefix(tag)
+      if (bad !== null) {
+        const why = `${bad} before the :: is not a controller name (a letter or underscore, then letters, digits and underscores)`
+        problems.push({ severity: 'error', kind: 'controller', tag, message: `${named({ partLabel: p.name ?? p.id, paramLabel: labelHead(spec.label) })}: ${why}`, parts: [p.id] })
+        continue
+      }
+      const { controller, local } = splitControllerTag(tag)
+      if (looksLikeAddress(local)) {
+        const why = addressProblem(local, spec.dir, spec.stType)
         if (why) {
           problems.push({ severity: 'error', kind: 'address', tag, message: `${named({ partLabel: p.name ?? p.id, paramLabel: labelHead(spec.label) })}: ${why}`, parts: [p.id] })
           continue
         }
-        tag = canonicalAddress(tag) ?? tag
+        tag = controllerTag(controller, canonicalAddress(local) ?? local)
       }
       const list = byTag.get(tag) ?? []
       const replaced = spec.setpointFor ? specs.find((s) => s.key === spec.setpointFor) : undefined
@@ -197,8 +211,10 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
   for (const [tag, decls] of [...byTag.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     const writers = decls.filter((d) => d.dir === 'out')
     const readers = decls.filter((d) => d.dir === 'in')
-    const programWrites = programWriteSet.has(tag)
-    const programReads = programReadSet.has(tag)
+    // another controller's tag is that controller's to drive and read, not the program's here
+    const ours = controllerOf(tag) === null
+    const programWrites = ours && programWriteSet.has(tag)
+    const programReads = ours && programReadSet.has(tag)
 
     // types: agreement across every declaration of this tag
     const declaredTypes = [...new Set(decls.map((d) => d.stType).filter((t): t is 'BOOL' | 'INT' | 'DINT' | 'REAL' => t !== undefined))]
@@ -228,7 +244,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
 
     // a part's declared type vs what the program declared. `watch` is a snapshot of the program's scalars,
     // so it separates BOOL from numeric but not INT from REAL - only the mismatch it can prove is reported.
-    const seen = link?.watch?.[link.aliases?.get(tag) ?? tag]
+    const seen = ours ? link?.watch?.[link.aliases?.get(tag) ?? tag] : undefined
     if (type !== null && seen !== undefined && typeof seen !== 'string') {
       const programIsBool = typeof seen === 'boolean'
       const partIsBool = type === 'BOOL'
@@ -245,7 +261,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
 
     // a part writing the tag does not count: what a part writes reaches only the program, never another part
     const partsOnly = writers.length > 0 && readers.length > 0 ? ` (a part's write reaches only the program, never another part)` : ''
-    if (readers.length > 0 && !programWrites) {
+    if (ours && readers.length > 0 && !programWrites) {
       problems.push({
         severity: 'warning',
         kind: 'undriven',
@@ -254,7 +270,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         parts: readers.map((r) => r.partId),
       })
     }
-    if (writers.length > 0 && !programReads) {
+    if (ours && writers.length > 0 && !programReads) {
       problems.push({
         severity: 'warning',
         kind: 'unread',
@@ -276,20 +292,22 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
 
   // A word inside a double word: %ID100 is the two words %IW200 and %IW201, in the PLC's memory and on every
   // Modbus link (core/io/externalIo.ts), so two tags there overwrite each other. In the sim they are separate
-  // names and nothing collides, which is exactly why it has to be said here. Only this overlap is universal:
+  // names and nothing collides, which is exactly why it has to be said here. Each controller has memory of its
+  // own, so the overlap is looked for within one controller. Only this overlap is universal:
   // a bit inside a word collides on a byte-addressed PLC and in a register image, but not in OpenPLC, whose
   // bits and words are separate tables, so that one is left to the link that would carry it.
-  const wordAt = new Map<string, string>() // `${area}:${word}` -> the word tag there
-  const doubles: [string, string, number][] = [] // [tag, area, first word]
+  const wordAt = new Map<string, string>() // `${controller}|${area}:${word}` -> the word tag there
+  const doubles: [string, string, string, number][] = [] // [tag, controller, area, first word]
   for (const tag of byTag.keys()) {
-    const a = looksLikeAddress(tag) ? parseDirectAddress(tag) : null
+    const { controller, local } = splitControllerTag(tag)
+    const a = looksLikeAddress(local) ? parseDirectAddress(local) : null
     if (!a || 'error' in a || a.area === 'M') continue
-    if (a.size === 'W') wordAt.set(`${a.area}:${a.fields[0]}`, tag)
-    else if (a.size === 'D') doubles.push([tag, a.area, a.fields[0]! * 2])
+    if (a.size === 'W') wordAt.set(`${controller ?? ''}|${a.area}:${a.fields[0]}`, tag)
+    else if (a.size === 'D') doubles.push([tag, controller ?? '', a.area, a.fields[0]! * 2])
   }
-  for (const [dword, area, first] of doubles) {
+  for (const [dword, controller, area, first] of doubles) {
     for (const w of [first, first + 1]) {
-      const word = wordAt.get(`${area}:${w}`)
+      const word = wordAt.get(`${controller}|${area}:${w}`)
       if (word === undefined) continue
       problems.push({
         severity: 'error',
@@ -297,6 +315,29 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
         tag: word,
         message: `is half of ${dword} (the two words %${area}W${first} and %${area}W${first + 1}), so on a real PLC and over the external link the two overwrite each other. Give one of them an address of its own`,
         parts: [...new Set([...(byTag.get(word) ?? []), ...(byTag.get(dword) ?? [])].map((d) => d.partId))],
+      })
+    }
+  }
+
+  // one controller in two spellings: each spelling after the first that appears, sorted, is the one reported
+  const spellings = new Map<string, Map<string, string[]>>() // lower-case name -> spelling -> part ids
+  for (const [tag, decls] of byTag) {
+    const c = controllerOf(tag)
+    if (c === null) continue
+    const bySpelling = spellings.get(c.toLowerCase()) ?? new Map<string, string[]>()
+    bySpelling.set(c, [...(bySpelling.get(c) ?? []), ...decls.map((d) => d.partId)])
+    spellings.set(c.toLowerCase(), bySpelling)
+  }
+  for (const bySpelling of spellings.values()) {
+    if (bySpelling.size < 2) continue
+    const [first, ...others] = [...bySpelling.keys()].sort()
+    for (const other of others) {
+      problems.push({
+        severity: 'error',
+        kind: 'controller',
+        tag: other,
+        message: `names the controller ${first!} spelled another way. Names ignore case, but tags must be spelled alike to meet, so write ${first!}`,
+        parts: [...new Set(bySpelling.get(other))],
       })
     }
   }

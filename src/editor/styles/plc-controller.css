@@ -37,6 +37,21 @@
   outline-offset: 1px;
 }
 
+/* the named controllers (NamedPlcsSection.tsx): the rest of the Controllers section, under a small heading */
+.ctl-subhead {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* one block each, divided by a rule */
+.ctl-named + .ctl-named {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
 /* the External PLC section */
 .ctl-ext {
   display: flex;
@@ -82,7 +97,7 @@
   gap: 6px;
 }
 
-.ctl-sec + .ctl-sec {
+.ctl-sec ~ .ctl-sec {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--line-soft);
@@ -168,3 +183,11 @@
   color: var(--danger);
 }
 
+
+/* a controller's OPC UA server, under its "This simulator" choice (OpcUaServerSection.tsx): nested by a rule, so it
+   reads as that controller's and not as a section beside the controllers */
+.ctl-ua {
+  margin: 6px 0 2px 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line-soft);
+}

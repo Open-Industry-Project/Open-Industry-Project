@@ -557,6 +557,15 @@ export function agentGuideMarkdown(doc: GuideDoc, opts?: { measure?: MeasureExte
     'These are the names this scene actually wires. They are chosen by whoever placed the parts, so no',
     'catalog or type definition knows them. This table is the only place they are written down.',
     '',
+    'A tag may name the controller it belongs to: `Cell2::%IX0.0` is %IX0.0 on the PLC called Cell2, and `Cell2::Eye` is',
+    "Cell2's tag Eye. A tag with no name belongs to the default controller. Each controller runs in the simulator or on a",
+    'PLC outside this app. A simulated one runs its own tasks (`plc` on a task) and the program instances on them, on',
+    "memory of its own, and reads and drives only its own tags. The default controller's program never sees another's",
+    "tags. Keep a cell's parts on one controller, and put the name on every one of",
+    'their tags. A tag left without it goes to the default controller, and the program then reports it as wired but never',
+    'declared.',
+    ...(door === 'tools' ? ['`list_controllers` lists them; `assign_controller` moves a set of parts onto one, after `duplicate_parts` for instance; `set_controller` runs one in the simulator; `run_instance_on` gives it a program instance.'] : []),
+    '',
   )
   w(tagTable(collectTagUses(activeSceneJson, opts?.resolve), door))
 

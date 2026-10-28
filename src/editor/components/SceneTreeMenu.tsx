@@ -26,8 +26,8 @@ const M = defineMessages('sceneTreeMenu', {
   delete: 'Delete',
 })
 
-// the clipboard block, by command id (editor/commands.ts)
-const CLIPBOARD_COMMANDS = ['edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate', 'edit.copyProperties', 'edit.pasteProperties'] as const
+// the clipboard block, by command id (editor/commands.ts), with what a selection's properties and tags can be given
+const CLIPBOARD_COMMANDS = ['edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate', 'edit.copyProperties', 'edit.pasteProperties', 'edit.assignController'] as const
 
 const MENU_W = 184
 

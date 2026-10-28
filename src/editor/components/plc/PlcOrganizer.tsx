@@ -30,6 +30,7 @@ const M = defineMessages('plcOrganizer', {
   langSt: 'Structured Text',
   langStAndLadder: 'Structured Text and ladder',
   topLevel: 'top-level code',
+  topLevelRow: 'Top-level code',
   wordProgram: 'the top-level code',
   wordProgramPou: 'program',
   wordConfiguration: 'configuration',
@@ -53,7 +54,7 @@ const M = defineMessages('plcOrganizer', {
   deleteHint: 'Deletes it and the comment written above it. {undo} undoes it',
   undo: 'Undo',
   newNameFor: 'New name for {kind} {name}',
-  shownBadge: 'shown',
+  shownBadge: 'live',
   shownHint: "The live values in {type}'s code are {instance}'s. Click another {type} instance to show its values.",
   topBodyRuns: 'The top-level code and variables: the code outside every POU, and the statements its Main instance runs',
   topVariables: 'The top-level variables: the code outside every POU, which the scene is wired to by name',
@@ -85,7 +86,7 @@ const M = defineMessages('plcOrganizer', {
 })
 
 // The organizer's rows from the program text, hung in the tree (OrganizerTree.tsx): under the Controller node the code
-// outside every POU (Main: the top-level variables, and its statements when it has any), and below the Tasks the POUs
+// outside every POU (Top-level code: the top-level variables, and its statements when it has any), and below the Tasks the POUs
 // by kind, the data types and the global variables, each a block of the program text (plcOrganizer.ts). The tree draws
 // the Tasks and the scene's Devices itself. A delete is not asked about: undo takes it back.
 //
@@ -114,6 +115,8 @@ export interface OrganizerActions {
   editController: (next: Controller, renames: TagRename[], label: string) => void
   /** move the tasks of the code's own CONFIGURATION into the table */
   adoptConfiguration: () => void
+  /** download one controller's program (null: the default one) */
+  exportController?: (plc: string | null, target: 'iec-text' | 'plcopen-xml') => void
 }
 
 export interface PlcOrganizerProps {
@@ -137,8 +140,8 @@ export interface PlcOrganizerProps {
   revealTasks: number
   /** drawn over the code in a narrow panel: a pick closes it */
   onPicked?: () => void
-  /** where the program runs, for the Controller node, in a word or two: 'simulated', or 'external PLC' */
-  runsOn: string
+  /** the scene's controllers, which a program instance can be run on (Program Properties) */
+  plcs?: { defaultName: string; defaultSimulated: boolean; named: readonly { name: string; simulated: boolean }[] }
   /** the scene's parts that speak tags, for the tree's Devices section (components/plc/plcDevices.ts) */
   devices: OrganizerDevices
   actions: OrganizerActions
@@ -199,10 +202,11 @@ function deleteHint(): string {
 }
 
 export function PlcOrganizer(props: PlcOrganizerProps): ReactElement {
-  const { blocks, facts, controller, ownConfiguration, problems, activeBlock, onLadder, readOnly, readOnlyNote, revealTasks, onPicked, runsOn, devices, actions, monitoring } = props
+  const { blocks, facts, controller, ownConfiguration, problems, activeBlock, onLadder, readOnly, readOnlyNote, revealTasks, onPicked, devices, actions, monitoring } = props
   const groups = useMemo(() => organizerGroups(blocks, facts), [blocks, facts])
   const types = useMemo(() => groups.programs.map((r) => r.name), [groups])
-  const tree = useMemo(() => taskTree(types, controller, facts.bodyRuns), [types, controller, facts.bodyRuns])
+  const plcs = props.plcs
+  const tree = useMemo(() => taskTree(types, controller, facts.bodyRuns, plcs && { defaultName: plcs.defaultName, named: plcs.named.map((c) => c.name) }), [types, controller, facts.bodyRuns, plcs])
   // a name field outlives the render that opened it (an added block is named once it is in the blocks): its commit reads these
   const blocksRef = useRef(blocks)
   blocksRef.current = blocks
@@ -307,7 +311,9 @@ export function PlcOrganizer(props: PlcOrganizerProps): ReactElement {
           e.stopPropagation()
         }}
       >
-        <span className="org-name">{row.label}</span>
+        {/* the code outside every POU is named Main in the program, but its instance on a task is also Main, and two
+            rows reading Main read as one listed twice */}
+        <span className="org-name">{row.kind === 'program' ? t(M.topLevelRow) : row.label}</span>
         {row.language && row.kind !== 'program' && (
           <span className={`org-lang${ladder ? ' ld' : ''}`} aria-label={t(ladder ? M.langLadder : row.language === 'ST' ? M.langSt : M.langStAndLadder)}>
             {row.language}
@@ -429,7 +435,7 @@ export function PlcOrganizer(props: PlcOrganizerProps): ReactElement {
       </>
     ),
     taskDialog: (index, close, ctx) => (
-      <TaskPropertiesDialog types={types} topLevelStatements={facts.bodyRuns} controller={controller} index={index} readOnly={ctx.tableLocked ? ctx.tableTitle('') : null} onCommit={ctx.editTable} onClose={close} />
+      <TaskPropertiesDialog types={types} topLevelStatements={facts.bodyRuns} controller={controller} {...(props.plcs ? { plcs: props.plcs } : {})} index={index} readOnly={ctx.tableLocked ? ctx.tableTitle('') : null} onCommit={ctx.editTable} onClose={close} />
     ),
     programDialog: (index, close, ctx) => (
       <ProgramPropertiesDialog
@@ -437,6 +443,7 @@ export function PlcOrganizer(props: PlcOrganizerProps): ReactElement {
         source={props.getSource()}
         controller={controller}
         types={types}
+        {...(props.plcs ? { plcs: props.plcs } : {})}
         index={index}
         readOnly={ctx.tableLocked ? ctx.tableTitle('') : null}
         onCommit={ctx.editTable}
@@ -457,10 +464,11 @@ export function PlcOrganizer(props: PlcOrganizerProps): ReactElement {
       revealTasks={revealTasks}
       activeBlock={activeBlock}
       onPicked={onPicked}
-      runsOn={runsOn}
       devices={devices}
+      {...(props.plcs ? { plcs: props.plcs } : {})}
       onControllerProperties={() => runCommand('sim.externalPlc')}
       editController={actions.editController}
+      {...(actions.exportController ? { onExportController: actions.exportController } : {})}
     />
   )
 }

@@ -67,6 +67,7 @@ import { checkProgram, getPou, listPous, setPou, traceTags } from './programTool
 import { CARGO_LIST_MAX, captureView, deleteTest, duplicatePartsTool, getCargo, undoTool } from './viewTools'
 import { pauseTool, resumeTool, stepTool } from './simTools'
 import { getContext, syncFolder } from './contextTools'
+import { assignControllerTool, listControllers, runInstanceOnTool, setControllerTool } from './controllerTools'
 
 export { AGENT_LABEL, AgentImageResult, AgentToolError, agentResultText }
 export type { AgentController, AgentImage, AgentShell, AgentTool, AgentToolContext, JsonSchema } from './toolKit'
@@ -968,6 +969,10 @@ export const AGENT_TOOLS: readonly AgentTool[] = [
   setTask,
   assignIoTool,
   getIoList,
+  listControllers,
+  assignControllerTool,
+  setControllerTool,
+  runInstanceOnTool,
   getProblems,
   captureView,
   run,

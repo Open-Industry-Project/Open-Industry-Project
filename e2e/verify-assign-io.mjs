@@ -1,4 +1,4 @@
-// Assign I/O and Import I/O list, through the menu a user opens: right-click Main (the top-level code) in the PLC
+// Assign I/O and Import I/O list, through the menu a user opens: right-click Top-level code (the code outside every POU) in the PLC
 // panel's organizer, since what they assign is addresses for its variables.
 //
 // The command turns a scene wired by name into one wired to a PLC's I/O points: every tag a part is wired
@@ -67,7 +67,7 @@ try {
   await showPlcEditor(page)
   const tags = page.locator('[data-testid="org-top"]')
   await tags.waitFor({ timeout: 20000 })
-  /** A command from the Main row's right-click menu. */
+  /** A command from the Top-level code row's right-click menu. */
   const tagsMenu = async (testid) => {
     await tags.click({ button: 'right' })
     const item = page.locator(`[data-testid="${testid}"]`)

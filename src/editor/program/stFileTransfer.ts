@@ -9,6 +9,7 @@ import { dialectRefusal, isKnownDialect } from '../../core/dialect'
 import { controllerFor, extractController, runnableSource } from '../../plc'
 // from their modules, not the barrel: this module loads lazily, and those three with it (plc/index.ts says why)
 import { exportProgram, type ExportTarget } from '../../plc/exchange/export'
+import { controllerExport, exportableControllers, NothingToExportError, tableControllers } from '../../plc/controllerExport'
 import { importIecText } from '../../plc/exchange/importText'
 import { importPlcopenXml } from '../../plc/exchange/importXml'
 import type { EditorStore } from '../store/store'
@@ -23,9 +24,13 @@ import type { EditorStore } from '../store/store'
  *
  * The generated TASK carries the program's own scan time, not a fixed 100 ms: the period the program was simulated at
  * is the one a reader of the file should see.
+ *
+ * A project whose tasks name several controllers exports one controller at a time, since each PLC takes a download of
+ * its own: `plc` (null or absent: the default one), its tasks and instances and the POUs they reach
+ * (plc/controllerExport.ts). The File menu exports the default controller's and says where the others' come from.
  */
-export function exportStProgram(store: EditorStore, target: ExportTarget): void {
-  const { stProgram: src, controller, stScanMs: scanMs, projectName, stDialect } = store.getState()
+export function exportStProgram(store: EditorStore, target: ExportTarget, plc?: string | null): void {
+  const { stProgram: src, controller, stScanMs: scanMs, projectName, stDialect, externalPlc } = store.getState()
   // both targets are IEC, and a program in a dialect this build does not have cannot be read as IEC to produce one
   if (stDialect !== undefined && !isKnownDialect(stDialect)) {
     store.showStFileReport({
@@ -38,15 +43,35 @@ export function exportStProgram(store: EditorStore, target: ExportTarget): void 
     store.revealPanel('st')
     return
   }
+  const others = tableControllers(controller, externalPlc.mainName)
+  const perController = others.length > 0 || (plc !== undefined && plc !== null)
+  const name = plc ?? externalPlc.mainName
+  // the others named only where they have a file to give: a controller with an empty task has no export to point at
+  const exportable = exportableControllers(controller, externalPlc.mainName)
+  const elsewhere = `${exportable.join(', ')} ${exportable.length === 1 ? 'has its own file' : 'have their own'}: right-click ${exportable.length === 1 ? 'it' : 'one'} in the PLC panel's organizer to export ${exportable.length === 1 ? 'it' : 'each'}.`
+  const notes: string[] = []
   let result: ReturnType<typeof exportProgram>
   try {
-    // a file carries the tasks the program runs from as the CONFIGURATION they stand for
-    result = exportProgram(runnableSource(src, controllerFor(src, controller, scanMs)), target, { projectName: projectName || 'program', scanMs })
+    if (perController) {
+      const own = controllerExport(src, controller, scanMs, plc ?? null, externalPlc.mainName)
+      result = exportProgram(runnableSource(own.source, own.table), target, { projectName: projectName || 'program', scanMs })
+      // the controller names the file, beside the project: line.st becomes line-cell2.st
+      result = { ...result, filename: result.filename.replace(/(\.[a-z]+)$/, `-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}$1`) }
+      notes.push(`What goes onto ${name}: its tasks, the program instances on them and the POUs they use.`)
+      if (own.dropped.length > 0) notes.push(`Left out ${own.dropped.join(', ')}, which ${name} does not use.`)
+      if (plc === undefined && exportable.length > 0) notes.push(elsewhere)
+    } else {
+      // a file carries the tasks the program runs from as the CONFIGURATION they stand for
+      result = exportProgram(runnableSource(src, controllerFor(src, controller, scanMs)), target, { projectName: projectName || 'program', scanMs })
+    }
   } catch (e) {
+    const empty = e instanceof NothingToExportError
     store.showStFileReport({
       headline: 'Could not export the program',
       detail: e instanceof Error ? e.message : String(e),
-      items: ['Nothing was downloaded. A program leaves only once it compiles: fix what the code editor marks, then export again.'],
+      items: empty
+        ? ['Nothing was downloaded.', ...(plc === undefined && exportable.length > 0 ? [elsewhere] : [])]
+        : ['Nothing was downloaded. A program leaves only once it compiles: fix what the code editor marks, then export again.'],
       tone: 'error',
       keepOnEdit: false, // the fix is an edit, and the code editor's own marks carry on from there
     })
@@ -57,11 +82,15 @@ export function exportStProgram(store: EditorStore, target: ExportTarget): void 
   // bringing the panel forward for, where a clean export's download is its own confirmation
   store.showStFileReport({
     headline: `Exported ${result.filename}`,
+    // which part of the project the file holds is a fact about it, not work to tick off
+    ...(notes.length > 0 ? { detail: notes.join(' ') } : {}),
     items: result.warnings,
     tone: result.warnings.length ? 'warn' : 'ok',
+    whole: !perController,
     keepOnEdit: false, // a receipt for a file already written: the first keystroke makes it stale
   })
-  if (result.warnings.length > 0) store.revealPanel('st')
+  // so is a file that holds only part of the project: the person should see which part
+  if (result.warnings.length > 0 || notes.length > 0) store.revealPanel('st')
   const url = URL.createObjectURL(new Blob([result.content], { type: target === 'plcopen-xml' ? 'application/xml' : 'text/plain' }))
   const a = document.createElement('a')
   a.href = url
@@ -142,6 +171,7 @@ export async function importStFile(store: EditorStore, file: File): Promise<void
     detail: [family, tasks].filter((s) => s !== undefined).join('; ') || undefined,
     items: notes,
     tone: notes.length ? 'warn' : 'ok',
+    whole: true,
     // an import checklist is a to-do list over the program now in the editor: the reader is meant to edit while
     // working through it, so a keystroke must not wipe it
     keepOnEdit: true,

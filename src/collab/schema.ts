@@ -7,6 +7,7 @@ import type { ParamSpec, ParamValue, PartInstance, PartType, SceneJSON, SdkPart,
 import { upgradeStoredPackage } from '../core/parts/partUpgrade'
 import type { PartPackage } from '../core/parts/partPackage'
 import { validateController } from '../core/controller'
+import { validateScenePlcs } from '../core/scene/scenePlcs'
 import type { Controller } from '../core/controller'
 import { storedDialect } from '../core/dialect'
 import { changedSpan } from '../core/textDiff'
@@ -210,6 +211,38 @@ export function writeUnits(ydoc: Y.Doc, units: SceneJSON['units']): void {
   if (readUnits(ydoc) === units) return
   if (units === undefined) metaMap(ydoc).delete(UNITS_META)
   else metaMap(ydoc).set(UNITS_META, units)
+}
+
+/** `meta` key holding the room's scene's controllers (SceneJSON.plcs, core/scene/scenePlcs.ts) as JSON. Part of the
+ *  scene like the Units: an edit, undoable, read by docToScene, and a change to it rebuilds the scene (bridge.ts). */
+export const PLCS_META = 'plcs'
+
+// the last list read from each room, by its text: every remote transaction re-reads the scene, and a new list each time
+// would re-derive the controller setup (store/storePlcs.ts plcSetupOf, keyed on the list) at a peer's drag rate
+const lastPlcs = new WeakMap<Y.Doc, { text: string; plcs: SceneJSON['plcs'] }>()
+
+/** the room scene's controllers, read like any other untrusted copy of them; absent when the room has none */
+export function readPlcs(ydoc: Y.Doc): SceneJSON['plcs'] {
+  const v = metaMap(ydoc).get(PLCS_META)
+  if (typeof v !== 'string') return undefined
+  const last = lastPlcs.get(ydoc)
+  if (last?.text === v) return last.plcs
+  let plcs: SceneJSON['plcs']
+  try {
+    plcs = validateScenePlcs(JSON.parse(v), [])
+  } catch {
+    plcs = undefined
+  }
+  lastPlcs.set(ydoc, { text: v, plcs })
+  return plcs
+}
+
+/** write the room scene's controllers; a no-op when unchanged. Call inside the caller's transaction. */
+export function writePlcs(ydoc: Y.Doc, plcs: SceneJSON['plcs']): void {
+  const text = plcs === undefined ? undefined : JSON.stringify(plcs)
+  if (metaMap(ydoc).get(PLCS_META) === text) return
+  if (text === undefined) metaMap(ydoc).delete(PLCS_META)
+  else metaMap(ydoc).set(PLCS_META, text)
 }
 
 /** `meta` key holding the room's scene's physics step rate (Hz; core/project/project.ts ProjectMachine.simHz). It sits beside the scene's version, not with the
@@ -576,6 +609,8 @@ export function docToScene(ydoc: Y.Doc): SceneJSON {
   if (packages.length > 0) scene.packages = packages
   const units = readUnits(ydoc)
   if (units !== undefined) scene.units = units
+  const plcs = readPlcs(ydoc)
+  if (plcs !== undefined) scene.plcs = plcs
   return scene
 }
 
@@ -598,5 +633,6 @@ export function sceneToDoc(scene: SceneJSON, ydoc: Y.Doc, origin: unknown = LOCA
     for (const pkg of scene.packages ?? []) writePackage(packages, pkg, { edited: edited?.has(pkg.id) })
     meta.set('version', scene.version)
     writeUnits(ydoc, scene.units)
+    writePlcs(ydoc, scene.plcs)
   }, origin)
 }

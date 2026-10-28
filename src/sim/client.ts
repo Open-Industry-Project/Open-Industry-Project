@@ -5,6 +5,7 @@ import { PART_CALL_BEACON_BYTES, readPartCallBeacon } from '../core/parts/partSc
 import { DEFAULT_SIM_HZ } from '../core/types'
 import type { SceneJSON, SimRate } from '../core/types'
 import type { WiredBindings } from '../plc/link/plcLink'
+import type { PlcRun } from './plcGroup'
 import type { TagValue } from '../plc/types'
 import type { PlcFrameState } from './plcHost'
 import { scenePatch } from './scenePatch'
@@ -431,19 +432,14 @@ export class SimClient {
     this.post({ type: 'setDrivenTags', tags })
   }
 
-  /** Attach an ST program to the running world: the worker compiles it and interleaves its scans
-   *  between physics steps (PlcHost). Validate the source main-side first (LocalPlcLink throws
-   *  StError); a worker-side failure comes back as onPlcFault. Dropped while not running: the
+  /** Attach the programs of the controllers the simulator runs (one each, sim/plcGroup.ts) to the running world: the
+   *  worker compiles them and interleaves their scans between physics steps. Validate each source main-side first
+   *  (LocalPlcLink throws StError); a worker-side failure comes back as onPlcFault. Dropped while not running: the
    *  controller re-attaches on every Play, so there is nothing to catch up. */
-  runProgram(source: string, periodSec?: number, wired?: WiredBindings): void {
+  runProgram(runs: PlcRun[]): void {
     this.plcState = null // stale state from a previous program must not show under the new one
-    if (!this._running) return
-    this.post({
-      type: 'runProgram',
-      source,
-      ...(periodSec !== undefined ? { periodSec } : {}),
-      ...(wired ? { wired } : {}),
-    })
+    if (!this._running || runs.length === 0) return
+    this.post({ type: 'runProgram', runs })
     if (Object.keys(this.forces).length > 0) this.post({ type: 'setForces', forces: this.forces })
   }
 
@@ -460,10 +456,10 @@ export class SimClient {
     this.post({ type: 'writePlcVars', values })
   }
 
-  /** re-bind the attached program to the scene's wiring after an edit, keeping its state; no-op when nothing is attached */
-  rebindProgram(wired: WiredBindings): void {
+  /** re-bind one controller's program (none: the default one's) to the scene's wiring after an edit, keeping its state */
+  rebindProgram(wired: WiredBindings, controller?: string): void {
     if (!this._running) return
-    this.post({ type: 'rebindProgram', wired })
+    this.post({ type: 'rebindProgram', wired, ...(controller !== undefined ? { controller } : {}) })
   }
 
   /** retune the attached program's scan (cycle) time live; no-op when nothing is attached */

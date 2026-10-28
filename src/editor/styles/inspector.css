@@ -699,6 +699,24 @@
   min-width: 0;
 }
 
+/* the controller a tag is on, in front of its box (inspector/tagField.tsx): compact, so the box keeps room for an
+   address like %IX100.0. The label column gives way before the box does */
+.field-control select.tag-controller {
+  flex: none;
+  max-width: 40%;
+  padding-left: 2px;
+  padding-right: 0;
+  font-size: 11px;
+}
+
+.inspector .field:not(.vector-field) > .field-control:has(> .tag-controller) > input:not([type='checkbox']) {
+  min-width: 72px;
+}
+
+.inspector .field:not(.vector-field):has(> .field-control > .tag-controller) > .field-label {
+  min-width: 0;
+}
+
 .field-revert {
   flex: none;
   width: 18px;

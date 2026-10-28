@@ -188,8 +188,13 @@
   color: var(--text);
 }
 
+/* an action written as words inside a note ("Set up", "Edit them here"): outlined, so it reads as a button and not as
+   more of the note, where the bare "+" buttons rely on their glyph */
 .org-inline-btn {
   margin-left: 6px;
+  border-color: var(--line-soft);
+  background: var(--control);
+  color: var(--text);
 }
 
 .org-children {

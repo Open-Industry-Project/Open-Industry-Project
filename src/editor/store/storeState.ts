@@ -26,6 +26,8 @@ import {
   readVertexSnapOrigin,
 } from './storePrefs'
 import type { ExternalPlcSettings } from './storePrefs'
+import { plcSetupOf } from './storePlcs'
+import type { PlcSetup } from './storePlcs'
 import type { PropertyClipboard } from './storeProperties'
 
 /** Dev-only (see setState): recursively freeze a part snapshot so any in-place mutation throws at the
@@ -184,11 +186,17 @@ export interface EditorState {
    */
   simHz: SimRate
   /**
-   * Whether Play serves the scene's I/O to an external PLC instead of running the program in-process, and
-   * where (editor/links/externalPlc.ts). A machine setting, kept in localStorage, never in the document: the
-   * document's part is the wiring, the addresses in the parts' tags.
+   * The scene's controllers as Play uses them (storePlcs.ts): the document's list (SceneJSON.plcs), whether the
+   * program here runs the default one and each one's protocol, with this computer's addresses from `plcPrefs`.
+   * Derived, kept current by setState whenever the document's scene or the preferences change; every reader of a
+   * link's settings reads this.
    */
-  externalPlc: ExternalPlcSettings
+  externalPlc: PlcSetup
+  /**
+   * This computer's PLC preferences, in localStorage, never in the document: each controller's address, and the
+   * simulated PLC's OPC UA server. Written only through the store's controller edits (storePlcs.ts).
+   */
+  plcPrefs: ExternalPlcSettings
   selectedIds: string[]
   tool: ToolMode
   liveSnap: boolean
@@ -431,6 +439,7 @@ export function guardOpeningsTarget(s: Pick<EditorState, 'selectedIds' | 'scene'
 /** The state a new EditorStore starts in (its constructor): `scene`, or an empty one, with the machine preferences
  *  read from localStorage and the program as given (the store reads the solo buffer: stProgram.ts is its own seam). */
 export function initialEditorState(scene: SceneJSON | undefined, stProgram: string, stScanMs: number): EditorState {
+  const plcPrefs = readExternalPlc()
   return {
     scene: scene ?? { version: SCENE_VERSION, parts: [] },
     // Seeded from the solo buffer so a store that is never handed a document (a bare `new
@@ -442,7 +451,8 @@ export function initialEditorState(scene: SceneJSON | undefined, stProgram: stri
     controller: null,
     // every real boot path replaces this with the document's own rate (project, room, demo)
     simHz: DEFAULT_SIM_HZ,
-    externalPlc: readExternalPlc(),
+    plcPrefs,
+    externalPlc: plcSetupOf(scene ?? { parts: [] }, plcPrefs),
     selectedIds: [],
     tool: 'transform',
     liveSnap: readLiveSnap(),

@@ -5,6 +5,7 @@ import type { EditorController } from '../../controller'
 import { dialogHost } from '../../dialogHost'
 import type { EditorState, EditorStore } from '../../store/store'
 import { ExternalPlcSection, WHY_NOT as PLC_WHY_NOT } from './ExternalPlcSection'
+import { NamedPlcsSection } from './NamedPlcsSection'
 import { OpcUaServerSection, WHY_NOT as SERVER_WHY_NOT } from './OpcUaServerSection'
 import { trapTab, useModalKeys } from '../inspector/menu'
 import { CloseIcon } from '../toolbarIcons'
@@ -12,14 +13,14 @@ import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('controllerDialog', {
   bothNeedDesktop: 'Connecting to a PLC or serving OPC UA needs the desktop app: a browser tab cannot open a network connection or listen on a port.',
-  assignStillWorks: '{why} Assign I/O Addresses and the I/O list still work (right-click Main in the organizer): wire the scene here, then open it in the desktop app to connect it.',
+  assignStillWorks: '{why} Assign I/O Addresses and the I/O list still work (right-click Top-level code in the organizer): wire the scene here, then open it in the desktop app to connect it.',
   title: 'Controller Properties',
   close: 'Close',
   done: 'Done',
 })
 
 // Controller Properties: where the program runs. Opened from the organizer's Controller node (double-click, or its
-// right-click Properties), from the toolbar's link status, and by the "External PLC…" command, which is how a search
+// right-click Properties), from the toolbar's link status, and by the "PLC Controllers…" command, which is how a search
 // for "PLC" or "Modbus" in the palette finds it. These are settings of the controller, so they
 // live on its node.
 //
@@ -27,8 +28,9 @@ const M = defineMessages('controllerDialog', {
 // live link state that dock showed during Play is in the toolbar now, beside Play and Stop, where it is seen whatever
 // tab is in front.
 //
-// The connection settings apply as they are chosen, like the preferences they are: they are this computer's (a PLC's
-// address belongs to the bench it sits on), never the project's, so there is nothing to commit or undo.
+// Every setting applies as it is chosen. The controllers, what runs each and how Play reaches it are the project's, each
+// change an edit with undo; a PLC's address belongs to the bench it sits on, so it is this computer's preference
+// (store/storePlcs.ts).
 
 /** What this surface cannot do, said once above the sections rather than under each: both reasons are the same one. */
 function desktopOnly(controller: EditorController): string | null {
@@ -70,8 +72,8 @@ export function ControllerDialog({ store, state, controller, onClose }: { store:
               {notice}
             </div>
           )}
-          <ExternalPlcSection store={store} state={state} controller={controller} />
-          <OpcUaServerSection store={store} state={state} controller={controller} />
+          <ExternalPlcSection store={store} state={state} controller={controller} server={<OpcUaServerSection store={store} state={state} controller={controller} />} />
+          <NamedPlcsSection store={store} state={state} controller={controller} />
         </div>
         <div className="props-foot">
           <button className="props-ok" data-testid="controller-props-close" onClick={onClose} autoFocus>

@@ -12,11 +12,12 @@
 // The library is a native file the build fetches (scripts/fetch-libplctag.mjs -> vendor/libplctag/), loaded on
 // the first connect: most sessions never use EtherNet/IP. A build without it says so instead of crashing.
 //
-// One link per window, closed with it. Plain Node - testable against libplctag's own simulator with
+// One link per controller in a window (linkKeys.cjs), all closed with it. Plain Node - testable against libplctag's own simulator with
 // `node apps/desktop/eipIo.test.cjs`.
 
 const { existsSync } = require('node:fs')
 const { join } = require('node:path')
+const { BAD_LINK, linkKey, linkNo, onPageGone, windowKeys } = require('./linkKeys.cjs')
 
 /** The library file for this platform, as the fetch script names it. */
 const LIB_FILE = process.platform === 'win32' ? 'plctag.dll' : process.platform === 'darwin' ? 'libplctag.dylib' : 'libplctag.so'
@@ -234,7 +235,7 @@ class EipLink {
   }
 }
 
-/** @type {Map<number, EipLink>} */
+/** @type {Map<string, EipLink>} by linkKey (linkKeys.cjs) */
 const links = new Map()
 const watched = new Set()
 
@@ -246,7 +247,7 @@ function shutdownEip() {
 }
 
 /**
- * Register the `eip:*` channels.
+ * Register the `eip:*` channels. Each call may name one of the window's links as `link` (linkKeys.cjs), 0 when absent.
  *   eip:open     {gateway, path} -> {error}                   where the controller is (nothing is sent yet)
  *   eip:bind     {tags: [{name, bit}]} -> {error, tags: [{status, cip}]}
  *                                                            a handle per tag, read once for its CIP type
@@ -258,8 +259,11 @@ function shutdownEip() {
 function registerEipIo(ipcMain, { consent }) {
   ipcMain.handle('eip:open', async (event, opts) => {
     const sender = event.sender
-    links.get(sender.id)?.close()
-    links.delete(sender.id)
+    const n = linkNo(opts)
+    if (n === null) return { error: BAD_LINK }
+    const key = linkKey(sender.id, n)
+    links.get(key)?.close()
+    links.delete(key)
     const gateway = typeof opts?.gateway === 'string' ? opts.gateway : ''
     const path = typeof opts?.path === 'string' ? opts.path : ''
     const bad = checkTarget(gateway, path)
@@ -270,20 +274,19 @@ function registerEipIo(ipcMain, { consent }) {
     const link = new EipLink()
     const opened = link.open({ gateway, path })
     if (opened.error) return opened
-    links.set(sender.id, link)
-    if (!watched.has(sender.id)) {
-      watched.add(sender.id)
-      const id = sender.id
-      sender.once('destroyed', () => {
-        watched.delete(id)
-        links.get(id)?.close()
-        links.delete(id)
-      })
-    }
+    links.set(key, link)
+    onPageGone(sender, watched, (id) => {
+      for (const k of windowKeys(links, id)) {
+        links.get(k)?.close()
+        links.delete(k)
+      }
+    })
     return { error: '' }
   })
-  const withLink = async (event, fn) => {
-    const link = links.get(event.sender.id)
+  const withLink = async (event, opts, fn) => {
+    const n = linkNo(opts)
+    if (n === null) return { error: BAD_LINK }
+    const link = links.get(linkKey(event.sender.id, n))
     if (!link) return { error: 'not connected' }
     try {
       return await fn(link)
@@ -291,11 +294,14 @@ function registerEipIo(ipcMain, { consent }) {
       return { error: String(e?.message ?? e) }
     }
   }
-  ipcMain.handle('eip:bind', (event, opts) => withLink(event, (l) => l.bind(Array.isArray(opts?.tags) ? opts.tags : [])))
-  ipcMain.handle('eip:exchange', (event, opts) => withLink(event, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
-  ipcMain.handle('eip:close', (event) => {
-    links.get(event.sender.id)?.close()
-    links.delete(event.sender.id)
+  ipcMain.handle('eip:bind', (event, opts) => withLink(event, opts, (l) => l.bind(Array.isArray(opts?.tags) ? opts.tags : [])))
+  ipcMain.handle('eip:exchange', (event, opts) => withLink(event, opts, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
+  ipcMain.handle('eip:close', (event, opts) => {
+    const n = linkNo(opts)
+    if (n === null) return
+    const key = linkKey(event.sender.id, n)
+    links.get(key)?.close()
+    links.delete(key)
   })
 }
 

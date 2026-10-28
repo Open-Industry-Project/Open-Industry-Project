@@ -121,7 +121,7 @@ try {
   const id = (name) => variables.find((v) => v.path.join('.') === `PLC.Main.${name}`)?.nodeId
   expect(id('Start') === 'ns=1;s=Main.Start', `a variable's NodeId is its name (${id('Start')})`)
   const types = await client.describe([id('Start'), id('Eye'), id('Speed')])
-  expect(JSON.stringify(types) === JSON.stringify([{ dataType: 'ns=0;i=1', access: 3 }, { dataType: 'ns=0;i=1', access: 1 }, { dataType: 'ns=0;i=10', access: 3 }]), `types and access follow the declarations, the eye the scene feeds read-only (${JSON.stringify(types)})`)
+  expect(JSON.stringify(types) === JSON.stringify([{ dataType: 'ns=0;i=1', builtin: 1, access: 3 }, { dataType: 'ns=0;i=1', builtin: 1, access: 1 }, { dataType: 'ns=0;i=10', builtin: 10, access: 3 }]), `types and access follow the declarations, the eye the scene feeds read-only (${JSON.stringify(types)})`)
   let r = await client.exchange([{ nodeId: id('Start'), builtin: 1, value: true }], [id('Eye')])
   expect(r.reads?.[0]?.status === 'BadOutOfService' && r.writes?.[0] === 'BadInvalidState', `stopped, a read is out of service and a write refused (${JSON.stringify(r)})`)
   await page.waitForFunction(() => window.__oip.controller.opcUaServerStatus.clients.length === 1, null, { timeout: 5000, polling: 100 })

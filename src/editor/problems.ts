@@ -20,8 +20,9 @@
  * A run's flow facts (core/flow/flowFacts.ts) are not listed here: they are what happened, not something to fix. The
  * agent's get_problems, the Tests overlay and the test-project and check-flow CLIs report them.
  */
-import { compile, controllerDiagnostics, controllerSource, LocalPlcLink, parseAndCheck, StError, unhandledProgramTags } from '../plc'
+import { compile, controllerDiagnostics, controllerRuns, plcOfProgram, controllerSource, LocalPlcLink, parseAndCheck, runnableSource, StError, unhandledProgramTags } from '../plc'
 import { checkLayout } from '../core/checkLayout'
+import { controllersUsed, controllerTag, partsForController, partsNaming } from '../core/io/controllerTag'
 import type { Controller } from '../core/controller'
 import { dialectRefusal, isKnownDialect } from '../core/dialect'
 import { packageParamSpecs } from '../core/packageParams'
@@ -99,6 +100,11 @@ export interface ProblemsInput {
   readonly heldCode?: number
   /** Play serves the scene to an external PLC, so the program in this app is not what runs */
   readonly externalPlc?: boolean
+  /** the named controllers the scene lists (`Cell2::...`, core/scene/scenePlcs.ts) and whether Play connects each;
+   *  absent, the controllers the tags name are not checked */
+  readonly namedPlcs?: readonly { readonly name: string; readonly enabled: boolean; readonly runsOn?: 'app' | 'plc' }[]
+  /** the default controller's name, which a tag never carries */
+  readonly mainPlcName?: string
   /** the tests the project keeps: a tag only a test reads or drives is not an `unread` / `undriven` warning, as the
    *  check-wiring CLI counts it (core/project/projectTestTags.ts) */
   readonly tests?: readonly TestSpec[]
@@ -152,10 +158,10 @@ function linkFor(source: string): { program: CompiledProgram | null; error: unkn
  */
 let checkedKey: string | null = null
 let checkedCache: ReturnType<typeof controllerDiagnostics> = { source: [], controller: [] }
-function checkedFor(source: string, controller: Controller | null): ReturnType<typeof controllerDiagnostics> {
-  const key = JSON.stringify([controller, source])
+function checkedFor(source: string, controller: Controller | null, defaultName: string | undefined): ReturnType<typeof controllerDiagnostics> {
+  const key = JSON.stringify([controller, source, defaultName ?? null])
   if (key === checkedKey) return checkedCache
-  checkedCache = controllerDiagnostics(source, controller)
+  checkedCache = controllerDiagnostics(source, controller, defaultName !== undefined ? { defaultName } : {})
   checkedKey = key
   return checkedCache
 }
@@ -194,7 +200,7 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   // its controller table when it has one. A table's own problems have no line in the text to point at,
   // so they are rows about the controller rather than about a place in the program
   const controller = foreign ? null : (input.controller ?? null)
-  const found = src.trim() !== '' || controller ? checkedFor(src, controller) : { source: [], controller: [] }
+  const found = src.trim() !== '' || controller ? checkedFor(src, controller, input.mainPlcName) : { source: [], controller: [] }
   for (const message of found.controller) {
     problems.push({ key: `controller:${message}`, severity: 'error', group: 'Program', subject: 'Controller', message, parts: [], panel: 'tasks' })
   }
@@ -221,7 +227,12 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   // cannot. Say so - a scene whose logic does not compile would otherwise look better wired than
   // one whose logic does.
   // with the scene's bindings by wiring, as Play attaches it: a controller tag a part is wired to is connected
-  const built = src.trim() === '' ? { program: null, error: null } : linkFor(controllerSource(src, controller))
+  // Each controller the simulator runs compiles its own share of the program, as Play runs it (plc/controller.ts
+  // controllerRuns): the default one's is checked here as the program, and each other one's against its own tags below.
+  const simulated = (input.namedPlcs ?? []).filter((c) => c.runsOn === 'app' && c.enabled).map((c) => c.name)
+  const runs = controller ? controllerRuns(src, controller, 0, { ...(input.mainPlcName !== undefined ? { defaultName: input.mainPlcName } : {}), simulated }) : []
+  const mainTable = runs.find((r) => r.controller === null)?.table ?? controller
+  const built = src.trim() === '' ? { program: null, error: null } : linkFor(controllerSource(src, mainTable))
   const compiled = built.program
   const link = compiled ? new LocalPlcLink(compiled, wiredBindings(input.parts, compiled)) : null
   const brokenProgram = src.trim() !== '' && link === null
@@ -313,6 +324,89 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
       message: (p.kind === 'undriven' || p.kind === 'unread') && undeclared.has(p.tag) ? `${p.message}. The program does not declare it, which is usually a typo` : p.message,
       parts: p.parts,
     })
+  }
+  // another controller the simulator runs: its program against its own tags, as the default one's is above. Only what
+  // is the program's to say: the part-against-part checks already ran on every tag, names and all
+  for (const r of runs) {
+    if (r.controller === null || !link) continue
+    const name = r.controller
+    let own: LocalPlcLink
+    try {
+      const declared = new LocalPlcLink(runnableSource(r.source, r.table))
+      own = declared.withBindings(wiredBindings(partsForController(input.parts, name), declared))
+    } catch (e) {
+      problems.push({ key: `controller-compile:${name}`, severity: 'error', group: 'Program', subject: name, message: `does not compile its program instances: ${e instanceof Error ? e.message : String(e)}`, parts: [], panel: 'tasks' })
+      continue
+    }
+    const seen = partsForController(input.parts, name)
+    for (const w of checkWiring(seen, own).problems) {
+      if (w.kind !== 'undriven' && w.kind !== 'unread' && w.kind !== 'program-type') continue
+      const tag = controllerTag(name, w.tag)
+      problems.push({ key: `wiring:${w.kind}:${tag}`, severity: w.severity, group: 'Wiring', subject: tag, message: w.message, parts: w.parts })
+    }
+    for (const tag of unhandledProgramTags(seen, own).unbound) {
+      const named = controllerTag(name, tag)
+      problems.push({ key: `unbound:${named}`, severity: 'warning', group: 'Wiring', subject: named, message: 'the program declares it, but no part reads or writes it', parts: [] })
+    }
+  }
+  // a program instance on a controller that will not run it here
+  for (const q of controller?.programs ?? []) {
+    // its task's controller, or its own on no task
+    const plc = plcOfProgram(controller!, q)
+    if (plc === undefined || (input.mainPlcName !== undefined && plc.toLowerCase() === input.mainPlcName.toLowerCase())) continue
+    if (simulated.some((n) => n.toLowerCase() === plc.toLowerCase())) continue
+    const named = (input.namedPlcs ?? []).find((c) => c.name.toLowerCase() === plc.toLowerCase())
+    problems.push({
+      key: `instance-plc:${q.name}`,
+      severity: 'warning',
+      group: 'Program',
+      subject: q.name,
+      message: !named
+        ? `runs on ${plc}, which the project has no controller for, so it does not run`
+        : named.runsOn === 'plc'
+          ? `runs on ${named.name}, a PLC outside the app, so it does not run here: run ${named.name} in the simulator, or give the instance to another controller`
+          : `runs on ${named.name}, which is switched off, so it does not run`,
+      parts: [],
+      panel: 'tasks',
+    })
+  }
+  // a controller the simulator runs with nothing to run: its tags read and drive nothing
+  for (const name of simulated) {
+    if (runs.some((r) => r.controller === name)) continue
+    problems.push({ key: `controller-idle:${name}`, severity: 'warning', group: 'Program', subject: name, message: "runs in the simulator but runs no program instance: put one on a task of this controller's in the organizer's Tasks", parts: [], panel: 'tasks' })
+  }
+  // a controller the tags name that Play will not connect: its tags read and drive nothing
+  if (input.namedPlcs) {
+    for (const name of controllersUsed(input.parts)) {
+      const set = input.namedPlcs.find((c) => c.name === name)
+      if (set?.enabled) continue
+      // the default controller's tags carry no name, and one that does is a tag the sim keeps apart from them
+      if (input.mainPlcName !== undefined && name.toLowerCase() === input.mainPlcName.toLowerCase()) {
+        problems.push({
+          key: `controller:${name}`,
+          severity: 'warning',
+          group: 'Wiring',
+          subject: name,
+          message: 'tags name the default controller, whose tags carry no name: take the name off, or they stay unconnected',
+          parts: partsNaming(input.parts, name),
+        })
+        continue
+      }
+      // set up in another case: the tags must be spelled as it is to reach it (the wiring check says so too)
+      const asSetUp = set ? undefined : input.namedPlcs.find((c) => c.name.toLowerCase() === name.toLowerCase())
+      problems.push({
+        key: `controller:${name}`,
+        severity: 'warning',
+        group: 'Wiring',
+        subject: name,
+        message: set
+          ? 'tags name this controller, but it is switched off in Controller Properties, so Play leaves its tags unconnected'
+          : asSetUp
+            ? `tags name this controller, which the project lists as ${asSetUp.name}: spell the tags ${asSetUp.name} to reach it`
+            : 'tags name this controller, but the project has no controller by that name (add it in Controller Properties), so Play leaves its tags unconnected',
+        parts: partsNaming(input.parts, name),
+      })
+    }
   }
   if (wiring.unresolvedPackages.length > 0) {
     notes.push(`Tags unknown for ${wiring.unresolvedPackages.join(', ')}: the package is not loaded, so parts using it were not checked.`)

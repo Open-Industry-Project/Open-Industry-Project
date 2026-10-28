@@ -560,6 +560,142 @@ until it polls again"), so the user can see that the outputs are held off and wh
 nothing): the master drives the belt, stops polling, and the box has to stop, then run again the moment the master
 polls.
 
+## Several controllers: a tag names its PLC
+
+A line often has more than one controller: one per cell, or a line PLC beside machine PLCs. The scene lists its
+controllers ([`core/scene/scenePlcs.ts`](../core/scene/scenePlcs.ts), `SceneJSON.plcs`). The first is the default
+controller, PLC1 unless renamed. A part reaches another one by writing that controller's name before its tag, with two
+colons: [`core/io/controllerTag.ts`](../core/io/controllerTag.ts).
+
+| Tag | Goes to |
+|---|---|
+| `%IX0.0`, `Eye` | the default controller: the program in this app, or the external PLC that runs instead of it |
+| `Cell2::%IX0.0` | %IX0.0 on the controller named Cell2 |
+| `Cell2::MAIN.Eye` | the tag MAIN.Eye on Cell2, over a protocol that reads tags by name |
+
+The name is written in the tag, not taken from where the part sits in the scene, so a part says which PLC it talks to
+wherever it is moved or copied, and every reader of the tag (the wiring check, each link, the CLIs, the agent tools) sees
+the same thing. The separator is `::` because no spelling a link carries uses it: Logix tags have single colons
+(`Local:1:I.Data.0`), OPC UA and ADS names use dots.
+
+In the sim a prefixed tag is just another name. `Cell2::%IX0.0` and `%IX0.0` are two tags, so every PLC can start its
+I/O at %IX0.0. A controller's name ignores case, as IEC names do, but the sim matches tags exactly, so every place
+that writes a name writes it as the controller is known (`spelledAs`), and the wiring check reports one controller
+spelled two ways. What the rule changes is who reads and drives each tag:
+
+- **The default controller** carries the tags with no name. A tag that writes its name anyway is kept apart from them by
+  the sim, so the Problems dock asks for the name to come off, and the editor writes one typed that way without it. The program here never binds a prefixed tag, and the wiring
+  check does not report one as undriven or unread by the program (it still checks the address behind the name, two
+  writers on one tag, and a type clash). Assign I/O leaves prefixed tags alone, since it rewrites this program.
+- **Any controller runs in the simulator or on a PLC outside it**, the default one included. On a PLC, Play connects
+  it beside the simulator's programs or beside the default external PLC (`controller/plcLinks.ts`). Its link is
+  derived from the parts as it sees them (`partsForController`): its own tags with the name taken off, so the protocol
+  sessions are the same code as the default link's. [`links/linkHosts.ts`](../editor/links/linkHosts.ts)
+  `controllerLink` puts the name back on what the PLC writes.
+- **In the simulator, a controller runs its own tasks and the program instances on them** (`ControllerTask.plc`,
+  core/controller.ts; an instance on no task names its controller itself). This is IEC 61131-3's configuration with
+  several resources, each owning its tasks:
+  the POUs are one program every controller compiles, so a FUNCTION_BLOCK is shared the way a library is, and each
+  controller runs its own instances on memory and I/O of its own. [`plc/controller.ts`](controller.ts)
+  `controllerRuns` splits the program: the default controller runs the tasks and instances that name no controller,
+  the code outside every POU among them, and another one runs its own from the program with that code blanked
+  (`withoutControllerTags`), since those variables and statements are the default controller's alone. Blanked, not
+  cut, so a fault on another controller points at the right line. The worker runs one `PlcHost` per controller
+  ([`sim/plcGroup.ts`](../sim/plcGroup.ts)), each scan on the same step: another controller reads the tags that name
+  it with the name taken off, so its program sees `%IX0.0`, and its outputs go back with the name on. Their
+  variables are one watch table, an instance's by its own name (`LineB.Run`), which is unique across controllers, and a
+  force or a write goes to the controller that runs the instance it names. A controller with one instance answers
+  to its variables by bare name too (`Cell2::Run`), as the default one does. A fault in one stops all of them and
+  names the controller. Project tests run the same split
+  ([`editor/project/projectTestRunner.ts`](../editor/project/projectTestRunner.ts)), so a line of several PLCs is
+  built and proved here before one of them is real, and later handed to its PLC by changing what runs it, with no
+  tag touched.
+- **What the parts read** has two layers in the worker (`sim/behaviorBus.ts`): the simulated controllers' outputs,
+  one table replaced every scan, and the links' outputs, sent from the main thread whenever a PLC writes something new, every link's together
+  (`exchangeLinks`). Neither replaces the other, so the program's belts and a named PLC's belts both run.
+- **Ownership** is the union: every simulated controller's outputs and every named link's (`setDriven` + `setLinkDriven` in
+  `controller/program.ts`). A named link whose port will not open gives its devices back, as the default one does.
+- **Each simulated controller has an OPC UA server of its own**, set under its "This simulator" choice in Controller
+  Properties, the default controller's like any other. It runs only while that controller runs in the simulator, since
+  a PLC outside the app has no program here to publish. Each PLC on a line has its own: on a port of its own, publishing its own program, with a
+  client's writes going to that controller ([`controller/plcLinks.ts`](../editor/controller/plcLinks.ts)
+  `syncNamedUaServers`). An HMI built against the simulation reaches one endpoint per PLC, so moving to the real PLCs
+  changes addresses, not the HMI's structure. The shell keys its servers by window and controller, as it keys links
+  (`apps/desktop/opcUaServer.cjs`).
+- **The desktop shell** keeps one link per controller in a window (`apps/desktop/linkKeys.cjs`): link 0 is the default
+  controller's, a named one is its place in the list. Every call and push carries the number, and the
+  renderer's host for a link adds it and filters the pushes (`linkHosts.ts`).
+
+What a controller is belongs to the project, and where it is belongs to the bench
+([`editor/store/storePlcs.ts`](../editor/store/storePlcs.ts)). The scene keeps each controller's name, whether the
+program here runs it, its protocol and whether Play connects it, so they travel with the project and through a room,
+and adding, renaming or removing one is an edit that undoes. Each computer keeps the addresses (an IP address, a port, a
+slot) by controller name, and the store merges the two into `state.externalPlc`, which every link reads. A controller
+a computer has no address for gets the defaults, on a serving port no other link uses. A scene saved before scenes had
+a list derives one as the app did before: the default runs where this computer's settings say, and a named controller
+its tags use is listed when this computer had it set up. The first edit of the list writes it into the scene.
+
+When a tag names a controller the project does not list, or one that is switched off, the Problems dock says Play
+leaves its tags unconnected, and Controller Properties offers to add it. It also says when a program instance names a
+controller that does not run it here (one on a PLC, or one the project does not list), and when a simulated
+controller runs no instance. A simulated controller's program is checked against its own tags, as the default one's
+is. Project tests run the simulated controllers; a controller on a PLC is not run in a test, so its tags read as
+nothing drives them.
+
+Where a person meets it:
+
+- **Simulation > PLC Controllers…** (Controller Properties) lists the controllers in one section, the default first
+  with its name, each with what runs it: This simulator or An external PLC. A simulated one lists the program
+  instances it runs. A new one gets the first port after the default link's that no link uses, since two links serving on
+  one port cannot both listen, and a clash is said on both links. Each folds to its status line, with one
+  controller's settings open at a time. **Rename** renames it and rewrites every tag on it as one undo step; the
+  computer keeps the address under both names, so the undo finds it too.
+- **The Inspector's Controller row** ([inspector/controllerRow.tsx](../editor/components/inspector/controllerRow.tsx))
+  shows once the project has a named controller and the part has a tag. It sits above the part's first tag field and
+  names the default controller by what runs it (Program, or External PLC). A pick moves every tag of the selection,
+  since a device is wired to one PLC. The tag boxes hold the tags without the name. When the part's tags are on
+  different controllers the row says Mixed, and each field shows a picker of its own. Typing `Cell2::` in a box works
+  too. A named controller's tag gets no suggestions from the program, which does not run it.
+- **The Scene tree** names the controller on the rows off the default one
+  ([program/controllerBadges.ts](../editor/program/controllerBadges.ts)): a group whose tagged parts all share one is
+  named once, and a part inside is named only where it differs from its group. Its filter matches controller names,
+  so typing Cell2 lists Cell2's parts.
+- **Assign to Controller…** (the Edit menu, the palette and the Scene tree's right-click menu,
+  `program/assignController.ts`) rewrites the name on every tag of the selection as one undo step, so a copied cell
+  goes to another PLC in one step. A name the project does not list is added in the same step. An agent has
+  `assign_controller`, which does the same, `list_controllers`, `set_controller` (what runs one) and `run_instance_on`.
+- **The PLC panel's organizer** has a node per controller, each owning its tasks and the instances on them, with "New
+  Task on Cell2" ([plc/taskTree.ts](taskTree.ts) `groups`). The default controller's node also holds the code outside
+  every POU and what concerns the whole table. The POUs follow, shared by every controller. A PLC outside the app is
+  listed with no program. A controller a task names but the project does not list reads "not set up", since nothing
+  runs it, and its Set up button opens Controller Properties, which offers to add it. With one controller there is one node, so adding another adds a sibling and moves nothing. **Task Properties** has a Controller choice, which moves the task with
+  its instances. In **Program Properties** the Task list is grouped by controller, so picking a task picks the
+  controller, with "Every step on Cell2" for an instance on no task.
+- **The task that runs the code outside every POU stays on the default controller** (plc/controller.ts
+  `plcOfTask`), whatever controller it names. That code is the default controller's own, so on another controller
+  it would run nothing. The task tree, Play, Problems and export all follow this one rule, and the Problems dock says
+  when a task's own controller is overruled. Task Properties does not offer the move.
+- **Limits.**
+  - Each controller keeps its own copy of the VAR_GLOBAL blocks. The watch table shows the default controller's
+    copy, and a write or force to a global (an HMI's included) goes to the default controller only.
+  - In a room, the controller list is one value, so two people adding or renaming controllers at the same moment
+    keep only one of the two edits. The parts' tags merge part by part as always.
+  - A rename keeps this computer's address for the controller under its new name. On a peer's computer, the
+    address stays under the old name until it is entered again.
+- **Export is per controller**, since each PLC takes a download of its own ([plc/controllerExport.ts](controllerExport.ts)).
+  A controller's file holds its tasks and instances, the POUs they reach (by naming them, followed through calls),
+  and every TYPE and VAR_GLOBAL block. The default controller's file also holds the code outside every POU. A POU no
+  instance of that controller reaches is left out, and the receipt names it. Each controller node's menu has "Export
+  Cell2's Program" as text and as PLCopen XML. Once a table names a second controller, the File menu exports the
+  default controller's file and says where the others come from. Gated by `e2e/verify-st-export.mjs`.
+
+Proved three ways. `npm run openplc-loop:cells` ([scripts/openplc-cells-loop.mjs](../../scripts/openplc-cells-loop.mjs))
+runs a real OpenPLC as Cell2 beside the program here, one line each on the same addresses, through the link area, the
+session and the shell's `plcIo.cjs`, and both lines must behave as the in-process run (CI: job `openplc-loop`).
+`e2e/verify-named-plcs-electron.mjs` runs the whole desktop app with two named controllers beside the program, each
+a Modbus master on its own port, and then with Cell3 in the simulator running line C with no PLC connected.
+`editor/project/projectTestControllers.test.ts` proves two simulated controllers in a project test.
+
 ## Analog: a REAL over two registers
 
 Modbus registers are 16 bits, so a REAL (or a DINT) takes two, and the protocol does not say in which order they go.
@@ -594,7 +730,7 @@ image is loaded before the first scan), so only a real PLC shows it. The openplc
 ## Getting a scene onto I/O points: Assign I/O
 
 A part's PLC tag holds either a program name (`Eye`) or an I/O point (`%IX100.0`), and only the second travels
-to a controller outside the simulator. **Assign I/O** (right-click Main in the PLC panel's organizer, the
+to a controller outside the simulator. **Assign I/O** (right-click Top-level code in the PLC panel's organizer, the
 Simulation menu, or the command palette) moves a scene
 from one to the other in a single edit ([`ioAssign.ts`](ioAssign.ts) plans and rewrites the program,
 [`editor/program/ioAssign.ts`](../editor/program/ioAssign.ts) rewires the parts): each tag a part is wired to by name gets an

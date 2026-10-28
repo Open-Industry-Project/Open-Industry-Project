@@ -31,7 +31,9 @@ import { MAX_SCANS_PER_STEP } from '../../sim/plcHost'
 import { DEFAULT_SCAN_MS } from '../program/stProgram'
 import { LocalPlcLink } from '../../plc/link/plcLink'
 import { wiredBindings } from '../../plc/wiring'
-import { controllerFor, runnableSource } from '../../plc/controller'
+import { controllerFor, controllerRuns, runnableSource } from '../../plc/controller'
+import { controllerTag, partsForController, tagsForController } from '../../core/io/controllerTag'
+import { sceneSettings } from '../../core/scene/scenePlcs'
 import type { Controller } from '../../core/controller'
 import { TaskScheduler } from '../../plc/scanEngine'
 import { SimController } from '../../plc/simController'
@@ -61,7 +63,8 @@ function prepareScene(project: ProjectJSON): { scene: SceneJSON; stProgram: stri
   for (const pkg of project.packages ?? []) registerPackage(pkg, true)
   for (const pkg of ps.scene.packages ?? []) registerPackage(pkg, false)
   return {
-    scene: { version: SCENE_VERSION, parts: ps.scene.parts },
+    // the scene's settings come along: its controllers say which ones the simulator runs
+    scene: { version: SCENE_VERSION, parts: ps.scene.parts, ...sceneSettings(ps.scene) },
     stProgram: ps.stProgram ?? '',
     ...(ps.controller ? { controller: ps.controller } : {}),
     ...(ps.stScanMs !== undefined ? { stScanMs: ps.stScanMs } : {}),
@@ -197,8 +200,25 @@ export function runProjectTest(
   // table at this time.
   const defaultMs = spec.scanMs ?? stScanMs ?? DEFAULT_SCAN_MS
   // bound as Play binds it: declared I/O, plus the program's own tags the scene's parts are wired to by name
-  const declared = stProgram !== '' ? new LocalPlcLink(runnableSource(stProgram, controllerFor(stProgram, controller, defaultMs)), undefined) : null
+  // Each controller the scene runs in the simulator runs its own share of the program (plc/controller.ts
+  // controllerRuns), bound to its own tags, as Play runs it (sim/plcGroup.ts). The default one always runs here: a test
+  // proves the program, whatever PLC a computer would hand the default controller's tags to.
+  const plcs = scene.plcs ?? []
+  const runs = stProgram !== '' ? controllerRuns(stProgram, controller, defaultMs, { defaultName: plcs[0]?.name, simulated: plcs.slice(1).filter((c) => c.runsOn === 'app' && c.connect).map((c) => c.name) }) : []
+  const mainRun = runs.find((r) => r.controller === null)
+  const declared = mainRun ? new LocalPlcLink(runnableSource(mainRun.source, mainRun.table), undefined) : null
   const plc = declared ? declared.withBindings(wiredBindings(scene.parts, declared)) : null
+  const others = runs.flatMap((r) => {
+    if (r.controller === null) return []
+    const name = r.controller
+    const own = new LocalPlcLink(runnableSource(r.source, r.table), undefined)
+    const link = own.withBindings(wiredBindings(partsForController(scene.parts, name), own))
+    const ctl = new SimController(link)
+    return [{ name, link, ctl, scheduler: new TaskScheduler(ctl, { periodSec: defaultMs / 1000, maxCatchUp: MAX_SCANS_PER_STEP }), out: {} as Record<string, TestValue> }]
+  })
+  /** `tags` with `name` put on every key, as the parts spell another controller's tags */
+  const named = (tags: Readonly<Record<string, unknown>>, name: string): Record<string, TestValue> =>
+    Object.fromEntries(Object.entries(tags).map(([k, v]) => [controllerTag(name, k), v as TestValue]))
   // Output ownership: the other half of attaching a program, and required.
   //
   // Feeding tag values (setBehaviorInputTags, below) is only what the app's `setTags` does. Attaching also
@@ -215,7 +235,7 @@ export function runProjectTest(
   //
   // Aliases: controller.ts lifts its outputs through the scene's out-aliases first. This runner has no alias
   // bindings to apply, so the program's own output names are the global keys.
-  if (plc) world.setBehaviorDrivenTags(plc.outputs)
+  if (plc || others.length > 0) world.setBehaviorDrivenTags([...(plc?.outputs ?? []), ...others.flatMap((o) => o.link.outputs.map((t) => controllerTag(o.name, t)))])
   const evaluator = new TestEvaluator(spec)
   const probes = new ProbeSampler(spec.checks)
   const needsMarks = probes.needsMarks
@@ -270,6 +290,10 @@ export function runProjectTest(
         ctl.setExternalInputs(inputs)
         const scanned = scheduler.advance(dt).scans > 0
         if (scanned) plcOut = { ...ctl.processImage.outputs } as Record<string, TestValue>
+        for (const o of others) {
+          o.ctl.setExternalInputs(tagsForController(inputs, o.name))
+          if (o.scheduler.advance(dt).scans > 0) o.out = named(o.ctl.processImage.outputs, o.name)
+        }
         if (ls && lsCtl && lsScheduler && plc && lsPlc) {
           lsCtl.setExternalInputs(inputs)
           lsScheduler.advance(dt)
@@ -295,7 +319,7 @@ export function runProjectTest(
       }
 
       // PLC outputs + the test overlay drive the parts, then advance the physics one tick
-      world.setBehaviorInputTags({ ...plcOut, ...overlay, ...faultToPart })
+      world.setBehaviorInputTags({ ...plcOut, ...Object.assign({}, ...others.map((o) => o.out)), ...overlay, ...faultToPart })
       world.step()
 
       // sample after the step: the unified table the checks see = part tags, then the PLC's own
@@ -310,6 +334,7 @@ export function runProjectTest(
       const sample: Record<string, TestValue> = {
         ...worldTags,
         ...(plc ? (plc.tagView as Record<string, TestValue>) : {}),
+        ...Object.assign({}, ...others.map((o) => named(o.link.tagView, o.name))),
         ...overlay,
         ...faultToPlc,
         ...probes.values(frame, needsMarks ? world.cargoMarks() : undefined),

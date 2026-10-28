@@ -275,12 +275,12 @@ interface TableFacts {
   problems: string[]
 }
 /** Parses (twice, with the check), so it is for a quiet period after an edit, not a keystroke. */
-function tableFactsOf(source: string, controller: Controller | null, scanMs: number): TableFacts {
+function tableFactsOf(source: string, controller: Controller | null, scanMs: number, defaultName: string): TableFacts {
   const running = controllerFor(source, controller, scanMs)
   return {
     shown: controller ?? defaultController(source, scanMs),
     ownConfiguration: !controller && declaresConfiguration(source),
-    problems: running ? controllerDiagnostics(source, running).controller : [],
+    problems: running ? controllerDiagnostics(source, running, { defaultName }).controller : [],
   }
 }
 const sameTableFacts = (a: TableFacts, b: TableFacts): boolean =>
@@ -433,7 +433,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
   // task table the organizer shows (with its problems, which take the checker).
   const [bodyRuns, setBodyRuns] = useState(() => topLevelStatements(initialSource))
   const [typeNames, setTypeNames] = useState<ReadonlyMap<number, readonly string[]>>(() => typeNamesOf(blocks))
-  const [tableFacts, setTableFacts] = useState(() => tableFactsOf(initialSource, store.getState().controller, store.getState().stScanMs))
+  const [tableFacts, setTableFacts] = useState(() => tableFactsOf(initialSource, store.getState().controller, store.getState().stScanMs, store.getState().externalPlc.mainName))
   // The ladder view draws from React state, which the text view has none of (a keystroke must not
   // re-render this panel), so the source is mirrored into state ONLY while the ladder is what is showing.
   // The face the panel opens on is its main POU's (`openingFace`), so a controller that runs a ladder opens on rungs.
@@ -530,7 +530,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
       const names = typeNamesOf(parseDocument(src).blocks)
       setTypeNames((cur) => (sameTypeNames(cur, names) ? cur : names))
       const s = store.getState()
-      const table = tableFactsOf(src, s.controller, s.stScanMs)
+      const table = tableFactsOf(src, s.controller, s.stScanMs, s.externalPlc.mainName)
       setTableFacts((cur) => (sameTableFacts(cur, table) ? cur : table))
       // The last ladder went (an undo, a delete in the text): a sheet with nothing on it is no face of this program.
       // NO_LADDER by identity means the program does not even spell LADDER; a merely EMPTY set can be a program that
@@ -636,7 +636,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
   // The table the organizer shows changes with the store's controller and scan time as well as with the code: a table
   // edit commits both, but a retime of the default table changes only the scan time.
   useEffect(() => {
-    const table = tableFactsOf(currentSource(), state.controller, state.stScanMs)
+    const table = tableFactsOf(currentSource(), state.controller, state.stScanMs, state.externalPlc.mainName)
     setTableFacts((cur) => (sameTableFacts(cur, table) ? cur : table))
     // currentSource reads refs; only the store's half of the table is a dependency
   }, [state.controller, state.stScanMs])
@@ -1188,6 +1188,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
                       }}
                       getTags={() => commsTags(stateRef.current.scene.parts)}
                       getController={(src) => controllerFor(src, stateRef.current.controller, stateRef.current.stScanMs)}
+                      getDefaultPlc={() => stateRef.current.externalPlc.mainName}
                       lints={foreignDialect === null}
                       onUndo={() => store.undoProgramEditAt(editorRef.current?.getValue() ?? sourceRef.current)}
                       onRedo={() => store.redoProgramEditAt(editorRef.current?.getValue() ?? sourceRef.current)}

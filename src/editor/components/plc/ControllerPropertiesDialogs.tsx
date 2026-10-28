@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Controller } from '../../../core/controller'
-import { moveProgram, programNameError, removeProgram, renameProgram, renameTask, scheduleProgram, setProgramTask, setProgramType, setTaskTiming, taskNameError, type TagRename } from '../../../plc'
+import { moveProgram, programNameError, removeProgram, renameProgram, renameTask, scheduleProgram, setProgramTask, setProgramType, setTaskPlc, setTaskTiming, taskNameError, type TagRename } from '../../../plc'
 import { taskTree } from '../../../plc/taskTree'
 import { dialogHost } from '../../dialogHost'
 import { trapTab, useModalKeys } from '../inspector/menu'
@@ -43,6 +43,13 @@ const M = defineMessages('controllerProps', {
   runsTitle: 'A PROGRAM from the code, or the code outside every PROGRAM',
   missing: '{name} (missing)',
   task: 'Task',
+  plc: 'Controller',
+  plcTitle: 'The controller that runs this task and the program instances on it. Another controller runs them on memory and I/O of its own: the parts reach it by its name, like Cell2::%IX0.0.',
+  plcDefault: '{name} (default)',
+  plcOnPlc: '{name} (a PLC outside the app: it does not run this here)',
+  plcTopLevel: 'The code outside every PROGRAM runs on the default controller: give that instance another task first.',
+  everyStepOn: 'Every step on {name}',
+  taskTitleGrouped: 'The task that runs this instance, and so the controller that does: each controller runs its own tasks',
   everyStep: 'every step (no task)',
 })
 
@@ -121,12 +128,14 @@ function Shell({ title, testid, children, error, dirty, readOnly, onOk, onApply,
 const programLabel = (p: { name: string; type?: string }): string =>
   p.type === undefined ? t(M.programTopLevel, { name: p.name }) : p.type !== p.name ? `${p.name} : ${p.type}` : p.name
 
-export function TaskPropertiesDialog({ types, topLevelStatements, controller, index, readOnly, onCommit, onClose }: {
+export function TaskPropertiesDialog({ types, topLevelStatements, controller, plcs, index, readOnly, onCommit, onClose }: {
   /** the PROGRAM types the code declares */
   types: readonly string[]
   /** the code outside every PROGRAM has statements */
   topLevelStatements: boolean
   controller: Controller
+  /** the scene's controllers, for the task's Controller (absent: no choice is shown) */
+  plcs?: { defaultName: string; named: readonly { name: string; simulated: boolean }[] }
   index: number
   readOnly: string | null
   onCommit: Commit
@@ -137,6 +146,9 @@ export function TaskPropertiesDialog({ types, topLevelStatements, controller, in
   const [name, setName] = useState(original?.name ?? '')
   const [intervalText, setIntervalText] = useState(String(original?.intervalMs ?? 10))
   const [priority, setPriority] = useState(String(original?.priority ?? 10))
+  // the task's controller as the choices spell it ('' for the default), so a name in another case is not "missing"
+  const originalPlc = choiceOf(plcs, original?.plc)
+  const [plc, setPlc] = useState(originalPlc)
   const [picked, setPicked] = useState<{ side: 'off' | 'on'; key: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   if (!original) return null
@@ -158,10 +170,16 @@ export function TaskPropertiesDialog({ types, topLevelStatements, controller, in
     if (intervalText.trim() === '' || !Number.isFinite(ms) || ms < 1) return { next: null, error: t(M.intervalError) }
     if (priority.trim() === '' || !Number.isFinite(pri) || pri < 0) return { next: null, error: t(M.priorityError) }
     let next = setTaskTiming(draft, index, { intervalMs: ms, priority: pri })
+    if (plc !== originalPlc) {
+      // the code outside every PROGRAM is the default controller's own, so its instance cannot go with the task
+      const topLevel = draft.programs.some((p) => p.type === undefined && p.task !== undefined && p.task.toUpperCase() === original.name.toUpperCase())
+      if (plc !== '' && topLevel) return { next: null, error: t(M.plcTopLevel) }
+      next = setTaskPlc(next, index, plc === '' ? null : plc)
+    }
     if (to !== original.name) next = renameTask(next, index, to)
     return { next, error: null }
   }
-  const dirty = name.trim() !== original.name || Number(intervalText) !== original.intervalMs || Number(priority) !== original.priority || draft !== controller
+  const dirty = name.trim() !== original.name || Number(intervalText) !== original.intervalMs || Number(priority) !== original.priority || draft !== controller || plc !== originalPlc
   const commit = (close: boolean): void => {
     if (readOnly) return onClose()
     const r = result()
@@ -206,6 +224,21 @@ export function TaskPropertiesDialog({ types, topLevelStatements, controller, in
         <span className="props-unit">
           <input id="task-props-priority" data-testid="task-props-priority" type="number" min={0} step={1} disabled={off} value={priority} onFocus={(e) => e.currentTarget.select()} onChange={(e) => { setError(null); setPriority(e.target.value) }} /> {t(M.priorityNote)}
         </span>
+        {plcs && (plcs.named.length > 0 || original.plc !== undefined) && (
+          <>
+            <label htmlFor="task-props-plc">{t(M.plc)}</label>
+            <select id="task-props-plc" data-testid="task-props-plc" disabled={off} value={plc} title={t(M.plcTitle)} onChange={(e) => { setError(null); setPlc(e.target.value) }}>
+              <option value="">{t(M.plcDefault, { name: plcs.defaultName })}</option>
+              {plcs.named.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {/* i18n-ok: the controller's name, as the tags spell it */}
+                  {c.simulated ? c.name : t(M.plcOnPlc, { name: c.name })}
+                </option>
+              ))}
+              {originalPlc !== '' && !plcs.named.some((c) => c.name === originalPlc) && <option value={originalPlc}>{t(M.missing, { name: originalPlc })}</option>}
+            </select>
+          </>
+        )}
       </div>
       <div className="props-schedule">
         <div className="props-list-col">
@@ -254,7 +287,19 @@ export function TaskPropertiesDialog({ types, topLevelStatements, controller, in
   )
 }
 
-export function ProgramPropertiesDialog({ topLevelStatements, source, controller, types, index, readOnly, onCommit, onClose }: {
+/** A task-list value meaning "every step" on the controller named after it: `\u0000` is in no task name. */
+/** A table's controller name (a task's or an instance's) as the dialogs' choices spell it: '' for the default controller,
+ *  a listed controller's own spelling, or the name as written for one the project does not list. Names ignore case. */
+function choiceOf(plcs: { defaultName: string; named: readonly { name: string }[] } | undefined, plc: string | undefined): string {
+  if (plc === undefined || !plcs) return plc ?? ''
+  const low = plc.toLowerCase()
+  if (low === plcs.defaultName.toLowerCase()) return ''
+  return plcs.named.find((c) => c.name.toLowerCase() === low)?.name ?? plc
+}
+
+const EVERY_STEP = '\u0000'
+
+export function ProgramPropertiesDialog({ topLevelStatements, source, controller, types, plcs, index, readOnly, onCommit, onClose }: {
   /** the code outside every PROGRAM has statements */
   topLevelStatements: boolean
   /** the program text, for the wiring a rename moves */
@@ -262,12 +307,18 @@ export function ProgramPropertiesDialog({ topLevelStatements, source, controller
   controller: Controller
   /** the PROGRAM types the code declares, which the instance can be set to run */
   types: readonly string[]
+  /** the scene's controllers (core/scene/scenePlcs.ts): the default one's name, and each other one with whether the
+   *  simulator runs it. Absent, the instance runs on the default controller and no choice is shown */
+  plcs?: { defaultName: string; defaultSimulated?: boolean; named: readonly { name: string; simulated: boolean }[] }
   index: number
   readOnly: string | null
   onCommit: Commit
   onClose: () => void
 }): ReactElement | null {
   const original = controller.programs[index]
+  // the instance's own controller as the choices spell it ('' for the default), so a name in another case is the same
+  const originalPlc = choiceOf(plcs, original?.plc)
+  const [plc, setPlc] = useState(originalPlc)
   const [name, setName] = useState(original?.name ?? '')
   const [runs, setRuns] = useState(original?.type ?? '')
   const [task, setTask] = useState(original?.task ?? '')
@@ -280,7 +331,21 @@ export function ProgramPropertiesDialog({ topLevelStatements, source, controller
   const taskName = controller.tasks.find((t) => original.task !== undefined && t.name.toUpperCase() === original.task.toUpperCase())?.name
   // ...and a row running top-level statements cannot stop, or nothing would run them
   const pinned = pinnedWhy(controller, index, topLevelStatements)
-  const dirty = name.trim() !== original.name || runs !== (original.type ?? '') || task !== (original.task ?? '')
+  // with controllers beside the default one, the task list is grouped by controller, which is how an instance changes controller
+  const grouped = !!plcs && (plcs.named.length > 0 || controller.tasks.some((k) => k.plc !== undefined) || original.plc !== undefined)
+  const dirty = name.trim() !== original.name || runs !== (original.type ?? '') || task !== (original.task ?? '') || plc !== originalPlc
+  // a group per controller: the default, the listed ones, and any the table names that the project does not list
+  // (the organizer's "not set up"), so every task and every-step choice the table holds has an option to show it
+  const groups = plcs
+    ? [
+        { name: '', label: t(M.plcDefault, { name: plcs.defaultName }) },
+        ...plcs.named.map((c) => ({ name: c.name, label: c.simulated ? c.name : t(M.plcOnPlc, { name: c.name }) })),
+        ...[...controller.tasks.map((k) => k.plc), original.plc]
+          .map((n) => choiceOf(plcs, n))
+          .filter((n, i, all) => n !== '' && !plcs.named.some((c) => c.name === n) && all.indexOf(n) === i)
+          .map((n) => ({ name: n, label: t(M.missing, { name: n }) })),
+      ]
+    : []
   const commit = (close: boolean): void => {
     if (readOnly) return onClose()
     const to = name.trim()
@@ -292,7 +357,7 @@ export function ProgramPropertiesDialog({ topLevelStatements, source, controller
       const renamed = to === original.name ? { controller, renames: [] as TagRename[] } : renameProgram(source, controller, index, to)
       let next = renamed.controller
       if (runs !== (original.type ?? '')) next = setProgramType(next, index, runs === '' ? null : runs)
-      if (task !== (original.task ?? '')) next = setProgramTask(next, index, task === '' ? null : task)
+      if (task !== (original.task ?? '') || plc !== originalPlc) next = setProgramTask(next, index, task === '' ? null : task, plc === '' ? undefined : plc)
       onCommit(next, renamed.renames, t(M.editProgram, { name: original.name }))
     }
     if (close) onClose()
@@ -329,16 +394,48 @@ export function ProgramPropertiesDialog({ topLevelStatements, source, controller
           ))}
         </select>
         <label htmlFor="program-props-task">{t(M.task)}</label>
-        <select id="program-props-task" data-testid="program-props-task" disabled={off} value={task === '' ? '' : (taskName ?? task)} onChange={(e) => setTask(e.target.value)}>
-          {controller.tasks.map((k) => (
-            <option key={k.name} value={k.name}>
-              {/* i18n-ok: a task name and its interval in ms */}
-              {k.name} ({k.intervalMs} ms)
-            </option>
-          ))}
-          {original.task !== undefined && taskName === undefined && <option value={original.task}>{t(M.missing, { name: original.task })}</option>}
-          <option value="">{t(M.everyStep)}</option>
-        </select>
+        {grouped ? (
+          // each controller runs its own tasks, so the task picked is the controller picked: one choice, not two
+          <select
+            id="program-props-task"
+            data-testid="program-props-task"
+            disabled={off}
+            title={t(M.taskTitleGrouped)}
+            value={task === '' ? EVERY_STEP + plc : (taskName ?? task)}
+            onChange={(e) => {
+              const v = e.target.value
+              setTask(v.startsWith(EVERY_STEP) ? '' : v)
+              setPlc(v.startsWith(EVERY_STEP) ? v.slice(EVERY_STEP.length) : '')
+            }}
+          >
+            {groups.map((g) => (
+              <optgroup key={g.name} label={g.label}>
+                {controller.tasks
+                  .filter((k) => choiceOf(plcs, k.plc) === g.name)
+                  .map((k) => (
+                    <option key={k.name} value={k.name}>
+                      {/* i18n-ok: a task name and its interval in ms */}
+                      {k.name} ({k.intervalMs} ms)
+                    </option>
+                  ))}
+                {/* the code outside every PROGRAM runs only on the default controller */}
+                {(g.name === '' || runs !== '') && <option value={EVERY_STEP + g.name}>{t(M.everyStepOn, { name: g.name || plcs!.defaultName })}</option>}
+              </optgroup>
+            ))}
+            {original.task !== undefined && taskName === undefined && <option value={original.task}>{t(M.missing, { name: original.task })}</option>}
+          </select>
+        ) : (
+          <select id="program-props-task" data-testid="program-props-task" disabled={off} value={task === '' ? '' : (taskName ?? task)} onChange={(e) => setTask(e.target.value)}>
+            {controller.tasks.map((k) => (
+              <option key={k.name} value={k.name}>
+                {/* i18n-ok: a task name and its interval in ms */}
+                {k.name} ({k.intervalMs} ms)
+              </option>
+            ))}
+            {original.task !== undefined && taskName === undefined && <option value={original.task}>{t(M.missing, { name: original.task })}</option>}
+            <option value="">{t(M.everyStep)}</option>
+          </select>
+        )}
       </div>
       <p className="props-hint">{hint}</p>
     </Shell>

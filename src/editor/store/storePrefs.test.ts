@@ -43,3 +43,41 @@ describe('readShowStats', () => {
     expect(readShowStats()).toBe(false)
   })
 })
+
+describe('the named controllers', () => {
+  it('keeps each valid one once, with every link field checked', async () => {
+    const { sanitizeExternalPlc } = await import('./storePrefs')
+    const s = sanitizeExternalPlc({
+      controllers: [
+        { name: 'Cell2', enabled: true, mode: 's7', s7Host: '10.0.0.7' },
+        { name: 'Cell2', enabled: true, mode: 'poll' },
+        { name: '2nd', enabled: true },
+        { name: 'Cell3', port: 70000, uaServer: true },
+        'garbage',
+      ],
+    })
+    expect(s.controllers.map((c) => [c.name, c.enabled, c.mode])).toEqual([
+      ['Cell2', true, 's7'],
+      ['Cell3', false, 'serve'],
+    ])
+    expect(s.controllers[0]!.s7Host).toBe('10.0.0.7')
+    expect(s.controllers[1]!.port).toBe(5020)
+    // each controller's own OPC UA server, its port defaulting past the default controller's
+    expect(s.controllers[1]).toMatchObject({ uaServer: true, uaServerPort: 4845, uaServerNetwork: false })
+  })
+
+  it('names a link that shares a serving port', async () => {
+    const { DEFAULT_EXTERNAL_PLC, servePortClash, sanitizeExternalPlc } = await import('./storePrefs')
+    const two = [
+      { ...DEFAULT_EXTERNAL_PLC, name: 'A', enabled: true, port: 5021 },
+      { ...DEFAULT_EXTERNAL_PLC, name: 'B', enabled: true, port: 5022 },
+    ]
+    const s = sanitizeExternalPlc({ enabled: true, mode: 'serve', port: 5022, controllers: two })
+    expect(servePortClash(s, 'B')).toBe('')
+    expect(servePortClash(s, null)).toBe('B')
+    expect(servePortClash(s, 'A')).toBeNull()
+    // a link that does not serve listens on no port
+    expect(servePortClash({ ...s, mode: 'poll' }, 'B')).toBeNull()
+  })
+})
+

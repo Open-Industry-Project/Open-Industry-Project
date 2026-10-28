@@ -1,7 +1,8 @@
-// The simulated PLC's OPC UA SERVER, in Controller Properties below where the program runs: the program here,
-// published by name for a SCADA or HMI (editor/links/opcUaServer.ts). A switch, a port and whether the
-// network may reach it; the settings are this computer's, like the rest of the dialog, and apply at once, since
-// the server lives for as long as it is on rather than for one run.
+// The default controller's OPC UA SERVER, in Controller Properties under its "This simulator" choice: the program
+// here, published by name for a SCADA or HMI (editor/links/opcUaServer.ts). A switch, a port and whether the network
+// may reach it; the settings are this computer's and apply at once, since the server lives for as long as it is on
+// rather than for one run. Each other controller the simulator runs has a server of its own, set with the same fields
+// in its row (NamedPlcsSection.tsx), as each PLC on a line has its own, so each sits under the controller it serves.
 
 import { useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
@@ -9,6 +10,7 @@ import type { EditorController } from '../../controller'
 import { serverStatusHint, serverStatusLine } from '../../links/opcUaServer'
 import type { OpcUaServerStatus } from '../../links/opcUaServer'
 import type { EditorState, EditorStore } from '../../store/store'
+import type { UaServerSettings } from '../../store/storePrefs'
 import { CommitField, SectionHead, wholeIn } from './ExternalPlcSection'
 import { defineMessages, t } from '../../../core/i18n'
 
@@ -36,43 +38,82 @@ export const WHY_NOT = M.whyNot
  *  OS browser instead of under oip://app/. */
 const OPCUA_GUIDE = 'https://www.openindustryproject.org/guides/opcua/'
 
-export function OpcUaServerSection({ store, state, controller }: { store: EditorStore; state: EditorState; controller: EditorController }): ReactElement {
-  const settings = state.externalPlc
-  const available = controller.opcUaServerAvailable
-  const [status, setStatus] = useState<OpcUaServerStatus>(() => controller.opcUaServerStatus)
-
-  // the server reports starts, clients and writes; sampled too while running, for the values going live
+/** A server's state, read again whenever the links report a change and every second, for the values going live. */
+export function useServerStatus(controller: EditorController, read: () => Readonly<OpcUaServerStatus>): OpcUaServerStatus {
+  const [status, setStatus] = useState<OpcUaServerStatus>(() => ({ ...read() }))
   useEffect(() => {
-    const read = (): void => setStatus({ ...controller.opcUaServerStatus })
-    read()
-    const off = controller.onExternalPlcStatus(read)
-    const timer = window.setInterval(read, 1000)
+    const take = (): void => setStatus({ ...read() })
+    take()
+    const off = controller.onExternalPlcStatus(take)
+    const timer = window.setInterval(take, 1000)
     return () => {
       off()
       window.clearInterval(timer)
     }
+    // `read` names one server, which the caller keeps for as long as this is shown
   }, [controller])
+  return status
+}
 
+export function OpcUaServerSection({ store, state, controller }: { store: EditorStore; state: EditorState; controller: EditorController }): ReactElement {
+  const status = useServerStatus(controller, () => controller.opcUaServerStatus)
+  return (
+    <div className="ctl-ua" data-testid="opcua-server" role="group" aria-label={t(M.section)}>
+      <UaServerHead />
+      <UaServerFields tid="opcua-server" settings={state.externalPlc} update={(patch) => store.setExternalPlc(patch)} status={status} available={controller.opcUaServerAvailable} running={state.running} locked={state.readOnly} guide />
+    </div>
+  )
+}
+
+/** The heading every controller's server block has, so the default controller's and the others' read alike. */
+export function UaServerHead(): ReactElement {
+  return <SectionHead title={t(M.section)} scope="computer" />
+}
+
+/** One controller's OPC UA server: the switch, its port and network reach, and how it is doing. */
+export function UaServerFields({
+  tid,
+  settings,
+  update,
+  status,
+  available,
+  running,
+  locked,
+  guide = false,
+}: {
+  /** the test ids' prefix */
+  tid: string
+  settings: UaServerSettings
+  update: (patch: Partial<UaServerSettings>) => void
+  status: OpcUaServerStatus
+  available: boolean
+  running: boolean
+  locked: boolean
+  /** show the step-by-step guide's link (the default controller's section has it; once is enough) */
+  guide?: boolean
+}): ReactElement {
   const on = settings.uaServer && available
-  const locked = state.readOnly
   const hint = serverStatusHint(status)
   return (
-    <section className="ctl-ext ctl-sec" data-testid="opcua-server" aria-label={t(M.section)}>
-      <SectionHead title={t(M.section)} scope="computer" />
+    <>
       <label className="ctl-ext-field" title={t(available ? M.publishTitle : WHY_NOT)}>
-        <input type="checkbox" checked={on} disabled={!available || locked} onChange={(e) => store.setExternalPlc({ uaServer: e.target.checked })} data-testid="opcua-server-enabled" />
+        <input type="checkbox" checked={on} disabled={!available || locked} onChange={(e) => update({ uaServer: e.target.checked })} data-testid={`${tid}-enabled`} />
         {t(M.publish)} <span className="ctl-dim">{t(M.publishNote)}</span>
       </label>
-      <div className="ctl-dim ctl-ext-indent" data-testid="opcua-server-guide">
-        <a href={OPCUA_GUIDE} target="_blank" rel="noopener noreferrer">
-          {t(M.guide)}
-        </a>
-      </div>
+      {guide && (
+        <div className="ctl-dim ctl-ext-indent" data-testid={`${tid}-guide`}>
+          <a href={OPCUA_GUIDE} target="_blank" rel="noopener noreferrer">
+            {t(M.guide)}
+          </a>
+        </div>
+      )}
       {available && (
         <>
-          <div className="ctl-dim ctl-ext-indent" title={t(M.readOnlyTitle)}>
-            {t(M.keepsRunning)}
-          </div>
+          {guide && (
+            <div className="ctl-dim ctl-ext-indent" title={t(M.readOnlyTitle)}>
+              {t(M.keepsRunning)}
+            </div>
+          )}
           <div className="ctl-ext-row ctl-ext-indent">
             <label className="ctl-ext-field" title={t(M.portTitle)}>
               {t(M.port)}
@@ -83,33 +124,35 @@ export function OpcUaServerSection({ store, state, controller }: { store: Editor
                 commit={(text) => {
                   const n = wholeIn(text, 1, 65535)
                   if (n === null) return false
-                  store.setExternalPlc({ uaServerPort: n })
+                  update({ uaServerPort: n })
                   return true
                 }}
-                testId="opcua-server-port"
+                testId={`${tid}-port`}
               />
             </label>
             <label className="ctl-ext-field" title={t(M.networkTitle)}>
-              <input type="checkbox" checked={settings.uaServerNetwork} disabled={locked} onChange={(e) => store.setExternalPlc({ uaServerNetwork: e.target.checked })} data-testid="opcua-server-network" />
+              <input type="checkbox" checked={settings.uaServerNetwork} disabled={locked} onChange={(e) => update({ uaServerNetwork: e.target.checked })} data-testid={`${tid}-network`} />
               {t(M.network)}
             </label>
           </div>
           {on && (
-            <div className={`ctl-ext-indent ${status.state === 'failed' ? 'ctl-problem' : 'ctl-dim'}`} data-testid="opcua-server-status" role="status">
-              {serverStatusLine(status, state.running)}
-              {status.lastWrite && <div data-testid="opcua-server-last-write">{t(M.lastWrite, { write: status.lastWrite })}</div>}
+            <div className={`ctl-ext-indent ${status.state === 'failed' ? 'ctl-problem' : 'ctl-dim'}`} data-testid={`${tid}-status`} role="status">
+              {serverStatusLine(status, running)}
+              {status.lastWrite && <div data-testid={`${tid}-last-write`}>{t(M.lastWrite, { write: status.lastWrite })}</div>}
             </div>
           )}
           {on && hint && (
-            <div className="ctl-dim ctl-ext-indent" data-testid="opcua-server-hint">
+            <div className="ctl-dim ctl-ext-indent" data-testid={`${tid}-hint`}>
               {hint}
             </div>
           )}
-          <div className="ctl-warn ctl-ext-indent" data-testid="opcua-server-unsecured" title={t(M.nodeIdTitle)}>
-            {t(M.unsecured)}
-          </div>
+          {(guide || on) && (
+            <div className="ctl-warn ctl-ext-indent" data-testid={`${tid}-unsecured`} title={t(M.nodeIdTitle)}>
+              {t(M.unsecured)}
+            </div>
+          )}
         </>
       )}
-    </section>
+    </>
   )
 }
