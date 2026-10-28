@@ -138,7 +138,7 @@ function applyDesktopMaterial(mat: Material): void {
   mat.needsUpdate = true
 }
 
-/** How the floor lays its macro cloud over the slab tile. */
+/** How the floor lays its macro cloud and saw-cut joints over the slab tile. */
 export interface FloorMacro {
   /** floor uv runs one unit per cell */
   metresPerUv: number
@@ -147,9 +147,24 @@ export interface FloorMacro {
   periodB: number
   /** the second sample's rotation, radians, so the two clouds' lattices don't align either */
   turn: number
+  /** saw-cut joints: spacing and width in metres, and how much a joint darkens the slab */
+  jointSpacing: number
+  jointWidth: number
+  jointDarken: number
 }
 
-const FLOOR_MACRO: FloorMacro = { metresPerUv: SECTION, periodA: 37, periodB: 23, turn: 0.52 }
+// Joints fall on the cell edges (the column lines) and halfway between them. A bare saw cut is ~5 mm, but sealant
+// and worn edges make a real joint read wider. 16 mm shows up close and fades by mid-hall; at 20 mm the empty hall
+// read as a grid of panels.
+const FLOOR_MACRO: FloorMacro = {
+  metresPerUv: SECTION,
+  periodA: 37,
+  periodB: 23,
+  turn: 0.52,
+  jointSpacing: SECTION / 2,
+  jointWidth: 0.016,
+  jointDarken: 0.5,
+}
 
 type FloorNodeFactory = (map: Texture, macro: Texture, tint: number, m: FloorMacro) => MeshStandardMaterial
 
@@ -178,7 +193,7 @@ function floorMacroTexture(): Texture {
 
 /**
  * The floor's material: a fine-grained slab tile (Floor_A, one per 10 m cell) under a broad cloud that doesn't
- * repeat (FloorMacro), both from scripts/build-deck-textures.mjs. In the tile, broad variation repeats as a visible
+ * repeat (FloorMacro), both from scripts/build-deck-textures.mjs, cut by saw joints every 5 m. In the tile, broad variation repeats as a visible
  * 10 m grid. Roughness and metalness are the building's other textured surfaces' (applyDesktopMaterial).
  */
 function floorMaterial(): MeshStandardMaterial {
@@ -194,8 +209,15 @@ function floorMaterial(): MeshStandardMaterial {
   mat.roughness = 0.85
   mat.metalness = 0.15
   if (nodeFactory) return mat
-  const { metresPerUv, periodA, periodB, turn } = FLOOR_MACRO
+  const { metresPerUv, periodA, periodB, turn, jointSpacing, jointWidth, jointDarken } = FLOOR_MACRO
   const f = (n: number): string => n.toFixed(6)
+  // a joint's coverage of the pixel, box-filtered by the pixel's footprint so it thins out with distance
+  // instead of aliasing (floorNodeMaterial.ts jointCoverage is the same math)
+  const joints = `
+\tvec2 floorD = abs(fract(floorP / ${f(jointSpacing)} + 0.5) - 0.5) * ${f(jointSpacing)};
+\tvec2 floorW = max(fwidth(floorP), vec2(1e-4));
+\tvec2 floorJ = clamp((${f(jointWidth / 2)} - floorD) / floorW + 0.5, 0.0, 1.0) * min(vec2(1.0), ${f(jointWidth)} / floorW);
+\tdiffuseColor.rgb *= 1.0 - ${f(jointDarken)} * max(floorJ.x, floorJ.y);`
   mat.onBeforeCompile = (shader) => {
     shader.uniforms['uFloorMacro'] = { value: macro }
     shader.fragmentShader = shader.fragmentShader
@@ -205,7 +227,7 @@ function floorMaterial(): MeshStandardMaterial {
         `#include <map_fragment>
 \tvec2 floorP = vMapUv * ${f(metresPerUv)};
 \tvec2 floorQ = mat2(${f(Math.cos(turn))}, ${f(Math.sin(turn))}, ${f(-Math.sin(turn))}, ${f(Math.cos(turn))}) * floorP;
-\tdiffuseColor.rgb *= 4.0 * texture2D(uFloorMacro, floorP / ${f(periodA)}).r * texture2D(uFloorMacro, floorQ / ${f(periodB)}).r;`,
+\tdiffuseColor.rgb *= 4.0 * texture2D(uFloorMacro, floorP / ${f(periodA)}).r * texture2D(uFloorMacro, floorQ / ${f(periodB)}).r;${joints}`,
       )
   }
   mat.customProgramCacheKey = () => 'buildingFloor'
