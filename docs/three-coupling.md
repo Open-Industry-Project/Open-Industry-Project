@@ -139,6 +139,14 @@ These use public API but lean on r186 *behavior*. Each has a canary or gate.
   image is swapped to a different size; we `dispose()` after decode. Audit seam:
   `gpuTextureAudit.ts` (`window.__oip.view.auditGpuTextures()`), gate
   `e2e/verify-webgpu-belt-weave-live.mjs`.
+
+- **Texture view cache keyed by size and mip count** - r186's `WebGPUBindingUtils.createBindGroup` caches a
+  texture's GPUTextureView on its backend data as `view-<w>-<h>-<mips>-<base>` and never clears it when
+  `Textures.updateTexture` replaces the empty 1x1 single-mip default with the real upload. A real image of that
+  same shape binds the default's view and samples black for the session. The loader's failed-fetch fallback
+  ([gltf.ts](../src/render/gltf.ts) `fallbackImage`) is therefore 2x2. Gate:
+  `e2e/verify-texture-fail-fallback.mjs` (its "late" leg fails a texture after the viewport has drawn; with a
+  1x1 fallback it reads ~42% luminance on WebGPU). Retire the 2x2 when three clears the view cache on re-create.
 - **Material dispose ⇒ RenderObject dispose ⇒ `bindings.deleteForRender`** - the reason
   [gpuRetire.ts](../src/render/gpuRetire.ts) has `retireGeometry`/`retireTexture` but
   no `retireMaterial`. In r186 a `material.dispose()` fires `RenderObject.onMaterialDispose` →
