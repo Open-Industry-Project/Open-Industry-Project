@@ -6,6 +6,7 @@ import { setWebGPUOutlineFactory } from './outline'
 import { installSchedulerYieldShim } from './schedulerYield'
 import { setBeltNodeFactory, setScrollNodeFactory, setDeckNodeFactory, setMetalNodeFactory, setTickUniformBump } from '../parts/common'
 import { setBeltBankNodeFactory } from '../parts/beltFabricBank'
+import { setFloorNodeFactory } from '../parts/building'
 import { setLampBankNodeFactory } from '../parts/lampBank'
 import { setAnimClockSink } from '../parts/animClock'
 import { setGizmoRingNodeFactory } from './gizmo'
@@ -129,6 +130,7 @@ export async function createWebGPURenderer(): Promise<WebGPURenderer> {
     { createScrollNodeMaterial },
     { createGizmoRingNodeMaterial },
     { createFilmNodeMaterial },
+    { createFloorNodeMaterial },
   ] = await Promise.all([
     import('three/webgpu'),
     import('./pipelineDedup'),
@@ -145,6 +147,7 @@ export async function createWebGPURenderer(): Promise<WebGPURenderer> {
     import('../parts/scrollNodeMaterial'),
     import('../gizmoRingNodeMaterial'),
     import('./filmNodeMaterial'),
+    import('../parts/floorNodeMaterial'),
   ])
   // render bundles (bundleGroups.ts, default on; `?nobundle` turns them off): hand the module three's
   // BundleGroup so the scene containers built by RenderView/InstancePoolManager (both
@@ -198,6 +201,7 @@ export async function createWebGPURenderer(): Promise<WebGPURenderer> {
     setMetalNodeFactory(createMetalNodeMaterial)
     setBeltNodeFactory(createBeltNodeMaterial)
     setDeckNodeFactory(createDeckNodeMaterial)
+    setFloorNodeFactory(createFloorNodeMaterial)
     setBeltBankNodeFactory(createBeltBankNodeMaterial)
     setLampBankNodeFactory(createLampBankNodeMaterial)
     // The shared sim-animation clock every shader-integrated animation reads (animClock.ts: belt
