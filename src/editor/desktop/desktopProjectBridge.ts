@@ -193,7 +193,7 @@ export async function saveProjectToFolder(store: EditorStore, controller: SceneS
 
 /**
  * File > Save (Ctrl+S) on the desktop. The project saves itself into its folder as you work, so this
- * writes whatever is still pending and shows a Saved notice, so a habitual Ctrl+S gets a confirmation. A
+ * writes whatever is still pending and, the first time, shows a Saved notice saying where the work is. A
  * project with no folder gets one: its default folder, or a picker when the user unlinked it on purpose.
  *
  * On the built-in example it keeps a copy first (store.keepDemoCopy): the example is not the user's, and
@@ -208,7 +208,20 @@ export async function saveProjectNow(store: EditorStore, controller: SceneSwapGu
   const path = store.getState().folderPath
   // the desktop knows the folder's full path; a browser only its name
   const where = getOipProjectApi() !== null ? path : `the folder "${path}"`
-  if (outcome === 'saved' && path !== null && !forked) store.showSaveNotice('Saved', `All changes are in ${where}.`)
+  if (outcome === 'saved' && path !== null && !forked) showSaveNoticeOnce(store, 'Saved', `All changes are in ${where}.`)
+}
+
+const toldSaved = new WeakSet<EditorStore>()
+
+/**
+ * Save's answer, given on the first Save of the page only. The project autosaves, so the first answer says where the
+ * work is, and a habitual Ctrl+S after that has nothing new to report. Keyed by store: opening another project
+ * reloads the page, so this is once per opened project.
+ */
+export function showSaveNoticeOnce(store: EditorStore, ...notice: Parameters<EditorStore['showSaveNotice']>): void {
+  if (toldSaved.has(store)) return
+  toldSaved.add(store)
+  store.showSaveNotice(...notice)
 }
 
 /**

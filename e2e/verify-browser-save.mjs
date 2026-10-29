@@ -1,7 +1,7 @@
 // Save in the browser (src/editor/project/saveProject.ts), in a real browser:
 //
 //   - Ctrl+S is the app's Save. Unhandled, it reaches the browser's own "Save page as", which saves the
-//     app's HTML. It must be prevented (from inside a text field too) and answered with "Saved in this browser".
+//     app's HTML. It must be prevented (from inside a text field too) and answered with "Saved in this browser" (on the first Save only).
 //   - the working copy holds the edit when Save says so
 //   - "Download a copy" on that toast downloads the whole project as an .oip (a zip), not one scene
 //   - the toolbar's Save is the same Save, not a single-scene download
@@ -39,7 +39,6 @@ async function waitForNotice(page, title) {
   )
 }
 
-const dismissNotice = (page) => page.evaluate(() => window.__oip.store.dismissSaveNotice())
 
 async function main() {
   const browser = await chromium.launch({
@@ -99,9 +98,10 @@ async function main() {
     await page.evaluate(() => (window.__savePrevented = undefined))
     await page.evaluate(() => document.querySelector('input[placeholder="Filter parts"]').focus())
     await page.keyboard.press('Control+s')
-    await waitForNotice(page, 'Saved in this browser')
+    await page.waitForFunction(() => window.__savePrevented !== undefined, null, { timeout: 10000 }).catch(() => {})
     expect((await page.evaluate(() => window.__savePrevented)) === true, 'the browser dialog is kept out of text fields too')
-    await dismissNotice(page)
+    await page.waitForTimeout(1000)
+    expect((await noticeTitle(page)) === null, 'and a Save after the first says nothing: the project autosaves')
     // leave the field: the palette's Ctrl+Shift+P deliberately does nothing inside a text field
     await page.evaluate(() => document.activeElement?.blur())
 
@@ -110,11 +110,18 @@ async function main() {
     expect(((await save.getAttribute('title')) ?? '').includes('Ctrl+S'), `the row names its shortcut (${await save.getAttribute('title')})`)
     let downloaded = false
     page.once('download', () => (downloaded = true))
+    await page.evaluate(() => {
+      const store = window.__oip.store
+      const scene = store.getState().scene
+      store.commit('Add group', { ...scene, parts: [...scene.parts, { id: 'saved-by-menu', type: 'group', position: [0, 0.2, 0], rotationY: 0, params: {} }] })
+    })
     await save.click()
-    await waitForNotice(page, 'Saved in this browser')
+    await page
+      .waitForFunction(() => (localStorage.getItem('oip-web/project') ?? '').includes('saved-by-menu'), null, { timeout: 10000 })
+      .catch(() => {})
+    expect(await page.evaluate(() => (localStorage.getItem('oip-web/project') ?? '').includes('saved-by-menu')), 'it saves the edit')
     await page.waitForTimeout(3000)
     expect(!downloaded, 'and it downloads nothing - a file is Export Project')
-    await dismissNotice(page)
 
     console.log('--- the palette offers one export ---')
     await page.keyboard.press('Control+Shift+P')

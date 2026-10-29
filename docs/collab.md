@@ -95,10 +95,9 @@ piece is open source and can be self-hosted.
   The stand-in is in both the registry and the scene's embedded copies, which the sim falls back
   to. What happens to the rest depends on where the editor runs
   ([part-sandbox.md, Rooms](./part-sandbox.md#rooms)):
-  - **A sandboxed browser** (lockdown succeeded, not the desktop): the room's code runs by default,
-    and the join prompt (`RoomCodePrompt.tsx`) is a notice with **Block**. A block is remembered
-    per room in `localStorage` `oip-web/blocked-rooms` and reloads the room with its code held.
-  - **The desktop, or a browser where lockdown failed:** the code is held until allowed. The
+  - **Where the part sandbox is on** (lockdown succeeded, in a browser or the desktop): the room's
+    code runs by default, with nothing shown.
+  - **Where lockdown failed:** the code is held until allowed. The
     prompt asks once per room. Allowing it is remembered per server doc name and covers the
     room's later code too.
   - **Safe opens** hold the foreign code for one open even where it would run. That happens with

@@ -24,7 +24,7 @@ import {
   type RendererPref,
   type ShadowQuality,
 } from '../../render/quality'
-import { blockedRoomCount, forgetBlockedRooms, forgetTrustedRooms, trustedRoomCount } from '../../collab/codeTrust'
+import { forgetTrustedRooms, trustedRoomCount } from '../../collab/codeTrust'
 import { getDisplayName, setDisplayName } from '../../collab/session'
 import { appearancePref, setAppearancePref, type Appearance } from '../appearance'
 import { browserLanguage, languagePref, ownLanguageName, setLanguagePref, translatorSupported, type LanguagePref } from '../autoTranslate'
@@ -112,12 +112,6 @@ const M = defineMessages('settings', {
     other: '{count} rooms; forgotten rooms ask again when next opened',
   },
   forgetAll: 'Forget all',
-  blockedRooms: 'Rooms with part code blocked',
-  blockedHint: {
-    one: '{count} room; unblocked rooms run their code sandboxed again',
-    other: '{count} rooms; unblocked rooms run their code sandboxed again',
-  },
-  unblockAll: 'Unblock all',
   partLibraries: 'Part libraries',
   officialLibraries: 'Official libraries',
   noneYet: 'none published yet',
@@ -460,11 +454,13 @@ function PreferencesSection({ store, state }: { store: EditorStore; state: Edito
  * The name is also in the Share popover, but that popover is not offered on a view link, so this is where someone
  * watching a room sets a name instead of the default animal. The trust answers ("allow this room's code") are
  * remembered for good, and a security decision needs a way to take it back; this is it. They are shown as counts
- * because a room's stored name is a hash of its secret (codeTrust.ts).
+ * because a room's stored name is a hash of its secret (codeTrust.ts). Only a browser where the part sandbox could
+ * not start stores an answer, so the row shows only when there is one.
  */
 function LiveEditingGroup(): ReactElement {
   const [trusted, setTrusted] = useState(() => trustedRoomCount())
-  const [blocked, setBlocked] = useState(() => blockedRoomCount())
+  // decided once per open, so Forget all greys the button out instead of removing the row under the pointer
+  const [listTrusted] = useState(trusted > 0)
   return (
     <section className="settings-group">
       <h3>{t(M.liveEditing)}</h3>
@@ -483,34 +479,22 @@ function LiveEditingGroup(): ReactElement {
           }}
         />
       </Row>
-      <Row label={t(M.trustedRooms)} hint={t(M.trustedHint, { count: trusted })}>
-        <button
-          type="button"
-          className="setting-button"
-          data-testid="setting-forget-trusted"
-          disabled={trusted === 0}
-          onClick={() => {
-            forgetTrustedRooms()
-            setTrusted(trustedRoomCount())
-          }}
-        >
-          {t(M.forgetAll)}
-        </button>
-      </Row>
-      <Row label={t(M.blockedRooms)} hint={t(M.blockedHint, { count: blocked })}>
-        <button
-          type="button"
-          className="setting-button"
-          data-testid="setting-forget-blocked"
-          disabled={blocked === 0}
-          onClick={() => {
-            forgetBlockedRooms()
-            setBlocked(blockedRoomCount())
-          }}
-        >
-          {t(M.unblockAll)}
-        </button>
-      </Row>
+      {listTrusted && (
+        <Row label={t(M.trustedRooms)} hint={t(M.trustedHint, { count: trusted })}>
+          <button
+            type="button"
+            className="setting-button"
+            data-testid="setting-forget-trusted"
+            disabled={trusted === 0}
+            onClick={() => {
+              forgetTrustedRooms()
+              setTrusted(trustedRoomCount())
+            }}
+          >
+            {t(M.forgetAll)}
+          </button>
+        </Row>
+      )}
     </section>
   )
 }

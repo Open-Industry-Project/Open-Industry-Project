@@ -8,7 +8,7 @@ that way.
 
 | Layer | Where | What it stops |
 |---|---|---|
-| **Code-trust gate** | `src/collab/codeTrust.ts` | A room's code from running at all until it is allowed (or, in a sandboxed browser, until it is known to be someone else's). Trusted without asking: code this app ships, in any build (`src/editor/parts/shippedBehaviors.ts`), and code this browser wrote. |
+| **Code-trust gate** | `src/collab/codeTrust.ts` | A room's code from running at all until it is allowed (or, where the sandbox is on, until it is known to be someone else's). Trusted without asking: code this app ships, in any build (`src/editor/parts/shippedBehaviors.ts`), and code this browser wrote. |
 | **SES lockdown** | `src/core/realmLockdown.ts`, run by `src/core/lockdownBoot.ts`, which `src/editor/main.tsx` and `src/sim/worker.ts` import first (on a dev server only, the page skips it when localStorage has `oip-web/no-lockdown`; the worker always locks down) | Tampering with the intrinsics the app relies on, and every path from a handed-in function back to the host (`fn.constructor('return this')`). |
 | **Compartment** | `src/core/parts/partScript.ts` `compileSandboxed` | Part code seeing anything but the language's own globals: no `window`, storage, network, DOM, workers or app objects. |
 | **The boundary** | `resolvePartParams`, `src/core/hostCopy.ts`, the `ctx` setters in `src/sim/embeddedBehavior.ts` | A part corrupting host data it is handed, or handing back data that changes after it was checked. |
@@ -131,13 +131,12 @@ cross-origin isolated) the run is still ended, without a name. Gated by `e2e/ver
 
 ## Rooms
 
-In a browser where `partSandboxActive()` holds, a room's foreign code runs sandboxed by default, and
-`RoomCodePrompt` shows a notice with **Block**. A block is remembered per room in `oip-web/blocked-rooms`, and the
-room reloads with that code held. On the desktop, or where lockdown failed, the prompt asks first: the code is
-held until allowed.
+Where `partSandboxActive()` holds, in a browser or the desktop, a room's foreign code runs sandboxed by default,
+with nothing shown. On the desktop an escape would also meet the main process's folder grants and endpoint consent.
+Where lockdown failed, `RoomCodePrompt` asks first: the code is held until allowed.
 
 **Staying openable when a room's code freezes the page.** The sandbox confines code; it cannot stop it spinning. A
-hostile part that hangs `geometry()` on open would freeze the page before Block can be clicked, on every open. Two
+hostile part that hangs `geometry()` on open would freeze the page on every open. Two
 safe opens hold the foreign code for that open, and the prompt says why (`RoomCodeMode.safe`):
 
 - **`&nocode` in the link.** Anyone can use it to get into a room deliberately.

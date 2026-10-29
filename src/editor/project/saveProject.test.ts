@@ -56,6 +56,17 @@ describe('Save in the browser', () => {
     expect(notice?.action).toEqual({ label: 'Download a copy', command: 'file.exportProject' })
   })
 
+  it('says so on the first Save only: the project autosaves, so a habitual Ctrl+S has nothing new to report', async () => {
+    const store = opened()
+    await saveProject(store)
+    expect(store.getState().saveNotice?.title).toBe('Saved in this browser')
+    store.dismissSaveNotice()
+    store.renameProject('Line 3')
+    await saveProject(store)
+    expect(JSON.parse(storage.getItem(PROJECT_KEY)!).name).toBe('Line 3') // it still writes
+    expect(store.getState().saveNotice).toBeNull()
+  })
+
   it('claims nothing when the save failed - the autosave banner says why', async () => {
     const store = opened()
     storage.setItem = () => {

@@ -1,6 +1,6 @@
 // Save (Ctrl+S, and the toolbar's Save): one command that behaves the same on every surface. The
-// project already saves itself as you go, so Save writes anything still pending and says where the work
-// is. Only that location differs.
+// project already saves itself as you go, so Save writes anything still pending and, on the first Save of
+// the page, says where the work is. Only that location differs.
 //
 //   desktop, or a folder synced both ways -> the folder (projectFolderSync; "Saved", or a banner)
 //   browser                               -> this browser's storage, with "Download a copy" beside it
@@ -13,7 +13,7 @@
 // save, nothing reopens those, and the work is already stored. The copy is one click away, offered at
 // the moment someone is thinking about keeping their work, instead of as a warning on a first visit.
 
-import { saveProjectNow } from '../desktop/desktopProjectBridge'
+import { saveProjectNow, showSaveNoticeOnce } from '../desktop/desktopProjectBridge'
 import { syncedFolderPath, supportsFolderSync } from './projectFolderSync'
 import type { SceneSwapGuard } from './projectFolderLink'
 import type { EditorStore } from '../store/store'
@@ -22,7 +22,7 @@ export async function saveProject(store: EditorStore, controller: SceneSwapGuard
   const state = store.getState()
   if (state.readOnly) return
   if (state.collab) {
-    store.showSaveNotice('Saved as you work', 'Changes in a live room save for everyone as they are made.', {
+    showSaveNoticeOnce(store, 'Saved as you work', 'Changes in a live room save for everyone as they are made.', {
       label: 'Make a copy',
       command: 'file.copyRoom',
     })
@@ -35,7 +35,7 @@ export async function saveProject(store: EditorStore, controller: SceneSwapGuard
   if (forked) store.keepDemoCopy()
   const saved = store.persistProject()
   if (!saved.ok || forked) return // a failed save raises the autosave banner, which says why
-  store.showSaveNotice('Saved in this browser', 'Your work saves here as you go. Download a copy to keep it outside the browser.', {
+  showSaveNoticeOnce(store, 'Saved in this browser','Your work saves here as you go. Download a copy to keep it outside the browser.', {
     label: 'Download a copy',
     command: 'file.exportProject',
   })

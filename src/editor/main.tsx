@@ -331,13 +331,12 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
   // Whose part code may run here (collab/codeTrust.ts): this app's own parts, in this build or any earlier one (a
   // room keeps a snapshot of the built-ins it places, shippedBehaviors.ts), and code this browser wrote itself,
   // whether just now (the seed, a part authored in the room) or on an earlier visit (remembered by fingerprint).
-  // The rest of the room's code: in a browser whose realm is locked down it runs in the part sandbox
-  // (docs/part-sandbox.md) unless this browser blocked the room; on the desktop, or where lockdown failed, it waits
-  // until the user allows the room (RoomCodePrompt), which this browser then remembers. The desktop keeps asking
-  // because its page also holds native file and network access, so the prompt stays as a second layer there.
+  // The rest of the room's code: where the realm is locked down it runs in the part sandbox (docs/part-sandbox.md),
+  // on the desktop too, whose main process also limits what an escape could reach (folder grants, endpoint consent).
+  // Where lockdown failed it waits until the user allows the room (RoomCodePrompt), which this browser then remembers.
   const shipped = bundledBehaviors()
   const shippedCode = new Set(shipped.values())
-  const sandboxed = partSandboxActive() && !DESKTOP_SHELL
+  const sandboxed = partSandboxActive()
   // Safe open: the room's foreign code is held this time even where it would run - asked for with `?nocode`, or
   // because the last open of this room never finished (it froze or crashed the page; codeTrust.ts recovery). The
   // sandbox confines part code but cannot stop it spinning, so this is how a room with a hostile part stays openable.
@@ -346,7 +345,7 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
     : sandboxed && trust.roomOpenDidNotFinish(resolved.docName)
       ? 'recovered'
       : null
-  const runsByDefault = sandboxed ? !trust.isRoomCodeBlocked(resolved.docName) : trust.isRoomCodeTrusted(resolved.docName)
+  const runsByDefault = sandboxed || trust.isRoomCodeTrusted(resolved.docName)
   const gate = new trust.PackageGate(
     { isFirstParty: (src) => shippedCode.has(src) || wasShipped(src), sourceFor: (id) => shipped.get(id) },
     safe ? false : runsByDefault,
@@ -374,9 +373,8 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
   })
   const unsubRemember = gate.subscribe(() => {
     if (!gate.trusted) return
-    // allowing a room the sandbox would have run anyway only undoes a Block; elsewhere it is remembered as a yes
-    if (sandboxed) trust.setRoomCodeBlocked(resolved.docName, false)
-    else trust.rememberRoomCodeTrust(resolved.docName)
+    // a sandboxed room runs its code on every normal open, so only an unsandboxed yes needs remembering
+    if (!sandboxed) trust.rememberRoomCodeTrust(resolved.docName)
     unsubRemember()
   })
   setRoomCodeGate(gate, { sandboxed, docName: resolved.docName, safe })
