@@ -16,6 +16,12 @@ export interface CollabSnapshot {
   peers: number
   /** how many OTHER people are running their own (private) simulation preview right now */
   previewing: number
+  /** the name of another person sharing their runs live (docs/live-share.md), or null; one shares at a time */
+  liveBy: string | null
+  /** whether that person is running now (a viewer waits between their runs) */
+  liveRunning: boolean
+  /** how many other people are watching a live run (this client's, when it is the one live) */
+  watchers: number
 }
 
 /** an in-progress pose of a part being dragged, streamed live (not committed to the doc) */
@@ -44,6 +50,10 @@ export interface RemotePeer {
   pilot: PilotPose | null
   /** packageId of the custom part this peer has open in the behavior editor right now (soft-lock holder), else null */
   editingPart: string | null
+  /** true while this peer shares its runs live (collab/liveShare.ts) */
+  live: boolean
+  /** true while this peer draws someone's live run */
+  watching: boolean
 }
 
 /** a peer's first-person walk-around pose, broadcast over awareness (ephemeral, not persisted) */
@@ -68,7 +78,7 @@ interface AwarenessLike {
   on(event: 'change', cb: () => void): void
 }
 
-const OFFLINE: CollabSnapshot = { room: null, status: 'offline', peers: 0, previewing: 0 }
+const OFFLINE: CollabSnapshot = { room: null, status: 'offline', peers: 0, previewing: 0, liveBy: null, liveRunning: false, watchers: 0 }
 let snapshot: CollabSnapshot = OFFLINE
 const statusListeners = new Set<() => void>()
 
@@ -141,6 +151,16 @@ export function setLocalRunning(running: boolean): void {
   provider?.setAwarenessField('running', running)
 }
 
+/** publish whether this client shares its runs live, so the room can say who and offer to watch */
+export function setLocalLive(live: boolean): void {
+  provider?.setAwarenessField('live', live)
+}
+
+/** publish whether this client is watching a live run, so the one sharing it can see its audience */
+export function setLocalWatching(watching: boolean): void {
+  provider?.setAwarenessField('watching', watching)
+}
+
 /** publish this client's first-person pilot pose (null when not piloting); ephemeral presence */
 export function setLocalPilot(pose: PilotPose | null): void {
   provider?.setAwarenessField('pilot', pose)
@@ -194,6 +214,7 @@ export function remoteDragPoses(): Map<string, DragPose> {
 
 export function setCollabContext(ctx: CollabContext | null): void {
   context = ctx
+  for (const cb of statusListeners) cb() // the PLC editor binds to it, and a room can be entered after it mounted
 }
 
 export function getCollabContext(): CollabContext | null {
@@ -264,6 +285,11 @@ export function setDisplayName(name: string): void {
  *  shared edit-feed events at write time by the collab bridge */
 export function getLocalActorName(): string {
   return localIdentity().name
+}
+
+/** this client's name and colour as the others see them (the toolbar's own avatar) */
+export function getLocalIdentity(): { name: string; color: string } {
+  return localIdentity()
 }
 
 /**
@@ -380,6 +406,8 @@ export function readPeer(clientId: number, st: unknown): RemotePeer {
     pilot: readPilot(s.pilot),
     // a package id, not a part id; 256 is far past any real one and only stops a megabyte string
     editingPart: typeof s.editingPart === 'string' && s.editingPart.length <= 256 ? s.editingPart : null,
+    live: s.live === true,
+    watching: s.watching === true,
   }
 }
 
@@ -414,7 +442,11 @@ export function initCollabSession(room: string, prov: HocuspocusProvider): void 
       recomputePeers(awareness)
       setStatus({
         peers: Math.max(1, awareness.getStates().size),
-        previewing: peers.filter((p) => p.running).length,
+        // a live run is not a private preview: it is counted as live, not here
+        previewing: peers.filter((p) => p.running && !p.live).length,
+        liveBy: peers.find((p) => p.live)?.name ?? null,
+        liveRunning: peers.some((p) => p.live && p.running),
+        watchers: peers.filter((p) => p.watching).length,
       })
     }
     awareness.on('change', update)

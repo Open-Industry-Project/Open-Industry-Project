@@ -462,7 +462,7 @@ describe('coverage notes for what the panel cannot see', () => {
     const r = collectProblems(input({ runtimeOverflowed: true, heldCode: 1, externalPlc: true }))
     expect(r.notes).toEqual([
       'Part runtime problems stopped being recorded after the first 200, so some may be missing here.',
-      '1 part type from this room is blocked from running its own code, so its runtime problems come from the stand-in that runs instead.',
+      '1 part type in this shared project is blocked from running its own code, so its runtime problems come from the stand-in that runs instead.',
       'An external PLC runs the logic when you press Play, so the program checks above are about the program in this app, which does not run.',
     ])
   })

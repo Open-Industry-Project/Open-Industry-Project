@@ -157,6 +157,27 @@ export function EyeIcon({ size = 16 }: IconSize) {
   )
 }
 
+export function PeopleIcon({ size = 14 }: IconSize) {
+  // shared with others - two people
+  return (
+    <svg {...dims(size)} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <circle cx="5.5" cy="5" r="2.4" />
+      <circle cx="11" cy="5.6" r="2" />
+      <path d="M1 13.5c0-2.5 2-4.3 4.5-4.3s4.5 1.8 4.5 4.3v.5H1zM10.6 14v-.5c0-1.5-.5-2.8-1.4-3.7.5-.2 1.1-.3 1.8-.3 2.2 0 3.9 1.5 3.9 3.6v.9z" />
+    </svg>
+  )
+}
+
+export function BroadcastIcon({ size = 16 }: IconSize) {
+  // going live - a dot with waves either side
+  return (
+    <svg {...dims(size)} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+      <circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M5.2 5.2a4 4 0 0 0 0 5.6M10.8 5.2a4 4 0 0 1 0 5.6M3 3a7 7 0 0 0 0 10M13 3a7 7 0 0 1 0 10" />
+    </svg>
+  )
+}
+
 export function TrashIcon({ size = 16 }: IconSize) {
   // delete - a bin, rather than the × that means "close" (CloseIcon)
   return (

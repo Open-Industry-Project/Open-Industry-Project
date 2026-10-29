@@ -26,7 +26,13 @@ function controllerList(ctx: AgentToolContext): Record<string, unknown> {
       .map((p) => p.name)
   const names = [...new Set([...listed.map((c) => c.name), ...controllersUsed(s.scene.parts).filter((n) => n.toLowerCase() !== main.toLowerCase())])]
   return {
-    main: { name: main, runsOn: s.externalPlc.enabled ? 'external PLC' : 'simulator', ...(s.externalPlc.enabled ? { mode: s.externalPlc.mode } : {}), instances: instancesOn(null) },
+    main: {
+      name: main,
+      runsOn: s.externalPlc.enabled ? 'external PLC' : 'simulator',
+      ...(s.externalPlc.enabled ? { mode: s.externalPlc.mode } : {}),
+      ...(s.externalPlc.enabled && s.externalPlc.watch ? { watchOnly: true } : {}),
+      instances: instancesOn(null),
+    },
     named: names.map((name) => {
       const c = listed.find((k) => k.name === name)
       const simulated = c?.runsOn === 'app'
@@ -37,6 +43,7 @@ function controllerList(ctx: AgentToolContext): Record<string, unknown> {
         // a simulated controller runs anywhere; a PLC is connected only from the desktop app
         runsOnPlay: c?.enabled === true && (simulated || canConnect),
         ...(c && !simulated ? { mode: c.mode } : {}),
+        ...(c && !simulated && c.watch ? { watchOnly: true } : {}),
         ...(simulated ? { instances: instancesOn(name) } : {}),
         parts: partsNaming(s.scene.parts, name).length,
       }
@@ -53,7 +60,8 @@ export const listControllers: AgentTool = {
     'it (a tag naming one it does not list stays unconnected), whether it runs in the simulator or on an external PLC, ' +
     'whether Play runs it, and how many parts have a tag on it. A simulated controller runs the program instances the ' +
     'task table gives it (`instances`), on memory and I/O of its own: its instances read and drive only its own tags. ' +
-    "An external PLC's address is the person's to give in Controller Properties.",
+    "An external PLC's address is the person's to give in Controller Properties. `watchOnly`: Play reads every tag " +
+    'from that PLC, sensors included, and writes nothing to it, because it runs real equipment.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   run: (ctx) => controllerList(ctx),
 }

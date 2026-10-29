@@ -30,6 +30,17 @@
   background: #36a253;
 }
 
+/* while watching a live run, Play leaves it for a copy of one's own: offered, not the loudest thing on the bar */
+.run-transport > .run-button.play.watching {
+  background: var(--panel);
+  color: #2e8b46;
+  box-shadow: inset 0 0 0 1px #2e8b46;
+}
+
+.run-transport > .run-button.play.watching:hover:not(:disabled) {
+  background: light-dark(#e6f3e9, #1f3326);
+}
+
 /* Light greys dark enough for the white glyph to clear 3:1 (#7d848d is ~3.8:1; #b2b7be would be ~2:1) */
 .run-button.pause {
   background: light-dark(#7d848d, #4a5058);

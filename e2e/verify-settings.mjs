@@ -137,7 +137,7 @@ try {
   expect(await dialogUp(page, true), 'and typing in it leaves the dialog open')
   const trustedRow = page.locator('.setting-row', { hasText: 'allowed to run part code' })
   const trustedHint = await trustedRow.locator('.setting-hint').innerText()
-  expect(/^2 rooms/.test(trustedHint), `the allowed rooms are counted (${JSON.stringify(trustedHint)})`)
+  expect(/^2 shared projects/.test(trustedHint), `the allowed shared projects are counted (${JSON.stringify(trustedHint)})`)
   await page.locator('[data-testid="setting-forget-trusted"]').click({ force: true })
   expect((await page.evaluate(() => localStorage.getItem('oip-web/trusted-rooms'))) === null, 'Forget all clears every Allow')
   expect(await page.locator('[data-testid="setting-forget-trusted"]').isDisabled(), 'and the button greys out with nothing left')

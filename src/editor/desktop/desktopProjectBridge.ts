@@ -22,7 +22,8 @@ export type { OipProjectApi } from './desktopProjectApi'
 /** File > Open Project Folder…: pick a folder and open the project in it. */
 export async function openProjectFromFolder(store: EditorStore): Promise<void> {
   const api = getOipProjectApi()
-  if (!api || store.getState().collab) return // a room's document is the collab doc, not a local folder
+  // a shared project is left for the one opened, as any open project is (adoptFolderProject clears its room)
+  if (!api) return
   const picked = await api.pickOpenFolder()
   if (picked) await openFolderRead(store, picked)
 }
@@ -30,7 +31,7 @@ export async function openProjectFromFolder(store: EditorStore): Promise<void> {
 /** Open a folder the app already knows the path of: File > Open Recent, a second launch naming one. */
 export async function openProjectFolderPath(store: EditorStore, root: string): Promise<void> {
   const api = getOipProjectApi()
-  if (!api || store.getState().collab) return
+  if (!api) return
   const read = await api.readAt(root)
   if (read) await openFolderRead(store, read)
 }
@@ -69,7 +70,6 @@ async function openFolderRead(store: EditorStore, read: FolderRead): Promise<voi
 export async function openFolderForAgent(store: EditorStore, root: string): Promise<{ error: string } | 'already' | 'reloading'> {
   const api = getOipProjectApi()
   if (!api) return { error: 'Opening a project folder needs the desktop app.' }
-  if (store.getState().collab) return { error: 'a collab room is open: the person leaves it before another project can open' }
   const read = await api.readAt(root)
   if (!read) return { error: `Couldn't read ${root}: no answer from the app shell` }
   const ready = await readyToOpen(store, read)
@@ -116,7 +116,7 @@ async function adoptFolderProject(
   // baseline null: the working copy is about to be built from this folder, so the next boot starts with
   // the two agreed rather than reading the app's rendering of every file as an edit
   if (id !== undefined) await api.remember(id, { path: root, name: result.project.name, baseline: null, signature: '', touch: true })
-  clearEntryParams() // a ?scene=demo entry URL would reload straight back into the demo
+  clearEntryParams() // a ?scene=demo or ?room= entry URL would reload straight back into the demo or the shared project
   // adopt = write-then-reload; a failed write returns instead of reloading, so say why
   const adopted = adoptImportedProject(result, id !== undefined ? { docId: id } : undefined)
   return adopted.ok ? null : adopted.message

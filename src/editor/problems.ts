@@ -525,8 +525,8 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   if (held > 0) {
     notes.push(
       held === 1
-        ? '1 part type from this room is blocked from running its own code, so its runtime problems come from the stand-in that runs instead.'
-        : `${held} part types from this room are blocked from running their own code, so their runtime problems come from the stand-ins that run instead.`,
+        ? '1 part type in this shared project is blocked from running its own code, so its runtime problems come from the stand-in that runs instead.'
+        : `${held} part types in this shared project are blocked from running their own code, so their runtime problems come from the stand-ins that run instead.`,
     )
   }
   if (input.externalPlc) notes.push('An external PLC runs the logic when you press Play, so the program checks above are about the program in this app, which does not run.')

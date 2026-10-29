@@ -16,10 +16,12 @@ import { createNewProject, UNTITLED_PROJECT } from '../project/newProject'
 import { getOipProjectApi } from '../desktop/desktopProjectApi'
 import type { FolderRecord } from '../desktop/desktopProjectApi'
 import type { EditorState, EditorStore } from '../store/store'
-import { CloseIcon, PencilIcon, TrashIcon } from './toolbarIcons'
+import { CloseIcon, PencilIcon, PeopleIcon, TrashIcon } from './toolbarIcons'
+import { renameSharedProject, sharedProjectOf } from '../project/sharedProject'
 import { defineMessages, t } from '../../core/i18n'
 
 const M = defineMessages('projects', {
+  sharedTitle: 'Shared: people with its links edit it with you',
   confirmRemove: 'Remove “{name}” from this list? Its folder stays on disk: {folder}',
   confirmDelete: 'Delete “{name}”? This cannot be undone.',
   removeFailed: 'That project could not be removed.',
@@ -197,7 +199,9 @@ export function ProjectsOverlay({ store, state, onClose }: { store: EditorStore;
     // The open document is renamed through the store, so the title, the scene picker's group header
     // and the working copy all move together; the library follows on its next sync. Any other row is
     // a library-only relabel.
-    if (edit.id === openId) {
+    // a shared project's record names what its write-back saves, so it is renamed too (project/sharedProject.ts)
+    const shared = renameSharedProject(store, edit.id, edit.name)
+    if (edit.id === openId && !shared) {
       store.renameProject(edit.name)
       setDocs((prev) => prev?.map((d) => (d.id === edit.id ? { ...d, name: edit.name.trim() } : d)) ?? null)
       return
@@ -251,6 +255,11 @@ export function ProjectsOverlay({ store, state, onClose }: { store: EditorStore;
               ) : (
                 <button className="projects-name" disabled={busy} onClick={() => onOpen(doc.id)} title={onScreen(doc.id) ? t(M.alreadyOpen) : t(M.openNamed, { name: doc.name })}>
                   <span className="projects-label">{doc.name}</span>
+                  {sharedProjectOf(doc.id) && (
+                    <span className="projects-shared" title={t(M.sharedTitle)} aria-label={t(M.sharedTitle)}>
+                      <PeopleIcon />
+                    </span>
+                  )}
                   <span className="projects-when">{onScreen(doc.id) ? t(M.openNow) : relativeTime(doc.updatedAt)}</span>
                   {desktop && (
                     <span className="projects-path" data-folder={folderOf(doc.id) !== null}>

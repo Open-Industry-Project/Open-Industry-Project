@@ -7,6 +7,7 @@
 
 import { keepDefinitionsOnce, PROJECT_VERSION, projectToScene, serializeProject, trimForExport, unusedLibraryParts, validateProject } from '../../core/project/project'
 import { warmShippedAssets } from '../parts/shippedAssetCache'
+import { clearEntryParams } from './entryParams'
 import type { ExportLeaveOut, ProjectJSON } from '../../core/project/project'
 import { validateScene } from '../../core/scene/scene'
 import { sceneSettings } from '../../core/scene/scenePlcs'
@@ -620,6 +621,7 @@ export function adoptImportedProject(
       /* blocked storage: there is no library to file it under anyway */
     }
   } else forgetCurrentDocument()
+  clearEntryParams() // the reload opens the import, not the demo or a shared project the tab was in
   if (typeof location !== 'undefined') location.reload()
   return saved
 }
@@ -627,17 +629,15 @@ export function adoptImportedProject(
 /**
  * Parse + validate a legacy `.oip` JSON document and adopt it (replacing the current project).
  * Returns a human-readable error message, or null on success - on success the page reloads into the
- * import. The caller confirms the replacement first. Solo only: a room's document is the collab doc.
+ * import. The caller confirms the replacement first. In a shared project too: the reload leaves it for the import
+ * (entryParams.ts), and the shared document is never written.
  */
-export function importProjectText(store: EditorStore, text: string): string | null {
-  if (store.getState().collab) return ROOM_OWNS_DOCUMENT
+export function importProjectText(_store: EditorStore, text: string): string | null {
   const result = parseProjectText(text)
   if (!result.ok) return result.message
   const adopted = adoptImportedProject(result)
   return adopted.ok ? null : adopted.message
 }
-
-const ROOM_OWNS_DOCUMENT = 'A live collab room owns its document. Leave the room to import a project.'
 
 const FOLDER_MANIFEST_PICKED =
   "This is the project.json of a project folder: it only lists the folder's scene and test files, so it can't be loaded on its own. In the browser, load the project as a .oip file. In the desktop app, use Open Project Folder."
@@ -682,7 +682,6 @@ export async function importProjectData(
   bytes: Uint8Array,
   opts?: { beforeAdopt?: () => Promise<string | null> },
 ): Promise<string | null> {
-  if (store.getState().collab) return ROOM_OWNS_DOCUMENT
   const result = isZipData(bytes)
     ? await oipBytesToProject(bytes, { bakePart })
     : parseProjectText(new TextDecoder().decode(bytes))

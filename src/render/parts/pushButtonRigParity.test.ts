@@ -103,6 +103,7 @@ describe('Push Button custom-part rig - parity with the built-in', () => {
         lamps: {} as Record<string, boolean>,
         used: () => use,
         readTag: () => false,
+        tagDriven: () => false,
         writeTag: (_t: string, v: boolean) => { out.tag = v },
         setSubPose: (_l: string, p: Pose) => { out.pose = p },
       }
@@ -177,6 +178,7 @@ describe('Push Button custom-part rig - parity with the built-in', () => {
         lamps: {} as Record<string, boolean>,
         used: () => false,
         readTag: () => false,
+        tagDriven: () => false,
         writeTag: (_t: string, v: boolean) => { tag = v },
         setSubPose: () => {},
       }

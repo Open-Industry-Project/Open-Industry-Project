@@ -35,7 +35,6 @@ const M = defineMessages('catalog', {
   title: 'Parts',
   viewOnly: 'View only: editing is disabled',
   viewOnlyLink: 'View only: editing is disabled on this link',
-  partEditorInRoom: 'The Part Editor is unavailable in a shared room',
   newPartTitle: 'New blank part:a single box you can reshape, add nodes to, and script (the same portable format the built-ins use)',
   newPart: '＋ New part',
   importTitle: 'Import a shared part file (.oippart or .part.json) into this project, or make a new part from a model (.glb, STEP or USD)',
@@ -43,7 +42,6 @@ const M = defineMessages('catalog', {
   importModel: 'A model…',
   importModelTitle: 'Make a new part from a model: a .glb, a STEP file from CAD, or a USD model (.usd, .usda, .usdc, .usdz)',
   oneModelAtATime: 'A model opens as a new part of its own, so one is imported at a time: {file} was imported.',
-  modelInRoom: 'A new part opens in the Part Editor, which is not available in a shared room.',
   importFiles: 'Part files…',
   importFilesTitle: 'Import shared part files (.oippart or .part.json) into this project',
   importFolder: 'A folder of parts…',
@@ -70,7 +68,6 @@ const M = defineMessages('catalog', {
   editInPartEditor: 'Edit “{name}” in the Part Editor',
   download: 'Download “{name}” as a part file to share',
   editBehavior: 'Edit the behavior script of “{name}”',
-  deleteInRoom: 'Deleting parts is unavailable in a shared room',
   openForEditing: 'This part is open for editing. Close it first',
   revertTitle: "Go back to the app's version of “{name}”",
   deleteTitle: 'Delete “{name}” from this project',
@@ -223,10 +220,6 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
     const parts = partFilesOf(files.filter((f) => !isModelFile(f.name)))
     if (parts.length > 0) await importPartFiles(controller, parts)
     if (models.length === 0) return
-    if (state.collab) {
-      alert(t(M.modelInRoom))
-      return
-    }
     newPartFromModel(controller, models[0]!)
     if (models.length > 1) alert(t(M.oneModelAtATime, { file: models[0]!.name }))
   }
@@ -359,16 +352,8 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         <span className="dock-title">{t(M.title)}</span>
         <button
           className="catalog-author"
-          // a new part opens in the Part Editor, which a room refuses (store.enterPackageEdit): in a room the click
-          // would only add a part nobody can open
-          disabled={state.readOnly || state.collab}
-          title={
-            state.readOnly
-              ? t(M.viewOnly)
-              : state.collab
-                ? t(M.partEditorInRoom)
-                : t(M.newPartTitle)
-          }
+          disabled={state.readOnly}
+          title={state.readOnly ? t(M.viewOnly) : t(M.newPartTitle)}
           onClick={() => controller?.createBlankPart()}
         >
           {t(M.newPart)}
@@ -671,15 +656,8 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
             )}
             <button
               className="catalog-card-edit"
-              // store.enterPackageEdit refuses in a room (its throwaway instance would reach every peer)
-              disabled={state.readOnly || state.collab}
-              title={
-                state.readOnly
-                  ? t(M.viewOnly)
-                  : state.collab
-                    ? t(M.partEditorInRoom)
-                    : t(M.editInPartEditor, { name: pkg.name })
-              }
+              disabled={state.readOnly}
+              title={state.readOnly ? t(M.viewOnly) : t(M.editInPartEditor, { name: pkg.name })}
               onClick={() => controller?.editPartPackage(pkg.id)}
             >
               <PencilIcon size="1em" />
@@ -709,13 +687,11 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
             {userCopy && (
               <button
                 className="catalog-card-remove"
-                disabled={state.readOnly || state.collab || editingThis}
+                disabled={state.readOnly || editingThis}
                 title={
                   state.readOnly
                     ? t(M.viewOnly)
-                    : state.collab
-                      ? t(M.deleteInRoom)
-                      : editingThis
+                    : editingThis
                         ? t(M.openForEditing)
                         : shadowsBundled
                           ? t(M.revertTitle, { name: pkg.name })

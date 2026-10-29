@@ -270,7 +270,8 @@ describe('projects list', () => {
   it('is offered except where the document is not the browser’s to swap', () => {
     expect(projects.enabled?.(ctx({ collab: false, readOnly: false }))).toBe(true)
     expect(projects.enabled?.(ctx({ running: true }))).toBe(true)
-    expect(projects.enabled?.(ctx({ collab: true }))).toBe(false)
+    // a shared project is left for the one opened, as any open project is
+    expect(projects.enabled?.(ctx({ collab: true }))).toBe(true)
     expect(projects.enabled?.(ctx({ readOnly: true }))).toBe(false)
   })
 
@@ -301,16 +302,15 @@ describe('import project', () => {
     expect(importCmd.enabled?.(ctx({ running: false, collab: false, readOnly: false }))).toBe(true)
     // unlike the projects list, which is a list: this one reloads into another document, so a run must stop first
     expect(importCmd.enabled?.(ctx({ running: true }))).toBe(false)
-    expect(importCmd.enabled?.(ctx({ collab: true }))).toBe(false)
+    expect(importCmd.enabled?.(ctx({ collab: true }))).toBe(true)
     expect(importCmd.enabled?.(ctx({ readOnly: true }))).toBe(false)
   })
 
-  it('names the room, and leaves the global blocks to the surface', () => {
-    // importProjectData refuses a room anyway; saying so here greys the control before a picker opens.
-    expect(importCmd.disabledReason?.(ctx({ collab: true }))).toMatch(/room/)
-    // running / view-only are the toolbar's own message (Toolbar.fileBlockedReason) - repeating them doubles up
-    expect(importCmd.disabledReason?.(ctx({ running: true }))).toBeNull()
-    expect(importCmd.disabledReason?.(ctx({ readOnly: true }))).toBeNull()
+  it('leaves the global blocks to the surface, and has nothing to say about a shared project', () => {
+    // an import from a shared project reloads into the import, leaving the shared project (entryParams.ts)
+    // running / view-only are the toolbar's own message (Toolbar.fileBlockedReason) - repeating them doubles up, so the
+    // command has no reason of its own at all
+    expect(importCmd.disabledReason).toBeUndefined()
   })
 
   it('goes through the UI seam rather than reaching for the store itself', () => {

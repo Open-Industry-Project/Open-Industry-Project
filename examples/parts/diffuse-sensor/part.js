@@ -107,6 +107,11 @@ definePart({
     const s = ctx.sense('lens')
     const want = ctx.params.mark
     const present = s.hit && s.distance <= ctx.params.maxRange && (!want || (!!s.marks && !!s.marks[want]))
+    // a PLC that drives this tag is watching a real eye (Watch only): the LED shows what that eye reports
+    if (ctx.params.tag && ctx.tagDriven(ctx.params.tag)) {
+      ctx.lamps.led = ctx.readTag(ctx.params.tag) !== !!ctx.params.normallyClosed
+      return
+    }
     ctx.lamps.led = present // raw presence, not the NC-inverted output
     let out = present
     if (ctx.params.normallyClosed) out = !out // NC: de-energized (no cargo) reads true

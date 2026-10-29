@@ -304,7 +304,7 @@ export function setPartInfo(ec: AuthoringDeps, packageId: string, patch: { name?
 }
 
 export function createBlankPart(ec: AuthoringDeps): string | null {
-  if (ec.readOnly || ec.store.getState().collab) return null
+  if (ec.readOnly) return null
   // a free package id, skipping any already registered (e.g. a reload that restored user parts)
   let n = ec.store.getState().userPackages.length + 1
   let packageId = `user.part-${n}`

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement } from 'react'
 import {
   commsTags,
@@ -20,7 +20,7 @@ import { resolveKeyAction } from '../../../core/keymap'
 import { askName } from '../../nameDialog'
 import { commandDisabledReason, commandEnabled, runCommand } from '../../commands'
 import { commitControllerEdit } from '../../program/controllerCommit'
-import { getCollabContext } from '../../../collab/session'
+import { getCollabContext, subscribeCollab } from '../../../collab/session'
 import type { EditorController } from '../../controller'
 import type { EditorState, EditorStore } from '../../store/store'
 import { dockPanelTitle } from '../../dockLayout'
@@ -395,8 +395,9 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
   const [pickInstance] = useState(() => (type: string, instance: string) => setPicked((was) => ({ ...was, [type.toUpperCase()]: instance })))
   // collaborative room binding (null in solo mode): the shared ST Y.Text + its CodeMirror
   // extension. In a room CodeMirror binds STRAIGHT to the shared text (that's what makes
-  // co-editing work); the store mirrors it so everything else has one place to read.
-  const [collab] = useState(getCollabContext)
+  // co-editing work); the store mirrors it so everything else has one place to read. Followed, not read once: Share
+  // can take a solo tab into a room without a reload (editor/roomEntry.ts), and the code editor then remounts on it.
+  const collab = useSyncExternalStore(subscribeCollab, getCollabContext)
   // the program to seed the editor with, read once on mount - from the store, which the boot path
   // has already loaded from whichever document owns it (project, room, demo)
   const [initialSource] = useState(() => store.getState().stProgram)
@@ -1177,8 +1178,10 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
                 >
                   <Suspense fallback={null}>
                     <StCodeEditor
+                      key={collab ? 'room' : 'solo'}
                       ref={editorRef}
-                      initialValue={initialSource}
+                      // in a room CodeMirror binds to the shared text, so it starts from exactly that text
+                      initialValue={collab ? collab.ytext.toString() : initialSource}
                       onChange={(v) => {
                         persistSource(v) // persist every edit so a reload restores it
                         // the downloaded file is a snapshot of the text as it WAS, so the moment the text

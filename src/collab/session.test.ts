@@ -138,6 +138,8 @@ describe('presence from a peer is validated on read', () => {
       running: true,
       pilot: { x: 1, y: 0, z: 2, yaw: 3.1 },
       editingPart: 'pkg_robot',
+      live: true,
+      watching: true,
     })
     expect(peer).toEqual({
       clientId: 7,
@@ -149,6 +151,8 @@ describe('presence from a peer is validated on read', () => {
       running: true,
       pilot: { x: 1, y: 0, z: 2, yaw: 3.1 },
       editingPart: 'pkg_robot',
+      live: true,
+      watching: true,
     })
   })
 
@@ -206,8 +210,10 @@ describe('presence from a peer is validated on read', () => {
     expect(readPeer(2, { selection: 'a' }).selection).toEqual([])
   })
 
-  it('takes running only as true and editingPart only as a bounded string', () => {
+  it('takes running and live only as true, and editingPart only as a bounded string', () => {
     expect(readPeer(2, { running: 'yes' }).running).toBe(false)
+    expect(readPeer(2, { live: 'yes' }).live).toBe(false)
+    expect(readPeer(2, { watching: 1 }).watching).toBe(false)
     expect(readPeer(2, { editingPart: { id: 'pkg' } }).editingPart).toBeNull()
     expect(readPeer(2, { editingPart: 'x'.repeat(300) }).editingPart).toBeNull()
   })

@@ -449,6 +449,62 @@ button:disabled {
   background: light-dark(#ced1d5, #383c41);
 }
 
+/* the Live switch (Toolbar toggleLive), set apart from the two links above it */
+.share-popover .share-live {
+  margin-top: 4px;
+  border-top: 1px solid var(--control-alt);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.share-popover .share-live.on .share-option-icon,
+.share-popover .share-live.on .share-option-label {
+  color: #d6616b;
+}
+
+.share-switch {
+  position: relative;
+  flex: none;
+  align-self: center;
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: light-dark(#c4c8cd, #4a5058);
+  transition: background 0.15s;
+}
+
+.share-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+.share-live.on .share-switch {
+  background: #d6616b;
+}
+
+.share-live.on .share-switch::after {
+  transform: translateX(13px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share-switch,
+  .share-switch::after {
+    transition: none;
+  }
+}
+
+.share-popover .share-option-off {
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* display name shown to collaborators (presence); persisted, no account needed */
 .share-name {
   display: flex;
@@ -485,6 +541,12 @@ button:disabled {
   padding: 6px 8px 4px;
   font-size: 12px;
   color: var(--accent);
+}
+
+.share-popover-note {
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 /* live-collaboration presence chip (peer count + connection dot) */
@@ -537,3 +599,214 @@ button:disabled {
   user-select: none;
 }
 
+
+/* live share beside the transport (Toolbar LiveControl): live, watching someone, or an offer to watch */
+.live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(214, 97, 107, 0.45);
+  background: rgba(214, 97, 107, 0.12);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: light-dark(#b23a46, #ffaab2);
+  white-space: nowrap;
+}
+
+.live-chip.on {
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.live-chip.on::before,
+.live-chip.watching::before,
+.live-chip.waiting::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.live-chip.on:not(.idle)::before {
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+/* live with no run going yet, and a viewer waiting for one: the dot is hollow until something streams */
+.live-chip.on.idle::before,
+.live-chip.waiting::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.live-chip.waiting {
+  background: transparent;
+}
+
+/* a stream that just ended (Toolbar LiveControl): grey, no dot, gone after a few seconds */
+.live-chip.ended {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--text-dim);
+}
+
+/* Back to the project (Toolbar backToProject): no icon of its own, so its text lines up with the options' text */
+.share-popover .share-back {
+  margin-top: 4px;
+  border-top: 1px solid var(--control-alt);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding-left: 38px;
+}
+
+.live-chip-short {
+  display: none;
+}
+
+@keyframes live-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.live-chip.offer {
+  cursor: pointer;
+  background: transparent;
+}
+
+.live-chip.offer:hover,
+.live-chip.on:hover {
+  background: rgba(214, 97, 107, 0.22);
+}
+
+.live-chip-stop {
+  margin: 0 -4px 0 2px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-chip.on::before {
+    animation: none;
+  }
+}
+
+/* a shared project in the Projects list (ProjectsOverlay): a small mark beside its name */
+.projects-shared {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--text-dim);
+}
+
+/* who is here (PresenceStack): overlapping avatars in each person's presence colour, the live one ringed red */
+.collab-status.presence {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.people-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.people-stack:hover,
+.people-stack[aria-expanded='true'] {
+  border-color: var(--line);
+  background: var(--control-alt);
+}
+
+.people-stack .collab-dot {
+  margin-right: 6px;
+}
+
+.people-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  user-select: none;
+}
+
+.people-stack .people-avatar + .people-avatar {
+  margin-left: -6px;
+}
+
+.people-avatar.live {
+  box-shadow: 0 0 0 2px #d6616b;
+}
+
+.people-more {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.people-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 260px;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+
+.people-list {
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+}
+
+.people-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.people-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-doing {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.people-doing.live {
+  color: light-dark(#b23a46, #ffaab2);
+}

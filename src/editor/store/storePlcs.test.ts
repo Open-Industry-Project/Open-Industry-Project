@@ -107,6 +107,20 @@ describe('editing the controllers', () => {
     expect(store.getState().externalPlc).toMatchObject({ enabled: false, mode: 'serve', plcHost: '10.0.0.9' })
   })
 
+  it('makes Watch only an edit of the project, saved with it and read back, and undone like one', () => {
+    const store = new EditorStore()
+    store.setExternalPlc({ enabled: true, mode: 'opcua' })
+    store.setExternalPlc({ watch: true })
+    expect(store.getState().scene.plcs?.[0]).toMatchObject({ runsOn: 'plc', protocol: 'opcua', watch: true })
+    expect(store.getState().externalPlc.watch).toBe(true)
+    expect(store.getState().plcPrefs.watch).toBeUndefined()
+    const saved = validateScene(JSON.parse(serializeScene(store.getState().scene)))
+    expect(saved.ok && saved.scene.plcs?.[0]?.watch).toBe(true)
+    store.undo()
+    expect(store.getState().scene.plcs?.[0]).not.toHaveProperty('watch')
+    expect(store.getState().externalPlc.watch).toBe(false)
+  })
+
   it('renames a controller and every tag on it as one undo step, keeping its address under both names', () => {
     registerPackage(SENSOR)
     const store = new EditorStore()

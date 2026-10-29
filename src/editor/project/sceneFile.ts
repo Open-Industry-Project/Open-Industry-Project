@@ -56,6 +56,7 @@ export function openDemoScene(store: EditorStore, controller?: EditorController 
     const url = new URL(location.href)
     url.searchParams.delete('room')
     url.searchParams.delete('view')
+    url.searchParams.delete('server')
     url.searchParams.set('scene', 'demo')
     location.assign(url.toString())
   })
@@ -106,7 +107,7 @@ export function noticeHeldCodeInExport(store: EditorStore): void {
     'Saved without some part code',
     held.length === 1
       ? `“${held[0]!.name}” isn't running its own code here, so it was saved without it.`
-      : `${held.length} part types from this room aren't running their own code here, so they were saved without it.`,
+      : `${held.length} part types in this shared project aren't running their own code here, so they were saved without it.`,
   )
 }
 
@@ -171,7 +172,7 @@ export function isSceneFileText(text: string): boolean {
 }
 
 const SCENE_FILE_NEEDS_LIBRARY =
-  'A scene file opens as a project of its own, and there is nowhere to keep a second project here (a live room, a view link, or a browser that keeps one project).'
+  'A scene file opens as a project of its own, and there is nowhere to keep a second project here (a view link, or a browser that keeps one project).'
 
 /**
  * Parse + validate a scene file's text and load it over the active scene. Returns a human-readable error

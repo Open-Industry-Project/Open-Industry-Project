@@ -295,11 +295,11 @@ export const undoTool: AgentTool = {
   name: 'undo',
   description:
     "Take back the agent's own most recent edit (an \"Agent: ...\" step in the History dock), or with `redo` put it " +
-    'back. It refuses when the step on top is the user\'s, so it never takes back their work. Not in a live room.',
+    'back. It refuses when the step on top is the user\'s, so it never takes back their work. Not in a shared project.',
   inputSchema: { type: 'object', properties: { redo: { type: 'boolean' } }, additionalProperties: false },
   run: ({ store }, args) => {
     assertEditable(store)
-    if (store.getState().collab) throw new AgentToolError('undo is not offered in a live room: its history is shared')
+    if (store.getState().collab) throw new AgentToolError('undo is not offered in a shared project: its history is shared')
     const redo = optBool(args, 'redo') ?? false
     const h = store.getEditHistory()
     const entry = redo ? h.events[h.cursor] : h.events[h.cursor - 1]
@@ -319,7 +319,7 @@ export const deleteTest: AgentTool = {
     assertEditable(store)
     const name = str(args, 'name')
     if (!(store.snapshotProject().tests ?? []).some((t) => t.name === name)) throw new AgentToolError(`the project keeps no test named '${name}'`)
-    if (!store.deleteProjectTest(name)) throw new AgentToolError('this editor cannot keep tests (a live room keeps none)')
+    if (!store.deleteProjectTest(name)) throw new AgentToolError('this editor cannot keep tests (it is view-only, or in a shared project of someone else\'s, which keeps none)')
     return { tests: (store.snapshotProject().tests ?? []).map((t) => t.name ?? '(unnamed)') }
   },
 }

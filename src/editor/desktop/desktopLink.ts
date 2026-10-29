@@ -8,6 +8,7 @@
 // document on the collab server, the link names that document, and the desktop imports it as a new project of its
 // own. From then on the two are separate copies.
 
+import { collabUrl, onOtherCollabServer } from '../../collab/collabServer'
 import { mintEditSecret } from '../../collab/rooms'
 import { projectToOipBytes } from '../../core/project/projectArchive'
 import type { EditorStore } from '../store/store'
@@ -22,15 +23,18 @@ export const DESKTOP_DOWNLOAD_URL = '/#desktop'
 /** How long the page waits to lose focus before deciding the app did not open. */
 const NO_APP_AFTER_MS = 2000
 
-/** The link that opens the desktop app on `room` (or just opens it, for null). */
-export function desktopLink(room: string | null): string {
+/** `&server=` for a room or hand-over on a server other than the build's, which the desktop must use too */
+const serverPart = (server: string | null): string => (server === null ? '' : `&server=${encodeURIComponent(server)}`)
+
+/** The link that opens the desktop app on `room` (or just opens it, for null), on `server` when it is not the build's. */
+export function desktopLink(room: string | null, server: string | null = null): string {
   const link = `${DESKTOP_LINK_SCHEME}://open`
-  return room === null ? link : `${link}?room=${encodeURIComponent(room)}`
+  return room === null ? link : `${link}?room=${encodeURIComponent(room)}${serverPart(server)}`
 }
 
 /** The link that has the desktop app take the project waiting in a hand-over document. */
-export function handoffLink(secret: string): string {
-  return `${DESKTOP_LINK_SCHEME}://open?handoff=${encodeURIComponent(secret)}`
+export function handoffLink(secret: string, server: string | null = null): string {
+  return `${DESKTOP_LINK_SCHEME}://open?handoff=${encodeURIComponent(secret)}${serverPart(server)}`
 }
 
 /** The room this tab is in, as its address bar names it, or null when it is solo. */
@@ -77,7 +81,8 @@ export function openInDesktopApp(store: EditorStore, room: string | null = curre
   // this page where it is. Firefox with no handler at all may show its own error page instead (not checked yet).
   // The page saves on pagehide, so even then the document is kept.
   const a = document.createElement('a')
-  a.href = secret === null ? desktopLink(room) : handoffLink(secret)
+  const server = onOtherCollabServer() ? collabUrl() : null
+  a.href = secret === null ? desktopLink(room, server) : handoffLink(secret, server)
   a.click()
   if (secret !== null) void handOver(store, secret, decided)
 }

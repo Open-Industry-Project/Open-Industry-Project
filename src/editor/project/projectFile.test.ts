@@ -296,8 +296,10 @@ describe('importProjectText (.oip import)', () => {
     expect(msg).not.toContain('tests[0]')
   })
 
-  it('refuses to import into a live collab room', () => {
-    expect(importProjectText(roomStore, JSON.stringify(assembleProject(sampleScene(), '', [])))).toContain('collab room')
+  it('imports from a shared project too: as the stored project, never into the shared document', () => {
+    const doc = assembleProject(sampleScene(), '', [], 'From a room')
+    expect(importProjectText(roomStore, JSON.stringify(doc))).toBeNull()
+    expect(JSON.parse(ls().getItem(PROJECT_KEY)!).name).toBe('From a room')
   })
 
   it('adopts a valid v2 document as the stored project', () => {

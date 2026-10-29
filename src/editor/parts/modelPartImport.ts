@@ -22,7 +22,7 @@ export function partNameFromFile(name: string): string {
 
 /**
  * Make a new part for `file` and open it, its node panel showing the file's import options. Returns the part's id,
- * or null when no part can be made here (a read-only view, or a shared room, where New part is refused too).
+ * or null when no part can be made here (a read-only view, where New part is refused too).
  */
 export function newPartFromModel(controller: EditorController, file: File): string | null {
   const packageId = controller.createBlankPart()

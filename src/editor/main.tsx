@@ -13,12 +13,14 @@ import {
   isLocalDragging,
   remoteDragPoses,
   setCollabContext,
+  setLocalLive,
   setLocalRunning,
+  setLocalWatching,
   setLocalSelection,
   setRoomCodeGate,
   subscribePeers,
 } from '../collab/session'
-import { consumeSeedMark, resolveRoom, type ResolvedRoom } from '../collab/rooms'
+import { consumeSeedMark, resolveRoom, type ResolvedRoom, type SeedKind } from '../collab/rooms'
 import { SimClient } from '../sim/client'
 import { getPartThumbnails, renderPackageThumbnails } from '../render/viewport/thumbnails'
 import { getPackage, registerPackage } from '../core/parts/partRegistry'
@@ -38,6 +40,11 @@ import { PROJECT_KEY, loadStoredProject, noteWorkingCopyWrite, onWorkingCopySupe
 import { startSplitFiling } from './project/projectSplit'
 import { currentDocumentId, onCurrentDocumentChange, supportsDocumentLibrary, syncCurrentDocument, writeDocument } from './project/documentStore'
 import { EditorStore } from './store/store'
+import { consumeGoLive, liveChannel } from './live/liveChannel'
+import { registerRoomEntry } from './roomEntry'
+import { claimRoom, isStoppingSharing, ownSharedProject, setRoomNameWriter, sharedDemo, sharedProjectOf, startWriteBack } from './project/sharedProject'
+import { soloUrl } from './project/roomCopy'
+import { defaultCollabUrl, linkCollabServer } from '../collab/collabServer'
 import { initKeymapPrefs } from './keymapPrefs'
 import { initNavPrefs } from './navigationPrefs'
 import { initLanguage } from './autoTranslate'
@@ -265,7 +272,10 @@ function trackDocumentLibrary(): void {
  * Solo only: in a room the collab doc is the document and this tab never writes the working copy.
  */
 function watchOtherTabs(): void {
-  onWorkingCopySuperseded(() => store.yieldToOtherTab())
+  // a tab that has since entered a room in place (roomEntry.ts) writes no working copy, so another tab's has no claim on it
+  onWorkingCopySuperseded(() => {
+    if (!store.getState().collab) store.yieldToOtherTab()
+  })
   addEventListener('storage', (e) => {
     if (e.storageArea !== localStorage) return
     // key null is another tab's localStorage.clear(): the working copy is gone from under this one too
@@ -279,7 +289,56 @@ function watchOtherTabs(): void {
  * from the doc, then wires the two-way bridge. Awaits first sync so we don't flash an empty
  * scene before remote state arrives.
  */
-async function bootRoom(resolved: ResolvedRoom): Promise<void> {
+/**
+ * A room's live share (collab/liveShare.ts, docs/live-share.md): every connection draws a run another one shares
+ * (registered before the first sync, so the snapshot the server sends a joiner is not missed), and an editor who
+ * turns sharing on streams each of its runs while it lasts.
+ */
+function joinLiveShare(
+  provider: { sendStateless(payload: string): void; on(event: 'stateless', cb: (data: { payload: string }) => void): unknown },
+  live: typeof import('../collab/liveShare'),
+  canShare: boolean,
+): void {
+  const send = (payload: string): void => provider.sendStateless(payload)
+  const receiver = new live.LiveShareReceiver(send, {
+    frame: (f, watch) => liveChannel.in?.frame(f, watch),
+    end: () => liveChannel.in?.end(),
+  })
+  provider.on('stateless', ({ payload }) => receiver.accept(payload))
+  let watching: boolean | null = null
+  const publishWatching = (): void => {
+    const now = store.getState().liveFollowing
+    if (now !== watching) setLocalWatching((watching = now))
+  }
+  store.subscribe(publishWatching)
+  publishWatching()
+  if (!canShare) return
+  // Go live from a solo tab made this room and reloaded into it (Toolbar goLive): it is live from the start
+  if (consumeGoLive()) store.setState({ liveSharing: true })
+  let sender: InstanceType<typeof live.LiveShareSender> | null = null
+  let published: boolean | null = null
+  const sync = (): void => {
+    const { running, liveSharing } = store.getState()
+    if (liveSharing !== published) setLocalLive((published = liveSharing))
+    const want = running && liveSharing
+    if (want && !sender) {
+      sender = new live.LiveShareSender(send)
+      liveChannel.out = sender
+    } else if (!want && sender) {
+      sender.end()
+      sender = null
+      liveChannel.out = null
+    }
+  }
+  store.subscribe(sync)
+  sync()
+}
+
+/**
+ * `seedHere`: this tab minted the room and enters it in place (roomEntry.ts), so it says what seeds the room. Opened
+ * from a link, the seed mark a minting tab left before reloading says it instead (rooms.ts).
+ */
+async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null): Promise<void> {
   // `resolved` is the ?room= value classified (rooms.ts resolveRoom) into the server doc name +
   // auth token; view-ness follows from whether we hold the edit secret, so the server enforces it too.
   const { room } = resolved
@@ -288,7 +347,7 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
   if (resolved.view) store.setReadOnly(true)
   // load the collaboration stack (yjs + hocuspocus + y-indexeddb + y-codemirror) only for
   // rooms, so the solo bundle stays lean
-  const [{ connectRoom, seedIfEmpty, collabUrl }, schema, { CollabBridge }, { createStCollabExtension }, trust, demoRoom, wasShipped, roomAssets] = await Promise.all([
+  const [{ connectRoom, seedIfEmpty, collabUrl }, schema, { CollabBridge }, { createStCollabExtension }, trust, demoRoom, wasShipped, roomAssets, liveShare] = await Promise.all([
     import('../collab/provider'),
     import('../collab/schema'),
     import('../collab/bridge'),
@@ -297,21 +356,47 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
     import('../collab/demoRoom'),
     import('./parts/shippedBehaviors').then((m) => m.loadShippedBehaviors()),
     import('../collab/roomAssets'),
+    import('../collab/liveShare'),
   ])
   // a part's embedded models live in the collab server's asset store by hash (collab/roomAssets.ts), which an editor
   // may add to. Set before anything seeds or reads the room's packages: a read starts fetching the hashes it names.
   roomAssets.configureRoomAssets({ base: roomAssets.assetBaseFor(collabUrl()), room: resolved.docName, token: resolved.view ? null : resolved.token })
-  const { ydoc, provider, whenSynced, serverSynced } = connectRoom(resolved)
+  // A link that names another server sends this tab's edits, presence and name there. Harmless for a view link and
+  // what a self-hosted room is for, but anyone can write such a link, so say where the room is.
+  const otherServer = linkCollabServer()
+  if (otherServer && otherServer !== defaultCollabUrl()) {
+    store.showSaveNotice(
+      'This shared project is on another server',
+      `This shared project is kept on ${new URL(otherServer).host}, not on the Open Industry Project's server. What you do in it goes there. If you did not expect that, close this tab.`,
+    )
+  }
+  const { ydoc, provider, idb, whenSynced, serverSynced } = connectRoom(resolved)
+  // Its owner closed the room (Stop sharing, server/roomOwners.mjs): told while in it, or refused on the way in. Back to
+  // the app on its own, saying why, rather than on a copy of the room this browser happens to have cached.
+  const leaveClosed = (): void => {
+    if (isStoppingSharing()) return // this tab is the one closing it, and is on its way already
+    void idb.clearData()
+    const url = new URL(soloUrl(location.href), location.href)
+    url.searchParams.set('closed', '1')
+    location.replace(url.toString())
+  }
+  provider.on('authenticationFailed', ({ reason }: { reason?: string }) => {
+    if (reason === 'room-closed') leaveClosed()
+  })
+  provider.on('stateless', ({ payload }: { payload: string }) => {
+    if (payload === 'room1|closed|') leaveClosed()
+  })
   // room-unique part ids so two clients minting from the same count don't collide
   const idSuffix = '~' + ydoc.clientID.toString(36)
   setNextIdSuffix(idSuffix)
   initCollabSession(room, provider)
+  joinLiveShare(provider, liveShare, !resolved.view)
   await whenSynced
   // An empty room is seeded from the creator's current scene + PLC program (Share's
   // payload) - but only by the tab that minted the room, so opening a mistyped or stale
   // link can't upload this browser's private solo scene into a foreign room id. A viewer
   // never seeds.
-  const mintedHere = consumeSeedMark(room)
+  const mintedHere = seedHere ?? consumeSeedMark(room)
   let seededCode: string[] = []
   if (!resolved.view && (mintedHere === 'demo' || demoRoom.isDemoRoom(ydoc))) {
     // Shared from the untouched demo: the room holds the demo until someone edits it, so an editor on a build with a
@@ -388,6 +473,8 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
   // (the review notifies the gate's listeners, which arm the recovery mark before any of this code can run)
   store.applyRemotePackages(gate.review(schema.readPackages(ydoc)), schema.editedPackageIds(ydoc))
   store.applyRemote(gate.admitScene(schema.docToScene(ydoc)))
+  // the demo, entered in place, is the room's document now and no longer a preview (a room link never opens one)
+  if (store.getState().demoSession) store.setState({ demoSession: false })
   // start the room scene's asset downloads now, not when the view mounts (see prefetchSceneAssets)
   prefetchSceneAssets(store.getState().scene)
   // the bridge also renders peers' live drags (over awareness, off the doc) via this presence source;
@@ -403,6 +490,32 @@ async function bootRoom(resolved: ResolvedRoom): Promise<void> {
     setLocalSelection(store.getState().selectedIds)
     setLocalRunning(store.getState().running)
   })
+  // a project of this browser's own, shared: the room's document flows back into it, and this browser registers as its
+  // owner, which is what lets Stop sharing close it (project/sharedProject.ts, server/roomOwners.mjs)
+  // The room carries the project's name, so everyone in it sees what they are in: written by its owner, read by the rest
+  // (a room from before names were written reads as "Shared project").
+  const own = ownSharedProject()
+  if (own && !resolved.view) {
+    schema.writeProjectName(ydoc, own.project)
+    setRoomNameWriter((name) => schema.writeProjectName(ydoc, name))
+  } else {
+    const readName = (): void => store.setState({ projectName: schema.readProjectName(ydoc) ?? 'Shared project' })
+    readName()
+    schema.metaMap(ydoc).observe((e) => {
+      if (e.keysChanged.has(schema.PROJECT_NAME_META)) readName()
+    })
+  }
+  if (own && !resolved.view) {
+    if (!own.demo) startWriteBack(store, own)
+    claimRoom(own, {
+      send: (payload) => provider.sendStateless(payload),
+      listen: (cb) => {
+        const on = ({ payload }: { payload: string }): void => cb(payload)
+        provider.on('stateless', on)
+        return () => provider.off('stateless', on)
+      },
+    })
+  }
 }
 
 function mount(): void {
@@ -508,6 +621,23 @@ async function installXREmulator(): Promise<void> {
 const xremu = installXREmulator()
 
 function startSolo(): void {
+  // Share from this tab enters the room it mints without a reload (Toolbar copyShareLink, toggleLive). The solo saves
+  // stand down by themselves once the store is in collab mode (store persist, the library, the folder sync).
+  registerRoomEntry(async (roomUrl, seed) => {
+    const url = new URL(roomUrl)
+    const resolved = await resolveRoom(url.searchParams.get('room') ?? '')
+    if (!resolved) return
+    for (const p of ['scene', 'view', 'handoff']) url.searchParams.delete(p)
+    history.replaceState(history.state, '', url.pathname + url.search + url.hash)
+    // Held read-only until the room's document has synced and its bridge is up: an edit made in between would land in
+    // a store the room's document then replaces, and be lost. (A newer build's claim, met while booting, keeps it so.)
+    store.setReadOnly(true)
+    try {
+      await bootRoom(resolved, seed)
+    } finally {
+      if (!store.getState().roomNewerBuild) store.setReadOnly(false)
+    }
+  })
   watchOtherTabs()
   bootSolo()
   trackDocumentLibrary()
@@ -520,25 +650,56 @@ function startSolo(): void {
   void xremu.then(mount)
 }
 
-const room = params.get('room')
+/**
+ * The room to open: the link's, or, when the project this browser has open is one of its own that it shared, that
+ * project's room (project/sharedProject.ts), since a shared project is edited in its room. The demo and a desktop
+ * hand-over are not the open project, so they open as they are.
+ */
+function roomToOpen(): string | null {
+  const linked = params.get('room')
+  if (linked !== null || params.has('handoff')) return linked
+  // the demo this browser shared opens in its room too, until its sharer stops sharing it there
+  const shared = params.get('scene') === 'demo' ? sharedDemo() : params.has('scene') ? null : sharedProjectOf(currentDocumentId())
+  if (!shared) return null
+  const url = new URL(location.href)
+  url.searchParams.delete('scene')
+  url.searchParams.set('room', shared.room)
+  if (shared.server) url.searchParams.set('server', shared.server)
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash)
+  return shared.room
+}
+
+const room = roomToOpen()
 if (room) {
   void resolveRoom(room).then((resolved) => {
+    // the owner of a shared project seeds its room again if the server lost it (seedIfEmpty does nothing otherwise),
+    // from the project it keeps in step (project/sharedProject.ts), when that is the project this browser has open
+    const own = ownSharedProject()
+    const seed = own && !own.demo && own.docId === currentDocumentId() ? 'scene' : null
     // gate render on first sync so we don't flash an empty scene before remote state loads
-    if (resolved) return void Promise.all([bootRoom(resolved), xremu]).finally(mount)
+    if (resolved) return void Promise.all([bootRoom(resolved, seed), xremu]).finally(mount)
     // Not a room link (an unprefixed id from before edit secrets, or a garbled one): open solo and
     // say so, with the room taken out of the address bar so Share and a reload treat this tab as solo.
     const url = new URL(location.href)
     url.searchParams.delete('room')
     url.searchParams.delete('view')
+    url.searchParams.delete('server')
     history.replaceState(history.state, '', url)
     startSolo()
     store.showSaveNotice(
-      'Room link not recognized',
-      'This link does not name a shared room, so the editor opened on its own. Ask whoever sent it for a new link from Share.',
+      'Share link not recognized',
+      'This link does not name a shared project, so the editor opened on its own. Ask whoever sent it for a new link from Share.',
     )
   })
 } else {
   startSolo()
+  // sent back from a room its owner closed (bootRoom leaveClosed)
+  if (params.has('closed')) {
+    const url = new URL(location.href)
+    url.searchParams.delete('closed')
+    history.replaceState(history.state, '', url.pathname + url.search + url.hash)
+    store.showSaveNotice('That shared project was closed', 'Its owner stopped sharing it, so its links no longer open it. Ask them to share it again.')
+  }
   // the desktop app booted to take a browser's project (Open in Desktop App; desktopHandoff.ts asks before importing)
   const handoff = DESKTOP_SHELL ? params.get('handoff') : null
   if (handoff) void import('./desktop/desktopHandoff').then((m) => m.receiveDesktopHandoff(store, handoff))

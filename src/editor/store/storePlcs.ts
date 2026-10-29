@@ -74,9 +74,9 @@ function setupFor(list: readonly ScenePlc[], prefs: ExternalPlcSettings, saved: 
   const freeUaPort = next(new Set([prefs.uaServerPort, ...kept.map((k) => k.uaServerPort)]), prefs.uaServerPort)
   const controllers: PlcSetupController[] = list.slice(1).map((c) => {
     const link: PlcLinkSettings & UaServerSettings = keptOf(c.name) ?? { ...sanitizePlcLink({}), port: freePort(), ...sanitizeUaServer({}, freeUaPort()) }
-    return { ...link, name: c.name, mode: c.protocol, enabled: c.connect, runsOn: c.runsOn }
+    return { ...link, name: c.name, mode: c.protocol, enabled: c.connect, runsOn: c.runsOn, watch: c.watch === true }
   })
-  return { ...prefs, enabled: main.runsOn === 'plc', mode: main.protocol, controllers, mainName: main.name, saved }
+  return { ...prefs, enabled: main.runsOn === 'plc', mode: main.protocol, watch: main.watch === true, controllers, mainName: main.name, saved }
 }
 
 let memo: { plcs: readonly ScenePlc[] | undefined; used: readonly string[] | null; prefs: ExternalPlcSettings; setup: PlcSetup } | null = null
@@ -248,8 +248,8 @@ export function setRunsOnAdding(store: PlcStore, name: string | null, runsOn: Sc
   return null
 }
 
-/** The fields of a link that are the project's: whether Play connects it (or, for the default, runs it on a PLC) and its protocol. */
-const PROJECT_KEYS = ['enabled', 'mode'] as const
+/** The fields of a link that are the project's: whether Play connects it (or, for the default, runs it on a PLC), its protocol, and whether it only watches. */
+const PROJECT_KEYS = ['enabled', 'mode', 'watch'] as const
 
 /**
  * Change a controller's link (any subset; `name` null is the default one). Whether it runs on a PLC or is connected,
@@ -265,6 +265,7 @@ export function setPlcLink(store: PlcStore, name: string | null, patch: Partial<
   const doc: Partial<ScenePlc> = {}
   if (patch.enabled !== undefined) Object.assign(doc, at === 0 ? { runsOn: patch.enabled ? 'plc' : 'app' } : { connect: patch.enabled })
   if (patch.mode !== undefined) doc.protocol = patch.mode
+  if (patch.watch !== undefined) doc.watch = patch.watch ? true : undefined
   const changed = (Object.keys(doc) as (keyof ScenePlc)[]).filter((k) => doc[k] !== entry[k])
   if (changed.length > 0 && editable(store)) {
     const label =
@@ -274,8 +275,15 @@ export function setPlcLink(store: PlcStore, name: string | null, patch: Partial<
           : 'Run the program here'
         : doc.connect !== undefined && doc.connect !== entry.connect
           ? `${doc.connect ? 'Connect' : 'Disconnect'} ${entry.name}`
-          : `Change ${entry.name}'s protocol`
-    store.commit(label, { ...s.scene, plcs: list.map((c, i) => (i === at ? { ...c, ...doc } : c)) })
+          : 'watch' in doc && doc.watch !== entry.watch
+            ? `${doc.watch ? 'Only watch' : 'Stop only watching'} ${entry.name}`
+            : `Change ${entry.name}'s protocol`
+    const merged = (c: ScenePlc): ScenePlc => {
+      const next = { ...c, ...doc }
+      if (!next.watch) delete next.watch
+      return next
+    }
+    store.commit(label, { ...s.scene, plcs: list.map((c, i) => (i === at ? merged(c) : c)) })
   }
   const address = Object.fromEntries(Object.entries(patch).filter(([k]) => !(PROJECT_KEYS as readonly string[]).includes(k))) as Partial<ExternalPlcSettings>
   if (Object.keys(address).length === 0) return

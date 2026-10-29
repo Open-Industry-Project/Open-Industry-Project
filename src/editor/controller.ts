@@ -19,7 +19,7 @@ import type { ScanTime } from '../sim/plcHost'
 import type { ProcessImageSnapshot, TagValue } from '../plc'
 import { keepProjectVersion } from './store/storePackages'
 // the link's sessions are loaded on use (loadExternalPlc): only what the first frame shows is static
-import { desktopAdsHost, desktopEipHost, desktopOpcUaHost, desktopPlcIoHost, flattenFrameTags } from './links/externalPlcStatus'
+import { desktopAdsHost, desktopEipHost, desktopOpcUaHost, desktopPlcIoHost } from './links/externalPlcStatus'
 import type { AdsHost, EipHost, ExternalPlcLink, ExternalPlcStatus, OpcUaHost, PlcIoHost, PlcTagList } from './links/externalPlcStatus'
 import { desktopOpcUaServerHost, OPC_UA_SERVER_OFF } from './links/opcUaServer'
 import type { OpcUaServerHost, OpcUaServerStatus, PublishedProgram } from './links/opcUaServer'
@@ -52,6 +52,7 @@ import * as vertexSnapOps from './controller/vertexSnap'
 import * as pointerOps from './controller/pointer'
 import * as keyboardOps from './controller/keyboard'
 import * as catalogOps from './controller/catalogPlace'
+import { LiveView } from './controller/liveView'
 
 /** {@link EditorController.plcAliases} with no program attached */
 const NO_PLC_ALIASES: ReadonlyMap<string, string> = new Map()
@@ -202,6 +203,7 @@ export class EditorController {
   opcUaServerHost: OpcUaServerHost | null = desktopOpcUaServerHost()
   // the static idle actuation preview's memo and the devices a stopped-scene Use is operating (controller/useSessions.ts)
   private readonly uses = new useOps.UseSessions()
+  private readonly live = new LiveView(this) // following another connection's shared run (controller/liveView.ts)
 
   constructor(store: EditorStore, view: IRenderView, sim: SimClient, container: HTMLElement) {
     this.store = store
@@ -227,13 +229,11 @@ export class EditorController {
       this.lastFrame = frame
       // an external PLC exchanges its I/O once per frame, like a fieldbus (editor/links/externalPlc.ts), and so does
       // each named controller's (controller/plcLinks.ts)
-      if (this.links.externalSession || this.links.named.length > 0) {
-        const out = linkOps.exchangeLinks(this.links, flattenFrameTags(frame.tags))
-        if (out) this.sim.setTags(out)
-      }
+      linkOps.exchangeFrame(this.links, this.sim, frame.tags)
       // the simulated PLC's OPC UA servers read the program's variables as the watch table does
       this.updateUaServers(this.plcWatch, this.program.plcAttached)
       this.view.applyBoxFrame(frame)
+      this.live.share(frame)
       this.boxCount = frame.count
       this.trackSelectedBox(frame)
       pilotOps.pilotFrameTick(this.pilot, this, frame)
@@ -772,7 +772,7 @@ export class EditorController {
    *  against a 100 ms one and needs a grace on both sides. Without it, a gate like
    *  verify-no-spawn-before-attach reports correct spawns as births on a shut gate. */
   get plcWatch(): Readonly<Record<string, TagValue>> | null {
-    if (!this.program.plcAttached) return null
+    if (!this.program.plcAttached) return this.live.watch() // a shared run's while following one (controller/liveView.ts)
     return this.sim.plcState?.watch ?? this.program.seedWatch
   }
 
@@ -898,6 +898,7 @@ export class EditorController {
     this.view.onCameraSettled = null
     this.store.setLiveCargoHost(null)
     this.sim.onFrame = () => {}
+    this.live.dispose()
     linkOps.stopUaServers(this.links)
   }
 
@@ -1273,14 +1274,14 @@ export class EditorController {
       }
     }
     if (s.externalPlc !== this.links.uaServerSettings) this.syncOpcUaServer()
-    const runningChanged = s.running !== this.prevRunning
+    // the view runs while this client runs, and while it draws another connection's shared run (controller/liveView.ts)
+    const runningChanged = (s.running || s.liveFollowing) !== this.prevRunning
     if (runningChanged) {
-      this.view.setRunning(s.running)
-      this.prevRunning = s.running
+      this.view.setRunning((this.prevRunning = s.running || s.liveFollowing))
       // returning to idle: setRunning(false) just reset every rig to its authored rest pose (resetRunPoses),
       // so the cached idle keys no longer describe what's on screen - forget them and re-pose every device
       // from the authored state below (the blade drops back if `active` is off).
-      if (!s.running) this.uses.idlePoseKeys.clear()
+      if (!this.prevRunning) this.uses.idlePoseKeys.clear()
       // either edge: a run starts from the design, not from what a stopped Use left a device doing, and what the
       // run left it doing is gone at Stop. A jogged arm is the same: back to its saved pose.
       this.dropUseSessions()

@@ -22,7 +22,7 @@ export async function saveProject(store: EditorStore, controller: SceneSwapGuard
   const state = store.getState()
   if (state.readOnly) return
   if (state.collab) {
-    showSaveNoticeOnce(store, 'Saved as you work', 'Changes in a live room save for everyone as they are made.', {
+    showSaveNoticeOnce(store, 'Saved as you work', 'Changes in a shared project save for everyone as they are made.', {
       label: 'Make a copy',
       command: 'file.copyRoom',
     })

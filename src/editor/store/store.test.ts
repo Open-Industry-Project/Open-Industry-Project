@@ -352,11 +352,17 @@ describe('EditorStore package-edit session (edit a part package rig with no plac
     expect(store.getState().packageEdit).toBeNull()
   })
 
-  it('refuses to open a package-edit session in a collaborative room', () => {
+  it("opens in a collaborative room, where a peer's scene lands in the parked document", () => {
     const store = withPackage()
     store.setCollabMode(true)
-    expect(store.enterPackageEdit('pe.part')).toBe(false)
-    expect(store.getState().packageEdit).toBeNull()
+    expect(store.enterPackageEdit('pe.part')).toBe(true)
+    const session = store.getState().scene
+    const peer = { ...store.getState().packageEdit!.document, parts: [] }
+    store.applyRemote(peer)
+    expect(store.getState().scene).toBe(session) // the session is undisturbed
+    expect(store.getState().packageEdit?.document).toBe(peer)
+    store.exitPartFocus()
+    expect(store.getState().scene).toBe(peer)
   })
 })
 
@@ -435,14 +441,17 @@ describe('EditorStore removeUserPackage (delete a custom part from the library)'
     expect(getPackage('oip.revert')?.behavior).not.toContain('// edited')
   })
 
-  it('refuses in a room (the package sink has no removal channel)', () => {
+  it('in a room, takes it out and tells the room', () => {
     const store = new EditorStore()
     const p = pkg('user.room', 'definePart({ step() {} })')
     registerPackage(p, true)
     store.addUserPackage(p)
     store.setCollabMode(true)
-    expect(store.removeUserPackage('user.room')).toBe(false)
-    expect(store.getState().userPackages).toHaveLength(1)
+    const removed: [string, unknown][] = []
+    store.setPackageSink(() => {}, (id, revertTo) => void removed.push([id, revertTo]))
+    expect(store.removeUserPackage('user.room')).toBe(true)
+    expect(store.getState().userPackages).toHaveLength(0)
+    expect(removed).toEqual([['user.room', null]])
   })
 
   it('refuses while the part is open for editing (its throwaway lives in the scene)', () => {
@@ -530,7 +539,7 @@ describe('EditorStore renameUserPackage (a project part moves to a new id, docs/
   it('refuses in a room (the package sink has no removal channel)', () => {
     const store = withPlaced()
     store.setCollabMode(true)
-    expect(store.renameUserPackage('acme.transfer', 'acme.transfer-2')).toMatch(/room/)
+    expect(store.renameUserPackage('acme.transfer', 'acme.transfer-2')).toMatch(/shared project/)
     expect(store.getState().userPackages.map((p) => p.id)).toEqual(['acme.transfer'])
   })
 })

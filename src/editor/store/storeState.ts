@@ -317,6 +317,12 @@ export interface EditorState {
    * worker is persistently short of {@link timeScale}; null while it is keeping up, or stopped.
    * Mirrored from SimClient.clock by the controller - see sim/simClockRate.ts for why it can differ. */
   speedActual: number | null
+  /** this client streams its runs to the room's other connections (collab/liveShare.ts); a session choice, never saved */
+  liveSharing: boolean
+  /** the view is drawing another connection's shared run, not a run of its own (controller/liveView.ts) */
+  liveFollowing: boolean
+  /** an editor asked to watch a shared run; a view link watches without asking (controller/liveView.ts) */
+  liveWatch: boolean
   distractionFree: boolean
   /** view-only (shared read-only link): authoring is disabled and nothing this client does reaches the shared doc */
   readOnly: boolean
@@ -496,6 +502,9 @@ export function initialEditorState(scene: SceneJSON | undefined, stProgram: stri
     paused: false,
     timeScale: 1,
     speedActual: null,
+    liveSharing: false,
+    liveFollowing: false,
+    liveWatch: false,
     distractionFree: false,
     readOnly: false,
     collab: false,

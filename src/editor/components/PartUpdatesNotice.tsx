@@ -12,7 +12,7 @@ import { ChangeList, useSignalImpacts } from './PartChangeList'
 import { defineMessages, t } from '../../core/i18n'
 
 const M = defineMessages('partUpdates', {
-  inRoom: '{question} Everyone in this room gets the change.',
+  inRoom: '{question} Everyone in this shared project gets the change.',
   barDetail: 'Newer versions are available where these parts came from. This project keeps using its own until you choose.',
   updateAll: 'Update all',
   review: 'Review',

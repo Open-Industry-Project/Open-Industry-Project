@@ -223,10 +223,12 @@ definePart({
     // The cap depress follows pressed under every source.
     const src = ctx.params.lampSource
     const litByTag = !!ctx.params.lampTag && ctx.readTag(ctx.params.lampTag)
-    ctx.lamps.cap = src === 'on' ? true : src === 'off' ? false : src === 'tag' ? litByTag : pressed
-    let depth = pressed ? -PRESS_DEPTH : 0
+    // a PLC that drives this tag is watching a real button (Watch only): show it as that button reads
+    const shown = ctx.params.tag && ctx.tagDriven(ctx.params.tag) ? ctx.readTag(ctx.params.tag) !== (estop || ctx.params.normallyClosed) : pressed
+    ctx.lamps.cap = src === 'on' ? true : src === 'off' ? false : src === 'tag' ? litByTag : shown
+    let depth = shown ? -PRESS_DEPTH : 0
     if (estop) {
-      const target = pressed ? -ESTOP_PRESS_DEPTH : 0
+      const target = shown ? -ESTOP_PRESS_DEPTH : 0
       const stepM = (ESTOP_PRESS_DEPTH * ctx.dt) / ESTOP_MOVE_S
       headDepth = Math.abs(target - headDepth) <= stepM ? target : headDepth + Math.sign(target - headDepth) * stepM
       depth = headDepth

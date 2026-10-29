@@ -19,6 +19,9 @@ import {
   ExternalPlcSession,
   flattenFrameTags,
   plannedLink,
+  watchedPoints,
+  watchRefusal,
+  deriveS7Io,
   plcTagListOf,
   POLL_TIMEOUT_MS,
   readOpcUaTagList,
@@ -890,6 +893,43 @@ describe('the table a scene makes for a PLC that serves', () => {
     expect(problems).toEqual([expect.stringMatching(/%IX0.0 is below the server device's first register \(%IW4\)/)])
     expect(plannedLink(parts, settings).points).toEqual(['%IX8.1  holding register 0 bit 1'])
     expect(plannedLink(parts, DEFAULT_EXTERNAL_PLC).points).toEqual(['%IX0.0  discrete input 0', '%IX8.1  discrete input 65'])
+  })
+})
+
+describe('Watch only', () => {
+  const EYE: PartPackage = {
+    format: PACKAGE_FORMAT,
+    id: 't.eye',
+    name: 't.eye',
+    params: { tag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '' }, run: { type: 'tag', dir: 'in', stType: 'BOOL', default: '' } },
+    behavior: 'definePart({step(){}})',
+    geometry: { kind: 'rig', links: [{ name: 'deck', shape: { kind: 'box', size: [1, 0.1, 1] }, offset: [0, -0.05, 0], conveys: true }], joints: [], bounds: { length: 1, width: 1, top: 0.05, bottom: -0.1 } },
+  }
+  afterEach(() => clearPackages())
+  const parts = (tag: string, run: string) => [{ id: 'e', type: 'part', packageId: 't.eye', position: [0, 0, 0], rotationY: 0, params: { tag, run } }] as unknown as PartInstance[]
+
+  it('reads every tag from the PLC, the ones parts write included, and writes none', () => {
+    registerPackage(EYE)
+    const opcua = { ...DEFAULT_EXTERNAL_PLC, mode: 'opcua' as const }
+    expect(plannedLink(parts('MAIN.Eye', 'MAIN.Run'), opcua).points).toEqual(['MAIN.Eye  written to the PLC  BOOL', 'MAIN.Run  read from the PLC  BOOL'])
+    expect(plannedLink(parts('MAIN.Eye', 'MAIN.Run'), { ...opcua, watch: true }).points).toEqual(['MAIN.Eye  read from the PLC  BOOL', 'MAIN.Run  read from the PLC  BOOL'])
+    const s7 = { ...DEFAULT_EXTERNAL_PLC, mode: 's7' as const, watch: true }
+    const { io } = deriveS7Io(parts('%IX0.0', '%QX0.0'), s7)
+    expect(io.points.map((p) => p.dir)).toEqual(['toPlc', 'fromPlc'])
+    expect(watchedPoints(io.points).map((p) => [p.tag, p.dir])).toEqual([
+      ['%IX0.0', 'fromPlc'],
+      ['%QX0.0', 'fromPlc'],
+    ])
+  })
+
+  it('is refused over Modbus, which cannot read what the simulator would write, and says so', () => {
+    registerPackage(EYE)
+    for (const mode of ['serve', 'poll'] as const) {
+      const planned = plannedLink(parts('%IX0.0', '%QX0.0'), { ...DEFAULT_EXTERNAL_PLC, mode, watch: true })
+      expect(planned.points).toEqual([])
+      expect(planned.problems).toEqual([expect.stringMatching(/Watch only does not work over Modbus/)])
+    }
+    expect(watchRefusal({ mode: 'serve', watch: false })).toBeNull()
   })
 })
 

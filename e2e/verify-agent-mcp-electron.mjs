@@ -316,12 +316,12 @@ try {
   expect(afterGlb.label === 'Agent: import model into Gate Plinth', `the import is one labelled undo step (${afterGlb.label})`)
   const step = await mcp.call('import_model', { id: 'user.gate-plinth', link: 'body', path: require.resolve('occt-import-js/test/testfiles/cax-if/as1-oc-214.stp') })
   expect(step.ok && step.json.step?.solids === 18 && step.json.step.meshes >= 1 && (await meshOf()).assets === 2, `import_model converts a STEP file (${step.text.replace(/\s+/g, ' ').slice(0, 200)})`)
-  // both models sit on the default 0.6 m body link at y 0.3, inside a 1 m footprint: each import says so
+  // the model replaces the default part's one body link whole, so each import fits the part to it (no footprint hint)
   for (const [what, r] of [['GLB', glb], ['STEP', step]]) {
-    expect(/footprint is .*much bigger than the model.*underside is at y 0\.[0-9]+/.test(r.json?.boundsHint ?? ''), `import_model (${what}) says the footprint is far from the model (${r.json?.boundsHint})`)
+    expect(r.json?.fitted === true && r.json?.boundsHint === undefined, `import_model (${what}) fits a one-link part to the model (${JSON.stringify(r.json?.footprint)})`)
   }
   const notModel = await mcp.call('import_model', { id: 'user.gate-plinth', link: 'body', path: join(here, '..', 'package.json') })
-  expect(!notModel.ok && /a model is a \.glb, \.step or \.stp file/.test(notModel.text), 'import_model refuses a file that is not a model')
+  expect(!notModel.ok && /a model is a \.glb, \.step, \.stp or USD/.test(notModel.text), 'import_model refuses a file that is not a model')
   const pou = await mcp.call('set_pou', { name: 'Debounce', source: 'FUNCTION_BLOCK Debounce\nVAR_INPUT\n  In : BOOL;\nEND_VAR\nEND_FUNCTION_BLOCK' })
   expect(pou.ok && pou.json.pous.includes('Debounce'), `set_pou adds a POU (${pou.text.replace(/\s+/g, ' ').slice(0, 160)})`)
 

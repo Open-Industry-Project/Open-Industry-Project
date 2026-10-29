@@ -14,7 +14,6 @@ import type { EditorStore } from '../store/store'
 function blockedReason(store: EditorStore): string | null {
   const s = store.getState()
   if (s.running) return 'Stop the simulation first, then open the file again.'
-  if (s.collab) return 'A shared room is not a project a file can be added to. Leave the room, then open the file again.'
   if (s.readOnly) return 'This window is view-only.'
   return null
 }

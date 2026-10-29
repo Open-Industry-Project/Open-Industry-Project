@@ -1,4 +1,4 @@
-// Verify Make a Copy of This Room (src/editor/project/roomCopy.ts): the room's document becomes a project of your own.
+// Verify Make a Copy (src/editor/project/roomCopy.ts): a shared project's document becomes a project of your own.
 //
 // The alternative, export, leave, import, doesn't work: import is refused inside a room, and a room's held part
 // code exports as stand-ins. This drives the real command through the palette against a real Hocuspocus server
@@ -121,7 +121,7 @@ try {
   await page.locator('body').click({ position: { x: 2, y: 2 } }).catch(() => {})
   await page.keyboard.press('Control+Shift+P')
   await page.locator('.palette-input').waitFor({ state: 'visible', timeout: 10000 })
-  await page.locator('.palette-input').fill('Make a Copy of This Room')
+  await page.locator('.palette-input').fill('Make a Copy')
   await page.keyboard.press('Enter')
   await page.waitForURL((u) => !u.searchParams.has('room'), { timeout: 30000 })
   await waitForApp(page)

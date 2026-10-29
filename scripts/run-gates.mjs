@@ -174,7 +174,7 @@ const GATES = [
   },
   {
     script: 'verify-part-editing-ux.mjs',
-    why: "the part-editing surfaces say what an edit will do and never drop one (found in a parts-editing review): the behavior editor asks before a stray backdrop click or ✕ discards unapplied work, and only then; a rig node edit names how many placed copies follow; the last node can't be 'deleted' by a button that does nothing; a joint is renamable only while its script never mentions it, because a rename doesn't rewrite the script and a joint commanded by its old name silently stops moving; the browser offers no Save that can only say it can't; ✎ is off in a shared room. None of those threw. Checked to bite: a backdrop that closes without asking fails it. The desktop half (a project's parts live in its folder, one library, nothing to save) is verify-part-library-electron.mjs, which needs the real shell",
+    why: "the part-editing surfaces say what an edit will do and never drop one (found in a parts-editing review): the behavior editor asks before a stray backdrop click or ✕ discards unapplied work, and only then; a rig node edit names how many placed copies follow; the last node can't be 'deleted' by a button that does nothing; a joint is renamable only while its script never mentions it, because a rename doesn't rewrite the script and a joint commanded by its old name silently stops moving; the browser offers no Save that can only say it can't; ✎ and New part stay on in a shared project. None of those threw. Checked to bite: a backdrop that closes without asking fails it. The desktop half (a project's parts live in its folder, one library, nothing to save) is verify-part-library-electron.mjs, which needs the real shell",
   },
   {
     script: 'verify-parts-shelf-electron.mjs',
@@ -199,6 +199,18 @@ const GATES = [
   {
     script: 'verify-collab-room-assets.mjs',
     why: "a part's embedded model travels through a room by hash (docs/part-sources.md \"Rooms\"): an editor's bytes land in the collab server's asset store named by their SHA-256, the stored room carries the hash and not the base64, a viewer joining cold gets the exact bytes back, and a viewer uploads nothing. Runs its own collab server (server/index.mjs) on a free port with its own db and asset folder",
+  },
+  {
+    script: 'verify-live-share.mjs',
+    why: "live share (docs/live-share.md): an editor's run reaches the room's other connections through the collab server's relay and is drawn without being run. A view-link tab follows the demo's run (its cargo moves, its own store stays stopped, nothing reaches its document), a tab joining mid-run starts from the server's snapshot at the same point in the run, the viewer's own Play takes the view and Stop gives it back, and the editor's Stop ends the run for everyone. Runs its own collab server on a free port; the late tab gets a browser of its own, since two tabs drawing a run starve a third one's renderer start",
+  },
+  {
+    script: 'verify-shared-part-editor.mjs',
+    why: "the Part Editor and deleting parts work in a shared project without touching anyone's line (collab/bridge.ts parks it while the editor shows the part alone), proven with two people against a real collab server: New part and ✎ open the editor while the other person's line stays as it was, the new part and an edit to it reach them, their edit to the line made meanwhile lands in the parked line and is there after Back, both end with the same line, and a deleted part leaves their parts. Checked to bite: with the bridge diffing the store's scene while the editor is open, the other person's line is wiped. Runs its own collab server on a free port",
+  },
+  {
+    script: 'verify-shared-project.mjs',
+    why: "a shared project stays the user's project (project/sharedProject.ts), so it is proven against a real collab server: Live shares a solo project in place and the project menu keeps its name, tagged Shared; an edit in the room, the owner's or a collaborator's, reaches the project in storage by itself; Live off leaves it shared; opening the app again opens it in its room; Stop sharing makes it the user's alone with everything done while shared, and it stays solo; the room keeps the edits for its links. Runs its own collab server on a free port",
   },
   {
     script: 'verify-desktop-file-open-electron.mjs',

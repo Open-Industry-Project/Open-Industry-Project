@@ -13,21 +13,21 @@ const M = defineMessages('roomCode', {
   runsPrevious: 'running its earlier version',
   blockedTitle: '⚠ Code blocked',
   blocked: {
-    one: "{count} part type from this room isn't running its own code.",
-    other: "{count} part types from this room aren't running their own code.",
+    one: "{count} part type in this shared project isn't running its own code.",
+    other: "{count} part types in this shared project aren't running their own code.",
   },
   review: 'Review',
-  question: 'Run code from this room?',
+  question: 'Run part code from this shared project?',
   keepBlocked: 'Keep blocked',
   reasonRecovered:
-    'This room did not finish opening last time: the page stopped responding or closed while its parts were loading. So the code someone else wrote for them is held this time. If it froze the page, keep it blocked and remove the part; otherwise allow it, and it runs in the sandbox as usual.',
+    'This shared project did not finish opening last time: the page stopped responding or closed while its parts were loading. So the code someone else wrote for them is held this time. If it froze the page, keep it blocked and remove the part; otherwise allow it, and it runs in the sandbox as usual.',
   reasonLink:
-    "This room was opened with its parts' code held (the link asks for nocode). Allowed, the code someone else wrote runs in a sandbox: it cannot reach your files, your other projects or the network.",
+    "This shared project was opened with its parts' code held (the link asks for nocode). Allowed, the code someone else wrote runs in a sandbox: it cannot reach your files, your other projects or the network.",
   reasonUnsandboxed:
-    "Some parts in this room carry code written by someone else. The part sandbox could not start here, so that code would run with the same access as this page. Allow it only if you trust everyone who has this room's edit link.",
+    "Some parts in this shared project carry code written by someone else. The part sandbox could not start here, so that code would run with the same access as this page. Allow it only if you trust everyone who has its edit link.",
   placed: { one: '{count} placed, {runs}', other: '{count} placed, {runs}' },
   andMore: { one: 'and {count} more', other: 'and {count} more' },
-  remembered: 'Blocked parts keep their shape and settings. This browser remembers if you allow this room.',
+  remembered: 'Blocked parts keep their shape and settings. This browser remembers if you allow this shared project.',
   allow: 'Allow and run',
 })
 

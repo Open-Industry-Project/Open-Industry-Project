@@ -43,6 +43,7 @@ import type { FolderRead, FolderRecordPatch } from '../desktop/desktopProjectApi
 import type { SceneSwapGuard } from './projectFolderLink'
 import type { EditorStore } from '../store/store'
 import { onShippedAssetsWarmed } from '../parts/shippedAssetCache'
+import { onSharedWriteBack, ownSharedProject, sharedProjectNow } from './sharedProject'
 import { FOLDER_OPTIONS } from './folderOptions'
 
 /**
@@ -122,18 +123,28 @@ const fileText = (files: readonly ProjectFolderFile[] | null, path: string): str
   return typeof contents === 'string' ? contents : undefined
 }
 
-/** Nothing is synced while the document is not this session's to write: a room, a view-only link, a tab
- *  that yielded to another, a stored project this build could not open. */
+/** Nothing is synced while the document is not this session's to write: someone else's room, a view-only link, a
+ *  tab that yielded to another, a stored project this build could not open. A project of the user's own that they
+ *  shared is still theirs, so its folder keeps following it (project/sharedProject.ts), from the room. */
 function mayWrite(s: EditorStore): boolean {
   const state = s.getState()
-  return !state.collab && !state.readOnly && !state.unopenedProject
+  return (!state.collab || ownsSharedFolder()) && !state.readOnly && !state.unopenedProject
+}
+
+/** this tab is in the room of a shared project of the user's own, and the linked folder is that project's */
+function ownsSharedFolder(): boolean {
+  const shared = ownSharedProject()
+  return shared !== null && link !== null && shared.docId === link.docId
 }
 
 /** The app's rendering of the project as folder files. (`_theirs` pinned which scene the manifest marked active
  *  while a project held several; kept so the call sites read the same.) */
 function mineFiles(s: EditorStore, _theirs: readonly ProjectFolderFile[] | null): ProjectFolderFile[] {
   // a built-in copy's model (a url asset with a sha256) is written as its file once its bytes are at hand
-  return projectToFolderFiles(s.snapshotProject(), FOLDER_OPTIONS)
+  // in its room a shared project is the room plus what the room does not carry (its tests: deleting their files would
+  // lose them), under the record's name (sharedProject.ts)
+  const shared = s.getState().collab ? ownSharedProject() : null
+  return projectToFolderFiles(shared ? sharedProjectNow(s, shared) : s.snapshotProject(), FOLDER_OPTIONS)
 }
 
 /** Everything but the generated agent guide, which is written after any real write. */
@@ -232,6 +243,13 @@ async function round(reason: 'poll' | 'write'): Promise<void> {
   }
 
   const plan = planFolderSync(l.baseline, mine, theirs)
+  // Shared, the folder follows the room, one way. A change made to the folder meanwhile is not loaded, because a load
+  // replaces the project under the room rather than editing it: the sync waits, moving nothing, and when the project
+  // stops being shared it takes the change, or asks about it, as it always does.
+  if (s.getState().collab && (plan.take.length > 0 || plan.conflicts.length > 0)) {
+    s.setFolderLink(l.name, 'The project folder changed while the project is shared. Those changes are not loaded while it is shared; the folder sync waits, and picks them up when you stop sharing.', null)
+    return
+  }
   if (plan.conflicts.length > 0) {
     s.setFolderConflict(plan.conflicts)
     return
@@ -422,9 +440,12 @@ async function begin(api: FolderApi, docId: string, root: string, baseline: Fold
   const stopPersist = s.onProjectPersisted(onPersist)
   // a round that ran before a built-in's model bytes arrived wrote its url form; when they arrive, write the files
   const stopWarmed = onShippedAssetsWarmed(onPersist)
+  // shared, the project is saved by its write-back from the room, not by the autosave (project/sharedProject.ts)
+  const stopShared = onSharedWriteBack(onPersist)
   stopListening = () => {
     stopPersist()
     stopWarmed()
+    stopShared()
   }
   ensurePolling()
   if (!unloadHooked && typeof addEventListener === 'function') {
@@ -487,9 +508,10 @@ export async function restoreFolderSync(s: EditorStore, ctrl: SceneSwapGuard = n
   if (api === null) return
   store = s
   controller = ctrl
-  if (s.getState().collab) return
   const docId = currentDocumentId()
   if (docId === null) return
+  // in a room only a shared project of the user's own keeps its folder: someone else's room is not theirs to write
+  if (s.getState().collab && ownSharedProject()?.docId !== docId) return
   const row = await api.recall(docId)
   // another document took the screen while the shell answered (the demo forking into a project of its own): its
   // own call decides its folder, and this one must not attach the old document's to it
@@ -517,7 +539,7 @@ export async function saveIntoFolder(
   api: FolderApi | null = getOipProjectApi(),
 ): Promise<string | null> {
   if (api === null) return 'Saving a project as a folder needs the desktop app.'
-  if (s.getState().collab) return 'A live collab room owns its document. Leave the room to save it to a folder.'
+  if (s.getState().collab) return 'A shared project keeps the folder it was shared from. Stop sharing it to use another folder, or make a copy.'
   // '' when this browser keeps no document library: the folder is followed, it just cannot be remembered
   const docId = currentDocumentId() ?? ''
   store = s

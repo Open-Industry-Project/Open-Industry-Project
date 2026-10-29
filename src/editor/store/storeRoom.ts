@@ -10,6 +10,9 @@ export class RoomSinks {
   // shared doc. Custom-part packages (geometry + behavior script) live outside SceneJSON, so this is the
   // channel that propagates an authored part / behavior-script edit to peers. null in solo mode.
   private packageSink: ((pkg: PartPackage) => void) | null = null
+  // ...and the one that takes a deleted part out of the room, or puts a built-in's back to the app's version while it
+  // is still placed (`revertTo`)
+  private packageRemover: ((id: string, revertTo: PartPackage | null) => void) | null = null
   // room mode: the collab bridge installs a sink that appends every committed edit's label to the room's
   // shared feed (the History dock's activity list). This is the only place commit labels cross into the
   // collab layer - the bridge's scene diffing never sees them. null in solo mode.
@@ -19,8 +22,9 @@ export class RoomSinks {
   // belongs to the scene: a scene with no program still has one.
   private simHzSink: ((hz: SimRate) => void) | null = null
 
-  setPackageSink(sink: ((pkg: PartPackage) => void) | null): void {
+  setPackageSink(sink: ((pkg: PartPackage) => void) | null, remove?: (id: string, revertTo: PartPackage | null) => void): void {
     this.packageSink = sink
+    this.packageRemover = sink ? (remove ?? null) : null
   }
 
   setEditEventSink(sink: ((e: EditEventInput) => void) | null): void {
@@ -39,6 +43,11 @@ export class RoomSinks {
   /** a committed package, out to the room (nothing without a sink) */
   sendPackage(pkg: PartPackage): void {
     this.packageSink?.(pkg)
+  }
+
+  /** a deleted part, out of the room (nothing without a sink) */
+  removePackage(id: string, revertTo: PartPackage | null): void {
+    this.packageRemover?.(id, revertTo)
   }
 
   /** Keep a step-rate change through the room's sink. False solo (no sink): the store keeps it itself. */

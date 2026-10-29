@@ -20,6 +20,7 @@
 // The seam is narrow (list / read / write / delete + a current-document pointer), so a folder-backed
 // implementation can sit behind the same calls later. This one needs no picker and works in every browser.
 
+import { clearEntryParams } from './entryParams'
 import { serializeProject, validateProject } from '../../core/project/project'
 import type { ProjectJSON } from '../../core/project/project'
 import { parkSplitOff, saveStoredProject, workingCopyRefusal } from './projectFile'
@@ -319,23 +320,7 @@ export function forkCurrentDocument(outgoing: ProjectJSON): string | null {
   return id
 }
 
-/**
- * Drop the demo entry param before a reload. `/app/?scene=demo` puts the app into the demo
- * preview at boot (main.tsx), so switching documents from inside that preview would write the chosen
- * project into the working copy and then reload straight back into the demo, silently undoing the
- * switch. Mirrors store.clearDemoUrl, which retires the same param when an edit forks the demo.
- */
-export function clearEntryParams(): void {
-  if (typeof window === 'undefined' || typeof history === 'undefined') return
-  try {
-    const url = new URL(window.location.href)
-    if (!url.searchParams.has('scene')) return
-    url.searchParams.delete('scene')
-    history.replaceState(history.state, '', url.pathname + url.search + url.hash)
-  } catch {
-    // best-effort: a malformed URL or disabled history must never block the switch
-  }
-}
+export { clearEntryParams }
 
 /**
  * File the project being left before something replaces the working copy. Returns why that must not go

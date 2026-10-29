@@ -130,7 +130,7 @@ export function strList(args: Record<string, unknown>, key: string): string[] {
 
 /** Refuse an edit the store would silently drop: a view-only room, or a scene still loading as a preview. */
 export function assertEditable(store: EditorStore): void {
-  if (store.getState().readOnly) throw new AgentToolError('this editor is view-only (a room opened with ?view): it cannot be edited')
+  if (store.getState().readOnly) throw new AgentToolError('this editor is view-only (opened from a view link): it cannot be edited')
 }
 
 export function findPart(scene: SceneJSON, id: string): PartInstance {

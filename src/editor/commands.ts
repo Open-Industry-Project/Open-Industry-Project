@@ -19,6 +19,7 @@ import { openDemoScene } from './project/sceneFile'
 import { clearParkedSplitOff, downloadProject, downloadProjectDocument, exportChoicesFor, readParkedSplitOff } from './project/projectFile'
 import { saveProject } from './project/saveProject'
 import { copyRoomToProjects } from './project/roomCopy'
+import { ownSharedProject, renameSharedProject, stopSharing } from './project/sharedProject'
 import { requestTutorial } from './tutorial/session'
 import { getOipProjectApi, openProjectFromFolder, saveProjectToFolder } from './desktop/desktopProjectBridge'
 import { supportsFolderSync } from './project/projectFolderSync'
@@ -167,10 +168,6 @@ const SPEED_NOTE: Partial<Record<SimSpeed, string>> = { 0.5: ' (Slow Motion)', 1
 
 const MSG_NEW_PROJECT_PROMPT = defineMessage('command.file.newProject.prompt', 'New project')
 const MSG_NEW_PROJECT_CONFIRM = defineMessage('command.file.newProject.confirm', 'Create')
-const MSG_NEW_PROJECT_ROOM = defineMessage(
-  'command.file.newProject.room',
-  'A live room has no projects list. Make a copy of this room to keep it as a project of your own.',
-)
 const MSG_RENAME_PROMPT = defineMessage('command.file.renameProject.prompt', 'Rename project')
 const MSG_SAVE_VIEW_ONLY = defineMessage(
   'command.file.save.viewOnly',
@@ -193,16 +190,14 @@ const MSG_PASTE_PROPERTIES_KIND = defineMessage(
 )
 // Kept verbatim from projectFile's ROOM_OWNS_DOCUMENT, the string that already said this, so the import
 // refuses a room in the same words wherever the refusal is shown.
-const MSG_IMPORT_PROJECT_ROOM = defineMessage(
-  'command.file.importProject.room',
-  'A live collab room owns its document. Leave the room to import a project.',
-)
 const MSG_COPY_ROOM_CONFIRM = defineMessage(
   'command.file.copyRoom.confirm',
-  'Copy this room into a new project of your own and open it? The room is not changed, and its link still opens it.',
+  'Copy this shared project into a new project of your own and open it? The shared project is not changed, and its link still opens it.',
 )
-const MSG_COPY_ROOM_FAILED = defineMessage('command.file.copyRoom.failed', "Couldn't copy the room:\n{error}")
-const MSG_COPY_ROOM_SOLO = defineMessage('command.file.copyRoom.solo', 'For a live room: it copies the room into a project of your own.')
+const MSG_COPY_ROOM_FAILED = defineMessage('command.file.copyRoom.failed', "Couldn't make the copy:\n{error}")
+const MSG_COPY_ROOM_SOLO = defineMessage('command.file.copyRoom.solo', "For a shared project someone gave you a link to: it copies it into a project of your own.")
+const MSG_STOP_SHARING_NONE = defineMessage('command.file.stopSharing.none', 'For a project of yours that is shared: it makes the project yours alone again.')
+const MSG_STOP_SHARING_FAILED = defineMessage('command.file.stopSharing.failed', "Couldn't stop sharing:\n{error}")
 const MSG_SAVE_FAILED = defineMessage('command.file.saveProject.failed', "Couldn't save the project folder:\n{error}")
 const MSG_LINK_FAILED = defineMessage('command.file.linkFolder.failed', "Couldn't link the project folder:\n{error}")
 const MSG_RECONNECT_FAILED = defineMessage('command.file.reconnectFolder.failed', "Couldn't follow the project folder again:\n{error}")
@@ -305,7 +300,6 @@ const COMMAND_DEFS: readonly Command[] = [
     accelerator: 'CmdOrCtrl+N',
     // a room and a view link have no projects list to add to, nor a browser with no library (newProject.ts)
     enabled: (ctx) => canCreateProject(ctx.store),
-    disabledReason: (ctx) => (ctx.state.collab ? t(MSG_NEW_PROJECT_ROOM) : null),
     run: ({ store }) =>
       void askName({ title: t(MSG_NEW_PROJECT_PROMPT), initial: UNTITLED_PROJECT, confirmLabel: t(MSG_NEW_PROJECT_CONFIRM) }).then(
         (name) => {
@@ -391,18 +385,17 @@ const COMMAND_DEFS: readonly Command[] = [
     // reloads into another document); a room owns its document, which importProjectData refuses anyway, so
     // greying it says so before a file picker opens rather than after; and a view-only link has nothing to
     // import into.
-    enabled: (ctx) => !ctx.state.running && !ctx.state.collab && !ctx.state.readOnly,
+    enabled: (ctx) => !ctx.state.running && !ctx.state.readOnly,
     // Only the room is spoken here. Running and view-only are the global blocks a surface already explains
     // (Toolbar.fileBlockedReason fills that half in), and the convention is that a command must not double
     // them up - see the folder commands' two specs in commands.test.ts.
-    disabledReason: (ctx) => (ctx.state.collab ? t(MSG_IMPORT_PROJECT_ROOM) : null),
     run: ({ ui }) => ui.openProjectFilePicker(),
   },
   {
     // A room's document as a new project of your own (roomCopy.ts): what the export-leave-import round trip
     // did, without its two traps. Allowed on a view-only link too: wanting your own copy is exactly a viewer's case.
     id: 'file.copyRoom',
-    label: 'Make a Copy of This Room',
+    label: 'Make a Copy',
     group: 'File',
     enabled: (ctx) => ctx.state.collab && !ctx.state.running,
     // Running is the global block the toolbar explains; outside a room, say what the command is for.
@@ -411,6 +404,22 @@ const COMMAND_DEFS: readonly Command[] = [
       if (!confirm(t(MSG_COPY_ROOM_CONFIRM))) return
       void copyRoomToProjects(store).then((error) => {
         if (error !== null) alert(t(MSG_COPY_ROOM_FAILED, { error }))
+      })
+    },
+  },
+  {
+    // A project of the user's own, shared, becomes theirs alone again (project/sharedProject.ts). The Share popover
+    // offers it too.
+    id: 'file.stopSharing',
+    label: 'Stop Sharing This Project',
+    group: 'File',
+    enabled: (ctx) => ctx.state.collab && !ctx.state.running && ownSharedProject() !== null,
+    disabledReason: (ctx) => (ctx.state.collab && ownSharedProject() !== null ? null : t(MSG_STOP_SHARING_NONE)),
+    run: ({ store }) => {
+      const shared = ownSharedProject()
+      if (!shared) return
+      void stopSharing(store, shared).then((error) => {
+        if (error !== null) alert(t(MSG_STOP_SHARING_FAILED, { error }))
       })
     },
   },
@@ -463,9 +472,9 @@ const COMMAND_DEFS: readonly Command[] = [
     id: 'file.projects',
     label: 'Projects…',
     group: 'File',
-    // A room owns its document (the collab doc, not a local one), and a view-only link owns nothing.
+    // A view-only link owns nothing. A shared project is left for the one opened, as any open project is.
     // Running is fine: the projects list is only a list, and the actions inside it stop the session anyway.
-    enabled: (ctx) => !ctx.state.collab && !ctx.state.readOnly,
+    enabled: (ctx) => !ctx.state.readOnly,
     run: ({ ui }) => ui.showProjects(),
   },
   {
@@ -477,12 +486,16 @@ const COMMAND_DEFS: readonly Command[] = [
     // Not `editable`: a relabel touches no scene, so a running sim is no reason to refuse
     // it. The two that are real are the demo preview (a rename must not fork it into a scene) and a room
     // (the name would not persist) - store.renameProject enforces the same two, this only greys them.
-    enabled: (ctx) => !ctx.state.readOnly && !ctx.state.demoSession && !ctx.state.collab,
+    // A shared project of the user's own is still theirs to rename (project/sharedProject.ts).
+    enabled: (ctx) => !ctx.state.readOnly && !ctx.state.demoSession && (!ctx.state.collab || (ownSharedProject() !== null && !ownSharedProject()!.demo)),
     // askName rather than window.prompt, which throws in the Electron shell - where this is a native menu item
     run: ({ store, state }) =>
-      void askName({ title: t(MSG_RENAME_PROMPT), initial: state.projectName, confirmLabel: t(MSG_RENAME_CONFIRM) }).then(
+      void askName({ title: t(MSG_RENAME_PROMPT), initial: ownSharedProject()?.project ?? state.projectName, confirmLabel: t(MSG_RENAME_CONFIRM) }).then(
         (name) => {
-          if (name !== null) store.renameProject(name)
+          if (name === null) return
+          const shared = state.collab ? ownSharedProject() : null
+          if (shared) renameSharedProject(store, shared.docId, name)
+          else store.renameProject(name)
         },
       ),
   },

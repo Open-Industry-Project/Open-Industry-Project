@@ -248,18 +248,30 @@ export function packageUsage(store: EditorStore, packageId: string): string[] {
  * docs/part-sources.md), gone when nothing does, and placed instances rebuild against it through the ordinary
  * package-reload seam. Anything else unregisters entirely, so the delete is
  * refused while the scene still references it ({@link packageUsage} - surface those to the
- * user first), while the part is open for editing, and in a room (the package sink has no removal
- * channel, so peers would keep the part). Returns whether the package was removed.
+ * user first), and while the part is open for editing. In a room it leaves everyone's library (the room's
+ * remover, collab/bridge.ts, and {@link applyRemotePackages} on each peer). Returns whether the package was removed.
  */
 export function removeUserPackage(store: EditorStore, areas: LibraryAreas, packageId: string): boolean {
-  if (areas.readOnly() || store.collab) return false
+  if (areas.readOnly()) return false
   if (!store.getState().userPackages.some((p) => p.id === packageId)) return false
   if (store.getState().packageEdit?.packageId === packageId) return false // its throwaway is live in the scene
   const fallback = store.getState().bundledPackages.find((p) => p.id === packageId)
   if (!fallback && packageUsage(store, packageId).length > 0) return false
-  if (store.getState().placingPackageId === packageId) store.cancelPlacing()
   // a deleted part's edit history must not resurrect it (or re-fork a reverted bundle) via Ctrl+Z
   areas.history.dropPackages((id) => id === packageId)
+  const reset = dropFromLibrary(store, packageId)
+  areas.room.removePackage(packageId, reset ?? null)
+  persistUserPackages(store)
+  return true
+}
+
+/**
+ * Take a part out of the library: a built-in's copy goes back to the app's version (returned) while anything still
+ * places it, anything else unregisters. The half of a delete that a peer's delete repeats here (applyRemotePackages).
+ */
+function dropFromLibrary(store: EditorStore, packageId: string): PartPackage | undefined {
+  if (store.getState().placingPackageId === packageId) store.cancelPlacing()
+  const fallback = store.getState().bundledPackages.find((p) => p.id === packageId)
   const errors = { ...store.getState().packageBuildErrors }
   delete errors[packageId] // a stale ⚠ badge must not carry over to a reverted card
   // still placed: the app's version, as this project's own copy
@@ -275,8 +287,7 @@ export function removeUserPackage(store: EditorStore, areas: LibraryAreas, packa
   })
   if (fallback) registerPackage(fallback, true) // revert: rev-bump + notify reloads any placed instance
   else unregisterPackage(packageId)
-  persistUserPackages(store)
-  return true
+  return reset
 }
 
 /**
@@ -288,7 +299,7 @@ export function removeUserPackage(store: EditorStore, areas: LibraryAreas, packa
  */
 export function renameUserPackage(store: EditorStore, areas: LibraryAreas, from: string, to: string): string {
   if (areas.readOnly()) return 'This project is view only.'
-  if (store.collab) return 'A part cannot be renamed in a live room.'
+  if (store.collab) return 'A part cannot be renamed in a shared project.'
   if (store.getState().running) return 'Stop the simulation first.'
   if (store.getState().packageEdit) return 'Close the part you are editing first.'
   const pkg = store.getState().userPackages.find((p) => p.id === from)
@@ -402,7 +413,14 @@ export function adoptProjectLibrary(store: EditorStore, pkgs: readonly PartPacka
  * changed would show the old part to every client for good: the snapshot would register before the bundle loaded
  * and then be filed as a fork. The bundle must therefore be registered before this runs (main.tsx bootRoom).
  */
-export function applyRemotePackages(store: EditorStore, pkgs: PartPackage[], edited: ReadonlySet<string> = new Set()): void {
+export function applyRemotePackages(
+  store: EditorStore,
+  pkgs: PartPackage[],
+  edited: ReadonlySet<string> = new Set(),
+  removed: readonly string[] = [],
+  room?: RoomSinks,
+): void {
+  for (const id of removed) applyRemoteRemoval(store, id, room)
   const bundled = new Set(store.getState().bundledPackages.map((p) => p.id))
   const incoming = pkgs.filter((p) => !bundled.has(p.id) || edited.has(p.id))
   if (incoming.length === 0) return
@@ -411,4 +429,18 @@ export function applyRemotePackages(store: EditorStore, pkgs: PartPackage[], edi
   const byId = new Map(store.getState().userPackages.map((p) => [p.id, p]))
   for (const p of incoming) byId.set(p.id, p)
   store.setState({ userPackages: [...byId.values()], packageRev: store.getState().packageRev + 1 })
+}
+
+/**
+ * A part someone in the room deleted (its room entry went, or stopped being an edit): taken out here as their delete
+ * took it out there. A part this client places is kept and sent back instead, since it was placed here as it was
+ * deleted there, and the room must hold every placed part's definition. A Part Editor open on it closes first.
+ */
+function applyRemoteRemoval(store: EditorStore, id: string, room: RoomSinks | undefined): void {
+  const own = store.getState().userPackages.find((p) => p.id === id)
+  if (!own) return
+  const bundled = store.getState().bundledPackages.some((p) => p.id === id)
+  if (!bundled && packageUsage(store, id).length > 0) return void room?.sendPackage(own)
+  if (store.getState().packageEdit?.packageId === id) store.exitPartFocus()
+  dropFromLibrary(store, id)
 }

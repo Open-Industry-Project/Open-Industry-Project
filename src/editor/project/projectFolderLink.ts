@@ -398,7 +398,7 @@ export async function beginFolderLink(
  */
 export async function linkProjectFolder(store: EditorStore, controller: SceneSwapGuard = null): Promise<string | null> {
   if (!supportsFolderLink()) return 'This browser cannot open a folder. Chrome or Edge is needed.'
-  if (store.getState().collab) return 'A live collab room owns its document. Leave the room to link a folder.'
+  if (store.getState().collab) return 'A shared project keeps the folder it was shared from. Stop sharing it to use another folder, or make a copy.'
   let dir: DirLike
   try {
     dir = await (window as unknown as { showDirectoryPicker(o?: unknown): Promise<DirLike> }).showDirectoryPicker({
@@ -441,7 +441,7 @@ export async function saveProjectToFolderHandle(dir: DirLike, store: EditorStore
  */
 export async function saveAndLinkProjectFolder(store: EditorStore, controller: SceneSwapGuard = null): Promise<string | null> {
   if (!supportsFolderLink()) return 'This browser cannot open a folder. Chrome or Edge is needed.'
-  if (store.getState().collab) return 'A live collab room owns its document. Leave the room to use a folder.'
+  if (store.getState().collab) return 'A shared project keeps the folder it was shared from. Stop sharing it to use another folder, or make a copy.'
   let dir: WritableDirLike
   try {
     dir = await (

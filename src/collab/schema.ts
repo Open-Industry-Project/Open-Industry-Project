@@ -277,6 +277,24 @@ export function writeSimHz(ydoc: Y.Doc, hz: SimRate, origin: unknown = LOCAL_ORI
  */
 export const ROOM_BUILD_META = 'build'
 
+/**
+ * The shared project's name (editor/project/sharedProject.ts), written by its owner, so everyone in the room sees what
+ * they are in by name rather than as a room. Absent in a room from before it was written.
+ */
+export const PROJECT_NAME_META = 'projectName'
+/** Its own origin, like a build claim's: an undo never takes the name back. */
+export const PROJECT_NAME_ORIGIN = Symbol('oip-collab-project-name')
+
+export function readProjectName(ydoc: Y.Doc): string | undefined {
+  const v = metaMap(ydoc).get(PROJECT_NAME_META)
+  return typeof v === 'string' && v.trim() !== '' ? v.slice(0, 200) : undefined
+}
+
+export function writeProjectName(ydoc: Y.Doc, name: string): void {
+  if (readProjectName(ydoc) === name) return
+  ydoc.transact(() => metaMap(ydoc).set(PROJECT_NAME_META, name), PROJECT_NAME_ORIGIN)
+}
+
 /** The origin a build claim is written in. Not LOCAL_ORIGIN, so this client's undo never takes a claim back. */
 export const ROOM_BUILD_ORIGIN = Symbol('oip-collab-room-build')
 

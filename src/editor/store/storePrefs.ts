@@ -371,6 +371,8 @@ export interface PlcLinkSettings {
   /** ads: the PLC's AMS Net ID ('' = the TwinCAT runtime on this PC) and its AMS port (851 = the first PLC) */
   adsNetId: string
   adsPort: number
+  /** read every tag and write none (the scene's ScenePlc.watch); the project's, so never kept as a preference */
+  watch?: boolean
 }
 
 /**

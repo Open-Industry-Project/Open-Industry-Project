@@ -103,7 +103,7 @@ async function shellRequest(store: EditorStore, { op, args }: ShellRequest): Pro
     return typeof r === 'string' ? { ok: true, text: r } : { ok: false, error: r.error }
   }
   if (op === 'newProject' && typeof args?.name === 'string') {
-    if (!canCreateProject(store)) return { ok: false, error: 'a project cannot be started here (a collab room or a view-only editor is open)' }
+    if (!canCreateProject(store)) return { ok: false, error: 'a project cannot be started here (a view-only editor is open)' }
     const error = await createNewProject(store, args.name)
     return error === null ? { ok: true, text: 'reloading' } : { ok: false, error }
   }

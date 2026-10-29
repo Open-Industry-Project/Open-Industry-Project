@@ -9,7 +9,8 @@ import { DEMO_SCENE_NAME } from '../demo/demoScenes'
 import { createSdkPart, emptyScene, nextId, serializeScene } from '../../core/scene/scene'
 import { floorRestPose, withFlexPose } from '../../core/parts/partGeometry'
 import type { FlexPose } from '../../core/parts/partGeometry'
-import { assembleProject, saveStoredProject } from '../project/projectFile'
+import { assembleProject, loadStoredProject, saveStoredProject } from '../project/projectFile'
+import { keepsSharedTests } from '../project/sharedProject'
 import { SCENE_SLOT } from '../project/documentStore'
 import type { SaveResult, UnopenedProject } from '../project/projectFile'
 import type { ProjectJSON } from '../../core/project/project'
@@ -577,7 +578,9 @@ export class EditorStore {
    * prevented by the bridge's origin/re-entrancy guards.
    */
   applyRemote(scene: SceneJSON): void {
-    this.setState({ scene })
+    // with the Part Editor open the line is parked (packageEdit.document), so a peer's edit lands there, not in the session
+    const pe = this.state.packageEdit
+    this.setState(pe ? { packageEdit: { ...pe, document: scene } } : { scene })
   }
 
   /** force-write the current scene to the solo autosave key (no-op in collab mode) */
@@ -1191,9 +1194,9 @@ export class EditorStore {
     library.adoptProjectLibrary(this, pkgs)
   }
 
-  /** Wire the collab bridge's package writer (room mode); null in solo mode. See RoomSinks. */
-  setPackageSink(sink: ((pkg: PartPackage) => void) | null): void {
-    this.room.setPackageSink(sink)
+  /** Wire the collab bridge's package writer and remover (room mode); null in solo mode. See RoomSinks. */
+  setPackageSink(sink: ((pkg: PartPackage) => void) | null, remove?: (id: string, revertTo: PartPackage | null) => void): void {
+    this.room.setPackageSink(sink, remove)
   }
 
   /** Wire the collab bridge's edit-feed writer (room mode); null in solo mode. See RoomSinks. */
@@ -1216,9 +1219,9 @@ export class EditorStore {
     this.setState({}) // no field changes; the fresh state identity re-renders the History panel
   }
 
-  /** Register the parts a peer sent (storePackages.ts). */
-  applyRemotePackages(pkgs: PartPackage[], edited: ReadonlySet<string> = new Set()): void {
-    library.applyRemotePackages(this, pkgs, edited)
+  /** Register the parts a peer sent, and drop the ones a peer deleted (storePackages.ts). */
+  applyRemotePackages(pkgs: PartPackage[], edited: ReadonlySet<string> = new Set(), removed: readonly string[] = []): void {
+    library.applyRemotePackages(this, pkgs, edited, removed, this.room)
   }
 
 
@@ -1242,12 +1245,12 @@ export class EditorStore {
    * (`packageEdit.document`) until Back: the throwaway is never in the document, so no undo step, autosave or
    * folder write can hold it, while everything that reads `scene` (tree, Inspector, picking, drags, Play) sees
    * the part it is editing with no special case. Only the session's package edits reach the history. Blocked
-   * while running a sim is the caller's job (openPartScene pattern). No-op in read-only, in a room (the
-   * throwaway would pollute peers), or when a session is already open / the package is unknown. Returns false
-   * when nothing was opened.
+   * while running a sim is the caller's job (openPartScene pattern). In a room the bridge keeps the room's scene in the
+   * parked document while it is open (collab/bridge.ts). No-op in read-only, or when a session is already open / the
+   * package is unknown. Returns false when nothing was opened.
    */
   enterPackageEdit(packageId: string): boolean {
-    if (this.readOnly || this.collab || this.state.packageEdit) return false
+    if (this.readOnly || this.state.packageEdit) return false
     const pkg = getPackage(packageId)
     if (!pkg) return false
     const scene = this.state.scene
@@ -2070,7 +2073,7 @@ export class EditorStore {
    * files that project, untouched (captureLiveScene no-ops while the demo is up).
    */
   outgoingProject(): ProjectJSON | null {
-    if (this.collab) return null
+    if (this.collab) return loadStoredProject()?.project ?? null // in a room this browser's own is its working copy (sharedProject.ts)
     if (this.state.demoSession && !this.project) return null
     return this.snapshotProject()
   }
@@ -2243,10 +2246,11 @@ export class EditorStore {
   /**
    * Keep a test in the project (core/project/project.ts `tests`), replacing the one of the same name. It changes the
    * project's structure, so it is kept at once and is not an undo step. The spec is taken as validated
-   * (validateTestSpec). False when it was not kept: a view-only editor, or a room, whose document has no tests.
+   * (validateTestSpec). False when it was not kept: a view-only editor, or a room this browser does not own (a room
+   * carries no tests; the owner's are its project's, written back with the room: sharedProject.ts).
    */
   saveProjectTest(spec: TestSpec): boolean {
-    if (this.readOnly || this.collab) return false
+    if (this.readOnly || (this.collab && !keepsSharedTests())) return false
     const project = this.ensureProject()
     const kept = (project.tests ?? []).filter((t) => spec.name === undefined || t.name !== spec.name)
     project.tests = [...kept, spec]
@@ -2263,7 +2267,7 @@ export class EditorStore {
 
   /** Drop the kept test named `name`, as {@link saveProjectTest} keeps one: not an undo step. False when not kept. */
   deleteProjectTest(name: string): boolean {
-    if (this.readOnly || this.collab) return false
+    if (this.readOnly || (this.collab && !keepsSharedTests())) return false
     const project = this.ensureProject()
     const kept = (project.tests ?? []).filter((t) => t.name !== name)
     if (kept.length === (project.tests ?? []).length) return false

@@ -78,7 +78,7 @@ describe('refusals, which change nothing', () => {
   it('refuses outside a room', async () => {
     const store = new EditorStore()
     store.loadProject(project('Line'))
-    expect(await copyRoomToProjects(store)).toMatch(/live room/)
+    expect(await copyRoomToProjects(store)).toMatch(/shared project/)
   })
 
   // Guards against a held part's stand-in ending up in the copy as a part that silently does nothing.
@@ -88,7 +88,7 @@ describe('refusals, which change nothing', () => {
     const store = inRoom()
     storage.setItem(PROJECT_KEY, solo)
     setRoomCodeGate({ getHeld: () => [{ name: 'Widget' }] } as unknown as PackageGate)
-    expect(await copyRoomToProjects(store)).toMatch(/“Widget”.*Allow this room's part code/)
+    expect(await copyRoomToProjects(store)).toMatch(/“Widget”.*Allow its part code/)
     setRoomCodeGate({ getHeld: () => [{ name: 'A' }, { name: 'B' }] } as unknown as PackageGate)
     expect(await copyRoomToProjects(store)).toMatch(/^2 part types/)
     expect(storage.getItem(PROJECT_KEY)).toBe(solo)

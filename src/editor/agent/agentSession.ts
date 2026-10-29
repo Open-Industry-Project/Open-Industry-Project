@@ -108,7 +108,7 @@ export class AgentSession {
 
   /** Why Revert is not offered now, or null when it is. */
   revertBlocker(): string | null {
-    if (this.store.getState().collab) return 'In a live room each person undoes their own edits.'
+    if (this.store.getState().collab) return 'In a shared project each person undoes their own edits.'
     if (this.store.getState().readOnly) return 'This editor is view-only.'
     const mine = this.userStepsInRun().length
     if (mine > 0) return `You made ${mine === 1 ? 'an edit' : `${mine} edits`} after the agent started. Use the History panel to choose what to undo.`

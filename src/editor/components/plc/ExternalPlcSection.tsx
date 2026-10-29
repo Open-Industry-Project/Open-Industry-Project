@@ -11,6 +11,7 @@
 // tags their addresses (Assign I/O, the I/O list) is the project's business, not this machine's, so it is a
 // command on the organizer's Top-level code row rather than a button here.
 
+import { canWatch } from '../../../core/scene/scenePlcs'
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import type { EditorController } from '../../controller'
@@ -43,6 +44,11 @@ const M = defineMessages('externalPlc', {
   section: 'Controllers',
   sectionNote: "Each controller's name, what runs it and how Play reaches it. Where each PLC is (its address, a port) is kept on this computer.",
   runsOn: 'Runs on',
+  watch: 'Watch only',
+  watchNote: '(read every tag, the sensors included, and write nothing to the PLC)',
+  watchNoteModbus: "(not over Modbus: choose a protocol that can read the PLC's inputs)",
+  watchTitle:
+    'For a PLC that runs real equipment: Play reads what the real sensors and the program are doing and shows it here, and never writes to the PLC, so the simulator cannot overwrite a real input.',
   defaultTitle: 'The default controller: a tag with no controller name in front belongs to it',
   defaultNote: '(default: tags with no controller name)',
   rename: 'Rename',
@@ -371,6 +377,16 @@ export function PlcLinkFields({ tid, settings, update, status, parts, running, l
           {t(M.ads)} <span className="ctl-dim">{t(M.adsNote)}</span>
         </label>
       </div>
+      <label className="ctl-ext-field" title={t(M.watchTitle)}>
+        <input
+          type="checkbox"
+          checked={settings.watch === true}
+          disabled={locked}
+          onChange={(e) => update({ watch: e.target.checked })}
+          data-testid={`${tid}-watch`}
+        />
+        {t(M.watch)} <span className="ctl-dim">{t(canWatch(settings.mode) ? M.watchNote : M.watchNoteModbus)}</span>
+      </label>
       {guide && (
         <div className="ctl-dim" data-testid={`${tid}-guide`}>
           <a href={guide.href} target="_blank" rel="noopener noreferrer">

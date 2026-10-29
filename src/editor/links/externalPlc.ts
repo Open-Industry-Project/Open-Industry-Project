@@ -23,6 +23,7 @@
 // The socket is the desktop shell's (apps/desktop/plcIo.cjs); in a browser tab the host is null and the
 // mode is not offered. Tests pass their own host.
 
+import { canWatch } from '../../core/scene/scenePlcs'
 import { clientDrivenTags, externalDrivenTags, modbusClientFromTags, modbusServerFromTags, registerImagePointWhere, registerWords } from '../../core/io/externalIo'
 import type { ClientIoPoint, ExternalIo, ExternalIoPoint, ModbusClientIo, TagSignal } from '../../core/io/externalIo'
 import { bindEipPoint, cipTypeName, eipNothingAnswered, eipPointsFromTags, eipStatusMessage, eipUnreachable, fromEipValue, toEipValue } from '../../core/io/eip'
@@ -143,27 +144,44 @@ export function describeAdsPoint(p: AdsPoint | AdsBinding): string {
   return `${p.tag}  ${p.dir === 'toPlc' ? 'written to the PLC' : 'read from the PLC'}${type ? `  ${type}` : ''}`
 }
 
+/**
+ * Watch only (ScenePlc.watch): every point read from the PLC, the ones parts write included, and none written. A
+ * sensor's tag is then the PLC's, so a part that shows what drives its tag (ctx.tagDriven) shows the real one.
+ */
+export function watchedPoints<P extends { dir: 'toPlc' | 'fromPlc' }>(points: readonly P[]): P[] {
+  return points.map((p) => (p.dir === 'fromPlc' ? p : { ...p, dir: 'fromPlc' }))
+}
+
+/** Why a link cannot watch, or null when it can: over Modbus the simulator cannot read what it would write. */
+export function watchRefusal(settings: Pick<PlcLinkSettings, 'mode' | 'watch'>): string | null {
+  if (!settings.watch || canWatch(settings.mode)) return null
+  return "Watch only does not work over Modbus, where the simulator cannot read the PLC's inputs, so nothing is connected. Choose OPC UA, EtherNet/IP, S7, SLMP or ADS to watch this PLC."
+}
+
 /** What Play would carry with these settings, as the dock lists it before Play. */
 export function plannedLink(parts: readonly PartInstance[], settings: PlcLinkSettings): { points: string[]; problems: string[] } {
+  const refused = watchRefusal(settings)
+  if (refused) return { points: [], problems: [refused] }
+  const w = <P extends { dir: 'toPlc' | 'fromPlc' }>(points: P[]): P[] => (settings.watch ? watchedPoints(points) : points)
   if (settings.mode === 'ads') {
     const { points, problems } = deriveAdsPoints(parts)
-    return { points: points.map(describeAdsPoint), problems }
+    return { points: w(points).map(describeAdsPoint), problems }
   }
   if (settings.mode === 'eip') {
     const { points, problems } = deriveEipPoints(parts)
-    return { points: points.map(describeEipPoint), problems }
+    return { points: w(points).map(describeEipPoint), problems }
   }
   if (settings.mode === 'opcua') {
     const { points, problems } = deriveOpcUaPoints(parts)
-    return { points: points.map(describeOpcUaPoint), problems }
+    return { points: w(points).map(describeOpcUaPoint), problems }
   }
   if (settings.mode === 's7') {
     const { io, problems } = deriveS7Io(parts, settings)
-    return { points: io.points.map(describeS7Point), problems }
+    return { points: w(io.points).map(describeS7Point), problems }
   }
   if (settings.mode === 'slmp') {
     const { io, problems } = deriveSlmpIo(parts, settings)
-    return { points: io.points.map(describeSlmpPoint), problems }
+    return { points: w(io.points).map(describeSlmpPoint), problems }
   }
   if (settings.mode === 'poll') {
     const { io, problems } = deriveClientIo(parts, settings)

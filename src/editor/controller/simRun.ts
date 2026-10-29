@@ -8,6 +8,7 @@ import type { PartInstance } from '../../core/types'
 import type { StepDone } from '../../sim/client'
 import * as dragOps from './drag'
 import { anyLinkOn } from './plcLinks'
+import { liveChannel } from '../live/liveChannel'
 import type { EditorController } from '../controller'
 
 export function run(ec: EditorController): void {
@@ -19,6 +20,8 @@ export function run(ec: EditorController): void {
   if (s.mode === 'placing') ec.store.cancelPlacing()
   ec.runPromotedBoxes.clear()
   ec.frozenCargo.clear()
+  // a run of this client's own replaces a shared run it was drawing (controller/liveView.ts), from a view back at rest
+  liveChannel.in?.end()
   ec.lastFrame = null
   ec.store.setRunning(true)
   // comms-controlled conveyors start stopped (the PLC owns them); manual belts are untouched.

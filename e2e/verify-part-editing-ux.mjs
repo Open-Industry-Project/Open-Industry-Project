@@ -242,17 +242,14 @@ try {
   }
   await page.evaluate(() => window.__oip.store.exitPartFocus())
 
-  // ── F: Catalog ✎ in a room ─────────────────────────────────────────────────────────────────────
+  // ── F: Catalog ✎ in a room (what it does there with two people: verify-shared-part-editor.mjs) ──────────────────
   const editBtn = page.locator('.catalog-card-edit').first()
   check('F  the catalog is on screen with ✎ buttons', (await editBtn.count()) > 0)
   check('F  ✎ is enabled solo', await editBtn.isEnabled())
   await page.evaluate(() => window.__oip.store.setCollabMode(true))
-  check('F  ✎ is disabled in a room', await editBtn.isDisabled())
-  check('F  ...with the reason', ((await editBtn.getAttribute('title')) ?? '').includes('shared room'))
-  // a new part opens in the Part Editor, so it is refused in a room too, rather than adding a part nobody can open
+  check('F  ✎ is enabled in a shared project too', await editBtn.isEnabled())
   const newBtn = page.locator('button.catalog-author', { hasText: 'New part' })
-  check('F  + New part is disabled in a room', await newBtn.isDisabled())
-  check('F  ...with the reason', ((await newBtn.getAttribute('title')) ?? '').includes('shared room'))
+  check('F  + New part is enabled in a shared project', await newBtn.isEnabled())
   // last, because a tokenizer compiles lazily and its rejection can arrive well after the editor opened
   check('S  the whole run hit no SES error', !sesErrors.length, sesErrors[0])
   await page.evaluate(() => window.__oip.store.setCollabMode(false))

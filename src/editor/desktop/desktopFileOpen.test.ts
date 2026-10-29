@@ -51,17 +51,24 @@ describe('a project or part file opened from outside the app (desktopFileOpen.ts
     expect(alerts).toEqual(["Couldn't import “bad.oippart”:\ninvalid package: x", "couldn't read gone.oip: ENOENT"])
   })
 
-  it('refuses while running, in a room, or view-only, and says why, importing nothing', async () => {
+  it('refuses while running or view-only, and says why, importing nothing', async () => {
     const ctrl = controller()
-    for (const state of [{ running: true }, { collab: {} }, { readOnly: true }]) {
+    for (const state of [{ running: true }, { readOnly: true }]) {
       await openDocumentFile(fakeStore(state), ctrl, { name: 'x.oip', kind: 'project', bytes })
       await openDocumentFile(fakeStore(state), ctrl, { name: 'x.oippart', kind: 'part', bytes })
     }
     expect(importProjectFile).not.toHaveBeenCalled()
     expect(ctrl.importPart).not.toHaveBeenCalled()
-    expect(alerts).toHaveLength(6)
+    expect(alerts).toHaveLength(4)
     expect(alerts[0]).toMatch(/Stop the simulation first/)
-    expect(alerts[2]).toMatch(/shared room/)
-    expect(alerts[4]).toMatch(/view-only/)
+    expect(alerts[2]).toMatch(/view-only/)
+  })
+
+  it('opens a project and imports a part in a shared project too, as the app\'s own Import does', async () => {
+    const ctrl = controller()
+    await openDocumentFile(fakeStore({ collab: {} }), ctrl, { name: 'x.oip', kind: 'project', bytes })
+    await openDocumentFile(fakeStore({ collab: {} }), ctrl, { name: 'x.oippart', kind: 'part', bytes })
+    expect(importProjectFile).toHaveBeenCalledTimes(1)
+    expect(ctrl.importPart).toHaveBeenCalledTimes(1)
   })
 })

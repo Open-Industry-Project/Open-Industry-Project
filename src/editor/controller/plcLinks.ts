@@ -9,6 +9,8 @@
 import { partsForController } from '../../core/io/controllerTag'
 import type { TagValue } from '../../plc'
 import type { PartInstance } from '../../core/types'
+import type { BoxFrame } from '../../core/frame'
+import type { SimClient } from '../../sim/client'
 import { controllerFor, controllerRuns, LocalPlcLink, runnableSource } from '../../plc'
 // deep import: the wiring check is a checker, not part of the runtime PLC surface the barrel exposes
 import { checkWiring } from '../../plc/wiring'
@@ -315,29 +317,32 @@ function openLink(
   onChange: () => void,
 ): { session: ExternalPlcLink; points: number } | null {
   if (!ec.plcIoHost) return null
+  // Watch only: nothing written to the PLC, every point read from it (externalPlc.ts watchedPoints); Modbus cannot
+  if (m.watchRefusal(settings)) return null
+  const w = <P extends { dir: 'toPlc' | 'fromPlc' }>(points: P[]): P[] => (settings.watch ? m.watchedPoints(points) : points)
   const host = plcIoForLink(ec.plcIoHost, link)
   if (settings.mode === 'ads') {
     if (!ec.adsHost) return null
     const { points, problems } = m.deriveAdsPoints(parts)
-    return { session: m.adsLink(adsForLink(ec.adsHost, link), settings.adsNetId, settings.adsPort, points, problems, onChange), points: points.length }
+    return { session: m.adsLink(adsForLink(ec.adsHost, link), settings.adsNetId, settings.adsPort, w(points), problems, onChange), points: points.length }
   }
   if (settings.mode === 'eip') {
     if (!ec.eipHost) return null
     const { points, problems } = m.deriveEipPoints(parts)
-    return { session: new m.ExternalPlcEipSession(eipForLink(ec.eipHost, link), settings.eipGateway, settings.eipPath, points, problems, onChange), points: points.length }
+    return { session: new m.ExternalPlcEipSession(eipForLink(ec.eipHost, link), settings.eipGateway, settings.eipPath, w(points), problems, onChange), points: points.length }
   }
   if (settings.mode === 'opcua') {
     if (!ec.opcUaHost) return null
     const { points, problems } = m.deriveOpcUaPoints(parts)
-    return { session: new m.ExternalPlcOpcUaSession(opcUaForLink(ec.opcUaHost, link), settings.opcUaEndpoint, points, problems, onChange, settings.opcUaBrowseFrom), points: points.length }
+    return { session: new m.ExternalPlcOpcUaSession(opcUaForLink(ec.opcUaHost, link), settings.opcUaEndpoint, w(points), problems, onChange, settings.opcUaBrowseFrom), points: points.length }
   }
   if (settings.mode === 's7') {
     const { io, problems } = m.deriveS7Io(parts, settings)
-    return { session: m.s7Link(host, io, problems, onChange), points: io.points.length }
+    return { session: m.s7Link(host, { ...io, points: w(io.points) }, problems, onChange), points: io.points.length }
   }
   if (settings.mode === 'slmp') {
     const { io, problems } = m.deriveSlmpIo(parts, settings)
-    return { session: m.slmpLink(host, io, problems, onChange), points: io.points.length }
+    return { session: m.slmpLink(host, { ...io, points: w(io.points) }, problems, onChange), points: io.points.length }
   }
   if (settings.mode === 'poll') {
     const { io, problems } = m.deriveClientIo(parts, settings)
@@ -386,6 +391,11 @@ function attachNamedLinks(l: PlcLinkState, p: ProgramState, ec: PlcLinkDeps, m: 
 /** The default controller's link: the PLC that runs the tags with no controller name, in place of the program here. */
 function attachMainLink(l: PlcLinkState, p: ProgramState, ec: PlcLinkDeps, m: ExternalPlcModule, onChange: () => void): void {
   const s = ec.store.getState()
+  const refused = m.watchRefusal(s.externalPlc)
+  if (refused) {
+    if (!p.plcAttached) setProgramStatus(p, { ...NO_PROGRAM, warnings: [refused] })
+    return
+  }
   const opened = openLink(m, ec, s.externalPlc, partsForController(s.scene.parts, null), 0, onChange)
   if (!opened) return
   const { session, points } = opened
@@ -412,6 +422,13 @@ function attachMainLink(l: PlcLinkState, p: ProgramState, ec: PlcLinkDeps, m: Ex
     }
     notifyExternal(l)
   })
+}
+
+/** One sim frame's I/O on every link of the run: the parts' tags out, and what the PLCs drive back into the sim. */
+export function exchangeFrame(l: PlcLinkState, sim: Pick<SimClient, 'setTags'>, tags: BoxFrame['tags']): void {
+  if (!l.externalSession && l.named.length === 0) return
+  const out = exchangeLinks(l, flattenFrameTags(tags))
+  if (out) sim.setTags(out)
 }
 
 /**

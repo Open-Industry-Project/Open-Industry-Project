@@ -29,7 +29,16 @@ export interface ScenePlc {
   protocol: PlcProtocol
   /** Play connects it; false leaves its tags unconnected, for a PLC that is not wired up yet */
   connect: boolean
+  /**
+   * Watch only: Play reads every tag from the PLC, the ones parts write included, and writes nothing to it. For a
+   * PLC that runs real equipment, whose inputs come from that equipment and must never be overwritten by the
+   * simulator's (docs/live-share.md). Not over Modbus: the simulator cannot read a PLC's inputs there.
+   */
+  watch?: true
 }
+
+/** Whether a protocol can watch a PLC: it has to read what the simulator would otherwise write. */
+export const canWatch = (protocol: PlcProtocol): boolean => protocol !== 'serve' && protocol !== 'poll'
 
 /** How many controllers a scene holds: the desktop shell numbers a window's links below 32. */
 export const MAX_SCENE_PLCS = 32
@@ -64,7 +73,7 @@ export function validateScenePlcs(raw: unknown, repairs: string[]): ScenePlc[] |
     if (o.runsOn !== 'app' && o.runsOn !== 'plc') repairs.push(`plcs[${i}] (${name}) runs on ${JSON.stringify(o.runsOn)}, so it is a PLC`)
     const protocol = PLC_PROTOCOLS.includes(o.protocol as PlcProtocol) ? (o.protocol as PlcProtocol) : 'serve'
     if (o.protocol !== protocol) repairs.push(`plcs[${i}] (${name}) has protocol ${JSON.stringify(o.protocol)}, so it is serve`)
-    out.push({ name, runsOn, protocol, connect: o.connect !== false })
+    out.push({ name, runsOn, protocol, connect: o.connect !== false, ...(o.watch === true ? { watch: true as const } : {}) })
   })
   return out.length > 0 ? out : undefined
 }

@@ -156,8 +156,8 @@ validated again on import. This is also how you move a part between the browser 
 ### Deleting
 
 A part you authored or imported has a **✕** on its card. Deletion is blocked while the scene still places
-the part, while it is open in the Part Editor, and in a live room. Deleting an edited built-in reverts the card to
-the app's version (your changes are discarded). On the desktop the project's parts are files in
+the part, and while it is open in the Part Editor. In a shared project the part leaves everyone's parts. Deleting an
+edited built-in reverts the card to the app's version (your changes are discarded). On the desktop the project's parts are files in
 `<project>/parts/<slug>/`, and ✕ works the same way: the folder sync then removes the part's files. Deleting a
 part's folder by hand does not remove the part. The folder sync checks the project folder once a second, and while
 `project.json` still lists the deleted folder the folder does not load: the sync holds and shows the error until
@@ -1288,6 +1288,20 @@ inside its footprint.
   params say ([unit-load](../examples/parts/unit-load/)). With nothing filed under it, a unit load with a
   `courses` param above 0 stacks the standard load itself (a 48 x 40 in pallet under courses of the
   0.6 x 0.4 x 0.4 case layer) as real cargo.
+
+### A sensor on a watched PLC: show the PLC's value
+
+A controller set to Watch only ([live-share.md](./live-share.md#watch-only)) reads the tags parts write from the real
+PLC instead of writing them, so such a tag is driven too. A sensor or switch that shows its state (an LED, a pressed
+cap, a swung gate) should then show what the real one reports, not what the simulator senses:
+
+```js
+const tag = ctx.params.tag
+if (tag && ctx.tagDriven(tag)) ctx.lamps.led = ctx.readTag(tag) !== !!ctx.params.normallyClosed // the real eye
+else ctx.lamps.led = present // what the beam sees
+```
+
+The first-party photo eye, push button, light curtain and safety gate do this.
 
 ### Auto vs hand: gate on `tagDriven`, not on the tag name
 

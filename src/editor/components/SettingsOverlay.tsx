@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { collabServerPref, defaultCollabUrl, isCollabServerUrl, setCollabServerPref } from '../../collab/collabServer'
 import type { ReactElement } from 'react'
 import {
   activeKeymap,
@@ -104,12 +105,15 @@ const M = defineMessages('settings', {
   reloadNow: 'Reload now',
   liveEditing: 'Live editing',
   yourName: 'Your name',
-  yourNameHint: 'shown to others in a live session; empty shows an animal',
+  yourNameHint: 'shown to others in a shared project; empty shows an animal',
+  collabServer: 'Collaboration server',
+  collabServerHint: "where the rooms you start are kept, as ws:// or wss://; empty uses the Open Industry Project's server. Links you share name it.",
+  collabServerBad: 'not a ws:// or wss:// address, so the default server stays',
   namePlaceholder: 'shown to collaborators',
-  trustedRooms: 'Rooms allowed to run part code',
+  trustedRooms: 'Shared projects allowed to run part code',
   trustedHint: {
-    one: '{count} room; forgotten rooms ask again when next opened',
-    other: '{count} rooms; forgotten rooms ask again when next opened',
+    one: '{count} shared project; a forgotten one asks again when next opened',
+    other: '{count} shared projects; a forgotten one asks again when next opened',
   },
   forgetAll: 'Forget all',
   partLibraries: 'Part libraries',
@@ -461,6 +465,7 @@ function LiveEditingGroup(): ReactElement {
   const [trusted, setTrusted] = useState(() => trustedRoomCount())
   // decided once per open, so Forget all greys the button out instead of removing the row under the pointer
   const [listTrusted] = useState(trusted > 0)
+  const [serverBad, setServerBad] = useState(false)
   return (
     <section className="settings-group">
       <h3>{t(M.liveEditing)}</h3>
@@ -474,6 +479,25 @@ function LiveEditingGroup(): ReactElement {
           defaultValue={getDisplayName()}
           onChange={(e) => setDisplayName(e.target.value)}
           // typing a name must not drive the editor's shortcuts; Escape still closes the dialog
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape') e.stopPropagation()
+          }}
+        />
+      </Row>
+      <Row label={t(M.collabServer)} hint={serverBad ? t(M.collabServerBad) : t(M.collabServerHint)}>
+        <input
+          className="setting-input"
+          data-testid="setting-collab-server"
+          type="text"
+          maxLength={256}
+          placeholder={defaultCollabUrl()}
+          defaultValue={collabServerPref() ?? ''}
+          onChange={(e) => {
+            const v = e.target.value.trim()
+            const ok = v === '' || isCollabServerUrl(v)
+            setServerBad(!ok)
+            if (ok) setCollabServerPref(v === '' ? null : v)
+          }}
           onKeyDown={(e) => {
             if (e.key !== 'Escape') e.stopPropagation()
           }}

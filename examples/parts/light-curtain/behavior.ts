@@ -66,6 +66,8 @@ definePart({
       const s = ctx.sense(b)
       if (s.hit && s.distance <= w) clear = false
     }
+    // a PLC that drives this tag is watching a real curtain (Watch only): the lamps show what that curtain reports
+    if (ctx.params.tag && ctx.tagDriven(ctx.params.tag)) clear = !!ctx.readTag(ctx.params.tag)
     ctx.lamps.ossd = clear
     ctx.lamps.stop = !clear
     ctx.lamps.muting = !!ctx.params.mutingLampTag && ctx.readTag(ctx.params.mutingLampTag)

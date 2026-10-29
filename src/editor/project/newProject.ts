@@ -33,7 +33,8 @@ export function createProjectFrom(store: EditorStore, project: ProjectJSON): Pro
  */
 export function canCreateProject(store: EditorStore): boolean {
   const s = store.getState()
-  return !s.collab && !s.readOnly && (getOipProjectApi() !== null || supportsDocumentLibrary())
+  // a shared project is left for the new one, as any open project is
+  return !s.readOnly && (getOipProjectApi() !== null || supportsDocumentLibrary())
 }
 
 /**

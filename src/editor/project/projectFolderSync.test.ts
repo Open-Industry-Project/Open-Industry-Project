@@ -31,6 +31,7 @@ import type { PartPackage } from '../../core/parts/partPackage'
 import type { PartInstance } from '../../core/types'
 import { EditorStore } from '../store/store'
 import { CURRENT_DOC_KEY } from './documentStore'
+import { startWriteBack } from './sharedProject'
 
 function fakeStorage(): Storage {
   const m = new Map<string, string>()
@@ -371,6 +372,49 @@ describe('an edit made in the folder', () => {
     await syncFolderNow()
     expect(shell.written).toEqual([])
     expect(shell.paths(ROOT)).toContain('scenes/pack.scene.json')
+  })
+})
+
+describe("a shared project's folder", () => {
+  // the tab is in the room of a project of this browser's own (project/sharedProject.ts)
+  const share = (store: EditorStore, room = 'e-room') => {
+    localStorage.setItem('oip-web/shared-projects', JSON.stringify([{ docId: DOC, room, project: 'Line', server: null }]))
+    vi.stubGlobal('location', { href: `http://app.test/app/?room=${room}` })
+    store.setCollabMode(true)
+  }
+
+  it('follows the room: an edit made there reaches the folder, under the project name', async () => {
+    const { store } = await openedFromFolder()
+    share(store)
+    startWriteBack(store, { docId: DOC, room: 'e-room', project: 'Line', server: null })
+    store.commit('Add group', { ...store.getState().scene, parts: [group('made-in-the-room')] })
+    await vi.advanceTimersByTimeAsync(1100) // the write-back trails an edit by a second
+    await syncFolderNow()
+    expect(shell.text(ROOT, 'scene.json')).toContain('made-in-the-room')
+    expect(shell.text(ROOT, PROJECT_MANIFEST)).toContain('"Line"')
+  })
+
+  it('waits on a change made to the folder while shared, loading and writing nothing, and takes it once sharing stops', async () => {
+    const { store } = await openedFromFolder()
+    share(store)
+    shell.put(ROOT, 'plc/program.st', RUN.replace('Run', 'Ready'))
+    store.commit('Add group', { ...store.getState().scene, parts: [group('meanwhile')] })
+    await syncFolderNow()
+    expect(store.getState().stProgram).not.toContain('Ready')
+    expect(shell.written).toEqual([])
+    expect(store.getState().folderError).toMatch(/changed while the project is shared/)
+    store.setCollabMode(false) // Stop sharing: the project is the user's alone again
+    await syncFolderNow()
+    expect(store.getState().stProgram).toContain('Ready')
+  })
+
+  it("writes nothing for someone else's room", async () => {
+    const { store } = await openedFromFolder()
+    vi.stubGlobal('location', { href: 'http://app.test/app/?room=e-theirs' })
+    store.setCollabMode(true)
+    store.commit('Add group', { ...store.getState().scene, parts: [group('not-mine')] })
+    await syncFolderNow()
+    expect(shell.text(ROOT, 'scene.json')).not.toContain('not-mine')
   })
 })
 

@@ -36,10 +36,9 @@
 // Swept in the row's heaviest state, because its requirement is not a constant and a bare run would
 // check the wrong thing: the demo's tagged label (the label is elastic), a live collab chip (+46) and
 // the VR button on an XR-capable browser (+40). The XR runtime is stubbed, since headless Chromium
-// reports none and the 40px button would never render. The chip only exists in a room, where the
-// project menu reads "Live room"; a long project name only exists outside one. The two halves of the
-// row are sized independently (1fr auto 1fr), so the left group gets a second, solo sweep carrying
-// the long project name instead.
+// reports none and the 40px button would never render. The chip only exists in a shared project. The two halves of the
+// row are sized independently (1fr auto 1fr), so a long project name, shared or not, never meets the chip: the left
+// group gets a second, solo sweep carrying the long project name instead.
 // (5) is included because the shell shares this row and its rules cut differently there. The mark is
 // decoration on the web; in the shell it is the menu button. The shell hides the OS menu bar, so the
 // mark is the only pointer path to File/Edit/Simulation. A branding cut written for the web can shrink

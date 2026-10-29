@@ -194,7 +194,9 @@ definePart({
   },
   step(ctx) {
     if (ctx.used()) flip = !flip
-    const open = ctx.params.open !== flip
+    // a PLC that drives this tag is watching a real gate switch (Watch only): the leaf swings as that switch reads
+    const watched = ctx.params.tag && ctx.tagDriven(ctx.params.tag)
+    const open = watched ? ctx.readTag(ctx.params.tag) !== ctx.params.normallyClosed : ctx.params.open !== flip
     ctx.report('open', open) // the hand state it is actually in (useParam requires it): authored, then hand-flipped
     const target = open ? ctx.params.openAngle * D2R : 0
     angle = ctx.approach(angle, target, ctx.params.openSpeed * D2R * ctx.dt)

@@ -899,7 +899,7 @@ const saveTest: AgentTool = {
     assertEditable(store)
     const spec = checkedSpec(args)
     if (!spec.name) throw new AgentToolError('a kept test needs a `name` (the Tests overlay and the CLI list it by name)')
-    if (!store.saveProjectTest(spec)) throw new AgentToolError('this editor cannot keep tests (a live room keeps none)')
+    if (!store.saveProjectTest(spec)) throw new AgentToolError('this editor cannot keep tests (it is view-only, or in a shared project of someone else\'s, which keeps none)')
     return { name: spec.name, tests: (store.snapshotProject().tests ?? []).map((t) => t.name ?? '(unnamed)') }
   },
 }

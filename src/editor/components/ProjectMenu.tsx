@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ownSharedProject } from '../project/sharedProject'
 import { commandChord, commandDisabledReason, commandEnabled, getCommand, runCommand } from '../commands'
 import { DEMO_SCENE_NAME } from '../demo/demoScenes'
 import { DESKTOP_SHELL } from '../desktop/desktopMenuBridge'
@@ -17,7 +18,6 @@ const M = defineMessages('projectMenu', {
   save: 'Save the project',
   saveAlsoAuto: '{save}. It also saves itself as you go',
   stopFirst: 'Stop the simulation first',
-  liveRoom: 'Live room',
   example: 'Example',
   exampleTitle: '{project}, the built-in example: edit it and it becomes a project of your own; open another project to leave it',
   projectTitle: 'Project “{project}”',
@@ -144,7 +144,10 @@ export function ProjectMenu({ state }: { state: EditorState }) {
   // The demo is a project of its own, the built-in example (sceneFile.openDemoScene): it is named, and tagged as
   // the example, because nothing of it is saved until it is edited. In a room the document is the room's, and
   // `projectName` is still this browser's own local default - naming the menu with it would name the wrong thing.
-  const project = state.demoSession ? DEMO_SCENE_NAME : state.collab ? t(M.liveRoom) : state.projectName
+  // Shared, a project is still named (project/sharedProject.ts): the owner's own name for it, and everyone else the name
+  // its room carries (main.tsx bootRoom). That it is shared shows where sharing is controlled, as elsewhere.
+  const own = state.collab ? ownSharedProject() : null
+  const project = state.demoSession ? DEMO_SCENE_NAME : own ? own.project : state.projectName
   const tag = state.demoSession ? t(M.example) : null
   return (
     <div className="project-menu" ref={wrapRef} data-tagged={tag !== null}>

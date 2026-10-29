@@ -93,17 +93,25 @@ export interface PresenceSource {
 export interface BridgeStore {
   /** `running` is this client's private sim preview (see {@link authoredCargoView} for why the bridge reads it) */
   /** `stScanMs` is the program's scan time as the store holds it, after it adopted the room's (it rounds on the way in) */
-  getState(): { scene: SceneJSON; selectedIds: readonly string[]; running: boolean; stScanMs?: number; userPackages?: readonly PartPackage[] }
+  /** `packageEdit` is the Part Editor's session: while it is open `scene` is the part alone and the line is `document` */
+  getState(): {
+    scene: SceneJSON
+    selectedIds: readonly string[]
+    running: boolean
+    stScanMs?: number
+    userPackages?: readonly PartPackage[]
+    packageEdit?: { document: SceneJSON } | null
+  }
   subscribe(cb: () => void): () => void
   applyRemote(scene: SceneJSON): void
   setTransient(scene: SceneJSON): void
   selectMany(ids: readonly string[]): void
   setUndoDelegate(delegate: UndoDelegate | null): void
   /** register custom-part packages received from a peer (render + Inspector + catalog); `edited` names the room
-   *  entries that are edits rather than snapshots (schema.editedPackageIds). See store. */
-  applyRemotePackages(pkgs: PartPackage[], edited?: ReadonlySet<string>): void
-  /** install the writer the store calls on a committed package edit / new authored part (room mode). */
-  setPackageSink(sink: ((pkg: PartPackage) => void) | null): void
+   *  entries that are edits rather than snapshots (schema.editedPackageIds); `removed`, the parts a peer deleted. */
+  applyRemotePackages(pkgs: PartPackage[], edited?: ReadonlySet<string>, removed?: readonly string[]): void
+  /** install the writers the store calls on a committed package edit / new authored part, and on a deleted part. */
+  setPackageSink(sink: ((pkg: PartPackage) => void) | null, remove?: (id: string, revertTo: PartPackage | null) => void): void
   /** install the writer the store calls with the label of every committed edit (the shared feed). */
   setEditEventSink(sink: ((e: EditEventInput) => void) | null): void
   /** hand the store the room's edit feed for the History dock (called on every feed change). */
@@ -223,6 +231,12 @@ export function withRunLocalCargo(doc: SceneJSON, local: SceneJSON): SceneJSON {
   return runLocal.length === 0 ? doc : { ...doc, parts: [...doc.parts, ...runLocal] }
 }
 
+/** The line as the store holds it: the scene, or the scene parked while the Part Editor is open. */
+const documentOf = (s: ReturnType<BridgeStore['getState']>): SceneJSON => s.packageEdit?.document ?? s.scene
+
+/** a run of the line: a run in the Part Editor tests the part, and the room's scene is not in it */
+const lineRunning = (s: ReturnType<BridgeStore['getState']>): boolean => s.running && !s.packageEdit
+
 /**
  * Two-way bridge between the EditorStore and a collaborative Y.Doc.
  *
@@ -245,6 +259,10 @@ export class CollabBridge {
   private prevRaw: SceneJSON
   /** last seen local run state, to catch the Stop edge (see pushToDoc) */
   private wasRunning: boolean
+  /** last seen Part Editor state, to catch it opening and closing (see pushToDoc) */
+  private wasEditingPart: boolean
+  /** the room's edited package ids as last seen, so an id that leaves it is a part someone deleted */
+  private lastEdited = new Set<string>()
   private applyingRemote = false
   private unsubStore: () => void
   /** set once nothing from this client can reach the doc any more: view-only from the start, or a newer build joined */
@@ -308,9 +326,10 @@ export class CollabBridge {
     // view-only when a newer build has claimed it (see ROOM_BUILD_META). Absent (tests, a build without git), no check.
     build?: number,
   ) {
-    this.prevScene = store.getState().scene
+    this.prevScene = documentOf(store.getState())
     this.prevRaw = this.prevScene
-    this.wasRunning = store.getState().running
+    this.wasRunning = lineRunning(store.getState())
+    this.wasEditingPart = !!store.getState().packageEdit
 
     // doc -> store: one rebuild per foreign transaction that moved the scene. The scene is decoded
     // from exactly these three types (docToScene), so a transaction that touched none of them cannot
@@ -355,7 +374,10 @@ export class CollabBridge {
     // a viewer must still receive peers' authored parts to render them. Ignores our own (LOCAL_ORIGIN) writes.
     // A package arrives ADMITTED: its code only if this client trusts it (codeTrust.ts), viewers included.
     this.packagesObserver = (_events, txn): void => {
-      if (txn.origin === LOCAL_ORIGIN) return
+      if (txn.origin === LOCAL_ORIGIN) {
+        this.lastEdited = editedPackageIds(this.ydoc) // our own part is a delete to notice later, our own delete not news
+        return
+      }
       this.syncPackagesFromDoc()
     }
     packagesMap(ydoc).observeDeep(this.packagesObserver)
@@ -445,7 +467,10 @@ export class CollabBridge {
     store.setSimHzSink((hz) => writeSimHz(this.ydoc, hz))
 
     // store -> doc for packages: the store calls this on a committed package edit or a new authored part
-    store.setPackageSink((pkg) => this.pushPackage(pkg))
+    store.setPackageSink(
+      (pkg) => this.pushPackage(pkg),
+      (id, revertTo) => this.removePackage(id, revertTo),
+    )
 
     // store -> doc for the edit feed: the store reports every committed edit's label here
     store.setEditEventSink((e) => this.pushEvent(e))
@@ -480,7 +505,20 @@ export class CollabBridge {
 
   private pushToDoc(): void {
     if (this.applyingRemote) return
-    const { scene: raw, running } = this.store.getState()
+    const state = this.store.getState()
+    // The Part Editor opening or closing. While it is open the line is parked in the store, and only a peer changes it
+    // (applyAuthoritative puts their edits there): the session's own edits are package edits, which the package sink
+    // carries. Each edge re-asserts the room's scene rather than diffing, so a peer's drag that was on screen as the
+    // editor opened is never written to the room as an edit.
+    const editing = !!state.packageEdit
+    if (editing !== this.wasEditingPart) {
+      this.wasEditingPart = editing
+      this.overriding = false
+      this.applyAuthoritative(true)
+      return
+    }
+    if (editing) return
+    const { scene: raw, running } = state
     // The Stop edge: our private run is over, so the doc's cargo is the truth again. Re-assert it
     // instead of letting the run's leftovers (this run's boxes, poses physics moved) ride out on the
     // next unrelated commit - that would land as a delayed, unexplained teleport for every peer.
@@ -515,6 +553,19 @@ export class CollabBridge {
     if (out === pkg && pkg.behavior !== inRoom) this.gate.noteOwn(pkg.behavior)
     // an edit, not a snapshot: for a built-in part it is a fork, and must win over every peer's own copy
     this.ydoc.transact(() => writePackage(packagesMap(this.ydoc), out, { edited: true }), LOCAL_ORIGIN)
+  }
+
+  /**
+   * store -> doc: a deleted part leaves the room, or goes back to a snapshot of the app's version while it is still
+   * placed (`revertTo`). Either way it stops being an edit, which is how a peer's bridge tells it was deleted.
+   */
+  private removePackage(id: string, revertTo: PartPackage | null): void {
+    this.ydoc.transact(() => {
+      const map = packagesMap(this.ydoc)
+      if (!revertTo) return void map.delete(id)
+      writePackage(map, revertTo)
+      map.get(id)?.delete('edited')
+    }, LOCAL_ORIGIN)
   }
 
   /** store -> doc: append a committed edit's label to the shared feed, stamped with who wrote it */
@@ -580,7 +631,10 @@ export class CollabBridge {
       const cur = getPackage(p.id)
       return cur === undefined || JSON.stringify(cur) !== JSON.stringify(p)
     })
-    if (changed.length > 0) this.store.applyRemotePackages(changed, editedPackageIds(this.ydoc))
+    const edited = editedPackageIds(this.ydoc)
+    const removed = [...this.lastEdited].filter((id) => !edited.has(id))
+    this.lastEdited = edited
+    if (changed.length > 0 || removed.length > 0) this.store.applyRemotePackages(changed, edited, removed)
   }
 
   /**
@@ -593,6 +647,11 @@ export class CollabBridge {
   private applyDisplay(structural: boolean): void {
     // a live local drag already drives the view via the controller's own transients
     if (this.presence?.isLocalDragging()) return
+    // the Part Editor shows the part alone: a peer's drag has nothing to draw there, and their edits go to the parked line
+    if (this.store.getState().packageEdit) {
+      if (structural) this.applyAuthoritative(true)
+      return
+    }
 
     const drags = this.presence?.remoteDragPoses()
     if (drags && drags.size > 0) {
@@ -622,12 +681,12 @@ export class CollabBridge {
     this.applyingRemote = true
     try {
       this.store.applyRemote(scene)
-      const raw = this.store.getState().scene
+      const raw = documentOf(this.store.getState())
       this.prevRaw = raw
       // what the DOC now holds, which is `scene` minus the run-local cargo we just merged back in
-      this.prevScene = this.store.getState().running ? authoredCargoView(raw, this.docScene()) : raw
-      if (structural) {
-        // a remote delete may have removed parts this client had selected
+      this.prevScene = lineRunning(this.store.getState()) ? authoredCargoView(raw, this.docScene()) : raw
+      // a remote delete may have removed parts this client had selected (in the Part Editor, the selection is the part's)
+      if (structural && !this.store.getState().packageEdit) {
         const present = new Set(scene.parts.map((p) => p.id))
         const sel = this.store.getState().selectedIds
         const pruned = sel.filter((id) => present.has(id))
@@ -640,7 +699,7 @@ export class CollabBridge {
 
   /** the doc's scene as this client must SEE it: with our own run's cargo kept (see withRunLocalCargo) */
   private runMerged(doc: SceneJSON): SceneJSON {
-    return this.store.getState().running ? withRunLocalCargo(doc, this.store.getState().scene) : doc
+    return lineRunning(this.store.getState()) ? withRunLocalCargo(doc, this.store.getState().scene) : doc
   }
 
   /**

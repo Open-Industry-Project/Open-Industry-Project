@@ -548,6 +548,14 @@ and Play again must keep the same subscription.
 A SCADA or HMI connects as to any OPC UA server: add an OPC UA connection to this endpoint (security None,
 anonymous), browse PLC / Main, and subscribe.
 
+## Watch only: a PLC that runs real equipment
+
+A controller set to Watch only (`ScenePlc.watch`) reads every point from its PLC, the tags parts write included, and
+writes none. Each point's direction becomes "read from the PLC" (`watchedPoints` in editor/links/externalPlc.ts), so a
+sensor's tag is driven by the PLC and a part that checks `ctx.tagDriven(tag)` shows the PLC's value instead of what it
+senses. It works by name (OPC UA, EtherNet/IP, ADS) and by address (S7, SLMP), and not over Modbus, where the simulator
+cannot read the PLC's inputs. [docs/live-share.md](../../docs/live-share.md) has the rest.
+
 ## When the PLC goes away: the link's watchdog
 
 A PLC that stops answering leaves its last outputs sitting in the image, and there is no packet that says

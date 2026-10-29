@@ -24,7 +24,7 @@ import type { EditorStore } from '../store/store'
 /** The URL a copy boots at: this one without the room, so the load is a solo one. */
 export function soloUrl(href: string): string {
   const url = new URL(href)
-  for (const p of ['room', 'view', 'scene']) url.searchParams.delete(p)
+  for (const p of ['room', 'view', 'scene', 'server']) url.searchParams.delete(p)
   return url.pathname + url.search + url.hash
 }
 
@@ -39,16 +39,23 @@ export function roomCopyProject(store: EditorStore): ProjectJSON {
  * Copy the open room into a new project and boot into it. Returns why it could not, having changed nothing, or
  * null when the page is on its way to the copy.
  */
-export async function copyRoomToProjects(store: EditorStore): Promise<string | null> {
+/** Why the room's document cannot be taken out as a project now, or null when it can. */
+function takeOutRefusal(store: EditorStore): string | null {
   const state = store.getState()
-  if (!state.collab) return 'Only a live room is copied this way.'
-  if (state.running) return 'Stop the simulation first: a copy is of the room, not of a run.'
+  if (!state.collab) return 'Only a shared project is copied this way.'
+  if (state.running) return 'Stop the simulation first: a copy is of the project, not of a run.'
   const held = getRoomCodeGate()?.getHeld() ?? []
   if (held.length > 0) {
     return held.length === 1
-      ? `“${held[0]!.name}” isn't running its own code here, so a copy would hold it without that code. Allow this room's part code, then make the copy.`
-      : `${held.length} part types from this room aren't running their own code here, so a copy would hold them without it. Allow this room's part code, then make the copy.`
+      ? `“${held[0]!.name}” isn't running its own code here, so a copy would hold it without that code. Allow its part code, then make the copy.`
+      : `${held.length} part types in this shared project aren't running their own code here, so a copy would hold them without it. Allow their part code, then make the copy.`
   }
+  return null
+}
+
+export async function copyRoomToProjects(store: EditorStore): Promise<string | null> {
+  const refused = takeOutRefusal(store)
+  if (refused !== null) return refused
   if (!supportsDocumentLibrary()) return 'This browser cannot store projects. Export Project (.oip) makes a copy you can import after leaving the room.'
   const copy = roomCopyProject(store)
   // the solo project this browser had before it joined: filed first, so the copy replacing it loses nothing
