@@ -1,5 +1,5 @@
-// Live share on the controller's side (docs/live-share.md): this client's run frames go to the room while it shares,
-// and another connection's shared run is drawn while this client runs nothing.
+// Live share on the controller's side (docs/live-share.md): this client's run frames go to the room for whoever
+// follows it, and the run this client follows is drawn while it runs nothing of its own.
 //
 // Following draws the shared run's frames, smoothed by core/live/livePlayback.ts. No worker, no program, no part
 // code: the store stays stopped, so nothing a run owns (Use, cargo promotion, the PLC panels) is live, and the
@@ -13,11 +13,12 @@ import type { TagValue } from '../../plc'
 import type { IRenderView } from '../../render/api'
 import type { EditorStore } from '../store/store'
 import { liveChannel, type LiveIn } from '../live/liveChannel'
+import { LiveCamera, type LiveCameraHost } from './liveCamera'
 
 /** What following needs of the controller, read when used: the view and store are set after this is built. */
 export interface LiveViewHost {
-  readonly view: Pick<IRenderView, 'applyBoxFrame'>
-  readonly store: Pick<EditorStore, 'getState' | 'setState'>
+  readonly view: Pick<IRenderView, 'applyBoxFrame'> & LiveCameraHost['view']
+  readonly store: Pick<EditorStore, 'getState' | 'setState'> & LiveCameraHost['store']
   /** the frame the Inspector's live readouts read */
   lastFrame: BoxFrame | null
   /** this client's PLC variables, shared with its frames */
@@ -31,12 +32,15 @@ export class LiveView {
   private drawn: BoxFrame | null = null
   private sharedWatch: Readonly<Record<string, LiveWatchValue>> | null = null
   private readonly channel: LiveIn = { frame: (f, w) => this.frame(f, w), end: () => this.end() }
+  /** following the camera of the one this client follows (controller/liveCamera.ts) */
+  private readonly camera: LiveCamera
 
   constructor(private readonly host: LiveViewHost) {
     liveChannel.in = this.channel
+    this.camera = new LiveCamera(host)
   }
 
-  /** a frame of this client's own run, for the room while it shares (main.tsx joinLiveShare) */
+  /** a frame of this client's own run, for whoever follows it (main.tsx joinLiveShare) */
   share(frame: BoxFrame): void {
     if (this.host.store.getState().packageEdit) return // a run in the Part Editor tests the part, not the line
     liveChannel.out?.push(frame, this.host.plcWatch as Readonly<Record<string, LiveWatchValue>> | null)
@@ -48,13 +52,12 @@ export class LiveView {
   }
 
   /**
-   * A frame of the shared run arrived. Drawn by a view link, which exists to watch, and by an editor who asked to
-   * (`liveWatch`, the toolbar's Watch); never while this client runs its own sim.
+   * A frame of the run this client follows arrived (live/followTarget.ts chose whose; the server sends only that one).
+   * Never drawn while this client runs its own sim.
    */
   private frame(frame: BoxFrame, watch: Readonly<Record<string, LiveWatchValue>>): void {
     const h = this.host
-    const s = h.store.getState()
-    if (s.running || !(s.readOnly || s.liveWatch)) return
+    if (h.store.getState().running) return
     this.sharedWatch = watch
     this.playback.push(frame, performance.now())
     if (this.following) return
@@ -87,6 +90,7 @@ export class LiveView {
   }
 
   dispose(): void {
+    this.camera.dispose()
     this.end()
     if (liveChannel.in === this.channel) liveChannel.in = null
   }

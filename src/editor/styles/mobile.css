@@ -117,6 +117,12 @@
   padding: 3px 8px;
 }
 
+/* watching or waiting shows an eye there, not a dot as well */
+.app.phone .live-chip.watching::before,
+.app.phone .live-chip.waiting::before {
+  display: none;
+}
+
 .app.phone:has(.live-chip) .collab-viewonly {
   display: none;
 }

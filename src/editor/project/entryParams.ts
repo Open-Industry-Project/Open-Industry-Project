@@ -13,7 +13,7 @@ export function clearEntryParams(): void {
     const url = new URL(window.location.href)
     // ...and a shared project's room: switching to another document leaves it (opening it again rejoins it, from
     // this browser's record of what it shared: project/sharedProject.ts)
-    const entry = ['scene', 'room', 'view', 'server'].filter((p) => url.searchParams.has(p))
+    const entry = ['scene', 'room', 'view', 'server', 'present'].filter((p) => url.searchParams.has(p))
     if (entry.length === 0) return
     for (const p of entry) url.searchParams.delete(p)
     history.replaceState(history.state, '', url.pathname + url.search + url.hash)

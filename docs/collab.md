@@ -157,7 +157,10 @@ npm start            # listens on :1234, persists to server/collab.sqlite
 ```
 
 The frontend defaults to `ws://localhost:1234` in dev, so `npm run dev` + the server above
-is all you need. Open `/app/?room=e-test` in two browser windows to try it.
+is all you need. Open `/app/?room=e-test` in two browser windows to try it. A shared project opened while that server
+is down says so: past a 10 s blip, the people button reads Offline, and its list names the server it cannot reach, says
+the changes are kept, and offers Retry ([PresenceStack.tsx](../src/editor/components/PresenceStack.tsx); gated by
+`verify-collab-offline.mjs`). The same message is what a user sees when the production server is unreachable.
 
 ## Configuration
 

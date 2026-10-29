@@ -18,8 +18,13 @@ function memoryStore() {
   }
 }
 
-test('parseRoomMessage: claim and close with a token, nothing else', () => {
-  assert.deepEqual(parseRoomMessage(`room1|claim|${TOKEN}`), { kind: 'claim', token: TOKEN })
+test('parseRoomMessage: claim, close and spotlight with a token, nothing else', () => {
+  assert.deepEqual(parseRoomMessage(`room1|claim|${TOKEN}`), { kind: 'claim', token: TOKEN, client: null })
+  assert.deepEqual(parseRoomMessage(`room1|claim|${TOKEN}|12345`), { kind: 'claim', token: TOKEN, client: '12345' })
+  assert.equal(parseRoomMessage(`room1|claim|${TOKEN}|abc`), null)
+  assert.deepEqual(parseRoomMessage(`room1|spotlight|${TOKEN}|1`), { kind: 'spotlight', token: TOKEN, on: true })
+  assert.deepEqual(parseRoomMessage(`room1|spotlight|${TOKEN}|0`), { kind: 'spotlight', token: TOKEN, on: false })
+  assert.equal(parseRoomMessage(`room1|spotlight|${TOKEN}`), null)
   assert.deepEqual(parseRoomMessage(`room1|close|${TOKEN}`), { kind: 'close', token: TOKEN })
   assert.equal(parseRoomMessage('room1|close|short'), null)
   assert.equal(parseRoomMessage(`room1|delete|${TOKEN}`), null)
@@ -33,6 +38,19 @@ test('the first claim makes the owner; a claim with another token is told the ro
   assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|claim|${TOKEN}`, writer), { reply: 'room1|claim|ok' })
   assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|claim|${OTHER}`, writer), { reply: 'room1|claim|taken' })
   assert.notEqual(store.owners.get('r-a'), TOKEN, 'only a hash of the token is kept')
+  // a claim naming the tab's presence client id says who the owner is; a taken one says nothing
+  assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|claim|${TOKEN}|42`, writer), { reply: 'room1|claim|ok', owner: '42' })
+  assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|claim|${OTHER}|43`, writer), { reply: 'room1|claim|taken' })
+})
+
+test('only the owner turns the spotlight on or off', async () => {
+  const store = memoryStore()
+  assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|spotlight|${TOKEN}|1`, writer), { reply: 'room1|spotlight|refused' })
+  await handleRoomMessage(store, 'r-a', `room1|claim|${TOKEN}`, writer)
+  assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|spotlight|${OTHER}|1`, writer), { reply: 'room1|spotlight|refused' })
+  assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|spotlight|${TOKEN}|1`, writer), { reply: 'room1|spotlight|ok', spotlight: true })
+  assert.deepEqual(await handleRoomMessage(store, 'r-a', `room1|spotlight|${TOKEN}|0`, writer), { reply: 'room1|spotlight|ok', spotlight: false })
+  await assert.rejects(handleRoomMessage(store, 'r-a', `room1|spotlight|${TOKEN}|1`, { readOnly: true }))
 })
 
 test('only the owner closes the room; an editor, or anyone in an unowned room, is refused', async () => {

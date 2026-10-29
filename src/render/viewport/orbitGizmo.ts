@@ -101,6 +101,7 @@ export class OrbitGizmo {
     this.callbacks = callbacks
 
     const canvas = document.createElement('canvas')
+    canvas.className = 'orbit-gizmo'
     this.canvas = canvas
     Object.assign(canvas.style, {
       position: 'absolute',

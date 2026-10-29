@@ -93,7 +93,8 @@ export function onKeyDown(ec: EditorController, e: KeyboardEvent): void {
   // flight", so it can't be a single table entry. It's listed there as `fixed` - documented in
   // the shortcuts panel, never routed through the resolver, never remappable.
   if (e.key === 'Escape') {
-    if (ec.rulerVisible) ec.clearRuler()
+    if (s.presenting) ec.store.setState({ presenting: false })
+    else if (ec.rulerVisible) ec.clearRuler()
     else if (s.mode === 'placing') ec.store.cancelPlacing()
     // guard-openings mode backs out one level at a time: the selected opening, then the mode (the conveyor
     // stays selected), and only then the selection

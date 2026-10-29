@@ -197,14 +197,21 @@ export const isStoppingSharing = (): boolean => stopping
  * The owner's tab is in its room: register the owner token with the server, minting one for a project shared before
  * tokens existed. Harmless when already registered; a room another browser claimed first answers "taken".
  */
-export function claimRoom(shared: SharedProject, line: NonNullable<typeof ownerLine>): void {
+export function claimRoom(shared: SharedProject, line: NonNullable<typeof ownerLine>, client: number): void {
   ownerLine = line
   let token = shared.ownerToken
   if (!token) {
     token = mintOwnerToken()
     noteSharedProject({ ...shared, ownerToken: token })
   }
-  line.send(`room1|claim|${token}`)
+  // the presence id lets the server tell everyone who the owner is (the spotlight, a view link's default run)
+  line.send(`room1|claim|${token}|${client}`)
+}
+
+/** Ask everyone in the owner's room to watch its run, or stop (server/roomOwners.mjs spotlight). */
+export function setSpotlight(on: boolean): void {
+  const token = ownSharedProject()?.ownerToken
+  if (ownerLine && token) ownerLine.send(`room1|spotlight|${token}|${on ? 1 : 0}`)
 }
 
 /** Ask the room's server to close the room. True once it has; false when it refused, or did not answer in time. */

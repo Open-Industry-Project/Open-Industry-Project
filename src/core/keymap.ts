@@ -111,7 +111,7 @@ export const KEY_BINDINGS = [
   { id: 'edit.group', mode: 'editor', group: 'Edit', label: 'Select as one', keys: ['ctrl+KeyG'], match: 'logical', hint: 'a viewport click on any part inside selects the whole' },
   { id: 'edit.ungroup', mode: 'editor', group: 'Edit', label: 'Select parts individually', keys: ['ctrl+shift+KeyG'], match: 'logical' },
   { id: 'edit.reparent', mode: 'editor', group: 'Edit', label: 'Reparent to new node', keys: ['ctrl+KeyJ'], match: 'logical', hint: 'wraps the selection in a fresh Group' },
-  { id: 'ui.cancel', mode: 'editor', group: 'Edit', label: 'Cancel / deselect', keys: ['Escape'], fixed: true, hint: 'also backs out of placing, a drag, or the ruler' },
+  { id: 'ui.cancel', mode: 'editor', group: 'Edit', label: 'Cancel / deselect', keys: ['Escape'], fixed: true, hint: 'also backs out of Present, placing, a drag, or the ruler' },
 
   // --- placement & snapping ------------------------------------------------
   { id: 'snap.grid', mode: 'editor', group: 'Snapping', label: 'Grid snap', keys: ['KeyY'] },

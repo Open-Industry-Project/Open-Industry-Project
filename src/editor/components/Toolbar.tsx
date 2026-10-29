@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { PresenceStack } from './PresenceStack'
 import { DEMO_SCENE_NAME } from '../demo/demoScenes'
-import { liveChannel, markGoLive } from '../live/liveChannel'
-import type { MouseEvent, ReactElement } from 'react'
-import { getCollabSnapshot, subscribeCollab } from '../../collab/session'
+import type { MouseEvent, ReactElement, ReactNode } from 'react'
+import { getCollabSnapshot, getPeers, subscribeCollab } from '../../collab/session'
 import { docNameForSecret, EDIT_PREFIX, markRoomForSeed, mintEditSecret, type SeedKind } from '../../collab/rooms'
 import { enterRoomInPlace } from '../roomEntry'
-import { mintOwnerToken, noteSharedProject, ownSharedProject, stopSharing } from '../project/sharedProject'
+import { mintOwnerToken, noteSharedProject, ownSharedProject, setSpotlight, stopSharing } from '../project/sharedProject'
 import { currentDocumentId } from '../project/documentStore'
 import { collabUrl, onOtherCollabServer, SERVER_PARAM, shareableLink } from '../../collab/collabServer'
 import { keymapRev, subscribeKeymap } from '../../core/keymap'
@@ -24,6 +23,7 @@ import {
   DistractionFreeIcon,
   ExternalLinkIcon,
   EyeIcon,
+  DisplayIcon,
   GitHubIcon,
   HelpIcon,
   OverflowIcon,
@@ -32,7 +32,6 @@ import {
   PilotIcon,
   PlayIcon,
   SettingsIcon,
-  BroadcastIcon,
   ShareIcon,
   StopIcon,
   VRIcon,
@@ -67,32 +66,33 @@ const M = defineMessages('toolbar', {
   timingExact: 'Its own timing stays exact: a 2 s timer is still 2 s of simulated time, it just takes longer to watch.',
   readOnlyTitle: 'You opened a read-only link. Watch and run the simulation, but editing is disabled',
   viewOnly: 'View only',
-  liveBadge: 'Live',
-  liveWatched: { one: 'Live · {count} watching', other: 'Live · {count} watching' },
-  liveRunningTitle: 'Your run is streaming to everyone here as it happens. Live is switched on and off in Share.',
-  liveIdleTitle: 'Your next run streams to everyone here. Live is switched on and off in Share.',
-  waiting: '{name} is live · waiting for a run',
-  joining: "Joining {name}'s run",
-  waitingTitle: "{name} shares their runs live. The next one shows here as it happens.",
+  watchers: { one: '{count} watching', other: '{count} watching' },
+  watchersTitle: 'People watching your run as it happens.',
+  spotlight: 'Spotlight',
+  spotlightTitle: 'Ask everyone here to watch your run. They can stop watching at any time.',
+  spotlightOn: { one: 'Spotlight · {count} watching', other: 'Spotlight · {count} watching' },
+  spotlightOnTitle: 'Everyone here is asked to watch your run.',
+  stopSpotlight: 'Stop',
+  stopSpotlightTitle: 'Stop the spotlight: everyone goes back to what they were doing',
+  waitingFor: 'Waiting for {name} to run',
+  waitingForTitle: 'Their next run shows here as it happens.',
   watchShort: 'Watch',
   watching: 'Watching {name}',
+  watchingSpotlight: 'Watching {name} (spotlight)',
   watchingTitle: "You are watching {name}'s run as it happens. Start Simulation runs your own copy instead.",
   stopWatching: 'Stop watching',
-  offerWatch: '{name} is live · Watch',
-  offerWatchTitle: "{name}'s runs stream to everyone here as they happen. Watch to see this one.",
+  followView: 'Follow view',
+  followViewTitle: "You moved your own view. Go back to following {name}'s.",
+  offerWatch: '{name} is running · Watch',
+  offerWatchTitle: "Watch {name}'s run as it happens. Your own work is not touched.",
+  offerMany: { one: '{count} running · Watch', other: '{count} running · Watch' },
+  offerManyTitle: 'Choose whose run to watch',
   someone: 'Someone',
-  runOwnCopy: 'Run my own copy (stops watching the live run)',
-  liveSwitch: 'Live',
-  liveSwitchSub: 'Stream your runs to everyone with a link',
-  liveSwitchTitle: "Everyone with a link watches your runs as they happen. Editors' changes show in the stream.",
-  liveOffStillShared: 'Live is off. The project stays shared.',
+  runOwnCopy: 'Run my own copy (stops watching)',
   stopSharing: 'Stop sharing',
   stopSharingSub: 'Work on {name} alone again. Links you gave out stop working.',
   stopSharingDemoSub: 'Back to the example on your own. Links you gave out stop working.',
   stopSharingRunning: 'Stop the simulation first',
-  streamEnded: '{name} stopped streaming',
-  liveTaken: '{name} is live',
-  liveTakenSub: 'One person is live at a time',
   moreActions: 'More actions',
   speedItem: 'Speed: {speed}×',
   speedItemShort: 'Speed: {speed}× (~{actual}× actual)',
@@ -106,7 +106,11 @@ const M = defineMessages('toolbar', {
   canView: 'Can view',
   canViewSub: 'Anyone with the link can watch, not edit',
   viewLinkCopied: 'View link copied',
-  liveNow: "You're live. Copy a link above to invite people.",
+  forDisplay: 'For a display',
+  forDisplaySub: 'Full screen and locked, following your run and view',
+  forDisplaySubOther: 'Full screen and locked, following the owner',
+  forDisplayTitle: 'For a screen nobody uses: only the scene, and it cannot be left from inside the app. Close the browser to leave it.',
+  displayLinkCopied: 'Display link copied',
   sharedNow: 'This project is now shared: people you invite edit it with you.',
   undoStartsOver: 'Sharing starts a new undo history. Changes made before it cannot be undone.',
   linkCopiedShared: 'Link copied. This project is now shared.',
@@ -161,6 +165,7 @@ interface ToolbarProps {
 export function Toolbar({ store, state, controller }: ToolbarProps) {
   const [shareLabel, setShareLabel] = useState<MessageId | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
+  const [peopleOpen, setPeopleOpen] = useState(false)
   // entering a room in place holds the editor read-only for a moment (main.tsx registerRoomEntry), which is not view-only
   const [entering, setEntering] = useState(false)
   const shareRef = useRef<HTMLDivElement>(null)
@@ -241,7 +246,7 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
   // Take this solo tab into the room it just minted: in place, with no reload (editor/roomEntry.ts). Where this surface
   // cannot, it reloads into the room, leaving the seed mark the room boot reads (rooms.ts: only the minting tab seeds).
   // True when it entered in place.
-  const enterRoom = async (url: URL, room: string, mint: SeedKind, live = false): Promise<boolean> => {
+  const enterRoom = async (url: URL, room: string, mint: SeedKind): Promise<boolean> => {
     // a project of the user's own, shared, stays their project (project/sharedProject.ts)
     // ...and the demo, shared, is owned by whoever shared it, though it is no project of theirs (sharedProject.ts `demo`)
     const server = onOtherCollabServer() ? collabUrl() : null
@@ -250,8 +255,6 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
     setEntering(true)
     const inPlace = await enterRoomInPlace(url.toString(), mint).finally(() => setEntering(false))
     if (inPlace) return true
-    // the room boot after the reload reads the intent (live/liveChannel.ts markGoLive)
-    if (live) markGoLive()
     markRoomForSeed(room, mint)
     location.assign(url.toString())
     return false
@@ -263,17 +266,21 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
   // has the scheme). A solo tab enters the room it mints (enterRoom), and the seeded room is what makes a view link
   // resolve to a populated scene rather than an empty one. (`&view=1` on a view link only labels it:
   // the r- doc name alone is what makes it view-only.)
-  const copyShareLink = async (mode: 'edit' | 'view') => {
+  const copyShareLink = async (mode: 'edit' | 'view' | 'display') => {
     const { url, room, mint } = roomLink()
     // the host's own tab always lands in edit mode; only the copied link is demoted
     const linkToCopy = new URL(url.toString())
-    if (mode === 'view') {
+    // a link names the shared project, not how this tab was opened (the demo's ?scene=demo, a display's &present=1)
+    for (const entry of ['scene', 'present']) linkToCopy.searchParams.delete(entry)
+    if (mode !== 'edit') {
       if (room.startsWith(EDIT_PREFIX)) linkToCopy.searchParams.set('room', await docNameForSecret(room))
       linkToCopy.searchParams.set('view', '1')
     }
+    // a display opens with only the scene (components/PresentOverlay.tsx); it follows the owner like any view link
+    if (mode === 'display') linkToCopy.searchParams.set('present', '1')
     try {
       await navigator.clipboard?.writeText(shareableLink(linkToCopy).toString())
-      setShareLabel(mint === 'scene' ? M.linkCopiedShared : mode === 'view' ? M.viewLinkCopied : M.inviteLinkCopied)
+      setShareLabel(mint === 'scene' ? M.linkCopiedShared : mode === 'view' ? M.viewLinkCopied : mode === 'display' ? M.displayLinkCopied : M.inviteLinkCopied)
     } catch {
       setShareLabel(M.copyFailed)
     }
@@ -283,26 +290,6 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
     setTimeout(() => setShareOpen(false), 600)
   }
 
-  // The Live switch: stream this client's runs, or stop. It only switches; the links above are how people get in. A
-  // solo tab first enters a room of its own, in place, and the popover stays open on the links. Where that takes a
-  // reload, the intent rides across it (live/liveChannel.ts markGoLive).
-  const toggleLive = async () => {
-    const { liveSharing } = store.getState()
-    if (liveSharing || collab.room) {
-      store.setState({ liveSharing: !liveSharing })
-      // off, in a project of the user's own: it stays shared, which is a separate thing (Stop sharing)
-      setShareLabel(liveSharing && ownSharedProject() ? M.liveOffStillShared : null)
-      return
-    }
-    const { url, room, mint } = roomLink()
-    if (!mint) return
-    setShareLabel(M.startingRoom)
-    if (!(await enterRoom(url, room, mint, true))) return
-    // only now: the room's document has synced and its bridge is up (main.tsx registerRoomEntry)
-    store.setState({ liveSharing: true })
-    // stays while the popover is open: it names the next step, and says what going live did to the project
-    setShareLabel(mint === 'scene' ? M.sharedNow : M.liveNow)
-  }
 
   const stopSharingProject = async () => {
     const shared = ownSharedProject()
@@ -374,7 +361,7 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
         <ProjectMenu state={state} />
       </div>
       <div className="toolbar-run">
-        <LiveControl collab={collab} store={store} state={state} openShare={() => setShareOpen(true)} />
+        <LiveControl collab={collab} store={store} state={state} openPeople={() => setPeopleOpen(true)} />
         <div className="run-transport segmented" role="group">
           <button
             className={`run-button play${state.running ? ' running' : ''}${state.liveFollowing ? ' watching' : ''}`}
@@ -472,7 +459,7 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
         {controller && <ForcesStatus controller={controller} state={state} />}
       </div>
       <div className="toolbar-right">
-        <PresenceStack state={state} />
+        <PresenceStack store={store} state={state} open={peopleOpen} setOpen={setPeopleOpen} />
         {state.readOnly && !entering && (
           <span className="collab-viewonly" title={t(M.readOnlyTitle)}>
             {t(M.viewOnly)}
@@ -556,31 +543,18 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
                   </span>
                   <span className="share-option-copy">{t(M.copy)}</span>
                 </button>
-                {/* Who gets in is the links above; whether runs stream to them is this switch. Taken while someone
-                    else in the room is live: one person is live at a time. */}
-                {(() => {
-                  const taken = collab.liveBy !== null && !state.liveSharing
-                  return (
-                    <button
-                      className={`share-option share-live${state.liveSharing ? ' on' : ''}${taken ? ' share-option-off' : ''}`}
-                      role="switch"
-                      aria-checked={state.liveSharing}
-                      disabled={taken}
-                      data-testid="share-live-switch"
-                      title={taken ? undefined : t(M.liveSwitchTitle)}
-                      onClick={() => void toggleLive()}
-                    >
-                      <span className="share-option-icon">
-                        <BroadcastIcon />
-                      </span>
-                      <span className="share-option-text">
-                        <span className="share-option-label">{taken ? t(M.liveTaken, { name: collab.liveBy ?? t(M.someone) }) : t(M.liveSwitch)}</span>
-                        <span className="share-option-sub">{t(taken ? M.liveTakenSub : M.liveSwitchSub)}</span>
-                      </span>
-                      <span className="share-switch" aria-hidden="true" />
-                    </button>
-                  )
-                })()}
+                {/* the same view-only access, opened locked in Present (main.tsx): a way to start Can view, not a third level */}
+                <button className="share-option share-sub-option" data-testid="share-display" title={t(M.forDisplayTitle)} onClick={() => void copyShareLink('display')}>
+                  <span className="share-option-icon">
+                    <DisplayIcon size={14} />
+                  </span>
+                  <span className="share-option-text">
+                    <span className="share-option-label">{t(M.forDisplay)}</span>
+                    {/* a display follows the owner (live/followTarget.ts); before sharing, that is whoever shares */}
+                    <span className="share-option-sub">{t(!collab.room || collab.owner === collab.selfId ? M.forDisplaySub : M.forDisplaySubOther)}</span>
+                  </span>
+                  <span className="share-option-copy">{t(M.copy)}</span>
+                </button>
                 {collab.room && ownSharedProject() && (
                   <button className="share-option share-back" data-testid="share-stop-sharing" disabled={state.running} onClick={() => void stopSharingProject()}>
                     <span className="share-option-text">
@@ -759,79 +733,95 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
 }
 
 /**
- * Live share beside the transport (docs/live-share.md): the Live badge while this client is live, a status whose click
- * opens Share, where the Live switch is (one place turns it on and off, so a click here cannot end a stream by surprise),
- * whose run a follower is watching, a viewer waiting for the next run, or an editor's offer to watch. On a phone each
- * chip shrinks to its dot and a word (styles/mobile.css).
+ * Live share beside the transport (docs/live-share.md). Anyone running can be watched, so this says what is going on:
+ * how many watch this client's run, with the owner's Spotlight; whose run it draws, with a way out and, once the view
+ * was moved by hand, Follow view; whom it waits for; or, to an editor, who is running and a Watch. On a phone each chip shrinks to a word, or an eye while watching, so the project name keeps its room (styles/mobile.css).
  */
-function LiveControl({ collab, store, state, openShare }: { collab: ReturnType<typeof getCollabSnapshot>; store: EditorStore; state: EditorState; openShare: () => void }): ReactElement | null {
-  const name = collab.liveBy ?? t(M.someone)
-  // A stream that ends says so for a moment, rather than the chip just vanishing and the view going back to the design.
-  const [ended, setEnded] = useState<string | null>(null)
-  const lastLive = useRef<string | null>(null)
-  useEffect(() => {
-    const was = lastLive.current
-    lastLive.current = collab.liveBy
-    if (collab.liveBy || !was || state.liveSharing) return
-    setEnded(was)
-    const timer = setTimeout(() => setEnded(null), 5000)
-    return () => clearTimeout(timer)
-  }, [collab.liveBy, state.liveSharing])
-  const label = (full: string, short: string): ReactElement => (
+function LiveControl({ collab, store, state, openPeople }: { collab: ReturnType<typeof getCollabSnapshot>; store: EditorStore; state: EditorState; openPeople: () => void }): ReactElement | null {
+  const label = (full: string, short: ReactNode): ReactElement => (
     <>
       <span className="live-chip-full">{full}</span>
       {short && <span className="live-chip-short">{short}</span>}
     </>
   )
-  const stopWatching = !state.readOnly && (
+  const target = state.liveTarget
+  const nameOf = (id: number): string => getPeers().find((p) => p.clientId === id)?.name ?? t(M.someone)
+  // a pick is unpicked; a spotlight is dismissed until the next one. A view link's own default has no way out but Play.
+  const stopWatching = target && (target.why !== 'view' || state.liveWatch !== null) && (
     <button
       className="live-chip-stop"
       aria-label={t(M.stopWatching)}
       title={t(M.stopWatching)}
-      onClick={() => {
-        store.setState({ liveWatch: false })
-        liveChannel.in?.end()
-      }}
+      onClick={() => store.setState(target.why === 'spotlight' ? { spotlightDismissed: true } : { liveWatch: null })}
     >
       ×
     </button>
   )
-  if (state.liveSharing) {
-    const full = state.running && collab.watchers > 0 ? t(M.liveWatched, { count: collab.watchers }) : t(M.liveBadge)
+  // the view was moved by hand while following: the run is still followed, the camera no longer (controller/liveCamera.ts)
+  const followView = (name: string): ReactElement | false =>
+    state.liveViewDetached && (
+      <button className="live-chip-action" data-testid="follow-view" title={t(M.followViewTitle, { name })} onClick={() => store.setState({ liveViewDetached: false })}>
+        {t(M.followView)}
+      </button>
+    )
+  if (!collab.room) return null
+  const owner = collab.owner !== null && collab.owner === collab.selfId
+  if (state.running) {
+    if (owner && collab.spotlight) {
+      return (
+        <span className="live-chip on" data-testid="live-chip" title={t(M.spotlightOnTitle)}>
+          {label(t(M.spotlightOn, { count: collab.watchers }), t(M.spotlight))}
+          <button className="live-chip-action" data-testid="spotlight-stop" title={t(M.stopSpotlightTitle)} onClick={() => setSpotlight(false)}>
+            {t(M.stopSpotlight)}
+          </button>
+        </span>
+      )
+    }
+    const others = collab.peers > 1
+    if (collab.watchers === 0 && !(owner && others)) return null
     return (
-      <button className={`live-chip on${state.running ? '' : ' idle'}`} data-testid="live-chip" title={t(state.running ? M.liveRunningTitle : M.liveIdleTitle)} onClick={openShare}>
-        {label(full, t(M.liveBadge))}
+      <span className={`live-chip${collab.watchers > 0 ? ' on' : ' idle'}`} data-testid="live-chip" title={t(M.watchersTitle)}>
+        {collab.watchers > 0 && label(t(M.watchers, { count: collab.watchers }), String(collab.watchers))}
+        {owner && others && (
+          <button className="live-chip-action" data-testid="spotlight-start" title={t(M.spotlightTitle)} onClick={() => setSpotlight(true)}>
+            {t(M.spotlight)}
+          </button>
+        )}
+      </span>
+    )
+  }
+  if (target) {
+    const name = nameOf(target.who)
+    if (state.liveFollowing) {
+      return (
+        <span className="live-chip watching" data-testid="live-chip" title={t(M.watchingTitle, { name })}>
+          {label(t(target.why === 'spotlight' ? M.watchingSpotlight : M.watching, { name }), <EyeIcon size={12} />)}
+          {followView(name)}
+          {stopWatching}
+        </span>
+      )
+    }
+    return (
+      <span className="live-chip waiting" data-testid="live-chip" title={t(M.waitingForTitle)}>
+        {label(t(M.waitingFor, { name }), <EyeIcon size={12} />)}
+        {followView(name)}
+        {stopWatching}
+      </span>
+    )
+  }
+  const runners = collab.runners
+  if (state.readOnly || runners.length === 0) return null
+  if (runners.length === 1) {
+    const only = runners[0]!
+    return (
+      <button className="live-chip offer" data-testid="live-chip" title={t(M.offerWatchTitle, { name: only.name })} onClick={() => store.setState({ liveWatch: only.id })}>
+        {label(t(M.offerWatch, { name: only.name }), t(M.watchShort))}
       </button>
     )
   }
-  if (state.liveFollowing) {
-    return (
-      <span className="live-chip watching" data-testid="live-chip" title={t(M.watchingTitle, { name })}>
-        {label(t(M.watching, { name }), '')}
-        {stopWatching}
-      </span>
-    )
-  }
-  if (ended && !collab.liveBy && !state.running) {
-    return (
-      <span className="live-chip ended" data-testid="live-chip">
-        {label(t(M.streamEnded, { name: ended }), '')}
-      </span>
-    )
-  }
-  if (!collab.liveBy || state.running) return null
-  // a view link, or an editor who said Watch: the run shows on its own when it comes
-  if (state.readOnly || state.liveWatch) {
-    return (
-      <span className="live-chip waiting" data-testid="live-chip" title={t(M.waitingTitle, { name })}>
-        {label(t(collab.liveRunning ? M.joining : M.waiting, { name }), '')}
-        {stopWatching}
-      </span>
-    )
-  }
   return (
-    <button className="live-chip offer" data-testid="live-chip" title={t(M.offerWatchTitle, { name })} onClick={() => store.setState({ liveWatch: true })}>
-      {label(t(M.offerWatch, { name }), t(M.watchShort))}
+    <button className="live-chip offer" data-testid="live-chip" title={t(M.offerManyTitle)} onClick={openPeople}>
+      {label(t(M.offerMany, { count: runners.length }), t(M.watchShort))}
     </button>
   )
 }

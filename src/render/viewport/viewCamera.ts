@@ -692,6 +692,24 @@ export function syncProjection(view: CameraHost): void {
 }
 
 /** animate the camera back to a previously captured pose (e.g. restore the factory view on exiting part focus) */
+/** how far ahead of a walking or flying camera its look point is put (metres); a follower orbits about it */
+const LOOK_AHEAD_M = 5
+const lookDir = new Vector3()
+
+/**
+ * The camera's position and a point it really looks at. Orbiting, that is the orbit target. Pilot and freelook turn
+ * the camera on their own and leave the target where it was, so then it is a point straight ahead.
+ */
+export function lookPose(view: CameraHost, freeCamera: boolean): { px: number; py: number; pz: number; tx: number; ty: number; tz: number } {
+  const p = view.camera.position
+  if (!freeCamera) {
+    const t = view.controls.target
+    return { px: p.x, py: p.y, pz: p.z, tx: t.x, ty: t.y, tz: t.z }
+  }
+  view.camera.getWorldDirection(lookDir).multiplyScalar(LOOK_AHEAD_M)
+  return { px: p.x, py: p.y, pz: p.z, tx: p.x + lookDir.x, ty: p.y + lookDir.y, tz: p.z + lookDir.z }
+}
+
 export function setCameraPose(
   view: CameraHost,
   pose: { px: number; py: number; pz: number; tx: number; ty: number; tz: number },

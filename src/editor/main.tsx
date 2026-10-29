@@ -8,16 +8,20 @@ import type { SceneJSON, SimRate } from '../core/types'
 import type { Controller } from '../core/controller'
 import type { DemoSeed } from '../collab/demoRoom'
 import {
+  getCollabSnapshot,
   getLocalActorName,
+  getPeers,
   initCollabSession,
   isLocalDragging,
   remoteDragPoses,
   setCollabContext,
-  setLocalLive,
   setLocalRunning,
+  setLocalStream,
   setLocalWatching,
   setLocalSelection,
   setRoomCodeGate,
+  setRoomState,
+  subscribeCollab,
   subscribePeers,
 } from '../collab/session'
 import { consumeSeedMark, resolveRoom, type ResolvedRoom, type SeedKind } from '../collab/rooms'
@@ -40,7 +44,8 @@ import { PROJECT_KEY, loadStoredProject, noteWorkingCopyWrite, onWorkingCopySupe
 import { startSplitFiling } from './project/projectSplit'
 import { currentDocumentId, onCurrentDocumentChange, supportsDocumentLibrary, syncCurrentDocument, writeDocument } from './project/documentStore'
 import { EditorStore } from './store/store'
-import { consumeGoLive, liveChannel } from './live/liveChannel'
+import { liveChannel } from './live/liveChannel'
+import { followTarget, type FollowTarget } from './live/followTarget'
 import { registerRoomEntry } from './roomEntry'
 import { claimRoom, isStoppingSharing, ownSharedProject, setRoomNameWriter, sharedDemo, sharedProjectOf, startWriteBack } from './project/sharedProject'
 import { soloUrl } from './project/roomCopy'
@@ -289,49 +294,110 @@ function watchOtherTabs(): void {
  * from the doc, then wires the two-way bridge. Awaits first sync so we don't flash an empty
  * scene before remote state arrives.
  */
+const sameTarget = (a: FollowTarget | null, b: FollowTarget | null): boolean => a === b || (!!a && !!b && a.who === b.who && a.stream === b.stream && a.why === b.why)
+
 /**
- * A room's live share (collab/liveShare.ts, docs/live-share.md): every connection draws a run another one shares
- * (registered before the first sync, so the snapshot the server sends a joiner is not missed), and an editor who
- * turns sharing on streams each of its runs while it lasts.
+ * A room's live share (collab/liveShare.ts, docs/live-share.md). Anyone running can be watched: an editor's run is
+ * announced to the server, and its frames go out only while someone follows it. This client follows the run
+ * live/followTarget.ts picks, and publishes whose run it draws. Registered before the first sync, so the server's
+ * word on the owner and the spotlight, sent on joining, is not missed.
  */
 function joinLiveShare(
-  provider: { sendStateless(payload: string): void; on(event: 'stateless', cb: (data: { payload: string }) => void): unknown },
+  provider: {
+    sendStateless(payload: string): void
+    on(event: 'stateless', cb: (data: { payload: string }) => void): unknown
+    on(event: 'synced', cb: (data: { state: boolean }) => void): unknown
+  },
   live: typeof import('../collab/liveShare'),
   canShare: boolean,
+  queued: () => number,
 ): void {
   const send = (payload: string): void => provider.sendStateless(payload)
   const receiver = new live.LiveShareReceiver(send, {
     frame: (f, watch) => liveChannel.in?.frame(f, watch),
     end: () => liveChannel.in?.end(),
   })
-  provider.on('stateless', ({ payload }) => receiver.accept(payload))
-  let watching: boolean | null = null
-  const publishWatching = (): void => {
-    const now = store.getState().liveFollowing
-    if (now !== watching) setLocalWatching((watching = now))
-  }
-  store.subscribe(publishWatching)
-  publishWatching()
-  if (!canShare) return
-  // Go live from a solo tab made this room and reloaded into it (Toolbar goLive): it is live from the start
-  if (consumeGoLive()) store.setState({ liveSharing: true })
   let sender: InstanceType<typeof live.LiveShareSender> | null = null
-  let published: boolean | null = null
-  const sync = (): void => {
-    const { running, liveSharing } = store.getState()
-    if (liveSharing !== published) setLocalLive((published = liveSharing))
-    const want = running && liveSharing
+  provider.on('stateless', ({ payload }) => {
+    const m = live.parseLiveMessage(payload)
+    if (!m) return
+    if (m.kind === 'o') {
+      const owner = m.stream === '-' ? null : Number(m.stream)
+      setRoomState(owner !== null && Number.isSafeInteger(owner) ? owner : null, m.body === '1')
+    } else if (m.kind === 'w' || m.kind === 'q') sender?.accept(m.kind, m.stream, m.body)
+    else receiver.accept(m.kind, m.stream, m.body)
+  })
+
+  // this client's run: announced while it runs (not a Part Editor test run), so the others can watch it
+  const syncSender = (): void => {
+    const { running, packageEdit } = store.getState()
+    const want = canShare && running && !packageEdit
     if (want && !sender) {
-      sender = new live.LiveShareSender(send)
+      sender = new live.LiveShareSender(send, undefined, queued)
       liveChannel.out = sender
+      setLocalStream(sender.stream)
     } else if (!want && sender) {
       sender.end()
       sender = null
       liveChannel.out = null
+      setLocalStream(null)
     }
   }
-  store.subscribe(sync)
-  sync()
+
+  // whose run to draw, again on any change to this client, the room or the people in it
+  let spotlight = false
+  let watching: number | null | undefined
+  const follow = (): void => {
+    const s = store.getState()
+    const c = getCollabSnapshot()
+    if (c.spotlight !== spotlight) {
+      spotlight = c.spotlight
+      // a new spotlight asks again, though the last was dismissed, and brings a moved view back to the owner's
+      if (spotlight && (s.spotlightDismissed || s.liveViewDetached)) return store.setState({ spotlightDismissed: false, liveViewDetached: false })
+    }
+    // someone picked who left is not waited for
+    if (s.liveWatch !== null && !getPeers().some((p) => p.clientId === s.liveWatch)) return store.setState({ liveWatch: null })
+    const target = followTarget({
+      self: c.selfId,
+      running: s.running,
+      readOnly: s.readOnly,
+      picked: s.liveWatch,
+      owner: c.owner,
+      spotlight: c.spotlight,
+      dismissed: s.spotlightDismissed,
+      runners: c.runners,
+    })
+    // a spotlight never switches someone mid-drag: it takes them when they let go
+    if (target?.why === 'spotlight' && !sameTarget(target, s.liveTarget) && isLocalDragging()) return
+    // someone new to follow is followed from their own view (controller/liveCamera.ts)
+    if (!sameTarget(target, s.liveTarget)) return store.setState({ liveTarget: target, ...(target?.who !== s.liveTarget?.who ? { liveViewDetached: false } : {}) })
+    receiver.follow(target?.stream ?? null)
+    // published while waiting too, so the one followed sends their camera before they run
+    const following = target?.who ?? null
+    if (following !== watching) setLocalWatching((watching = following))
+  }
+  const update = (): void => {
+    syncSender()
+    follow()
+  }
+  store.subscribe(update)
+  subscribeCollab(follow)
+  subscribePeers(follow)
+  // a reconnect is a new connection to the server, which has forgotten this one's run and whom it follows
+  let synced = false
+  provider.on('synced', ({ state }) => {
+    if (!state) return
+    if (synced) {
+      if (sender) {
+        sender = null
+        liveChannel.out = null
+      }
+      syncSender()
+      receiver.refollow()
+    }
+    synced = true
+  })
+  update()
 }
 
 /**
@@ -390,7 +456,7 @@ async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null
   const idSuffix = '~' + ydoc.clientID.toString(36)
   setNextIdSuffix(idSuffix)
   initCollabSession(room, provider)
-  joinLiveShare(provider, liveShare, !resolved.view)
+  joinLiveShare(provider, liveShare, !resolved.view, () => provider.configuration.websocketProvider.webSocket?.bufferedAmount ?? 0)
   await whenSynced
   // An empty room is seeded from the creator's current scene + PLC program (Share's
   // payload) - but only by the tab that minted the room, so opening a mistyped or stale
@@ -507,13 +573,19 @@ async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null
   }
   if (own && !resolved.view) {
     if (!own.demo) startWriteBack(store, own)
-    claimRoom(own, {
-      send: (payload) => provider.sendStateless(payload),
-      listen: (cb) => {
+    const line = {
+      send: (payload: string) => provider.sendStateless(payload),
+      listen: (cb: (payload: string) => void) => {
         const on = ({ payload }: { payload: string }): void => cb(payload)
         provider.on('stateless', on)
         return () => provider.off('stateless', on)
       },
+    }
+    // claimed again on every sync: a reconnect is a new connection, and the server knows the owner by it
+    const claim = (): void => claimRoom(ownSharedProject() ?? own, line, ydoc.clientID)
+    claim()
+    provider.on('synced', ({ state }: { state: boolean }) => {
+      if (state) claim()
     })
   }
 }
@@ -589,6 +661,19 @@ function mount(): void {
 }
 
 const params = new URLSearchParams(location.search)
+// A link for a display (Share > Can view > For a display) opens with only the scene, locked: a visitor may move the
+// camera but not act on the design, so no key reaches the editor but the flight keys while they fly (right button held),
+// and there is no way out but the browser's own. This listener is added before the app mounts, so it runs ahead of every
+// key listener the app adds.
+if (params.get('present') === '1') {
+  store.setState({ presenting: true, presentLocked: true })
+  const block = (e: KeyboardEvent): void => {
+    const { presentLocked, navigating } = store.getState()
+    if (presentLocked && !(navigating && !e.ctrlKey && !e.metaKey && !e.altKey)) e.stopImmediatePropagation()
+  }
+  window.addEventListener('keydown', block, true)
+  window.addEventListener('keyup', block, true)
+}
 
 /**
  * ?xremu: install an emulated WebXR runtime + on-page headset/controller controls

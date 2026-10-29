@@ -10,6 +10,7 @@ import type { PartInstance, PartType, SceneJSON, SimRate } from '../../core/type
 import type { ProjectionMode } from '../../render/api'
 import type { StFileReportData } from '../components/plc/StFileReport'
 import type { UnopenedProject } from '../project/projectFile'
+import type { FollowTarget } from '../live/followTarget'
 import {
   readExternalPlc,
   readFaceSnap,
@@ -317,13 +318,21 @@ export interface EditorState {
    * worker is persistently short of {@link timeScale}; null while it is keeping up, or stopped.
    * Mirrored from SimClient.clock by the controller - see sim/simClockRate.ts for why it can differ. */
   speedActual: number | null
-  /** this client streams its runs to the room's other connections (collab/liveShare.ts); a session choice, never saved */
-  liveSharing: boolean
-  /** the view is drawing another connection's shared run, not a run of its own (controller/liveView.ts) */
+  /** the view is drawing someone else's run, not a run of its own (controller/liveView.ts) */
   liveFollowing: boolean
-  /** an editor asked to watch a shared run; a view link watches without asking (controller/liveView.ts) */
-  liveWatch: boolean
+  /** whom this client chose to watch (their presence id), or null; a session choice, never saved */
+  liveWatch: number | null
+  /** this client said no to the owner's current spotlight (live/followTarget.ts) */
+  spotlightDismissed: boolean
+  /** whose run this client follows now, and why (live/followTarget.ts, kept current by main.tsx joinLiveShare) */
+  liveTarget: FollowTarget | null
+  /** this client moved its own camera while following, so it no longer follows the other's view (controller/liveCamera.ts) */
+  liveViewDetached: boolean
   distractionFree: boolean
+  /** Present: only the scene, for a projector or a display (components/PresentOverlay.tsx); a session choice, never saved */
+  presenting: boolean
+  /** a display link's Present, which cannot be left from inside the app (main.tsx); only its URL sets it */
+  presentLocked: boolean
   /** view-only (shared read-only link): authoring is disabled and nothing this client does reaches the shared doc */
   readOnly: boolean
   /** collaborative (room) mode: a shared Yjs doc owns the scene. Mirrors the private `collab` flag so the UI
@@ -502,10 +511,14 @@ export function initialEditorState(scene: SceneJSON | undefined, stProgram: stri
     paused: false,
     timeScale: 1,
     speedActual: null,
-    liveSharing: false,
     liveFollowing: false,
-    liveWatch: false,
+    liveWatch: null,
+    spotlightDismissed: false,
+    liveTarget: null,
+    liveViewDetached: false,
     distractionFree: false,
+    presenting: false,
+    presentLocked: false,
     readOnly: false,
     collab: false,
     listSelect: null,

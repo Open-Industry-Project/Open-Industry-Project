@@ -14,14 +14,25 @@ export interface CollabSnapshot {
   status: 'offline' | 'connecting' | 'connected'
   /** number of people in the room, including this client */
   peers: number
-  /** how many OTHER people are running their own (private) simulation preview right now */
-  previewing: number
-  /** the name of another person sharing their runs live (docs/live-share.md), or null; one shares at a time */
-  liveBy: string | null
-  /** whether that person is running now (a viewer waits between their runs) */
-  liveRunning: boolean
-  /** how many other people are watching a live run (this client's, when it is the one live) */
+  /** this client's presence id, which others name when they watch it */
+  selfId: number | null
+  /** the other people running now, whose runs can be watched (docs/live-share.md) */
+  runners: readonly Runner[]
+  /** how many other people are watching this client's run */
   watchers: number
+  /** the presence id of the room's owner, as the server vouches for it (server/roomOwners.mjs), or null */
+  owner: number | null
+  /** the owner asks everyone to watch its run */
+  spotlight: boolean
+  /** when this tab last lost (or never had) its connection to the room's server, while it is not connected; else null */
+  offlineSince: number | null
+}
+
+/** someone running, and the stream their run goes out on */
+export interface Runner {
+  id: number
+  name: string
+  stream: string
 }
 
 /** an in-progress pose of a part being dragged, streamed live (not committed to the doc) */
@@ -50,10 +61,23 @@ export interface RemotePeer {
   pilot: PilotPose | null
   /** packageId of the custom part this peer has open in the behavior editor right now (soft-lock holder), else null */
   editingPart: string | null
-  /** true while this peer shares its runs live (collab/liveShare.ts) */
-  live: boolean
-  /** true while this peer draws someone's live run */
-  watching: boolean
+  /** the stream this peer's run goes out on while it runs (collab/liveShare.ts), else null */
+  stream: string | null
+  /** the presence id of whoever this peer follows, else null */
+  watching: number | null
+  /** this peer's camera, published while someone follows them (controller/liveCamera.ts), else null */
+  view: PeerView | null
+}
+
+/** a camera as followers need it: position, orbit target, and whether it is orthographic */
+export interface PeerView {
+  px: number
+  py: number
+  pz: number
+  tx: number
+  ty: number
+  tz: number
+  ortho: boolean
 }
 
 /** a peer's first-person walk-around pose, broadcast over awareness (ephemeral, not persisted) */
@@ -78,7 +102,7 @@ interface AwarenessLike {
   on(event: 'change', cb: () => void): void
 }
 
-const OFFLINE: CollabSnapshot = { room: null, status: 'offline', peers: 0, previewing: 0, liveBy: null, liveRunning: false, watchers: 0 }
+const OFFLINE: CollabSnapshot = { room: null, status: 'offline', peers: 0, selfId: null, runners: [], watchers: 0, owner: null, spotlight: false, offlineSince: null }
 let snapshot: CollabSnapshot = OFFLINE
 const statusListeners = new Set<() => void>()
 
@@ -102,9 +126,22 @@ export function subscribeCollab(cb: () => void): () => void {
 function setStatus(next: Partial<CollabSnapshot>): void {
   // Awareness fires on every peer cursor move, and this runs on each with the same counts. A new snapshot object
   // re-rendered the whole toolbar per move (3 moving peers held a viewer at ~25 fps); publish only a real change.
-  if ((Object.keys(next) as (keyof CollabSnapshot)[]).every((k) => snapshot[k] === next[k])) return
+  if ((Object.keys(next) as (keyof CollabSnapshot)[]).every((k) => sameValue(snapshot[k], next[k]))) return
   snapshot = { ...snapshot, ...next }
   for (const cb of statusListeners) cb()
+}
+
+/** the runners list is rebuilt on every awareness change; equal contents are the same snapshot */
+const sameValue = (a: unknown, b: unknown): boolean => a === b || (Array.isArray(a) && Array.isArray(b) && JSON.stringify(a) === JSON.stringify(b))
+
+/** try the room's server again now, rather than at the provider's next retry (its back-off grows to many seconds) */
+export function retryConnection(): void {
+  void provider?.configuration.websocketProvider.connect()
+}
+
+/** who owns the room and whether they ask everyone to watch, as the server says (liveRelay.mjs `o`) */
+export function setRoomState(owner: number | null, spotlight: boolean): void {
+  setStatus({ owner, spotlight })
 }
 
 // --- remote presence (cursors + selection markers) ---
@@ -132,6 +169,8 @@ export const PRESENCE_MAX_ID_LENGTH = 64
 export const PRESENCE_MAX_NAME = 40
 const PRESENCE_DEFAULT_COLOR = '#888888'
 const COLOR_RE = /^#[0-9a-f]{6}$/i
+/** a live-share stream id, as liveShare.ts makes them and the server accepts (server/liveRelay.mjs) */
+const STREAM_RE = /^[A-Za-z0-9-]{1,64}$/
 
 const presenceId = (id: unknown): id is string =>
   typeof id === 'string' && id.length > 0 && id.length <= PRESENCE_MAX_ID_LENGTH
@@ -151,13 +190,18 @@ export function setLocalRunning(running: boolean): void {
   provider?.setAwarenessField('running', running)
 }
 
-/** publish whether this client shares its runs live, so the room can say who and offer to watch */
-export function setLocalLive(live: boolean): void {
-  provider?.setAwarenessField('live', live)
+/** publish the stream this client's run goes out on while it runs, so others can watch it */
+export function setLocalStream(stream: string | null): void {
+  provider?.setAwarenessField('stream', stream)
 }
 
-/** publish whether this client is watching a live run, so the one sharing it can see its audience */
-export function setLocalWatching(watching: boolean): void {
+/** publish this client's camera while someone follows it, or null */
+export function setLocalView(view: PeerView | null): void {
+  provider?.setAwarenessField('view', view)
+}
+
+/** publish whom this client follows, so they can see their audience and the people list can say */
+export function setLocalWatching(watching: number | null): void {
   provider?.setAwarenessField('watching', watching)
 }
 
@@ -344,6 +388,17 @@ export function presenceName(v: unknown): string {
   return name.length > 0 ? name : 'Guest'
 }
 
+/** a camera this far from the origin is no camera a scene is framed with; a follower's would be put there */
+const MAX_VIEW_COORD = 1e5
+
+/** a camera of finite, bounded coordinates, or null */
+function readView(v: unknown): PeerView | null {
+  if (!isRecord(v)) return null
+  const keys = ['px', 'py', 'pz', 'tx', 'ty', 'tz'] as const
+  if (!keys.every((k) => finite(v[k]) && Math.abs(v[k] as number) <= MAX_VIEW_COORD)) return null
+  return { px: v.px as number, py: v.py as number, pz: v.pz as number, tx: v.tx as number, ty: v.ty as number, tz: v.tz as number, ortho: v.ortho === true }
+}
+
 function readPoint(v: unknown): { x: number; y: number; z: number } | null {
   if (!isRecord(v) || !finite(v.x) || !finite(v.y) || !finite(v.z)) return null
   return { x: v.x, y: v.y, z: v.z }
@@ -406,8 +461,9 @@ export function readPeer(clientId: number, st: unknown): RemotePeer {
     pilot: readPilot(s.pilot),
     // a package id, not a part id; 256 is far past any real one and only stops a megabyte string
     editingPart: typeof s.editingPart === 'string' && s.editingPart.length <= 256 ? s.editingPart : null,
-    live: s.live === true,
-    watching: s.watching === true,
+    stream: typeof s.stream === 'string' && STREAM_RE.test(s.stream) ? s.stream : null,
+    watching: Number.isSafeInteger(s.watching) && (s.watching as number) >= 0 ? (s.watching as number) : null,
+    view: readView(s.view),
   }
 }
 
@@ -429,11 +485,12 @@ function recomputePeers(awareness: AwarenessLike): void {
  */
 export function initCollabSession(room: string, prov: HocuspocusProvider): void {
   provider = prov
-  setStatus({ room, status: 'connecting', peers: 1 })
+  setStatus({ room, status: 'connecting', peers: 1, offlineSince: Date.now() })
   prov.setAwarenessField('user', localIdentity())
 
   prov.on('status', (event: { status: string }) => {
-    setStatus({ status: event.status === 'connected' ? 'connected' : 'connecting' })
+    const connected = event.status === 'connected'
+    setStatus({ status: connected ? 'connected' : 'connecting', offlineSince: connected ? null : (snapshot.offlineSince ?? Date.now()) })
   })
 
   const awareness = prov.awareness as AwarenessLike | undefined
@@ -442,11 +499,9 @@ export function initCollabSession(room: string, prov: HocuspocusProvider): void 
       recomputePeers(awareness)
       setStatus({
         peers: Math.max(1, awareness.getStates().size),
-        // a live run is not a private preview: it is counted as live, not here
-        previewing: peers.filter((p) => p.running && !p.live).length,
-        liveBy: peers.find((p) => p.live)?.name ?? null,
-        liveRunning: peers.some((p) => p.live && p.running),
-        watchers: peers.filter((p) => p.watching).length,
+        selfId: awareness.clientID,
+        runners: peers.flatMap((p) => (p.stream !== null && p.running ? [{ id: p.clientId, name: p.name, stream: p.stream }] : [])),
+        watchers: peers.filter((p) => p.watching === awareness.clientID).length,
       })
     }
     awareness.on('change', update)

@@ -20,14 +20,15 @@
 //     counts by its /64, the block one subscriber is handed
 //   - per-message and per-document size caps (ws maxPayload + beforeHandleMessage), and a
 //     separate, much smaller cap on awareness (presence) messages
-//   - stateless messages carry only the live-share stream (liveRelay.mjs): a writer's run, relayed by the
-//     server, and a viewer's request to be caught up, answered to that viewer alone. BroadcastStateless is
-//     refused, because it would let any viewer relay arbitrary text to every connection in a room
+//   - stateless messages carry only live share (liveRelay.mjs): a writer's run, sent by the server to the
+//     connections following it, and anyone's follow and catch-up requests. BroadcastStateless is refused,
+//     because it would let any viewer relay arbitrary text to every connection in a room
 //   - idle-room GC: rooms untouched for ROOM_TTL_DAYS are deleted (daily sweep)
 //   - periodic snapshots of each active room into a `snapshots` table (restore = one
 //     UPDATE, see server/DEPLOY.md); a room whose bytes equal its newest snapshot is skipped
 //   - a room's owner token (roomOwners.mjs): the browser that shared a project may close its room, which is then
-//     deleted and refused, so Stop sharing makes its links stop working; an editor of the room cannot
+//     deleted and refused, so Stop sharing makes its links stop working, and may ask everyone to watch its run
+//     (the spotlight); an editor of the room can do neither
 //   - GET /healthz for uptime monitoring
 //   - /assets/<sha256>: the bytes of parts' embedded models, so a room's document carries only their hashes
 //     (assets.mjs: public GET by hash, PUT only with a room edit secret, capped per file and per IP per hour, and
@@ -322,6 +323,10 @@ const sqliteStore = new SQLite({
 })
 
 const live = new LiveRelay()
+/** the relay's messages for particular connections of a document, by socket id */
+const sendTo = (document, sends) => {
+  for (const c of document.getConnections()) for (const p of sends.get(c.socketId) ?? []) c.sendStateless(p)
+}
 const owners = {
   ownerOf: async (name) => (await dbGet('SELECT token_hash FROM room_owners WHERE name = $name', { $name: name }))?.token_hash ?? null,
   setOwner: (name, hash) => dbRun('INSERT OR IGNORE INTO room_owners (name, token_hash) VALUES ($name, $hash)', { $name: name, $hash: hash }),
@@ -392,9 +397,9 @@ const server = new Server({
     connIp.set(`${socketId}/${documentName}`, ip)
   },
 
-  // a connection joining while a run is shared starts from the latest snapshot and the deltas after it
+  // a connection joining is told who owns the room and whether they asked everyone to watch; runs are followed by asking
   async connected({ documentName, connection }) {
-    for (const payload of live.catchUp(documentName)) connection.sendStateless(payload)
+    for (const payload of live.joinMessages(documentName)) connection.sendStateless(payload)
   },
 
   async onStateless({ connection, documentName, document, payload }) {
@@ -408,6 +413,14 @@ const server = new Server({
         return
       }
       connection.sendStateless(result.reply)
+      // who owns the room, and the spotlight, are the relay's to keep and everyone's to know (liveRelay.mjs `o`)
+      const state =
+        result.owner !== undefined
+          ? live.setOwner(documentName, connection.socketId, result.owner)
+          : result.spotlight !== undefined
+            ? live.setSpotlight(documentName, connection.socketId, result.spotlight)
+            : null
+      if (state) document.broadcastStateless(state)
       if (result.close) {
         // everyone in it is told, then let go; their reconnects meet onConnect's refusal
         document.broadcastStateless(`${ROOM_PREFIX}closed|`)
@@ -424,12 +437,13 @@ const server = new Server({
       return
     }
     if (out.reply) for (const p of out.reply) connection.sendStateless(p)
-    if (out.broadcast) document.broadcastStateless(out.broadcast, (c) => c !== connection)
+    if (out.send) sendTo(document, out.send)
   },
 
   async onDisconnect({ socketId, documentName, document }) {
-    const ended = live.disconnected(documentName, socketId)
-    if (ended && document) document.broadcastStateless(ended)
+    const gone = live.disconnected(documentName, socketId)
+    if (document && gone.send) sendTo(document, gone.send)
+    if (document && gone.broadcast) document.broadcastStateless(gone.broadcast)
     const key = `${socketId}/${documentName}`
     const ip = connIp.get(key)
     if (ip === undefined) return

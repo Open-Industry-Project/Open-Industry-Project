@@ -1720,6 +1720,10 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     return { px: p.x, py: p.y, pz: p.z, tx: t.x, ty: t.y, tz: t.z }
   }
 
+  lookPose(): { px: number; py: number; pz: number; tx: number; ty: number; tz: number } {
+    return viewCamera.lookPose(this, this.isNavigating())
+  }
+
   private trackCameraSettle(): void {
     viewCamera.trackCameraSettle(this)
   }

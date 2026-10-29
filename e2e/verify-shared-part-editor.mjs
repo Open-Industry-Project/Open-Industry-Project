@@ -89,7 +89,7 @@ try {
 
   // ── A shares, B joins with the edit link ──
   await a.locator('button.share-button').click()
-  await a.locator('[data-testid=share-live-switch]').click()
+  await a.locator('button.share-option', { hasText: 'Can edit' }).click()
   await a.waitForFunction(() => window.__oip.store.getState().collab, undefined, { timeout: 30000 })
   await a.waitForSelector('.collab-status.connected', { timeout: 30000 })
   await a.keyboard.press('Escape')

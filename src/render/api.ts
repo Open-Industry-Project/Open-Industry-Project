@@ -572,6 +572,11 @@ export interface IRenderView {
 
   /** current camera position + orbit target, for detecting whether the view has moved */
   cameraPose(): { px: number; py: number; pz: number; tx: number; ty: number; tz: number }
+  /**
+   * The camera position + a point it really looks at: the orbit target, or, in pilot mode or a freelook flight (which
+   * turn the camera and leave the target behind), a point straight ahead. What someone following this view is shown.
+   */
+  lookPose(): { px: number; py: number; pz: number; tx: number; ty: number; tz: number }
 
   /**
    * Zoom as if `e` had reached the canvas. For DOM drawn over the scene as part of it (annotation chips):

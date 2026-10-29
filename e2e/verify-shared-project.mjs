@@ -2,9 +2,9 @@
 // shared document does elsewhere, rather than leaving them in a separate room.
 //
 // Against a real collab server, it asserts:
-//   - the Live switch shares a solo project in place; the project menu keeps its name
+//   - Share > Can edit shares a solo project in place; the project menu keeps its name
 //   - an edit in the room reaches the project in storage by itself, a moment later
-//   - Live off leaves it shared (Live is only the stream), and Stop sharing is offered
+//   - Stop sharing is offered
 //   - opening the app again opens the shared project in its room, with the edit
 //   - Stop sharing makes it the user's alone: solo, under its name, with everything done while shared, and it stays solo
 //   - Stop sharing closes the room: a collaborator in it is sent back and told, and its link no longer opens it; a room
@@ -63,6 +63,7 @@ const browser = await chromium.launch({ headless: !HEADED })
 const other = await chromium.launch({ headless: !HEADED })
 try {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write']) // Share's links copy as they share
   await ctx.addInitScript(() => localStorage.setItem('oip-web/tutorial-done', '1'))
   const page = await ctx.newPage()
   page.on('dialog', (d) => void d.accept())
@@ -75,14 +76,14 @@ try {
   await page.evaluate(() => window.__oip.store.flushAutosave())
   check('the solo project is saved', partIds(await stored(page)).includes('solo_part'))
 
-  // ── shared by the Live switch, in place ──
+  // ── shared from Share > Can edit, in place ──
   await page.locator('button.share-button').click()
-  await page.locator('[data-testid=share-live-switch]').click()
-  await page.waitForFunction(() => window.__oip.store.getState().collab && window.__oip.store.getState().liveSharing, undefined, { timeout: 30000 })
+  await page.locator('button.share-option', { hasText: 'Can edit' }).click()
+  await page.waitForFunction(() => window.__oip.store.getState().collab, undefined, { timeout: 30000 })
   await page.waitForSelector('.collab-status.connected', { timeout: 30000 })
   const room = new URL(page.url()).searchParams.get('room')
   const status = await page.locator('.share-popover-status').innerText().catch(() => '')
-  check('going live says the project is now shared', /now shared/.test(status), status)
+  check('sharing says the project is now shared', /now shared/.test(status), status)
   await page.keyboard.press('Escape')
   const m1 = await menu(page)
   check('the project menu keeps its name', m1.trim() === 'Mine', m1.replace(/\n/g, ' '))
@@ -94,11 +95,7 @@ try {
   const storedName = (await stored(page))?.name
   check('...under the project\'s own name', storedName === 'Mine', storedName)
 
-  // ── Live off: still shared ──
   await page.locator('button.share-button').click()
-  await page.locator('[data-testid=share-live-switch]').click()
-  const offStatus = await page.locator('.share-popover-status').innerText().catch(() => '')
-  check('Live off leaves the project shared, and says so', (await page.evaluate(() => window.__oip.store.getState().collab)) && /stays shared/.test(offStatus), offStatus)
   check('Stop sharing is offered', (await page.locator('[data-testid=share-stop-sharing]').count()) === 1)
   await page.keyboard.press('Escape')
 

@@ -202,15 +202,23 @@ const GATES = [
   },
   {
     script: 'verify-live-share.mjs',
-    why: "live share (docs/live-share.md): an editor's run reaches the room's other connections through the collab server's relay and is drawn without being run. A view-link tab follows the demo's run (its cargo moves, its own store stays stopped, nothing reaches its document), a tab joining mid-run starts from the server's snapshot at the same point in the run, the viewer's own Play takes the view and Stop gives it back, and the editor's Stop ends the run for everyone. Runs its own collab server on a free port; the late tab gets a browser of its own, since two tabs drawing a run starve a third one's renderer start",
+    why: "live share (docs/live-share.md): anyone running in a shared project can be watched, and the collab server sends each run only to its followers. With no Live switch, a view link waits for the owner's run and follows it (its cargo moves, its own store stays stopped, nothing reaches its document); an editor joining mid-run is offered the run and starts at the same point once it says Watch; the owner's Spotlight takes the editor to the owner's run, which it can dismiss; with two people running, the view link stays on the owner's run and can pick the other; the viewer's own Play takes the view and Stop gives it back; the owner's Stop ends the run for its followers. Runs its own collab server on a free port; the late tab gets a browser of its own, since two tabs drawing a run starve a third one's renderer start",
   },
   {
     script: 'verify-shared-part-editor.mjs',
     why: "the Part Editor and deleting parts work in a shared project without touching anyone's line (collab/bridge.ts parks it while the editor shows the part alone), proven with two people against a real collab server: New part and ✎ open the editor while the other person's line stays as it was, the new part and an edit to it reach them, their edit to the line made meanwhile lands in the parked line and is there after Back, both end with the same line, and a deleted part leaves their parts. Checked to bite: with the bridge diffing the store's scene while the editor is open, the other person's line is wiped. Runs its own collab server on a free port",
   },
   {
+    script: 'verify-collab-offline.mjs',
+    why: "a collab server that cannot be reached is explained (components/PresenceStack.tsx): a blip only says Connecting…, but past 10 s the people button says Offline and its list names the server, says the changes are kept and offers Retry, which reconnects once the server is back. Runs its own collab server on a free port and kills it",
+  },
+  {
+    script: 'verify-present.mjs',
+    why: "Present (components/PresentOverlay.tsx) is for a projector or a display: it hides the toolbar, the docks, the viewport toolbar and the orbit gizmo and the viewport fills the window; its bar fades when the mouse is still and comes back when it moves; Escape and Exit bring the editor back; a link with &present=1 opens straight into it, locked: no bar, and no key (Escape, the palette's) reaches the editor",
+  },
+  {
     script: 'verify-shared-project.mjs',
-    why: "a shared project stays the user's project (project/sharedProject.ts), so it is proven against a real collab server: Live shares a solo project in place and the project menu keeps its name, tagged Shared; an edit in the room, the owner's or a collaborator's, reaches the project in storage by itself; Live off leaves it shared; opening the app again opens it in its room; Stop sharing makes it the user's alone with everything done while shared, and it stays solo; the room keeps the edits for its links. Runs its own collab server on a free port",
+    why: "a shared project stays the user's project (project/sharedProject.ts), so it is proven against a real collab server: Share > Can edit shares a solo project in place and the project menu keeps its name, tagged Shared; an edit in the room, the owner's or a collaborator's, reaches the project in storage by itself, and Stop sharing is offered; opening the app again opens it in its room; Stop sharing makes it the user's alone with everything done while shared, and it stays solo; the room keeps the edits for its links. Runs its own collab server on a free port",
   },
   {
     script: 'verify-desktop-file-open-electron.mjs',

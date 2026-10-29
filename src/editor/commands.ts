@@ -19,7 +19,8 @@ import { openDemoScene } from './project/sceneFile'
 import { clearParkedSplitOff, downloadProject, downloadProjectDocument, exportChoicesFor, readParkedSplitOff } from './project/projectFile'
 import { saveProject } from './project/saveProject'
 import { copyRoomToProjects } from './project/roomCopy'
-import { ownSharedProject, renameSharedProject, stopSharing } from './project/sharedProject'
+import { ownSharedProject, renameSharedProject, setSpotlight, stopSharing } from './project/sharedProject'
+import { getCollabSnapshot } from '../collab/session'
 import { requestTutorial } from './tutorial/session'
 import { getOipProjectApi, openProjectFromFolder, saveProjectToFolder } from './desktop/desktopProjectBridge'
 import { supportsFolderSync } from './project/projectFolderSync'
@@ -197,6 +198,9 @@ const MSG_COPY_ROOM_CONFIRM = defineMessage(
 const MSG_COPY_ROOM_FAILED = defineMessage('command.file.copyRoom.failed', "Couldn't make the copy:\n{error}")
 const MSG_COPY_ROOM_SOLO = defineMessage('command.file.copyRoom.solo', "For a shared project someone gave you a link to: it copies it into a project of your own.")
 const MSG_STOP_SHARING_NONE = defineMessage('command.file.stopSharing.none', 'For a project of yours that is shared: it makes the project yours alone again.')
+const MSG_SPOTLIGHT_OWNER = defineMessage('command.sim.spotlight.owner', 'For the person who shared the project: it asks everyone in it to watch their run.')
+/** this tab is the owner of the shared project it is in, as the server vouches for it */
+const isRoomOwner = (c = getCollabSnapshot()): boolean => c.owner !== null && c.owner === c.selfId
 const MSG_STOP_SHARING_FAILED = defineMessage('command.file.stopSharing.failed', "Couldn't stop sharing:\n{error}")
 const MSG_SAVE_FAILED = defineMessage('command.file.saveProject.failed', "Couldn't save the project folder:\n{error}")
 const MSG_LINK_FAILED = defineMessage('command.file.linkFolder.failed', "Couldn't link the project folder:\n{error}")
@@ -923,6 +927,22 @@ const COMMAND_DEFS: readonly Command[] = [
     keys: 'pilot.enter',
     run: ({ store, state }) => (state.mode === 'pilot' ? store.exitPilot() : store.enterPilot()),
   },
+  {
+    // The owner asks everyone in the shared project to watch its run (docs/live-share.md); also on the chip and the people list
+    id: 'sim.spotlight',
+    label: 'Spotlight Me',
+    group: 'Simulation',
+    enabled: () => isRoomOwner() && !getCollabSnapshot().spotlight,
+    disabledReason: () => t(MSG_SPOTLIGHT_OWNER),
+    run: () => setSpotlight(true),
+  },
+  {
+    id: 'sim.stopSpotlight',
+    label: 'Stop Spotlight',
+    group: 'Simulation',
+    enabled: () => isRoomOwner() && getCollabSnapshot().spotlight,
+    run: () => setSpotlight(false),
+  },
   // One per rung rather than one "cycle" command: see SIM_SPEEDS. No chords - the ladder is five
   // deep and the toolbar button already owns the quick walk through it (click / Shift+click).
   ...SIM_SPEEDS.map(
@@ -936,6 +956,16 @@ const COMMAND_DEFS: readonly Command[] = [
   ),
 
   // ── View ────────────────────────────────────────────────────────────────────────────────────────
+  {
+    // Only the scene, for a projector (components/PresentOverlay.tsx), fullscreen, which only a click can ask for
+    id: 'view.present',
+    label: 'Present',
+    group: 'View',
+    run: ({ store }) => {
+      store.setState({ presenting: true })
+      void document.documentElement.requestFullscreen?.()?.catch(() => {})
+    },
+  },
   {
     id: 'view.distractionFree',
     label: 'Distraction Free Mode',

@@ -26,6 +26,7 @@ import { Inspector } from './components/Inspector'
 import { PopoutWindow } from './components/PopoutWindow'
 import { inDialogOrMenu, isEditableTarget, useKeydownEverywhere, useKeyupEverywhere } from './dialogHost'
 import { PresenceOverlay } from './components/PresenceOverlay'
+import { PresentOverlay } from './components/PresentOverlay'
 import { ModelLoadingIndicator } from './components/ModelLoadingIndicator'
 import { ViewportLoadingCover } from './components/ViewportLoadingCover'
 import { PilotHud } from './components/PilotHud'
@@ -150,8 +151,6 @@ const M = defineMessages('app', {
   tabInspect: 'Inspect',
   tabPlc: 'PLC',
   rendererUnavailable: 'Renderer unavailable: {error}',
-  previewTitle: 'Your simulation runs only in your browser. Collaborators keep seeing the shared design, not your boxes.',
-  preview: 'Previewing (only you)',
   restoreTitle: 'Restore {panel} (Esc)',
   restorePanel: 'Restore panel',
   popoutFailed: 'Could not open a separate window: {reason}.\n\nAllow pop-ups for this site and try again.',
@@ -414,6 +413,7 @@ function nullView(): IRenderView {
     isFollowing: () => false,
     isNavigating: () => false,
     cameraPose: () => ({ px: 0, py: 0, pz: 0, tx: 0, ty: 0, tz: 0 }),
+    lookPose: () => ({ px: 0, py: 0, pz: 0, tx: 0, ty: 0, tz: 0 }),
     zoomWheel() {},
     pointerDownThrough() {},
     setCameraPose() {},
@@ -1158,6 +1158,7 @@ export function App({ store, sim }: AppProps) {
     }),
     [sizes, dockTrack],
   )
+  const presenting = state.presenting // only the scene (components/PresentOverlay.tsx; its grid is in toolbar.css)
   const appStyle: CSSProperties = {
     ...(isMobile
       ? {
@@ -1177,7 +1178,7 @@ export function App({ store, sim }: AppProps) {
 
   // desktop docks render in the grid; on mobile they move into the drawer below.
   // A maximized panel owns the whole shell, so the docks stand down for it too.
-  const showDocks = !isMobile && !df && !maxPanel
+  const showDocks = !isMobile && !df && !maxPanel && !presenting
 
   // render a movable panel's content for whichever dock slot currently holds it
   const renderDockPanel = (panel: DockPanelId) => {
@@ -1269,7 +1270,7 @@ export function App({ store, sim }: AppProps) {
   }
 
   // pilot mode owns the screen - hide the mobile chrome while walking around
-  const showMobileChrome = isMobile && state.mode !== 'pilot'
+  const showMobileChrome = isMobile && state.mode !== 'pilot' && !presenting
 
   // The PLC sheet, unless the ST panel is in an OS window of its own. A phone can't reach that state,
   // but a desktop window narrowed past the mobile breakpoint with a popout already open can. Mounting the
@@ -1283,10 +1284,10 @@ export function App({ store, sim }: AppProps) {
   // bar hidden, the toolbar is the title bar (drag region + room for the window buttons).
   return (
     <div
-      className={`app${isMobile ? ' mobile' : ''}${isPhone ? ' phone' : ''}${DESKTOP_SHELL ? ' desktop-shell' : ''}${DESKTOP_MAC ? ' desktop-mac' : ''}`}
+      className={`app${isMobile ? ' mobile' : ''}${isPhone ? ' phone' : ''}${DESKTOP_SHELL ? ' desktop-shell' : ''}${DESKTOP_MAC ? ' desktop-mac' : ''}${presenting ? ' presenting' : ''}`}
       style={appStyle}
     >
-      <Toolbar store={store} state={state} controller={controller} />
+      {!presenting && <Toolbar store={store} state={state} controller={controller} />}
       {renderDockColumn({
         side: 'left',
         topId: 'leftTop',
@@ -1327,8 +1328,9 @@ export function App({ store, sim }: AppProps) {
         }}
       >
         {viewError && <div className="viewport-fallback">{t(M.rendererUnavailable, { error: viewError })}</div>}
-        {state.mode !== 'pilot' && !isPhone && <ViewportToolbar store={store} state={state} controller={controller} />}
-        {state.showStats && (
+        {state.mode !== 'pilot' && !isPhone && !presenting && <ViewportToolbar store={store} state={state} controller={controller} />}
+        {presenting && <PresentOverlay store={store} state={state} />}
+        {state.showStats && !presenting && (
           <StatsOverlay frameStats={frameStats} controller={controller} view={view} running={state.running} simHz={state.simHz} timeScale={state.timeScale} />
         )}
         {benchEnabled && <BenchOverlay run={benchRun} recovered={benchRecovered} />}
@@ -1336,35 +1338,26 @@ export function App({ store, sim }: AppProps) {
             labels is half of what they are for */}
         <AnnotationOverlay store={store} view={view} controller={controller} show={state.showNotes} />
         <ViewportSelectMenu store={store} state={state} />
-        {state.mode !== 'pilot' && <FollowBadge following={state.following} controller={controller} />}
-        <GuardOpeningsBanner store={store} state={state} />
-        {state.viewportHint && <ViewportHint hint={state.viewportHint} store={store} pilot={state.mode === 'pilot'} />}
+        {state.mode !== 'pilot' && !presenting && <FollowBadge following={state.following} controller={controller} />}
+        {!presenting && <GuardOpeningsBanner store={store} state={state} />}
+        {state.viewportHint && !presenting && <ViewportHint hint={state.viewportHint} store={store} pilot={state.mode === 'pilot'} />}
         {state.mode === 'pilot' && <PilotHud prompt={state.pilotPrompt} />}
         {state.mode === 'pilot' && isTouch && view && (
           <PilotTouchControls view={view} store={store} prompt={state.pilotPrompt} />
         )}
         {/* the toolbar's pilot button is hidden on the mobile layout; give touch users this FAB
             instead. Large touch tablets keep the toolbar button (room to spare), so no FAB there. */}
-        {state.mode !== 'pilot' && isMobile && isTouch && <PilotFab store={store} />}
+        {state.mode !== 'pilot' && !presenting && isMobile && isTouch && <PilotFab store={store} />}
         <ModelLoadingIndicator />
         {/* an agent's call in flight, and the review of its edits (docs/agent-tools.md, "Working beside a person"):
             in the viewport's corner, never over a dock it would cover */}
-        {agentSession && agentCalled && (
+        {agentSession && agentCalled && !presenting && (
           <Suspense fallback={null}>
             <AgentActivity session={agentSession} store={store} state={state} controller={controller} />
           </Suspense>
         )}
         {!viewError && <ViewportLoadingCover />}
-        {view && getCollabContext() && <PresenceOverlay view={view} />}
-        {getCollabContext() && state.running && (
-          <div
-            className="preview-badge"
-            title={t(M.previewTitle)}
-          >
-            <span className="preview-dot" aria-hidden="true" />
-            {t(M.preview)}
-          </div>
-        )}
+        {view && getCollabContext() && !presenting && <PresenceOverlay view={view} />}
       </div>
       {/* The maximized panel: same grid cell as the viewport, painted over it (see the CSS).
           Rendered here - after the viewport, before the right columns - so DOM order alone

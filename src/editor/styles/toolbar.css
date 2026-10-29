@@ -600,7 +600,7 @@ button:disabled {
 }
 
 
-/* live share beside the transport (Toolbar LiveControl): live, watching someone, or an offer to watch */
+/* live share beside the transport (Toolbar LiveControl): watched, spotlit, watching someone, waiting, or an offer to watch */
 .live-chip {
   display: inline-flex;
   align-items: center;
@@ -616,9 +616,11 @@ button:disabled {
   white-space: nowrap;
 }
 
-.live-chip.on {
-  text-transform: uppercase;
-  cursor: pointer;
+
+/* the owner running with nobody watching yet: only the Spotlight button shows */
+.live-chip.idle:not(.on) {
+  background: transparent;
+  padding: 3px 4px;
 }
 
 .live-chip.on::before,
@@ -646,11 +648,21 @@ button:disabled {
   background: transparent;
 }
 
-/* a stream that just ended (Toolbar LiveControl): grey, no dot, gone after a few seconds */
-.live-chip.ended {
-  background: transparent;
-  border-color: var(--line);
-  color: var(--text-dim);
+/* For a display, under Can view (Toolbar): the same access started another way, so it sits close under that row with a
+   smaller icon, in a slot as wide as the others so the text lines up */
+.share-popover .share-sub-option {
+  margin-top: -4px;
+  padding-top: 2px;
+}
+
+.share-popover .share-sub-option .share-option-icon {
+  width: 16px;
+  justify-content: center;
+}
+
+.share-popover .share-sub-option .share-option-label {
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* Back to the project (Toolbar backToProject): no icon of its own, so its text lines up with the options' text */
@@ -677,8 +689,25 @@ button:disabled {
   background: transparent;
 }
 
-.live-chip.offer:hover,
-.live-chip.on:hover {
+.live-chip.offer:hover {
+  background: rgba(214, 97, 107, 0.22);
+}
+
+/* Spotlight and Stop inside the chip (the owner's) */
+.live-chip-action {
+  margin: -1px -6px -1px 2px;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.live-chip-action:hover {
   background: rgba(214, 97, 107, 0.22);
 }
 
@@ -760,6 +789,24 @@ button:disabled {
   box-shadow: 0 0 0 2px #d6616b;
 }
 
+/* a connection failing for longer than a blip (PresenceStack) */
+.people-offline {
+  margin: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: light-dark(#b23a46, #ffaab2);
+}
+
+.people-offline-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
 .people-more {
   margin-left: 4px;
   font-size: 11px;
@@ -771,7 +818,9 @@ button:disabled {
   top: calc(100% + 6px);
   right: 0;
   z-index: 40;
-  width: 260px;
+  /* room for a name beside what they are doing and a Watch or Spotlight me button */
+  width: 300px;
+  max-width: calc(100vw - 16px);
   padding: 6px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -795,7 +844,7 @@ button:disabled {
 
 .people-name {
   flex: 1;
-  min-width: 0;
+  min-width: 4em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -809,4 +858,128 @@ button:disabled {
 
 .people-doing.live {
   color: light-dark(#b23a46, #ffaab2);
+}
+
+/* Watch beside someone running, and the owner's Spotlight me (PresenceStack) */
+.people-action {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid rgba(214, 97, 107, 0.45);
+  border-radius: 999px;
+  background: transparent;
+  color: light-dark(#b23a46, #ffaab2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.people-action:hover:not(:disabled),
+.people-action.on {
+  background: rgba(214, 97, 107, 0.16);
+}
+
+.people-action:disabled {
+  cursor: default;
+}
+
+/* Present (components/PresentOverlay.tsx): only the scene, so the grid is the viewport alone (over App.tsx's inline
+   grid, hence the !important), and the orbit gizmo, the view's own canvas, is hidden */
+.app.presenting {
+  grid-template: 'viewport' minmax(0, 1fr) / minmax(0, 1fr) !important;
+}
+
+.app.presenting .orbit-gizmo {
+  display: none;
+}
+
+.present-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+/* the bar and the chip fade while the mouse is still; Back to the view does not */
+.present-bar,
+.present-chip {
+  transition: opacity 0.4s ease;
+}
+
+.present-overlay:not(.shown) .present-bar,
+.present-overlay:not(.shown) .present-chip {
+  opacity: 0;
+}
+
+.present-bar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 0 0 10px 10px;
+  background: light-dark(rgba(255, 255, 255, 0.85), rgba(20, 22, 26, 0.72));
+  color: light-dark(#1d2026, #f2f3f5);
+  font-size: 12px;
+}
+
+.present-overlay.shown .present-bar {
+  pointer-events: auto;
+}
+
+.present-exit {
+  padding: 3px 12px;
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.3), rgba(255, 255, 255, 0.4));
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.present-exit:hover {
+  background: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.14));
+}
+
+.present-chip {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: light-dark(rgba(255, 255, 255, 0.85), rgba(20, 22, 26, 0.72));
+  color: light-dark(#1d2026, #f2f3f5);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* back to the followed view, once a visitor moved the camera; it stays while the view is its own, faded or not */
+.present-back {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border: none;
+  border-radius: 999px;
+  background: light-dark(rgba(255, 255, 255, 0.92), rgba(20, 22, 26, 0.85));
+  color: light-dark(#1d2026, #f2f3f5);
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+body.present-idle .app.presenting,
+body.present-idle .app.presenting * {
+  cursor: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .present-bar,
+  .present-chip {
+    transition: none;
+  }
 }

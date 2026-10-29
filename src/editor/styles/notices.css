@@ -63,44 +63,6 @@
   transform: translate(-50%, -100%);
 }
 
-/* "Previewing - only you" badge: a private sim run is visible only to the runner */
-.preview-badge {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 12px;
-  border-radius: 14px;
-  background: rgba(46, 111, 139, 0.92);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  box-shadow: 0 2px 8px light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.4));
-  pointer-events: none;
-  z-index: 7;
-}
-
-.preview-badge .preview-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #8fe3ff;
-  animation: preview-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes preview-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
 /* "Following X" badge: double-F follow mode is tracking the selection. Sits top-left below the
    viewport toolbar (an information overlay); clicking it stops following. */
 .follow-badge {

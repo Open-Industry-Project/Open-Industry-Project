@@ -11,6 +11,7 @@ import { partDisplayName } from '../../../core/parts/partDisplayName'
 import { InspectorHeader } from './header'
 import { getCommand, runCommand } from '../../commands'
 import { defineMessages, t } from '../../../core/i18n'
+import { ownSharedProject } from '../../project/sharedProject'
 
 const M = defineMessages('inspector.scene', {
   runToSee: 'Run the scene to see what this rate costs on this machine.',
@@ -138,7 +139,9 @@ export function PartSceneProperties({ store, state, partId }: { store: EditorSto
 }
 
 export function SceneProperties({ store, state, controller }: { store: EditorStore; state: EditorState; controller: EditorController | null }): ReactElement {
-  const name = state.demoSession ? t(M.demo) : state.projectName
+  // in a shared project of this browser's own (the demo included) the name is what it shared, as the project menu says
+  const own = state.collab ? ownSharedProject() : null
+  const name = state.demoSession ? t(M.demo) : (own?.project ?? state.projectName)
   const runHz = state.running ? (controller?.sim.runHz ?? null) : null
   const units = sceneUnits(state.scene)
   const [last, setLast] = useState<UnitsSwitch | null>(null)
