@@ -276,6 +276,17 @@ export function setRigJoint(
   ec.store.commitPackage(joint ? 'Edit joint' : 'Remove joint', { ...pkg, geometry: { ...pkg.geometry, joints } })
 }
 
+/** The rig edits the Inspector calls, bound to the controller (EditorController.rig, kept off the class itself). */
+export function rigEdits(ec: AuthoringDeps) {
+  return {
+    splitRigMeshNode: (packageId: string, sourceLinkName: string, glbNode: string, parentLinkName: string): boolean =>
+      splitRigMeshNode(ec, packageId, sourceLinkName, glbNode, parentLinkName),
+    setRigJointPivot: (packageId: string, linkName: string, pivot: [number, number, number]): boolean => setRigJointPivot(ec, packageId, linkName, pivot),
+    mergeRigPiece: (packageId: string, linkName: string): boolean => mergeRigPiece(ec, packageId, linkName),
+    reparentRigLink: (packageId: string, linkName: string, parent: string | undefined): boolean => reparentRigLink(ec, packageId, linkName, parent),
+  }
+}
+
 /**
  * Reconstruct a part's manifest from its live package so geometry/assets/materials stay the source of
  * truth; validatePart re-bakes the param schema from the behavior, exactly like a hand-authored folder.

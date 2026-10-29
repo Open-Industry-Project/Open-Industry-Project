@@ -1010,31 +1010,14 @@ export class EditorController {
     authoringOps.deleteRigNode(this, packageId, linkName)
   }
 
-  /**
-   * Author mode: add, edit, or remove (pass null) the kinematic joint that drives a link. A joint makes
-   * the node articulated - the part's behavior script commands it by name via ctx.setJoint(name, value). The
-   * joint name is kept stable across edits so an existing setJoint reference stays valid. Applied live.
-   */
+  /** Author mode: add, edit, or remove (null) the joint that drives a link; the behavior commands it by name
+   *  via ctx.setJoint, and the name stays stable across edits so those references stay valid. Applied live. */
   setRigJoint(packageId: string, linkName: string, joint: Parameters<typeof authoringOps.setRigJoint>[3]): void {
     authoringOps.setRigJoint(this, packageId, linkName, joint)
   }
 
-  /** Author mode: split a GLB node out of a whole-scene mesh link into a child of `parentLinkName` (rigSplit.ts). */
-  splitRigMeshNode(packageId: string, sourceLinkName: string, glbNode: string, parentLinkName: string): boolean {
-    return authoringOps.splitRigMeshNode(this, packageId, sourceLinkName, glbNode, parentLinkName)
-  }
-  /** Author mode: move a joint's pivot to a point in part coordinates, rest pose unchanged (rigSplit.ts). */
-  setRigJointPivot(packageId: string, linkName: string, pivot: [number, number, number]): boolean {
-    return authoringOps.setRigJointPivot(this, packageId, linkName, pivot)
-  }
-  /** Author mode: undo a split, putting the piece back into the model node it came from (rigSplit.ts). */
-  mergeRigPiece(packageId: string, linkName: string): boolean {
-    return authoringOps.mergeRigPiece(this, packageId, linkName)
-  }
-  /** Author mode: move a node under another (undefined = the root), staying in place (rigSplit.ts). */
-  reparentRigLink(packageId: string, linkName: string, parent: string | undefined): boolean {
-    return authoringOps.reparentRigLink(this, packageId, linkName, parent)
-  }
+  /** Author mode: the Part Editor's rig edits (split, pivot, merge back, parent), in controller/partAuthoring.ts. */
+  readonly rig = authoringOps.rigEdits(this)
 
   /**
    * Author mode (in-browser behavior editor): validate a candidate behavior script against the part's own

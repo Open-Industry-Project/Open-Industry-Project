@@ -575,7 +575,7 @@ export function RigNodePanel({
   }, [pkgAssets])
   const pivot = rig && joint ? rigPivot(rig, link.name) : null
   const setPivot = (p: [number, number, number]): void => {
-    controller?.setRigJointPivot(part.packageId, link.name, p)
+    controller?.rig.setRigJointPivot(part.packageId, link.name, p)
   }
   const centrePivot = (): void => {
     if (!rig) return
@@ -751,7 +751,7 @@ export function RigNodePanel({
                 data-testid="rig-parent"
                 value={link.parent ?? ''}
                 title={t(M.parentSelectTip)}
-                onChange={(e) => controller?.reparentRigLink(part.packageId, link.name, e.target.value === '' ? undefined : e.target.value)}
+                onChange={(e) => controller?.rig.reparentRigLink(part.packageId, link.name, e.target.value === '' ? undefined : e.target.value)}
               >
                 {parentOptions.map((p) => (
                   <option key={p ?? ''} value={p ?? ''}>
@@ -970,7 +970,7 @@ export function RigNodePanel({
                 data-testid="merge-piece"
                 disabled={!editable}
                 title={t(M.mergeBackTip, { node: link.shape.keepNode ?? '', source: mergeSource.name })}
-                onClick={() => controller?.mergeRigPiece(part.packageId, link.name)}
+                onClick={() => controller?.rig.mergeRigPiece(part.packageId, link.name)}
               >
                 {t(M.mergeBack)}
               </button>
@@ -985,7 +985,7 @@ export function RigNodePanel({
                   className="glb-chip"
                   disabled={!editable}
                   title={t(M.splitPieceTip, { node: n })}
-                  onClick={() => controller?.splitRigMeshNode(part.packageId, splitSource.name, n, link.name)}
+                  onClick={() => controller?.rig.splitRigMeshNode(part.packageId, splitSource.name, n, link.name)}
                 >
                   {n}
                 </button>
