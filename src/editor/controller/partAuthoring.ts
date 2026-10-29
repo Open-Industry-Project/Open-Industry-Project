@@ -205,8 +205,16 @@ export function setRigJoint(
   const others = all.filter((j) => j.link !== linkName)
   let joints: RigJoint[] = others
   if (joint) {
-    const name = all.find((j) => j.link === linkName)?.name ?? `${linkName}-joint`
-    joints = [...others, { name, link: linkName, type: joint.type, axis: joint.axis, min: joint.min, max: joint.max }]
+    const existing = all.find((j) => j.link === linkName)
+    const name = existing?.name ?? `${linkName}-joint`
+    // the fields the panel does not edit (servo, rest, cosmetic, param limits) survive an edit of the ones it does
+    const next: RigJoint = { ...existing, name, link: linkName, type: joint.type, axis: joint.axis, min: joint.min, max: joint.max }
+    // only a revolute joint can wrap
+    if (next.type !== 'revolute' && next.servo?.modulo !== undefined) {
+      const { modulo: _modulo, ...servo } = next.servo
+      next.servo = servo
+    }
+    joints = [...others, next]
   }
   ec.store.commitPackage(joint ? 'Edit joint' : 'Remove joint', { ...pkg, geometry: { ...pkg.geometry, joints } })
 }
