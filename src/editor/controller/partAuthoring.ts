@@ -202,19 +202,23 @@ export function setRigJoint(
   const pkg = getPackage(packageId)
   if (!pkg || pkg.geometry.kind !== 'rig') return
   const all = pkg.geometry.joints
-  const others = all.filter((j) => j.link !== linkName)
-  let joints: RigJoint[] = others
+  const existing = all.find((j) => j.link === linkName)
+  let joints: RigJoint[] = all.filter((j) => j.link !== linkName)
   if (joint) {
-    const existing = all.find((j) => j.link === linkName)
     const name = existing?.name ?? `${linkName}-joint`
     // the fields the panel does not edit (servo, rest, cosmetic, param limits) survive an edit of the ones it does
-    const next: RigJoint = { ...existing, name, link: linkName, type: joint.type, axis: joint.axis, min: joint.min, max: joint.max }
-    // only a revolute joint can wrap
-    if (next.type !== 'revolute' && next.servo?.modulo !== undefined) {
+    let next: RigJoint = { ...existing, name, link: linkName, type: joint.type, axis: joint.axis, min: joint.min, max: joint.max }
+    if (existing && existing.type !== joint.type) {
+      // servo caps, rest and param limits are in the joint's unit (radians or metres), so a new type clears them
+      const { servo: _servo, rest: _rest, minParam: _minParam, maxParam: _maxParam, ...kept } = next
+      next = kept
+    } else if (next.servo?.modulo !== undefined && (next.min > 0 || next.max < next.servo.modulo)) {
+      // a wrapping servo's limits must cover 0 to modulo, so narrower limits stop the wrap
       const { modulo: _modulo, ...servo } = next.servo
       next.servo = servo
     }
-    joints = [...others, next]
+    // in place: the idle pose rows and the servo list follow the joints' order
+    joints = existing ? all.map((j) => (j === existing ? next : j)) : [...joints, next]
   }
   ec.store.commitPackage(joint ? 'Edit joint' : 'Remove joint', { ...pkg, geometry: { ...pkg.geometry, joints } })
 }
