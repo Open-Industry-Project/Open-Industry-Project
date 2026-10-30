@@ -13,5 +13,13 @@ The first public source release. The [README](README.md#features) lists what it 
 - An external PLC link over SLMP (MELSEC 3E binary frames): a Q, L, iQ-R or iQ-F CPU reads and
   writes the scene's tags as its own devices (`M10`, `Y0`, `D100`, `B1A`, `W10`, `TN5`), with a
   connection guide ([guides/slmp/](guides/slmp/)).
+- Part Editor: **Split into pieces** turns an imported model's nodes into their own nodes without importing it
+  again, and a revolute joint's **Pivot** (with **Pivot at centre**) sets the point it turns about. A split piece
+  can be merged back, any node can change **Parent** in place, **Test motion** sweeps a joint between its limits and **Position** drags it by hand,
+  lengths can be shown in m, cm or mm, and a revolute joint can **spin endlessly** at a set rpm (a wrapping servo).
+  A joint's **PLC control** can be set to **Two positions**, which writes a behavior with a BOOL command tag, two
+  end-position tags and a stroke time, so a PLC moves the joint with no code in the part, and a spinning joint's to
+  **Spin**, with a run tag, a speed tag in rpm and an at-speed tag.
+  Editing a joint in the panel no longer drops its `servo`, `rest`, `cosmetic` or param-driven limits.
 
 Earlier development history is not part of this repository.

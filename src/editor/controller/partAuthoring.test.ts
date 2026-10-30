@@ -78,4 +78,14 @@ describe('setRigJoint', () => {
     const pkg = edit({ type: 'revolute', axis: [0, 1, 0], min: -0.5, max: 0.5 })
     expect(pkg.geometry.kind === 'rig' && pkg.geometry.joints.map((j) => j.name)).toEqual(['shoulder', 'wrist'])
   })
+
+  it('takes a servo the panel sets (Spins endlessly), and clears it on null', () => {
+    register({ name: 'spindle', link: 'arm', type: 'revolute', axis: [0, 1, 0], min: -1, max: 1 })
+    const servo = { maxVelocity: turn, maxAccel: 2 * turn, modulo: turn }
+    const on = edit({ type: 'revolute', axis: [0, 1, 0], min: 0, max: turn, servo })
+    expect(on.geometry.kind === 'rig' && on.geometry.joints[0]!.servo).toEqual(servo)
+    register({ name: 'spindle', link: 'arm', type: 'revolute', axis: [0, 1, 0], min: 0, max: turn, servo })
+    const off = edit({ type: 'revolute', axis: [0, 1, 0], min: -1, max: 1, servo: null })
+    expect(off.geometry.kind === 'rig' && off.geometry.joints[0]!.servo).toBeUndefined()
+  })
 })

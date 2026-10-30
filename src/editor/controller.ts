@@ -1010,14 +1010,14 @@ export class EditorController {
     authoringOps.deleteRigNode(this, packageId, linkName)
   }
 
-  /**
-   * Author mode: add, edit, or remove (pass null) the kinematic joint that drives a link. A joint makes
-   * the node articulated - the part's behavior script commands it by name via ctx.setJoint(name, value). The
-   * joint name is kept stable across edits so an existing setJoint reference stays valid. Applied live.
-   */
-  setRigJoint(packageId: string, linkName: string, joint: { type: 'revolute' | 'prismatic'; axis: [number, number, number]; min: number; max: number } | null): void {
+  /** Author mode: add, edit, or remove (null) the joint that drives a link; the behavior commands it by name
+   *  via ctx.setJoint, and the name stays stable across edits so those references stay valid. Applied live. */
+  setRigJoint(packageId: string, linkName: string, joint: Parameters<typeof authoringOps.setRigJoint>[3]): void {
     authoringOps.setRigJoint(this, packageId, linkName, joint)
   }
+
+  /** Author mode: the Part Editor's rig edits (split, pivot, merge back, parent, PLC control), in controller/partAuthoring.ts. */
+  readonly rig = authoringOps.rigEdits(this)
 
   /**
    * Author mode (in-browser behavior editor): validate a candidate behavior script against the part's own

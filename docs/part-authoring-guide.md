@@ -1005,6 +1005,45 @@ from the `inspect-glb` boxes before choosing the range.
   indicator head) is outside the footprint. Leave the handle off a param that is not the whole extent, and tie
   `bounds` to it with `bounds.params` instead.
 
+#### Carving in the editor
+
+The Part Editor writes the same carving for you. Import the model onto a node (**Import model…**), then:
+
+1. **Split into pieces** on that node lists the model's nodes. Click one to give it its own node: the model
+   node hides it (`hideNodes`) and the new node keeps only it (`keepNode`) from the same asset, at the offset
+   that keeps it in place. Nothing is imported twice.
+2. To make several pieces move together, select the first split piece and click the others under its own
+   **Split into pieces**. They become its children and follow its joint.
+3. **Add joint** on the piece and set its type, axis and limits.
+4. For a revolute joint, **Pivot** sets the point it turns about, in part coordinates, and **Pivot at centre**
+   puts it at the centre of everything the joint moves. A node that draws something gets a `frame` inserted
+   above it to carry the joint, with the same joint name, so the rest pose and the behavior script are unchanged.
+
+5. **Test motion** moves the joint from Min to Max and back twice, then returns it to rest, without running the
+   simulation or writing anything to the part. **Position** poses it by hand: drag across the field between Min
+   and Max (0 to 360° for a spinning joint), or type a value. Both go back to rest when another node is selected.
+6. **Spins endlessly** on a revolute joint makes it a wrapping servo (`servo.modulo` 2π, limits 0 to 2π) with a
+   **Speed** in rpm (`maxVelocity`) and a **Spin-up time** (`maxVelocity / maxAccel`). A servo is posed by the host,
+   so the behavior runs it with `ctx.servos[name].moveVelocity(...)` instead of `setJoint`. The panel shows those
+   lines with the speed filled in. Test motion then turns it at that speed.
+7. **PLC control** sets how a PLC moves the joint without code. **None** (the default) leaves the behavior to you.
+   **Two positions** writes the whole behavior script: per joint, a BOOL `Command (to B)` tag in, `At A` and `At B`
+   BOOL tags out and a **Stroke time** (s). The joint moves from A (Min) to B (Max) at a constant speed while the
+   command is TRUE and back while it is FALSE. On each placed copy the Comms fields name the PLC variables (`ToB`
+   for the built-in PLC, `MAIN.ToB` over ADS). On a joint that spins endlessly the mode is **Spin** instead: a BOOL
+   `Run` tag in (TRUE spins), an optional REAL `Speed (rpm)` tag in (empty: the copy's own Speed, up to the joint's
+   Speed), and a BOOL `At speed` tag out; the host runs the servo. The script keeps its settings on an `// oip-panel` line and is
+   written again when a joint's PLC control or limits change, so edits to it are lost. A script you wrote is replaced
+   only after a confirm, and setting every joint back to None gives the empty template.
+
+A piece split under the wrong node can be fixed two ways. **Merge back into model** puts it back into the model
+node and removes it with its joint, and the pieces under it move up. **Parent** moves any node under another one,
+changing its offset so it stays where it is. **Length unit** (in the Joint section) shows the panel's lengths in
+m, cm or mm. The part always stores metres.
+
+Pieces are offered only where they still line up: the nodes between the model node and the selected node must
+carry plain offsets (no rotation, no param-driven placement).
+
 ### 4. Behavior and verify
 
 Drive the joint from a tag as a primitive rig does (`ctx.setJoint`, gated on `tagDriven`; see
