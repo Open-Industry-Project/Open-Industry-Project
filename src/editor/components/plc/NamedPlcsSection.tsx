@@ -17,7 +17,7 @@ import type { PlcSetupController } from '../../store/storePlcs'
 import { MAX_NAMED_PLCS, servePortClash } from '../../store/storePrefs'
 import { statusLine } from '../../links/externalPlcStatus'
 import { plcOfProgram } from '../../../plc'
-import { CommitField, PlcLinkFields, useLinkStatus, WHY_NOT } from './ExternalPlcSection'
+import { CommitField, ConnectionsButton, PlcLinkFields, useLinkStatus, WHY_NOT } from './ExternalPlcSection'
 import { UaServerFields, UaServerHead, useServerStatus } from './OpcUaServerSection'
 import { defineMessages, t } from '../../../core/i18n'
 
@@ -37,6 +37,8 @@ const M = defineMessages('namedPlcs', {
   instances: { one: 'Runs {list}.', other: 'Runs {list}.' },
   noInstances: "Runs no program instance yet: put one on a task of this controller's (the organizer's Tasks, or the instance's Program Properties).",
   connectTitle: "On Play, connect this PLC and hand it the tags that start with this controller's name",
+  connections: 'PLC connections…',
+  connectionsTitle: "Wire the scene's machines to this PLC's variables by picking both",
   remove: 'Remove',
   removeTitle: 'Remove this controller from the project. The parts keep their tags.',
   name: 'Name',
@@ -57,7 +59,7 @@ const M = defineMessages('namedPlcs', {
   settingsTitle: 'How this PLC connects, and what Play hands it',
 })
 
-export function NamedPlcsSection({ store, state, controller }: { store: EditorStore; state: EditorState; controller: EditorController }): ReactElement {
+export function NamedPlcsSection({ store, state, controller, onConnections }: { store: EditorStore; state: EditorState; controller: EditorController; onConnections?: (name: string) => void }): ReactElement {
   const available = controller.externalPlcAvailable
   const locked = state.running || state.readOnly
   const controllers = state.externalPlc.controllers
@@ -117,6 +119,7 @@ export function NamedPlcsSection({ store, state, controller }: { store: EditorSt
           open={openName === c.name}
           onToggle={() => setOpenName(openName === c.name ? null : c.name)}
           onRenamed={(to) => openName === c.name && setOpenName(to)}
+          onConnections={onConnections ? () => onConnections(c.name) : undefined}
         />
       ))}
       <div className="ctl-ext-row">
@@ -163,10 +166,12 @@ interface NamedPlcProps {
   open: boolean
   onToggle: () => void
   onRenamed: (to: string) => void
+  /** open PLC Connections for this controller; offered while it is a PLC over ADS */
+  onConnections?: () => void
 }
 
 /** One named controller: its name, whether Play connects it, its link's state in a line, and its settings when open. */
-function NamedPlc({ store, state, controller, link, locked, available, open, onToggle, onRenamed }: NamedPlcProps): ReactElement {
+function NamedPlc({ store, state, controller, link, locked, available, open, onToggle, onRenamed, onConnections }: NamedPlcProps): ReactElement {
   // the simulator runs it: no link, and no network needed, so a browser tab runs it too
   const simulated = link.runsOn === 'app'
   const linked = !simulated && link.enabled && available
@@ -216,6 +221,9 @@ function NamedPlc({ store, state, controller, link, locked, available, open, onT
         <button type="button" className="ctl-btn" title={t(M.removeTitle)} disabled={locked} onClick={() => store.setNamedPlc(link.name, null)} data-testid={`${tid}-remove`}>
           {t(M.remove)}
         </button>
+        {onConnections && !simulated && link.mode === 'ads' && available && (
+          <ConnectionsButton title={t(M.connectionsTitle)} label={t(M.connections)} onClick={onConnections} testId={`${tid}-connections`} />
+        )}
       </div>
       {refused !== null && (
         <div className="ctl-problem" data-testid={`${tid}-rename-refused`}>

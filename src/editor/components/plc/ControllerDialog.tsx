@@ -7,7 +7,6 @@ import type { EditorState, EditorStore } from '../../store/store'
 import { ExternalPlcSection, WHY_NOT as PLC_WHY_NOT } from './ExternalPlcSection'
 import { NamedPlcsSection } from './NamedPlcsSection'
 import { PlcConnectionsWindow } from './PlcConnectionsWindow'
-import { browsableControllers } from '../../program/plcConnections'
 import { OpcUaServerSection, WHY_NOT as SERVER_WHY_NOT } from './OpcUaServerSection'
 import { trapTab, useModalKeys } from '../inspector/menu'
 import { CloseIcon } from '../toolbarIcons'
@@ -19,8 +18,6 @@ const M = defineMessages('controllerDialog', {
   title: 'Controller Properties',
   close: 'Close',
   done: 'Done',
-  connections: 'PLC connections…',
-  connectionsTitle: "Wire the scene's machines to the PLC's variables by picking both",
 })
 
 // Controller Properties: where the program runs. Opened from the organizer's Controller node (double-click, or its
@@ -47,8 +44,8 @@ function desktopOnly(controller: EditorController): string | null {
 
 export function ControllerDialog({ store, state, controller, onClose }: { store: EditorStore; state: EditorState; controller: EditorController; onClose: () => void }): ReactElement {
   const ref = useRef<HTMLDivElement>(null)
-  // PLC Connections in this dialog's place: a PLC over ADS can list its variables, which it shows beside the machines
-  const [wiring, setWiring] = useState(false)
+  // PLC Connections for one controller (null: the default one) in this dialog's place, from the button beside its name
+  const [wiring, setWiring] = useState<{ plc: string | null } | null>(null)
   // opened where the user is: the popped-out PLC window, when that is where they asked for it
   const [host] = useState(dialogHost)
   // the modal owns every key at the window (capture), so a field never sees its own Enter: commit it from here by taking
@@ -63,7 +60,7 @@ export function ControllerDialog({ store, state, controller, onClose }: { store:
     } else if (ref.current) trapTab(ref.current, e)
   })
   const notice = desktopOnly(controller)
-  if (wiring) return <PlcConnectionsWindow store={store} state={state} controller={controller} onClose={() => setWiring(false)} />
+  if (wiring) return <PlcConnectionsWindow store={store} state={state} controller={controller} plcName={wiring.plc} onClose={() => setWiring(null)} />
   return createPortal(
     <div className="author-backdrop" onPointerDown={onClose} onClick={(e) => e.stopPropagation()}>
       <div ref={ref} className="author-dialog controller-dialog" role="dialog" aria-label={t(M.title)} data-testid="controller-props" onPointerDown={(e) => e.stopPropagation()}>
@@ -79,15 +76,16 @@ export function ControllerDialog({ store, state, controller, onClose }: { store:
               {notice}
             </div>
           )}
-          <ExternalPlcSection store={store} state={state} controller={controller} server={<OpcUaServerSection store={store} state={state} controller={controller} />} />
-          <NamedPlcsSection store={store} state={state} controller={controller} />
+          <ExternalPlcSection
+            store={store}
+            state={state}
+            controller={controller}
+            server={<OpcUaServerSection store={store} state={state} controller={controller} />}
+            onConnections={() => setWiring({ plc: null })}
+          />
+          <NamedPlcsSection store={store} state={state} controller={controller} onConnections={(plc) => setWiring({ plc })} />
         </div>
         <div className="props-foot">
-          {browsableControllers(state.externalPlc).length > 0 && (
-            <button title={t(M.connectionsTitle)} onClick={() => setWiring(true)} data-testid="controller-props-connections">
-              {t(M.connections)}
-            </button>
-          )}
           <button className="props-ok" data-testid="controller-props-close" onClick={onClose} autoFocus>
             {t(M.done)}
           </button>

@@ -327,3 +327,7 @@
 .plc-conn-arrow {
   text-align: center;
 }
+
+.plc-conn-where {
+  margin-left: 8px;
+}

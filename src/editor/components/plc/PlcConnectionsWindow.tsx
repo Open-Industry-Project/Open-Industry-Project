@@ -1,8 +1,9 @@
-// PLC Connections: wire the scene's machines to a TwinCAT PLC's variables by picking both. The machines and their tag
+// PLC Connections: wire the scene's machines to one TwinCAT PLC's variables by picking both. The machines and their tag
 // fields are on the left, the PLC's variables (read from the runtime over ADS, grouped by program or list) on the
 // right, and every connection to that PLC below, each with the way it flows and a button that takes it off. Picking a
 // field, then a variable, writes the variable's name into the field, which is all a connection is (the Inspector's
-// Comms group shows the same name). Controller Properties shows it in its own place, from its PLC connections… button.
+// Comms group shows the same name). Controller Properties shows it in its own place, from the PLC connections… button
+// beside the controller's name, so the window is always about that one controller.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
@@ -18,10 +19,9 @@ import { CloseIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('plcConnections', {
-  title: 'PLC Connections',
+  title: 'PLC Connections: {name}',
   close: 'Close',
   done: 'Done',
-  controller: 'PLC',
   machines: 'Machines',
   plc: 'PLC variables',
   connections: 'Connections',
@@ -45,8 +45,7 @@ const M = defineMessages('plcConnections', {
   legend: '< from the PLC   > to the PLC',
   elsewhere: 'Wired to {controller}',
   defaultController: 'the default controller',
-  noController:
-    'Set a controller to run on an external PLC over ADS (a TwinCAT PLC) in PLC Controllers… first. This window lists that PLC\'s variables.',
+  noController: '{name} no longer runs on a PLC over ADS (a TwinCAT PLC), so there are no variables to list. Set it in Controller Properties.',
   needsDesktop: 'Reading a PLC\'s variables needs the desktop app: a browser tab cannot reach TwinCAT\'s router.',
   readOnly: 'This project is open read-only, so connections cannot be changed here.',
   undoConnect: 'Connect {field} to {variable}',
@@ -65,12 +64,24 @@ interface Picked {
   type: ConnectionField['type']
 }
 
-export function PlcConnectionsWindow({ store, state, controller, onClose }: { store: EditorStore; state: EditorState; controller: EditorController; onClose: () => void }): ReactElement {
+export function PlcConnectionsWindow({
+  store,
+  state,
+  controller,
+  plcName,
+  onClose,
+}: {
+  store: EditorStore
+  state: EditorState
+  controller: EditorController
+  /** the controller it wires, null for the default one */
+  plcName: string | null
+  onClose: () => void
+}): ReactElement {
   const ref = useRef<HTMLDivElement>(null)
   const [host] = useState(dialogHost)
-  const plcs = useMemo(() => browsableControllers(state.externalPlc), [state.externalPlc])
-  const [at, setAt] = useState(0)
-  const plc = plcs[Math.min(at, plcs.length - 1)]
+  const plc = useMemo(() => browsableControllers(state.externalPlc).find((c) => (c.name ?? '').toLowerCase() === (plcName ?? '').toLowerCase()), [state.externalPlc, plcName])
+  const shownName = plcName ?? state.externalPlc.mainName
   const [list, setList] = useState<AdsSymbolList | 'reading' | null>(null)
   const [reads, setReads] = useState(0)
   // the groups opened by hand; null until the first click, while only the first group is open
@@ -133,22 +144,9 @@ export function PlcConnectionsWindow({ store, state, controller, onClose }: { st
 
   const body = (): ReactElement => {
     if (!ads) return <div className="ctl-banner">{t(M.needsDesktop)}</div>
-    if (!plc) return <div className="ctl-banner" data-testid="plc-conn-no-controller">{t(M.noController)}</div>
+    if (!plc) return <div className="ctl-banner" data-testid="plc-conn-no-controller">{t(M.noController, { name: shownName })}</div>
     return (
       <>
-        {plcs.length > 1 && (
-          <label className="ctl-ext-field">
-            {t(M.controller)}{' '}
-            <select value={at} onChange={(e) => (setAt(Number(e.target.value)), setPicked(null))} data-testid="plc-conn-controller">
-              {plcs.map((c, i) => (
-                <option key={c.label} value={i}>
-                  {/* i18n-ok: a controller's name and address */}
-                  {`${c.label}  ${c.netId || 'this PC'}:${c.port}`}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         {locked && <div className="ctl-banner">{t(M.readOnly)}</div>}
         <div className="plc-conn-panes">
           <section className="plc-conn-pane" aria-label={t(M.machines)} data-testid="plc-conn-machines">
@@ -261,9 +259,11 @@ export function PlcConnectionsWindow({ store, state, controller, onClose }: { st
 
   return createPortal(
     <div className="author-backdrop" onPointerDown={onClose} onClick={(e) => e.stopPropagation()}>
-      <div ref={ref} className="author-dialog plc-conn-dialog" role="dialog" aria-label={t(M.title)} data-testid="plc-connections" onPointerDown={(e) => e.stopPropagation()}>
+      <div ref={ref} className="author-dialog plc-conn-dialog" role="dialog" aria-label={t(M.title, { name: shownName })} data-testid="plc-connections" onPointerDown={(e) => e.stopPropagation()}>
         <div className="author-head">
-          <h2>{t(M.title)}</h2>
+          <h2>{t(M.title, { name: shownName })}</h2>
+          {/* i18n-ok: where the PLC is, as Controller Properties writes it */}
+          {plc && <span className="ctl-dim plc-conn-where">{`${plc.netId || 'this PC'} : ${plc.port}`}</span>}
           <button className="author-close" title={t(M.close)} aria-label={t(M.close)} onClick={onClose}>
             <CloseIcon />
           </button>

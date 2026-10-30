@@ -51,6 +51,8 @@ const M = defineMessages('externalPlc', {
     'For a PLC that runs real equipment: Play reads what the real sensors and the program are doing and shows it here, and never writes to the PLC, so the simulator cannot overwrite a real input.',
   defaultTitle: 'The default controller: a tag with no controller name in front belongs to it',
   defaultNote: '(default: tags with no controller name)',
+  connections: 'PLC connections…',
+  connectionsTitle: "Wire the scene's machines to this PLC's variables by picking both",
   rename: 'Rename',
   renameTitle: 'Rename the default controller. Its tags carry no name, so none of them change.',
   renameRefused: '{name} is taken or is not a controller name: a letter or underscore, then letters, digits and underscores.',
@@ -167,6 +169,8 @@ interface ExternalPlcSectionProps {
   /** the default controller's OPC UA server (OpcUaServerSection.tsx), shown under the choice to run it here, as each
    *  other controller's sits in its own row: a server publishes the program this simulator runs */
   server?: ReactNode
+  /** open PLC Connections for this controller (components/plc/PlcConnectionsWindow.tsx); offered while it is a PLC over ADS */
+  onConnections?: () => void
 }
 
 /** A text field that commits on Enter or blur, and snaps back to the stored value when `commit` refuses the text. */
@@ -204,7 +208,7 @@ export function wholeIn(text: string, min: number, max: number): number | null {
   return n >= min && n <= max ? n : null
 }
 
-export function ExternalPlcSection({ store, state, controller, server }: ExternalPlcSectionProps): ReactElement {
+export function ExternalPlcSection({ store, state, controller, server, onConnections }: ExternalPlcSectionProps): ReactElement {
   const settings = state.externalPlc
   const available = controller.externalPlcAvailable
   const status = useLinkStatus(controller, state.running, () => controller.externalPlcStatus)
@@ -219,7 +223,7 @@ export function ExternalPlcSection({ store, state, controller, server }: Externa
   return (
     <section className="ctl-ext ctl-sec" data-testid="external-plc" aria-label={t(M.section)}>
       <SectionHead title={t(M.section)} scope="scene" note={t(M.sectionNote)} />
-      <DefaultName store={store} name={settings.mainName} locked={locked} />
+      <DefaultName store={store} name={settings.mainName} locked={locked} onConnections={external && settings.mode === 'ads' ? onConnections : undefined} />
       <div className="ctl-ext-mode" role="radiogroup" aria-label={t(M.runsOn)}>
         <label className="ctl-ext-field" title={t(M.here)}>
           <input type="radio" name="external-plc-runs-on" checked={!external} disabled={locked} onChange={() => store.setExternalPlc({ enabled: false })} data-testid="external-plc-here" />
@@ -252,8 +256,18 @@ export function ExternalPlcSection({ store, state, controller, server }: Externa
   )
 }
 
+/** The button beside a controller's name that opens PLC Connections for it. Not locked by a run: reading the variables and
+ *  wiring them are as safe then as the Inspector's Comms fields are. */
+export function ConnectionsButton({ title, label, onClick, testId }: { title: string; label: string; onClick: () => void; testId: string }): ReactElement {
+  return (
+    <button type="button" className="ctl-btn" title={title} onClick={onClick} data-testid={testId}>
+      {label}
+    </button>
+  )
+}
+
 /** The default controller's name, renamed in place. */
-function DefaultName({ store, name, locked }: { store: EditorStore; name: string; locked: boolean }): ReactElement {
+function DefaultName({ store, name, locked, onConnections }: { store: EditorStore; name: string; locked: boolean; onConnections?: () => void }): ReactElement {
   const [renaming, setRenaming] = useState(false)
   const [refused, setRefused] = useState<string | null>(null)
   return (
@@ -278,6 +292,7 @@ function DefaultName({ store, name, locked }: { store: EditorStore; name: string
       <button type="button" className="ctl-btn" title={t(M.renameTitle)} disabled={locked || renaming} onClick={() => setRenaming(true)} data-testid="plc-default-rename">
         {t(M.rename)}
       </button>
+      {onConnections && <ConnectionsButton title={t(M.connectionsTitle)} label={t(M.connections)} onClick={onConnections} testId="plc-default-connections" />}
       {refused !== null && <span className="ctl-problem">{t(M.renameRefused, { name: refused })}</span>}
     </div>
   )
