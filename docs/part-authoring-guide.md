@@ -1030,7 +1030,9 @@ The Part Editor writes the same carving for you. Import the model onto a node (*
    **Two positions** writes the whole behavior script: per joint, a BOOL `Command (to B)` tag in, `At A` and `At B`
    BOOL tags out and a **Stroke time** (s). The joint moves from A (Min) to B (Max) at a constant speed while the
    command is TRUE and back while it is FALSE. On each placed copy the Comms fields name the PLC variables (`ToB`
-   for the built-in PLC, `MAIN.ToB` over ADS). The script keeps its settings on an `// oip-panel` line and is
+   for the built-in PLC, `MAIN.ToB` over ADS). On a joint that spins endlessly the mode is **Spin** instead: a BOOL
+   `Run` tag in (TRUE spins), an optional REAL `Speed (rpm)` tag in (empty: the copy's own Speed, up to the joint's
+   Speed), and a BOOL `At speed` tag out; the host runs the servo. The script keeps its settings on an `// oip-panel` line and is
    written again when a joint's PLC control or limits change, so edits to it are lost. A script you wrote is replaced
    only after a confirm, and setting every joint back to None gives the empty template.
 

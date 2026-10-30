@@ -11,7 +11,7 @@ import { bytesToBase64 } from '../../core/parts/partAssets'
 import { fitRigToModel } from '../../core/parts/modelFit'
 import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
-import { isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig } from '../jointPlcControl'
+import { isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig, type JointPlcMode } from '../jointPlcControl'
 import { mergeRigPiece as mergedGeometry, reparentRigLink as reparentedGeometry, setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
 import type { AuthorableShapeKind } from '../rigTree'
 import type { PartPackage, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
@@ -288,22 +288,22 @@ function withJointPlcScript(pkg: PartPackage): PartPackage | null {
 }
 
 /**
- * Turn the panel's PLC control for one joint on (`time`, the stroke time in seconds) or off (null), by writing the
- * behavior script. A script the panel did not write is replaced only after `confirmReplace`.
+ * Set the panel's PLC control for one joint (Two positions with its stroke time, or Spin) or turn it off (null), by
+ * writing the behavior script. A script the panel did not write is replaced only after `confirmReplace`.
  */
 export function setJointPlcControl(
   ec: AuthoringDeps,
   packageId: string,
   jointName: string,
-  time: number | null,
+  mode: JointPlcMode | null,
   confirmReplace?: () => boolean,
 ): boolean {
   const pkg = getPackage(packageId)
   if (!pkg || pkg.geometry.kind !== 'rig') return false
   if (!isReplaceableBehavior(pkg.behavior) && !confirmReplace?.()) return false
   const config = { ...readJointPlcConfig(pkg.behavior) }
-  if (time === null) delete config[jointName]
-  else config[jointName] = { mode: 'twoPositions', time }
+  if (mode === null) delete config[jointName]
+  else config[jointName] = mode
   const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints))
   if (!result.ok || !result.package) return false
   ec.store.commitPackage('PLC control', result.package, { coalesceKey: `plc:${packageId}:${jointName}` })
@@ -318,8 +318,8 @@ export function rigEdits(ec: AuthoringDeps) {
     setRigJointPivot: (packageId: string, linkName: string, pivot: [number, number, number]): boolean => setRigJointPivot(ec, packageId, linkName, pivot),
     mergeRigPiece: (packageId: string, linkName: string): boolean => mergeRigPiece(ec, packageId, linkName),
     reparentRigLink: (packageId: string, linkName: string, parent: string | undefined): boolean => reparentRigLink(ec, packageId, linkName, parent),
-    setJointPlcControl: (packageId: string, jointName: string, time: number | null, confirmReplace?: () => boolean): boolean =>
-      setJointPlcControl(ec, packageId, jointName, time, confirmReplace),
+    setJointPlcControl: (packageId: string, jointName: string, mode: JointPlcMode | null, confirmReplace?: () => boolean): boolean =>
+      setJointPlcControl(ec, packageId, jointName, mode, confirmReplace),
   }
 }
 

@@ -3,7 +3,7 @@ import type { RigJoint } from '../core/parts/partPackage'
 import type { PackageManifest } from '../sim/buildPackage'
 import { validatePart } from '../sim/validatePart'
 import { create, destroy, step } from '../sim/embeddedBehavior'
-import { canTwoPositions, isReplaceableBehavior, jointPlcBehavior, jointPlcKeys, readJointPlcConfig } from './jointPlcControl'
+import { canSpin, canTwoPositions, isReplaceableBehavior, jointPlcBehavior, jointPlcKeys, readJointPlcConfig } from './jointPlcControl'
 
 const feed: RigJoint = { name: 'feed', link: 'head', type: 'prismatic', axis: [0, -1, 0], min: 0, max: 0.05 }
 const arm: RigJoint = { name: 'Motors-joint', link: 'Motors', type: 'revolute', axis: [0, 1, 0], min: -1, max: 1 }
@@ -44,7 +44,7 @@ describe('jointPlcControl', () => {
 
   it('labels each joint once there are several, and keys hyphenated names as identifiers', () => {
     const config = { feed: { mode: 'twoPositions' as const, time: 1 }, 'Motors-joint': { mode: 'twoPositions' as const, time: 1 } }
-    expect(jointPlcKeys(config)['Motors-joint']).toEqual({ toB: 'motorsJointToB', atA: 'motorsJointAtA', atB: 'motorsJointAtB', time: 'motorsJointTime' })
+    expect(jointPlcKeys(config)['Motors-joint']).toMatchObject({ toB: 'motorsJointToB', atA: 'motorsJointAtA', atB: 'motorsJointAtB', time: 'motorsJointTime' })
     const res = validatePart(manifest([feed, arm]), jointPlcBehavior('Drill', config, [feed, arm]))
     expect(res.diagnostics).toEqual([])
     expect(res.package!.params.motorsJointToB).toMatchObject({ label: 'Motors-joint: Command (to B)' })
@@ -80,5 +80,58 @@ describe('jointPlcControl', () => {
     expect(out.joints.feed).toBeCloseTo(0, 9)
     expect(out.tags).toMatchObject({ AtA: true, AtB: false })
     destroy(h)
+  })
+})
+
+describe('jointPlcControl: Spin', () => {
+  const turn = 2 * Math.PI
+  const spindle: RigJoint = { name: 'Bit-joint', link: 'Bit', type: 'revolute', axis: [0, 1, 0], min: 0, max: turn, servo: { maxVelocity: turn, maxAccel: turn * 100, modulo: turn } }
+
+  it('writes a script that builds, with a run, a speed and an at-speed tag, and the servo declared', () => {
+    const source = jointPlcBehavior('Drill', { 'Bit-joint': { mode: 'spin' } }, [spindle])
+    const res = validatePart(manifest([spindle]), source)
+    expect(res.diagnostics).toEqual([])
+    const params = res.package!.params
+    expect(params.bitJointRun).toMatchObject({ type: 'tag', dir: 'in', stType: 'BOOL', label: 'Run', group: 'Comms' })
+    expect(params.bitJointSpeed).toMatchObject({ type: 'tag', dir: 'in', stType: 'REAL', label: 'Speed (rpm)' })
+    expect(params.bitJointAtSpeed).toMatchObject({ type: 'tag', dir: 'out', stType: 'BOOL', label: 'At speed' })
+    // the joint's own speed (60 rpm) is the copy's default and its most
+    expect(params.bitJointRpm).toMatchObject({ type: 'number', default: 60, max: 60 })
+    expect(readJointPlcConfig(source)).toEqual({ 'Bit-joint': { mode: 'spin' } })
+  })
+
+  it('offers Spin only to a joint that spins endlessly, and drops it when the joint stops spinning', () => {
+    expect(canSpin(spindle)).toBe(true)
+    expect(canSpin(feed)).toBe(false)
+    expect(readJointPlcConfig(jointPlcBehavior('Drill', { 'Bit-joint': { mode: 'spin' } }, [{ ...spindle, servo: undefined }]))).toBeNull()
+  })
+
+  it('writes Two positions and Spin into one script that builds', () => {
+    const joints = [feed, spindle]
+    const source = jointPlcBehavior('Drill', { feed: { mode: 'twoPositions', time: 1 }, 'Bit-joint': { mode: 'spin' } }, joints)
+    const res = validatePart(manifest(joints), source)
+    expect(res.diagnostics).toEqual([])
+    expect(Object.keys(res.package!.params)).toEqual(expect.arrayContaining(['feedToB', 'bitJointRun', 'bitJointSpeed']))
+  })
+
+  it('spins at the copy\'s speed while Run is TRUE, at the PLC\'s speed when one is wired, and stops', () => {
+    const source = jointPlcBehavior('Drill', { 'Bit-joint': { mode: 'spin' } }, [spindle])
+    const run = (params: Record<string, unknown>, tags: (i: number) => Record<string, unknown>, ticks: number) => {
+      const h = create(source, JSON.stringify({ bitJointRun: 'Run', bitJointAtSpeed: 'AtSpeed', bitJointRpm: 60, ...params }), JSON.stringify([spindle]))
+      const out: { joints: Record<string, number>; tags: Record<string, unknown> }[] = []
+      for (let i = 0; i < ticks; i++) out.push(JSON.parse(step(h, JSON.stringify({ simTime: i / 60, tags: tags(i) }), 1 / 60)))
+      destroy(h)
+      return out
+    }
+    // the angle a tick turns, wrapped into [0, 2pi)
+    const per = (a: number, b: number) => (((b - a) % turn) + turn) % turn
+    const full = run({}, () => ({ Run: true }), 30)
+    expect(per(full[28]!.joints['Bit-joint']!, full[29]!.joints['Bit-joint']!)).toBeCloseTo(turn / 60, 3)
+    expect(full[29]!.tags.AtSpeed).toBe(true)
+    const half = run({ bitJointSpeed: 'Speed' }, () => ({ Run: true, Speed: 30 }), 30)
+    expect(per(half[28]!.joints['Bit-joint']!, half[29]!.joints['Bit-joint']!)).toBeCloseTo(turn / 120, 3)
+    const stopped = run({}, (i) => ({ Run: i < 10 }), 30)
+    expect(per(stopped[28]!.joints['Bit-joint']!, stopped[29]!.joints['Bit-joint']!)).toBeCloseTo(0, 6)
+    expect(stopped[29]!.tags.AtSpeed).toBe(false)
   })
 })
