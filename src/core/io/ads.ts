@@ -194,3 +194,53 @@ export function adsSymbolMessage(tag: string, code: number): string {
   if (code === 0x704 || code === 0x723) return `the PLC does not let this client write ${tag} (${adsErrorText(code)})`
   return `${tag}: ${adsErrorText(code)}`
 }
+
+/** One entry of the runtime's symbol table, as the desktop shell lists it (apps/desktop/adsIo.cjs `symbols`). */
+export interface AdsSymbol {
+  name: string
+  adsType: number
+  size: number
+  typeName: string
+}
+
+/** A symbol a scene value can travel as, for a picker: its full name, the name inside its list, and its type. */
+export interface AdsVariable {
+  name: string
+  short: string
+  typeName: string
+  kind: 'bool' | 'number'
+}
+
+/** The variables of one program or global list (`MAIN`, `GVL`), as a picker shows them. */
+export interface AdsSymbolGroup {
+  name: string
+  variables: AdsVariable[]
+}
+
+/**
+ * The symbol table as a picker lists it: grouped by the program or list a name starts with, keeping only the symbols a
+ * scene value can travel as (bindAdsPoint's rule: a bit or a number, at the size its type has). MAIN comes first, as
+ * the program a new TwinCAT project starts with; TwinCAT's own lists (`TwinCAT_SystemInfoVarList`) come last.
+ */
+export function adsSymbolGroups(symbols: readonly AdsSymbol[]): AdsSymbolGroup[] {
+  const groups = new Map<string, AdsVariable[]>()
+  for (const s of symbols) {
+    const t = ADST[s.adsType]
+    if (!t || !SYMBOL.test(s.name)) continue
+    if ((t.kind === 'bool' ? Math.max(1, s.size) : s.size) !== t.size) continue
+    const dot = s.name.indexOf('.')
+    const group = s.name.slice(0, dot)
+    const list = groups.get(group) ?? []
+    list.push({ name: s.name, short: s.name.slice(dot + 1), typeName: s.typeName || t.name, kind: t.kind === 'bool' ? 'bool' : 'number' })
+    groups.set(group, list)
+  }
+  const rank = (g: string): number => (g.toUpperCase() === 'MAIN' ? 0 : g.startsWith('TwinCAT_') ? 2 : 1)
+  return [...groups]
+    .map(([name, variables]) => ({ name, variables: variables.sort((a, b) => a.short.localeCompare(b.short)) }))
+    .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name))
+}
+
+/** Whether a variable can be wired to a tag field of `stType`: a bit to a BOOL field, a number to a numeric one. */
+export function adsVariableFits(v: Pick<AdsVariable, 'kind'>, stType: 'BOOL' | 'INT' | 'DINT' | 'REAL' | null): boolean {
+  return stType === null || (stType === 'BOOL') === (v.kind === 'bool')
+}

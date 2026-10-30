@@ -2,6 +2,8 @@
 // controller's, and each named controller (`Cell2::%IX0.0`, src/core/io/controllerTag.ts) has a number of its own
 // (src/editor/links/linkHosts.ts). A call without `link` is link 0. plcIo.cjs, opcUaIo.cjs, eipIo.cjs and adsIo.cjs
 // key their links by window and number through this, and opcUaServer.cjs each simulated controller's OPC UA server.
+// The last number is a picker's (src/editor/links/linkHosts.ts BROWSE_LINK): a short connection that lists a PLC's
+// variables while a run may hold the controller's own link.
 
 const MAX_LINKS = 32
 

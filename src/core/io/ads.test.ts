@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adsErrorText, adsPointsFromTags, adsStale, adsSymbolMessage, adsUnreachable, bindAdsPoint, fromAdsValue, isAmsNetId, toAdsValue } from './ads'
+import { adsErrorText, adsPointsFromTags, adsSymbolGroups, adsVariableFits, adsStale, adsSymbolMessage, adsUnreachable, bindAdsPoint, fromAdsValue, isAmsNetId, toAdsValue } from './ads'
 
 const wired = (name: string, dir: 'w' | 'r', type: 'BOOL' | 'INT' | 'DINT' | 'REAL' | null = 'BOOL') =>
   ({ name, type, writers: dir === 'w' ? ['p.tag'] : [], readers: dir === 'r' ? ['p.tag'] : [] }) as never
@@ -70,5 +70,38 @@ describe('what the router and the runtime answer', () => {
   it('accepts an AMS Net ID, or empty for this PC', () => {
     expect(['', '192.168.1.20.1.1', '127.0.0.1.1.1'].every(isAmsNetId)).toBe(true)
     expect(['192.168.1.20.1', '1.2.3.4.5.256', 'local', '1.2.3.4.5.6.7'].some(isAmsNetId)).toBe(false)
+  })
+})
+
+describe('the symbol table as a picker lists it', () => {
+  const sym = (name: string, typeName: string, adsType: number, size: number) => ({ name, typeName, adsType, size })
+
+  it('groups by program or list, MAIN first and the TwinCAT system lists last, keeping bits and numbers only', () => {
+    const groups = adsSymbolGroups([
+      sym('TwinCAT_SystemInfoVarList._AppInfo', 'PlcAppSystemInfo', 65, 120),
+      sym('GVL.Speed', 'REAL', 4, 4),
+      sym('MAIN.tCycle', 'TON', 65, 32),
+      sym('MAIN.Extend', 'BOOL', 33, 1),
+      sym('MAIN.Cycles', 'UDINT', 19, 4),
+      sym('MAIN.Label', 'STRING(80)', 30, 81),
+      sym('TwinCAT_SystemInfoVarList._TaskOid', 'OTCID', 19, 4),
+    ])
+    expect(groups.map((g) => g.name)).toEqual(['MAIN', 'GVL', 'TwinCAT_SystemInfoVarList'])
+    expect(groups[0]!.variables).toEqual([
+      { name: 'MAIN.Cycles', short: 'Cycles', typeName: 'UDINT', kind: 'number' },
+      { name: 'MAIN.Extend', short: 'Extend', typeName: 'BOOL', kind: 'bool' },
+    ])
+  })
+
+  it('leaves out a name with no list before it, and a size its type does not have', () => {
+    expect(adsSymbolGroups([sym('Loose', 'BOOL', 33, 1), sym('MAIN.Odd', 'INT', 2, 4)])).toEqual([])
+  })
+
+  it('fits a bit to a BOOL field and a number to a numeric one', () => {
+    expect(adsVariableFits({ kind: 'bool' }, 'BOOL')).toBe(true)
+    expect(adsVariableFits({ kind: 'bool' }, 'REAL')).toBe(false)
+    expect(adsVariableFits({ kind: 'number' }, 'DINT')).toBe(true)
+    expect(adsVariableFits({ kind: 'number' }, 'BOOL')).toBe(false)
+    expect(adsVariableFits({ kind: 'number' }, null)).toBe(true)
   })
 })

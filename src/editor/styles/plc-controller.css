@@ -191,3 +191,143 @@
   padding-left: 10px;
   border-left: 2px solid var(--line-soft);
 }
+
+/* PLC Connections (components/plc/PlcConnectionsWindow.tsx): machines beside the PLC's variables, connections below */
+.plc-conn-dialog {
+  width: 860px;
+  max-width: calc(100vw - 32px);
+}
+
+.plc-conn-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.plc-conn-pane {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px;
+  min-height: 0;
+}
+
+.plc-conn-panes .plc-conn-pane {
+  height: min(46vh, 420px);
+  overflow: auto;
+}
+
+.plc-conn-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.plc-conn-reread {
+  margin-left: auto;
+}
+
+.plc-conn-filter {
+  width: 100%;
+  margin-bottom: 4px;
+  box-sizing: border-box;
+}
+
+.plc-conn-group {
+  display: block;
+  margin-top: 4px;
+  padding: 2px 4px;
+  font-weight: 600;
+}
+
+.plc-conn-toggle {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plc-conn-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 4px 2px 18px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plc-conn-row:hover:not(:disabled) {
+  background: var(--control-low);
+}
+
+.plc-conn-row.is-picked {
+  background: var(--selected);
+}
+
+.plc-conn-row.is-unfit {
+  opacity: 0.45;
+}
+
+.plc-conn-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plc-conn-type,
+.plc-conn-var,
+.plc-conn-arrow {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+}
+
+.plc-conn-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.plc-conn-dot.is-on {
+  background: light-dark(#2f8a3e, #4caf5c);
+}
+
+.plc-conn-note {
+  margin: 6px 2px;
+}
+
+.plc-conn-list {
+  max-height: 24vh;
+  overflow: auto;
+}
+
+.plc-conn-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.plc-conn-arrow {
+  text-align: center;
+}
+
+.plc-conn-where {
+  margin-left: 8px;
+}
