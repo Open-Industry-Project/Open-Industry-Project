@@ -32,8 +32,14 @@ const SYM_HNDBYNAME = 0xf003
 const SYM_VALBYHND = 0xf005
 const SYM_RELEASEHND = 0xf006
 const SYM_INFOBYNAMEEX = 0xf009
+const SYM_UPLOAD = 0xf00b
+const SYM_UPLOADINFO2 = 0xf00f
 const SUMUP_READ = 0xf080
 const SUMUP_WRITE = 0xf081
+/** how long the symbol table upload may take: one request carrying every symbol, larger than a cycle's */
+const UPLOAD_MS = 5000
+/** a symbol table past this is refused rather than allocated (a large project's runs to a few MB) */
+const MAX_UPLOAD = 64 * 1024 * 1024
 /** ADS's limit on one sum command's sub-requests */
 const MAX_SUM = 500
 /** "service not supported": a runtime too old for sum commands, which then gets a request per symbol */
@@ -150,7 +156,25 @@ function parseSymbolEntry(buf, length) {
   const typeLength = buf.readUInt16LE(26)
   const typeAt = 30 + nameLength + 1
   const typeName = typeAt + typeLength <= length ? buf.toString('latin1', typeAt, typeAt + typeLength) : ''
-  return { size, adsType, typeName }
+  const name = 30 + nameLength <= length ? buf.toString('latin1', 30, 30 + nameLength) : ''
+  return { size, adsType, typeName, name }
+}
+
+/**
+ * The runtime's symbol table (SYM_UPLOAD): AdsSymbolEntry records back to back, each starting with its own length.
+ * A record that runs past the buffer, or claims less than a header, ends the walk: what came before it stands.
+ */
+function parseSymbolTable(buf) {
+  const out = []
+  let at = 0
+  while (at + 30 <= buf.length) {
+    const length = buf.readUInt32LE(at)
+    if (length < 30 || at + length > buf.length) break
+    const e = parseSymbolEntry(buf.subarray(at, at + length), length)
+    if (e && e.name) out.push(e)
+    at += length
+  }
+  return out
 }
 
 class AdsLink {
@@ -239,6 +263,33 @@ class AdsLink {
         out.push({ code: 0, adsType: entry.adsType, size: entry.size, typeName: entry.typeName })
       }
       return { error: '', tags: out }
+    })
+  }
+
+  /**
+   * Every symbol the runtime publishes, as `{name, adsType, size, typeName}`, for a picker: the table's size first
+   * (SYM_UPLOADINFO2), then the table itself in one request, under a longer timeout than a cycle's. Variables only, as
+   * TwinCAT lists them (`MAIN.Run`, `GVL.Speed`, `MAIN.tCycle` of type TON): a structure's members are not listed.
+   */
+  symbols() {
+    return this.serial(async () => {
+      if (!lib || !this.addr) return { error: loadError ?? 'not connected' }
+      const info = Buffer.alloc(24)
+      const got = [0]
+      let code = await call(lib.read, this.port, this.addr, SYM_UPLOADINFO2, 0, info.length, info, got)
+      if (code) return { error: '', code }
+      const tableSize = info.readUInt32LE(4)
+      if (tableSize === 0) return { error: '', code: 0, symbols: [] }
+      if (tableSize > MAX_UPLOAD) return { error: `the PLC's symbol table is ${Math.round(tableSize / 1e6)} MB, too large to list` }
+      const table = Buffer.alloc(tableSize)
+      await call(lib.setTimeout, this.port, UPLOAD_MS)
+      try {
+        code = await call(lib.read, this.port, this.addr, SYM_UPLOAD, 0, table.length, table, got)
+      } finally {
+        await call(lib.setTimeout, this.port, ANSWER_MS)
+      }
+      if (code) return { error: '', code }
+      return { error: '', code: 0, symbols: parseSymbolTable(table.subarray(0, got[0])) }
     })
   }
 
@@ -360,6 +411,8 @@ async function shutdownAds() {
  *   ads:bind     {tags: [{name}]} -> {error, tags: [{code, adsType, size, typeName}]}
  *                                                              each symbol's info and a handle
  *   ads:exchange {writes: [{name, value}], reads: [name]} -> {error, writes: [code], reads: [{value, status}]}
+ *   ads:symbols  {} -> {error, code, symbols: [{name, adsType, size, typeName}]}
+ *                                                              the runtime's whole symbol table, for a picker
  *   ads:close                                                  release the handles and the port
  * A code is an ADS return code, 0 for done (src/core/io/ads.ts says what each means).
  * `consent` (endpointConsent.cjs `allows`) is asked before a link to another PC's runtime.
@@ -407,6 +460,7 @@ function registerAdsIo(ipcMain, { consent }) {
     }
   }
   ipcMain.handle('ads:bind', (event, opts) => withLink(event, opts, (l) => l.bind(Array.isArray(opts?.tags) ? opts.tags : [])))
+  ipcMain.handle('ads:symbols', (event, opts) => withLink(event, opts, (l) => l.symbols()))
   ipcMain.handle('ads:exchange', (event, opts) => withLink(event, opts, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
   ipcMain.handle('ads:close', async (event, opts) => {
     const n = linkNo(opts)
@@ -418,4 +472,4 @@ function registerAdsIo(ipcMain, { consent }) {
   })
 }
 
-module.exports = { registerAdsIo, AdsLink, shutdownAds, checkTarget, dllCandidates, parseSymbolEntry, codec }
+module.exports = { registerAdsIo, AdsLink, shutdownAds, checkTarget, dllCandidates, parseSymbolEntry, parseSymbolTable, codec }

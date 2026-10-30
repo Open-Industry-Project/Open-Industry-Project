@@ -86,6 +86,11 @@ export function adsForLink(host: AdsHost, link: number): AdsHost {
     open: (opts) => host.open({ ...opts, link }),
     bind: (opts) => host.bind({ ...opts, link }),
     exchange: (opts) => host.exchange({ ...opts, link }),
+    ...(host.symbols ? { symbols: () => host.symbols!({ link }) } : {}),
     close: () => host.close({ link }),
   }
 }
+
+/** The shell's link number a picker lists a PLC's variables on (apps/desktop/linkKeys.cjs, its last number): a run's
+ *  controllers take 0 and up, so a list read during a run opens a connection of its own beside theirs. */
+export const BROWSE_LINK = 31

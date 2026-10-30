@@ -4,6 +4,7 @@
 // warms at startup when one is), so a browser tab, which can never run a link, never parses them. That module
 // re-exports everything here, so a caller that already loads it imports from either.
 
+import type { AdsSymbol } from '../../core/io/ads'
 import type { DiscoveredServer, OpcUaBrowseRoot, OpcUaNodeInfo, OpcUaVariable } from '../../core/io/opcUa'
 import type { TagValue } from '../../plc/types'
 import type { PlcLinkSettings } from '../store/storePrefs'
@@ -69,6 +70,8 @@ export interface AdsHost {
   /** each symbol's info and a handle */
   bind(opts: { tags: { name: string }[] } & LinkOpt): Promise<{ error: string; tags?: { code: number; adsType?: number; size?: number; typeName?: string }[] }>
   exchange(opts: { writes: { name: string; value: boolean | number }[]; reads: string[] } & LinkOpt): Promise<{ error: string; writes?: number[]; reads?: { value: unknown; status: number }[] }>
+  /** the runtime's whole symbol table, for a picker; `code` is the ADS code when the runtime refused. Absent on an older shell */
+  symbols?(opts?: LinkOpt): Promise<{ error: string; code?: number; symbols?: AdsSymbol[] }>
   close(opts?: LinkOpt): Promise<void>
 }
 
