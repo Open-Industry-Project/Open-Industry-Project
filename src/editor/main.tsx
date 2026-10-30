@@ -40,9 +40,11 @@ import { AppCrashBoundary } from './components/CrashDialog'
 import { createPlcDemoScene, DEMO_CONTROLLER, DEMO_PROGRAM } from './demo/demoScenes'
 import { DEFAULT_SCAN_MS } from './program/stProgram'
 import { importSceneText, loadSceneText, sceneFileText } from './project/sceneFile'
-import { PROJECT_KEY, loadStoredProject, noteWorkingCopyWrite, onWorkingCopySuperseded, parkSplitOff, unopenedProject } from './project/projectFile'
+import type { ProjectJSON } from '../core/project/project'
+import { PROJECT_KEY, loadStoredProject, noteWorkingCopyWrite, onWorkingCopySuperseded, parkSplitOff, storedTextsWithAssets, unopenedProject, workingCopyBehind } from './project/projectFile'
+import { loadLocalAssets, localAssetRefs, onLocalAssetsStored, supportsLocalAssets, sweepLocalAssets } from './project/localAssets'
 import { startSplitFiling } from './project/projectSplit'
-import { currentDocumentId, onCurrentDocumentChange, supportsDocumentLibrary, syncCurrentDocument, writeDocument } from './project/documentStore'
+import { currentDocumentId, libraryCopyAhead, onCurrentDocumentChange, readDocument, supportsDocumentLibrary, syncCurrentDocument, writeDocument } from './project/documentStore'
 import { EditorStore } from './store/store'
 import { liveChannel } from './live/liveChannel'
 import { followTarget, type FollowTarget } from './live/followTarget'
@@ -122,7 +124,7 @@ document.addEventListener('visibilitychange', () => {
  * Park an older multi-scene working copy's other scenes (projectFile.parkSplitOff) before the boot saves over it. If
  * they cannot be parked, nothing may be saved: the session goes read-only rather than lose them.
  */
-function keepSplitOff(splitOff: readonly import('../core/project/project').ProjectJSON[] | undefined): void {
+function keepSplitOff(splitOff: readonly ProjectJSON[] | undefined): void {
   if (!splitOff || splitOff.length === 0) return
   const parked = parkSplitOff(splitOff)
   if (parked.ok) return
@@ -130,14 +132,18 @@ function keepSplitOff(splitOff: readonly import('../core/project/project').Proje
   store.showSaveNotice('Opened read-only', `This project holds several scenes, and they could not be kept apart for filing: ${parked.message}`)
 }
 
-/** the solo (no-room) boot path: demo / autosave / default */
-function bootSolo(): void {
+/**
+ * The solo (no-room) boot path: demo / autosave / default. `ahead` is the open document's library row, opened in place
+ * of the working copy when the row is newer (a save was refused for quota) or when the working copy's models are gone
+ * from the asset store (openingCopy).
+ */
+function bootSolo(ahead: ProjectJSON | null): void {
   // This build's own parts, before any saved document is loaded: that document's snapshot of a built-in part must
   // lose to the part itself, and it only does once the id is registered (registerBundledPackages).
   registerBundledPackages()
   // The project autosave: its scene, ST program and part library, with a
   // one-time migration from the legacy single-scene keys baked in. Returns null only on a first-ever visit.
-  const saved = loadStoredProject()
+  const saved = loadStoredProject(ahead)
   let demo = new URLSearchParams(location.search).get('scene') === 'demo'
   let phoneDemo = false
   // A phone can't author, so an empty scene is a dead end there: it gets the demo instead, through the same
@@ -724,15 +730,51 @@ function startSolo(): void {
     }
   })
   watchOtherTabs()
-  bootSolo()
-  trackDocumentLibrary()
-  // an older multi-scene project's other scenes, parked by the boot: filed now (projectSplit.ts); the folder sync
-  // waits for it (App.tsx)
-  startSplitFiling(store)
-  // The scene is in the store now; its parts' GLBs/textures need not wait for the renderer
-  // handshake + React mount that emits them today (~2.6 s of idle link under WebGPU).
-  prefetchSceneAssets(store.getState().scene)
-  void xremu.then(mount)
+  const boot = (ahead: ProjectJSON | null): void => {
+    bootSolo(ahead)
+    trackDocumentLibrary()
+    // an older multi-scene project's other scenes, parked by the boot: filed now (projectSplit.ts); the folder sync
+    // waits for it (App.tsx)
+    startSplitFiling(store)
+    // The scene is in the store now; its parts' GLBs/textures need not wait for the renderer
+    // handshake + React mount that emits them today (~2.6 s of idle link under WebGPU).
+    prefetchSceneAssets(store.getState().scene)
+    void xremu.then(mount)
+  }
+  // IndexedDB is read first only when the working copy names models by hash or a save of it was refused for quota.
+  // Otherwise the boot is synchronous.
+  const texts = storedTextsWithAssets()
+  if (workingCopyBehind() === null && !texts.some((t) => localAssetRefs(t).length > 0)) boot(null)
+  else void openingCopy(texts).then(boot, () => boot(null))
+  keepWorkingCopySmall()
+}
+
+/**
+ * Read the working copy's models from the asset store (localAssets.ts), and say which project the boot opens in place
+ * of the working copy: the library's row when it is newer (documentStore.libraryCopyAhead), or when some of the
+ * working copy's models are gone from the asset store, since the row embeds them.
+ */
+async function openingCopy(texts: readonly (string | null)[]): Promise<ProjectJSON | null> {
+  const missing = await loadLocalAssets(texts)
+  const ahead = await libraryCopyAhead()
+  if (ahead || missing.length === 0) return ahead
+  const id = currentDocumentId()
+  return id === null ? null : readDocument(id)
+}
+
+/**
+ * A model added this session is written embedded until its bytes are in the asset store (localAssets.ts). Save again
+ * once they are, so the working copy names it by hash and fits in localStorage. Then delete stored models nothing
+ * names any more, once the boot is done with the database.
+ */
+function keepWorkingCopySmall(): void {
+  onLocalAssetsStored(() => {
+    const s = store.getState()
+    // persistProject would fork a demo preview into a project, and the other states write no working copy
+    if (s.collab || s.demoSession || s.readOnly || s.unopenedProject) return
+    store.persistProject()
+  })
+  if (supportsLocalAssets()) setTimeout(() => void sweepLocalAssets(storedTextsWithAssets()), 30_000)
 }
 
 /**
@@ -762,7 +804,8 @@ if (room) {
     const own = ownSharedProject()
     const seed = own && !own.demo && own.docId === currentDocumentId() ? 'scene' : null
     // gate render on first sync so we don't flash an empty scene before remote state loads
-    if (resolved) return void Promise.all([bootRoom(resolved, seed), xremu]).finally(mount)
+    // the working copy's models are read first: a room is seeded from it (soloDocOrDefault) and written back to it
+    if (resolved) return void Promise.all([loadLocalAssets(storedTextsWithAssets()).then(() => bootRoom(resolved, seed)), xremu]).finally(mount)
     // Not a room link (an unprefixed id from before edit secrets, or a garbled one): open solo and
     // say so, with the room taken out of the address bar so Share and a reload treat this tab as solo.
     const url = new URL(location.href)

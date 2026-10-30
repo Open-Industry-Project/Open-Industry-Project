@@ -17,6 +17,7 @@ import {
   deleteDocument,
   fileOutgoingDocument,
   isOtherDocumentSlot,
+  libraryCopyAhead,
   listDocuments,
   mintDocumentId,
   onCurrentDocumentChange,
@@ -66,6 +67,7 @@ describe('document library without IndexedDB', () => {
     vi.stubGlobal('localStorage', fakeStorage())
     await expect(listDocuments()).resolves.toEqual([])
     await expect(readDocument('doc-1')).resolves.toBeNull()
+    await expect(libraryCopyAhead()).resolves.toBeNull()
     await expect(writeDocument('doc-1', project('P'))).resolves.toBe(false)
     await expect(deleteDocument('doc-1')).resolves.toBe(false)
     await expect(renameDocument('doc-1', 'Q')).resolves.toBe(false)

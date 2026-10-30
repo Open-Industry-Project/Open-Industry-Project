@@ -23,7 +23,8 @@
 import { clearEntryParams } from './entryParams'
 import { serializeProject, validateProject } from '../../core/project/project'
 import type { ProjectJSON } from '../../core/project/project'
-import { parkSplitOff, saveStoredProject, workingCopyRefusal } from './projectFile'
+import { parkSplitOff, saveStoredProject, workingCopyBehind, workingCopyRefusal } from './projectFile'
+import { storeLocalAssets } from './localAssets'
 import type { SaveResult } from './projectFile'
 
 const DB_NAME = 'oip-web'
@@ -239,9 +240,23 @@ async function readDocumentSplit(id: string): Promise<{ project: ProjectJSON; sp
 }
 
 /**
+ * The open document's library row, when it is newer than the working copy: a save of the working copy was refused
+ * for quota (projectFile.workingCopyBehind), and the row was written after that. The library's sync writes the live
+ * project, so such a row holds every edit the working copy lacks. Null in every other case, and without reading
+ * IndexedDB unless the working copy is marked behind.
+ */
+export async function libraryCopyAhead(): Promise<ProjectJSON | null> {
+  const behind = workingCopyBehind()
+  if (behind === null || behind.doc !== currentDocumentId() || workingCopyRefusal() !== null) return null
+  const meta = await inTx('readonly', (index) => request(index.get(behind.doc) as IDBRequest<DocumentMeta | undefined>))
+  if (!meta || !(meta.updatedAt > behind.since)) return null
+  return readDocument(behind.doc)
+}
+
+/**
  * Upsert a document. This is also the sync point for the open one: the library's copy of the document
- * being edited is refreshed from the working copy, never the other way round, because the working
- * copy is what every commit already wrote to.
+ * being edited is refreshed from the live project, so it runs ahead of the working copy while a save of
+ * that is refused for quota ({@link libraryCopyAhead}).
  */
 export async function writeDocument(id: string, project: ProjectJSON, at = Date.now()): Promise<boolean> {
   const meta: DocumentMeta = { id, name: project.name, updatedAt: at }
@@ -361,6 +376,8 @@ export async function openDocument(id: string, outgoing: ProjectJSON | null): Pr
     if (!parked.ok) return parked.message
     await writeDocument(id, project)
   }
+  // its models go to the asset store first, so the working copy can name them by hash (localAssets.ts)
+  await storeLocalAssets(project)
   const saved: SaveResult = saveStoredProject(project)
   if (!saved.ok) return saved.message
   setCurrentDocumentId(id)
@@ -386,6 +403,7 @@ export async function adoptDocumentInPlace(project: ProjectJSON, outgoing: Proje
   const refused = await fileOutgoingDocument(outgoing)
   if (refused !== null) return refused
   const library = supportsDocumentLibrary()
+  await storeLocalAssets(project)
   // written ahead of apply (which saves again) so a quota failure stops here, before the pointer moves
   const saved: SaveResult = saveStoredProject(project)
   if (!saved.ok) return saved.message
@@ -408,6 +426,7 @@ export async function createDocument(blank: ProjectJSON, outgoing: ProjectJSON |
   const id = mintDocumentId()
   const filed = await writeDocument(id, blank)
   if (!filed && supportsDocumentLibrary()) return 'This browser would not store a new project.'
+  await storeLocalAssets(blank)
   const saved = saveStoredProject(blank)
   if (!saved.ok) return saved.message
   setCurrentDocumentId(id)

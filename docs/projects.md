@@ -465,6 +465,36 @@ conflict, so opening a second tab on the same project locks nothing until one of
 replaces the working copy also files the outgoing project in the document library first and stops if that fails
 (`documentStore.fileOutgoingDocument`: projects-list open/new, linked folder, `.oip` import, desktop folder open).
 
+**Model files in the browser.** The working copy and the legacy scene key name each embedded model or texture by
+the SHA-256 of its bytes, `{ ..., localAsset: <sha256> }` in place of `data`, and the bytes are kept in their own
+IndexedDB database, `oip-web-assets` (`src/editor/project/localAssets.ts`). A 6 MB model is then a few dozen bytes
+of the working copy instead of 8 MB of base64 in a store of about 5 MB. Only those two keys use the hash. In memory,
+in the library rows, in a room and in every file that leaves the browser an asset is still `data`.
+
+- An asset is written by hash only once its bytes are known to be stored. A model added in the session is written
+  embedded the first time, its bytes are queued, and the project is saved again when they land
+  (`onLocalAssetsStored`, main.tsx). A tab that closes in between leaves an embedded model behind, never a hash with
+  no bytes.
+- The paths that replace the working copy and reload (a projects-list switch, a new project, a `.oip` import, a
+  linked or desktop folder) store the incoming project's models first (`storeLocalAssets`), so a project that would
+  not fit embedded can still be opened.
+- Boot reads the bytes the stored texts name before it parses them (`loadLocalAssets`), and waits on IndexedDB only
+  when they name any. If some are gone, boot opens the library's row, which embeds them. Without a row the working
+  copy is refused like any other document this build cannot open.
+- Bytes no stored text names are deleted 30 s after boot, once nothing has touched them for seven days
+  (`sweepLocalAssets`). The delay covers another tab that has stored bytes but not yet written their hash, or holds
+  a deleted part in its undo history.
+- Without IndexedDB nothing is hashed, and assets stay embedded as before.
+
+**A working copy too large to save is not what boot opens.** `localStorage` holds a few MB per origin. With models
+stored apart a project rarely outgrows it, but a write can still be refused (a full origin, a model whose bytes
+IndexedDB would not take). The library row in IndexedDB is still written from the live project,
+so it runs ahead of the stale working copy. The first quota refusal records the document and the time in
+`oip-web/project-behind` (`projectFile.workingCopyBehind`), and the next successful save clears it. While it is set
+and names the open document, boot reads that row first (`documentStore.libraryCopyAhead`) and opens it when it was
+written after the refusal. Opening the stale copy would lose the row too, because boot's first library sync writes
+what it opened. Only then does boot wait on IndexedDB. Every other boot is synchronous.
+
 **Workspace state is kept per document.** A remembered camera and a half-finished tutorial run are keyed by
 `documentStore.sceneSlotKey(SCENE_SLOT)`: the document id and the constant `scene-1`, the scene id format 1-3
 documents use, so state saved for one of those still finds its project. Keyed without the document id, one

@@ -7,9 +7,10 @@
 
 import { keepDefinitionsOnce, PROJECT_VERSION, projectToScene, serializeProject, trimForExport, unusedLibraryParts, validateProject } from '../../core/project/project'
 import { warmShippedAssets } from '../parts/shippedAssetCache'
+import { localAssetReviver, storeLocalAssets, withLocalAssets } from './localAssets'
 import { clearEntryParams } from './entryParams'
 import type { ExportLeaveOut, ProjectJSON } from '../../core/project/project'
-import { validateScene } from '../../core/scene/scene'
+import { serializeScene, validateScene } from '../../core/scene/scene'
 import { sceneSettings } from '../../core/scene/scenePlcs'
 import { DEFAULT_SIM_HZ, SCENE_VERSION } from '../../core/types'
 import type { SceneJSON, SimRate } from '../../core/types'
@@ -152,12 +153,24 @@ function split(project: ProjectJSON, splitOff?: ProjectJSON[]): LoadedProject {
   }
 }
 
+/** The legacy scene key's text: compact (nothing reads it by eye), with models by hash as the project doc has them. */
+export function legacySceneText(scene: SceneJSON): string {
+  return serializeScene(withLocalAssets(scene), undefined, undefined, { pretty: false })
+}
+
+/** The stored texts that name assets by hash (localAssets.ts): the working copy and the legacy scene key. */
+export function storedTextsWithAssets(): (string | null)[] {
+  return [safeGet(PROJECT_KEY), safeGet(LEGACY_SCENE_KEY)]
+}
+
 /** Read + validate the legacy autosaved scene, or null if absent/corrupt. */
 function readLegacyScene(): SceneJSON | null {
   const raw = safeGet(LEGACY_SCENE_KEY)
   if (!raw) return null
   try {
-    const result = validateScene(JSON.parse(raw))
+    const missing: string[] = []
+    const result = validateScene(JSON.parse(raw, localAssetReviver(missing)))
+    if (missing.length > 0) return null
     return result.ok ? result.scene : null
   } catch {
     return null
@@ -316,8 +329,12 @@ function nameOf(data: unknown): string | null {
  *
  * A project doc that is present but refused still falls through to the legacy keys, so the editor opens on
  * something, but it is recorded first ({@link unopenedProject}) and nothing may write over it.
+ *
+ * `ahead`: the open document's library row when it is newer than the working copy (documentStore.libraryCopyAhead).
+ * It is returned in place of the working copy's project, which is still read, so the other-tab guard and an older
+ * document's other scenes come from what the working copy holds.
  */
-export function loadStoredProject(): LoadedProject | null {
+export function loadStoredProject(ahead: ProjectJSON | null = null): LoadedProject | null {
   if (typeof localStorage === 'undefined') return null
   unopened = null
   // 1. the unified project doc, if present
@@ -326,11 +343,24 @@ export function loadStoredProject(): LoadedProject | null {
   if (raw) {
     let data: unknown
     let parsed = true
+    // its models and textures come back from the asset store, read before the boot (localAssets.loadLocalAssets)
+    const missing: string[] = []
     try {
-      data = JSON.parse(raw)
+      data = JSON.parse(raw, localAssetReviver(missing))
     } catch (e) {
       parsed = false
       unopened = { raw, name: null, errors: [`not valid JSON (${e instanceof Error ? e.message : String(e)})`] }
+    }
+    // Some of its models are gone from this browser's storage. The library's copy embeds them, and the boot passes it
+    // as `ahead`. Without one the document is refused, so nothing saves over the text that still names them.
+    if (parsed && missing.length > 0) {
+      if (ahead) return split(ahead)
+      parsed = false
+      unopened = {
+        raw,
+        name: nameOf(data),
+        errors: [`${missing.length === 1 ? 'a model or texture it uses is' : `${missing.length} models or textures it uses are`} missing from this browser's storage`],
+      }
     }
     if (parsed) {
       const result = validateProject(data)
@@ -344,7 +374,7 @@ export function loadStoredProject(): LoadedProject | null {
             else delete p.packages
           }
         }
-        return split(project, result.splitOff)
+        return split(ahead ?? project, result.splitOff)
       }
       unopened = { raw, name: nameOf(data), errors: result.errors }
     }
@@ -374,6 +404,48 @@ function isQuotaError(e: unknown): boolean {
 }
 
 /**
+ * Set while the working copy is older than the project it belongs to: a save of that document was refused for
+ * quota, and none has succeeded since. `since` is the first refusal. The library's trailing sync (main.tsx) still
+ * writes the live project to IndexedDB, which has room, so a library row written after `since` holds everything
+ * the working copy lacks. Boot reads it from there ({@link workingCopyBehind}, documentStore.libraryCopyAhead).
+ * Without this, a reload opened the stale working copy and its first library sync wrote that over the newer row.
+ */
+const BEHIND_KEY = 'oip-web/project-behind'
+
+/** The document whose working copy is behind its library row, and since when; null when it is current. */
+export function workingCopyBehind(): { doc: string; since: number } | null {
+  const raw = safeGet(BEHIND_KEY)
+  if (raw === null) return null
+  try {
+    const v = JSON.parse(raw) as { doc?: unknown; since?: unknown }
+    return typeof v.doc === 'string' && typeof v.since === 'number' ? { doc: v.doc, since: v.since } : null
+  } catch {
+    return null
+  }
+}
+
+function noteWorkingCopyBehind(): void {
+  // the first refusal is kept: a row is only known to be newer than the working copy if written after it
+  if (safeGet(BEHIND_KEY) !== null) return
+  const doc = safeGet(CURRENT_DOC_KEY)
+  if (doc === null) return
+  try {
+    // a few bytes, so it usually fits where the project did not. When it does not, boot opens the working copy as before.
+    localStorage.setItem(BEHIND_KEY, JSON.stringify({ doc, since: Date.now() }))
+  } catch {
+    /* full or blocked */
+  }
+}
+
+function clearWorkingCopyBehind(): void {
+  try {
+    localStorage.removeItem(BEHIND_KEY)
+  } catch {
+    /* blocked storage: it was never set */
+  }
+}
+
+/**
  * Write the unified project document to localStorage (solo autosave). Never throws - a failed autosave
  * must not break editing - but it reports, because the failure mode is silent data loss: localStorage is
  * a few MB per origin and an imported model is embedded base64 (+33%) in the project doc, so one large
@@ -391,12 +463,16 @@ export function saveStoredProject(project: ProjectJSON): SaveResult {
     // compact: this is the browser autosave, not a file a user opens. The 2-space indent doubles it
     // (228 KB of demo project becomes 461 KB of text), and every edit would spend that twice, once
     // building the string and once writing it. Exported .oip files keep the readable form.
-    const text = serializeProject(project, { pretty: false })
+    // Models and textures are written as their hashes once their bytes are in IndexedDB (localAssets.ts): as base64
+    // here, one model could fill localStorage. After keepDefinitionsOnce, which can add a built-in's full copy.
+    const text = serializeProject(withLocalAssets(keepDefinitionsOnce(project)), { pretty: false })
     localStorage.setItem(PROJECT_KEY, text)
     remember(text)
+    clearWorkingCopyBehind()
     return { ok: true }
   } catch (e) {
     const quota = isQuotaError(e)
+    if (quota) noteWorkingCopyBehind()
     return {
       ok: false,
       quota,
@@ -688,6 +764,8 @@ export async function importProjectData(
   if (!result.ok) return 'message' in result ? result.message : `Invalid project:\n${result.errors.join('\n')}`
   const refused = (await opts?.beforeAdopt?.()) ?? null
   if (refused !== null) return refused
+  // its models go to the asset store first, so the working copy can name them by hash (localAssets.ts)
+  await storeLocalAssets(result.project)
   const adopted = adoptImportedProject(result)
   return adopted.ok ? null : adopted.message
 }

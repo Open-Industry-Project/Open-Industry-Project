@@ -6,10 +6,10 @@ import { definitionsUsedBy } from '../../core/parts/partPackage'
 import type { PartPackage } from '../../core/parts/partPackage'
 import type { PackageStatus } from '../parts/packageSource'
 import { DEMO_SCENE_NAME } from '../demo/demoScenes'
-import { createSdkPart, emptyScene, nextId, serializeScene } from '../../core/scene/scene'
+import { createSdkPart, emptyScene, nextId } from '../../core/scene/scene'
 import { floorRestPose, withFlexPose } from '../../core/parts/partGeometry'
 import type { FlexPose } from '../../core/parts/partGeometry'
-import { assembleProject, loadStoredProject, saveStoredProject } from '../project/projectFile'
+import { assembleProject, legacySceneText, loadStoredProject, saveStoredProject } from '../project/projectFile'
 import { keepsSharedTests } from '../project/sharedProject'
 import { SCENE_SLOT } from '../project/documentStore'
 import type { SaveResult, UnopenedProject } from '../project/projectFile'
@@ -1643,8 +1643,8 @@ export class EditorStore {
     // that is itself always current (AutosaveSchedule.legacyBackupDue).
     if (!this.autosave.legacyBackupDue(result.ok, Date.now())) return
     try {
-      // compact: nothing reads this by eye, and the indentation doubles it (see serializeScene)
-      localStorage.setItem(AUTOSAVE_KEY, serializeScene(this.sceneSansDraft(), undefined, undefined, { pretty: false }))
+      // compact, with models by hash (projectFile.legacySceneText)
+      localStorage.setItem(AUTOSAVE_KEY, legacySceneText(this.sceneSansDraft()))
     } catch {
       // best-effort: quota or serializer failures must not break editing. Not reported here - this is the
       // transitional fallback key and it is strictly smaller than the project doc, so anything that breaks

@@ -9,6 +9,7 @@ import { folderFilesToProject, projectToFolderFiles } from '../../core/project/p
 import type { ProjectJSON } from '../../core/project/project'
 import { bakePart } from '../parts/bakePart'
 import { adoptImportedProject } from '../project/projectFile'
+import { storeLocalAssets } from '../project/localAssets'
 import { clearEntryParams, currentDocumentId, fileOutgoingDocument, mintDocumentId, openDocument, supportsDocumentLibrary } from '../project/documentStore'
 import { folderDisplayName, getOipProjectApi } from './desktopProjectApi'
 import type { FolderRead } from './desktopProjectApi'
@@ -117,6 +118,8 @@ async function adoptFolderProject(
   // the two agreed rather than reading the app's rendering of every file as an edit
   if (id !== undefined) await api.remember(id, { path: root, name: result.project.name, baseline: null, signature: '', touch: true })
   clearEntryParams() // a ?scene=demo or ?room= entry URL would reload straight back into the demo or the shared project
+  // its models go to the asset store first, so the working copy can name them by hash (localAssets.ts)
+  await storeLocalAssets(result.project)
   // adopt = write-then-reload; a failed write returns instead of reloading, so say why
   const adopted = adoptImportedProject(result, id !== undefined ? { docId: id } : undefined)
   return adopted.ok ? null : adopted.message

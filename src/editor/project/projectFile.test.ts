@@ -23,12 +23,16 @@ import {
   parkSplitOff,
   readParkedSplitOff,
   saveStoredProject,
+  storedTextsWithAssets,
   unopenedProject,
   unparkSplitOff,
+  workingCopyBehind,
   workingCopyRefusal,
   workingCopySuperseded,
 } from './projectFile'
 import { EditorStore } from '../store/store'
+import { markLocalAssetStoredForTest, resetLocalAssetsForTest } from './localAssets'
+import { bytesToBase64 } from '../../core/parts/partAssets'
 import { PACKAGE_FORMAT } from '../../core/parts/partPackage'
 
 // A Map-backed localStorage stub (the vitest env is 'node', so there's none). projectFile + the
@@ -145,6 +149,77 @@ describe('saveStoredProject / loadStoredProject round-trip', () => {
     expect(result.ok).toBe(false)
     expect(result.ok === false && result.quota).toBe(true)
     expect(result.ok === false && result.message).toMatch(/local storage/i)
+  })
+
+  it('marks the open document behind on a quota refusal, keeps the first time, and clears on the next save', () => {
+    ls().setItem('oip-web/document-id', 'doc-a')
+    const setItem = ls().setItem.bind(ls())
+    let full = true
+    ls().setItem = (k: string, v: string) => {
+      if (full && k === PROJECT_KEY) throw quotaError()
+      setItem(k, v)
+    }
+    const before = Date.now()
+    saveStoredProject(assembleProject(sampleScene(), '', []))
+    const first = workingCopyBehind()
+    expect(first?.doc).toBe('doc-a')
+    expect(first!.since).toBeGreaterThanOrEqual(before)
+    ls().setItem('oip-web/document-id', 'doc-b')
+    saveStoredProject(assembleProject(sampleScene(), '', []))
+    expect(workingCopyBehind()).toEqual(first)
+    full = false
+    expect(saveStoredProject(assembleProject(sampleScene(), '', [])).ok).toBe(true)
+    expect(workingCopyBehind()).toBeNull()
+  })
+
+  it('marks nothing behind for a non-quota failure or with no document', () => {
+    const setItem = ls().setItem.bind(ls())
+    ls().setItem = (k: string, v: string) => {
+      if (k === PROJECT_KEY) throw quotaError()
+      setItem(k, v)
+    }
+    saveStoredProject(assembleProject(sampleScene(), '', []))
+    expect(workingCopyBehind()).toBeNull()
+    ls().setItem('oip-web/document-id', 'doc-a')
+    ls().setItem = (k: string, v: string) => {
+      if (k === PROJECT_KEY) throw new Error('serializer exploded')
+      setItem(k, v)
+    }
+    saveStoredProject(assembleProject(sampleScene(), '', []))
+    expect(workingCopyBehind()).toBeNull()
+  })
+
+  it('loads the newer library copy in place of the working copy when given one', () => {
+    saveStoredProject(assembleProject(sampleScene(), 'PROGRAM Old\nEND_PROGRAM', [], 'Old'))
+    const ahead = assembleProject({ version: SCENE_VERSION, parts: [createPart('group', 'rc_2', [0, 0, 0])] }, 'PROGRAM New\nEND_PROGRAM', [], 'New')
+    const loaded = loadStoredProject(ahead)!
+    expect(loaded.project.name).toBe('New')
+    expect(loaded.scene.parts.map((p) => p.id)).toEqual(['rc_2'])
+    expect(loaded.stProgram).toContain('PROGRAM New')
+  })
+
+  it('writes a stored model by its hash, and reads it back whole', () => {
+    const data = bytesToBase64(Uint8Array.from({ length: 4000 }, (_, i) => (i * 7) & 255))
+    const pkg = { ...samplePackage(), assets: [{ id: 'body', mime: 'model/gltf-binary', data }] }
+    markLocalAssetStoredForTest(data)
+    expect(saveStoredProject(assembleProject(sampleScene(), '', [pkg])).ok).toBe(true)
+    const text = ls().getItem(PROJECT_KEY)!
+    expect(text).not.toContain(data.slice(0, 200))
+    expect(storedTextsWithAssets()[0]).toBe(text)
+    expect(loadStoredProject()!.library[0]!.assets).toEqual(pkg.assets)
+    resetLocalAssetsForTest()
+  })
+
+  it('refuses a working copy whose model is gone from storage, or opens the copy it is given instead', () => {
+    const data = bytesToBase64(Uint8Array.from({ length: 4000 }, (_, i) => (i * 7) & 255))
+    const pkg = { ...samplePackage(), assets: [{ id: 'body', mime: 'model/gltf-binary', data }] }
+    markLocalAssetStoredForTest(data)
+    saveStoredProject(assembleProject(sampleScene(), '', [pkg], 'Modelled'))
+    resetLocalAssetsForTest()
+    loadStoredProject()
+    expect(unopenedProject()?.errors.join()).toMatch(/missing from this browser's storage/)
+    const library = assembleProject(sampleScene(), '', [pkg], 'From library')
+    expect(loadStoredProject(library)!.project.name).toBe('From library')
   })
 
   it('reports a non-quota write failure too, without throwing', () => {
