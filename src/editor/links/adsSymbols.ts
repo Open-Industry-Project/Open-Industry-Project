@@ -21,7 +21,8 @@ export async function readAdsSymbols(shell: AdsHost, netId: string, port: number
     if (opened.error) return failed(opened.error)
     const r = await host.symbols!()
     if (r.error) return failed(r.error)
-    if (r.code) return failed(adsErrorText(r.code))
+    // no route either way: the PLC's route back has to name this PC, so say which Net ID that is, as a run's link does
+    if (r.code) return failed((r.code === 0x7 || r.code === 0x749) && opened.localNetId ? `${adsErrorText(r.code)}. This PC's AMS Net ID is ${opened.localNetId}` : adsErrorText(r.code))
     return { state: 'ready', groups: adsSymbolGroups(r.symbols ?? []), error: null }
   } finally {
     await host.close()

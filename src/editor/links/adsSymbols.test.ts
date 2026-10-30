@@ -4,7 +4,7 @@ import { BROWSE_LINK } from './linkHosts'
 import { readAdsSymbols } from './adsSymbols'
 
 // a shell that records the calls and answers with `answer`
-function shell(answer: Awaited<ReturnType<NonNullable<AdsHost['symbols']>>>, open = { error: '' }): { host: AdsHost; calls: string[] } {
+function shell(answer: Awaited<ReturnType<NonNullable<AdsHost['symbols']>>>, open: Awaited<ReturnType<AdsHost['open']>> = { error: '' }): { host: AdsHost; calls: string[] } {
   const calls: string[] = []
   const host: AdsHost = {
     open: async (o) => (calls.push(`open ${o.netId}:${o.port} link ${o.link}`), open),
@@ -25,10 +25,11 @@ describe('reading a runtime\'s variables for the connections window', () => {
   })
 
   it('says why when the runtime refuses, and still lets go', async () => {
-    const { host, calls } = shell({ error: '', code: 0x7 })
+    const { host, calls } = shell({ error: '', code: 0x7 }, { error: '', localNetId: '10.0.0.5.1.1' })
     const list = await readAdsSymbols(host, '5.170.233.29.1.1', 851)
     expect(list.state).toBe('failed')
     expect(list.error).toMatch(/target machine not found/)
+    expect(list.error).toMatch(/This PC's AMS Net ID is 10\.0\.0\.5\.1\.1$/)
     expect(calls.at(-1)).toBe(`close link ${BROWSE_LINK}`)
   })
 
