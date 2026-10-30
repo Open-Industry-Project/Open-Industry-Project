@@ -3,7 +3,7 @@
 // (TcAdsDef.h), so nothing here needs a PLC; the ADS calls themselves are tested against a runtime by hand.
 const assert = require('node:assert/strict')
 const { test } = require('node:test')
-const { parseSymbolTable } = require('./adsIo.cjs')
+const { AdsLink, parseSymbolTable } = require('./adsIo.cjs')
 
 /** One AdsSymbolEntry: the six u32 header fields, the three u16 lengths, then name, type and comment, each zero-ended. */
 function entry(name, typeName, adsType, size, comment = '') {
@@ -44,4 +44,8 @@ test('stops at a record that runs past the table, keeping the ones before it', (
 
 test('an empty table lists nothing', () => {
   assert.deepEqual(parseSymbolTable(Buffer.alloc(0)), [])
+})
+
+test('a link lists its symbol table through a method that its handle map does not hide', () => {
+  assert.equal(typeof new AdsLink().listSymbols, 'function')
 })

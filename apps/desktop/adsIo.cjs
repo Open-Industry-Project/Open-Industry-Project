@@ -271,7 +271,7 @@ class AdsLink {
    * (SYM_UPLOADINFO2), then the table itself in one request, under a longer timeout than a cycle's. Variables only, as
    * TwinCAT lists them (`MAIN.Run`, `GVL.Speed`, `MAIN.tCycle` of type TON): a structure's members are not listed.
    */
-  symbols() {
+  listSymbols() {
     return this.serial(async () => {
       if (!lib || !this.addr) return { error: loadError ?? 'not connected' }
       const info = Buffer.alloc(24)
@@ -460,7 +460,7 @@ function registerAdsIo(ipcMain, { consent }) {
     }
   }
   ipcMain.handle('ads:bind', (event, opts) => withLink(event, opts, (l) => l.bind(Array.isArray(opts?.tags) ? opts.tags : [])))
-  ipcMain.handle('ads:symbols', (event, opts) => withLink(event, opts, (l) => l.symbols()))
+  ipcMain.handle('ads:symbols', (event, opts) => withLink(event, opts, (l) => l.listSymbols()))
   ipcMain.handle('ads:exchange', (event, opts) => withLink(event, opts, (l) => l.exchange(Array.isArray(opts?.writes) ? opts.writes : [], Array.isArray(opts?.reads) ? opts.reads : [])))
   ipcMain.handle('ads:close', async (event, opts) => {
     const n = linkNo(opts)
