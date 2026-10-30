@@ -2,21 +2,25 @@
 // Its own module so the first frame does not carry it: it renders only once a node is selected, and the Inspector
 // loads it lazily (rigNodeChunk.ts), starting when a part is opened as a scene.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent as ReactChangeEvent } from 'react'
 import type { SdkPart } from '../../../core/types'
 import { getPackage } from '../../../core/parts/partRegistry'
 import { partDisplayName } from '../../../core/parts/partDisplayName'
 import { inspectGlb } from '../../parts/glbInspect'
-import type { RigJoint, RigLink, RigShape } from '../../../core/parts/partPackage'
+import type { RigJoint, RigLink, RigServo, RigShape } from '../../../core/parts/partPackage'
 import { behaviorMentions } from '../../../core/parts/partPackage'
 import { linkCollisionBox, partLinkOwnership } from '../../../core/rig/rigPose'
 import type { LinkFieldOwner, LinkNote } from '../../../core/rig/rigPose'
 import { AUTHORABLE_SHAPE_KINDS, canDeleteRigNode, convertShape, isAuthorableShapeKind, shapeLabel } from '../../rigTree'
+import { movingPartCentre, reparentTargets, rigPivot, splitSourcesFor } from '../../rigSplit'
+import { isRigLengthUnit, readRigLengthUnit, RIG_LENGTH_UNITS, RIG_UNIT_M, writeRigLengthUnit, type RigLengthUnit } from '../../rigLengthUnit'
+import { meshLinkBox, parseGlb } from '../../../core/glbBox'
+import { base64ToBytes } from '../../../core/parts/partAssets'
 import type { AuthorableShapeKind } from '../../rigTree'
 import type { EditorStore } from '../../store/store'
 import type { EditorController } from '../../controller'
-import { AxisInput, BoolRow, Fold, NumberField, TextField, useShownLengthUnit, VectorRow } from './fields'
+import { AxisInput, BoolRow, DisplayUnitsContext, Fold, NumberField, TextField, useShownLengthUnit, VectorRow } from './fields'
 import { InspectorHeader } from './header'
 import { DEFAULT_STEP_OPTIONS, importStep, isStepFile, type StepImportOptions } from '../../stepImport'
 import { takePendingModel } from '../../parts/modelPartImport'
@@ -136,6 +140,34 @@ const M = defineMessages('inspector.rigNode', {
     "Hard lower limit on the travel. A script commanding past it is clamped, not ignored, so the node parks at the limit instead of failing. 0 is the node's rest position; a negative limit lets it retract behind that.",
   maxTravelTip:
     "Hard upper limit on the travel: the node's stroke measured from its rest position along the axis above. A script commanding past it is clamped, not ignored.",
+  pivot: 'Pivot ({unit})',
+  pivotTip:
+    "The point this joint turns about, in the part's coordinates. Changing it keeps everything where it is at rest: on a node that draws something, a frame is added above it to carry the joint, and the joint keeps its name.",
+  pivotCentre: 'Pivot at centre',
+  pivotCentreTip: 'Put the pivot at the centre of everything this joint moves. Type the pivot above to put it on a hinge line instead.',
+  pivotLocked: 'A node above this one is rotated or placed by a parameter, so the pivot is set with Offset on the nodes instead.',
+  split: 'Split into pieces',
+  splitHereHint: 'Click a piece of the model to give it its own node under this one. It stays where it is, and can then get a joint.',
+  splitUnderHint: 'Click a piece of “{source}” to move it with this node. It stays where it is at rest.',
+  splitPieceTip: 'Split “{node}” out into its own node',
+  splitNone: 'Every piece of this model is already split out.',
+  mergeBack: 'Merge back into model',
+  mergeBackTip: 'Undo the split: “{node}” goes back into “{source}” and this node is removed with its joint. Pieces under it move up and stay in place.',
+  lengthUnit: 'Length unit',
+  lengthUnitTip: 'How this panel shows offsets, sizes, travel and pivots. The part always stores metres, so this changes nothing in the part.',
+  parentSelectTip: 'Move this node under another one. Its offset changes so it stays where it is.',
+  spin: 'Spins endlessly',
+  spinTip: 'Make this joint turn without end, like a drill spindle or a rotary table, instead of between Min and Max. The behavior runs it at a speed.',
+  spinSpeed: 'Speed',
+  spinSpeedTip: 'The top speed the spindle runs at, in turns per minute. The behavior can ask for less, never more.',
+  spinUp: 'Spin-up time',
+  spinUpTip: 'How long the spindle takes to get from standstill to the speed above, and to stop again.',
+  spinHint: 'A spinning joint is run by the host, so the behavior starts and stops it with these lines (on is your start condition, for example a PLC tag):',
+  position: 'Position',
+  positionTip: 'Drag across the field to move the joint between Min and Max and check it by eye, or type a value. Nothing is saved: the joint goes back to rest when you select another node.',
+  testMotion: 'Test motion',
+  stopTest: 'Stop test',
+  testMotionTip: 'Move the joint from Min to Max and back twice, then return it to rest, to check the axis and limits. Works while the simulation is stopped.',
   removeJoint: 'Remove joint',
   addJointTip: 'Make this node articulated: add a joint the behavior script drives with ctx.setJoint(name, …)',
   addJoint: 'Add joint',
@@ -265,10 +297,22 @@ export function RigNodePanel({
 }) {
   const [msg, setMsg] = useState<string | null>(null)
   // the sections' folds, as the part Inspector's (Fold): open until closed, for as long as the panel is up
-  const [folds, setFolds] = useState<Record<string, boolean>>({})
+  // the Mesh details (asset, scale, the model's material list) start folded: they run long and are rarely needed
+  const [folds, setFolds] = useState<Record<string, boolean>>({ 'Shape/Mesh': true })
   const toggle = (path: string): void => setFolds((c) => ({ ...c, [path]: !(c[path] ?? false) }))
   const editable = controller !== null
-  const lengthUnit = useShownLengthUnit()
+  // Lengths show in the unit picked here (m, cm or mm) in a metric scene. An imperial scene keeps its inches, which
+  // the fields convert to on their own. Values are stored in metres either way: shown = metres / unitM.
+  const metricScene = useContext(DisplayUnitsContext) === 'metric'
+  const [pickedUnit, setPickedUnit] = useState<RigLengthUnit>(readRigLengthUnit)
+  const lu: RigLengthUnit = metricScene ? pickedUnit : 'm'
+  const unitM = RIG_UNIT_M[lu]
+  const shownUnit = useShownLengthUnit()
+  const lengthUnit = metricScene ? lu : shownUnit
+  const toShown = (metres: number): number => metres / unitM
+  const fromShown = (v: number): number => Number((v * unitM).toPrecision(12))
+  const lenDecimals = lu === 'm' ? 3 : 1
+  const lenStep = 0.01 / unitM
   // a part needs one node (controller.deleteRigNode refuses to empty a rig, as the scene tree's Delete does)
   const pkgGeometry = getPackage(part.packageId)?.geometry
   // the joint's name is renamable here only while the behavior never mentions it (controller.renameRigJoint)
@@ -502,12 +546,59 @@ export function RigNodePanel({
     link.shape.kind === 'mesh' ? (getPackage(part.packageId)?.assets ?? []).find((a) => a.id === (link.shape as Extract<RigShape, { kind: 'mesh' }>).asset) : undefined
   const glb = useMemo(() => (meshAsset?.data ? inspectGlb(meshAsset.data) : null), [meshAsset?.data])
 
+  // Split into pieces: the whole-scene model this node can take pieces from (itself, or an ancestor it lines up
+  // with), and that model's nodes still drawn there. Nodes come from the asset's own GLB, not this link's.
+  const pkgAssets = ownPkg?.assets
+  const rig = pkgGeometry?.kind === 'rig' ? pkgGeometry : null
+  const splitSource = rig ? (splitSourcesFor(rig, link.name)[0] ?? null) : null
+  const splitAsset = splitSource?.shape.kind === 'mesh' ? splitSource.shape.asset : undefined
+  const splitAssetData = (pkgAssets ?? []).find((a) => a.id === splitAsset)?.data
+  const splitGlb = useMemo(() => (splitAssetData ? inspectGlb(splitAssetData) : null), [splitAssetData])
+  const splitHidden = splitSource?.shape.kind === 'mesh' ? new Set(splitSource.shape.hideNodes ?? []) : new Set<string>()
+  // a node another link already keeps is not offered again, so a piece is never drawn twice
+  const keptElsewhere = new Set((rig?.links ?? []).flatMap((l) => (l.shape.kind === 'mesh' && l.shape.asset === splitAsset && l.shape.keepNode ? [l.shape.keepNode] : [])))
+  const splitCandidates = splitGlb ? splitGlb.nodes.filter((n) => !splitHidden.has(n) && !keptElsewhere.has(n)) : []
+  // glTF JSON per embedded asset, parsed once, for measuring mesh links (pivot at centre)
+  const glbJson = useMemo(() => {
+    const out = new Map<string, unknown>()
+    for (const a of pkgAssets ?? []) {
+      if (a.mime !== 'model/gltf-binary' || !a.data) continue
+      const bytes = base64ToBytes(a.data)
+      if (!bytes) continue
+      try {
+        out.set(a.id, parseGlb(bytes).json)
+      } catch {
+        // not a GLB: nothing to measure
+      }
+    }
+    return out
+  }, [pkgAssets])
+  const pivot = rig && joint ? rigPivot(rig, link.name) : null
+  const setPivot = (p: [number, number, number]): void => {
+    controller?.rig.setRigJointPivot(part.packageId, link.name, p)
+  }
+  const centrePivot = (): void => {
+    if (!rig) return
+    const c = movingPartCentre(rig, link.name, (l) => {
+      if (l.shape.kind !== 'mesh') return null
+      const json = glbJson.get(l.shape.asset)
+      return json ? meshLinkBox(json, l.shape) : null
+    })
+    if (c) setPivot(c)
+  }
+
   // M4: add / edit / remove the joint that articulates this node (the script drives it by name).
   const revolute = joint?.type === 'revolute'
   const addJoint = (): void => controller?.setRigJoint(part.packageId, link.name, { type: 'revolute', axis: [0, 1, 0], min: -Math.PI / 2, max: Math.PI / 2 })
   const removeJoint = (): void => controller?.setRigJoint(part.packageId, link.name, null)
-  const editJoint = (patch: { type?: 'revolute' | 'prismatic'; axis?: [number, number, number]; min?: number; max?: number }): void => {
+  // Spins endlessly: a revolute servo that wraps a full turn (servo.modulo), run at a speed by the behavior with
+  // ctx.servos.<name>.moveVelocity. Its min / max must cover 0 to the turn, and the host poses it, not ctx.joints.
+  const TURN = 2 * Math.PI
+  const spinning = revolute && joint?.servo?.modulo !== undefined
+  const editJoint = (patch: { type?: 'revolute' | 'prismatic'; axis?: [number, number, number]; min?: number; max?: number; servo?: RigServo | null }): void => {
     if (!joint) return
+    // leaving revolute ends the spin, and its 0..360° limits would read as metres
+    if (spinning && patch.type === 'prismatic') patch = { min: 0, max: 0.1, servo: null, ...patch }
     // limits never cross: the bound being edited stops at the other one rather than inverting the range
     let min = patch.min ?? joint.min
     let max = patch.max ?? joint.max
@@ -520,9 +611,118 @@ export function RigNodePanel({
       axis: patch.axis ?? [joint.axis[0], joint.axis[1], joint.axis[2]],
       min,
       max,
+      ...(patch.servo !== undefined ? { servo: patch.servo } : {}),
     })
   }
   const toRad = (deg: number): number => (deg * Math.PI) / 180
+  const rpmToRad = (rpm: number): number => (rpm * TURN) / 60
+  const radToRpm = (w: number): number => (w * 60) / TURN
+  // on: 60 rpm, up to speed in 0.5 s. Off: back to a plain joint with the default quarter-turn limits.
+  const setSpinning = (on: boolean): void =>
+    on
+      ? editJoint({ min: 0, max: TURN, servo: { maxVelocity: rpmToRad(60), maxAccel: rpmToRad(60) / 0.5, modulo: TURN } })
+      : editJoint({ min: -Math.PI / 2, max: Math.PI / 2, servo: null })
+  const spinServo = spinning ? joint!.servo! : null
+  const setSpinSpeed = (rpm: number): void => {
+    if (!spinServo) return
+    const w = rpmToRad(Math.max(1, rpm))
+    const rampS = spinServo.maxVelocity / spinServo.maxAccel
+    editJoint({ servo: { ...spinServo, maxVelocity: w, maxAccel: w / rampS } })
+  }
+  const setSpinUp = (seconds: number): void => {
+    if (!spinServo) return
+    editJoint({ servo: { ...spinServo, maxAccel: spinServo.maxVelocity / Math.max(0.01, seconds) } })
+  }
+
+  // Test motion: sweep the joint Min -> Max -> Min twice through the view's idle-pose path (the one a stopped part's
+  // settled pose uses), then put every joint back at rest. Nothing is written to the part.
+  const view = controller?.view ?? null
+  const testFrame = useRef<number | null>(null)
+  const [testing, setTesting] = useState(false)
+  // Position: the joint posed by hand from the panel (its own units: radians or metres), through the same idle-pose
+  // path as Test motion. Panel-local, never written to the part; back to rest when the joint changes or the panel goes.
+  const [posed, setPosed] = useState(0)
+  const jointKey = joint ? `${joint.name}:${joint.type}:${joint.min}:${joint.max}` : ''
+  const poseRange: [number, number] | null = joint ? (spinning ? [0, TURN] : [joint.min, joint.max]) : null
+  const poseJoint = (v: number): void => {
+    if (!joint || !view || !poseRange) return
+    const at = Math.min(Math.max(v, poseRange[0]), poseRange[1])
+    setPosed(at)
+    view.applyIdlePose(part.id, { joints: { [joint.name]: at } })
+  }
+  const stopTest = (): void => {
+    if (testFrame.current !== null) cancelAnimationFrame(testFrame.current)
+    testFrame.current = null
+    setTesting(false)
+    setPosed(0)
+    view?.applyIdlePose(part.id, { joints: {} })
+  }
+  const startTest = (): void => {
+    if (!joint || !view) return
+    const { name, min, max } = joint
+    const periodMs = 3000
+    const cycles = 2
+    // a spinning joint turns at its speed for the same time instead of sweeping its limits
+    const spinRate = spinning && joint.servo ? joint.servo.maxVelocity : null
+    const t0 = performance.now()
+    const tick = (now: number): void => {
+      const t = (now - t0) / periodMs
+      if (t >= cycles) return stopTest()
+      // a sweep starts at Min, reaches Max at half a period, eases at both ends
+      const v = spinRate !== null ? (spinRate * (now - t0) / 1000) % TURN : min + ((max - min) * (1 - Math.cos(2 * Math.PI * t))) / 2
+      view.applyIdlePose(part.id, { joints: { [name]: v } })
+      testFrame.current = requestAnimationFrame(tick)
+    }
+    setTesting(true)
+    testFrame.current = requestAnimationFrame(tick)
+  }
+  // A test still running, or a joint posed by hand, goes back to rest when another node is selected (the Inspector
+  // keeps this panel and swaps its props, so that is a change of link, not an unmount), when the joint's limits or
+  // type change, and when the panel goes. Only then: a rest pose on every open would undo a behavior-settled one.
+  const stopTestRef = useRef(stopTest)
+  stopTestRef.current = stopTest
+  const posedRef = useRef(posed)
+  posedRef.current = posed
+  useEffect(
+    () => () => {
+      if (testFrame.current !== null || posedRef.current !== 0) stopTestRef.current()
+    },
+    [part.id, link.name, jointKey],
+  )
+
+  // Parent: the nodes this one can move under while staying in place (rigSplit.reparentTargets)
+  const parentOptions = rig ? reparentTargets(rig, link.name) : []
+  // Merge back: a split piece goes back into the model node it came from
+  const mergeSource = link.shape.kind === 'mesh' && link.shape.keepNode ? splitSource : null
+
+  // the length unit picker, shown in the Joint section where travel and pivots are set; it applies to every
+  // length in the panel
+  const unitPicker = metricScene && (
+    <label className="field">
+      <span className="field-label" title={t(M.lengthUnitTip)}>
+        {t(M.lengthUnit)}
+      </span>
+      <span className="field-control">
+        <select
+          className="rig-select"
+          data-testid="rig-length-unit"
+          value={lu}
+          onChange={(e) => {
+            if (!isRigLengthUnit(e.target.value)) return
+            setPickedUnit(e.target.value)
+            writeRigLengthUnit(e.target.value)
+          }}
+        >
+          {RIG_LENGTH_UNITS.map((u) => (
+            // i18n-ok: unit symbols
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      </span>
+    </label>
+  )
 
   const s = link.shape
   return (
@@ -540,10 +740,29 @@ export function RigNodePanel({
           : t(M.rigNodeCopies, { count: placedCopies, part: partDisplayName(part, [part]) })}
       </p>
       <Fold title={t(M.link)} path="Link" collapsed={folds} toggle={toggle}>
-        {row(
-          t(M.parent),
-          link.parent ?? t(M.rigRoot),
-          t(M.parentTip),
+        {editable && parentOptions.length > 1 ? (
+          <label className="field">
+            <span className="field-label" title={t(M.parentTip)}>
+              {t(M.parent)}
+            </span>
+            <span className="field-control">
+              <select
+                className="rig-select"
+                data-testid="rig-parent"
+                value={link.parent ?? ''}
+                title={t(M.parentSelectTip)}
+                onChange={(e) => controller?.rig.reparentRigLink(part.packageId, link.name, e.target.value === '' ? undefined : e.target.value)}
+              >
+                {parentOptions.map((p) => (
+                  <option key={p ?? ''} value={p ?? ''}>
+                    {p ?? t(M.rigRoot)}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+        ) : (
+          row(t(M.parent), link.parent ?? t(M.rigRoot), t(M.parentTip))
         )}
 
         {/* Same compact X/Y/Z transform row a scene part uses; the only real difference is that a
@@ -553,12 +772,12 @@ export function RigNodePanel({
             <AxisInput
               key={axis}
               prefix={['X', 'Y', 'Z'][axis]!}
-              value={link.offset[axis]!}
-              decimals={3}
-              step={0.01}
-              entryUnit="m"
+              value={toShown(link.offset[axis]!)}
+              decimals={lenDecimals}
+              step={lenStep}
+              entryUnit={lu}
               disabled={!editable || !!own?.offset[axis]}
-              onCommit={(v) => setOffset(axis, v)}
+              onCommit={(v) => setOffset(axis, fromShown(v))}
             />
           ))}
         </VectorRow>
@@ -652,17 +871,17 @@ export function RigNodePanel({
               <NumberField
                 key={ax}
                 label={ax}
-                unit="m"
+                unit={lu}
                 tooltip={t(M.boxSizeTip, { ax })}
-                value={s.size[i]!}
-                decimals={3}
-                step={0.01}
-                min={0.001}
+                value={toShown(s.size[i]!)}
+                decimals={lenDecimals}
+                step={lenStep}
+                min={toShown(0.001)}
                 badge={ownerName(own?.boxSize?.[i])}
                 disabled={!editable || !!own?.boxSize?.[i]}
                 onCommit={(v) => {
                   const size: [number, number, number] = [s.size[0], s.size[1], s.size[2]]
-                  size[i] = Math.max(0.001, v)
+                  size[i] = Math.max(0.001, fromShown(v))
                   setShape({ ...s, size })
                 }}
               />
@@ -671,27 +890,29 @@ export function RigNodePanel({
         )}
         {s.kind === 'cylinder' && (
           <Fold title={t(M.cylinder, { unit: lengthUnit })} path="Shape/Cylinder" depth={1} collapsed={folds} toggle={toggle}>
-            <NumberField label={t(M.radius)} unit="m" tooltip={t(M.cylinderRadiusTip)} value={s.radius} decimals={3} step={0.01} min={0.001} badge={ownerName(own?.cylinder?.radius)} disabled={!editable || !!own?.cylinder?.radius} onCommit={(v) => setShape({ ...s, radius: Math.max(0.001, v) })} />
-            <NumberField label={t(M.height)} unit="m" tooltip={t(M.cylinderHeightTip)} value={s.height} decimals={3} step={0.01} min={0.001} badge={ownerName(own?.cylinder?.height)} disabled={!editable || !!own?.cylinder?.height} onCommit={(v) => setShape({ ...s, height: Math.max(0.001, v) })} />
+            <NumberField label={t(M.radius)} unit={lu} tooltip={t(M.cylinderRadiusTip)} value={toShown(s.radius)} decimals={lenDecimals} step={lenStep} min={toShown(0.001)} badge={ownerName(own?.cylinder?.radius)} disabled={!editable || !!own?.cylinder?.radius} onCommit={(v) => setShape({ ...s, radius: Math.max(0.001, fromShown(v)) })} />
+            <NumberField label={t(M.height)} unit={lu} tooltip={t(M.cylinderHeightTip)} value={toShown(s.height)} decimals={lenDecimals} step={lenStep} min={toShown(0.001)} badge={ownerName(own?.cylinder?.height)} disabled={!editable || !!own?.cylinder?.height} onCommit={(v) => setShape({ ...s, height: Math.max(0.001, fromShown(v)) })} />
           </Fold>
         )}
         {s.kind === 'cone' && (
           <Fold title={t(M.cone, { unit: lengthUnit })} path="Shape/Cone" depth={1} collapsed={folds} toggle={toggle}>
-            <NumberField label={t(M.radius)} unit="m" tooltip={t(M.coneRadiusTip)} value={s.radius} decimals={3} step={0.01} min={0.001} disabled={!editable} onCommit={(v) => setShape({ ...s, radius: Math.max(0.001, v) })} />
-            <NumberField label={t(M.height)} unit="m" tooltip={t(M.coneHeightTip)} value={s.height} decimals={3} step={0.01} min={0.001} disabled={!editable} onCommit={(v) => setShape({ ...s, height: Math.max(0.001, v) })} />
+            <NumberField label={t(M.radius)} unit={lu} tooltip={t(M.coneRadiusTip)} value={toShown(s.radius)} decimals={lenDecimals} step={lenStep} min={toShown(0.001)} disabled={!editable} onCommit={(v) => setShape({ ...s, radius: Math.max(0.001, fromShown(v)) })} />
+            <NumberField label={t(M.height)} unit={lu} tooltip={t(M.coneHeightTip)} value={toShown(s.height)} decimals={lenDecimals} step={lenStep} min={toShown(0.001)} disabled={!editable} onCommit={(v) => setShape({ ...s, height: Math.max(0.001, fromShown(v)) })} />
           </Fold>
         )}
         {s.kind === 'mesh' && (
           <Fold title={t(M.mesh)} path="Shape/Mesh" depth={1} collapsed={folds} toggle={toggle}>
             {row(
               t(M.asset),
-              s.node ? `${s.asset} · ${s.node}` : s.asset,
+              s.node ? `${s.asset} · ${s.node}` : s.keepNode ? `${s.asset} · ${s.keepNode}` : s.asset,
               t(M.assetTip),
             )}
             <NumberField label={t(M.scale)} unit="" tooltip={t(M.scaleTip)} value={s.scale ?? 1} decimals={3} step={0.01} min={0.001} disabled={!editable} onCommit={(v) => setShape({ ...s, scale: Math.max(0.001, v) })} />
             {glb && (glb.nodes.length > 0 || glb.materials.length > 0) && (
               <div className="glb-contents">
-                {glb.nodes.length > 0 && (
+                {/* a carved link (a split piece, or a model with pieces split off) cannot also take `node`: the
+                    validator refuses the mix, so its pieces are managed under Split into pieces instead */}
+                {glb.nodes.length > 0 && !s.keepNode && !s.hideNodes?.length && (
                   <>
                     <div className="glb-group-label">{t(M.glbNodes)}</div>
                     <div className="glb-chips">
@@ -738,6 +959,43 @@ export function RigNodePanel({
         )}
 
       </Fold>
+      {splitSource && splitGlb && splitGlb.nodes.length > 0 && (
+        <Fold title={t(M.split)} path="Split" collapsed={folds} toggle={toggle}>
+          <p className="inspector-hint">{splitSource.name === link.name ? t(M.splitHereHint) : t(M.splitUnderHint, { source: splitSource.name })}</p>
+          {mergeSource && link.shape.kind === 'mesh' && (
+            <div className="rig-script-actions">
+              <button
+                type="button"
+                className="array-add"
+                data-testid="merge-piece"
+                disabled={!editable}
+                title={t(M.mergeBackTip, { node: link.shape.keepNode ?? '', source: mergeSource.name })}
+                onClick={() => controller?.rig.mergeRigPiece(part.packageId, link.name)}
+              >
+                {t(M.mergeBack)}
+              </button>
+            </div>
+          )}
+          {splitCandidates.length > 0 ? (
+            <div className="glb-chips" data-testid="split-pieces">
+              {splitCandidates.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className="glb-chip"
+                  disabled={!editable}
+                  title={t(M.splitPieceTip, { node: n })}
+                  onClick={() => controller?.rig.splitRigMeshNode(part.packageId, splitSource.name, n, link.name)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="inspector-hint">{t(M.splitNone)}</p>
+          )}
+        </Fold>
+      )}
       <Fold title={t(M.joint)} path="Joint" collapsed={folds} toggle={toggle}>
         {joint ? (
           <>
@@ -787,6 +1045,7 @@ export function RigNodePanel({
                 </select>
               </span>
             </label>
+            {unitPicker}
             {(['X', 'Y', 'Z'] as const).map((ax, i) => (
               <NumberField
                 key={ax}
@@ -806,16 +1065,69 @@ export function RigNodePanel({
             ))}
             {revolute ? (
               <>
-                <NumberField label={t(M.min)} unit="°" tooltip={t(M.minRotTip)} value={(joint.min * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ min: toRad(v) })} />
-                <NumberField label={t(M.max)} unit="°" tooltip={t(M.maxRotTip)} value={(joint.max * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ max: toRad(v) })} />
+                <BoolRow label={t(M.spin)} checked={spinning} disabled={!editable} tooltip={t(M.spinTip)} onChange={setSpinning} />
+                {spinServo ? (
+                  <>
+                    <NumberField label={t(M.spinSpeed)} unit="rpm" tooltip={t(M.spinSpeedTip)} value={radToRpm(spinServo.maxVelocity)} decimals={0} step={10} min={1} disabled={!editable} onCommit={setSpinSpeed} />
+                    <NumberField label={t(M.spinUp)} unit="s" tooltip={t(M.spinUpTip)} value={spinServo.maxVelocity / spinServo.maxAccel} decimals={2} step={0.1} min={0.01} disabled={!editable} onCommit={setSpinUp} />
+                    <p className="inspector-hint" data-testid="spin-hint">
+                      {t(M.spinHint)}
+                    </p>
+                    {/* i18n-ok: behavior code, as the script spells it */}
+                    <pre className="rig-code" data-testid="spin-code">{`servos: [${JSON.stringify(joint.name)}],\nstep(ctx) {\n  const s = ctx.servos[${JSON.stringify(joint.name)}]\n  s.power(true)\n  s.moveVelocity(on ? ${Number(spinServo.maxVelocity.toFixed(3))} : 0) // rad/s\n},`}</pre>
+                  </>
+                ) : (
+                  <>
+                    <NumberField label={t(M.min)} unit="°" tooltip={t(M.minRotTip)} value={(joint.min * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ min: toRad(v) })} />
+                    <NumberField label={t(M.max)} unit="°" tooltip={t(M.maxRotTip)} value={(joint.max * 180) / Math.PI} decimals={1} step={1} disabled={!editable} onCommit={(v) => editJoint({ max: toRad(v) })} />
+                  </>
+                )}
+                {pivot ? (
+                  <>
+                    <VectorRow label={t(M.pivot, { unit: lengthUnit })} tooltip={t(M.pivotTip)}>
+                      {([0, 1, 2] as const).map((axis) => (
+                        <AxisInput
+                          key={axis}
+                          prefix={['X', 'Y', 'Z'][axis]!}
+                          value={toShown(pivot[axis])}
+                          decimals={lenDecimals}
+                          step={lenStep}
+                          entryUnit={lu}
+                          disabled={!editable}
+                          onCommit={(v) => {
+                            const p: [number, number, number] = [pivot[0], pivot[1], pivot[2]]
+                            p[axis] = fromShown(v)
+                            setPivot(p)
+                          }}
+                        />
+                      ))}
+                    </VectorRow>
+                    <div className="rig-script-actions">
+                      <button type="button" className="array-add" data-testid="pivot-centre" disabled={!editable} title={t(M.pivotCentreTip)} onClick={centrePivot}>
+                        {t(M.pivotCentre)}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="inspector-hint">{t(M.pivotLocked)}</p>
+                )}
               </>
             ) : (
               <>
-                <NumberField label={t(M.min)} unit="m" tooltip={t(M.minTravelTip)} value={joint.min} decimals={3} step={0.01} disabled={!editable} onCommit={(v) => editJoint({ min: v })} />
-                <NumberField label={t(M.max)} unit="m" tooltip={t(M.maxTravelTip)} value={joint.max} decimals={3} step={0.01} disabled={!editable} onCommit={(v) => editJoint({ max: v })} />
+                <NumberField label={t(M.min)} unit={lu} tooltip={t(M.minTravelTip)} value={toShown(joint.min)} decimals={lenDecimals} step={lenStep} disabled={!editable} onCommit={(v) => editJoint({ min: fromShown(v) })} />
+                <NumberField label={t(M.max)} unit={lu} tooltip={t(M.maxTravelTip)} value={toShown(joint.max)} decimals={lenDecimals} step={lenStep} disabled={!editable} onCommit={(v) => editJoint({ max: fromShown(v) })} />
               </>
             )}
+            {poseRange &&
+              (revolute ? (
+                <NumberField label={t(M.position)} unit="°" tooltip={t(M.positionTip)} value={(posed * 180) / Math.PI} decimals={1} step={1} min={(poseRange[0] * 180) / Math.PI} max={(poseRange[1] * 180) / Math.PI} disabled={!view || testing} onCommit={(v) => poseJoint(toRad(v))} />
+              ) : (
+                <NumberField label={t(M.position)} unit={lu} tooltip={t(M.positionTip)} value={toShown(posed)} decimals={lenDecimals} step={lenStep / 10} min={toShown(poseRange[0])} max={toShown(poseRange[1])} disabled={!view || testing} onCommit={(v) => poseJoint(fromShown(v))} />
+              ))}
             <div className="rig-script-actions">
+              <button type="button" className="array-add" data-testid="joint-test" disabled={!view} title={t(M.testMotionTip)} onClick={testing ? stopTest : startTest}>
+                {t(testing ? M.stopTest : M.testMotion)}
+              </button>
               <button type="button" className="array-add" disabled={!editable} onClick={removeJoint}>
                 {t(M.removeJoint)}
               </button>
