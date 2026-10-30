@@ -66,7 +66,7 @@ const library = (page) =>
           if (!db.objectStoreNames.contains('docPayload')) return resolve([])
           const all = db.transaction('docPayload').objectStore('docPayload').getAll()
           all.onsuccess = () => {
-            resolve(all.result.map((r) => ({ id: r.id, name: r.project.name, parts: (r.project.scene?.parts ?? []).map((p) => p.id) })))
+            resolve(all.result.map((r) => ({ ...r, project: r.project ?? JSON.parse(r.text) })).map((r) => ({ id: r.id, name: r.project.name, parts: (r.project.scene?.parts ?? []).map((p) => p.id) })))
             db.close()
           }
         }

@@ -41,10 +41,21 @@ import { createPlcDemoScene, DEMO_CONTROLLER, DEMO_PROGRAM } from './demo/demoSc
 import { DEFAULT_SCAN_MS } from './program/stProgram'
 import { importSceneText, loadSceneText, sceneFileText } from './project/sceneFile'
 import type { ProjectJSON } from '../core/project/project'
-import { PROJECT_KEY, loadStoredProject, noteWorkingCopyWrite, onWorkingCopySuperseded, parkSplitOff, storedTextsWithAssets, unopenedProject, workingCopyBehind } from './project/projectFile'
-import { loadLocalAssets, localAssetRefs, onLocalAssetsStored, supportsLocalAssets, sweepLocalAssets } from './project/localAssets'
+import {
+  isWorkingCopyKey,
+  keepPendingWrite,
+  loadStoredProject,
+  noteWorkingCopyWrite,
+  onWorkingCopySuperseded,
+  onWorkingCopyWrite,
+  openWorkingCopy,
+  parkSplitOff,
+  storedAssetTexts,
+  unopenedProject,
+} from './project/projectFile'
+import { onLocalAssetsStored, supportsLocalAssets, sweepLocalAssets } from './project/localAssets'
 import { startSplitFiling } from './project/projectSplit'
-import { currentDocumentId, libraryCopyAhead, onCurrentDocumentChange, readDocument, supportsDocumentLibrary, syncCurrentDocument, writeDocument } from './project/documentStore'
+import { currentDocumentId } from './project/documentStore'
 import { EditorStore } from './store/store'
 import { liveChannel } from './live/liveChannel'
 import { followTarget, type FollowTarget } from './live/followTarget'
@@ -115,9 +126,14 @@ const store = new EditorStore()
 const sim = new SimClient()
 // a gesture's autosave trails it by a moment (store.deferPersist): flush it before the page can go away.
 // `hidden` covers a mobile tab the OS may kill without a pagehide.
-addEventListener('pagehide', () => store.flushPersist())
+// The working copy's row write is asynchronous, so one still in flight is also kept where a closing page can write it.
+const flushOnHide = (): void => {
+  store.flushPersist()
+  keepPendingWrite()
+}
+addEventListener('pagehide', flushOnHide)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') store.flushPersist()
+  if (document.visibilityState === 'hidden') flushOnHide()
 })
 
 /**
@@ -132,18 +148,14 @@ function keepSplitOff(splitOff: readonly ProjectJSON[] | undefined): void {
   store.showSaveNotice('Opened read-only', `This project holds several scenes, and they could not be kept apart for filing: ${parked.message}`)
 }
 
-/**
- * The solo (no-room) boot path: demo / autosave / default. `ahead` is the open document's library row, opened in place
- * of the working copy when the row is newer (a save was refused for quota) or when the working copy's models are gone
- * from the asset store (openingCopy).
- */
-function bootSolo(ahead: ProjectJSON | null): void {
+/** The solo (no-room) boot path: demo / autosave / default. The working copy has been read (projectFile.openWorkingCopy). */
+function bootSolo(): void {
   // This build's own parts, before any saved document is loaded: that document's snapshot of a built-in part must
   // lose to the part itself, and it only does once the id is registered (registerBundledPackages).
   registerBundledPackages()
   // The project autosave: its scene, ST program and part library, with a
   // one-time migration from the legacy single-scene keys baked in. Returns null only on a first-ever visit.
-  const saved = loadStoredProject(ahead)
+  const saved = loadStoredProject()
   let demo = new URLSearchParams(location.search).get('scene') === 'demo'
   let phoneDemo = false
   // A phone can't author, so an empty scene is a dead end there: it gets the demo instead, through the same
@@ -203,77 +215,6 @@ function bootSolo(ahead: ProjectJSON | null): void {
 }
 
 /**
- * Keep the document library in sync with the working copy (editor/project/documentStore.ts).
- *
- * The library makes more than one project possible, but it must never get between an edit and the
- * autosave: `oip-web/project` is written synchronously on every commit, and this is a trailing,
- * best-effort copy of that into IndexedDB. Same shape as App’s dock-size persistence, for the same
- * reason: a full project serialize per keystroke is too expensive.
- *
- * The first sync is also the migration: a browser that predates the library has a working copy and
- * no records, so this files it as document #1 under the name it already had. It runs at boot rather
- * than on the first edit, so a returning user who opens the projects list to look sees their work in it.
- *
- * Three exclusions. Two are the ones the rename has: during the ?scene=demo preview nothing of the
- * user’s is on screen and snapshotProject() would mint a project out of a view that is
- * in no slot; in a room the collab doc is the document. The third is a stored project this session
- * could not open (projectFile.unopenedProject): what is on screen is a fallback, not that document, so
- * nothing is filed until it is discarded, and then as a new document, because the discard cuts the
- * pointer loose and the unopened one keeps its record.
- */
-function trackDocumentLibrary(): void {
-  if (!supportsDocumentLibrary()) return
-  let timer: ReturnType<typeof setTimeout> | null = null
-  // what a sync has to notice: the pieces a project document is made of, by reference, plus the
-  // unopened flag whose clearing lets syncing start. The store notifies on every selection and
-  // hover too, and re-serializing the project for those would be wasted work.
-  const docState = () => {
-    const s = store.getState()
-    return [s.scene, s.stProgram, s.userPackages, s.projectName, s.unopenedProject] as const
-  }
-  let last = docState()
-  // The row this session writes to, captured once. Not re-read per sync: an adoption (a .oip import,
-  // a desktop folder open) clears the pointer on its way out so the incoming project is
-  // filed as a new document (projectFile.forgetCurrentDocument), and the pagehide flush that follows
-  // has to write to the document being left rather than mint a second copy of it. It moves only when the
-  // document changes without a reload (a linked folder: documentStore.adoptDocumentInPlace). And it is
-  // never captured for an unopened project: that record is not this session's to write.
-  let docId = unopenedProject() !== null ? null : currentDocumentId()
-  onCurrentDocumentChange((id) => {
-    docId = id
-  })
-  const sync = (): void => {
-    if (timer !== null) clearTimeout(timer)
-    timer = null
-    const s = store.getState()
-    if (s.collab || s.demoSession || s.readOnly || s.unopenedProject) return
-    const project = store.snapshotProject()
-    if (docId !== null) void writeDocument(docId, project)
-    // no pointer yet: mint one and remember it (a first-ever visit, the boot after an adoption, or a
-    // discarded unopened project). Only if nothing moved it meanwhile: an in-place adoption can complete
-    // while this write is in flight, and its id is the one that must stick.
-    else
-      void syncCurrentDocument(project).then((id) => {
-        if (docId === null) docId = id
-      })
-  }
-  sync() // boot: file document #1 if this browser has never had a record
-  store.subscribe(() => {
-    const now = docState()
-    if (now.every((v, i) => v === last[i])) return
-    last = now
-    if (timer !== null) clearTimeout(timer)
-    timer = setTimeout(sync, 2000)
-  })
-  // A tab that goes away must not lose the library's last two seconds. pagehide covers the bfcache
-  // and the close; visibilitychange covers a phone being backgrounded, which may never fire pagehide.
-  addEventListener('pagehide', sync)
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') sync()
-  })
-}
-
-/**
  * Every tab of the app on this origin shares one working copy, and a save writes the whole document, so two
  * tabs editing at once would erase each other's work in silence. Once another tab writes something other
  * than what this one last saw, this tab yields: it stops saving (projectFile refuses from then on) and goes
@@ -290,7 +231,7 @@ function watchOtherTabs(): void {
   addEventListener('storage', (e) => {
     if (e.storageArea !== localStorage) return
     // key null is another tab's localStorage.clear(): the working copy is gone from under this one too
-    if (e.key === PROJECT_KEY || e.key === null) noteWorkingCopyWrite(e.key === null ? null : e.newValue)
+    if (e.key === null || isWorkingCopyKey(e.key)) noteWorkingCopyWrite(e.key === null ? null : e.newValue)
   })
 }
 
@@ -730,9 +671,8 @@ function startSolo(): void {
     }
   })
   watchOtherTabs()
-  const boot = (ahead: ProjectJSON | null): void => {
-    bootSolo(ahead)
-    trackDocumentLibrary()
+  const boot = (): void => {
+    bootSolo()
     // an older multi-scene project's other scenes, parked by the boot: filed now (projectSplit.ts); the folder sync
     // waits for it (App.tsx)
     startSplitFiling(store)
@@ -741,31 +681,15 @@ function startSolo(): void {
     prefetchSceneAssets(store.getState().scene)
     void xremu.then(mount)
   }
-  // IndexedDB is read first only when the working copy names models by hash or a save of it was refused for quota.
-  // Otherwise the boot is synchronous.
-  const texts = storedTextsWithAssets()
-  if (workingCopyBehind() === null && !texts.some((t) => localAssetRefs(t).length > 0)) boot(null)
-  else void openingCopy(texts).then(boot, () => boot(null))
+  // the working copy is the open document's library row, read before the boot (projectFile.openWorkingCopy)
+  void openWorkingCopy().catch(() => {}).then(boot)
   keepWorkingCopySmall()
 }
 
 /**
- * Read the working copy's models from the asset store (localAssets.ts), and say which project the boot opens in place
- * of the working copy: the library's row when it is newer (documentStore.libraryCopyAhead), or when some of the
- * working copy's models are gone from the asset store, since the row embeds them.
- */
-async function openingCopy(texts: readonly (string | null)[]): Promise<ProjectJSON | null> {
-  const missing = await loadLocalAssets(texts)
-  const ahead = await libraryCopyAhead()
-  if (ahead || missing.length === 0) return ahead
-  const id = currentDocumentId()
-  return id === null ? null : readDocument(id)
-}
-
-/**
  * A model added this session is written embedded until its bytes are in the asset store (localAssets.ts). Save again
- * once they are, so the working copy names it by hash and fits in localStorage. Then delete stored models nothing
- * names any more, once the boot is done with the database.
+ * once they are, so the working copy names it by hash rather than carrying its bytes on every save. Then delete
+ * stored models nothing names any more, once the boot is done with the database.
  */
 function keepWorkingCopySmall(): void {
   onLocalAssetsStored(() => {
@@ -774,7 +698,12 @@ function keepWorkingCopySmall(): void {
     if (s.collab || s.demoSession || s.readOnly || s.unopenedProject) return
     store.persistProject()
   })
-  if (supportsLocalAssets()) setTimeout(() => void sweepLocalAssets(storedTextsWithAssets()), 30_000)
+  // a save returns before its row is written (projectFile.saveStoredProject), so a failed write raises the banner here
+  onWorkingCopyWrite((result) => {
+    const next = result.ok ? null : result.message
+    if (store.getState().autosaveError !== next) store.setState({ autosaveError: next })
+  })
+  if (supportsLocalAssets()) setTimeout(() => void storedAssetTexts().then((texts) => texts && sweepLocalAssets(texts)), 30_000)
 }
 
 /**
@@ -804,8 +733,8 @@ if (room) {
     const own = ownSharedProject()
     const seed = own && !own.demo && own.docId === currentDocumentId() ? 'scene' : null
     // gate render on first sync so we don't flash an empty scene before remote state loads
-    // the working copy's models are read first: a room is seeded from it (soloDocOrDefault) and written back to it
-    if (resolved) return void Promise.all([loadLocalAssets(storedTextsWithAssets()).then(() => bootRoom(resolved, seed)), xremu]).finally(mount)
+    // the working copy is read first: a room is seeded from it (soloDocOrDefault) and written back to it
+    if (resolved) return void Promise.all([openWorkingCopy().catch(() => {}).then(() => bootRoom(resolved, seed)), xremu]).finally(mount)
     // Not a room link (an unprefixed id from before edit secrets, or a garbled one): open solo and
     // say so, with the room taken out of the address bar so Share and a reload treat this tab as solo.
     const url = new URL(location.href)

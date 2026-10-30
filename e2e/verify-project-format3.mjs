@@ -81,7 +81,7 @@ const library = () =>
             db.close()
             resolve(
               index.result.map((meta) => {
-                const doc = payloads.result.find((p) => p.id === meta.id)?.project
+                const doc = ((r) => r && (r.project ?? JSON.parse(r.text)))(payloads.result.find((p) => p.id === meta.id))
                 return {
                   name: meta.name,
                   version: doc?.version,
@@ -129,7 +129,7 @@ const live = () =>
 const editAndRead = async () => {
   await page.evaluate(() => window.__oip.store.rename('sp_1', `Feeder ${Date.now()}`))
   await page.waitForTimeout(500)
-  return page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null'), PROJECT_KEY)
+  return page.evaluate(async () => JSON.parse((await window.__oip.savedProject()) ?? 'null'))
 }
 const oneScene = (doc) => doc?.version === CURRENT && doc.scenes === undefined && doc.activeScene === undefined && Array.isArray(doc.scene?.parts)
 

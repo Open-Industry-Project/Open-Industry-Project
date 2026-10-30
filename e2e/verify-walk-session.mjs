@@ -51,13 +51,13 @@ async function main() {
     await page.waitForTimeout(1500)
 
     /** everything that says whether the demo has been forked, or anything edited */
-    const status = () => page.evaluate(() => {
+    const status = () => page.evaluate(async () => {
       const s = window.__oip.store.getState()
       return {
         demoSession: s.demoSession,
         notice: s.demoForkNotice !== null,
         canUndo: window.__oip.store.canUndo,
-        doc: localStorage.getItem('oip-web/project'),
+        doc: (await window.__oip.savedProject()),
         url: location.search,
       }
     })

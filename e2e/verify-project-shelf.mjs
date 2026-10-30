@@ -132,7 +132,7 @@ const libraryDocs = (page) =>
               index.result.map((meta) => ({
                 id: meta.id,
                 name: meta.name,
-                parts: (payloads.result.find((p) => p.id === meta.id)?.project.scene?.parts ?? [])
+                parts: (((r) => r && (r.project ?? JSON.parse(r.text)))(payloads.result.find((p) => p.id === meta.id))?.scene?.parts ?? [])
                   .filter((p) => p.id.startsWith('shelf_'))
                   .map((p) => p.name),
               })),
@@ -344,8 +344,8 @@ async function main() {
     // validateProject refuses a whole document for one bad piece. This one is a project test with no time to
     // run in (a bad hand edit). Boot must not fall back to the legacy scene key, save that at once, and let the
     // library file it over the same record.
-    const refused = await page.evaluate(() => {
-      const doc = JSON.parse(localStorage.getItem('oip-web/project'))
+    const refused = await page.evaluate(async () => {
+      const doc = JSON.parse((await window.__oip.savedProject()))
       doc.tests = [{ name: 'gone', duration: 0, checks: [{ tag: 'Run', at: 0.5, equals: true }] }]
       const raw = JSON.stringify(doc)
       localStorage.setItem('oip-web/project', raw)
@@ -356,7 +356,7 @@ async function main() {
     await waitFor(page, () => !!document.querySelector('[data-testid="unopened-project-banner"]'))
     const text = (await banner()) ?? ''
     expect(/Line A/.test(text) && /duration must be a positive/.test(text), `the banner names the project and why (${text.slice(0, 90)}...)`)
-    const stored = () => page.evaluate(() => localStorage.getItem('oip-web/project'))
+    const stored = () => page.evaluate(async () => (await window.__oip.savedProject()))
     expect((await stored()) === refused, 'booting did not save over it')
     await addPart(page, 'shelf_edited', 'Edited')
     expect((await stored()) === refused, 'nor did an edit')

@@ -126,9 +126,9 @@ try {
   await waitForApp(editor)
   await editor.waitForFunction(() => window.__oip.store.getState().scene.parts.length > 20, undefined, { timeout: 30000 })
   await editor.locator('button.share-button').click()
-  const soloProject = await editor.evaluate(() => {
+  const soloProject = await editor.evaluate(async () => {
     window.__noReload = true // a reload would drop it
-    return localStorage.getItem('oip-web/project')
+    return (await window.__oip.savedProject())
   })
   check('the Share popover has no Live switch to turn on', (await editor.locator('[data-testid=share-live-switch]').count()) === 0)
   await editor.locator('button.share-option', { hasText: 'Can edit' }).click()
@@ -339,7 +339,7 @@ try {
     st.commit('Add part', { ...s, parts: [...s.parts, { id: 'room_only', type: 'group', position: [0, 0.75, 0], rotationY: 0, params: {} }] })
   })
   await editor.waitForTimeout(1500)
-  check('nothing done in the room was written over the solo project', (await editor.evaluate(() => localStorage.getItem('oip-web/project'))) === soloProject)
+  check('nothing done in the room was written over the solo project', (await editor.evaluate(async () => (await window.__oip.savedProject()))) === soloProject)
   check('...and the edit reached the room', await viewer.evaluate(() => window.__oip.store.getState().scene.parts.some((p) => p.id === 'room_only')))
   // the shared demo is owned by whoever shared it: they can stop sharing it, which closes it for everyone
   await editor.locator('button.share-button').click()

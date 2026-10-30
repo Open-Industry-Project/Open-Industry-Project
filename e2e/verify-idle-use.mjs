@@ -104,7 +104,7 @@ async function main() {
     return frames
   }, [id, axis, ms, settleMs])
 
-  const edits = () => page.evaluate(() => ({ canUndo: window.__oip.store.canUndo, doc: localStorage.getItem('oip-web/project') }))
+  const edits = () => page.evaluate(async () => ({ canUndo: window.__oip.store.canUndo, doc: (await window.__oip.savedProject()) }))
   const param = (id, key) => page.evaluate(([id, key]) => window.__oip.store.getState().scene.parts.find((p) => p.id === id)?.params[key], [id, key])
   const operated = (id) => page.evaluate((id) => window.__oip.store.getState().usedIds.includes(id), id)
   const notice = () => page.evaluate(() => !!document.querySelector('[data-testid="inspector-used"]'))

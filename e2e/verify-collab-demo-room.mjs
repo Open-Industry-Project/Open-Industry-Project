@@ -88,7 +88,7 @@ async function main() {
     await A.waitForFunction(() => window.__oip.store.getState().scene.parts.length > 5, undefined, { timeout: 30000, polling: 500 })
     const shared = await docOf(A)
     check('the shared room holds the demo', shared.parts === demo.parts && shared.program === demo.program, `${shared.parts} parts`)
-    const forked = await A.evaluate(() => localStorage.getItem('oip-web/project'))
+    const forked = await A.evaluate(async () => (await window.__oip.savedProject()))
     check('sharing the demo did not fork it into the sharer’s own project', forked === null, forked === null ? '' : `${forked.length} chars written`)
 
     // ── the demo, shared, opens in its room again, so its sharer can always get back to stop sharing it ──

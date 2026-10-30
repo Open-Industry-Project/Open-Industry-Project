@@ -124,7 +124,7 @@ The main design choices:
 
    **Live, the program is store state** (`EditorState.stProgram` / `stScanMs` / `controller`). Everything reads
    it there: the run edge, the scene exporter, the room seeder, the project autosave and the ST panel. A sink
-   decides where it is kept durably: the shared Y.Text in a room, or localStorage and the project doc when solo
+   decides where it is kept durably: the shared Y.Text in a room, or the working copy when solo
    (`store.setStProgramSink`). There is one owner because readers that consulted different stores could seed a
    room with a layout and no logic. See `EditorState.stProgram` and the eslint boundary on `stProgram.ts`.
 
@@ -165,7 +165,7 @@ with no extra code.
   adds nothing to the main bundle.
 - **Folder on disk:** the same layout unzipped, for git, VS Code, agents and editing the project's parts
   (see below).
-- `serializeProject`'s flat JSON is the internal localStorage autosave form.
+- `serializeProject`'s flat JSON is the internal form of the browser working copy.
 
 The same data model is used everywhere ([architecture.md](./architecture.md)). In project format 6 a part's
 embedded assets are real files beside its manifest, `parts/<id>/assets/<sha256>.glb`, named by the hash of their
@@ -319,7 +319,7 @@ How a round works:
   file), the manifest's machine fields, or any part (`sceneUntouched`).
 - **Timing**: the folder's fingerprint (paths, sizes, mtimes) is checked once a second. Writes go out 800 ms after
   edits pause (at most 4 s after the first), and synchronously as the window closes (`project:writeSync`). The
-  localStorage working copy is still written on every commit and is what boot opens, so it is the crash buffer.
+  working copy is still written on every commit and is what boot opens, so it is the crash buffer.
 - **The shell keeps which document lives where** (`apps/desktop/folderRegistry.cjs`,
   `userData/project-folders.json`): folder path, fingerprint and baselines per document id. Main holds it for
   three reasons. Main builds the menu that lists it (**File → Open Recent**). A write from main is synchronous,
@@ -437,9 +437,30 @@ will be. `add-part` writes into a folder, so it refuses an older one until the a
 
 ## The browser working copy
 
-In the browser the project's working copy is the `oip-web/project` autosave (`src/editor/project/projectFile.ts`; store
-`persistProject` / `adoptProjectLibrary`): the scene, its ST program and the project's parts in one document,
-which the `main.tsx` boot prefers.
+In the browser the project's working copy is the open document's row in the document library: IndexedDB `oip-web`,
+`docPayload` (`src/editor/project/projectFile.ts` and `libraryDb.ts`; store `persistProject` / `adoptProjectLibrary`).
+It holds the scene, its ST program and the project's parts in one document, as compact text, and the `main.tsx` boot
+opens it. There is no second copy of the open project in the browser: the projects list shows the same row.
+
+- **Saving.** `saveStoredProject` is synchronous for its caller, like every edit's commit. It keeps the text in memory
+  and queues the row write, one at a time, the latest replacing any still waiting. A save of exactly what is stored
+  writes nothing. A failed write raises the autosave banner (`onWorkingCopyWrite`, main.tsx), and every save after it
+  reports the failure until a write succeeds.
+- **A save lands a moment after the edit.** A page that is hidden or closed first writes what the store holds
+  (`flushPersist`). An unloading page's IndexedDB transaction may be aborted, so when a row write is still in flight
+  the latest text is also written to localStorage `oip-web/project`, which is synchronous (`keepPendingWrite`). The
+  next boot moves it into the row as below, and a page that lives on removes it once the row commits. A tab that
+  crashes within a few milliseconds of an edit can still lose that edit. A switch, a new project, an import and a
+  folder open wait for the incoming project's row to commit before they reload (`flushWorkingCopy`).
+- **Boot reads the row first** (`openWorkingCopy`), with the bytes of every model it names, and then opens it
+  synchronously (`loadStoredProject`). A boot with no pointer, or a pointer with no row, opens what the single-scene
+  keys hold, or a default scene, and its first save gives that a record of its own.
+- **Moving in from localStorage.** Earlier builds kept the working copy in localStorage `oip-web/project`. The first
+  boot with IndexedDB writes it into the open document's row and removes the key once the row has committed. If a
+  save of it had been refused for quota (`oip-web/project-behind`) and the row was written after that, or it names
+  models whose bytes are gone, the row is kept instead, since it holds what the key lacks. A key that does not open is
+  left where it is and refused as below. A browser without IndexedDB keeps the working copy in localStorage, written
+  synchronously.
 
 **The single-scene keys are a fallback.** The store also writes `oip-web/autosave` and `oip-web/st-program` (the
 scene one throttled). It does not write `oip-web/user-packages`, because a copy of all the project's parts, embedded
@@ -449,51 +470,42 @@ project doc. If it is absent, boot builds one from the single-scene keys, and if
 default scene. So a fault in the project path loses no data.
 
 **A project doc that is present but refused is never replaced.** `validateProject` is all-or-nothing: one bad scene,
-package or test refuses the document. Saving the fallback above over it at boot would lose it, and the document
-library would then file the fallback over the same record. So `loadStoredProject` records the refusal
-(`projectFile.unopenedProject`). Every write of the working copy is refused while that text is still there
-(`saveStoredProject` is the one chokepoint: autosave, import, projects-list switch, folder link), and the document
-library does not sync. A banner offers Download (the stored text, to fix by hand) or Discard (remove it; what is on
-screen is filed as a new document, the old record untouched).
+package or test refuses the document. Saving the fallback above over it at boot would lose it. So `loadStoredProject`
+records the refusal (`projectFile.unopenedProject`). Every write of the working copy is refused while that text is
+still there (`saveStoredProject` is the one chokepoint: autosave, import, projects-list switch, folder link), and
+nothing is filed over its record. A banner offers Download (the stored text, to fix by hand) or Discard (what is on
+screen is filed as a new document, and the old record is left untouched).
 
 **Only one tab writes the working copy at a time.** Every tab on the origin shares it, and a save writes the whole
-document, so without a guard two tabs would erase each other's work silently. A session may only write over the
-text it last read or wrote (`saveStoredProject` compares). A `storage` event from another tab carrying anything
-else does the same (main.tsx). The tab that loses stops saving for good, goes view-only
-(`store.yieldToOtherTab`), and shows a banner whose Reload makes it the writer again. An identical write is no
-conflict, so opening a second tab on the same project locks nothing until one of them changes it. Every path that
-replaces the working copy also files the outgoing project in the document library first and stops if that fails
-(`documentStore.fileOutgoingDocument`: projects-list open/new, linked folder, `.oip` import, desktop folder open).
+document, so without a guard two tabs would erase each other's work silently. IndexedDB raises no event in other
+tabs, so each save that changes the document, or which document it is, also writes a new stamp to localStorage
+`oip-web/project-stamp`. A session may only write while the stamp is the one it last read or wrote
+(`saveStoredProject` compares). A `storage` event from another tab carrying any other stamp does the same (main.tsx).
+The tab that loses stops saving for good, goes view-only (`store.yieldToOtherTab`), and shows a banner whose Reload
+makes it the writer again. A save of exactly what is stored keeps the stamp, so opening a second tab on the same
+project locks nothing until one of them changes it. Every path that replaces the working copy also files the
+outgoing project in the document library first and stops if that fails (`documentStore.fileOutgoingDocument`:
+projects-list open/new, linked folder, `.oip` import, desktop folder open).
 
-**Model files in the browser.** The working copy and the legacy scene key name each embedded model or texture by
+**Model files in the browser.** Every library row and the legacy scene key name each embedded model or texture by
 the SHA-256 of its bytes, `{ ..., localAsset: <sha256> }` in place of `data`, and the bytes are kept in their own
-IndexedDB database, `oip-web-assets` (`src/editor/project/localAssets.ts`). A 6 MB model is then a few dozen bytes
-of the working copy instead of 8 MB of base64 in a store of about 5 MB. Only those two keys use the hash. In memory,
-in the library rows, in a room and in every file that leaves the browser an asset is still `data`.
+IndexedDB database, `oip-web-assets` (`src/editor/project/localAssets.ts`). A save then carries a few dozen bytes
+for a 6 MB model instead of 8 MB of base64. In memory, in a room and in every file that leaves the browser an asset
+is still `data`. Rows written by earlier builds embed their models, and are read as they are.
 
 - An asset is written by hash only once its bytes are known to be stored. A model added in the session is written
   embedded the first time, its bytes are queued, and the project is saved again when they land
   (`onLocalAssetsStored`, main.tsx). A tab that closes in between leaves an embedded model behind, never a hash with
   no bytes.
 - The paths that replace the working copy and reload (a projects-list switch, a new project, a `.oip` import, a
-  linked or desktop folder) store the incoming project's models first (`storeLocalAssets`), so a project that would
-  not fit embedded can still be opened.
-- Boot reads the bytes the stored texts name before it parses them (`loadLocalAssets`), and waits on IndexedDB only
-  when they name any. If some are gone, boot opens the library's row, which embeds them. Without a row the working
-  copy is refused like any other document this build cannot open.
-- Bytes no stored text names are deleted 30 s after boot, once nothing has touched them for seven days
-  (`sweepLocalAssets`). The delay covers another tab that has stored bytes but not yet written their hash, or holds
-  a deleted part in its undo history.
+  linked or desktop folder) store the incoming project's models first (`storeLocalAssets`).
+- A row is read with the bytes of the models it names (`loadLocalAssets`). If some are gone the row does not open:
+  the working copy is refused like any other document this build cannot open. The bytes and the rows are the same
+  origin's IndexedDB, so a browser that evicts storage evicts both.
+- Bytes no row names are deleted 30 s after boot, once nothing has touched them for seven days (`sweepLocalAssets`).
+  The delay covers another tab that has stored bytes but not yet written their hash, or holds a deleted part in its
+  undo history. Nothing is swept when the rows cannot be read.
 - Without IndexedDB nothing is hashed, and assets stay embedded as before.
-
-**A working copy too large to save is not what boot opens.** `localStorage` holds a few MB per origin. With models
-stored apart a project rarely outgrows it, but a write can still be refused (a full origin, a model whose bytes
-IndexedDB would not take). The library row in IndexedDB is still written from the live project,
-so it runs ahead of the stale working copy. The first quota refusal records the document and the time in
-`oip-web/project-behind` (`projectFile.workingCopyBehind`), and the next successful save clears it. While it is set
-and names the open document, boot reads that row first (`documentStore.libraryCopyAhead`) and opens it when it was
-written after the refusal. Opening the stale copy would lose the row too, because boot's first library sync writes
-what it opened. Only then does boot wait on IndexedDB. Every other boot is synchronous.
 
 **Workspace state is kept per document.** A remembered camera and a half-finished tutorial run are keyed by
 `documentStore.sceneSlotKey(SCENE_SLOT)`: the document id and the constant `scene-1`, the scene id format 1-3

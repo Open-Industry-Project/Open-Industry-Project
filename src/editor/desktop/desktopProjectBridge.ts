@@ -121,7 +121,7 @@ async function adoptFolderProject(
   // its models go to the asset store first, so the working copy can name them by hash (localAssets.ts)
   await storeLocalAssets(result.project)
   // adopt = write-then-reload; a failed write returns instead of reloading, so say why
-  const adopted = adoptImportedProject(result, id !== undefined ? { docId: id } : undefined)
+  const adopted = await adoptImportedProject(result, id !== undefined ? { docId: id } : undefined)
   return adopted.ok ? null : adopted.message
 }
 

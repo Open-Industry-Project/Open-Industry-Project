@@ -86,7 +86,8 @@ const libraryProjects = (page) =>
           const all = db.transaction('docPayload').objectStore('docPayload').getAll()
           all.onsuccess = () => {
             db.close()
-            resolve(all.result)
+            // a row holds its project as text, or as an object when an earlier build wrote it
+            resolve(all.result.map((r) => ({ ...r, project: r.project ?? JSON.parse(r.text) })))
           }
           all.onerror = () => {
             db.close()

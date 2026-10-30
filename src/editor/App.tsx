@@ -74,7 +74,7 @@ import { GuardOpeningsBanner } from './components/GuardOpeningsBanner'
 import { EditorController } from './controller'
 import { connectDesktopAgent } from './agent/desktopAgent'
 import type { AgentSession } from './agent/agentSession'
-import { discardUnopenedProject, downloadProject, downloadUnopenedProject } from './project/projectFile'
+import { discardUnopenedProject, downloadProject, downloadUnopenedProject, savedWorkingCopyText } from './project/projectFile'
 import { DEMO_SCENE_NAME } from './demo/demoScenes'
 import { assetsBusy } from '../render/gltf'
 import { connectDesktopPackages } from './parts/packageSource'
@@ -986,6 +986,8 @@ export function App({ store, sim }: AppProps) {
           // so proving a link survives a reload needs the boot half reachable on its own
           restoreFolder: () => restoreFolderLink(store, ctrl),
           unlinkFolder: () => unlinkProjectFolder(store),
+          // the working copy as a reload would open it, once its writes have landed (projectFile.savedWorkingCopyText)
+          savedProject: savedWorkingCopyText,
           // Save Project to Folder without its picker (a native dialog a test browser cannot drive)
           saveFolder: (dir: unknown) => saveProjectToFolderHandle(dir as Parameters<typeof saveProjectToFolderHandle>[0], store, ctrl),
           // the desktop's two-way folder sync, for the Electron gates: run a round now, settle a conflict

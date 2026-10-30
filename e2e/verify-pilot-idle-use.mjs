@@ -103,7 +103,7 @@ async function main() {
     // what "not an edit" is measured against: the param, the undo stack, and the saved document
     const active = () => page.evaluate(() => window.__oip.store.getState().scene.parts.find((p) => p.id === 'blade_shot')?.params.active)
     const canUndo = () => page.evaluate(() => window.__oip.store.canUndo)
-    const savedDoc = () => page.evaluate(() => localStorage.getItem('oip-web/project'))
+    const savedDoc = () => page.evaluate(async () => (await window.__oip.savedProject()))
     const doc0 = await savedDoc()
     check('the saved document holds the blade stop lowered (so an unchanged doc means something)',
       !!doc0 && doc0.includes('blade_shot'), doc0 ? `${doc0.length} chars` : 'no doc')

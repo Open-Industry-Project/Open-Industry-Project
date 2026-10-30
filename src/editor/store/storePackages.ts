@@ -11,7 +11,7 @@ import { validatePartPackage } from '../../core/parts/partValidate'
 import { referenceShippedAssets } from '../../core/shippedAssets'
 import type { PartInstance, SdkPart } from '../../core/types'
 import { warmShippedAssets } from '../parts/shippedAssetCache'
-import { PROJECT_KEY } from '../project/projectFile'
+import { hasStoredProject } from '../project/projectFile'
 import type { EditorState, EditorStore } from './store'
 import { documentSceneOf } from './storeDocument'
 import { COALESCE_MS } from './storeHistory'
@@ -99,7 +99,7 @@ export function persistUserPackages(store: EditorStore): void {
   if (store.collab) return
   if (!store.persistProject().ok) return
   try {
-    if (localStorage.getItem(PROJECT_KEY) !== null) localStorage.removeItem(USERPKG_KEY)
+    if (hasStoredProject()) localStorage.removeItem(USERPKG_KEY)
   } catch {
     // no storage, or it refused: the legacy copy stays where it was, unread while the project doc exists
   }

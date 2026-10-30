@@ -2058,7 +2058,7 @@ export class EditorStore {
   /**
    * Another tab now holds the working copy (main.tsx, on projectFile.onWorkingCopySuperseded). This tab goes
    * view-only rather than keep taking edits it can no longer save: read-only is the state every authoring
-   * surface already honours, and it also stops the library tracker. Running the sim is still allowed.
+   * surface already honours, and it also stops the projects it files. Running the sim is still allowed.
    */
   yieldToOtherTab(): void {
     if (this.state.supersededByOtherTab) return

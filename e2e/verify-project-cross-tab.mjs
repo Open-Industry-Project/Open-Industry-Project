@@ -59,13 +59,16 @@ async function openShelf(page) {
 // Each check reads the project's parts, by name: an edit here is a part added or renamed (a project holds one
 // scene, so there are no scene tabs to add or rename). Only this gate's own parts
 // (ids `xtab_*`) are read, so whatever a new project starts with (the building) is not part of any claim.
-const storedParts = (page) =>
-  page.evaluate(() =>
-    (JSON.parse(localStorage.getItem('oip-web/project') ?? 'null')?.scene?.parts ?? [])
+const storedParts = async (page) => {
+  // the test hook is installed when the app mounts, which a just-reloaded tab may not have done yet
+  await waitFor(page, () => typeof window.__oip?.savedProject === 'function', null, 60000)
+  return page.evaluate(async () =>
+    (JSON.parse((await window.__oip.savedProject()) ?? 'null')?.scene?.parts ?? [])
       .filter((p) => p.id.startsWith('xtab_'))
       .map((p) => p.name)
       .join(),
   )
+}
 const liveParts = (page) =>
   page.evaluate(() =>
     window.__oip.store
@@ -168,7 +171,7 @@ async function main() {
             const get = req.result.transaction('docPayload', 'readonly').objectStore('docPayload').get(id)
             get.onsuccess = () =>
               resolve(
-                (get.result?.project.scene?.parts ?? [])
+                (((r) => r && (r.project ?? JSON.parse(r.text)))(get.result)?.scene?.parts ?? [])
                   .filter((p) => p.id.startsWith('xtab_'))
                   .map((p) => p.name)
                   .join(),

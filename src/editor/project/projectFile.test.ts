@@ -23,10 +23,8 @@ import {
   parkSplitOff,
   readParkedSplitOff,
   saveStoredProject,
-  storedTextsWithAssets,
   unopenedProject,
   unparkSplitOff,
-  workingCopyBehind,
   workingCopyRefusal,
   workingCopySuperseded,
 } from './projectFile'
@@ -151,53 +149,6 @@ describe('saveStoredProject / loadStoredProject round-trip', () => {
     expect(result.ok === false && result.message).toMatch(/local storage/i)
   })
 
-  it('marks the open document behind on a quota refusal, keeps the first time, and clears on the next save', () => {
-    ls().setItem('oip-web/document-id', 'doc-a')
-    const setItem = ls().setItem.bind(ls())
-    let full = true
-    ls().setItem = (k: string, v: string) => {
-      if (full && k === PROJECT_KEY) throw quotaError()
-      setItem(k, v)
-    }
-    const before = Date.now()
-    saveStoredProject(assembleProject(sampleScene(), '', []))
-    const first = workingCopyBehind()
-    expect(first?.doc).toBe('doc-a')
-    expect(first!.since).toBeGreaterThanOrEqual(before)
-    ls().setItem('oip-web/document-id', 'doc-b')
-    saveStoredProject(assembleProject(sampleScene(), '', []))
-    expect(workingCopyBehind()).toEqual(first)
-    full = false
-    expect(saveStoredProject(assembleProject(sampleScene(), '', [])).ok).toBe(true)
-    expect(workingCopyBehind()).toBeNull()
-  })
-
-  it('marks nothing behind for a non-quota failure or with no document', () => {
-    const setItem = ls().setItem.bind(ls())
-    ls().setItem = (k: string, v: string) => {
-      if (k === PROJECT_KEY) throw quotaError()
-      setItem(k, v)
-    }
-    saveStoredProject(assembleProject(sampleScene(), '', []))
-    expect(workingCopyBehind()).toBeNull()
-    ls().setItem('oip-web/document-id', 'doc-a')
-    ls().setItem = (k: string, v: string) => {
-      if (k === PROJECT_KEY) throw new Error('serializer exploded')
-      setItem(k, v)
-    }
-    saveStoredProject(assembleProject(sampleScene(), '', []))
-    expect(workingCopyBehind()).toBeNull()
-  })
-
-  it('loads the newer library copy in place of the working copy when given one', () => {
-    saveStoredProject(assembleProject(sampleScene(), 'PROGRAM Old\nEND_PROGRAM', [], 'Old'))
-    const ahead = assembleProject({ version: SCENE_VERSION, parts: [createPart('group', 'rc_2', [0, 0, 0])] }, 'PROGRAM New\nEND_PROGRAM', [], 'New')
-    const loaded = loadStoredProject(ahead)!
-    expect(loaded.project.name).toBe('New')
-    expect(loaded.scene.parts.map((p) => p.id)).toEqual(['rc_2'])
-    expect(loaded.stProgram).toContain('PROGRAM New')
-  })
-
   it('writes a stored model by its hash, and reads it back whole', () => {
     const data = bytesToBase64(Uint8Array.from({ length: 4000 }, (_, i) => (i * 7) & 255))
     const pkg = { ...samplePackage(), assets: [{ id: 'body', mime: 'model/gltf-binary', data }] }
@@ -205,12 +156,11 @@ describe('saveStoredProject / loadStoredProject round-trip', () => {
     expect(saveStoredProject(assembleProject(sampleScene(), '', [pkg])).ok).toBe(true)
     const text = ls().getItem(PROJECT_KEY)!
     expect(text).not.toContain(data.slice(0, 200))
-    expect(storedTextsWithAssets()[0]).toBe(text)
     expect(loadStoredProject()!.library[0]!.assets).toEqual(pkg.assets)
     resetLocalAssetsForTest()
   })
 
-  it('refuses a working copy whose model is gone from storage, or opens the copy it is given instead', () => {
+  it('refuses a working copy whose model is gone from storage', () => {
     const data = bytesToBase64(Uint8Array.from({ length: 4000 }, (_, i) => (i * 7) & 255))
     const pkg = { ...samplePackage(), assets: [{ id: 'body', mime: 'model/gltf-binary', data }] }
     markLocalAssetStoredForTest(data)
@@ -218,8 +168,6 @@ describe('saveStoredProject / loadStoredProject round-trip', () => {
     resetLocalAssetsForTest()
     loadStoredProject()
     expect(unopenedProject()?.errors.join()).toMatch(/missing from this browser's storage/)
-    const library = assembleProject(sampleScene(), '', [pkg], 'From library')
-    expect(loadStoredProject(library)!.project.name).toBe('From library')
   })
 
   it('reports a non-quota write failure too, without throwing', () => {
@@ -235,14 +183,14 @@ describe('saveStoredProject / loadStoredProject round-trip', () => {
 
   // Adoption is write-then-reload: reloading over a failed write boots the previous project, so the
   // import vanishes silently. importProjectText must surface the reason instead of reporting success.
-  it('a project import whose write fails reports the failure rather than claiming success', () => {
+  it('a project import whose write fails reports the failure rather than claiming success', async () => {
     const store = ls()
     store.setItem = () => {
       throw quotaError()
     }
     const doc = assembleProject(sampleScene(), '', [])
     const soloStore = { getState: () => ({ collab: false }) } as unknown as Parameters<typeof importProjectText>[0]
-    expect(importProjectText(soloStore, JSON.stringify(doc))).toMatch(/local storage/i)
+    expect(await importProjectText(soloStore, JSON.stringify(doc))).toMatch(/local storage/i)
   })
 })
 
@@ -356,30 +304,30 @@ describe('importProjectText (.oip import)', () => {
   const soloStore = { getState: () => ({ collab: false }) } as unknown as Parameters<typeof importProjectText>[0]
   const roomStore = { getState: () => ({ collab: true }) } as unknown as Parameters<typeof importProjectText>[0]
 
-  it('rejects non-JSON and invalid documents without touching the stored project', () => {
+  it('rejects non-JSON and invalid documents without touching the stored project', async () => {
     ls().setItem(PROJECT_KEY, 'sentinel')
-    expect(importProjectText(soloStore, '{nope')).toContain('not valid JSON')
-    expect(importProjectText(soloStore, JSON.stringify({ version: 99 }))).toContain('Invalid project')
+    expect(await importProjectText(soloStore, '{nope')).toContain('not valid JSON')
+    expect(await importProjectText(soloStore, JSON.stringify({ version: 99 }))).toContain('Invalid project')
     expect(ls().getItem(PROJECT_KEY)).toBe('sentinel')
   })
 
-  it("names a project folder's project.json for what it is instead of failing it path by path", () => {
+  it("names a project folder's project.json for what it is instead of failing it path by path", async () => {
     const manifest = { version: 3, name: 'Servo Shuttle', activeScene: 0, scenes: [{ id: 'main', name: 'Main', scene: 'scenes/main.scene.json', stProgram: 'scenes/main.st' }], tests: ['tests/shuttle.test.json'] }
-    const msg = importProjectText(soloStore, JSON.stringify(manifest))
+    const msg = await importProjectText(soloStore, JSON.stringify(manifest))
     expect(msg).toContain('project folder')
     expect(msg).toContain('.oip')
     expect(msg).not.toContain('tests[0]')
   })
 
-  it('imports from a shared project too: as the stored project, never into the shared document', () => {
+  it('imports from a shared project too: as the stored project, never into the shared document', async () => {
     const doc = assembleProject(sampleScene(), '', [], 'From a room')
-    expect(importProjectText(roomStore, JSON.stringify(doc))).toBeNull()
+    expect(await importProjectText(roomStore, JSON.stringify(doc))).toBeNull()
     expect(JSON.parse(ls().getItem(PROJECT_KEY)!).name).toBe('From a room')
   })
 
-  it('adopts a valid v2 document as the stored project', () => {
+  it('adopts a valid v2 document as the stored project', async () => {
     const doc = assembleProject(sampleScene(), 'PROGRAM P\nEND_PROGRAM', [samplePackage('acme.authored')], 'Imported')
-    expect(importProjectText(soloStore, JSON.stringify(doc))).toBeNull()
+    expect(await importProjectText(soloStore, JSON.stringify(doc))).toBeNull()
     const stored = JSON.parse(ls().getItem(PROJECT_KEY)!)
     expect(stored.name).toBe('Imported')
     expect(stored.packages.map((p: { id: string }) => p.id)).toEqual(['acme.authored'])
@@ -391,19 +339,19 @@ describe('importProjectText (.oip import)', () => {
   // document's row, silently destroying a project you were not even looking at.
   // Dropping the pointer makes the import an addition: the next boot mints a row of its own for it, and
   // the document being left keeps its own (main.tsx captures its id at boot for the last flush).
-  it('cuts the working copy loose from its document, so an import cannot overwrite the one it replaced', () => {
+  it('cuts the working copy loose from its document, so an import cannot overwrite the one it replaced', async () => {
     ls().setItem('oip-web/document-id', 'doc-outgoing')
     const doc = assembleProject(sampleScene(), '', [], 'Imported Line')
-    expect(importProjectText(soloStore, JSON.stringify(doc))).toBeNull()
+    expect(await importProjectText(soloStore, JSON.stringify(doc))).toBeNull()
     expect(JSON.parse(ls().getItem(PROJECT_KEY)!).name).toBe('Imported Line')
     expect(ls().getItem('oip-web/document-id')).toBeNull()
   })
 
   // A refused import must not disturb the pointer either - the document you are in is still the one
   // you are in, and its row has to keep receiving that session's syncs.
-  it('leaves the pointer alone when the import is rejected', () => {
+  it('leaves the pointer alone when the import is rejected', async () => {
     ls().setItem('oip-web/document-id', 'doc-outgoing')
-    expect(importProjectText(soloStore, '{nope')).toContain('not valid JSON')
+    expect(await importProjectText(soloStore, '{nope')).toContain('not valid JSON')
     expect(ls().getItem('oip-web/document-id')).toBe('doc-outgoing')
   })
 
@@ -445,7 +393,7 @@ describe('importProjectText (.oip import)', () => {
     expect(err).toContain('parts/acme.breaks')
   })
 
-  it('filters bundled ids from an imported v1 library (the boot-path migration, applied at import)', () => {
+  it('filters bundled ids from an imported v1 library (the boot-path migration, applied at import)', async () => {
     // Without this, the import would persist the migrated doc as v2 and the boot path would adopt the
     // placed bundled part's snapshot as an authored (authoritative) part - the placed-part-freeze bug.
     const v1 = {
@@ -464,7 +412,7 @@ describe('importProjectText (.oip import)', () => {
         },
       ],
     }
-    expect(importProjectText(soloStore, JSON.stringify(v1))).toBeNull()
+    expect(await importProjectText(soloStore, JSON.stringify(v1))).toBeNull()
     const stored = JSON.parse(ls().getItem(PROJECT_KEY)!)
     expect(stored.packages.map((p: { id: string }) => p.id)).toEqual(['acme.authored'])
     // the scene keeps its snapshot for self-containment
@@ -514,7 +462,7 @@ describe('a stored project this build cannot open', () => {
     })
   })
 
-  it('refuses every save over it, the boot save included', () => {
+  it('refuses every save over it, the boot save included', async () => {
     const raw = storeRefused()
     ls().setItem('oip-web/document-id', 'doc-plant')
     const store = boot()
@@ -524,7 +472,7 @@ describe('a stored project this build cannot open', () => {
     expect(later.ok).toBe(false)
     expect(saveStoredProject(assembleProject(sampleScene(), '', [])).ok).toBe(false)
     // an import is a write of the working copy too: refused, and the pointer is left alone
-    expect(importProjectText(store, JSON.stringify({ ...refusedDoc(), tests: [] }))).toContain('could not be opened')
+    expect(await importProjectText(store, JSON.stringify({ ...refusedDoc(), tests: [] }))).toContain('could not be opened')
     expect(ls().getItem(PROJECT_KEY)).toBe(raw)
     expect(ls().getItem('oip-web/document-id')).toBe('doc-plant')
   })
@@ -619,7 +567,7 @@ describe('another tab writing the working copy', () => {
     expect(asked).toBe(1)
     expect(ls().getItem(PROJECT_KEY)).toBeNull()
     ls().setItem(PROJECT_KEY, 'the other tab')
-    expect(importProjectText(store, valid)).toBe(SUPERSEDED_MESSAGE)
+    expect(await importProjectText(store, valid)).toBe(SUPERSEDED_MESSAGE)
     expect(ls().getItem(PROJECT_KEY)).toBe('the other tab')
   })
 })
@@ -696,13 +644,13 @@ describe('an older multi-scene document', () => {
     expect(loadStoredProject()!.splitOff).toBeUndefined()
   })
 
-  it('adoptImportedProject parks the split-off projects, writes the kept one, and reloads', () => {
+  it('adoptImportedProject parks the split-off projects, writes the kept one, and reloads', async () => {
     const reload = vi.fn()
     vi.stubGlobal('location', { reload })
     const result = validateProject(formatThree())
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(adoptImportedProject(result)).toEqual({ ok: true })
+    expect(await adoptImportedProject(result)).toEqual({ ok: true })
     expect(reload).toHaveBeenCalledTimes(1)
     const stored = JSON.parse(ls().getItem(PROJECT_KEY)!)
     expect(stored.version).toBe(PROJECT_VERSION)
@@ -710,19 +658,19 @@ describe('an older multi-scene document', () => {
     expect(readParkedSplitOff().map((p) => p.name)).toEqual(['Plant - Line A', 'Plant - Line C'])
   })
 
-  it('importProjectText of a format-3 document parks its other scenes too', () => {
+  it('importProjectText of a format-3 document parks its other scenes too', async () => {
     const reload = vi.fn()
     vi.stubGlobal('location', { reload })
     const soloStore = { getState: () => ({ collab: false }) } as unknown as Parameters<typeof importProjectText>[0]
-    expect(importProjectText(soloStore, JSON.stringify(formatThree()))).toBeNull()
+    expect(await importProjectText(soloStore, JSON.stringify(formatThree()))).toBeNull()
     expect(reload).toHaveBeenCalledTimes(1)
     expect(readParkedSplitOff()).toHaveLength(2)
   })
 
-  it('a one-project import parks nothing', () => {
+  it('a one-project import parks nothing', async () => {
     vi.stubGlobal('location', { reload: vi.fn() })
     const soloStore = { getState: () => ({ collab: false }) } as unknown as Parameters<typeof importProjectText>[0]
-    expect(importProjectText(soloStore, serializeProject(one('Solo')))).toBeNull()
+    expect(await importProjectText(soloStore, serializeProject(one('Solo')))).toBeNull()
     expect(ls().getItem(SPLIT_OFF_KEY)).toBeNull()
   })
 })

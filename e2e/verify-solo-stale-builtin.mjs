@@ -41,9 +41,9 @@ const waitForSensor = (page) =>
 /** what this client uses for the sensor, what the saved project now holds for it, and whether the scene settled */
 const inspect = (page) =>
   page.evaluate(
-    ({ id }) => {
+    async ({ id }) => {
       const pkg = window.__oip.getPackage(id)
-      const raw = localStorage.getItem('oip-web/project')
+      const raw = (await window.__oip.savedProject())
       const project = raw ? JSON.parse(raw) : null
       // a format-4 project holds its scene at the top level; an older one (as planted below, before the boot rewrites it) listed them
       const scene = project?.scene ?? project?.scenes?.[project.activeScene ?? 0]?.scene
@@ -65,8 +65,8 @@ const inspect = (page) =>
  *  the copy the current format keeps there (core/project/project.ts keepDefinitionsOnce) is taken out first */
 const plant = (page, fork) =>
   page.evaluate(
-    ({ id, stale, fork }) => {
-      const raw = localStorage.getItem('oip-web/project')
+    async ({ id, stale, fork }) => {
+      const raw = (await window.__oip.savedProject())
       if (!raw) return 'no stored project'
       const stored = JSON.parse(raw)
       // the stored project holds one scene at its top level (format 4 and later); an older build saved a list of scenes, so the

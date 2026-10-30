@@ -252,7 +252,10 @@ try {
     check(s.parts.includes('b-part') && s.parts.includes('b-part-2') && !s.parts.includes('a-part'), `it is the active scene, Line B (${s.parts.join(', ')})`)
     check((s.program ?? '').includes('LineB'), "with Line B's program")
     check(!s.readOnly, 'and is editable')
-    check(s.folder === root, `it still lives in its folder (${s.folder})`)
+    // the folder sync starts once the filing that showed the notice has resolved (App.tsx splitFiling), a moment later
+    await waitFor(() => state(page).then((st) => st.folder === root), 'the folder sync').catch(() => {})
+    const folder = (await state(page)).folder
+    check(folder === root, `it still lives in its folder (${folder})`)
     check(s.alert === null, `no alert (${s.alert})`)
 
     const siblings = readdirSync(parent).sort()

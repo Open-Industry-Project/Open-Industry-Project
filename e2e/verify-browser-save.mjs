@@ -74,7 +74,7 @@ async function main() {
     await waitForNotice(page, 'Saved in this browser')
     expect((await page.evaluate(() => window.__savePrevented)) === true, 'the browser\'s own "Save page as" was prevented')
     expect(
-      await page.evaluate(() => (localStorage.getItem('oip-web/project') ?? '').includes('saved-by-ctrl-s')),
+      await page.evaluate(async () => ((await window.__oip.savedProject()) ?? '').includes('saved-by-ctrl-s')),
       'the working copy holds the edit Save confirmed',
     )
 
@@ -116,10 +116,10 @@ async function main() {
       store.commit('Add group', { ...scene, parts: [...scene.parts, { id: 'saved-by-menu', type: 'group', position: [0, 0.2, 0], rotationY: 0, params: {} }] })
     })
     await save.click()
-    await page
-      .waitForFunction(() => (localStorage.getItem('oip-web/project') ?? '').includes('saved-by-menu'), null, { timeout: 10000 })
-      .catch(() => {})
-    expect(await page.evaluate(() => (localStorage.getItem('oip-web/project') ?? '').includes('saved-by-menu')), 'it saves the edit')
+    for (const end = Date.now() + 10000; Date.now() < end; await page.waitForTimeout(250)) {
+      if (await page.evaluate(async () => ((await window.__oip.savedProject()) ?? '').includes('saved-by-menu'))) break
+    }
+    expect(await page.evaluate(async () => ((await window.__oip.savedProject()) ?? '').includes('saved-by-menu')), 'it saves the edit')
     await page.waitForTimeout(3000)
     expect(!downloaded, 'and it downloads nothing - a file is Export Project')
 

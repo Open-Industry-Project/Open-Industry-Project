@@ -42,9 +42,9 @@ async function main() {
     await page.waitForFunction(() => window.__oip.assetsBusy?.() === false, undefined, { timeout: 180000 })
     await page.waitForTimeout(1000)
 
-    const status = () => page.evaluate(() => {
+    const status = () => page.evaluate(async () => {
       const s = window.__oip.store.getState()
-      return { demoSession: s.demoSession, notice: s.demoForkNotice !== null, canUndo: window.__oip.store.canUndo, doc: localStorage.getItem('oip-web/project') }
+      return { demoSession: s.demoSession, notice: s.demoForkNotice !== null, canUndo: window.__oip.store.canUndo, doc: (await window.__oip.savedProject()) }
     })
     const brief = (s) => JSON.stringify({ ...s, doc: s.doc?.length ?? null })
     const unforked = (s) => s.demoSession && !s.notice && s.doc === null && !s.canUndo
@@ -67,9 +67,9 @@ async function main() {
       const set = new Set(ids)
       st.commit('Move parts', { ...before, parts: before.parts.map((p) => (set.has(p.id) ? { ...p, position: [p.position[0], p.position[1] + 1, p.position[2]] } : p)) }, { before })
     }, ids)
-    const has = (id) => page.evaluate((id) => ({
+    const has = (id) => page.evaluate(async (id) => ({
       inScene: window.__oip.store.getState().scene.parts.some((p) => p.id === id),
-      inDoc: (localStorage.getItem('oip-web/project') ?? '').includes(`"${id}"`),
+      inDoc: ((await window.__oip.savedProject()) ?? '').includes(`"${id}"`),
     }), id)
 
     check('opens as the demo VIEW', unforked(await status()), brief(await status()))
@@ -167,7 +167,7 @@ async function main() {
     check('F: the group moved (a layout edit)', near(await posOf(placed.group), [g0[0] + 1, g0[1], g0[2]]))
     check('F: Stop puts the box back ON the moved group, from its designed pose', near(await posOf(placed.id), carried),
       `${JSON.stringify(await posOf(placed.id))} vs ${JSON.stringify(carried)}`)
-    const savedBox = await page.evaluate((id) => {
+    const savedBox = await page.evaluate(async (id) => {
       const find = (v) => {
         if (Array.isArray(v)) { for (const x of v) { const r = find(x); if (r) return r } return null }
         if (v && typeof v === 'object') {
@@ -176,7 +176,7 @@ async function main() {
         }
         return null
       }
-      return find(JSON.parse(localStorage.getItem('oip-web/project') ?? 'null'))
+      return find(JSON.parse((await window.__oip.savedProject()) ?? 'null'))
     }, placed.id)
     check('F: ...and saved there', near(savedBox, carried), JSON.stringify(savedBox))
 

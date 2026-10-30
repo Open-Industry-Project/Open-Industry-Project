@@ -1,13 +1,25 @@
-// Project-level persistence: the unified `oip-web/project` autosave that folds the active scene,
-// its bound ST program, and the authored part library into one document (a ProjectJSON - see
-// src/core/project/project.ts). This is the Tier-2 autosave unit. The legacy single-scene keys
-// ('oip-web/autosave', 'oip-web/st-program', 'oip-web/user-packages') are still written by the
-// store/StEditor as a transitional fallback, and a browser that only has those is migrated into a
-// project the first time it boots. Pure of any React/DOM-ref state, mirroring sceneFile.ts.
+// Project-level persistence: the working copy, the autosave that folds the active scene, its bound ST program, and
+// the authored part library into one document (a ProjectJSON - see src/core/project/project.ts). It is the open
+// document's row in the library (libraryDb.ts), or localStorage `oip-web/project` in a browser without IndexedDB
+// (docs/projects.md "The browser working copy"). The legacy single-scene keys ('oip-web/autosave',
+// 'oip-web/st-program', 'oip-web/user-packages') are still written by the store/StEditor as a transitional fallback,
+// and a browser that only has those is migrated into a project the first time it boots. Pure of any React/DOM-ref
+// state, mirroring sceneFile.ts.
 
 import { keepDefinitionsOnce, PROJECT_VERSION, projectToScene, serializeProject, trimForExport, unusedLibraryParts, validateProject } from '../../core/project/project'
 import { warmShippedAssets } from '../parts/shippedAssetCache'
-import { localAssetReviver, storeLocalAssets, withLocalAssets } from './localAssets'
+import { loadLocalAssets, localAssetReviver, storeLocalAssets, withLocalAssets } from './localAssets'
+import {
+  allRowTexts,
+  announceCurrentDocument,
+  currentDocumentId,
+  forgetCurrentDocument,
+  mintDocumentId,
+  readRowText,
+  setCurrentDocumentId,
+  supportsDocumentLibrary,
+  writeRowText,
+} from './libraryDb'
 import { clearEntryParams } from './entryParams'
 import type { ExportLeaveOut, ProjectJSON } from '../../core/project/project'
 import { serializeScene, validateScene } from '../../core/scene/scene'
@@ -40,28 +52,6 @@ const LEGACY_SCENE_KEY = 'oip-web/autosave'
 const LEGACY_USERPKG_KEY = 'oip-web/user-packages'
 
 const DEFAULT_PROJECT_NAME = 'Untitled Project'
-
-// documentStore.CURRENT_DOC_KEY, inlined for the same reason the legacy keys above are: documentStore
-// imports saveStoredProject from here, so importing anything back would be a cycle.
-const CURRENT_DOC_KEY = 'oip-web/document-id'
-
-/**
- * Cut the working copy loose from the document it came from, so the next boot files what it holds as a
- * new one (documentStore.syncCurrentDocument mints on a missing pointer).
- *
- * This makes an import an addition rather than a replacement. Adoption overwrites the working copy and
- * reloads. If the pointer stayed in place, the library's first sync after that reload would write the
- * imported project into the outgoing document's record, silently destroying the project you happened to
- * have open. The outgoing one keeps its own record (main.tsx's tracker holds the id it captured at boot,
- * so its last flush still writes to the right row).
- */
-function forgetCurrentDocument(): void {
-  try {
-    localStorage.removeItem(CURRENT_DOC_KEY)
-  } catch {
-    /* blocked storage: there is no library to confuse in the first place */
-  }
-}
 
 /**
  * Assemble a project from the live editor pieces: the scene's parts, its ST program, and the project's part library
@@ -158,11 +148,6 @@ export function legacySceneText(scene: SceneJSON): string {
   return serializeScene(withLocalAssets(scene), undefined, undefined, { pretty: false })
 }
 
-/** The stored texts that name assets by hash (localAssets.ts): the working copy and the legacy scene key. */
-export function storedTextsWithAssets(): (string | null)[] {
-  return [safeGet(PROJECT_KEY), safeGet(LEGACY_SCENE_KEY)]
-}
-
 /** Read + validate the legacy autosaved scene, or null if absent/corrupt. */
 function readLegacyScene(): SceneJSON | null {
   const raw = safeGet(LEGACY_SCENE_KEY)
@@ -202,6 +187,117 @@ function dropBundledIds(library: readonly PartPackage[]): PartPackage[] {
   return library.filter((p) => bundledPartById(p.id) === undefined)
 }
 
+// ── where the working copy is ────────────────────────────────────────────────────────────────────────────
+//
+// With IndexedDB, the working copy is the open document's row in the library, and nothing else holds a second copy
+// of it in the browser. Every save is synchronous for its caller: the text is kept here and its row write queued, one
+// at a time with the latest winning. A failed write is reported to the autosave banner (onWorkingCopyWrite) and on
+// every save after it until a write succeeds. Without IndexedDB (a Node test, some private modes) the working copy
+// is localStorage PROJECT_KEY, written synchronously.
+
+/** The open document's working copy while it is a library row: the text last read or written, and whose row. Null
+ *  while the working copy is localStorage's. */
+let inLibrary: { doc: string | null; text: string | null } | null = null
+
+/** Is the working copy the open document's library row (rather than localStorage)? */
+export function workingCopyInLibrary(): boolean {
+  return inLibrary !== null
+}
+
+/** The working copy's text as stored, or null when there is none. */
+function workingCopyText(): string | null {
+  if (inLibrary === null) return safeGet(PROJECT_KEY)
+  return inLibrary.doc !== null && inLibrary.doc === currentDocumentId() ? inLibrary.text : null
+}
+
+/** Is there a stored working copy at all (storePackages drops the pre-project library key once there is)? */
+export function hasStoredProject(): boolean {
+  return workingCopyText() !== null
+}
+
+/**
+ * Set while the working copy was older than the project it belongs to: a save of it to localStorage was refused for
+ * quota, and none had succeeded since. `since` is the first refusal. Builds that kept the working copy in localStorage
+ * set it, and the library's trailing sync kept writing the live project to the row, so a row written after `since`
+ * holds everything that working copy lacks. Read once, when the working copy moves into the library.
+ */
+const BEHIND_KEY = 'oip-web/project-behind'
+
+function behindRow(): { doc: string; since: number } | null {
+  const raw = safeGet(BEHIND_KEY)
+  if (raw === null) return null
+  try {
+    const v = JSON.parse(raw) as { doc?: unknown; since?: unknown }
+    return typeof v.doc === 'string' && typeof v.since === 'number' ? { doc: v.doc, since: v.since } : null
+  } catch {
+    return null
+  }
+}
+
+/** Does `text` open as a project, with every model it names by hash read? */
+function opens(text: string): boolean {
+  try {
+    const missing: string[] = []
+    return validateProject(JSON.parse(text, localAssetReviver(missing))).ok && missing.length === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The localStorage working copy to move into the library, or null when it must stay where it is. Two cases take the
+ * open document's row instead, as the boot of the build that wrote them did: a save refused for quota left the row
+ * newer ({@link behindRow}), or the working copy names models whose bytes are gone and the row embeds them. A working
+ * copy that does not open stays, and is refused as an unopened project, so its Download and Discard work on it.
+ */
+async function localCopyToMove(local: string, doc: string | null): Promise<string | null> {
+  const row = doc === null ? null : await readRowText(doc)
+  const behind = behindRow()
+  if (row && behind !== null && behind.doc === doc && row.updatedAt > behind.since) return row.text
+  if ((await loadLocalAssets([local])).length > 0) return row?.text ?? null
+  return opens(local) ? local : null
+}
+
+/**
+ * Before the boot: read the open document's row into the working copy, and its models' bytes from the asset store.
+ * The first boot with IndexedDB moves a localStorage working copy into the row and removes it from localStorage, once
+ * the row has committed. Until then, or if the move cannot happen, the working copy stays in localStorage for this
+ * session, as it was.
+ */
+export async function openWorkingCopy(): Promise<void> {
+  inLibrary = null
+  if (typeof localStorage === 'undefined' || !supportsDocumentLibrary()) return
+  let doc = currentDocumentId()
+  const local = safeGet(PROJECT_KEY)
+  if (local !== null) {
+    const text = await localCopyToMove(local, doc)
+    if (text === null) return void (await loadLocalAssets([local, safeGet(LEGACY_SCENE_KEY)]))
+    if (doc === null) {
+      doc = mintDocumentId()
+      setCurrentDocumentId(doc)
+    }
+    if (!(await writeRowText(doc, nameOf(parseOrNull(text)) ?? DEFAULT_PROJECT_NAME, text))) return void (await loadLocalAssets([local, safeGet(LEGACY_SCENE_KEY)]))
+    try {
+      localStorage.removeItem(PROJECT_KEY)
+      localStorage.removeItem(BEHIND_KEY)
+    } catch {
+      // a key left behind would be moved over the row by the next boot, so it stays the working copy this session
+      return
+    }
+  }
+  const row = doc === null ? null : await readRowText(doc)
+  await loadLocalAssets([row?.text ?? null, safeGet(LEGACY_SCENE_KEY)])
+  inLibrary = { doc, text: row?.text ?? null }
+}
+
+function parseOrNull(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
 /** A stored project this session could not open (see {@link unopenedProject}). */
 export interface UnopenedProject {
   /** the document's own name, when it parsed far enough to carry one */
@@ -220,11 +316,11 @@ let unopened: (UnopenedProject & { raw: string }) | null = null
  * validateProject is all-or-nothing, so one bad scene, package or test refuses the whole document. The boot
  * path then falls back to the legacy scene key (or a default scene); saving that fallback would replace a
  * document this build cannot read before the user saw anything. So the refused document stays exactly where
- * it is: {@link saveStoredProject} will not write over it and the library will not sync over its record,
+ * it is: {@link saveStoredProject} will not write over it and the library will not file over its record,
  * until the user downloads or discards it (the banner, App.tsx).
  */
 export function unopenedProject(): UnopenedProject | null {
-  if (unopened !== null && safeGet(PROJECT_KEY) !== unopened.raw) unopened = null
+  if (unopened !== null && workingCopyText() !== unopened.raw) unopened = null
   return unopened && { name: unopened.name, errors: unopened.errors }
 }
 
@@ -238,10 +334,26 @@ export function unopenedProject(): UnopenedProject | null {
 // So a session may only write over the working copy it last read or wrote. The tab that finds another tab's
 // write there (by the storage event, or by comparing on its next save) stops saving for good and goes
 // view-only. Reloading it rejoins, as the tab that holds the latest copy.
+//
+// IndexedDB has no storage event, so a library working copy is followed by a stamp in localStorage: a few bytes,
+// changed by every save that changes the document or which document it is. A save of exactly what was there keeps
+// the stamp, so a second tab opening the same project and saving it unchanged is no conflict.
+
+export const STAMP_KEY = 'oip-web/project-stamp'
+
+/** Is a storage event for `key` another tab's write of the working copy (main.tsx listens)? */
+export function isWorkingCopyKey(key: string): boolean {
+  return key === PROJECT_KEY || (inLibrary !== null && key === STAMP_KEY)
+}
+
+/** What another tab's write changes: the library working copy's stamp, or the localStorage working copy itself. */
+function workingCopyToken(): string | null {
+  return inLibrary === null ? safeGet(PROJECT_KEY) : safeGet(STAMP_KEY)
+}
 
 /** The working copy as this session last read or wrote it, and the Storage that was in. Keyed by the storage
  *  object so a fresh one (a test's stub) starts unguarded rather than inheriting a stale expectation. */
-let lastSeen: { storage: Storage; text: string | null } | null = null
+let lastSeen: { storage: Storage; token: string | null } | null = null
 /** The storage in which another tab's write was seen, if one was. Sticky for the session. */
 let supersededIn: Storage | null = null
 const supersededListeners = new Set<() => void>()
@@ -250,9 +362,9 @@ function currentStorage(): Storage | null {
   return typeof localStorage === 'undefined' ? null : localStorage
 }
 
-function remember(text: string | null): void {
+function remember(token: string | null): void {
   const storage = currentStorage()
-  lastSeen = storage && { storage, text }
+  lastSeen = storage && { storage, token }
 }
 
 function markSuperseded(storage: Storage): void {
@@ -281,7 +393,7 @@ export function onWorkingCopySuperseded(cb: () => void): () => void {
 export function noteWorkingCopyWrite(newValue: string | null): boolean {
   const storage = currentStorage()
   if (storage === null || lastSeen === null || lastSeen.storage !== storage) return false
-  if (newValue === lastSeen.text) return false
+  if (newValue === lastSeen.token) return false
   markSuperseded(storage)
   return true
 }
@@ -292,7 +404,7 @@ function writtenElsewhere(): boolean {
   const storage = currentStorage()
   if (storage === null) return false
   if (supersededIn === storage) return true
-  if (lastSeen === null || lastSeen.storage !== storage || safeGet(PROJECT_KEY) === lastSeen.text) return false
+  if (lastSeen === null || lastSeen.storage !== storage || workingCopyToken() === lastSeen.token) return false
   markSuperseded(storage)
   return true
 }
@@ -321,29 +433,24 @@ function nameOf(data: unknown): string | null {
 }
 
 /**
- * Load the persisted project for the solo boot path. Prefers the unified project doc
- * ({@link PROJECT_KEY}); when absent, migrates from the legacy single-scene keys (autosave scene +
- * ST program + user-packages) so a returning user's work upgrades in place. Returns null only when
- * nothing usable is persisted (a first-ever visit, or a refused doc with no legacy scene behind it) - the
- * caller then falls back to a default scene.
+ * Load the persisted project for the solo boot path. Prefers the working copy ({@link openWorkingCopy} has read it);
+ * when there is none, migrates from the legacy single-scene keys (autosave scene + ST program + user-packages) so a
+ * returning user's work upgrades in place. Returns null only when nothing usable is persisted (a first-ever visit, or a
+ * refused doc with no legacy scene behind it) - the caller then falls back to a default scene.
  *
  * A project doc that is present but refused still falls through to the legacy keys, so the editor opens on
  * something, but it is recorded first ({@link unopenedProject}) and nothing may write over it.
- *
- * `ahead`: the open document's library row when it is newer than the working copy (documentStore.libraryCopyAhead).
- * It is returned in place of the working copy's project, which is still read, so the other-tab guard and an older
- * document's other scenes come from what the working copy holds.
  */
-export function loadStoredProject(ahead: ProjectJSON | null = null): LoadedProject | null {
+export function loadStoredProject(): LoadedProject | null {
   if (typeof localStorage === 'undefined') return null
   unopened = null
   // 1. the unified project doc, if present
-  const raw = safeGet(PROJECT_KEY)
-  remember(raw)
+  const raw = workingCopyText()
+  remember(workingCopyToken())
   if (raw) {
     let data: unknown
     let parsed = true
-    // its models and textures come back from the asset store, read before the boot (localAssets.loadLocalAssets)
+    // its models and textures come back from the asset store, read before the boot (openWorkingCopy)
     const missing: string[] = []
     try {
       data = JSON.parse(raw, localAssetReviver(missing))
@@ -351,10 +458,8 @@ export function loadStoredProject(ahead: ProjectJSON | null = null): LoadedProje
       parsed = false
       unopened = { raw, name: null, errors: [`not valid JSON (${e instanceof Error ? e.message : String(e)})`] }
     }
-    // Some of its models are gone from this browser's storage. The library's copy embeds them, and the boot passes it
-    // as `ahead`. Without one the document is refused, so nothing saves over the text that still names them.
+    // some of its models are gone from this browser's storage: refused, so nothing saves over the text that names them
     if (parsed && missing.length > 0) {
-      if (ahead) return split(ahead)
       parsed = false
       unopened = {
         raw,
@@ -374,7 +479,7 @@ export function loadStoredProject(ahead: ProjectJSON | null = null): LoadedProje
             else delete p.packages
           }
         }
-        return split(ahead ?? project, result.splitOff)
+        return split(project, result.splitOff)
       }
       unopened = { raw, name: nameOf(data), errors: result.errors }
     }
@@ -390,7 +495,7 @@ export function loadStoredProject(ahead: ProjectJSON | null = null): LoadedProje
 }
 
 /** Outcome of an autosave write. A failure is never thrown (editing must not break) but it must not be
- *  silent either: a quota failure means everything since the last good write is gone on reload, so the
+ *  silent either: a failed write means everything since the last good one is gone on reload, so the
  *  caller has to be able to tell the author. See {@link saveStoredProject}. */
 export type SaveResult = { ok: true } | { ok: false; quota: boolean; message: string }
 
@@ -403,56 +508,104 @@ function isQuotaError(e: unknown): boolean {
   return e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || code === 22 || code === 1014
 }
 
+/** Why a switch, an import or a folder open stopped: the incoming project's row did not commit. */
+export const WORKING_COPY_UNSTORED = 'This browser would not store the project, so nothing was replaced. Export the one you have open (.oip) to keep a copy.'
+
+const UNSAVED: SaveResult = {
+  ok: false,
+  quota: false,
+  message: 'This browser would not store this project, so it could not be autosaved. Export the project to a .oip file to keep your work.',
+}
+
+// the library working copy's writes: the latest waiting, the one in flight, and the last one's failure until one succeeds
+let pendingRow: { doc: string; name: string; text: string } | null = null
+let writingRow: Promise<void> | null = null
+let rowFailure: SaveResult | null = null
+const rowListeners = new Set<(result: SaveResult) => void>()
+
+/** Hear when the library working copy's writes start or stop failing (main.tsx sets the autosave banner). */
+export function onWorkingCopyWrite(cb: (result: SaveResult) => void): () => void {
+  rowListeners.add(cb)
+  return () => rowListeners.delete(cb)
+}
+
+async function drainRowWrites(): Promise<void> {
+  while (pendingRow !== null) {
+    const w = pendingRow
+    pendingRow = null
+    const failure = (await writeRowText(w.doc, w.name, w.text)) ? null : UNSAVED
+    if (failure === rowFailure) continue
+    rowFailure = failure
+    for (const cb of rowListeners) cb(failure ?? { ok: true })
+  }
+  writingRow = null
+  if (journaled && rowFailure === null) {
+    journaled = false
+    try {
+      localStorage.removeItem(PROJECT_KEY)
+    } catch {
+      /* blocked storage: it was never written */
+    }
+  }
+}
+
+// set while the latest text also waits in localStorage for its row write (keepPendingWrite)
+let journaled = false
+
 /**
- * Set while the working copy is older than the project it belongs to: a save of that document was refused for
- * quota, and none has succeeded since. `since` is the first refusal. The library's trailing sync (main.tsx) still
- * writes the live project to IndexedDB, which has room, so a library row written after `since` holds everything
- * the working copy lacks. Boot reads it from there ({@link workingCopyBehind}, documentStore.libraryCopyAhead).
- * Without this, a reload opened the stale working copy and its first library sync wrote that over the newer row.
+ * The page is being hidden or closed with a row write not yet committed. An unloading page's IndexedDB transaction
+ * may be aborted, so the latest text also goes where earlier builds kept the working copy, which is written at once.
+ * The next boot moves it into the row (openWorkingCopy), and a page that lives on removes it once the row commits.
  */
-const BEHIND_KEY = 'oip-web/project-behind'
-
-/** The document whose working copy is behind its library row, and since when; null when it is current. */
-export function workingCopyBehind(): { doc: string; since: number } | null {
-  const raw = safeGet(BEHIND_KEY)
-  if (raw === null) return null
+export function keepPendingWrite(): void {
+  if (inLibrary === null || writingRow === null || inLibrary.text === null || inLibrary.doc !== currentDocumentId()) return
   try {
-    const v = JSON.parse(raw) as { doc?: unknown; since?: unknown }
-    return typeof v.doc === 'string' && typeof v.since === 'number' ? { doc: v.doc, since: v.since } : null
+    localStorage.setItem(PROJECT_KEY, inLibrary.text)
+    journaled = true
   } catch {
-    return null
+    /* too large or blocked: the row write is all there is */
   }
 }
 
-function noteWorkingCopyBehind(): void {
-  // the first refusal is kept: a row is only known to be newer than the working copy if written after it
-  if (safeGet(BEHIND_KEY) !== null) return
-  const doc = safeGet(CURRENT_DOC_KEY)
-  if (doc === null) return
-  try {
-    // a few bytes, so it usually fits where the project did not. When it does not, boot opens the working copy as before.
-    localStorage.setItem(BEHIND_KEY, JSON.stringify({ doc, since: Date.now() }))
-  } catch {
-    /* full or blocked */
-  }
+/** Resolves once every queued working-copy write has settled: true when the last one committed, or there was none to make. */
+export async function flushWorkingCopy(): Promise<boolean> {
+  while (writingRow !== null) await writingRow
+  return rowFailure === null
 }
 
-function clearWorkingCopyBehind(): void {
-  try {
-    localStorage.removeItem(BEHIND_KEY)
-  } catch {
-    /* blocked storage: it was never set */
+/** Write the working copy into document `target`'s row (the open one's when not given), stamping it for the other tabs. */
+function saveToLibrary(library: { doc: string | null; text: string | null }, text: string, name: string, target?: string): SaveResult {
+  let doc = target ?? currentDocumentId()
+  // no pointer yet (a first-ever visit, an unopened project discarded): what is on screen gets a record of its own
+  if (doc === null) {
+    doc = mintDocumentId()
+    announceCurrentDocument(doc)
   }
+  // exactly what is stored: nothing to write, and the stamp stays, so another tab holding it is not superseded
+  if (doc === library.doc && text === library.text && rowFailure === null) return { ok: true }
+  try {
+    const stamp = `${doc}:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    localStorage.setItem(STAMP_KEY, stamp)
+    remember(stamp)
+  } catch {
+    /* full or blocked: the other tabs are not told, and the row is written regardless */
+  }
+  inLibrary = { doc, text }
+  pendingRow = { doc, name, text }
+  writingRow ??= drainRowWrites()
+  return rowFailure ?? { ok: true }
 }
 
 /**
- * Write the unified project document to localStorage (solo autosave). Never throws - a failed autosave
- * must not break editing - but it reports, because the failure mode is silent data loss: localStorage is
- * a few MB per origin and an imported model is embedded base64 (+33%) in the project doc, so one large
- * GLB can push the doc over quota. A swallowed throw would leave the author working against an autosave
- * that had stopped, and the reload would take everything with it. Callers surface a failure (store.persistProject → the autosave banner).
+ * Write the project as the working copy (solo autosave). Never throws - a failed autosave must not break editing -
+ * but it reports, because the failure mode is silent data loss: a swallowed failure would leave the author working
+ * against an autosave that had stopped, and the reload would take everything with it. Callers surface a failure
+ * (store.persistProject → the autosave banner).
+ *
+ * `doc`: the document whose working copy this is, when it is not the open one - a switch or an import writes the
+ * incoming project before the pointer moves to it. Used only by a library working copy.
  */
-export function saveStoredProject(project: ProjectJSON): SaveResult {
+export function saveStoredProject(project: ProjectJSON, opts?: { doc?: string }): SaveResult {
   if (typeof localStorage === 'undefined') return { ok: true }
   // Every write of the working copy comes through here - the autosave, an import, a shelf switch, a linked
   // folder - so these guards are what keep a document this build could not open, or one another tab has
@@ -463,16 +616,15 @@ export function saveStoredProject(project: ProjectJSON): SaveResult {
     // compact: this is the browser autosave, not a file a user opens. The 2-space indent doubles it
     // (228 KB of demo project becomes 461 KB of text), and every edit would spend that twice, once
     // building the string and once writing it. Exported .oip files keep the readable form.
-    // Models and textures are written as their hashes once their bytes are in IndexedDB (localAssets.ts): as base64
-    // here, one model could fill localStorage. After keepDefinitionsOnce, which can add a built-in's full copy.
+    // Models and textures are written as their hashes once their bytes are in IndexedDB (localAssets.ts).
+    // After keepDefinitionsOnce, which can add a built-in's full copy.
     const text = serializeProject(withLocalAssets(keepDefinitionsOnce(project)), { pretty: false })
+    if (inLibrary !== null) return saveToLibrary(inLibrary, text, project.name, opts?.doc)
     localStorage.setItem(PROJECT_KEY, text)
     remember(text)
-    clearWorkingCopyBehind()
     return { ok: true }
   } catch (e) {
     const quota = isQuotaError(e)
-    if (quota) noteWorkingCopyBehind()
     return {
       ok: false,
       quota,
@@ -482,6 +634,27 @@ export function saveStoredProject(project: ProjectJSON): SaveResult {
     }
   }
 }
+
+/**
+ * The working copy as stored, once its queued writes have settled: the open document's row, or localStorage's. For
+ * the e2e gates (App.tsx's test hook), which check what a reload would open.
+ */
+export async function savedWorkingCopyText(): Promise<string | null> {
+  if (inLibrary === null) return safeGet(PROJECT_KEY)
+  await flushWorkingCopy()
+  const doc = currentDocumentId()
+  return doc === null ? null : ((await readRowText(doc))?.text ?? null)
+}
+
+/**
+ * Every stored text that may name a model by hash, for the asset sweep (localAssets.sweepLocalAssets): every library
+ * row, the working copy and the legacy scene key. Null when the library could not be read, so nothing is swept.
+ */
+export async function storedAssetTexts(): Promise<(string | null)[] | null> {
+  const rows = supportsDocumentLibrary() ? await allRowTexts() : []
+  return rows === null ? null : [...rows, workingCopyText(), safeGet(LEGACY_SCENE_KEY)]
+}
+
 
 // ───────────────────────── an older project's other scenes, waiting to be filed ─────────────────────────
 //
@@ -639,12 +812,18 @@ export function downloadUnopenedProject(): void {
  */
 export function discardUnopenedProject(store: EditorStore): void {
   if (!unopenedProject()) return
-  try {
-    localStorage.removeItem(PROJECT_KEY)
-  } catch {
-    /* blocked storage: nothing was being saved anyway */
+  // a library working copy is its record, which is kept: cutting the pointer below is what lets go of it
+  if (inLibrary === null) {
+    try {
+      localStorage.removeItem(PROJECT_KEY)
+    } catch {
+      /* blocked storage: nothing was being saved anyway */
+    }
+    // the refused text kept the working copy in localStorage (openWorkingCopy); with it gone, the save below files
+    // what is on screen as a library row of its own, as the next boot would
+    if (supportsDocumentLibrary()) inLibrary = { doc: null, text: null }
   }
-  remember(safeGet(PROJECT_KEY))
+  remember(workingCopyToken())
   unopened = null
   forgetCurrentDocument()
   store.setUnopenedProject(null)
@@ -653,7 +832,7 @@ export function discardUnopenedProject(store: EditorStore): void {
 
 /**
  * Adopt a freshly validated imported project as the stored project and reboot into it. Shared by the
- * web `.oip` import and the desktop folder open (desktopProjectBridge). Adoption is localStorage +
+ * web `.oip` import and the desktop folder open (desktopProjectBridge). Adoption is a write of the working copy +
  * reload rather than store.loadProject(): swapping projects in place would have to orchestrate the
  * full boot surface by hand - retire the old library's (authoritative) registrations without orphaning
  * placed parts, replace userPackages, refresh the catalog, and reload the scene/sim - and any missed
@@ -662,16 +841,16 @@ export function discardUnopenedProject(store: EditorStore): void {
  * A v1 document's library gets the same bundled-id filter that path applies (see dropBundledIds).
  * Without it, saving the migrated doc as v2 would freeze placed parts for imports.
  */
-export function adoptImportedProject(
+export async function adoptImportedProject(
   result: { project: ProjectJSON; splitOff?: ProjectJSON[]; migratedFromV1?: true },
   /**
    * `docId`: the library document the project is, when it is already known - a desktop project folder,
    * whose document the shell remembers by path, or one given an id before the reload so its folder can be
-   * recorded against it. The pointer then moves to it instead of being cut loose, so the next boot files
-   * the project into that record rather than minting a second copy.
+   * recorded against it. Otherwise a library working copy gets a record of its own, and a localStorage one cuts the
+   * pointer loose, so the import is an addition: the outgoing document keeps its record.
    */
   opts?: { docId?: string },
-): SaveResult {
+): Promise<SaveResult> {
   const project = result.project
   if (result.migratedFromV1) {
     for (const p of [project, ...(result.splitOff ?? [])]) {
@@ -688,15 +867,12 @@ export function adoptImportedProject(
   // Adoption is "write, then reload into it", so a failed write must not reload: the reload would boot the
   // previous project and the import would vanish with no explanation. Report instead and stay put. (That
   // includes an unopened project in the working copy, which saveStoredProject refuses to write over.)
-  const saved = saveStoredProject(project)
+  const doc = opts?.docId ?? (workingCopyInLibrary() ? mintDocumentId() : undefined)
+  const saved = saveStoredProject(project, doc !== undefined ? { doc } : undefined)
   if (!saved.ok) return saved
-  if (opts?.docId !== undefined) {
-    try {
-      localStorage.setItem(CURRENT_DOC_KEY, opts.docId)
-    } catch {
-      /* blocked storage: there is no library to file it under anyway */
-    }
-  } else forgetCurrentDocument()
+  if (!(await flushWorkingCopy())) return { ok: false, quota: false, message: WORKING_COPY_UNSTORED }
+  if (doc !== undefined) setCurrentDocumentId(doc)
+  else forgetCurrentDocument()
   clearEntryParams() // the reload opens the import, not the demo or a shared project the tab was in
   if (typeof location !== 'undefined') location.reload()
   return saved
@@ -708,10 +884,10 @@ export function adoptImportedProject(
  * import. The caller confirms the replacement first. In a shared project too: the reload leaves it for the import
  * (entryParams.ts), and the shared document is never written.
  */
-export function importProjectText(_store: EditorStore, text: string): string | null {
+export async function importProjectText(_store: EditorStore, text: string): Promise<string | null> {
   const result = parseProjectText(text)
   if (!result.ok) return result.message
-  const adopted = adoptImportedProject(result)
+  const adopted = await adoptImportedProject(result)
   return adopted.ok ? null : adopted.message
 }
 
@@ -766,6 +942,6 @@ export async function importProjectData(
   if (refused !== null) return refused
   // its models go to the asset store first, so the working copy can name them by hash (localAssets.ts)
   await storeLocalAssets(result.project)
-  const adopted = adoptImportedProject(result)
+  const adopted = await adoptImportedProject(result)
   return adopted.ok ? null : adopted.message
 }

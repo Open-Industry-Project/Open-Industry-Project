@@ -1,19 +1,11 @@
 // The document library: the browser-local store that lets a browser hold more than one project, so
 // recents and the project manager have something to list.
 //
-// The design is a split between two stores:
+// Every project is one row in IndexedDB `oip-web` (libraryDb.ts), and the open project's row is its working copy:
+// each commit is written there (projectFile.saveStoredProject), and nothing else holds a second copy of it in the
+// browser. IndexedDB is sized to the disk, where localStorage holds a few MB.
 //
-//   localStorage `oip-web/project`  = the working copy of the open document: synchronous write on every
-//                                     commit, SaveResult, quota banner (projectFile.saveStoredProject).
-//                                     The hot path that holds the user's work.
-//   IndexedDB   `oip-web` documents = the library: every document, including the open one's last
-//                                     synced snapshot. Written asynchronously, off the edit path.
-//
-// The localStorage quota is a few MB, and one project with an embedded model can already exhaust it
-// (AutosaveBanner). N projects there would multiply that failure, so the library lives in a store
-// measured in hundreds of MB.
-//
-// Switching writes the chosen document into the working copy and reloads, reusing the tested boot path
+// Switching moves the pointer to the chosen document and reloads, reusing the tested boot path
 // (same as .oip import and desktop folder open). Swapping in place does not work: the outgoing library's
 // registrations shadow the incoming document's snapshots (projectFile.adoptImportedProject).
 //
@@ -21,107 +13,27 @@
 // implementation can sit behind the same calls later. This one needs no picker and works in every browser.
 
 import { clearEntryParams } from './entryParams'
-import { serializeProject, validateProject } from '../../core/project/project'
+import { validateProject } from '../../core/project/project'
 import type { ProjectJSON } from '../../core/project/project'
-import { parkSplitOff, saveStoredProject, workingCopyBehind, workingCopyRefusal } from './projectFile'
-import { storeLocalAssets } from './localAssets'
+import { flushWorkingCopy, parkSplitOff, saveStoredProject, WORKING_COPY_UNSTORED, workingCopyRefusal } from './projectFile'
+import { loadLocalAssets, localAssetReviver, storeLocalAssets } from './localAssets'
 import type { SaveResult } from './projectFile'
+import {
+  announceCurrentDocument,
+  currentDocumentId,
+  inTx,
+  mintDocumentId,
+  payloadText,
+  request,
+  rowText,
+  setCurrentDocumentId,
+  supportsDocumentLibrary,
+  writeRowText,
+} from './libraryDb'
+import type { DocumentMeta } from './libraryDb'
 
-const DB_NAME = 'oip-web'
-const DB_VERSION = 1
-/** id -> {id, name, updatedAt}: read by the projects list, so a listing never deserializes a whole project */
-const INDEX_STORE = 'docIndex'
-/** id -> ProjectJSON: the payloads, read only when a document is actually opened */
-const PAYLOAD_STORE = 'docPayload'
-
-/** Which document the working copy currently holds. localStorage, not IndexedDB: the boot path wants
- *  it synchronously, and it is twenty bytes. */
-export const CURRENT_DOC_KEY = 'oip-web/document-id'
-
-/** A document as the projects list shows it - never the payload. */
-export interface DocumentMeta {
-  id: string
-  name: string
-  /** ms since epoch of the last sync into the library */
-  updatedAt: number
-}
-
-/** IndexedDB is absent in a Node test env, in some private modes, and behind blocked storage. Every
- *  call below no-ops or returns empty rather than throwing, so a browser without it keeps the plain
- *  single-document behaviour. */
-export function supportsDocumentLibrary(): boolean {
-  return typeof indexedDB !== 'undefined'
-}
-
-function openDb(): Promise<IDBDatabase | null> {
-  if (!supportsDocumentLibrary()) return Promise.resolve(null)
-  return new Promise((resolve) => {
-    let req: IDBOpenDBRequest
-    try {
-      req = indexedDB.open(DB_NAME, DB_VERSION)
-    } catch {
-      return resolve(null) // blocked storage
-    }
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(INDEX_STORE)) db.createObjectStore(INDEX_STORE, { keyPath: 'id' })
-      if (!db.objectStoreNames.contains(PAYLOAD_STORE)) db.createObjectStore(PAYLOAD_STORE, { keyPath: 'id' })
-    }
-    req.onsuccess = () => resolve(req.result)
-    // A failed open is not something the user can act on, and it must never break editing - the
-    // working copy is untouched either way, so the app has no library this session.
-    req.onerror = () => resolve(null)
-    req.onblocked = () => resolve(null)
-  })
-}
-
-/** Run `body` in a transaction and resolve when it commits (oncomplete), not when a request succeeds. A
- *  resolve on onsuccess can return before the write is durable, and a switch-then-reload would then
- *  lose the snapshot it just took. */
-async function inTx<T>(mode: IDBTransactionMode, body: (index: IDBObjectStore, payload: IDBObjectStore) => Promise<T> | T): Promise<T | null> {
-  const db = await openDb()
-  if (!db) return null
-  try {
-    return await new Promise<T | null>((resolve) => {
-      let out: T | undefined
-      let failed = false
-      const tx = db.transaction([INDEX_STORE, PAYLOAD_STORE], mode)
-      tx.oncomplete = () => resolve(failed ? null : (out as T))
-      tx.onerror = () => resolve(null)
-      tx.onabort = () => resolve(null)
-      void Promise.resolve(body(tx.objectStore(INDEX_STORE), tx.objectStore(PAYLOAD_STORE))).then(
-        (v) => (out = v),
-        () => (failed = true),
-      )
-    })
-  } finally {
-    db.close()
-  }
-}
-
-function request<T>(req: IDBRequest<T>): Promise<T | undefined> {
-  return new Promise((resolve) => {
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => resolve(undefined)
-  })
-}
-
-/** The open document's id, or null when this browser has never had one (pre-library, or storage off). */
-export function currentDocumentId(): string | null {
-  try {
-    return localStorage.getItem(CURRENT_DOC_KEY)
-  } catch {
-    return null
-  }
-}
-
-function setCurrentDocumentId(id: string): void {
-  try {
-    localStorage.setItem(CURRENT_DOC_KEY, id)
-  } catch {
-    /* blocked storage: the library just cannot follow which document is open */
-  }
-}
+export { CURRENT_DOC_KEY, currentDocumentId, mintDocumentId, onCurrentDocumentChange, supportsDocumentLibrary } from './libraryDb'
+export type { DocumentMeta } from './libraryDb'
 
 /**
  * The scene half of a {@link sceneSlotKey}. A project holds one scene since format 4, so it is a constant - the id
@@ -159,25 +71,6 @@ export function slotDocumentId(slot: string): string | null {
   return /^(doc-[^/]+)\//.exec(slot)?.[1] ?? null
 }
 
-const documentChangeListeners = new Set<(id: string) => void>()
-
-/**
- * Hear when the open document gets a different id without a reload: an in-place adoption
- * ({@link adoptDocumentInPlace}), or the first id minted for the document on screen ({@link syncCurrentDocument}).
- * The library tracker (main.tsx) captures its row at boot and has to move with it; so does anything keyed by
- * {@link sceneSlotKey}. Never fired by the switches that reload - the page is leaving, and its unload flush must
- * still write to the document being left.
- */
-export function onCurrentDocumentChange(cb: (id: string) => void): () => void {
-  documentChangeListeners.add(cb)
-  return () => documentChangeListeners.delete(cb)
-}
-
-function announceCurrentDocument(id: string): void {
-  setCurrentDocumentId(id)
-  for (const cb of documentChangeListeners) cb(id)
-}
-
 /** Whether this browser has already been asked to make the library durable. A refusal is remembered:
  *  Firefox prompts for `persist()`, and re-prompting every time the projects list opens would be a nag. */
 const DURABLE_ASKED_KEY = 'oip-web/storage-asked'
@@ -212,12 +105,6 @@ export async function requestDurableStorage(): Promise<boolean> {
   }
 }
 
-/** Ids are minted here rather than derived from the name, so renaming never re-homes a record and two
- *  documents may share a name - they are different work, and only the id is identity. */
-export function mintDocumentId(): string {
-  return `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-}
-
 /** The projects list's rows, most-recently-touched first. Empty when there is no library. */
 export async function listDocuments(): Promise<DocumentMeta[]> {
   const rows = await inTx('readonly', (index) => request(index.getAll() as IDBRequest<DocumentMeta[]>))
@@ -233,43 +120,23 @@ export async function readDocument(id: string): Promise<ProjectJSON | null> {
 
 /** {@link readDocument}, with an older multi-scene document's other scenes (core/project/project.ts `splitOff`). */
 async function readDocumentSplit(id: string): Promise<{ project: ProjectJSON; splitOff?: ProjectJSON[] } | null> {
-  const row = await inTx('readonly', (_index, payload) => request(payload.get(id) as IDBRequest<{ id: string; project: unknown } | undefined>))
-  if (!row) return null
-  const result = validateProject(row.project)
-  return result.ok ? result : null
+  const row = await inTx('readonly', (_index, payload) => request(payload.get(id) as IDBRequest<unknown>))
+  const text = payloadText(row)
+  if (text === null) return null
+  // its models named by hash come back from the asset store first; a row whose models are gone is not opened
+  if ((await loadLocalAssets([text])).length > 0) return null
+  try {
+    const missing: string[] = []
+    const result = validateProject(JSON.parse(text, localAssetReviver(missing)))
+    return result.ok && missing.length === 0 ? result : null
+  } catch {
+    return null
+  }
 }
 
-/**
- * The open document's library row, when it is newer than the working copy: a save of the working copy was refused
- * for quota (projectFile.workingCopyBehind), and the row was written after that. The library's sync writes the live
- * project, so such a row holds every edit the working copy lacks. Null in every other case, and without reading
- * IndexedDB unless the working copy is marked behind.
- */
-export async function libraryCopyAhead(): Promise<ProjectJSON | null> {
-  const behind = workingCopyBehind()
-  if (behind === null || behind.doc !== currentDocumentId() || workingCopyRefusal() !== null) return null
-  const meta = await inTx('readonly', (index) => request(index.get(behind.doc) as IDBRequest<DocumentMeta | undefined>))
-  if (!meta || !(meta.updatedAt > behind.since)) return null
-  return readDocument(behind.doc)
-}
-
-/**
- * Upsert a document. This is also the sync point for the open one: the library's copy of the document
- * being edited is refreshed from the live project, so it runs ahead of the working copy while a save of
- * that is refused for quota ({@link libraryCopyAhead}).
- */
+/** Upsert a document: its row's text (libraryDb.rowText) and its listing. */
 export async function writeDocument(id: string, project: ProjectJSON, at = Date.now()): Promise<boolean> {
-  const meta: DocumentMeta = { id, name: project.name, updatedAt: at }
-  // Round-tripped through the serializer so what is stored in the library is the same plain JSON the
-  // working copy holds - IndexedDB structured-clones what it is given, and a live store object would
-  // otherwise carry whatever non-plain values a future field acquires.
-  const plain = JSON.parse(serializeProject(project, { pretty: false })) as ProjectJSON
-  const ok = await inTx('readwrite', (index, payload) => {
-    index.put(meta)
-    payload.put({ id, project: plain })
-    return true
-  })
-  return ok === true
+  return writeRowText(id, project.name, rowText(project), at)
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
@@ -293,12 +160,8 @@ export async function renameDocument(id: string, name: string): Promise<boolean>
 }
 
 /**
- * Bring the library in sync with the working copy, minting the open document's record on first use.
- * Idempotent and best-effort. Called on a debounce after edits, before a switch, and on page hide.
- *
- * Minting is also the migration: a browser that predates the library has a working copy and no records,
- * so the first sync files it as document #1 under whatever name it already carried. Nothing moves,
- * nothing is asked, and a user who never opens the projects list cannot tell it happened.
+ * Write `project` into the open document's record, minting the record on first use. Before a switch, and for the
+ * project a demo fork leaves.
  */
 export async function syncCurrentDocument(project: ProjectJSON): Promise<string | null> {
   if (!supportsDocumentLibrary()) return null
@@ -311,6 +174,8 @@ export async function syncCurrentDocument(project: ProjectJSON): Promise<string 
     id = mintDocumentId()
     announceCurrentDocument(id)
   }
+  // the autosave writes the same row: its last write lands first, so it cannot land over this one
+  await flushWorkingCopy()
   return (await writeDocument(id, project)) ? id : null
 }
 
@@ -341,12 +206,11 @@ export { clearEntryParams }
  * File the project being left before something replaces the working copy. Returns why that must not go
  * ahead, or null when it may: the working copy is not this session's to replace (projectFile.workingCopyRefusal),
  * or the library exists and would not take the outgoing project - in which case replacing the working copy
- * would lose everything since the last trailing sync, so the caller stops. With no library at all there is
- * nothing to file and replacing is the documented single-document behaviour.
+ * could lose what it holds, so the caller stops. With no library at all there is nothing to file and replacing is the
+ * documented single-document behaviour.
  *
  * Every path that replaces the open project goes through this: the projects list's open and new, a linked folder,
- * a .oip import and the desktop folder open. The page's pagehide flush is not a substitute: it opens
- * IndexedDB afresh, which an unloading page is not given the time to finish.
+ * a .oip import and the desktop folder open.
  */
 export async function fileOutgoingDocument(outgoing: ProjectJSON | null): Promise<string | null> {
   const refused = workingCopyRefusal()
@@ -358,11 +222,28 @@ export async function fileOutgoingDocument(outgoing: ProjectJSON | null): Promis
 }
 
 /**
- * Make `id` the open document and boot into it: file the outgoing one, write the incoming project
- * into the working copy, move the pointer, reload. Returns a message on failure and does not reload.
- * A failed write followed by a reload would boot the old document and the switch would vanish with no
- * explanation (the same failure adoptImportedProject documents).
+ * Write `project` as document `id`'s working copy, then move the pointer to it and boot into it. Returns a message on
+ * failure and does not reload: a failed write followed by a reload would boot the old document and the switch would
+ * vanish with no explanation (the same failure adoptImportedProject documents).
  */
+async function bootInto(id: string, project: ProjectJSON, bootAt?: string): Promise<string | null> {
+  // its models go to the asset store first, so the working copy can name them by hash (localAssets.ts)
+  await storeLocalAssets(project)
+  const saved: SaveResult = saveStoredProject(project, { doc: id })
+  if (!saved.ok) return saved.message
+  // a reload must not overtake the write it boots from
+  if (!(await flushWorkingCopy())) return WORKING_COPY_UNSTORED
+  setCurrentDocumentId(id)
+  if (bootAt !== undefined) {
+    if (typeof location !== 'undefined') location.assign(bootAt)
+    return null
+  }
+  clearEntryParams()
+  if (typeof location !== 'undefined') location.reload()
+  return null
+}
+
+/** Make `id` the open document and boot into it: file the outgoing one, then {@link bootInto} it. */
 export async function openDocument(id: string, outgoing: ProjectJSON | null): Promise<string | null> {
   const read = await readDocumentSplit(id)
   if (!read) return 'That project could not be read from this browser storage.'
@@ -376,14 +257,7 @@ export async function openDocument(id: string, outgoing: ProjectJSON | null): Pr
     if (!parked.ok) return parked.message
     await writeDocument(id, project)
   }
-  // its models go to the asset store first, so the working copy can name them by hash (localAssets.ts)
-  await storeLocalAssets(project)
-  const saved: SaveResult = saveStoredProject(project)
-  if (!saved.ok) return saved.message
-  setCurrentDocumentId(id)
-  clearEntryParams()
-  if (typeof location !== 'undefined') location.reload()
-  return null
+  return bootInto(id, project)
 }
 
 /**
@@ -396,18 +270,21 @@ export async function openDocument(id: string, outgoing: ProjectJSON | null): Pr
  * while the pointer still names the project that was open, so the library's next sync files the folder
  * into that project's record, and the project you linked from is gone from both places.
  *
- * `apply` runs synchronously after the pointer moves, so no library sync can file the outgoing store state
- * under the incoming document's id in between.
+ * `apply` runs synchronously after the pointer moves, so no autosave can write the outgoing store state under the
+ * incoming document's id in between.
  */
 export async function adoptDocumentInPlace(project: ProjectJSON, outgoing: ProjectJSON | null, apply: () => void): Promise<string | null> {
   const refused = await fileOutgoingDocument(outgoing)
   if (refused !== null) return refused
-  const library = supportsDocumentLibrary()
+  const id = supportsDocumentLibrary() ? mintDocumentId() : undefined
   await storeLocalAssets(project)
-  // written ahead of apply (which saves again) so a quota failure stops here, before the pointer moves
-  const saved: SaveResult = saveStoredProject(project)
+  // written ahead of apply (which saves again) so a failed write stops here, before the pointer moves
+  const saved: SaveResult = saveStoredProject(project, id !== undefined ? { doc: id } : undefined)
   if (!saved.ok) return saved.message
-  if (library) announceCurrentDocument(mintDocumentId())
+  if (id !== undefined) {
+    if (!(await flushWorkingCopy())) return WORKING_COPY_UNSTORED
+    announceCurrentDocument(id)
+  }
   apply()
   return null
 }
@@ -426,15 +303,5 @@ export async function createDocument(blank: ProjectJSON, outgoing: ProjectJSON |
   const id = mintDocumentId()
   const filed = await writeDocument(id, blank)
   if (!filed && supportsDocumentLibrary()) return 'This browser would not store a new project.'
-  await storeLocalAssets(blank)
-  const saved = saveStoredProject(blank)
-  if (!saved.ok) return saved.message
-  setCurrentDocumentId(id)
-  if (bootAt !== undefined) {
-    if (typeof location !== 'undefined') location.assign(bootAt)
-    return null
-  }
-  clearEntryParams()
-  if (typeof location !== 'undefined') location.reload()
-  return null
+  return bootInto(id, blank, bootAt)
 }

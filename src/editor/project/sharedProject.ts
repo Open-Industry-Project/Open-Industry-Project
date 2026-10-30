@@ -12,7 +12,7 @@
 import { serializeProject } from '../../core/project/project'
 import type { ProjectJSON } from '../../core/project/project'
 import { currentDocumentId, writeDocument } from './documentStore'
-import { loadStoredProject, saveStoredProject } from './projectFile'
+import { flushWorkingCopy, loadStoredProject, saveStoredProject } from './projectFile'
 import { soloUrl } from './roomCopy'
 import type { EditorStore } from '../store/store'
 import { documentSceneOf } from '../store/storeDocument'
@@ -249,6 +249,8 @@ export async function stopSharing(store: EditorStore, shared: SharedProject): Pr
     return null
   }
   forgetSharedProject(shared.room)
+  // the write-back above lands before the page goes
+  await flushWorkingCopy()
   // the demo goes back to being the demo on its own; a project, to being the user's alone
   const solo = new URL(soloUrl(location.href), location.href)
   if (shared.demo) solo.searchParams.set('scene', 'demo')

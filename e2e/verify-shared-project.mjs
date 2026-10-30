@@ -49,7 +49,7 @@ await new Promise((resolve, reject) => {
 const { url: APP_URL } = await startServer({ isolated: true })
 
 const waitForApp = (page) => page.waitForFunction(() => !!(window.__oip && window.__oip.store && window.__oip.controller), undefined, { timeout: 120000, polling: 500 })
-const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('oip-web/project') ?? 'null'))
+const stored = (page) => page.evaluate(async () => JSON.parse((await window.__oip.savedProject()) ?? 'null'))
 const partIds = (project) => (project?.scene?.parts ?? project?.scenes?.[0]?.scene?.parts ?? []).map((p) => p.id)
 const menu = (page) => page.locator('.project-menu').first().innerText().catch(() => '')
 const addPart = (page, id) =>
@@ -108,7 +108,7 @@ try {
   check('...with what was done while it was shared', reopened.parts.includes('room_part') && reopened.parts.includes('solo_part'))
   // the room carries no tests: the owner keeps the project's, and one added in the room is saved into the project
   const keptTest = await page.evaluate(() => window.__oip.store.saveProjectTest({ name: 'kept', duration: 1, checks: [{ tag: 'Done', at: 0.5, equals: true }] }))
-  await page.waitForFunction(() => (JSON.parse(localStorage.getItem('oip-web/project') ?? '{}').tests ?? []).some((t) => t.name === 'kept'), undefined, { timeout: 10000, polling: 250 }).catch(() => {})
+  for (const end = Date.now() + 10000; Date.now() < end && !((await stored(page))?.tests ?? []).some((t) => t.name === 'kept'); await page.waitForTimeout(250));
   check('the owner keeps a test in its room, saved into the project', keptTest && ((await stored(page))?.tests ?? []).some((t) => t.name === 'kept'))
 
   // ── another project from inside a shared one: New Project leaves it, and Projects brings it back ──
