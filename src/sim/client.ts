@@ -26,8 +26,9 @@ export interface PlcFault {
   offset?: number
 }
 
-/** How long a running world may send no frame before the worker is taken to be stuck: the first frame waits on the
- *  world build (and, cold, the Jolt compile), later ones arrive many times a second whether paused or not. */
+/** How long a running world may show no sign of life before the worker is taken to be stuck: the first frame waits
+ *  on the world build (and, cold, the Jolt compile). After it, a running loop sends frames many times a second, and a
+ *  paused one, which sends none, ticks its loop counter (or, without shared memory, sends 'alive'). */
 export const SIM_HANG_FIRST_FRAME_MS = 30_000
 export const SIM_HANG_MS = 10_000
 
@@ -85,11 +86,12 @@ export class SimClient {
   private _running = false
   /** shared with the worker: which part's code it is running (core/parts/partScript.ts); null where memory cannot be shared */
   private beacon: SharedArrayBuffer | null = null
+  /** shared with the worker: its step loop's tick count, a sign of life while paused; null where memory cannot be shared */
   private progress: Int32Array | null = null
   private observedTicks = 0
-  private recoveryUntil = 0
-  /** when the last frame arrived (or the run started), and whether one has arrived this run */
-  private lastFrameAt = 0
+  /** when the worker last showed it was alive (a frame, a loop tick, an 'alive', or the run starting), and whether a
+   *  frame has arrived this run */
+  private lastAliveAt = 0
   private framed = false
   private watchdog: ReturnType<typeof setInterval> | null = null
   /** callers waiting on a 'stepped' or 'cargoDetail' answer, by seq; each gets null when the run ends first */
@@ -127,8 +129,7 @@ export class SimClient {
         // the worker sends these two only when they changed (protocol.ts 'frame'); keep the last copy before
         // the not-running early-out below, so a frame dropped here can't leave the cache a frame behind
         this.frameWire.accept(msg)
-        this.lastFrameAt = performance.now()
-        this.recoveryUntil = 0
+        this.lastAliveAt = performance.now()
         this.framed = true
         this.stepStats = msg.stepStats
         if (msg.flowFacts) this.flowFacts.accept(msg.flowFacts)
@@ -162,6 +163,8 @@ export class SimClient {
           ...(msg.marks ? { marks: msg.marks } : {}),
           ...(this.frameWire.shapes ? { shapes: this.frameWire.shapes, shapeRefs: this.frameWire.shapeRefs } : {}),
         })
+      } else if (msg.type === 'alive') {
+        this.lastAliveAt = performance.now()
       } else if (msg.type === 'stepped' || msg.type === 'cargoDetail') {
         const done = this.waiters.get(msg.seq)
         this.waiters.delete(msg.seq)
@@ -233,12 +236,12 @@ export class SimClient {
 
   /**
    * Watch a run for a worker that stopped answering: part code stuck where the loop budget cannot reach it (deep
-   * recursion, a pathological regex) or a call that never returns. A hidden page's timers are throttled and its
-   * frames may lag, so a hidden page restarts the clock instead of judging.
+   * recursion, a pathological regex) or a call that never returns. Part code runs on the loop's thread, so a stuck call
+   * stops the loop counter too: a counter that moved means a live worker, paused or not, however late this check runs.
+   * A hidden page's timers are throttled and its frames may lag, so a hidden page restarts the clock instead of judging.
    */
   private armWatchdog(): void {
-    this.lastFrameAt = performance.now()
-    this.recoveryUntil = 0
+    this.lastAliveAt = performance.now()
     this.observedTicks = this.progress ? Atomics.load(this.progress, 0) : 0
     this.framed = false
     if (this.watchdog !== null) return
@@ -246,20 +249,16 @@ export class SimClient {
       if (!this._running) return
       const now = performance.now()
       const ticks = this.progress ? Atomics.load(this.progress, 0) : this.observedTicks
-      const tickAdvanced = ticks !== this.observedTicks
-      this.observedTicks = ticks
+      if (ticks !== this.observedTicks) {
+        this.observedTicks = ticks
+        this.lastAliveAt = now
+      }
       // (the sim layer has no DOM types; the page's document is read through globalThis)
       if ((globalThis as { document?: { visibilityState?: string } }).document?.visibilityState === 'hidden') {
-        this.lastFrameAt = now
+        this.lastAliveAt = now
         return
       }
-      if (now - this.lastFrameAt < (this.framed ? SIM_HANG_MS : SIM_HANG_FIRST_FRAME_MS)) return
-      // A delayed page timer can fire just as a live worker resumes. Allow its next frame to arrive.
-      if (tickAdvanced && this.recoveryUntil === 0) {
-        this.recoveryUntil = now + 2000
-        return
-      }
-      if (now < this.recoveryUntil) return
+      if (now - this.lastAliveAt < (this.framed ? SIM_HANG_MS : SIM_HANG_FIRST_FRAME_MS)) return
       const inPart = this.beacon ? readPartCallBeacon(this.beacon) : null
       this.endHungWorker()
       this.onHang(inPart?.label || null)
@@ -366,11 +365,6 @@ export class SimClient {
   setPaused(paused: boolean): void {
     this.clock.reset() // real time passes while paused and the sim doesn't: not a stall
     if (!this._running) return
-    if (!paused) {
-      // A restored window can resume before the watchdog has observed that it was hidden.
-      this.lastFrameAt = performance.now()
-      this.recoveryUntil = 0
-    }
     this.post({ type: 'setPaused', paused })
   }
 

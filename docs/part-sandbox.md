@@ -116,12 +116,13 @@ hole in SES.
 ## Hangs in the simulation
 
 The sim worker runs `step()`, `init()` and the worker's own `geometry()` calls. The page watches it
-([sim/client.ts](../src/sim/client.ts)): a running world sends frames many times a second, paused or not, so a run
-that sends none for 10 s (30 s before its first frame, which waits on the world build and a cold Jolt compile) is stuck.
+([sim/client.ts](../src/sim/client.ts)). A running world sends frames many times a second. A paused one sends none, but
+its step loop keeps ticking a counter the page shares with the worker (where memory cannot be shared, it sends a small
+'alive' message once a second instead). Part code runs on the loop's thread, so a stuck call stops both. A run that
+shows neither for 10 s (30 s before its first frame, which waits on the world build and a cold Jolt compile) is stuck.
 The page ends the worker, stops the run and says so; the next Play starts a fresh worker. A hidden tab restarts the
-clock instead of judging, since its timers are throttled. Resuming also restarts the deadline, so a timer delayed
-while the page was hidden cannot stop the worker before it sends another frame. Where shared memory is available,
-an advancing worker gets one additional two-second window for a frame before it is stopped.
+clock instead of judging, since its timers are throttled. A check that runs late, after the page was hidden, still
+sees the counter has moved and leaves a live worker alone.
 
 To say which part, part code marks itself in a small buffer the page shares with the worker
 ([core/parts/partScript.ts](../src/core/parts/partScript.ts) `setPartCallBeacon`). The outermost call into part code (an entry point

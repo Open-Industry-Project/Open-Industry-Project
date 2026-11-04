@@ -12,8 +12,9 @@ import type { TagValue } from '../plc/types'
 export type MainToWorker =
   | { type: 'warmup' }
   // the page's hang beacon (core/parts/partScript.ts setPartCallBeacon): part code marks itself in it, so a page that
-  // stops getting frames can name the part the worker is stuck in. The progress counter records loop ticks.
-  // Sent once, before anything else.
+  // stops getting frames can name the part the worker is stuck in. `progress` counts the step loop's ticks, which the
+  // page's watchdog (sim/client.ts) reads as a sign of life while a paused loop sends no frames. Sent once, before
+  // anything else.
   | { type: 'beacon'; buffer: SharedArrayBuffer; progress: SharedArrayBuffer }
   // hz: the scene's physics step rate (EditorState.simHz). Fixed for the world's lifetime, so a rate
   // change applies on the next start; a mid-run change would make one run two different machines.
@@ -205,6 +206,9 @@ export type WorkerToMain =
       flowFacts?: FlowFact[]
       stepStats: StepStats
     }
+  // a paused loop's sign of life, about once a second, sent only where memory cannot be shared (no 'beacon' progress
+  // counter): a paused world sends no frames, and the page's watchdog would take its silence for a hang
+  | { type: 'alive' }
   // the end of a 'step' that carried a `seq`: the sim time reached and the steps taken. `interrupted`: a resume (or a
   // world that was running) ended it before it was done. Posted after the frame that shows the last step.
   | { type: 'stepped'; seq: number; simTime: number; steps: number; interrupted?: true }

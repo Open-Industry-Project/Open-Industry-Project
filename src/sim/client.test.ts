@@ -79,71 +79,135 @@ describe('SimClient frame wire', () => {
 })
 
 
-describe('watchdog recovery', () => {
-  it('allows an advancing worker to deliver a frame', async () => {
-    vi.stubGlobal('crossOriginIsolated', true)
+// The hang watchdog (SimClient.armWatchdog) ends a worker that shows no sign of life: no frame, no tick of the shared
+// loop counter, no 'alive'. A paused loop sends no frames, so the counter (or 'alive') is what keeps a paused run.
+describe('hang watchdog', () => {
+  async function setup(shared: boolean) {
+    vi.stubGlobal('crossOriginIsolated', shared)
     const { client, deliver } = await makeClient()
-    const beacon = FakeWorker.last!.messages.find((m) => (m as { type?: string }).type === 'beacon') as { progress: SharedArrayBuffer }
-    const progress = new Int32Array(beacon.progress)
+    const beacon = FakeWorker.last!.messages.find((m) => (m as { type?: string }).type === 'beacon') as { progress: SharedArrayBuffer } | undefined
+    const progress = beacon ? new Int32Array(beacon.progress) : null
     vi.useFakeTimers()
-    try {
-      client.start({ parts: [] } as unknown as SceneJSON)
-      deliver(frame(1, { partIds: ['p'] }))
-      vi.advanceTimersByTime(9000)
-      Atomics.add(progress, 0, 1)
+    const hangs: (string | null)[] = []
+    client.onHang = (p) => hangs.push(p)
+    client.start({ parts: [] } as unknown as SceneJSON)
+    // a second of the worker's step loop: it ticks the counter, or (paused, nothing shared) sends 'alive' once
+    const second = (alive: boolean, paused = true) => {
+      if (alive && progress) Atomics.add(progress, 0, 125)
+      if (alive && !progress && paused) deliver({ type: 'alive' })
       vi.advanceTimersByTime(1000)
-      expect(client.running).toBe(true)
-      deliver(frame(1, { partIdsKept: true }))
-      vi.advanceTimersByTime(2000)
-      expect(client.running).toBe(true)
-    } finally {
+    }
+    const seconds = (n: number, alive: boolean) => {
+      for (let i = 0; i < n; i++) second(alive)
+    }
+    const done = () => {
       client.dispose()
       vi.useRealTimers()
+      vi.restoreAllMocks()
       vi.unstubAllGlobals()
+    }
+    return { client, deliver, progress, hangs, seconds, done }
+  }
+
+  it('keeps a run the user paused for a minute', async () => {
+    const { client, deliver, hangs, seconds, done } = await setup(true)
+    try {
+      deliver(frame(1, { partIds: ['p'] }))
+      client.setPaused(true)
+      seconds(60, true)
+      expect(client.running).toBe(true)
+      expect(hangs).toEqual([])
+    } finally {
+      done()
     }
   })
 
-  it('ends the worker when no frame arrives during the grace period', async () => {
-    vi.stubGlobal('crossOriginIsolated', true)
-    const { client, deliver } = await makeClient()
-    const beacon = FakeWorker.last!.messages.find((m) => (m as { type?: string }).type === 'beacon') as { progress: SharedArrayBuffer }
-    const progress = new Int32Array(beacon.progress)
-    vi.useFakeTimers()
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('ends a worker that gets stuck while paused', async () => {
+    const { client, deliver, hangs, seconds, done } = await setup(true)
     try {
-      client.start({ parts: [] } as unknown as SceneJSON)
       deliver(frame(1, { partIds: ['p'] }))
-      vi.advanceTimersByTime(9000)
-      Atomics.add(progress, 0, 1)
-      vi.advanceTimersByTime(1000)
-      expect(client.running).toBe(true)
-      Atomics.add(progress, 0, 1)
-      vi.advanceTimersByTime(2000)
+      client.setPaused(true)
+      seconds(5, true)
+      seconds(11, false) // a paused step's part code never returns: no ticks, no frames
       expect(client.running).toBe(false)
+      expect(hangs).toHaveLength(1)
     } finally {
-      client.dispose()
-      log.mockRestore()
-      vi.useRealTimers()
-      vi.unstubAllGlobals()
+      done()
     }
   })
 
-  it('allows a fresh timeout when the worker resumes after a hidden window', async () => {
-    const { client, deliver } = await makeClient()
-    vi.useFakeTimers()
+  it('ends a worker that gets stuck while running, after 10 s and not before', async () => {
+    const { client, deliver, hangs, seconds, done } = await setup(true)
     try {
-      client.start({ parts: [] } as unknown as SceneJSON)
       deliver(frame(1, { partIds: ['p'] }))
-      vi.advanceTimersByTime(9000)
-      client.setPaused(false)
-      vi.advanceTimersByTime(2000)
+      seconds(9, false)
       expect(client.running).toBe(true)
-      deliver(frame(1, { partIdsKept: true }))
-      expect(client.running).toBe(true)
+      seconds(2, false)
+      expect(client.running).toBe(false)
+      expect(hangs).toHaveLength(1)
     } finally {
-      client.dispose()
-      vi.useRealTimers()
-      vi.unstubAllGlobals()
+      done()
+    }
+  })
+
+  it('keeps a live paused worker when the first check after a restore runs 60 s late', async () => {
+    const { client, deliver, progress, hangs, done } = await setup(true)
+    try {
+      deliver(frame(1, { partIds: ['p'] }))
+      client.setPaused(true) // the user paused, then minimized the window
+      vi.stubGlobal('document', { visibilityState: 'hidden' })
+      vi.advanceTimersByTime(1000) // one hidden check restarts the clock
+      // the page's timer is then held for a minute while the worker's loop keeps ticking
+      Atomics.add(progress!, 0, 7500)
+      const late = performance.now() + 60_000
+      vi.spyOn(performance, 'now').mockImplementation(() => late)
+      vi.stubGlobal('document', { visibilityState: 'visible' })
+      vi.advanceTimersByTime(1000) // the late check runs on restore, before any visibility handler
+      expect(client.running).toBe(true)
+      expect(hangs).toEqual([])
+    } finally {
+      done()
+    }
+  })
+
+  it('allows 30 s for the first frame, while the world builds and the loop has not started', async () => {
+    const { client, hangs, seconds, done } = await setup(true)
+    try {
+      seconds(25, false)
+      expect(client.running).toBe(true)
+      seconds(6, false)
+      expect(client.running).toBe(false)
+      expect(hangs).toHaveLength(1)
+    } finally {
+      done()
+    }
+  })
+
+  it("without shared memory, keeps a paused run on the worker's 'alive' messages", async () => {
+    const { client, deliver, progress, hangs, seconds, done } = await setup(false)
+    try {
+      expect(progress).toBeNull()
+      deliver(frame(1, { partIds: ['p'] }))
+      client.setPaused(true)
+      seconds(60, true)
+      expect(client.running).toBe(true)
+      expect(hangs).toEqual([])
+    } finally {
+      done()
+    }
+  })
+
+  it('without shared memory, ends a paused worker that goes silent', async () => {
+    const { client, deliver, hangs, seconds, done } = await setup(false)
+    try {
+      deliver(frame(1, { partIds: ['p'] }))
+      client.setPaused(true)
+      seconds(5, true)
+      seconds(11, false)
+      expect(client.running).toBe(false)
+      expect(hangs).toHaveLength(1)
+    } finally {
+      done()
     }
   })
 })
