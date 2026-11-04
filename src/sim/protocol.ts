@@ -12,8 +12,9 @@ import type { TagValue } from '../plc/types'
 export type MainToWorker =
   | { type: 'warmup' }
   // the page's hang beacon (core/parts/partScript.ts setPartCallBeacon): part code marks itself in it, so a page that
-  // stops getting frames can name the part the worker is stuck in. Sent once, before anything else.
-  | { type: 'beacon'; buffer: SharedArrayBuffer }
+  // stops getting frames can name the part the worker is stuck in. The progress counter records loop ticks.
+  // Sent once, before anything else.
+  | { type: 'beacon'; buffer: SharedArrayBuffer; progress: SharedArrayBuffer }
   // hz: the scene's physics step rate (EditorState.simHz). Fixed for the world's lifetime, so a rate
   // change applies on the next start; a mid-run change would make one run two different machines.
   // deferStepping: build the world but don't start the loop; the caller sends 'beginStepping' once it has

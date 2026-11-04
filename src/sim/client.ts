@@ -85,6 +85,9 @@ export class SimClient {
   private _running = false
   /** shared with the worker: which part's code it is running (core/parts/partScript.ts); null where memory cannot be shared */
   private beacon: SharedArrayBuffer | null = null
+  private progress: Int32Array | null = null
+  private observedTicks = 0
+  private recoveryUntil = 0
   /** when the last frame arrived (or the run started), and whether one has arrived this run */
   private lastFrameAt = 0
   private framed = false
@@ -108,7 +111,8 @@ export class SimClient {
     const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module', name })
     if (typeof SharedArrayBuffer !== 'undefined' && globalThis.crossOriginIsolated === true) {
       this.beacon = new SharedArrayBuffer(PART_CALL_BEACON_BYTES)
-      worker.postMessage({ type: 'beacon', buffer: this.beacon } satisfies MainToWorker)
+      this.progress = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
+      worker.postMessage({ type: 'beacon', buffer: this.beacon, progress: this.progress.buffer as SharedArrayBuffer } satisfies MainToWorker)
     }
     worker.onmessage = (e: MessageEvent<WorkerToMain>) => {
       const msg = e.data
@@ -124,6 +128,7 @@ export class SimClient {
         // the not-running early-out below, so a frame dropped here can't leave the cache a frame behind
         this.frameWire.accept(msg)
         this.lastFrameAt = performance.now()
+        this.recoveryUntil = 0
         this.framed = true
         this.stepStats = msg.stepStats
         if (msg.flowFacts) this.flowFacts.accept(msg.flowFacts)
@@ -233,17 +238,28 @@ export class SimClient {
    */
   private armWatchdog(): void {
     this.lastFrameAt = performance.now()
+    this.recoveryUntil = 0
+    this.observedTicks = this.progress ? Atomics.load(this.progress, 0) : 0
     this.framed = false
     if (this.watchdog !== null) return
     this.watchdog = setInterval(() => {
       if (!this._running) return
       const now = performance.now()
+      const ticks = this.progress ? Atomics.load(this.progress, 0) : this.observedTicks
+      const tickAdvanced = ticks !== this.observedTicks
+      this.observedTicks = ticks
       // (the sim layer has no DOM types; the page's document is read through globalThis)
       if ((globalThis as { document?: { visibilityState?: string } }).document?.visibilityState === 'hidden') {
         this.lastFrameAt = now
         return
       }
       if (now - this.lastFrameAt < (this.framed ? SIM_HANG_MS : SIM_HANG_FIRST_FRAME_MS)) return
+      // A delayed page timer can fire just as a live worker resumes. Allow its next frame to arrive.
+      if (tickAdvanced && this.recoveryUntil === 0) {
+        this.recoveryUntil = now + 2000
+        return
+      }
+      if (now < this.recoveryUntil) return
       const inPart = this.beacon ? readPartCallBeacon(this.beacon) : null
       this.endHungWorker()
       this.onHang(inPart?.label || null)
@@ -267,6 +283,7 @@ export class SimClient {
     this.worker?.terminate()
     this.worker = null
     this.beacon = null
+    this.progress = null
     this.dropWaiters()
   }
 
@@ -349,6 +366,11 @@ export class SimClient {
   setPaused(paused: boolean): void {
     this.clock.reset() // real time passes while paused and the sim doesn't: not a stall
     if (!this._running) return
+    if (!paused) {
+      // A restored window can resume before the watchdog has observed that it was hidden.
+      this.lastFrameAt = performance.now()
+      this.recoveryUntil = 0
+    }
     this.post({ type: 'setPaused', paused })
   }
 

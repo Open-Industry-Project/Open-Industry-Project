@@ -119,7 +119,9 @@ The sim worker runs `step()`, `init()` and the worker's own `geometry()` calls. 
 ([sim/client.ts](../src/sim/client.ts)): a running world sends frames many times a second, paused or not, so a run
 that sends none for 10 s (30 s before its first frame, which waits on the world build and a cold Jolt compile) is stuck.
 The page ends the worker, stops the run and says so; the next Play starts a fresh worker. A hidden tab restarts the
-clock instead of judging, since its timers are throttled.
+clock instead of judging, since its timers are throttled. Resuming also restarts the deadline, so a timer delayed
+while the page was hidden cannot stop the worker before it sends another frame. Where shared memory is available,
+an advancing worker gets one additional two-second window for a frame before it is stopped.
 
 To say which part, part code marks itself in a small buffer the page shares with the worker
 ([core/parts/partScript.ts](../src/core/parts/partScript.ts) `setPartCallBeacon`). The outermost call into part code (an entry point

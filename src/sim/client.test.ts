@@ -12,10 +12,11 @@ class FakeWorker {
   static last: FakeWorker | null = null
   onmessage: ((e: MessageEvent<WorkerToMain>) => void) | null = null
   onerror: unknown = null
+  messages: unknown[] = []
   constructor() {
     FakeWorker.last = this
   }
-  postMessage(): void {}
+  postMessage(message: unknown): void { this.messages.push(message) }
   terminate(): void {}
   addEventListener(): void {}
 }
@@ -74,5 +75,75 @@ describe('SimClient frame wire', () => {
     deliver(frame(1, { partIdsKept: true })) // no dressings at all: the load was unwrapped
     expect(frames.map((f) => f.partIds)).toEqual([['p'], ['p'], ['p'], ['p']])
     expect(frames.map((f) => f.dressings?.[0]?.opacity)).toEqual([0.4, 0.9, 0.9, undefined])
+  })
+})
+
+
+describe('watchdog recovery', () => {
+  it('allows an advancing worker to deliver a frame', async () => {
+    vi.stubGlobal('crossOriginIsolated', true)
+    const { client, deliver } = await makeClient()
+    const beacon = FakeWorker.last!.messages.find((m) => (m as { type?: string }).type === 'beacon') as { progress: SharedArrayBuffer }
+    const progress = new Int32Array(beacon.progress)
+    vi.useFakeTimers()
+    try {
+      client.start({ parts: [] } as unknown as SceneJSON)
+      deliver(frame(1, { partIds: ['p'] }))
+      vi.advanceTimersByTime(9000)
+      Atomics.add(progress, 0, 1)
+      vi.advanceTimersByTime(1000)
+      expect(client.running).toBe(true)
+      deliver(frame(1, { partIdsKept: true }))
+      vi.advanceTimersByTime(2000)
+      expect(client.running).toBe(true)
+    } finally {
+      client.dispose()
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('ends the worker when no frame arrives during the grace period', async () => {
+    vi.stubGlobal('crossOriginIsolated', true)
+    const { client, deliver } = await makeClient()
+    const beacon = FakeWorker.last!.messages.find((m) => (m as { type?: string }).type === 'beacon') as { progress: SharedArrayBuffer }
+    const progress = new Int32Array(beacon.progress)
+    vi.useFakeTimers()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      client.start({ parts: [] } as unknown as SceneJSON)
+      deliver(frame(1, { partIds: ['p'] }))
+      vi.advanceTimersByTime(9000)
+      Atomics.add(progress, 0, 1)
+      vi.advanceTimersByTime(1000)
+      expect(client.running).toBe(true)
+      Atomics.add(progress, 0, 1)
+      vi.advanceTimersByTime(2000)
+      expect(client.running).toBe(false)
+    } finally {
+      client.dispose()
+      log.mockRestore()
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('allows a fresh timeout when the worker resumes after a hidden window', async () => {
+    const { client, deliver } = await makeClient()
+    vi.useFakeTimers()
+    try {
+      client.start({ parts: [] } as unknown as SceneJSON)
+      deliver(frame(1, { partIds: ['p'] }))
+      vi.advanceTimersByTime(9000)
+      client.setPaused(false)
+      vi.advanceTimersByTime(2000)
+      expect(client.running).toBe(true)
+      deliver(frame(1, { partIdsKept: true }))
+      expect(client.running).toBe(true)
+    } finally {
+      client.dispose()
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
   })
 })
