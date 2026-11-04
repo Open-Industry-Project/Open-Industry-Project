@@ -18,6 +18,11 @@ import { applyScenePatch } from './scenePatch'
 import { SimWorld } from './world'
 import type { JoltModule } from './world'
 
+// the page's loop-tick counter ('beacon'); null where memory cannot be shared, and a paused loop sends 'alive' instead
+let progress: Int32Array | null = null
+// how often a paused loop without the counter sends 'alive': well inside the page watchdog's SIM_HANG_MS
+const ALIVE_MS = 1000
+
 let joltPromise: Promise<JoltModule> | null = null
 let world: SimWorld | null = null
 // the attached ST program, scanning in lockstep with the step loop (null = none). Owned by the
@@ -66,6 +71,7 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
   if (e.data.type === 'beacon') {
     // at once, not queued: it must be in place before any part code runs. A script is named by the package whose
     // behavior it is, looked up when the script is instantiated (once per placed part, never per step).
+    progress = new Int32Array(e.data.progress)
     setPartCallBeacon(e.data.buffer, (source) => {
       const pkg = listPackages().find((p) => p.behavior === source)
       return pkg ? `${pkg.name} (${pkg.id})` : ''
@@ -298,13 +304,19 @@ function startLoop(): void {
   let acc = 0
   // set while paused; consumed on the first step after a resume to resync the clock
   let wasPaused = false
+  let aliveAt = 0
   intervalId = setInterval(() => {
+    if (progress) Atomics.add(progress, 0, 1)
     const w = world
     if (!w) return
     // paused: keep the loop alive but don't step; bump `last` so time doesn't accrue
     if (paused) {
       last = performance.now()
       wasPaused = true
+      if (!progress && last - aliveAt >= ALIVE_MS) {
+        aliveAt = last
+        post({ type: 'alive' })
+      }
       if (stepQueue.length > 0) {
         heldDirty = false // the stepped frame shows any held edit too
         try {
