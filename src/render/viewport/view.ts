@@ -2225,6 +2225,8 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     // rewrite the flow-arrow instance buffers if any arrow shape/pose/visibility moved this
     // frame (syncFlowArrow / the toggle); a parked frame is a boolean check
     this.flowArrowBank.flush()
+    // a model that loaded into a cargo shape draws now, though a stopped or paused scene sends no new cargo frame
+    this.boxes.refreshLoadedShapes()
     // late-arriving children (GLB links, roller/chain lanes) join the pool once their burst settles
     this.poolRebuildOnStructureSettled()
     // the owned world-matrix walk: after every mutator above, before the bundle patch + render

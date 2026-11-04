@@ -24,6 +24,7 @@ import { createPalletGeometry, createPalletMaterial } from '../parts/pallet'
 import { createCargoBoxGeometry, createCargoBoxMaterial } from '../parts/cargoBox'
 import { createToteGeometry, createToteMaterial } from '../parts/tote'
 import type { PartCargoMesh } from '../parts/partCargoMesh'
+import { visualStructureEpoch } from '../parts/structureRev'
 import { batchHasSelection, ensureSelChannel, markBatchSelection, selChannel, writeTierSpan } from './selTierChannel'
 import { CargoDressing } from './cargoDressing'
 
@@ -108,6 +109,8 @@ export class SimBoxes {
   private readonly partShapes = new Map<string, { built: PartCargoMesh; batches: CargoBatch[] }>()
   /** the batch builder is loading and this instance will apply its last frame again when it arrives (once) */
   private awaitingPartCargo = false
+  /** the visual structure epoch at the last check for a model landed in a kept shape (refreshLoadedShapes) */
+  private shapesEpoch = -1
   // shared instance capacity of every batch; grows in power-of-two buckets past MAX_BOXES the
   // first time a frame carries more cargo, so there is no render cap. The sim does not cap cargo
   // either, so any count simulates and renders.
@@ -195,8 +198,8 @@ export class SimBoxes {
 
   /**
    * The batches of row `i`'s own shape (frame.shapes, core/cargoBody.ts), built on first sight at the body's size, and
-   * rebuilt when a model it draws has loaded since. Null when the frame names no shape for the row or its part is not
-   * registered: the row then draws as a box of its size.
+   * rebuilt when a model it draws has loaded since. Null when the frame names no shape for the row, its part is not
+   * registered, or its visual draws nothing yet: the row then draws as a box of its size.
    */
   private partBatches(frame: BoxFrame, i: number, hx: number, hy: number, hz: number): CargoBatch[] | null {
     const key = frame.shapes?.[i]
@@ -217,34 +220,54 @@ export class SimBoxes {
       }).catch((e: unknown) => console.warn('[oip] the cargo part mesh builder failed to load', e))
       return []
     }
+    const size = [hx * 2, hy * 2, hz * 2] as const
     let shape = this.partShapes.get(key)
     if (shape && partCargo.partCargoMeshStale(shape.built)) {
-      this.dropPartShape(shape)
-      this.partShapes.delete(key)
-      shape = undefined
-    }
-    if (!shape) {
-      const built = partCargo.buildPartCargoMesh(ref)
-      if (!built || built.pieces.length === 0) {
-        if (built) partCargo.disposePartCargoVisuals(built)
-        return null
-      }
-      const size = [hx * 2, hy * 2, hz * 2] as const
+      // a model has landed in the kept visuals: the pieces are rebuilt from them, the visuals stay
+      this.retirePartBatches(shape)
+      const built = partCargo.rebuildPartCargoMesh(shape.built)
       shape = { built, batches: built.pieces.map((p) => this.newBatch('part', p.geometry, p.material, size, p.tinted, ref)) }
       this.partShapes.set(key, shape)
     }
-    return shape.batches
+    if (!shape) {
+      const built = partCargo.buildPartCargoMesh(ref)
+      if (!built) return null
+      // Kept even with no pieces: a part drawn only by a GLB has none until the model lands in these visuals.
+      shape = { built, batches: built.pieces.map((p) => this.newBatch('part', p.geometry, p.material, size, p.tinted, ref)) }
+      this.partShapes.set(key, shape)
+    }
+    // nothing drawn yet: a box of its size until the model lands and the shape rebuilds
+    return shape.batches.length > 0 ? shape.batches : null
   }
 
-  /** retire a shape's batches (they have been drawing) and drop the visuals it kept (never drawn) */
-  private dropPartShape(shape: { built: PartCargoMesh; batches: CargoBatch[] }): void {
+  /**
+   * Apply the last frame again when a model has loaded into a kept shape's visuals since it was applied, so the shape
+   * rebuilds and draws the model. A running sim applies a new frame every tick and needs none of this, but a stopped
+   * scene keeps applying the same frame (apply returns early on it) and a paused run sends none. The frame loop calls
+   * this: one compare until some visual's structure moves.
+   */
+  refreshLoadedShapes(): void {
+    const epoch = visualStructureEpoch()
+    if (epoch === this.shapesEpoch) return
+    this.shapesEpoch = epoch
+    const last = this.appliedFrame
+    if (!last || !partCargo) return
+    for (const shape of this.partShapes.values()) {
+      if (!partCargo.partCargoMeshStale(shape.built)) continue
+      this.appliedFrame = null
+      this.apply(last)
+      return
+    }
+  }
+
+  /** retire a shape's batches (they have been drawing), keeping its visuals */
+  private retirePartBatches(shape: { batches: CargoBatch[] }): void {
     for (const b of shape.batches) {
       this.group.remove(b.mesh)
       retireInstancedMeshOnly(b.mesh)
       retireGeometry(b.geometry)
       b.material.dispose()
     }
-    partCargo?.disposePartCargoVisuals(shape.built)
   }
 
   /** the tinted batch of the shape `b` draws a material of, if it has one */

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($wt = \"$env:TEMP\\\\claude\\\\pr17wt\"; cmd /c rmdir \"$wt\\\\node_modules\"; Set-Location C:\\\\Users\\\\RobertYevdokimov\\\\Documents\\\\GitHub\\\\oip-web; git worktree remove --force $wt; git branch -D pr17-review; Test-Path .\\\\node_modules\\\\vitest; git status --short)"
+    ]
+  }
+}
