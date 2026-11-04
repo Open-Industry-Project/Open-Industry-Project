@@ -38,13 +38,20 @@ export class LiveCamera {
   // The host is the controller, whose store and view are set after this is built, so nothing here reads them until
   // the first tick.
   constructor(private readonly host: LiveCameraHost) {
-    this.timer = setInterval(() => this.publish(), PUBLISH_MS)
+    this.timer = setInterval(() => this.tick(), PUBLISH_MS)
+  }
+
+  private tick(): void {
+    if (getCollabSnapshot().room === null) return
+    this.publish()
+    // and follow on the tick too: a camera that arrives with no change after it (someone followed who stands still)
+    // would otherwise wait for a store or presence change that may not come
+    this.follow()
   }
 
   /** publish this client's camera while someone follows it, and stop when nobody does */
   private publish(): void {
     const c = getCollabSnapshot()
-    if (c.room === null) return
     if (!this.unsubscribe) {
       const offStore = this.host.store.subscribe(() => this.follow())
       const offPeers = subscribePeers(() => this.follow())
@@ -63,8 +70,6 @@ export class LiveCamera {
     } else if (this.published === null) return
     this.published = next
     setLocalView(next)
-    // a follower may be waiting on a camera that just appeared
-    this.follow()
   }
 
   /** start or stop following the camera of the one this client follows (called on store and presence changes) */

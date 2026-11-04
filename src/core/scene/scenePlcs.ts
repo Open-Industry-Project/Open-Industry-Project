@@ -80,14 +80,16 @@ export function validateScenePlcs(raw: unknown, repairs: string[]): ScenePlc[] |
 }
 
 /**
- * The fields a scene carries besides its parts and packages, which every copy of a scene keeps: its Units, its Length
- * and its controllers. Spread into a scene being rebuilt, so a new field cannot be dropped by one copy that forgot it.
+ * The fields a scene carries besides its parts and packages, which every copy of a scene keeps: its Units, its Length,
+ * its controllers and the values its displays show. Spread into a scene being rebuilt, so a new field cannot be dropped
+ * by one copy that forgot it.
  */
-type SceneSettings = Pick<SceneJSON, 'units' | 'lengthUnit' | 'plcs'>
+type SceneSettings = Pick<SceneJSON, 'units' | 'lengthUnit' | 'plcs' | 'display'>
 export function sceneSettings(scene: SceneSettings): SceneSettings {
   return {
     ...(scene.units !== undefined ? { units: scene.units } : {}),
     ...(scene.lengthUnit !== undefined ? { lengthUnit: scene.lengthUnit } : {}),
     ...(scene.plcs !== undefined ? { plcs: scene.plcs } : {}),
+    ...(scene.display !== undefined && scene.display.length > 0 ? { display: scene.display } : {}),
   }
 }

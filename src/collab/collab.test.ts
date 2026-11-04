@@ -1004,6 +1004,22 @@ describe("the scene's controllers in a room (PLCS_META)", () => {
   })
 })
 
+describe("the scene's display list in a room (DISPLAY_META)", () => {
+  it('seeds, reads back, follows a local edit, and refuses what is not a list of names', () => {
+    const ydoc = new Y.Doc()
+    const scene: SceneJSON = { version: SCENE_VERSION, parts: [], display: ['%IX100.0', 'Speed'] }
+    sceneToDoc(scene, ydoc)
+    expect(docToScene(ydoc).display).toEqual(['%IX100.0', 'Speed'])
+    ydoc.transact(() => applySceneDiff(ydoc, scene, { ...scene, display: ['Speed'] }), LOCAL_ORIGIN)
+    expect(docToScene(ydoc).display).toEqual(['Speed'])
+    // emptied, the key goes: a display then shows the scene alone
+    ydoc.transact(() => applySceneDiff(ydoc, { ...scene, display: ['Speed'] }, { version: SCENE_VERSION, parts: [] }), LOCAL_ORIGIN)
+    expect(ydoc.getMap('meta').has('display')).toBe(false)
+    ydoc.getMap('meta').set('display', '{not json')
+    expect('display' in docToScene(ydoc)).toBe(false)
+  })
+})
+
 describe('the room gets every definition the scene uses', () => {
   afterEach(() => clearPackages())
 

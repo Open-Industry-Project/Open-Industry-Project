@@ -42,8 +42,8 @@ import { defineMessages, t } from '../../../core/i18n'
 import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { primaryKey } from '../../keyHint'
 import { activeClipboard } from '../../dialogHost'
-import { addToWatchList, resolveWatch, watchListKey } from '../../program/plcWatchList'
-import { currentDocumentId } from '../../project/documentStore'
+import { addToWatchList, resolveWatch, tabWatchListKey } from '../../program/plcWatchList'
+import { canEditDisplay, displayedValues, setDisplayed } from '../../program/displayValues'
 
 const M = defineMessages('stEditor', {
   viewOnlyLink: 'Disabled on a view-only link',
@@ -71,6 +71,10 @@ const M = defineMessages('stEditor', {
   showOrganizer: 'Show the organizer: the program as a tree of tasks, programs and types',
   organizer: 'Organizer',
   addNameToWatch: 'Add {name} to Watch',
+  showNameOnDisplays: 'Show {name} on displays',
+  hideNameOnDisplays: 'Stop showing {name} on displays',
+  showOnDisplays: 'Show on displays',
+  showOnDisplaysHint: "Put its live value beside the scene on the project's displays",
   addToWatch: 'Add to Watch',
   addToWatchHint: 'Follow its live value in the Watch dock',
   addToWatchNone: 'Right-click a variable to watch it',
@@ -808,7 +812,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
   /** Add to Watch, from the text's menu or the rungs': onto the project's list, with the Watch dock brought forward. */
   const addToWatch = (name: string): void => {
     const s = stateRef.current
-    addToWatchList(watchListKey(currentDocumentId(), s.projectName, s.collab), [name], s.projectName)
+    addToWatchList(tabWatchListKey(s.projectName, s.collab), [name], s.projectName)
     store.revealPanel('watch')
   }
 
@@ -855,6 +859,17 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
           title: t(at.name !== null ? M.addToWatchHint : M.addToWatchNone),
           onClick: later(() => at.name !== null && addToWatch(at.name)),
         },
+        // the project's displays (program/displayValues.ts): beside Add to Watch, which is the reader's own list
+        (() => {
+          const shown = at.name !== null && displayedValues(stateRef.current).includes(at.name)
+          return {
+            label: at.name !== null ? t(shown ? M.hideNameOnDisplays : M.showNameOnDisplays, { name: at.name }) : t(M.showOnDisplays),
+            testid: 'st-show-on-displays',
+            disabled: at.name === null || !canEditDisplay(stateRef.current),
+            title: t(at.name !== null ? M.showOnDisplaysHint : M.addToWatchNone),
+            onClick: later(() => at.name !== null && setDisplayed(store, at.name, !shown)),
+          }
+        })(),
         ...(forceKey !== null
           ? [{ label: t(forced ? M.releaseName : M.forceName, { name: forceKey }), testid: 'st-force', title: t(forced ? M.releaseHint : M.forceHint), onClick: later(() => forceOrRelease(forceKey)) }]
           : []),

@@ -318,7 +318,7 @@ function validateMachine(
   }
   const candidate = sceneWithPackages(
     // the scene's settings as written: validateScene keeps what it can read and reports the rest
-    { version: SCENE_VERSION, parts: rawParts, ...sceneSettings(rawScene as Pick<SceneJSON, 'units' | 'lengthUnit' | 'plcs'>) },
+    { version: SCENE_VERSION, parts: rawParts, ...sceneSettings(rawScene as Pick<SceneJSON, 'units' | 'lengthUnit' | 'plcs' | 'display'>) },
     resolving,
     stProgram,
     stScanMs,

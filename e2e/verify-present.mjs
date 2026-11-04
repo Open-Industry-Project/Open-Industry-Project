@@ -3,6 +3,8 @@
 //   - presenting hides the toolbar, the docks, the viewport toolbar and the orbit gizmo, and the viewport fills the window
 //   - the bar to leave fades after a few seconds and comes back when the mouse moves
 //   - Escape, and the bar's Exit, bring the editor back as it was
+//   - a display's values list folds, moves to a corner, scrolls and filters, and an untended display puts it back
+//   - Share's Preview and edit chooses the list in one's own Present: search, add, reorder, remove, undo, Done
 //   - a link with `&present=1` (Share > Can view > For a display) opens straight into it, locked: no bar, no key
 //     (Escape, the palette's) reaches the editor, a click on the scene or a note selects nothing, the wheel still moves
 //     the camera, and the cursor hides while the mouse is still
@@ -77,8 +79,52 @@ try {
   await page.waitForTimeout(300)
   check("the bar's Exit leaves Present", !(await page.evaluate(() => window.__oip.store.getState().presenting)) && (await chrome(page)).toolbar)
 
+  // ── choosing what displays list, in one's own Present (PresentValues.tsx editing, program/displayValues.ts) ──
+  await page.locator('button.share-button').click()
+  await page.locator('[data-testid=share-display-edit]').click()
+  await page.waitForSelector('[data-testid=present-values-add]', { timeout: 5000 }).catch(() => {})
+  check("Share's Preview and edit opens one's own Present with the list open for editing", (await page.evaluate(() => window.__oip.store.getState().presenting && window.__oip.store.getState().presentEditing)) && (await page.locator('[data-testid=present-values-add]').count()) === 1)
+  const offered = await page.locator('[data-testid=present-values-result]').evaluateAll((rs) => rs.slice(0, 3).map((r) => r.getAttribute('data-name')))
+  check('the search offers what the project can show', offered.length === 3, JSON.stringify(offered))
+  for (const n of offered.slice(0, 2)) await page.locator(`[data-testid=present-values-result][data-name="${n}"]`).click()
+  const listed = () => page.evaluate(() => window.__oip.store.getState().scene.display ?? [])
+  check('picking a result puts it on the displays, in order', JSON.stringify(await listed()) === JSON.stringify(offered.slice(0, 2)), JSON.stringify(await listed()))
+  check('before a run, the list says when its values show', (await page.locator('[data-testid=present-values-waiting]').count()) === 1)
+  // pointer events, as a finger drags it: the second row's handle onto the first row
+  const handle = await page.locator('[data-testid=present-value-handle]').nth(1).boundingBox()
+  const first = await page.locator('[data-testid=present-value]').nth(0).boundingBox()
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2, { steps: 6 })
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+  check('a row dragged by its handle moves', JSON.stringify(await listed()) === JSON.stringify([offered[1], offered[0]]), JSON.stringify(await listed()))
+  await page.locator('[data-testid=present-value-remove]').first().click()
+  check('a cross takes a value off', JSON.stringify(await listed()) === JSON.stringify([offered[0]]), JSON.stringify(await listed()))
+  await page.evaluate(() => window.__oip.store.undo())
+  check('each change is one undo step', JSON.stringify(await listed()) === JSON.stringify([offered[1], offered[0]]), JSON.stringify(await listed()))
+  await page.evaluate(() => document.activeElement?.blur())
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  check('Escape while editing ends the editing, and stays in Present', await page.evaluate(() => window.__oip.store.getState().presenting && !window.__oip.store.getState().presentEditing))
+  await page.locator('[data-testid=present-values-edit]').click()
+  check('Edit opens it again', await page.evaluate(() => window.__oip.store.getState().presentEditing))
+  await page.locator('[data-testid=present-values-edit]').click()
+  check('Done closes the editing, and the list shows as a display shows it', (await page.locator('[data-testid=present-values-add]').count()) === 0 && (await page.locator('[data-testid=present-value-remove]').count()) === 0)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  check('leaving Present ends the editing', await page.evaluate(() => !window.__oip.store.getState().presenting && !window.__oip.store.getState().presentEditing))
+  await page.evaluate(() => {
+    const st = window.__oip.store
+    const { display: _, ...rest } = st.getState().scene
+    st.commit('clear', rest)
+  })
+
   // ── a link for a display opens straight into it ──
-  const display = await ctx.newPage()
+  // a screen bigger than the window, as a real one is: headless otherwise reports the window as the screen
+  const dctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, screen: { width: 1920, height: 1080 } })
+  await dctx.addInitScript(() => localStorage.setItem('oip-web/tutorial-done', '1'))
+  const display = await dctx.newPage()
   await display.goto(`${APP_URL}?scene=demo&present=1`, { waitUntil: 'domcontentloaded', timeout: 180000 })
   await waitForApp(display)
   await display.waitForTimeout(800)
@@ -87,7 +133,7 @@ try {
   await display.mouse.move(600, 300)
   await display.mouse.move(640, 320)
   await display.waitForTimeout(300)
-  check('...locked: the mouse brings up no bar to leave', (await display.locator('.present-bar').count()) === 0)
+  check('...locked: the mouse brings up no way to leave', (await display.locator('[data-testid=present-exit]').count()) === 0)
   await display.keyboard.press('Escape')
   await display.keyboard.press('Control+Shift+P')
   await display.waitForTimeout(500)
@@ -105,6 +151,54 @@ try {
   check('...while the camera still moves (the wheel zooms)', Math.hypot(cam1.px - cam0.px, cam1.py - cam0.py, cam1.pz - cam0.pz) > 0.05)
   await display.waitForTimeout(3600)
   check('...and the cursor hides while the mouse is still', await display.evaluate(() => document.body.classList.contains('present-idle')))
+  // Full screen: offered while the window does not fill the screen, since a link cannot ask for it without a click
+  await display.mouse.move(500, 300)
+  await display.waitForTimeout(300)
+  check('a display not filling the screen offers Full screen', (await display.locator('[data-testid=present-fullscreen]').count()) === 1)
+  await display.locator('[data-testid=present-fullscreen]').click()
+  await display.waitForFunction(() => document.fullscreenElement !== null, undefined, { timeout: 5000 }).catch(() => {})
+  await display.waitForTimeout(300)
+  check('...which fills the screen, and is offered no more', (await display.evaluate(() => document.fullscreenElement !== null)) && (await display.locator('[data-testid=present-fullscreen]').count()) === 0)
+  // the values list (PresentValues.tsx): whoever is at the screen can fold it, move it, scroll it and filter it, and
+  // an untended display puts it back as it was
+  await display.evaluate(() => {
+    const st = window.__oip.store
+    st.setState({ scene: { ...st.getState().scene, display: Array.from({ length: 32 }, (_, i) => `Value${i + 1}`) } })
+  })
+  await display.waitForSelector('[data-testid=present-values]', { timeout: 5000 })
+  const panelBox = await display.evaluate(() => {
+    const p = document.querySelector('[data-testid=present-values]')
+    const l = p.querySelector('.present-values-list')
+    return { height: p.getBoundingClientRect().height, screen: window.innerHeight, scrolls: l.scrollHeight > l.clientHeight }
+  })
+  check('32 values take at most half the screen, and the list scrolls', panelBox.height <= panelBox.screen * 0.52 && panelBox.scrolls, JSON.stringify(panelBox))
+  const scrolled = await display.evaluate(() => {
+    const l = document.querySelector('.present-values-list')
+    l.scrollTop = 200
+    return l.scrollTop > 0
+  })
+  check('...which the person at the screen can scroll', scrolled)
+  await display.locator('[data-testid=present-values-filter]').fill('Value3')
+  await display.waitForTimeout(300)
+  const found = await display.locator('[data-testid=present-value]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-name')))
+  check('a long list can be filtered by name, typed on a locked display', JSON.stringify(found) === JSON.stringify(['Value3', 'Value30', 'Value31', 'Value32']), JSON.stringify(found))
+  await display.locator('[data-testid=present-values-fold]').click()
+  check('it folds to its header', (await display.locator('[data-testid=present-value]').count()) === 0)
+  // dragged by its header, it lands in the nearest corner
+  const head = await display.locator('.present-values-head').boundingBox()
+  await display.mouse.move(head.x + 20, head.y + head.height / 2)
+  await display.mouse.down()
+  await display.mouse.move(80, 700, { steps: 8 })
+  await display.mouse.up()
+  await display.waitForTimeout(300)
+  check('dragged, it lands in the nearest corner', (await display.locator('[data-testid=present-values]').getAttribute('data-corner')) === 'bl')
+  // left alone, it comes back as it was: open, in its corner, unfiltered
+  await display.waitForTimeout(32_000)
+  const back = await display.evaluate(() => ({
+    corner: document.querySelector('[data-testid=present-values]')?.getAttribute('data-corner'),
+    rows: document.querySelectorAll('[data-testid=present-value]').length,
+  }))
+  check('half a minute untouched, a display puts the list back as it was', back.corner === 'tr' && back.rows === 32, JSON.stringify(back))
 } catch (err) {
   failures++
   console.log(`FAIL  ${err.stack ?? err}`)

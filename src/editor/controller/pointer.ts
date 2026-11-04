@@ -62,7 +62,7 @@ export function onPointerDown(pp: PointerPress, ec: EditorController, e: Pointer
   // chip is the hit target. Without the opt-out this press would capture the pointer on the viewport and
   // swallow the click, so the note could never be selected by clicking the thing that represents it. The agent chip
   // (AgentActivity.tsx) is the same: its Review, Keep and Revert buttons sit in the viewport's corner.
-  if (e.target instanceof Element && e.target.closest('.viewport-toolbar-wrap, .context-menu, .context-backdrop, .note-chip, .agent-activity, .present-bar, .present-back')) return
+  if (e.target instanceof Element && e.target.closest('.viewport-toolbar-wrap, .context-menu, .context-backdrop, .note-chip, .agent-activity, .present-bar, .present-back, .present-values')) return
   // a display link (locked Present): a visitor may move the camera, which the canvas handles, but not act on the design
   if (ec.store.getState().presentLocked) return
   // right-click aborts an in-flight transform ("Transform Aborted"),

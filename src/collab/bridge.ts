@@ -26,6 +26,7 @@ import {
   readStDoc,
   ST_CONTROLLER_META,
   PLCS_META,
+  DISPLAY_META,
   UNITS_META,
   LENGTH_UNIT_META,
   stProgramText,
@@ -343,14 +344,14 @@ export class CollabBridge {
     // viewport work. That includes the typist's own machine, because CodeMirror's binding writes under
     // its own origin, not LOCAL_ORIGIN, so the echo guard below does not catch it.
     const sceneTypes = [partsMap(ydoc), orderArray(ydoc), packagesMap(ydoc)]
-    // ...plus three keys of `meta`, the scene's Units, Length and controllers (schema.ts UNITS_META, LENGTH_UNIT_META,
-    // PLCS_META); the rest
+    // ...plus four keys of `meta`, the scene's Units, Length, controllers and display list (schema.ts UNITS_META,
+    // LENGTH_UNIT_META, PLCS_META, DISPLAY_META); the rest
     // of meta has its own observers
     const meta = metaMap(ydoc)
     const movedScene = (txn: Y.Transaction): boolean => {
       for (const t of txn.changedParentTypes.keys()) if ((sceneTypes as readonly unknown[]).includes(t)) return true
       // (a loop, not a spread: this runs on every transaction, one per keystroke in the room's program)
-      for (const [t, keys] of txn.changed) if ((t as unknown) === meta && (keys.has(UNITS_META) || keys.has(LENGTH_UNIT_META) || keys.has(PLCS_META))) return true
+      for (const [t, keys] of txn.changed) if ((t as unknown) === meta && (keys.has(UNITS_META) || keys.has(LENGTH_UNIT_META) || keys.has(PLCS_META) || keys.has(DISPLAY_META))) return true
       return false
     }
     this.afterTxn = (txn: Y.Transaction): void => {

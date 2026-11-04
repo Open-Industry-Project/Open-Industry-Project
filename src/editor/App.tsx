@@ -1335,7 +1335,7 @@ export function App({ store, sim }: AppProps) {
       >
         {viewError && <div className="viewport-fallback">{t(M.rendererUnavailable, { error: viewError })}</div>}
         {state.mode !== 'pilot' && !isPhone && !presenting && <ViewportToolbar store={store} state={state} controller={controller} />}
-        {presenting && <PresentOverlay store={store} state={state} />}
+        {presenting && <PresentOverlay store={store} state={state} controller={controller} />}
         {state.showStats && !presenting && (
           <StatsOverlay frameStats={frameStats} controller={controller} view={view} running={state.running} simHz={state.simHz} timeScale={state.timeScale} />
         )}

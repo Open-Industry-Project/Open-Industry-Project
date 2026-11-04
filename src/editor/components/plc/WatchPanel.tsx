@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactElement } from 'react'
+import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { TagValue } from '../../../plc'
 import { deviceTags } from '../../../plc/bindings'
 import { listTags } from '../../../plc/tags'
@@ -9,9 +9,10 @@ import type { EditorController } from '../../controller'
 import type { EditorState, EditorStore } from '../../store/store'
 import { declaredTypeSets, formatPlcValue, typeOfKey, type DeclaredTypes } from '../../program/plcValueText'
 import { devicesWiredTo, usePlcForces } from '../../program/plcForces'
-import { addWatchNames, onWatchListChange, parseWatchNames, readWatchList, resolveWatch, saveWatchList, watchListKey, type WatchRow } from '../../program/plcWatchList'
-import { currentDocumentId } from '../../project/documentStore'
+import { addWatchNames, onWatchListChange, parseWatchNames, readWatchList, resolveWatch, saveWatchList, tabWatchListKey, type WatchRow } from '../../program/plcWatchList'
 import { TrashIcon } from '../toolbarIcons'
+import { ContextMenu, type MenuItem } from '../inspector/menu'
+import { canEditDisplay, displayedValues, setDisplayed } from '../../program/displayValues'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('plcWatch', {
@@ -58,6 +59,13 @@ const M = defineMessages('plcWatch', {
   moreParts: { one: '+{count} more', other: '+{count} more' },
   remove: 'Stop watching {name}',
   empty: 'Right-click a variable in the PLC panel and choose Add to Watch, or type its name below',
+  emptyExternal: 'Add the tags wired to parts to see what the PLC sends and receives, or type a name below',
+  addWired: { one: 'Add the {count} wired tag', other: 'Add all {count} wired tags' },
+  noValue: 'no value from the PLC',
+  display: 'Show on displays',
+  displayOff: 'Stop showing on displays',
+  displayHint: "Put this value beside the scene on the project's displays. Your Watch list stays your own",
+  displayHintOff: "Take this value off the project's displays",
   addLabel: 'Variables to watch',
   addPlaceholder: 'Name, or several separated by commas',
   add: 'Add',
@@ -201,10 +209,12 @@ interface WatchPanelProps {
  * The Watch dock: the variables the reader picked, with their live values, their types and the parts wired to them,
  * and how long the program's scans take. A dock of its own, so it can stay in view beside the running line while the
  * PLC panel is closed. Variables reach it by Add to Watch in the PLC panel (the code's and the rungs' right-click
- * menus) or by name here; the list is remembered per project in this browser (plcWatchList.ts).
+ * menus) or by name here; the list is remembered per project in this browser (plcWatchList.ts). It watches any
+ * controller: the program here, a PLC outside the app through its link (read only: it runs real equipment), or the
+ * run this tab follows. A row's right-click Show on displays puts it on the project's displays (SceneJSON.display).
  */
 export function WatchPanel({ store, state, controller }: WatchPanelProps): ReactElement {
-  const project = watchListKey(currentDocumentId(), state.projectName, state.collab)
+  const project = tabWatchListKey(state.projectName, state.collab)
   const [names, setNames] = useState(() => readWatchList(project, state.projectName))
   const [shownFor, setShownFor] = useState(project)
   if (shownFor !== project) {
@@ -226,7 +236,14 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
     sync()
     return controller.onProgramStatus(sync)
   }, [controller])
-  const live = attached && state.running
+  // values show while this tab runs, or follows someone's run (their values come with it: controller/liveView.ts); a
+  // PLC outside the app has values too, through its link (controller/plcLinks.ts plcImage)
+  const live = state.running || state.liveFollowing
+  // written and forced only in a program running here: a PLC outside the app runs real equipment, and a view link or a
+  // followed run is someone else's
+  const writable = attached && state.running && !state.readOnly
+  // a PLC outside the app is set up, so the empty list offers the tags the parts are wired to
+  const external = state.externalPlc.enabled || state.externalPlc.controllers.some((c) => c.enabled && c.runsOn !== 'app')
 
   // the held forces: set and released here or from the toolbar's count; they stay through Stop
   const forces = usePlcForces(controller)
@@ -279,6 +296,32 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
   // the parts that speak tags, re-derived when the scene's parts change (and only then)
   const parts = state.scene.parts
   const devices = useMemo(() => deviceTags(parts), [parts])
+  // every tag a part is wired to, each once, and the type its field declares
+  const wired = useMemo(() => {
+    const m = new Map<string, string | null>()
+    for (const d of devices) for (const f of d.fields) if (f.value !== '' && !m.has(f.value)) m.set(f.value, f.type)
+    return m
+  }, [devices])
+  // A row's right-click menu: Show on displays hands a value from this list, which is the reader's own, to the project's
+  // displays (program/displayValues.ts). A menu item rather than a column, so the list does not read as the display's.
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+  const openRowMenu = (e: ReactMouseEvent, name: string): void => {
+    e.preventDefault()
+    const shown = displayedValues(state).includes(name)
+    setRowMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          label: t(shown ? M.displayOff : M.display),
+          testid: 'plc-watch-display',
+          title: t(shown ? M.displayHintOff : M.displayHint),
+          disabled: !canEditDisplay(state),
+          onClick: () => setDisplayed(store, name, !shown),
+        },
+      ],
+    })
+  }
 
   const [adding, setAdding] = useState('')
   const [suggestions, setSuggestions] = useState<readonly string[]>([])
@@ -308,7 +351,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
   }
   // Force holds the value the row shows; Release gives it back to the program. Only for a value a write can change.
   const forceButton = (name: string, key: string | null, value: TagValue | undefined): ReactElement | null => {
-    if (!live || key === null || !controller || value === undefined || typeof value === 'string') return null
+    if (!writable || key === null || !controller || value === undefined || typeof value === 'string') return null
     const held = key in forces
     return (
       <button
@@ -349,7 +392,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
       <div className="plc-watch-scan" data-testid="plc-watch-scan" title={t(M.scanTitle)}>
         {!live ? (
           <span className="plc-watch-scan-lines ld-vars-dim">{t(M.stopped)}</span>
-        ) : (
+        ) : !(attached && state.running) ? null : (
           <>
             <div className="plc-watch-scan-lines">
               {times.map((s, i) => (
@@ -389,10 +432,10 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
             {rows.map((r) => {
               const open = expanded.has(r.name.toUpperCase())
               const structured = r.key === null && r.members.length > 0
-              const type = typeOfKey(types, r.key ?? r.name)
+              const type = typeOfKey(types, r.key ?? r.name) ?? wired.get(r.name) ?? undefined
               return (
                 <Fragment key={r.name}>
-                  <tr data-testid="plc-watch-row" data-name={r.name}>
+                  <tr data-testid="plc-watch-row" data-name={r.name} onContextMenu={(e) => openRowMenu(e, r.name)}>
                     <td className="plc-watch-name">
                       {structured ? (
                         <button type="button" className="plc-watch-caret" aria-expanded={open} aria-label={t(open ? M.collapse : M.expand, { name: r.name })} onClick={() => toggleExpanded(r.name)}>
@@ -409,10 +452,10 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
                       </td>
                     ) : r.value === undefined && live && image ? (
                       <td className="plc-watch-value ld-vars-dim" data-testid="plc-watch-value">
-                        {t(M.notInProgram)}
+                        {t(attached ? M.notInProgram : M.noValue)}
                       </td>
                     ) : (
-                      <ValueCell name={r.name} rowKey={r.key} value={r.value} type={type} live={live} flash={flashing(r.key)} forced={r.key !== null && r.key in forces} controller={controller} onError={setError} />
+                      <ValueCell name={r.name} rowKey={r.key} value={r.value} type={type} live={writable} flash={flashing(r.key)} forced={r.key !== null && r.key in forces} controller={controller} onError={setError} />
                     )}
                     <td className="plc-watch-type ld-vars-dim" data-testid="plc-watch-type">
                       {type ?? ''}
@@ -432,7 +475,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
                       return (
                         <tr key={m.key} data-testid="plc-watch-member" data-name={m.key}>
                           <td className="plc-watch-name plc-watch-member">{m.key}</td>
-                          <ValueCell name={m.key} rowKey={m.key} value={m.value} type={mType} live={live} flash={flashing(m.key)} forced={m.key in forces} controller={controller} onError={setError} />
+                          <ValueCell name={m.key} rowKey={m.key} value={m.value} type={mType} live={writable} flash={flashing(m.key)} forced={m.key in forces} controller={controller} onError={setError} />
                           <td className="plc-watch-type ld-vars-dim">{mType ?? ''}</td>
                           {wiredCell(m.key, m.key)}
                           <td className="plc-watch-actions">{forceButton(m.key, m.key, m.value)}</td>
@@ -452,7 +495,12 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="ld-vars-dim">
-                  {t(M.empty)}
+                  {t(external ? M.emptyExternal : M.empty)}
+                  {external && wired.size > 0 && (
+                    <button type="button" className="plc-watch-btn plc-watch-add-wired" data-testid="plc-watch-add-wired" onClick={() => setList(addWatchNames(names, [...wired.keys()]))}>
+                      {t(M.addWired, { count: wired.size })}
+                    </button>
+                  )}
                 </td>
               </tr>
             )}
@@ -486,6 +534,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
           {t(M.add)}
         </button>
       </div>
+      {rowMenu && <ContextMenu x={rowMenu.x} y={rowMenu.y} items={rowMenu.items} onClose={() => setRowMenu(null)} />}
       {error && (
         <div className="ld-vars-error plc-watch-error" role="alert" data-testid="plc-watch-error">
           ⚠ {error}

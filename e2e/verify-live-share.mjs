@@ -147,6 +147,8 @@ try {
   await editor.keyboard.press('Escape')
   const VIEW_URL = `${APP_URL}?room=${docNameFor(ROOM)}&view=1`
 
+  // the owner frames the line somewhere no viewer starts, and then stands still
+  await editor.evaluate(() => window.__oip.view.setCameraPose({ px: 4, py: 6, pz: 7, tx: 1, ty: 0, tz: -1 }, { instant: true }))
   const viewer = await newPage()
   await joinRoom(viewer, VIEW_URL)
   const viewerDoc0 = await viewer.evaluate(() => JSON.stringify(window.__oip.store.getState().scene))
@@ -175,10 +177,23 @@ try {
   check('the cargo the viewer draws moves', moved(v0, v1) > 0.2, `${moved(v0, v1).toFixed(2)} m`)
   check('the viewer plays close behind the owner', e1.simTime - v1.simTime < 1.5 && v1.simTime > 0, `editor ${e1.simTime.toFixed(2)} s, viewer ${v1.simTime.toFixed(2)} s`)
   check('the chip says whose run the viewer is watching', /^Watching \S/.test(await viewer.locator('[data-testid=live-chip]').innerText()))
+  // the owner's camera has stood still since the viewer joined: no change brings it, and the viewer still takes it
+  const [ownerLook, viewerCam] = [await editor.evaluate(() => window.__oip.view.lookPose()), await viewer.evaluate(() => window.__oip.view.cameraPose())]
+  check("the viewer is at the owner's view, though it has not moved since", Math.max(...['px', 'py', 'pz', 'tx', 'ty', 'tz'].map((k) => Math.abs(ownerLook[k] - viewerCam[k]))) < 0.05, JSON.stringify({ ownerLook, viewerCam }))
   const counters = await viewer.evaluate(() => window.__oip.controller.plcGlobalTags)
   const editorCases = await editor.evaluate(() => window.__oip.controller.plcGlobalTags?.['Main.Cases'] ?? window.__oip.controller.plcGlobalTags?.Cases)
   const viewerCases = counters?.['Main.Cases'] ?? counters?.Cases
   check("the viewer reads the owner's PLC variables, so a counter on a note is not blank", typeof viewerCases === 'number' && Math.abs(viewerCases - editorCases) <= 2, `viewer ${viewerCases}, editor ${editorCases}`)
+  // a viewer's Watch shows the followed run's values (WatchPanel.tsx), read only: the run is someone else's
+  await viewer.evaluate(() => window.__oip.store.revealPanel('watch'))
+  await viewer.locator('[data-testid=plc-watch-add-name]').fill('Cases')
+  await viewer.locator('[data-testid=plc-watch-add-name]').press('Enter')
+  await viewer.waitForFunction(() => /^\d+$/.test(document.querySelector('[data-testid=plc-watch-row] [data-testid=plc-watch-value]')?.textContent?.trim() ?? ''), undefined, { timeout: 10000 }).catch(() => {})
+  const viewerWatch = await viewer.evaluate(() => ({
+    value: document.querySelector('[data-testid=plc-watch-row] [data-testid=plc-watch-value]')?.textContent?.trim() ?? '',
+    writable: document.querySelector('[data-testid=plc-watch-row] [data-testid=plc-watch-write]') !== null,
+  }))
+  check("a viewer's Watch shows the followed run's values, read only", /^\d+$/.test(viewerWatch.value) && !viewerWatch.writable, JSON.stringify(viewerWatch))
   // a locked display (a display link's Present): a visitor may move the camera; a button goes back to the followed view,
   // and the screen goes back by itself after half a minute untouched
   await viewer.evaluate(() => window.__oip.store.setState({ presenting: true, presentLocked: true }))
@@ -344,12 +359,15 @@ try {
   // the shared demo is owned by whoever shared it: they can stop sharing it, which closes it for everyone
   await editor.locator('button.share-button').click()
   await editor.locator('[data-testid=share-stop-sharing]').click()
+  // the viewer is watched from the moment it closes: its notice says why for 8 s (NoticeToast), and the owner's own
+  // reload, checked first, can take longer than that
+  const viewerTold = viewer
+    .waitForFunction(() => !new URL(location.href).searchParams.has('room') && /shared project was closed/.test(document.body.innerText), undefined, { timeout: 60000, polling: 200 })
+    .then(() => true, () => false)
   await editor.waitForFunction(() => !new URL(location.href).searchParams.has('room'), undefined, { timeout: 30000 }).catch(() => {})
   await waitForApp(editor)
   check("Stop sharing the demo goes back to the demo on one's own", await editor.evaluate(() => !window.__oip.store.getState().collab && new URL(location.href).searchParams.get('scene') === 'demo'))
-  await viewer.waitForFunction(() => !new URL(location.href).searchParams.has('room'), undefined, { timeout: 30000 }).catch(() => {})
-  await waitForApp(viewer)
-  check('...and the viewer is sent back, told it was closed', /shared project was closed/.test(await viewer.evaluate(() => document.body.innerText)))
+  check('...and the viewer is sent back, told it was closed', await viewerTold)
 } catch (err) {
   failures++
   console.log(`FAIL  ${err.stack ?? err}`)

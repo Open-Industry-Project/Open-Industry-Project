@@ -110,6 +110,9 @@ const M = defineMessages('toolbar', {
   forDisplaySub: 'Full screen and locked, following your run and view',
   forDisplaySubOther: 'Full screen and locked, following the owner',
   forDisplayTitle: 'For a screen nobody uses: only the scene, and it cannot be left from inside the app. Close the browser to leave it.',
+  displayValues: { one: '{count} PLC value shown · Preview and edit…', other: '{count} PLC values shown · Preview and edit…' },
+  displayValuesNone: 'Add PLC values · Preview and edit…',
+  displayValuesTitle: 'See the display as it shows, in your own window, and choose the PLC values listed beside the scene',
   displayLinkCopied: 'Display link copied',
   sharedNow: 'This project is now shared: people you invite edit it with you.',
   undoStartsOver: 'Sharing starts a new undo history. Changes made before it cannot be undone.',
@@ -558,6 +561,24 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
                   </span>
                   <span className="share-option-copy">{t(M.copy)}</span>
                 </button>
+                {/* what displays list beside the scene, chosen where it shows (components/PresentValues.tsx): one's own Present */}
+                {!state.readOnly && (
+                  <button
+                    className="share-option share-sub-option share-display-edit"
+                    data-testid="share-display-edit"
+                    title={t(M.displayValuesTitle)}
+                    onClick={() => {
+                      setShareOpen(false)
+                      store.setState({ presenting: true, presentEditing: true })
+                    }}
+                  >
+                    <span className="share-option-text">
+                      <span className="share-option-sub">
+                        {(state.scene.display ?? []).length > 0 ? t(M.displayValues, { count: (state.scene.display ?? []).length }) : t(M.displayValuesNone)}
+                      </span>
+                    </span>
+                  </button>
+                )}
                 {collab.room && ownSharedProject() && (
                   <button className="share-option share-back" data-testid="share-stop-sharing" disabled={state.running} onClick={() => void stopSharingProject()}>
                     <span className="share-option-text">

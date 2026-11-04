@@ -774,8 +774,8 @@ export class EditorController {
    *  against a 100 ms one and needs a grace on both sides. Without it, a gate like
    *  verify-no-spawn-before-attach reports correct spawns as births on a shut gate. */
   get plcWatch(): Readonly<Record<string, TagValue>> | null {
-    if (!this.program.plcAttached) return this.live.watch() // a shared run's while following one (controller/liveView.ts)
-    return this.sim.plcState?.watch ?? this.program.seedWatch
+    const own = this.program.plcAttached ? (this.sim.plcState?.watch ?? this.program.seedWatch) : null
+    return linkOps.plcImage(this.links, own, this.lastFrame) ?? this.live.watch() // else a followed run's (liveView.ts)
   }
 
   /** Per-part effective param values the running behaviors reported this frame (`ctx.report`), keyed by

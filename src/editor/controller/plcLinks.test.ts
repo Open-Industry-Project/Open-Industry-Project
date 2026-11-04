@@ -7,7 +7,7 @@ import * as m from '../links/externalPlc'
 import type { PlcIoHost } from '../links/externalPlc'
 import { DEFAULT_EXTERNAL_PLC, sanitizeExternalPlc } from '../store/storePrefs'
 import type { ExternalPlcSettings } from '../store/storePrefs'
-import { attachExternalPlc, detachExternalPlc, exchangeLinks, namedStatus, PlcLinkState } from './plcLinks'
+import { attachExternalPlc, detachExternalPlc, exchangeLinks, namedStatus, plcImage, PlcLinkState } from './plcLinks'
 import type { PlcLinkDeps } from './plcLinks'
 import { ProgramState, setDriven } from './program'
 
@@ -172,5 +172,38 @@ describe('named controllers in a run', () => {
     expect(sh.listened[0]).toEqual({ link: 0, port: 5020 })
     expect(l.externalSession?.driven).toEqual(['%QX0.0'])
     expect(driven.at(-1)).toEqual(['%QX0.0', 'Cell2::%QX0.0', 'Cell3::%QX0.0'])
+  })
+})
+
+describe('the values watched with a PLC outside the app (plcImage)', () => {
+  const frame = (tags: Record<string, Record<string, number | boolean>>) => ({ tags }) as unknown as Parameters<typeof plcImage>[2]
+
+  it("is the program's own image when no link runs", () => {
+    const l = new PlcLinkState()
+    const own = { Count: 3 }
+    expect(plcImage(l, own, frame({ eye: { Eye: true } }))).toBe(own)
+    expect(plcImage(l, null, null)).toBeNull()
+  })
+
+  it('joins what the parts send and what the PLC drives back, under the scene names, beside the program', () => {
+    const l = new PlcLinkState()
+    l.externalSession = {} as PlcLinkState['externalSession']
+    l.linkOut = { Run: true }
+    const f = frame({ eye: { Eye: true }, belt: { Speed: 1.5 } })
+    expect(plcImage(l, null, f)).toEqual({ Eye: true, Speed: 1.5, Run: true })
+    expect(plcImage(l, { Count: 3 }, f)).toEqual({ Eye: true, Speed: 1.5, Run: true, Count: 3 })
+  })
+
+  it('is the same object until the frame, the outputs or the program image change, since it is read every frame', () => {
+    const l = new PlcLinkState()
+    l.externalSession = {} as PlcLinkState['externalSession']
+    l.linkOut = { Run: true }
+    const f = frame({ eye: { Eye: true } })
+    const first = plcImage(l, null, f)
+    expect(plcImage(l, null, f)).toBe(first)
+    l.linkOut = { Run: false }
+    const next = plcImage(l, null, f)
+    expect(next).not.toBe(first)
+    expect(next?.Run).toBe(false)
   })
 })

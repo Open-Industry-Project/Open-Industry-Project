@@ -9,6 +9,7 @@ import type { PartPackage } from '../core/parts/partPackage'
 import { validateController } from '../core/controller'
 import { validateScenePlcs } from '../core/scene/scenePlcs'
 import { readSavedUnits } from '../core/scene/sceneUnits'
+import { readDisplayList } from '../core/scene/sceneDisplay'
 import type { Controller } from '../core/controller'
 import { storedDialect } from '../core/dialect'
 import { changedSpan } from '../core/textDiff'
@@ -249,6 +250,29 @@ export function writePlcs(ydoc: Y.Doc, plcs: SceneJSON['plcs']): void {
   if (metaMap(ydoc).get(PLCS_META) === text) return
   if (text === undefined) metaMap(ydoc).delete(PLCS_META)
   else metaMap(ydoc).set(PLCS_META, text)
+}
+
+/** `meta` key holding the room's scene's display list (SceneJSON.display, core/scene/sceneDisplay.ts) as JSON. Part of
+ *  the scene like the controllers: an edit, undoable, read by docToScene, and a change to it rebuilds the scene. */
+export const DISPLAY_META = 'display'
+
+/** the room scene's display list, read like any other untrusted copy of it; absent when the room has none */
+export function readDisplay(ydoc: Y.Doc): SceneJSON['display'] {
+  const v = metaMap(ydoc).get(DISPLAY_META)
+  if (typeof v !== 'string') return undefined
+  try {
+    return readDisplayList(JSON.parse(v))
+  } catch {
+    return undefined
+  }
+}
+
+/** write the room scene's display list; a no-op when unchanged. Call inside the caller's transaction. */
+export function writeDisplay(ydoc: Y.Doc, display: SceneJSON['display']): void {
+  const text = display === undefined || display.length === 0 ? undefined : JSON.stringify(display)
+  if (metaMap(ydoc).get(DISPLAY_META) === text) return
+  if (text === undefined) metaMap(ydoc).delete(DISPLAY_META)
+  else metaMap(ydoc).set(DISPLAY_META, text)
 }
 
 /** `meta` key holding the room's scene's physics step rate (Hz; core/project/project.ts ProjectMachine.simHz). It sits beside the scene's version, not with the
@@ -634,6 +658,8 @@ export function docToScene(ydoc: Y.Doc): SceneJSON {
   Object.assign(scene, readUnits(ydoc))
   const plcs = readPlcs(ydoc)
   if (plcs !== undefined) scene.plcs = plcs
+  const display = readDisplay(ydoc)
+  if (display !== undefined) scene.display = display
   return scene
 }
 
@@ -657,5 +683,6 @@ export function sceneToDoc(scene: SceneJSON, ydoc: Y.Doc, origin: unknown = LOCA
     meta.set('version', scene.version)
     writeUnits(ydoc, scene)
     writePlcs(ydoc, scene.plcs)
+    writeDisplay(ydoc, scene.display)
   }, origin)
 }

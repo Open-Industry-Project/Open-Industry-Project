@@ -476,6 +476,49 @@ try {
   const requests = await page.evaluate(() => window.__oip.controller.externalPlcStatus.requests)
   expect(/FC2 x\d+, FC5 x\d+/.test(requests), `the link counted the PLC's requests (${requests})`)
 
+  // Watch with an external PLC (WatchPanel.tsx, controller/plcLinks.ts plcImage): the link's values are watched like a
+  // program's. The box sits at the eye, so the eye reads TRUE and the PLC holds the belt's coil FALSE.
+  const image = await page.evaluate(() => window.__oip.controller.plcWatch)
+  expect(image?.['%IX100.0'] === true && image?.['%QX100.0'] === false, `the watched values include what the link carries (${JSON.stringify(image)})`)
+  // (Controller Properties stays open over the docks for the checks after these, so the buttons are clicked in the page)
+  const press = (sel) => page.evaluate((q) => document.querySelector(q)?.click(), sel)
+  await page.evaluate(() => window.__oip.store.revealPanel('watch'))
+  await page.waitForSelector('[data-testid="plc-watch"]', { timeout: 5000 })
+  await press('[data-testid="plc-watch-clear"]')
+  await page.waitForSelector('[data-testid="plc-watch-add-wired"]', { timeout: 5000 })
+  await press('[data-testid="plc-watch-add-wired"]')
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid="plc-watch-row"]').length >= 2, null, { timeout: 5000 }).catch(() => {})
+  const watched = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="plc-watch-row"]')].map((r) => ({
+      name: r.getAttribute('data-name'),
+      value: r.querySelector('[data-testid="plc-watch-value"]')?.textContent?.trim(),
+      type: r.querySelector('[data-testid="plc-watch-type"]')?.textContent?.trim(),
+      writable: r.querySelector('[data-testid="plc-watch-write"]') !== null,
+    })),
+  )
+  const eyeRow = watched.find((w) => w.name === '%IX100.0')
+  const beltRow = watched.find((w) => w.name === '%QX100.0')
+  expect(eyeRow?.value === 'TRUE' && beltRow?.value === 'FALSE', `Add all wired tags lists the PLC's tags with live values (${JSON.stringify(watched)})`)
+  expect(eyeRow?.type === 'BOOL' && beltRow?.type === 'BOOL', 'with the type the part declares')
+  expect(!eyeRow?.writable && !beltRow?.writable && (await page.locator('[data-testid="plc-watch-force"]').count()) === 0, 'and read only: a real PLC is not written from the Watch panel')
+  // Show on displays: saved in the project, listed live beside the scene in Present
+  // a Watch row's right-click Show on displays: Watch is the reader's own list, the display the project's
+  await page.evaluate(() => {
+    const row = document.querySelector('[data-testid="plc-watch-row"][data-name="%IX100.0"]')
+    const box = row.getBoundingClientRect()
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + 20, clientY: box.top + 5 }))
+  })
+  await page.waitForSelector('[data-testid="plc-watch-display"]', { timeout: 5000 })
+  await press('[data-testid="plc-watch-display"]')
+  expect(JSON.stringify(await page.evaluate(() => window.__oip.store.getState().scene.display)) === '["%IX100.0"]', 'Show on displays puts the value in the project')
+  await page.evaluate(() => window.__oip.store.setState({ presenting: true }))
+  await page.waitForSelector('[data-testid="present-value"]', { timeout: 5000 }).catch(() => {})
+  const shown = await page.locator('[data-testid="present-value"]').allInnerTexts()
+  expect(shown.length === 1 && /%IX100\.0\s*BOOL\s+TRUE/.test(shown[0] ?? ''), `Present lists it beside the scene, live, with its type (${JSON.stringify(shown)})`)
+  await page.evaluate(() => window.__oip.store.setState({ presenting: false }))
+  // the PLC panel back in front of Watch, where the checks below find its organizer
+  await page.evaluate(() => window.__oip.store.revealPanel('st'))
+
   // The PLC goes away. Its last coil value said run, and the image still holds it: without a watchdog the
   // belt runs forever on a value nobody is driving any more. The connection stays open here -
   // this is the ordinary case, a PLC whose program was stopped, which no disconnect event announces.

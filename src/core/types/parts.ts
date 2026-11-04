@@ -103,6 +103,11 @@ export interface SceneJSON {
    * the app derives them as it did before scenes carried them (editor/store/storePlcs.ts).
    */
   plcs?: ScenePlc[]
+  /**
+   * The PLC values a display shows beside the scene (core/scene/sceneDisplay.ts): names as the Watch panel spells them,
+   * picked there with Show on displays. Absent or empty: a display shows the scene alone.
+   */
+  display?: string[]
 }
 
 export type SceneUnits = 'imperial' | 'metric'

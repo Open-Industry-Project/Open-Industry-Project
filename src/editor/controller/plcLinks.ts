@@ -51,6 +51,8 @@ export class PlcLinkState {
   uaServerSettings: ExternalPlcSettings | null = null
   // each simulated controller's own server, by controller name, with the settings it was opened on
   readonly namedUa = new Map<string, { session: OpcUaServerSession; key: string }>()
+  /** the last value image built from the links (plcImage), and what it was built from: rebuilt only when one changes */
+  image: { own: object | null; tags: object | undefined; out: object; value: Readonly<Record<string, TagValue>> } | null = null
   /** every named server stop still in flight: a server starts only once all are done, so a quick off and on again
    *  never asks for a port the old server still holds */
   namedUaStopped: Promise<void> = Promise.resolve()
@@ -479,6 +481,23 @@ export function exchangeLinks(l: PlcLinkState, simTags: Readonly<Record<string, 
 export function namedStatus(l: PlcLinkState, name: string): ExternalPlcStatus {
   const live = l.named.find((n) => n.name === name)
   return live ? live.link.status() : (l.namedStatus.get(name) ?? EXTERNAL_PLC_OFF)
+}
+
+/**
+ * The PLC values to watch: the program here's own image, joined by what the links to PLCs outside the app carry, under
+ * the scene's tag names. A link carries what the parts send (the frame's tags) and what its PLC drives back (linkOut),
+ * so a project run by an external PLC has values for Watch, a note's counter and anyone following the run, as one run
+ * by the program here does. Null when there is neither. Rebuilt only when the image, the frame's tags or the links'
+ * outputs change, since it is read every frame.
+ */
+export function plcImage(l: PlcLinkState, own: Readonly<Record<string, TagValue>> | null, frame: BoxFrame | null): Readonly<Record<string, TagValue>> | null {
+  if (!l.externalSession && l.named.length === 0) return own
+  const tags = frame?.tags
+  const c = l.image
+  if (c && c.own === own && c.tags === tags && c.out === l.linkOut) return c.value
+  const value = { ...flattenFrameTags(tags), ...l.linkOut, ...own }
+  l.image = { own, tags, out: l.linkOut, value }
+  return value
 }
 
 /** Close the external-PLC links of this run, keeping their last status for the dock to show. */

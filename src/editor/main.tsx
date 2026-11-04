@@ -616,6 +616,8 @@ if (params.get('present') === '1') {
   store.setState({ presenting: true, presentLocked: true })
   const block = (e: KeyboardEvent): void => {
     const { presentLocked, navigating } = store.getState()
+    // the values list's filter takes typing (components/PresentValues.tsx)
+    if (e.target instanceof Element && e.target.closest('.present-values-filter')) return
     if (presentLocked && !(navigating && !e.ctrlKey && !e.metaKey && !e.altKey)) e.stopImmediatePropagation()
   }
   window.addEventListener('keydown', block, true)

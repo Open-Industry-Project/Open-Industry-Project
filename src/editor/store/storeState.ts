@@ -333,6 +333,8 @@ export interface EditorState {
   presenting: boolean
   /** a display link's Present, which cannot be left from inside the app (main.tsx); only its URL sets it */
   presentLocked: boolean
+  /** one's own Present with the values panel open for editing the project's display list (components/PresentValues.tsx) */
+  presentEditing: boolean
   /** view-only (shared read-only link): authoring is disabled and nothing this client does reaches the shared doc */
   readOnly: boolean
   /** collaborative (room) mode: a shared Yjs doc owns the scene. Mirrors the private `collab` flag so the UI
@@ -519,6 +521,7 @@ export function initialEditorState(scene: SceneJSON | undefined, stProgram: stri
     distractionFree: false,
     presenting: false,
     presentLocked: false,
+    presentEditing: false,
     readOnly: false,
     collab: false,
     listSelect: null,

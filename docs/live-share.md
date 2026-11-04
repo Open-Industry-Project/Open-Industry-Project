@@ -64,6 +64,28 @@ camera, so nothing is applied there. Someone followed while walking in pilot mod
 (`lookPose` in render/api.ts): pilot turns the camera and leaves the orbit target behind, so the target would point a
 follower the wrong way.
 
+### PLC values: Watch and displays
+
+The Watch panel ([components/plc/WatchPanel.tsx](../src/editor/components/plc/WatchPanel.tsx)) watches whichever
+controller runs: the program here, a PLC outside the app, or the run a tab follows. Its values are one image
+(`plcWatch`): the program's own variables, joined by what the links to outside PLCs carry under the scene's tag names,
+both what the parts send and what the PLC drives back ([controller/plcLinks.ts](../src/editor/controller/plcLinks.ts)
+`plcImage`). The same image feeds a note's counter, and it travels with a shared run, so a follower's Watch and notes read
+the runner's values, an outside PLC's included. Only a program running here is written or forced from Watch: an outside
+PLC runs real equipment, and a followed run is someone else's. With an outside PLC set up, the empty list offers Add all
+wired tags, each with the type its part's field declares.
+
+Watch is each person's own list, kept in their browser. What displays list beside the scene is the presenter's, one
+list for the project (`SceneJSON.display`, [core/scene/sceneDisplay.ts](../src/core/scene/sceneDisplay.ts)): saved,
+undoable, and in a shared project carried in the room's `meta` (`DISPLAY_META`). It is chosen where it shows: Share >
+For a display > Preview and edit opens one's own Present with the values panel open for editing
+([components/PresentValues.tsx](../src/editor/components/PresentValues.tsx)): a search over the tags wired to parts, the
+program's variables and an outside PLC's tags, a cross to take a value off, and a row dragged to reorder, each one undo
+step ([program/displayValues.ts](../src/editor/program/displayValues.ts)). A right-click Show on displays on a Watch row
+or a variable in the PLC panel hands one value over. Present lists the values live, from the image of the run it shows,
+each with its type. Gated by `verify-external-plc-electron.mjs` (an outside PLC's tags in Watch, read only, typed, and
+on a display), `verify-present.mjs` (choosing the list) and `verify-live-share.mjs` (a follower's Watch).
+
 ### Presenting
 
 View > Present shows only the scene, for a projector or a display

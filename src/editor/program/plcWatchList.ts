@@ -8,6 +8,8 @@
 
 import { KEYWORDS } from '../../plc'
 import type { TagValue } from '../../plc'
+import { currentDocumentId } from '../project/documentStore'
+import { ownSharedProject } from '../project/sharedProject'
 
 /** One watched name as the image answers it. */
 export interface WatchRow {
@@ -164,6 +166,17 @@ function readAll(): Stored {
  */
 export function watchListKey(docId: string | null, name: string, inRoom: boolean): string {
   return docId !== null && !inRoom ? `doc:${docId}` : name
+}
+
+/**
+ * This tab's key. A shared project of this browser's own is still its project (project/sharedProject.ts), so it keeps
+ * its document's list: sharing must not empty the owner's Watch. Someone else's shared project goes by its name.
+ */
+export function tabWatchListKey(projectName: string, collab: boolean): string {
+  const docId = currentDocumentId()
+  const own = collab ? ownSharedProject() : null
+  const ours = own !== null && !own.demo && own.docId === docId
+  return watchListKey(docId, projectName, collab && !ours)
 }
 
 /**

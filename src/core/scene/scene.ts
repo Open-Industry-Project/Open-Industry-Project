@@ -4,6 +4,7 @@ import { canonicalAddress, looksLikeAddress } from '../io/iecAddress'
 import { controllerTag, splitControllerTag } from '../io/controllerTag'
 import { sceneSettings, validateScenePlcs } from './scenePlcs'
 import { readSavedUnits } from './sceneUnits'
+import { readDisplayList } from './sceneDisplay'
 import { packageParamSpecs } from '../packageParams'
 import { getPackage, isAuthoritativePackage } from '../parts/partRegistry'
 import { validatePartPackage } from '../parts/partValidate'
@@ -638,6 +639,8 @@ export function validateScene(data: unknown, runsAsEmbedded: ReadonlySet<string>
   if (root.lengthUnit !== undefined && root.lengthUnit !== lengthUnit) repairs.push(`lengthUnit ${JSON.stringify(root.lengthUnit)} is not "m", "mm" or "in", so each length shows in its own unit`)
   // the scene's controllers (SceneJSON.plcs): an entry that cannot be read is dropped, and said
   const plcs = validateScenePlcs(root.plcs, repairs)
+  // the values its displays show (SceneJSON.display): names only, each once
+  const display = readDisplayList(root.display, repairs)
   // a stair an older app seated by its own top landing moves in onto the deck edge it met (core/stairReseat.ts)
   for (const i of reseatOlderStairs(parts, runsAsEmbedded)) {
     repairs.push(`parts[${i}]${parts[i]!.name ? ` (${parts[i]!.name})` : ''} stood by its own top landing, which the deck it reaches now replaces, so it moves ${STAIRS_LANDING_DEPTH} m onto the deck edge`)
@@ -656,7 +659,7 @@ export function validateScene(data: unknown, runsAsEmbedded: ReadonlySet<string>
       version: SCENE_VERSION,
       parts: sanitized,
       ...(packages.length > 0 ? { packages } : {}),
-      ...sceneSettings({ units, lengthUnit, plcs }),
+      ...sceneSettings({ units, lengthUnit, plcs, display }),
     },
     ...(stProgram !== undefined ? { stProgram } : {}),
     ...(stScanMs !== undefined ? { stScanMs } : {}),
