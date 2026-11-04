@@ -89,6 +89,9 @@ try {
   for (const n of offered.slice(0, 2)) await page.locator(`[data-testid=present-values-result][data-name="${n}"]`).click()
   const listed = () => page.evaluate(() => window.__oip.store.getState().scene.display ?? [])
   check('picking a result puts it on the displays, in order', JSON.stringify(await listed()) === JSON.stringify(offered.slice(0, 2)), JSON.stringify(await listed()))
+  const notice = page.locator('.part-build-toasts')
+  // the edit forked the demo, whose notice is up but waits while presenting
+  check("the editor's notices wait while presenting", (await page.evaluate(() => !!window.__oip.store.getState().demoForkNotice)) && !(await notice.first().isVisible().catch(() => false)))
   check('before a run, the list says when its values show', (await page.locator('[data-testid=present-values-waiting]').count()) === 1)
   // pointer events, as a finger drags it: the second row's handle onto the first row
   const handle = await page.locator('[data-testid=present-value-handle]').nth(1).boundingBox()
@@ -103,17 +106,23 @@ try {
   check('a cross takes a value off', JSON.stringify(await listed()) === JSON.stringify([offered[0]]), JSON.stringify(await listed()))
   await page.evaluate(() => window.__oip.store.undo())
   check('each change is one undo step', JSON.stringify(await listed()) === JSON.stringify([offered[1], offered[0]]), JSON.stringify(await listed()))
+  check('Preview and edit fills the screen, as a display does', await page.evaluate(() => document.fullscreenElement !== null))
+  await page.locator('[data-testid=present-values-edit]').click()
+  check('Done closes the editing, and the list shows as a display shows it', (await page.locator('[data-testid=present-values-add]').count()) === 0 && (await page.locator('[data-testid=present-value-remove]').count()) === 0)
+  await page.locator('[data-testid=present-values-edit]').click()
+  check('Edit opens it again', await page.evaluate(() => window.__oip.store.getState().presentEditing))
   await page.evaluate(() => document.activeElement?.blur())
   await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
-  check('Escape while editing ends the editing, and stays in Present', await page.evaluate(() => window.__oip.store.getState().presenting && !window.__oip.store.getState().presentEditing))
-  await page.locator('[data-testid=present-values-edit]').click()
-  check('Edit opens it again', await page.evaluate(() => window.__oip.store.getState().presentEditing))
-  await page.locator('[data-testid=present-values-edit]').click()
-  check('Done closes the editing, and the list shows as a display shows it', (await page.locator('[data-testid=present-values-add]').count()) === 0 && (await page.locator('[data-testid=present-value-remove]').count()) === 0)
-  await page.keyboard.press('Escape')
+  check('one Escape while editing leaves Present, and ends the editing', await page.evaluate(() => !window.__oip.store.getState().presenting && !window.__oip.store.getState().presentEditing))
+  check('...keeping the list as it was made', JSON.stringify(await listed()) === JSON.stringify([offered[1], offered[0]]), JSON.stringify(await listed()))
+  // leaving full screen any other way (the browser's own Escape, F11) leaves too
+  await page.locator('button.share-button').click()
+  await page.locator('[data-testid=share-display-edit]').click()
+  await page.waitForFunction(() => document.fullscreenElement !== null, undefined, { timeout: 5000 }).catch(() => {})
+  await page.evaluate(() => document.exitFullscreen())
   await page.waitForTimeout(300)
-  check('leaving Present ends the editing', await page.evaluate(() => !window.__oip.store.getState().presenting && !window.__oip.store.getState().presentEditing))
+  check('leaving full screen while editing leaves Present', await page.evaluate(() => !window.__oip.store.getState().presenting && !window.__oip.store.getState().presentEditing))
   await page.evaluate(() => {
     const st = window.__oip.store
     const { display: _, ...rest } = st.getState().scene

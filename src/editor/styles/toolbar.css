@@ -896,6 +896,12 @@ button:disabled {
   display: none;
 }
 
+/* one's own Present shows only the scene, so the editor's notices wait until it ends (they are store state, still
+   there after). A display link keeps them: there a notice is news for whoever looks, such as a closed room */
+body:has(.present-overlay:not(.locked)) :is(.part-build-toasts, .update-toast) {
+  display: none;
+}
+
 .present-overlay {
   position: absolute;
   inset: 0;
@@ -1001,6 +1007,16 @@ button:disabled {
   .present-values.corner-tl {
     top: 48px;
   }
+}
+
+/* the desktop window's caption buttons stay drawn over Present's top edge (no toolbar keeps room for them there), so
+   the top corners start below their strip; a fullscreen window has none (data-shell-fullscreen, as for the toolbar) */
+:root:not([data-shell-fullscreen]) .app.desktop-shell:not(.desktop-mac) .present-values:is(.corner-tr, .corner-tl) {
+  top: calc(16px + env(titlebar-area-height, 0px));
+}
+
+:root:not([data-shell-fullscreen]) .app.desktop-shell.desktop-mac .present-values.corner-tl {
+  top: 40px;
 }
 
 /* editing: room for the search and what it finds below the list */

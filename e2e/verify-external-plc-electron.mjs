@@ -515,6 +515,16 @@ try {
   await page.waitForSelector('[data-testid="present-value"]', { timeout: 5000 }).catch(() => {})
   const shown = await page.locator('[data-testid="present-value"]').allInnerTexts()
   expect(shown.length === 1 && /%IX100\.0\s*BOOL\s+TRUE/.test(shown[0] ?? ''), `Present lists it beside the scene, live, with its type (${JSON.stringify(shown)})`)
+  // the window's caption buttons stay over Present's top edge, so the list starts below their strip
+  const clear = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:fixed;top:0;height:env(titlebar-area-height, 0px)'
+    document.body.append(probe)
+    const strip = probe.getBoundingClientRect().height
+    probe.remove()
+    return { strip, top: document.querySelector('[data-testid="present-values"]').getBoundingClientRect().top }
+  })
+  expect(clear.strip > 0 && clear.top >= clear.strip, `the list clears the window's caption buttons (${JSON.stringify(clear)})`)
   await page.evaluate(() => window.__oip.store.setState({ presenting: false }))
   // the PLC panel back in front of Watch, where the checks below find its organizer
   await page.evaluate(() => window.__oip.store.revealPanel('st'))

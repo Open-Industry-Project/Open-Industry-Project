@@ -45,7 +45,6 @@ const SHOWN_MS = 3000
 const REATTACH_IDLE_MS = 30_000
 /** how often the listed values are read: they arrive ten times a second (sim/plcHost.ts WATCH_HZ) */
 const VALUES_MS = 125
-
 /** the browser fills the screen: its own fullscreen, or a window in kiosk mode that already covers it */
 const fillsScreen = (): boolean => document.fullscreenElement !== null || (window.innerWidth >= screen.width && window.innerHeight >= screen.height)
 
@@ -142,7 +141,7 @@ export function PresentOverlay({ store, state, controller }: { store: EditorStor
   const target = state.liveTarget
   const name = target ? (getPeers().find((p) => p.clientId === target.who)?.name ?? t(M.someone)) : null
   return (
-    <div className={`present-overlay${shown ? ' shown' : ''}`} data-testid="present-overlay">
+    <div className={`present-overlay${shown ? ' shown' : ''}${state.presentLocked ? ' locked' : ''}`} data-testid="present-overlay">
       {state.presentLocked && !full && document.fullscreenEnabled && (
         <div className="present-bar">
           <button className="present-exit" data-testid="present-fullscreen" title={t(M.fullscreenTitle)} onClick={() => void document.documentElement.requestFullscreen().catch(() => {})}>

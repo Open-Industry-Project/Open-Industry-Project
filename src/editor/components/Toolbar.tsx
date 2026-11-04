@@ -570,6 +570,8 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
                     onClick={() => {
                       setShareOpen(false)
                       store.setState({ presenting: true, presentEditing: true })
+                      // full screen as a display shows it, and as the Present command opens it: no window buttons over the list
+                      void document.documentElement.requestFullscreen?.()?.catch(() => {})
                     }}
                   >
                     <span className="share-option-text">
