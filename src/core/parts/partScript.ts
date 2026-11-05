@@ -246,8 +246,8 @@ function compileFactory(params: readonly string[], body: string): (...args: unkn
 // --- compile ------------------------------------------------------------------------------------
 
 // Scan + parse happen once per distinct source; the cached factory re-runs cheaply per instance.
-// The behavior editor compiles on every typing pause, so the cache is bounded, evicting the oldest entry.
-// 256 is well above the distinct part scripts a large project loads, so a scene's own scripts stay cached.
+// The behavior editor compiles on every typing pause, so the cache is bounded, evicting the least recently used
+// entry: a hit moves to the newest end, so the scene's own scripts outlive a long run of editor drafts.
 const COMPILED_MAX = 256
 const compiled = new Map<string, CompiledPartScript>()
 
@@ -259,7 +259,11 @@ const compiled = new Map<string, CompiledPartScript>()
  */
 export function compilePartScript(source: string): CompiledPartScript {
   const hit = compiled.get(source)
-  if (hit) return hit
+  if (hit) {
+    compiled.delete(source)
+    compiled.set(source, hit)
+    return hit
+  }
   let out: CompiledPartScript
   const violations = checkDeterminism(source)
   if (violations.length > 0) {

@@ -73,13 +73,18 @@ function centreZ(positions: ArrayLike<number>): number {
 // Captured-def cache keyed by source string. Geometry defs are pure (no per-instance closure state), so one def
 // per source serves every caller. A `null` entry caches a failure (non-deterministic / uncompilable / no
 // definePart) so a bad source isn't re-evaluated. The behavior editor evaluates on every typing pause, so the
-// cache is bounded, evicting the oldest entry. 256 is well above the distinct part scripts a large project loads.
+// cache is bounded, evicting the least recently used entry (a hit moves to the newest end), so the scene's own
+// scripts outlive a long run of editor drafts.
 const CAPTURED_MAX = 256
 const captured = new Map<string, PartDefinition | null>()
 
 function captureDef(source: string, ref?: PartDiagRef): PartDefinition | null {
   const hit = captured.get(source)
-  if (hit !== undefined) return hit
+  if (hit !== undefined) {
+    captured.delete(source)
+    captured.set(source, hit)
+    return hit
+  }
   const { def, error } = instantiatePartScript(source)
   if (!def && ref) reportPartDiagnostic({ source: 'compile', message: error, ...ref })
   if (captured.size >= CAPTURED_MAX) captured.delete(captured.keys().next().value!)
