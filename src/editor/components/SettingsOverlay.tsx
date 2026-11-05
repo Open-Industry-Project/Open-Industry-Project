@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { agentDoorApi, takeAgentDoorReveal, type AgentDoorState } from '../agent/desktopAgent'
+import { agentDoorApi, onAgentDoorReveal, takeAgentDoorReveal, type AgentDoorState } from '../agent/desktopAgent'
 import { collabServerPref, defaultCollabUrl, isCollabServerUrl, setCollabServerPref } from '../../collab/collabServer'
 import type { ReactElement } from 'react'
 import {
@@ -684,12 +684,20 @@ function AgentConnectionsGroup(): ReactElement | null {
       off()
     }
   }, [api])
-  // read once, as the dialog opens; scrolled once the state has rendered the section at its full height
-  const [reveal] = useState(takeAgentDoorReveal)
-  const revealed = useRef(false)
+  // a count of requests: read as the dialog opens, and again on each request while it is open; scrolled once the
+  // state has rendered the section at its full height
+  const [reveal, setReveal] = useState(() => (takeAgentDoorReveal() ? 1 : 0))
+  const revealed = useRef(0)
+  useEffect(
+    () =>
+      onAgentDoorReveal(() => {
+        if (takeAgentDoorReveal()) setReveal((n) => n + 1)
+      }),
+    [],
+  )
   useEffect(() => {
-    if (door && reveal && !revealed.current) {
-      revealed.current = true
+    if (door && reveal > revealed.current) {
+      revealed.current = reveal
       ref.current?.scrollIntoView({ block: 'start' })
     }
   }, [door, reveal])
@@ -909,6 +917,8 @@ function BuildStamp(): ReactElement {
 
 export function SettingsOverlay({ store, state, initialTab = 'shortcuts', onClose }: SettingsOverlayProps): ReactElement {
   const [tab, setTab] = useState<SettingsTab>(initialTab)
+  // Help > Agent Connections... while this is open: to the tab its section is on (which takes the request as it mounts)
+  useEffect(() => onAgentDoorReveal(() => setTab('preferences')), [])
   /** the action currently recording a chord - owned here because Esc has to choose between
    *  cancelling the capture and closing the dialog, and only one handler can decide that */
   const [capturing, setCapturing] = useState<string | null>(null)

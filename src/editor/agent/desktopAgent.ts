@@ -140,13 +140,22 @@ export function agentDoorApi(): AgentDoorApi | null {
 }
 
 let revealDoorSection = false
+const revealListeners = new Set<() => void>()
 
-/** Help > Agent Connections... (commands.ts) opens Settings: this asks its Agent connections section to scroll into view. */
+/** Help > Agent Connections... (commands.ts) opens Settings: this asks its Agent connections section to scroll into
+ *  view. A Settings dialog already open hears it through `onAgentDoorReveal`, since it doesn't mount again. */
 export function requestAgentDoorReveal(): void {
   revealDoorSection = true
+  for (const l of revealListeners) l()
 }
 
-/** Settings' section reads this once as it mounts: true when it was opened to show it. */
+/** call `l` on each later request; returns the unsubscribe */
+export function onAgentDoorReveal(l: () => void): () => void {
+  revealListeners.add(l)
+  return () => revealListeners.delete(l)
+}
+
+/** Settings' section reads this as it mounts, and on each request while mounted: true when asked to show it. */
 export function takeAgentDoorReveal(): boolean {
   const r = revealDoorSection
   revealDoorSection = false
