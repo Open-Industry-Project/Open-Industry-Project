@@ -172,6 +172,7 @@ async function handle(msg: MainToWorker): Promise<void> {
     } else if (msg.type === 'start') {
       stopLoop()
       world?.dispose()
+      world = null // a throw from the constructor below leaves no reference to the world just disposed
       paused = false
       plc = null // fresh world, fresh program: the controller's attach message follows its 'start'
       stepMsTotal = stepMsMax = stepsDone = frameMsTotal = framesDone = plcMsTotal = 0

@@ -318,9 +318,16 @@ export class SimWorld implements SimCore<BoxFrame> {
     // the parts again now, or the first run's facts name no conveyor at all (a drop reads as "over no conveyor")
     this.flowFacts?.tracker.setParts(scene.parts)
 
-    const resolved = resolveScene(scene.parts, 'sim')
-    for (const part of scene.parts)
-      this.buildPart(part, resolved.get(part.id))
+    // a part whose build throws fails the whole world; free what was made here, since the worker that catches the
+    // error outlives the run and never sees this object
+    try {
+      const resolved = resolveScene(scene.parts, 'sim')
+      for (const part of scene.parts)
+        this.buildPart(part, resolved.get(part.id))
+    } catch (e) {
+      this.dispose()
+      throw e
+    }
 
     this.system.OptimizeBroadPhase()
   }
