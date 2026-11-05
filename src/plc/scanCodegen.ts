@@ -269,10 +269,10 @@ function integerArithmetic(fits: GenInternals['fits']): Record<string, unknown> 
   return out
 }
 
-/** A function the generated code is running in, and the loops open in it (EXIT / CONTINUE name the innermost). */
+/** The loops open in the scan function (EXIT / CONTINUE name the innermost). A sub-function a block is split into
+ *  never opens a frame of its own: its jumps are SUB_JUMP codes. */
 interface Frame {
   loops: number[]
-  root: boolean
 }
 
 /** Whether a place's read runs nothing but loads: a variable or THIS, a field of one, or an element whose subscripts
@@ -309,7 +309,7 @@ class Generator {
   /** the sub-functions a large statement list was split into */
   readonly fns: string[] = []
   #ids = 0
-  #frame: Frame = { loops: [], root: true }
+  readonly #frame: Frame = { loops: [] }
   /** the open loops' count where the statement being generated starts (null: outside any block) */
   #base: number | null = null
 
@@ -928,7 +928,6 @@ ${lines.join(NL)}
     if (size <= CHUNK) return parts.map((p) => this.resolve(p, (kind) => this.jump(kind))).join('\n')
     // too big for one function V8 will optimise: sub-functions, each statement in a frame of its own (no loop open,
     // not the root), so a jump out of it is a code its caller acts on
-    const outer = this.#frame
     const out: string[] = []
     let group: string[] = []
     let groupSize = 0
@@ -936,7 +935,7 @@ ${lines.join(NL)}
       if (!group.length) return
       const name = `f${this.id()}`
       this.fns.push(`function ${name}(b, now, m) {\n${group.join('\n')}\nreturn 0;\n}`)
-      out.push(`{ const r = ${name}(b, now, m); ${this.signals('r', outer)} }`)
+      out.push(`{ const r = ${name}(b, now, m); ${this.signals('r')} }`)
       group = []
       groupSize = 0
     }
@@ -956,30 +955,25 @@ ${lines.join(NL)}
   }
 
   /** what a sub-function's return code means in the frame that called it */
-  signals(r: string, f: Frame): string {
-    const saved = this.#frame
-    this.#frame = f
-    const s = `if (${r} === 1) { ${this.jump('return')} } else if (${r} === 2) { ${this.jump('exit')} } else if (${r} === 3) { ${this.jump('continue')} }`
-    this.#frame = saved
-    return s
+  signals(r: string): string {
+    return `if (${r} === 1) { ${this.jump('return')} } else if (${r} === 2) { ${this.jump('exit')} } else if (${r} === 3) { ${this.jump('continue')} }`
   }
 
   /** A jump as the code says it here. One that leaves the statement being generated depends on the frame that
    *  statement lands in, so it is a placeholder for the enclosing block() to replace. */
   jump(kind: JumpKind): string {
     const f = this.#frame
-    const leaves = this.#base !== null && (kind === 'return' ? f.root : f.loops.length <= this.#base)
+    const leaves = this.#base !== null && (kind === 'return' || f.loops.length <= this.#base)
     return leaves ? `${JUMP_MARK}${kind[0]}${JUMP_MARK}` : this.frameJump(kind)
   }
 
   /** a jump written in the current frame */
   frameJump(kind: JumpKind): string {
     const f = this.#frame
-    if (kind === 'return') return f.root ? 'return;' : 'return 1;'
+    if (kind === 'return') return 'return;'
     const top = f.loops[f.loops.length - 1]
     if (top !== undefined) return kind === 'exit' ? `break L${top};` : `break B${top};`
-    // no loop open in this function: a sub-function hands it to its caller; at the root it is the walker's signal
-    if (!f.root) return kind === 'exit' ? 'return 2;' : 'return 3;'
+    // no loop open: the walker's signal
     return kind === 'exit' ? 'throw EXIT;' : 'throw CONTINUE;'
   }
 

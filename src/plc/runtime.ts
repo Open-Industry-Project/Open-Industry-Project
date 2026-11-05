@@ -164,14 +164,14 @@ export function stringToCalendar(t: ScalarType, s: string): number {
   return typeof ms === 'number' ? ms : 0
 }
 
-/** Coerce a number into its IEC type: integers wrap to their bit width (two's complement),
- *  REAL rounds to single precision. LREAL / BOOL pass through. */
 /** The 32-bit integer types. Their product goes through Math.imul: a double product past 2^53 has lost the low bits
  *  the wrap keeps (16#FFFFFFFF * 16#FFFFFFFF is 1 as a UDINT, 0 as a wrapped double). */
 export function isInt32(t: ScalarType): boolean {
   return t === 'DINT' || t === 'UDINT' || t === 'DWORD'
 }
 
+/** Coerce a number into its IEC type: integers wrap to their bit width (two's complement),
+ *  REAL rounds to single precision. LREAL / BOOL pass through. */
 export function wrap(t: ScalarType, x: number): number {
   switch (t) {
     case 'SINT': return (x << 24) >> 24 // i8
