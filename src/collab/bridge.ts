@@ -211,7 +211,7 @@ export function authoredCargoView(local: SceneJSON, doc: SceneJSON, prevLocal?: 
     let pose = cargoPoseOf(authored)
     const was = prevById?.get(p.id)
     if (was && localById && !sameCargoPose(cargoPoseOf(was), cargoPoseOf(p))) {
-      const by = carryingAncestor(p.id, local.parts, prevById!, localById, skip)
+      const by = carryingAncestor(p.id, prevById!, localById, skip)
       if (by) pose = carryCargoPose(pose, by.before, by.after)
     }
     const kept = withCargoPose(p, pose)
@@ -484,11 +484,12 @@ export class CollabBridge {
     // packagesMap is tracked too, so Ctrl+Z reverts a custom-part behavior/geometry edit in a room exactly
     // like a scene edit. The revert is a non-LOCAL_ORIGIN transaction, so it flows back through the packages
     // observer → syncPackagesFromDoc → registry, and propagates to peers like any other doc change.
-    // (`sceneTypes` is the same list the rebuild filter above uses: what the scene is decoded from.)
+    // (`movedScene` is the rebuild filter above: what the scene is decoded from, so a change to the scene's settings
+    // in meta, such as the display list, is a step too.)
     this.undoManager = new Y.UndoManager([...sceneTypes, stProgramText(ydoc), metaMap(ydoc)], {
       trackedOrigins: new Set([LOCAL_ORIGIN]),
       captureTimeout: 0,
-      captureTransaction: (tr) => tr.meta.get(PROGRAM_EDIT) === true || [...tr.changedParentTypes.keys()].some((t) => (sceneTypes as readonly unknown[]).includes(t)),
+      captureTransaction: (tr) => tr.meta.get(PROGRAM_EDIT) === true || movedScene(tr),
     })
     // a program edit's code, table and rewiring land in one marked transaction: one step for the undo above
     store.setProgramTransaction((apply) =>

@@ -158,7 +158,7 @@ export function carryDesignedPoses(before: SceneJSON, after: SceneJSON, host: Li
     const a = afterById.get(id)
     const b = beforeById.get(id)
     if (!a || !b || sameCargoPose(cargoPoseOf(a), cargoPoseOf(b))) continue
-    const by = carryingAncestor(id, after.parts, beforeById, afterById, skip)
+    const by = carryingAncestor(id, beforeById, afterById, skip)
     if (by) designed.set(id, carryCargoPose(pose, by.before, by.after))
   }
 }

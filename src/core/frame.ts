@@ -441,13 +441,12 @@ export function carryCargoPose(pose: CargoPose, a0: PartInstance, a1: PartInstan
  */
 export function carryingAncestor(
   id: string,
-  afterParts: readonly PartInstance[],
   beforeById: ReadonlyMap<string, PartInstance>,
   afterById: ReadonlyMap<string, PartInstance>,
   skip: (id: string) => boolean,
 ): { before: PartInstance; after: PartInstance } | null {
-  // the parent chain in `afterById` (built from `afterParts`), nearest first as hierarchy's ancestorIds walks it, without
-  // rebuilding a whole-scene map per moved box. `afterParts` stays in the signature for callers.
+  // the parent chain in `afterById`, nearest first as hierarchy's ancestorIds walks it, without rebuilding a
+  // whole-scene map per moved box
   const seen = new Set<string>([id])
   for (let anc = afterById.get(id)?.parent; anc !== undefined && !seen.has(anc); anc = afterById.get(anc)?.parent) {
     seen.add(anc)

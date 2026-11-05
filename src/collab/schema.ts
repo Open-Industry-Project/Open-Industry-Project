@@ -256,15 +256,24 @@ export function writePlcs(ydoc: Y.Doc, plcs: SceneJSON['plcs']): void {
  *  the scene like the controllers: an edit, undoable, read by docToScene, and a change to it rebuilds the scene. */
 export const DISPLAY_META = 'display'
 
+// the last list read from each room, by its text, as lastPlcs: the same array while a peer drags, so Present and the
+// toolbar don't re-render on every remote transaction
+const lastDisplay = new WeakMap<Y.Doc, { text: string; display: SceneJSON['display'] }>()
+
 /** the room scene's display list, read like any other untrusted copy of it; absent when the room has none */
 export function readDisplay(ydoc: Y.Doc): SceneJSON['display'] {
   const v = metaMap(ydoc).get(DISPLAY_META)
   if (typeof v !== 'string') return undefined
+  const last = lastDisplay.get(ydoc)
+  if (last?.text === v) return last.display
+  let display: SceneJSON['display']
   try {
-    return readDisplayList(JSON.parse(v))
+    display = readDisplayList(JSON.parse(v))
   } catch {
-    return undefined
+    display = undefined
   }
+  lastDisplay.set(ydoc, { text: v, display })
+  return display
 }
 
 /** write the room scene's display list; a no-op when unchanged. Call inside the caller's transaction. */
