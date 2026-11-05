@@ -5,6 +5,7 @@
 import { MAX_DISPLAY_VALUES, withDisplayed } from '../../core/scene/sceneDisplay'
 import type { SceneJSON } from '../../core/types'
 import type { EditorState, EditorStore } from '../store/store'
+import { documentSceneOf } from '../store/storeDocument'
 import { defineMessages, t } from '../../core/i18n'
 
 const M = defineMessages('displayValues', {
@@ -14,9 +15,9 @@ const M = defineMessages('displayValues', {
   reorder: 'Reorder the values on displays',
 })
 
-/** the values displays show now */
-export function displayedValues(state: Pick<EditorState, 'scene'>): readonly string[] {
-  return state.scene.display ?? []
+/** the values displays show now: the document's list, also while a definition session has the scene */
+export function displayedValues(state: Pick<EditorState, 'scene' | 'packageEdit'>): readonly string[] {
+  return documentSceneOf(state).display ?? []
 }
 
 /** the list can be changed here: an editor, outside the Part Editor (whose scene is the part's, not the project's) */

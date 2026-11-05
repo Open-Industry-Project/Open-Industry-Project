@@ -28,7 +28,7 @@ export function readDisplayList(raw: unknown, repairs?: string[]): string[] | un
   return out.length > 0 ? out : undefined
 }
 
-/** the list with `name` shown or not; the same array when nothing changes */
+/** the list with `name` shown or not; an equal copy when nothing changes */
 export function withDisplayed(list: readonly string[] | undefined, name: string, shown: boolean): string[] | undefined {
   const cur = list ?? []
   const has = cur.includes(name)

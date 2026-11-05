@@ -37,6 +37,7 @@ import {
   VRIcon,
 } from './toolbarIcons'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
+import { displayedValues } from '../program/displayValues'
 
 const M = defineMessages('toolbar', {
   menuTitle: 'Menu (Alt)',
@@ -576,7 +577,7 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
                   >
                     <span className="share-option-text">
                       <span className="share-option-sub">
-                        {(state.scene.display ?? []).length > 0 ? t(M.displayValues, { count: (state.scene.display ?? []).length }) : t(M.displayValuesNone)}
+                        {displayedValues(state).length > 0 ? t(M.displayValues, { count: displayedValues(state).length }) : t(M.displayValuesNone)}
                       </span>
                     </span>
                   </button>

@@ -14,7 +14,7 @@
 // A browser goes fullscreen only on a click, so a display link offers Full screen until it is: one click from whoever
 // sets the screen up, rather than kiosk mode. A browser already filling the screen (kiosk mode) is not offered it.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import { getPeers } from '../../collab/session'
 import type { TagValue } from '../../plc'
@@ -22,7 +22,7 @@ import type { EditorController } from '../controller'
 import type { EditorState, EditorStore } from '../store/store'
 import { declaredTypeSets, typeOfKey } from '../program/plcValueText'
 import { PresentValues, type DisplayCandidate } from './PresentValues'
-import { addDisplayed, canEditDisplay, moveDisplayed, setDisplayed } from '../program/displayValues'
+import { addDisplayed, canEditDisplay, displayedValues, moveDisplayed, setDisplayed } from '../program/displayValues'
 import { listTags } from '../../plc/tags'
 import { deviceTags } from '../../plc/bindings'
 import { defineMessages, t } from '../../core/i18n'
@@ -71,11 +71,21 @@ export function PresentOverlay({ store, state, controller }: { store: EditorStor
     }
     wake()
     window.addEventListener('pointermove', wake)
-    // leaving the browser's fullscreen (its own Escape) leaves Present too, so one key ends both
+    // leaving the browser's fullscreen (its own Escape) leaves Present too, so one key ends both. The browser takes
+    // that Escape before the page sees it, so one pressed in the overlay's filter or search only leaves the field.
     let wasFullscreen = document.fullscreenElement !== null
     const onFullscreen = (): void => {
-      if (document.fullscreenElement) wasFullscreen = true
-      else if (wasFullscreen && !store.getState().presentLocked) store.setState({ presenting: false })
+      if (document.fullscreenElement) {
+        wasFullscreen = true
+        return
+      }
+      if (!wasFullscreen || store.getState().presentLocked) return
+      const focused = document.activeElement
+      if (focused instanceof HTMLInputElement && focused.closest('.present-overlay')) {
+        focused.blur()
+        return
+      }
+      store.setState({ presenting: false })
     }
     document.addEventListener('fullscreenchange', onFullscreen)
     // a display shows the browser's own right-click menu to nobody
@@ -113,7 +123,7 @@ export function PresentOverlay({ store, state, controller }: { store: EditorStor
   }, [shown])
 
   // the picked values, read from the image the run (this tab's, or the one it follows) keeps
-  const names = state.scene.display ?? []
+  const names = displayedValues(state)
   const [image, setImage] = useState<Readonly<Record<string, TagValue>> | null>(null)
   const ctrlRef = useRef(controller)
   ctrlRef.current = controller
@@ -129,7 +139,17 @@ export function PresentOverlay({ store, state, controller }: { store: EditorStor
     if (listing) for (const d of deviceTags(parts)) for (const f of d.fields) if (f.value !== '' && f.type && !m.has(f.value)) m.set(f.value, f.type)
     return m
   }, [listing, parts])
-  const typeOf = (name: string, key: string | null): string | undefined => (declared ? typeOfKey(declared, key ?? name) : undefined) ?? wired.get(name)
+  const typeOf = useCallback(
+    (name: string, key: string | null): string | undefined => (declared ? typeOfKey(declared, key ?? name) : undefined) ?? wired.get(name),
+    [declared, wired],
+  )
+  // the wired tags and the program's variables change with the scene, not with each value read: built once the
+  // search first asks, and kept until they change
+  const stProgram = state.stProgram
+  const fixedCandidates = useMemo(() => {
+    let built: Map<string, DisplayCandidate> | null = null
+    return () => (built ??= programCandidates(parts, stProgram, typeOf))
+  }, [parts, stProgram, typeOf])
   useEffect(() => {
     if (!listing) return
     const read = (): void => setImage(ctrlRef.current?.plcWatch ?? null)
@@ -166,7 +186,7 @@ export function PresentOverlay({ store, state, controller }: { store: EditorStor
           editable={editable}
           editing={editable && state.presentEditing}
           onEditing={(editing) => store.setState({ presentEditing: editing })}
-          candidates={() => displayCandidates(state, image, typeOf)}
+          candidates={() => displayCandidates(fixedCandidates(), image, typeOf)}
           onRemove={(n) => setDisplayed(store, n, false)}
           onAdd={(ns) => addDisplayed(store, ns)}
           onMove={(from, to) => moveDisplayed(store, from, to)}
@@ -190,21 +210,29 @@ export function PresentOverlay({ store, state, controller }: { store: EditorStor
 /** most names offered from the running image: a large program's image holds thousands */
 const MAX_IMAGE_CANDIDATES = 2000
 
-/**
- * What the project can show, for the editing panel's search: the tags wired to parts (named by the part), the program's
- * variables, and whatever else the running image holds (a PLC outside the app's tags). Each once, wired tags first.
- */
-function displayCandidates(state: EditorState, image: Readonly<Record<string, TagValue>> | null, typeOf: (name: string, key: string | null) => string | undefined): DisplayCandidate[] {
+type TypeOf = (name: string, key: string | null) => string | undefined
+
+/** the tags wired to parts (named by the part), then the program's variables: each once */
+function programCandidates(parts: EditorState['scene']['parts'], stProgram: string, typeOf: TypeOf): Map<string, DisplayCandidate> {
   const out = new Map<string, DisplayCandidate>()
-  for (const d of deviceTags(state.scene.parts)) for (const f of d.fields) if (f.value !== '' && !out.has(f.value)) out.set(f.value, { name: f.value, type: f.type ?? undefined, from: d.name })
+  for (const d of deviceTags(parts)) for (const f of d.fields) if (f.value !== '' && !out.has(f.value)) out.set(f.value, { name: f.value, type: f.type ?? undefined, from: d.name })
   let declared: string[]
   try {
-    declared = listTags(state.stProgram).map((v) => v.name)
+    declared = listTags(stProgram).map((v) => v.name)
   } catch {
     declared = [] // a program that does not parse offers its wired tags only
   }
   const program = t(M.fromProgram)
   for (const n of declared) if (!out.has(n)) out.set(n, { name: n, type: typeOf(n, null), from: program })
-  for (const n of Object.keys(image ?? {}).slice(0, MAX_IMAGE_CANDIDATES)) if (!out.has(n)) out.set(n, { name: n, type: typeOf(n, n), from: 'PLC' }) // i18n-ok
-  return [...out.values()]
+  return out
+}
+
+/**
+ * What the project can show, for the editing panel's search: `fixed` (programCandidates), then whatever else the
+ * running image holds (a PLC outside the app's tags). Each once.
+ */
+function displayCandidates(fixed: ReadonlyMap<string, DisplayCandidate>, image: Readonly<Record<string, TagValue>> | null, typeOf: TypeOf): DisplayCandidate[] {
+  const out = [...fixed.values()]
+  for (const n of Object.keys(image ?? {}).slice(0, MAX_IMAGE_CANDIDATES)) if (!fixed.has(n)) out.push({ name: n, type: typeOf(n, n), from: 'PLC' }) // i18n-ok
+  return out
 }
