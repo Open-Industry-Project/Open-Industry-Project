@@ -25,6 +25,11 @@ export function canEditDisplay(state: Pick<EditorState, 'readOnly' | 'packageEdi
   return !state.readOnly && !state.packageEdit
 }
 
+/** the list is at its limit, so a value can only be added after another is taken off */
+export function displayListFull(state: Pick<EditorState, 'scene' | 'packageEdit'>): boolean {
+  return displayedValues(state).length >= MAX_DISPLAY_VALUES
+}
+
 function commitList(store: EditorStore, label: string, display: readonly string[] | undefined): void {
   const scene: SceneJSON = store.getState().scene
   const { display: _, ...rest } = scene
@@ -36,6 +41,8 @@ export function setDisplayed(store: EditorStore, name: string, shown: boolean): 
   if (!canEditDisplay(store.getState())) return
   const cur = store.getState().scene.display
   if ((cur ?? []).includes(name) === shown) return
+  // a full list would cut the new name off, and the commit would be an undo step that changes nothing
+  if (shown && (cur?.length ?? 0) >= MAX_DISPLAY_VALUES) return
   commitList(store, t(shown ? M.show : M.hide, { name }), withDisplayed(cur, name, shown))
 }
 
@@ -44,7 +51,7 @@ export function addDisplayed(store: EditorStore, names: readonly string[]): void
   if (!canEditDisplay(store.getState())) return
   const cur = store.getState().scene.display ?? []
   const added = names.filter((n, i) => !cur.includes(n) && names.indexOf(n) === i)
-  if (added.length === 0) return
+  if (added.length === 0 || cur.length >= MAX_DISPLAY_VALUES) return
   commitList(store, t(M.add, { count: added.length }), [...cur, ...added].slice(0, MAX_DISPLAY_VALUES))
 }
 

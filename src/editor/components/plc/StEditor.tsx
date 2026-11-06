@@ -43,7 +43,8 @@ import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { primaryKey } from '../../keyHint'
 import { activeClipboard } from '../../dialogHost'
 import { addToWatchList, resolveWatch, tabWatchListKey } from '../../program/plcWatchList'
-import { canEditDisplay, displayedValues, setDisplayed } from '../../program/displayValues'
+import { canEditDisplay, displayedValues, displayListFull, setDisplayed } from '../../program/displayValues'
+import { MAX_DISPLAY_VALUES } from '../../../core/scene/sceneDisplay'
 
 const M = defineMessages('stEditor', {
   viewOnlyLink: 'Disabled on a view-only link',
@@ -75,6 +76,7 @@ const M = defineMessages('stEditor', {
   hideNameOnDisplays: 'Stop showing {name} on displays',
   showOnDisplays: 'Show on displays',
   showOnDisplaysHint: "Put its live value beside the scene on the project's displays",
+  displayFull: 'A display lists at most {count} values. Take one off to add another.',
   addToWatch: 'Add to Watch',
   addToWatchHint: 'Follow its live value in the Watch dock',
   addToWatchNone: 'Right-click a variable to watch it',
@@ -862,11 +864,12 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
         // the project's displays (program/displayValues.ts): beside Add to Watch, which is the reader's own list
         (() => {
           const shown = at.name !== null && displayedValues(stateRef.current).includes(at.name)
+          const full = !shown && displayListFull(stateRef.current)
           return {
             label: at.name !== null ? t(shown ? M.hideNameOnDisplays : M.showNameOnDisplays, { name: at.name }) : t(M.showOnDisplays),
             testid: 'st-show-on-displays',
-            disabled: at.name === null || !canEditDisplay(stateRef.current),
-            title: t(at.name !== null ? M.showOnDisplaysHint : M.addToWatchNone),
+            disabled: at.name === null || !canEditDisplay(stateRef.current) || full,
+            title: at.name === null ? t(M.addToWatchNone) : full ? t(M.displayFull, { count: MAX_DISPLAY_VALUES }) : t(M.showOnDisplaysHint),
             onClick: later(() => at.name !== null && setDisplayed(store, at.name, !shown)),
           }
         })(),

@@ -30,6 +30,17 @@ describe("the project's display list, edited from the editor", () => {
     expect(listed(store)).toHaveLength(MAX_DISPLAY_VALUES)
   })
 
+  it('adds nothing to a full list, so no undo step changes nothing', () => {
+    const store = new EditorStore()
+    addDisplayed(store, Array.from({ length: MAX_DISPLAY_VALUES }, (_, i) => `T${i}`))
+    const before = store.getState().scene
+    setDisplayed(store, 'Speed', true)
+    addDisplayed(store, ['Count'])
+    expect(store.getState().scene).toBe(before)
+    store.undo()
+    expect(listed(store)).toEqual([])
+  })
+
   it('moves a value in the order', () => {
     const store = new EditorStore()
     addDisplayed(store, ['A', 'B', 'C'])

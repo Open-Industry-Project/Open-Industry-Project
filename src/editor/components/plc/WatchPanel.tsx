@@ -12,7 +12,8 @@ import { devicesWiredTo, usePlcForces } from '../../program/plcForces'
 import { addWatchNames, onWatchListChange, parseWatchNames, readWatchList, resolveWatch, saveWatchList, tabWatchListKey, type WatchRow } from '../../program/plcWatchList'
 import { TrashIcon } from '../toolbarIcons'
 import { ContextMenu, type MenuItem } from '../inspector/menu'
-import { canEditDisplay, displayedValues, setDisplayed } from '../../program/displayValues'
+import { canEditDisplay, displayedValues, displayListFull, setDisplayed } from '../../program/displayValues'
+import { MAX_DISPLAY_VALUES } from '../../../core/scene/sceneDisplay'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('plcWatch', {
@@ -66,6 +67,7 @@ const M = defineMessages('plcWatch', {
   displayOff: 'Stop showing on displays',
   displayHint: "Put this value beside the scene on the project's displays. Your Watch list stays your own",
   displayHintOff: "Take this value off the project's displays",
+  displayFull: 'A display lists at most {count} values. Take one off to add another.',
   addLabel: 'Variables to watch',
   addPlaceholder: 'Name, or several separated by commas',
   add: 'Add',
@@ -308,6 +310,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
   const openRowMenu = (e: ReactMouseEvent, name: string): void => {
     e.preventDefault()
     const shown = displayedValues(state).includes(name)
+    const full = !shown && displayListFull(state)
     setRowMenu({
       x: e.clientX,
       y: e.clientY,
@@ -315,8 +318,8 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
         {
           label: t(shown ? M.displayOff : M.display),
           testid: 'plc-watch-display',
-          title: t(shown ? M.displayHintOff : M.displayHint),
-          disabled: !canEditDisplay(state),
+          title: full ? t(M.displayFull, { count: MAX_DISPLAY_VALUES }) : t(shown ? M.displayHintOff : M.displayHint),
+          disabled: !canEditDisplay(state) || full,
           onClick: () => setDisplayed(store, name, !shown),
         },
       ],
