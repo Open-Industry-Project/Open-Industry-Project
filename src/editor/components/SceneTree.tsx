@@ -450,7 +450,7 @@ const TreeRow = memo(function TreeRow(props: TreeRowProps) {
 export function SceneTree({ store, state, controller }: SceneTreeProps) {
   // the parts with a forced signal, re-worked out when a force is set or released (not every frame)
   const forces = usePlcForces(controller)
-  const forcedParts = useMemo(() => partsWithForces(state.scene.parts, forces, controller?.plcWatch, controller?.plcAliases), [state.scene.parts, forces, controller])
+  const forcedParts = useMemo(() => partsWithForces(state.scene.parts, forces, controller?.plcProgramWatch, controller?.plcAliases), [state.scene.parts, forces, controller])
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [text, setText] = useState('')
   // author-mode rig-node rename (parallel to the part-row rename above): which internal link is being

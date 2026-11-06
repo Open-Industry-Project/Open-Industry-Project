@@ -20,7 +20,7 @@ function deps(watch: Record<string, number | boolean>): PlcWriteDeps & { writes:
     },
   }
   const writes: string[] = []
-  return { ec: { plcWatch: watch, sim } as unknown as PlcWriteDeps['ec'], p, writes, told }
+  return { ec: { plcProgramWatch: watch, sim } as unknown as PlcWriteDeps['ec'], p, writes, told }
 }
 
 describe('forcing, controller side', () => {

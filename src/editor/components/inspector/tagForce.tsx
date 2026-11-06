@@ -47,6 +47,8 @@ function useLiveValue(forcing: TagForcing, key: string | null): TagValue | undef
 /** What a tag field needs of the controller to force the variable its tag names. */
 export interface TagForcing extends ForceSource {
   readonly plcWatch: Readonly<Record<string, TagValue>> | null
+  /** The part of plcWatch a force reaches: the program running here, without an external PLC's tags. */
+  readonly plcProgramWatch: Readonly<Record<string, TagValue>> | null
   readonly plcAliases: ReadonlyMap<string, string>
   forcePlcValue(key: string, text?: string): string | null
   releasePlcForces(key?: string): void
@@ -80,6 +82,8 @@ export function TagForce({ forcing, tag, paramKey }: { forcing: TagForcing; tag:
   // a STRING cannot be forced (the Watch dock offers no Force for one either)
   const value = watch[key]
   if (!isHeld && (value === undefined || typeof value === 'string')) return null
+  // an external PLC's tag shows its value, but a force here would never reach that PLC
+  const forceable = isHeld || forceKeyOf(tag, forcing.plcProgramWatch, forcing.plcAliases) === key
   const liveText = !isHeld && live !== undefined && typeof live !== 'string' ? formatPlcValue(live, types ? typeOfKey(types, key) : undefined, 8) : null
   const heldTip = isHeld ? t(M.heldAt, { value: formatPlcValue(held, types ? typeOfKey(types, key) : undefined) }) : undefined
   return (
@@ -133,7 +137,7 @@ export function TagForce({ forcing, tag, paramKey }: { forcing: TagForcing; tag:
           {liveText}
         </span>
       )}
-      <button
+      {forceable && <button
         type="button"
         className="tag-force-btn"
         data-testid={`inspector-force-${paramKey}`}
@@ -147,7 +151,7 @@ export function TagForce({ forcing, tag, paramKey }: { forcing: TagForcing; tag:
         }}
       >
         {t(isHeld ? M.release : M.force)}
-      </button>
+      </button>}
       {error && (
         <span className="tag-warn" role="alert" title={error} aria-label={error} data-testid="inspector-force-error">
           {'!' /* i18n-ok: a mark, its words are the title */}

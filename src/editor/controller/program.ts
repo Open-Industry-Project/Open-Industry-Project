@@ -379,7 +379,7 @@ export function stopProgram(p: ProgramState, ec: ProgramDeps): void {
 }
 
 /** What a write to a running program goes through: its value image, the worker, and the held forces' watchers. */
-export type PlcWriteDeps = { ec: Pick<EditorController, 'plcWatch' | 'sim'>; p: ProgramState }
+export type PlcWriteDeps = { ec: Pick<EditorController, 'plcProgramWatch' | 'sim'>; p: ProgramState }
 
 /** Replace the held forces and tell what shows them. */
 function setForces(p: ProgramState, sim: Pick<EditorController['sim'], 'setForces'>, forces: Readonly<Record<string, number | boolean>>): void {
@@ -437,7 +437,7 @@ function currentValue(watch: Readonly<Record<string, TagValue>> | null, key: str
 
 export function togglePlcBit(deps: PlcWriteDeps, key: string): boolean {
   const { ec } = deps
-  const watch = ec.plcWatch
+  const watch = ec.plcProgramWatch
   const cur = watch?.[key]
   // `Status.3`: one bit of a word. The watch holds the word, so the bit is read out of it here and
   // the write goes by the bit's own name, which the program's setInput understands (interpreter.ts)
@@ -483,7 +483,7 @@ function showWritten(ec: PlcWriteDeps['ec'], key: string, value: number | boolea
 }
 
 export function writePlcValue(deps: PlcWriteDeps, key: string, text: string): string | null {
-  const parsed = parsePlcValue(deps.ec.plcWatch, key, text)
+  const parsed = parsePlcValue(deps.ec.plcProgramWatch, key, text)
   if ('error' in parsed) return parsed.error
   writeOrHold(deps, key, parsed.value)
   showWritten(deps.ec, key, parsed.value)
@@ -496,7 +496,7 @@ export function writePlcValue(deps: PlcWriteDeps, key: string, text: string): st
  */
 export function forcePlcValue(deps: PlcWriteDeps, key: string, text?: string): string | null {
   const { ec, p } = deps
-  const watch = ec.plcWatch
+  const watch = ec.plcProgramWatch
   let value: number | boolean
   if (text === undefined) {
     if (!watch) return 'The program is not running'
