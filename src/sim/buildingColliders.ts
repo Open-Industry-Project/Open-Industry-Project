@@ -16,6 +16,26 @@ export interface YawBox {
   z: number
 }
 
+/**
+ * Half the side of the square ground slab: the default ground, or wider when a building's footprint reaches past
+ * it. A building draws its own floor at any size, so its floor has to hold what stands on it there too. A scene
+ * whose buildings fit keeps the default slab, so its physics does not change.
+ */
+export function groundHalfExtent(parts: readonly { type: string; position: readonly number[]; rotationY: number; params?: unknown }[], base: number): number {
+  let half = base
+  for (const p of parts) {
+    if (p.type !== 'building') continue
+    const b = p as unknown as BuildingPart
+    const hl = (b.params.lengthSections * BUILDING_SECTION_SIZE) / 2 + BUILDING_WALL_THICKNESS
+    const hw = (b.params.widthSections * BUILDING_SECTION_SIZE) / 2 + BUILDING_WALL_THICKNESS
+    for (const [lx, lz] of [[-hl, -hw], [hl, -hw], [hl, hw], [-hl, hw]] as const) {
+      const c = toWorldXZ(b, lx, lz)
+      half = Math.max(half, Math.abs(c.x) + 1, Math.abs(c.z) + 1)
+    }
+  }
+  return half
+}
+
 /** a building's colliders: four static perimeter walls + the interior column grid, each yawed like the part (visibility
  *  booleans are viewing aids only) */
 export function buildingBoxes(part: BuildingPart): YawBox[] {

@@ -55,7 +55,7 @@ import {
 import { BehaviorBus } from './behaviorBus'
 import { BUILDING_FRICTION, deckFriction, GROUND_FRICTION } from './bodyFactory'
 import { BodyHolds } from './bodyHolds'
-import { buildingBoxes } from './buildingColliders'
+import { buildingBoxes, groundHalfExtent } from './buildingColliders'
 import { CargoFlow } from './cargoFlow'
 import { CargoRegistry } from './cargoRegistry'
 import { DECK_AXES } from './conveyorContacts'
@@ -307,7 +307,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.dressings = this.cargo.dressings
     this.holders = this.holds.holders
 
-    this.bodies.addStaticBox(GROUND_SIZE / 2, 0.5, GROUND_SIZE / 2, 0, -0.5, 0, 0, GROUND_FRICTION)
+    this.bodies.fitGround(groundHalfExtent(scene.parts, GROUND_SIZE / 2), GROUND_FRICTION)
 
     // The sim runs in a worker with its own module state, so the scene's embedded custom-part packages
     // must be registered here for the 'part' builder to resolve them (the main-thread registry that
@@ -1376,6 +1376,8 @@ export class SimWorld implements SimCore<BoxFrame> {
         }
       }
     }
+    // a building grown, moved or added mid-run takes the floor with it
+    if (this.bodies.fitGround(groundHalfExtent(scene.parts, GROUND_SIZE / 2), GROUND_FRICTION)) structural = true
     // a static body that moved out from under a sleeping box won't wake it on its
     // own; keep cargo responsive so it follows the geometry being edited
     if (structural) {
