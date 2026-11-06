@@ -252,8 +252,13 @@ export class SimBoxes {
     this.shapesEpoch = epoch
     const last = this.appliedFrame
     if (!last || !partCargo) return
-    for (const shape of this.partShapes.values()) {
+    // only a shape a row of this frame draws: no row rebuilds any other, so it would stay stale and re-apply the
+    // whole frame on every later epoch bump (each rebuild of a drag)
+    let drawn: Set<string | null> | null = null
+    for (const [key, shape] of this.partShapes) {
       if (!partCargo.partCargoMeshStale(shape.built)) continue
+      drawn ??= new Set(last.shapes)
+      if (!drawn.has(key)) continue
       this.appliedFrame = null
       this.apply(last)
       return
