@@ -234,7 +234,9 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   const mainTable = runs.find((r) => r.controller === null)?.table ?? controller
   const built = src.trim() === '' ? { program: null, error: null } : linkFor(controllerSource(src, mainTable))
   const compiled = built.program
-  const link = compiled ? new LocalPlcLink(compiled, wiredBindings(input.parts, compiled)) : null
+  // bound through the link, as Play binds it: its bindable names include a sole instance's bare aliases
+  const declaredLink = compiled ? new LocalPlcLink(compiled) : null
+  const link = declaredLink ? declaredLink.withBindings(wiredBindings(input.parts, declaredLink)) : null
   const brokenProgram = src.trim() !== '' && link === null
   if (brokenProgram) {
     notes.push('The PLC program does not compile, so the checks that need its declarations did not run.')

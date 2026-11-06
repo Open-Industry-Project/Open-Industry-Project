@@ -56,6 +56,20 @@ END_PROGRAM
     expect(v.get('Run')).toEqual({ declared: true, type: 'BOOL', drives: true, reads: false })
   })
 
+  it('binds a sole instance’s plain VAR by its bare name, as Play does', () => {
+    const wrapped = `PROGRAM Main
+VAR
+  Run : BOOL;
+  Done : BOOL;
+END_VAR
+Run := NOT Done;
+END_PROGRAM
+`
+    const v = programTagVerdicts([part('c1', { enableComms: true, runTag: 'Run', doneTag: 'Done' })], check(wrapped))
+    expect(v.get('Run')).toEqual({ declared: true, type: 'BOOL', drives: true, reads: false })
+    expect(v.get('Done')).toEqual({ declared: true, type: 'BOOL', drives: false, reads: true })
+  })
+
   it('says nothing of a part with comms off', () => {
     expect(programTagVerdicts([part('c1', { enableComms: false, runTag: 'Motr' })], check(PROGRAM)).size).toBe(0)
   })

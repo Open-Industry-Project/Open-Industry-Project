@@ -5,6 +5,13 @@ to someone as a single file. Every built-in part is authored on this same SDK
 ([architecture.md](architecture.md)), so [`examples/parts/`](../examples/parts/) is a library of worked
 examples: whatever you are building, a shipped part already does something like it.
 
+The step-by-step part guides on the site start before this one. Four guides take one blade stop from a model to a part
+that stops product, all through the app's own UI and with no code in the part: [a part from your own model](https://www.openindustryproject.org/guides/part-model/),
+[a piece that moves on a PLC command](https://www.openindustryproject.org/guides/part-motion/) (Split into pieces, a
+joint, PLC control Two positions), [its state back to the PLC](https://www.openindustryproject.org/guides/part-feedback/)
+and [stopping product](https://www.openindustryproject.org/guides/part-product/) (a collider under the moving node).
+Their pages are `guides/part-*/`, each followed by its `e2e/guide-part-*.mjs`.
+
 The API reference is the generated SDK in [`packages/part-sdk/`](../packages/part-sdk/), the same types the
 in-app editor uses for autocomplete. This guide is the overview; those files have the details:
 

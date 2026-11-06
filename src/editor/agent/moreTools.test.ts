@@ -166,6 +166,16 @@ describe('agent tools: part definitions', () => {
     expect(await refused({ ...c, shell }, 'import_model', { id: 'agent.lift', link: 'deck', path: 'C:/m.glb' })).toMatch(/no link 'deck' \(it has: body\)/)
     expect(await refused({ ...c, shell }, 'import_model', { id: 'agent.lift', link: 'body', path: 'C:/m.glb' })).toBe('unused')
   })
+
+  it('import_model refuses a .glb that is not a model, and changes nothing', async () => {
+    const shell = { readModel: async () => ({ name: 'm.glb', bytes: new TextEncoder().encode('a text file renamed to .glb') }) }
+    const c = { ...ctx(), shell }
+    const before = getPackage('agent.lift')
+    const steps = c.store.getEditHistory().events.length
+    expect(await refused(c, 'import_model', { id: 'agent.lift', link: 'body', path: 'C:/m.glb' })).toMatch(/m\.glb is not a model this importer can read/)
+    expect(getPackage('agent.lift')).toBe(before)
+    expect(c.store.getEditHistory().events.length).toBe(steps)
+  })
 })
 
 describe('agent tools: the program by POU', () => {

@@ -452,7 +452,8 @@ export const importModel: AgentTool = {
         ...(r.stats.warnings.length ? { warnings: r.stats.warnings.slice(0, 5).map((w) => w.message) } : {}),
       }
     }
-    const { warning, fitted } = setLinkMesh({ store: ctx.store }, pkg.id, link, glb, `${AGENT_LABEL}: import model into ${pkg.name}`)
+    const { warning, fitted, unreadable } = setLinkMesh({ store: ctx.store }, pkg.id, link, glb, `${AGENT_LABEL}: import model into ${pkg.name}`)
+    if (unreadable) throw new AgentToolError(`${file.name} is not a model this importer can read: export it as a .glb (glTF Binary), a STEP file or a USD file`)
     const now = getPackage(pkg.id)
     const footprint = now ? footprintOf(now) : null
     const fit = now ? modelFit(now, link, glb) : null

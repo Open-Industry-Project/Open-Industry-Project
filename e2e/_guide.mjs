@@ -195,7 +195,7 @@ const PICTURE_RE = /<img\b[^>]*\bsrc="img\/([\w-]+)\.webp"[^>]*>/g
  * script takes at the moment the page describes, so a picture is retaken by the same run that proves the text, never
  * by hand, and goes stale only as fast as the script does.
  *
- *   ui(page, name, locator)     the app's own UI, cropped to one element (lossless)
+ *   ui(page, name, locator)     the app's own UI, cropped to one element, or to an array of them (lossless)
  *   scene(page, name, pose)     the 3D view alone, from a camera pose (cleanShot: no gizmo, no HUD), cut to a 2:1 band
  *   window(win, name, opts)     a whole window, such as a third-party tool's; `{ app, size }` shoots it at that content
  *                               size (an Electron app), then maximizes it again; `{ until }` cuts it below the bottom
@@ -245,9 +245,14 @@ export function guidePictures(slug, { html, expect }, argv = process.argv.slice(
     async ui(p, name, locator, { pad = 10 } = {}) {
       if (!wants(name)) return
       await tidy(p)
-      await locator.scrollIntoViewIfNeeded()
-      const box = await locator.boundingBox()
-      if (!expect(!!box, `picture ${name}: its element is on screen`)) return
+      // several locators: the one picture holds them all (two fields one above the other)
+      const locators = [locator].flat()
+      await locators[0].scrollIntoViewIfNeeded()
+      const boxes = await Promise.all(locators.map((l) => l.boundingBox()))
+      if (!expect(boxes.every(Boolean), `picture ${name}: its element is on screen`)) return
+      const x0 = Math.min(...boxes.map((b) => b.x))
+      const y0 = Math.min(...boxes.map((b) => b.y))
+      const box = { x: x0, y: y0, width: Math.max(...boxes.map((b) => b.x + b.width)) - x0, height: Math.max(...boxes.map((b) => b.y + b.height)) - y0 }
       const vp = await p.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
       const x = Math.max(0, Math.floor(box.x - pad))
       const y = Math.max(0, Math.floor(box.y - pad))

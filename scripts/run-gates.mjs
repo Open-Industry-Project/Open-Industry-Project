@@ -528,6 +528,14 @@ const GATES = [
     why: "the ADS guide (/guides/ads/) as far as it can be followed without vendor software: step 1's scene, each row of its wiring table typed into the Inspector field the page names, and its picture the size its tag says. The connection itself needs the reader's TwinCAT router, which this project never runs. Retake its picture with `node e2e/guide-ads.mjs --images`. Launches the dev Electron shell",
   },
   {
+    script: 'guide-part-model.mjs',
+    why: "the first part guide (/guides/part-model/) followed the same way with the example model it offers for download (public/guides/blade-stop.glb, the built-in Blade Stop's model in metres): Import part > A model..., the Inspector's fit message, the body and collider nodes, the pieces and size the page names, Name and Category, ‹ Scene, a roller conveyor and the part dragged in and mounted from the page's table with the blade under the rollers, and a file that is not a model refused in the page's words. It also holds the view framed on the model after the import. Retake its pictures with `node e2e/guide-part-model.mjs --images`. Launches the dev Electron shell",
+  },
+  {
+    script: 'guide-part-product.mjs',
+    why: "the other three part guides, each starting where the one before ends, so this one script follows all four pages in turn (the first and the next two replayed against their own pages, e2e/_partGuide.mjs): the blade split out with Split into pieces, a prismatic joint driven by Two positions, Command wired and the page's program running the blade every 2 s at the stroke time; At A and At B reported to the program, with the ! and ✓ marks the page describes, and a stroke slower than the program allows latching BladeFault; then a hidden box under the blade that covers it as drawn, a box held against the raised blade for 3 s of simulated time by the page's program and photo eye, and released. Retake pictures with `node e2e/guide-part-<slug>.mjs --images`. Launches the dev Electron shell",
+  },
+  {
     script: 'verify-repo-self-contained.mjs',
     why: "the working tree is not the repo, and nothing else can tell the difference - tsc, eslint and vitest all read the filesystem, so they go green on a tree no clone can reproduce. Two shapes, both of which shipped: ~100 comments cite the probe that measured a constant, and a cited probe has to be a tracked file in e2e/probes/ (three were never committed and are gone, leaving numbers nobody can re-derive), and 16 modules including src/plc/ladder/ladder.ts and src/core/io/opcUa.ts were imported by 41 tracked files while untracked. Static, no browser",
   },

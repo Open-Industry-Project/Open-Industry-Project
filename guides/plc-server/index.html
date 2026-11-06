@@ -30,6 +30,7 @@
     <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
 
     <link rel="stylesheet" href="/src/site/site.css" />
+    <script type="module" src="/src/site/copyCode.js"></script>
   </head>
 
   <body class="doc">
@@ -39,7 +40,7 @@
         <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
         <nav class="nav-links" aria-label="Site">
           <a href="/plc/">PLC reference</a>
-          <a href="/guides/">Connection guides</a>
+          <a href="/guides/">Guides</a>
           <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
         </nav>
         <a class="btn btn-sm" href="/app/">Open the editor</a>
@@ -137,7 +138,7 @@
         </figure>
 
         <h3>A3. The PLC program</h3>
-        <pre class="code" translate="no"><code>PROGRAM PLC_PRG
+        <pre class="code" translate="no" data-copy><code>PROGRAM PLC_PRG
 VAR
   Eye AT %IX0.0 : BOOL;
   Run AT %QX0.0 : BOOL;
@@ -213,7 +214,7 @@ END_PROGRAM</code></pre>
         </p>
 
         <h3>B3. The PLC program</h3>
-        <pre class="code" translate="no"><code>PROGRAM PLC_PRG
+        <pre class="code" translate="no" data-copy><code>PROGRAM PLC_PRG
 VAR
   Eye : BOOL;
   Run : BOOL;
@@ -317,7 +318,7 @@ END_PROGRAM</code></pre>
             <ul>
               <li><a href="/guides/modbus/">Guide: a PLC that polls the simulator over Modbus TCP</a></li>
               <li><a href="/guides/opcua/">Guide: connect a SCADA or HMI over OPC UA</a></li>
-              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/">All guides</a></li>
               <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
               <li><a href="/plc/">PLC language reference</a></li>
               <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>

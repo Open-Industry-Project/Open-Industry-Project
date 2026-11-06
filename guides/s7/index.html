@@ -28,6 +28,7 @@
     <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
 
     <link rel="stylesheet" href="/src/site/site.css" />
+    <script type="module" src="/src/site/copyCode.js"></script>
   </head>
 
   <body class="doc">
@@ -37,7 +38,7 @@
         <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
         <nav class="nav-links" aria-label="Site">
           <a href="/plc/">PLC reference</a>
-          <a href="/guides/">Connection guides</a>
+          <a href="/guides/">Guides</a>
           <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
         </nav>
         <a class="btn btn-sm" href="/app/">Open the editor</a>
@@ -189,7 +190,7 @@
           </table>
         </div>
         <p>and one line in <b>Main [OB1]</b>, created in SCL (in LAD it is a normally closed contact on <code>Eye</code> driving a coil on <code>Run</code>):</p>
-        <pre class="code" translate="no"><code>"Run" := NOT "Eye";</code></pre>
+        <pre class="code" translate="no" data-copy><code>"Run" := NOT "Eye";</code></pre>
 
         <h3>3c. Download it</h3>
         <p>
@@ -265,7 +266,7 @@
           <li>Turn off optimized block access for the data block, so its variables have fixed byte offsets (Siemens' documentation shows where), and compile. <code>Eye</code> is then at offset <b>0.0</b>.</li>
           <li>Read it in <b>Main [OB1]</b> instead of the input (the data block's name in place of <code>"DB1"</code> if you gave it one):</li>
         </ol>
-        <pre class="code" translate="no"><code>"Run" := NOT "DB1".Eye;</code></pre>
+        <pre class="code" translate="no" data-copy><code>"Run" := NOT "DB1".Eye;</code></pre>
         <ol class="steps">
           <li>Download, then rewire the photo eye in the simulator to the data block, in the S7 data-block spelling, without the <code>%</code>:</li>
         </ol>
@@ -336,7 +337,7 @@
           <div>
             <h4>Explore</h4>
             <ul>
-              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/">All guides</a></li>
               <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O (Modbus TCP, OPC UA)</a></li>
               <li><a href="/guides/ads/">Guide: connect a TwinCAT PLC over ADS</a></li>
               <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>

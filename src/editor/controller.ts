@@ -978,8 +978,8 @@ export class EditorController {
    * pushes the project doc over localStorage, so an oversized model is called out at the moment it's
    * picked rather than only via the autosave banner later. See LARGE_EMBED_B64 and projectFile.SaveResult.
    */
-  setLinkMesh(packageId: string, linkName: string, glb: Uint8Array): { warning: string | null; fitted: boolean } {
-    return authoringOps.setLinkMesh(this, packageId, linkName, glb)
+  setLinkMesh(packageId: string, linkName: string, glb: Uint8Array): { warning: string | null; fitted: boolean; unreadable?: true } {
+    return authoringOps.importLinkMesh(this, packageId, linkName, glb)
   }
 
   /**

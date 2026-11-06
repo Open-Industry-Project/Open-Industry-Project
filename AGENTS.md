@@ -137,6 +137,9 @@ projectTestsRun.ts); eslint enforces both.
   three.js internals patch; read before bumping three, update when you add or retire a patch), `cdn-runbook.md`
   (hosting measurements and texture-residency numbers; read before spending effort on load performance).
 - **`apps/desktop/`** - the native (Electron) shell wrapping the same TS core.
+- **Code review passes: [.claude/review-ledger.md](.claude/review-ledger.md)**, where the last pass stopped, the next
+  area in the rotation, and findings left on purpose. A review reads it first, skips what it lists as accepted, and
+  adds its own row last.
 - **The agent door: [src/editor/agent/tools.ts](src/editor/agent/tools.ts)**, what an AI agent may do to the open
   editor, served by the desktop app over MCP at `http://127.0.0.1:5189/mcp`
   ([apps/desktop/mcpServer.cjs](apps/desktop/mcpServer.cjs) is only the transport). Off in an installed app until

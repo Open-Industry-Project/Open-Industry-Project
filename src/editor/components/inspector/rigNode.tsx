@@ -51,9 +51,10 @@ const M = defineMessages('inspector.rigNode', {
   noteArray: 'This node is repeated; moving it moves every copy.',
   noteDrawn: "The part's script draws on this node: the drawing moves with it, but its shape is the script's.",
   importing: 'Importing {file}…',
-  imported: 'Imported {file}',
+  imported: 'Imported {file}.',
   importedWarn: 'Imported {file}. {warning}',
   readFailed: 'Could not read the file.',
+  notAModel: '{file} is not a model this importer can read. Export it again as glTF Binary (.glb), a STEP file or a USD file.',
   convertingStep: 'Converting {file} from STEP. A large assembly can take a minute.',
   nothingToImport: 'Nothing to import: all {solids} solids in {file} are smaller than {mm} mm.',
   importSummary: {
@@ -172,10 +173,10 @@ const M = defineMessages('inspector.rigNode', {
   plcNone: 'None (behavior code)',
   plcTwoPositions: 'Two positions',
   plcSpin: 'Spin',
-  plcSpinHint: "On each placed copy, the Comms fields name the PLC variables: Run is a BOOL the program writes (TRUE spins), Speed (rpm) an optional REAL it writes (empty: the copy's own speed, up to {rpm} rpm, the Speed above), At speed a BOOL it reads. Example names: Run, Speed, AtSpeed (MAIN.Run on TwinCAT).",
+  plcSpinHint: "On each placed copy, the Comms fields name the PLC variables: Run is a BOOL the program writes (TRUE spins), Speed (rpm) an optional REAL it writes (empty: the copy's own speed, up to {rpm} rpm, the Speed above), At speed a BOOL it reads. Example names: Run, Speed, AtSpeed, or Main.Run for one inside a program on an external PLC.",
   strokeTime: 'Stroke time',
   strokeTimeTip: 'Time the joint takes from A to B, and back. Each placed copy can change it in its own Inspector.',
-  plcHint: 'A is Min and B is Max. On each placed copy, the Comms fields name the PLC variables: Command (to B) is a BOOL the program writes, At A and At B are BOOLs it reads. Example names: ToB, AtA, AtB (MAIN.ToB on TwinCAT).',
+  plcHint: 'A is Min and B is Max. On each placed copy, the Comms fields name the PLC variables: Command (to B) is a BOOL the program writes, At A and At B are BOOLs it reads. Example names: ToB, AtA, AtB, or Main.ToB for one inside a program on an external PLC.',
   plcReplace: 'This part has its own behavior script. Two positions writes a new one in its place. Undo brings yours back. Continue?',
   removeJoint: 'Remove joint',
   addJointTip: 'Make this node articulated: add a joint the behavior script drives with ctx.setJoint(name, …)',
@@ -442,7 +443,8 @@ export function RigNodePanel({
     file.arrayBuffer().then(
       (buf) => {
         // a big model still imports; the warning is advisory (the autosave banner is the real alarm)
-        const { warning, fitted } = controller.setLinkMesh(part.packageId, link.name, new Uint8Array(buf))
+        const { warning, fitted, unreadable } = controller.setLinkMesh(part.packageId, link.name, new Uint8Array(buf))
+        if (unreadable) return setMsg(t(M.notAModel, { file: file.name }))
         setMsg(withFit(warning ? t(M.importedWarn, { file: file.name, warning }) : t(M.imported, { file: file.name }), fitted))
       },
       () => setMsg(t(M.readFailed)),

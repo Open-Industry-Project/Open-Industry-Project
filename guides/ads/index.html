@@ -28,6 +28,7 @@
     <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
 
     <link rel="stylesheet" href="/src/site/site.css" />
+    <script type="module" src="/src/site/copyCode.js"></script>
   </head>
 
   <body class="doc">
@@ -37,7 +38,7 @@
         <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
         <nav class="nav-links" aria-label="Site">
           <a href="/plc/">PLC reference</a>
-          <a href="/guides/">Connection guides</a>
+          <a href="/guides/">Guides</a>
           <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
         </nav>
         <a class="btn btn-sm" href="/app/">Open the editor</a>
@@ -116,7 +117,7 @@
         <h2>Part A. The runtime on this PC</h2>
 
         <h3>A1. The PLC program</h3>
-        <pre class="code" translate="no"><code>PROGRAM MAIN
+        <pre class="code" translate="no" data-copy><code>PROGRAM MAIN
 VAR
   Eye : BOOL;
   Run : BOOL;
@@ -256,7 +257,7 @@ END_PROGRAM</code></pre>
           <div>
             <h4>Explore</h4>
             <ul>
-              <li><a href="/guides/">All connection guides</a></li>
+              <li><a href="/guides/">All guides</a></li>
               <li><a href="/guides/plc-server/">Guide: connect a PLC that serves its I/O (Modbus TCP, OPC UA)</a></li>
               <li><a href="/guides/s7/">Guide: connect an S7-1200 or S7-1500 over PUT/GET</a></li>
               <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>

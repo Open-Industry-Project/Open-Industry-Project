@@ -5,6 +5,7 @@ import type { SdkPart } from '../core/types'
 import type { RuntimePartDiagnostic } from '../core/parts/partDiagnostics'
 import { DEFAULT_SIM_HZ, MAX_SIM_HZ } from '../core/types'
 import { collectProblems, type ProblemsInput } from './problems'
+import { controllerFor } from '../plc'
 import { PACKAGE_FORMAT } from '../core/parts/partPackage'
 import { partFingerprint } from '../core/parts/partOrigin'
 import { PART_SDK_LEVEL } from '../core/parts/partSdk'
@@ -75,6 +76,21 @@ describe('collectProblems - a clean document', () => {
     const r = collectProblems(
       input({
         stProgram: 'VAR PE : BOOL; Motor : BOOL; END_VAR\nMotor := PE;',
+        parts: [part('c1', 't.conveyor', { runTag: 'Motor', runningTag: '' }), part('s1', 't.sensor', { tag: 'PE' })],
+      }),
+    )
+    expect(r.problems).toEqual([])
+  })
+
+  it('reports nothing for a sole PROGRAM instance whose plain VARs the parts name bare, as Play binds them', () => {
+    registerPackage(CONVEYOR)
+    registerPackage(SENSOR)
+    const stProgram = 'PROGRAM Main\nVAR PE : BOOL; Motor : BOOL; END_VAR\nMotor := PE;\nEND_PROGRAM'
+    const r = collectProblems(
+      input({
+        stProgram,
+        // the default table, as the Problems panel passes it: it runs Main as the controller's one instance
+        controller: controllerFor(stProgram, null, 10),
         parts: [part('c1', 't.conveyor', { runTag: 'Motor', runningTag: '' }), part('s1', 't.sensor', { tag: 'PE' })],
       }),
     )

@@ -109,7 +109,8 @@ export function renameRigJoint(ec: AuthoringDeps, packageId: string, jointName: 
 /**
  * Make `linkName` a mesh of the GLB `glb`, embedded in the part, as one undo step. When the part is just that model
  * (core/parts/modelFit.ts) it is fitted to it in the same step: standing on the origin, with a collider and bounds
- * of the model's size. `warning` is the advisory for a large embed.
+ * of the model's size. `warning` is the advisory for a large embed. Bytes that are not a GLB change nothing and come
+ * back `unreadable`: embedded, they would draw nothing and give no reason.
  */
 export function setLinkMesh(
   ec: Pick<AuthoringDeps, 'store'>,
@@ -117,9 +118,15 @@ export function setLinkMesh(
   linkName: string,
   glb: Uint8Array,
   label = 'Import model',
-): { warning: string | null; fitted: boolean } {
+): { warning: string | null; fitted: boolean; unreadable?: true } {
   const pkg = getPackage(packageId)
   if (!pkg || pkg.geometry.kind !== 'rig') return { warning: null, fitted: false }
+  let json: ReturnType<typeof parseGlb>['json']
+  try {
+    json = parseGlb(glb).json
+  } catch {
+    return { warning: null, fitted: false, unreadable: true }
+  }
   const dataBase64 = bytesToBase64(glb)
   const assets = [...(pkg.assets ?? [])]
   let n = assets.length + 1
@@ -131,9 +138,9 @@ export function setLinkMesh(
   let box: Box3Like | null = null
   try {
     // the whole model, as the new shape draws it (no node, carving or scale yet)
-    box = meshLinkBox(parseGlb(glb).json, {})
+    box = meshLinkBox(json, {})
   } catch {
-    // not a readable GLB: it is embedded as given and draws nothing, and there is nothing to fit to
+    // a GLB with nothing to measure: it is embedded, and there is nothing to fit to
   }
   const fitted = box ? fitRigToModel(geometry, linkName, box) : null
   ec.store.commitPackage(label, { ...pkg, geometry: fitted ?? geometry, assets })
@@ -143,6 +150,15 @@ export function setLinkMesh(
     warning: `This model is ${mb} MB. Embedded models are stored base64 (+33%) inside the project, and browsers cap local storage at a few MB per site - the autosave may stop. Export the project to a file to keep your work.`,
     fitted: !!fitted,
   }
+}
+
+/** setLinkMesh from the Inspector's import: a part fitted to its model took the model's size, so the open Part Editor
+ *  frames it again, as opening it did */
+export function importLinkMesh(ec: Pick<AuthoringDeps, 'store' | 'view'>, packageId: string, linkName: string, glb: Uint8Array): ReturnType<typeof setLinkMesh> {
+  const res = setLinkMesh(ec, packageId, linkName, glb)
+  const focus = ec.store.getState().focusedPartId
+  if (res.fitted && focus) ec.view.focusOn([focus])
+  return res
 }
 
 export function addRigNode(ec: AuthoringDeps, packageId: string, parentLinkName: string, kind: AuthorableShapeKind = 'box'): void {

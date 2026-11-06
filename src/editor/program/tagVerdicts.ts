@@ -91,7 +91,9 @@ export function programTagVerdicts(parts: readonly PartInstance[], check: Progra
   const out = new Map<string, TagVerdict>()
   const program = compiledFor(check)
   if (!program) return out
-  const link = new LocalPlcLink(program, wiredBindings(parts, program))
+  // bound through the link, as Play binds it: its bindable names include a sole instance's bare aliases
+  const declared = new LocalPlcLink(program)
+  const link = declared.withBindings(wiredBindings(parts, declared))
   const unwired = new Set(unhandledProgramTags(parts, link).unwired)
   const outputs = new Set(link.outputs)
   const inputs = new Set(link.inputs)
