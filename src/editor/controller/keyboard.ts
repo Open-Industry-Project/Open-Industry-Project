@@ -155,6 +155,16 @@ export function onKeyDown(ec: EditorController, e: KeyboardEvent): void {
       ec.store.setLocked(s.selectedIds, false)
       e.preventDefault()
       return
+    case 'edit.toggleVisible': {
+      // the scene-tree menu's Hide / Show rule: hide when all of the selection is visible,
+      // otherwise show all of it, so a mixed selection resolves the same from either place
+      if (s.selectedIds.length === 0) return
+      const sel = new Set(s.selectedIds)
+      const allVisible = s.scene.parts.every((p) => !sel.has(p.id) || p.visible !== false)
+      ec.store.setVisible(s.selectedIds, !allVisible)
+      e.preventDefault()
+      return
+    }
     case 'edit.group':
       ec.store.setGrouped(s.selectedIds, true)
       e.preventDefault()

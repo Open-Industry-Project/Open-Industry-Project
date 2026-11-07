@@ -30,6 +30,12 @@ describe('resolveKeyAction - QWERTY', () => {
     expect(resolveKeyAction(press('F2', 'F2', { shiftKey: true }), 'editor')).toBeNull()
   })
 
+  it('binds hide / show to the bare H position, leaving Ctrl+H to ladder replace', () => {
+    expect(resolveKeyAction(press('KeyH', 'h'), 'editor')).toBe('edit.toggleVisible')
+    expect(resolveKeyAction(press('KeyH', 'h', { ctrlKey: true }), 'editor')).toBeNull()
+    expect(resolveKeyAction(press('KeyH', 'h', { ctrlKey: true }), 'ladder')).toBe('ladder.replace')
+  })
+
   it('binds go to definition to F12', () => {
     expect(resolveKeyAction(press('F12', 'F12'), 'editor')).toBe('edit.goToDefinition')
   })

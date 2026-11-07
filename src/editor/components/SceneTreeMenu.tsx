@@ -167,6 +167,8 @@ export function SceneTreeMenu({ menu, state, store, controller, onClose, beginRe
             onClick={run(() => (menuIsPart ? store.setVisible(state.selectedIds, !allVisible) : menuNode.setHidden(!menuNode.flags.hidden)))}
           >
             {(menuIsPart ? allVisible : !menuNode.flags.hidden) ? t(M.hide) : t(M.show)}
+            {/* the chord acts on selected parts only, so a rig-link row shows none */}
+            {menuIsPart && <span className="context-shortcut">{bindingLabel('edit.toggleVisible')}</span>}
           </button>
         )}
         {menuNode.caps.lock && (

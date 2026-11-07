@@ -113,10 +113,25 @@ async function toolShortcuts(page) {
   await page.keyboard.press('g')
   await page.waitForTimeout(150)
   expect((await page.evaluate(() => window.__oip.store.getState().sideGuardMode)) === false, 'G again leaves it')
-  await page.evaluate(() => {
-    window.__oip.store.clearSelection()
-    window.__oip.store.undo() // the roller added above
+
+  // H hides the selection, and H again shows it: the scene-tree menu's Hide / Show from the keyboard
+  const visible = () => page.evaluate(() => window.__oip.store.getState().scene.parts.find((p) => p.id === 'keymap-roller')?.visible !== false)
+  await page.keyboard.press('h')
+  await page.waitForTimeout(150)
+  expect((await visible()) === false, 'H hides the selected part')
+  await page.keyboard.press('h')
+  await page.waitForTimeout(150)
+  expect((await visible()) === true, 'H again shows it')
+
+  const gone = await page.evaluate(() => {
+    const st = window.__oip.store
+    st.clearSelection()
+    st.undo() // show
+    st.undo() // hide
+    st.undo() // the roller added above
+    return !st.getState().scene.parts.some((p) => p.id === 'keymap-roller')
   })
+  expect(gone, 'cleanup: three undos remove the roller (show, hide, add)')
 }
 
 async function physicalResolution(page, client) {

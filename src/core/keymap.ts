@@ -106,6 +106,7 @@ export const KEY_BINDINGS = [
   { id: 'edit.moveDown', mode: 'editor', group: 'Edit', label: 'Move down one slot', keys: ['ctrl+ArrowDown'], match: 'logical' },
   { id: 'edit.lock', mode: 'editor', group: 'Edit', label: 'Lock', keys: ['ctrl+KeyL'], match: 'logical' },
   { id: 'edit.unlock', mode: 'editor', group: 'Edit', label: 'Unlock', keys: ['ctrl+shift+KeyL'], match: 'logical' },
+  { id: 'edit.toggleVisible', mode: 'editor', group: 'Edit', label: 'Hide / show', keys: ['KeyH'], hint: 'hides the selection, or shows it all when any of it is hidden' },
   // The ids say 'group' although the label is 'Select as one' ('Group' names the container Ctrl+J makes).
   // A user's rebinding is stored under the id, so the ids don't change.
   { id: 'edit.group', mode: 'editor', group: 'Edit', label: 'Select as one', keys: ['ctrl+KeyG'], match: 'logical', hint: 'a viewport click on any part inside selects the whole' },
