@@ -12,6 +12,11 @@
 //     project carries an authored part. A folder already in the project's `parts/` is not copied: it is listed, and
 //     moved to `parts/<id>/` (with its part.js) when it has another name, so no unlisted duplicate is left.
 //   • the ID of a part in the project's `parts/` (listed, or just authored there): placed, and listed if it was not.
+//   • `building`: the warehouse shell, as the app's New makes it (core/scene/scene.ts defaultBuilding), id `bld_1`
+//     unless --id says otherwise. A scene holds at most one. Its --params are checked by core/building/buildingEdit.ts:
+//     `lengthSections`, `widthSections`, `heightSections`, `columnSpacing`, the wall `rules` as a JSON list, and
+//     `openDoors` (`npm run edit-part -- <folder> bld_1 --docks` lists the door keys). It is not a library part, so
+//     nothing is copied to `parts/`. --at x,z puts its centre there on the floor.
 //
 // A folder with no project.json becomes a new project with an empty scene, so a part can be tested
 // from nothing: `npm run add-part -- my-test oip.roller-conveyor oip.box ./my-part --place`.
@@ -166,7 +171,35 @@ try {
     if (o.id !== undefined) idsTaken.add(o.id)
   }
   const plan = [] // in argument order: { arg, pkg, part?, given }
+  const buildingEdit = await vite.ssrLoadModule('/src/core/building/buildingEdit.ts')
+  const { defaultBuilding } = await vite.ssrLoadModule('/src/core/scene/scene.ts')
   for (const [index, arg] of parts.entries()) {
+    if (arg === 'building') {
+      const has = scene.parts.find((p) => p.type === 'building') ?? plan.find((s) => s.building)?.part
+      if (has) {
+        fail(`building: the scene already has one (${has.id}); a scene holds at most one. Change it with npm run edit-part -- ${folder} ${has.id} --params ...`, 2)
+        continue
+      }
+      const o = optsFor.get(index) ?? {}
+      let id = o.id ?? 'bld_1'
+      for (let n = 2; !o.id && idsTaken.has(id); n++) id = `bld_${n}`
+      idsTaken.add(id)
+      const part = defaultBuilding(id)
+      if (o.at) part.position = o.at.length === 3 ? o.at : [o.at[0], 0, o.at[1]]
+      if (o.rot !== undefined) part.rotationY = r6((o.rot * Math.PI) / 180)
+      if (o.params !== undefined) {
+        try {
+          const notes = []
+          part.params = buildingEdit.editBuildingParams(part, parseParamArgs(o.params), notes).params
+          for (const n of notes) console.log(`  building --params: ${n}`)
+        } catch (e) {
+          fail(`building --params: ${e.message.replace(/^params: /, '')}`)
+          continue
+        }
+      }
+      plan.push({ arg, building: true, part, given: [] })
+      continue
+    }
     const resolved = lib ? await lib.resolvePart(arg) : await resolveNew(arg)
     if (resolved.error) {
       fail(resolved.error, resolved.exit)
@@ -235,7 +268,7 @@ try {
     if (o.at) step.at = part.position
     if (o.rot !== undefined) step.rot = (o.rot * Math.PI) / 180
   }
-  const placed = plan.filter((s) => s.part)
+  const placed = plan.filter((s) => s.part && !s.building)
   let scaffolded = null
   if (scaffold && errors.length === 0 && placed.length > 0) {
     try {
@@ -253,6 +286,10 @@ try {
   // 2. write: the project (created now if new), each part's library copy, the placed parts, the scaffold's files
   if (!lib) lib = await projectLibrary(vite, folder)
   for (const step of plan) {
+    if (step.building) {
+      lib.scene.parts.push(step.part)
+      continue
+    }
     const r = await lib.addPart(step.arg)
     if (r.error) {
       // checked in step 1; only a change on disk in between gets here
@@ -263,6 +300,11 @@ try {
   }
   if (scaffolded) writeScaffold(scaffolded, lib.project)
   lib.save()
+  for (const s of plan.filter((s) => s.building)) {
+    const { lengthSections: L, widthSections: W } = s.part.params
+    const doors = buildingEdit.dockDoors(s.part)
+    console.log(`+ building ${s.part.id}: ${L} x ${W} sections (${L * 10} x ${W * 10} m), centred at [${s.part.position.join(', ')}], ${doors.length} dock door(s), ${doors.filter((d) => d.open).length} open (npm run edit-part -- ${folder} ${s.part.id} --docks)`)
+  }
   if (!scaffold) {
     for (const s of placed.filter((s) => s.at)) console.log(`+ placed ${s.part.id} at [${s.at.join(', ')}]${s.rot !== undefined ? ` yaw ${r6((s.rot * 180) / Math.PI)} deg` : ''}`)
     const atOrigin = placed.filter((s) => !s.at).map((s) => `${s.part.id} [${s.part.position.join(', ')}]`)

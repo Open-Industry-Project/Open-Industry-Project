@@ -65,6 +65,15 @@ export interface BeltGuardOpeningSpec {
 /** wall variant a rule paints (the four wall variants, the dock door, and a personnel door: Wall_D with a shut exit
  *  door in the middle of its ground-floor cell) */
 export type WallVariant = 'A' | 'B' | 'C' | 'D' | 'dock_door' | 'personnel_door'
+export const WALL_VARIANTS: readonly WallVariant[] = ['A', 'B', 'C', 'D', 'dock_door', 'personnel_door']
+/** each whole-number field of a BuildingWallRule: its range and the value loading gives a missing one */
+export const WALL_RULE_NUMBERS = {
+  run: { min: 1, max: 400, absent: 1 },
+  gap: { min: 0, max: 400, absent: 1 },
+  count: { min: 0, max: 100, absent: 0 },
+  start: { min: 0, max: 400, absent: 0 },
+  doorCount: { min: 1, max: 2, absent: 1 },
+} as const
 
 /**
  * One painted run over the perimeter walls. Rules are

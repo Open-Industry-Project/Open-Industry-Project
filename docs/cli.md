@@ -106,8 +106,16 @@ Never hand-edit scene.json; these go through the same checks the editor does.
     blank, i.e. unwired. It takes a guard device's `--at` x as its spot along the line and holds a spawner with the
     belt it drops onto. It writes a Start/Stop latch that starts stopped, plus a starter test that presses Start and
     whose box physically reaches the eye. It never overwrites a program or test. See src/core/lineScaffold.ts.
-- **`npm run edit-part -- <project-folder> <partId> [--params k=v,...] [--at x,y,z] [--rot deg] [--name text]`** -
+  - `building` places the building (at most one per scene; id `bld_1`; `--at x,z` is its floor centre). Its
+    `--params` are the ones edit-part takes on it.
+- **`npm run edit-part -- <project-folder> <partId> [--params k=v,...] [--at x,y,z] [--rot deg] [--name text] [--docks]`** -
   change a placed part through add-part's param checks, carrying its soft-parented subtree; prints old -> new.
+  - On the building: `lengthSections`, `widthSections`, `heightSections`, `columnSpacing`, the wall `rules` as a JSON
+    list (`rules=[{"wall":"dock_door","run":1,"gap":0,"count":3,"start":19,"doorCount":2,"trailer":true}]`; a bad
+    field is refused, not clamped) and `openDoors`, the dock doors that start open (`openDoors=19:0,19:1`). A door
+    the rules do not cut is refused, and open doors a rules or size change removes are dropped and listed.
+  - `--docks` prints which perimeter cells each wall holds (what a rule's `start` counts) and every dock door with
+    its key, wall, position and state. Alone, it writes nothing.
 - **`npm run duplicate-parts -- <project-folder> <partId...> --offset dx,dy,dz [--rename Old=New,...] [--tag-suffix S] [--id-suffix S] [--strict]`**
   - copy a station. Its subtree comes along, parent and partRef links inside the group follow the copies, links
   outside are kept, and tags are renamed. A second writer of a tag is a warning that `--strict` fails. Seam geometry

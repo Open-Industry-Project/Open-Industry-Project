@@ -11,7 +11,7 @@ import { validatePartPackage } from '../parts/partValidate'
 import { upgradeStoredPackage } from '../parts/partUpgrade'
 import type { PartPackage } from '../parts/partPackage'
 import { conveyorCenterOffsetX } from '../parts/partGeometry'
-import { DEFAULT_SIM_HZ, MAX_SIM_HZ, MIN_SIM_HZ, PART_DEFS, SCENE_VERSION, STAIRS_LANDING_DEPTH, toSimRate } from '../types'
+import { DEFAULT_SIM_HZ, MAX_SIM_HZ, MIN_SIM_HZ, PART_DEFS, SCENE_VERSION, STAIRS_LANDING_DEPTH, WALL_RULE_NUMBERS, WALL_VARIANTS, toSimRate } from '../types'
 import type {
   BuildingPart,
   BuildingWallRule,
@@ -57,12 +57,16 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
 }
 
-const WALL_VARIANTS: readonly WallVariant[] = ['A', 'B', 'C', 'D', 'dock_door', 'personnel_door']
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
   return isFiniteNumber(v) ? clamp(Math.round(v), min, max) : fallback
 }
 
 /** sanitize an untrusted building wall-rule list (empty is allowed) */
+const ruleInt = (r: Record<string, unknown>, key: keyof typeof WALL_RULE_NUMBERS): number => {
+  const { min, max, absent } = WALL_RULE_NUMBERS[key]
+  return clampInt(r[key], min, max, absent)
+}
+
 function validateWallRules(v: unknown): BuildingWallRule[] {
   if (!Array.isArray(v)) return []
   const out: BuildingWallRule[] = []
@@ -71,11 +75,11 @@ function validateWallRules(v: unknown): BuildingWallRule[] {
     const r = raw as Record<string, unknown>
     out.push({
       wall: WALL_VARIANTS.includes(r.wall as WallVariant) ? (r.wall as WallVariant) : 'B',
-      run: clampInt(r.run, 1, 400, 1),
-      gap: clampInt(r.gap, 0, 400, 1),
-      count: clampInt(r.count, 0, 100, 0),
-      start: clampInt(r.start, 0, 400, 0),
-      doorCount: clampInt(r.doorCount, 1, 2, 1),
+      run: ruleInt(r, 'run'),
+      gap: ruleInt(r, 'gap'),
+      count: ruleInt(r, 'count'),
+      start: ruleInt(r, 'start'),
+      doorCount: ruleInt(r, 'doorCount'),
       trailer: typeof r.trailer === 'boolean' ? r.trailer : true,
     })
   }

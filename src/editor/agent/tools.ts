@@ -20,12 +20,13 @@ import { partFootprint, toWorldXZ } from '../../core/parts/partGeometry'
 import { findSnap } from '../../core/snap/snapFeatures'
 import { commitSnap, snapAttaches } from '../../core/snap/snapCommit'
 import { getPackage } from '../../core/parts/partRegistry'
-import { createSdkPart, nextId } from '../../core/scene/scene'
+import { createSdkPart, defaultBuilding, nextId } from '../../core/scene/scene'
+import { dockDoors, editBuildingParams, perimeterSides } from '../../core/building/buildingEdit'
 import { validateTestSpec, type TestSpec } from '../../core/project/projectTest'
 import { AGENT_GUIDE, projectToFolderFiles } from '../../core/project/projectFolder'
 import type { PartPackage } from '../../core/parts/partPackage'
 import type { ParamSpec } from '../../core/parts/partApi'
-import type { PartInstance, SceneJSON, SdkPart } from '../../core/types'
+import type { BuildingPart, PartInstance, SceneJSON, SdkPart } from '../../core/types'
 import { controllerFor, runnableSource } from '../../plc/controller'
 import { defaultController, setTaskTiming } from '../../plc'
 import { isKnownDialect } from '../../core/dialect'
@@ -218,7 +219,9 @@ const getScene: AgentTool = {
 
 const getPart: AgentTool = {
   name: 'get_part',
-  description: "Read one part in full: its pose, every param value, and its package's param declarations (type, default, range, tag direction).",
+  description:
+    "Read one part in full: its pose, every param value, and its package's param declarations (type, default, range, tag direction). " +
+    "For the building: which perimeter cells each wall holds (what a wall rule's `start` counts) and every dock door with the key `openDoors` names.",
   inputSchema: {
     type: 'object',
     properties: { id: { type: 'string', description: 'part id, from get_scene' } },
@@ -227,6 +230,10 @@ const getPart: AgentTool = {
   },
   run: ({ store }, args) => {
     const part = findPart(store.getState().scene, str(args, 'id'))
+    if (part.type === 'building') {
+      const b = part as BuildingPart
+      return { part, perimeter: perimeterSides(b.params.lengthSections, b.params.widthSections), dockDoors: dockDoors(b) }
+    }
     const pkg = part.type === 'part' ? getPackage((part as SdkPart).packageId) : undefined
     return { part, ...(pkg ? { params: visibleParams(pkg) } : {}) }
   },
@@ -289,7 +296,9 @@ const addPart: AgentTool = {
   description:
     'Place a part from the catalog. position is [x, y, z] in metres with +Y up; for a conveyor, y is its belt ' +
     'height and a legged stand is sized to reach the floor. rotationY is radians about +Y. params are checked ' +
-    'against the package (list_catalog). One undo step. Returns the new part id.',
+    'against the package (list_catalog). One undo step. Returns the new part id. package "building" places the ' +
+    'warehouse shell (at most one per scene; position is its floor centre); its params are lengthSections, ' +
+    'widthSections, heightSections, columnSpacing, rules (wall rules) and openDoors (dock door keys, from get_part).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -306,6 +315,7 @@ const addPart: AgentTool = {
   run: ({ store }, args) => {
     assertEditable(store)
     const id = str(args, 'package')
+    if (id === 'building') return addBuilding(store, args)
     const pkg = getPackage(id)
     if (!pkg) throw new AgentToolError(`no package '${id}' (list_catalog lists them)`)
     const position = optVec3(args, 'position')!
@@ -339,7 +349,8 @@ const updatePart: AgentTool = {
   name: 'update_part',
   description:
     'Change a part: any of position, rotationY (radians), name, params (checked against its package; a tag param ' +
-    'takes the PLC tag name to wire it to, "" unwires it). One undo step.',
+    'takes the PLC tag name to wire it to, "" unwires it). On the building, params are checked against its own ' +
+    'params; openDoors takes the dock door keys get_part lists. One undo step.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -360,7 +371,13 @@ const updatePart: AgentTool = {
     const rotationY = optNum(args, 'rotationY')
     const patch = optObj(args, 'params')
     let params: Record<string, unknown> | undefined
-    if (patch) {
+    const notes: string[] = []
+    if (patch && part.type === 'building') {
+      const r = buildingParams(part as BuildingPart, patch)
+      // the building's whole params: an edit can drop openDoors
+      params = { ...r.params }
+      notes.push(...r.notes)
+    } else if (patch) {
       if (part.type !== 'part') throw new AgentToolError(`'${part.id}' is a ${part.type}, which has no package params`)
       const pkg = getPackage((part as SdkPart).packageId)
       if (!pkg) throw new AgentToolError(`the package of '${part.id}' is not loaded`)
@@ -374,15 +391,41 @@ const updatePart: AgentTool = {
         ...part,
         ...(position ? { position } : {}),
         ...(rotationY !== undefined ? { rotationY } : {}),
-        ...(params ? { params: { ...(part as SdkPart).params, ...params } } : {}),
+        ...(params ? { params: part.type === 'building' ? params : { ...(part as SdkPart).params, ...params } } : {}),
         ...(name ? { name } : {}),
       } as PartInstance
       if (name === '') delete next.name
       // one call, one step: the rename rides the same commit, so the step is the agent's and undo takes it whole
       store.commit(`${AGENT_LABEL}: edit ${part.name ?? part.id}`, { ...scene, parts: scene.parts.map((p) => (p.id === part.id ? next : p)) })
     }
-    return { id: part.id, name: store.getState().scene.parts.find((p) => p.id === part.id)?.name ?? null }
+    return { id: part.id, name: store.getState().scene.parts.find((p) => p.id === part.id)?.name ?? null, ...(notes.length > 0 ? { notes } : {}) }
   },
+}
+
+/** a building's params with `patch` applied (core/building/buildingEdit.ts), and what it noted */
+function buildingParams(part: BuildingPart, patch: Record<string, unknown>): { params: BuildingPart['params']; notes: string[] } {
+  const notes: string[] = []
+  try {
+    return { params: editBuildingParams(part, patch, notes).params, notes }
+  } catch (e) {
+    throw new AgentToolError((e as Error).message.replace(/^params: /, ''))
+  }
+}
+
+/** add_part for package 'building': the shell New makes, at most one per scene */
+function addBuilding(store: EditorStore, args: Record<string, unknown>): { id: string; notes?: string[] } {
+  const scene = store.getState().scene
+  const has = scene.parts.find((p) => p.type === 'building')
+  if (has) throw new AgentToolError(`the scene already has a building ('${has.id}'); change it with update_part`)
+  if (optStr(args, 'parent') !== undefined) throw new AgentToolError('the building cannot be parented')
+  const part = defaultBuilding(nextId(scene, 'building'))
+  part.position = optVec3(args, 'position')!
+  part.rotationY = optNum(args, 'rotationY') ?? 0
+  const { params, notes } = buildingParams(part, optObj(args, 'params') ?? {})
+  const name = optStr(args, 'name')?.trim()
+  const placed = { ...part, params, ...(name ? { name } : {}) } as BuildingPart
+  store.commit(`${AGENT_LABEL}: place the building`, { ...scene, parts: [placed, ...scene.parts] })
+  return { id: placed.id, ...(notes.length > 0 ? { notes } : {}) }
 }
 
 /** The top of a part's footprint, over its centre, in world space: where a person drops a part onto it. */

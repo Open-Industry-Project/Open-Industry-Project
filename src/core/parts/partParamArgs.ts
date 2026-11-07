@@ -22,7 +22,8 @@ import { packageParamSpecs, switchValue, visibleWhenHolds } from '../packagePara
 import { resizePart } from './partGeometry'
 import { getPackage } from './partRegistry'
 import { partInUnits } from '../scene/sceneUnits'
-import type { ParamSpec, PartInstance, SdkPart, SdkPartParams } from '../types'
+import { WALL_RULE_NUMBERS, WALL_VARIANTS } from '../types'
+import type { BuildingWallRule, ParamSpec, PartInstance, SdkPart, SdkPartParams, WallVariant } from '../types'
 
 export type ParamArgs = Record<string, unknown>
 
@@ -207,8 +208,50 @@ export function paramArgValue(spec: ParamSpec, value: unknown): unknown {
       return value
     }
     case 'wallRules':
-      return value
+      return wallRulesArg(key, value)
   }
+}
+
+const RULE_EXAMPLE = '[{"wall":"dock_door","run":1,"gap":0,"count":3,"start":2,"doorCount":2,"trailer":true}]'
+
+/**
+ * A building's wall rules given on a command line: a JSON list of rule objects. `wall`, `run`, `gap`, `count` and
+ * `start` are required; `doorCount` and `trailer` matter only to a dock door and take the values loading gives a
+ * missing one (1 and true). A field out of its range, a misspelt field or an unknown wall is refused, where loading
+ * would clamp or replace it.
+ */
+function wallRulesArg(key: string, value: unknown): BuildingWallRule[] {
+  const form = `a JSON list of rules, e.g. ${key}=${RULE_EXAMPLE} ([] = plain walls)`
+  if (!Array.isArray(value)) throw new Error(`params: ${key} does not fit: ${key} is ${form}`)
+  const fields = new Set(['wall', 'trailer', ...Object.keys(WALL_RULE_NUMBERS)])
+  return value.map((raw, i) => {
+    const at = `params: ${key}[${i}]`
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`${at} is not a rule object; ${key} is ${form}`)
+    const r = raw as Record<string, unknown>
+    const stray = Object.keys(r).find((k) => !fields.has(k))
+    if (stray !== undefined) throw new Error(`${at} has no field "${stray}" (a rule has ${[...fields].join(', ')})`)
+    if (!WALL_VARIANTS.includes(r.wall as WallVariant)) throw new Error(`${at}.wall=${shown(r.wall)} is not one of ${WALL_VARIANTS.join(' | ')}`)
+    const num = (k: keyof typeof WALL_RULE_NUMBERS, required: boolean): number => {
+      const { min, max, absent } = WALL_RULE_NUMBERS[k]
+      const v = r[k]
+      if (v === undefined) {
+        if (required) throw new Error(`${at} needs ${k} (a whole number from ${min} to ${max})`)
+        return absent
+      }
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) throw new Error(`${at}.${k}=${shown(v)} is not a whole number from ${min} to ${max}`)
+      return v
+    }
+    if (r.trailer !== undefined && typeof r.trailer !== 'boolean') throw new Error(`${at}.trailer=${shown(r.trailer)} is not true or false`)
+    return {
+      wall: r.wall as WallVariant,
+      run: num('run', true),
+      gap: num('gap', true),
+      count: num('count', true),
+      start: num('start', true),
+      doorCount: num('doorCount', false),
+      trailer: r.trailer === undefined ? true : (r.trailer as boolean),
+    }
+  })
 }
 
 /** `key: value` in words for a visibleWhen switch */

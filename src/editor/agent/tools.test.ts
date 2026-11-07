@@ -145,6 +145,21 @@ describe('agent tools: authoring is ordinary editing', () => {
     expect(c.store.getState().scene.parts.find((p) => p.id === id)?.name).toBeUndefined()
   })
 
+  it('places one building, edits its params and dock doors, and lists the doors', async () => {
+    const c = ctx()
+    const rules = [{ wall: 'dock_door', run: 1, gap: 0, count: 1, start: 10, doorCount: 2, trailer: true }]
+    const { id } = (await ok(c, 'add_part', { package: 'building', position: [0, 0, 0], params: { lengthSections: 5, widthSections: 4, rules } })) as { id: string }
+    expect(await refused(c, 'add_part', { package: 'building', position: [0, 0, 0] })).toMatch(/already has a building/)
+    const read = (await ok(c, 'get_part', { id })) as { dockDoors: { key: string; side: string }[] }
+    expect(read.dockDoors.map((d) => `${d.key} ${d.side}`)).toEqual(['10:0 left', '10:1 left'])
+    await ok(c, 'update_part', { id, params: { openDoors: ['10:1'] } })
+    expect(c.store.getState().scene.parts.find((p) => p.id === id)?.params).toMatchObject({ lengthSections: 5, openDoors: ['10:1'] })
+    expect(await refused(c, 'update_part', { id, params: { openDoors: ['2:0'] } })).toMatch(/do not cut/)
+    const r = (await ok(c, 'update_part', { id, params: { rules: [] } })) as { notes: string[] }
+    expect(r.notes).toEqual(['openDoors: 10:1 dropped, since the wall rules no longer cut that door'])
+    expect(c.store.getState().scene.parts.find((p) => p.id === id)?.params).not.toHaveProperty('openDoors')
+  })
+
   it('delete_parts takes a soft-parented child with it, as one step', async () => {
     const c = ctx()
     const { id: a } = (await ok(c, 'add_part', { package: 'agent.belt', position: [0, 0.8, 0] })) as { id: string }

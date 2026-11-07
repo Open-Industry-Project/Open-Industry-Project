@@ -56,10 +56,10 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `get_guide` | the project guide (`src/core/agentGuide.ts`), derived from the open document: units, tags, test format. Its tools version (`door: 'tools'`): which tool does what, where the folder's AGENTS.md names files and CLIs |
 | `get_context` | what the person is looking at (the selection, an isolated part, the PLC panel's POU, cursor line and word, the run state) and the review of the agent's edits: steps not yet answered, what they changed, and the person's last answer |
 | `sync_folder` | a folder sync round now (`projectFolderSync.ts` `syncFolderAndReport`), for an agent that also writes files in the project folder: which files loaded, whether loading them stopped the run, a conflict, or why the folder did not load |
-| `get_scene` / `get_part` | the parts, their poses and wired tags, at most 200 with `omitted` and a count by package past that, narrowed by `package`, `within` or `parent` / one part in full with its param declarations |
+| `get_scene` / `get_part` | the parts, their poses and wired tags, at most 200 with `omitted` and a count by package past that, narrowed by `package`, `within` or `parent` / one part in full with its param declarations; for the building, its perimeter cells by wall and its dock doors |
 | `list_catalog` | placeable packages and their params (a tag param's `dir`: `in` = the PLC drives the part) |
 | `get_package` | one catalog part in full: every param with its type, default, range, unit and, for a tag, its direction, ST type and what each value means (`values`); and its `frame` (`core/parts/partCatalog.ts`, the `catalog` CLI's): footprint, origin, conveying ends, zones, beams |
-| `add_part` / `update_part` / `delete_parts` | author the scene; params are checked against the package |
+| `add_part` / `update_part` / `delete_parts` | author the scene; params are checked against the package. `add_part` with package `building` places the building (one per scene), and its params are checked by core/building/buildingEdit.ts |
 | `snap_part` | seat a part where the editor's snap engine puts a dropped one (a sensor on a belt guard, a conveyor on another's end), fitting what the snap fits |
 | `duplicate_parts` | copy a group by an offset, renaming its tags (`core/parts/partDuplicate.ts`, the `duplicate-parts` CLI's engine) |
 | `get_part_sdk` | the part authoring guide by section, and one Part SDK declaration by name |
