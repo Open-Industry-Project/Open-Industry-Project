@@ -53,6 +53,7 @@ import * as pointerOps from './controller/pointer'
 import * as keyboardOps from './controller/keyboard'
 import * as catalogOps from './controller/catalogPlace'
 import { LiveView } from './controller/liveView'
+import { selectionSet } from './store/selectionSet'
 
 /** {@link EditorController.plcAliases} with no program attached */
 const NO_PLC_ALIASES: ReadonlyMap<string, string> = new Map()
@@ -1397,7 +1398,7 @@ export class EditorController {
 
   /** internal - for controller/ modules */
   selectedParts(s: EditorState): PartInstance[] {
-    return s.scene.parts.filter((p) => s.selectedIds.includes(p.id))
+    return s.scene.parts.filter((p) => selectionSet(s.selectedIds).has(p.id))
   }
 
   /**

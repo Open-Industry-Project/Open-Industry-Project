@@ -63,6 +63,7 @@ import { RevealRequests } from './storeReveal'
 import { RoomSinks } from './storeRoom'
 import * as tree from './storeTree'
 import * as copy from './storeCopy'
+import { selectionSet } from './selectionSet'
 
 export const AUTOSAVE_KEY = 'oip-web/autosave'
 // The preference / clipboard / user-package storage keys (and their read/write helpers) live in the
@@ -508,6 +509,7 @@ export class EditorStore {
   revealStOrganizer(): void {
     this.reveals.revealStOrganizer()
   }
+  onRevealTreeSelection = (cb: () => void): (() => void) => this.reveals.onRevealTreeSelection(cb)
 
   getState = (): EditorState => this.state
 
@@ -1411,7 +1413,7 @@ export class EditorStore {
 
   selectedParts(): PartInstance[] {
     const { scene, selectedIds } = this.state
-    return scene.parts.filter((p) => selectedIds.includes(p.id))
+    return scene.parts.filter((p) => selectionSet(selectedIds).has(p.id))
   }
 
   duplicateSelection(): void {
@@ -1505,6 +1507,7 @@ export class EditorStore {
    */
   moveSelection(dir: -1 | 1): void {
     tree.moveSelection(this, dir)
+    this.reveals.revealTreeSelection() // the selection is unchanged, so the tree would not follow the row by itself
   }
 
   rename(id: string, name: string): void {

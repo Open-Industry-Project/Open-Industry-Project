@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { DragEvent as ReactDragEvent } from 'react'
 import type { PartInstance } from '../../core/types'
 import type { EditorStore } from '../store/store'
+import { selectionSet } from '../store/selectionSet'
 
 /** before/after = sibling reorder around the target; inside = become its child */
 export type DropPos = 'before' | 'after' | 'inside'
@@ -38,7 +39,7 @@ export function useTreeDrag(
       const { selectedIds, parts } = live.current
       dragIds.current =
         selectedIds.includes(id) && selectedIds.length > 1
-          ? parts.map((p) => p.id).filter((pid) => selectedIds.includes(pid))
+          ? parts.map((p) => p.id).filter((pid) => selectionSet(selectedIds).has(pid))
           : [id]
       e.dataTransfer.effectAllowed = 'move'
       e.dataTransfer.setData('text/plain', id) // Firefox needs payload to start a drag

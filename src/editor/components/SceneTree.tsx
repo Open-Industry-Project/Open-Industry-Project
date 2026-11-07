@@ -833,6 +833,22 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
     () => (scrollTargetKey === undefined || !targetListed ? undefined : revealRow(scrollTargetKey)),
     [scrollTargetKey, targetListed, revealRow],
   )
+  // Move Up / Move Down keeps the selection, so the effect above does not run: follow the row on request
+  const scrollTargetRef = useRef(scrollTargetKey)
+  scrollTargetRef.current = scrollTargetKey
+  useEffect(() => {
+    let cancel: (() => void) | undefined
+    const off = store.onRevealTreeSelection(() => {
+      const key = scrollTargetRef.current
+      if (key === undefined) return
+      cancel?.()
+      cancel = revealRow(key)
+    })
+    return () => {
+      off()
+      cancel?.()
+    }
+  }, [store, revealRow])
   // a rename can open on a row that isn't on screen (F2 after a viewport pick, which may also have just
   // expanded its ancestors): the input is kept mounted off-window, so scroll it to where it's typed into
   useEffect(() => (renamingKey === null ? undefined : revealRow(renamingKey)), [renamingKey, revealRow])

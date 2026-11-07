@@ -41,6 +41,7 @@ import type { PlcTagList } from '../links/externalPlc'
 import { adsEndpoint, eipEndpoint, eipTarget } from '../links/externalPlcStatus'
 import { defineMessages, t } from '../../core/i18n'
 import { tNodes } from '../i18nNodes'
+import { selectionSet } from '../store/selectionSet'
 
 const M = defineMessages('inspector', {
   partsSelected: { one: '{count} part selected', other: '{count} parts selected' },
@@ -326,7 +327,8 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
     }
   }
 
-  const selected = state.scene.parts.filter((p) => state.selectedIds.includes(p.id))
+  const selectedSet = selectionSet(state.selectedIds)
+  const selected = state.scene.parts.filter((p) => selectedSet.has(p.id))
 
   // nothing selected: the scene itself is what is in front of you, so its own properties - or, inside a part's own
   // scene, that part's, since the document's rate and units are not what is on screen

@@ -20,6 +20,7 @@ import type { RigGeometry } from './rigTree'
 import { canDeleteRigNode } from './rigTree'
 import type { EditorState } from './store/store'
 import { documentSceneOf, editTarget, rigNodeKey } from './store/store'
+import { selectionSet } from './store/selectionSet'
 
 export type TreeNodeKind = 'part' | 'rigLink'
 
@@ -193,7 +194,7 @@ function buildPartNode(part: PartInstance, depth: number, state: EditorState, de
     flags: {
       hidden: part.visible === false,
       locked: part.locked === true,
-      selected: state.selectedIds.includes(part.id),
+      selected: selectionSet(state.selectedIds).has(part.id),
     },
     commitRename(next) {
       deps.store.rename(part.id, next)

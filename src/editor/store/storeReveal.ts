@@ -114,4 +114,22 @@ export class RevealRequests {
     this.pendingOrganizerReveal = null
     for (const cb of this.revealStOrganizerListeners) cb()
   }
+
+  // "Keep the selected row on screen" after Move Up / Move Down. The tree scrolls by itself only when the
+  // selection changes, and a move keeps the same selection while the row walks out of view. A plain
+  // index-change trigger would also fire when a group above it is expanded or collapsed, and pull the
+  // tree back to the selection the user had scrolled away from. No pending request: an unmounted tree
+  // has nothing to scroll.
+  private revealTreeListeners = new Set<() => void>()
+
+  /** subscribe to "keep the selected row on screen" requests (the mounted scene tree serves them) */
+  onRevealTreeSelection(cb: () => void): () => void {
+    this.revealTreeListeners.add(cb)
+    return () => this.revealTreeListeners.delete(cb)
+  }
+
+  /** ask the scene tree to bring the selected row on screen */
+  revealTreeSelection(): void {
+    for (const cb of this.revealTreeListeners) cb()
+  }
 }
