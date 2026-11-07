@@ -1,8 +1,10 @@
 // Verify which keys a focused control keeps and which reach the 3D editor (dialogHost.ts keyBelongsToTarget).
 //   - After clicking an Inspector checkbox the browser leaves focus on it. Ctrl+Z must still undo the toggle (every
 //     editor shortcut used to be dead there), while Space still belongs to the checkbox and does not start the run.
-//   - A button in the ST editor's find bar: Escape closes the bar and must NOT also clear the 3D selection.
-//   - The ladder sheet: Escape closes its Find bar and must not clear the 3D selection either.
+//   - A button in the ST editor's find bar: Escape closes the bar and must NOT also clear the 3D selection. With the
+//     panel maximized, Escape there closes the bar, not the maximize (App.tsx's capture listener).
+//   - The ladder sheet: Escape closes its Find bar and must not clear the 3D selection either, and F2 on a find-bar
+//     button must not open a part rename (SceneTree.tsx).
 // Run: node e2e/verify-key-ownership.mjs [--headed]
 /* global process, console, window, document, localStorage */
 import { startServer } from './_server.mjs'
@@ -78,6 +80,13 @@ async function main() {
       await page.waitForTimeout(150)
     }
 
+    // control: with nothing focused, F2 opens the selected part's rename in the scene tree
+    await page.evaluate(() => document.activeElement instanceof window.HTMLElement && document.activeElement.blur())
+    await page.keyboard.press('F2')
+    const renameOpened = await page.waitForSelector('.tree-rename', { timeout: 2000 }).then(() => true, () => false)
+    check('control: F2 with nothing focused opens the part rename', renameOpened)
+    if (renameOpened) await page.keyboard.press('Escape')
+
     // --- the ST editor's find bar ---
     await page.locator('.dock-slot-bottom .dock-slot-tab', { hasText: 'PLC' }).click()
     await page.waitForSelector('.dock-slot-bottom .cm-editor')
@@ -94,6 +103,24 @@ async function main() {
     check('Escape on a find-bar button closes the bar', (await page.locator('.cm-st-search').count()) === 0)
     check('and leaves the 3D selection alone', (await selected(page)) === 'belt1', `selected: "${await selected(page)}"`)
 
+    // --- the same find bar with the PLC panel maximized: the restore listener runs first, in capture ---
+    await page.locator('.dock-slot-bottom .dock-slot-max-btn').click()
+    await page.waitForSelector('.dock-maximized .cm-editor')
+    await page.locator('.dock-maximized .cm-content').click()
+    await page.keyboard.press('Control+f')
+    await page.waitForSelector('.dock-maximized .cm-st-search', { timeout: 3000 })
+    await page.locator('.dock-maximized .cm-st-search button[aria-pressed]').first().click()
+    check('setup: maximized, a find-bar button has the focus', await activeIs(page, '.cm-st-search button'))
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(150)
+    check('maximized: Escape on a find-bar button closes the bar', (await page.locator('.cm-st-search').count()) === 0)
+    check('and keeps the panel maximized', (await page.locator('.dock-maximized').count()) > 0)
+    // with nothing left that uses it, Escape restores the layout
+    await page.evaluate(() => document.activeElement instanceof window.HTMLElement && document.activeElement.blur())
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('.dock-maximized'), null, { timeout: 3000 }).catch(() => {})
+    check('a later Escape restores the layout', (await page.locator('.dock-maximized').count()) === 0)
+
     // --- the ladder sheet ---
     await page.evaluate((program) => window.__oip.store.loadStProgram(program), LADDER_PROGRAM)
     const sheet = page.locator('.dock-slot-bottom [data-testid="ladder-view"]')
@@ -101,6 +128,14 @@ async function main() {
     await sheet.focus()
     await page.keyboard.press('Control+f')
     await page.locator('[data-testid="ladder-find"]').waitFor({ timeout: 3000 })
+    // F2 on a button of the ladder find bar: the scene tree's window listener used to open a part rename and take the
+    // keyboard out of the panel
+    await selectBelt(page)
+    await page.locator('[data-testid="ladder-find-show-replace"]').focus()
+    await page.keyboard.press('F2')
+    await page.waitForTimeout(150)
+    check('F2 on a ladder find-bar button opens no part rename', (await page.locator('.tree-rename').count()) === 0)
+    check('and the keyboard stays in the find bar', await activeIs(page, '[data-testid="ladder-find"] *'))
     await sheet.focus()
     await selectBelt(page)
     check('setup: the ladder sheet has the focus with Find open', await activeIs(page, '[data-testid="ladder-view"]'))

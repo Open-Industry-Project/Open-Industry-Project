@@ -7,6 +7,7 @@ import { getPackage } from '../../core/parts/partRegistry'
 import { isStandardCategory, packageCategory } from '../../core/parts/partCategory'
 import { partDisplayNames } from '../../core/parts/partDisplayName'
 import { resolveKeyAction } from '../../core/keymap'
+import { keyBelongsToTarget } from '../dialogHost'
 import { runCommand, runCommandOn } from '../commands'
 import { preloadBehaviorEditor } from './behaviorEditorChunk'
 import { flattenRigForest, jointRange, rigGeometryOf, shapeLabel } from '../rigTree'
@@ -867,8 +868,9 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (resolveKeyAction(e, 'editor') !== 'edit.rename' || state.running || state.selectedIds.length !== 1) return
-      const t = e.target
-      if (t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return
+      // a code editor or the ladder find bar keeps F2 even on one of its buttons: opening a part rename there
+      // took the keyboard out of the panel
+      if (keyBelongsToTarget(e)) return
       e.preventDefault()
       beginRename(state.selectedIds[0]!)
     }

@@ -760,19 +760,14 @@ export function App({ store, sim }: AppProps) {
   // Esc restores. Deliberately its own capture-phase listener rather than the controller's
   // keydown, which bails the moment focus is in a text field - and a maximized PLC editor is
   // exactly that, so routing it there would make the key work everywhere except where it's
-  // needed. The same guard is applied here, so Esc still means "escape" inside CodeMirror /
-  // an input and only restores when you're not typing.
+  // needed. It asks keyBelongsToTarget first, so Esc still means "escape" inside CodeMirror, its
+  // find panel, the ladder find bar or an input, and only restores when nothing there uses it.
   useEffect(() => {
     if (!maxPanel) return
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return
-      const t = e.target
-      if (
-        t instanceof HTMLElement &&
-        (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
-      ) {
-        return
-      }
+      // the find bars own Escape (it closes them), on their buttons too; this listener runs first, in capture
+      if (keyBelongsToTarget(e)) return
       e.preventDefault()
       e.stopPropagation()
       restoreDock()
