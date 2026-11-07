@@ -6,7 +6,7 @@ import { clamp } from '../../../core/math'
 import type { BuildingWallRule, WallVariant } from '../../../core/types'
 import { ColorField } from './color'
 import { NumberField } from './fields'
-import { gridDecimals } from './shared'
+import { gridDecimals, shiftFoldsAfterRemove } from './shared'
 import { EyeIcon, FoldIcon, TrashIcon } from '../toolbarIcons'
 import { defineMessages, t, type MessageId } from '../../../core/i18n'
 
@@ -106,13 +106,19 @@ function ArrayElem({
  */
 const OPEN_UP_TO = 8
 
-/** per-element fold state, open by default unless told otherwise (resets when another part is selected) */
-function useElemFolds(openByDefault = true): [(i: number) => boolean, (i: number) => void] {
+/**
+ * Per-element fold state, open by default unless told otherwise (resets when another part is selected). Keyed by
+ * index, so removing a row must shift the rows after it down one (`removed`), or each would take the state of the
+ * row that used to follow it.
+ */
+function useElemFolds(openByDefault = true): [(i: number) => boolean, (i: number) => void, (i: number) => void] {
   const [openEl, setOpenEl] = useState<Record<number, boolean>>({})
   const isOpen = (i: number): boolean => openEl[i] ?? openByDefault
   const toggle = (i: number): void => setOpenEl((o) => ({ ...o, [i]: !(o[i] ?? openByDefault) }))
-  return [isOpen, toggle]
+  const removed = (i: number): void => setOpenEl((o) => shiftFoldsAfterRemove(o, i))
+  return [isOpen, toggle, removed]
 }
+
 
 /**
  * Generic editor for a `numberList` param (the SDK's typed waypoint/pose table): one collapsible row per
@@ -164,7 +170,7 @@ export function NumberGrid({
   const [open, setOpen] = useState(!long)
   // a named table starts folded: the names say which pose is which, and six numbers a row is a wall. So does a
   // long one, whose folded rows show their values instead of a name (summary below)
-  const [elOpen, toggleEl] = useElemFolds(rowNames === undefined && !long)
+  const [elOpen, toggleEl, elRemoved] = useElemFolds(rowNames === undefined && !long)
   // precise enough to show every value as stored (host-written rows carry more than the step), one width for
   // the whole table so its columns line up
   const decimals = gridDecimals(rows, step)
@@ -229,7 +235,11 @@ export function NumberGrid({
               index={i}
               open={elOpen(i)}
               onToggle={() => toggleEl(i)}
-              onRemove={() => (onRemoveRow ? onRemoveRow(i) : onChange(rows.filter((_, idx) => idx !== i)))}
+              onRemove={() => {
+                elRemoved(i)
+                if (onRemoveRow) onRemoveRow(i)
+                else onChange(rows.filter((_, idx) => idx !== i))
+              }}
               removeDisabled={disabled}
               head={
                 rowNames ? (
@@ -446,7 +456,7 @@ export function WallRuleArray({
   onChange: (next: BuildingWallRule[]) => void
 }) {
   const [open, setOpen] = useState(rules.length <= OPEN_UP_TO)
-  const [elOpen, toggleEl] = useElemFolds()
+  const [elOpen, toggleEl, elRemoved] = useElemFolds()
   const set = (i: number, patch: Partial<BuildingWallRule>): void =>
     onChange(rules.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
   const intField = (label: string, key: 'run' | 'gap' | 'count' | 'start', i: number, min: number): ReactNode => (
@@ -472,7 +482,10 @@ export function WallRuleArray({
               index={i}
               open={elOpen(i)}
               onToggle={() => toggleEl(i)}
-              onRemove={() => onChange(rules.filter((_, idx) => idx !== i))}
+              onRemove={() => {
+                elRemoved(i)
+                onChange(rules.filter((_, idx) => idx !== i))
+              }}
               removeDisabled={disabled}
             >
               <label className="field">

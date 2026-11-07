@@ -111,3 +111,14 @@ export function parseOffset(raw: string, unit: string): number | null | undefine
 }
 
 export type Update =(label: string, key: string, mutate: (p: PartInstance) => PartInstance) => void
+
+/** the fold map after row `removed` is deleted: its own entry gone, every later entry one index down */
+export function shiftFoldsAfterRemove(folds: Readonly<Record<number, boolean>>, removed: number): Record<number, boolean> {
+  const out: Record<number, boolean> = {}
+  for (const [k, v] of Object.entries(folds)) {
+    const i = Number(k)
+    if (i < removed) out[i] = v
+    else if (i > removed) out[i - 1] = v
+  }
+  return out
+}

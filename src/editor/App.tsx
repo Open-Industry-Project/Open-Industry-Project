@@ -1192,7 +1192,9 @@ export function App({ store, sim }: AppProps) {
       case 'tree':
         return (
           <div className="left-panel">
-            <SceneTree store={store} state={state} controller={controller} />
+            {/* keyed on scene loads: opening a project or the demo swaps the scene in place, and the tree's filter,
+                collapsed groups and rename belong to the scene they were made in (part ids repeat across scenes) */}
+            <SceneTree key={store.sceneLoads} store={store} state={state} controller={controller} />
           </div>
         )
       case 'inspector':
@@ -1445,7 +1447,7 @@ export function App({ store, sim }: AppProps) {
           {mobilePanel === 'tree' && (
             <div className="mobile-drawer left">
               <div className="left-panel">
-                <SceneTree store={store} state={state} controller={controller} />
+                <SceneTree key={store.sceneLoads} store={store} state={state} controller={controller} />
               </div>
             </div>
           )}

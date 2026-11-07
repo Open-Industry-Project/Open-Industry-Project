@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decimalsForStep, evalNumeric, gridDecimals, parseOffset, snapToStep, titleCase } from './shared'
+import { decimalsForStep, evalNumeric, gridDecimals, parseOffset, shiftFoldsAfterRemove, snapToStep, titleCase } from './shared'
 
 describe('titleCase', () => {
   it('capitalises each word of the name', () => {
@@ -144,5 +144,18 @@ describe('evalNumeric - typed units convert into the field unit', () => {
     expect(evalNumeric('5 kg', 'm')).toBe(5) // another dimension: read as before, not converted
     expect(evalNumeric('5ft', '')).toBe(5) // a field with no unit converts nothing
     expect(evalNumeric('5ft', 'kg')).toBe(5)
+  })
+})
+
+describe('shiftFoldsAfterRemove', () => {
+  it("drops the removed row's state and moves every later row's state down one", () => {
+    // rows 0..3, with row 1 folded and row 3 folded: remove row 1
+    expect(shiftFoldsAfterRemove({ 1: false, 3: false }, 1)).toEqual({ 2: false })
+    // removing row 0 shifts row 2's state to row 1, so it stays with its row
+    expect(shiftFoldsAfterRemove({ 0: true, 2: false }, 0)).toEqual({ 1: false })
+  })
+
+  it('leaves the rows before the removed one alone', () => {
+    expect(shiftFoldsAfterRemove({ 0: false, 1: true }, 5)).toEqual({ 0: false, 1: true })
   })
 })
