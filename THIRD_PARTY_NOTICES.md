@@ -274,10 +274,10 @@ shell's production dependency tree before packaging (`scripts/desktop-licenses.m
 under BSD-3-Clause, Apache-2.0, ISC, 0BSD, BlueOak-1.0.0, Python-2.0 and the Unlicense.
 Electron's own license and Chromium's (`LICENSE.electron.txt`, `LICENSES.chromium.html`)
 sit beside the executable. Electron (the version `apps/desktop/package-lock.json` pins,
-currently 42.11.10) includes Chromium's build of FFmpeg as
+currently 45.2.3) includes Chromium's build of FFmpeg as
 `ffmpeg.dll` / `libffmpeg.so`, which is LGPL-2.1-or-later. It is shipped unmodified, as
 Electron releases it; its source is Chromium's `third_party/ffmpeg` at the Chromium version
-that Electron release is built on (Chromium 148.0.7778.280 for Electron 42.11.10:
+that Electron release is built on (Chromium 156.0.8078.80 for Electron 45.2.3:
 <https://chromium.googlesource.com/chromium/third_party/ffmpeg/>, at the revision pinned by
 that Chromium's `DEPS`), and Electron publishes the matching binaries as the `ffmpeg-v<version>-*`
 assets of each release at <https://github.com/electron/electron/releases>. The desktop app
