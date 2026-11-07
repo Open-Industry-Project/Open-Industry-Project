@@ -106,6 +106,25 @@ describe('evalNumeric', () => {
     expect(evalNumeric('1.5 m/s', '')).toBe(1.5)
   })
 
+  it('reads a comma between digits as the decimal point', () => {
+    expect(evalNumeric('1,5', '')).toBe(1.5)
+    expect(evalNumeric('0,75 m', 'm')).toBe(0.75)
+    expect(evalNumeric('2*0,5', '')).toBe(1)
+    expect(evalNumeric('1,25', '')).toBe(1.25)
+    expect(evalNumeric('1,2345', '')).toBe(1.2345)
+  })
+
+  it('reads a comma decimal in another unit too', () => {
+    expect(evalNumeric('2,5ft', 'm')).toBeCloseTo(0.762, 6)
+  })
+
+  it('rejects a comma that could be a thousands separator, or one standing alone', () => {
+    expect(evalNumeric('1,500', '')).toBeNull()
+    expect(evalNumeric('1,500.5', '')).toBeNull()
+    expect(evalNumeric('1,', '')).toBeNull()
+    expect(evalNumeric(',5', '')).toBeNull()
+  })
+
   it('rejects malformed arithmetic instead of half-reading it', () => {
     // parseFloat would half-read each and commit a number the user never meant
     expect(evalNumeric('2 3', '')).toBeNull()

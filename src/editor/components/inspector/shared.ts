@@ -72,11 +72,25 @@ function convertUnits(s: string, unit: string): number | null {
 }
 
 /**
+ * A comma between digits read as the decimal point ("1,5" -> "1.5"), as in most of Europe. parseFloat stopped at
+ * the comma and stored 1. Null when the comma could also be a thousands separator ("1,500", or with a point as well,
+ * "1,500.5"), or when a comma stands anywhere else: the field then keeps its value rather than guess.
+ */
+function decimalComma(s: string): string | null {
+  if (!s.includes(',')) return s
+  if (s.includes('.') || /\d,\d{3}(?!\d)/.test(s)) return null
+  const out = s.replace(/(\d),(\d)/g, '$1.$2')
+  return out.includes(',') ? null : out
+}
+
+/**
  * Parse a number field's committed text: a length or speed typed in another unit converts into the field's
  * ("5ft" or "5' 6\"" into metres, "394 fpm" into m/s), the field's own unit suffix is stripped ("1.5 m" -> 1.5),
  * and simple math expressions evaluate ("2*0.75" -> 1.5). Returns null when nothing numeric is present.
  */
-export function evalNumeric(raw: string, unit: string): number | null {
+export function evalNumeric(text: string, unit: string): number | null {
+  const raw = decimalComma(text)
+  if (raw === null) return null
   // before the suffix strip, which would read "600mm" in a metre field as "600m"
   const converted = unit ? convertUnits(raw.trim(), unit) : null
   if (converted !== null) return Number.isFinite(converted) ? converted : null
