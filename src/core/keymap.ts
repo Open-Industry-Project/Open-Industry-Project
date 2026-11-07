@@ -463,3 +463,15 @@ export function formatChord(chord: string, mac = false): string {
   out.push(TOKEN_LABEL[c.token] ?? c.token.replace(/^(Key|Digit)/, ''))
   return out.join(mac ? '' : '+')
 }
+
+/**
+ * Whether a binding answers the shortcuts panel's search. Every word of the query must appear,
+ * in any order, in the label, the hint, the group or a chord as the panel prints it, so "ctrl+z",
+ * "snap" and "fly w" all find their rows. Case-insensitive; an empty query matches everything.
+ */
+export function bindingMatches(b: KeyBinding, query: string, mac = false): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return true
+  const text = [b.label, b.hint ?? '', b.group, ...b.keys.map((c) => formatChord(c, mac))].join('\n').toLowerCase()
+  return words.every((w) => text.includes(w))
+}

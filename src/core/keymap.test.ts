@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bindingMatches,
   DEFAULT_KEYMAP,
   KEY_GROUPS,
   findKeymapConflicts,
@@ -208,6 +209,32 @@ describe('formatChord', () => {
     expect(formatChord('Numpad5')).toBe('Numpad 5')
     expect(formatChord('ctrl+ArrowUp')).toBe('Ctrl+↑')
     expect(formatChord('ctrl+KeyZ', true)).toBe('⌘Z')
+  })
+})
+
+describe('bindingMatches (the shortcuts panel search)', () => {
+  const byId = (id: string) => DEFAULT_KEYMAP.find((b) => b.id === id)!
+
+  it('matches the label, hint and group, ignoring case', () => {
+    expect(bindingMatches(byId('edit.undo'), 'UNDO')).toBe(true)
+    expect(bindingMatches(byId('snap.vertex'), 'corner')).toBe(true) // hint: 'hold; drag a corner onto another part'
+    expect(bindingMatches(byId('snap.grid'), 'snapping')).toBe(true) // group
+    expect(bindingMatches(byId('edit.undo'), 'snapping')).toBe(false)
+  })
+
+  it('finds a chord the way the panel prints it, per platform', () => {
+    expect(bindingMatches(byId('edit.redo'), 'ctrl+shift+z')).toBe(true)
+    expect(bindingMatches(byId('edit.redo'), 'ctrl+y')).toBe(true) // its second chord
+    expect(bindingMatches(byId('edit.redo'), '⌘⇧z', true)).toBe(true)
+  })
+
+  it('needs every word, in any order', () => {
+    expect(bindingMatches(byId('edit.moveUp'), 'slot up')).toBe(true)
+    expect(bindingMatches(byId('edit.moveUp'), 'slot down')).toBe(false)
+  })
+
+  it('matches everything on an empty or blank query', () => {
+    expect(DEFAULT_KEYMAP.every((b) => bindingMatches(b, '') && bindingMatches(b, '   '))).toBe(true)
   })
 })
 

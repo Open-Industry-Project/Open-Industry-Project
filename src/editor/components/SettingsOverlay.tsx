@@ -4,6 +4,7 @@ import { collabServerPref, defaultCollabUrl, isCollabServerUrl, setCollabServerP
 import type { ReactElement } from 'react'
 import {
   activeKeymap,
+  bindingMatches,
   chordFromEvent,
   DEFAULT_KEYMAP,
   formatChord,
@@ -144,6 +145,8 @@ const M = defineMessages('settings', {
   position: 'position',
   alreadyBound: '{chord} is already {label}',
   restoreAll: 'Restore all defaults',
+  searchShortcuts: 'Search shortcuts',
+  noShortcutMatch: 'No shortcut matches “{query}”',
   pressKey: 'Press a key…',
   escapeFixed: 'Escape always means back out; it cannot be rebound',
   clickToChange: 'Click to change',
@@ -786,6 +789,8 @@ function ShortcutsSection({
   useSyncExternalStore(subscribeKeymap, keymapRev)
   /** why the last attempt was refused, shown on the row that was refused */
   const [refused, setRefused] = useState<{ id: string; message: string } | null>(null)
+  const [query, setQuery] = useState('')
+  const shown = keymap.filter((b) => bindingMatches(b, query, IS_MAC))
 
   // The recorder. Mounted only while a row is capturing, so the app keeps its own keyboard the rest
   // of the time. Capture phase, like the dialog's Esc handler: the editor controller is listening
@@ -825,16 +830,31 @@ function ShortcutsSection({
           ctrl: IS_MAC ? '⌘' : 'Ctrl', // i18n-ok: modifier key name
         })}
       </p>
-      {keymap !== DEFAULT_KEYMAP && (
-        <div className="shortcuts-toolbar">
+      <div className="shortcuts-toolbar">
+        <input
+          className="shortcuts-search"
+          data-testid="shortcuts-search"
+          type="search"
+          placeholder={t(M.searchShortcuts)}
+          aria-label={t(M.searchShortcuts)}
+          spellCheck={false}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          // typing must not drive the editor's shortcuts; Escape still closes the dialog
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape') e.stopPropagation()
+          }}
+        />
+        {keymap !== DEFAULT_KEYMAP && (
           <button type="button" className="shortcuts-reset-all" onClick={() => resetAllActions()}>
             {t(M.restoreAll)}
           </button>
-        </div>
-      )}
+        )}
+      </div>
+      {shown.length === 0 && <p className="shortcuts-empty">{t(M.noShortcutMatch, { query: query.trim() })}</p>}
       <div className="shortcuts-groups">
         {KEY_GROUPS.map((group) => {
-          const rows = keymap.filter((b) => b.group === group)
+          const rows = shown.filter((b) => b.group === group)
           if (rows.length === 0) return null
           return (
             <section className="shortcuts-group" key={group}>
