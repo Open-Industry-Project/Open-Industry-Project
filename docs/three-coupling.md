@@ -129,6 +129,13 @@ These use public API but lean on r187 *behavior*. Each has a canary or gate.
   If either moves, Shift+middle stops swapping or the selection drifts on screen while orbiting.
   Gate: `e2e/verify-nav-style.mjs`.
 
+- **OrbitControls ends a drag on a document `pointerup`** ([view.ts](../src/render/viewport/view.ts)
+  `endLostNavigation`) - a drag whose release was lost (Alt-Tab mid-orbit) is ended by dispatching a synthetic
+  `pointerup` for the held pointer on `domElement.ownerDocument`, where r187 adds its pointerup listener at
+  pointerdown. If OrbitControls moves that listener, the synthetic release goes unheard and the camera again
+  follows the hover until the next click. The gate reads `controls._pointers` to see the pointer let go.
+  Gate: `e2e/verify-drag-lost-release.mjs`.
+
 - **Owned world-matrix walk** - `scene.matrixWorldAutoUpdate = false`; the view owns the walk,
   poseRev/structRev drive freezes. Canary: `src/render/viewport/matrixWalk.test.ts` (in
   `npm test` - fails the suite if a three bump changes matrix semantics). Gate:

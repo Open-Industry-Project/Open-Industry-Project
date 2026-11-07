@@ -193,7 +193,7 @@ interface TreeRowProps {
   /** part rows only: start a drag-toggle of visibility from this row's eye (hidden = its current own state) */
   onVisiblePointerDown: (id: string, hidden: boolean) => void
   /** part rows only: pointer dragged onto this row - paints the active visibility drag, if any */
-  onRowPointerEnter: (id: string) => void
+  onRowPointerEnter: (id: string, buttons: number) => void
   onOpenBehavior: (id: string) => void
   onOpenScene: (id: string) => void
   onDragStart: (e: ReactDragEvent<HTMLDivElement>, id: string) => void
@@ -301,7 +301,7 @@ const TreeRow = memo(function TreeRow(props: TreeRowProps) {
       title={rowTitle}
       draggable={isPart && canReorder && !renaming}
       onClick={(e) => props.onRowClick(e, desc)}
-      onPointerEnter={isPart ? () => props.onRowPointerEnter(rowId) : undefined}
+      onPointerEnter={isPart ? (e) => props.onRowPointerEnter(rowId, e.buttons) : undefined}
       onContextMenu={(e) => props.onRowContextMenu(e, desc)}
       onDoubleClick={() => {
         if (running || renaming) return
@@ -679,19 +679,29 @@ export function SceneTree({ store, state, controller }: SceneTreeProps) {
 
   // drag-toggle visibility: press the eye and drag across rows to set them
   // all to the same state. visPaint holds the target `visible` value for the active drag.
+  // The paint ends on release, on the window losing focus, or on entering a row with no button held: Alt-Tab mid-drag
+  // can take the release with it, and the paint then went on hiding every row the mouse crossed, an undo step each.
   const visPaint = useRef<boolean | null>(null)
   const onVisiblePointerDown = useCallback(
     (id: string, hidden: boolean) => {
       const target = hidden // toggling a hidden row shows it, and vice-versa
       visPaint.current = target
       store.setVisible([id], target)
-      window.addEventListener('pointerup', () => (visPaint.current = null), { once: true })
+      const end = (): void => {
+        visPaint.current = null
+        window.removeEventListener('pointerup', end)
+        window.removeEventListener('blur', end)
+      }
+      window.addEventListener('pointerup', end)
+      window.addEventListener('blur', end)
     },
     [store],
   )
   const onRowPointerEnter = useCallback(
-    (id: string) => {
-      if (visPaint.current !== null) store.setVisible([id], visPaint.current)
+    (id: string, buttons: number) => {
+      if (visPaint.current === null) return
+      if (buttons === 0) visPaint.current = null
+      else store.setVisible([id], visPaint.current)
     },
     [store],
   )

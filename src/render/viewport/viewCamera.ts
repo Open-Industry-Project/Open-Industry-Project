@@ -48,6 +48,9 @@ export class CameraNavState {
   readonly navStartTarget = new Vector3()
   navigating = false
   navCancelled = false
+  /** the pointer that last pressed in the viewport: the one an OrbitControls drag holds, for ending it when its
+   *  release is lost (endLostNavigation) */
+  navPointer: { id: number; type: string } | null = null
   // Camera projection state (Perspective/Orthogonal). orthoAuto marks an
   // orthographic mode engaged by an orbit-gizmo axis snap: any
   // orbit off that pose reverts it to perspective, while an explicit setProjection stays

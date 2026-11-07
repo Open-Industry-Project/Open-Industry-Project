@@ -6,7 +6,8 @@
 //   - the window losing focus
 // A control drag released normally first proves the setup moves the part at all. Also covered, as the other two
 // ways a drag's modifiers or ending went wrong: Escape held to cancel a drag must not let its auto-repeats go on to
-// clear the selection, and Cmd (Meta) must invert grid snap mid-drag the way Ctrl does.
+// clear the selection, and Cmd (Meta) must invert grid snap mid-drag the way Ctrl does. And the camera: a middle-drag
+// pan whose release is lost must end too (OrbitControls let go of the pointer), on a no-button move or on blur.
 // Run: node e2e/verify-drag-lost-release.mjs [--headed]
 /* global process, console, window, localStorage, Event */
 import { startServer } from './_server.mjs'
@@ -167,6 +168,78 @@ async function main() {
     check('control: Ctrl turns snapping off for the drag', fractional(ctrl), ctrl.toFixed(3))
     const meta = await snapDrag('Meta')
     check('Cmd (Meta) turns it off the same way', fractional(meta) && Math.abs(meta - ctrl) < 1e-6, `${meta.toFixed(3)} vs Ctrl ${ctrl.toFixed(3)}`)
+
+    // Camera navigation loses its release the same way: OrbitControls kept the pointer, so after Alt-Tab the camera
+    // went on panning as the mouse hovered. A plain middle drag pans (core/navigation.ts). The view hands
+    // OrbitControls the missed release on a no-button move or on blur; the camera stays where the drag left it.
+    const camPos = () => page.evaluate(() => window.__oip.view.camera.position.toArray().map((v) => +v.toFixed(4)).join(','))
+    const navigating = () => page.evaluate(() => window.__oip.view.nav.navigating)
+    // upper right of the 3D canvas, away from the belt and its gizmo at the centre
+    const empty = await page.evaluate(() => {
+      const r = window.__oip.view.renderer.domElement.getBoundingClientRect()
+      return { x: r.left + r.width * 0.85, y: r.top + r.height * 0.25 }
+    })
+    async function beginPan() {
+      await page.mouse.move(empty.x, empty.y)
+      await page.mouse.down({ button: 'middle' })
+      for (let i = 1; i <= 5; i++) {
+        await page.mouse.move(empty.x - i * 12, empty.y + i * 6)
+        await page.waitForTimeout(30)
+      }
+    }
+    await page.evaluate(() => window.__oip.store.clearSelection())
+    const p0 = await camPos()
+    await beginPan()
+    check('setup: a middle drag pans the camera', (await navigating()) && (await camPos()) !== p0)
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: empty.x - 100, y: empty.y + 60, button: 'none', buttons: 0 })
+    await page.waitForTimeout(150)
+    check('a move with no button held ends the pan', !(await navigating()))
+    // Whether OrbitControls has let go of the pointer, not whether the camera is still: headless draws a few frames a
+    // second and the pan's damping tail keeps the camera drifting for seconds after even a normal release, so a
+    // position check cannot tell drift from following. While it holds the pointer, hover moves pan the camera and the
+    // next press is ignored (OrbitControls skips a pointer it already tracks).
+    check('and OrbitControls lets go of the pointer', await page.evaluate(() => window.__oip.view.controls._pointers.length === 0))
+    await page.mouse.up({ button: 'middle' })
+
+    await beginPan()
+    check('setup: a second pan is live', await navigating())
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    await page.waitForTimeout(150)
+    check('losing focus ends the pan', !(await navigating()))
+    check('and lets go of the pointer', await page.evaluate(() => window.__oip.view.controls._pointers.length === 0))
+    await page.mouse.up({ button: 'middle' })
+
+    // The corner orbit gizmo: a drag on it runs on pointer capture until the pointer lock engages (and for good if the
+    // browser refuses the lock). A lost release must end it, and Escape must cancel it without reaching the editor.
+    const gizmoPressed = () => page.evaluate(() => window.__oip.view.orbitGizmo.pressed)
+    const gizmoCentre = await page.evaluate(() => {
+      const r = window.__oip.view.orbitGizmo.canvas.getBoundingClientRect()
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    })
+    async function beginOrbit() {
+      await page.mouse.move(gizmoCentre.x, gizmoCentre.y)
+      await page.mouse.down()
+      for (let i = 1; i <= 4; i++) {
+        await page.mouse.move(gizmoCentre.x + i * 8, gizmoCentre.y + i * 3)
+        await page.waitForTimeout(30)
+      }
+    }
+    await beginOrbit()
+    check('setup: a drag on the orbit gizmo is pressed', await gizmoPressed())
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: gizmoCentre.x + 60, y: gizmoCentre.y + 20, button: 'none', buttons: 0 })
+    await page.waitForTimeout(150)
+    check('a move with no button held ends the gizmo orbit', !(await gizmoPressed()))
+    await page.mouse.up()
+
+    await page.evaluate(() => window.__oip.store.select('belt1'))
+    await beginOrbit()
+    check('setup: a second gizmo orbit is pressed, with a part selected', (await gizmoPressed()) && (await selected()) === 'belt1')
+    await escape(false)
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+    await page.waitForTimeout(150)
+    check('Escape cancels the gizmo orbit', !(await gizmoPressed()))
+    check('and leaves the selection alone', (await selected()) === 'belt1', `selected: "${await selected()}"`)
+    await page.mouse.up()
   } finally {
     await browser.close()
     vite?.kill?.()

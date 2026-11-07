@@ -1640,6 +1640,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
   }
 
   private onNavAbortDown = (e: PointerEvent): void => {
+    this.nav.navPointer = { id: e.pointerId, type: e.pointerType }
     if (e.button === 2 && this.nav.navigating && !this.nav.navCancelled) {
       this.cancelNavigation()
       e.preventDefault()
@@ -1651,7 +1652,21 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.nav.altHeld = e.altKey // orbit snapping follows Alt pressed or released mid-drag
     if (this.nav.navigating && !this.nav.navCancelled && (e.buttons & 2) !== 0) {
       this.cancelNavigation()
+    } else if (this.nav.navigating && e.buttons === 0) {
+      this.endLostNavigation()
     }
+  }
+
+  /**
+   * An orbit or pan drag whose release never arrived (Alt-Tab mid-drag takes the pointerup with it): OrbitControls
+   * still holds the pointer, so the camera went on turning as the mouse hovered and the next press was ignored. Hand
+   * it the release it missed, on the document where it listens. Its end event then runs onNavEnd as usual, which
+   * also re-enables the controls after a right-click cancel. The camera stays where the drag left it.
+   */
+  private endLostNavigation(): void {
+    const p = this.nav.navPointer
+    if (!p) return
+    this.renderer.domElement.ownerDocument.dispatchEvent(new PointerEvent('pointerup', { pointerId: p.id, pointerType: p.type, bubbles: true }))
   }
 
   private onNavAbortKey = (e: KeyboardEvent): void => {
@@ -2322,6 +2337,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
   // Alt+Tab away loses Alt's keyup: drop it so the next orbit doesn't snap
   private readonly onWindowBlur = (): void => {
     this.nav.altHeld = false
+    if (this.nav.navigating) this.endLostNavigation()
   }
 
   /** Dynamic-resolution hook: re-point the renderer + composer at a new pixel ratio, clamped to the
