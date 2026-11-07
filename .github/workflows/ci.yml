@@ -78,6 +78,10 @@ jobs:
         # and control-logic test, headless). The schema check above only reads its manifest, so without
         # this step the example could stop working and nothing would say so.
         run: npm run test-project -- examples/projects/start-stop-motor
+      - name: No high-severity advisories in shipped packages
+        # npm audit over the app, desktop and collab-server lockfiles, dev packages left out. It can turn red on a
+        # PR that changed nothing, the day an advisory is published; fix it on main and rebase.
+        run: node scripts/audit-deps.mjs
 
   # The gates that need a PRODUCTION build and a browser. Separate job so the fast checks above
   # still report in ~2 minutes.

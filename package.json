@@ -129,17 +129,18 @@
     "(GHSA-c2j3-45gr-mqc4, -cmwh-pvxp-8882, -vxr8-fq34-vvx9, -55q2-fjhq-7xh7 - custom-element and",
     "hook-pollution XSS bypasses). 3.4.16 fixes all four plus GHSA-p98j-92pf-mc4p (3.4.13-3.4.15:",
     "an IN_PLACE afterSanitize hook leaving detached-subtree handlers armed) and is a patch bump",
-    "inside the same minor, so force it rather than hold monaco back.",
+    "inside the same minor, so force it rather than hold monaco back. 3.4.17 adds the fixes for",
+    "GHSA-cg2g-xh64-v4q7, -mrv2-3pqr-j5jr and -c6gr-qvv4-5v3f (SAFE_FOR_TEMPLATES, IN_PLACE and SMIL bypasses).",
     "The pin alone does NOT reach the app: monaco 0.57 imports its OWN vendored copy",
     "(esm/vs/base/browser/dompurify/dompurify.js, 3.4.15) by relative path, not this package. What",
     "protects the shipped bundle is scripts/lib/monaco-dompurify.mjs (a vite plugin in vite.config.ts),",
     "which redirects that import to this npm package, so the pinned version is the one that ships.",
-    "Drop both when monaco vendors a dompurify at or above 3.4.16 (the plugin then keeps monaco's copy",
+    "Drop both when monaco vendors a dompurify at or above 3.4.17 (the plugin then keeps monaco's copy",
     "and warns if this pin is older)."
   ],
   "overrides": {
     "sharp": "0.35.4",
-    "dompurify": "3.4.16",
+    "dompurify": "3.4.17",
     "@huggingface/usd-web-viewer": {
       "three": "$three",
       "@types/three": "$@types/three"
