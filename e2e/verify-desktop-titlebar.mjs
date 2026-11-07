@@ -184,16 +184,17 @@ try {
   // ── 6. the row's file actions really are in the menu ────────────────────────────────────────────
   // New/Open/Save are menu items with accelerators; Demo must be one too, or hiding the toolbar's file
   // group would remove it outright. Driven down the real menu:command channel.
-  // What arriving looks like: the demo opens as a preview (commands.ts file.openDemo - "it opens no
-  // scene"), which becomes a project of its own only once edited.
+  // What arriving looks like: the demo opens as a preview, which becomes a project of its own only once
+  // edited. Opening it reloads the page into ?scene=demo (sceneFile.ts openDemoScene), so the test hook is
+  // gone until the new page boots: every read here uses ?. and waits through the reload.
   await app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0].webContents.send('menu:command', 'file.openDemo')
   })
   const demoOpened = await page
-    .waitForFunction(() => window.__oip.store.getState().demoSession === true, null, { timeout: 30000 })
+    .waitForFunction(() => window.__oip?.store?.getState().demoSession === true, null, { timeout: 90000, polling: 200 })
     .then(() => true)
     .catch(() => false)
-  const projectName = await page.evaluate(() => window.__oip.store.getState().projectName)
+  const projectName = await page.evaluate(() => window.__oip?.store?.getState().projectName)
   check('File → Open Demo shows the demo preview', demoOpened, `project: ${projectName}`)
 
   // ── 7. a small window: the row must still fit entirely beside the caption buttons ───────────────
