@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PerspectiveCamera, Ray, Raycaster, Vector3 } from 'three'
+import { PerspectiveCamera, Quaternion, Ray, Raycaster, Vector3 } from 'three'
 import { TransformGizmo } from './gizmo'
 
 /** a downward ray whose XZ-plane intersection is (x, 0, z) - the gizmo math works off that point */
@@ -507,6 +507,46 @@ describe('TransformGizmo drag guards', () => {
     expect(d?.rotationAxis).toEqual([0, 1, 0])
     // still the yaw drag (each offset down-ray reads its angle on a slightly different camera-facing plane)
     expect(d?.rotationDelta).toBeCloseTo(0.4, 1)
+    g.dispose()
+  })
+})
+
+describe('TransformGizmo view ring off the screen centre', () => {
+  // a camera at the origin looking down -Z, and a part ahead and well to the right: its line of sight is not -Z
+  const centre: [number, number, number] = [3, 0, -5]
+  const sight = new Vector3(...centre).normalize()
+
+  it('in perspective turns about the line of sight to the part, not the camera forward', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: centre, rotationY: 0, mode: 'rotate', space: 'global' })
+    g.beginDrag('rotView', rayFrom([0, 0, 0], [3.6, 0.2, -5]), CAM_FWD_Z)
+    const axis = g.dragDelta(rayFrom([0, 0, 0], [3.4, 0.6, -5]))?.rotationAxis
+    expect(axis).toBeDefined()
+    const a = new Vector3(...axis!)
+    // the same line either way round: the sign only says which way the turn is measured
+    expect(Math.abs(a.dot(sight))).toBeCloseTo(1, 5)
+    g.dispose()
+  })
+
+  it('in orthographic keeps the camera normal: every sight line is parallel', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: centre, rotationY: 0, mode: 'rotate', space: 'global' })
+    // an orthographic ray starts on the near plane, not at a camera point
+    g.beginDrag('rotView', new Ray(new Vector3(3.6, 0.2, 5), new Vector3(0, 0, -1)), CAM_FWD_Z, undefined, true)
+    const axis = g.dragDelta(new Ray(new Vector3(3.4, 0.6, 5), new Vector3(0, 0, -1)))?.rotationAxis
+    expect(Math.abs(axis?.[2] ?? 0)).toBeCloseTo(1, 5)
+    g.dispose()
+  })
+
+  it('draws the ring facing along the line of sight', () => {
+    const g = new TransformGizmo()
+    g.setState({ center: centre, rotationY: 0, mode: 'rotate', space: 'global' })
+    const cam = new PerspectiveCamera(50, 1, 0.1, 1000)
+    cam.updateMatrixWorld(true) // at the origin, looking down -Z
+    g.updateScale(cam, 800)
+    const ring = (g as unknown as { viewRingGroup: { getWorldQuaternion(q: Quaternion): Quaternion } }).viewRingGroup
+    const normal = new Vector3(0, 0, 1).applyQuaternion(ring.getWorldQuaternion(new Quaternion()))
+    expect(Math.abs(normal.dot(sight))).toBeCloseTo(1, 5)
     g.dispose()
   })
 })

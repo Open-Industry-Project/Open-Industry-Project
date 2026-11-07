@@ -11,6 +11,7 @@ import {
   LineBasicMaterial,
   LineSegments,
   Mesh,
+  Matrix4,
   MeshBasicMaterial,
   PlaneGeometry,
   Quaternion,
@@ -138,6 +139,9 @@ const Y_UP = new Vector3(0, 1, 0)
 const X_AXIS = new Vector3(1, 0, 0)
 // default camera normal for the unit tests' top-down rays (view.ts passes the real one)
 const DEFAULT_CAM_NORMAL = new Vector3(0, -1, 0)
+// scratch for the view ring's per-frame facing (updateScale)
+const _faceM = new Matrix4()
+const _faceQ = new Quaternion()
 
 /** Per-ring root-local rotation axis; the in-plane drag frame is derived per drag. */
 const RING_AXIS: Record<'rotX' | 'rotY' | 'rotZ', Vector3> = {
@@ -628,7 +632,12 @@ export class TransformGizmo {
     this.applyHighlight(handle === 'view' ? null : handle)
     const center = new Vector3(this.state.center[0], this.state.center[1], this.state.center[2])
     if (handle === 'rotX' || handle === 'rotY' || handle === 'rotZ' || handle === 'rotView') {
-      this.beginRing(handle, ray, center, camNormal)
+      // In perspective the ring sits off the screen centre wherever the part is not, so "towards the viewer" is the
+      // line of sight to it, not the camera's forward: the view ring turns about that line and its angle is read on
+      // the plane facing it. A perspective ray starts at the camera, so the sight line is centre minus ray origin. An
+      // orthographic ray starts on the near plane and every sight line is the camera normal.
+      const sight = orthographic ? camNormal.clone() : center.clone().sub(ray.origin)
+      this.beginRing(handle, ray, center, sight.lengthSq() > 1e-12 ? sight.normalize() : camNormal)
     } else if (handle === 'rotTrackball') {
       // seed the screen-space frame + grab pixel; dragDelta integrates the offset
       const { right, up } = cameraRightUp(camNormal)
@@ -950,9 +959,12 @@ export class TransformGizmo {
     const d = camera.position.distanceTo(this.root.position)
     const worldPerPx = worldPerPixel(camera, d, viewportHeight)
     this.root.scale.setScalar(Math.max(worldPerPx * GIZMO_PX, 1e-4))
-    // the view ring faces the camera in world space (undo the root's full orientation)
+    // the view ring faces the viewer in world space (undo the root's full orientation): along the line of sight to the
+    // gizmo in perspective, the axis a view-ring drag turns about (beginDrag), and along the camera in orthographic
     if (this.rotateGroup.visible) {
-      this.viewRingGroup.quaternion.copy(this.root.quaternion).invert().multiply(camera.quaternion)
+      const ortho = (camera as PerspectiveCamera & { orthographic?: boolean }).orthographic === true
+      const facing = ortho ? camera.quaternion : _faceQ.setFromRotationMatrix(_faceM.lookAt(camera.position, this.root.position, camera.up))
+      this.viewRingGroup.quaternion.copy(this.root.quaternion).invert().multiply(facing)
     }
     if (this.moveGroup.visible) this.updatePadQuadrants(camera)
   }
