@@ -15,15 +15,15 @@
     "dist": "npm run licenses && electron-builder"
   },
   "devDependencies": {
-    "electron": "^42.5.0",
-    "electron-builder": "^26.15.3"
+    "electron": "^42.11.18",
+    "electron-builder": "^26.18.0"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9",
-    "koffi": "3.3.2",
-    "node-opcua-certificate-manager": "2.186.17",
-    "node-opcua-client": "2.186.17",
-    "node-opcua-server": "2.186.17"
+    "electron-updater": "^6.8.11",
+    "koffi": "3.3.6",
+    "node-opcua-certificate-manager": "2.187.19",
+    "node-opcua-client": "2.187.21",
+    "node-opcua-server": "2.187.22"
   },
   "build": {
     "appId": "org.openindustryproject.simulator",
