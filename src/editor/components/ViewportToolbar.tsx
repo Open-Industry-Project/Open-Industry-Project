@@ -5,7 +5,7 @@ import { DEFAULT_ROTATE_SNAP_DEG } from '../../core/types'
 import { defaultTranslateSnap, toStored, unitView } from '../../core/units'
 import { sceneDisplayUnits } from '../../core/scene/sceneUnits'
 import type { EditorController } from '../controller'
-import { keyHint, withKey } from '../keyHint'
+import { IS_MAC, keyHint, withKey } from '../keyHint'
 import type { EditorState, EditorStore, ToolMode } from '../store/store'
 import { useDismiss } from './popover'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
@@ -25,7 +25,7 @@ const M = defineMessages('viewportToolbar', {
   useLocalSpace: 'Use Local Space',
   spaceLocal: 'Local',
   spaceGlobal: 'Global',
-  gridSnapTitle: '{label}: hold Ctrl during a drag to invert',
+  gridSnapTitle: '{label}: hold {ctrl} during a drag to invert',
   useGridSnap: 'Use grid snap',
   liveSnapTitle: '{label}: hold Alt to escape for one drag. {faceKey} toggles just face snap (tiling parts flushing onto neighbor faces).',
   liveSnap: 'Toggle live (part) snap',
@@ -339,7 +339,10 @@ export function ViewportToolbar({ store, state, controller }: ViewportToolbarPro
             and Snap-to-Floor - all the snapping controls in one place. */}
         <button
           className={`viewport-tool${gridSnap.enabled ? ' active' : ''}`}
-          title={t(M.gridSnapTitle, { label: withKey(t(M.useGridSnap), 'snap.grid') })}
+          title={t(M.gridSnapTitle, {
+            label: withKey(t(M.useGridSnap), 'snap.grid'),
+            ctrl: IS_MAC ? '⌘' : 'Ctrl', // i18n-ok: modifier key name
+          })}
           onClick={() => store.toggleGridSnap()}
         >
           <GridSnapIcon />

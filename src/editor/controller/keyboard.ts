@@ -93,6 +93,13 @@ export function onKeyDown(ec: EditorController, e: KeyboardEvent): void {
   // flight", so it can't be a single table entry. It's listed there as `fixed` - documented in
   // the shortcuts panel, never routed through the resolver, never remappable.
   if (e.key === 'Escape') {
+    // one press backs out one level. Without this, holding Escape to cancel a drag (handled above)
+    // or a camera move (the view stops only the first press) lets the auto-repeats walk on through
+    // the ruler, placing and guard mode to the selection.
+    if (e.repeat) {
+      e.preventDefault()
+      return
+    }
     // editing the display's values included: each change is saved as it is made, so leaving loses nothing
     if (s.presenting) ec.store.setState({ presenting: false })
     else if (ec.rulerVisible) ec.clearRuler()

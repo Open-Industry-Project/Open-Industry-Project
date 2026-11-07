@@ -225,6 +225,7 @@ export class EditorController {
     window.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('keyup', this.onKeyUp)
     document.addEventListener('visibilitychange', this.onVisibilityChange)
+    window.addEventListener('blur', this.onWindowBlur)
 
     sim.onFrame = (frame) => {
       this.lastFrame = frame
@@ -902,6 +903,7 @@ export class EditorController {
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('keyup', this.onKeyUp)
     document.removeEventListener('visibilitychange', this.onVisibilityChange)
+    window.removeEventListener('blur', this.onWindowBlur)
     this.unsubscribe()
     this.unsubscribeDocument()
     this.unsubscribePackages()
@@ -1896,6 +1898,8 @@ export class EditorController {
   private onPointerUp = (e: PointerEvent): void => pointerOps.onPointerUp(this.press, this, e)
 
   private onPointerCancel = (e: PointerEvent): void => pointerOps.onPointerCancel(this.press, this, e)
+  // focus leaving mid-drag (Alt-Tab) may take the release with it: cancel the drag, as Escape does
+  private readonly onWindowBlur = (): void => dragOps.cancelActiveDrag(this)
 
   resolveTap(clientX: number, clientY: number, shift: boolean): void {
     pointerOps.resolveTap(this, clientX, clientY, shift)

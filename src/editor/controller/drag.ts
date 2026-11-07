@@ -408,7 +408,7 @@ export function moveGuardOpening(ec: EditorController, drag: Drag & { kind: 'gua
   if (!range) return
   const s = ec.store.getState()
   // the grid snap ("Use Snap", Ctrl inverts, Shift subdivides) steps the edges like a move drag steps a position
-  const { specs, index } = guardDragSpecs(drag, v, gizmoSnap(s, e.ctrlKey, e.shiftKey)?.translate, range.lo, range.hi)
+  const { specs, index } = guardDragSpecs(drag, v, gizmoSnap(s, e.ctrlKey || e.metaKey, e.shiftKey)?.translate, range.lo, range.hi)
   drag.moved = true
   drag.last = { specs, index }
   ec.store.setTransient(withOpenings(drag.start, drag.id, specs))

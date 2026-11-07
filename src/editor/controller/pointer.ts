@@ -293,18 +293,26 @@ export function onPointerMove(pp: PointerPress, ec: EditorController, e: Pointer
     return
   }
   if (e.pointerId !== drag.pointerId) return
+  // Every drag here is made with a button held, so a move with none means the release was lost (Alt-Tab mid-drag
+  // swallows the pointerup). Cancel, as Escape does, rather than keep moving the part with no button down.
+  if (e.buttons === 0) {
+    dragOps.cancelActiveDrag(ec)
+    return
+  }
+  // the snap-invert modifier: Ctrl, or Cmd on a Mac, the way the keymap reads "ctrl" (core/keymap.ts matchesChord)
+  const snapKey = e.ctrlKey || e.metaKey
   switch (drag.kind) {
     case 'band':
       dragOps.moveBand(ec, drag, e)
       break
     case 'gizmo':
-      dragOps.moveGizmo(ec, drag, e.clientX, e.clientY, e.ctrlKey, e.altKey, e.shiftKey)
+      dragOps.moveGizmo(ec, drag, e.clientX, e.clientY, snapKey, e.altKey, e.shiftKey)
       break
     case 'rigNode':
-      dragOps.moveRigNode(ec, drag, e.clientX, e.clientY, e.ctrlKey, e.shiftKey)
+      dragOps.moveRigNode(ec, drag, e.clientX, e.clientY, snapKey, e.shiftKey)
       break
     case 'rotate':
-      dragOps.moveRotate(ec, drag, e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey)
+      dragOps.moveRotate(ec, drag, e.clientX, e.clientY, snapKey, e.shiftKey, e.altKey)
       break
     case 'resize':
       dragOps.moveResize(ec, drag, e)
