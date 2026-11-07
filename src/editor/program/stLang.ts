@@ -365,7 +365,61 @@ const NO_IMAGE: LiveImage = { values: {}, instances: [], picked: {}, scopeKey: '
 const M = defineMessages('stLang', {
   monitoring: 'Showing {instance} ({at} of {count})',
   monitoringHint: "{type} runs as {list}. The values shown are {instance}'s. Click to show the next one, or pick an instance in the organizer.",
+  // CodeMirror's own words, shown or announced inside the ST editor (see stPhrases). `$` is
+  // CodeMirror's placeholder, filled with a line number or a count.
+  goToLine: 'Go to line',
+  go: 'Go',
+  close: 'Close',
+  replacedMatchOnLine: 'Replaced match on line $',
+  replacedMatches: 'Replaced $ matches',
+  currentMatch: 'Current match',
+  onLine: 'on line',
+  foldedLines: 'Folded lines',
+  unfoldedLines: 'Unfolded lines',
+  to: 'to',
+  foldedCode: 'Folded code',
+  unfold: 'Unfold',
+  foldLine: 'Fold line',
+  unfoldLine: 'Unfold line',
+  diagnostics: 'Diagnostics',
+  noDiagnostics: 'No diagnostics',
+  completions: 'Completions',
+  controlCharacter: 'Control character',
 })
+
+/**
+ * CodeMirror's built-in words (the Go To Line dialog, close buttons, fold markers, the lint panel,
+ * screen-reader announcements) through OIP's i18n. CodeMirror looks a phrase up by its English text,
+ * so the keys must match its source exactly. Built per editor, never at module scope: the locale
+ * installs at boot, after modules load.
+ */
+function stPhrases(): Extension {
+  return EditorState.phrases.of(stPhraseTable())
+}
+
+/** @internal exported for the test that checks each key against CodeMirror's source */
+export function stPhraseTable(): Record<string, string> {
+  return {
+    'Go to line': msg(M.goToLine), // i18n-ok: CodeMirror phrase key
+    go: msg(M.go), // i18n-ok: CodeMirror phrase key
+    close: msg(M.close), // i18n-ok: CodeMirror phrase key
+    'replaced match on line $': msg(M.replacedMatchOnLine), // i18n-ok: CodeMirror phrase key
+    'replaced $ matches': msg(M.replacedMatches), // i18n-ok: CodeMirror phrase key
+    'current match': msg(M.currentMatch), // i18n-ok: CodeMirror phrase key
+    'on line': msg(M.onLine), // i18n-ok: CodeMirror phrase key
+    'Folded lines': msg(M.foldedLines), // i18n-ok: CodeMirror phrase key
+    'Unfolded lines': msg(M.unfoldedLines), // i18n-ok: CodeMirror phrase key
+    to: msg(M.to), // i18n-ok: CodeMirror phrase key
+    'folded code': msg(M.foldedCode), // i18n-ok: CodeMirror phrase key
+    unfold: msg(M.unfold), // i18n-ok: CodeMirror phrase key
+    'Fold line': msg(M.foldLine), // i18n-ok: CodeMirror phrase key
+    'Unfold line': msg(M.unfoldLine), // i18n-ok: CodeMirror phrase key
+    Diagnostics: msg(M.diagnostics), // i18n-ok: CodeMirror phrase key
+    'No diagnostics': msg(M.noDiagnostics), // i18n-ok: CodeMirror phrase key
+    Completions: msg(M.completions), // i18n-ok: CodeMirror phrase key
+    'Control character': msg(M.controlCharacter), // i18n-ok: CodeMirror phrase key
+  }
+}
 
 /** On the header of a PROGRAM that runs as several instances: which one the values are, and a click to the next. */
 class MonitorWidget extends WidgetType {
@@ -482,5 +536,6 @@ export function stExtensions(
     stLinter(opts?.getController ?? (() => null), opts?.lints ?? (() => true), opts?.getDefaultPlc ?? (() => undefined)),
     watchField,
     stTheme,
+    stPhrases(),
   ]
 }
