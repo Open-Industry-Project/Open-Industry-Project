@@ -10,6 +10,9 @@ import {
   formatChord,
   isRebound,
   KEY_GROUPS,
+  keyGroupLabel,
+  keyHintText,
+  keyLabel,
   keymapRev,
   subscribeKeymap,
   type KeyBinding,
@@ -805,7 +808,8 @@ function ShortcutsSection({
       if (!chord) return // a bare modifier: keep waiting for the key it modifies
       const clash = rebindAction(capturing, [chord])
       if (clash) {
-        const label = DEFAULT_KEYMAP.find((b) => b.id === clash)?.label ?? clash
+        const other = DEFAULT_KEYMAP.find((b) => b.id === clash)
+        const label = other ? keyLabel(other) : clash
         setRefused({ id: capturing, message: t(M.alreadyBound, { chord: formatChord(chord, IS_MAC), label }) })
       } else {
         setRefused(null)
@@ -858,7 +862,7 @@ function ShortcutsSection({
           if (rows.length === 0) return null
           return (
             <section className="shortcuts-group" key={group}>
-              <h3>{group}</h3>
+              <h3>{keyGroupLabel(group)}</h3>
               {rows.map((b) => {
                 const recording = capturing === b.id
                 const changed = isRebound(b.id)
@@ -866,8 +870,8 @@ function ShortcutsSection({
                 return (
                   <div className="shortcut-row" key={b.id}>
                     <span className="shortcut-text">
-                      <span className="shortcut-label">{b.label}</span>
-                      {refusal ? <span className="shortcut-refused">{refusal}</span> : b.hint && <span className="shortcut-hint">{b.hint}</span>}
+                      <span className="shortcut-label">{keyLabel(b)}</span>
+                      {refusal ? <span className="shortcut-refused">{refusal}</span> : b.hint && <span className="shortcut-hint">{keyHintText(b)}</span>}
                     </span>
                     <span className="shortcut-keys">
                       {recording ? (
@@ -891,7 +895,7 @@ function ShortcutsSection({
                         <button
                           type="button"
                           className="shortcut-revert"
-                          aria-label={t(M.restoreDefaultFor, { label: b.label })}
+                          aria-label={t(M.restoreDefaultFor, { label: keyLabel(b) })}
                           title={t(M.defaultChords, { chords: defaultChords(b.id).map((c) => formatChord(c, IS_MAC)).join(t(M.orSep)) })}
                           onClick={() => resetAction(b.id)}
                         >

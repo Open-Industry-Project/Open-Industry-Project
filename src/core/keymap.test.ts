@@ -1,10 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n'
 import {
   bindingMatches,
   DEFAULT_KEYMAP,
   KEY_GROUPS,
   findKeymapConflicts,
   formatChord,
+  keyGroupLabel,
+  keyHintText,
+  keyLabel,
   matchesChord,
   resolveKeyAction,
   resolveKeymap,
@@ -34,6 +38,11 @@ describe('resolveKeyAction - QWERTY', () => {
   it('binds hide / show to the bare H position, leaving Ctrl+H to ladder replace', () => {
     expect(resolveKeyAction(press('KeyH', 'h'), 'editor')).toBe('edit.toggleVisible')
     expect(resolveKeyAction(press('KeyH', 'h', { ctrlKey: true }), 'editor')).toBeNull()
+    expect(resolveKeyAction(press('KeyH', 'h', { ctrlKey: true }), 'ladder')).toBe('ladder.replace')
+  })
+
+  it("gives ladder Replace a Mac chord, since the system takes Cmd+H for Hide", () => {
+    expect(resolveKeyAction(press('KeyF', 'f', { metaKey: true, altKey: true }), 'ladder')).toBe('ladder.replace')
     expect(resolveKeyAction(press('KeyH', 'h', { ctrlKey: true }), 'ladder')).toBe('ladder.replace')
   })
 
@@ -249,5 +258,31 @@ describe('matchesChord', () => {
     // Shift+Space must keep boosting: Shift is itself one of the boost keys
     expect(matchesChord('Space', press('Space', ' ', { shiftKey: true }), { match: 'logical' })).toBe(false)
     expect(resolveKeyAction(press('Space', ' ', { shiftKey: true }), 'fly')).toBe('fly.boost')
+  })
+})
+
+describe('display text (the shortcuts panel)', () => {
+  afterEach(() => setLocale('en', null))
+  const undo = DEFAULT_KEYMAP.find((b) => b.id === 'edit.undo')!
+  const vertex = DEFAULT_KEYMAP.find((b) => b.id === 'snap.vertex')!
+
+  it('is the English source with no locale installed', () => {
+    expect(keyLabel(undo)).toBe('Undo')
+    expect(keyGroupLabel('Snapping')).toBe('Snapping')
+    expect(keyHintText(vertex)).toBe(vertex.hint)
+  })
+
+  it('reads the installed locale, by message ids taken from the binding ids', () => {
+    setLocale('de', new Map([
+      ['keymap.edit.undo.label', 'Rückgängig'],
+      ['keymap.group.Edit', 'Bearbeiten'],
+      ['keymap.snap.vertex.hint', 'halten; eine Ecke ziehen'],
+    ]))
+    expect(keyLabel(undo)).toBe('Rückgängig')
+    expect(keyGroupLabel('Edit')).toBe('Bearbeiten')
+    expect(keyHintText(vertex)).toBe('halten; eine Ecke ziehen')
+    // the search finds a row by what is shown, and still by the English
+    expect(bindingMatches(undo, 'rückgängig')).toBe(true)
+    expect(bindingMatches(undo, 'undo')).toBe(true)
   })
 })

@@ -20,6 +20,8 @@
  * KeyboardEvent satisfies structurally.
  */
 
+import { defineMessage, t, type MessageId } from './i18n'
+
 /** the modal context a binding belongs to. Chords only conflict within a mode (W is both the
  *  Move tool and fly-forward, which is fine: the modes are never live at the same time) */
 export type KeyMode = 'editor' | 'fly' | 'pilot' | 'ladder'
@@ -182,7 +184,7 @@ export const KEY_BINDINGS = [
   { id: 'ladder.zoomOut', mode: 'ladder', group: 'Ladder', label: 'Zoom out', keys: ['ctrl+Minus'], match: 'logical' },
   { id: 'ladder.zoomReset', mode: 'ladder', group: 'Ladder', label: 'Zoom to 100%', keys: ['ctrl+Digit0'], match: 'logical' },
   { id: 'ladder.find', mode: 'ladder', group: 'Ladder', label: 'Find', keys: ['ctrl+KeyF'], match: 'logical' },
-  { id: 'ladder.replace', mode: 'ladder', group: 'Ladder', label: 'Replace', keys: ['ctrl+KeyH'], match: 'logical' },
+  { id: 'ladder.replace', mode: 'ladder', group: 'Ladder', label: 'Replace', keys: ['ctrl+KeyH', 'meta+alt+KeyF'], match: 'logical', hint: 'on a Mac ⌘H hides the app, so ⌘⌥F is the one to use there' },
   { id: 'ladder.findNext', mode: 'ladder', group: 'Ladder', label: 'Next match', keys: ['F3'], hint: 'Enter in the Find field does the same' },
   { id: 'ladder.findPrev', mode: 'ladder', group: 'Ladder', label: 'Previous match', keys: ['shift+F3'] },
   { id: 'ladder.toggleBit', mode: 'ladder', group: 'Ladder', label: 'Toggle the bit', keys: ['ctrl+KeyT'], match: 'logical', hint: 'the BOOL under the selection, once, while the program runs (a browser tab keeps Ctrl+T for itself: the right-click menu has it too, and the strip while the program runs)' },
@@ -219,6 +221,37 @@ export const DEFAULT_KEYMAP: readonly KeyBinding[] = KEY_BINDINGS
 
 /** the groups in the order the shortcuts panel should show them */
 export const KEY_GROUPS = ['File', 'Tools', 'Edit', 'Snapping', 'View', 'Simulation', 'Ladder', 'Free fly', 'Pilot mode', 'Help'] as const
+
+// ---------------------------------------------------------------------------
+// display text
+//
+// The table's labels, hints and group names are the English source. Each gets a message id derived from the binding
+// id (`keymap.<id>.label`), like commands.ts does for command labels, so rewording English never orphans a
+// translation. Read through keyLabel / keyHintText / keyGroupLabel while rendering, never at module scope: a locale
+// installs at boot, after modules load.
+const LABEL_IDS = new Map<string, MessageId>(DEFAULT_KEYMAP.map((b) => [b.id, defineMessage(`keymap.${b.id}.label`, b.label)]))
+const HINT_IDS = new Map<string, MessageId>(
+  DEFAULT_KEYMAP.flatMap((b) => (b.hint ? [[b.id, defineMessage(`keymap.${b.id}.hint`, b.hint)] as const] : [])),
+)
+const GROUP_IDS = new Map<string, MessageId>(KEY_GROUPS.map((g) => [g, defineMessage(`keymap.group.${g}`, g)]))
+
+/** a binding's label as the user's locale reads it */
+export function keyLabel(b: Pick<KeyBinding, 'id' | 'label'>): string {
+  const id = LABEL_IDS.get(b.id)
+  return id ? t(id) : b.label
+}
+
+/** a binding's hint as the user's locale reads it, or undefined when it has none */
+export function keyHintText(b: Pick<KeyBinding, 'id' | 'hint'>): string | undefined {
+  const id = HINT_IDS.get(b.id)
+  return id ? t(id) : b.hint
+}
+
+/** a group's heading as the user's locale reads it */
+export function keyGroupLabel(group: string): string {
+  const id = GROUP_IDS.get(group)
+  return id ? t(id) : group
+}
 
 // ---------------------------------------------------------------------------
 // matching
@@ -466,12 +499,14 @@ export function formatChord(chord: string, mac = false): string {
 
 /**
  * Whether a binding answers the shortcuts panel's search. Every word of the query must appear,
- * in any order, in the label, the hint, the group or a chord as the panel prints it, so "ctrl+z",
+ * in any order, in the label, the hint, the group (as shown, or in English) or a chord as the panel prints it, so "ctrl+z",
  * "snap" and "fly w" all find their rows. Case-insensitive; an empty query matches everything.
  */
 export function bindingMatches(b: KeyBinding, query: string, mac = false): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   if (words.length === 0) return true
-  const text = [b.label, b.hint ?? '', b.group, ...b.keys.map((c) => formatChord(c, mac))].join('\n').toLowerCase()
+  // the text the panel shows, and the English source too, so a name read in either finds the row
+  const shown = [keyLabel(b), keyHintText(b) ?? '', keyGroupLabel(b.group)]
+  const text = [...shown, b.label, b.hint ?? '', b.group, ...b.keys.map((c) => formatChord(c, mac))].join('\n').toLowerCase()
   return words.every((w) => text.includes(w))
 }
