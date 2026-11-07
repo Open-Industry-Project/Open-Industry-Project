@@ -1,8 +1,8 @@
 // Verify that a left-click on the PLC panel's dock tab puts the keyboard in the code (App.tsx clickTabWith,
 // store.focusStCode, StEditor's subscriber): the click that brings the panel up is the one that starts typing.
-// Checks the cases where it must not: the click that rolls the bottom dock up, a click on another tab, a right-click and the
-// ladder view (the sheet keeps its own keys). Repeats the focus case with the panel in a side dock, whose tabs
-// take a different click path than the bottom dock's.
+// Checks the cases where it must not: the click that rolls the bottom dock up (or folds a side column to its rail), a
+// click on another tab, a right-click and the ladder view (the sheet keeps its own keys). Repeats the focus case with
+// the panel in a side dock, whose tabs take a different click path than the bottom dock's.
 // Run: node e2e/verify-plc-tab-focus.mjs [--headed]
 /* global process, console, window, document, localStorage */
 import { startServer } from './_server.mjs'
@@ -95,10 +95,15 @@ async function main() {
     await tab(page, 'rightTop', 'PLC').click()
     await page.waitForSelector('.dock-slot-rightTop .cm-editor')
     check('side dock: PLC tab click focuses the code', await codeFocused(page, true))
-    // re-clicking the front side tab keeps it open, so it focuses again
+    // re-clicking the front side tab folds the column to a rail (dockLayout.ts clickSideDockTab), the side twin of
+    // the bottom dock's roll-up: nothing to type into. A click on the tab on the rail opens it again, and focuses.
     await blur(page)
     await tab(page, 'rightTop', 'PLC').click()
-    check('side dock: re-clicking the front PLC tab focuses the code', await codeFocused(page, true))
+    await page.waitForSelector('.dock-slot-rightTop.collapsed')
+    check('side dock: re-clicking the front PLC tab folds the column without focusing code', !(await codeFocused(page, true)))
+    await tab(page, 'rightTop', 'PLC').click()
+    await page.waitForSelector('.dock-slot-rightTop:not(.collapsed) .cm-editor')
+    check('side dock: clicking the PLC tab on the rail reopens it and focuses the code', await codeFocused(page, true))
     // the right-click move menu activates the tab but must not take the keyboard from its menu
     await blur(page)
     await tab(page, 'rightTop', 'Inspector').click()
