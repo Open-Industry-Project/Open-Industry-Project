@@ -41,6 +41,9 @@ interface StState {
 /** Stream tokenizer. Token names are resolved to highlight tags by `tokenTable` below. */
 const stLanguage = StreamLanguage.define<StState>({
   name: 'structured-text',
+  // CodeMirror's Mod-/ (toggleComment, in defaultKeymap) reads these; without them it does nothing.
+  // `//` for lines, `(* *)` for blocks, the two forms the tokenizer below reads.
+  languageData: { commentTokens: { line: '//', block: { open: '(*', close: '*)' } } },
   startState: () => ({ inComment: false }),
   token(stream, state) {
     // inside a (* ... *) block comment, possibly spanning lines

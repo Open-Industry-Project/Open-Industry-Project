@@ -1,11 +1,30 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { toggleComment } from '@codemirror/commands'
 import { EditorState } from '@codemirror/state'
 import { describe, expect, it } from 'vitest'
 import { stExtensions, stPhraseTable } from './stLang'
 
 // The CodeMirror packages whose words the ST editor can show (stPhrases in stLang.ts)
 const CM_PACKAGES = ['@codemirror/search', '@codemirror/view', '@codemirror/language', '@codemirror/lint', '@codemirror/autocomplete']
+
+describe('toggle comment (Mod-/)', () => {
+  /** run CodeMirror's toggleComment over `doc` with the selection from `from` to `to`, returning the new text */
+  function toggle(doc: string, from: number, to = from): string | null {
+    let state = EditorState.create({ doc, selection: { anchor: from, head: to }, extensions: stExtensions(() => []) })
+    const ran = toggleComment({ state, dispatch: (tr) => (state = tr.state) })
+    return ran ? state.doc.toString() : null
+  }
+
+  it('comments and uncomments a line with //', () => {
+    expect(toggle('x := 1;', 0)).toBe('// x := 1;')
+    expect(toggle('// x := 1;', 0)).toBe('x := 1;')
+  })
+
+  it('skips empty lines in a multi-line selection', () => {
+    expect(toggle('a := 1;\n\nb := 2;', 0, 16)).toBe('// a := 1;\n\n// b := 2;')
+  })
+})
 
 describe('ST editor phrases', () => {
   it('names only phrases CodeMirror actually looks up', () => {
