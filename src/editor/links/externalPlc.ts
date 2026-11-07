@@ -27,7 +27,7 @@ import { canWatch } from '../../core/scene/scenePlcs'
 import { clientDrivenTags, externalDrivenTags, modbusClientFromTags, modbusServerFromTags, registerImagePointWhere, registerWords } from '../../core/io/externalIo'
 import type { ClientIoPoint, ExternalIo, ExternalIoPoint, ModbusClientIo, TagSignal } from '../../core/io/externalIo'
 import { bindEipPoint, cipTypeName, eipListingFailure, eipNothingAnswered, eipPointsFromTags, eipStatusMessage, eipTagNames, eipUnreachable, eipVariableGroups, fromEipValue, toEipValue } from '../../core/io/eip'
-import type { EipBinding, EipPoint } from '../../core/io/eip'
+import type { EipBinding, EipPoint, EipTarget } from '../../core/io/eip'
 import { bindOpcUaPoints, builtinName, discoveryServerMessage, fromOpcUaValue, isOpcUaNodeId, matchOpcUaTag, opcUaBrowseRoot, opcUaPointsFromTags, opcUaTagNames, opcUaVariableGroups, toOpcUaValue } from '../../core/io/opcUa'
 import type { OpcUaBinding, OpcUaBrowseRoot, OpcUaPoint, OpcUaVariable } from '../../core/io/opcUa'
 import { adsPointsFromTags, adsRouteText, adsSymbolGroups, adsTagNames } from '../../core/io/ads'
@@ -447,16 +447,16 @@ export async function readAdsTagList(host: AdsHost, netId: string, port: number,
 }
 
 /** The same for a Logix controller over EtherNet/IP: its tags and each program's, as libplctag lists them. */
-export async function readEipTagList(host: EipHost, gateway: string, path: string, mayClose: () => boolean): Promise<PlcTagList> {
-  const endpoint = eipEndpoint(gateway, path)
+export async function readEipTagList(host: EipHost, target: EipTarget, mayClose: () => boolean): Promise<PlcTagList> {
+  const endpoint = eipEndpoint(target)
   const failed = (error: string): PlcTagList => ({ protocol: 'eip', endpoint, from: [], state: 'failed', names: [], groups: [], variables: [], truncated: false, error })
   if (!host.tags) return failed("this version of the desktop app cannot list a PLC's tags")
-  const opened = await host.open({ gateway, path })
+  const opened = await host.open({ ...target })
   if (opened.error) return failed(opened.error)
   try {
     const r = await host.tags()
     if (r.error) return failed(r.error)
-    if (r.status !== 'ok') return failed(eipListingFailure(r.status ?? 'no status', path))
+    if (r.status !== 'ok') return failed(eipListingFailure(r.status ?? 'no status', target.path))
     return { protocol: 'eip', endpoint, from: [], state: 'ready', names: eipTagNames(r.tags ?? []), groups: eipVariableGroups(r.tags ?? []), variables: [], truncated: false, error: null }
   } finally {
     if (mayClose()) await host.close()
@@ -635,8 +635,7 @@ export class ExternalPlcEipSession extends NamedLink<EipPoint, EipBinding> {
 
   constructor(
     private readonly host: EipHost,
-    readonly gateway: string,
-    readonly path: string,
+    readonly target: EipTarget,
     points: readonly EipPoint[],
     problems: string[],
     onChange: () => void,
@@ -646,7 +645,7 @@ export class ExternalPlcEipSession extends NamedLink<EipPoint, EipBinding> {
   }
 
   private get endpoint(): string {
-    return eipEndpoint(this.gateway, this.path)
+    return eipEndpoint(this.target)
   }
 
   protected isOpen(): boolean {
@@ -654,7 +653,7 @@ export class ExternalPlcEipSession extends NamedLink<EipPoint, EipBinding> {
   }
 
   protected async open(): Promise<'up' | 'retry' | 'failed'> {
-    const { error } = await this.host.open({ gateway: this.gateway, path: this.path })
+    const { error } = await this.host.open({ ...this.target })
     if (this.closed) return 'failed'
     if (error) {
       // no library, an address the shell refused, a connection the user did not allow: retrying changes none of them
@@ -677,11 +676,11 @@ export class ExternalPlcEipSession extends NamedLink<EipPoint, EipBinding> {
       return this.bindFailed(r.error || 'the desktop shell did not answer')
     }
     if (r.tags.length > 0 && r.tags.every((t) => eipUnreachable(t.status))) {
-      return this.bindFailed(`nothing answered (${r.tags[0]!.status}): check the address, the path, and that the controller is on`)
+      return this.bindFailed(`nothing answered (${r.tags[0]!.status}): check the address, the path, the controller family, and that the controller is on`)
     }
     // every tag refused the way a wrong path also refuses: one sentence about the path, not a missing tag per line.
     // Retried like silence, since a controller being downloaded answers so too
-    const none = eipNothingAnswered(this.points.map((p) => p.tag), r.tags.map((t) => t.status), this.path)
+    const none = eipNothingAnswered(this.points.map((p) => p.tag), r.tags.map((t) => t.status), this.target.path)
     if (none) return this.bindFailed(none)
     const bindings: EipBinding[] = []
     const problems: string[] = []

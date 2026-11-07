@@ -38,6 +38,6 @@ async function readOnce(hosts: ListingHosts, source: Exclude<VariableSource, { k
   const m = await import('./externalPlc')
   const always = (): boolean => true
   if (source.kind === 'ads') return m.readAdsTagList(adsForLink(hosts.adsHost!, BROWSE_LINK), source.netId, source.port, always)
-  if (source.kind === 'eip') return m.readEipTagList(eipForLink(hosts.eipHost!, BROWSE_LINK), source.gateway, source.path, always)
+  if (source.kind === 'eip') return m.readEipTagList(eipForLink(hosts.eipHost!, BROWSE_LINK), { gateway: source.gateway, path: source.path, family: source.family }, always)
   return m.readOpcUaTagList(opcUaForLink(hosts.opcUaHost!, BROWSE_LINK), source.endpoint, source.from, always)
 }

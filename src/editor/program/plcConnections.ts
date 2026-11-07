@@ -4,6 +4,8 @@
 // name in front for a named controller (`Cell2::MAIN.Extend`, core/io/controllerTag.ts).
 
 import { controllerTag, splitControllerTag } from '../../core/io/controllerTag'
+import { eipTarget } from '../../core/io/eipTarget'
+import type { EipTarget } from '../../core/io/eipTarget'
 import { groupVariables } from '../../core/io/plcVariables'
 import type { PlcVariable, PlcVariableGroup } from '../../core/io/plcVariables'
 import type { PartInstance, SceneJSON, SdkPart } from '../../core/types'
@@ -20,7 +22,7 @@ import type { ProgramTag } from './tagVerdicts'
 export type VariableSource =
   | { kind: 'program' }
   | { kind: 'ads'; netId: string; port: number }
-  | { kind: 'eip'; gateway: string; path: string }
+  | ({ kind: 'eip' } & EipTarget)
   | { kind: 'opcua'; endpoint: string; from: readonly string[] }
 
 /** A controller the window can list variables for. `name` is null for the default one. */
@@ -33,7 +35,7 @@ export interface ConnectableController {
 /** Where a PLC link's variables come from, or null for one that reads addresses, not names (Modbus, S7, SLMP). */
 export function linkSource(link: PlcLinkSettings): VariableSource | null {
   if (link.mode === 'ads') return { kind: 'ads', netId: link.adsNetId, port: link.adsPort }
-  if (link.mode === 'eip') return { kind: 'eip', gateway: link.eipGateway, path: link.eipPath }
+  if (link.mode === 'eip') return { kind: 'eip', ...eipTarget(link) }
   if (link.mode === 'opcua') return { kind: 'opcua', endpoint: link.opcUaEndpoint, from: link.opcUaBrowseFrom }
   return null
 }

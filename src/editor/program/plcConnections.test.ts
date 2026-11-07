@@ -83,16 +83,19 @@ describe('the PLC connections window', () => {
       controllers: [
         { name: 'Cell2', runsOn: 'plc', mode: 'ads', adsNetId: '', adsPort: 852 },
         { name: 'Cell3', runsOn: 'app', mode: 'ads', adsNetId: '', adsPort: 851 },
-        { name: 'Cell4', runsOn: 'plc', mode: 'eip', eipGateway: '10.0.0.9', eipPath: '1,0' },
+        { name: 'Cell4', runsOn: 'plc', mode: 'eip', eipGateway: '10.0.0.9', eipPath: '1,0', eipFamily: 'logix' },
         { name: 'Cell5', runsOn: 'plc', mode: 'opcua', opcUaEndpoint: 'opc.tcp://plc:4840', opcUaBrowseFrom: [] },
         { name: 'Cell6', runsOn: 'plc', mode: 's7' },
+        { name: 'Cell7', runsOn: 'plc', mode: 'eip', eipGateway: '10.0.0.10', eipPath: '1,0', eipFamily: 'micro800' },
       ],
     } as unknown as PlcSetup
     expect(connectableControllers(setup)).toEqual([
       { name: null, label: 'PLC1', source: { kind: 'ads', netId: '5.170.233.29.1.1', port: 851 } },
       { name: 'Cell2', label: 'Cell2', source: { kind: 'ads', netId: '', port: 852 } },
-      { name: 'Cell4', label: 'Cell4', source: { kind: 'eip', gateway: '10.0.0.9', path: '1,0' } },
+      { name: 'Cell4', label: 'Cell4', source: { kind: 'eip', gateway: '10.0.0.9', path: '1,0', family: 'logix' } },
       { name: 'Cell5', label: 'Cell5', source: { kind: 'opcua', endpoint: 'opc.tcp://plc:4840', from: [] } },
+      // a Micro800 takes no path, so one kept from a Logix setup is not sent
+      { name: 'Cell7', label: 'Cell7', source: { kind: 'eip', gateway: '10.0.0.10', path: '', family: 'micro800' } },
     ])
     // the default controller run by the simulator lists the program's variables; one on a Modbus PLC lists none
     expect(connectableControllers({ ...setup, enabled: false, controllers: [] })).toEqual([{ name: null, label: 'PLC1', source: { kind: 'program' } }])

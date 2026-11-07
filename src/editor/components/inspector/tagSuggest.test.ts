@@ -223,24 +223,24 @@ describe('reading an EtherNet/IP controller\'s tags while stopped', () => {
 
   it('opens, lists the controller\'s and its programs\' tags and lets go', async () => {
     const h = host()
-    const list = await readEipTagList(h, '10.0.0.5', '1,0', () => true)
+    const list = await readEipTagList(h, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, () => true)
     expect(list).toMatchObject({ protocol: 'eip', state: 'ready', names: ['Program:MainProgram.Eye', 'Speed'], endpoint: '10.0.0.5 (path 1,0)' })
     expect(h.calls).toEqual(['open 10.0.0.5 1,0', 'tags', 'close'])
   })
 
   it('never closes a link a run has taken over meanwhile', async () => {
     const h = host()
-    await readEipTagList(h, '10.0.0.5', '', () => false)
+    await readEipTagList(h, { gateway: '10.0.0.5', path: '', family: 'logix' }, () => false)
     expect(h.calls).not.toContain('close')
   })
 
   it('says why it could not read', async () => {
-    expect(await readEipTagList(host({ open: async () => ({ error: 'no libplctag' }) }), '10.0.0.5', '1,0', () => true)).toMatchObject({ state: 'failed', error: 'no libplctag' })
-    const unsupported = await readEipTagList(host({ tags: async () => ({ error: '', status: 'PLCTAG_ERR_UNSUPPORTED' }) }), '10.0.0.5', '1,0', () => true)
+    expect(await readEipTagList(host({ open: async () => ({ error: 'no libplctag' }) }), { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, () => true)).toMatchObject({ state: 'failed', error: 'no libplctag' })
+    const unsupported = await readEipTagList(host({ tags: async () => ({ error: '', status: 'PLCTAG_ERR_UNSUPPORTED' }) }), { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, () => true)
     expect(unsupported.error).toMatch(/does not list its tags/)
     const old = host()
     delete old.tags
-    expect(await readEipTagList(old, '10.0.0.5', '1,0', () => true)).toMatchObject({ state: 'failed' })
+    expect(await readEipTagList(old, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, () => true)).toMatchObject({ state: 'failed' })
     expect(old.calls).toEqual([])
   })
 })

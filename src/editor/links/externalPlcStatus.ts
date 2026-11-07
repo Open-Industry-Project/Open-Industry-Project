@@ -6,6 +6,8 @@
 
 import type { AdsSymbol } from '../../core/io/ads'
 import type { EipListedTag } from '../../core/io/eip'
+import { eipEndpoint, eipTarget } from '../../core/io/eipTarget'
+import type { EipTarget } from '../../core/io/eipTarget'
 import type { PlcVariableGroup } from '../../core/io/plcVariables'
 import type { DiscoveredServer, OpcUaBrowseRoot, OpcUaNodeInfo, OpcUaVariable } from '../../core/io/opcUa'
 import type { TagValue } from '../../plc/types'
@@ -55,7 +57,7 @@ export interface OpcUaHost {
  */
 export interface EipHost {
   /** where the controller is; nothing is sent yet. An error here (no library, a refused address) will not go away by retrying */
-  open(opts: { gateway: string; path: string } & LinkOpt): Promise<{ error: string }>
+  open(opts: EipTarget & LinkOpt): Promise<{ error: string }>
   /** a handle per tag, read once: the controller's CIP type for each */
   bind(opts: { tags: { name: string; bit: boolean }[] } & LinkOpt): Promise<{ error: string; tags?: { status: string; cip: number | null }[] }>
   exchange(opts: { writes: { name: string; value: boolean | number }[]; reads: string[] } & LinkOpt): Promise<{ error: string; writes?: string[]; reads?: { value: unknown; status: string }[] }>
@@ -113,9 +115,7 @@ export function adsEndpoint(netId: string, port: number): string {
   return `${netId || "this PC's TwinCAT runtime"}, AMS port ${port}`
 }
 
-export function eipEndpoint(gateway: string, path: string): string {
-  return `${gateway}${path ? ` (path ${path})` : ''}`
-}
+export { eipEndpoint, eipTarget } from '../../core/io/eipTarget'
 
 export interface ExternalPlcStatus {
   /** how the link runs: the PLC polls (`serve`), the simulator polls a Modbus server (`poll`), an OPC UA one (`opcua`), a Logix controller (`eip`), an S7 CPU (`s7`), a MELSEC CPU over SLMP (`slmp`) or a TwinCAT runtime (`ads`) */
@@ -205,7 +205,7 @@ export function statusLine(s: ExternalPlcStatus, running: boolean, settings: Plc
     if (mode === 'ads') return `Press Play to connect to ${adsEndpoint(settings.adsNetId, settings.adsPort)} over ADS${end}`
     if (mode === 's7') return `Press Play to connect to the S7 CPU at ${settings.s7Host}${settings.s7Port === 102 ? '' : `:${settings.s7Port}`} (rack ${settings.s7Rack}, slot ${settings.s7Slot}) over S7 PUT/GET${end}`
     if (mode === 'slmp') return `Press Play to connect to the MELSEC CPU at ${settings.slmpHost}${settings.slmpPort === 5000 ? '' : `:${settings.slmpPort}`} over SLMP${end}`
-    if (mode === 'eip') return `Press Play to connect to the controller at ${eipEndpoint(settings.eipGateway, settings.eipPath)} over EtherNet/IP${end}`
+    if (mode === 'eip') return `Press Play to connect to the controller at ${eipEndpoint(eipTarget(settings))} over EtherNet/IP${end}`
     if (mode === 'opcua') return `Press Play to connect to the PLC's OPC UA server at ${settings.opcUaEndpoint}${end}`
     return poll
       ? `Press Play to poll the PLC at ${settings.plcHost}:${settings.plcPort}${end}`

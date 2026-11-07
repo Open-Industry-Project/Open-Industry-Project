@@ -1,5 +1,5 @@
-// EtherNet/IP: the external-PLC link by name to a Logix controller (ControlLogix, CompactLogix, or anything that
-// answers CIP the same way). core/io/opcUa.ts is the other by-name link; core/io/externalIo.ts the by-address one, over
+// EtherNet/IP: the external-PLC link by name to a Logix controller (ControlLogix, CompactLogix), a Micro800, or
+// anything that answers CIP the same way. core/io/opcUa.ts is the other by-name link; core/io/externalIo.ts the by-address one, over
 // Modbus.
 //
 // A Logix controller's tags are symbolic: the simulator asks for `Eye`, `Program:MainProgram.Eye`, `Lane[3]` or
@@ -12,6 +12,8 @@
 // This module is pure: libplctag speaks the protocol in the desktop shell (apps/desktop/eipIo.cjs), and the
 // session that joins it to the running scene is editor/links/externalPlc.ts.
 
+export { eipEndpoint, eipTarget, isEipFamily } from './eipTarget'
+export type { EipFamily, EipTarget } from './eipTarget'
 import { looksLikeAddress } from './iecAddress'
 import type { SceneTagWiring } from './opcUa'
 import { groupVariables } from './plcVariables'

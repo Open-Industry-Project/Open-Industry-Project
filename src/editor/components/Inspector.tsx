@@ -38,7 +38,7 @@ import { PartSceneProperties, SceneProperties } from './inspector/scene'
 import { TagSourcesContext } from './inspector/tagField'
 import type { TagSources } from './inspector/tagField'
 import type { PlcTagList } from '../links/externalPlc'
-import { adsEndpoint, eipEndpoint } from '../links/externalPlcStatus'
+import { adsEndpoint, eipEndpoint, eipTarget } from '../links/externalPlcStatus'
 import { defineMessages, t } from '../../core/i18n'
 import { tNodes } from '../i18nNodes'
 
@@ -204,7 +204,7 @@ function useTagSources(controller: EditorController | null, state: EditorState):
   const linked = !!controller?.plcTagsAvailable && protocol !== null
   // a list read from another server, or from other start points, is not this link's
   const from = protocol === 'opcua' ? settings.opcUaBrowseFrom.join(',') : ''
-  const endpoint = protocol === 'ads' ? adsEndpoint(settings.adsNetId, settings.adsPort) : protocol === 'eip' ? eipEndpoint(settings.eipGateway, settings.eipPath) : settings.opcUaEndpoint
+  const endpoint = protocol === 'ads' ? adsEndpoint(settings.adsNetId, settings.adsPort) : protocol === 'eip' ? eipEndpoint(eipTarget(settings)) : settings.opcUaEndpoint
   const plc = linked && plcList?.protocol === protocol && plcList.endpoint === endpoint && plcList.from.join(',') === from ? plcList : null
   // an empty AMS Net ID is this PC's runtime, so ADS can always be read
   const canReadPlc = linked && !state.running && (protocol === 'ads' || (protocol === 'eip' ? settings.eipGateway : settings.opcUaEndpoint).trim() !== '')

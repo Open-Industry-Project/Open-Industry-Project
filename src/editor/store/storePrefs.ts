@@ -3,6 +3,8 @@
 // methods persist through. Extracted from store.ts verbatim - keys and defaults must stay stable
 // (they're the user's persisted preferences).
 import { isAmsNetId } from '../../core/io/ads'
+import { isEipFamily } from '../../core/io/eipTarget'
+import type { EipFamily } from '../../core/io/eipTarget'
 import { MAX_BROWSE_ROOTS, opcUaBrowseRoot } from '../../core/io/opcUa'
 import { isControllerName } from '../../core/io/controllerTag'
 import { MAX_SCENE_PLCS } from '../../core/scene/scenePlcs'
@@ -358,8 +360,10 @@ export interface PlcLinkSettings {
   opcUaBrowseFrom: readonly string[]
   /** eip: the controller's address (or its Ethernet module's), host[:port] */
   eipGateway: string
-  /** eip: the route from that module to the controller's CPU, `1,0` = the backplane, slot 0; '' for none */
+  /** eip: the route from that module to the controller's CPU, `1,0` = the backplane, slot 0; '' for none. Not sent to a Micro800 */
   eipPath: string
+  /** eip: a Logix controller (ControlLogix, CompactLogix) or a Micro800 */
+  eipFamily: EipFamily
   /** s7: the CPU's address, its ISO-on-TCP port (102), and where it sits: rack 0, slot 1 on an S7-1200/1500 */
   s7Host: string
   s7Port: number
@@ -426,6 +430,7 @@ export const DEFAULT_EXTERNAL_PLC: ExternalPlcSettings = {
   opcUaBrowseFrom: [],
   eipGateway: '127.0.0.1',
   eipPath: '1,0',
+  eipFamily: 'logix',
   s7Host: '192.168.0.1',
   s7Port: 102,
   s7Rack: 0,
@@ -527,6 +532,7 @@ export function sanitizePlcLink(raw: unknown): PlcLinkSettings {
       : d.opcUaBrowseFrom,
     eipGateway: isPlcHost(o.eipGateway) ? o.eipGateway : d.eipGateway,
     eipPath: isEipPath(o.eipPath) ? o.eipPath : d.eipPath,
+    eipFamily: isEipFamily(o.eipFamily) ? o.eipFamily : d.eipFamily,
     s7Host: isPlcHost(o.s7Host) ? o.s7Host : d.s7Host,
     s7Port: isPort(o.s7Port) ? o.s7Port : d.s7Port,
     s7Rack: isWhole(o.s7Rack, 0, 7) ? o.s7Rack : d.s7Rack,

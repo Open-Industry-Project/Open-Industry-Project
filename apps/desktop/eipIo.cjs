@@ -1,6 +1,6 @@
 // The desktop shell's half of an EtherNet/IP link: libplctag, called through koffi, and nothing about the scene.
 //
-// libplctag (MPL-2.0 / LGPL-2.0+, https://github.com/libplctag/libplctag) speaks CIP to a Logix controller: it
+// libplctag (MPL-2.0 / LGPL-2.0+, https://github.com/libplctag/libplctag) speaks CIP to a Logix or Micro800 controller: it
 // opens the session, forwards the connection through the path (`1,0`: the backplane, slot 0), packs requests and
 // reconnects on its own thread. The app decides everything else - which tags travel, which way, and what a value
 // means (src/core/io/eip.ts, src/editor/links/externalPlc.ts). This file only turns those decisions into library calls.
@@ -120,6 +120,16 @@ function checkTarget(gateway, path) {
   return ''
 }
 
+/** libplctag's `plc` attribute for each controller family the link offers. */
+const FAMILIES = { logix: 'ControlLogix', micro800: 'Micro800' }
+
+/** Why `family` cannot be used with `path`, or ''. */
+function checkFamily(family, path) {
+  if (!Object.hasOwn(FAMILIES, family)) return `${family} is not a controller family this link knows (logix, micro800)`
+  if (family === 'micro800' && path) return 'a Micro800 takes no path: give the address of the controller itself'
+  return ''
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 /**
@@ -149,13 +159,16 @@ class EipLink {
     this.closed = false
   }
 
-  /** Where the controller is: `gateway` is host[:port], `path` the route to its CPU (`1,0`), '' for none. */
-  open({ gateway, path }) {
-    const bad = checkTarget(gateway, path)
+  /**
+   * Where the controller is: `gateway` is host[:port], `path` the route to its CPU (`1,0`), '' for none. `family` is
+   * 'logix' (ControlLogix, CompactLogix) or 'micro800'; a Micro800 is always reached at its own port, so it takes no path.
+   */
+  open({ gateway, path, family = 'logix' }) {
+    const bad = checkTarget(gateway, path) || checkFamily(family, path)
     if (bad) return { error: bad }
     const f = plctag()
     if (!f) return { error: loadError }
-    this.where = `protocol=ab-eip&gateway=${gateway}${path ? `&path=${path}` : ''}&plc=ControlLogix`
+    this.where = `protocol=ab-eip&gateway=${gateway}${path ? `&path=${path}` : ''}&plc=${FAMILIES[family]}`
     this.base = `${this.where}&elem_count=1`
     return { error: '' }
   }
@@ -312,7 +325,8 @@ function shutdownEip() {
 
 /**
  * Register the `eip:*` channels. Each call may name one of the window's links as `link` (linkKeys.cjs), 0 when absent.
- *   eip:open     {gateway, path} -> {error}                   where the controller is (nothing is sent yet)
+ *   eip:open     {gateway, path, family} -> {error}           where the controller is (nothing is sent yet); family
+ *                                                            'logix' (the default) or 'micro800'
  *   eip:bind     {tags: [{name, bit}]} -> {error, tags: [{status, cip}]}
  *                                                            a handle per tag, read once for its CIP type
  *   eip:exchange {writes: [{name, value}], reads: [name]} -> {error, writes: [status], reads: [{value, status}]}
@@ -331,13 +345,15 @@ function registerEipIo(ipcMain, { consent }) {
     links.delete(key)
     const gateway = typeof opts?.gateway === 'string' ? opts.gateway : ''
     const path = typeof opts?.path === 'string' ? opts.path : ''
-    const bad = checkTarget(gateway, path)
+    // absent from an older renderer, which only knew Logix
+    const family = opts?.family === undefined ? 'logix' : opts.family
+    const bad = checkTarget(gateway, path) || checkFamily(family, path)
     if (bad) return { error: bad }
     const host = gateway.replace(/:\d+$/, '')
     if (consent && !(await consent({ host, key: `eip ${gateway}`, what: `connect to the EtherNet/IP controller at ${gateway}` }, sender)))
       return { error: `the connection to ${gateway} was not allowed` }
     const link = new EipLink()
-    const opened = link.open({ gateway, path })
+    const opened = link.open({ gateway, path, family })
     if (opened.error) return opened
     links.set(key, link)
     onPageGone(sender, watched, (id) => {
@@ -371,4 +387,4 @@ function registerEipIo(ipcMain, { consent }) {
   })
 }
 
-module.exports = { registerEipIo, EipLink, shutdownEip, checkTarget, libraryPath, parseTagListing }
+module.exports = { registerEipIo, EipLink, shutdownEip, checkTarget, checkFamily, libraryPath, parseTagListing }

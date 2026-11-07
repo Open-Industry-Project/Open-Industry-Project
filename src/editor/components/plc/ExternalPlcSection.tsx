@@ -71,9 +71,11 @@ const M = defineMessages('externalPlc', {
   opcUaTitle: "The simulator connects to the PLC's OPC UA server and reads and writes its tags by name",
   opcUa: 'OPC UA, tags by name',
   opcUaNote: '(the PLC runs an OPC UA server)',
-  eipTitle: 'The simulator connects to a Logix controller (ControlLogix, CompactLogix) over EtherNet/IP and reads and writes its tags by name',
+  eipTitle: 'The simulator connects to a Logix controller (ControlLogix, CompactLogix) or a Micro800 over EtherNet/IP and reads and writes its tags by name',
   eip: 'EtherNet/IP, tags by name',
-  eipNote: '(a Logix controller)',
+  eipNote: '(a Logix or Micro800 controller)',
+  eipFamilyTitle: 'Which kind of controller answers. A Micro800 is reached at its own address and takes no path, and only its global variables can be read and written.',
+  eipFamily: 'Family',
   s7Title: 'The simulator connects to an S7-1200 or S7-1500 CPU and reads and writes its I, Q and M memory and its data blocks over PUT/GET',
   s7Note: '(an S7-1200 or S7-1500)',
   slmpTitle: 'The simulator connects to a MELSEC CPU (Q, L, iQ-R, iQ-F) and reads and writes its X, Y, M and D devices over SLMP',
@@ -470,6 +472,15 @@ export function PlcLinkFields({ tid, settings, update, status, parts, running, l
       )}
       {eip && (
         <div className="ctl-ext-row">
+          <label className="ctl-ext-field" title={t(M.eipFamilyTitle)}>
+            {t(M.eipFamily)}
+            <select value={settings.eipFamily} disabled={locked} onChange={(e) => update({ eipFamily: e.target.value === 'micro800' ? 'micro800' : 'logix' })} data-testid={`${tid}-eip-family`}>
+              {/* i18n-ok: product family names */}
+              <option value="logix">ControlLogix / CompactLogix</option>
+              {/* i18n-ok: a product family's name */}
+              <option value="micro800">Micro800</option>
+            </select>
+          </label>
           <label className="ctl-ext-field" title={t(M.eipGatewayTitle)}>
             {t(M.eipGateway)}
             <CommitField
@@ -484,19 +495,21 @@ export function PlcLinkFields({ tid, settings, update, status, parts, running, l
               testId={`${tid}-eip-gateway`}
             />
           </label>
-          <label className="ctl-ext-field" title={t(M.eipPathTitle)}>
-            {t(M.eipPath)}
-            <CommitField
-              value={settings.eipPath}
-              disabled={locked}
-              commit={(text) => {
-                if (!isEipPath(text)) return false
-                update({ eipPath: text })
-                return true
-              }}
-              testId={`${tid}-eip-path`}
-            />
-          </label>
+          {settings.eipFamily !== 'micro800' && (
+            <label className="ctl-ext-field" title={t(M.eipPathTitle)}>
+              {t(M.eipPath)}
+              <CommitField
+                value={settings.eipPath}
+                disabled={locked}
+                commit={(text) => {
+                  if (!isEipPath(text)) return false
+                  update({ eipPath: text })
+                  return true
+                }}
+                testId={`${tid}-eip-path`}
+              />
+            </label>
+          )}
         </div>
       )}
       {ads && (

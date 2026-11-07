@@ -212,16 +212,18 @@ async function uaPlc(port, pkiRoot, { discovery = false } = {}) {
  * scripts/fetch-libplctag.mjs) holding the BOOL tags Eye and Run, and this script as its program: every 20 ms it reads
  * Eye and writes `Run := force OR NOT Eye`, through the desktop shell's own libplctag binding (eipIo.cjs), as a
  * second client of the controller beside the app. `kill` takes the controller away; `restart` brings a fresh one
- * up on the same port (its tags start at zero, as a re-downloaded controller's would).
+ * up on the same port (its tags start at zero, as a re-downloaded controller's would). `micro800` makes it a
+ * Micro800 instead, reached with no path.
  */
-async function logix(port) {
+async function logix(port, micro800 = false) {
   const { spawn } = await import('node:child_process')
   const eipIo = require(join(desktopDir, 'eipIo.cjs'))
   const exe = join(desktopDir, 'vendor', 'libplctag', process.platform === 'win32' ? 'ab_server.exe' : 'ab_server')
   const state = { eye: false, force: false }
   let proc = null
   const up = async () => {
-    proc = spawn(exe, ['--plc=ControlLogix', '--path=1,0', `--port=${port}`, '--tag=Eye:BOOL[1]', '--tag=Run:BOOL[1]'], { stdio: 'ignore' })
+    const plc = micro800 ? ['--plc=Micro800'] : ['--plc=ControlLogix', '--path=1,0']
+    proc = spawn(exe, [...plc, `--port=${port}`, '--tag=Eye:BOOL[1]', '--tag=Run:BOOL[1]'], { stdio: 'ignore' })
     const until = Date.now() + 5000
     for (;;) {
       const open = await new Promise((resolve) => {
@@ -237,7 +239,7 @@ async function logix(port) {
   }
   await up()
   const link = new eipIo.EipLink()
-  const opened = link.open({ gateway: `127.0.0.1:${port}`, path: '1,0' })
+  const opened = link.open(micro800 ? { gateway: `127.0.0.1:${port}`, path: '', family: 'micro800' } : { gateway: `127.0.0.1:${port}`, path: '1,0' })
   if (opened.error) throw new Error(opened.error)
   let running = true
   let bound = false
@@ -262,6 +264,13 @@ async function logix(port) {
       await gone
     },
     restart: up,
+    // stop this controller but leave libplctag up, for a second one in the same run
+    retire: async () => {
+      running = false
+      await scan
+      link.close()
+      proc?.kill()
+    },
     close: async () => {
       running = false
       await scan
@@ -806,6 +815,37 @@ try {
   await sleep(800)
   expect((await boxX(page)) > eRest + 0.05, 'and the belt runs again once the controller is back, its tags asked for anew')
 
+  await page.evaluate(() => window.__oip.controller.stop())
+  await page.waitForFunction(() => window.__oip.controller.externalPlcStatus.state === 'off', null, { timeout: 5000, polling: 100 })
+  await logixPlc.retire()
+
+  // The same link to a Micro800: the family is the only setting that changes, and the path kept from the Logix
+  // setup is neither shown nor sent (ab_server's Micro800 answers nothing to a request routed through one)
+  console.log("--- EtherNet/IP: a Micro800's tags by name ---")
+  const m800Port = await freePort()
+  logixPlc = await logix(m800Port, true)
+  const m800Named = await loadScene(page, { eye: 'Eye', run: 'Run' })
+  expect(m800Named === true, `the scene opens wired by the Micro800's variable names (${m800Named})`)
+  await page.evaluate((p) => window.__oip.store.setExternalPlc({ enabled: true, mode: 'eip', eipGateway: `127.0.0.1:${p}`, eipPath: '1,0', eipFamily: 'micro800' }), m800Port)
+  expect((await page.locator('[data-testid="external-plc-eip-family"]').inputValue()) === 'micro800', 'Controller Properties shows the family')
+  expect((await page.locator('[data-testid="external-plc-eip-path"]').count()) === 0, 'and no path field for a Micro800')
+  const m800Before = await page.locator('[data-testid="external-plc-status"]').innerText()
+  expect(/^Press Play to connect to the controller at 127\.0\.0\.1:\d+ \(Micro800\) over EtherNet\/IP/.test(m800Before), `and what Play will do (${m800Before})`)
+  await page.evaluate(() => window.__oip.controller.run())
+  await page.waitForFunction(() => window.__oip.controller.externalPlcStatus.state === 'polling', null, { timeout: 20000, polling: 100 })
+  await page.waitForFunction(() => window.__oip.controller.livePosition('box') != null, null, { timeout: 15000, polling: 100 })
+  const mx0 = await boxX(page)
+  const mStart = Date.now()
+  let mEye = null
+  while (Date.now() - mStart < 20000) {
+    if (mEye === null && logixPlc.state.eye) mEye = Date.now()
+    if (mEye !== null && Date.now() - mEye > 1500) break
+    await sleep(50)
+  }
+  const mStopped = await boxX(page)
+  expect(mEye !== null, 'the Micro800 saw the eye through its variable')
+  expect(typeof mx0 === 'number' && mStopped > mx0 + 1 && Math.abs(mStopped - 2.83) < 0.3, `its Run variable ran the belt and stopped the box at the eye (${mx0?.toFixed?.(2)} -> ${mStopped?.toFixed?.(3)} m)`)
+  expect((await page.locator('[data-testid="external-plc-problem"]').count()) === 0, 'and no variable is reported missing')
   await page.evaluate(() => window.__oip.controller.stop())
   await page.waitForFunction(() => window.__oip.controller.externalPlcStatus.state === 'off', null, { timeout: 5000, polling: 100 })
 

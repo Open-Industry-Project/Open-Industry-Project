@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bindEipPoint, cipTypeName, eipListingFailure, eipNothingAnswered, eipPointsFromTags, eipStatusMessage, eipTagNames, eipUnreachable, fromEipValue, isBitTag, toEipValue } from './eip'
+import { bindEipPoint, cipTypeName, eipEndpoint, eipListingFailure, eipNothingAnswered, eipPointsFromTags, eipStatusMessage, eipTagNames, eipTarget, eipUnreachable, fromEipValue, isBitTag, isEipFamily, toEipValue } from './eip'
 import type { EipPoint } from './eip'
 
 const BOOL = 0xc1
@@ -184,5 +184,19 @@ describe('a tag listing that failed', () => {
     expect(eipListingFailure('PLCTAG_ERR_TIMEOUT', '1,0')).toMatch(/did not answer/)
     expect(eipListingFailure('PLCTAG_ERR_BAD_DEVICE', '1,3')).toMatch(/Check the path \(1,3/)
     expect(eipListingFailure('PLCTAG_ERR_NOT_ALLOWED', '1,0')).toMatch(/refused to list/)
+  })
+})
+
+describe('eipTarget / eipEndpoint', () => {
+  it('drops the path for a Micro800 and names the family in the endpoint', () => {
+    const logix = eipTarget({ eipGateway: '10.0.0.5', eipPath: '1,0', eipFamily: 'logix' })
+    expect(logix).toEqual({ gateway: '10.0.0.5', path: '1,0', family: 'logix' })
+    expect(eipEndpoint(logix)).toBe('10.0.0.5 (path 1,0)')
+    expect(eipEndpoint({ ...logix, path: '' })).toBe('10.0.0.5')
+    const micro = eipTarget({ eipGateway: '10.0.0.6', eipPath: '1,0', eipFamily: 'micro800' })
+    expect(micro).toEqual({ gateway: '10.0.0.6', path: '', family: 'micro800' })
+    expect(eipEndpoint(micro)).toBe('10.0.0.6 (Micro800)')
+    expect(isEipFamily('micro800')).toBe(true)
+    expect(isEipFamily('ControlLogix')).toBe(false)
   })
 })

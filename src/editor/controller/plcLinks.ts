@@ -15,7 +15,7 @@ import { controllerFor, controllerRuns, LocalPlcLink, runnableSource } from '../
 // deep import: the wiring check is a checker, not part of the runtime PLC surface the barrel exposes
 import { checkWiring } from '../../plc/wiring'
 // the link's sessions are loaded on use (loadExternalPlc): only what the first frame shows is static
-import { adsEndpoint, eipEndpoint, EXTERNAL_PLC_OFF, flattenFrameTags } from '../links/externalPlcStatus'
+import { adsEndpoint, eipEndpoint, eipTarget, EXTERNAL_PLC_OFF, flattenFrameTags } from '../links/externalPlcStatus'
 import type { ExternalPlcLink, ExternalPlcStatus, PlcTagList } from '../links/externalPlcStatus'
 import { adsForLink, controllerLink, eipForLink, opcUaForLink, opcUaServerForLink, plcIoForLink } from '../links/linkHosts'
 import { OPC_UA_SERVER_OFF, OpcUaServerSession, publishedVariables } from '../links/opcUaServer'
@@ -136,8 +136,8 @@ export function readPlcTags(l: PlcLinkState, ec: PlcLinkDeps): void {
     reading = list('ads', adsEndpoint(settings.adsNetId, settings.adsPort))
     read = (m) => m.readAdsTagList(ads, settings.adsNetId, settings.adsPort, mayClose)
   } else if (settings.mode === 'eip' && eip) {
-    reading = list('eip', eipEndpoint(settings.eipGateway, settings.eipPath))
-    read = (m) => m.readEipTagList(eip, settings.eipGateway, settings.eipPath, mayClose)
+    reading = list('eip', eipEndpoint(eipTarget(settings)))
+    read = (m) => m.readEipTagList(eip, eipTarget(settings), mayClose)
   } else if (settings.mode === 'opcua' && ua) {
     reading = list('opcua', settings.opcUaEndpoint, settings.opcUaBrowseFrom)
     read = (m) => m.readOpcUaTagList(ua, settings.opcUaEndpoint, settings.opcUaBrowseFrom, mayClose)
@@ -355,7 +355,7 @@ function openLink(
   if (settings.mode === 'eip') {
     if (!ec.eipHost) return null
     const { points, problems } = m.deriveEipPoints(parts)
-    return { session: new m.ExternalPlcEipSession(eipForLink(ec.eipHost, link), settings.eipGateway, settings.eipPath, w(points), problems, onChange), points: points.length }
+    return { session: new m.ExternalPlcEipSession(eipForLink(ec.eipHost, link), eipTarget(settings), w(points), problems, onChange), points: points.length }
   }
   if (settings.mode === 'opcua') {
     if (!ec.opcUaHost) return null

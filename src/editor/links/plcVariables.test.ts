@@ -72,7 +72,7 @@ describe("reading a PLC's variables for the PLC connections window", () => {
 
   it('reads a Logix controller and an OPC UA server the same way', async () => {
     const calls: string[] = []
-    const logix = await readPlcVariables({ ...none, eipHost: eip(calls) }, { kind: 'eip', gateway: '10.0.0.9', path: '1,0' })
+    const logix = await readPlcVariables({ ...none, eipHost: eip(calls) }, { kind: 'eip', gateway: '10.0.0.9', path: '1,0', family: 'logix' })
     expect(logix.groups.map((g) => g.name)).toEqual(['Program:Main'])
     const ua = await readPlcVariables({ ...none, opcUaHost: opcUa(calls) }, { kind: 'opcua', endpoint: 'opc.tcp://plc:4840', from: [] })
     expect(ua.groups).toEqual([{ name: 'PLC', variables: [{ name: 'Eye', short: 'Eye', typeName: '', kind: null }] }])
@@ -100,6 +100,6 @@ describe("reading a PLC's variables for the PLC connections window", () => {
     const old = ads({ error: '' }, [])
     delete old.symbols
     expect(canList({ ...none, adsHost: old }, { kind: 'ads', netId: '', port: 851 })).toBe(false)
-    expect(canList({ ...none, eipHost: eip([]) }, { kind: 'eip', gateway: 'x', path: '' })).toBe(true)
+    expect(canList({ ...none, eipHost: eip([]) }, { kind: 'eip', gateway: 'x', path: '', family: 'logix' })).toBe(true)
   })
 })

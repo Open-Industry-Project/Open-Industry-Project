@@ -368,13 +368,15 @@ vendor's to document), and wire the parts to the variables' names. If a discover
 on that machine, move the PLC's server to another port in its own configuration, and the endpoint is then
 `opc.tcp://<host>:<port>`.
 
-## By name: EtherNet/IP to a Logix controller
+## By name: EtherNet/IP to a Logix or Micro800 controller
 
 The dock's "EtherNet/IP, tags by name" mode talks CIP to a ControlLogix or CompactLogix, which holds its tags
 symbolically, so it works like OPC UA without the browse: a part's PLC tag is the request (`Eye`,
 `Program:MainProgram.Eye`, `Lane[3]`, `Status.3` for one bit of a DINT). Settings: the controller's address
 (`host` or `host:port`, 44818 by default) and the path to its CPU (`1,0` = backplane, slot 0; empty when the
-address is the controller's own port). On Play every tag is read once, which is how the controller says what
+address is the controller's own port), and the controller family. A Micro800 (Micro820/850/870) is the same
+CIP tag services reached at the controller's own port, so it takes no path (a path kept from a Logix setup is not
+sent) and libplctag is told `plc=Micro800`; only its global variables answer over the network. On Play every tag is read once, which is how the controller says what
 type it holds (`raw_tag_type_bytes`: 0xC1 BOOL ... 0xCA REAL); `core/io/eip.ts` refuses a bit on a number and the
 reverse, structures, and LINT. Then one write+read cycle every 20 ms.
 
@@ -399,8 +401,12 @@ the names; `eipNothingAnswered`) instead of calling each tag missing.
 
 **ab_server is not a controller** in two ways the smoke test pins: a missing tag answers BAD_PARAM (a real one
 answers NOT_FOUND; both read "the controller has no tag named ..."), and writing one bit (`Count.3`) is
-UNSUPPORTED there, because it lacks the read-modify-write service a Logix controller has. The link has not been
-run against real Logix hardware.
+UNSUPPORTED there, because it lacks the read-modify-write service a Logix controller has. The smoke test runs the
+same checks against ab_server's Micro800 mode, which also refuses the tag listing. On a real Micro800, libplctag
+2.7.2 sends the same `@tags` request as for Logix (ab_common.c gates it on Logix or Micro800) and normalises the
+reply to the same entry layout, which libplctag's own `list_tags_micro8x0` tool reads; a Micro850 user reported it
+listing reliably from libplctag 2.6.10, after a regression in earlier 2.6 releases. The listing leaves out BOOL
+arrays, which the tag picker drops anyway. The link has not been run against real Logix or Micro800 hardware.
 
 ## By name: ADS to a TwinCAT runtime
 

@@ -98,7 +98,7 @@ function dirMisfit(v: PlcVariable, dir: ConnectionField['dir']): 'input' | 'outp
 
 function whereText(source: VariableSource): string {
   if (source.kind === 'ads') return t(M.whereAds, { endpoint: adsEndpoint(source.netId, source.port) })
-  if (source.kind === 'eip') return t(M.whereEip, { endpoint: eipEndpoint(source.gateway, source.path) })
+  if (source.kind === 'eip') return t(M.whereEip, { endpoint: eipEndpoint(source) })
   if (source.kind === 'opcua') return t(M.whereOpcUa, { endpoint: source.endpoint })
   return t(M.whereProgram)
 }

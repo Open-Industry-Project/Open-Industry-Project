@@ -737,7 +737,7 @@ describe('an EtherNet/IP session', () => {
 
   it('asks for each tag by name, writes what the parts publish and reads what the controller drives', async () => {
     const plc = logix()
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '1,0', POINTS, [], () => {})
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, POINTS, [], () => {})
     await session.start({ Eye: true })
     expect(plc.log.writes[0]).toEqual({ name: 'Eye', value: true })
     expect(session.exchange({ Eye: true })).toEqual({ Run: false, Speed: 0.5 })
@@ -760,7 +760,7 @@ describe('an EtherNet/IP session', () => {
     const plc = logix()
     plc.tags.Eye!.readOnly = true
     const points: EipPoint[] = [...POINTS, { tag: 'Missing', dir: 'fromPlc', type: 'BOOL', bit: false }, { tag: 'Count', dir: 'fromPlc', type: 'BOOL', bit: false }]
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '1,0', points, [], () => {})
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, points, [], () => {})
     await session.start({ Eye: true })
     expect(session.status().problems).toEqual([
       'the controller has no tag named Missing',
@@ -773,7 +773,7 @@ describe('an EtherNet/IP session', () => {
   it('keeps trying a controller that does not answer, and says why it waits', async () => {
     const plc = logix()
     plc.ctl.up = false
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '1,0', POINTS, [], () => {})
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, POINTS, [], () => {})
     await session.start({})
     expect(session.status()).toMatchObject({ state: 'starting', error: expect.stringMatching(/^nothing answered \(PLCTAG_ERR_TIMEOUT\)/) })
     expect(session.exchange({})).toEqual({ Run: false, Speed: 0 })
@@ -787,7 +787,7 @@ describe('an EtherNet/IP session', () => {
   it('drives the outputs off when the controller stops answering, and asks for the tags again when it is back', async () => {
     let t = 0
     const plc = logix()
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '1,0', POINTS, [], () => {}, () => t)
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, POINTS, [], () => {}, () => t)
     await session.start({ Eye: false })
     expect(session.exchange({})).toMatchObject({ Run: true })
     plc.ctl.up = false
@@ -807,7 +807,7 @@ describe('an EtherNet/IP session', () => {
   it('says to check the path when the address answers for none of the tags, and binds once the route is right', async () => {
     const plc = logix()
     plc.ctl.wrongPath = true
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '1,3', POINTS, [], () => {})
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '1,3', family: 'logix' }, POINTS, [], () => {})
     await session.start({})
     const s = session.status()
     expect(s).toMatchObject({ state: 'starting', problems: [] }) // not "no tag named Eye", "... Run", "... Speed"
@@ -825,7 +825,7 @@ describe('an EtherNet/IP session', () => {
     const plc = logix()
     plc.tags.Run!.remoteErr = true
     const points: EipPoint[] = [{ tag: 'Run', dir: 'fromPlc', type: 'BOOL', bit: false }]
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '1,0', points, [], () => {}, () => t)
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, points, [], () => {}, () => t)
     await session.start({})
     for (let i = 0; i < 5; i++) {
       t += CLIENT_POLL_MS
@@ -839,7 +839,7 @@ describe('an EtherNet/IP session', () => {
   it('stops for good when the shell cannot open the link at all', async () => {
     const plc = logix()
     plc.ctl.openError = 'EtherNet/IP needs libplctag, which this build of the app could not load (plctag.dll is missing)'
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '1,0', POINTS, [], () => {})
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '1,0', family: 'logix' }, POINTS, [], () => {})
     await session.start({})
     expect(session.status()).toMatchObject({ state: 'failed', error: plc.ctl.openError })
     await vi.advanceTimersByTimeAsync(CLIENT_RETRY_MS * 5)
@@ -849,7 +849,7 @@ describe('an EtherNet/IP session', () => {
 
   it('stops, and lets go of the shell', async () => {
     const plc = logix()
-    const session = new ExternalPlcEipSession(plc.host, '10.0.0.5', '', POINTS, [], () => {})
+    const session = new ExternalPlcEipSession(plc.host, { gateway: '10.0.0.5', path: '', family: 'logix' }, POINTS, [], () => {})
     await session.start({})
     expect(session.status().endpoint).toBe('10.0.0.5')
     await session.stop()
@@ -866,6 +866,12 @@ describe('an EtherNet/IP session', () => {
     expect(settings).toMatchObject({ mode: 'eip', eipGateway: '192.168.1.20', eipPath: '1,2' })
     expect(sanitizeExternalPlc({ mode: 'eip', eipPath: '1,0&debug=4' }).eipPath).toBe(DEFAULT_EXTERNAL_PLC.eipPath)
     expect(statusLine(EXTERNAL_PLC_OFF, false, settings)).toBe('Press Play to connect to the controller at 192.168.1.20 (path 1,2) over EtherNet/IP; the program here is not run while the PLC is.')
+    // the family: Logix unless a known one is given; a Micro800 keeps the path field but is shown (and opened) without it
+    expect(settings.eipFamily).toBe('logix')
+    expect(sanitizeExternalPlc({ mode: 'eip', eipFamily: 'Micro800&debug=4' }).eipFamily).toBe('logix')
+    const micro = sanitizeExternalPlc({ mode: 'eip', eipGateway: '192.168.1.21', eipPath: '1,2', eipFamily: 'micro800' })
+    expect(micro).toMatchObject({ eipFamily: 'micro800', eipPath: '1,2' })
+    expect(statusLine(EXTERNAL_PLC_OFF, false, micro)).toBe('Press Play to connect to the controller at 192.168.1.21 (Micro800) over EtherNet/IP; the program here is not run while the PLC is.')
   })
 })
 
@@ -1022,7 +1028,7 @@ describe('what the link says to try next', () => {
 
     it('reads an unknown name as a spelling, and leaves alone an error that already names its cure', () => {
       expect(statusHint(failing('poll', 'plc-1:502', 'no host named plc-1'), true)).toBe("Check the spelling of the PLC's address, or enter its IP address instead.")
-      expect(statusHint(failing('eip', '10.0.0.5', 'nothing answered (-7): check the address, the path, and that the controller is on'), true)).toBeNull()
+      expect(statusHint(failing('eip', '10.0.0.5', 'nothing answered (-7): check the address, the path, the controller family, and that the controller is on'), true)).toBeNull()
       expect(statusHint({ ...failing('ads', '', "TwinCAT's router has no address for this PC (0x6): is the TwinCAT system service running?"), state: 'failed' }, true)).toBeNull()
     })
 
