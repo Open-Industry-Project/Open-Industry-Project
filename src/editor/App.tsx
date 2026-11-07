@@ -24,7 +24,7 @@ import { HistoryPanel } from './components/HistoryPanel'
 import { ProblemsPanel } from './components/ProblemsPanel'
 import { Inspector } from './components/Inspector'
 import { PopoutWindow } from './components/PopoutWindow'
-import { inDialogOrMenu, isEditableTarget, useKeydownEverywhere, useKeyupEverywhere } from './dialogHost'
+import { inDialogOrMenu, keyBelongsToTarget, useKeydownEverywhere, useKeyupEverywhere } from './dialogHost'
 import { PresenceOverlay } from './components/PresenceOverlay'
 import { PresentOverlay } from './components/PresentOverlay'
 import { ModelLoadingIndicator } from './components/ModelLoadingIndicator'
@@ -647,7 +647,7 @@ export function App({ store, sim }: AppProps) {
   // Listens in every window the app has open (dialogHost.ts), so it works from a popped-out panel too.
   useKeydownEverywhere((e) => {
     if (resolveKeyAction(e, 'editor') !== 'ui.commands') return
-    if (isEditableTarget(e.target)) return
+    if (keyBelongsToTarget(e)) return
     e.preventDefault()
     setPaletteOpen((v) => !v)
   }, true)
@@ -679,7 +679,7 @@ export function App({ store, sim }: AppProps) {
   const transportAction = (e: KeyboardEvent): 'sim.playPause' | 'sim.stop' | 'sim.step' | null => {
     const action = resolveKeyAction(e, 'editor')
     if (action !== 'sim.playPause' && action !== 'sim.stop' && action !== 'sim.step') return null
-    if (isEditableTarget(e.target) || inDialogOrMenu(e.target)) return null
+    if (keyBelongsToTarget(e) || inDialogOrMenu(e.target)) return null
     // free fly, not walk mode: in walk mode Space is free, so it pauses the run and the user can look at the line
     if (controller?.view.isNavigating() && state.mode !== 'pilot') return null
     return action
@@ -785,7 +785,7 @@ export function App({ store, sim }: AppProps) {
   // the dialog is App state, and the controller bails while a drag or a text field owns the keys —
   // "what are the shortcuts?" should answer from anywhere except mid-typing.
   useKeydownEverywhere((e) => {
-    if (isEditableTarget(e.target)) return
+    if (keyBelongsToTarget(e)) return
     if (resolveKeyAction(e, 'editor') !== 'ui.shortcuts') return
     e.preventDefault()
     // toggles, and always on the keyboard tab: ? is a question about the keys

@@ -166,9 +166,12 @@ class StSearchPanel implements Panel {
   }
 
   private keydown(e: KeyboardEvent): void {
-    // the search-panel scope carries Escape, Mod-f and the rest of searchKeymap
+    // the search-panel scope carries Escape, Mod-f and the rest of searchKeymap. A key it ran is the panel's alone:
+    // Escape removes the panel before the event reaches the window, so the app's own region check cannot see where
+    // the key came from, and its window-level Escape would also clear the 3D selection
     if (runScopeHandlers(this.view, e, 'search-panel')) {
       e.preventDefault()
+      e.stopPropagation()
     } else if (e.key === 'Enter' && e.target === this.searchField) {
       e.preventDefault()
       ;(e.shiftKey ? findPrevious : findNext)(this.view)

@@ -769,6 +769,13 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
       return
     }
     if (e.target !== e.currentTarget) return // a field inside owns its own keys
+    // Escape on the sheet closes Find when it is open, and is the sheet's either way: the 3D editor's window-level
+    // Escape would otherwise clear the selected parts from under the ladder
+    if (e.key === 'Escape') {
+      if (finding) closeFind()
+      e.stopPropagation()
+      return
+    }
     const edit = resolveKeyAction(e, 'editor')
     if (edit === 'edit.undo') onUndo()
     else if (edit === 'edit.redo') onRedo()

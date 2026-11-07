@@ -3,6 +3,7 @@
 // each area through the controller's entry points.
 
 import { resolveKeyAction } from '../../core/keymap'
+import { keyBelongsToTarget } from '../dialogHost'
 import * as dragOps from './drag'
 import * as placementOps from './placement'
 import type { EditorController } from '../controller'
@@ -16,16 +17,9 @@ function isPlainUseKey(e: KeyboardEvent): boolean {
 
 export function onKeyDown(ec: EditorController, e: KeyboardEvent): void {
   if (ec.view.isNavigating()) return
-  const t = e.target
-  // Don't steal keystrokes meant for a focused text field. isContentEditable also
-  // covers the ST editor (CodeMirror renders its buffer as a contenteditable div,
-  // not a <textarea>), so typing there doesn't trigger 3D-editor shortcuts.
-  if (
-    t instanceof HTMLElement &&
-    (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
-  ) {
-    return
-  }
+  // a key meant for the focused field or control (dialogHost.ts): typing, the ST editor and its find bar, Space on a
+  // checkbox. A control keeps only the keys it uses, so Ctrl+Z still undoes after clicking an Inspector checkbox.
+  if (keyBelongsToTarget(e)) return
   // keyboard edits interleaved with an in-flight transient drag would corrupt history
   if (ec.drag) {
     if (e.key === 'Escape') {
