@@ -53,7 +53,7 @@ export function robotDeclOf(raw: unknown): RobotDecl | null {
   const copied: unknown = hostCopy(raw)
   if (copied === undefined || copied === null || copied === false) return null
   if (copied === true) return {}
-  if (typeof copied !== 'object') throw new Error('robot must be true or { joints?, gripper?, lamp?, gripJoint?, tool? }')
+  if (typeof copied !== 'object') throw new Error('robot must be true or { joints?, gripper?, lamp?, gripJoint?, tool?, hand? }')
   const v = copied as Record<string, unknown>
   const str = (k: string): string | undefined => {
     const x = v[k]
@@ -72,14 +72,25 @@ export function robotDeclOf(raw: unknown): RobotDecl | null {
   if (lamp) decl.lamp = lamp
   const tool = str('tool')
   if (tool) decl.tool = tool
-  const g = v.gripJoint as { name?: unknown; open?: unknown; closed?: unknown } | undefined
-  if (g !== undefined) {
-    if (typeof g !== 'object' || g === null || typeof g.name !== 'string' || !Number.isFinite(g.open) || !Number.isFinite(g.closed)) {
-      throw new Error('robot.gripJoint must be { name, open, closed }')
+  const gripJointOf = (g: unknown, at: string): NonNullable<RobotDecl['gripJoint']> => {
+    const j = g as { name?: unknown; open?: unknown; closed?: unknown } | null
+    if (typeof j !== 'object' || j === null || typeof j.name !== 'string' || !Number.isFinite(j.open) || !Number.isFinite(j.closed)) {
+      throw new Error(`${at} must be { name, open, closed }`)
     }
-    decl.gripJoint = { name: g.name, open: g.open as number, closed: g.closed as number }
+    return { name: j.name, open: j.open as number, closed: j.closed as number }
+  }
+  if (v.gripJoint !== undefined) decl.gripJoint = gripJointOf(v.gripJoint, 'robot.gripJoint')
+  if (v.hand !== undefined) {
+    const h = v.hand as { gripper?: unknown; gripJoint?: unknown } | null
+    if (typeof h !== 'object' || h === null || typeof h.gripper !== 'string' || h.gripper === '') throw new Error('robot.hand must be { gripper, gripJoint }')
+    decl.hand = { gripper: h.gripper, gripJoint: gripJointOf(h.gripJoint, 'robot.hand.gripJoint') }
   }
   return decl
+}
+
+/** Does the robot grip with its own hand (`decl.hand`) under these params, rather than the tool its `tool` param picks? */
+export function robotUsesHand(decl: RobotDecl, params: Readonly<Record<string, unknown>> | undefined): boolean {
+  return decl.hand !== undefined && (params?.tool ?? 'hand') === 'hand'
 }
 
 /** A rig joint as the controller needs it: limits in the joint's own units (rad, or m for prismatic). */
@@ -173,13 +184,15 @@ export function createRobot(decl: RobotDecl, rigJoints: readonly RobotJoint[]): 
     return { name: n, toNative, revolute: j.type !== 'prismatic', min: round6(j.min * unit), max: round6(j.max * unit) }
   })
   const n = spec.length
-  const gripJoint = decl.gripJoint && byName.has(decl.gripJoint.name) ? decl.gripJoint : null
+  const toolGrip = decl.gripJoint && byName.has(decl.gripJoint.name) ? decl.gripJoint : null
+  const handGrip = decl.hand && byName.has(decl.hand.gripJoint.name) ? decl.hand.gripJoint : null
 
   let seeded = false
   let cur = new Array<number>(n).fill(0)
   let moving = false
   let gripClosed = false
-  let gripAt = gripJoint ? gripJoint.open : 0
+  // each grip joint's position: the tool's and the arm's own hand's, the one not gripping standing open
+  const gripAt = new Map<string, number>()
   const outputs = new Array<boolean>(ROBOT_IO_COUNT).fill(false)
   const segment = (start: readonly number[]): Segment => ({ from: start.slice(), span: new Array<number>(n).fill(0), len: 0, prog: 0, vel: 0 })
   let seg = segment(cur)
@@ -353,20 +366,28 @@ export function createRobot(decl: RobotDecl, rigJoints: readonly RobotJoint[]): 
     }
 
     for (let i = 0; i < n; i++) io.joints[spec[i]!.name] = cur[i]! * spec[i]!.toNative
-    if (gripJoint) {
+    const ownHand = robotUsesHand(decl, P)
+    const gripper = ownHand ? decl.hand!.gripper : decl.gripper
+    for (const j of [toolGrip, handGrip]) {
+      if (!j) continue
+      const closing = gripClosed && (j === handGrip) === ownHand
       // a clamp closes onto what it holds: its pads stand `toolSizeX` apart at joint 0 and the joint moves each one
-      // outward, so a load reaching `reach` either side wants reach - toolSizeX / 2. Holding nothing, it closes fully
-      const reach = gripClosed && decl.gripper ? host?.heldReach?.(decl.gripper) : undefined
+      // outward, so a load reaching `reach` either side wants reach - toolSizeX / 2. Holding nothing, it closes
+      // fully, and so does a hand, whose fingers are not sized by toolSizeX
+      const reach = closing && j === toolGrip && gripper ? host?.heldReach?.(gripper) : undefined
       const size = num('toolSizeX', Number.NaN)
       const onLoad = reach !== undefined && Number.isFinite(size) ? reach - size / 2 : undefined
-      const lo = Math.min(gripJoint.open, gripJoint.closed)
-      const hi = Math.max(gripJoint.open, gripJoint.closed)
-      const goal = !gripClosed ? gripJoint.open : onLoad !== undefined ? Math.min(hi, Math.max(lo, onLoad)) : gripJoint.closed
-      gripAt = io.approach(gripAt, goal, (Math.abs(gripJoint.open - gripJoint.closed) / GRIP_SEC) * dt)
-      io.joints[gripJoint.name] = gripAt
+      const lo = Math.min(j.open, j.closed)
+      const hi = Math.max(j.open, j.closed)
+      const goal = !closing ? j.open : onLoad !== undefined ? Math.min(hi, Math.max(lo, onLoad)) : j.closed
+      const at = io.approach(gripAt.get(j.name) ?? j.open, goal, (Math.abs(j.open - j.closed) / GRIP_SEC) * dt)
+      gripAt.set(j.name, at)
+      io.joints[j.name] = at
     }
-    if (decl.gripper) io.grips[decl.gripper] = gripClosed
-    if (decl.lamp) io.lamps[decl.lamp] = gripClosed
+    if (decl.gripper) io.grips[decl.gripper] = gripClosed && !ownHand
+    if (decl.hand) io.grips[decl.hand.gripper] = gripClosed && ownHand
+    // the lamp is the tool's: a hand gripping leaves it dark
+    if (decl.lamp) io.lamps[decl.lamp] = gripClosed && !ownHand
     const doneTag = tagName(P.doneTag)
     if (doneTag) io.writeTag(doneTag, !moving)
     for (let i = 0; i < ROBOT_IO_COUNT; i++) {

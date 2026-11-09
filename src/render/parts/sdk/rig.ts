@@ -6,6 +6,7 @@ import { robotColumns } from '../../../core/robot/robotIk'
 import type { SeamContext, SubPose } from '../../../core/rig/rigPose'
 import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
+import { showParamShows } from '../../../core/rig/rigLinkBody'
 import { resolvePartParams } from '../../../core/geometry/geometryEval'
 import { rigInclineRad } from '../../../core/parts/partGeometry'
 import type { GuardOpenings } from '../../../core/guards/guardOpenings'
@@ -299,7 +300,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
   // dead grey. `opacity` (the lamp's own) makes the lit state translucent - a tinted lens over an inner
   // core, the built-in stack light's optics; off stays opaque.
   const lampMats: LampMat[] = []
-  // showParam links: a boolean param gates the whole link's visibility (a structural side-guard toggle). Refresh
+  // showParam links: a param gates the whole link's visibility (a structural side-guard toggle, a robot's own hand). Refresh
   // sets group.visible from the resolved param; the sim skips its collision body in parallel (world.buildRigBodies).
   const showParamLinks: { group: Group; param: string }[] = []
   // array-links: a count-driven primitive link (box/cylinder/cone) whose N copies share one uniform scale and
@@ -868,7 +869,7 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
         // guard never comes back.
         for (const sp of showParamLinks) {
           if (sp.group.userData.authorHidden) continue
-          const want = rp[sp.param] !== false
+          const want = showParamShows(sp.param, rp)
           if (sp.group.visible === want) continue
           sp.group.visible = want
           bumpStructureVersion(root)

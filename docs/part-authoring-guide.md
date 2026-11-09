@@ -535,7 +535,7 @@ Every field is data the host reads; no field changes what another means.
 |---|---|
 | `offsetParams` | param-driven placement (a hinge at `±length/2`) |
 | `rotationParams` | param-driven turn, per Euler axis in radians (a splay of `angle` degrees is `scale: π/180`); not with `quat` |
-| `showParam` | a boolean param; the link exists (mesh and body) only while true. Works on arrayed links (zero instances), as with the platform's railing and support toggles |
+| `showParam` | a boolean param; the link exists (mesh and body) only while true. Works on arrayed links (zero instances), as with the platform's railing and support toggles. `'param=value'` names an enum param instead: the link exists only while it is that value (an imported robot's own hand, `'tool=hand'`) |
 | `array` | repeat the link: `count` (a param name) + `step` (optionally `centered`; `stepParams` makes a step axis track a param); or `distribute` along a span (`spanAdd` lengthens it past the param, so a railing just outside a deck reaches the corner; `worldPhase` pins copies to the world pitch grid so butted beds align); or a `grid` crossing two param-driven axes into an X×Z lattice (a pitch per axis, or a fixed `maxSpacing`). `grid` works on a `mesh` link too. `omitFirstParam` / `omitLastParam` name booleans that drop the end copy of a 1-D array, so butted barriers don't double a post. `pitch` fits round(span ÷ pitch) copies exactly `pitch` apart (span = `spanParam × spanScale + spanAdd`, plus `param × scale` for each of `spanTerms`; at most 1024 copies), the count for carriers on a loop. `posable: true` lets the behavior move each copy ([Rows of moving carriers](#rows-of-moving-carriers-posable-arrays)) |
 | `aim` | a two-point look-at (hydraulics that stay connected as a parent moves) |
 
@@ -967,10 +967,13 @@ one GLB, a node per link, drawn by that link (`node`).
 - **Tool**: the link named `tool0` (ROS-Industrial's flange frame), else one with `tcp`, `flange` or `ee` in its
   name, becomes the rig's `tool`, the point the pose gizmo drags.
 - **A robot**: the part is a robot (see "Robots: let the host run the controller"), driving the joints between the
-  root and the tool, with waypoints, jobs and the PLC tags in its Inspector. An arm whose URDF has a hand (a single
-  sliding joint beside the arm) grips with it: the finger opens and closes with the grip. An arm without one carries
-  the app's tools (vacuum plate or clamp gripper, picked in its Inspector), mounted along the tool frame's +Z (the
-  outward direction of `tool0` and of a TCP frame).
+  root and the tool, with waypoints, jobs and the PLC tags in its Inspector. It carries the app's tools (vacuum
+  plate or clamp gripper, picked in its Inspector's Tool), mounted along the frame's +Z (the outward direction of
+  `tool0` and of a TCP frame). An arm whose URDF has a hand (a single sliding joint beside the arm) grips with that
+  hand, its finger opening and closing with the grip, and its Tool offers "Its own hand" first. Picking another tool
+  takes the hand off: the hand's links are `showParam: 'tool=hand'` (`robot.hand` in the declaration), and the app's
+  tool mounts on the link the hand was fixed to. A hand that is part of the arm's last moving link cannot come off,
+  so that arm keeps only its hand.
 - **Ready pose**: an arm of revolute joints idles in a ready pose, also its Home waypoint: the tool pointing down in
   front of the base (+X) at 40% of the arm's length out and 15% up, with the elbow as high as it goes. The pose an
   arm was described in is often not a working one (a UR lies flat), and teaching by position starts from the idle
@@ -1627,6 +1630,10 @@ definePart({
   frame has +Y toward the wrist with the tool hanging along -Y; the robot puts its gripper link (the grip zone) at the
   tools' grip point, and two finger links at the frame's origin on a `cosmetic` sliding joint (the `gripJoint`) and
   its `mimic`, which the clamp's paddles ride. The six-axis robot carries all of it.
+- **A hand of its own**: `hand: { gripper, gripJoint }` is a second gripper and finger, the arm's own, used in place
+  of `gripper` and `gripJoint` while the `tool` param is `'hand'` (which it must offer). The hand's links take
+  `showParam: 'tool=hand'`, so picking a tool takes the hand off, and the grip point the pose gizmo's IK and the
+  agent's teaching read follows the tool carried. The tool's lamp stays dark while the hand grips.
 - The six-axis robot is the reference; a URDF import makes one of these for any arm.
 
 ### The PLC handshake pattern

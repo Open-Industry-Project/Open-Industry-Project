@@ -8,6 +8,7 @@ import { clamp, forwardXZ } from '../math'
 import type { PartPackageGeometry, RigJoint, RigLegShape, RigLink, RigShape, SizeParamRef, Vec3Tuple } from '../parts/partPackage'
 import type { ParamSchema, ParamValue } from '../parts/partApi'
 import { resolvePartParams } from '../parts/partScript'
+import { showParamShows } from './rigLinkBody'
 
 /** Instance param bag (custom-part params: number/boolean/string), as seen by C-paramgeo size resolution. */
 export type RigParams = Record<string, number | boolean | string>
@@ -1127,7 +1128,7 @@ function gridAxisCoords(axis: { sizeParam: string; pitchParam?: string; marginPa
  *  MAX_PITCH_INSTANCES (1024), and the always-instanced `distribute` form at the far higher MAX_DISTRIBUTE_INSTANCES. A
  *  non-array link (or one with no resolvable count) yields a single `[0,0,0]` (the link itself). */
 export function arrayInstanceDeltas(array: NonNullable<RigLink['array']>, params: RigParams, seam?: SeamContext, showParam?: string): Vec3[] {
-  if (showParam && params[showParam] === false) return []
+  if (!showParamShows(showParam, params)) return []
   const MAX = MAX_INSTANCES
   const num = (name: string, fallback: number): number => {
     const v = params[name]
@@ -1323,7 +1324,7 @@ export function rigRestExtent(geo: RigGeometry, params: RigParams): { min: Vec3;
     if (s.kind === 'frame') continue
     if (s.kind !== 'box' && s.kind !== 'cylinder' && s.kind !== 'cone') return null
     if (link.array) return null
-    if (link.showParam && params[link.showParam] === false) continue
+    if (!showParamShows(link.showParam, params)) continue
     const h = s.kind === 'cone' ? ([s.radius, s.height / 2, s.radius] as Vec3) : linkHalfExtents(link, params)
     const pose = poses.get(link.name)
     if (!pose) return null

@@ -152,11 +152,31 @@ export function partHasGeometry(source: string): boolean {
   }
 }
 
-/** the lamps a part's geometry() draws (MeshPart.lamps), at its default params - the code-built counterpart of a rig
- *  lamp link, so the name checks that ask "is this a lamp?" (rigLampNames) can count them. Empty without geometry(). */
+/**
+ * The meshes a part type can draw, for the questions asked of the type rather than of one placed part (its lamps,
+ * whether it animates): at its default params, and for a robot under each tool its `tool` param offers, since an arm
+ * with a hand of its own draws no tool at its defaults but carries the plate's lamp and cups once one is picked.
+ */
+function typeMeshParts(source: string, schema: ParamSchema | undefined): MeshPart[] {
+  const defaults = resolvePartParams(schema, {})
+  const out = [...(evalPartGeometry(source, defaults) ?? [])]
+  const tool = schema?.tool
+  let robotTool = false
+  try {
+    robotTool = robotDeclOf(captureDef(source)?.robot)?.tool !== undefined
+  } catch {
+    // an unreadable robot declaration draws no tool
+  }
+  if (robotTool && tool?.type === 'enum')
+    for (const o of tool.options ?? []) if (o.value !== defaults.tool) out.push(...(evalPartGeometry(source, { ...defaults, tool: o.value }) ?? []))
+  return out
+}
+
+/** the lamps a part's geometry() draws (MeshPart.lamps), at its default params and under each robot tool
+ *  (typeMeshParts) - the code-built counterpart of a rig lamp link, so the name checks that ask "is this a lamp?"
+ *  (rigLampNames) can count them. Empty without geometry(). */
 export function geometryLampNames(source: string, schema?: ParamSchema): string[] {
-  const parts = evalPartGeometry(source, resolvePartParams(schema, {}))
-  return [...new Set((parts ?? []).flatMap((p) => (p.lamps ?? []).map((l) => l.name)))]
+  return [...new Set(typeMeshParts(source, schema).flatMap((p) => (p.lamps ?? []).map((l) => l.name)))]
 }
 
 /** does the part's geometry() animate - any submesh with a `scroll`, `spin` or `squash` channel, at its default
@@ -175,7 +195,7 @@ export function geometryAnimates(source: string, schema?: ParamSchema): boolean 
   const key = schema ?? NO_SCHEMA
   const hit = bySchema.get(key)
   if (hit !== undefined) return hit
-  const animates = (evalPartGeometry(source, resolvePartParams(schema, {})) ?? []).some((p) => !!p.scroll || !!p.spin || !!p.squash)
+  const animates = typeMeshParts(source, schema).some((p) => !!p.scroll || !!p.spin || !!p.squash)
   bySchema.set(key, animates)
   return animates
 }

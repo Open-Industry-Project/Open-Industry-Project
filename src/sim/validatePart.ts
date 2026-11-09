@@ -101,7 +101,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
     if (!lampNames.has(l)) diagnostics.push({ kind: 'rig', message: `declared lamp "${l}" is not a rig lamp (an entry of a link's \`lamps\`, named or taking the link's name, or of a drawn submesh's \`lamps\`)` })
   }
 
-  // a robot's gripper, tool link, lamp and grip joint name parts of the rig, and the params its controller reads have
+  // a robot's gripper, tool link, lamp, grip joint and own hand name parts of the rig, and the params its controller reads have
   // the types it reads them as (its joint names are checked at load: createRobot refuses one the rig lacks)
   if (decl.robot) {
     const r = decl.robot
@@ -109,6 +109,13 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
     if (r.tool !== undefined && !linkNames.has(r.tool)) diagnostics.push({ kind: 'rig', message: `robot.tool "${r.tool}" is not a rig link, so the tool is drawn on nothing` })
     if (r.lamp !== undefined && !lampNames.has(r.lamp)) diagnostics.push({ kind: 'rig', message: `robot.lamp "${r.lamp}" is not a rig lamp` })
     if (r.gripJoint !== undefined && !jointNames.has(r.gripJoint.name)) diagnostics.push({ kind: 'rig', message: `robot.gripJoint "${r.gripJoint.name}" is not a rig joint` })
+    if (r.hand !== undefined) {
+      if (!linkNames.has(r.hand.gripper)) diagnostics.push({ kind: 'rig', message: `robot.hand.gripper "${r.hand.gripper}" is not a rig link` })
+      if (!jointNames.has(r.hand.gripJoint.name)) diagnostics.push({ kind: 'rig', message: `robot.hand.gripJoint "${r.hand.gripJoint.name}" is not a rig joint` })
+      const tool = params.tool
+      if (tool?.type !== 'enum' || !(tool.options ?? []).some((o) => o.value === 'hand'))
+        diagnostics.push({ kind: 'package', message: "robot.hand: the robot grips with its own hand while its `tool` param is 'hand', but it has no enum `tool` param offering 'hand'" })
+    }
     for (const [name, type] of Object.entries(ROBOT_PARAMS)) {
       const spec = params[name]
       if (spec && spec.type !== type) diagnostics.push({ kind: 'package', message: `robot: the controller reads param "${name}" as a ${type}, but it is declared as a ${spec.type}` })

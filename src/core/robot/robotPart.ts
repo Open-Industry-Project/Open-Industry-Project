@@ -13,8 +13,10 @@ const ioOptions = (word: string, prefix: string) =>
   Array.from({ length: ROBOT_IO_COUNT }, (_, i) => ({ value: i, label: `${word} ${i + 1}`, param: `${prefix}${i + 1}Tag` }))
 
 export interface RobotPartOptions {
-  /** draw the app's tools on the arm (an arm without a hand of its own) */
+  /** draw the app's tools on the arm */
   tools?: boolean
+  /** the arm has a hand of its own (RobotDeclaration.hand): the tool choice offers it first, and starts on it */
+  hand?: boolean
   /** the Home waypoint and idle pose, native units by joint name (robotIk.ts robotReadyPose); else every joint at 0 */
   ready?: Readonly<Record<string, number>> | null
 }
@@ -81,11 +83,14 @@ export function robotParams(joints: readonly RobotJoint[], opts: RobotPartOption
     // the app's tools (robotTools.ts), drawn on the robot's tool mount and read by its grip zone
     params.tool = {
       type: 'enum',
-      default: 'vacuum',
+      default: opts.hand ? 'hand' : 'vacuum',
       label: 'Tool',
       group: 'Tool',
-      desc: 'What the robot carries on its flange: a vacuum plate that lifts what is under it, or a clamp gripper whose two paddles close on the sides of a load. Both pick a load of the tool size below.',
+      desc: opts.hand
+        ? 'What the robot carries on its flange: its own hand, as its description has it, or in place of the hand a vacuum plate that lifts what is under it or a clamp gripper whose two paddles close on the sides of a load. The plate and the clamp pick a load of the tool size below.'
+        : 'What the robot carries on its flange: a vacuum plate that lifts what is under it, or a clamp gripper whose two paddles close on the sides of a load. Both pick a load of the tool size below.',
       options: [
+        ...(opts.hand ? [{ value: 'hand', label: 'Its own hand' }] : []),
         { value: 'vacuum', label: 'Vacuum plate' },
         { value: 'gripper', label: 'Clamp gripper' },
         { value: 'none', label: 'None' },
@@ -112,7 +117,7 @@ export function robotBehavior(partName: string, decl: RobotDecl, joints: readonl
     `// PLC's job number and Execute, and moves the arm. This script declares the robot and the settings it reads.`,
     `definePart({`,
     `  joints: ${JSON.stringify(driven)},`,
-    ...(decl.gripper ? [`  grippers: ${JSON.stringify([decl.gripper])},`] : []),
+    ...(decl.gripper || decl.hand ? [`  grippers: ${JSON.stringify([decl.gripper, decl.hand?.gripper].filter((g) => g !== undefined))},`] : []),
     ...(decl.lamp ? [`  lamps: ${JSON.stringify([decl.lamp])},`] : []),
     `  robot: ${JSON.stringify(decl)},`,
     `  params: ${JSON.stringify(robotParams(joints, opts), null, 2).replace(/\n/g, '\n  ')},`,

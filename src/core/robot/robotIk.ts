@@ -10,7 +10,7 @@
 import type { RigGeometry } from '../parts/partPackage'
 import { jointLimits, qApply, rigWorldPoses, type RigParams, type Vec3 } from '../rig/rigPose'
 import { instantiatePartScript } from '../parts/partScript'
-import { defaultRobotJoints, robotDeclOf, robotUnit, type RobotDecl } from './robotController'
+import { defaultRobotJoints, robotDeclOf, robotUnit, robotUsesHand, type RobotDecl } from './robotController'
 
 export interface RobotIkGoal {
   geometry: RigGeometry
@@ -253,9 +253,10 @@ export interface RobotKinematics {
 /**
  * The kinematics of a robot part from its rig and behavior, or null for a part that is not a robot. The approach is
  * the app tool's frame's -Y (core/robot/robotTools.ts), else the rig's `tool` frame's +Z (a URDF arm's own TCP, which
- * ROS-Industrial points outward), else none.
+ * ROS-Industrial points outward), else none. `params` (a placed robot's) say which tool an arm with a hand of its own
+ * carries; without them it is the hand.
  */
-export function robotKinematics(geometry: RigGeometry, behavior: string): RobotKinematics | null {
+export function robotKinematics(geometry: RigGeometry, behavior: string, params?: Readonly<Record<string, unknown>>): RobotKinematics | null {
   const def = instantiatePartScript(behavior).def
   let decl: RobotDecl | null
   try {
@@ -263,7 +264,7 @@ export function robotKinematics(geometry: RigGeometry, behavior: string): RobotK
   } catch {
     return null
   }
-  return decl ? robotKinematicsOf(geometry, decl) : null
+  return decl ? robotKinematicsOf(geometry, decl, params) : null
 }
 
 /** One column of a robot's waypoint and idle-pose rows: its joint, and the row's units per native unit (° per rad,
@@ -285,12 +286,14 @@ export function robotColumns(geometry: RigGeometry, behavior: string): RobotColu
 }
 
 /** The kinematics of a rig driven by robot declaration `decl` (see robotKinematics), or null when it names no joint. */
-export function robotKinematicsOf(geometry: RigGeometry, decl: RobotDecl): RobotKinematics | null {
+export function robotKinematicsOf(geometry: RigGeometry, decl: RobotDecl, params?: Readonly<Record<string, unknown>>): RobotKinematics | null {
   const names = decl.joints ?? defaultRobotJoints(geometry.joints)
   const joints = names.map((n) => geometry.joints.find((j) => j.name === n)).filter((j) => j !== undefined)
   if (joints.length === 0) return null
-  const end = decl.gripper ?? geometry.tool ?? joints[joints.length - 1]!.link
-  const approach = decl.tool ? { link: decl.tool, axis: [0, -1, 0] as Vec3 } : geometry.tool ? { link: geometry.tool, axis: [0, 0, 1] as Vec3 } : null
+  const ownHand = robotUsesHand(decl, params)
+  const end = (ownHand ? decl.hand!.gripper : decl.gripper) ?? geometry.tool ?? joints[joints.length - 1]!.link
+  const tool = ownHand ? undefined : decl.tool
+  const approach = tool ? { link: tool, axis: [0, -1, 0] as Vec3 } : geometry.tool ? { link: geometry.tool, axis: [0, 0, 1] as Vec3 } : null
   return { geometry, joints, end, approach }
 }
 

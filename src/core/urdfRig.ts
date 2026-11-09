@@ -44,7 +44,8 @@ export interface UrdfRig {
   /** the robot the arm is: its joints from the root to the tool, its grip, and the finger that opens and closes with
    *  it; null for a rig with no joint above its tool */
   robot: RobotDecl | null
-  /** the arm grips with its own hand from the URDF; otherwise it carries the app's tools */
+  /** the arm has its own hand from the URDF (RobotDeclaration.hand), which it grips with until its `tool` param
+   *  picks one of the app's tools */
   hand: boolean
 }
 
@@ -192,11 +193,13 @@ export function urdfToRig(robot: UrdfRobot, { drawn, boxes, collisionBoxes }: Ur
 
 /**
  * The robot an imported arm is. The controller drives the joints between the root and the tool (the gizmo's IK chain).
- * An arm whose URDF carries a hand (a single sliding joint beside the arm; a two-finger hand's second finger follows it
- * by mimic) grips with it, at the tool frame. An arm without one gets the app's tools (core/robot/robotTools.ts): a
- * mount under its tool link, turned so the tool hangs out along the tool frame's +Z (the outward direction of
- * ROS-Industrial's tool0 and of a TCP frame), with the grip point and the two finger links the tools use, as the
- * six-axis robot carries them. Writes those links, joints and the grip into `geometry`.
+ * Every arm gets the app's tools (core/robot/robotTools.ts): a mount turned so the tool hangs out along the frame's +Z
+ * (the outward direction of ROS-Industrial's tool0 and of a TCP frame), with the grip point and the two finger links
+ * the tools use, as the six-axis robot carries them. The mount is on the tool link, or on the link a hand of the
+ * URDF's own is fixed to. An arm whose URDF carries a hand (a single sliding joint beside the arm; a two-finger hand's
+ * second finger follows it by mimic) also grips with that hand at the tool frame (`decl.hand`), which it carries while
+ * its `tool` param is 'hand': the hand's links have `showParam: 'tool=hand'`. Writes those links, joints and grips
+ * into `geometry`.
  */
 function robotOf(geometry: RigGeometry, usedLinks: Set<string>, usedJoints: Set<string>): { decl: RobotDecl; hand: boolean } | null {
   const moving = geometry.joints.filter((j) => !j.mimic)
@@ -213,12 +216,24 @@ function robotOf(geometry: RigGeometry, usedLinks: Set<string>, usedJoints: Set<
   const others = moving.filter((j) => !above.has(j.link))
   const finger = others.length === 1 && others[0]!.type === 'prismatic' ? others[0]! : null
   const joints = arm.map((j) => j.name)
+  let hand: RobotDecl['hand']
+  let flange = toolName
   if (finger) {
     // the URDF's own hand: a zone at the tool frame, between the fingers. The controller drives the finger with the
     // grip, so it is cosmetic: no pose gizmo ring, no waypoint column
     geometry.links.find((l) => l.name === toolName)!.grip = { zone: { size: [0.08, 0.08, 0.08] } }
     finger.cosmetic = true
-    return { decl: { joints, gripper: toolName, gripJoint: { name: finger.name, open: finger.max, closed: finger.min } }, hand: true }
+    hand = { gripper: toolName, gripJoint: { name: finger.name, open: finger.max, closed: finger.min } }
+    // The hand is the link its finger hangs from and everything under it. Another tool replaces it on the link it is
+    // fixed to. A hand that is also the arm's last link (a finger straight on the wrist) cannot come off, so that arm
+    // keeps only its own hand.
+    const body = parentOf.get(finger.link)
+    const handLinks = body === undefined ? [] : subtreeOf(geometry, body)
+    const armLinks = new Set(arm.map((j) => j.link))
+    const mountOn = body === undefined ? undefined : parentOf.get(body)
+    if (mountOn === undefined || handLinks.some((l) => armLinks.has(l.name))) return { decl: { joints, gripper: toolName, gripJoint: hand.gripJoint }, hand: true }
+    for (const l of handLinks) l.showParam = 'tool=hand'
+    flange = mountOn
   }
   const mount = unique('toolMount', usedLinks)
   const gripper = unique('gripper', usedLinks)
@@ -228,7 +243,7 @@ function robotOf(geometry: RigGeometry, usedLinks: Set<string>, usedJoints: Set<
   const grip2 = unique('toolGrip2', usedJoints)
   geometry.links.push(
     // the tool frame's +Y points back at the wrist: -90 degrees about X turns the tool link's +Z to the mount's -Y
-    { name: mount, parent: toolName, shape: { kind: 'frame' }, offset: [0, 0, 0], quat: Z_UP_TO_Y_UP },
+    { name: mount, parent: flange, shape: { kind: 'frame' }, offset: [0, 0, 0], quat: Z_UP_TO_Y_UP },
     {
       name: gripper,
       parent: mount,
@@ -252,7 +267,17 @@ function robotOf(geometry: RigGeometry, usedLinks: Set<string>, usedJoints: Set<
     { name: grip, link: fingerA, type: 'prismatic', axis: [1, 0, 0], min: -FINGER_TRAVEL, max: FINGER_TRAVEL, cosmetic: true },
     { name: grip2, link: fingerB, type: 'prismatic', axis: [-1, 0, 0], min: -FINGER_TRAVEL, max: FINGER_TRAVEL, mimic: { joint: grip } },
   )
-  return { decl: { joints, gripper, lamp: ROBOT_TOOL_LAMP, tool: mount, gripJoint: { name: grip, open: FINGER_TRAVEL, closed: -FINGER_TRAVEL } }, hand: false }
+  return {
+    decl: { joints, gripper, lamp: ROBOT_TOOL_LAMP, tool: mount, gripJoint: { name: grip, open: FINGER_TRAVEL, closed: -FINGER_TRAVEL }, ...(hand ? { hand } : {}) },
+    hand: hand !== undefined,
+  }
+}
+
+/** `root` and every link under it, root first. */
+function subtreeOf(geometry: RigGeometry, root: string): RigLink[] {
+  const out = geometry.links.filter((l) => l.name === root)
+  for (let i = 0; i < out.length; i++) for (const l of geometry.links) if (l.parent === out[i]!.name) out.push(l)
+  return out
 }
 
 /** How a link's name says it is the tool frame: ROS-Industrial names the flange frame `tool0` (REP 199), and arms also

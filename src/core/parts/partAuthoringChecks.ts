@@ -240,7 +240,19 @@ export function checkGeometryRefs(geometry: PartPackageGeometry, params: ParamSc
     l.lamps?.forEach((lamp, j) => {
       if (lamp.param !== undefined) ref(`${at}.lamps[${j}].param`, lamp.param, 'boolean')
     })
-    if (l.showParam !== undefined) ref(`${at}.showParam`, l.showParam, 'boolean')
+    if (l.showParam !== undefined) {
+      // 'param=value' shows the link while an enum param is that value; otherwise a boolean param switches it
+      const eq = l.showParam.indexOf('=')
+      if (eq < 0) ref(`${at}.showParam`, l.showParam, 'boolean')
+      else {
+        const name = l.showParam.slice(0, eq)
+        const value = l.showParam.slice(eq + 1)
+        ref(`${at}.showParam`, name, 'enum')
+        const spec = params[name]
+        if (spec?.type === 'enum' && !(spec.options ?? []).some((o) => o.value === value))
+          out.push({ field: `${at}.showParam`, message: `shows the link while "${name}" is '${value}', which is not one of its options - the link would never show` })
+      }
+    }
     if (l.finishParam !== undefined) {
       ref(`${at}.finishParam`, l.finishParam, 'enum')
       const spec = params[l.finishParam]

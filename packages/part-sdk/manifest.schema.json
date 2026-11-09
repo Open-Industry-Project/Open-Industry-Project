@@ -409,7 +409,7 @@
           "type": "boolean"
         },
         "showParam": {
-          "description": "Param-gated structural toggle: the name of a boolean param that must be true for this link to exist. When\nit resolves false, the link is omitted entirely: no rendered mesh and no collision body (both, unlike the\nrender-only `hidden`), so a part can drop an optional structural member from the Inspector, like the\nbelt/curved conveyors' side-guard toggles (roller-conveyor `leftGuard`/`rightGuard`). Resolved with the\nparam default, so an unset default-true param keeps the link. A missing/non-boolean param reads as shown.",
+          "description": "Param-gated structural toggle: the name of a boolean param that must be true for this link to exist. When\nit resolves false, the link is omitted entirely: no rendered mesh and no collision body (both, unlike the\nrender-only `hidden`), so a part can drop an optional structural member from the Inspector, like the\nbelt/curved conveyors' side-guard toggles (roller-conveyor `leftGuard`/`rightGuard`). Resolved with the\nparam default, so an unset default-true param keeps the link. A missing/non-boolean param reads as shown.\n`'param=value'` names an enum param instead: the link exists only while that param is `value` (a robot's own\nhand, shown while its `tool` param is `'hand'`).",
           "type": "string"
         },
         "onEdge": {

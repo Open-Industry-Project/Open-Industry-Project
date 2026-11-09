@@ -519,7 +519,9 @@ export interface RigLink {
    *  it resolves false, the link is omitted entirely: no rendered mesh and no collision body (both, unlike the
    *  render-only `hidden`), so a part can drop an optional structural member from the Inspector, like the
    *  belt/curved conveyors' side-guard toggles (roller-conveyor `leftGuard`/`rightGuard`). Resolved with the
-   *  param default, so an unset default-true param keeps the link. A missing/non-boolean param reads as shown. */
+   *  param default, so an unset default-true param keeps the link. A missing/non-boolean param reads as shown.
+   *  `'param=value'` names an enum param instead: the link exists only while that param is `value` (a robot's own
+   *  hand, shown while its `tool` param is `'hand'`). */
   showParam?: string
   /** This link runs on the named edge of the part's deck surface (a railing post array, rail, toe board or infill
    *  wall), so a neighbour that meets that edge and {@link SnapEdgeMount.opens} it cuts the link around the gap:
@@ -665,6 +667,10 @@ export interface RobotDeclaration {
   gripJoint?: { name: string; open: number; closed: number }
   /** the link the host draws the robot's tool on, the one the `tool` param picks (core/robot/robotTools.ts) */
   tool?: string
+  /** the arm's own hand, which grips instead of `gripper` and `gripJoint` while the `tool` param is `'hand'` (an
+   *  imported arm whose description carries one). Its links take `showParam: 'tool=hand'`, so another tool replaces
+   *  it. */
+  hand?: { gripper: string; gripJoint: { name: string; open: number; closed: number } }
 }
 
 /**

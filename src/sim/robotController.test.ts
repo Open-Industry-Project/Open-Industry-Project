@@ -7,6 +7,8 @@ import { FINGER_TRAVEL, ROBOT_TOOL_LAMP, ROBOT_TOOL_MATERIALS, TOOL_GRIP_Y } fro
 import { evalPartGeometry } from '../core/geometry/geometryEval'
 import { resolvePartParams } from '../core/parts/partScript'
 import { qApply } from '../core/rig/rigPose'
+import { showParamShows } from '../core/rig/rigLinkBody'
+import { robotKinematicsOf } from '../core/robot/robotIk'
 import { rigJointsJson } from '../core/parts/partPackage'
 import { create, destroy, stepDirect } from './embeddedBehavior'
 import { validatePart } from './validatePart'
@@ -113,6 +115,68 @@ describe('a URDF robot', () => {
 
   it('refuses a robot joint the rig does not have', () => {
     expect(() => createRobot({ joints: ['nope'] }, [])).toThrow(/not a joint of the rig/)
+  })
+})
+
+describe('an arm with a hand of its own on its flange', () => {
+  // the hand is fixed to the flange, so it can come off: the app's tools mount on the flange in its place
+  const HANDED = `<robot name="handed">
+    <link name="base"/><link name="arm"/><link name="flange"/><link name="hand"/><link name="tcp"/><link name="finger_a"/><link name="finger_b"/>
+    <joint name="yaw" type="revolute"><parent link="base"/><child link="arm"/><axis xyz="0 0 1"/><limit lower="-3" upper="3"/></joint>
+    <joint name="pitch" type="revolute"><parent link="arm"/><child link="flange"/><origin xyz="0.3 0 0"/><axis xyz="0 1 0"/><limit lower="-2" upper="2"/></joint>
+    <joint name="hand_mount" type="fixed"><parent link="flange"/><child link="hand"/><origin xyz="0 0 0.05"/></joint>
+    <joint name="hand_tcp" type="fixed"><parent link="hand"/><child link="tcp"/><origin xyz="0 0 0.1"/></joint>
+    <joint name="fa" type="prismatic"><parent link="hand"/><child link="finger_a"/><axis xyz="0 1 0"/><limit lower="0" upper="0.03"/></joint>
+    <joint name="fb" type="prismatic"><parent link="hand"/><child link="finger_b"/><axis xyz="0 -1 0"/><limit lower="0" upper="0.03"/><mimic joint="fa"/></joint>
+  </robot>`
+  const rig = urdfToRig(parseUrdf(HANDED), { drawn: new Set() })
+  const decl = rig.robot!
+  const arm = decl.joints!.map((n) => rig.geometry.joints.find((j) => j.name === n)!)
+  const behavior = robotBehavior('handed', decl, arm, { tools: true, hand: true })
+  const link = (name: string) => rig.geometry.links.find((l) => l.name === name)!
+
+  it('keeps its hand, and takes the app tools on the flange, the hand there only while the tool is the hand', () => {
+    expect(rig.hand).toBe(true)
+    expect(decl).toEqual({
+      joints: ['yaw', 'pitch'],
+      gripper: 'gripper',
+      lamp: ROBOT_TOOL_LAMP,
+      tool: 'toolMount',
+      gripJoint: { name: 'toolGrip', open: FINGER_TRAVEL, closed: -FINGER_TRAVEL },
+      hand: { gripper: 'tcp', gripJoint: { name: 'fa', open: 0.03, closed: 0 } },
+    })
+    expect(link('toolMount').parent).toBe('flange')
+    expect(['hand', 'tcp', 'finger_a', 'finger_b'].map((n) => link(n).showParam)).toEqual(Array(4).fill('tool=hand'))
+    expect(['flange', 'toolMount', 'gripper'].map((n) => link(n).showParam)).toEqual([undefined, undefined, undefined])
+    const result = validatePart({ id: 'user.handed', name: 'handed', geometry: rig.geometry, materials: ROBOT_TOOL_MATERIALS }, behavior)
+    expect(result.diagnostics).toEqual([])
+    const tool = result.package!.params.tool as { default: string; options: { value: string }[] }
+    expect([tool.default, tool.options.map((o) => o.value)]).toEqual(['hand', ['hand', 'vacuum', 'gripper', 'none']])
+    // its own hand draws no app tool; a picked one draws on the mount
+    expect(evalPartGeometry(behavior, resolvePartParams(result.package!.params, {}))).toBeNull()
+    expect(new Set((evalPartGeometry(behavior, resolvePartParams(result.package!.params, { tool: 'vacuum' })) ?? []).map((m) => m.link))).toEqual(new Set(['toolMount']))
+  })
+
+  it('takes its grip point from the tool it carries', () => {
+    expect(robotKinematicsOf(rig.geometry, decl)).toMatchObject({ end: 'tcp', approach: { link: 'tcp', axis: [0, 0, 1] } })
+    expect(robotKinematicsOf(rig.geometry, decl, { tool: 'vacuum' })).toMatchObject({ end: 'gripper', approach: { link: 'toolMount', axis: [0, -1, 0] } })
+  })
+
+  it('grips with the hand, or with the tool picked in its place while the hand stands open', () => {
+    const run = (params: Record<string, unknown>) => {
+      const h = create(behavior, JSON.stringify({ ...params, gripperTag: 'G' }), rigJointsJson(rig.geometry))
+      let out = stepDirect(h, { simTime: 0, tags: { G: true } }, DT)!
+      for (let i = 0; i < 30; i++) out = stepDirect(h, { simTime: 0, tags: { G: true } }, DT)!
+      destroy(h)
+      return { grips: out.grips, fa: out.joints.fa, toolGrip: out.joints.toolGrip, lamp: out.lamps[ROBOT_TOOL_LAMP] }
+    }
+    expect(run({})).toEqual({ grips: { gripper: false, tcp: true }, fa: 0, toolGrip: FINGER_TRAVEL, lamp: false })
+    expect(run({ tool: 'gripper' })).toEqual({ grips: { gripper: true, tcp: false }, fa: 0.03, toolGrip: -FINGER_TRAVEL, lamp: true })
+  })
+
+  it('reads a link\'s showParam as a boolean switch or as an enum value', () => {
+    expect([showParamShows(undefined, {}), showParamShows('guard', { guard: false }), showParamShows('guard', {})]).toEqual([true, false, true])
+    expect([showParamShows('tool=hand', { tool: 'hand' }), showParamShows('tool=hand', { tool: 'vacuum' }), showParamShows('tool=hand', {})]).toEqual([true, false, true])
   })
 })
 

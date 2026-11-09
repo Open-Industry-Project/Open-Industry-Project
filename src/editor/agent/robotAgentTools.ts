@@ -26,9 +26,10 @@ function placedRobot({ store }: AgentToolContext, id: string): PlacedRobot {
   const part = findPart(store.getState().scene, id)
   const pkg = part.type === 'part' ? getPackage((part as SdkPart).packageId) : undefined
   if (!pkg || pkg.geometry.kind !== 'rig') throw new AgentToolError(`${id} is not a robot (it has no rig)`)
-  const kin = robotKinematics(pkg.geometry, pkg.behavior)
-  if (!kin) throw new AgentToolError(`${id} is not a robot: its part declares no robot controller`)
   const params = resolvePartParams(pkg.params, part.params as Record<string, ParamValue>)
+  // the grip point is the tool's the robot carries (an arm with its own hand may carry an app tool instead)
+  const kin = robotKinematics(pkg.geometry, pkg.behavior, params)
+  if (!kin) throw new AgentToolError(`${id} is not a robot: its part declares no robot controller`)
   const scale = typeof params.scale === 'number' && params.scale > 0 ? params.scale : 1
   return { kin, params, scale, position: [...part.position], rotationY: part.rotationY }
 }
