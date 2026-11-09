@@ -11,7 +11,7 @@ import { IK_REACHED, robotKinematics, solveRobotIkFrom, type RobotKinematics } f
 import type { SdkPart } from '../../core/types'
 import { AgentToolError, assertEditable, findPart, optBool, optNum, round, str, type AgentTool, type AgentToolContext } from './toolKit'
 import { addNewPart } from '../controller/partAuthoring'
-import { UrdfError } from '../../core/urdf'
+import { XacroError, xacroArgChoices } from '../../core/xacro'
 
 /** A placed robot: its kinematics, resolved params, and where it stands. */
 interface PlacedRobot {
@@ -164,14 +164,20 @@ export const getRobotPose: AgentTool = {
 export const importRobot: AgentTool = {
   name: 'import_robot',
   description:
-    'Make a new robot part from a URDF file on this computer, as Import part > A robot (URDF)... does: a rig link per URDF link, a joint per moving joint, ' +
+    'Make a new robot part from a URDF or xacro file on this computer, as Import part > A robot (URDF)... does: a rig link per URDF link, a joint per moving joint, ' +
     'its meshes (STL, COLLADA, OBJ) in one model, its <collision> as hidden colliders, and the robot controller (waypoints, jobs, PLC tags). ' +
-    "The meshes are read from the URDF's description package: the folder above it when it sits in a `urdf` folder, else its own. " +
-    'An arm with no hand of its own carries the app\'s tools (`tool`: vacuum plate or clamp gripper). A xacro file is refused: expand it to .urdf first. ' +
+    "The meshes are the files it names (a xacro's includes and YAML too), read from its ROS package and those it finds with $(find). " +
+    'A xacro file is expanded first, with `args` set (its <xacro:arg> values; defaults otherwise). When an argument names a model the package lacks ' +
+    "(a UR description's ur_type), the call is refused with the values it can take: call again with args set to one. " +
+    "The answer's `switches` are the on/off arguments that add or remove links (an arm's own hand), with the value used: set one with args { \"hand\": \"true\" }. " +
+    'An arm with no hand of its own carries the app\'s tools (`tool`: vacuum plate or clamp gripper). ' +
     'Answers the new part id (place it with add_part), and what was not imported as written. One part in the library; nothing placed.',
   inputSchema: {
     type: 'object',
-    properties: { path: { type: 'string', description: 'absolute path of the .urdf file' } },
+    properties: {
+      path: { type: 'string', description: 'absolute path of the .urdf or .xacro file' },
+      args: { type: 'object', additionalProperties: { type: 'string' }, description: 'a xacro file\'s arguments, by name (e.g. { "ur_type": "ur5e" })' },
+    },
     required: ['path'],
     additionalProperties: false,
   },
@@ -180,16 +186,24 @@ export const importRobot: AgentTool = {
     const readModel = ctx.shell?.readModel
     if (!readModel) throw new AgentToolError('importing a robot needs the desktop app')
     const path = str(args, 'path')
-    if (!/\.urdf$/i.test(path)) throw new AgentToolError('give the robot as a .urdf file (expand a .xacro to .urdf first)')
+    if (!/\.(urdf|xacro)$/i.test(path)) throw new AgentToolError('give the robot as a .urdf or .xacro file')
+    const given = args.args ?? {}
+    if (typeof given !== 'object' || Array.isArray(given) || !Object.values(given as object).every((v) => typeof v === 'string')) throw new AgentToolError('args must be an object of strings')
+    const xacroArgs = given as Record<string, string>
     const file = await readModel(path)
     if ('error' in file) throw new AgentToolError(file.error)
     const files = new Map<string, Blob>((file.files ?? [{ path: file.name, bytes: file.bytes }]).map((f) => [f.path, new Blob([f.bytes as Uint8Array<ArrayBuffer>])]))
     const { importUrdf } = await import('../urdfImport')
     let result: Awaited<ReturnType<typeof importUrdf>>
     try {
-      result = await importUrdf(files, file.root ?? file.name)
+      result = await importUrdf(files, file.root ?? file.name, xacroArgs)
     } catch (e) {
-      throw new AgentToolError(e instanceof UrdfError && e.code === 'xacro' ? `${file.name} is a xacro file: expand it to .urdf first (xacro ${file.name} > robot.urdf)` : `could not import ${file.name}: ${(e as Error).message}`)
+      if (e instanceof XacroError) {
+        const choose = xacroArgChoices(e, [...files.keys()])
+        if (choose) throw new AgentToolError(`the argument ${choose.arg} is '${choose.value}', a model the package does not have: call again with args { "${choose.arg}": one of ${choose.choices.join(', ')} }`)
+        throw new AgentToolError(`could not expand ${file.name}: ${e.message}`)
+      }
+      throw new AgentToolError(`could not import ${file.name}: ${(e as Error).message}`)
     }
     const id = addNewPart(ctx.store, {
       name: result.name,
@@ -210,6 +224,8 @@ export const importRobot: AgentTool = {
       ...(result.missing.length ? { missingMeshes: result.missing } : {}),
       ...(result.unreadable.length ? { unreadableMeshes: result.unreadable } : {}),
       ...(result.notes.length ? { notes: result.notes } : {}),
+      ...(Object.keys(result.args).length ? { args: result.args } : {}),
+      ...(Object.keys(result.switches).length ? { switches: result.switches } : {}),
     }
   },
 }

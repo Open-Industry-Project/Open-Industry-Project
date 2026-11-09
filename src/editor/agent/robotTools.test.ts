@@ -105,11 +105,35 @@ describe('import_robot', () => {
     expect(placed.id).toBeTruthy()
   })
 
-  it('refuses xacro, and a robot without the desktop app', async () => {
+  it('expands xacro, naming a missing include, and refuses a robot without the desktop app', async () => {
     const c = { ...ctx(), shell: shell('<robot xmlns:xacro="x"><xacro:include filename="a.xacro"/></robot>') } as unknown as AgentToolContext
     const r = await callAgentTool(c, 'import_robot', { path: '/robots/r.urdf' })
-    expect(r.ok ? '' : r.error).toMatch(/xacro file: expand it/)
+    expect(r.ok ? '' : r.error).toMatch(/could not expand r\.urdf: the file urdf\/a\.xacro is not in the folder/)
     const none = await callAgentTool(ctx(), 'import_robot', { path: '/robots/r.urdf' })
     expect(none.ok ? '' : none.error).toMatch(/desktop app/)
+  })
+
+  it('asks for a xacro argument that names a model the package lacks, then imports the one given', async () => {
+    const enc = (s: string) => new TextEncoder().encode(s)
+    const XACRO =
+      '<robot xmlns:xacro="x" name="kit"><xacro:arg name="model" default="none"/><xacro:arg name="tip" default="false"/>' +
+      '<xacro:property name="d" value="${xacro.load_yaml(\'$(find kit)/config/$(arg model)/d.yaml\')}"/>' +
+      '<link name="base"/><link name="arm"/><link name="tool0"/>' +
+      '<joint name="yaw" type="revolute"><parent link="base"/><child link="arm"/><axis xyz="0 0 1"/><limit lower="-1" upper="1"/></joint>' +
+      '<joint name="flange" type="fixed"><parent link="arm"/><child link="tool0"/><origin xyz="${d.reach} 0 0"/></joint>' +
+      '<xacro:if value="$(arg tip)"><link name="tip"/><joint name="tip_joint" type="fixed"><parent link="tool0"/><child link="tip"/></joint></xacro:if></robot>'
+    const files = [
+      { path: 'kit/package.xml', bytes: enc('<package><name>kit</name></package>') },
+      { path: 'kit/urdf/kit.urdf.xacro', bytes: enc(XACRO) },
+      { path: 'kit/config/k1/d.yaml', bytes: enc('reach: 0.3') },
+      { path: 'kit/config/k2/d.yaml', bytes: enc('reach: 0.5') },
+    ]
+    const c = { ...ctx(), shell: { readModel: async () => ({ name: 'kit.urdf.xacro', bytes: files[1]!.bytes, files, root: 'kit/urdf/kit.urdf.xacro' }) } } as unknown as AgentToolContext
+    const asked = await callAgentTool(c, 'import_robot', { path: '/ws/kit/urdf/kit.urdf.xacro' })
+    expect(asked.ok ? '' : asked.error).toMatch(/model is 'none'.*args \{ "model": one of k1, k2 \}/)
+    const r = await ok(c, 'import_robot', { path: '/ws/kit/urdf/kit.urdf.xacro', args: { model: 'k2' } })
+    expect(r).toMatchObject({ name: 'kit (k2)', args: { model: 'k2', tip: 'false' }, switches: { tip: false }, robot: { waypointColumns: ['yaw °'] } })
+    const tipped = await ok(c, 'import_robot', { path: '/ws/kit/urdf/kit.urdf.xacro', args: { model: 'k2', tip: 'true' } })
+    expect(tipped).toMatchObject({ name: 'kit (k2, tip)', links: 4, switches: { tip: true } })
   })
 })

@@ -149,6 +149,7 @@ The primary ones:
 | occt-import-js (STEP import: Open CASCADE Technology compiled to WebAssembly, a lazy worker chunk) | LGPL-2.1 |
 | @huggingface/usd-web-viewer (USD import: a USD reader in Rust compiled to WebAssembly, a lazy worker chunk; its `THIRD_PARTY_LICENSES` lists the Rust crates inside) | MIT (the crates inside: each used under MIT) |
 | meshoptimizer simplifier (USD import's reduced detail, a lazy chunk; Copyright Arseny Kapoulkine) | MIT |
+| yaml (the YAML files a xacro robot description reads, a lazy chunk) | ISC |
 
 This list covers the primary redistributed runtime dependencies (the generated
 file has all of them); build-only tooling is not bundled into the shipped artifact.

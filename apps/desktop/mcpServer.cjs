@@ -36,7 +36,9 @@ const META = 'io.modelcontextprotocol/'
 /** A captured view wider than this is scaled down: a model reads a 1600 px frame as well as a 4K one, for less. */
 const CAPTURE_MAX_WIDTH = 1600
 /** The model files import_model reads, and the most it reads (a big STEP assembly is tens of MB). */
-const MODEL_EXTENSIONS = new Set(['.glb', '.step', '.stp', '.usd', '.usda', '.usdc', '.usdz', '.urdf'])
+const MODEL_EXTENSIONS = new Set(['.glb', '.step', '.stp', '.usd', '.usda', '.usdc', '.usdz', '.urdf', '.xacro'])
+// a xacro description's own files besides meshes: other xacro, URDF and YAML files, and package manifests
+const XACRO_SIDE_EXTENSIONS = new Set(['.xacro', '.urdf', '.yaml', '.yml', '.stl', '.dae', '.obj'])
 // a URDF robot's own files: the description and the meshes its links name
 const URDF_SIDE_EXTENSIONS = new Set(['.urdf', '.stl', '.dae', '.obj'])
 const MODEL_MAX_BYTES = 200 * 1024 * 1024
@@ -465,18 +467,19 @@ function registerAgentHost(ipcMain, host) {
  * A model file's bytes for import_model and import_robot, or why not: an absolute path to a .glb / .step / .stp / USD /
  * URDF file of a sane size. A .usd / .usda / .usdc root also brings `files`: the USD layers and images under its folder
  * (hidden folders such as .thumbs left out), keyed by their path from that folder, with `root` the root layer's own
- * key. A .urdf brings the mesh files it names (readUrdf).
+ * key. A .urdf brings the mesh files it names (readUrdf), a .xacro its ROS packages' robot files (readXacro).
  */
 async function readModel(path) {
   if (typeof path !== 'string' || !isAbsolute(path)) return { error: 'give the model file as an absolute path' }
   const ext = extname(path).toLowerCase()
-  if (!MODEL_EXTENSIONS.has(ext)) return { error: `a model is a .glb, .step, .stp, USD (.usd, .usda, .usdc, .usdz) or URDF (.urdf) file, not '${ext || 'no extension'}'` }
+  if (!MODEL_EXTENSIONS.has(ext)) return { error: `a model is a .glb, .step, .stp, USD (.usd, .usda, .usdc, .usdz) or URDF (.urdf, .xacro) file, not '${ext || 'no extension'}'` }
   try {
     const info = await stat(path)
     if (!info.isFile()) return { error: `${path} is not a file` }
     if (info.size > MODEL_MAX_BYTES) return { error: `${basename(path)} is ${Math.round(info.size / 1e6)} MB; the largest model read is ${MODEL_MAX_BYTES / 1024 / 1024} MB` }
     const bytes = new Uint8Array(await readFile(path))
     if (ext === '.urdf') return await readUrdf(path, bytes)
+    if (ext === '.xacro') return await readXacro(path, bytes)
     if (!USD_LAYER_EXTENSIONS.has(ext)) return { name: basename(path), bytes }
     const dir = dirname(path)
     const sides = USD_SIDE_EXTENSIONS
@@ -540,6 +543,78 @@ async function readUrdf(path, bytes) {
     files.push({ path: key.startsWith('..') ? basename(full) : key, bytes: data })
   }
   return { name: basename(path), bytes, files, root: files[0].path }
+}
+
+/** The ROS package holding `dir`: the nearest folder at or above it with a package.xml (up to four up), else null. */
+async function packageDirOf(dir) {
+  for (let d = dir, i = 0; i < 5; i++, d = dirname(d)) {
+    if (await isFile(join(d, 'package.xml'))) return d
+    if (dirname(d) === d) break
+  }
+  return null
+}
+async function isFile(p) {
+  try {
+    return (await stat(p)).isFile()
+  } catch {
+    return false
+  }
+}
+/** a package.xml's <name>, or null */
+async function packageNameOf(dir) {
+  try {
+    return /<name>\s*([^<\s]+)\s*<\/name>/.exec(await readFile(join(dir, 'package.xml'), 'utf8'))?.[1] ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A xacro description and the files it can read: its ROS package (the nearest folder above it with a package.xml,
+ * else its own folder), and each package it names with $(find) found beside that one, by its package.xml or its
+ * folder name. Robot files only (XACRO_SIDE_EXTENSIONS and package.xml), keyed from the folder holding the packages,
+ * so each key starts with its package's folder as a picked folder's would.
+ */
+async function readXacro(path, bytes) {
+  const own = dirname(path)
+  const pkg = (await packageDirOf(own)) ?? own
+  const base = dirname(pkg)
+  const files = []
+  const read = new Set()
+  let total = 0
+  const walk = async (at) => {
+    for (const entry of await readdir(at, { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue
+      const full = join(at, entry.name)
+      if (entry.isDirectory()) {
+        await walk(full)
+        continue
+      }
+      const keep = entry.name.toLowerCase() === 'package.xml' || XACRO_SIDE_EXTENSIONS.has(extname(entry.name).toLowerCase())
+      if (!entry.isFile() || !keep || read.has(full)) continue
+      if (files.length >= USD_MAX_FILES) throw new Error(`more than ${USD_MAX_FILES} robot files under ${base}`)
+      const data = full === path ? bytes : new Uint8Array(await readFile(full))
+      total += data.length
+      if (total > MODEL_MAX_BYTES) throw new Error(`the robot files under ${base} are over ${MODEL_MAX_BYTES / 1024 / 1024} MB`)
+      read.add(full)
+      files.push({ path: relative(base, full).replaceAll('\\', '/'), bytes: data })
+    }
+  }
+  await walk(pkg)
+  // the other packages it finds: named in any xacro read so far, looked for beside its own
+  const wanted = new Set()
+  for (const f of files) if (/\.xacro$/i.test(f.path)) for (const m of Buffer.from(f.bytes).toString('utf8').matchAll(/\$\(find\s+([^)\s]+)\)/g)) wanted.add(m[1])
+  wanted.delete(await packageNameOf(pkg))
+  if (wanted.size > 0) {
+    for (const entry of await readdir(base, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue
+      const dir = join(base, entry.name)
+      if (dir === pkg) continue
+      const name = (await packageNameOf(dir)) ?? entry.name
+      if (wanted.has(name) || wanted.has(entry.name)) await walk(dir)
+    }
+  }
+  return { name: basename(path), bytes, files, root: relative(base, path).replaceAll('\\', '/') }
 }
 
 module.exports = { AgentHost, DEFAULT_PORT, MODERN_VERSIONS, PROTOCOL_VERSIONS, handleMessage, readModel, registerAgentHost, requestEra, startMcpServer }

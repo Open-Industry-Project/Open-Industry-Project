@@ -239,6 +239,25 @@
   color: var(--text-dim);
 }
 
+/* a xacro robot's on/off arguments, asked before it imports (components/RobotOptionsDialog.tsx) */
+.robot-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.robot-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.robot-options-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* the one-field naming dialog (components/NameDialog.tsx): window.prompt throws in the Electron shell */
 .name-dialog {
   width: min(360px, 100%);

@@ -1,19 +1,22 @@
-// A new part made from a URDF robot, from Import part > A robot (URDF)… or a .urdf dropped on the Parts dock.
+// A new part made from a URDF or xacro robot, from Import part > A robot (URDF)… or a file dropped on the Parts dock.
 //
 // The robot is converted at once (editor/urdfImport.ts): unlike a model, it has no options to show, since its links,
-// joints and placement are all in the file. The part is then made as New part makes one and opened as its own scene,
+// joints and placement are all in the file. A xacro description may have arguments that change the robot: a model to
+// pick, or an on/off one such as a hand; the caller asks about those first. The part is then made as New part makes one and opened as its own scene,
 // with the teach gizmo on its joints. Anything imported other than as written is reported in one message.
 
 import type { EditorController } from '../controller'
 import { defineMessages, t } from '../../core/i18n'
 import { UrdfError } from '../../core/urdf'
+import { XacroError, xacroArgChoices } from '../../core/xacro'
 import type { UrdfRigNote } from '../../core/urdfRig'
-import { importUrdf, urdfCandidates, URDF_TRIANGLE_BUDGET, type UrdfImport } from '../urdfImport'
+import { importUrdf, readRobotDescription, urdfCandidates, URDF_TRIANGLE_BUDGET, type UrdfImport } from '../urdfImport'
 import { largeModelAdvisory } from './modelStorage'
 
 const M = defineMessages('urdfImport', {
-  noUrdf: 'The folder {name} has no URDF file (.urdf).',
-  xacro: '{file} is a xacro file, which builds a URDF from macros. Expand it to a .urdf first (in ROS: xacro {file} > robot.urdf) and import that.',
+  noUrdf: 'The folder {name} has no robot description (.urdf, or a .xacro that builds a robot).',
+  xacroFailed: 'Could not expand {file}: {reason}',
+  xacroPackage: 'Could not expand {file}: {reason}. Pick a folder that holds every package it uses, such as the repository it came from.',
   notUrdf: '{file} is not a URDF robot description: {reason}',
   failed: 'Could not import {file}: {reason}',
   imported: { one: 'Imported {name}: {links} links and {count} joint.', other: 'Imported {name}: {links} links and {count} joints.' },
@@ -42,9 +45,10 @@ const NOTE: Record<UrdfRigNote['code'], (typeof M)[keyof typeof M]> = {
   mimic: M.noteMimic,
 }
 
-/** The URDF files a picked folder could import, nearest the top first; the caller asks which when there are several. */
-export function urdfRootsOf(files: ReadonlyMap<string, Blob>): string[] {
-  return urdfCandidates([...files.keys()])
+/** The robot descriptions a picked folder could import (URDF, or xacro that builds a robot), nearest the top first;
+ *  the caller asks which when there are several. */
+export function urdfRootsOf(files: ReadonlyMap<string, Blob>): Promise<string[]> {
+  return urdfCandidates(files)
 }
 
 /** A picked folder's files keyed by their path inside the pick (webkitRelativePath), as the importer resolves them. */
@@ -53,16 +57,35 @@ export function folderFiles(list: FileList | readonly File[]): Map<string, Blob>
 }
 
 /**
- * Import the robot whose URDF is `root` (a key of `files`) as a new part and open it. Returns the part's id (null
- * when nothing was made) and the message to show, or '' when the import went as written.
+ * Import the robot whose description is `root` (a key of `files`; a xacro file is expanded with `args`) as a new part
+ * and open it. Returns the part's id (null when nothing was made) and the message to show, or '' when the import went
+ * as written. Nothing is made, and the caller asks and imports again, when a xacro argument names a model the folder
+ * lacks (`choose`: the values it can take), or when `ask` is set and the description has on/off arguments that change
+ * the robot (`switches`, with their values).
  */
-export async function newPartFromUrdf(controller: EditorController, files: ReadonlyMap<string, Blob>, root: string): Promise<{ packageId: string | null; message: string }> {
+export async function newPartFromUrdf(
+  controller: EditorController,
+  files: ReadonlyMap<string, Blob>,
+  root: string,
+  args: Readonly<Record<string, string>> = {},
+  ask = false,
+): Promise<{ packageId: string | null; message: string; choose?: { arg: string; value: string; choices: string[] }; switches?: Record<string, boolean> }> {
   const file = root.split('/').pop() ?? root
   let result: UrdfImport
   try {
-    result = await importUrdf(files, root)
+    if (ask) {
+      const { switches } = await readRobotDescription(files, root, args)
+      if (Object.keys(switches).length > 0) return { packageId: null, message: '', switches }
+    }
+    result = await importUrdf(files, root, args)
   } catch (e) {
-    if (e instanceof UrdfError) return { packageId: null, message: e.code === 'xacro' ? t(M.xacro, { file }) : t(M.notUrdf, { file, reason: e.message }) }
+    if (e instanceof XacroError) {
+      // an argument names a model the folder lacks (UR's ur_type defaults to none on purpose): ask which
+      const choose = xacroArgChoices(e, [...files.keys()])
+      if (choose) return { packageId: null, message: '', choose }
+      return { packageId: null, message: t(e.code === 'missing-package' ? M.xacroPackage : M.xacroFailed, { file, reason: e.message }) }
+    }
+    if (e instanceof UrdfError) return { packageId: null, message: t(M.notUrdf, { file, reason: e.message }) }
     return { packageId: null, message: t(M.failed, { file, reason: (e as Error).message }) }
   }
   const packageId = controller.createBlankPart({

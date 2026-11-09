@@ -4,10 +4,11 @@
 // its child link in its parent's frame (`origin`) and moves it about or along `axis`, given in the child's frame.
 // Units are metres and radians, +Z is up. core/urdfRig.ts turns the result into a part's rig.
 //
-// Only plain URDF is read. Most published descriptions are xacro macros that expand to URDF; those are refused with
-// a code of their own so the caller can say how to expand them.
+// parseUrdf reads plain URDF and refuses xacro with a code of its own; core/xacro.ts expands a xacro description,
+// whose result parseUrdfRoot reads.
 
 import { parseXml, xmlKid, xmlKids, type XmlNode } from './xml'
+import { isXacroText } from './xacro'
 
 export type UrdfVec3 = [number, number, number]
 
@@ -68,7 +69,7 @@ export interface UrdfRobot {
   joints: UrdfJoint[]
 }
 
-/** Why a file could not be read. `xacro` is a macro file, which needs expanding to URDF first. */
+/** Why a file could not be read. `xacro` is a macro file, which core/xacro.ts expands first. */
 export class UrdfError extends Error {
   constructor(
     readonly code: 'not-urdf' | 'xacro' | 'no-links',
@@ -82,16 +83,18 @@ const JOINT_TYPES = new Set<string>(['revolute', 'continuous', 'prismatic', 'fix
 
 /** Parse a URDF document. Throws {@link UrdfError} for a file that is not plain URDF. */
 export function parseUrdf(text: string): UrdfRobot {
-  // xacro's elements and `${...}` expressions; parseXml drops namespace prefixes, so look at the text itself
-  if (/<xacro:/.test(text) || /=\s*["'][^"']*\$\{/.test(text)) {
-    throw new UrdfError('xacro', 'This is a xacro file. Expand it to URDF first.')
-  }
+  if (isXacroText(text)) throw new UrdfError('xacro', 'This is a xacro file. Expand it to URDF first.')
   let root: XmlNode
   try {
     root = parseXml(text, 'URDF')
   } catch (e) {
     throw new UrdfError('not-urdf', (e as Error).message)
   }
+  return parseUrdfRoot(root)
+}
+
+/** Read a URDF document already parsed: a plain file's root, or a xacro description expanded (core/xacro.ts). */
+export function parseUrdfRoot(root: XmlNode): UrdfRobot {
   if (root.name !== 'robot') throw new UrdfError('not-urdf', `The file's root element is <${root.name}>, not <robot>.`)
 
   // materials named at the top level, which a visual may refer to by name alone

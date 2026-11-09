@@ -379,7 +379,7 @@ export function agentGuideMarkdown(doc: GuideDoc, opts?: { measure?: MeasureExte
       '| Place, move and retune parts | `list_catalog`, `get_package`, `add_part`, `snap_part`, `update_part`, `duplicate_parts`, `delete_parts` |',
       '| Wire parts to the program | a part\'s tag params (`update_part`), `rename_tag`, `assign_io` |',
       '| A part type the catalog lacks | `get_part_sdk`, `check_part`, `create_part`, `edit_part_definition` |',
-      '| Bring in and teach a robot | `import_robot` (a .urdf file), `solve_robot_pose` (the joint row that puts its grip point at a point, tool down), `get_robot_pose`; then `update_part` on its `waypoints`, `waypointNames`, `jobs` and `tool` |',
+      '| Bring in and teach a robot | `import_robot` (a .urdf or .xacro file), `solve_robot_pose` (the joint row that puts its grip point at a point, tool down), `get_robot_pose`; then `update_part` on its `waypoints`, `waypointNames`, `jobs` and `tool` |',
       '| See and operate the line | `capture_view`, `run` / `stop`, `get_tags`, `set_tag`, `trace_tags`, `get_cargo` |',
       '| Stop the live sim on a moment, look, step on | `pause`, `step` (`steps`, `seconds`, or `until` a sim time), `resume`; paused, `get_cargo` adds velocity and what each box touches |',
       '| See the cargo at a known sim time | `run_test` with `cargo` (position, tilt, velocity, what each box touches) and `trace`: the same run every time |',

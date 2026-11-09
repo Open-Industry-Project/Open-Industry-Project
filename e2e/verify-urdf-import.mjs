@@ -8,7 +8,10 @@
 //      a COLLADA file in centimetres, Z up), and the rendered links stand where URDF puts them, Z up turned to Y up
 //   D) the part's bounds are the rest pose's
 //   E) a lone .urdf (no folder) imports its primitives and says which meshes it could not find
-//   F) a xacro file is refused with how to expand it
+//   F) a xacro file is expanded first: one whose include is not there says which file is missing
+//   H) a xacro description in two ROS packages, whose model argument names none by default, asks which model (the
+//      models its YAML folders hold), then asks about the on/off argument that adds a link (not the one that adds
+//      only a simulator tag), and imports what was picked: its macro, its include through $(find), its YAML
 //   G) mimic and collision: a second finger follows the first (a joint `mimic`), each <collision> is a hidden collider
 //      link, and running the robot in a scene, a box dropped on its base comes to rest on the base's collider
 //
@@ -146,6 +149,43 @@ writeFileSync(join(pkg, 'meshes', 'base.stl'), stl(boxTriangles([-100, -100, 0],
 // a 50 cm arm along +X, 10 cm square
 writeFileSync(join(pkg, 'meshes', 'visual', 'arm.dae'), dae(boxTriangles([0, -5, -5], [50, 5, 5])))
 writeFileSync(join(dir, 'macro.urdf'), '<robot name="m" xmlns:xacro="http://www.ros.org/wiki/xacro"><xacro:include filename="arm.xacro"/></robot>')
+
+// H: a xacro robot in two packages. The description picks its dimensions from config/<model>/dims.yaml, and the arm
+// macro lives in a second package it finds with $(find). Plain strings, so the ${...} is xacro's, not JavaScript's.
+const xacroWs = join(dir, 'xbot_ws')
+for (const d of ['xbot_description/urdf', 'xbot_description/config/m1', 'xbot_description/config/m2', 'xbot_macros/urdf']) mkdirSync(join(xacroWs, d), { recursive: true })
+writeFileSync(join(xacroWs, 'xbot_description', 'package.xml'), '<package><name>xbot_description</name></package>')
+writeFileSync(join(xacroWs, 'xbot_macros', 'package.xml'), '<package><name>xbot_macros</name></package>')
+writeFileSync(join(xacroWs, 'xbot_description', 'config', 'm1', 'dims.yaml'), 'upper: 0.4\nfore: 0.3\n')
+writeFileSync(join(xacroWs, 'xbot_description', 'config', 'm2', 'dims.yaml'), 'upper: 0.6\nfore: 0.35\n')
+writeFileSync(
+  join(xacroWs, 'xbot_description', 'urdf', 'xbot.urdf.xacro'),
+  '<?xml version="1.0"?>\n<robot xmlns:xacro="http://wiki.ros.org/xacro" name="xbot">\n' +
+    '  <xacro:arg name="model" default="none"/>\n' +
+    '  <xacro:arg name="tip" default="false"/>\n' +
+    '  <xacro:arg name="sim" default="true"/>\n' +
+    '  <xacro:include filename="$(find xbot_macros)/urdf/arm.xacro"/>\n' +
+    "  <xacro:xbot_arm dims=\"${xacro.load_yaml('$(find xbot_description)/config/$(arg model)/dims.yaml')}\"/>\n" +
+    '  <xacro:if value="$(arg tip)"><link name="tip"><visual><geometry><box size="0.05 0.05 0.05"/></geometry></visual></link>' +
+    '<joint name="tip_mount" type="fixed"><parent link="tool0"/><child link="tip"/></joint></xacro:if>\n' +
+    '  <xacro:if value="$(arg sim)"><gazebo/></xacro:if>\n' +
+    '</robot>\n',
+)
+const J = (name, parent, child, xyz) =>
+  `<joint name="${name}" type="revolute"><parent link="${parent}"/><child link="${child}"/><origin xyz="${xyz}"/><axis xyz="0 1 0"/><limit lower="-3" upper="3" effort="1" velocity="1"/></joint>`
+writeFileSync(
+  join(xacroWs, 'xbot_macros', 'urdf', 'arm.xacro'),
+  '<?xml version="1.0"?>\n<robot xmlns:xacro="http://wiki.ros.org/xacro">\n' +
+    '  <xacro:macro name="xbot_arm" params="dims">\n' +
+    '    <link name="base_link"><visual><geometry><box size="0.2 0.2 0.1"/></geometry></visual></link>\n' +
+    "    <link name=\"upper\"><visual><origin xyz=\"${dims['upper'] / 2} 0 0\"/><geometry><box size=\"${dims['upper']} 0.08 0.08\"/></geometry></visual></link>\n" +
+    '    <link name="fore"><visual><origin xyz="${dims.fore / 2} 0 0"/><geometry><box size="${dims.fore} 0.06 0.06"/></geometry></visual></link>\n' +
+    '    <link name="tool0"/>\n' +
+    `    ${J('shoulder', 'base_link', 'upper', '0 0 0.1')}\n` +
+    `    ${J('elbow', 'upper', 'fore', "${dims['upper']} 0 0")}\n` +
+    '    <joint name="flange" type="fixed"><parent link="fore"/><child link="tool0"/><origin xyz="${dims.fore} 0 0"/></joint>\n' +
+    '  </xacro:macro>\n</robot>\n',
+)
 
 // ---- the gate -------------------------------------------------------------------------------------------------
 
@@ -319,7 +359,32 @@ try {
   await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length === n, before3, { timeout: 5000 })
   await page.waitForTimeout(500)
   const refused = alerts.at(-1) ?? ''
-  check('F  a xacro file is refused, saying how to expand it', /xacro file/.test(refused) && (await page.evaluate(() => window.__oip.store.getState().userPackages.length)) === before3, refused)
+  check('F  a xacro whose include is missing says which file', /arm\.xacro is not in the folder/.test(refused) && (await page.evaluate(() => window.__oip.store.getState().userPackages.length)) === before3, refused)
+
+  // H
+  const before4 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
+  const alertsBefore4 = alerts.length
+  await page.getByTestId('catalog-import-robot-input').setInputFiles(xacroWs)
+  const models = page.locator('[data-testid^="catalog-import-arg-"]')
+  await models.first().waitFor({ timeout: 30000 })
+  const offered = (await models.allInnerTexts()).map((s) => s.trim())
+  check('H  a model argument with no model asks which, from the YAML folders', JSON.stringify(offered) === JSON.stringify(['model: m1', 'model: m2']), JSON.stringify(offered))
+  await models.nth(1).click()
+  const options = page.locator('[data-testid^="robot-option-"]')
+  await options.first().waitFor({ timeout: 30000 })
+  const asked = await options.evaluateAll((els) => els.map((e) => `${e.dataset.testid.slice('robot-option-'.length)}=${e.checked}`))
+  check('H  then asks about the switch that adds a link, at its default, and not the simulator one', JSON.stringify(asked) === JSON.stringify(['tip=false']), JSON.stringify(asked))
+  await options.first().check()
+  await page.getByTestId('robot-options-import').click()
+  await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before4, { timeout: 60000 })
+  await page.waitForTimeout(200)
+  const fromXacro = await newest()
+  const xj = fromXacro?.geometry?.joints?.filter((j) => !j.cosmetic && !j.mimic)
+  check('H  the picked model imports as a robot named for what was picked', fromXacro?.name === 'xbot (m2, tip)' && JSON.stringify(xj?.map((j) => j.name)) === JSON.stringify(['shoulder', 'elbow']), `${fromXacro?.name} ${JSON.stringify(xj?.map((j) => j.name))}`)
+  const elbow = fromXacro?.geometry?.links?.find((l) => l.name === 'fore')
+  check("H  its dimensions come from the model's YAML (m2: upper arm 0.6 m)", !!elbow && near(elbow.offset[0], 0.6), JSON.stringify(elbow?.offset))
+  check('H  the box primitives are drawn, the tip with them, nothing to report', JSON.stringify(fromXacro?.gltf?.nodes.map((n) => n.name)) === JSON.stringify(['base_link', 'upper', 'fore', 'tip']) && alerts.length === alertsBefore4, `nodes ${JSON.stringify(fromXacro?.gltf?.nodes.map((n) => n.name))}, alerts ${alerts.slice(alertsBefore4).join(' | ')}`)
+  await page.evaluate(() => window.__oip.controller.closePartScene())
 
   // G
   const slide2 = g?.joints.find((j) => j.name === 'slide2')

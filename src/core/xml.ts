@@ -7,6 +7,9 @@
 export interface XmlNode {
   /** local name, any namespace prefix stripped: `<tc6:pou>` and `<pou>` are the same element */
   name: string
+  /** the namespace prefix as written (`xacro` for `<xacro:if>`), absent without one. The xacro expander tells its own
+   *  elements by it; readers of plain formats ignore it. */
+  prefix?: string
   attrs: Record<string, string>
   children: XmlNode[]
   /** character data directly inside this element, entities decoded */
@@ -69,8 +72,11 @@ export function parseXml(src: string, what = 'XML'): XmlNode {
     const inner = selfClosing ? raw.slice(0, -1) : raw
     const nameMatch = /^\s*([^\s/>]+)/.exec(inner)
     if (!nameMatch) throw new Error(`${what}: tag with no name`)
+    const qname = nameMatch[1]!
+    const colon = qname.indexOf(':')
     const node: XmlNode = {
-      name: localName(nameMatch[1]!),
+      name: localName(qname),
+      ...(colon > 0 ? { prefix: qname.slice(0, colon) } : {}),
       attrs: readAttrs(inner.slice(nameMatch[0].length)),
       children: [],
       text: '',

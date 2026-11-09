@@ -113,6 +113,28 @@ async function main() {
       // a lone URDF beside unrelated files reads only itself
       writeFileSync(join(dir, 'lone.urdf'), '<robot name="lone"/>')
       assert.deepEqual((await readModel(join(dir, 'lone.urdf'))).files.map((f) => f.path), ['lone.urdf'])
+      // a xacro reads its ROS package and the packages it $(find)s beside it, robot files only, keyed from their parent
+      const ws = join(dir, 'ws')
+      for (const d of ['bot_description/urdf', 'bot_description/meshes', 'bot_description/config/a', 'parts_lib/urdf', 'unrelated']) mkdirSync(join(ws, d), { recursive: true })
+      writeFileSync(join(ws, 'bot_description', 'package.xml'), '<package><name>bot_description</name></package>')
+      writeFileSync(join(ws, 'parts_lib', 'package.xml'), '<package><name>bot_parts</name></package>')
+      writeFileSync(join(ws, 'unrelated', 'package.xml'), '<package><name>unrelated</name></package>')
+      writeFileSync(join(ws, 'bot_description', 'urdf', 'bot.urdf.xacro'), '<robot xmlns:xacro="http://wiki.ros.org/xacro"><xacro:include filename="$(find bot_parts)/urdf/m.xacro"/></robot>')
+      writeFileSync(join(ws, 'bot_description', 'config', 'a', 'limits.yaml'), 'a: 1')
+      writeFileSync(join(ws, 'bot_description', 'meshes', 'link.stl'), Buffer.from([8]))
+      writeFileSync(join(ws, 'bot_description', 'README.md'), 'x')
+      writeFileSync(join(ws, 'parts_lib', 'urdf', 'm.xacro'), '<robot/>')
+      writeFileSync(join(ws, 'unrelated', 'u.xacro'), '<robot/>')
+      const bot = await readModel(join(ws, 'bot_description', 'urdf', 'bot.urdf.xacro'))
+      assert.equal(bot.root, 'bot_description/urdf/bot.urdf.xacro')
+      assert.deepEqual(bot.files.map((f) => f.path).sort(), [
+        'bot_description/config/a/limits.yaml',
+        'bot_description/meshes/link.stl',
+        'bot_description/package.xml',
+        'bot_description/urdf/bot.urdf.xacro',
+        'parts_lib/package.xml',
+        'parts_lib/urdf/m.xacro',
+      ])
       assert.match((await readModel('m.glb')).error, /absolute path/)
       assert.match((await readModel(join(dir, 'gone.step'))).error, /no such file/)
     } finally {

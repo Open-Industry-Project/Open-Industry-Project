@@ -947,8 +947,8 @@ with the layers and images under its folder. Convert anything else first:
 
 ### A robot (URDF)
 
-**Import part > A robot (URDF)…** takes a robot description folder (its `.urdf` file and the meshes it names) and
-makes a posable part of it, with no options to set. Each URDF link becomes a rig link and each revolute, continuous
+**Import part > A robot (URDF)…** takes a robot description folder (its `.urdf` or `.xacro` file and the meshes it
+names) and makes a posable part of it, with no options to set. Each URDF link becomes a rig link and each revolute, continuous
 or prismatic joint becomes a joint with the file's limits. A continuous joint gets ±180°. A fixed joint joins its
 links without one. Joint value 0 is the pose the robot was described in. The links keep their URDF frames, so
 nothing is re-expressed per link. URDF's +Z up becomes +Y by one turn on the root link. Each link's visuals go into
@@ -979,11 +979,24 @@ one GLB, a node per link, drawn by that link (`node`).
   missing joint, or of one that follows another itself, moves on its own and is listed.
 - **Not imported**: inertia, floating and planar joints (the link stays put), textures and Gazebo tags. Each is
   listed in a message after the import.
-- **xacro** is refused. Expand it to URDF first (`xacro robot.urdf.xacro > robot.urdf` in a ROS environment) and
-  import that.
+- **xacro** is expanded to URDF first (core/xacro.ts), as ROS's `xacro` tool does, so a description published only
+  as xacro imports without ROS. Properties, arguments, macros (defaults, `^`, `*block`, `**content`), includes, `if`
+  and `unless`, `insert_block`, `element` and `attribute` are read, with `$(arg)`, `$(find)`, `$(eval)`,
+  `$(optenv)`, `$(dirname)` and `$(anon)`. A `${...}` expression is the part of Python descriptions use (arithmetic,
+  comparisons, `in`, `a if c else b`, indexing, a YAML dict's keys as attributes), and `xacro.load_yaml` reads a YAML
+  file in the folder, an angle tagged `!degrees` in radians as xacro reads it (UR descriptions write joint limits and
+  mesh turns that way). `$(find pkg)` is the folder whose `package.xml` names `pkg`, so pick a folder holding every
+  package the robot uses (often the repository it came from). Arguments take their defaults. When one names a model
+  the folder lacks (a UR description's `ur_type` names none on purpose), the import asks which, from the folders that
+  hold the rest of the missing file's path, and names the part with it (`ur (ur5e)`). An on/off argument whose other
+  value adds or removes a link (Franka's `hand`) is asked about before the import, as a checkbox at its default; one
+  that changes only what ROS reads beside the robot (a controller, a simulator plugin) is not. A switch turned on
+  names the part too (`panda (hand)`). Not read: an include's `ns`,
+  `$(env)`, and Python beyond that part; each stops the import with its reason.
 
 A lone `.urdf` (from Import part's file picker or a drop) imports its primitives and lists the meshes it could not
-find. A folder with several URDF files at its top asks which one to import. The new part's joints can be driven
+find. A folder with several robot descriptions at its top asks which one to import; a xacro file that only defines
+macros for others is not offered. The new part's joints can be driven
 from the PLC with no code: select a joint's node and use the Joint section's PLC control.
 
 ### 1. Read the model

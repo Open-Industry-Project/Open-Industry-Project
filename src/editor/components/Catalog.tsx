@@ -30,6 +30,7 @@ import { importPartsFolder } from '../parts/packageSource'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { importPartFiles, partFilesOf } from '../parts/importPartFiles'
 import { isModelFile, isUrdfFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
+import { RobotOptionsDialog } from './RobotOptionsDialog'
 
 const M = defineMessages('catalog', {
   title: 'Parts',
@@ -44,8 +45,10 @@ const M = defineMessages('catalog', {
   oneModelAtATime: 'A model opens as a new part of its own, so one is imported at a time: {file} was imported.',
   importRobot: 'A robot (URDF)…',
   importRobotTitle:
-    "Make a new part from a robot description: pick the folder holding its .urdf file and its meshes (STL, COLLADA or OBJ). Its links and joints become the part's nodes and joints.",
+    "Make a new part from a robot description: pick the folder holding its .urdf or .xacro file and its meshes (STL, COLLADA or OBJ). Its links and joints become the part's nodes and joints.",
   whichUrdf: 'Import {file}',
+  // i18n-ok: {arg} and {value} are a xacro argument's name and value, as the file spells them
+  whichArg: '{arg}: {value}',
   importFiles: 'Part files…',
   importFilesTitle: 'Import shared part files (.oippart or .part.json) into this project',
   importFolder: 'A folder of parts…',
@@ -214,6 +217,8 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   const importRobotRef = useRef<HTMLInputElement>(null)
   // where Import part's menu opened, so a follow-up choice (which URDF of a folder) opens in the same place
   const menuAt = useRef({ x: 0, y: 0 })
+  // a xacro robot's on/off arguments being asked about before it imports
+  const [robotOptions, setRobotOptions] = useState<{ files: ReadonlyMap<string, Blob>; root: string; args: Record<string, string>; switches: Record<string, boolean> } | null>(null)
   const q = query.trim().toLowerCase()
   const searching = q !== ''
   const store = controller?.store ?? null
@@ -225,7 +230,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   const importFiles = async (files: File[]): Promise<void> => {
     if (!controller || state.readOnly || files.length === 0) return
     const parts = partFilesOf(files.filter((f) => !isModelFile(f.name)))
-    // a .urdf takes the other files picked with it as its meshes, found by name; alone it imports its primitives and
+    // a .urdf or .xacro takes the other files picked with it as its meshes and includes, found by name; alone it imports its primitives and
     // the summary asks for the folder. Part files picked with it still import.
     const urdf = files.find((f) => isUrdfFile(f.name))
     if (urdf) {
@@ -241,10 +246,27 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   }
   // the robot importer (its three.js mesh loaders, the URDF reader and the GLB writer) loads only when a robot is
   // imported: most sessions never do, and it would cost every first frame
-  const importRobot = async (files: ReadonlyMap<string, Blob>, root: string): Promise<void> => {
+  // A xacro description whose argument names a model the folder lacks (UR's ur_type) asks which, and imports again;
+  // one with on/off arguments that change the robot (a hand) asks about those once (`asked`), then imports.
+  const importRobot = async (files: ReadonlyMap<string, Blob>, root: string, args: Record<string, string> = {}, asked = false): Promise<void> => {
     if (!controller || state.readOnly) return
     const { newPartFromUrdf } = await import('../parts/urdfPartImport')
-    const { message } = await newPartFromUrdf(controller, files, root)
+    const { message, choose, switches } = await newPartFromUrdf(controller, files, root, args, !asked)
+    if (switches) {
+      setRobotOptions({ files, root, args, switches })
+      return
+    }
+    if (choose) {
+      setMenu({
+        ...menuAt.current,
+        items: choose.choices.map((value, i) => ({
+          label: t(M.whichArg, { arg: choose.arg, value }),
+          testid: `catalog-import-arg-${i}`,
+          onClick: () => void importRobot(files, root, { ...args, [choose.arg]: value }, asked),
+        })),
+      })
+      return
+    }
     if (message) alert(message)
   }
   // a robot's folder: its URDF, or a choice when the top of the folder has several (a description package often
@@ -255,7 +277,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
     if (list.length === 0) return
     const { folderFiles, noUrdfMessage, urdfRootsOf } = await import('../parts/urdfPartImport')
     const files = folderFiles(list)
-    const roots = urdfRootsOf(files)
+    const roots = await urdfRootsOf(files)
     if (roots.length === 0) {
       alert(noUrdfMessage(list[0]!.webkitRelativePath.split('/')[0] ?? ''))
       return
@@ -439,7 +461,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         >
           {t(M.getParts)}
         </button>
-        <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT},.urdf`} multiple hidden onChange={onImportFile} />
+        <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT},.urdf,.xacro`} multiple hidden onChange={onImportFile} />
         <input ref={importModelRef} type="file" accept={MODEL_ACCEPT} hidden onChange={onImportFile} data-testid="catalog-import-model-input" />
         {/* webkitdirectory is not in React's input attributes; every browser and Electron read it */}
         <input ref={importRobotRef} type="file" hidden onChange={(e) => void onPickRobotFolder(e)} data-testid="catalog-import-robot-input" {...{ webkitdirectory: '' }} />
@@ -793,6 +815,18 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         )}
       </div>
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {robotOptions && (
+        <RobotOptionsDialog
+          file={robotOptions.root.split('/').pop() ?? robotOptions.root}
+          switches={robotOptions.switches}
+          onClose={() => setRobotOptions(null)}
+          onImport={(changed) => {
+            const { files, root, args } = robotOptions
+            setRobotOptions(null)
+            void importRobot(files, root, { ...args, ...changed }, true)
+          }}
+        />
+      )}
     </div>
   )
 }

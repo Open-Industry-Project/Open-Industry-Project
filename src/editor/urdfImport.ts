@@ -12,7 +12,8 @@
 // take the URDF material's colour, or a neutral grey when the visual names none. URDF colours are read as sRGB.
 
 import * as THREE from 'three'
-import { parseUrdf, resolveMeshPath, rpyToQuat, type UrdfCollision, type UrdfGeometry, type UrdfVisual } from '../core/urdf'
+import { parseUrdf, parseUrdfRoot, resolveMeshPath, rpyToQuat, type UrdfCollision, type UrdfGeometry, type UrdfRobot, type UrdfVisual } from '../core/urdf'
+import { expandXacro, isXacroEntry, isXacroText, XACRO_YAML_TAGS, xacroSwitches } from '../core/xacro'
 import { safeRigName, urdfToRig, URDF_ASSET, type UrdfRigNote } from '../core/urdfRig'
 import { linkMeshesToGlb, type LinkMeshes, type LinkPiece } from '../core/urdfGlb'
 import { robotBehavior } from '../core/robot/robotPart'
@@ -60,26 +61,68 @@ export interface UrdfImport {
   /** mesh files that were found but could not be read: an unsupported format or a broken file */
   unreadable: string[]
   notes: UrdfRigNote[]
+  /** a xacro description's arguments and the values it was expanded with; empty for a URDF */
+  args: Record<string, string>
+  /** a xacro description's on/off arguments that add or remove links, with the value used (xacroSwitches) */
+  switches: Record<string, boolean>
 }
 
 /**
- * The .urdf files of a picked folder that could be the robot: those nearest the top, sorted. A description package
- * keeps its URDF in `urdf/` and its meshes in `meshes/`, so the shallowest URDF is the robot and deeper ones are
- * usually test or variant files.
+ * The robot descriptions of a picked folder that could be the robot: its .urdf files and the xacro files that build
+ * a robot (not those that only define macros for one), those nearest the top, sorted. A description package keeps
+ * them in `urdf/` (or `robots/`) beside `meshes/`, so the shallowest is the robot and deeper ones are usually test or
+ * variant files.
  */
-export function urdfCandidates(paths: readonly string[]): string[] {
-  const urdf = paths.filter(isUrdfFile).map((p) => p.replaceAll('\\', '/'))
-  if (urdf.length === 0) return []
+export async function urdfCandidates(files: ReadonlyMap<string, Blob>): Promise<string[]> {
+  const found: string[] = []
+  for (const [path, blob] of files) {
+    if (!isUrdfFile(path)) continue
+    if (/\.xacro$/i.test(path) && !isXacroEntry(await blob.text())) continue
+    found.push(path.replaceAll('\\', '/'))
+  }
+  if (found.length === 0) return []
   const depth = (p: string): number => p.split('/').length
-  const top = Math.min(...urdf.map(depth))
-  return urdf.filter((p) => depth(p) === top).sort()
+  const top = Math.min(...found.map(depth))
+  return found.filter((p) => depth(p) === top).sort()
 }
 
-/** Import the robot whose URDF is `root` (a key of `files`). `files` holds the picked folder's files by relative path. */
-export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string): Promise<UrdfImport> {
-  const urdfBlob = files.get(root)
-  if (!urdfBlob) throw new Error(`${root} is not among the picked files`)
-  const robot = parseUrdf(await urdfBlob.text())
+/** the files a xacro description may read besides its meshes: other xacro files, URDF, YAML and package manifests */
+const XACRO_TEXT = /\.(xacro|urdf|ya?ml)$|(^|\/)package\.xml$/i
+
+/**
+ * The robot `root` describes: a URDF read as it is, or a xacro description expanded with `args` first (core/xacro.ts),
+ * with its arguments and the on/off ones among them that change the robot. Throws XacroError when the expansion stops;
+ * its xacroArgChoices say what an argument can be when that is why.
+ */
+export async function readRobotDescription(
+  files: ReadonlyMap<string, Blob>,
+  root: string,
+  args: Readonly<Record<string, string>> = {},
+): Promise<{ robot: UrdfRobot; args: Record<string, string>; switches: Record<string, boolean> }> {
+  const blob = files.get(root)
+  if (!blob) throw new Error(`${root} is not among the picked files`)
+  const text = await blob.text()
+  if (!isXacroText(text)) return { robot: parseUrdf(text), args: {}, switches: {} }
+  const texts = new Map<string, string>()
+  for (const [path, b] of files) if (XACRO_TEXT.test(path)) texts.set(path, path === root ? text : await b.text())
+  // the YAML reader loads only with a xacro import; each file is parsed once, since xacroSwitches expands again
+  const { parse } = await import('yaml')
+  const yaml = new Map<string, unknown>()
+  const parseYaml = (t: string): unknown => {
+    if (!yaml.has(t)) yaml.set(t, parse(t, { customTags: XACRO_YAML_TAGS }) as unknown)
+    return yaml.get(t)
+  }
+  const xacroFiles = { paths: [...files.keys()], read: (p: string) => texts.get(p), parseYaml }
+  const expanded = expandXacro(root, xacroFiles, args)
+  return { robot: parseUrdfRoot(expanded.robot), args: expanded.args, switches: xacroSwitches(root, xacroFiles, expanded) }
+}
+
+/**
+ * Import the robot whose description is `root` (a key of `files`): a URDF, or a xacro file expanded with `args`.
+ * `files` holds the picked folder's files by relative path.
+ */
+export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string, args: Readonly<Record<string, string>> = {}): Promise<UrdfImport> {
+  const { robot, args: used, switches } = await readRobotDescription(files, root, args)
   const paths = [...files.keys()]
   const meshes = new MeshCache(files)
   const missing = new Set<string>()
@@ -149,7 +192,10 @@ export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string)
   const nodes: LinkMeshes[] = [...byLink].map(([urdfName, pieces]) => ({ name: rig.linkNames.get(urdfName) ?? safeRigName(urdfName), pieces }))
   const { glb, triangles } = linkMeshesToGlb(nodes)
   const assets: PartAsset[] = nodes.length ? [{ id: URDF_ASSET, mime: 'model/gltf-binary', data: bytesToBase64(glb) }] : []
-  const name = robot.name || root.split('/').pop()!.replace(/\.urdf$/i, '')
+  // a model picked by an argument (UR's ur_type) names the part with the robot, "ur (ur5e)", and a switch turned on
+  // by its name, "panda (hand)"
+  const chosen = Object.entries(args).flatMap(([k, v]) => (/^true$/i.test(v) ? [k] : v === '' || /^false$/i.test(v) ? [] : [v]))
+  const name = (robot.name || root.split('/').pop()!.replace(/(\.urdf)?(\.xacro)?$/i, '')) + (chosen.length ? ` (${chosen.join(', ')})` : '')
   const decl = rig.robot
   const armJoints = decl?.joints?.map((n) => rig.geometry.joints.find((j) => j.name === n)!) ?? []
   return {
@@ -162,6 +208,8 @@ export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string)
     missing: [...missing].sort(),
     unreadable: [...unreadable].sort(),
     notes: rig.notes,
+    args: used,
+    switches,
   }
 }
 

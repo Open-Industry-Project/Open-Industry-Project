@@ -112,6 +112,7 @@
     "three-mesh-bvh": "^0.9.10",
     "y-codemirror.next": "^0.3.5",
     "y-indexeddb": "^9.0.12",
+    "yaml": "^2.9.1",
     "yjs": "^13.6.31"
   },
   "//overrides": [
