@@ -5,7 +5,8 @@
 //
 // Each step solves dq = Jᵀ (J Jᵀ + λ² I)⁻¹ e: a revolute joint moves the point by axis × (point - pivot) and turns the
 // approach axis about its own axis; a prismatic joint slides the point along its axis. An approach constraint fixes
-// only the direction of the axis, so the turn about it stays free (a tool pointing down may face any way).
+// only the direction of the axis, so the turn about it stays free (a tool pointing down may face any way), unless a
+// second axis (`face`) is given too: then the tool's whole orientation is fixed (a palletizer turning a case 90°).
 
 import type { RigGeometry } from '../parts/partPackage'
 import { jointLimits, qApply, rigWorldPoses, type RigParams, type Vec3 } from '../rig/rigPose'
@@ -25,6 +26,9 @@ export interface RobotIkGoal {
   target: Vec3
   /** an axis of `link` (in its own frame) to point along `toward` (in the part's frame); omitted = position only */
   approach?: { link: string; axis: Vec3; toward: Vec3 }
+  /** a second axis of a link to point along its own `toward`, square to the approach: with both, the orientation is
+   *  fixed, so a tool pointing down also faces a given way. Omitted = the turn about the approach stays free */
+  face?: { link: string; axis: Vec3; toward: Vec3 }
   /** where the search starts, in the joints' native units; joints not named stay as given */
   seed: Readonly<Record<string, number>>
 }
@@ -34,7 +38,8 @@ export interface RobotIkResult {
   values: Record<string, number>
   /** how far `end` is from `target` (m) */
   miss: number
-  /** the angle left between the approach axis and `toward` (rad); 0 without an approach */
+  /** the angle left between the approach axis and `toward`, or the face axis and its own if that is more (rad); 0
+   *  without either */
   turn: number
 }
 
@@ -60,7 +65,8 @@ export function solveRobotIk(goal: RobotIkGoal): RobotIkResult {
   const joints = goal.joints.map((n) => geometry.joints.find((j) => j.name === n)).filter((j) => j !== undefined)
   const values: Record<string, number> = { ...goal.seed }
   const toward = goal.approach ? unit(goal.approach.toward) : null
-  const rows = toward ? 6 : 3
+  const faceToward = goal.face ? unit(goal.face.toward) : null
+  const rows = toward || faceToward ? 6 : 3
   const n = joints.length
   let miss = Infinity
   let turn = 0
@@ -74,21 +80,32 @@ export function solveRobotIk(goal: RobotIkGoal): RobotIkResult {
     e.set(ep)
     miss = Math.hypot(ep[0], ep[1], ep[2])
     let a: Vec3 = [0, 0, 0]
+    turn = 0
+    // the rotation that would carry an axis onto its direction, as an axis times its angle, weighed in metres.
+    // Pointing straight away, any perpendicular turns it: `spin` is the one taken (for the face axis, the approach,
+    // so a tool facing backwards turns about the way it points)
+    const rotation = (axis: Vec3, dir: Vec3, spin: Vec3 | null): Vec3 => {
+      const c = cross(axis, dir)
+      const s = Math.hypot(c[0], c[1], c[2])
+      const angle = Math.atan2(s, dot(axis, dir))
+      turn = Math.max(turn, angle)
+      if (s > 1e-9) return [(c[0] / s) * angle * ORIENT_WEIGHT, (c[1] / s) * angle * ORIENT_WEIGHT, (c[2] / s) * angle * ORIENT_WEIGHT]
+      const r = spin && Math.abs(dot(spin, axis)) < 0.9 ? spin : unit(cross(axis, Math.abs(axis[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]))
+      return [r[0] * angle * ORIENT_WEIGHT, r[1] * angle * ORIENT_WEIGHT, r[2] * angle * ORIENT_WEIGHT]
+    }
     if (toward && goal.approach) {
       const lp = poses.get(goal.approach.link)
       if (!lp) return { values, miss, turn: Math.PI }
       a = unit(qApply(lp.quat, goal.approach.axis))
-      // the rotation that would carry the axis onto the direction, as an axis times its angle
-      const c = cross(a, toward)
-      const s = Math.hypot(c[0], c[1], c[2])
-      turn = Math.atan2(s, dot(a, toward))
-      const k = s > 1e-9 ? (turn / s) * ORIENT_WEIGHT : 0
-      // pointing straight away, any perpendicular turns it: take one
-      const r: Vec3 = s > 1e-9 ? c : unit(cross(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]))
-      const kk = s > 1e-9 ? k : turn * ORIENT_WEIGHT
-      e[3] = r[0] * kk
-      e[4] = r[1] * kk
-      e[5] = r[2] * kk
+      e.set(rotation(a, toward, null), 3)
+    }
+    if (faceToward && goal.face) {
+      const lp = poses.get(goal.face.link)
+      if (!lp) return { values, miss, turn: Math.PI }
+      const f = rotation(unit(qApply(lp.quat, goal.face.axis)), faceToward, toward ? a : null)
+      e[3] = e[3]! + f[0]
+      e[4] = e[4]! + f[1]
+      e[5] = e[5]! + f[2]
     }
     if (miss < POS_TOL && turn < TURN_TOL) break
     if (iter === ITERATIONS || n === 0) break
@@ -103,7 +120,12 @@ export function solveRobotIk(goal: RobotIkGoal): RobotIkResult {
         J[c] = v[0]
         J[n + c] = v[1]
         J[2 * n + c] = v[2]
-        if (toward) {
+        if (faceToward) {
+          // the whole orientation is held: every turn counts
+          J[3 * n + c] = axis[0] * ORIENT_WEIGHT
+          J[4 * n + c] = axis[1] * ORIENT_WEIGHT
+          J[5 * n + c] = axis[2] * ORIENT_WEIGHT
+        } else if (toward) {
           // only the part of the turn that moves the axis: a turn about the axis itself leaves the direction be
           const along = dot(axis, a)
           J[3 * n + c] = (axis[0] - along * a[0]) * ORIENT_WEIGHT
@@ -134,11 +156,99 @@ export const IK_REACHED = { miss: 0.002, turn: Math.PI / 180 }
 /** the spread-out starting poses tried after the given ones */
 const EXTRA_STARTS = 16
 
+/** how many steps solveRobotIkKeeping walks the goal in from the start's pose */
+const WALK_STEPS = 24
+
+/**
+ * Solve `goal` in the arm configuration of `start`: the goal is walked in from where `start` puts the grip point (and
+ * which way it points the tool), a step at a time, each step solved from the one before. A damped step moves the joints
+ * as little as it can, so the arm follows on in the configuration it started in (elbow up stays elbow up, the wrist
+ * keeps its side) and never jumps to another. The walk goes round the first joint's axis when that joint turns (the
+ * base of an arm): the angle about it, the distance out from it and the height each change evenly, as the arm swings
+ * round, where a straight line from behind the robot to in front of it would pass through its base. The shorter way
+ * round is tried first, and the other way when a joint limit stops it. Where the configuration cannot reach the goal
+ * (the far edge of the reach), the result says how close it got, and the caller decides whether another configuration
+ * (solveRobotIkFrom) is wanted.
+ */
+export function solveRobotIkKeeping(goal: Omit<RobotIkGoal, 'seed'>, start: Readonly<Record<string, number>>): RobotIkResult {
+  const poses = rigWorldPoses(goal.geometry, start, undefined, goal.scale ?? 1, goal.params ?? {})
+  const from = poses.get(goal.end)?.pos
+  const axisOf = (a: { link: string; axis: Vec3 } | undefined): Vec3 | null => {
+    const lp = a ? poses.get(a.link) : undefined
+    return lp && a ? unit(qApply(lp.quat, a.axis)) : null
+  }
+  const a0 = axisOf(goal.approach)
+  const f0 = axisOf(goal.face)
+  const base = goal.geometry.joints.find((j) => j.name === goal.joints[0])
+  const pivot = base?.type === 'revolute' ? poses.get(base.link) : undefined
+  const u = pivot && base ? axisOf({ link: base.link, axis: base.axis }) : null
+  // the grip point as height along the base axis, distance out from it and angle round it
+  const around = (q: Vec3): { h: number; r: number; dir: Vec3 } => {
+    const d = sub(q, pivot!.pos)
+    const h = dot(d, u!)
+    const radial: Vec3 = [d[0] - u![0] * h, d[1] - u![1] * h, d[2] - u![2] * h]
+    return { h, r: Math.hypot(radial[0], radial[1], radial[2]), dir: unit(radial) }
+  }
+  const c0 = from && u ? around(from) : null
+  const c1 = c0 ? around(goal.target) : null
+  const swings: (number | null)[] = [null]
+  if (c0 && c1 && c0.r > 1e-3 && c1.r > 1e-3) {
+    const turn = Math.atan2(dot(cross(c0.dir, c1.dir), u!), dot(c0.dir, c1.dir))
+    swings[0] = turn
+    if (Math.abs(turn) > Math.PI / 2) swings.push(turn - Math.sign(turn) * 2 * Math.PI)
+  }
+  let best: RobotIkResult | null = null
+  for (const swing of swings) {
+    let values: Record<string, number> = { ...start }
+    if (from)
+      for (let k = 1; k < WALK_STEPS; k++) {
+        const t = k / WALK_STEPS
+        let target: Vec3
+        let spun = (v: Vec3): Vec3 => v
+        if (swing !== null && c0 && c1) {
+          const dir = rotateAbout(c0.dir, u!, swing * t)
+          const r = c0.r + (c1.r - c0.r) * t
+          const h = c0.h + (c1.h - c0.h) * t
+          target = [pivot!.pos[0] + u![0] * h + dir[0] * r, pivot!.pos[1] + u![1] * h + dir[1] * r, pivot!.pos[2] + u![2] * h + dir[2] * r]
+          spun = (v) => rotateAbout(v, u!, swing * t)
+        } else target = [from[0] + (goal.target[0] - from[0]) * t, from[1] + (goal.target[1] - from[1]) * t, from[2] + (goal.target[2] - from[2]) * t]
+        // the tool swings round with the arm, and turns the rest of the way to the goal's directions as it goes
+        const approach = goal.approach && a0 ? { ...goal.approach, toward: turnToward(spun(a0), unit(goal.approach.toward), t, null) } : goal.approach
+        const face = goal.face && f0 ? { ...goal.face, toward: turnToward(spun(f0), unit(goal.face.toward), t, approach?.toward ?? null) } : goal.face
+        values = solveRobotIk({ ...goal, target, ...(approach ? { approach } : {}), ...(face ? { face } : {}), seed: values }).values
+      }
+    const r = solveRobotIk({ ...goal, seed: values })
+    if (!best || r.miss + r.turn * ORIENT_WEIGHT < best.miss + best.turn * ORIENT_WEIGHT) best = r
+    if (r.miss < IK_REACHED.miss && r.turn < IK_REACHED.turn) break
+  }
+  return best!
+}
+
+/** `v` turned by `angle` (rad) about the unit axis `k` (Rodrigues). */
+function rotateAbout(v: Vec3, k: Vec3, angle: number): Vec3 {
+  const c = Math.cos(angle)
+  const s = Math.sin(angle)
+  const kxv = cross(k, v)
+  const kdv = dot(k, v)
+  return [v[0] * c + kxv[0] * s + k[0] * kdv * (1 - c), v[1] * c + kxv[1] * s + k[1] * kdv * (1 - c), v[2] * c + kxv[2] * s + k[2] * kdv * (1 - c)]
+}
+
+/** The direction `t` of the way from `a` to `b` (both unit), turning about their common perpendicular, or about `spin`
+ *  when they point opposite ways (a tool turned a half turn about the way it points). */
+function turnToward(a: Vec3, b: Vec3, t: number, spin: Vec3 | null): Vec3 {
+  const angle = Math.acos(Math.max(-1, Math.min(1, dot(a, b))))
+  if (angle < 1e-9) return b
+  let k = cross(a, b)
+  if (Math.hypot(k[0], k[1], k[2]) < 1e-6) k = spin && Math.abs(dot(spin, a)) < 0.9 ? spin : cross(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0])
+  return unit(rotateAbout(a, unit(k), angle * t))
+}
+
 /**
  * Solve `goal` from several starting poses, and keep the best: among the solves that reach it, the one nearest the
- * first start (so the arm keeps its configuration: elbow up stays elbow up), else the closest miss. A single search can
- * stop against a joint limit or in a flipped wrist; the starts are `starts` in order, then poses spread evenly over the
- * joints' ranges by a fixed sequence, so the same call always gives the same answer.
+ * first start, else the closest miss. The answer may be in another arm configuration than the first start's (over the
+ * top, the wrist flipped): use solveRobotIkKeeping to stay in it. A single search can stop against a joint limit or in
+ * a flipped wrist; the starts are `starts` in order, then poses spread evenly over the joints' ranges by a fixed
+ * sequence, so the same call always gives the same answer.
  */
 export function solveRobotIkFrom(goal: Omit<RobotIkGoal, 'seed'>, starts: readonly Readonly<Record<string, number>>[]): RobotIkResult {
   const joints = goal.joints.map((n) => goal.geometry.joints.find((j) => j.name === n)).filter((j) => j !== undefined)

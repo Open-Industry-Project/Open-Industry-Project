@@ -57,6 +57,44 @@ describe('agent robot tools', () => {
     expect(back.tiltFromDownDeg as number).toBeLessThan(1)
   })
 
+  it('faces the tool a set way: a quarter turn apart at the same point, as a palletizer turns a case', async () => {
+    const c = ctx()
+    const target = [AT[0] + 1.6 * Math.cos(TURN), 0.9, AT[2] - 1.6 * Math.sin(TURN)]
+    const yaws: number[] = []
+    for (const yawDeg of [20, 110]) {
+      const solved = await ok(c, 'solve_robot_pose', { id: 'r1', target, yawDeg })
+      expect(solved.reached).toBe(true)
+      expect(Math.abs((solved.yawDeg as number) - yawDeg)).toBeLessThan(1)
+      const back = await ok(c, 'get_robot_pose', { id: 'r1', row: solved.row })
+      expect(dist(back.grip as number[], target)).toBeLessThan(0.002)
+      expect(back.tiltFromDownDeg as number).toBeLessThan(1)
+      yaws.push(back.yawDeg as number)
+    }
+    expect(yaws[1]! - yaws[0]!).toBeCloseTo(90, 0)
+  })
+
+  it('keeps the arm in the configuration of its start: the elbow and the wrist stay on their side wherever it reaches', async () => {
+    const c = ctx()
+    const start = (await ok(c, 'get_robot_pose', { id: 'r1' })).row as number[]
+    const side = (row: number[]) => [Math.sign(row[2]!), Math.sign(row[4]!)]
+    // points all round the robot, behind its idle pose as well as in front, so the base swings up to a half turn
+    const at = (out: number, around: number, high: number) => [AT[0] + out * Math.cos(TURN + around), high, AT[2] - out * Math.sin(TURN + around)]
+    for (const [out, around, high] of [[1.6, 0, 0.9], [1.4, 1.2, 0.6], [1.2, -2, 1.2], [1.8, 3, 0.8]]) {
+      const solved = await ok(c, 'solve_robot_pose', { id: 'r1', target: at(out!, around!, high!) })
+      expect(solved, JSON.stringify([out, around, high, solved.missMm, solved.note])).toMatchObject({ reached: true, configuration: 'kept' })
+      expect(side(solved.row as number[])).toEqual(side(start))
+    }
+    // close in and low, this configuration's elbow would bend past its limit: the answer says so instead of switching,
+    // and switches only when asked
+    const close = at(1.0, -0.6, 0.4)
+    const refused = await ok(c, 'solve_robot_pose', { id: 'r1', target: close })
+    expect(refused.reached).toBe(false)
+    expect(refused.note).toMatch(/another configuration reaches it.*anyConfiguration: true/i)
+    const switched = await ok(c, 'solve_robot_pose', { id: 'r1', target: close, anyConfiguration: true })
+    expect(switched).toMatchObject({ reached: true, configuration: 'changed' })
+    expect(side(switched.row as number[])).not.toEqual(side(start))
+  })
+
   it('says when a point is out of reach, and refuses a part that is not a robot', async () => {
     const c = ctx()
     const far = await ok(c, 'solve_robot_pose', { id: 'r1', target: [AT[0] + 20, 1, AT[2]] })

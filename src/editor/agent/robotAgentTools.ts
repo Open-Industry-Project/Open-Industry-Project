@@ -7,7 +7,7 @@ import { resolvePartParams } from '../../core/parts/partScript'
 import type { ParamValue } from '../../core/parts/partApi'
 import { qApply, rigWorldPoses, type RigParams, type Vec3 } from '../../core/rig/rigPose'
 import { robotUnit } from '../../core/robot/robotController'
-import { IK_REACHED, robotKinematics, solveRobotIkFrom, type RobotKinematics } from '../../core/robot/robotIk'
+import { IK_REACHED, robotKinematics, solveRobotIkFrom, solveRobotIkKeeping, type RobotIkResult, type RobotKinematics } from '../../core/robot/robotIk'
 import type { SdkPart } from '../../core/types'
 import { AgentToolError, assertEditable, findPart, optBool, optNum, round, str, type AgentTool, type AgentToolContext } from './toolKit'
 import { addNewPart } from '../controller/partAuthoring'
@@ -68,15 +68,30 @@ function startRow(r: PlacedRobot, waypoint: number | undefined): number[] {
   return rows('pose')[0] ?? r.kin.joints.map(() => 0)
 }
 
-/** Where a pose puts the grip point and which way the tool points, in the world. */
+/** The tool's X axis (the plate's length, the clamp's closing direction, a TCP's X), in its approach link's frame:
+ *  which way the tool faces, read and set as a yaw */
+const FACE_AXIS: Vec3 = [1, 0, 0]
+
+/** A heading in the world's horizontal plane, degrees counter-clockwise seen from above from +X (90 = -Z), as a
+ *  direction in the part's frame. */
+const yawToLocal = (r: PlacedRobot, deg: number): Vec3 => {
+  const a = (deg * Math.PI) / 180 - r.rotationY
+  return [Math.cos(a), 0, -Math.sin(a)]
+}
+
+/** Where a pose puts the grip point and which way the tool points and faces, in the world. */
 function toolAt(r: PlacedRobot, values: Readonly<Record<string, number>>) {
   const poses = rigWorldPoses(r.kin.geometry, values, undefined, r.scale, r.params as RigParams)
   const grip = poses.get(r.kin.end)!
   const ap = r.kin.approach ? poses.get(r.kin.approach.link) : undefined
   const dir = ap && r.kin.approach ? toWorldDir(r, qApply(ap.quat, r.kin.approach.axis)) : null
+  const face = ap ? toWorldDir(r, qApply(ap.quat, FACE_AXIS)) : null
+  // a yaw only means something while the tool's X lies near the horizontal (a tool pointing down, or sideways)
+  const yaw = face && Math.hypot(face[0], face[2]) > 0.5 ? round((Math.atan2(-face[2], face[0]) * 180) / Math.PI) : undefined
   return {
     grip: toWorld(r, grip.pos).map(round),
     ...(dir ? { approach: dir.map(round), tiltFromDownDeg: round((Math.acos(Math.max(-1, Math.min(1, -dir[1]))) * 180) / Math.PI) } : {}),
+    ...(yaw !== undefined ? { yawDeg: yaw } : {}),
   }
 }
 
@@ -92,8 +107,11 @@ export const solveRobotPose: AgentTool = {
     "The joint row that puts a robot's grip point (where its tool takes a load: the vacuum cups' rim, the clamp pads, a hand's TCP) at a point in the scene, " +
     'by inverse kinematics. Use it to teach waypoints by position: put the row into the robot\'s `waypoints` (and a name into `waypointNames`) with update_part, ' +
     'then build `jobs` from them. By default the tool points straight down, as for a pick from above; `down: false` leaves its direction free. ' +
-    'It tries several starting poses and answers the one nearest the start (`from`, a waypoint index, else the idle pose), so start from a neighbouring waypoint to keep the arm in the same configuration. ' +
-    'Answers `reached` (within 2 mm and 1°) and the miss; an unreachable point gives the closest pose, with reached false. Nothing is changed.',
+    '`yawDeg` also sets which way the tool faces, as `yawDeg` in the answer reads it: the heading of its X axis (the plate\'s length, the clamp\'s closing direction), degrees counter-clockwise seen from above from world +X (90 = -Z). ' +
+    'A palletizer that lays a case turned a quarter from how it picked it sets the place yaw 90 from the pick\'s. A plate or clamp turned 180 is the same tool: if a joint runs short, try the yaw 180 off. Without it the tool faces however the nearest pose has it. ' +
+    'The arm stays in the configuration of the start (`from`, a waypoint index, else the idle pose): elbow up stays elbow up and the wrist keeps its side, so the poses of one job move smoothly between each other; start from a neighbouring waypoint. ' +
+    'Where that configuration cannot reach the point, the answer is reached false with the closest pose, and says whether another configuration reaches it; `anyConfiguration: true` allows the switch (the arm swings over to it between waypoints). ' +
+    'Answers `reached` (within 2 mm and 1°), the miss, and `configuration`: kept or changed. Nothing is changed.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -101,6 +119,8 @@ export const solveRobotPose: AgentTool = {
       target: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3, description: 'where the grip point goes, world [x, y, z] in metres (y is up)' },
       down: { type: 'boolean', description: 'point the tool straight down (default true)' },
       from: { type: 'number', description: 'the waypoint row to start from (default the idle pose)' },
+      yawDeg: { type: 'number', description: 'which way the tool faces: its X axis heading, degrees counter-clockwise from world +X seen from above (default free)' },
+      anyConfiguration: { type: 'boolean', description: 'allow another arm configuration than the start\'s when that one cannot reach the point (default false)' },
     },
     required: ['id', 'target'],
     additionalProperties: false,
@@ -109,23 +129,30 @@ export const solveRobotPose: AgentTool = {
     const r = placedRobot(ctx, str(args, 'id'))
     const down = optBool(args, 'down') ?? true
     if (down && !r.kin.approach) throw new AgentToolError('this robot has no tool frame to point down: call again with down: false')
-    // the given start first, then the robot's other waypoints, then the solver's own spread of starts
+    const yawDeg = optNum(args, 'yawDeg')
+    if (yawDeg !== undefined && !(down && r.kin.approach)) throw new AgentToolError('yawDeg sets which way a tool pointing down faces: call it with down left true, on a robot with a tool frame')
+    // the given start first, then the robot's other waypoints (another configuration is looked for among them and the
+    // solver's own spread of starts)
     const from = optNum(args, 'from')
     const waypoints = Array.isArray(r.params.waypoints) ? (r.params.waypoints as unknown as number[][]) : []
     const starts = [startRow(r, from), ...waypoints.filter((_, i) => i !== from)].map((row) => rowToValues(r.kin, row))
-    const result = solveRobotIkFrom(
-      {
+    const goal: Parameters<typeof solveRobotIkKeeping>[0] = {
       geometry: r.kin.geometry,
       params: r.params as RigParams,
       scale: r.scale,
       joints: r.kin.joints.map((j) => j.name),
       end: r.kin.end,
       target: toLocal(r, vec(args, 'target')),
-        ...(down && r.kin.approach ? { approach: { ...r.kin.approach, toward: [0, -1, 0] as Vec3 } } : {}),
-      },
-      starts,
-    )
-    const reached = result.miss < IK_REACHED.miss && result.turn < IK_REACHED.turn
+      ...(down && r.kin.approach ? { approach: { ...r.kin.approach, toward: [0, -1, 0] as Vec3 } } : {}),
+      ...(yawDeg !== undefined && r.kin.approach ? { face: { link: r.kin.approach.link, axis: FACE_AXIS, toward: yawToLocal(r, yawDeg) } } : {}),
+    }
+    const hits = (x: RobotIkResult): boolean => x.miss < IK_REACHED.miss && x.turn < IK_REACHED.turn
+    // the start's configuration first; another only when asked for, or to say whether one exists
+    const kept = solveRobotIkKeeping(goal, starts[0]!)
+    const other = hits(kept) ? null : solveRobotIkFrom(goal, starts)
+    const switched = other !== null && hits(other) && optBool(args, 'anyConfiguration') === true
+    const result = switched ? other : kept
+    const reached = hits(result)
     return {
       row: valuesToRow(r.kin, result.values),
       columns: r.kin.joints.map((j) => `${j.name} ${j.type === 'prismatic' ? 'mm' : '°'}`),
@@ -133,7 +160,12 @@ export const solveRobotPose: AgentTool = {
       missMm: round(result.miss * 1000),
       ...(down ? { tiltDeg: round((result.turn * 180) / Math.PI) } : {}),
       ...toolAt(r, result.values),
-      ...(reached ? {} : { note: 'not reachable as asked: this is the closest pose. Check the point is within reach, or try down: false or another starting waypoint.' }),
+      ...(reached ? { configuration: switched ? 'changed' : 'kept' } : {}),
+      ...(reached
+        ? {}
+        : other && hits(other)
+          ? { note: "not reachable in the start's arm configuration: this is its closest pose. Another configuration reaches it: call again with anyConfiguration: true (the arm swings over to it), or start from a waypoint nearer the point." }
+          : { note: 'not reachable as asked: this is the closest pose. Check the point is within reach, or try down: false or another starting waypoint.' }),
     }
   },
 }
