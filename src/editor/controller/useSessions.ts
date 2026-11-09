@@ -6,7 +6,7 @@ import type { BoxFrame } from '../../core/frame'
 import { memoizeAuthoredCargoFrame } from '../../core/frame'
 import { authoredZoneCounts } from '../../core/zoneCounts'
 import { getPackage } from '../../core/parts/partRegistry'
-import { servoJointsJson } from '../../core/parts/partPackage'
+import { rigJointsJson } from '../../core/parts/partPackage'
 import { posableArraysJson } from '../../core/rig/rigPose'
 import type { PartPackage } from '../../core/parts/partPackage'
 import { IdleUseSession, idleKey, settleIdlePose, withJointRests } from '../../sim/idlePose'
@@ -92,7 +92,7 @@ export function refreshIdlePoses(u: UseSessions, ec: UseSessionDeps, scene: Scen
     if (u.idlePoseKeys.get(part.id) === key) continue // source + params + held cargo unchanged → rig already posed
     u.idlePoseKeys.set(part.id, key)
     const params = (part as SdkPart).params ?? {}
-    const pose = withJointRests(settleIdlePose(pkg.behavior, params, 0, zones, servoJointsJson(pkg.geometry), posableArraysJson(pkg.geometry)), pkg.geometry.joints, params)
+    const pose = withJointRests(settleIdlePose(pkg.behavior, params, 0, zones, rigJointsJson(pkg.geometry), posableArraysJson(pkg.geometry)), pkg.geometry.joints, params)
     if (pose) ec.view.applyIdlePose(part.id, pose) // null (nothing to actuate) → the rig stays at rest
   }
   for (const id of [...u.idlePoseKeys.keys()]) if (!live.has(id)) u.idlePoseKeys.delete(id)

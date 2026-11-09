@@ -17,6 +17,8 @@ import { createGeometryBuilder } from './geometryBuilder'
 import { hostCopy } from '../hostCopy'
 import type { GeometryContext, MeshDescription, MeshPart, ParamSchema, ParamValue, PartDefinition } from '../parts/partApi'
 import { reportPartDiagnostic } from '../parts/partDiagnostics'
+import { robotDeclOf } from '../robot/robotController'
+import { robotToolParts } from '../robot/robotTools'
 import { instantiatePartScript, resolvePartParams } from '../parts/partScript'
 
 export { resolvePartParams } from '../parts/partScript'
@@ -115,14 +117,18 @@ export interface PartDiagRef {
  */
 export function evalPartGeometry(source: string, params: Record<string, ParamValue>, ref?: PartDiagRef, ctx?: GeometryContext): MeshPart[] | null {
   const def = captureDef(source, ref)
-  if (!def?.geometry) return null
+  if (!def) return null
   try {
+    // a robot's tool is drawn by the host on the link its declaration names, after the part's own meshes
+    const tool = robotDeclOf(def.robot)?.tool
+    if (!def.geometry && !tool) return null
     // host-owned from here on: the render rig, collision walls and memos keep this, and the part must not be able
     // to change it after the fact or run code when it is read (hostCopy.ts, docs/part-sandbox.md)
-    const out = hostCopy(def.geometry(createGeometryBuilder(), params as Parameters<NonNullable<typeof def.geometry>>[1], ctx ?? {}))
+    const out = def.geometry ? hostCopy(def.geometry(createGeometryBuilder(), params as Parameters<NonNullable<typeof def.geometry>>[1], ctx ?? {})) : []
+    const toolParts = tool ? robotToolParts(createGeometryBuilder(), params, tool) : []
     // drop empty parts. That includes the retired render-only roller bank (`rollers` on an empty `desc`), so a
     // part that still returns one just draws no rollers
-    const parts = toParts(out).filter((p) => p?.desc && p.desc.positions.length > 0)
+    const parts = [...toParts(out), ...toolParts].filter((p) => p?.desc && p.desc.positions.length > 0)
     return parts.length > 0 ? parts : null
   } catch (e) {
     // a runaway / malformed geometry function yields no mesh rather than crashing the host. The failure is
@@ -132,11 +138,18 @@ export function evalPartGeometry(source: string, params: Record<string, ParamVal
   }
 }
 
-/** Does this part source declare a `geometry()` callback at all? (Cached compile - cheap.) Lets a host tell
+/** Does this part source draw procedural geometry at all: a `geometry()` callback, or a robot tool? (Cached compile - cheap.) Lets a host tell
  *  "no `geometry()` ever" (safe to latch the proc path off) from "`geometry()` emitted nothing for this param
  *  set" (a conditional emit - keep polling), which {@link evalPartGeometry} otherwise collapses to one `null`. */
 export function partHasGeometry(source: string): boolean {
-  return captureDef(source)?.geometry != null
+  const def = captureDef(source)
+  if (!def) return false
+  if (def.geometry != null) return true
+  try {
+    return robotDeclOf(def.robot)?.tool !== undefined
+  } catch {
+    return false
+  }
 }
 
 /** the lamps a part's geometry() draws (MeshPart.lamps), at its default params - the code-built counterpart of a rig

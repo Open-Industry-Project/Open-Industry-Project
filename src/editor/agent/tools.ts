@@ -62,6 +62,7 @@ import {
   type JsonSchema,
 } from './toolKit'
 import { checkPart, createPart, editPartDefinition, getPartSdk, getPartSource, importModel } from './partTools'
+import { getRobotPose, importRobot, solveRobotPose } from './robotAgentTools'
 import { installLibraryPart, listLibraryParts } from './libraryTools'
 import { installShelfPart, listShelfParts, putPartOnShelf } from './shelfTools'
 import { checkProgram, getPou, listPous, setPou, traceTags } from './programTools'
@@ -997,6 +998,9 @@ export const AGENT_TOOLS: readonly AgentTool[] = [
   createPart,
   editPartDefinition,
   importModel,
+  importRobot,
+  solveRobotPose,
+  getRobotPose,
   listLibraryParts,
   installLibraryPart,
   listShelfParts,

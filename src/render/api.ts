@@ -204,11 +204,11 @@ export interface PilotHandlers {
 }
 
 /**
- * A robot editor-gizmo handle: a per-joint rotation handle `j0`..`j4` (J1-J5), the end-effector handle
+ * A robot editor-gizmo handle: a per-joint rotation handle `j0`, `j1`... (J1, J2...), the end-effector handle
  * `ee` that drags the arm via IK, or a `size:<param>` tool-size handle (a rigSize
  * param handle - the EOAT resize dots) that drags the named number param along a rig link's axis.
  */
-export type RobotHandle = 'j0' | 'j1' | 'j2' | 'j3' | 'j4' | 'j5' | 'ee' | `size:${string}`
+export type RobotHandle = `j${number}` | 'ee' | `size:${string}`
 
 /** one gizmo joint (J1-J5) as the overlay draws it; world space, directions unit length */
 export interface RobotGizmoJoint {

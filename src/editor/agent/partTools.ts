@@ -420,6 +420,7 @@ export const importModel: AgentTool = {
     const link = str(args, 'link')
     if (pkg.geometry.kind !== 'rig') throw new AgentToolError(`'${pkg.id}' builds its geometry in code (geometry()), so it has no links to give a model`)
     if (!pkg.geometry.links.some((l) => l.name === link)) throw new AgentToolError(`'${pkg.id}' has no link '${link}' (it has: ${pkg.geometry.links.map((l) => l.name).join(', ')})`)
+    if (/\.urdf$/i.test(str(args, 'path'))) throw new AgentToolError('a URDF is a whole robot, not one link\'s model: import it with import_robot')
     const file = await readModel(str(args, 'path'))
     if ('error' in file) throw new AgentToolError(file.error)
     const { DEFAULT_STEP_OPTIONS, importStep, isStepFile } = await import('../stepImport')

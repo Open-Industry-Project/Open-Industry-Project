@@ -68,12 +68,12 @@ export function isReplaceableBehavior(behavior: string): boolean {
  *  joint with param-driven limits is left out, since the script writes min and max as numbers and a placed copy's
  *  params can narrow them. */
 export function canTwoPositions(joint: RigJoint): boolean {
-  return !joint.servo && !joint.cosmetic && !joint.minParam && !joint.maxParam && joint.min < joint.max
+  return !joint.servo && !joint.cosmetic && !joint.mimic && !joint.minParam && !joint.maxParam && joint.min < joint.max
 }
 
 /** Whether a joint can take Spin: one that spins endlessly (a revolute wrapping servo, the panel's Spins endlessly). */
 export function canSpin(joint: RigJoint): boolean {
-  return joint.type === 'revolute' && joint.servo?.modulo !== undefined && !joint.cosmetic
+  return joint.type === 'revolute' && joint.servo?.modulo !== undefined && !joint.cosmetic && !joint.mimic
 }
 
 /** Whether `mode` can drive `joint`. */

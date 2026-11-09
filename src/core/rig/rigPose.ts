@@ -290,8 +290,25 @@ interface RigTables {
   aimScratch: Float64Array | null
   /** backing buffer for the `Map` form, so cold callers don't allocate one per call */
   mapScratch: Float64Array | null
+  /** each `mimic` joint's leader, by the follower's name; null ⇒ the rig has none */
+  leaders: Map<string, RigGeometry['joints'][number]> | null
 }
 const rigTableCache = new WeakMap<RigGeometry, RigTables>()
+
+/**
+ * The value a joint is posed at, before its own limits: its command in `values`, or for a `mimic` joint its leader's
+ * value (clamped to the leader's limits, as the leader is posed) × multiplier + offset. Absent is rest (0).
+ */
+export function jointValue(joint: RigGeometry['joints'][number], values: Record<string, number>, geo: RigGeometry, params?: RigParams): number {
+  return valueIn(rigTables(geo), joint, values, params)
+}
+
+function valueIn(t: RigTables, joint: RigGeometry['joints'][number], values: Record<string, number>, params: RigParams | undefined): number {
+  const leader = joint.mimic ? t.leaders?.get(joint.name) : undefined
+  if (!leader) return values[joint.name] ?? 0
+  const [lo, hi] = jointLimits(leader, params)
+  return clamp(values[leader.name] ?? 0, lo, hi) * (joint.mimic!.multiplier ?? 1) + (joint.mimic!.offset ?? 0)
+}
 function rigTables(geo: RigGeometry): RigTables {
   const hit = rigTableCache.get(geo)
   if (hit && hit.links === geo.links && hit.joints === geo.joints) return hit
@@ -391,9 +408,23 @@ function rigTables(geo: RigGeometry): RigTables {
     legs: legCount > 0 ? legs : null,
     aimScratch: null,
     mapScratch: null,
+    leaders: leadersOf(geo.joints),
   }
   rigTableCache.set(geo, built)
   return built
+}
+
+/** Each mimic joint's leader. A leader that is itself a mimic, or missing, is left out (validation refuses both), so
+ *  that follower poses from its own command. */
+function leadersOf(joints: RigGeometry['joints']): Map<string, RigGeometry['joints'][number]> | null {
+  if (!joints.some((j) => j.mimic)) return null
+  const byName = new Map(joints.map((j) => [j.name, j]))
+  const out = new Map<string, RigGeometry['joints'][number]>()
+  for (const j of joints) {
+    const leader = j.mimic ? byName.get(j.mimic.joint) : undefined
+    if (leader && leader !== j && !leader.mimic) out.set(j.name, leader)
+  }
+  return out
 }
 
 // ─── Flat pose composition ────────────────────────────────────────────────────────────────────────
@@ -558,7 +589,8 @@ function writeLocalPose(t: RigTables, i: number, values: Record<string, number>,
     if (joint) {
       const axis = joint.axis
       const [lo, hi] = jointLimits(joint, params)
-      const v = clamp(values[joint.name] ?? 0, lo, hi)
+      // the per-step FK path: a joint that follows none reads its own value with no call
+      const v = clamp(joint.mimic ? valueIn(t, joint, values, params) : (values[joint.name] ?? 0), lo, hi)
       if (joint.type === 'revolute') {
         const len = Math.hypot(axis[0], axis[1], axis[2]) || 1
         const h = v / 2

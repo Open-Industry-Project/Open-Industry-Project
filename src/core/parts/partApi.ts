@@ -9,7 +9,7 @@
 // docs/custom-part-capability-surface.md. Driven by src/sim/embeddedBehavior.ts.
 
 // types only: partPackage.ts imports this file, and the SDK lifts both (scripts/build-part-sdk.mjs)
-import type { PackageManifest, PartPackageGeometry, RigGeometry } from './partPackage'
+import type { PackageManifest, PartPackageGeometry, RigGeometry, RobotController, RobotDeclaration } from './partPackage'
 
 export interface Vec3 {
   x: number
@@ -729,6 +729,7 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
   readonly servos: Readonly<Record<S, Servo>>
   /** The {@link Servo} named `name` (a computed name: `ctx.servo('axis' + i)`), or undefined if the rig has none. */
   servo(name: string): Servo | undefined
+  readonly robot?: RobotController
   /**
    * Read a sensor beam's nearest cargo hit this tick - the world-sensing primitive (photoeyes, color/laser
    * sensors). `beam` is a rig link name that declares a `beam` in the geometry; the host casts it against
@@ -1643,6 +1644,7 @@ export interface PartDefinition<P extends ParamSchema = ParamSchema, J extends s
   /** Names of the rig's servo joints (a joint with `servo` in the manifest) this part drives, typed into
    *  `ctx.servos`, like {@link joints}. A servo is commanded through its {@link Servo} handle, never `ctx.joints`. */
   servos?: readonly S[]
+  robot?: true | RobotDeclaration
   /** Mark the part as usable so the editor offers a "Use" prompt (pilot crosshair) and routes a click to the
    *  behavior, where `ctx.used()` reads true for that tick. Omit for non-interactive parts. */
   interactive?: boolean

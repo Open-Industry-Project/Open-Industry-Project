@@ -91,7 +91,8 @@ describe('Six-Axis custom-part rig - kinematic parity with the built-in robot', 
     const ledLit = led.lamps![0]!.emissive
     expect(ledLit[1]).toBeGreaterThan(ledLit[0]) // green-dominant
     expect(geo.links.some((l) => l.name === 'vacuumLamp')).toBe(false)
-    expect(SIX_AXIS_BEHAVIOR).toContain('ctx.lamps.vacuumLamp = gripClosed')
+    // the host's robot controller lights the lamp while its gripper holds (core/robot/robotController.ts)
+    expect(SIX_AXIS_BEHAVIOR).toContain("robot: { gripper: 'gripper', lamp: 'vacuumLamp', tool: 'eoat'")
     // the cups do not glow - they physically compress 15% along their axis, off the LED's signal
     const cups = cupBed(P())!
     expect(cups.lamps).toBeUndefined()
@@ -118,9 +119,12 @@ describe('Six-Axis custom-part rig - kinematic parity with the built-in robot', 
   it('places every linkage mesh under a driven pivot (no orphaned links)', () => {
     const names = new Set(geo.links.map((l) => l.name))
     for (const l of geo.links) if (l.parent) expect(names.has(l.parent)).toBe(true)
-    // base + 5 linkages + 2 hydraulics + tool plate; the EOAT is drawn by geometry(), not carried as model links
+    // base + 5 linkages + 2 hydraulics + tool plate; the EOAT is drawn by the app (core/robot/robotTools.ts), not
+    // carried as model links
     expect(geo.links.filter((l) => l.shape.kind === 'mesh')).toHaveLength(9)
-    expect(geo.joints).toHaveLength(6)
+    // six arm joints, plus the clamp gripper's finger and the finger that follows it
+    expect(geo.joints.map((j) => j.name)).toEqual(['j1', 'j2', 'j3', 'j4', 'j5', 'j6', 'grip', 'grip2'])
+    expect(geo.joints.filter((j) => !j.cosmetic && !j.mimic)).toHaveLength(6)
   })
 
   // The EOAT (mounted flipped 180°-about-Z at the tool pivot + 0.009 on the robot) is the behavior's geometry(),

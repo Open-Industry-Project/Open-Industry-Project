@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { servoJointsJson, type PartPackageGeometry } from '../core/parts/partPackage'
+import { rigJointsJson, type PartPackageGeometry } from '../core/parts/partPackage'
 import { create, destroy, stepDirect, type BehaviorOutput } from './embeddedBehavior'
 
 // The shipped gantry on its three servo axes, driven the way a PLC drives it: tags in, tags out, one tick at a time.
@@ -19,7 +19,7 @@ class Gantry {
   out!: BehaviorOutput
   trace: Array<[number, number, number]> = []
   constructor(params: Record<string, unknown>) {
-    this.h = create(source, JSON.stringify(params), servoJointsJson(geometry))
+    this.h = create(source, JSON.stringify(params), rigJointsJson(geometry))
     expect(this.h).toBeGreaterThan(0)
   }
   tick(n = 1): this {

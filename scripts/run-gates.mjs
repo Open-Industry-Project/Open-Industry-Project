@@ -233,6 +233,14 @@ const GATES = [
     why: "a USD model imports through a rig node's Import model..., as one file or as its folder: the USD reader (@huggingface/usd-web-viewer, 2.3 MB of wasm in its own worker) loads only when a model is converted, and the node becomes an embedded GLB with composition honoured (a payload, a reference, a variant, an override from the stronger layer, centimetres and Z up) and one mesh per material. A lone root layer whose payload is elsewhere imports nothing and says to pick the folder. The model is written by the gate itself, first-party.",
   },
   {
+    script: 'verify-urdf-import.mjs',
+    why: "a URDF robot folder imports through Import part > A robot (URDF)... as a new posable part: a rig link per URDF link and a joint per moving joint with its limits, one GLB node per drawn link, meshes found by package:// and relative paths and read in their own units and up axis (a binary STL in millimetres, a COLLADA file in centimetres and Z up), and the rendered links standing where URDF puts them, Z up turned to Y up. A lone .urdf imports its primitives and names the meshes it lacks; xacro is refused. A mimicking joint becomes a joint `mimic`, each <collision> a hidden collider link, and a box dropped on the running robot's base rests on its collider. The robot is written by the gate itself",
+  },
+  {
+    script: 'verify-urdf-robot-cell.mjs',
+    why: "an imported URDF arm runs a pick-and-place cell from end to end, built the way an agent builds one: the import idles in a ready pose (tool straight down in front of the base, elbow up) that is also its Home, solve_robot_pose teaches the pick and the place by position from it with every pose reached tool down and elbow up, and one job run by the PLC ships the boxes, three in 70 s under run_test and in the live run. The arm is written by the gate itself",
+  },
+  {
     script: 'verify-split-pieces.mjs',
     why: "the Part Editor's Split into pieces (editor/rigSplit.ts): each node of an imported model is drawn by one link, the nearest that keeps it (core/glbBox.ts drawnElsewhere). Read from the rendered part: a split piece is drawn once and stays in place, a piece split from inside another is not drawn twice, a joint with a centred pivot moves nothing at rest, and deleting or merging a piece gives it back to the model. The model is written by the gate itself",
   },

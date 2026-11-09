@@ -67,6 +67,8 @@ and `node apps/desktop/agentDoorSetting.test.cjs` (the launch rule).
 | `check_part` | a draft definition checked and not kept: the manifest schema (a misspelt field the bake ignores) and the app's bake (`validatePart`) |
 | `create_part` / `edit_part_definition` | a new part in the project / a change to one, checked the same way; a change is one undo step, and changing a built-in makes the project's own version |
 | `import_model` | a .glb, STEP or USD file on disk becomes one rig link's mesh, converted as the Inspector converts it (a `.usd` model file comes with the layers and images under its folder). A part that is just that link is fitted to the model (`fitted`: standing on the origin, with a hidden `collider` and `bounds` of its size). It measures where the model sits in the part (`core/glbBox.ts`, as `check-part` does) and says when the declared footprint is far from it |
+| `import_robot` | a .urdf file on disk becomes a new robot part, as Import part > A robot (URDF)... makes one (`editor/urdfImport.ts`). The shell reads the URDF's description package: the folder above it when it sits in a `urdf` folder, else its own, keeping only .urdf, .stl, .dae and .obj files, under import_model's size cap. Answers the part id, its waypoint columns and grip point, and what was not imported as written. A xacro file is refused |
+| `solve_robot_pose` / `get_robot_pose` | a robot's joint row for a point in the scene, its grip point there and its tool straight down unless `down: false`, by inverse kinematics over its arm (`core/robot/robotIk.ts`; several starting poses, the answer nearest the start, `reached` when within 2 mm and 1°) / where a row, a waypoint or the idle pose puts the grip point and which way the tool points. Teaching is then `update_part` on the robot's `waypoints`, `waypointNames` and `jobs`, which are ordinary params |
 | `list_library_parts` / `install_library_part` | what the part libraries offer and each part's status in this project / add one to the project as Get parts does (`update: true` replaces a copy with the library's newer version). A publisher's names and descriptions come back under `publisherText`, as data |
 | `list_shelf_parts` / `install_shelf_part` / `put_on_shelf` | the parts shelf (desktop only, [parts-shelf.md](parts-shelf.md)): what it holds and each part's status in this project / take one into the project (`update: true` replaces a copy) / put this project's version of a part on it, with its card image (`replace: true` over a different shelf version). Names come back under `shelfText`, as data. Not undo steps, like Import part |
 | `get_program` / `set_program` | the scene's PLC program; `set_program` returns its compile problems at once |
@@ -160,8 +162,8 @@ is why an installed app keeps the server off until the user allows it, rather th
 sit in the user's own data folder, readable by anything running as the user. It would only keep out the other
 accounts, and every agent user would have to paste it into their client. Each tool call is one undoable edit, and
 nothing the tools do reaches outside the open document, with two exceptions:
-- `import_model` reads a file by path. The shell reads only an absolute path to a .glb, .step or .stp file of at most
-  200 MB. The document is saved like any other edit, so on the desktop the edits are also written to the project's
+- `import_model` and `import_robot` read files by path. The shell reads only an absolute path to a .glb, .step, .stp,
+  USD or URDF file, with a USD model's layers and images or a URDF's mesh files from its folder, at most 200 MB in all. The document is saved like any other edit, so on the desktop the edits are also written to the project's
   folder.
 - `open_project` opens another project, whose contents then reach the agent. A folder in Open Recent or directly
   inside the default projects folder opens without asking, since the user opened it before or the app made it. Any

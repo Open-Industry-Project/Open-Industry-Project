@@ -36,7 +36,9 @@ const META = 'io.modelcontextprotocol/'
 /** A captured view wider than this is scaled down: a model reads a 1600 px frame as well as a 4K one, for less. */
 const CAPTURE_MAX_WIDTH = 1600
 /** The model files import_model reads, and the most it reads (a big STEP assembly is tens of MB). */
-const MODEL_EXTENSIONS = new Set(['.glb', '.step', '.stp', '.usd', '.usda', '.usdc', '.usdz'])
+const MODEL_EXTENSIONS = new Set(['.glb', '.step', '.stp', '.usd', '.usda', '.usdc', '.usdz', '.urdf'])
+// a URDF robot's own files: the description and the meshes its links name
+const URDF_SIDE_EXTENSIONS = new Set(['.urdf', '.stl', '.dae', '.obj'])
 const MODEL_MAX_BYTES = 200 * 1024 * 1024
 /** A USD root layer pulls in layers and textures from beside it: these are read with it, from under its folder. */
 const USD_LAYER_EXTENSIONS = new Set(['.usd', '.usda', '.usdc'])
@@ -460,21 +462,25 @@ function registerAgentHost(ipcMain, host) {
 }
 
 /**
- * A model file's bytes for import_model, or why not: an absolute path to a .glb / .step / .stp / USD file of a sane
- * size. A .usd / .usda / .usdc root also brings `files`: the USD layers and images under its folder (hidden folders
- * such as .thumbs left out), keyed by their path from that folder, with `root` the root layer's own key.
+ * A model file's bytes for import_model and import_robot, or why not: an absolute path to a .glb / .step / .stp / USD /
+ * URDF file of a sane size. A .usd / .usda / .usdc root also brings `files`: the USD layers and images under its folder
+ * (hidden folders such as .thumbs left out), keyed by their path from that folder, with `root` the root layer's own
+ * key. A .urdf brings the mesh files it names (readUrdf).
  */
 async function readModel(path) {
   if (typeof path !== 'string' || !isAbsolute(path)) return { error: 'give the model file as an absolute path' }
   const ext = extname(path).toLowerCase()
-  if (!MODEL_EXTENSIONS.has(ext)) return { error: `a model is a .glb, .step, .stp or USD (.usd, .usda, .usdc, .usdz) file, not '${ext || 'no extension'}'` }
+  if (!MODEL_EXTENSIONS.has(ext)) return { error: `a model is a .glb, .step, .stp, USD (.usd, .usda, .usdc, .usdz) or URDF (.urdf) file, not '${ext || 'no extension'}'` }
   try {
     const info = await stat(path)
     if (!info.isFile()) return { error: `${path} is not a file` }
     if (info.size > MODEL_MAX_BYTES) return { error: `${basename(path)} is ${Math.round(info.size / 1e6)} MB; the largest model read is ${MODEL_MAX_BYTES / 1024 / 1024} MB` }
     const bytes = new Uint8Array(await readFile(path))
+    if (ext === '.urdf') return await readUrdf(path, bytes)
     if (!USD_LAYER_EXTENSIONS.has(ext)) return { name: basename(path), bytes }
     const dir = dirname(path)
+    const sides = USD_SIDE_EXTENSIONS
+    const what = 'USD layers and images'
     const files = []
     let total = 0
     const walk = async (at) => {
@@ -485,19 +491,55 @@ async function readModel(path) {
           await walk(full)
           continue
         }
-        if (!entry.isFile() || !USD_SIDE_EXTENSIONS.has(extname(entry.name).toLowerCase())) continue
-        if (files.length >= USD_MAX_FILES) throw new Error(`more than ${USD_MAX_FILES} USD layers and images under ${dir}`)
+        if (!entry.isFile() || !sides.has(extname(entry.name).toLowerCase())) continue
+        if (files.length >= USD_MAX_FILES) throw new Error(`more than ${USD_MAX_FILES} ${what} under ${dir}`)
         const data = full === path ? bytes : new Uint8Array(await readFile(full))
         total += data.length
-        if (total > MODEL_MAX_BYTES) throw new Error(`the USD layers and images under ${dir} are over ${MODEL_MAX_BYTES / 1024 / 1024} MB`)
+        if (total > MODEL_MAX_BYTES) throw new Error(`the ${what} under ${dir} are over ${MODEL_MAX_BYTES / 1024 / 1024} MB`)
         files.push({ path: relative(dir, full).replaceAll('\\', '/'), bytes: data })
       }
     }
     await walk(dir)
-    return { name: basename(path), bytes, files, root: basename(path) }
+    return { name: basename(path), bytes, files, root: relative(dir, path).replaceAll('\\', '/') }
   } catch (e) {
     return { error: `could not read ${path}: ${e?.code === 'ENOENT' ? 'no such file' : String(e?.message ?? e)}` }
   }
+}
+
+/**
+ * A URDF and the mesh files it names, read one by one: no folder walk, so a robot saved in Downloads reads its own
+ * meshes and nothing else there. A `package://<package>/<path>` mesh is looked for at <path> under the description
+ * package (the folder above the URDF when it sits in a `urdf` folder, as ROS packages keep it, else its own folder);
+ * a relative one beside the URDF. A mesh not found is left out, and the importer lists it as missing. Keys are paths
+ * from the package folder, which the importer matches by their tails.
+ */
+async function readUrdf(path, bytes) {
+  const own = dirname(path)
+  const dir = basename(own).toLowerCase() === 'urdf' ? dirname(own) : own
+  const text = Buffer.from(bytes).toString('utf8')
+  const named = new Set([...text.matchAll(/filename\s*=\s*(?:"([^"]*)"|'([^']*)')/g)].map((m) => m[1] ?? m[2]))
+  const files = [{ path: relative(dir, path).replaceAll('\\', '/'), bytes }]
+  const seen = new Set([path])
+  let total = bytes.length
+  for (const name of named) {
+    let full
+    if (/^package:\/\//i.test(name)) full = join(dir, name.replace(/^package:\/\/[^/]*\/?/i, ''))
+    else if (/^file:\/\//i.test(name)) full = name.replace(/^file:\/\//i, '')
+    else full = isAbsolute(name) ? name : join(own, name)
+    if (seen.has(full) || !URDF_SIDE_EXTENSIONS.has(extname(full).toLowerCase())) continue
+    seen.add(full)
+    let data
+    try {
+      data = new Uint8Array(await readFile(full))
+    } catch {
+      continue
+    }
+    total += data.length
+    if (total > MODEL_MAX_BYTES) throw new Error(`the meshes ${basename(path)} names are over ${MODEL_MAX_BYTES / 1024 / 1024} MB`)
+    const key = relative(dir, full).replaceAll('\\', '/')
+    files.push({ path: key.startsWith('..') ? basename(full) : key, bytes: data })
+  }
+  return { name: basename(path), bytes, files, root: files[0].path }
 }
 
 module.exports = { AgentHost, DEFAULT_PORT, MODERN_VERSIONS, PROTOCOL_VERSIONS, handleMessage, readModel, registerAgentHost, requestEra, startMcpServer }

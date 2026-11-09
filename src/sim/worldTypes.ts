@@ -212,6 +212,9 @@ export interface BehaviorRecord {
   /** gripper held-state from the previous tick (true = actually carrying cargo), fed back as
    *  ctx.measured.grips so a behavior can confirm a pick. Written in handleGrips; rig parts only. */
   heldGrips?: Record<string, boolean>
+  /** for each gripper holding cargo, how far its load reaches from the gripper along the gripper's X, either side (m):
+   *  what a clamp's pads close to (the robot controller's grip joint). Written in handleGrips; rig parts only. */
+  heldWidths?: Record<string, number>
   /** latest gripper open/close commands this step (rig), captured in tickBehaviors */
   grips?: Record<string, boolean>
   /** latest emissive lamp states this step (rig setEmissive/ctx.lamps), captured for the frame (render-only) */
@@ -268,6 +271,7 @@ export function behaviorRecord(handle: number, pos: [number, number, number], fw
     joints: init.joints,
     measuredJoints: undefined,
     heldGrips: undefined,
+    heldWidths: undefined,
     grips: undefined,
     lamps: undefined,
     values: undefined,
@@ -317,7 +321,7 @@ export interface RigInstance {
    *  C-multigrab gripper holds every cargo body in its volume at once: a palletizer layer head lifting a formed
    *  layer, a fork carrying a pallet plus the stack on it. A tool no bigger than one load finds one body
    *  in its volume, so the ordinary path is a one-element list. */
-  grips: Map<string, { bodyId: number; offPos: Vec3; offQuat: Quat }[]>
+  grips: Map<string, { bodyId: number; offPos: Vec3; offQuat: Quat; reachX?: number }[]>
   /** grippers whose load was taken out of them (takeFromGripper) while still commanded closed. They stay open
    *  until the behavior opens them: without the latch a closed, empty gripper re-seeks every step and would
    *  re-grab the stack it just let fall before it had fallen at all. */

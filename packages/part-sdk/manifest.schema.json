@@ -154,6 +154,10 @@
           "description": "Opts the rig into the in-scene teach-by-pose gizmo (joint rings + IK end-effector handle, shown whenever the\nplaced part is selected: pose the arm, then Inspector → Capture Pose). Set it only for manipulators you\nhand-teach (robot / gantry / AGV lift). Leave it off for parts whose joints are driven by the sim/PLC (safety\ngate, diverter, blade-stop, turntable); an interactive pose gizmo there is a false affordance. Omitted/false\n= no in-scene pose gizmo (the joints still articulate; FK/sim are unaffected).",
           "type": "boolean"
         },
+        "tool": {
+          "description": "The link the teach gizmo's end-effector handle drags: the tool point (a robot's flange or TCP frame). The IK\nmoves only the joints between the rig root and this link, so a gripper's finger joints, which branch off\nbeside it, keep their place. Omitted = the link of the last posable joint.",
+          "type": "string"
+        },
         "inclineParam": {
           "description": "Marks the rig a whole-bed incline conveyor: names a `number` param (degrees) that tilts the whole bed about\nthe rig root, around local +Z (cross-bed), so the +X head lifts by run·sin while the origin stays put\nThe host tilts render + collision from the one param, regrows the trestle legs\nto the floor, and carries cargo up the slope. `leg` links stay vertical. Omitted = flat.",
           "type": "string"
@@ -1241,6 +1245,25 @@
         "cosmetic": {
           "description": "Self-driven dressing the behavior animates from its own state (an AGV's rolling wheels, a piston that\ntracks the lift at a ratio), not an author-commandable axis. The rig gizmo skips it (no ring, never the\nIK end-effector) and the authored idle `pose` row indexes only non-cosmetic joints. FK/sim treat it like\nany other joint.",
           "type": "boolean"
+        },
+        "mimic": {
+          "description": "This joint follows another: it is posed at the leader's value × `multiplier` (default 1) + `offset` (default 0),\nthen held to its own limits. A gripper's second finger is the usual case. The host poses it everywhere the\nleader is posed (the sim, the rendered FK, the teach gizmo), so the behavior commands only the leader, and\n`ctx.setJoint` on a follower changes nothing. The leader must be another joint of the rig that follows none.\nThe teach gizmo and the PLC panel leave a follower out.",
+          "type": "object",
+          "properties": {
+            "joint": {
+              "type": "string"
+            },
+            "multiplier": {
+              "type": "number"
+            },
+            "offset": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "joint"
+          ]
         },
         "rest": {
           "description": "The settled (idle/held) value the behavior slews this joint to, as a param binding: resolves\n`params[param] × scale + add` in the joint's native unit (revolute radians, prismatic metres) - e.g. a\nturntable's `{ param: 'deckAngleDeg', scale: π/180 }`. Lets the host mirror the at-rest pose without\nrunning the behavior (the pilot's surface-carry direction on a settled deck). Omit for joints that rest\nat 0 or whose rest isn't a single param's function.",

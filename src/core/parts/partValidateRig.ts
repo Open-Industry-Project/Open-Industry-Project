@@ -501,6 +501,30 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
         }
       }
       if (j?.cosmetic === true) add(`${at}.servo`, 'a cosmetic joint cannot be a servo: a servo is commanded, cosmetic dressing is not')
+      if ((j as { mimic?: unknown }).mimic !== undefined) add(`${at}.servo`, 'a mimic joint cannot be a servo: it follows its leader and takes no commands')
     }
   })
+  // a follower names another joint of the rig, one that follows none (no chains, so the pose needs one lookup)
+  const byName = new Map<string, { mimic?: unknown }>()
+  for (const raw of joints) {
+    const j = raw as { name?: unknown; mimic?: unknown }
+    if (typeof j?.name === 'string') byName.set(j.name, j)
+  }
+  joints.forEach((raw, i) => {
+    const j = raw as { name?: unknown; mimic?: unknown }
+    if (j?.mimic === undefined) return
+    const at = `geometry.joints[${i}].mimic`
+    const m = j.mimic as { joint?: unknown; multiplier?: unknown; offset?: unknown } | null
+    if (typeof m !== 'object' || m === null || typeof m.joint !== 'string' || m.joint === '') {
+      add(at, 'mimic must be { joint, multiplier?, offset? } naming another joint')
+      return
+    }
+    if (m.multiplier !== undefined && !isFiniteNum(m.multiplier)) add(`${at}.multiplier`, 'mimic.multiplier must be a finite number')
+    if (m.offset !== undefined && !isFiniteNum(m.offset)) add(`${at}.offset`, 'mimic.offset must be a finite number')
+    const leader = byName.get(m.joint)
+    if (!leader || m.joint === j.name) add(`${at}.joint`, `mimic.joint must name another joint of this rig (got ${JSON.stringify(m.joint)})`)
+    else if (leader.mimic !== undefined) add(`${at}.joint`, `mimic.joint names "${m.joint}", which follows a joint itself: name the joint it follows`)
+  })
+  const tool = (g as { tool?: unknown }).tool
+  if (tool !== undefined && (typeof tool !== 'string' || !names.has(tool))) add('geometry.tool', `tool must name a link of this rig (got ${JSON.stringify(tool)})`)
 }

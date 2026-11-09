@@ -428,14 +428,22 @@ A rig is a flat list of links, each `{ name, parent?, shape, offset, rotation?|q
 - `cosmetic: true` on a joint the behavior drives purely from its own state (rolling wheels, a piston
   tracking a lift). The rig gizmo skips it (no ring, never the IK end-effector), and the idle `pose` row
   indexes only the author-posable axes. The SDK AGV's wheels and piston are the reference.
+- `mimic: { joint, multiplier?, offset? }` on a joint that follows another: the host poses it at the leader's
+  value × `multiplier` (default 1) + `offset` (default 0), held to its own limits, everywhere the leader is posed.
+  A gripper's second finger is the usual case: the behavior commands only the leader, and `ctx.setJoint` on the
+  follower changes nothing. The leader must be another joint of the rig that follows none. The gizmo and the PLC
+  panel leave a follower out.
 - `rest: { param, scale?, add? }` on a joint the behavior slews to one param's value and holds, in the joint's
   native unit (the turntable's `{ param: 'deckAngleDeg', scale: π/180 }`). The host can then mirror the
   settled pose (the pilot's surface-carry direction on a held deck) without running the behavior.
 
 `posable: true` on the rig geometry opts the part into the **teach-by-pose gizmo**: joint rings and an IK
 end-effector handle, shown when the placed part is selected and the sim is stopped. Hovering a handle names
-the joint and shows its angle; a joint with limits draws only the arc it can reach. On an arm ending in a
-three-joint wrist, dragging the end-effector keeps the tool's orientation; hold Alt to let it turn. A dragged
+the joint and shows its angle; a joint with limits draws only the arc it can reach. Up to eight joints get rings.
+The end-effector is the rig's `tool` link (a flange or TCP frame), else the last posable joint's link, and a drag
+moves only the joints between the root and it, so a gripper's fingers beside the tool keep their place. On a chain
+of six or more joints, three of them revolute, dragging the end-effector keeps the tool's orientation, whatever the
+wrist's shape; hold Alt to let it turn. A dragged
 pose is jogging, not an edit: the Inspector says the arm is jogged and offers Reset, and nothing is saved
 until Inspector → **Capture Pose** records it (robot, gantry, AGV lift). Leave `posable` off when the sim or
 PLC drives the joints (safety gate, diverter, blade stop, turntable); they articulate the same, without a pose
@@ -936,6 +944,47 @@ with the layers and images under its folder. Convert anything else first:
 - STL → the same, but an STL is one mesh with no nodes and no units. Split the moving pieces into separate,
   named objects in Blender first (nothing can be rigged otherwise), and check the scale.
 - IGES → tessellate in a CAD tool (FreeCAD, CAD Assistant) and export GLB with the assembly's named parts.
+
+### A robot (URDF)
+
+**Import part > A robot (URDF)…** takes a robot description folder (its `.urdf` file and the meshes it names) and
+makes a posable part of it, with no options to set. Each URDF link becomes a rig link and each revolute, continuous
+or prismatic joint becomes a joint with the file's limits. A continuous joint gets ±180°. A fixed joint joins its
+links without one. Joint value 0 is the pose the robot was described in. The links keep their URDF frames, so
+nothing is re-expressed per link. URDF's +Z up becomes +Y by one turn on the root link. Each link's visuals go into
+one GLB, a node per link, drawn by that link (`node`).
+
+- **Meshes**: STL, COLLADA (`.dae`) and OBJ. `package://<package>/<path>` is matched against the picked folder by
+  its longest tail, so the folder can be the package, its parent or a workspace. A relative path is resolved
+  against the URDF file. A COLLADA file keeps its own colours, units and up axis. STL, OBJ and the primitives (box,
+  cylinder, sphere) take the URDF material's colour, read as sRGB.
+- **Size**: past 150k triangles in all, the meshes are simplified toward that. Robot CAD exports are usually far
+  finer than a simulation needs. A mesh whose normals are stored per triangle corner (nothing to share) gets them
+  recomputed, smooth across faces that meet within 30°, which keeps its vertex count near a welded mesh's.
+- **Collision**: each `<collision>` becomes a hidden link under its URDF link: a box or cylinder as itself, a sphere
+  as the box around it, and a mesh as the box that bounds it in its own frame. So cargo meets the robot's links,
+  coarsely. A link without `<collision>` draws and does not collide, as in URDF.
+- **Tool**: the link named `tool0` (ROS-Industrial's flange frame), else one with `tcp`, `flange` or `ee` in its
+  name, becomes the rig's `tool`, the point the pose gizmo drags.
+- **A robot**: the part is a robot (see "Robots: let the host run the controller"), driving the joints between the
+  root and the tool, with waypoints, jobs and the PLC tags in its Inspector. An arm whose URDF has a hand (a single
+  sliding joint beside the arm) grips with it: the finger opens and closes with the grip. An arm without one carries
+  the app's tools (vacuum plate or clamp gripper, picked in its Inspector), mounted along the tool frame's +Z (the
+  outward direction of `tool0` and of a TCP frame).
+- **Ready pose**: an arm of revolute joints idles in a ready pose, also its Home waypoint: the tool pointing down in
+  front of the base (+X) at 40% of the arm's length out and 15% up, with the elbow as high as it goes. The pose an
+  arm was described in is often not a working one (a UR lies flat), and teaching by position starts from the idle
+  pose, so this keeps taught poses elbow up. An arm with a sliding joint, or one no ready pose reaches, idles at 0.
+- **mimic** becomes a joint `mimic`, so a gripper's second finger follows the first. A follower of a fixed or
+  missing joint, or of one that follows another itself, moves on its own and is listed.
+- **Not imported**: inertia, floating and planar joints (the link stays put), textures and Gazebo tags. Each is
+  listed in a message after the import.
+- **xacro** is refused. Expand it to URDF first (`xacro robot.urdf.xacro > robot.urdf` in a ROS environment) and
+  import that.
+
+A lone `.urdf` (from Import part's file picker or a drop) imports its primitives and lists the meshes it could not
+find. A folder with several URDF files at its top asks which one to import. The new part's joints can be driven
+from the PLC with no code: select a joint's node and use the Joint section's PLC control.
 
 ### 1. Read the model
 
@@ -1531,6 +1580,41 @@ definePart({
 - Units are the joint's own: metres, or radians for a revolute joint.
 - A revolute servo with `"modulo": 6.283185307179586` turns without end (a rotary table, a spindle), its position
   wrapping; its `min` / `max` must cover 0 to the modulo.
+
+### Robots: let the host run the controller
+
+An arm that picks and places (any number of joints) should be a **robot**: declare it, and the host runs the robot
+controller for it, the one every robot part shares, so a fix to it reaches every robot in every project.
+
+```js
+definePart({
+  robot: { gripper: 'gripper', lamp: 'vacuumLamp' },
+  params: { /* waypoints, jobs, speed, accel, commandTag, executeTag, doneTag ... */ },
+  step(ctx) { ctx.robot.step() },
+})
+```
+
+- The controller owns the robot's **jobs**: programs of steps taught in the Inspector (Move to a waypoint, stopping
+  or blending through it; Grip on or off; Wait; Wait for an input; Set an output). The PLC picks a job by number on
+  the command tag, pulses Execute and waits for Done; an Enable input holds the arm while the cell is unsafe. A robot
+  with no jobs takes a waypoint row as the command and holds its grip from the gripper tag.
+- Motion is one coordinated trapezoidal profile per move over every joint, and blend points overlap two moves so
+  each joint's speed changes smoothly.
+- It reads the part's params by fixed names, declared like any other params (the list is on `RobotController` in
+  the SDK). Waypoints are in degrees for a revolute joint and millimetres for a prismatic one.
+- `robot: true` drives every joint that is not a servo, cosmetic or mimic, in rig order. An object names the `joints`
+  (the waypoint columns), the `gripper` link a Grip step closes, a `lamp` lit while it holds, and a `gripJoint` (a
+  finger) that opens and closes with the grip.
+- **Tools**: `tool` in the declaration names the link the app draws the robot's tool on, the one its `tool` param
+  picks (`vacuum`, `gripper` or `none`; core/robot/robotTools.ts). Both are sized by `toolSizeX` / `toolSizeZ`: the
+  vacuum plate is that big (its adapter and bolt pattern shrink to fit a plate smaller than them), and the clamp
+  gripper's paddles stand that far apart at the grip joint's 0 and are that deep. Closing, the paddles stop on the load
+  the grip holds (the sim tells the controller how far it reaches across the gripper), within 50 mm either way of that
+  width; holding nothing, they close fully. The tool
+  frame has +Y toward the wrist with the tool hanging along -Y; the robot puts its gripper link (the grip zone) at the
+  tools' grip point, and two finger links at the frame's origin on a `cosmetic` sliding joint (the `gripJoint`) and
+  its `mimic`, which the clamp's paddles ride. The six-axis robot carries all of it.
+- The six-axis robot is the reference; a URDF import makes one of these for any arm.
 
 ### The PLC handshake pattern
 

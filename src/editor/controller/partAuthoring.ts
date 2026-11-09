@@ -14,10 +14,12 @@ import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
 import { mergeRigPiece as mergedGeometry, releaseKeptNodes, reparentRigLink as reparentedGeometry, setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
 import { isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig, type JointPlcMode } from '../jointPlcControl'
 import type { AuthorableShapeKind } from '../rigTree'
-import type { PartPackage, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
+import type { PartAsset, PartMaterial, PartPackage, RigGeometry, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
 import type { PackageManifest } from '../../sim/buildPackage'
 import { parsePartBytes, parsePartText } from '../parts/partFile'
+import { largeModelAdvisory } from '../parts/modelStorage'
+import { robotColumns, type RobotColumn } from '../../core/robot/robotIk'
 import { validatePart } from '../../sim/validatePart'
 import type { PartDiagnostic } from '../../sim/validatePart'
 import type { SdkPart } from '../../core/types'
@@ -26,13 +28,6 @@ import type { EditorController } from '../controller'
 /** what part authoring reads and drives: the store (packages, selection, undo), the view (the rig gizmo's held pose),
  *  the read-only gate, and opening a definition as its own scene */
 export type AuthoringDeps = Pick<EditorController, 'store' | 'view' | 'readOnly' | 'editPartPackage'>
-
-// Base64 length past which an imported model gets an advisory "this may break your autosave" warning
-// (see setLinkMesh). 2 MB of base64 ≈ a 1.5 MB GLB; browsers give an origin roughly 5-10 MB of
-// localStorage in total, shared with the rest of the project doc, so past this one model alone can make
-// the autosave fail. Advisory only: the real failure is detected and reported by
-// projectFile.saveStoredProject, which sees the actual quota when it hits it.
-const LARGE_EMBED_B64 = 2_000_000
 
 export function editRigLink(
   ec: AuthoringDeps,
@@ -144,12 +139,8 @@ export function setLinkMesh(
   }
   const fitted = box ? fitRigToModel(geometry, linkName, box) : null
   ec.store.commitPackage(label, { ...pkg, geometry: fitted ?? geometry, assets })
-  if (dataBase64.length <= LARGE_EMBED_B64) return { warning: null, fitted: !!fitted }
-  const mb = (dataBase64.length / (4 / 3) / 1e6).toFixed(1)
-  return {
-    warning: `This model is ${mb} MB. Embedded models are stored base64 (+33%) inside the project, and browsers cap local storage at a few MB per site - the autosave may stop. Export the project to a file to keep your work.`,
-    fitted: !!fitted,
-  }
+  // advisory only: a refused save is detected and reported by projectFile.saveStoredProject, which sees the quota
+  return { warning: largeModelAdvisory(glb.length), fitted: !!fitted }
 }
 
 /** setLinkMesh from the Inspector's import: a part fitted to its model took the model's size, so the open Part Editor
@@ -223,25 +214,34 @@ export function reparentRigLink(ec: AuthoringDeps, packageId: string, linkName: 
   return true
 }
 
+/** The columns a posed row lists, in order. A robot's are the joints its controller drives, in its units (° and mm,
+ *  robotColumns). Any other rig's are its posable joints in rig order, in ° and m; a cosmetic joint (a finger the grip
+ *  drives) and one that follows another (mimic) are posed by the host, not taught. */
+function poseColumns(pkg: PartPackage | undefined): RobotColumn[] {
+  if (pkg?.geometry.kind !== 'rig') return []
+  return (
+    robotColumns(pkg.geometry, pkg.behavior) ??
+    pkg.geometry.joints.filter((j) => !j.cosmetic && !j.mimic).map((joint) => ({ joint, unit: joint.type === 'revolute' ? 180 / Math.PI : 1 }))
+  )
+}
+
 export function captureRigPose(ec: AuthoringDeps, partId: string): number[] | null {
   const part = ec.store.getState().scene.parts.find((p) => p.id === partId)
   if (!part || part.type !== 'part') return null
-  const pkg = getPackage((part as SdkPart).packageId)
-  if (!pkg || pkg.geometry.kind !== 'rig' || pkg.geometry.joints.length === 0) return null
+  const columns = poseColumns(getPackage((part as SdkPart).packageId))
+  if (columns.length === 0) return null
   const pose = ec.view.rigJointPose(partId) ?? {}
   const round = (v: number): number => Math.round(v * 100) / 100
-  return pkg.geometry.joints.map((j) => round(j.type === 'revolute' ? ((pose[j.name] ?? 0) * 180) / Math.PI : (pose[j.name] ?? 0)))
+  return columns.map(({ joint, unit }) => round((pose[joint.name] ?? 0) * unit))
 }
 
 export function previewRigPose(ec: AuthoringDeps, partId: string, row: readonly number[]): void {
   const part = ec.store.getState().scene.parts.find((p) => p.id === partId)
   if (!part || part.type !== 'part') return
-  const pkg = getPackage((part as SdkPart).packageId)
-  if (!pkg || pkg.geometry.kind !== 'rig') return
   const pose: Record<string, number> = {}
-  pkg.geometry.joints.forEach((j, i) => {
+  poseColumns(getPackage((part as SdkPart).packageId)).forEach(({ joint, unit }, i) => {
     const v = row[i]
-    if (typeof v === 'number') pose[j.name] = j.type === 'revolute' ? (v * Math.PI) / 180 : v
+    if (typeof v === 'number') pose[joint.name] = v / unit
   })
   ec.view.setRigJointPose(partId, pose)
 }
@@ -437,20 +437,46 @@ export function setPartInfo(ec: AuthoringDeps, packageId: string, patch: { name?
   return ''
 }
 
-export function createBlankPart(ec: AuthoringDeps): string | null {
+/** New part: a one-box rig, or (`from`) a rig, its models and its behavior that an import built, such as a URDF robot. */
+/** What an import builds a new part from (a URDF robot): its name, rig, models, materials and behavior. */
+export interface ImportedPart {
+  name: string
+  geometry: RigGeometry
+  assets?: PartAsset[]
+  materials?: PartMaterial[]
+  behavior?: string
+}
+
+export function createBlankPart(ec: AuthoringDeps, from?: ImportedPart): string | null {
   if (ec.readOnly) return null
+  const packageId = addNewPart(ec.store, from)
+  // Open the new package as its own scene to author it, reusing the Catalog ✎ throwaway-draft session
+  // (editPartPackage → enterPackageEdit): it stamps an origin instance so the rig-node tools are live,
+  // but that instance is a draft in the session's own scene, never the document's, and goes on Back.
+  // So a new part is added only to the catalog, never to the working scene; it reaches the scene
+  // only when the user drags it in (placePart). editPartPackage selects the 'body' root node for us.
+  // (Committing a real instance here would durably pollute the scene and the saved project.)
+  ec.editPartPackage(packageId)
+  return packageId
+}
+
+/** A new part in the project's library, without opening it: the one-box template, or `from`. Returns its id. */
+export function addNewPart(store: AuthoringDeps['store'], from?: ImportedPart): string {
   // a free package id, skipping any already registered (e.g. a reload that restored user parts)
-  let n = ec.store.getState().userPackages.length + 1
+  let n = store.getState().userPackages.length + 1
   let packageId = `user.part-${n}`
   while (hasPackage(packageId)) packageId = `user.part-${++n}`
   const manifest: PackageManifest = {
     id: packageId,
-    name: `My Part ${n}`,
+    name: from?.name ?? `My Part ${n}`,
     category: 'Equipment',
-    geometry: { kind: 'rig', links: [{ name: 'body', shape: { kind: 'box', size: [0.6, 0.6, 0.6] }, offset: [0, 0.3, 0] }], joints: [] },
+    geometry: from?.geometry ?? { kind: 'rig', links: [{ name: 'body', shape: { kind: 'box', size: [0.6, 0.6, 0.6] }, offset: [0, 0.3, 0] }], joints: [] },
+    ...(from?.assets?.length ? { assets: from.assets } : {}),
+    ...(from?.materials?.length ? { materials: from.materials } : {}),
   }
+  // the name goes into a // comment, so a line break in it (a URDF robot's name can carry one) would end the comment
   const behavior = [
-    `// ${manifest.name} - a custom part. Its geometry (links/joints) lives in manifest.json; edit it in the`,
+    `// ${manifest.name.replace(/[\r\n\u2028\u2029]+/g, ' ')} - a custom part. Its geometry (links/joints) lives in manifest.json; edit it in the`,
     `// app (select a node → Inspector) or here. This script is the behavior, run every simulation tick.`,
     `definePart({`,
     `  params: {},`,
@@ -460,15 +486,8 @@ export function createBlankPart(ec: AuthoringDeps): string | null {
     `})`,
     ``,
   ].join('\n')
-  const pkg = buildPackage(manifest, behavior)
+  const pkg = buildPackage(manifest, from?.behavior ?? behavior)
   registerPackage(pkg)
-  ec.store.addUserPackage(pkg)
-  // Open the new package as its own scene to author it, reusing the Catalog ✎ throwaway-draft session
-  // (editPartPackage → enterPackageEdit): it stamps an origin instance so the rig-node tools are live,
-  // but that instance is a draft in the session's own scene, never the document's, and goes on Back.
-  // So a new part is added only to the catalog, never to the working scene; it reaches the scene
-  // only when the user drags it in (placePart). editPartPackage selects the 'body' root node for us.
-  // (Committing a real instance here would durably pollute the scene and the saved project.)
-  ec.editPartPackage(packageId)
+  store.addUserPackage(pkg)
   return packageId
 }

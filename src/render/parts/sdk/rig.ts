@@ -2,6 +2,7 @@ import { Box3, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide
 import type { Material, Object3D, Texture } from 'three'
 import { arrayInstanceDeltas, pitchCapMessage, resolvedBoxSize, resolvedCylinder, resolvedMeshScale, restQuatOf } from '../../../core/rig/rigPose'
 import { reportPartDiagnostic } from '../../../core/parts/partDiagnostics'
+import { robotColumns } from '../../../core/robot/robotIk'
 import type { SeamContext, SubPose } from '../../../core/rig/rigPose'
 import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
@@ -821,14 +822,16 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
     : undefined
 
   const gizmo = buildRigGizmo(geo, root, linkGroups, applyJoints, paramSpecs)
-  // the authored idle pose: a `pose` numberList param whose first row is [j1..j6] degrees (posable-joint
-  // order; cosmetic self-driven joints are not in the row) → the rig's at-rest pose. Only an array is valid,
-  // matching the numberList grid the Inspector edits; a legacy JSON string is ignored.
+  // the authored idle pose: a `pose` numberList param whose first row is the rig's at-rest pose. A robot's row is
+  // its controller's joints in its units (° and mm, core robotColumns); any other rig's is its posable joints in
+  // degrees (cosmetic self-driven joints are not in the row). Only an array is valid, matching the numberList grid
+  // the Inspector edits; a legacy JSON string is ignored.
+  const poseColumns = gizmo ? (robotColumns(geo, pkg.behavior) ?? posableJoints(geo).map((joint) => ({ joint, unit: 180 / Math.PI }))) : []
   const applyIdlePose = gizmo
     ? (poseParam: unknown): void => {
         const idle: Record<string, number> = {}
         const row = Array.isArray(poseParam) && Array.isArray(poseParam[0]) ? (poseParam[0] as unknown[]) : undefined
-        if (row) posableJoints(geo).forEach((j, i) => { const d = row[i]; if (typeof d === 'number') idle[j.name] = (d * Math.PI) / 180 })
+        if (row) poseColumns.forEach(({ joint, unit }, i) => { const d = row[i]; if (typeof d === 'number') idle[joint.name] = d / unit })
         gizmo.applyIdle(idle)
       }
     : undefined

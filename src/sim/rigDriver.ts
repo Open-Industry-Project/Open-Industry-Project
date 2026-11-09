@@ -234,13 +234,30 @@ export class RigDriver {
         }
         if (picked.length) {
           const inv = qConjugate(gw.quat)
-          const holds: { bodyId: number; offPos: Vec3; offQuat: Quat }[] = []
+          const holds: { bodyId: number; offPos: Vec3; offQuat: Quat; reachX: number }[] = []
           for (const box of picked) {
             this.holds.claim(box, { kind: 'grip', rig, gripper: name })
             const bp = box.body.GetPosition()
             const bq = box.body.GetRotation()
             const offPos = qApply(inv, [bp.GetX() - gw.pos[0], bp.GetY() - gw.pos[1], bp.GetZ() - gw.pos[2]])
-            holds.push({ bodyId: box.id, offPos, offQuat: qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()]) })
+            const offQuat = qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()])
+            // how far the load reaches from the gripper along its X, either side, in the rig's own units (the world's
+            // over its scale): its extent across X plus how far off centre it sits. A clamp's pads close to this. A
+            // box's extent is its half extents through the rotation's first row; a unit load's (one body of several
+            // pieces) is its world bounds' half size through the gripper's X axis
+            let extentX: number
+            if (box.unit) {
+              const b = box.body.GetWorldSpaceBounds()
+              const half: Vec3 = [(b.mMax.GetX() - b.mMin.GetX()) / 2, (b.mMax.GetY() - b.mMin.GetY()) / 2, (b.mMax.GetZ() - b.mMin.GetZ()) / 2]
+              const ax = qApply(gw.quat, [1, 0, 0])
+              const centre = qApply(inv, [(b.mMax.GetX() + b.mMin.GetX()) / 2 - gw.pos[0], (b.mMax.GetY() + b.mMin.GetY()) / 2 - gw.pos[1], (b.mMax.GetZ() + b.mMin.GetZ()) / 2 - gw.pos[2]])
+              extentX = Math.abs(centre[0]) + Math.abs(ax[0]) * half[0] + Math.abs(ax[1]) * half[1] + Math.abs(ax[2]) * half[2]
+            } else {
+              const [qx, qy, qz, qw] = offQuat
+              const r0 = [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)]
+              extentX = Math.abs(offPos[0]) + Math.abs(r0[0]!) * box.hx + Math.abs(r0[1]!) * box.hy + Math.abs(r0[2]!) * box.hz
+            }
+            holds.push({ bodyId: box.id, offPos, offQuat, reachX: extentX / rig.scale })
           }
           rig.grips.set(name, holds)
           this.checkForkFit(rig, link, picked, holds)
@@ -259,8 +276,14 @@ export class RigDriver {
     // behavior reads it next tick via ctx.measured.grips. `names` = commanded ∪ held ∪ emptied, so a just-released
     // gripper gets an explicit false - the merged feedback never goes stale.
     const heldNow: Record<string, boolean> = {}
-    for (const name of names) heldNow[name] = rig.grips.has(name)
+    let widths: Record<string, number> | undefined
+    for (const name of names) {
+      const held = rig.grips.get(name)
+      heldNow[name] = held !== undefined
+      if (held?.length) (widths ??= {})[name] = held.reduce((w, h) => Math.max(w, h.reachX ?? 0), 0)
+    }
     rig.rec.heldGrips = heldNow
+    rig.rec.heldWidths = widths
   }
 
   /**

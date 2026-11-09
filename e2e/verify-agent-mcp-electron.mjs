@@ -321,7 +321,7 @@ try {
     expect(r.json?.fitted === true && r.json?.boundsHint === undefined, `import_model (${what}) fits a one-link part to the model (${JSON.stringify(r.json?.footprint)})`)
   }
   const notModel = await mcp.call('import_model', { id: 'user.gate-plinth', link: 'body', path: join(here, '..', 'package.json') })
-  expect(!notModel.ok && /a model is a \.glb, \.step, \.stp or USD/.test(notModel.text), 'import_model refuses a file that is not a model')
+  expect(!notModel.ok && /a model is a \.glb, \.step, \.stp, USD .* or URDF/.test(notModel.text), 'import_model refuses a file that is not a model')
   const pou = await mcp.call('set_pou', { name: 'Debounce', source: 'FUNCTION_BLOCK Debounce\nVAR_INPUT\n  In : BOOL;\nEND_VAR\nEND_FUNCTION_BLOCK' })
   expect(pou.ok && pou.json.pous.includes('Debounce'), `set_pou adds a POU (${pou.text.replace(/\s+/g, ' ').slice(0, 160)})`)
 

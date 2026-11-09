@@ -143,8 +143,8 @@ function settleTo(handle: number, prePulses: number, zones?: Record<string, numb
  * settled from the last (see pulseReplay). The editor always passes 0, because a press on a stopped device is a
  * live session (IdleUseSession), not a replay. So this is a headless "what does it do after N presses" answer.
  */
-export function settleIdlePose(source: string, params: Record<string, ParamValue>, usePulses = 0, zones?: Record<string, number>, servosJson?: string, arraysJson?: string): IdlePose | null {
-  const handle = create(source, JSON.stringify(params ?? {}), servosJson, arraysJson)
+export function settleIdlePose(source: string, params: Record<string, ParamValue>, usePulses = 0, zones?: Record<string, number>, jointsJson?: string, arraysJson?: string): IdlePose | null {
+  const handle = create(source, JSON.stringify(params ?? {}), jointsJson, arraysJson)
   if (handle === 0) return null
   try {
     let prev: Record<string, number> = {}
@@ -260,8 +260,8 @@ export class IdleUseSession {
   }
 
   /** Open a session at the authored state (null when the behavior does not instantiate). */
-  static open(source: string, params: Record<string, ParamValue>, zones?: Record<string, number>, servosJson?: string, arraysJson?: string): IdleUseSession | null {
-    const handle = create(source, JSON.stringify(params ?? {}), servosJson, arraysJson)
+  static open(source: string, params: Record<string, ParamValue>, zones?: Record<string, number>, jointsJson?: string, arraysJson?: string): IdleUseSession | null {
+    const handle = create(source, JSON.stringify(params ?? {}), jointsJson, arraysJson)
     if (handle === 0) return null
     const start = settleTo(handle, 0, zones)
     if (!start) {

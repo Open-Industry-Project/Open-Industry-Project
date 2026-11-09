@@ -8,8 +8,9 @@
 // and the sandbox's copy-in / validate-out rule (docs/part-sandbox.md).
 //
 // Boundary (everything a host needs):
-//   create(source, paramsJson[, servosJson[, arraysJson]]) -> handle (>0), or 0 on error (see error()); servosJson = the
-//                                  rig's servo joints (RigJoint[] with `servo`), whose motion the instance runs;
+//   create(source, paramsJson[, jointsJson[, arraysJson]]) -> handle (>0), or 0 on error (see error()); jointsJson = the
+//                                  rig's joints (RigJoint[]): the instance runs the motion of those with a `servo`,
+//                                  and a part that declares `robot` drives them through its controller;
 //                                  arraysJson = its posable array links (PosableArraySpec[]), what ctx.arrayCount reads
 //   meta(handle)                -> JSON {param: {type, default, ...}} - drives the Inspector
 //   step(handle, inputJson, dt) -> JSON {surfaceVelocity:[x,y,z], tags:{name:bool}, joints:{name:number}, grips:{name:bool}, lamps:{name:bool}, subPoses:{link:{position?,rotation?,instances?}}}
@@ -27,6 +28,8 @@ import { instantiatePartScript, resolvePartParams } from '../core/parts/partScri
 import { Rng } from '../core/rng'
 import { arrayInstanceDeltas, copyGripName, jointLimits, type PosableArraySpec, type RigParams, type SubPose } from '../core/rig/rigPose'
 import type { RigJoint } from '../core/parts/partPackage'
+import { createRobot, robotDeclOf, type RobotDecl } from '../core/robot/robotController'
+import { robotToolParts } from '../core/robot/robotTools'
 import {
   axisCommandAborted, axisCommandDone, axisCommandQueued, axisFollow, axisHalt, axisHome, axisInPosition, axisMoveAbsolute, axisMoveRelative, axisMoveVelocity,
   axisPosition, axisPower, axisReleaseStop, axisReset, axisStop, createAxis, stepAxis, type Axis, type ModuloDirection,
@@ -83,6 +86,8 @@ interface Instance {
   inConveyorSpeeds: { v: Record<string, number> }
   /** the rig's servo axes by joint name: commanded through ctx.servos, stepped after step(), posing their joints */
   servos: Map<string, Axis>
+  /** this tick's held-load reach per gripper (StepInput.gripWidths), for the robot controller */
+  heldWidths: { v: Record<string, number> | undefined }
 }
 
 /** A PLC tag value crossing the behavior boundary: BOOL or a number (INT/REAL). */
@@ -163,11 +168,15 @@ function buildArrayCounts(arraysJson: string | undefined, params: Record<string,
   return counts
 }
 
-function buildServos(servosJson: string | undefined, params: Record<string, ParamValue>): Map<string, Axis> {
+/** The rig's joints from create()'s jointsJson, or none. */
+function rigJointsOf(jointsJson: string | undefined): RigJoint[] {
+  if (!jointsJson) return []
+  const joints = JSON.parse(jointsJson) as RigJoint[]
+  return Array.isArray(joints) ? joints : []
+}
+
+function buildServos(joints: readonly RigJoint[], params: Record<string, ParamValue>): Map<string, Axis> {
   const servos = new Map<string, Axis>()
-  if (!servosJson) return servos
-  const joints = JSON.parse(servosJson) as RigJoint[]
-  if (!Array.isArray(joints)) return servos
   for (const j of joints) {
     const sv = j?.servo
     if (!sv || typeof j.name !== 'string' || !Number.isFinite(j.min) || !Number.isFinite(j.max)) continue
@@ -268,6 +277,8 @@ export interface BehaviorInput {
   weights?: Record<string, number>
   joints?: Record<string, number>
   grips?: Record<string, boolean>
+  /** each holding gripper's load reach along its X (m), for the robot controller's grip joint; not part of ctx */
+  gripWidths?: Record<string, number>
   used?: boolean
   /** the scene's live conveyor speeds (partId → commanded m/s or arc omega), for ctx.conveyorRunning(id) - the
    *  spawner "pause when conveyor stopped" interlock. Absent when the scene has no conveyors. */
@@ -355,7 +366,7 @@ function seedFrom(paramsJson: string): number {
   return h >>> 0
 }
 
-export function create(source: string, paramsJson = '{}', servosJson?: string, arraysJson?: string): number {
+export function create(source: string, paramsJson = '{}', jointsJson?: string, arraysJson?: string): number {
   try {
     // The one eval chokepoint for part code lives in core/parts/partScript.ts, shared with the render/headless
     // geometry evaluator so the two can never drift: the determinism scan rejects Date/Math.random/fetch
@@ -374,7 +385,12 @@ export function create(source: string, paramsJson = '{}', servosJson?: string, a
     const overrides = JSON.parse(paramsJson) as Record<string, ParamValue>
     const params = resolvePartParams(def.params, overrides)
     const rng = new Rng(seedFrom(JSON.stringify(params)))
-    const servos = buildServos(servosJson, params)
+    const rigJoints = rigJointsOf(jointsJson)
+    const servos = buildServos(rigJoints, params)
+    const robotDecl = robotDeclOf(def.robot)
+    const robot = robotDecl ? createRobot(robotDecl, rigJoints) : null
+    // the held loads' reach this tick, read by the robot controller's grip joint (ref-swapped each step)
+    const heldWidths: { v: Record<string, number> | undefined } = { v: undefined }
     const arrayCounts = buildArrayCounts(arraysJson, params)
     const servoHandles: Record<string, Servo> = {}
     for (const [name, ax] of servos) servoHandles[name] = servoHandle(ax)
@@ -600,6 +616,7 @@ export function create(source: string, paramsJson = '{}', servosJson?: string, a
         },
       }),
       servos: servoHandles,
+      robot: robot ? Object.freeze({ step: () => robot.step(ctx, { heldReach: (g: string) => heldWidths.v?.[g] }) }) : undefined,
       servo: (name: string) => (typeof name === 'string' && Object.hasOwn(servoHandles, name) ? servoHandles[name] : undefined),
       // closed-loop reads of the host-applied state (previous tick). Read-only: writes go through the
       // command bags (`ctx.joints` / `ctx.grips`); a write here is silently ignored, not an error.
@@ -755,7 +772,7 @@ export function create(source: string, paramsJson = '{}', servosJson?: string, a
     // gave (a joint, a lamp), so an author's "start pose" would silently never happen; a throw would also leave the
     // half-built instance registered. At the first step it sees the real pose, params and tags, and its commands
     // stay in that tick's output unless step() overrides them.
-    instances.set(handle, { def, ctx, out, tags: tagsBox, measuredJoints, measuredGrips, sensed, inUsed, inConveyorSpeeds, servos, needsInit: typeof def.init === 'function' })
+    instances.set(handle, { def, ctx, out, tags: tagsBox, measuredJoints, measuredGrips, heldWidths, sensed, inUsed, inConveyorSpeeds, servos, needsInit: typeof def.init === 'function' })
     return handle
   } catch (e) {
     fail(e instanceof Error ? e.message : String(e))
@@ -765,7 +782,7 @@ export function create(source: string, paramsJson = '{}', servosJson?: string, a
 
 /** The joint/gripper names a part declared (definePart({ joints, grippers })) - for buildPackage to
  *  cross-check them against the rig geometry, making the typed-bag's "typo = error" promise true at build. */
-export function declarations(handle: number): { joints: string[]; grippers: string[]; lamps: string[]; servos: string[]; interactive: boolean; hasStep: boolean; hasInit: boolean; useParam?: string; snap?: SnapSpec; unit?: UnitLoadDecl } {
+export function declarations(handle: number): { joints: string[]; grippers: string[]; lamps: string[]; servos: string[]; interactive: boolean; hasStep: boolean; hasInit: boolean; useParam?: string; snap?: SnapSpec; unit?: UnitLoadDecl; robot?: RobotDecl } {
   const inst = instances.get(handle)
   if (!inst) {
     fail(`oip-behavior: bad handle ${handle}`)
@@ -780,6 +797,7 @@ export function declarations(handle: number): { joints: string[]; grippers: stri
   const useParam = hostCopy(def.useParam)
   const snap = hostCopy((def as { snap?: SnapSpec }).snap)
   const unit = hostCopy(def.unit)
+  const robot = robotDeclOf(def.robot)
   return {
     joints: names(def.joints),
     grippers: names(def.grippers),
@@ -791,6 +809,7 @@ export function declarations(handle: number): { joints: string[]; grippers: stri
     ...(useParam !== undefined ? { useParam } : {}),
     ...(snap ? { snap } : {}),
     ...(unit ? { unit } : {}),
+    ...(robot ? { robot } : {}),
   }
 }
 
@@ -812,14 +831,17 @@ export function geometry(handle: number, paramsJson = '{}', ctxJson = '{}'): str
     fail(`oip-behavior: bad handle ${handle}`)
     return ''
   }
-  if (!inst.def.geometry) return '' // no procedural geometry - fully manifest-described
+  const tool = robotDeclOf(inst.def.robot)?.tool
+  if (!inst.def.geometry && !tool) return '' // no procedural geometry - fully manifest-described
   try {
     const overrides = JSON.parse(paramsJson) as Record<string, ParamValue>
     const params = resolvePartParams(inst.def.params, overrides) as ParamsOf<ParamSchema>
-    const out = inst.def.geometry(createGeometryBuilder(), params, JSON.parse(ctxJson) as GeometryContext)
+    const out = inst.def.geometry ? inst.def.geometry(createGeometryBuilder(), params, JSON.parse(ctxJson) as GeometryContext) : []
     // normalize to MeshPart[] (a bare description = one role-less part) in the current spelling, so render + sim
-    // see one shape whatever format the script was written for (core/geometry/geometryEval canonicalMeshParts)
-    const parts = canonicalMeshParts(Array.isArray(out) ? out : [{ desc: out }])
+    // see one shape whatever format the script was written for (core/geometry/geometryEval canonicalMeshParts); a
+    // robot's tool, drawn by the host, follows the part's own meshes
+    const own = Array.isArray(out) ? out : [{ desc: out }]
+    const parts = canonicalMeshParts(tool ? [...own, ...robotToolParts(createGeometryBuilder(), params, tool)] : own)
     return JSON.stringify(parts)
   } catch (e) {
     fail(e instanceof Error ? e.message : String(e))
@@ -904,6 +926,7 @@ export function stepDirect(handle: number, input: BehaviorInput, dt: number): Be
     if (input.grips) {
       for (const k of Object.keys(input.grips)) inst.measuredGrips[k] = input.grips[k] === true
     }
+    inst.heldWidths.v = input.gripWidths
     inst.inUsed.used = input.used === true
     inst.inConveyorSpeeds.v = input.conveyorSpeeds ?? EMPTY_SPEEDS // ref-swap (host rebuilds the map once per tick)
     inst.out.sv[0] = inst.out.sv[1] = inst.out.sv[2] = 0

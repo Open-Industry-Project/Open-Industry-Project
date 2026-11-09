@@ -29,7 +29,7 @@ import { getOipPartsApi } from '../desktop/desktopPartsBridge'
 import { importPartsFolder } from '../parts/packageSource'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { importPartFiles, partFilesOf } from '../parts/importPartFiles'
-import { isModelFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
+import { isModelFile, isUrdfFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
 
 const M = defineMessages('catalog', {
   title: 'Parts',
@@ -37,11 +37,15 @@ const M = defineMessages('catalog', {
   viewOnlyLink: 'View only: editing is disabled on this link',
   newPartTitle: 'New blank part:a single box you can reshape, add nodes to, and script (the same portable format the built-ins use)',
   newPart: '＋ New part',
-  importTitle: 'Import a shared part file (.oippart or .part.json) into this project, or make a new part from a model (.glb, STEP or USD)',
-  importTitleDesktop: 'Import shared part files or a folder of parts into this project, or make a new part from a model',
+  importTitle: 'Import shared part files into this project, or make a new part from a model (.glb, STEP or USD) or a robot (URDF)',
+  importTitleDesktop: 'Import shared part files or a folder of parts into this project, or make a new part from a model or a robot',
   importModel: 'A model…',
   importModelTitle: 'Make a new part from a model: a .glb, a STEP file from CAD, or a USD model (.usd, .usda, .usdc, .usdz)',
   oneModelAtATime: 'A model opens as a new part of its own, so one is imported at a time: {file} was imported.',
+  importRobot: 'A robot (URDF)…',
+  importRobotTitle:
+    "Make a new part from a robot description: pick the folder holding its .urdf file and its meshes (STL, COLLADA or OBJ). Its links and joints become the part's nodes and joints.",
+  whichUrdf: 'Import {file}',
   importFiles: 'Part files…',
   importFilesTitle: 'Import shared part files (.oippart or .part.json) into this project',
   importFolder: 'A folder of parts…',
@@ -207,6 +211,9 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   for (const u of updates) if (!updateById.has(u.id)) updateById.set(u.id, u)
   const importRef = useRef<HTMLInputElement>(null)
   const importModelRef = useRef<HTMLInputElement>(null)
+  const importRobotRef = useRef<HTMLInputElement>(null)
+  // where Import part's menu opened, so a follow-up choice (which URDF of a folder) opens in the same place
+  const menuAt = useRef({ x: 0, y: 0 })
   const q = query.trim().toLowerCase()
   const searching = q !== ''
   const store = controller?.store ?? null
@@ -217,12 +224,50 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   // A model file becomes a new part of its own, opened to convert it (parts/modelPartImport.ts); part files import.
   const importFiles = async (files: File[]): Promise<void> => {
     if (!controller || state.readOnly || files.length === 0) return
-    const models = files.filter((f) => isModelFile(f.name))
     const parts = partFilesOf(files.filter((f) => !isModelFile(f.name)))
+    // a .urdf takes the other files picked with it as its meshes, found by name; alone it imports its primitives and
+    // the summary asks for the folder. Part files picked with it still import.
+    const urdf = files.find((f) => isUrdfFile(f.name))
+    if (urdf) {
+      if (parts.length > 0) await importPartFiles(controller, parts)
+      await importRobot(new Map(files.map((f) => [f.name, f])), urdf.name)
+      return
+    }
+    const models = files.filter((f) => isModelFile(f.name))
     if (parts.length > 0) await importPartFiles(controller, parts)
     if (models.length === 0) return
     newPartFromModel(controller, models[0]!)
     if (models.length > 1) alert(t(M.oneModelAtATime, { file: models[0]!.name }))
+  }
+  // the robot importer (its three.js mesh loaders, the URDF reader and the GLB writer) loads only when a robot is
+  // imported: most sessions never do, and it would cost every first frame
+  const importRobot = async (files: ReadonlyMap<string, Blob>, root: string): Promise<void> => {
+    if (!controller || state.readOnly) return
+    const { newPartFromUrdf } = await import('../parts/urdfPartImport')
+    const { message } = await newPartFromUrdf(controller, files, root)
+    if (message) alert(message)
+  }
+  // a robot's folder: its URDF, or a choice when the top of the folder has several (a description package often
+  // holds one per model of a robot family)
+  const onPickRobotFolder = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const list = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (list.length === 0) return
+    const { folderFiles, noUrdfMessage, urdfRootsOf } = await import('../parts/urdfPartImport')
+    const files = folderFiles(list)
+    const roots = urdfRootsOf(files)
+    if (roots.length === 0) {
+      alert(noUrdfMessage(list[0]!.webkitRelativePath.split('/')[0] ?? ''))
+      return
+    }
+    if (roots.length === 1) {
+      void importRobot(files, roots[0]!)
+      return
+    }
+    setMenu({
+      ...menuAt.current,
+      items: roots.map((root, i) => ({ label: t(M.whichUrdf, { file: root }), testid: `catalog-import-urdf-${i}`, onClick: () => void importRobot(files, root) })),
+    })
   }
   const onImportFile = (e: ChangeEvent<HTMLInputElement>): void => {
     const files = Array.from(e.target.files ?? [])
@@ -365,19 +410,19 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
           data-testid="catalog-import"
           title={state.readOnly ? t(M.viewOnly) : getOipPartsApi() ? t(M.importTitleDesktop) : t(M.importTitle)}
           onClick={(e) => {
-            // the desktop also imports a folder of parts (packageSource.ts), where a browser cannot read one
-            if (!getOipPartsApi() || !store) {
-              importRef.current?.click()
-              return
-            }
             const r = e.currentTarget.getBoundingClientRect()
+            menuAt.current = { x: r.left, y: r.bottom }
             setMenu({
               x: r.left,
               y: r.bottom,
               items: [
                 { label: t(M.importFiles), title: t(M.importFilesTitle), testid: 'catalog-import-files', onClick: () => importRef.current?.click() },
-                { label: t(M.importFolder), title: t(M.importFolderTitle), testid: 'catalog-import-folder', onClick: () => void importPartsFolder(store) },
+                // the desktop also imports a folder of parts (packageSource.ts), where a browser cannot read one
+                ...(getOipPartsApi() && store
+                  ? [{ label: t(M.importFolder), title: t(M.importFolderTitle), testid: 'catalog-import-folder', onClick: () => void importPartsFolder(store) }]
+                  : []),
                 { label: t(M.importModel), title: t(M.importModelTitle), testid: 'catalog-import-model', onClick: () => importModelRef.current?.click() },
+                { label: t(M.importRobot), title: t(M.importRobotTitle), testid: 'catalog-import-robot', onClick: () => importRobotRef.current?.click() },
               ],
             })
           }}
@@ -394,8 +439,10 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         >
           {t(M.getParts)}
         </button>
-        <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT}`} multiple hidden onChange={onImportFile} />
+        <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT},.urdf`} multiple hidden onChange={onImportFile} />
         <input ref={importModelRef} type="file" accept={MODEL_ACCEPT} hidden onChange={onImportFile} data-testid="catalog-import-model-input" />
+        {/* webkitdirectory is not in React's input attributes; every browser and Electron read it */}
+        <input ref={importRobotRef} type="file" hidden onChange={(e) => void onPickRobotFolder(e)} data-testid="catalog-import-robot-input" {...{ webkitdirectory: '' }} />
         {/* the row scrolls sideways when the categories outgrow it; the wheel scrolls it, since its scrollbar is hidden */}
         <div
           className="catalog-tabs segmented"

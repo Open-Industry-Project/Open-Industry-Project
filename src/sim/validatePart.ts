@@ -18,7 +18,8 @@ import type { ParamSchema } from '../core/parts/partApi'
 import type { PartPackage } from '../core/parts/partPackage'
 import { checkGeometryRefs, checkParamSpecs, undeclaredParamReads } from '../core/parts/partAuthoringChecks'
 import { evalPartGeometry, geometryLampNames, resolvePartParams } from '../core/geometry/geometryEval'
-import { PACKAGE_FORMAT, rigLampNames, servoJointsJson } from '../core/parts/partPackage'
+import { PACKAGE_FORMAT, rigLampNames, rigJointsJson } from '../core/parts/partPackage'
+import { ROBOT_PARAMS } from '../core/robot/robotController'
 import { validatePartPackage, validateSnapParamRefs } from '../core/parts/partValidate'
 import { canonicalOrigin, canonicalSnap } from '../core/parts/partUpgrade'
 import type { PackageManifest } from '../core/parts/partPackage'
@@ -58,7 +59,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   }
 
   // 2) Load - run the script once through the single eval chokepoint to bake the schema + read decls.
-  const handle = create(behaviorSource, '{}', servoJointsJson(manifest.geometry), posableArraysJson(manifest.geometry))
+  const handle = create(behaviorSource, '{}', rigJointsJson(manifest.geometry), posableArraysJson(manifest.geometry))
   if (handle <= 0) {
     const e = error() // also clears the runtime's error buffer
     // When determinism already explained the failure, don't duplicate it as an opaque load error.
@@ -98,6 +99,20 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   }
   for (const l of decl.lamps) {
     if (!lampNames.has(l)) diagnostics.push({ kind: 'rig', message: `declared lamp "${l}" is not a rig lamp (an entry of a link's \`lamps\`, named or taking the link's name, or of a drawn submesh's \`lamps\`)` })
+  }
+
+  // a robot's gripper, tool link, lamp and grip joint name parts of the rig, and the params its controller reads have
+  // the types it reads them as (its joint names are checked at load: createRobot refuses one the rig lacks)
+  if (decl.robot) {
+    const r = decl.robot
+    if (r.gripper !== undefined && !linkNames.has(r.gripper)) diagnostics.push({ kind: 'rig', message: `robot.gripper "${r.gripper}" is not a rig link` })
+    if (r.tool !== undefined && !linkNames.has(r.tool)) diagnostics.push({ kind: 'rig', message: `robot.tool "${r.tool}" is not a rig link, so the tool is drawn on nothing` })
+    if (r.lamp !== undefined && !lampNames.has(r.lamp)) diagnostics.push({ kind: 'rig', message: `robot.lamp "${r.lamp}" is not a rig lamp` })
+    if (r.gripJoint !== undefined && !jointNames.has(r.gripJoint.name)) diagnostics.push({ kind: 'rig', message: `robot.gripJoint "${r.gripJoint.name}" is not a rig joint` })
+    for (const [name, type] of Object.entries(ROBOT_PARAMS)) {
+      const spec = params[name]
+      if (spec && spec.type !== type) diagnostics.push({ kind: 'package', message: `robot: the controller reads param "${name}" as a ${type}, but it is declared as a ${spec.type}` })
+    }
   }
 
   // 4) Package - structural validation of the assembled artifact.

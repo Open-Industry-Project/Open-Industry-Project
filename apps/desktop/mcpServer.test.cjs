@@ -80,7 +80,7 @@ async function main() {
       const got = await readModel(join(dir, 'm.glb'))
       assert.equal(got.name, 'm.glb')
       assert.deepEqual([...got.bytes], [1, 2, 3])
-      assert.match((await readModel(join(dir, 'notes.txt'))).error, /a model is a \.glb, \.step, \.stp or USD/)
+      assert.match((await readModel(join(dir, 'notes.txt'))).error, /a model is a \.glb, \.step, \.stp, USD .* or URDF/)
       // a USD root brings the layers and images under its folder, keyed from there; hidden folders and other files stay out
       mkdirSync(join(dir, 'payloads'))
       mkdirSync(join(dir, '.thumbs'))
@@ -94,6 +94,25 @@ async function main() {
       // a .usdz is one file
       writeFileSync(join(dir, 'm.usdz'), Buffer.from([7]))
       assert.equal((await readModel(join(dir, 'm.usdz'))).files, undefined)
+      // a URDF in a ROS package's urdf folder brings the meshes it names, and nothing else there, keyed from the
+      // package folder: package:// from the package, a relative path from the URDF's folder, a missing one left out
+      mkdirSync(join(dir, 'arm', 'urdf'), { recursive: true })
+      mkdirSync(join(dir, 'arm', 'meshes'))
+      writeFileSync(
+        join(dir, 'arm', 'urdf', 'arm.urdf'),
+        '<robot name="arm"><link name="a"><visual><geometry><mesh filename="package://arm/meshes/link.stl"/></geometry></visual>' +
+          "<collision><geometry><mesh filename='../meshes/hull.obj'/></geometry></collision></link>" +
+          '<link name="b"><visual><geometry><mesh filename="package://arm/meshes/gone.stl"/></geometry></visual></link></robot>',
+      )
+      writeFileSync(join(dir, 'arm', 'meshes', 'link.stl'), Buffer.from([8]))
+      writeFileSync(join(dir, 'arm', 'meshes', 'hull.obj'), 'v 0 0 0')
+      writeFileSync(join(dir, 'arm', 'meshes', 'spare.stl'), Buffer.from([9]))
+      const robot = await readModel(join(dir, 'arm', 'urdf', 'arm.urdf'))
+      assert.equal(robot.root, 'urdf/arm.urdf')
+      assert.deepEqual(robot.files.map((f) => f.path).sort(), ['meshes/hull.obj', 'meshes/link.stl', 'urdf/arm.urdf'])
+      // a lone URDF beside unrelated files reads only itself
+      writeFileSync(join(dir, 'lone.urdf'), '<robot name="lone"/>')
+      assert.deepEqual((await readModel(join(dir, 'lone.urdf'))).files.map((f) => f.path), ['lone.urdf'])
       assert.match((await readModel('m.glb')).error, /absolute path/)
       assert.match((await readModel(join(dir, 'gone.step'))).error, /no such file/)
     } finally {

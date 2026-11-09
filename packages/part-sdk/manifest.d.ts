@@ -672,6 +672,16 @@ export interface RigJoint {
      *  IK end-effector) and the authored idle `pose` row indexes only non-cosmetic joints. FK/sim treat it like
      *  any other joint. */
     cosmetic?: boolean;
+    /** This joint follows another: it is posed at the leader's value × `multiplier` (default 1) + `offset` (default 0),
+     *  then held to its own limits. A gripper's second finger is the usual case. The host poses it everywhere the
+     *  leader is posed (the sim, the rendered FK, the teach gizmo), so the behavior commands only the leader, and
+     *  `ctx.setJoint` on a follower changes nothing. The leader must be another joint of the rig that follows none.
+     *  The teach gizmo and the PLC panel leave a follower out. */
+    mimic?: {
+        joint: string;
+        multiplier?: number;
+        offset?: number;
+    };
     /** The settled (idle/held) value the behavior slews this joint to, as a param binding: resolves
      *  `params[param] × scale + add` in the joint's native unit (revolute radians, prismatic metres) - e.g. a
      *  turntable's `{ param: 'deckAngleDeg', scale: π/180 }`. Lets the host mirror the at-rest pose without
@@ -688,6 +698,40 @@ export interface RigJoint {
      *  narrowed by {@link minParam} / {@link maxParam}). The caps are in the joint's native unit, per second
      *  (revolute radians, prismatic metres); a command asking for more is held to them. */
     servo?: RigServo;
+}
+
+/**
+ * A part's `robot` declaration in definePart: the host runs a robot controller for it, reached as `ctx.robot`
+ * ({@link RobotController}). `robot: true` drives every joint of the rig that is not a servo, cosmetic or following
+ * another (mimic), in rig order. An object names the `joints` (in waypoint column order), the `gripper` link a Grip
+ * step closes, a `lamp` lit while it holds, and a `gripJoint` that opens and closes with the grip (`open` and `closed`
+ * in the joint's own units, rad or m).
+ */
+export interface RobotDeclaration {
+    joints?: readonly string[];
+    gripper?: string;
+    lamp?: string;
+    gripJoint?: {
+        name: string;
+        open: number;
+        closed: number;
+    };
+    /** the link the host draws the robot's tool on, the one the `tool` param picks (core/robot/robotTools.ts) */
+    tool?: string;
+}
+
+/**
+ * `ctx.robot`, for a part that declares `robot`: the host's robot controller (core/robot/robotController.ts).
+ * `step()`, called once from the part's step(), takes the PLC's command, runs the job, moves the arm on a coordinated
+ * profile, and writes the joints, grip, lamp, Done tag and outputs. It reads the part's params by fixed names, which the
+ * part declares like any other params: `speed`, `accel`, `blendDeg`, `waypoints`, `waypointNames`, `blendWaypoints`,
+ * `jobs` (rows `[job, op, a, b]`: op 1 Move to waypoint a, b = 1 to blend; 2 Grip, a = 1 on; 3 Wait a seconds; 4 Wait
+ * for input a + 1 to read b; 5 Set output a + 1 to b), `jobNames`, `pose` (the idle pose), and the tags `commandTag`,
+ * `executeTag`, `doneTag`, `enableTag`, `gripperTag`, `in1Tag`..`in4Tag`, `out1Tag`..`out4Tag`. Positions are degrees
+ * for a revolute joint and millimetres for a prismatic one. The six-axis robot declares them all.
+ */
+export interface RobotController {
+    step(): void;
 }
 
 export interface RigServo {
@@ -770,6 +814,10 @@ export interface RigGeometry {
      *  gate, diverter, blade-stop, turntable); an interactive pose gizmo there is a false affordance. Omitted/false
      *  = no in-scene pose gizmo (the joints still articulate; FK/sim are unaffected). */
     posable?: boolean;
+    /** The link the teach gizmo's end-effector handle drags: the tool point (a robot's flange or TCP frame). The IK
+     *  moves only the joints between the rig root and this link, so a gripper's finger joints, which branch off
+     *  beside it, keep their place. Omitted = the link of the last posable joint. */
+    tool?: string;
     /** Marks the rig a whole-bed incline conveyor: names a `number` param (degrees) that tilts the whole bed about
      *  the rig root, around local +Z (cross-bed), so the +X head lifts by run·sin while the origin stays put
      *  The host tilts render + collision from the one param, regrows the trestle legs

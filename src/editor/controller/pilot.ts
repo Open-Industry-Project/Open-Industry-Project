@@ -13,7 +13,7 @@ import { pilotUsable } from '../../core/scene/scene'
 import { flexPathOf, flexPull, toWorldXZ, withFlexPose } from '../../core/parts/partGeometry'
 import type { FlexGrip } from '../../core/parts/partGeometry'
 import { getPackage } from '../../core/parts/partRegistry'
-import { servoJointsJson } from '../../core/parts/partPackage'
+import { rigJointsJson } from '../../core/parts/partPackage'
 import { posableArraysJson } from '../../core/rig/rigPose'
 import type { PartInstance, SdkPart } from '../../core/types'
 import type { BoxPick } from '../../render/api'
@@ -178,7 +178,7 @@ function idleUsePart(ec: PilotDeps, partId: string): void {
   // starts from the pose on screen: a dispenser holding its authored stack, not parked under it
   const zones = pkg.holds && pkg.geometry.kind === 'rig' ? authoredZoneCounts(part as SdkPart, pkg, buildAuthoredCargoFrame(ec.editTargetViewScene(s).parts)) : undefined
   const params = ((part as SdkPart).params ?? {}) as Record<string, ParamValue>
-  ec.pressIdle(partId, idleKey(pkg.behavior, params, zones), () => IdleUseSession.open(pkg.behavior, params, zones, servoJointsJson(pkg.geometry), posableArraysJson(pkg.geometry)))
+  ec.pressIdle(partId, idleKey(pkg.behavior, params, zones), () => IdleUseSession.open(pkg.behavior, params, zones, rigJointsJson(pkg.geometry), posableArraysJson(pkg.geometry)))
 }
 
 /** how far from the hands a flex conveyor's control point can be and still be taken hold of, metres */

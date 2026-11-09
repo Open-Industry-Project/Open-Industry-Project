@@ -600,6 +600,8 @@ lamps [vacuumLamp] animates=true
   link toolSuction {shape:mesh}
   link gripper {gripZone:true,shape:frame}
   link eoat {shape:frame}
+  link fingerA {shape:frame}
+  link fingerB {shape:frame}
   drawn[0] {material:eoatPaint,rides:eoat}
   drawn[1] {material:eoatRail,rides:eoat}
   drawn[2] {material:eoatSteel,rides:eoat}

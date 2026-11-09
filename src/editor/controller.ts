@@ -1098,8 +1098,8 @@ export class EditorController {
    * the scene. Returns the new package id (null on a view-only link or in a shared room, where the Part
    * Editor is refused).
    */
-  createBlankPart(): string | null {
-    return authoringOps.createBlankPart(this)
+  createBlankPart(from?: Parameters<typeof authoringOps.createBlankPart>[1]): string | null {
+    return authoringOps.createBlankPart(this, from)
   }
 
   /** A part's own name and catalog category (the definition's, not a placed copy's). Returns '' or why not. */

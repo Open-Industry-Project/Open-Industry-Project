@@ -23,10 +23,13 @@ Order: `src/sim` (with `src/collab`) → `src/render` → `src/core` → `src/pl
 |------|-------|----------------|----------|---------|
 | 2026-11-02 | Full sweep, all six areas | `b9aa510f` | ~30 verified | Fixed in `4da3d619`..`820921d0`, gates in `e64ccf2f` `b5a8455e`, reveal race `85e76749`, IEC semantics `a7648fc8` |
 | 2026-11-06 | `b9aa510f..7f0483a4`, then `src/sim` + `src/collab` | `7f0483a4` | 19 checked against the code (none run): 7 real, 8 partly, 4 not real | Reported, not fixed yet |
+| 2026-11-09 | Uncommitted robot work on `05728680` (URDF import, robot controller and tools, ready pose, agent robot tools, Space on a button) | `05728680` + working tree | 10 checked against the code: 9 real, 1 deliberate | 9 fixed in the working tree with tests; 1 accepted below |
 
 ## Accepted
 
 Findings looked at and left, with the reason. Remove an entry when its reason stops holding.
+
+- **core/robot/robotController.ts:** a robot with no waypoints ignores a command, where the six-axis part's own script used to fall back to its default poses. Deliberate: with no waypoints there is nowhere to go, and the Inspector's grid cannot make a row of the wrong width.
 
 - **render/viewport/boxes.ts:** empty SimBoxes batches stay visible. The box batch may be kept visible as a pipeline warm; changing it needs a draw-budget and warm-load check first.
 - **sim/client.ts:** worker messages carry no run id, so a Stop then Play within a frame can accept one stale frame. Rare, and the fix touches the worker protocol.

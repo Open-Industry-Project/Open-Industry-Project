@@ -29,7 +29,7 @@ import { beltDeckSubsLocal, conveyorDeckSubs, worldSub } from '../core/geometry/
 import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
 import type { BeltSegmentSpec } from '../core/types'
 import type { PartPackage } from '../core/parts/partPackage'
-import { isCargoPackage, servoJointsJson, subPosedLinkNames } from '../core/parts/partPackage'
+import { isCargoPackage, rigJointsJson, subPosedLinkNames } from '../core/parts/partPackage'
 import * as behavior from './embeddedBehavior'
 import { getPackage, registerNewScenePackages, registerScenePackages } from '../core/parts/partRegistry'
 import { arrayInstanceDeltas, linkHalfExtents, pitchCapMessage, posableArraysJson, qApply, qFromAxisAngle, qMul, rigWorldPoses } from '../core/rig/rigPose'
@@ -524,6 +524,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       inp.weights = b.partId ? this.loadCells.readingsOf(b.partId) : undefined // ctx.weight
       inp.joints = b.measuredJoints
       inp.grips = b.heldGrips
+      inp.gripWidths = b.heldWidths
       inp.used = used
       inp.conveyorSpeeds = conveyorSpeeds
       const ts = this.perfParts ? performance.now() : 0
@@ -1067,7 +1068,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       // rig: a joint-emitting behavior + a kinematic collision body per link. tickBehaviors captures the
       // joints, RigDriver.drive runs FK (shared with the renderer) and MoveKinematic's each body so the
       // links both push cargo and animate the visual identically.
-      const rec = this.attachJointBehavior(part.id, pkg.behavior, JSON.stringify(part.params), part.position, part.rotationY, servoJointsJson(pkg.geometry), posableArraysJson(pkg.geometry))
+      const rec = this.attachJointBehavior(part.id, pkg.behavior, JSON.stringify(part.params), part.position, part.rotationY, rigJointsJson(pkg.geometry), posableArraysJson(pkg.geometry))
       if (!rec) this.reportAttachFailure(part)
       if (rec) {
         // The bodies are built from the default-resolved params, as the renderer draws the links (rig.ts refresh): a
@@ -1230,8 +1231,8 @@ export class SimWorld implements SimCore<BoxFrame> {
   }
 
   /** Attach a joint-only rig behavior (no deck body/conveyor entry), tracked by part id for the frame. */
-  private attachJointBehavior(partId: string, source: string, paramsJson: string, position: [number, number, number], rotationY: number, servosJson?: string, arraysJson?: string): BehaviorRecord | null {
-    const handle = behavior.create(source, paramsJson, servosJson, arraysJson)
+  private attachJointBehavior(partId: string, source: string, paramsJson: string, position: [number, number, number], rotationY: number, jointsJson?: string, arraysJson?: string): BehaviorRecord | null {
+    const handle = behavior.create(source, paramsJson, jointsJson, arraysJson)
     if (handle <= 0) return null
     const rec = behaviorRecord(handle, position, [Math.cos(rotationY), 0, -Math.sin(rotationY)], null, { partId, joints: {} })
     this.bus.add(rec)

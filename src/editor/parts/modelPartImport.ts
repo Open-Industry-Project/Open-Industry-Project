@@ -8,6 +8,9 @@ import type { EditorController } from '../controller'
 
 export const isModelFile = (name: string): boolean => /\.(glb|step|stp|usd|usda|usdc|usdz)$/i.test(name)
 
+/** a URDF robot description; kept here, beside isModelFile, so the Parts dock can tell one without loading the importer */
+export const isUrdfFile = (name: string): boolean => /\.urdf$/i.test(name)
+
 /** what Import part's file picker takes besides part files */
 export const MODEL_ACCEPT = '.glb,.step,.stp,.usd,.usda,.usdc,.usdz,model/gltf-binary'
 
