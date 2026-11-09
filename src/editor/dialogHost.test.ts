@@ -50,6 +50,14 @@ describe('keyBelongsToTarget', () => {
     expect(keyBelongsToTarget(key(button, 'Escape'))).toBe(false)
   })
 
+  it('leaves Space on a button to the transport when it asks, but not Enter, a checkbox or a code editor', () => {
+    const asks = { spaceOnButton: false }
+    expect(keyBelongsToTarget(key(el('BUTTON'), ' '), asks)).toBe(false)
+    expect(keyBelongsToTarget(key(el('BUTTON'), 'Enter'), asks)).toBe(true)
+    expect(keyBelongsToTarget(key(el('INPUT', { type: 'checkbox' }), ' '), asks)).toBe(true)
+    expect(keyBelongsToTarget(key(el('BUTTON', { inRegion: true }), ' '), asks)).toBe(true)
+  })
+
   it('gives a key-owning region (a code editor and its find bar) every key, even on a button', () => {
     const findButton = el('BUTTON', { inRegion: true })
     expect(keyBelongsToTarget(key(findButton, 'Escape'))).toBe(true)

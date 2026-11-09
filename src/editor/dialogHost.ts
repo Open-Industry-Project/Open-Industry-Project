@@ -97,7 +97,7 @@ const KEY_OWNING_REGION = '.cm-editor, .ld-find'
  * clicking an Inspector checkbox, until the viewport was clicked. A key-owning region owns all its keys: a
  * focused button in the code editor's find bar used to pass Escape and Delete through to the 3D editor.
  */
-export function keyBelongsToTarget(e: KeyboardEvent): boolean {
+export function keyBelongsToTarget(e: KeyboardEvent, opts: { spaceOnButton?: boolean } = {}): boolean {
   const t = e.target
   if (!isElement(t)) return false
   if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.closest(KEY_OWNING_REGION)) return true
@@ -113,7 +113,9 @@ export function keyBelongsToTarget(e: KeyboardEvent): boolean {
   }
   // a select also jumps to an option by typed letter, so it keeps every unmodified key
   if (t.tagName === 'SELECT') return !chord
-  if (t.tagName === 'BUTTON') return !chord && (e.key === ' ' || e.key === 'Enter')
+  // `spaceOnButton: false` leaves Space on a focused button to the caller (the transport plays and pauses over the
+  // button a click left focused); Enter still presses it
+  if (t.tagName === 'BUTTON') return !chord && ((e.key === ' ' && opts.spaceOnButton !== false) || e.key === 'Enter')
   return false
 }
 

@@ -679,7 +679,7 @@ export function App({ store, sim }: AppProps) {
   const transportAction = (e: KeyboardEvent): 'sim.playPause' | 'sim.stop' | 'sim.step' | null => {
     const action = resolveKeyAction(e, 'editor')
     if (action !== 'sim.playPause' && action !== 'sim.stop' && action !== 'sim.step') return null
-    if (keyBelongsToTarget(e) || inDialogOrMenu(e.target)) return null
+    if (keyBelongsToTarget(e, { spaceOnButton: false }) || inDialogOrMenu(e.target)) return null
     // free fly, not walk mode: in walk mode Space is free, so it pauses the run and the user can look at the line
     if (controller?.view.isNavigating() && state.mode !== 'pilot') return null
     return action
