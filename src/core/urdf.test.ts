@@ -291,4 +291,33 @@ describe('linkMeshesToGlb', () => {
     ])
     expect(json.materials).toHaveLength(2)
   })
+
+  it('paints a textured piece with its image: texture coordinates, one image however many pieces use it', () => {
+    const tri = (image?: number) => ({
+      color: [1, 1, 1, 1] as [number, number, number, number],
+      pos: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      nrm: null,
+      idx: new Uint32Array([0, 1, 2]),
+      ...(image !== undefined ? { uv: new Float32Array([0, 1, 1, 1, 0, 0]), image } : {}),
+    })
+    const images = [{ bytes: new Uint8Array([1, 2, 3, 4]), mimeType: 'image/webp' }]
+    const { glb } = linkMeshesToGlb([{ name: 'a', pieces: [tri(0), tri()] }, { name: 'b', pieces: [tri(0)] }], images)
+    type Json = {
+      meshes: { primitives: { attributes: Record<string, number>; material: number }[] }[]
+      materials: { pbrMetallicRoughness: { baseColorTexture?: { index: number } } }[]
+      textures: { extensions: { EXT_texture_webp: { source: number } } }[]
+      images: { mimeType: string }[]
+      extensionsRequired: string[]
+    }
+    const { json } = parseGlb(glb) as { json: Json }
+    expect(json.images).toEqual([expect.objectContaining({ mimeType: 'image/webp' })])
+    expect(json.textures).toEqual([{ extensions: { EXT_texture_webp: { source: 0 } } }])
+    expect(json.extensionsRequired).toEqual(['EXT_texture_webp'])
+    const [textured, plain] = json.meshes[0]!.primitives
+    expect(json.materials[textured!.material]!.pbrMetallicRoughness.baseColorTexture).toEqual({ index: 0 })
+    expect('TEXCOORD_0' in textured!.attributes).toBe(true)
+    expect(json.materials[plain!.material]!.pbrMetallicRoughness.baseColorTexture).toBeUndefined()
+    expect('TEXCOORD_0' in plain!.attributes).toBe(false)
+    expect(json.meshes[1]!.primitives[0]!.material).toBe(textured!.material)
+  })
 })

@@ -956,8 +956,10 @@ one GLB, a node per link, drawn by that link (`node`).
 
 - **Meshes**: STL, COLLADA (`.dae`) and OBJ. `package://<package>/<path>` is matched against the picked folder by
   its longest tail, so the folder can be the package, its parent or a workspace. A relative path is resolved
-  against the URDF file. A COLLADA file keeps its own colours, units and up axis. STL, OBJ and the primitives (box,
-  cylinder, sphere) take the URDF material's colour, read as sRGB.
+  against the URDF file. A COLLADA file keeps its own colours, units and up axis, and an OBJ the colours of the
+  `.mtl` file it names. A material painted with an image keeps it as a texture (a UR20's grey and blue are one
+  image), shrunk to 1024 px on its longest side and stored once in the part however many meshes use it. STL, an OBJ
+  without its `.mtl`, and the primitives (box, cylinder, sphere) take the URDF material's colour, read as sRGB.
 - **Size**: past 150k triangles in all, the meshes are simplified toward that. Robot CAD exports are usually far
   finer than a simulation needs. A mesh whose normals are stored per triangle corner (nothing to share) gets them
   recomputed, smooth across faces that meet within 30°, which keeps its vertex count near a welded mesh's.
@@ -980,7 +982,7 @@ one GLB, a node per link, drawn by that link (`node`).
   pose, so this keeps taught poses elbow up. An arm with a sliding joint, or one no ready pose reaches, idles at 0.
 - **mimic** becomes a joint `mimic`, so a gripper's second finger follows the first. A follower of a fixed or
   missing joint, or of one that follows another itself, moves on its own and is listed.
-- **Not imported**: inertia, floating and planar joints (the link stays put), textures and Gazebo tags. Each is
+- **Not imported**: inertia, floating and planar joints (the link stays put), and Gazebo tags. Each is
   listed in a message after the import.
 - **xacro** is expanded to URDF first (core/xacro.ts), as ROS's `xacro` tool does, so a description published only
   as xacro imports without ROS. Properties, arguments, macros (defaults, `^`, `*block`, `**content`), includes, `if`

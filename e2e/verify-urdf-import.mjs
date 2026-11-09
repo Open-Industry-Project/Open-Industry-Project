@@ -12,6 +12,8 @@
 //   H) a xacro description in two ROS packages, whose model argument names none by default, asks which model (the
 //      models its YAML folders hold), then asks about the on/off argument that adds a link (not the one that adds
 //      only a simulator tag), and imports what was picked: its macro, its include through $(find), its YAML
+//   I) an OBJ mesh with the .mtl file it names keeps that file's materials: an image-painted one as a texture (its
+//      texture coordinates and the image in the part's GLB), a plain one as its colour
 //   G) mimic and collision: a second finger follows the first (a joint `mimic`), each <collision> is a hidden collider
 //      link, and running the robot in a scene, a box dropped on its base comes to rest on the base's collider
 //
@@ -23,6 +25,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { deflateSync } from 'node:zlib'
 import { startServer } from './_server.mjs'
 import { chromium } from 'playwright'
 
@@ -149,6 +152,54 @@ writeFileSync(join(pkg, 'meshes', 'base.stl'), stl(boxTriangles([-100, -100, 0],
 // a 50 cm arm along +X, 10 cm square
 writeFileSync(join(pkg, 'meshes', 'visual', 'arm.dae'), dae(boxTriangles([0, -5, -5], [50, 5, 5])))
 writeFileSync(join(dir, 'macro.urdf'), '<robot name="m" xmlns:xacro="http://www.ros.org/wiki/xacro"><xacro:include filename="arm.xacro"/></robot>')
+
+// I: a robot whose body is an OBJ with a .mtl: one face painted with an image, one a plain blue
+/** A w x h RGB PNG of `rgb` (a pixel's three bytes, row by row). */
+function png(w, h, rgb) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    return c >>> 0
+  })
+  const crc = (buf) => {
+    let c = 0xffffffff
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8)
+    return (c ^ 0xffffffff) >>> 0
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4)
+    len.writeUInt32BE(data.length)
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data])
+    const sum = Buffer.alloc(4)
+    sum.writeUInt32BE(crc(body))
+    return Buffer.concat([len, body, sum])
+  }
+  const head = Buffer.alloc(13)
+  head.writeUInt32BE(w, 0)
+  head.writeUInt32BE(h, 4)
+  head[8] = 8 // bit depth
+  head[9] = 2 // RGB
+  const rows = []
+  for (let y = 0; y < h; y++) rows.push(Buffer.from([0]), Buffer.from(rgb.slice(y * w * 3, (y + 1) * w * 3)))
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', head), chunk('IDAT', deflateSync(Buffer.concat(rows))), chunk('IEND', Buffer.alloc(0))])
+}
+const texBot = join(dir, 'tex_bot')
+mkdirSync(join(texBot, 'urdf'), { recursive: true })
+mkdirSync(join(texBot, 'meshes'), { recursive: true })
+writeFileSync(join(texBot, 'meshes', 'paint.png'), png(2, 2, [255, 128, 0, 255, 128, 0, 255, 128, 0, 255, 128, 0]))
+writeFileSync(join(texBot, 'meshes', 'body.mtl'), 'newmtl paint\nKd 1 1 1\nmap_Kd paint.png\n\nnewmtl trim\nKd 0 0 1\n')
+writeFileSync(
+  join(texBot, 'meshes', 'body.obj'),
+  'mtllib body.mtl\nv 0 0 0\nv 0.2 0 0\nv 0.2 0.2 0\nv 0 0.2 0.1\nv 0.2 0 0.1\nv 0.2 0.2 0.1\n' +
+    'vt 0 0\nvt 1 0\nvt 1 1\nvn 0 0 1\nusemtl paint\nf 4/1/1 5/2/1 6/3/1\nusemtl trim\nf 1/1/1 2/2/1 3/3/1\n',
+)
+writeFileSync(
+  join(texBot, 'urdf', 'tex_bot.urdf'),
+  '<robot name="tex_bot"><link name="base"><visual><geometry><mesh filename="package://tex_bot/meshes/body.obj"/></geometry></visual></link>' +
+    '<link name="arm"/><link name="tool0"/>' +
+    '<joint name="yaw" type="revolute"><parent link="base"/><child link="arm"/><axis xyz="0 0 1"/><limit lower="-1" upper="1"/></joint>' +
+    '<joint name="flange" type="fixed"><parent link="arm"/><child link="tool0"/><origin xyz="0.3 0 0.2"/></joint></robot>',
+)
 
 // H: a xacro robot in two packages. The description picks its dimensions from config/<model>/dims.yaml, and the arm
 // macro lives in a second package it finds with $(find). Plain strings, so the ${...} is xacro's, not JavaScript's.
@@ -384,6 +435,25 @@ try {
   const elbow = fromXacro?.geometry?.links?.find((l) => l.name === 'fore')
   check("H  its dimensions come from the model's YAML (m2: upper arm 0.6 m)", !!elbow && near(elbow.offset[0], 0.6), JSON.stringify(elbow?.offset))
   check('H  the box primitives are drawn, the tip with them, nothing to report', JSON.stringify(fromXacro?.gltf?.nodes.map((n) => n.name)) === JSON.stringify(['base_link', 'upper', 'fore', 'tip']) && alerts.length === alertsBefore4, `nodes ${JSON.stringify(fromXacro?.gltf?.nodes.map((n) => n.name))}, alerts ${alerts.slice(alertsBefore4).join(' | ')}`)
+  await page.evaluate(() => window.__oip.controller.closePartScene())
+
+  // I
+  const before5 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
+  const alertsBefore5 = alerts.length
+  await page.getByTestId('catalog-import-robot-input').setInputFiles(texBot)
+  await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before5, { timeout: 60000 })
+  await page.waitForTimeout(200)
+  const textured = (await newest())?.gltf
+  const prims = textured?.meshes?.[0]?.primitives ?? []
+  const painted = prims.find((p) => textured.materials[p.material]?.pbrMetallicRoughness?.baseColorTexture)
+  const plain = prims.find((p) => p !== painted)
+  check(
+    'I  the .mtl image paints its face: texture coordinates, and the image once in the GLB',
+    !!painted && 'TEXCOORD_0' in painted.attributes && textured.images?.length === 1 && alerts.length === alertsBefore5,
+    `${JSON.stringify(prims)} images ${JSON.stringify(textured?.images)} alerts ${alerts.slice(alertsBefore5).join(' | ')}`,
+  )
+  const blue = plain ? textured.materials[plain.material].pbrMetallicRoughness.baseColorFactor : null
+  check("I  the .mtl's plain colour is kept: the trim is blue, with no image", !!blue && blue[2] > 0.9 && blue[0] < 0.05 && blue[1] < 0.05 && !('TEXCOORD_0' in plain.attributes), JSON.stringify(blue))
   await page.evaluate(() => window.__oip.controller.closePartScene())
 
   // G
