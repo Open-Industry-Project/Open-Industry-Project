@@ -2,7 +2,7 @@ import { Box3, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide
 import type { Material, Object3D, Texture } from 'three'
 import { arrayInstanceDeltas, pitchCapMessage, resolvedBoxSize, resolvedCylinder, resolvedMeshScale, restQuatOf } from '../../../core/rig/rigPose'
 import { reportPartDiagnostic } from '../../../core/parts/partDiagnostics'
-import { robotColumns } from '../../../core/robot/robotIk'
+import { robotColumns, robotDeclOfScript, robotKinematicsOf } from '../../../core/robot/robotIk'
 import type { SeamContext, SubPose } from '../../../core/rig/rigPose'
 import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
@@ -822,7 +822,10 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
       }
     : undefined
 
-  const gizmo = buildRigGizmo(geo, root, linkGroups, applyJoints, paramSpecs)
+  // a robot's gizmo drags its grip point, which is the tool's it carries (core robotKinematics): read per refresh
+  const robotDecl = geo.posable === true ? robotDeclOfScript(pkg.behavior) : null
+  const gripEnd = (params: Record<string, ParamValue>): string | undefined => (robotDecl ? robotKinematicsOf(geo, robotDecl, params)?.end : undefined)
+  const gizmo = buildRigGizmo(geo, root, linkGroups, applyJoints, paramSpecs, gripEnd(resolvePartParams(paramSpecs, {})))
   // the authored idle pose: a `pose` numberList param whose first row is the rig's at-rest pose. A robot's row is
   // its controller's joints in its units (° and mm, core robotColumns); any other rig's is its posable joints in
   // degrees (cosmetic self-driven joints are not in the row). Only an array is valid, matching the numberList grid
@@ -904,6 +907,8 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
       // footprint describe one part.
       const resolvedParams = resolvePartParams(paramSpecs, p.params as Record<string, ParamValue>)
       gizmo?.setSizes?.(resolvedParams)
+      const end = gripEnd(resolvedParams)
+      if (end !== undefined) gizmo?.setEnd(end)
       const params = resolvedParams as RigParams
       // Pass the part placement as the seam so world-phase beds (roller grids) align across butted parts;
       // the centred default ignores it (docs/seam-resolvers.md).

@@ -49,6 +49,9 @@ export interface RigGizmo {
   /** track the rigSize handles + tool outline at the (default-resolved) param values; absent when the
    *  package declares no rigSize handles */
   setSizes?(params: Record<string, ParamValue>): void
+  /** drag the end-effector by this link from now on (a robot's grip point, which follows the tool it carries); a
+   *  link the rig lacks is ignored */
+  setEnd(link: string): void
 }
 
 /** a unit vector perpendicular to `a` (the ring's angle-0 reference in the link's frame) */
@@ -63,6 +66,9 @@ export function buildRigGizmo(
   linkGroups: Map<string, Group>,
   applyJoints: (joints: Record<string, number>) => void,
   paramSpecs: PartPackage['params'],
+  /** the link the end-effector handle drags: a robot's grip point (core robotKinematics `end`). Else the rig's `tool`,
+   *  else the last posable joint's link */
+  end?: string,
 ): RigGizmo | null {
   // opt-in: the in-scene teach-by-pose gizmo shows only for rigs that declare `posable` (manipulators you hand-
   // teach - robot / gantry / AGV lift). A rig whose joints are sim/PLC-driven (safety gate, diverter, blade-stop,
@@ -71,8 +77,9 @@ export function buildRigGizmo(
   // cosmetic joints (self-driven dressing - wheels, ratio pistons) are not author-posable: no ring, never the EE
   const posable = posableJoints(geo)
   if (posable.length === 0) return null
-  const eeGroup = (geo.tool !== undefined ? linkGroups.get(geo.tool) : undefined) ?? linkGroups.get(posable[posable.length - 1]!.link)
-  if (!eeGroup) return null
+  const firstEnd = (end !== undefined ? linkGroups.get(end) : undefined) ?? (geo.tool !== undefined ? linkGroups.get(geo.tool) : undefined) ?? linkGroups.get(posable[posable.length - 1]!.link)
+  if (!firstEnd) return null
+  let eeGroup: Group = firstEnd
   // The joints the IK moves: those whose link is the tool's or one above it, root first. A gripper's fingers branch
   // off beside the tool and keep their place. A tool under none of them (a misplaced `tool`) moves them all.
   const depth = (o: Object3D): number => { let d = 0; for (let p = o.parent; p && p !== root; p = p.parent) d++; return d }
@@ -327,6 +334,12 @@ export function buildRigGizmo(
   return {
     api,
     ...(setSizes ? { setSizes } : {}),
+    // A robot's grip point moves when its tool changes (an arm's own hand or a tool in its place). The IK chain stays
+    // the one found above: both grip points hang from the same arm joints.
+    setEnd: (link: string) => {
+      const g = linkGroups.get(link)
+      if (g) eeGroup = g
+    },
     // Apply the authored idle pose at rest. Until the gizmo is dragged, the pose is the idle pose (so the rig
     // shows e.g. the robot's home configuration, not the zero pose). After a drag, the dragged pose persists
     // and re-applies here until the idle pose itself changes; the running sim overrides it each frame via

@@ -257,14 +257,18 @@ export interface RobotKinematics {
  * carries; without them it is the hand.
  */
 export function robotKinematics(geometry: RigGeometry, behavior: string, params?: Readonly<Record<string, unknown>>): RobotKinematics | null {
+  const decl = robotDeclOfScript(behavior)
+  return decl ? robotKinematicsOf(geometry, decl, params) : null
+}
+
+/** A part script's robot declaration, or null for a part that is not a robot (or declares one that does not read). */
+export function robotDeclOfScript(behavior: string): RobotDecl | null {
   const def = instantiatePartScript(behavior).def
-  let decl: RobotDecl | null
   try {
-    decl = def ? robotDeclOf(def.robot) : null
+    return def ? robotDeclOf(def.robot) : null
   } catch {
     return null
   }
-  return decl ? robotKinematicsOf(geometry, decl, params) : null
 }
 
 /** One column of a robot's waypoint and idle-pose rows: its joint, and the row's units per native unit (° per rad,
