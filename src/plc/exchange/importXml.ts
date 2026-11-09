@@ -19,125 +19,14 @@ import { OIP_XML, readLdBody } from '../ladder/ladderXml'
 import type { StBlock } from '../document'
 import type { ImportResult } from './importText'
 import { SCALAR_TYPES } from '../types'
+import { parseXml as parseXmlAs, xmlKid, xmlKids, type XmlNode } from '../../core/xml'
 
-// ---- a small XML reader ----
-//
-// Hand-written for the same reason the ST lexer is: this layer carries no runtime dependency,
-// and the shapes a PLCopen file actually contains are a narrow slice of XML. It handles what
-// vendors emit - namespace prefixes, comments, CDATA, self-closing tags, both quote styles and
-// the five named entities plus numeric ones - and not DTDs or processing
-// instructions beyond skipping them.
+/** Parse a PLCopen document into its root element. Throws on malformed input: unlike half-written ST, an XML file
+ *  that does not parse is not a program in progress, it is the wrong file. */
+export const parseXml = (src: string): XmlNode => parseXmlAs(src, 'PLCopen import')
 
-interface XmlNode {
-  /** local name, any namespace prefix stripped: `<tc6:pou>` and `<pou>` are the same element */
-  name: string
-  attrs: Record<string, string>
-  children: XmlNode[]
-  /** character data directly inside this element, entities decoded */
-  text: string
-}
-
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
-
-function decodeEntities(s: string): string {
-  return s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (whole, body: string) => {
-    if (body.startsWith('#x') || body.startsWith('#X')) return String.fromCodePoint(parseInt(body.slice(2), 16))
-    if (body.startsWith('#')) return String.fromCodePoint(Number(body.slice(1)))
-    return ENTITIES[body] ?? whole // an unknown entity stays as written rather than vanishing
-  })
-}
-
-/** Parse a document into its root element. Throws on malformed input: unlike half-written ST,
- *  an XML file that does not parse is not a program in progress, it is the wrong file. */
-export function parseXml(src: string): XmlNode {
-  const root: XmlNode = { name: '#document', attrs: {}, children: [], text: '' }
-  const stack: XmlNode[] = [root]
-  let i = 0
-
-  const top = (): XmlNode => stack[stack.length - 1]!
-
-  while (i < src.length) {
-    const lt = src.indexOf('<', i)
-    if (lt < 0) break
-    if (lt > i) top().text += decodeEntities(src.slice(i, lt))
-
-    if (src.startsWith('<!--', lt)) {
-      const end = src.indexOf('-->', lt + 4)
-      i = end < 0 ? src.length : end + 3
-      continue
-    }
-    if (src.startsWith('<![CDATA[', lt)) {
-      const end = src.indexOf(']]>', lt + 9)
-      top().text += src.slice(lt + 9, end < 0 ? src.length : end) // CDATA is literal, no decoding
-      i = end < 0 ? src.length : end + 3
-      continue
-    }
-    if (src.startsWith('<?', lt) || src.startsWith('<!', lt)) {
-      const end = src.indexOf('>', lt)
-      i = end < 0 ? src.length : end + 1
-      continue
-    }
-    if (src.startsWith('</', lt)) {
-      const end = src.indexOf('>', lt)
-      if (end < 0) throw new Error('PLCopen import: unterminated closing tag')
-      if (stack.length > 1) stack.pop()
-      i = end + 1
-      continue
-    }
-
-    // an opening (possibly self-closing) tag
-    const end = findTagEnd(src, lt)
-    if (end < 0) throw new Error('PLCopen import: unterminated tag')
-    const raw = src.slice(lt + 1, end)
-    const selfClosing = raw.endsWith('/')
-    const inner = selfClosing ? raw.slice(0, -1) : raw
-    const nameMatch = /^\s*([^\s/>]+)/.exec(inner)
-    if (!nameMatch) throw new Error('PLCopen import: tag with no name')
-    const node: XmlNode = {
-      name: localName(nameMatch[1]!),
-      attrs: readAttrs(inner.slice(nameMatch[0].length)),
-      children: [],
-      text: '',
-    }
-    top().children.push(node)
-    if (!selfClosing) stack.push(node)
-    i = end + 1
-  }
-
-  const el = root.children.find((c) => !c.name.startsWith('#'))
-  if (!el) throw new Error('PLCopen import: no root element - is this an XML file?')
-  return el
-}
-
-/** The `>` that closes a tag, skipping any inside a quoted attribute value. */
-function findTagEnd(src: string, from: number): number {
-  let quote = ''
-  for (let i = from + 1; i < src.length; i++) {
-    const ch = src[i]!
-    if (quote) {
-      if (ch === quote) quote = ''
-    } else if (ch === '"' || ch === "'") quote = ch
-    else if (ch === '>') return i
-  }
-  return -1
-}
-
-function localName(qname: string): string {
-  const colon = qname.indexOf(':')
-  return colon < 0 ? qname : qname.slice(colon + 1)
-}
-
-function readAttrs(s: string): Record<string, string> {
-  const attrs: Record<string, string> = {}
-  const re = /([^\s=/>]+)\s*=\s*("([^"]*)"|'([^']*)')/g
-  for (let m = re.exec(s); m; m = re.exec(s)) {
-    attrs[localName(m[1]!)] = decodeEntities(m[3] ?? m[4] ?? '')
-  }
-  return attrs
-}
-
-const kids = (n: XmlNode | undefined, name: string): XmlNode[] => (n?.children ?? []).filter((c) => c.name === name)
-const kid = (n: XmlNode | undefined, name: string): XmlNode | undefined => kids(n, name)[0]
+const kids = xmlKids
+const kid = xmlKid
 
 /** Follow a chain of single child elements: `at(project, 'types', 'pous')`. */
 function at(n: XmlNode | undefined, ...path: string[]): XmlNode | undefined {
