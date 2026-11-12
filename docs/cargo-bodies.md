@@ -38,8 +38,12 @@ duplicate it.
 - **Rendering** (render/parts/partCargoMesh.ts): the part's own visual built once per shape, baked into part-local
   space and merged per material, so every body of that shape draws in one instanced batch per material. The visual is
   built with the colour param white and again black; a material that differs is tinted per body, the rest keep their
-  colour. A late-loading model moves the visual's structure version, and the batches rebuild. The builder loads on
-  the first part-bodied row (a scene without one never loads it); the row draws nothing until then.
+  colour. Every attribute is copied out as floats before the bake: a model's can be quantized integers, which a
+  matrix baked in place would wrap. A late-loading model moves the visual's structure version, and the batches
+  rebuild. An edit to the part's package applies the kept visuals again and rebuilds the batches too
+  (`SimBoxes.refreshPackage`): an edit that keeps the colliders keeps the shape's key, so nothing else would replace
+  them. The builder loads on the first part-bodied row (a scene without one never loads it); the row draws nothing
+  until then.
 - **Spawning and promotion:** a Spawner whose Product is such a part spawns it as its shape (sim/cargoFlow.ts
   `spawnProduct`). A pick of a part-bodied body reports its product, so selecting a spawned drum makes it a drum, not
   a box (editor/controller/liveCargo.ts `promotedAs`).
@@ -48,8 +52,10 @@ duplicate it.
 
 Tests: src/sim/cargoBodies.test.ts (a drum on its side rolls several times as far as a box of its size slides, it
 stands on its end, one collider per shape, and the validation), src/sim/frameWire.test.ts, src/editor/controller/liveCargo.test.ts,
+src/render/parts/partCargoMesh.test.ts (quantized, interleaved and multi-material geometry bakes to floats and merges),
 and e2e/verify-cargo-bodies.mjs (drums draw as their own visual stopped and running, a Spawner makes drums, 200 drums
-cost the draws of 2).
+cost the draws of 2, a model-drawn part draws its model, and an edit to the part's look reaches the bodies already
+drawn).
 
 ## Capabilities, not kinds
 

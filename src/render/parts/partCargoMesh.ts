@@ -72,22 +72,31 @@ function drawn(root: Object3D): { mesh: Mesh; matrix: Matrix4 }[] {
   return out
 }
 
-/** A geometry reduced to position, normal and uv, unindexed, so any two merge. */
-function normalized(source: BufferGeometry, matrix: Matrix4, group?: { start: number; count: number }): BufferGeometry {
-  let g = source.index ? source.toNonIndexed() : source.clone()
-  if (group) {
-    const sliced = new BufferGeometry()
-    for (const name of ['position', 'normal', 'uv'] as const) {
-      const a = g.getAttribute(name)
-      if (a) sliced.setAttribute(name, new BufferAttribute((a.array as Float32Array).slice(group.start * a.itemSize, (group.start + group.count) * a.itemSize), a.itemSize))
-    }
-    g = sliced
-  }
+/**
+ * A geometry (or one material group of it) reduced to position, normal and uv, unindexed and baked through `matrix`,
+ * so any two merge. Every attribute is copied out as floats first. A model's can be normalized integers (a quantized
+ * GLB) or interleaved: baking a matrix into those in place wraps every coordinate past ±1, and two attributes of
+ * different array types refuse to merge, which dropped the piece.
+ */
+export function bakedCargoGeometry(source: BufferGeometry, matrix: Matrix4, group?: { start: number; count: number }): BufferGeometry {
+  const index = source.index
+  const position = source.getAttribute('position')
+  const total = !position ? 0 : index ? index.count : position.count
+  const start = group ? group.start : 0
+  const count = Math.max(0, group ? Math.min(group.count, total - start) : total)
   const out = new BufferGeometry()
-  out.setAttribute('position', g.getAttribute('position'))
-  if (g.getAttribute('normal')) out.setAttribute('normal', g.getAttribute('normal'))
-  const n = g.getAttribute('position').count
-  out.setAttribute('uv', g.getAttribute('uv') ?? new BufferAttribute(new Float32Array(n * 2), 2))
+  for (const name of ['position', 'normal', 'uv'] as const) {
+    const a = source.getAttribute(name)
+    if (!a) continue
+    const arr = new Float32Array(count * a.itemSize)
+    for (let i = 0; i < count; i++) {
+      const v = index ? index.getX(start + i) : start + i
+      for (let j = 0; j < a.itemSize; j++) arr[i * a.itemSize + j] = a.getComponent(v, j)
+    }
+    out.setAttribute(name, new BufferAttribute(arr, a.itemSize))
+  }
+  if (!out.getAttribute('position')) out.setAttribute('position', new BufferAttribute(new Float32Array(0), 3))
+  if (!out.getAttribute('uv')) out.setAttribute('uv', new BufferAttribute(new Float32Array(count * 2), 2))
   out.applyMatrix4(matrix)
   if (!out.getAttribute('normal')) out.computeVertexNormals()
   return out
@@ -129,7 +138,7 @@ function piecesFrom(visual: PartVisual, twin: PartVisual): PartCargoMesh {
       const grp = Array.isArray(mesh.material) ? mesh.geometry.groups.find((gr) => (gr.materialIndex ?? 0) === k) : undefined
       if (Array.isArray(mesh.material) && !grp) return
       const entry = byMaterial.get(m) ?? { geos: [], tinted: false }
-      entry.geos.push(normalized(mesh.geometry, matrix, grp))
+      entry.geos.push(bakedCargoGeometry(mesh.geometry, matrix, grp))
       const om = otherMats[k]
       if (om && colorOf(om) !== colorOf(m)) entry.tinted = true
       byMaterial.set(m, entry)
