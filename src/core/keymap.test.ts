@@ -42,8 +42,18 @@ describe('resolveKeyAction - QWERTY', () => {
   })
 
   it("gives ladder Replace a Mac chord, since the system takes Cmd+H for Hide", () => {
-    expect(resolveKeyAction(press('KeyF', 'f', { metaKey: true, altKey: true }), 'ladder')).toBe('ladder.replace')
+    // a Mac reports the character Option types, not the letter on the key
+    expect(resolveKeyAction(press('KeyF', 'ƒ', { metaKey: true, altKey: true }), 'ladder')).toBe('ladder.replace')
     expect(resolveKeyAction(press('KeyH', 'h', { ctrlKey: true }), 'ladder')).toBe('ladder.replace')
+  })
+
+  it('matches an Alt chord by position, whatever character Alt makes the key report', () => {
+    expect(matchesChord('ctrl+alt+KeyZ', press('KeyZ', 'Ω', { ctrlKey: true, altKey: true }), { match: 'logical' })).toBe(true)
+    expect(matchesChord('ctrl+alt+KeyZ', press('KeyW', 'z', { ctrlKey: true, altKey: true }), { match: 'logical' })).toBe(false)
+    // without Alt a logical chord still follows the legend
+    expect(matchesChord('ctrl+KeyZ', press('KeyW', 'z', { ctrlKey: true }), { match: 'logical' })).toBe(true)
+    // a synthetic event has no position to compare
+    expect(matchesChord('ctrl+alt+KeyZ', { key: 'z', shiftKey: false, ctrlKey: true, altKey: true, metaKey: false }, { match: 'logical' })).toBe(true)
   })
 
   it('binds go to definition to F12', () => {

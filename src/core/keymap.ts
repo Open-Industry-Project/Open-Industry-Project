@@ -31,7 +31,8 @@ export type KeyMode = 'editor' | 'fly' | 'pilot' | 'ladder'
  * - `physical` (default): against `e.code`, the key's position. Right for spatial keys: tools,
  *   movement, view toggles. A French user's Move tool stays under their left ring finger.
  * - `logical`: against `e.key`, the key's legend. Right for the clipboard/undo family, which
- *   users expect on the printed letter, and for modifier keys.
+ *   users expect on the printed letter, and for modifier keys. A chord with Alt is matched by
+ *   position all the same, because Alt changes the character the key reports (`matchesChord`).
  */
 export type KeyMatch = 'physical' | 'logical'
 
@@ -315,7 +316,9 @@ export function matchesChord(
     }
     if (c.shift !== e.shiftKey || c.alt !== e.altKey) return false
   }
-  if ((opts.match ?? 'physical') === 'physical' && e.code) return e.code === c.token
+  // Alt changes the legend a key reports: Option+F on macOS is 'ƒ', and AltGr types a third character elsewhere.
+  // So an Alt chord is matched by position, whichever way its binding matches.
+  if (((opts.match ?? 'physical') === 'physical' || c.alt) && e.code) return e.code === c.token
   return e.key.toLowerCase() === logicalKeyOf(c.token)
 }
 
