@@ -118,8 +118,22 @@ describe('evalNumeric', () => {
     expect(evalNumeric('2,5ft', 'm')).toBeCloseTo(0.762, 6)
   })
 
+  it('reads three decimals after a comma when it cannot be a thousands separator', () => {
+    // millimetre precision in a metre field
+    expect(evalNumeric('0,125', 'm')).toBe(0.125)
+    expect(evalNumeric('0,500 m', 'm')).toBe(0.5)
+    expect(evalNumeric('-0,125', '')).toBe(-0.125)
+    expect(evalNumeric('2*0,125', '')).toBe(0.25)
+    // a thousands group has at most three digits before its comma
+    expect(evalNumeric('1234,567', '')).toBe(1234.567)
+  })
+
   it('rejects a comma that could be a thousands separator, or one standing alone', () => {
     expect(evalNumeric('1,500', '')).toBeNull()
+    expect(evalNumeric('12,500', '')).toBeNull()
+    expect(evalNumeric('1,000,000', '')).toBeNull()
+    expect(evalNumeric('2*1,500', '')).toBeNull()
+    expect(evalNumeric('0,125 1,500', '')).toBeNull()
     expect(evalNumeric('1,500.5', '')).toBeNull()
     expect(evalNumeric('1,', '')).toBeNull()
     expect(evalNumeric(',5', '')).toBeNull()

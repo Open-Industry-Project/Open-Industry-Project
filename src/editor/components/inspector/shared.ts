@@ -71,6 +71,15 @@ function convertUnits(s: string, unit: string): number | null {
   return terms > 0 ? total / table[unit.toLowerCase()]! : null
 }
 
+// a comma a thousands number could hold: one to three digits before it, exactly three after
+const THOUSANDS_GROUP = /(?:^|[^\d,])(\d{1,3}),\d{3}(?!\d)/g
+
+/** Could a comma in `s` be a thousands separator? Not after a lone 0 ("0,125") or a fourth digit ("1234,567"). */
+function couldBeThousands(s: string): boolean {
+  for (const m of s.matchAll(THOUSANDS_GROUP)) if (m[1] !== '0') return true
+  return false
+}
+
 /**
  * A comma between digits read as the decimal point ("1,5" -> "1.5"), as in most of Europe. parseFloat stopped at
  * the comma and stored 1. Null when the comma could also be a thousands separator ("1,500", or with a point as well,
@@ -78,7 +87,7 @@ function convertUnits(s: string, unit: string): number | null {
  */
 function decimalComma(s: string): string | null {
   if (!s.includes(',')) return s
-  if (s.includes('.') || /\d,\d{3}(?!\d)/.test(s)) return null
+  if (s.includes('.') || couldBeThousands(s)) return null
   const out = s.replace(/(\d),(\d)/g, '$1.$2')
   return out.includes(',') ? null : out
 }
