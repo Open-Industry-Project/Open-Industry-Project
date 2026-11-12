@@ -14,6 +14,7 @@
 // for new code: from a node, `windowOf(node)`; with no node in hand, the `active*` functions.
 
 import { useEffect, useRef } from 'react'
+import { keyBelongsToControl } from '../core/keymap'
 
 const popouts = new Set<Window>()
 const listeners = new Set<() => void>()
@@ -83,40 +84,21 @@ export function isElement(x: unknown): x is HTMLElement {
   return !!x && typeof x === 'object' && (x as Node).nodeType === 1
 }
 
-/** input types that take typed text, so every key belongs to them */
-const TEXT_INPUT = new Set(['', 'text', 'search', 'email', 'url', 'tel', 'password', 'number', 'date', 'datetime-local', 'month', 'time', 'week'])
-const ARROWS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'])
 /** regions that handle their own keys: a CodeMirror editor with its panels (the find bar's buttons included), and
  *  the ladder sheet's find bar */
 const KEY_OWNING_REGION = '.cm-editor, .ld-find'
 
 /**
- * Does this key belong to the element it was pressed on, rather than to an app shortcut? Text entry owns every key.
- * A checkbox, slider, select or button owns only the keys it uses itself: the browser leaves focus on a control
- * after a click, so treating every INPUT and SELECT as text made each shortcut (Ctrl+Z, Delete, W) dead after
- * clicking an Inspector checkbox, until the viewport was clicked. A key-owning region owns all its keys: a
- * focused button in the code editor's find bar used to pass Escape and Delete through to the 3D editor.
+ * Does this key belong to the element it was pressed on, rather than to an app shortcut? A key-owning region owns
+ * all its keys: a focused button in the code editor's find bar used to pass Escape and Delete through to the 3D
+ * editor. Anywhere else the control decides (core/keymap.ts `keyBelongsToControl`: text entry owns every key, a
+ * checkbox, slider, select or button only the keys it uses itself).
  */
 export function keyBelongsToTarget(e: KeyboardEvent, opts: { spaceOnButton?: boolean } = {}): boolean {
   const t = e.target
   if (!isElement(t)) return false
-  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.closest(KEY_OWNING_REGION)) return true
-  const chord = e.ctrlKey || e.metaKey || e.altKey
-  if (t.tagName === 'INPUT') {
-    const type = (t as HTMLInputElement).type
-    if (TEXT_INPUT.has(type)) return true
-    if (chord) return false
-    if (type === 'range') return ARROWS.has(e.key)
-    if (type === 'radio') return e.key === ' ' || ARROWS.has(e.key)
-    // checkbox, color, file and the button types: Space toggles or presses, Enter presses
-    return e.key === ' ' || e.key === 'Enter'
-  }
-  // a select also jumps to an option by typed letter, so it keeps every unmodified key
-  if (t.tagName === 'SELECT') return !chord
-  // `spaceOnButton: false` leaves Space on a focused button to the caller (the transport plays and pauses over the
-  // button a click left focused); Enter still presses it
-  if (t.tagName === 'BUTTON') return !chord && ((e.key === ' ' && opts.spaceOnButton !== false) || e.key === 'Enter')
-  return false
+  if (t.closest(KEY_OWNING_REGION)) return true
+  return keyBelongsToControl(e, t, opts)
 }
 
 /** inside a dialog or an open menu, where Space and Enter confirm or pick - an app-wide key must leave them be */

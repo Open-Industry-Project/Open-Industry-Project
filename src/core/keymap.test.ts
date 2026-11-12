@@ -6,6 +6,7 @@ import {
   KEY_GROUPS,
   findKeymapConflicts,
   formatChord,
+  keyBelongsToControl,
   keyGroupLabel,
   keyHintText,
   keyLabel,
@@ -20,6 +21,23 @@ import {
 function press(code: string, key: string, mods: Partial<KeyEventLike> = {}): KeyEventLike {
   return { code, key, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, ...mods }
 }
+
+// The rule's cases are pinned through the editor's wrapper (editor/dialogHost.test.ts). This is the press free fly
+// asks about: Shift+F, on whatever control a click left focused.
+describe('keyBelongsToControl', () => {
+  const shiftF = press('KeyF', 'F', { shiftKey: true })
+
+  it('leaves Shift+F to the app on a checkbox, a slider or a button, and to text entry and a select', () => {
+    expect(keyBelongsToControl(shiftF, { tagName: 'INPUT', type: 'checkbox' })).toBe(false)
+    expect(keyBelongsToControl(shiftF, { tagName: 'INPUT', type: 'range' })).toBe(false)
+    expect(keyBelongsToControl(shiftF, { tagName: 'BUTTON' })).toBe(false)
+    expect(keyBelongsToControl(shiftF, { tagName: 'DIV' })).toBe(false)
+    expect(keyBelongsToControl(shiftF, { tagName: 'INPUT', type: 'text' })).toBe(true)
+    expect(keyBelongsToControl(shiftF, { tagName: 'TEXTAREA' })).toBe(true)
+    expect(keyBelongsToControl(shiftF, { tagName: 'SELECT' })).toBe(true)
+    expect(keyBelongsToControl(shiftF, { tagName: 'DIV', isContentEditable: true })).toBe(true)
+  })
+})
 
 describe('resolveKeyAction - QWERTY', () => {
   it('maps the tool cluster', () => {

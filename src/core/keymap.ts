@@ -341,6 +341,52 @@ export function resolveKeyAction(
 }
 
 // ---------------------------------------------------------------------------
+// the keys a focused control keeps
+// ---------------------------------------------------------------------------
+
+/** the part of a focused element the ownership rule reads. A DOM element satisfies it structurally. */
+export interface KeyTargetLike {
+  readonly tagName: string
+  readonly type?: string
+  readonly isContentEditable?: boolean
+}
+
+/** input types that take typed text, so every key belongs to them */
+const TEXT_INPUT = new Set(['', 'text', 'search', 'email', 'url', 'tel', 'password', 'number', 'date', 'datetime-local', 'month', 'time', 'week'])
+const ARROWS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'])
+
+/**
+ * Does this key belong to the control it was pressed on, rather than to an app shortcut? Text entry owns every key.
+ * A checkbox, slider, select or button owns only the keys it uses itself: the browser leaves focus on a control
+ * after a click, so treating every INPUT and SELECT as text made each shortcut (Ctrl+Z, Delete, W) dead after
+ * clicking an Inspector checkbox, until the viewport was clicked. Every listener asks this one rule: the editor's
+ * (editor/dialogHost.ts `keyBelongsToTarget`, which adds the regions that own all their keys) and free fly's.
+ */
+export function keyBelongsToControl(
+  e: Pick<KeyEventLike, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'>,
+  t: KeyTargetLike,
+  opts: { spaceOnButton?: boolean } = {},
+): boolean {
+  if (t.isContentEditable || t.tagName === 'TEXTAREA') return true
+  const chord = e.ctrlKey || e.metaKey || e.altKey
+  if (t.tagName === 'INPUT') {
+    const type = t.type ?? ''
+    if (TEXT_INPUT.has(type)) return true
+    if (chord) return false
+    if (type === 'range') return ARROWS.has(e.key)
+    if (type === 'radio') return e.key === ' ' || ARROWS.has(e.key)
+    // checkbox, color, file and the button types: Space toggles or presses, Enter presses
+    return e.key === ' ' || e.key === 'Enter'
+  }
+  // a select also jumps to an option by typed letter, so it keeps every unmodified key
+  if (t.tagName === 'SELECT') return !chord
+  // `spaceOnButton: false` leaves Space on a focused button to the caller (the transport plays and pauses over the
+  // button a click left focused); Enter still presses it
+  if (t.tagName === 'BUTTON') return !chord && ((e.key === ' ' && opts.spaceOnButton !== false) || e.key === 'Enter')
+  return false
+}
+
+// ---------------------------------------------------------------------------
 // overrides (the rebinding seam) + display
 // ---------------------------------------------------------------------------
 

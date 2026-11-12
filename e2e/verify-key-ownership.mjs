@@ -78,6 +78,15 @@ async function main() {
       check('and does not start the run', !(await page.evaluate(() => window.__oip.store.getState().running)))
       await page.keyboard.press('Control+z')
       await page.waitForTimeout(150)
+      // free fly asks the same rule: Shift+F on the checkbox a click left focused starts the flight
+      await box.focus()
+      const flying = () => page.evaluate(() => window.__oip.view.freelook.active)
+      await page.keyboard.press('Shift+F')
+      await page.waitForTimeout(150)
+      check('Shift+F on a focused checkbox starts free fly', await flying())
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(150)
+      check('and Escape ends it, leaving the selection alone', !(await flying()) && (await selected(page)) === 'belt1')
     }
 
     // control: with nothing focused, F2 opens the selected part's rename in the scene tree
