@@ -41,9 +41,13 @@ export interface PartCargoMesh {
 
 const tmp = new Matrix4()
 
+/** the instance a shape's visual is built from: the body's part at the origin, its colour param set to `color` */
+function partAt(ref: CargoShapeRef, colorParam: string, color: string): PartInstance {
+  return { id: '__cargo_batch', type: 'part', packageId: ref.packageId, position: [0, 0, 0], rotationY: 0, params: { ...ref.params, [colorParam]: color } } as PartInstance
+}
+
 function visualAt(ref: CargoShapeRef, colorParam: string, color: string): PartVisual {
-  const part = { id: '__cargo_batch', type: 'part', packageId: ref.packageId, position: [0, 0, 0], rotationY: 0, params: { ...ref.params, [colorParam]: color } } as PartInstance
-  return createCustomVisual(part)
+  return createCustomVisual(partAt(ref, colorParam, color))
 }
 
 /**
@@ -146,6 +150,23 @@ function piecesFrom(visual: PartVisual, twin: PartVisual): PartCargoMesh {
 /** Has a model loaded into either visual since the pieces were built (the pieces should be rebuilt)? */
 export function partCargoMeshStale(m: PartCargoMesh): boolean {
   return revOf(m.visual) !== m.rev || revOf(m.twin) !== m.twinRev
+}
+
+/**
+ * The shape's package changed in the registry (a Part Editor edit, a hot reload): apply the kept visuals again, as
+ * the scene's own visuals are (view.refreshPackage), and leave the pieces stale so the caller rebuilds them. `ref` is
+ * the shape as the frame now names it, whose params are resolved against the changed package. An edit that keeps the
+ * colliders keeps the shape's key, so nothing else would ever replace these visuals.
+ */
+export function refreshPartCargoVisuals(m: PartCargoMesh, ref: CargoShapeRef): void {
+  const pkg = getPackage(ref.packageId)
+  if (!pkg) return
+  const colorParam = pkg.cargo?.colorParam ?? 'color'
+  m.visual.update(partAt(ref, colorParam, '#ffffff'))
+  m.twin.update(partAt(ref, colorParam, '#000000'))
+  // stale whether or not the update rebuilt a visual: a repaint in place moves no structure version, and the pieces
+  // draw clones of the materials
+  m.rev = -1
 }
 
 /** Drop the visuals a built shape kept (never drawn, so disposed directly). The pieces are the caller's. */

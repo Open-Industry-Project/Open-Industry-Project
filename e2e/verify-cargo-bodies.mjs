@@ -7,6 +7,7 @@
 //   3. 200 drums draw in the same few batches as 2: placing more drums adds no draws
 //   4. a cargo part drawn by an embedded GLB with a hidden body box draws its model once the model loads, stopped
 //      and running, and never draws the hidden box
+//   5. an edit to a cargo part's look that keeps its colliders redraws the bodies the batch already draws
 //
 // The physics (a drum rolls where a box slides) is pinned headless in src/sim/cargoBodies.test.ts.
 //
@@ -241,6 +242,43 @@ try {
   check('running: the GLB cargo draws its model, not a box', g.batches > 0 && g.rows === 1 && g.boxRows === 0, JSON.stringify(g))
   check('running: its hidden body box is not drawn', !g.hiddenBoxDrawn, JSON.stringify(g))
   await page.evaluate(() => window.__oip.controller.stop())
+
+  // ── 5. an edit to a cargo part's look reaches the bodies the batch already draws ──────────────────
+  // The batch draws each shape from visuals it keeps. An edit that leaves the colliders alone (a hot reload, a Part
+  // Editor recolour) keeps the shape's key, and the kept visuals once went on drawing the part as it was.
+  const bareColors = () =>
+    page.evaluate(() => {
+      const boxes = window.__oip.view.boxes
+      const refs = boxes.appliedFrame?.shapeRefs ?? {}
+      const out = []
+      for (const [key, s] of boxes.partShapes) {
+        if (refs[key]?.packageId !== 'oip.drum') continue
+        for (const b of s.batches) if (!b.tinted) out.push(b.material.color.getHexString())
+      }
+      return out
+    })
+  const bareBefore = await bareColors()
+  await page.evaluate(() => {
+    const pkg = structuredClone(window.__oip.getPackage('oip.drum'))
+    // the chimes carry no collider, so the drum's shape key stays what it was
+    for (const l of pkg.geometry.links) if (l.name === 'chimeTop' || l.name === 'chimeBottom') l.color = [1, 0, 0]
+    window.__oip.registerPackage(pkg)
+  })
+  await page
+    .waitForFunction(
+      () => {
+        const boxes = window.__oip.view.boxes
+        for (const s of boxes.partShapes.values()) for (const b of s.batches) if (!b.tinted && b.material.color.getHexString() === 'ff0000') return true
+        return false
+      },
+      null,
+      { timeout: 8000 },
+    )
+    .catch(() => {})
+  const bareAfter = await bareColors()
+  b = await batches()
+  check("an edit to a cargo part's look redraws its bodies", bareBefore.length > 0 && !bareBefore.includes('ff0000') && bareAfter.includes('ff0000'), `${bareBefore.join(' ')} -> ${bareAfter.join(' ')}`)
+  check('and every drum is still drawn, none as a box', b.partRows >= 200 && b.boxRows === 0, JSON.stringify({ partRows: b.partRows, boxRows: b.boxRows, partShapes: b.partShapes }))
 } catch (e) {
   failures++
   console.log(`FAIL  ${e instanceof Error ? e.message : e}`)

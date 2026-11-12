@@ -834,6 +834,11 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
         this.ensureFreshPose(entry)
       }
     }
+    // A cargo part with its own body draws through the cargo batch, from visuals the batch keeps: they take the
+    // edited package too. A stopped scene sends no new cargo frame, so the idle one is built again against the
+    // package, which redraws those bodies. Only when the batch holds a shape of it: this runs once per package of
+    // a library being adopted.
+    if (this.boxes.refreshPackage(id)) this.applyIdleCargoFrame()
     // the rebuild swapped in fresh hardware meshes; re-pool so stale (disposed) sources aren't left baked
     this.poolRebuild()
     // force: selection/rig/structure are unchanged, but the rebuilt link meshes the rig-highlight
