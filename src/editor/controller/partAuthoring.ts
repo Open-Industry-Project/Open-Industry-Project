@@ -19,7 +19,7 @@ import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
 import type { PackageManifest } from '../../sim/buildPackage'
 import { parsePartBytes, parsePartText } from '../parts/partFile'
 import { largeModelAdvisory } from '../parts/modelStorage'
-import { robotColumns, type RobotColumn } from '../../core/robot/robotIk'
+import { rigPoseColumns, robotDeclOfScript, type RobotColumn } from '../../core/robot/robotIk'
 import { validatePart } from '../../sim/validatePart'
 import type { PartDiagnostic } from '../../sim/validatePart'
 import type { SdkPart } from '../../core/types'
@@ -214,15 +214,10 @@ export function reparentRigLink(ec: AuthoringDeps, packageId: string, linkName: 
   return true
 }
 
-/** The columns a posed row lists, in order. A robot's are the joints its controller drives, in its units (° and mm,
- *  robotColumns). Any other rig's are its posable joints in rig order, in ° and m; a cosmetic joint (a finger the grip
- *  drives) and one that follows another (mimic) are posed by the host, not taught. */
+/** The columns a posed row lists, in order (core rigPoseColumns, which the stopped scene's idle pose reads too). */
 function poseColumns(pkg: PartPackage | undefined): RobotColumn[] {
   if (pkg?.geometry.kind !== 'rig') return []
-  return (
-    robotColumns(pkg.geometry, pkg.behavior) ??
-    pkg.geometry.joints.filter((j) => !j.cosmetic && !j.mimic).map((joint) => ({ joint, unit: joint.type === 'revolute' ? 180 / Math.PI : 1 }))
-  )
+  return rigPoseColumns(pkg.geometry, robotDeclOfScript(pkg.behavior))
 }
 
 export function captureRigPose(ec: AuthoringDeps, partId: string): number[] | null {

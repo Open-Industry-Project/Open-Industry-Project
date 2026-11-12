@@ -381,22 +381,23 @@ export function robotDeclOfScript(behavior: string): RobotDecl | null {
   }
 }
 
-/** One column of a robot's waypoint and idle-pose rows: its joint, and the row's units per native unit (° per rad,
- *  mm per m, robotUnit). */
+/** One column of a posed row: its joint, and the row's units per native unit (per rad, or per m for a sliding joint). */
 export interface RobotColumn {
   joint: RigGeometry['joints'][number]
   unit: number
 }
 
 /**
- * The columns of a robot part's waypoint and idle-pose rows, in order: the joints its controller drives, in the units
- * the controller reads (robotController.ts). Null for a part that is not a robot. Capture Pose, the row preview and
- * the stopped scene's idle pose all read rows through this, so they agree with the controller on which joint a
- * column is and in what unit.
+ * The columns of a rig's posed rows (waypoints, the idle pose), in order. A robot's (`decl`, robotDeclOfScript) are
+ * the joints its controller drives, in the units the controller reads (° and mm, robotController.ts). Any other
+ * rig's are its posable joints in rig order, in ° and m: a cosmetic joint (a finger the grip drives) and one that
+ * follows another (mimic) are posed by the host, not taught. Capture Pose, the row preview and the stopped scene's
+ * idle pose all read rows through this, so they agree on which joint a column is and in what unit.
  */
-export function robotColumns(geometry: RigGeometry, behavior: string): RobotColumn[] | null {
-  const kin = robotKinematics(geometry, behavior)
-  return kin ? kin.joints.map((joint) => ({ joint, unit: robotUnit(joint.type) })) : null
+export function rigPoseColumns(geometry: RigGeometry, decl: RobotDecl | null): RobotColumn[] {
+  const kin = decl ? robotKinematicsOf(geometry, decl) : null
+  if (kin) return kin.joints.map((joint) => ({ joint, unit: robotUnit(joint.type) }))
+  return geometry.joints.filter((j) => !j.cosmetic && !j.mimic).map((joint) => ({ joint, unit: joint.type === 'revolute' ? 180 / Math.PI : 1 }))
 }
 
 /** The kinematics of a rig driven by robot declaration `decl` (see robotKinematics), or null when it names no joint. */

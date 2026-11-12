@@ -180,6 +180,14 @@ describe('createCustomVisual (rig geometry)', () => {
     v.dispose()
   })
 
+  it('reads a sliding joint of the idle pose in metres, as Capture Pose writes it', () => {
+    const pose = { type: 'numberList', rows: 1, arity: 1, default: [[0]], label: 'Idle pose' }
+    registerPackage(rigPkg({ posable: true, joints: [{ name: 'lift', link: 'arm', type: 'prismatic', axis: [0, 1, 0], min: 0, max: 1 }] }, { params: { pose } }))
+    const v = createCustomVisual({ ...rigPart(), params: { pose: [[0.5]] } })
+    expect(findLink(v.object, 'arm')!.position.y).toBeCloseTo(0.3 + 0.5)
+    v.dispose()
+  })
+
   it('opting in with posable but with only cosmetic joints still shows no gizmo (nothing author-posable)', () => {
     registerPackage(rigPkg({ posable: true, joints: [{ name: 'spin', link: 'arm', type: 'revolute', axis: [0, 1, 0], min: -Math.PI, max: Math.PI, cosmetic: true }] }))
     const v = createCustomVisual(rigPart())

@@ -5,7 +5,7 @@ import { parseUrdf } from '../urdf'
 import { urdfToRig } from '../urdfRig'
 import { instantiatePartScript } from '../parts/partScript'
 import { qApply, rigWorldPoses } from '../rig/rigPose'
-import { robotKinematicsOf, robotReadyPose } from './robotIk'
+import { rigPoseColumns, robotKinematicsOf, robotReadyPose } from './robotIk'
 import { robotBehavior } from './robotPart'
 
 // six revolute joints, every link reaching out along +X at zero: the arm lies flat
@@ -62,5 +62,33 @@ describe('robotReadyPose', () => {
     const { kin } = flatArm()
     const slid = { ...kin, joints: kin.joints.map((j, i) => (i === 0 ? { ...j, type: 'prismatic' as const } : j)) }
     expect(robotReadyPose(slid)).toBeNull()
+  })
+})
+
+// One rule for a posed row's columns: Capture Pose writes a row with it and the stopped scene's idle pose reads the
+// row back with it. Two copies of it once disagreed on a sliding joint's unit.
+describe('rigPoseColumns', () => {
+  const DEG = 180 / Math.PI
+
+  it("lists a robot's controller joints, in the controller's units", () => {
+    const { rig } = flatArm()
+    const columns = rigPoseColumns(rig.geometry, rig.robot!)
+    expect(columns.map((c) => c.joint.name)).toEqual(['j1', 'j2', 'j3', 'j4', 'j5', 'j6'])
+    expect(columns.every((c) => c.unit === DEG)).toBe(true)
+    // a robot's sliding joint is in millimetres
+    const slid = { ...rig.geometry, joints: rig.geometry.joints.map((j) => (j.name === 'j1' ? { ...j, type: 'prismatic' as const } : j)) }
+    expect(rigPoseColumns(slid, rig.robot!)[0]!.unit).toBe(1000)
+  })
+
+  it("lists any other rig's posable joints, turning ones in degrees and sliding ones in metres", () => {
+    const { rig } = flatArm()
+    const joints = rig.geometry.joints.slice(0, 4).map((j, i) => ({
+      ...j,
+      ...(i === 1 ? { type: 'prismatic' as const } : {}),
+      ...(i === 2 ? { cosmetic: true } : {}),
+      ...(i === 3 ? { mimic: { joint: 'j1' } } : {}),
+    }))
+    const columns = rigPoseColumns({ ...rig.geometry, joints }, null)
+    expect(columns.map((c) => [c.joint.name, c.unit])).toEqual([['j1', DEG], ['j2', 1]])
   })
 })

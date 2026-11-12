@@ -2,7 +2,7 @@ import { Box3, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide
 import type { Material, Object3D, Texture } from 'three'
 import { arrayInstanceDeltas, pitchCapMessage, resolvedBoxSize, resolvedCylinder, resolvedMeshScale, restQuatOf } from '../../../core/rig/rigPose'
 import { reportPartDiagnostic } from '../../../core/parts/partDiagnostics'
-import { robotColumns, robotDeclOfScript, robotKinematicsOf } from '../../../core/robot/robotIk'
+import { rigPoseColumns, robotDeclOfScript, robotKinematicsOf } from '../../../core/robot/robotIk'
 import type { SeamContext, SubPose } from '../../../core/rig/rigPose'
 import type { RollerGrid } from '../../../core/conveyor/rollerGrid'
 import type { RigParams } from '../../../core/rig/rigPose'
@@ -35,7 +35,7 @@ import type { LinkSlot } from '../linkBank'
 import { bumpStructureVersion } from '../structureRev'
 import { retireGeometry, retireInstancedMeshOnly, retireTexture } from '../../gpuRetire'
 import { bumpPoseRev as bumpVisualPoseRev } from '../poseRev'
-import { buildRigGizmo, posableJoints } from './rigGizmo'
+import { buildRigGizmo } from './rigGizmo'
 import { paintLamp, SQUASH_TAU } from './rigLamps'
 import type { LampMat } from './rigLamps'
 import { createProcGeometry } from './rigProcedural'
@@ -826,11 +826,11 @@ export function buildRig(geo: Extract<PartPackage['geometry'], { kind: 'rig' }>,
   const robotDecl = geo.posable === true ? robotDeclOfScript(pkg.behavior) : null
   const gripEnd = (params: Record<string, ParamValue>): string | undefined => (robotDecl ? robotKinematicsOf(geo, robotDecl, params)?.end : undefined)
   const gizmo = buildRigGizmo(geo, root, linkGroups, applyJoints, paramSpecs, gripEnd(resolvePartParams(paramSpecs, {})))
-  // the authored idle pose: a `pose` numberList param whose first row is the rig's at-rest pose. A robot's row is
-  // its controller's joints in its units (° and mm, core robotColumns); any other rig's is its posable joints in
-  // degrees (cosmetic self-driven joints are not in the row). Only an array is valid, matching the numberList grid
-  // the Inspector edits; a legacy JSON string is ignored.
-  const poseColumns = gizmo ? (robotColumns(geo, pkg.behavior) ?? posableJoints(geo).map((joint) => ({ joint, unit: 180 / Math.PI }))) : []
+  // the authored idle pose: a `pose` numberList param whose first row is the rig's at-rest pose, in the columns and
+  // units Capture Pose writes (core rigPoseColumns: a robot's controller joints in ° and mm, any other rig's posable
+  // joints in ° and m). Only an array is valid, matching the numberList grid the Inspector edits; a legacy JSON
+  // string is ignored.
+  const poseColumns = gizmo ? rigPoseColumns(geo, robotDecl) : []
   const applyIdlePose = gizmo
     ? (poseParam: unknown): void => {
         const idle: Record<string, number> = {}
