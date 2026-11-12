@@ -512,13 +512,14 @@ async function readModel(path) {
 /**
  * A URDF and the mesh files it names, read one by one: no folder walk, so a robot saved in Downloads reads its own
  * meshes and nothing else there. A `package://<package>/<path>` mesh is looked for at <path> under the description
- * package (the folder above the URDF when it sits in a `urdf` folder, as ROS packages keep it, else its own folder);
- * a relative one beside the URDF. A mesh not found is left out, and the importer lists it as missing. Keys are paths
- * from the package folder, which the importer matches by their tails.
+ * package: the nearest folder at or above the URDF with a package.xml (packageDirOf, so a URDF in `robots/` or in
+ * `urdf/<model>/` finds its meshes), else the folder above the URDF when it sits in a `urdf` folder, else its own
+ * folder. A relative one is looked for beside the URDF. A mesh not found is left out, and the importer lists it as
+ * missing. Keys are paths from the package folder, which the importer matches by their tails.
  */
 async function readUrdf(path, bytes) {
   const own = dirname(path)
-  const dir = basename(own).toLowerCase() === 'urdf' ? dirname(own) : own
+  const dir = (await packageDirOf(own)) ?? (basename(own).toLowerCase() === 'urdf' ? dirname(own) : own)
   const text = Buffer.from(bytes).toString('utf8')
   const named = new Set([...text.matchAll(/filename\s*=\s*(?:"([^"]*)"|'([^']*)')/g)].map((m) => m[1] ?? m[2]))
   const files = [{ path: relative(dir, path).replaceAll('\\', '/'), bytes }]

@@ -110,6 +110,15 @@ async function main() {
       const robot = await readModel(join(dir, 'arm', 'urdf', 'arm.urdf'))
       assert.equal(robot.root, 'urdf/arm.urdf')
       assert.deepEqual(robot.files.map((f) => f.path).sort(), ['meshes/hull.obj', 'meshes/link.stl', 'urdf/arm.urdf'])
+      // a URDF anywhere in a package with a package.xml finds its package:// meshes from the package folder
+      mkdirSync(join(dir, 'pkg', 'robots', 'six'), { recursive: true })
+      mkdirSync(join(dir, 'pkg', 'meshes'))
+      writeFileSync(join(dir, 'pkg', 'package.xml'), '<package><name>pkg</name></package>')
+      writeFileSync(join(dir, 'pkg', 'robots', 'six', 'six.urdf'), '<robot name="six"><link name="a"><visual><geometry><mesh filename="package://pkg/meshes/base.stl"/></geometry></visual></link></robot>')
+      writeFileSync(join(dir, 'pkg', 'meshes', 'base.stl'), Buffer.from([8]))
+      const six = await readModel(join(dir, 'pkg', 'robots', 'six', 'six.urdf'))
+      assert.equal(six.root, 'robots/six/six.urdf')
+      assert.deepEqual(six.files.map((f) => f.path).sort(), ['meshes/base.stl', 'robots/six/six.urdf'])
       // a lone URDF beside unrelated files reads only itself
       writeFileSync(join(dir, 'lone.urdf'), '<robot name="lone"/>')
       assert.deepEqual((await readModel(join(dir, 'lone.urdf'))).files.map((f) => f.path), ['lone.urdf'])
