@@ -232,10 +232,21 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
     const parts = partFilesOf(files.filter((f) => !isModelFile(f.name)))
     // a .urdf or .xacro takes the other files picked with it as its meshes and includes, found by name; alone it imports its primitives and
     // the summary asks for the folder. Part files picked with it still import.
-    const urdf = files.find((f) => isUrdfFile(f.name))
-    if (urdf) {
+    const robots = files.filter((f) => isUrdfFile(f.name))
+    if (robots.length > 0) {
       if (parts.length > 0) await importPartFiles(controller, parts)
-      await importRobot(new Map(files.map((f) => [f.name, f])), urdf.name)
+      const picked = new Map(files.map((f) => [f.name, f]))
+      // Several picked together: the robot is the one that builds something, not a macro library picked as its
+      // include, which is how a picked folder is read. One alone is taken as it is, so its own error is the one shown.
+      const roots = robots.length > 1 ? await (await import('../parts/urdfPartImport')).urdfRootsOf(picked) : []
+      if (roots.length > 1) {
+        setMenu({
+          ...menuAt.current,
+          items: roots.map((root, i) => ({ label: t(M.whichUrdf, { file: root }), testid: `catalog-import-urdf-${i}`, onClick: () => void importRobot(picked, root) })),
+        })
+        return
+      }
+      await importRobot(picked, roots[0] ?? robots[0]!.name)
       return
     }
     const models = files.filter((f) => isModelFile(f.name))
@@ -413,6 +424,8 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         setDropping(false)
         if (state.readOnly || !dragHasFiles(e)) return
         e.preventDefault()
+        // a follow-up choice (which of several robot files) opens where the files were dropped
+        menuAt.current = { x: e.clientX, y: e.clientY }
         void importFiles(Array.from(e.dataTransfer.files))
       }}
     >

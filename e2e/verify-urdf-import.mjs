@@ -14,6 +14,8 @@
 //      only a simulator tag), and imports what was picked: its macro, its include through $(find), its YAML
 //   I) an OBJ mesh with the .mtl file it names keeps that file's materials: an image-painted one as a texture (its
 //      texture coordinates and the image in the part's GLB), a plain one as its colour
+//   J) a xacro robot picked as files together with the macro library it includes imports the robot, whichever file
+//      comes first
 //   G) mimic and collision: a second finger follows the first (a joint `mimic`), each <collision> is a hidden collider
 //      link, and running the robot in a scene, a box dropped on its base comes to rest on the base's collider
 //
@@ -152,6 +154,22 @@ writeFileSync(join(pkg, 'meshes', 'base.stl'), stl(boxTriangles([-100, -100, 0],
 // a 50 cm arm along +X, 10 cm square
 writeFileSync(join(pkg, 'meshes', 'visual', 'arm.dae'), dae(boxTriangles([0, -5, -5], [50, 5, 5])))
 writeFileSync(join(dir, 'macro.urdf'), '<robot name="m" xmlns:xacro="http://www.ros.org/wiki/xacro"><xacro:include filename="arm.xacro"/></robot>')
+// J: a xacro robot and the macro library it includes, picked together as files. The library sorts first.
+const flat = join(dir, 'picked')
+mkdirSync(flat)
+writeFileSync(
+  join(flat, 'lib.xacro'),
+  '<?xml version="1.0"?>\n<robot xmlns:xacro="http://wiki.ros.org/xacro">\n' +
+    '  <xacro:macro name="stub" params="name"><link name="${name}"><visual><geometry><box size="0.1 0.1 0.1"/></geometry></visual></link></xacro:macro>\n' +
+    '</robot>\n',
+)
+writeFileSync(
+  join(flat, 'two.urdf.xacro'),
+  '<?xml version="1.0"?>\n<robot xmlns:xacro="http://wiki.ros.org/xacro" name="two">\n' +
+    '  <xacro:include filename="lib.xacro"/>\n  <xacro:stub name="base_link"/>\n  <xacro:stub name="tip"/>\n' +
+    '  <joint name="turn" type="revolute"><parent link="base_link"/><child link="tip"/><origin xyz="0 0 0.2"/><axis xyz="0 0 1"/><limit lower="-1" upper="1"/></joint>\n' +
+    '</robot>\n',
+)
 
 // I: a robot whose body is an OBJ with a .mtl: one face painted with an image, one a plain blue
 /** A w x h RGB PNG of `rgb` (a pixel's three bytes, row by row). */
@@ -454,6 +472,20 @@ try {
   )
   const blue = plain ? textured.materials[plain.material].pbrMetallicRoughness.baseColorFactor : null
   check("I  the .mtl's plain colour is kept: the trim is blue, with no image", !!blue && blue[2] > 0.9 && blue[0] < 0.05 && blue[1] < 0.05 && !('TEXCOORD_0' in plain.attributes), JSON.stringify(blue))
+  await page.evaluate(() => window.__oip.controller.closePartScene())
+
+  // J
+  const before6 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
+  const alertsBefore6 = alerts.length
+  await page.locator('input[type=file][accept*=".urdf"]').setInputFiles([join(flat, 'lib.xacro'), join(flat, 'two.urdf.xacro')])
+  await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before6, { timeout: 30000 }).catch(() => {})
+  await page.waitForTimeout(200)
+  const two = (await page.evaluate(() => window.__oip.store.getState().userPackages.length)) > before6 ? await newest() : null
+  check(
+    'J  of files picked together, the robot is the xacro that builds one, not the macro library beside it',
+    two?.name === 'two' && JSON.stringify(two?.gltf?.nodes.map((n) => n.name)) === JSON.stringify(['base_link', 'tip']) && alerts.length === alertsBefore6,
+    `${two?.name} nodes ${JSON.stringify(two?.gltf?.nodes?.map((n) => n.name))} alerts ${alerts.slice(alertsBefore6).join(' | ')}`,
+  )
   await page.evaluate(() => window.__oip.controller.closePartScene())
 
   // G
