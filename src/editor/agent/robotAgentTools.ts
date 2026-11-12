@@ -197,7 +197,7 @@ export const getRobotPose: AgentTool = {
 export const importRobot: AgentTool = {
   name: 'import_robot',
   description:
-    'Make a new robot part from a URDF or xacro file on this computer, as Import part > A robot (URDF)... does: a rig link per URDF link, a joint per moving joint, ' +
+    'Make a new robot part from a URDF or xacro file on this computer, as Import part > A robot (unzipped folder)... does: a rig link per URDF link, a joint per moving joint, ' +
     'its meshes (STL, COLLADA, OBJ) in one model, its <collision> as hidden colliders, and the robot controller (waypoints, jobs, PLC tags). ' +
     "The meshes are the files it names (a xacro's includes and YAML too), read from its ROS package and those it finds with $(find). " +
     'A xacro file is expanded first, with `args` set (its <xacro:arg> values; defaults otherwise). When an argument names a model the package lacks ' +

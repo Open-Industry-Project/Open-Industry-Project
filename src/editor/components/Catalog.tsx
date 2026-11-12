@@ -1,5 +1,5 @@
 import { partCreditText } from '../parts/partCredit'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, MouseEvent as ReactMouseEvent } from 'react'
 import { versionedAssetUrl } from '../../core/assetVersions'
 import { PART_DEFS } from '../../core/types'
@@ -29,7 +29,8 @@ import { getOipPartsApi } from '../desktop/desktopPartsBridge'
 import { importPartsFolder } from '../parts/packageSource'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { importPartFiles, partFilesOf } from '../parts/importPartFiles'
-import { isModelFile, isUrdfFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
+import { readPartDrop, receivePartDrops, type PartDrop } from '../parts/partDrop'
+import { isModelFile, isRobotArchive, isUrdfFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
 import { RobotOptionsDialog } from './RobotOptionsDialog'
 
 const M = defineMessages('catalog', {
@@ -38,14 +39,17 @@ const M = defineMessages('catalog', {
   viewOnlyLink: 'View only: editing is disabled on this link',
   newPartTitle: 'New blank part:a single box you can reshape, add nodes to, and script (the same portable format the built-ins use)',
   newPart: '＋ New part',
-  importTitle: 'Import shared part files into this project, or make a new part from a model (.glb, STEP or USD) or a robot (URDF)',
-  importTitleDesktop: 'Import shared part files or a folder of parts into this project, or make a new part from a model or a robot',
+  importTitle: 'Import shared part files into this project, or make a new part from a model (.glb, STEP or USD) or a robot (a URDF file, or a .zip of its folder)',
+  importTitleDesktop: 'Import shared part files or a folder of parts into this project, or make a new part from a model or a robot (a URDF file, or a .zip of its folder)',
   importModel: 'A model…',
   importModelTitle: 'Make a new part from a model: a .glb, a STEP file from CAD, or a USD model (.usd, .usda, .usdc, .usdz)',
   oneModelAtATime: 'A model opens as a new part of its own, so one is imported at a time: {file} was imported.',
-  importRobot: 'A robot (URDF)…',
+  importRobot: 'A robot (unzipped folder)…',
+  importRobotFile: 'A robot (.zip or URDF file)…',
+  importRobotFileTitle:
+    "Make a new part from a robot description: pick a .zip of the robot's folder, which brings its meshes, or its .urdf or .xacro file together with the files it names.",
   importRobotTitle:
-    "Make a new part from a robot description: pick the folder holding its .urdf or .xacro file and its meshes (STL, COLLADA or OBJ). Its links and joints become the part's nodes and joints.",
+    "Make a new part from a robot description: pick the folder holding its .urdf or .xacro file and its meshes (STL, COLLADA or OBJ). The folder, or a .zip of it, can also be dropped on this panel or the 3D view. Its links and joints become the part's nodes and joints.",
   whichUrdf: 'Import {file}',
   // i18n-ok: {arg} and {value} are a xacro argument's name and value, as the file spells them
   whichArg: '{arg}: {value}',
@@ -215,6 +219,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   const importRef = useRef<HTMLInputElement>(null)
   const importModelRef = useRef<HTMLInputElement>(null)
   const importRobotRef = useRef<HTMLInputElement>(null)
+  const importRobotFileRef = useRef<HTMLInputElement>(null)
   // where Import part's menu opened, so a follow-up choice (which URDF of a folder) opens in the same place
   const menuAt = useRef({ x: 0, y: 0 })
   // a xacro robot's on/off arguments being asked about before it imports
@@ -230,6 +235,16 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   const importFiles = async (files: File[]): Promise<void> => {
     if (!controller || state.readOnly || files.length === 0) return
     const parts = partFilesOf(files.filter((f) => !isModelFile(f.name)))
+    // a .zip is a robot's folder in one file; part files picked with it still import
+    const zip = files.find((f) => isRobotArchive(f.name))
+    if (zip) {
+      if (parts.length > 0) await importPartFiles(controller, parts)
+      const { noUrdfZipMessage, zipFiles } = await import('../parts/urdfPartImport')
+      const read = await zipFiles(zip)
+      if ('error' in read) alert(read.error)
+      else await importRobotFiles(read.files, noUrdfZipMessage(zip.name))
+      return
+    }
     // a .urdf or .xacro takes the other files picked with it as its meshes and includes, found by name; alone it imports its primitives and
     // the summary asks for the folder. Part files picked with it still import.
     const robots = files.filter((f) => isUrdfFile(f.name))
@@ -280,17 +295,13 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
     }
     if (message) alert(message)
   }
-  // a robot's folder: its URDF, or a choice when the top of the folder has several (a description package often
-  // holds one per model of a robot family)
-  const onPickRobotFolder = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const list = Array.from(e.target.files ?? [])
-    e.target.value = ''
-    if (list.length === 0) return
-    const { folderFiles, noUrdfMessage, urdfRootsOf } = await import('../parts/urdfPartImport')
-    const files = folderFiles(list)
+  // a robot's folder (picked, dropped or unpacked from a .zip): its URDF, or a choice when the top of the folder has
+  // several (a description package often holds one per model of a robot family). `none` is said when it has none.
+  const importRobotFiles = async (files: ReadonlyMap<string, Blob>, none: string): Promise<void> => {
+    const { urdfRootsOf } = await import('../parts/urdfPartImport')
     const roots = await urdfRootsOf(files)
     if (roots.length === 0) {
-      alert(noUrdfMessage(list[0]!.webkitRelativePath.split('/')[0] ?? ''))
+      alert(none)
       return
     }
     if (roots.length === 1) {
@@ -302,11 +313,36 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
       items: roots.map((root, i) => ({ label: t(M.whichUrdf, { file: root }), testid: `catalog-import-urdf-${i}`, onClick: () => void importRobot(files, root) })),
     })
   }
+  const onPickRobotFolder = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const list = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (list.length === 0) return
+    const { folderFiles, noUrdfMessage } = await import('../parts/urdfPartImport')
+    await importRobotFiles(folderFiles(list), noUrdfMessage(list[0]!.webkitRelativePath.split('/')[0] ?? ''))
+  }
+  // folders dropped on the dock are read as a picked robot folder is
+  const importDroppedFolders = async (dirs: readonly FileSystemEntry[]): Promise<void> => {
+    if (!controller || state.readOnly) return
+    const { droppedFolderFiles, noUrdfMessage } = await import('../parts/urdfPartImport')
+    await importRobotFiles(await droppedFolderFiles(dirs), noUrdfMessage(dirs[0]!.name))
+  }
   const onImportFile = (e: ChangeEvent<HTMLInputElement>): void => {
     const files = Array.from(e.target.files ?? [])
     e.target.value = ''
     void importFiles(files)
   }
+  // a drop on the dock, or one the viewport handed over: folders are a robot's, anything else goes by its file type
+  const importDrop = (drop: PartDrop): void => {
+    // a follow-up choice (which of several robot files) opens where the drop landed
+    menuAt.current = drop.at
+    if (drop.dirs.length > 0) void importDroppedFolders(drop.dirs)
+    else void importFiles(drop.files)
+  }
+  const importDropRef = useRef(importDrop)
+  useEffect(() => {
+    importDropRef.current = importDrop
+  })
+  useEffect(() => receivePartDrops((drop) => importDropRef.current(drop)), [])
   // drop-import affordance: depth-counted so enter/leave churn over child elements doesn't flicker it
   const dragDepth = useRef(0)
   const [dropping, setDropping] = useState(false)
@@ -424,9 +460,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         setDropping(false)
         if (state.readOnly || !dragHasFiles(e)) return
         e.preventDefault()
-        // a follow-up choice (which of several robot files) opens where the files were dropped
-        menuAt.current = { x: e.clientX, y: e.clientY }
-        void importFiles(Array.from(e.dataTransfer.files))
+        importDrop(readPartDrop(e))
       }}
     >
       <div className="dock-header">
@@ -457,6 +491,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
                   ? [{ label: t(M.importFolder), title: t(M.importFolderTitle), testid: 'catalog-import-folder', onClick: () => void importPartsFolder(store) }]
                   : []),
                 { label: t(M.importModel), title: t(M.importModelTitle), testid: 'catalog-import-model', onClick: () => importModelRef.current?.click() },
+                { label: t(M.importRobotFile), title: t(M.importRobotFileTitle), testid: 'catalog-import-robot-file', onClick: () => importRobotFileRef.current?.click() },
                 { label: t(M.importRobot), title: t(M.importRobotTitle), testid: 'catalog-import-robot', onClick: () => importRobotRef.current?.click() },
               ],
             })
@@ -474,8 +509,9 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         >
           {t(M.getParts)}
         </button>
-        <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT},.urdf,.xacro`} multiple hidden onChange={onImportFile} />
+        <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT},.urdf,.xacro,.zip`} multiple hidden onChange={onImportFile} />
         <input ref={importModelRef} type="file" accept={MODEL_ACCEPT} hidden onChange={onImportFile} data-testid="catalog-import-model-input" />
+        <input ref={importRobotFileRef} type="file" accept=".zip,.urdf,.xacro" multiple hidden onChange={onImportFile} data-testid="catalog-import-robot-file-input" />
         {/* webkitdirectory is not in React's input attributes; every browser and Electron read it */}
         <input ref={importRobotRef} type="file" hidden onChange={(e) => void onPickRobotFolder(e)} data-testid="catalog-import-robot-input" {...{ webkitdirectory: '' }} />
         {/* the row scrolls sideways when the categories outgrow it; the wheel scrolls it, since its scrollbar is hidden */}

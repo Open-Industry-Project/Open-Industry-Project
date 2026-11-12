@@ -947,8 +947,10 @@ with the layers and images under its folder. Convert anything else first:
 
 ### A robot (URDF)
 
-**Import part > A robot (URDF)…** takes a robot description folder (its `.urdf` or `.xacro` file and the meshes it
-names) and makes a posable part of it, with no options to set. Each URDF link becomes a rig link and each revolute, continuous
+**Import part > A robot (unzipped folder)…** takes a robot description folder (its `.urdf` or `.xacro` file and the meshes it
+names) and makes a posable part of it, with no options to set. A browser's folder dialog lists no files, so the
+folder itself is what to select. A `.zip` of that folder works too, picked in **Import part > A robot (.zip or URDF file)…** or
+dropped on the Parts dock or the 3D view, and so does the folder dropped there. A zip may unpack to 200 MB at most. Each URDF link becomes a rig link and each revolute, continuous
 or prismatic joint becomes a joint with the file's limits. A continuous joint gets ±180°. A fixed joint joins its
 links without one. Joint value 0 is the pose the robot was described in. The links keep their URDF frames, so
 nothing is re-expressed per link. URDF's +Z up becomes +Y by one turn on the root link. Each link's visuals go into

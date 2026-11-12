@@ -1,6 +1,6 @@
 // An imported URDF arm runs a pick-and-place cell from end to end, the way an agent builds one (editor/agent/tools.ts):
 //
-//   A) Import part > A robot (URDF)... makes a robot part that idles in its ready pose: the tool straight down, in front
+//   A) Import part > A robot (unzipped folder)... makes a robot part that idles in its ready pose: the tool straight down, in front
 //      of the base, the elbow up (core/robot/robotIk.ts robotReadyPose), and that pose is its Home waypoint
 //   B) the cell goes together with the agent tools: a riser, an infeed belt stopped by a photo-eye, an outfeed belt to a
 //      despawner, a box spawner held by the infeed's interlock

@@ -124,6 +124,7 @@ import type { EditorStore } from './store/store'
 import type { ProjectJSON } from '../core/project/project'
 import { RestoreIcon } from './components/toolbarIcons'
 import { importPartFiles, partFilesOf } from './parts/importPartFiles'
+import { handToPartsDock, readPartDrop } from './parts/partDrop'
 import { defineMessages, t } from '../core/i18n'
 
 // Lazy so Monaco + its TS worker stay OUT of the main bundle and only download when the editor is opened.
@@ -1318,16 +1319,18 @@ export function App({ store, sim }: AppProps) {
         className="viewport"
         ref={viewportRef}
         style={maxPanel ? { visibility: 'hidden' } : undefined}
-        // A part file dropped here is imported and placed where it landed. Any file drag is taken (names aren't readable
-        // until the drop), so a drop with no part file does nothing rather than the browser opening the file.
+        // A part file dropped here is imported and placed where it landed; a model or a robot goes to the Parts dock. Any
+        // file drag is taken (names aren't readable until the drop), so the browser never opens a dropped file.
         onDragOver={(e) => {
           if (!state.readOnly && e.dataTransfer.types.includes('Files')) e.preventDefault()
         }}
         onDrop={(e) => {
           if (state.readOnly || !e.dataTransfer.types.includes('Files')) return
           e.preventDefault()
-          const files = partFilesOf(e.dataTransfer.files)
-          if (controller && files.length > 0) void importPartFiles(controller, files, { x: e.clientX, y: e.clientY })
+          const drop = readPartDrop(e)
+          const files = partFilesOf(drop.files)
+          if (handToPartsDock(drop)) store.revealPanel('catalog')
+          else if (controller && files.length > 0) void importPartFiles(controller, files, drop.at)
         }}
       >
         {viewError && <div className="viewport-fallback">{t(M.rendererUnavailable, { error: viewError })}</div>}

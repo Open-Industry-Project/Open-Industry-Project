@@ -1,7 +1,7 @@
-// A URDF robot imports through Import part > A robot (URDF)... as a new part: a rig link per URDF link, a joint per
+// A URDF robot imports through Import part > A robot (unzipped folder)... as a new part: a rig link per URDF link, a joint per
 // moving joint, and one GLB with a node per link (editor/urdfImport.ts, core/urdf.ts, core/urdfRig.ts).
 //
-//   A) Import part offers "A robot (URDF)…" in the browser
+//   A) Import part offers "A robot (unzipped folder)…" in the browser
 //   B) picking the robot's folder makes a part named after the robot, its links and joints as the file has them,
 //      posable, with the GLB holding one node per drawn link
 //   C) the meshes resolve (package:// and relative), read in their units and up axis (a binary STL in millimetres,
@@ -16,6 +16,9 @@
 //      texture coordinates and the image in the part's GLB), a plain one as its colour
 //   J) a xacro robot picked as files together with the macro library it includes imports the robot, whichever file
 //      comes first
+//   K) a .zip of the robot's folder, picked as one file, imports the robot with its meshes; one with no robot says so
+//   L) the robot's folder dropped on the Parts dock imports the same
+//   M) the .zip dropped on the viewport imports the same
 //   G) mimic and collision: a second finger follows the first (a joint `mimic`), each <collision> is a hidden collider
 //      link, and running the robot in a scene, a box dropped on its base comes to rest on the base's collider
 //
@@ -23,11 +26,12 @@
 // collision mesh) on a yawing shoulder, a finger (a URDF box) on a sliding joint, and a second finger mimicking it.
 //
 //   node e2e/verify-urdf-import.mjs
-/* global process, console, window, localStorage, Buffer */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+/* global process, console, window, document, localStorage, Buffer, File, Event, DragEvent, DataTransfer, TextDecoder */
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { deflateSync } from 'node:zlib'
+import { zipSync } from 'fflate'
 import { startServer } from './_server.mjs'
 import { chromium } from 'playwright'
 
@@ -330,7 +334,7 @@ try {
   await page.getByTestId('catalog-import').click()
   const item = page.getByTestId('catalog-import-robot')
   await item.waitFor({ timeout: 5000 })
-  check('A  Import part offers "A robot (URDF)…"', (await item.innerText()).trim() === 'A robot (URDF)…')
+  check('A  Import part offers "A robot (unzipped folder)…"', (await item.innerText()).trim() === 'A robot (unzipped folder)…')
   await page.keyboard.press('Escape')
 
   // B
@@ -413,7 +417,7 @@ try {
   // E
   await page.evaluate(() => window.__oip.controller.closePartScene())
   const before2 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
-  await page.locator('input[type=file][accept*=".urdf"]').setInputFiles(join(pkg, 'urdf', 'demo_arm.urdf'))
+  await page.locator('input[type=file][accept*=".oippart"]').setInputFiles(join(pkg, 'urdf', 'demo_arm.urdf'))
   await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before2, { timeout: 60000 })
   await page.waitForTimeout(200)
   const lone = await newest()
@@ -424,7 +428,7 @@ try {
   // F
   await page.evaluate(() => window.__oip.controller.closePartScene())
   const before3 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
-  await page.locator('input[type=file][accept*=".urdf"]').setInputFiles(join(dir, 'macro.urdf'))
+  await page.locator('input[type=file][accept*=".oippart"]').setInputFiles(join(dir, 'macro.urdf'))
   await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length === n, before3, { timeout: 5000 })
   await page.waitForTimeout(500)
   const refused = alerts.at(-1) ?? ''
@@ -477,7 +481,7 @@ try {
   // J
   const before6 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
   const alertsBefore6 = alerts.length
-  await page.locator('input[type=file][accept*=".urdf"]').setInputFiles([join(flat, 'lib.xacro'), join(flat, 'two.urdf.xacro')])
+  await page.locator('input[type=file][accept*=".oippart"]').setInputFiles([join(flat, 'lib.xacro'), join(flat, 'two.urdf.xacro')])
   await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before6, { timeout: 30000 }).catch(() => {})
   await page.waitForTimeout(200)
   const two = (await page.evaluate(() => window.__oip.store.getState().userPackages.length)) > before6 ? await newest() : null
@@ -485,6 +489,94 @@ try {
     'J  of files picked together, the robot is the xacro that builds one, not the macro library beside it',
     two?.name === 'two' && JSON.stringify(two?.gltf?.nodes.map((n) => n.name)) === JSON.stringify(['base_link', 'tip']) && alerts.length === alertsBefore6,
     `${two?.name} nodes ${JSON.stringify(two?.gltf?.nodes?.map((n) => n.name))} alerts ${alerts.slice(alertsBefore6).join(' | ')}`,
+  )
+  await page.evaluate(() => window.__oip.controller.closePartScene())
+
+  // K
+  const pkgFiles = ['urdf/demo_arm.urdf', 'meshes/base.stl', 'meshes/visual/arm.dae', 'meshes/collision/arm.stl']
+  const zipPath = join(dir, 'demo_arm_description.zip')
+  writeFileSync(zipPath, zipSync(Object.fromEntries(pkgFiles.map((p) => [`demo_arm_description/${p}`, new Uint8Array(readFileSync(join(pkg, p)))]))))
+  const drawn = JSON.stringify(made?.gltf?.nodes.map((n) => n.name))
+  const before7 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
+  const alertsBefore7 = alerts.length
+  await page.locator('input[type=file][accept*=".oippart"]').setInputFiles(zipPath)
+  await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before7, { timeout: 60000 }).catch(() => {})
+  await page.waitForTimeout(200)
+  const zipped = (await page.evaluate(() => window.__oip.store.getState().userPackages.length)) > before7 ? await newest() : null
+  check(
+    'K  a .zip of the folder imports the robot with its meshes, as the folder does',
+    zipped?.name === 'demo_arm' && JSON.stringify(zipped?.gltf?.nodes.map((n) => n.name)) === drawn && alerts.length === alertsBefore7,
+    `${zipped?.name} nodes ${JSON.stringify(zipped?.gltf?.nodes?.map((n) => n.name))} alerts ${alerts.slice(alertsBefore7).join(' | ')}`,
+  )
+  await page.evaluate(() => window.__oip.controller.closePartScene())
+  const noRobot = join(dir, 'empty.zip')
+  writeFileSync(noRobot, zipSync({ 'readme.txt': new Uint8Array([104, 105]) }))
+  await page.locator('input[type=file][accept*=".oippart"]').setInputFiles(noRobot)
+  await page.waitForTimeout(1500)
+  check('K  a .zip with no robot in it says so', /empty\.zip has no robot description/.test(alerts.at(-1) ?? ''), alerts.at(-1) ?? '')
+
+  // L: a browser gives a dropped folder as directory entries, which a test cannot drag in, so the drop carries
+  // entries of the same shape over the same files
+  const before8 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
+  const alertsBefore8 = alerts.length
+  await page.evaluate(
+    (files) => {
+      const fileEntry = (path, b64) => ({
+        isFile: true,
+        isDirectory: false,
+        name: path.split('/').pop(),
+        fullPath: `/${path}`,
+        file: (ok) => ok(new File([Uint8Array.from(window.atob(b64), (c) => c.charCodeAt(0))], path.split('/').pop())),
+      })
+      const dirEntry = (path) => {
+        const below = files.filter(([p]) => p.startsWith(`${path}/`)).map(([p, b64]) => [p.slice(path.length + 1), p, b64])
+        const children = [...new Set(below.map(([rest]) => rest.split('/')[0]))].map((first) => {
+          const leaf = below.find(([rest]) => rest === first)
+          return leaf ? fileEntry(leaf[1], leaf[2]) : dirEntry(`${path}/${first}`)
+        })
+        return {
+          isFile: false,
+          isDirectory: true,
+          name: path.split('/').pop(),
+          fullPath: `/${path}`,
+          // one child a read, then an empty one, as a large folder comes in batches
+          createReader: () => ({ readEntries: (ok) => ok(children.splice(0, 1)) }),
+        }
+      }
+      const root = dirEntry('demo_arm_description')
+      const drop = new Event('drop', { bubbles: true, cancelable: true })
+      Object.defineProperty(drop, 'dataTransfer', { value: { types: ['Files'], files: [], items: [{ kind: 'file', webkitGetAsEntry: () => root }] } })
+      document.querySelector('.catalog-dock').dispatchEvent(drop)
+    },
+    pkgFiles.map((p) => [`demo_arm_description/${p}`, readFileSync(join(pkg, p)).toString('base64')]),
+  )
+  await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before8, { timeout: 60000 }).catch(() => {})
+  await page.waitForTimeout(200)
+  const dropped = (await page.evaluate(() => window.__oip.store.getState().userPackages.length)) > before8 ? await newest() : null
+  check(
+    'L  a folder dropped on the Parts dock imports the robot with its meshes',
+    dropped?.name === 'demo_arm' && JSON.stringify(dropped?.gltf?.nodes.map((n) => n.name)) === drawn && alerts.length === alertsBefore8,
+    `${dropped?.name} nodes ${JSON.stringify(dropped?.gltf?.nodes?.map((n) => n.name))} alerts ${alerts.slice(alertsBefore8).join(' | ')}`,
+  )
+  await page.evaluate(() => window.__oip.controller.closePartScene())
+
+  // M
+  const before9 = await page.evaluate(() => window.__oip.store.getState().userPackages.length)
+  const alertsBefore9 = alerts.length
+  await page.evaluate((b64) => {
+    const dt = new DataTransfer()
+    dt.items.add(new File([Uint8Array.from(window.atob(b64), (c) => c.charCodeAt(0))], 'demo_arm_description.zip', { type: 'application/zip' }))
+    const el = document.querySelector('.viewport')
+    const r = el.getBoundingClientRect()
+    el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }))
+  }, readFileSync(zipPath).toString('base64'))
+  await page.waitForFunction((n) => window.__oip.store.getState().userPackages.length > n, before9, { timeout: 60000 }).catch(() => {})
+  await page.waitForTimeout(200)
+  const onView = (await page.evaluate(() => window.__oip.store.getState().userPackages.length)) > before9 ? await newest() : null
+  check(
+    'M  the .zip dropped on the viewport imports the robot too',
+    onView?.name === 'demo_arm' && JSON.stringify(onView?.gltf?.nodes.map((n) => n.name)) === drawn && alerts.length === alertsBefore9,
+    `${onView?.name} nodes ${JSON.stringify(onView?.gltf?.nodes?.map((n) => n.name))} alerts ${alerts.slice(alertsBefore9).join(' | ')}`,
   )
   await page.evaluate(() => window.__oip.controller.closePartScene())
 

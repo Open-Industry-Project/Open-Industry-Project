@@ -1,4 +1,5 @@
-// A new part made from a URDF or xacro robot, from Import part > A robot (URDF)… or a file dropped on the Parts dock.
+// A new part made from a URDF or xacro robot, from Import part > A robot (unzipped folder)…, or from a description file,
+// a .zip of the robot's folder or the folder itself picked in Import part or dropped on the Parts dock.
 //
 // The robot is converted at once (editor/urdfImport.ts): unlike a model, it has no options to show, since its links,
 // joints and placement are all in the file. A xacro description may have arguments that change the robot: a model to
@@ -15,15 +16,18 @@ import { largeModelAdvisory } from './modelStorage'
 
 const M = defineMessages('urdfImport', {
   noUrdf: 'The folder {name} has no robot description (.urdf, or a .xacro that builds a robot).',
+  noUrdfZip: '{name} has no robot description (.urdf, or a .xacro that builds a robot).',
+  zipTooBig: '{name} unpacks to more than {mb} MB, so it was not read.',
+  zipUnreadable: '{name} could not be read as a zip archive.',
   xacroFailed: 'Could not expand {file}: {reason}',
   xacroPackage: 'Could not expand {file}: {reason}. Pick a folder that holds every package it uses, such as the repository it came from.',
   notUrdf: '{file} is not a URDF robot description: {reason}',
   failed: 'Could not import {file}: {reason}',
   imported: { one: 'Imported {name}: {links} links and {count} joint.', other: 'Imported {name}: {links} links and {count} joints.' },
   missing: {
-    one: '{count} mesh file was not found, so its geometry is left out: {first}. Import the folder that holds the robot\'s meshes as well (Import part > A robot (URDF)…).',
+    one: '{count} mesh file was not found, so its geometry is left out: {first}. Import the folder that holds the robot\'s meshes as well (Import part > A robot (unzipped folder)…), or a .zip of it.',
     other:
-      '{count} mesh files were not found, so their geometry is left out, for example {first}. Import the folder that holds the robot\'s meshes as well (Import part > A robot (URDF)…).',
+      '{count} mesh files were not found, so their geometry is left out, for example {first}. Import the folder that holds the robot\'s meshes as well (Import part > A robot (unzipped folder)…), or a .zip of it.',
   },
   unreadable: {
     one: '{count} mesh file could not be read: {first}. STL, COLLADA (.dae) and OBJ files are read.',
@@ -54,6 +58,58 @@ export function urdfRootsOf(files: ReadonlyMap<string, Blob>): Promise<string[]>
 /** A picked folder's files keyed by their path inside the pick (webkitRelativePath), as the importer resolves them. */
 export function folderFiles(list: FileList | readonly File[]): Map<string, Blob> {
   return new Map(Array.from(list).map((f) => [(f.webkitRelativePath || f.name).replaceAll('\\', '/'), f]))
+}
+
+/** The most a robot archive may unpack to. A zip's unpacked size is not bounded by its own, and it is all held in
+ *  memory; the agent's import reads the same amount from disk (apps/desktop/mcpServer.cjs). */
+export const ROBOT_ARCHIVE_MAX_BYTES = 200 * 1024 * 1024
+
+/** A .zip of a robot's folder as the files a picked folder gives, keyed by their path in the archive, or the
+ *  message to show when it cannot be read. */
+export async function zipFiles(zip: File): Promise<{ files: Map<string, Blob> } | { error: string }> {
+  const { unzipSync } = await import('fflate')
+  let total = 0
+  let tooBig = false
+  let entries: Record<string, Uint8Array>
+  try {
+    entries = unzipSync(new Uint8Array(await zip.arrayBuffer()), {
+      // decided from the directory's sizes, before anything is unpacked
+      filter: (f) => {
+        if (tooBig || f.name.endsWith('/')) return false
+        total += f.originalSize
+        tooBig = total > ROBOT_ARCHIVE_MAX_BYTES
+        return !tooBig
+      },
+    })
+  } catch {
+    return { error: t(M.zipUnreadable, { name: zip.name }) }
+  }
+  if (tooBig) return { error: t(M.zipTooBig, { name: zip.name, mb: ROBOT_ARCHIVE_MAX_BYTES / 1024 / 1024 }) }
+  const files = new Map<string, Blob>()
+  for (const [path, bytes] of Object.entries(entries)) files.set(path.replaceAll('\\', '/'), new Blob([bytes as Uint8Array<ArrayBuffer>]))
+  return { files }
+}
+
+/** The files under dropped folders (a drop's directory entries), keyed as a picked folder's are: the folder's name,
+ *  then the path inside it. */
+export async function droppedFolderFiles(dirs: readonly FileSystemEntry[]): Promise<Map<string, Blob>> {
+  const files = new Map<string, Blob>()
+  const walk = async (entry: FileSystemEntry): Promise<void> => {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) => (entry as FileSystemFileEntry).file(resolve, reject))
+      files.set(entry.fullPath.replace(/^\//, ''), file)
+      return
+    }
+    const reader = (entry as FileSystemDirectoryEntry).createReader()
+    // a read returns a batch, and an empty one ends the folder
+    for (;;) {
+      const batch = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject))
+      if (batch.length === 0) return
+      for (const child of batch) await walk(child)
+    }
+  }
+  for (const dir of dirs) await walk(dir)
+  return files
 }
 
 /**
@@ -114,3 +170,6 @@ function summary(r: UrdfImport): string {
 
 /** The message for a picked folder with no URDF in it. */
 export const noUrdfMessage = (folder: string): string => t(M.noUrdf, { name: folder })
+
+/** The message for a zip with no URDF in it. */
+export const noUrdfZipMessage = (file: string): string => t(M.noUrdfZip, { name: file })

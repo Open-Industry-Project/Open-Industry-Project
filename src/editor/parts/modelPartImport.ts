@@ -12,6 +12,9 @@ export const isModelFile = (name: string): boolean => /\.(glb|step|stp|usd|usda|
  *  one without loading the importer */
 export const isUrdfFile = (name: string): boolean => /\.(urdf|xacro)$/i.test(name)
 
+/** a robot's folder as one file: a .zip holding its description and meshes */
+export const isRobotArchive = (name: string): boolean => /\.zip$/i.test(name)
+
 /** what Import part's file picker takes besides part files */
 export const MODEL_ACCEPT = '.glb,.step,.stp,.usd,.usda,.usdc,.usdz,model/gltf-binary'
 
