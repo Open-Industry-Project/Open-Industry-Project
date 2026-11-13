@@ -32,9 +32,9 @@
 // gets switched off. Undeclared is a warning too: the part runs, this check just can't see it.
 //
 // Scope limits, reported rather than hidden (a silent skip reads as "checked and clean"):
-//   • only parts whose PLC link is on (a declared `commsParam` that is true, or none declared);
-//   • only tag params with a non-empty value - an unset tag is unwired by intent, not by error;
-//   • only parts whose package is loaded: `unresolvedPackages` carries the others out so the caller can say so.
+//   â€¢ only parts whose PLC link is on (a declared `commsParam` that is true, or none declared);
+//   â€¢ only tag params with a non-empty value - an unset tag is unwired by intent, not by error;
+//   â€¢ only parts whose package is loaded: `unresolvedPackages` carries the others out so the caller can say so.
 
 import { badControllerPrefix, controllerOf, controllerTag, splitControllerTag } from '../core/io/controllerTag'
 import { canonicalAddress, looksLikeAddress, parseDirectAddress, sizeWord } from '../core/io/iecAddress'
@@ -204,6 +204,9 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
     }
   }
 
+  // read once: a link builds its whole value table on each read, and reading it per tag made Play take
+  // (wired tags) x (table size)
+  const programValues = link?.watch
   const programReadSet = new Set(link?.inputs ?? [])
   const programWriteSet = new Set(link?.outputs ?? [])
   const tags: WiredTag[] = []
@@ -244,7 +247,7 @@ export function checkWiring(parts: readonly WiringPart[], link?: Pick<PlcLink, '
 
     // a part's declared type vs what the program declared. `watch` is a snapshot of the program's scalars,
     // so it separates BOOL from numeric but not INT from REAL - only the mismatch it can prove is reported.
-    const seen = ours ? link?.watch?.[link.aliases?.get(tag) ?? tag] : undefined
+    const seen = ours ? programValues?.[link?.aliases?.get(tag) ?? tag] : undefined
     if (type !== null && seen !== undefined && typeof seen !== 'string') {
       const programIsBool = typeof seen === 'boolean'
       const partIsBool = type === 'BOOL'

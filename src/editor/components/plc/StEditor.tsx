@@ -971,15 +971,26 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     if (!attached || !state.running) return
     let instancesOf = ''
     let instances: WatchInstance[] = []
+    // what was last pushed: the image is replaced when new values arrive (sim/client.ts), so the same image, instances
+    // and pick mean nothing new to draw, and a push rebuilds every inline value of the program. Pushed again after a
+    // second regardless, for an editor view made since the last push (it starts with no values).
+    let pushed: { w: object; instances: WatchInstance[]; picked: object; at: number } | null = null
     const id = setInterval(() => {
       const w = ctrlRef.current?.plcWatch
-      if (w) {
+      // only while the text is the face: under the rungs the editor is hidden. The face coming back finds another
+      // image than the last one pushed, and pushes.
+      if (w && viewRef.current === 'text') {
         const src = sourceRef.current
         if (src !== instancesOf) {
           instancesOf = src
           instances = watchInstances(src, controllerFor(src, stateRef.current.controller, stateRef.current.stScanMs))
         }
-        editorRef.current?.setWatchValues(w, instances, pickedRef.current, pickInstance)
+        const picked = pickedRef.current
+        const now = performance.now()
+        if (!pushed || pushed.w !== w || pushed.instances !== instances || pushed.picked !== picked || now - pushed.at > 1000) {
+          pushed = { w, instances, picked, at: now }
+          editorRef.current?.setWatchValues(w, instances, picked, pickInstance)
+        }
       }
       setOverruns(ctrlRef.current?.plcScanStats?.overruns ?? 0)
     }, 120)

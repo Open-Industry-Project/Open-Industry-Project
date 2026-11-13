@@ -15,6 +15,7 @@ import { Decoration, drawSelection, EditorView, highlightActiveLine, keymap, lin
 import { tags as t } from '@lezer/highlight'
 import { BUILTIN_FUNCTIONS, controllerDiagnostics, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs, watchScopes } from '../../plc'
 import type { Controller } from '../../core/controller'
+import { keySetOf } from '../../core/watchKeys'
 import type { MonitoredProgram, TagValue, WatchInstance } from '../../plc'
 // `t` is the highlighter's tags here; the i18n lookup is `msg`
 import { defineMessages, t as msg } from '../../core/i18n'
@@ -327,15 +328,24 @@ function docWatchKeys(doc: Text, live: LiveImage): { keys: (string | null)[]; sh
 }
 
 /** A watch image's keys by their upper-cased spelling: IEC names ignore case, and the text may spell one differently
- *  from its declaration. */
-const upperKeys = new WeakMap<Readonly<Record<string, TagValue>>, Map<string, string>>()
-function keysByUpper(values: Readonly<Record<string, TagValue>>): Map<string, string> {
-  let m = upperKeys.get(values)
+ *  from its declaration. One per key set (core/watchKeys.ts): a running program's image is a new object on every
+ *  send, with the same keys. */
+const upperKeys = new WeakMap<object, Map<string, string>>()
+/** @internal exported for watchKeySetReaders.test.ts */
+export function keysByUpper(values: Readonly<Record<string, TagValue>>): Map<string, string> {
+  const set = keySetOf(values)
+  let m = upperKeys.get(set)
   if (!m) {
     m = new Map(Object.keys(values).map((k) => [k.toUpperCase(), k]))
-    upperKeys.set(values, m)
+    upperKeys.set(set, m)
   }
   return m
+}
+
+/** has the image any value (without listing its keys) */
+function hasValues(values: Readonly<Record<string, TagValue>>): boolean {
+  for (const k in values) if (Object.hasOwn(values, k)) return true
+  return false
 }
 
 /** The type each variable is declared with, folded name -> type as written (`TIME`, `DT`, `TON`), for showing a
@@ -470,7 +480,7 @@ const watchField = StateField.define<LiveImage>({
     EditorView.decorations.compute([f, 'doc'], (state) => {
       const live = state.field(f)
       const values = live.values
-      if (Object.keys(values).length === 0) return Decoration.none
+      if (!hasValues(values)) return Decoration.none
       const ranges = []
       const types = docTypes(state.doc)
       const refs = docValueRefs(state.doc)

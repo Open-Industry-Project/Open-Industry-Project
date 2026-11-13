@@ -107,7 +107,11 @@ export function shortestHeldIntervalSec(stepHz: number): number {
 export const WATCH_HZ = 10
 
 /** {@link PlcFrameState} as a frame carries it: the variable table only on the frames that bring a new one. */
-export type PlcFrameWire = Omit<PlcFrameState, 'watch'> & { watch?: PlcFrameState['watch'] }
+export type PlcFrameWire = Omit<PlcFrameState, 'watch'> & {
+  watch?: PlcFrameState['watch']
+  /** which attached program the table is of: the same number means the same keys (core/watchKeys.ts) */
+  watchKeys?: number
+}
 
 export class PlcHost {
   readonly #link: LocalPlcLink

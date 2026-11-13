@@ -473,6 +473,16 @@ describe('agent tools: operating', () => {
     expect(c.store.getEditHistory().events).toHaveLength(0)
   })
 
+  it('get_tags without names returns at most 2000 variables and counts the rest', async () => {
+    const many = Object.fromEntries(Array.from({ length: 2500 }, (_, i) => [`V${i}`, i]))
+    const c = ctx(fakeController(many))
+    const all = (await ok(c, 'get_tags')) as { tags: Record<string, unknown>; tagsOmitted?: number }
+    expect(Object.keys(all.tags)).toHaveLength(2000)
+    expect(all.tagsOmitted).toBe(500)
+    // a name asked for is answered wherever it stands in the table
+    expect(await ok(c, 'get_tags', { names: ['V2499'] })).toEqual({ running: true, tags: { V2499: 2499 }, missing: [] })
+  })
+
   it("get_tags carries each task's scan time, rounded to the microsecond", async () => {
     const ctrl = fakeController({ Count: 3 })
     const times = [{ task: 'Fast', kind: 'periodic', periodSec: 0.01, scans: 120, lastMs: 0.0123456, avgMs: 0.011, maxMs: 0.25 }]

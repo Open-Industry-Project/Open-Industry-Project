@@ -10,6 +10,7 @@ import { commsTags, ControllerError, controllerRuns, LocalPlcLink, runnableSourc
 import type { TagValue } from '../../plc'
 // deep import: the wiring check is a checker, not part of the runtime PLC surface the barrel exposes
 import { checkWiring, wiredBindings } from '../../plc/wiring'
+import { withWatchValue } from '../../core/watchKeys'
 import { attachedProgram, programRefusal } from '../program/programReload'
 import type { AttachedProgram } from '../program/programReload'
 import type { PublishedProgram } from '../links/opcUaServer'
@@ -447,13 +448,13 @@ export function togglePlcBit(deps: PlcWriteDeps, key: string): boolean {
     const mask = 2 ** Number(bit[2])
     const on = ((word >>> Number(bit[2])) & 1) === 1
     writeOrHold(deps, key, !on)
-    if (ec.sim.plcState) ec.sim.plcState = { ...ec.sim.plcState, watch: { ...ec.sim.plcState.watch, [bit[1]!]: on ? (word & ~mask) | 0 : (word | mask) | 0 } }
+    if (ec.sim.plcState) ec.sim.plcState = { ...ec.sim.plcState, watch: withWatchValue(ec.sim.plcState.watch, bit[1]!, on ? (word & ~mask) | 0 : (word | mask) | 0) }
     return true
   }
   if (typeof cur !== 'boolean') return false
   writeOrHold(deps, key, !cur)
   // the frame that carries the new value is a step away; show it now, so a second Ctrl+T reads the toggled state
-  if (ec.sim.plcState) ec.sim.plcState = { ...ec.sim.plcState, watch: { ...ec.sim.plcState.watch, [key]: !cur } }
+  if (ec.sim.plcState) ec.sim.plcState = { ...ec.sim.plcState, watch: withWatchValue(ec.sim.plcState.watch, key, !cur) }
   return true
 }
 
@@ -479,7 +480,7 @@ function parsePlcValue(watch: Readonly<Record<string, TagValue>> | null, key: st
 
 /** Show a written value now: the frame that carries it back is a step away (the worker coerces it to the tag's type). */
 function showWritten(ec: PlcWriteDeps['ec'], key: string, value: number | boolean): void {
-  if (ec.sim.plcState && key in ec.sim.plcState.watch) ec.sim.plcState = { ...ec.sim.plcState, watch: { ...ec.sim.plcState.watch, [key]: value } }
+  if (ec.sim.plcState && key in ec.sim.plcState.watch) ec.sim.plcState = { ...ec.sim.plcState, watch: withWatchValue(ec.sim.plcState.watch, key, value) }
 }
 
 export function writePlcValue(deps: PlcWriteDeps, key: string, text: string): string | null {

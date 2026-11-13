@@ -720,11 +720,15 @@ const stop: AgentTool = {
   },
 }
 
+/** the most variables get_tags returns when no names are asked for */
+const MAX_UNNAMED_TAGS = 2000
+
 const getTags: AgentTool = {
   name: 'get_tags',
   description:
     "Read the running PLC program's variables (a ~10 Hz mirror, so a pulse shorter than ~0.15 s can be missed). " +
-    'Optional names filter. Empty while stopped. Also returns `scanTimes`: per task, how long its scans take to execute ' +
+    'Optional names filter: pass it for a large program, since without it at most ' + MAX_UNNAMED_TAGS + ' variables are returned ' +
+    'and `tagsOmitted` counts the rest. Empty while stopped. Also returns `scanTimes`: per task, how long its scans take to execute ' +
     '(last, average, max in ms of real time) and its interval, and `forces`: the variables force_tag holds, if any.',
   inputSchema: {
     type: 'object',
@@ -737,7 +741,15 @@ const getTags: AgentTool = {
     const names = args.names === undefined ? null : strList(args, 'names')
     if (!watch) return { running: ctx.store.getState().running, tags: {} }
     const tags: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(watch)) if (!names || names.includes(k)) tags[k] = v
+    let tagsOmitted = 0
+    if (names) {
+      for (const k of names) if (Object.hasOwn(watch, k)) tags[k] = watch[k]
+    } else {
+      // a large program holds hundreds of thousands of values, which is no answer to read
+      const keys = Object.keys(watch)
+      for (const k of keys.slice(0, MAX_UNNAMED_TAGS)) tags[k] = watch[k]
+      tagsOmitted = Math.max(0, keys.length - MAX_UNNAMED_TAGS)
+    }
     const us = (ms: number): number => Math.round(ms * 1000) / 1000
     const scanTimes = (controller.plcScanTimes ?? []).map((s) => ({
       task: s.task,
@@ -751,6 +763,7 @@ const getTags: AgentTool = {
     return {
       running: true,
       tags,
+      ...(tagsOmitted > 0 ? { tagsOmitted } : {}),
       ...(names ? { missing: names.filter((n) => !(n in watch)) } : {}),
       ...(scanTimes.length > 0 ? { scanTimes } : {}),
       ...(Object.keys(forces).length > 0 ? { forces } : {}),

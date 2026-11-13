@@ -3,6 +3,7 @@ import { FlowFactLog } from '../core/flow/flowFactLog'
 import { clearPartDiagnostics, notePartDiagnosticsDropped, reportPartDiagnostic } from '../core/parts/partDiagnostics'
 import { PART_CALL_BEACON_BYTES, readPartCallBeacon } from '../core/parts/partScript'
 import { DEFAULT_SIM_HZ } from '../core/types'
+import { markKeySet } from '../core/watchKeys'
 import type { SceneJSON, SimRate } from '../core/types'
 import type { WiredBindings } from '../plc/link/plcLink'
 import type { PlcRun } from './plcGroup'
@@ -97,6 +98,8 @@ export class SimClient {
   /** callers waiting on a 'stepped' or 'cargoDetail' answer, by seq; each gets null when the run ends first */
   private readonly waiters = new Map<number, (msg: StepDone | CargoDetail | null) => void>()
   private nextSeq = 1
+  /** the key set of the program whose table arrived last (core/watchKeys.ts), by the worker's number for it */
+  private watchKeySet: { of: number; set: object } | null = null
 
   /** create + wire the worker on first use; idempotent */
   private ensureWorker(): Worker {
@@ -134,6 +137,10 @@ export class SimClient {
         this.stepStats = msg.stepStats
         if (msg.flowFacts) this.flowFacts.accept(msg.flowFacts)
         // (the variable table rides only some frames - plcHost.ts WATCH_HZ: between them the last one stands)
+        if (msg.plc?.watch && msg.plc.watchKeys !== undefined) {
+          if (this.watchKeySet?.of !== msg.plc.watchKeys) this.watchKeySet = { of: msg.plc.watchKeys, set: {} }
+          markKeySet(msg.plc.watch, this.watchKeySet.set)
+        }
         this.plcState = msg.plc ? { ...msg.plc, watch: msg.plc.watch ?? this.plcState?.watch ?? {} } : null
         if (!this._running) return
         // a paused frame advanced no sim time: sampling it would measure real time passing with the sim still

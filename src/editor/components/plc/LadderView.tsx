@@ -40,6 +40,7 @@ import { activeClipboard } from '../../dialogHost'
 import { fmt } from './ladderWatch'
 import { CloseIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
+import { withWatchValue } from '../../../core/watchKeys'
 import { tNodes } from '../../i18nNodes'
 import { FRONT } from './ladderSel'
 import type { Sel } from './ladderSel'
@@ -729,7 +730,7 @@ export function LadderView({ revealProblem = null, faults = NO_FAULTS, source, o
   const toggle = (): void => {
     const bit = toggleTarget()
     // shown at once: the frame that carries the new value is a step away, and a second Ctrl+T must read this one
-    if (bit && toggleBit?.(bit.key)) setWatch((w) => (w && bit.key in w ? { ...w, [bit.key]: !bit.value } : w))
+    if (bit && toggleBit?.(bit.key)) setWatch((w) => (w && bit.key in w ? withWatchValue(w, bit.key, !bit.value) : w))
   }
   /** A live value being typed: under which element's field, for which variable of the running program. */
   const [liveEdit, setLiveEditState] = useState<{ at: Sel; field: number; key: string; draft: string } | null>(null)

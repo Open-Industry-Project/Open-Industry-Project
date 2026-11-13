@@ -8,6 +8,7 @@
 
 import { KEYWORDS } from '../../plc'
 import type { TagValue } from '../../plc'
+import { keySetOf } from '../../core/watchKeys'
 import { currentDocumentId } from '../project/documentStore'
 import { ownSharedProject } from '../project/sharedProject'
 
@@ -27,17 +28,30 @@ export interface WatchRow {
 /** Most values one row lists under a structured name. A large array has thousands; the rest are counted. */
 export const MAX_MEMBERS = 64
 
-// the image's keys by their upper-case spelling: ST names are case-insensitive. One per image object (the client
-// replaces the object on every frame that brings a new table, ten a second).
-const byUpper = new WeakMap<object, Map<string, string>>()
-function upperIndex(watch: Readonly<Record<string, TagValue>>): Map<string, string> {
-  let m = byUpper.get(watch)
-  if (!m) {
-    m = new Map()
-    for (const k of Object.keys(watch)) m.set(k.toUpperCase(), k)
-    byUpper.set(watch, m)
+// What a name resolves to depends on the image's keys alone, so it is kept per key set (core/watchKeys.ts), not per
+// image: the client replaces the image on every frame that brings a new table, with the same keys.
+interface KeyIndex {
+  /** the keys by their upper-case spelling: ST names are case-insensitive */
+  upper: Map<string, string>
+  /** upper-case name -> the one instance variable it means without its instance, or null */
+  owners: Map<string, string | null>
+  /** upper-case name -> the keys under it (the first {@link MAX_MEMBERS}) and how many more there are */
+  members: Map<string, { keys: readonly string[]; more: number }>
+}
+const indexes = new WeakMap<object, KeyIndex>()
+function keyIndex(watch: Readonly<Record<string, TagValue>>): KeyIndex {
+  const set = keySetOf(watch)
+  let ix = indexes.get(set)
+  if (!ix) {
+    const upper = new Map<string, string>()
+    for (const k of Object.keys(watch)) upper.set(k.toUpperCase(), k)
+    ix = { upper, owners: new Map(), members: new Map() }
+    indexes.set(set, ix)
   }
-  return m
+  return ix
+}
+function upperIndex(watch: Readonly<Record<string, TagValue>>): Map<string, string> {
+  return keyIndex(watch).upper
 }
 
 /** Look one watched name up in the running image. */
@@ -56,25 +70,37 @@ export function resolveWatch(name: string, watch: Readonly<Record<string, TagVal
   // a variable of a program instance, written without the instance (`Count` for `Line.Count`), as the code beside it
   // spells it: taken when exactly one instance holds the name
   const suffix = `.${prefix}`
-  let owner: string | null = null
-  let owners = 0
-  for (const [u, k] of upperIndex(watch)) {
-    if (!u.endsWith(suffix)) continue
-    owner = k
-    if (++owners > 1) break
+  const ix = keyIndex(watch)
+  let owner = ix.owners.get(prefix)
+  if (owner === undefined) {
+    owner = null
+    let owners = 0
+    for (const [u, k] of ix.upper) {
+      if (!u.endsWith(suffix)) continue
+      owner = k
+      if (++owners > 1) {
+        owner = null
+        break
+      }
+    }
+    ix.owners.set(prefix, owner)
   }
-  if (owners === 1 && owner !== null) return { name, key: owner, value: watch[owner], members: [], more: 0 }
-  const members: { key: string; value: TagValue }[] = []
-  let more = 0
-  for (const k of Object.keys(watch)) {
-    const u = k.toUpperCase()
-    if (u.length <= prefix.length || !u.startsWith(prefix)) continue
-    const next = u[prefix.length]
-    if (next !== '.' && next !== '[') continue
-    if (members.length < MAX_MEMBERS) members.push({ key: k, value: watch[k]! })
-    else more++
+  if (owner !== null) return { name, key: owner, value: watch[owner], members: [], more: 0 }
+  let under = ix.members.get(prefix)
+  if (!under) {
+    const keys: string[] = []
+    let more = 0
+    for (const [u, k] of ix.upper) {
+      if (u.length <= prefix.length || !u.startsWith(prefix)) continue
+      const next = u[prefix.length]
+      if (next !== '.' && next !== '[') continue
+      if (keys.length < MAX_MEMBERS) keys.push(k)
+      else more++
+    }
+    under = { keys, more }
+    ix.members.set(prefix, under)
   }
-  return { name, key: null, value: undefined, members, more }
+  return { name, key: null, value: undefined, members: under.keys.map((key) => ({ key, value: watch[key]! })), more: under.more }
 }
 
 /**

@@ -4,6 +4,7 @@
 // this only reads it.
 
 import { useEffect, useState } from 'react'
+import { keySetOf } from '../../core/watchKeys'
 import type { TagValue } from '../../plc'
 import { deviceTags, devicesForTag, type DeviceTags, type DeviceTagUse, type TaggedPart } from '../../plc/bindings'
 
@@ -30,13 +31,15 @@ export function usePlcForces(controller: ForceSource | null | undefined): Forces
   return forces
 }
 
-// the image's keys by their upper-case spelling: IEC names are case-insensitive. One per image object.
+// the image's keys by their upper-case spelling: IEC names are case-insensitive. One per key set (core/watchKeys.ts):
+// a running program's image is a new object on every send, with the same keys.
 const byUpper = new WeakMap<object, Map<string, string>>()
 function upperKey(watch: Readonly<Record<string, TagValue>>, name: string): string | undefined {
-  let m = byUpper.get(watch)
+  const set = keySetOf(watch)
+  let m = byUpper.get(set)
   if (!m) {
     m = new Map(Object.keys(watch).map((k) => [k.toUpperCase(), k]))
-    byUpper.set(watch, m)
+    byUpper.set(set, m)
   }
   return m.get(name.toUpperCase())
 }

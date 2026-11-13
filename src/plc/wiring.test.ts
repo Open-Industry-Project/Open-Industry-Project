@@ -77,6 +77,30 @@ PE := TRUE;`)
     expect(report.problems.map((p) => p.kind)).toContain('contested')
   })
 
+  it("reads the program's value table once, however many tags are wired", () => {
+    registerPackage(SENSOR)
+    const program = new LocalPlcLink(`VAR
+  A : BOOL;
+  B : BOOL;
+  C : INT;
+END_VAR`)
+    // a link builds its whole table on each read
+    let reads = 0
+    const link = {
+      inputs: program.inputs,
+      outputs: program.outputs,
+      aliases: program.aliases,
+      get watch() {
+        reads++
+        return program.watch
+      },
+    }
+    const report = checkWiring(scene(part('s1', 't.sensor', { tag: 'A' }), part('s2', 't.sensor', { tag: 'B' }), part('s3', 't.sensor', { tag: 'C' })), link)
+    expect(reads).toBe(1)
+    // and the type check it feeds still runs: a BOOL sensor on an INT variable
+    expect(report.problems.some((p) => p.tag === 'C')).toBe(true)
+  })
+
   it('flags one tag declared as two different ST types', () => {
     registerPackage(SENSOR)
     registerPackage(COUNTER)

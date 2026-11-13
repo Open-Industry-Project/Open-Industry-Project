@@ -5,6 +5,10 @@
 import type { TagValue } from '../../../plc/types'
 import { indexWatch, watchLookup, type WatchIndex } from './ladderWatch'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { hasKeySet, keySetOf } from '../../../core/watchKeys'
+
+/** the image while a running program has published none yet: one object, so each poll is the same state */
+const NO_VALUES: Readonly<Record<string, TagValue>> = Object.freeze({})
 
 export function useLadderWatch(
   live: boolean,
@@ -34,33 +38,37 @@ export function useLadderWatch(
     return onForcesRef.current?.(read)
   }, [live])
 
-  // the image changes every scan, independent of any store update, so it is polled (as the text view's is)
+  // the image changes every scan, independent of any store update, so it is polled (as the text view's is). The sim
+  // client replaces the image when new values arrive, so the poll keeps the object it is handed: an unchanged image
+  // is the same object, which React skips. A copy per poll redrew the sheet eight times a second whatever had changed.
   useEffect(() => {
     if (!live) {
       setWatch(null)
       return
     }
-    const id = setInterval(() => setWatch({ ...(getWatchRef.current() ?? {}) }), 120)
+    const id = setInterval(() => setWatch(getWatchRef.current() ?? NO_VALUES), 120)
     return () => clearInterval(id)
   }, [live])
   // the values under the operands: the running program's image (its key set is fixed, so its index is kept across polls:
   // ladderWatch.ts)
-  const watchIndex = useRef<{ keys: number; src: string; index: WatchIndex } | null>(null)
+  const watchIndex = useRef<{ keys: number; set: object | null; src: string; index: WatchIndex } | null>(null)
   const { valueOf, keyOf } = useMemo(() => {
     const image = live ? watch : null
     if (!image) {
       watchIndex.current = null
       return watchLookup(null, null)
     }
-    const keys = Object.keys(image).length
+    // told apart by key set when the image has one (core/watchKeys.ts), else by its number of keys
+    const set = hasKeySet(image) ? keySetOf(image) : null
+    const keys = set === null ? Object.keys(image).length : 0
     const held = watchIndex.current
     // A running program's key set is fixed, so the index is kept across polls. The poll hands a fresh object every
     // 120 ms, and indexing five thousand values on each would be the whole cost of a watch. A reload swaps the
     // program while it keeps running, so the source text is checked too: a tag renamed and reloaded keeps the same
     // key count, and a stale index would answer for names that no longer exist (it memoises the misses too), so
     // every rung would draw de-energized while the controller is scanning normally.
-    if (!held || held.keys !== keys || held.src !== source) {
-      watchIndex.current = { keys, src: source, index: indexWatch(image) }
+    if (!held || held.set !== set || held.keys !== keys || held.src !== source) {
+      watchIndex.current = { keys, set, src: source, index: indexWatch(image) }
     }
     return watchLookup(image, watchIndex.current!.index)
   }, [watch, live, source])

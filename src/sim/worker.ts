@@ -98,12 +98,15 @@ function post(msg: WorkerToMain, transfer: Transferable[] = []): void {
 // program just attached sends it at once, so nothing waits a tenth of a second for its first values
 let watchSentAt = -Infinity
 let watchSentFor: PlcGroup | null = null
+// counts the programs whose table was sent. A program's keys never change, so the number names a key set.
+let watchKeys = 0
 function plcFrame(host: PlcGroup, force: boolean): PlcFrameWire {
   const now = performance.now()
   if (!force && watchSentFor === host && now - watchSentAt < 1000 / WATCH_HZ) return host.snapshot({ watch: false })
+  if (watchSentFor !== host) watchKeys++
   watchSentAt = now
   watchSentFor = host
-  return host.snapshot()
+  return { ...host.snapshot(), watchKeys }
 }
 
 function plcFaultMsg(err: unknown): WorkerToMain {
