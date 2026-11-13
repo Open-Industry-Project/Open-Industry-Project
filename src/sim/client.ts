@@ -4,6 +4,7 @@ import { clearPartDiagnostics, notePartDiagnosticsDropped, reportPartDiagnostic 
 import { PART_CALL_BEACON_BYTES, readPartCallBeacon } from '../core/parts/partScript'
 import { DEFAULT_SIM_HZ } from '../core/types'
 import { markKeySet } from '../core/watchKeys'
+import { memoryTable, type WatchLayout } from '../core/watchTable'
 import type { SceneJSON, SimRate } from '../core/types'
 import type { WiredBindings } from '../plc/link/plcLink'
 import type { PlcRun } from './plcGroup'
@@ -99,7 +100,7 @@ export class SimClient {
   private readonly waiters = new Map<number, (msg: StepDone | CargoDetail | null) => void>()
   private nextSeq = 1
   /** the key set of the program whose table arrived last (core/watchKeys.ts), by the worker's number for it */
-  private watchKeySet: { of: number; set: object } | null = null
+  private watchKeySet: { of: number; set: object; layout: WatchLayout | null } | null = null
 
   /** create + wire the worker on first use; idempotent */
   private ensureWorker(): Worker {
@@ -137,11 +138,17 @@ export class SimClient {
         this.stepStats = msg.stepStats
         if (msg.flowFacts) this.flowFacts.accept(msg.flowFacts)
         // (the variable table rides only some frames - plcHost.ts WATCH_HZ: between them the last one stands)
-        if (msg.plc?.watch && msg.plc.watchKeys !== undefined) {
-          if (this.watchKeySet?.of !== msg.plc.watchKeys) this.watchKeySet = { of: msg.plc.watchKeys, set: {} }
-          markKeySet(msg.plc.watch, this.watchKeySet.set)
-        }
-        this.plcState = msg.plc ? { ...msg.plc, watch: msg.plc.watch ?? this.plcState?.watch ?? {} } : null
+        if (msg.plc) {
+          // the table itself, or a copy of the program's memory to read it from (core/watchTable.ts); neither on a
+          // frame between two sends, where the last one stands
+          const { watchBytes, watchLayout, watchKeys, ...plc } = msg.plc
+          if (watchKeys !== undefined && this.watchKeySet?.of !== watchKeys) this.watchKeySet = { of: watchKeys, set: {}, layout: null }
+          if (watchLayout && this.watchKeySet) this.watchKeySet.layout = watchLayout
+          const layout = this.watchKeySet?.layout
+          const watch = plc.watch ?? (watchBytes && layout ? memoryTable(layout, watchBytes) : undefined)
+          if (watch && watchKeys !== undefined && this.watchKeySet) markKeySet(watch, this.watchKeySet.set)
+          this.plcState = { ...plc, watch: watch ?? this.plcState?.watch ?? {} }
+        } else this.plcState = null
         if (!this._running) return
         // a paused frame advanced no sim time: sampling it would measure real time passing with the sim still
         if (!msg.paused) this.clock.sample(performance.now(), msg.simTime, this.requestedScale)

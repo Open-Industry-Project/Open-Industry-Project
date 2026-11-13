@@ -7,7 +7,7 @@
 // backend directly.
 
 import { compile } from '../interpreter'
-import type { CompiledProgram, TagPort, TagValue, TaskInfo, VarInfo } from '../types'
+import type { CompiledProgram, TagPort, TagValue, TaskInfo, VarInfo, WatchPlan } from '../types'
 
 export interface PlcLink {
   readonly inputs: string[]
@@ -171,6 +171,10 @@ export class LocalPlcLink implements PlcLink {
   }
   get memory(): Readonly<Record<string, TagValue>> {
     return this.prog.memory
+  }
+  /** Where {@link watch}'s values are in the program's memory (CompiledProgram.watchPlan), or null. */
+  watchPlan(): WatchPlan | null {
+    return this.prog.watchPlan?.() ?? null
   }
   /** What a variable is, by its watch-table name (CompiledProgram.varInfo). */
   varInfo(name: string): VarInfo | undefined {

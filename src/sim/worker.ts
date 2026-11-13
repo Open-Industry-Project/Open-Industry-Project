@@ -12,6 +12,7 @@ import { catchUpSteps } from './catchUp'
 import { WATCH_HZ } from './plcHost'
 import { PlcGroup } from './plcGroup'
 import type { PlcFrameWire } from './plcHost'
+import type { WatchPlan } from '../plc/types'
 import type { MainToWorker, WorkerToMain } from './protocol'
 import { FrameWireEncoder } from './frameWire'
 import { applyScenePatch } from './scenePatch'
@@ -100,12 +101,25 @@ let watchSentAt = -Infinity
 let watchSentFor: PlcGroup | null = null
 // counts the programs whose table was sent. A program's keys never change, so the number names a key set.
 let watchKeys = 0
-function plcFrame(host: PlcGroup, force: boolean): PlcFrameWire {
+// where the attached program's watch values are in its memory, when its memory is one buffer (PlcGroup.watchPlan)
+let watchPlan: WatchPlan | null = null
+/** The frame's PLC state. A copy of the program's memory it carries goes into `transfer`, to be handed over, not cloned. */
+function plcFrame(host: PlcGroup, force: boolean, transfer: Transferable[]): PlcFrameWire {
   const now = performance.now()
   if (!force && watchSentFor === host && now - watchSentAt < 1000 / WATCH_HZ) return host.snapshot({ watch: false })
-  if (watchSentFor !== host) watchKeys++
+  const first = watchSentFor !== host
+  if (first) {
+    watchKeys++
+    watchPlan = host.watchPlan()
+  }
   watchSentAt = now
   watchSentFor = host
+  if (watchPlan) {
+    // the bytes, and the layout with the first of them: the main thread reads a value where it is (core/watchTable.ts)
+    const watchBytes = watchPlan.memory.slice(0)
+    transfer.push(watchBytes)
+    return { ...host.snapshot({ watch: false }), watchBytes, watchKeys, ...(first ? { watchLayout: watchPlan.layout } : {}) }
+  }
   return { ...host.snapshot(), watchKeys }
 }
 
@@ -444,6 +458,7 @@ function resetFrameWire(): void {
  * `fullWatch` = carry the variable table even inside its 1/WATCH_HZ window, so a Step shows the values it made.
  */
 function postFrame(w: SimWorld, held: boolean, fullWatch = false): void {
+  const plcTransfer: Transferable[] = []
   const tf = performance.now()
   const f = w.frame()
   const flowFacts = w.drainFlowFacts()
@@ -474,7 +489,7 @@ function postFrame(w: SimWorld, held: boolean, fullWatch = false): void {
       ...(f.beamHits ? { beamHits: f.beamHits } : {}),
       ...(f.marks ? { marks: f.marks } : {}),
       ...(held ? { paused: true as const } : {}),
-      ...(plc ? { plc: plcFrame(plc, fullWatch) } : {}),
+      ...(plc ? { plc: plcFrame(plc, fullWatch, plcTransfer) } : {}),
       ...(flowFacts.length > 0 ? { flowFacts } : {}),
       stepStats: { totalMs: stepMsTotal, steps: stepsDone, maxMs: stepMsMax, frameTotalMs: frameMsTotal, frames: framesDone, plcTotalMs: plcMsTotal, ...(plc ? { plcSplit: { ...plc.perf } } : {}), worstStep: { ...w.worstStep }, overBudgetSteps: w.overBudgetSteps, ...(w.perfParts ? { worstScriptCall: { ...w.worstScriptCall } } : {}), phases: { ...w.phaseMs, ...w.scriptPerf() }, scriptMsByPart: Object.fromEntries(w.scriptMsByPart), rigMsByPart: Object.fromEntries(w.rigMsByPart), ...w.bodyStats() },
     },
@@ -486,6 +501,7 @@ function postFrame(w: SimWorld, held: boolean, fullWatch = false): void {
       f.colors.buffer as ArrayBuffer,
       f.kinds.buffer as ArrayBuffer,
       f.caps!.buffer as ArrayBuffer,
+      ...plcTransfer,
     ],
   )
 }

@@ -4,6 +4,7 @@
 // Pure: the sheet (LadderView.tsx) keeps the index and polls the image; nothing here touches the DOM.
 
 import type { TagValue } from '../../../plc/types'
+import { watchKeysOf } from '../../../core/watchTable'
 
 /** The names of a value table, indexed for lookup. This is the expensive part: a large program publishes thousands of
  *  values, and upper-casing every key eight times a second would take a tenth of a core on its own. The key set of a
@@ -18,7 +19,7 @@ export interface WatchIndex {
 export function indexWatch(watch: Readonly<Record<string, TagValue>>): WatchIndex {
   const exact = new Map<string, string>()
   const tails = new Map<string, string | null>()
-  for (const k of Object.keys(watch)) {
+  for (const k of watchKeysOf(watch)) {
     const key = k.toUpperCase()
     exact.set(key, k)
     // a PROGRAM instance's variables are published as `Instance.Name`: a bare name answers when one instance has it

@@ -179,6 +179,13 @@ projectTestsRun.ts); eslint enforces both.
   literal enters the source through `JSON.stringify`. Measure with `npm run bench-sim -- <project> [--engine walker]`
   (fingerprint must not move), A/B in one process for anything under ~20%, and never lower a
   [scanSpeed.test.ts](src/plc/scanSpeed.test.ts) floor to make it pass.
+- **A running program's value table (`plcWatch`) may be a Proxy over a copy of the controller's memory**
+  ([core/watchTable.ts](src/core/watchTable.ts), docs/plc-typed-storage.md "The watch table"). `table[key]` and
+  `key in table` are fine. Never `Object.keys`, `Object.entries`, spread or `for..in` one: a large program holds
+  half a million values. Use `watchKeysOf` / `forEachWatchValue` / `watchKeyCount` / `overlayTable`, and
+  `withWatchValue` to show a written value. Keep what you derive from the keys per key set (`keySetOf`,
+  core/watchKeys.ts), since the table is a new object on every send. Gated by `largeWatchBudget.test.ts` and
+  `watchPlan.test.ts`.
 - **Two I/O binding rules are ours, not IEC's** ([src/plc/DEVICE-IO.md](src/plc/DEVICE-IO.md)): the first PLC scan
   follows the parts' first step (so a normally-closed input reads TRUE on scan 1; changing this moves every bench-sim
   fingerprint), and a controller running one program instance also answers to its variables by bare name. Add any

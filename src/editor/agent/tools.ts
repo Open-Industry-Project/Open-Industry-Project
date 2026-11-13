@@ -720,6 +720,8 @@ const stop: AgentTool = {
   },
 }
 
+import { watchHas, watchKeysOf } from '../../core/watchTable'
+
 /** the most variables get_tags returns when no names are asked for */
 const MAX_UNNAMED_TAGS = 2000
 
@@ -743,10 +745,10 @@ const getTags: AgentTool = {
     const tags: Record<string, unknown> = {}
     let tagsOmitted = 0
     if (names) {
-      for (const k of names) if (Object.hasOwn(watch, k)) tags[k] = watch[k]
+      for (const k of names) if (watchHas(watch, k)) tags[k] = watch[k]
     } else {
       // a large program holds hundreds of thousands of values, which is no answer to read
-      const keys = Object.keys(watch)
+      const keys = watchKeysOf(watch)
       for (const k of keys.slice(0, MAX_UNNAMED_TAGS)) tags[k] = watch[k]
       tagsOmitted = Math.max(0, keys.length - MAX_UNNAMED_TAGS)
     }
@@ -764,7 +766,7 @@ const getTags: AgentTool = {
       running: true,
       tags,
       ...(tagsOmitted > 0 ? { tagsOmitted } : {}),
-      ...(names ? { missing: names.filter((n) => !(n in watch)) } : {}),
+      ...(names ? { missing: names.filter((n) => !watchHas(watch, n)) } : {}),
       ...(scanTimes.length > 0 ? { scanTimes } : {}),
       ...(Object.keys(forces).length > 0 ? { forces } : {}),
     }

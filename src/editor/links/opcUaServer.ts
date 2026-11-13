@@ -20,6 +20,7 @@
 
 import type { TagValue, VarInfo } from '../../plc/types'
 import type { LinkOpt } from './externalPlcStatus'
+import { forEachWatchValue } from '../../core/watchTable'
 
 /** A variable as the shell publishes it. */
 export interface ServerNode {
@@ -250,14 +251,14 @@ export class OpcUaServerSession {
     const values: Record<string, TagValue> = {}
     if (watch && watch !== this.lastWatch) {
       this.lastWatch = watch
-      for (const [name, v] of Object.entries(watch)) {
+      forEachWatchValue(watch, (name, v) => {
         const node = this.nodes.get(name)
-        if (!node) continue
+        if (!node) return
         const value = toServerValue(node.builtin, v)
-        if (this.sent.get(name) === value) continue
+        if (this.sent.get(name) === value) return
         this.sent.set(name, value)
         values[name] = value
-      }
+      })
     }
     if (!liveChanged && Object.keys(values).length === 0) return
     this.sentLive = live

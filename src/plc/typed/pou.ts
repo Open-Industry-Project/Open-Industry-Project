@@ -5,12 +5,12 @@
 // definition's TypedFb. docs/plc-typed-storage.md.
 
 import { classIds, type Env, fbDecls, funcDecls, identKey, isScalarType, methodDecls } from '../program'
-import { coerceScalar, coercerFor, type Pou } from '../pou'
+import { coerceScalar, coercerFor, type Pou, type WatchPlace } from '../pou'
 import { bool, CALL_DEPTH_MESSAGE, isInt, MAX_CALL_DEPTH, num, wrap } from '../runtime'
 import { generateBody, generateValue, type GenBody, type GenInternals, type GenScope, type TypedScope } from '../scanCodegen'
 import type { DataType, Decl, Expr, FbDef, FuncDef, Initializer, MethodDef, ScalarType, Stmt, StructInit, TagPort, TagValue, VarInfo } from '../types'
 import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from '../types'
-import { Arena } from './arena'
+import { Arena, watchKindOf } from './arena'
 import { blocksOver } from './blocks'
 import { CLASS_FIELD, type Layouts, OWN_COPY, type PouLayout, type ScalarLayout, type TypeLayout, TypedUnsupported } from './layout'
 
@@ -769,6 +769,11 @@ export class TypedPou implements Pou {
       this.#plans.set(id, leaves)
     }
     return leaves
+  }
+
+  placesInto(out: Map<string, WatchPlace>, prefix: string, maxArray: number, blocks: boolean): ArrayBuffer {
+    for (const { key, slot, addr } of blocks ? this.#blocks(prefix) : this.#plan(prefix, maxArray)) out.set(key, { addr, kind: watchKindOf(slot.scalar) })
+    return this.#arena.buffer
   }
 
   watchInto(out: Record<string, TagValue>, prefix: string, maxArray: number): void {

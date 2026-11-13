@@ -10,6 +10,7 @@
 
 import { CONTROLLER_SEP, tagsForController } from '../core/io/controllerTag'
 import type { TagValue, WiredBindings } from '../plc'
+import type { WatchPlan } from '../plc/types'
 import { PlcHost } from './plcHost'
 import type { PlcFrameState, PlcFrameWire, PlcWorldPort, ScanTime } from './plcHost'
 
@@ -144,6 +145,13 @@ export class PlcGroup {
   /** Every controller's tasks, another controller's named `Cell2::Task`. */
   scanTimes(): ScanTime[] {
     return this.#members.flatMap((m) => m.host.scanTimes().map((t) => (m.controller === null ? t : { ...t, task: m.controller + CONTROLLER_SEP + (t.task || 'Main') })))
+  }
+
+  /** Where the watch table's values are in memory (PlcHost.watchPlan), when one default controller is all there is:
+   *  several controllers' tables are merged by name, which is a table's work. */
+  watchPlan(): WatchPlan | null {
+    const main = this.#main
+    return main && this.#members.length === 1 ? main.host.watchPlan() : null
   }
 
   /** One frame's PLC state for every controller: one watch table, and the process images with each name put on. */

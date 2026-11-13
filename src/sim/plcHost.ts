@@ -15,6 +15,8 @@
 import { LocalPlcLink, SimController, TaskScheduler } from '../plc'
 import type { Schedulable, TaskInfo, WiredBindings } from '../plc'
 import type { TagValue } from '../plc'
+import type { WatchLayout } from '../core/watchTable'
+import type { WatchPlan } from '../plc/types'
 
 /** The slice of SimWorld the host needs - narrow so tests can drive it with a stub. */
 export interface PlcWorldPort {
@@ -109,6 +111,10 @@ export const WATCH_HZ = 10
 /** {@link PlcFrameState} as a frame carries it: the variable table only on the frames that bring a new one. */
 export type PlcFrameWire = Omit<PlcFrameState, 'watch'> & {
   watch?: PlcFrameState['watch']
+  /** in place of `watch`: a copy of the controller's memory, read through the layout its program sent (core/watchTable.ts) */
+  watchBytes?: ArrayBuffer
+  /** where the watch values are in `watchBytes`: sent once per program, with its first copy */
+  watchLayout?: WatchLayout
   /** which attached program the table is of: the same number means the same keys (core/watchKeys.ts) */
   watchKeys?: number
 }
@@ -246,6 +252,12 @@ export class PlcHost {
   /** cumulative split of interleave()'s cost (ms): latching the parts' tag writes in, the scans themselves, and
    *  handing the resulting image back to the world. Shipped as StepStats.plcSplit; window-diff like the rest. */
   readonly perf = { inputsMs: 0, scanMs: 0, imageMs: 0, scans: 0 }
+
+  /** Where the watch table's values are in the controller's memory, when it is one buffer: a frame then carries a
+   *  copy of the bytes and not the table (core/watchTable.ts). Null on the walker engine. */
+  watchPlan(): WatchPlan | null {
+    return this.#link.watchPlan()
+  }
 
   /**
    * current PLC state for the frame payload (fresh objects - safe to structured-clone).

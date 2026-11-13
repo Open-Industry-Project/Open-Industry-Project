@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { keySetOf } from '../../core/watchKeys'
+import { watchKeysOf } from '../../core/watchTable'
 import type { TagValue } from '../../plc'
 import { deviceTags, devicesForTag, type DeviceTags, type DeviceTagUse, type TaggedPart } from '../../plc/bindings'
 
@@ -38,7 +39,7 @@ function upperKey(watch: Readonly<Record<string, TagValue>>, name: string): stri
   const set = keySetOf(watch)
   let m = byUpper.get(set)
   if (!m) {
-    m = new Map(Object.keys(watch).map((k) => [k.toUpperCase(), k]))
+    m = new Map(watchKeysOf(watch).map((k) => [k.toUpperCase(), k]))
     byUpper.set(set, m)
   }
   return m.get(name.toUpperCase())

@@ -15,6 +15,7 @@ import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { canEditDisplay, displayedValues, displayListFull, setDisplayed } from '../../program/displayValues'
 import { MAX_DISPLAY_VALUES } from '../../../core/scene/sceneDisplay'
 import { defineMessages, t } from '../../../core/i18n'
+import { watchKeysOf } from '../../../core/watchTable'
 
 const M = defineMessages('plcWatch', {
   scanProgram: 'Scan: last {last}, average {avg}, max {max}, every {interval}',
@@ -341,7 +342,7 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
   }
   const fillSuggestions = (): void => {
     const img = controller?.plcWatch
-    const keys = img ? Object.keys(img) : listTagNames(state.stProgram)
+    const keys = img ? watchKeysOf(img) : listTagNames(state.stProgram)
     setSuggestions(keys.length > MAX_SUGGESTIONS ? keys.slice(0, MAX_SUGGESTIONS) : keys)
   }
   const toggleExpanded = (name: string): void => {

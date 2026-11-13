@@ -26,6 +26,7 @@ import { addDisplayed, canEditDisplay, displayedValues, moveDisplayed, setDispla
 import { listTags } from '../../plc/tags'
 import { deviceTags } from '../../plc/bindings'
 import { defineMessages, t } from '../../core/i18n'
+import { watchKeysOf } from '../../core/watchTable'
 
 const M = defineMessages('present', {
   watching: 'Watching {name}',
@@ -233,6 +234,6 @@ function programCandidates(parts: EditorState['scene']['parts'], stProgram: stri
  */
 function displayCandidates(fixed: ReadonlyMap<string, DisplayCandidate>, image: Readonly<Record<string, TagValue>> | null, typeOf: TypeOf): DisplayCandidate[] {
   const out = [...fixed.values()]
-  for (const n of Object.keys(image ?? {}).slice(0, MAX_IMAGE_CANDIDATES)) if (!fixed.has(n)) out.push({ name: n, type: typeOf(n, n), from: 'PLC' }) // i18n-ok
+  for (const n of (image ? watchKeysOf(image) : []).slice(0, MAX_IMAGE_CANDIDATES)) if (!fixed.has(n)) out.push({ name: n, type: typeOf(n, n), from: 'PLC' }) // i18n-ok
   return out
 }

@@ -14,6 +14,7 @@
 // latest snapshot and then every delta after it. Deltas carry a sequence number and a decoder refuses a gap.
 
 import type { BoxFrame, CargoShapeRef, FrameDressing } from '../frame'
+import { forEachWatchValue, watchHas, watchKeyCount } from '../watchTable'
 
 const VERSION = 1
 export const LIVE_DELTA = 1
@@ -54,6 +55,9 @@ interface BodyState extends BodyMeta {
 /** what a part's records hold per field: part id -> leaf text (LEAF_FIELDS) or name -> leaf text */
 type RecordMirror = Map<RecordField, Map<string, string | Map<string, string>>>
 
+/** no program attached: one object, so two frames without one compare the same */
+const NO_WATCH: Readonly<Record<string, LiveWatchValue>> = Object.freeze({})
+
 /** a PLC variable's value as the watch table holds it */
 export type LiveWatchValue = number | boolean | string
 
@@ -74,6 +78,8 @@ export class LiveFrameEncoder {
   private dressingObjs: FrameDressing[] = []
   private readonly shapeRefs = new Map<string, CargoShapeRef>()
   private readonly watch = new Map<string, LiveWatchValue>()
+  /** the table the last diff was taken against */
+  private watchOf: object | null = null
 
   /** the sequence number of the last message encode() returned */
   get lastSeq(): number {
@@ -257,16 +263,22 @@ export class LiveFrameEncoder {
 
   private diffWatch(watch: Readonly<Record<string, LiveWatchValue>> | null): Record<string, LiveWatchValue | null> | null {
     let out: Record<string, LiveWatchValue | null> | null = null
-    const now = watch ?? {}
-    for (const [k, v] of Object.entries(now)) {
-      if (this.watch.get(k) === v) continue
+    const now = watch ?? NO_WATCH
+    // the table is replaced when new values arrive, a few times a second: the same one again holds nothing new
+    if (now === this.watchOf) return null
+    this.watchOf = now
+    forEachWatchValue(now, (k, v) => {
+      if (this.watch.get(k) === v) return
       this.watch.set(k, v)
       ;(out ??= {})[k] = v
-    }
-    for (const k of [...this.watch.keys()]) {
-      if (k in now) continue
-      this.watch.delete(k)
-      ;(out ??= {})[k] = null
+    })
+    // a key that went: only another program's table has other keys
+    if (this.watch.size !== watchKeyCount(now)) {
+      for (const k of [...this.watch.keys()]) {
+        if (watchHas(now, k)) continue
+        this.watch.delete(k)
+        ;(out ??= {})[k] = null
+      }
     }
     return out
   }

@@ -8,7 +8,7 @@
 import { canonicalAddress } from '../core/io/iecAddress'
 import { controllerTags, identKey, isScalarType, passOrder, taskTable } from './program'
 import { bool, isInt, isString, nsOf, num, roundEven, str, strLimit, wrap } from './runtime'
-import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, VarInfo } from './types'
+import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, VarInfo, WatchPlan } from './types'
 import { isEnum, StError } from './types'
 
 /** A scalar value in the variable image, as opposed to an aggregate (array/struct record).
@@ -19,6 +19,35 @@ export const tagOf = (v: unknown): TagValue | undefined => (isTagValue(v) ? v : 
 
 export function isTagValue(v: unknown): v is TagValue {
   return typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string'
+}
+
+/** Where one watch value is in a typed program's memory, and how it is stored (core/watchTable.ts WATCH_KIND). */
+export interface WatchPlace {
+  addr: number
+  kind: number
+}
+
+/** CompiledProgram.watchPlan: the watch table as places in the program's memory, in the table's own order. A key
+ *  listed twice keeps its first position and its last place, as an object assigned twice does. Null when a POU keeps
+ *  its variables elsewhere (the walker). */
+export function planWatch(steps: readonly { pou: Pou | null; prefix: string; blocks: boolean }[]): WatchPlan | null {
+  const places = new Map<string, WatchPlace>()
+  let buffer: ArrayBuffer | null = null
+  for (const s of steps) {
+    if (!s.pou) continue
+    if (!s.pou.placesInto) return null
+    buffer = s.pou.placesInto(places, s.prefix, WATCH_ARRAY_MAX, s.blocks)
+  }
+  if (!buffer) return null
+  const keys = [...places.keys()]
+  const addrs = new Uint32Array(keys.length)
+  const kinds = new Uint8Array(keys.length)
+  let i = 0
+  for (const p of places.values()) {
+    addrs[i] = p.addr
+    kinds[i++] = p.kind
+  }
+  return { layout: { keys, addrs, kinds }, memory: buffer }
 }
 
 /** A runnable POU: its own variable image, function-block instances included, and a body to scan. */
@@ -45,6 +74,9 @@ export interface Pou {
   watchInto(out: Record<string, TagValue>, prefix: string, maxArray: number): void
   /** its function-block instances' outputs, keyed `inst.member` under `prefix` */
   blocksInto(out: Record<string, TagValue>, prefix: string): void
+  /** Where watchInto's and blocksInto's values are, when its memory is one buffer (the typed engine's): each key's
+   *  address and kind into `out`, in the order the two list them, and the buffer. Absent on the walker. */
+  placesInto?(out: Map<string, WatchPlace>, prefix: string, maxArray: number, blocks: boolean): ArrayBuffer
   /** the declared scalar type of each key memory lists for it (CompiledProgram.memoryTypes) */
   typesInto(out: Record<string, string>, prefix: string): void
   /** Every scalar it holds (CompiledProgram.deepMemory): what memory lists, and inside every function block instance
@@ -190,6 +222,7 @@ export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: Po
   ])
   /** the controller's clock (ns): every scan moves it on by its dt, whatever the scan calls */
   let clock = 0
+  let implicitPlan: { plan: WatchPlan | null } | null = null
   return {
     tasks: [],
     inputs: [...main.decls.filter((d) => d.section === 'VAR_INPUT' && tagged(d)).map((d) => d.name), ...locatedKeys(located, 'input')],
@@ -205,6 +238,16 @@ export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: Po
       pou.blocksInto(out, '')
       return out
     },
+    // the same four steps as `watch`, as places
+    watchPlan: () =>
+      (implicitPlan ??= {
+        plan: planWatch([
+          { pou: globalPou, prefix: '', blocks: false },
+          { pou, prefix: '', blocks: false },
+          { pou: globalPou, prefix: '', blocks: true },
+          { pou, prefix: '', blocks: true },
+        ]),
+      }).plan,
     get memory() {
       const out: Record<string, TagValue> = {}
       globalPou?.watchInto(out, '', Infinity)
@@ -276,6 +319,7 @@ export function configuredProgram(ast: Ast, build: PouBuilder, globalPou: Pou | 
   // one the end of the step: one controller clock, read at each scan. Kept per task because only
   // the scheduler knows when a scan was released; the readings part only if one task sheds scans.
   const clocks = tasks.map(() => 0)
+  let configuredPlan: { plan: WatchPlan | null } | null = null
   const runTask = (index: number, dt: number): void => {
     clocks[index]! += nsOf(dt)
     for (const name of tasks[index]!.programs) byName.get(identKey(name))!.pou.scan(clocks[index]!)
@@ -313,6 +357,16 @@ export function configuredProgram(ast: Ast, build: PouBuilder, globalPou: Pou | 
       for (const i of instances) i.pou.blocksInto(out, `${i.name}.`)
       return out
     },
+    // the same steps as `watch`, as places
+    watchPlan: () =>
+      (configuredPlan ??= {
+        plan: planWatch([
+          { pou: globalPou, prefix: '', blocks: false },
+          ...instances.map((i) => ({ pou: i.pou, prefix: `${i.name}.`, blocks: false })),
+          { pou: globalPou, prefix: '', blocks: true },
+          ...instances.map((i) => ({ pou: i.pou, prefix: `${i.name}.`, blocks: true })),
+        ]),
+      }).plan,
     get memory() {
       const out: Record<string, TagValue> = {}
       globalPou?.watchInto(out, '', Infinity)

@@ -5,6 +5,8 @@
 // Whoever replaces the table says which key set the new one has (the sim client, from the worker's count of attached
 // programs). A table nobody spoke for is its own key set, so its readers index it as they did before.
 
+import { putWatchValue, watchHas, type WatchValue } from './watchTable'
+
 const keySets = new WeakMap<object, object>()
 
 /** Say that `table` holds exactly the keys of the key set `set` (any object: it is only an identity). */
@@ -23,8 +25,10 @@ export function hasKeySet(table: object): boolean {
 }
 
 /** `table` with `key` set to `value`, in the same key set when the key was already there (a write shown at once). */
-export function withWatchValue<V>(table: Readonly<Record<string, V>>, key: string, value: V): Record<string, V> {
-  const next = { ...table, [key]: value }
-  if (Object.hasOwn(table, key)) markKeySet(next, keySetOf(table))
+export function withWatchValue<V extends WatchValue>(table: Readonly<Record<string, V>>, key: string, value: V): Readonly<Record<string, V>> {
+  const had = watchHas(table, key)
+  // a copy of a controller's memory takes the value where it is (core/watchTable.ts); an object is copied
+  const next = (had ? putWatchValue(table, key, value) : null) ?? { ...table, [key]: value }
+  if (had) markKeySet(next, keySetOf(table))
   return next
 }

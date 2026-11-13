@@ -16,6 +16,7 @@ import { tags as t } from '@lezer/highlight'
 import { BUILTIN_FUNCTIONS, controllerDiagnostics, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs, watchScopes } from '../../plc'
 import type { Controller } from '../../core/controller'
 import { keySetOf } from '../../core/watchKeys'
+import { watchIsEmpty, watchKeysOf } from '../../core/watchTable'
 import type { MonitoredProgram, TagValue, WatchInstance } from '../../plc'
 // `t` is the highlighter's tags here; the i18n lookup is `msg`
 import { defineMessages, t as msg } from '../../core/i18n'
@@ -336,7 +337,7 @@ export function keysByUpper(values: Readonly<Record<string, TagValue>>): Map<str
   const set = keySetOf(values)
   let m = upperKeys.get(set)
   if (!m) {
-    m = new Map(Object.keys(values).map((k) => [k.toUpperCase(), k]))
+    m = new Map(watchKeysOf(values).map((k) => [k.toUpperCase(), k]))
     upperKeys.set(set, m)
   }
   return m
@@ -344,8 +345,7 @@ export function keysByUpper(values: Readonly<Record<string, TagValue>>): Map<str
 
 /** has the image any value (without listing its keys) */
 function hasValues(values: Readonly<Record<string, TagValue>>): boolean {
-  for (const k in values) if (Object.hasOwn(values, k)) return true
-  return false
+  return !watchIsEmpty(values)
 }
 
 /** The type each variable is declared with, folded name -> type as written (`TIME`, `DT`, `TON`), for showing a

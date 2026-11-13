@@ -26,6 +26,7 @@ import type { EditorStore } from '../store/store'
 import { NO_PROGRAM, setDriven, setLinkDriven, setProgramStatus } from './program'
 import type { ProgramState } from './program'
 import type { EditorController } from '../controller'
+import { overlayTable } from '../../core/watchTable'
 
 export type ExternalPlcModule = typeof import('../links/externalPlc')
 
@@ -495,7 +496,9 @@ export function plcImage(l: PlcLinkState, own: Readonly<Record<string, TagValue>
   const tags = frame?.tags
   const c = l.image
   if (c && c.own === own && c.tags === tags && c.out === l.linkOut) return c.value
-  const value = { ...flattenFrameTags(tags), ...l.linkOut, ...own }
+  // the program's own table is laid over the links' values without copying it: it can be half a million values
+  const beside: Record<string, TagValue> = { ...flattenFrameTags(tags), ...l.linkOut }
+  const value = own ? overlayTable(beside, own) : beside
   l.image = { own, tags, out: l.linkOut, value }
   return value
 }

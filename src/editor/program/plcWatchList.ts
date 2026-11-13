@@ -9,6 +9,7 @@
 import { KEYWORDS } from '../../plc'
 import type { TagValue } from '../../plc'
 import { keySetOf } from '../../core/watchKeys'
+import { watchKeysOf } from '../../core/watchTable'
 import { currentDocumentId } from '../project/documentStore'
 import { ownSharedProject } from '../project/sharedProject'
 
@@ -44,7 +45,7 @@ function keyIndex(watch: Readonly<Record<string, TagValue>>): KeyIndex {
   let ix = indexes.get(set)
   if (!ix) {
     const upper = new Map<string, string>()
-    for (const k of Object.keys(watch)) upper.set(k.toUpperCase(), k)
+    for (const k of watchKeysOf(watch)) upper.set(k.toUpperCase(), k)
     ix = { upper, owners: new Map(), members: new Map() }
     indexes.set(set, ix)
   }

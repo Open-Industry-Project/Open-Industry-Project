@@ -2,6 +2,8 @@
 // The transpiler/interpreter consumes a plain ST *source string* - every authoring
 // surface (Monaco buffer, fetched `.st` asset, inline literal) reduces to that.
 
+import type { WatchLayout } from '../core/watchTable'
+
 export interface SourcePos {
   /** 1-based line */
   line: number
@@ -744,6 +746,13 @@ export interface TagPort {
   get(): TagValue | undefined
 }
 
+/** The watch table as places in a program's memory ({@link CompiledProgram.watchPlan}): where each value is, and the
+ *  buffer they are all in. The buffer is the running program's own, so a reader copies it before handing it on. */
+export interface WatchPlan {
+  layout: WatchLayout
+  memory: ArrayBuffer
+}
+
 export interface CompiledProgram {
   /**
    * The controller's tasks, in declaration order, continuous last. Empty for a program with no
@@ -794,6 +803,12 @@ export interface CompiledProgram {
    * the variables by name and has to say what each one holds (editor/links/opcUaServer.ts).
    */
   varInfo(name: string): VarInfo | undefined
+  /**
+   * Where `watch`'s values are in the program's memory, for a host that sends the table many times a second: the
+   * bytes copy in a fraction of the time the table takes to build (core/watchTable.ts). Planned once. Null from an
+   * engine whose memory is not one buffer (the walker), and absent from a program that is not compiled here.
+   */
+  watchPlan?(): WatchPlan | null
   /** execute one cyclic scan; `dt` = elapsed seconds since the previous scan, which moves the
    *  controller's clock on. Timers read that clock, so one the scan does not call (inside an IF,
    *  behind EN) still measures the time between its calls. Throws a

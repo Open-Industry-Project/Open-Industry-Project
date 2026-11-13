@@ -2,6 +2,7 @@
 // views every access goes through (docs/plc-typed-storage.md, "The arena"). Addresses are bytes; a place's layout
 // (layout.ts) aligns it to its own size, so `I32[addr >> 2]` is exact.
 
+import { WATCH_KIND } from '../../core/watchTable'
 import type { ScalarType, TagValue } from '../types'
 import type { ScalarLayout } from './layout'
 
@@ -87,6 +88,23 @@ export class Arena {
   /** Copy `bytes` from `src` to `dst` (a whole array or struct of one type: the checker allows nothing else). */
   copy(dst: number, src: number, bytes: number): void {
     if (dst !== src) this.U8.copyWithin(dst, src, src + bytes)
+  }
+}
+
+/** How {@link Arena.load} reads a scalar type, as a watch layout names it (core/watchTable.ts): the two must agree,
+ *  which watchPlan.test.ts holds them to. */
+export function watchKindOf(t: ScalarType): number {
+  switch (t) {
+    case 'BOOL': return WATCH_KIND.BOOL
+    case 'SINT': return WATCH_KIND.I8
+    case 'USINT': case 'BYTE': return WATCH_KIND.U8
+    case 'INT': return WATCH_KIND.I16
+    case 'UINT': case 'WORD': return WATCH_KIND.U16
+    case 'DINT': return WATCH_KIND.I32
+    case 'UDINT': case 'DWORD': return WATCH_KIND.U32
+    case 'REAL': return WATCH_KIND.F32
+    case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return WATCH_KIND.F64
+    case 'STRING': return WATCH_KIND.STRING
   }
 }
 

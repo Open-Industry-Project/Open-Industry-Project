@@ -136,6 +136,28 @@ POU of its own over the instance's variables (`instanceStore`), a re-entrant cal
 is a `RefCell` (the record holding the place and its key, or 0 for NULL). So the oracle compares two
 implementations of each rule, not one read twice.
 
+## The watch table
+
+The editor reads a running program's values from a copy of the arena, not from a table built out of it
+([core/watchTable.ts](../src/core/watchTable.ts)).
+
+- **The plan.** `CompiledProgram.watchPlan()` lists where each value of `watch` is: its key, its byte address and the
+  view it is read through, in the order `watch` lists them. It is made once per compiled program from the same walk
+  `watch` takes (`placesInto`), so the two cannot list different keys. The walker has no plan.
+- **The frame.** The sim worker sends the plan's layout once per attached program and a copy of the arena at
+  `WATCH_HZ` (sim/worker.ts `plcFrame`). The copy is handed over, not cloned. On a program of 577,725 values the
+  arena is 8.8 MB and copies in 0.4 ms. Its table took 215 ms to build and 100-250 ms to receive.
+- **The table.** The sim client wraps layout and bytes in a Proxy (`memoryTable`) that reads a value from its
+  address when asked. A reader sees the `Readonly<Record<string, TagValue>>` it always did, and each table is the
+  moment its bytes were copied.
+- **Where a table still travels.** A program on the walker, and several simulated controllers in one run (their
+  tables are merged by name).
+
+Listing a Proxy's keys with `Object.keys` or a spread is slow at that size, since the engine checks the list. Code
+that lists a table's keys, copies it or counts it uses the helpers in core/watchTable.ts (`watchKeysOf`,
+`forEachWatchValue`, `watchKeyCount`, `overlayTable`, and `withWatchValue` in core/watchKeys.ts). What is derived
+from the keys alone is kept per key set (core/watchKeys.ts), not per table.
+
 ## Verification
 
 1. `npm test`: the oracle compares the walker against the typed engine on the conformance corpus,
@@ -153,6 +175,10 @@ implementations of each rule, not one read twice.
    positional FUNCTION call having no argument array, and a block input that its type already proves going in
    uncoerced.
 5. `npm run bench-sim` on a real line: the fingerprint must not move across an engine change.
+6. The watch plan ([watchPlan.test.ts](../src/plc/watchPlan.test.ts)): for every program of the corpus, after every
+   scan, the table read from a copy of the arena through the plan is the table `watch` builds, key for key in order.
+7. The size budget ([largeWatchBudget.test.ts](../src/editor/program/largeWatchBudget.test.ts)): on half a million
+   values, the readers index a program's table once and the wiring check reads it once.
 
 These checks fail on each layout bug they exist for: wrong strides, addresses without their base, an in-out read
 without its dereference, an unbound in-out at address 0, aggregate inputs copied the wrong way, results sharing the

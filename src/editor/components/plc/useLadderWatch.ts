@@ -6,6 +6,7 @@ import type { TagValue } from '../../../plc/types'
 import { indexWatch, watchLookup, type WatchIndex } from './ladderWatch'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasKeySet, keySetOf } from '../../../core/watchKeys'
+import { watchKeyCount } from '../../../core/watchTable'
 
 /** the image while a running program has published none yet: one object, so each poll is the same state */
 const NO_VALUES: Readonly<Record<string, TagValue>> = Object.freeze({})
@@ -60,7 +61,7 @@ export function useLadderWatch(
     }
     // told apart by key set when the image has one (core/watchKeys.ts), else by its number of keys
     const set = hasKeySet(image) ? keySetOf(image) : null
-    const keys = set === null ? Object.keys(image).length : 0
+    const keys = set === null ? watchKeyCount(image) : 0
     const held = watchIndex.current
     // A running program's key set is fixed, so the index is kept across polls. The poll hands a fresh object every
     // 120 ms, and indexing five thousand values on each would be the whole cost of a watch. A reload swaps the
