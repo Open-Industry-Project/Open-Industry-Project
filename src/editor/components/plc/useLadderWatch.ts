@@ -3,7 +3,7 @@
 // the sheet.
 
 import type { TagValue } from '../../../plc/types'
-import { indexWatch, watchLookup, type WatchIndex } from './ladderWatch'
+import { indexWatch, shownUnchanged, watchLookup, type WatchIndex, type WatchLookup } from './ladderWatch'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasKeySet, keySetOf } from '../../../core/watchKeys'
 import { watchKeyCount } from '../../../core/watchTable'
@@ -19,7 +19,14 @@ export function useLadderWatch(
   getForces: (() => Readonly<Record<string, number | boolean>>) | undefined,
   onForces: ((cb: () => void) => () => void) | undefined,
 ) {
-  const [watch, setWatch] = useState<Readonly<Record<string, TagValue>> | null>(null)
+  // the newest image the poll saw. Held in a ref: the sheet is redrawn when a value it SHOWS changed, not when an
+  // image arrived, and any redraw (a tab opened, a selection moved) reads the newest one.
+  const latest = useRef<Readonly<Record<string, TagValue>> | null>(null)
+  const [, redraw] = useState(0)
+  /** what the last draw read for each operand text it asked about */
+  const shown = useRef(new Map<string, TagValue | undefined>())
+  const sourceRef = useRef(source)
+  sourceRef.current = source
   const getWatchRef = useRef(getWatch)
   getWatchRef.current = getWatch
   const getForcesRef = useRef(getForces)
@@ -39,26 +46,11 @@ export function useLadderWatch(
     return onForcesRef.current?.(read)
   }, [live])
 
-  // the image changes every scan, independent of any store update, so it is polled (as the text view's is). The sim
-  // client replaces the image when new values arrive, so the poll keeps the object it is handed: an unchanged image
-  // is the same object, which React skips. A copy per poll redrew the sheet eight times a second whatever had changed.
-  useEffect(() => {
-    if (!live) {
-      setWatch(null)
-      return
-    }
-    const id = setInterval(() => setWatch(getWatchRef.current() ?? NO_VALUES), 120)
-    return () => clearInterval(id)
-  }, [live])
   // the values under the operands: the running program's image (its key set is fixed, so its index is kept across polls:
   // ladderWatch.ts)
   const watchIndex = useRef<{ keys: number; set: object | null; src: string; index: WatchIndex } | null>(null)
-  const { valueOf, keyOf } = useMemo(() => {
-    const image = live ? watch : null
-    if (!image) {
-      watchIndex.current = null
-      return watchLookup(null, null)
-    }
+  /** `image` as the rungs read it; `indexed` says whether the index it reads through had to be built for it */
+  const lookupFor = (image: Readonly<Record<string, TagValue>>, src: string): { lookup: WatchLookup; indexed: boolean } => {
     // told apart by key set when the image has one (core/watchKeys.ts), else by its number of keys
     const set = hasKeySet(image) ? keySetOf(image) : null
     const keys = set === null ? watchKeyCount(image) : 0
@@ -68,11 +60,56 @@ export function useLadderWatch(
     // program while it keeps running, so the source text is checked too: a tag renamed and reloaded keeps the same
     // key count, and a stale index would answer for names that no longer exist (it memoises the misses too), so
     // every rung would draw de-energized while the controller is scanning normally.
-    if (!held || held.set !== set || held.keys !== keys || held.src !== source) {
-      watchIndex.current = { keys, set, src: source, index: indexWatch(image) }
+    const indexed = !held || held.set !== set || held.keys !== keys || held.src !== src
+    if (indexed) watchIndex.current = { keys, set, src, index: indexWatch(image) }
+    return { lookup: watchLookup(image, watchIndex.current!.index), indexed }
+  }
+
+  // The image changes every scan, independent of any store update, so it is polled (as the text view's is). The sim
+  // client replaces the image when new values arrive, so an unchanged image is the same object. A new one redraws the
+  // sheet only when a value the last draw read is different in it: the sheet draws a routine's every rung, and most
+  // images change nothing it shows. Comparing is one lookup per operand drawn.
+  useEffect(() => {
+    if (!live) {
+      latest.current = null
+      redraw((n) => n + 1)
+      return
     }
-    return watchLookup(image, watchIndex.current!.index)
-  }, [watch, live, source])
+    const id = setInterval(() => {
+      const next = getWatchRef.current() ?? NO_VALUES
+      const was = latest.current
+      if (next === was) return
+      latest.current = next
+      if (was === null) return redraw((n) => n + 1)
+      const { lookup, indexed } = lookupFor(next, sourceRef.current)
+      if (indexed || !shownUnchanged(shown.current, lookup)) redraw((n) => n + 1)
+    }, 120)
+    return () => clearInterval(id)
+  }, [live])
+  const image = live ? latest.current : null
+  const read = useMemo(() => {
+    if (!image) {
+      watchIndex.current = null
+      return watchLookup(null, null)
+    }
+    return lookupFor(image, source).lookup
+  }, [image, source])
+  // each draw starts its own record of what it read: the next image is compared against the newest draw
+  const asked = new Map<string, TagValue | undefined>()
+  shown.current = asked
+  const keyOf = read.keyOf
+  const valueOf = (text: string): TagValue | undefined => {
+    const v = read.valueOf(text)
+    asked.set(text, v)
+    return v
+  }
+  /** Change the image the sheet shows (a toggled bit shown before the frame that confirms it), and redraw. */
+  const setWatch = (update: (w: Readonly<Record<string, TagValue>> | null) => Readonly<Record<string, TagValue>> | null): void => {
+    const next = update(latest.current)
+    if (next === latest.current) return
+    latest.current = next
+    redraw((n) => n + 1)
+  }
   /** values are drawn under the operands while the program runs */
   const showsValues = live
   // Room for each value, so a running program does not move the sheet. A box is sized from what is in it, and a live

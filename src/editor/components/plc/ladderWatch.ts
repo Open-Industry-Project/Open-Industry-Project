@@ -82,3 +82,10 @@ export function watchLookup(watch: Readonly<Record<string, TagValue>> | null, in
 
 /** A value as a rung prints it: a BOOL as 1 / 0, a number to three places. */
 export const fmt = (v: TagValue | undefined): string => (v === undefined ? '' : typeof v === 'boolean' ? (v ? '1' : '0') : typeof v === 'number' ? String(Math.round(v * 1000) / 1000) : v)
+
+/** Does `lookup` (a newer image) give every operand the value the last draw read for it? `shown` is that draw's
+ *  record: operand text to the value it was handed. True means a redraw would paint the same sheet. */
+export function shownUnchanged(shown: ReadonlyMap<string, TagValue | undefined>, lookup: WatchLookup): boolean {
+  for (const [text, was] of shown) if (!Object.is(lookup.valueOf(text), was)) return false
+  return true
+}
