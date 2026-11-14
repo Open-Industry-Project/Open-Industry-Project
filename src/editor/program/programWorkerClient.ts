@@ -10,7 +10,7 @@
 import type { ControllerDiagnostics } from '../../plc/controller'
 import type { ProgramSurface } from '../../plc/programSurface'
 import { compiledOnce } from './compiledProgram'
-import { checkOfAsk, surfaceOfAsk, type CheckAsk, type ProgramAnswers, type ProgramAsk, type ProgramReply, type ProgramRequest } from './programWorkerAsk'
+import { checkOfAsk, factsOfAsk, surfaceOfAsk, type CheckAsk, type FactsAnswer, type FactsAsk, type ProgramAnswers, type ProgramAsk, type ProgramReply, type ProgramRequest } from './programWorkerAsk'
 
 type Kind = keyof ProgramAnswers
 
@@ -84,6 +84,15 @@ const surfaces = new Lane<'surface', ProgramAsk>(
   (ask) => [ask.controller, ask.scanMs],
 )
 const checks = new Lane<'check', CheckAsk>('check', checkOfAsk, NO_PROBLEMS, (ask) => [ask.controller, ask.scanMs, ask.defaultName ?? null])
+
+const NO_FACTS: FactsAnswer = { facts: { check: NO_PROBLEMS, runControllers: [], main: null, others: [] }, table: null }
+const facts = new Lane<'facts', FactsAsk>('facts', (ask) => factsOfAsk(ask, compiledOnce), NO_FACTS, (ask) => [ask.controller, ask.scanMs, ask.compose, ask.defaultName ?? null, ask.simulated, ask.tags])
+
+/** What the Problems panel asks of the program (programFacts.ts). The same promise for the same ask; an ask that went
+ *  stale before it was answered resolves empty, so a caller checks its ask is still the current one. */
+export function factsFor(ask: FactsAsk): Promise<FactsAnswer> {
+  return facts.ask(ask)
+}
 
 /** What the program offers the scene, or null when it does not compile. The same promise for the same program. */
 export function surfaceFor(ask: ProgramAsk): Promise<ProgramSurface | null> {

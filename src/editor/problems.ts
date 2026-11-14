@@ -21,7 +21,10 @@
  * agent's get_problems, the Tests overlay and the test-project and check-flow CLIs report them.
  */
 import { compiledOnce } from './program/compiledProgram'
-import { controllerDiagnostics, controllerRuns, plcOfProgram, controllerSource, LocalPlcLink, parseAndCheck, runnableSource, StError, unhandledProgramTags } from '../plc'
+import { programFactsOf, type FactsArgs, type ProgramFacts, type RunFacts } from './program/programFacts'
+import type { FactsAsk } from './program/programWorkerAsk'
+import { plcOfProgram, unhandledProgramTags } from '../plc'
+import { boundNames } from '../plc/link/plcLink'
 import { checkLayout } from '../core/checkLayout'
 import { controllersUsed, controllerTag, partsForController, partsNaming } from '../core/io/controllerTag'
 import type { Controller } from '../core/controller'
@@ -32,7 +35,6 @@ import { newerSdkLevel, PART_SDK_LEVEL } from '../core/parts/partSdk'
 import type { TestSpec } from '../core/project/projectTest'
 import { coverByTests } from '../core/project/projectTestTags'
 import { MAX_SIM_HZ, type PartInstance, type SimRate } from '../core/types'
-import type { CompiledProgram } from '../plc'
 import { timeToString } from '../plc/runtime'
 import { checkWiring, wiredBindings } from '../plc/wiring'
 import type { RuntimePartDiagnostic } from '../core/parts/partDiagnostics'
@@ -132,47 +134,72 @@ function lineOf(src: string, offset: number): number {
   return line
 }
 
-/**
- * Compiling is the only way to learn what a program declares (its inputs/outputs/watch image), and
- * the panel recomputes on every scene commit and whenever typing in the ST editor pauses - so the result
- * is kept against the source text, in the one copy the Inspector's tag fields read too (program/compiledProgram.ts).
- * The error is usually a source-level one `diagnostics()` already reported with a position; kept for when it did not.
- */
-function linkFor(source: string): { program: CompiledProgram | null; error: unknown } {
-  if (source.trim() === '') return { program: null, error: null }
-  return compiledOnce(source)
+/** The tags the scene's parts are wired to, by controller ('' the default one): what the facts are asked about. */
+function wiredTagNames(parts: readonly PartInstance[], simulated: readonly string[]): Record<string, string[]> {
+  const out: Record<string, string[]> = { '': checkWiring(parts).tags.map((t) => t.name) }
+  for (const name of simulated) out[name] = checkWiring(partsForController(parts, name)).tags.map((t) => t.name)
+  return out
 }
 
-/**
- * controllerDiagnostics (a full lex + parse + type-check) memoized the same way, on the source and the
- * controller table by value (the default table is minted fresh per call, controllerFor). A scene commit
- * re-collects the panel without touching the program, and without the memo would re-check it every time.
- */
-let checkedKey: string | null = null
-let checkedCache: ReturnType<typeof controllerDiagnostics> = { source: [], controller: [] }
-function checkedFor(source: string, controller: Controller | null, defaultName: string | undefined): ReturnType<typeof controllerDiagnostics> {
-  const key = JSON.stringify([controller, source, defaultName ?? null])
-  if (key === checkedKey) return checkedCache
-  checkedCache = controllerDiagnostics(source, controller, defaultName !== undefined ? { defaultName } : {})
-  checkedKey = key
-  return checkedCache
-}
+/** The named controllers the simulator runs. */
+const simulatedOf = (input: Pick<ProblemsInput, 'namedPlcs'>): string[] => (input.namedPlcs ?? []).filter((c) => c.runsOn === 'app' && c.enabled).map((c) => c.name)
 
-/** Where a TASK's INTERVAL value is written, in a program that declares its own CONFIGURATION. Only asked
- *  about a program that compiled, and only for a task already found too fast, so the re-check is rare. */
-function intervalAt(source: string, task: string): number | undefined {
-  try {
-    const def = parseAndCheck(source).ast.configuration?.tasks.find((t) => t.name === task)
-    return def?.args.find((a) => a.name === 'INTERVAL')?.value.pos.offset
-  } catch {
-    return undefined
+/**
+ * What {@link collectProblems} asks of the program for `input` (program/programFacts.ts). The panel sends it to a
+ * worker and hands the answer back in; anything that cannot wait lets collectProblems work the facts out itself.
+ */
+export function factsArgsOf(input: Pick<ProblemsInput, 'parts' | 'stProgram' | 'stDialect' | 'controller' | 'namedPlcs' | 'mainPlcName'>): FactsArgs {
+  const foreign = input.stDialect !== undefined && !isKnownDialect(input.stDialect)
+  const simulated = simulatedOf(input)
+  return {
+    source: foreign ? '' : input.stProgram,
+    controller: foreign ? null : (input.controller ?? null),
+    ...(input.mainPlcName !== undefined ? { defaultName: input.mainPlcName } : {}),
+    simulated,
+    tags: wiredTagNames(input.parts, simulated),
   }
+}
+
+/**
+ * {@link factsArgsOf} for a worker (program/programWorkerClient.ts `factsFor`): the same question, with the scene's
+ * own controller table and scan time in place of the composed table, which the worker works out and hands back.
+ */
+export function factsAskOf(doc: Pick<ProblemsInput, 'parts' | 'stProgram' | 'stDialect' | 'namedPlcs' | 'mainPlcName'> & { controller: Controller | null; scanMs: number }): FactsAsk {
+  const known = isKnownDialect(doc.stDialect)
+  const simulated = simulatedOf(doc)
+  return {
+    source: known ? doc.stProgram : '',
+    controller: doc.controller,
+    scanMs: doc.scanMs,
+    compose: known,
+    ...(doc.mainPlcName !== undefined ? { defaultName: doc.mainPlcName } : {}),
+    simulated,
+    tags: wiredTagNames(doc.parts, simulated),
+  }
+}
+
+/** A value of the kind the program holds, for the wiring check's type comparison (it reads only what kind it is). */
+const SAMPLE = { boolean: false, number: 0, string: '' } as const
+
+/** One controller's program as the wiring checks read it: bound to the scene's wiring as Play binds it (its bindable
+ *  names include a sole instance's bare aliases), with a value of the right kind for each wired tag. */
+function linkOf(run: RunFacts, parts: readonly PartInstance[]): { inputs: string[]; outputs: string[]; bindable: string[]; aliases: ReadonlyMap<string, string>; watch: Record<string, boolean | number | string> } | null {
+  if (!run.surface) return null
+  const aliases = new Map(run.surface.aliases)
+  const bound = boundNames(run.surface, aliases, wiredBindings(parts, boundNames(run.surface, aliases)))
+  const watch: Record<string, boolean | number | string> = {}
+  for (const [tag, kind] of Object.entries(run.kinds)) watch[aliases.get(tag) ?? tag] = SAMPLE[kind]
+  return { ...bound, aliases, watch }
 }
 
 const GROUP_RANK: Record<ProblemGroup, number> = { Program: 0, Wiring: 1, Parts: 2, Layout: 3 }
 
-/** Collect every problem the open document currently has. */
-export function collectProblems(input: ProblemsInput): ProblemsReport {
+/**
+ * Collect every problem the open document currently has. `known` is what the program says (program/programFacts.ts),
+ * when a worker has already worked it out for this very input ({@link factsArgsOf}); without it the program is checked
+ * and compiled here.
+ */
+export function collectProblems(input: ProblemsInput, known?: ProgramFacts): ProblemsReport {
   const problems: Problem[] = []
   const notes: string[] = []
   // A program written for a dialect this build does not have is not checked as IEC: every check below would report
@@ -192,7 +219,8 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   // its controller table when it has one. A table's own problems have no line in the text to point at,
   // so they are rows about the controller rather than about a place in the program
   const controller = foreign ? null : (input.controller ?? null)
-  const found = src.trim() !== '' || controller ? checkedFor(src, controller, input.mainPlcName) : { source: [], controller: [] }
+  const facts = known ?? programFactsOf(factsArgsOf(input), compiledOnce)
+  const found = facts.check
   for (const message of found.controller) {
     problems.push({ key: `controller:${message}`, severity: 'error', group: 'Program', subject: 'Controller', message, parts: [], panel: 'tasks' })
   }
@@ -221,14 +249,9 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   // with the scene's bindings by wiring, as Play attaches it: a controller tag a part is wired to is connected
   // Each controller the simulator runs compiles its own share of the program, as Play runs it (plc/controller.ts
   // controllerRuns): the default one's is checked here as the program, and each other one's against its own tags below.
-  const simulated = (input.namedPlcs ?? []).filter((c) => c.runsOn === 'app' && c.enabled).map((c) => c.name)
-  const runs = controller ? controllerRuns(src, controller, 0, { ...(input.mainPlcName !== undefined ? { defaultName: input.mainPlcName } : {}), simulated }) : []
-  const mainTable = runs.find((r) => r.controller === null)?.table ?? controller
-  const built = src.trim() === '' ? { program: null, error: null } : linkFor(controllerSource(src, mainTable))
-  const compiled = built.program
-  // bound through the link, as Play binds it: its bindable names include a sole instance's bare aliases
-  const declaredLink = compiled ? new LocalPlcLink(compiled) : null
-  const link = declaredLink ? declaredLink.withBindings(wiredBindings(input.parts, declaredLink)) : null
+  const simulated = simulatedOf(input)
+  const main = facts.main
+  const link = main ? linkOf(main, input.parts) : null
   const brokenProgram = src.trim() !== '' && link === null
   if (brokenProgram) {
     notes.push('The PLC program does not compile, so the checks that need its declarations did not run.')
@@ -236,9 +259,9 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   // compile() refused a program the checks above passed. The checker is meant to run every check the compiler
   // does, so this is a gap in it (a function block holding itself was one), but the panel must not read
   // "0 errors" for a program that will not run: the compiler's own message is the row
-  if (built.error !== null && !problems.some((p) => p.severity === 'error' && p.group === 'Program')) {
-    const message = built.error instanceof Error ? built.error.message : String(built.error)
-    const at = built.error instanceof StError ? built.error.pos.offset : undefined
+  if (main?.error && !problems.some((p) => p.severity === 'error' && p.group === 'Program')) {
+    const message = main.error.message
+    const at = main.error.offset
     // with a table the compiled source is the program with its CONFIGURATION appended, so past the program's own text is the table's
     if (at !== undefined && (!controller || at < src.trimEnd().length)) {
       const line = lineOf(src, at)
@@ -266,11 +289,11 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   // a task the sim cannot scan on its INTERVAL drops scans and its timers lag sim time. A warning, because a
   // real PLC may well hold that interval and the program exports fine; only the sim cannot. It depends on the
   // document alone (see shortestHeldIntervalSec), so it is reported here before Run, not counted during it
-  if (compiled) {
+  if (main?.surface) {
     const shortest = shortestHeldIntervalSec(input.stepHz)
     // the value the message offers, rounded up to a whole microsecond so it is one that holds
     const shortestText = timeToString(Math.ceil(shortest * 1e6 - 1e-6) / 1000)
-    for (const t of compiled.tasks) {
+    for (const t of main.tasks) {
       // the scheduler's own tolerance (plc/scanEngine.ts), so an interval AT the limit is not flagged by a rounding error
       if (t.kind !== 'periodic' || t.periodSec >= shortest * (1 - 1e-6)) continue
       // the limit scales with the step: the rate at which this interval would hold, if a project may choose it
@@ -283,7 +306,7 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
         problems.push({ ...row, subject: 'Controller', panel: 'tasks' })
         continue
       }
-      const offset = intervalAt(src, t.name)
+      const offset = main.intervals[t.name]
       if (offset === undefined) {
         problems.push({ ...row, subject: `Task ${t.name}` })
         continue
@@ -321,15 +344,11 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   }
   // another controller the simulator runs: its program against its own tags, as the default one's is above. Only what
   // is the program's to say: the part-against-part checks already ran on every tag, names and all
-  for (const r of runs) {
-    if (r.controller === null || !link) continue
+  for (const r of facts.others) {
     const name = r.controller
-    let own: LocalPlcLink
-    try {
-      const declared = new LocalPlcLink(runnableSource(r.source, r.table))
-      own = declared.withBindings(wiredBindings(partsForController(input.parts, name), declared))
-    } catch (e) {
-      problems.push({ key: `controller-compile:${name}`, severity: 'error', group: 'Program', subject: name, message: `does not compile its program instances: ${e instanceof Error ? e.message : String(e)}`, parts: [], panel: 'tasks' })
+    const own = linkOf(r, partsForController(input.parts, name))
+    if (!own) {
+      problems.push({ key: `controller-compile:${name}`, severity: 'error', group: 'Program', subject: name, message: `does not compile its program instances: ${r.error?.message ?? 'it does not compile'}`, parts: [], panel: 'tasks' })
       continue
     }
     const seen = partsForController(input.parts, name)
@@ -366,7 +385,7 @@ export function collectProblems(input: ProblemsInput): ProblemsReport {
   }
   // a controller the simulator runs with nothing to run: its tags read and drive nothing
   for (const name of simulated) {
-    if (runs.some((r) => r.controller === name)) continue
+    if (facts.runControllers.includes(name)) continue
     problems.push({ key: `controller-idle:${name}`, severity: 'warning', group: 'Program', subject: name, message: "runs in the simulator but runs no program instance: put one on a task of this controller's in the organizer's Tasks", parts: [], panel: 'tasks' })
   }
   // a controller the tags name that Play will not connect: its tags read and drive nothing

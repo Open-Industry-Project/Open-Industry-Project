@@ -7,16 +7,36 @@
 // On the walker engine: this worker runs no SES lockdown, and the walker builds a program without generating code,
 // so no text from the program is ever evaluated here. Both engines declare the same surface (they share the program
 // builders, plc/pou.ts).
-import { setScanEngine } from '../../plc/interpreter'
-import { checkOfAsk, surfaceOfAsk, type ProgramReply, type ProgramRequest } from './programWorkerAsk'
+import { compile, setScanEngine } from '../../plc/interpreter'
+import type { Build } from './programFacts'
+import { checkOfAsk, factsOfAsk, surfaceOfAsk, type ProgramReply, type ProgramRequest } from './programWorkerAsk'
 
 setScanEngine('walker')
+
+// The last few texts compiled. The Problems panel asks again when a part's tag changes, with the same program: that
+// answer then costs a few lookups, not a compile.
+const built = new Map<string, ReturnType<Build>>()
+const build: Build = (text) => {
+  let b = built.get(text)
+  if (!b) {
+    try {
+      b = { program: compile(text), error: null }
+    } catch (error) {
+      b = { program: null, error }
+    }
+    if (built.size >= 4) built.delete(built.keys().next().value!)
+    built.set(text, b)
+  }
+  return b
+}
 
 self.onmessage = (e: MessageEvent<ProgramRequest & { id: number }>) => {
   const ask = e.data
   let reply: ProgramReply
   try {
-    reply = ask.kind === 'surface' ? { id: ask.id, kind: 'surface', answer: surfaceOfAsk(ask) } : { id: ask.id, kind: 'check', answer: checkOfAsk(ask) }
+    if (ask.kind === 'surface') reply = { id: ask.id, kind: 'surface', answer: surfaceOfAsk(ask, (text) => build(text).program) }
+    else if (ask.kind === 'check') reply = { id: ask.id, kind: 'check', answer: checkOfAsk(ask) }
+    else reply = { id: ask.id, kind: 'facts', answer: factsOfAsk(ask, build) }
   } catch {
     // the page works the answer out itself, and reports what went wrong as it always did
     reply = { id: ask.id, kind: 'failed' }
