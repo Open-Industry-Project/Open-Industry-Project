@@ -63,6 +63,37 @@ export function soleInstanceAliases(prog: Pick<CompiledProgram, 'tasks' | 'input
 }
 
 const NO_ALIASES: ReadonlyMap<string, string> = new Map()
+
+/** `names`, each followed by its bare alias when it has one */
+function withAliases(names: readonly string[], aliases: ReadonlyMap<string, string>): string[] {
+  if (aliases.size === 0) return [...names]
+  const bareOf = new Map([...aliases].map(([bare, q]) => [q, bare]))
+  return names.flatMap((n) => {
+    const bare = bareOf.get(n)
+    return bare === undefined ? [n] : [n, bare]
+  })
+}
+
+/**
+ * The names a program binds under `wired` ({@link LocalPlcLink.bind}'s rule, on names alone): its declared inputs and
+ * outputs each with its bare alias, then what wiring adds of its bindable variables. Shared with a program known only
+ * by its surface (programSurface.ts), which must bind as the link does.
+ */
+export function boundNames(
+  program: { inputs: readonly string[]; outputs: readonly string[]; bindable: readonly string[] },
+  aliases: ReadonlyMap<string, string>,
+  wired: WiredBindings = { inputs: [], outputs: [] },
+): { inputs: string[]; outputs: string[]; bindable: string[] } {
+  const bindableNames = withAliases(program.bindable, aliases)
+  const bindable = new Set(bindableNames)
+  const declaredIn = withAliases(program.inputs, aliases)
+  const declaredOut = withAliases(program.outputs, aliases)
+  const declared = new Set([...declaredIn, ...declaredOut])
+  const extra = (names: readonly string[]): string[] => [...new Set(names)].filter((n) => bindable.has(n) && !declared.has(n))
+  const inputs = [...declaredIn, ...extra(wired.inputs)]
+  const taken = new Set(inputs)
+  return { inputs, outputs: [...declaredOut, ...extra(wired.outputs).filter((n) => !taken.has(n))], bindable: bindableNames }
+}
 // one alias table per compiled program: every link a program is re-bound through (withBindings) shares it
 const aliasesOf = new WeakMap<CompiledProgram, ReadonlyMap<string, string>>()
 
@@ -117,25 +148,10 @@ export class LocalPlcLink implements PlcLink {
    * under both names (so an output reaches the scene under both), and any other variable binds by wiring under either.
    */
   bind(wired: WiredBindings): void {
-    const bindable = new Set(this.bindable)
-    const declaredIn = this.#withAliases(this.prog.inputs)
-    const declaredOut = this.#withAliases(this.prog.outputs)
-    const declared = new Set([...declaredIn, ...declaredOut])
-    const extra = (names: readonly string[]): string[] => [...new Set(names)].filter((n) => bindable.has(n) && !declared.has(n))
-    this.#inputs = [...declaredIn, ...extra(wired.inputs)]
-    const inputs = new Set(this.#inputs)
-    this.#outputs = [...declaredOut, ...extra(wired.outputs).filter((n) => !inputs.has(n))]
+    const bound = boundNames(this.prog, this.aliases, wired)
+    this.#inputs = bound.inputs
+    this.#outputs = bound.outputs
     this.#inPorts = this.#outPorts = null
-  }
-
-  /** `names`, each followed by its bare alias when it has one */
-  #withAliases(names: readonly string[]): string[] {
-    if (this.aliases.size === 0) return [...names]
-    const bareOf = new Map([...this.aliases].map(([bare, q]) => [q, bare]))
-    return names.flatMap((n) => {
-      const bare = bareOf.get(n)
-      return bare === undefined ? [n] : [n, bare]
-    })
   }
 
   /** The same compiled program (and so the same variables) with other bindings, for a caller that compiled it once already. */
@@ -145,7 +161,7 @@ export class LocalPlcLink implements PlcLink {
 
   /** What a scene may bind by wiring (CompiledProgram.bindable), each with its bare {@link aliases alias} when it has one. */
   get bindable(): string[] {
-    return this.#withAliases(this.prog.bindable)
+    return withAliases(this.prog.bindable, this.aliases)
   }
   get watch(): Readonly<Record<string, TagValue>> {
     return this.prog.watch

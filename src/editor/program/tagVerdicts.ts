@@ -7,7 +7,10 @@
 import type { Controller } from '../../core/controller'
 import { isKnownDialect } from '../../core/dialect'
 import type { PartInstance } from '../../core/types'
-import { commsTags, controllerFor, controllerSource, LocalPlcLink, unhandledProgramTags, type CompiledProgram } from '../../plc'
+import { commsTags, controllerFor, controllerSource, unhandledProgramTags, type CompiledProgram } from '../../plc'
+import { boundNames } from '../../plc/link/plcLink'
+import { surfaceOf, type ProgramSurface } from '../../plc/programSurface'
+import { surfaceFor } from './programSurfaceClient'
 import { compiledOnce } from './compiledProgram'
 import { wiredBindings } from '../../plc/wiring'
 
@@ -33,9 +36,22 @@ function compiled(source: string): CompiledProgram | null {
   return compiledOnce(source).program
 }
 
-function compiledFor(check: ProgramCheck): CompiledProgram | null {
+/** The text `check` compiles: the program with its controller table; null when there is nothing to compile. */
+function sourceOf(check: ProgramCheck): string | null {
   if (!isKnownDialect(check.dialect) || check.source.trim() === '') return null
-  return compiled(controllerSource(check.source, controllerFor(check.source, check.controller, check.scanMs)))
+  return controllerSource(check.source, controllerFor(check.source, check.controller, check.scanMs))
+}
+
+function compiledFor(check: ProgramCheck): CompiledProgram | null {
+  const source = sourceOf(check)
+  return source === null ? null : compiled(source)
+}
+
+/** What the program offers the scene, compiled off the main thread (programSurfaceClient.ts); null when it does not
+ *  compile. The program goes over as the store holds it: composing the text it compiles reads all of it. */
+function surfaceOfCheck(check: ProgramCheck): Promise<ProgramSurface | null> {
+  if (!isKnownDialect(check.dialect) || check.source.trim() === '') return Promise.resolve(null)
+  return surfaceFor({ source: check.source, controller: check.controller, scanMs: check.scanMs })
 }
 
 /**
@@ -55,10 +71,19 @@ export interface ProgramTag {
  * A sole instance's variables go by their bare names, which the link answers to (plcLink.ts soleInstanceAliases).
  * Null when the program does not compile, so the caller can fall back to reading its declarations.
  */
-export function programTagNames(check: ProgramCheck): ProgramTag[] | null {
+export async function programTagNames(check: ProgramCheck): Promise<ProgramTag[] | null> {
+  const surface = await surfaceOfCheck(check)
+  return surface ? tagNamesOf(surface) : null
+}
+
+/** {@link programTagNames} compiled here and now: the answer the worker gives, for a caller that cannot wait. */
+export function programTagNamesNow(check: ProgramCheck): ProgramTag[] | null {
   const program = compiledFor(check)
-  if (!program) return null
-  const bare = new Map([...new LocalPlcLink(program).aliases].map(([alias, name]) => [name, alias]))
+  return program ? tagNamesOf(surfaceOf(program)) : null
+}
+
+function tagNamesOf(program: ProgramSurface): ProgramTag[] {
+  const bare = new Map(program.aliases.map(([alias, name]) => [name, alias]))
   const inputs = new Set(program.inputs)
   const outputs = new Set(program.outputs)
   const out: ProgramTag[] = []
@@ -66,7 +91,7 @@ export function programTagNames(check: ProgramCheck): ProgramTag[] | null {
   for (const name of [...program.inputs, ...program.outputs, ...program.bindable]) {
     if (seen.has(name)) continue
     seen.add(name)
-    const info = program.varInfo(name)
+    const info = program.vars[name]
     if (!info || info.constant) continue
     const dir = inputs.has(name) ? 'in' : outputs.has(name) ? 'out' : undefined
     out.push({ name: bare.get(name) ?? name, type: info.type, ...(dir ? { dir } : {}) })
@@ -79,13 +104,23 @@ export function programTagNames(check: ProgramCheck): ProgramTag[] | null {
  * program, it is in a dialect this build cannot read, or it does not compile: then a name is a forward reference
  * and nothing can be said about it.
  */
-export function programTagVerdicts(parts: readonly PartInstance[], check: ProgramCheck): Map<string, TagVerdict> {
-  const out = new Map<string, TagVerdict>()
+export async function programTagVerdicts(parts: readonly PartInstance[], check: ProgramCheck): Promise<Map<string, TagVerdict>> {
+  const surface = await surfaceOfCheck(check)
+  return surface ? tagVerdictsOf(parts, surface) : new Map()
+}
+
+/** {@link programTagVerdicts} compiled here and now: the answer the worker gives, for a caller that cannot wait. */
+export function programTagVerdictsNow(parts: readonly PartInstance[], check: ProgramCheck): Map<string, TagVerdict> {
   const program = compiledFor(check)
-  if (!program) return out
-  // bound through the link, as Play binds it: its bindable names include a sole instance's bare aliases
-  const declared = new LocalPlcLink(program)
-  const link = declared.withBindings(wiredBindings(parts, declared))
+  return program ? tagVerdictsOf(parts, surfaceOf(program)) : new Map()
+}
+
+function tagVerdictsOf(parts: readonly PartInstance[], program: ProgramSurface): Map<string, TagVerdict> {
+  const out = new Map<string, TagVerdict>()
+  // bound as the link binds it for Play (plcLink.ts boundNames): its bindable names include a sole instance's bare aliases
+  const aliases = new Map(program.aliases)
+  const declared = boundNames(program, aliases)
+  const link = { ...boundNames(program, aliases, wiredBindings(parts, declared)), aliases }
   const unwired = new Set(unhandledProgramTags(parts, link).unwired)
   const outputs = new Set(link.outputs)
   const inputs = new Set(link.inputs)
@@ -94,7 +129,7 @@ export function programTagVerdicts(parts: readonly PartInstance[], check: Progra
       out.set(tag, { declared: false })
       continue
     }
-    const type = program.varInfo(link.aliases.get(tag) ?? tag)?.type
+    const type = program.vars[aliases.get(tag) ?? tag]?.type
     const way = { drives: outputs.has(tag), reads: inputs.has(tag) }
     out.set(tag, type ? { declared: true, type, ...way } : { declared: true, ...way })
   }

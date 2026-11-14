@@ -69,7 +69,7 @@ let kept: { check: ProgramCheck; tags: Promise<readonly ProgramTag[]> } | null =
 export function loadProgramTags(check: ProgramCheck): Promise<readonly ProgramTag[]> {
   if (kept && kept.check === check) return kept.tags
   const tags = (async (): Promise<readonly ProgramTag[]> => {
-    const compiled = (await import('../../program/tagVerdicts')).programTagNames(check)
+    const compiled = await (await import('../../program/tagVerdicts')).programTagNames(check)
     return compiled ?? declaredTags(await declaredRows(check.source))
   })().catch(() => [])
   kept = { check, tags }

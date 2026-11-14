@@ -818,8 +818,9 @@ function useProgramVerdicts(parts: readonly PartInstance[], check: ProgramCheck 
     if (!check || fresh) return
     let live = true
     const timer = setTimeout(() => {
-      void import('../../program/tagVerdicts').then(({ programTagVerdicts }) => {
-        if (verdictsFor?.parts !== parts || verdictsFor.check !== check) verdictsFor = { parts, check, verdicts: programTagVerdicts(parts, check) }
+      void import('../../program/tagVerdicts').then(async ({ programTagVerdicts }) => {
+        // the program is compiled in a worker (program/programSurfaceClient.ts), so the answer comes a moment later
+        if (verdictsFor?.parts !== parts || verdictsFor.check !== check) verdictsFor = { parts, check, verdicts: await programTagVerdicts(parts, check) }
         if (live) setHeld(verdictsFor.verdicts)
       }).catch((e: unknown) => console.warn('[oip] checking the tag against the program failed', e))
     }, VERDICT_DELAY_MS)

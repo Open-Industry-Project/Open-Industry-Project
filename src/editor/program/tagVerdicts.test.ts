@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PACKAGE_FORMAT, type PartPackage } from '../../core/parts/partPackage'
 import { clearPackages, registerPackage } from '../../core/parts/partRegistry'
 import type { PartInstance } from '../../core/types'
-import { programTagNames, programTagVerdicts, type ProgramCheck } from './tagVerdicts'
+import { programTagNamesNow as programTagNames, programTagVerdictsNow as programTagVerdicts, type ProgramCheck } from './tagVerdicts'
 
 const PROGRAM = `VAR
   Motor : BOOL;
