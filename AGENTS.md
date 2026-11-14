@@ -179,6 +179,15 @@ projectTestsRun.ts); eslint enforces both.
   literal enters the source through `JSON.stringify`. Measure with `npm run bench-sim -- <project> [--engine walker]`
   (fingerprint must not move), A/B in one process for anything under ~20%, and never lower a
   [scanSpeed.test.ts](src/plc/scanSpeed.test.ts) floor to make it pass.
+- **A reader of the open program asks the program worker; it does not check or compile on the page.** Checking costs
+  about 19 ms per thousand lines and compiling about 30, and readers run at every pause in typing and every scene
+  edit. [programWorkerClient.ts](src/editor/program/programWorkerClient.ts) answers three questions off the main
+  thread: `surfaceFor` (what the program declares, for the Inspector's tag fields), `checkFor` (its problems, for the
+  text editor's lint) and `factsFor` (all the Problems panel asks, [programFacts.ts](src/editor/program/programFacts.ts)).
+  Hand it the program as the store holds it (text, table, scan time): `controllerFor` reads the whole text too. A new
+  question is a function of the ask in [programWorkerAsk.ts](src/editor/program/programWorkerAsk.ts), which the worker
+  and the page's fallback both call. The worker runs the walker, so nothing from the program is evaluated there. Play
+  still compiles on the page, once per attach.
 - **A running program's value table (`plcWatch`) may be a Proxy over a copy of the controller's memory**
   ([core/watchTable.ts](src/core/watchTable.ts), docs/plc-typed-storage.md "The watch table"). `table[key]` and
   `key in table` are fine. Never `Object.keys`, `Object.entries`, spread or `for..in` one: a large program holds
