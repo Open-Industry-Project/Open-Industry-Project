@@ -20,7 +20,8 @@
  * A run's flow facts (core/flow/flowFacts.ts) are not listed here: they are what happened, not something to fix. The
  * agent's get_problems, the Tests overlay and the test-project and check-flow CLIs report them.
  */
-import { compile, controllerDiagnostics, controllerRuns, plcOfProgram, controllerSource, LocalPlcLink, parseAndCheck, runnableSource, StError, unhandledProgramTags } from '../plc'
+import { compiledOnce } from './program/compiledProgram'
+import { controllerDiagnostics, controllerRuns, plcOfProgram, controllerSource, LocalPlcLink, parseAndCheck, runnableSource, StError, unhandledProgramTags } from '../plc'
 import { checkLayout } from '../core/checkLayout'
 import { controllersUsed, controllerTag, partsForController, partsNaming } from '../core/io/controllerTag'
 import type { Controller } from '../core/controller'
@@ -134,21 +135,12 @@ function lineOf(src: string, offset: number): number {
 /**
  * Compiling is the only way to learn what a program declares (its inputs/outputs/watch image), and
  * the panel recomputes on every scene commit and whenever typing in the ST editor pauses - so the result
- * is memoized against the source text. One entry is enough: the source only changes one way at a time.
+ * is kept against the source text, in the one copy the Inspector's tag fields read too (program/compiledProgram.ts).
+ * The error is usually a source-level one `diagnostics()` already reported with a position; kept for when it did not.
  */
-let linkCacheSource: string | null = null
-let linkCache: { program: CompiledProgram | null; error: unknown } = { program: null, error: null }
 function linkFor(source: string): { program: CompiledProgram | null; error: unknown } {
   if (source.trim() === '') return { program: null, error: null }
-  if (linkCacheSource === source) return linkCache
-  linkCacheSource = source
-  try {
-    linkCache = { program: compile(source), error: null }
-  } catch (e) {
-    // usually a source-level error `diagnostics()` already reported with a position; kept for when it did not
-    linkCache = { program: null, error: e }
-  }
-  return linkCache
+  return compiledOnce(source)
 }
 
 /**

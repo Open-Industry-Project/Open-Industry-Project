@@ -7,7 +7,8 @@
 import type { Controller } from '../../core/controller'
 import { isKnownDialect } from '../../core/dialect'
 import type { PartInstance } from '../../core/types'
-import { commsTags, compile, controllerFor, controllerSource, LocalPlcLink, unhandledProgramTags, type CompiledProgram } from '../../plc'
+import { commsTags, controllerFor, controllerSource, LocalPlcLink, unhandledProgramTags, type CompiledProgram } from '../../plc'
+import { compiledOnce } from './compiledProgram'
 import { wiredBindings } from '../../plc/wiring'
 
 /** The program behind the scene, as the store holds it. */
@@ -26,19 +27,10 @@ export interface ProgramCheck {
  */
 export type TagVerdict = { declared: false } | { declared: true; type?: string; drives: boolean; reads: boolean }
 
-let kept: { source: string; program: CompiledProgram | null } | null = null
-
+/** The program compiled, in the copy Problems reads too (compiledProgram.ts). Problems reports why one does not
+ *  compile; here it says nothing about a tag. */
 function compiled(source: string): CompiledProgram | null {
-  if (kept?.source !== source) {
-    let program: CompiledProgram | null = null
-    try {
-      program = compile(source)
-    } catch {
-      // Problems reports why; a program that does not compile says nothing about a tag
-    }
-    kept = { source, program }
-  }
-  return kept.program
+  return compiledOnce(source).program
 }
 
 function compiledFor(check: ProgramCheck): CompiledProgram | null {
