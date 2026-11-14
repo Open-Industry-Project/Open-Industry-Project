@@ -13,7 +13,7 @@ import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/sea
 import { EditorState, StateEffect, StateField, type Extension, type Text } from '@codemirror/state'
 import { Decoration, drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers, WidgetType } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'
-import { BUILTIN_FUNCTIONS, controllerDiagnostics, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs, watchScopes } from '../../plc'
+import { BUILTIN_FUNCTIONS, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs, watchScopes } from '../../plc'
 import type { Controller } from '../../core/controller'
 import { keySetOf } from '../../core/watchKeys'
 import { watchIsEmpty, watchKeysOf } from '../../core/watchTable'
@@ -23,6 +23,8 @@ import { defineMessages, t as msg } from '../../core/i18n'
 import { declaredTypes, formatPlcValue, refType } from './plcValueText'
 import { stFolding } from './stFolding'
 import { stSearchPanel } from './stSearchPanel'
+import { checkFor } from './programWorkerClient'
+import { DEFAULT_SCAN_MS } from './stProgram'
 
 // Keyword classes, derived from the lexer's own reserved-word set rather than re-listed
 // here. A hand-copy goes stale when the language gains a keyword, and then the
@@ -246,19 +248,23 @@ function stCompletions(getTags: () => string[]) {
 
 /**
  * Inline diagnostics from the ST front-end, mapped to CodeMirror lint markers. The program is checked
- * with the controller table it runs from (for this very text: plc/controller.ts `controllerFor`), so a
+ * with the controller table it runs from (for this very text: plc/controller.ts `controllerFor`, from the
+ * scene's table and scan time `getProgram` hands over), so a
  * program that runs PROGRAMs from a table is not flagged for declaring no CONFIGURATION. The table's own
  * problems stay out of the gutter: they have no place in this text, and the Problems panel lists them.
  */
-function stLinter(getController: (source: string) => Controller | null, lints: () => boolean, getDefaultPlc: () => string | undefined): Extension {
+function stLinter(getProgram: () => { controller: Controller | null; scanMs: number }, lints: () => boolean, getDefaultPlc: () => string | undefined): Extension {
   return linter(
-    (view) => {
+    async (view) => {
       // a program in a dialect this build does not read is not IEC, so the IEC check has nothing true to say about it
       if (!lints()) return []
       const src = view.state.doc.toString()
       const len = src.length
       const defaultName = getDefaultPlc()
-      return controllerDiagnostics(src, getController(src), defaultName !== undefined ? { defaultName } : {}).source.map((d): CmDiagnostic => {
+      // checked in a worker (programWorkerClient.ts): the check reads the whole program, and this runs at every pause
+      // in typing. The editor drops an answer for a text that has changed since.
+      const found = await checkFor({ source: src, ...getProgram(), ...(defaultName !== undefined ? { defaultName } : {}) })
+      return found.source.map((d): CmDiagnostic => {
         const from = Math.min(d.pos.offset, len)
         const to = Math.min(from + Math.max(1, d.length), len)
         return { from, to, severity: d.severity === 'warning' ? 'warning' : 'error', message: d.message }
@@ -522,7 +528,7 @@ export function pushWatchValues(
  */
 export function stExtensions(
   getTags: () => string[],
-  opts?: { history?: boolean; getController?: (source: string) => Controller | null; getDefaultPlc?: () => string | undefined; lints?: () => boolean },
+  opts?: { history?: boolean; getProgram?: () => { controller: Controller | null; scanMs: number }; getDefaultPlc?: () => string | undefined; lints?: () => boolean },
 ): Extension {
   const useHistory = opts?.history ?? true
   return [
@@ -546,7 +552,7 @@ export function stExtensions(
     stLanguage,
     syntaxHighlighting(stHighlight),
     autocompletion({ override: [stCompletions(getTags)] }),
-    stLinter(opts?.getController ?? (() => null), opts?.lints ?? (() => true), opts?.getDefaultPlc ?? (() => undefined)),
+    stLinter(opts?.getProgram ?? (() => ({ controller: null, scanMs: DEFAULT_SCAN_MS })), opts?.lints ?? (() => true), opts?.getDefaultPlc ?? (() => undefined)),
     watchField,
     stTheme,
     stPhrases(),

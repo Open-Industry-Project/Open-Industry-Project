@@ -1,7 +1,7 @@
 // What a compiled program offers the scene, as plain data: the names a part can be wired to, which way each is
 // declared, and its type. It is all the Inspector's tag fields ask of a program (editor/program/tagVerdicts.ts), and
 // unlike the compiled program it can cross a thread boundary, so the compile that produces it can run in a worker
-// (editor/program/programSurface.worker.ts).
+// (editor/program/program.worker.ts).
 
 import { LocalPlcLink } from './link/plcLink'
 import type { CompiledProgram, VarInfo } from './types'

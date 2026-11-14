@@ -1221,7 +1221,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
                         store.dismissStFileReport({ staleOnly: true })
                       }}
                       getTags={() => commsTags(stateRef.current.scene.parts)}
-                      getController={(src) => controllerFor(src, stateRef.current.controller, stateRef.current.stScanMs)}
+                      getProgram={() => ({ controller: stateRef.current.controller, scanMs: stateRef.current.stScanMs })}
                       getDefaultPlc={() => stateRef.current.externalPlc.mainName}
                       lints={foreignDialect === null}
                       onUndo={() => store.undoProgramEditAt(editorRef.current?.getValue() ?? sourceRef.current)}

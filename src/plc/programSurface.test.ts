@@ -56,7 +56,7 @@ describe('what a compiled program offers the scene, as data', () => {
     expect(bound.bindable).toEqual(link.bindable)
   })
 
-  // the worker that compiles for the Inspector runs the walker (editor/program/programSurface.worker.ts)
+  // the worker that compiles for the Inspector runs the walker (editor/program/program.worker.ts)
   it('is the same from either scan engine, for every case of the conformance corpus', () => {
     const differing: string[] = []
     let compared = 0

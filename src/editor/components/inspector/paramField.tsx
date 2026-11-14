@@ -819,7 +819,7 @@ function useProgramVerdicts(parts: readonly PartInstance[], check: ProgramCheck 
     let live = true
     const timer = setTimeout(() => {
       void import('../../program/tagVerdicts').then(async ({ programTagVerdicts }) => {
-        // the program is compiled in a worker (program/programSurfaceClient.ts), so the answer comes a moment later
+        // the program is compiled in a worker (program/programWorkerClient.ts), so the answer comes a moment later
         if (verdictsFor?.parts !== parts || verdictsFor.check !== check) verdictsFor = { parts, check, verdicts: await programTagVerdicts(parts, check) }
         if (live) setHeld(verdictsFor.verdicts)
       }).catch((e: unknown) => console.warn('[oip] checking the tag against the program failed', e))

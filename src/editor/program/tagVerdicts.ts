@@ -10,7 +10,7 @@ import type { PartInstance } from '../../core/types'
 import { commsTags, controllerFor, controllerSource, unhandledProgramTags, type CompiledProgram } from '../../plc'
 import { boundNames } from '../../plc/link/plcLink'
 import { surfaceOf, type ProgramSurface } from '../../plc/programSurface'
-import { surfaceFor } from './programSurfaceClient'
+import { surfaceFor } from './programWorkerClient'
 import { compiledOnce } from './compiledProgram'
 import { wiredBindings } from '../../plc/wiring'
 
@@ -47,7 +47,7 @@ function compiledFor(check: ProgramCheck): CompiledProgram | null {
   return source === null ? null : compiled(source)
 }
 
-/** What the program offers the scene, compiled off the main thread (programSurfaceClient.ts); null when it does not
+/** What the program offers the scene, compiled off the main thread (programWorkerClient.ts); null when it does not
  *  compile. The program goes over as the store holds it: composing the text it compiles reads all of it. */
 function surfaceOfCheck(check: ProgramCheck): Promise<ProgramSurface | null> {
   if (!isKnownDialect(check.dialect) || check.source.trim() === '') return Promise.resolve(null)
