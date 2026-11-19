@@ -2,6 +2,7 @@ import { rotateXZ } from '../transforms'
 import { conveyorSpeedParams } from '../conveyor/conveyorDirection'
 import { bedOf, bedView, DEG, partFootprint, rectangleBedOf, resolveInclineRad } from '../parts/partGeometry'
 import { beltColliders, buildBeltPath } from '../conveyor/beltPath'
+import { mergeableRigDeck } from '../conveyor/rigDeck'
 import type { BeltSegmentSpec } from '../types'
 import { ARC_END_EXT, BELT_MIN_RUN_LENGTH, CONVEYOR_BODY_THICKNESS, GUARD_COLLISION_THICKNESS } from '../types'
 import type { PartInstance } from '../types'
@@ -151,9 +152,9 @@ export function worldSub(s: ConveyorSubShape, part: PartInstance): ConveyorSubSh
  * P(t) = (rc·cos t, −rc·sin t), t ∈ [0, sweep] - matching the curved-conveyor behavior + build script + snap ends
  * (see docs/part-gizmos.md, sdkCurvedLocalEnds). Same arc surface-velocity field (cx/cz world, omega = speed/rc,
  * rotation-invariant about the centre), so the behavior's setArcSurfaceVelocity drives it identically. Each facet's
- * yaw is derived from its chord direction so the box's local +X follows the flow; the lead-in/out stubs extend the
- * inlet/outlet tangents (like the built-in), so cargo enters/leaves flush. `stub` is their length: ARC_END_EXT, or
- * a deep curved belt's longer drum radius (its snap `endExt`), so the deck still reaches its end.
+ * yaw is derived from its chord direction so its local +X follows the flow; the lead-in/out stubs extend the
+ * inlet/outlet tangents. `stub` is their length: the part's snap `endExt`, so the deck ends where the next bed's
+ * begins.
  */
 export function sdkCurvedDeckSubs(
   innerRadius: number,
@@ -169,7 +170,6 @@ export function sdkCurvedDeckSubs(
   const sweep = sweepDeg * DEG
   const segs = Math.max(1, Math.ceil(sweepDeg / MAX_SEGMENT_DEG))
   const dt = sweep / segs
-  const chord = 2 * r * Math.sin(dt / 2)
   const entry: ConveyorEntry = { kind: 'arc', cx: worldX, cz: worldZ, omega: speed / r }
   // SDK arc point: entry at local +X (t=0), sweeping toward −Z.
   const P = (t: number): { x: number; z: number } => ({ x: r * Math.cos(t), z: -r * Math.sin(t) })
@@ -179,19 +179,35 @@ export function sdkCurvedDeckSubs(
     return { qy: Math.sin(th / 2), qw: Math.cos(th / 2) }
   }
   const subs: ConveyorSubShape[] = []
+  // Each facet is a wedge: the piece of the annulus between two radii, as a hull. Neighbours share a whole radial
+  // face, so a box crossing from one to the next meets no edge. Chord boxes would have to overlap to close the
+  // gaps they leave at the outer rail, and a box hops at every overlap: up to 6 mm at 2 m/s on a lone curve.
+  const ri = innerRadius
+  const ro = innerRadius + width
   for (let i = 0; i < segs; i++) {
-    const a = P(i * dt)
-    const b = P((i + 1) * dt)
-    const q = yawFor(b.x - a.x, b.z - a.z)
-    subs.push({
-      box: { hx: chord / 2 + 0.01, hy: CONVEYOR_BODY_THICKNESS / 2, hz: width / 2 },
-      lx: (a.x + b.x) / 2, ly: -CONVEYOR_BODY_THICKNESS / 2, lz: (a.z + b.z) / 2,
-      qx: 0, qy: q.qy, qz: 0, qw: q.qw, entry,
-    })
+    const t0 = i * dt
+    const t1 = (i + 1) * dt
+    const a = P(t0)
+    const b = P(t1)
+    const th = Math.atan2(-(b.z - a.z), b.x - a.x)
+    const q = { qy: Math.sin(th / 2), qw: Math.cos(th / 2) }
+    const cx = (a.x + b.x) / 2
+    const cz = (a.z + b.z) / 2
+    const c = Math.cos(th)
+    const s = Math.sin(th)
+    // the wedge's corners in the facet's own frame (its +X along the chord), so the running-surface axes the sim
+    // derives from the facet pose follow the flow
+    const hull: Vec3[] = []
+    for (const [rad, t] of [[ri, t0], [ro, t0], [ri, t1], [ro, t1]] as const) {
+      const wx = rad * Math.cos(t) - cx
+      const wz = -rad * Math.sin(t) - cz
+      const lx = wx * c - wz * s
+      const lz = wx * s + wz * c
+      hull.push({ x: lx, y: 0, z: lz }, { x: lx, y: -CONVEYOR_BODY_THICKNESS, z: lz })
+    }
+    subs.push({ hull, lx: cx, ly: 0, lz: cz, qx: 0, qy: q.qy, qz: 0, qw: q.qw, entry })
   }
-  // lead-in/out collision stubs mirror the built-in curved deck (curvedDeckSubsParams): a uniform ARC_END_EXT
-  // ramp on both families (belt and roller), so cargo carries smoothly onto/off the arc. (Only the snap ends
-  // shorten to CURVED_ROLLER_END_EXT for a roller; the collision stub stays 0.25, exactly like the built-in.)
+  // lead-in/out stubs: the straight piece from the arc's end to the part's snap end
   if (stub > 0) {
     // back stub: at the inlet P(0)=(r,0); the flow-in tangent is −Z, so the stub extends upstream (+Z).
     const bq = yawFor(0, -1)
@@ -235,9 +251,19 @@ export function conveyorDeckSubs(part: PartInstance): ConveyorSubShape[] {
       const sp = key ? (part.params as unknown as Record<string, unknown>)[key] : undefined
       const speed = typeof sp === 'number' ? sp : 0
       const v = bed.view
-      return sdkCurvedDeckSubs(v.innerRadius, v.width, v.sweepDeg, speed, part.position[0], part.position[2], part.rotationY, Math.max(ARC_END_EXT, v.endExt))
+      // The stubs reach the snap end and no further, as the guards' do (curvedGuards.ts). A stub running on past
+      // it lies inside a butted neighbour's deck, and a box hops where the two overlap: 8 mm at 2 m/s, measured
+      // on a curved roller, whose snap end is 2 mm past the arc and whose stub was 85 mm.
+      return sdkCurvedDeckSubs(v.innerRadius, v.width, v.sweepDeg, speed, part.position[0], part.position[2], part.rotationY, v.endExt)
     }
-    case 'straight':
+    case 'straight': {
+      // a rig bed with one fixed box deck (a straight roller) gives that box, for a merged cluster. Its entry
+      // starts at zero and has no tangent: the part's behavior writes the surface velocity straight into it.
+      // A lone one builds its deck from its rig, as every other rig bed does.
+      const d = mergeableRigDeck(part)
+      if (!d) return []
+      return [{ box: { hx: d.hx, hy: d.hy, hz: d.hz }, lx: d.x, ly: d.y, lz: d.z, qx: 0, qy: 0, qz: 0, qw: 1, entry: { kind: 'linear', vx: 0, vy: 0, vz: 0 } }]
+    }
     case 'spur':
     case 'turntable':
       // their decks are built from their own geometry, part by part, and never merge

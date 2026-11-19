@@ -6,7 +6,7 @@ import type Jolt from 'jolt-physics'
 import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
 import type { Quat, Vec3 } from '../core/rig/rigPose'
 import { compoundConveyorShape, createKinematicBoxQuat, createStaticBody, createStaticBoxQuat, destroyBody, makeBoxShape, makeHull } from './bodyFactory'
-import type { FacetAxes } from './conveyorContacts'
+import type { FacetAxes, FacetFootprint } from './conveyorContacts'
 import type { ConveyorFacets } from './conveyorFacets'
 import { bodyKey } from './worldTypes'
 import type { JoltModule, PartGroup } from './worldTypes'
@@ -119,10 +119,10 @@ export class PartBodies {
 
   /** register a conveyor body's surface-velocity entries with the facet table (ConveyorFacets.register), filed
    *  under the part being built so its teardown releases them */
-  registerConveyorBody(body: Jolt.Body, entries: ConveyorEntry[], axes?: readonly (FacetAxes | null)[]): void {
+  registerConveyorBody(body: Jolt.Body, entries: ConveyorEntry[], axes?: readonly (FacetAxes | null)[], footprints?: readonly FacetFootprint[]): void {
     const key = bodyKey(body)
     this.current?.conveyorKeys.push(key)
-    this.facets.register(body, key, entries, axes)
+    this.facets.register(body, key, entries, axes, footprints)
   }
 
   /**
@@ -165,7 +165,7 @@ export class PartBodies {
     const body = this.addStaticShape(made.shape, x, y, z, rotationY, friction)
     void made.keepAlive // referenced until the compound (and now the body) hold their refs
     if (register && made.entries.length > 0) {
-      this.registerConveyorBody(body, made.entries, made.axes)
+      this.registerConveyorBody(body, made.entries, made.axes, made.footprints)
     }
     return body
   }

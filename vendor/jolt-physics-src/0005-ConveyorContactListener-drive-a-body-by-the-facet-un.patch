@@ -1,0 +1,120 @@
+From a9aa0890106585cd436f1e0afb42156a9909ce41 Mon Sep 17 00:00:00 2001
+From: ryevdokimov <105675984+ryevdokimov@users.noreply.github.com>
+Date: Thu, 19 Nov 2026 13:48:02 -0500
+Subject: [PATCH 5/5] ConveyorContactListener: drive a body by the facet under
+ its centre of mass
+
+Jolt reduces the contacts of a body pair with agreeing normals to one manifold,
+which names one sub-shape. A box straddling two facets of a deck took one
+facet's surface velocity whole, from the moment its leading edge touched it.
+
+SetCentreFacet(true) drives a body on a deck of several facets by the facet
+straight below its centre of mass, found with a ray against the deck's shape.
+The ghost, flank and running-surface gates still judge the facet that was
+touched. Where no facet lies below the centre, the touched facet stands. Off by
+default, which leaves every contact resolving as before.
+---
+ JoltJS.h   | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ JoltJS.idl |  1 +
+ 2 files changed, 47 insertions(+)
+
+diff --git a/JoltJS.h b/JoltJS.h
+index 6a28251..2eb4662 100644
+--- a/JoltJS.h
++++ b/JoltJS.h
+@@ -971,6 +971,16 @@ public:
+ 		mFlankProtectCos = inCos;
+ 	}
+ 
++	/// Drive a body on a deck of several facets by the facet under that body's centre of mass, not
++	/// by the facet its contact manifold names. Jolt reduces the contacts of a body pair with
++	/// agreeing normals to one manifold, which names one sub-shape: a box straddling two facets
++	/// would take one facet's surface velocity whole, from the moment its leading edge touched it.
++	/// Off by default, which leaves every contact resolving as it did before this setter existed.
++	void					SetCentreFacet(bool inEnabled)
++	{
++		mCentreFacet = inEnabled;
++	}
++
+ 	virtual void			OnContactAdded(const Body &inBody1, const Body &inBody2, const ContactManifold &inManifold, ContactSettings &ioSettings) override
+ 	{
+ 		HandleContact(inBody1, inBody2, inManifold, ioSettings);
+@@ -984,6 +994,8 @@ public:
+ private:
+ 	static constexpr size_t	cStride = 16;
+ 	static constexpr uint64	cConveyorTag = 0x80000000ull;
++	/// How far below a body's centre of mass its deck is looked for, m
++	static constexpr float	cCentreRayLength = 10.0f;
+ 
+ 	/// A facet's declared axis (surface normal at 7, flow at 10) in world space, or a zero vector
+ 	/// when the facet declares none. Body-local in the table, so a deck riding a moving rig link
+@@ -1034,6 +1046,27 @@ private:
+ 		return &mFacets[((size_t)base + (size_t)u - 1) * cStride];
+ 	}
+ 
++	/// The facet of a deck with several facets that lies straight below a world-space point, or
++	/// null when the deck has one facet or none lies below it (the point is past the deck's edge,
++	/// or over a gap). A ray cast against the deck's own shape, in its space.
++	inline const double *	FacetUnder(const Body &inDeck, uint64 inUserData, RVec3Arg inPoint) const
++	{
++		uint32 count = (uint32)(inUserData & 0xfffull);
++		if (count < 2)
++			return nullptr;
++		RMat44 to_shape = inDeck.GetInverseCenterOfMassTransform();
++		RayCast ray(Vec3(to_shape * inPoint), to_shape.Multiply3x3(Vec3(0.0f, -cCentreRayLength, 0.0f)));
++		RayCastResult hit;
++		const Shape *shape = inDeck.GetShape();
++		if (!shape->CastRay(ray, SubShapeIDCreator(), hit))
++			return nullptr;
++		uint64 u = shape->GetSubShapeUserData(hit.mSubShapeID2);
++		if (u < 1 || u > count)
++			return nullptr;
++		uint32 base = (uint32)((inUserData >> 12) & 0x7ffffull);
++		return &mFacets[((size_t)base + (size_t)u - 1) * cStride];
++	}
++
+ 	void					HandleContact(const Body &inBody1, const Body &inBody2, const ContactManifold &inManifold, ContactSettings &ioSettings)
+ 	{
+ 		uint64 u1 = inBody1.GetUserData();
+@@ -1083,6 +1116,18 @@ private:
+ 		if (e1 == nullptr && e2 == nullptr)
+ 			return;
+ 
++		// The gates above judged the facet that was touched. What drives the body is the facet under
++		// its centre of mass, where the deck has one there; otherwise the touched facet stands.
++		if (mCentreFacet)
++		{
++			if (e1 != nullptr)
++				if (const double *under = FacetUnder(inBody1, u1, inBody2.GetCenterOfMassPosition()))
++					e1 = under;
++			if (e2 != nullptr)
++				if (const double *under = FacetUnder(inBody2, u2, inBody1.GetCenterOfMassPosition()))
++					e2 = under;
++		}
++
+ 		double vx = 0.0, vy = 0.0, vz = 0.0, wy = 0.0, c1x = 0.0, c1z = 0.0;
+ 		if ((e1 != nullptr && e1[0] == 2.0) || (e2 != nullptr && e2[0] == 2.0))
+ 		{
+@@ -1133,6 +1178,7 @@ private:
+ 	float					mFrictionCoupling = 0.0f;
+ 	float					mSurfaceGateCos = -1.0f;
+ 	float					mFlankProtectCos = -1.0f;
++	bool					mCentreFacet = false;
+ };
+ 
+ /// Batched body-state snapshot (OIP fork addition): one WASM call fills a flat float buffer with
+diff --git a/JoltJS.idl b/JoltJS.idl
+index 1ba1523..e6bc1b6 100644
+--- a/JoltJS.idl
++++ b/JoltJS.idl
+@@ -2220,6 +2220,7 @@ interface ConveyorContactListener {
+ 	void SetFrictionCoupling(float inCoupling);
+ 	void SetSurfaceGateCos(float inCos);
+ 	void SetFlankProtectCos(float inCos);
++	void SetCentreFacet(boolean inEnabled);
+ };
+ 
+ ConveyorContactListener implements ContactListener;
+-- 
+2.53.0.windows.2
+

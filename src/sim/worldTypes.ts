@@ -125,7 +125,7 @@ export interface PartGroup {
   conveyorKeys: number[]
   boxIds: number[]
   /** the behaviors and rigs this part's build attached. A clustered deck's owner attaches every member's behavior,
-   *  so they are filed under the owner, which every member's edit rebuilds (deckClusterKey). */
+   *  so they are filed under the owner, which rebuilds when any member changes (deckClusterKey). */
   behaviors?: BehaviorRecord[]
   rigs?: RigInstance[]
 }

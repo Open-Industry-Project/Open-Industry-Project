@@ -1,6 +1,8 @@
 import type { PartInstance } from './types'
-import { conveyorEndsOf, isBeltLike } from './parts/partGeometry'
+import { bedOf, conveyorEndsOf, isBeltLike } from './parts/partGeometry'
+import { getPackage } from './parts/partRegistry'
 import { memoizeByParticipants } from './memoParts'
+import { mergeableRigDeck } from './conveyor/rigDeck'
 
 /**
  * Deck-merge clustering: conveyors butted end-to-end should have their running
@@ -10,10 +12,11 @@ import { memoizeByParticipants } from './memoParts'
  * single belt ride flat). Edge removal does not cross separate bodies, so
  * without merging the seam between two parts produces ghost collisions.
  *
- * This finds the connected components of belt-like conveyors whose ends coincide and face into each other (a
+ * This finds the connected components of mergeable conveyors whose ends coincide and face into each other (a
  * collinear end-to-end butt - not a perpendicular T, which is a side merge handled by guard openings). The sim
- * builds one merged deck per multi-member cluster; lone conveyors are unaffected. Spurs/turntables/chain
- * transfers are excluded - they don't form end-to-end flow seams.
+ * builds one merged deck per multi-member cluster; lone conveyors are unaffected. Belts, curves and straight
+ * roller beds merge, with each other too. A spur builds its own deck, and a turntable's or a chain transfer's
+ * deck moves, so their seams rely on the contact listener's ghost gates.
  */
 
 export interface DeckCluster {
@@ -44,17 +47,23 @@ function endsButt(endsA: Ends, endsB: Ends): boolean {
   return false
 }
 
-/** a part eligible to merge: a belt-like custom/SDK part (declares a `path` handle, so it has belt ends + a
- *  mergeable deck), which butts another SDK belt seamlessly. Only belt-like custom parts merge: they're the
- *  custom family whose deck facets participate in the merged compound (collisionShapes.ts conveyorDeckSubs). A
- *  straight `face`-handle SDK conveyor (spur / rig roller bed) contributes no cluster facets, because its deck is
- *  built by its own scripted/rig spawn path. Admitting it would leave the cluster with no deck whenever it
- *  becomes the lowest-id owner (non-owner members early-return). */
+/** A part whose deck can be a facet of a merged body: a belt (it declares a `path` handle, and its run boxes and
+ *  bend prisms come from conveyorDeckSubs), a curve (its arc chords and end stubs do too), or a rig bed with one
+ *  fixed box deck (rigDeck.ts: a straight roller).
+ *  Every member must contribute facets: one that did not would leave the cluster with no deck whenever it was the
+ *  lowest-id owner. */
 function isMergeable(p: PartInstance): boolean {
-  return p.type === 'part' && isBeltLike(p)
+  return p.type === 'part' && (isBeltLike(p) || isDrawnCurve(p) || mergeableRigDeck(p) !== null)
 }
 
-/** Memoized on mergeable-belt part identity (memoParts.ts) - see computeDeckClustersUncached. */
+/** a curve whose deck the sim builds from its arc (conveyorDeckSubs), not from a rig */
+function isDrawnCurve(p: PartInstance): boolean {
+  if (p.type !== 'part' || bedOf(p)?.kind !== 'arc') return false
+  const geo = getPackage(p.packageId)?.geometry
+  return geo?.kind === 'drawn' && geo.conveys === true
+}
+
+/** Memoized on mergeable part identity (memoParts.ts) - see computeDeckClustersUncached. */
 export const computeDeckClusters = memoizeByParticipants(isMergeable, computeDeckClustersUncached)
 
 function computeDeckClustersUncached(parts: readonly PartInstance[]): Map<string, DeckCluster> {
@@ -94,15 +103,24 @@ function computeDeckClustersUncached(parts: readonly PartInstance[]): Map<string
   return result
 }
 
+const ownerKeys = new WeakMap<DeckCluster, string>()
+
 /**
- * Signature of a cluster's deck-relevant geometry, folded into each member's
- * part signature so the owner rebuilds the merged deck (and members re-evaluate
- * ownership) whenever a member is added/removed/moved or its deck params change.
- * Empty for a lone belt - its deck is built the plain single-body way.
+ * What part `partId`'s build takes from its cluster, folded into its part signature. Empty for a lone conveyor:
+ * its deck is built the plain single-body way.
+ *
+ * The owner builds the merged deck, so its key is every member's id, pose and params: it rebuilds when a member
+ * joins, leaves, moves or changes. Any other member's key is only who the owner is. It has no deck of its own to
+ * rebuild, and its own pose and params are in its signature already. Were every member's key the whole cluster,
+ * one roller edited in a 200-roller line would rebuild all 200 (measured: 400 ms an update, against 8).
  */
-export function deckClusterKey(cluster: DeckCluster | undefined): string {
+export function deckClusterKey(cluster: DeckCluster | undefined, partId: string): string {
   if (!cluster || cluster.members.length < 2) return ''
-  // type + pose + params per member: any change to a member's deck geometry,
-  // surface speed or membership flips this so the owner rebuilds the merged deck.
-  return JSON.stringify(cluster.members.map((m) => [m.id, m.type, m.position, m.rotationY, m.params]))
+  if (partId !== cluster.ownerId) return `in:${cluster.ownerId}`
+  let key = ownerKeys.get(cluster)
+  if (key === undefined) {
+    key = JSON.stringify(cluster.members.map((m) => [m.id, m.type, m.position, m.rotationY, m.params]))
+    ownerKeys.set(cluster, key)
+  }
+  return key
 }

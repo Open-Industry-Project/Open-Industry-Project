@@ -49,7 +49,7 @@ describe('curved belt end gap follows its Frame height (arc handle endGapParam)'
     expect(bedView(curve({}), 'arc')!.endExt).toBe(ARC_END_EXT)
   })
 
-  it('a deep curve widens its footprint and lead-in stubs to reach its drums; a shallow one keeps ARC_END_EXT', () => {
+  it('a deep curve widens its footprint to reach its drums, and the lead-in stubs end at the snap end', () => {
     registerPackage(curvePkg())
     const outer = 0.6 + 0.6
     expect(partFootprint(curve({ height: 0.17 })).hx).toBeCloseTo(outer + ARC_END_EXT, 9)
@@ -58,7 +58,8 @@ describe('curved belt end gap follows its Frame height (arc handle endGapParam)'
     // the two tangent stubs are the last two deck facets: their half-length along travel
     const stubs = (h: number): number[] => conveyorDeckSubs(curve({ height: h })).slice(-2).map((s) => s.box!.hx)
     expect(stubs(0.17)).toEqual([ARC_END_EXT / 2, ARC_END_EXT / 2])
-    expect(stubs(0.1)).toEqual([ARC_END_EXT / 2, ARC_END_EXT / 2])
+    // a shallow curve's snap end is short of the half-pulley: a stub past it would lie inside the next bed's deck
+    expect(stubs(0.1)).toEqual([0.025, 0.025])
     expect(stubs(0.4)).toEqual([0.1, 0.1])
   })
 

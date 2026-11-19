@@ -6,7 +6,7 @@
 import type Jolt from 'jolt-physics'
 import type { ConveyorEntry } from '../core/geometry/collisionShapes'
 import { allocFacets, CONVEYOR_TAG, createConveyorContactListener, FACET_CAPACITY, FACET_STRIDE, FLANK_PROTECT_COS, freeFacets, FRICTION_COUPLING, GHOST_MIN_SEPARATION, GHOST_RAM_DEPTH, GHOST_RAM_UP_DOT, GHOST_SPEC_UP_DOT, SURFACE_GATE_COS, syncFacet, syncFacetBlock, writeFacetAxes } from './conveyorContacts'
-import type { FacetAxes } from './conveyorContacts'
+import type { FacetAxes, FacetFootprint } from './conveyorContacts'
 import type { JoltModule } from './worldTypes'
 
 /** What {@link ConveyorFacets.syncPart} reads of a behavior record, and the lookup it keeps on it. */
@@ -26,6 +26,9 @@ export class ConveyorFacets {
   // none, and is then neither surface-gated nor flank-protected). Static, so written once at
   // registration rather than re-synced per step; see SURFACE_GATE_COS / FLANK_PROTECT_COS.
   private readonly conveyorAxes = new Map<number, (FacetAxes | null)[]>()
+  // body id -> each facet's top face, for a body with more than one entry: how the JS listener finds the facet
+  // under a box's centre (the native listener casts a ray instead)
+  private readonly footprints = new Map<number, readonly FacetFootprint[]>()
   private readonly listener: Jolt.ContactListenerJS
   /** forked build's native conveyor listener (null = stock build / ?jsconveyor / ?joltraw) */
   private readonly nativeConveyor: Jolt.ConveyorContactListener | null
@@ -49,7 +52,7 @@ export class ConveyorFacets {
     private readonly angularVel: Jolt.Vec3,
     opts: { benchRaw: boolean; forceJsListener: boolean },
   ) {
-    this.listener = createConveyorContactListener(J, this.conveyors, this.conveyorAxes, surfaceVel, angularVel)
+    this.listener = createConveyorContactListener(J, this.conveyors, this.conveyorAxes, this.footprints, surfaceVel, angularVel)
     // Prefer the forked build's native conveyor listener: the JS listener's per-contact WASM→JS
     // crossings dominate step cost at industrial contact counts (~12 ms/step @1000 boxes) and are
     // fundamentally incompatible with the multithreaded build (contact callbacks fire on pthread
@@ -65,6 +68,8 @@ export class ConveyorFacets {
       // older forks lack these setters; they then convey every contact and gate every flank
       this.nativeConveyor.SetSurfaceGateCos?.(SURFACE_GATE_COS)
       this.nativeConveyor.SetFlankProtectCos?.(FLANK_PROTECT_COS)
+      // an older fork drives a box by the facet its contact names (conveyorContacts.ts "The facet under a body's centre")
+      this.nativeConveyor.SetCentreFacet?.(true)
       const heap = (J as unknown as { HEAPF64: Float64Array }).HEAPF64
       this.facetTable = new Float64Array(heap.buffer, this.nativeConveyor.GetFacetTablePtr(), FACET_CAPACITY * FACET_STRIDE)
       this.facetFree = [{ base: 0, count: FACET_CAPACITY }]
@@ -81,10 +86,11 @@ export class ConveyorFacets {
    * 0..11 - the contract in the fork's JoltJS.h). An empty entry list still gets the tag: the body
    * participates in ghost gating only (a conveying rig's frame rail). `key` is the body's bodyKey.
    */
-  register(body: Jolt.Body, key: number, entries: ConveyorEntry[], axes?: readonly (FacetAxes | null)[]): void {
+  register(body: Jolt.Body, key: number, entries: ConveyorEntry[], axes?: readonly (FacetAxes | null)[], footprints?: readonly FacetFootprint[]): void {
     this.rev++
     this.conveyors.set(key, entries)
     if (axes) this.conveyorAxes.set(key, [...axes])
+    if (footprints && entries.length > 1) this.footprints.set(key, footprints)
     if (!this.nativeConveyor) return
     let base = 0
     let count = entries.length
@@ -111,6 +117,7 @@ export class ConveyorFacets {
     this.rev++
     this.conveyors.delete(key)
     this.conveyorAxes.delete(key)
+    this.footprints.delete(key)
     const block = this.facetBlocks.get(key)
     if (block) {
       freeFacets(this.facetFree, block.base, block.count)

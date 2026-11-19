@@ -111,5 +111,5 @@ export function renderResolvedKey(partId: string, ctx: ResolvedContext | undefin
 /** Sim's change-signature: the fields the physics body build depends on (no roller grid - sim rollers are
  *  position-derived; plus the deck-merge cluster render ignores). Folded into partSignature. */
 export function simResolvedKey(partId: string, ctx: ResolvedContext | undefined): string {
-  return `${openingsKey(ctx?.openings)}|${extentsKey(ctx?.extents)}|${deckClusterKey(ctx?.cluster)}|${structureCutKey(partId, ctx?.structConn)}|${guardRunsKey(ctx?.guardRun)}`
+  return `${openingsKey(ctx?.openings)}|${extentsKey(ctx?.extents)}|${deckClusterKey(ctx?.cluster, partId)}|${structureCutKey(partId, ctx?.structConn)}|${guardRunsKey(ctx?.guardRun)}`
 }

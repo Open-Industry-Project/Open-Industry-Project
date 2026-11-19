@@ -12,6 +12,7 @@ import { BOX_RESTITUTION, CONVEYOR_FRICTION, PALLET_SIZE } from '../core/types'
 import { palletCollider } from '../core/pallet'
 import { toteCollider } from '../core/tote'
 import { axesAgree } from './conveyorContacts'
+import type { FacetFootprint } from './conveyorContacts'
 import type { FacetAxes } from './conveyorContacts'
 import { LAYER_MOVING, LAYER_NON_MOVING } from './layers'
 import type { JoltModule } from './worldTypes'
@@ -187,8 +188,9 @@ export function makeHull(J: JoltModule, points: readonly { x: number; y: number;
 export function compoundConveyorShape(
   J: JoltModule,
   subs: readonly ConveyorSubShape[],
-): { shape: Jolt.Shape; entries: ConveyorEntry[]; axes: (FacetAxes | null)[]; keepAlive: unknown[] } {
+): { shape: Jolt.Shape; entries: ConveyorEntry[]; axes: (FacetAxes | null)[]; keepAlive: unknown[]; footprints: FacetFootprint[] } {
   const settings = new J.StaticCompoundShapeSettings()
+  const footprints: FacetFootprint[] = []
   const entries: ConveyorEntry[] = []
   const slotsFor = new Map<ConveyorEntry, number[]>()
   // Facet axes per entry, not per sub-shape: facets sharing one entry object share a facet slot
@@ -222,6 +224,7 @@ export function compoundConveyorShape(
         else slotsFor.set(s.entry, [idx])
       }
       userData = idx
+      footprints.push({ index: idx - 1, poly: topFaceXZ(s) })
     }
     let shape: Jolt.Shape
     if (s.box) {
@@ -244,7 +247,36 @@ export function compoundConveyorShape(
   if (result.HasError()) throw new Error(`conveyor compound: ${result.GetError().c_str()}`)
   const shape = result.Get()
   J.destroy(settings) // only the transient compound settings; not shapes/results
-  return { shape, entries, axes, keepAlive }
+  return { shape, entries, axes, keepAlive, footprints }
+}
+
+/** A facet's top face in its compound's XZ, wound one way round: the corners of a box, or of a hull's highest face. */
+function topFaceXZ(s: ConveyorSubShape): number[] {
+  const corners: [number, number, number][] = []
+  if (s.box) {
+    const { hx, hy, hz } = s.box
+    corners.push([-hx, hy, -hz], [hx, hy, -hz], [hx, hy, hz], [-hx, hy, hz])
+  } else {
+    const hull = s.hull ?? []
+    let top = -Infinity
+    for (const p of hull) top = Math.max(top, p.y)
+    for (const p of hull) if (p.y > top - 1e-6) corners.push([p.x, p.y, p.z])
+  }
+  // each corner through the facet's pose in the compound
+  const xz = corners.map(([x, y, z]): [number, number] => {
+    const tx = 2 * (s.qy * z - s.qz * y)
+    const ty = 2 * (s.qz * x - s.qx * z)
+    const tz = 2 * (s.qx * y - s.qy * x)
+    return [x + s.qw * tx + (s.qy * tz - s.qz * ty) + s.lx, z + s.qw * tz + (s.qx * ty - s.qy * tx) + s.lz]
+  })
+  let cx = 0
+  let cz = 0
+  for (const p of xz) {
+    cx += p[0] / xz.length
+    cz += p[1] / xz.length
+  }
+  xz.sort((a, b) => Math.atan2(a[1] - cz, a[0] - cx) - Math.atan2(b[1] - cz, b[0] - cx))
+  return xz.flat()
 }
 
 /** a static body on the non-moving layer at a yawed pose (the caller files it under its part group) */

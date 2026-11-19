@@ -99,12 +99,66 @@ export function axesAgree(a: FacetAxes | null | undefined, b: FacetAxes): boolea
   return dn >= 0.999 && Math.abs(df) >= 0.999
 }
 
+// The facet under a body's centre. Jolt reduces a box's contacts with one body to a single manifold where their
+// normals agree, and a manifold names one sub-shape. On a deck of several facets a box straddling two of them would
+// take one facet's surface velocity whole: on a merged deck, the downstream bed's from the moment its leading edge
+// touched it, so a 0.6 m tote arriving on a stopped bed stopped 150 mm short of the seam. What drives a box is the
+// facet under its centre of mass, which is where a rigid box on two beds of equal grip changes hands. The gates
+// still judge the facet that was touched. The native listener finds the facet with a ray down from the centre
+// (SetCentreFacet); this one tests the centre against each facet's top face, so it ignores height.
+
+/** a facet's top face in its body's own XZ, a convex polygon [x0, z0, x1, z1, ...], and the facet's entry index */
+export interface FacetFootprint {
+  index: number
+  poly: readonly number[]
+}
+
+/** the entry index of the facet of `body` whose top face lies under the world point, or -1 when none does */
+export function facetUnder(feet: readonly FacetFootprint[] | undefined, body: Jolt.Body, wx: number, wy: number, wz: number): number {
+  if (!feet) return -1
+  const p = body.GetPosition()
+  const dx = wx - p.GetX()
+  const dy = wy - p.GetY()
+  const dz = wz - p.GetZ()
+  // world to body: rotate by the conjugate of the body's orientation
+  const q = body.GetRotation()
+  const qx = -q.GetX()
+  const qy = -q.GetY()
+  const qz = -q.GetZ()
+  const qw = q.GetW()
+  const tx = 2 * (qy * dz - qz * dy)
+  const ty = 2 * (qz * dx - qx * dz)
+  const tz = 2 * (qx * dy - qy * dx)
+  const lx = dx + qw * tx + (qy * tz - qz * ty)
+  const lz = dz + qw * tz + (qx * ty - qy * tx)
+  for (const f of feet) {
+    const poly = f.poly
+    let side = 0
+    let inside = true
+    for (let i = 0; i < poly.length; i += 2) {
+      const j = (i + 2) % poly.length
+      const ax = poly[i] ?? 0
+      const az = poly[i + 1] ?? 0
+      const cross = ((poly[j] ?? 0) - ax) * (lz - az) - ((poly[j + 1] ?? 0) - az) * (lx - ax)
+      if (cross === 0) continue // on an edge: both neighbours claim it, and the first listed has it
+      if (side === 0) side = Math.sign(cross)
+      else if (Math.sign(cross) !== side) {
+        inside = false
+        break
+      }
+    }
+    if (inside) return f.index
+  }
+  return -1
+}
+
 /** The per-contact JS listener (ContactListenerJS). `conveyors` / `conveyorAxes` are SimWorld's live maps, read on
  *  every contact; `surfaceVel` / `angularVel` its reusable Jolt temporaries. */
 export function createConveyorContactListener(
   J: JoltModule,
   conveyors: ReadonlyMap<number, ConveyorEntry[]>,
   conveyorAxes: ReadonlyMap<number, (FacetAxes | null)[]>,
+  footprints: ReadonlyMap<number, readonly FacetFootprint[]>,
   surfaceVel: Jolt.Vec3,
   angularVel: Jolt.Vec3,
 ): Jolt.ContactListenerJS {
@@ -165,6 +219,16 @@ export function createConveyorContactListener(
     // resolves (a flank stays solid); it just carries no surface velocity, and no coupling.
     if (e1 && !onRunningSurface(conveyorAxes, body1, key1, i1, nx, ny, nz)) e1 = undefined
     if (e2 && !onRunningSurface(conveyorAxes, body2, key2, i2, -nx, -ny, -nz)) e2 = undefined
+    // The gates judged the facet that was touched. The facet under the cargo's centre drives it, where the deck
+    // has one there; otherwise the touched facet stands.
+    if (e1 && arr1 && arr1.length > 1) {
+      const c = body2.GetCenterOfMassPosition()
+      e1 = arr1[facetUnder(footprints.get(key1), body1, c.GetX(), c.GetY(), c.GetZ())] ?? e1
+    }
+    if (e2 && arr2 && arr2.length > 1) {
+      const c = body1.GetCenterOfMassPosition()
+      e2 = arr2[facetUnder(footprints.get(key2), body2, c.GetX(), c.GetY(), c.GetZ())] ?? e2
+    }
     let vx = 0
     let vy = 0
     let vz = 0

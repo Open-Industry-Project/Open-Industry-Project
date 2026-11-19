@@ -25,8 +25,8 @@ import type { DeckCluster } from '../core/deckClusters'
 import type { GuardRun } from '../core/guards/guardRuns'
 import { resolveScene, simResolvedKey } from '../core/scene/sceneResolve'
 import type { ResolvedContext } from '../core/scene/sceneResolve'
-import { beltDeckSubsLocal, conveyorDeckSubs, worldSub } from '../core/geometry/collisionShapes'
-import type { ConveyorEntry, ConveyorSubShape } from '../core/geometry/collisionShapes'
+import { beltDeckSubsLocal, conveyorDeckSubs } from '../core/geometry/collisionShapes'
+import type { ConveyorEntry } from '../core/geometry/collisionShapes'
 import type { BeltSegmentSpec } from '../core/types'
 import type { PartPackage } from '../core/parts/partPackage'
 import { isCargoPackage, rigJointsJson, subPosedLinkNames } from '../core/parts/partPackage'
@@ -58,6 +58,9 @@ import { BodyHolds } from './bodyHolds'
 import { buildingBoxes, groundHalfExtent } from './buildingColliders'
 import { CargoFlow } from './cargoFlow'
 import { CargoRegistry } from './cargoRegistry'
+import { ClusterDecks } from './clusterDecks'
+import { mergeableRigDeck } from '../core/conveyor/rigDeck'
+import { linkMovesAtRuntime } from '../core/rig/rigLinkMotion'
 import { DECK_AXES } from './conveyorContacts'
 import { ConveyorFacets } from './conveyorFacets'
 import { newSleepState, noteCall, waits } from './partSleep'
@@ -67,7 +70,7 @@ import { buildFrame } from './frameBuild'
 import { LAYER_MOVING, LAYER_NON_MOVING, NUM_BROAD_PHASE_LAYERS, NUM_OBJECT_LAYERS } from './layers'
 import { BodyTableFull, PartBodies } from './partBodies'
 import { PilotCapsule } from './pilotCapsule'
-import { buildRigBodies, linkMovesAtRuntime } from './rigBuild'
+import { buildRigBodies } from './rigBuild'
 import type { RigBodySink } from './rigBuild'
 import { RigDriver } from './rigDriver'
 import { SensorRegistry } from './sensorRegistry'
@@ -160,6 +163,8 @@ export class SimWorld implements SimCore<BoxFrame> {
   private readonly kin: KinematicScratch
   /** the attached behaviors, the tag bus, pending uses and the conveyor speeds (behaviorBus.ts) */
   private readonly bus = new BehaviorBus()
+  /** merged conveyor decks: the owner's body and its rig members' behaviors (clusterDecks.ts) */
+  private readonly clusterDecks = new ClusterDecks()
   /** the bus's conveyor speeds, read-only: the frame's source, and what conveyorComms / sdkConveyorParity
    *  tests reach through a cast */
   private readonly conveyorSpeeds: ReadonlyMap<string, number> = this.bus.conveyorSpeeds
@@ -720,7 +725,7 @@ export class SimWorld implements SimCore<BoxFrame> {
   // carries cargo. The behavior's setSurfaceVelocity drives the (first) link's ConveyorEntry, so a belt's deck
   // conveys exactly like the deck-geometry path, but inside a rich rig (frame, guards, …).
   // Returns the deck bodies by link name.
-  private attachRigConveyors(rec: BehaviorRecord, part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number, bodies: RigBody[], inclineRad = 0, behaviorSource?: string): Map<string, Jolt.Body> {
+  private attachRigConveyors(rec: BehaviorRecord, part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number, bodies: RigBody[], inclineRad = 0, behaviorSource?: string, mergedDeck?: string): Map<string, Jolt.Body> {
     const built = new Map<string, Jolt.Body>()
     // a box deck, or a frame with a collision box: a deck that draws nothing, its look attached from geometry()
     const decks = geo.links.filter((l) => l.conveys && (l.shape.kind === 'box' || (l.shape.kind === 'frame' && typeof l.collision === 'object')))
@@ -736,6 +741,11 @@ export class SimWorld implements SimCore<BoxFrame> {
     for (const link of decks) {
       const lp = rest.get(link.name)
       if (!lp) continue
+      if (link.name === mergedDeck) {
+        // this deck is a facet of its cluster's merged body, which the cluster owner builds
+        this.clusterDecks.bind(part.id, rec)
+        continue
+      }
       if (link.array?.posable) {
         // a posable conveying array (a cross-belt sorter's carriers): one kinematic deck per copy, each with its own
         // entry, posed by RigDriver.drive like any posable instance and run only by setSurfaceSpeed(speed, link, i)
@@ -1040,13 +1050,12 @@ export class SimWorld implements SimCore<BoxFrame> {
     }
     if (pkg.geometry.kind === 'drawn' && pkg.geometry.conveys) {
       const bed = bedOf(part)
-      if (bed?.kind === 'path' && cluster && cluster.members.length > 1) {
-        // Clustered belt (butted end-to-end with another conveyor): the merged deck + this member's conveying
-        // behavior are built by the cluster owner (addConveyorDeck: order-independent, attaches every custom
-        // member). It rides one compound so Jolt's edge removal spans the seam (no cargo snag). Guards stay per-part
-        // (they don't merge), so build this member's here (with any neighbour openings).
+      if ((bed?.kind === 'path' || bed?.kind === 'arc') && cluster && cluster.members.length > 1) {
+        // A belt or a curve butted end to end with another conveyor: the merged deck and this member's conveying
+        // behavior are built by the cluster owner (addConveyorDeck). Guards stay per part, so build this member's.
         this.addConveyorDeck(part, cluster)
-        this.addCustomBeltGuards(part, openings, extents, guardRun)
+        if (bed.kind === 'path') this.addCustomBeltGuards(part, openings, extents, guardRun)
+        else this.addCustomCurvedGuards(part, guardRun)
         return
       }
       if (bed?.kind === 'arc') {
@@ -1116,7 +1125,10 @@ export class SimWorld implements SimCore<BoxFrame> {
         this.rigDriver.add({ rec, geo, pkg, pos: part.position, rotationY: part.rotationY, scale, params: params as RigParams, inclineRad, bodies, grips: new Map(), emptied: new Set() })
         this.sensors.collectBeams(resolved, geo, scale, params)
         this.sensors.collectZones(resolved, geo, scale)
-        const decks = this.attachRigConveyors(rec, resolved, geo, scale, bodies, inclineRad, pkg.behavior)
+        // a fixed box deck butted end to end with another conveyor is a facet of the cluster's merged body
+        const merged = cluster && cluster.members.length > 1 ? mergeableRigDeck(part) : null
+        if (merged) this.addConveyorDeck(part, cluster)
+        const decks = this.attachRigConveyors(rec, resolved, geo, scale, bodies, inclineRad, pkg.behavior, merged?.link)
         const cells: { name: string; body: Jolt.Body; he: Vec3 }[] = []
         for (const link of geo.links) {
           if (!link.loadCell) continue
@@ -1136,8 +1148,8 @@ export class SimWorld implements SimCore<BoxFrame> {
     if (msg) reportPartDiagnostic({ source: 'compile', partId: part.id, packageId: part.packageId, message: msg })
   }
 
-  /** Attach a clustered SDK belt's behavior to the merged-deck entries it owns inside `body`, so a belt that
-   *  butts another conveyor still conveys + PLC-gates, driving its own facets within the shared compound. */
+  /** Attach a clustered belt's or curve's behavior to the merged-deck entries it owns inside `body`, so it still
+   *  conveys + PLC-gates, driving its own facets within the shared compound. */
   private attachClusterBeltBehavior(part: SdkPart, entries: ConveyorEntry[], body: Jolt.Body): void {
     const pkg = getPackage(part.packageId)
     if (!pkg) return
@@ -1610,6 +1622,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     if (group.behaviors) this.bus.remove(group.behaviors)
     if (group.rigs) this.rigDriver.remove(group.rigs)
     this.sensors.forget(id)
+    this.clusterDecks.forget(id)
     this.bus.deleteConveyorSpeed(id) // a speed-bearing part no longer exists to interlock against
     this.loadCells.set(id, []) // its platforms' bodies are gone
     this.holds.forgetPart(id)
@@ -1644,39 +1657,12 @@ export class SimWorld implements SimCore<BoxFrame> {
   }
 
   /**
-   * Build a conveyor's running-surface body. Belts/rollers/curves butted
-   * end-to-end (a `cluster` of >1 member) merge their decks into one compound,
-   * built once by the cluster owner with every member's facets lifted to world
-   * space (worldSub) - so Jolt's enhanced internal edge removal spans the seams
-   * between the otherwise-separate bodies and cargo can't pop/snag crossing them.
-   * A lone conveyor (or a non-owner member) builds just its own deck at its pose.
+   * Build a conveyor's running-surface body. A member of a butted cluster has no deck of its own: the cluster's
+   * owner builds the one merged body (clusterDecks.ts). A lone conveyor builds its own deck at its pose.
    */
   private addConveyorDeck(part: PartInstance, cluster?: DeckCluster): void {
     if (cluster && cluster.members.length > 1) {
-      if (part.id !== cluster.ownerId) return
-      const subs: ConveyorSubShape[] = []
-      // a behavior-driven (SDK) belt member carries zero-velocity `tan` facets the host drives each tick; keep
-      // each such member's entries so the owner can attach its script to drive them inside the merged body.
-      const customMembers: { part: SdkPart; entries: ConveyorEntry[] }[] = []
-      // members that grip differently stamp their own friction on their facets; one body has one friction
-      const frictions = cluster.members.map(conveyorSurfaceFriction)
-      const mixed = frictions.some((f) => f !== frictions[0])
-      cluster.members.forEach((m, i) => {
-        const memberSubs = conveyorDeckSubs(m).map((s) => worldSub(s, m))
-        if (mixed) for (const s of memberSubs) if (s.entry) s.entry.friction = frictions[i]
-        for (const s of memberSubs) subs.push(s)
-        if (m.type === 'part') {
-          const entries: ConveyorEntry[] = []
-          const seen = new Set<ConveyorEntry>()
-          for (const s of memberSubs) if (s.entry && !seen.has(s.entry)) { seen.add(s.entry); entries.push(s.entry) }
-          if (entries.length > 0) customMembers.push({ part: m as SdkPart, entries })
-        }
-      })
-      if (subs.length === 0) return
-      const body = this.bodies.addCompoundConveyor(subs, 0, 0, 0, 0, deckFriction(cluster.members))
-      // the owner attaches every custom member's behavior (a non-owner member skips this branch entirely), so
-      // each SDK belt in the cluster still conveys/PLC-gates - driving its own facets inside the shared compound.
-      for (const cm of customMembers) this.attachClusterBeltBehavior(cm.part, cm.entries, body)
+      if (part.id === cluster.ownerId) this.clusterDecks.build(cluster, { addCompoundConveyor: (...a) => this.bodies.addCompoundConveyor(...a), attachBelt: (p, e, body) => this.attachClusterBeltBehavior(p, e, body) })
       return
     }
     const subs = conveyorDeckSubs(part)

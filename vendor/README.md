@@ -2,14 +2,14 @@
 
 ## jolt-physics (a fork of JoltPhysics.js)
 
-`vendor/jolt-physics-1.1.1-oip.10.tgz` is the physics engine the app runs: a build of
+`vendor/jolt-physics-1.1.1-oip.11.tgz` is the physics engine the app runs: a build of
 [JoltPhysics.js](https://github.com/jrouwe/JoltPhysics.js) (MIT) with additions this project needs, installed through a
 `file:` dependency in the root `package.json`. `npm install jolt-physics` from the registry gives upstream's build,
 which the app can run but only on its slower JavaScript fallbacks. `vendor/jolt-physics/` holds the unpacked package
 files the tarball is made from.
 
 **Source:** upstream commit `c43eabb4c90f4db4cb292f88a0d768efe896c3ca` ("Update to Jolt v5.7.0", three commits after
-the `1.1.1` tag; upstream has not tagged a release with Jolt 5.7.0) plus the four patches in
+the `1.1.1` tag; upstream has not tagged a release with Jolt 5.7.0) plus the five patches in
 `vendor/jolt-physics-src/`. `node scripts/jolt-src.mjs <dir>` fetches upstream at that commit and applies them as
 commits on a branch `oip/1.1.1-jolt-5.7.0`. What the build adds:
 
@@ -31,6 +31,7 @@ The patches are source only; the compiled files exist only in this tarball.
 | `0002-ConveyorContactListener-gate-conveying-...` | each facet's running-surface normal and the gate on it (`SetSurfaceGateCos`) |
 | `0003-ConveyorContactListener-let-a-facet-s-...` | each facet's flow axis and the flank gate (`SetFlankProtectCos`), so a side wall keeps colliding |
 | `0004-ConveyorContactListener-let-a-facet-carry-...` | each facet's own surface friction, so a merged deck's members grip as their own conveyors do |
+| `0005-ConveyorContactListener-drive-a-body-by-...` | a body on a deck of several facets is driven by the facet under its centre of mass (`SetCentreFacet`), not by the one facet its contact names |
 
 ### Changing the engine
 
