@@ -233,6 +233,58 @@ export function withRunLocalCargo(doc: SceneJSON, local: SceneJSON): SceneJSON {
   return runLocal.length === 0 ? doc : { ...doc, parts: [...doc.parts, ...runLocal] }
 }
 
+/**
+ * This client's change (`before` -> `after`, both the store's scene) applied to `base`, the room's scene.
+ *
+ * The store's scene is not always the room's: it shows a peer's unfinished drag at its live pose, and during this
+ * client's own drag it misses what the room changed meanwhile. Diffing such a scene against the room would write
+ * the peer's drag as an edit, or undo their change. So only the parts this change touched (a new object, by the
+ * store's immutability) are taken from it. A part a peer is dragging keeps the room's pose (`drags`), and a part
+ * the room deleted meanwhile stays deleted.
+ */
+export function rebaseLocalChange(base: SceneJSON, before: SceneJSON, after: SceneJSON, drags: ReadonlyMap<string, DragPose> | null): SceneJSON {
+  const was = new Map(before.parts.map((p) => [p.id, p]))
+  const changed = new Map<string, PartInstance>()
+  const here = new Set<string>()
+  for (const p of after.parts) {
+    here.add(p.id)
+    if (was.get(p.id) !== p) changed.set(p.id, p)
+  }
+  const parts: PartInstance[] = []
+  for (const p of base.parts) {
+    if (was.has(p.id) && !here.has(p.id)) continue // deleted here
+    const mine = changed.get(p.id)
+    if (mine === undefined) {
+      parts.push(p)
+      continue
+    }
+    changed.delete(p.id)
+    if (!drags?.has(p.id)) {
+      parts.push(mine)
+      continue
+    }
+    const kept = { ...mine, position: p.position, rotationY: p.rotationY } as PartInstance
+    if (p.rotationX) kept.rotationX = p.rotationX
+    else delete kept.rotationX
+    if (p.rotationZ) kept.rotationZ = p.rotationZ
+    else delete kept.rotationZ
+    parts.push(kept)
+  }
+  for (const p of changed.values()) if (!was.has(p.id)) parts.push(p) // added here
+  const out: SceneJSON = { ...base, parts }
+  // the scene's settings (schema.ts keeps them in `meta`), where this change set one
+  const take = <K extends 'units' | 'lengthUnit' | 'plcs' | 'display'>(k: K): void => {
+    if (after[k] === before[k]) return
+    if (after[k] === undefined) delete out[k]
+    else out[k] = after[k]
+  }
+  take('units')
+  take('lengthUnit')
+  take('plcs')
+  take('display')
+  return out
+}
+
 /** The line as the store holds it: the scene, or the scene parked while the Part Editor is open. */
 const documentOf = (s: ReturnType<BridgeStore['getState']>): SceneJSON => s.packageEdit?.document ?? s.scene
 
@@ -284,6 +336,10 @@ export class CollabBridge {
   // true while the view is showing a remote peer's in-progress drag (a transient override of
   // the committed scene); cleared back to the authoritative scene when the drag ends
   private overriding = false
+  /** the peer drags the store's scene shows while `overriding` */
+  private shownDrags: ReadonlyMap<string, DragPose> | null = null
+  /** the room's scene changed while this client was dragging, and the store has not taken it yet */
+  private missedRemote = false
   /**
    * Memo of `docToScene(ydoc)`, dropped whenever the doc changes. A peer's drag re-renders the
    * committed scene with their live poses on top at 60 Hz. The doc does not change during the drag,
@@ -537,14 +593,25 @@ export class CollabBridge {
     if (raw === this.prevRaw) return
     const prevRaw = this.prevRaw
     this.prevRaw = raw
+    // The store's scene is not the room's while it shows a peer's drag, or after this client's own drag missed a
+    // change: then only what this commit touched goes to the room (rebaseLocalChange).
+    const missed = this.missedRemote
+    const rebase = missed || this.overriding
+    const prev = rebase ? this.docScene() : this.prevScene
+    const local = rebase ? rebaseLocalChange(prev, prevRaw, raw, this.overriding ? this.shownDrags : null) : raw
     // prevRaw lets a box carried by a group moved mid-run follow it into the doc (see authoredCargoView)
-    const next = running ? authoredCargoView(raw, this.docScene(), prevRaw) : raw
-    const prev = this.prevScene
+    const next = running ? authoredCargoView(local, this.docScene(), prevRaw) : local
     this.prevScene = next
     this.ydoc.transact(() => {
       applySceneDiff(this.ydoc, prev, next)
       this.syncReferencedPackages(next)
     }, LOCAL_ORIGIN)
+    // the drag is over and its commit is in the room: take what the room changed during it
+    if (missed) {
+      this.missedRemote = false
+      this.overriding = false
+      this.applyAuthoritative(true)
+    }
   }
 
   /** store -> doc: write one committed package (only its changed fields). LOCAL_ORIGIN so we ignore the echo. */
@@ -649,8 +716,16 @@ export class CollabBridge {
    * selection of any deleted parts.
    */
   private applyDisplay(structural: boolean): void {
-    // a live local drag already drives the view via the controller's own transients
-    if (this.presence?.isLocalDragging()) return
+    // a live local drag already drives the view via the controller's own transients. A change to the room is taken
+    // when the drag ends: by its commit (pushToDoc), or here on the next tick after a cancelled one.
+    if (this.presence?.isLocalDragging()) {
+      if (structural) this.missedRemote = true
+      return
+    }
+    if (this.missedRemote) {
+      this.missedRemote = false
+      structural = true
+    }
     // the Part Editor shows the part alone: a peer's drag has nothing to draw there, and their edits go to the parked line
     if (this.store.getState().packageEdit) {
       if (structural) this.applyAuthoritative(true)
@@ -668,6 +743,9 @@ export class CollabBridge {
       this.lastDragKey = key
       this.store.setTransient(overrideScene(this.runMerged(this.docScene()), drags))
       this.overriding = true
+      this.shownDrags = drags
+      // the scene now in the store is this display, not an edit: an unrelated store change (a click) must not diff it
+      this.prevRaw = documentOf(this.store.getState())
       return
     }
     this.lastDragKey = ''

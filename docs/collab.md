@@ -29,6 +29,10 @@ piece is open source and can be self-hosted.
 - `src/collab/bridge.ts` is the two-way binding to the `EditorStore`. Local commits diff
   into minimal Yjs ops (`src/collab/diff.ts`). Remote changes rebuild the scene and apply
   via `store.applyRemote()`, with no undo entries and no echo (origin + re-entrancy guards).
+  The store's scene is not always the room's: it shows a peer's unfinished drag at its live pose, and during this
+  client's own drag it does not take a remote change. A commit made then writes only the parts it touched onto the
+  room's scene (`rebaseLocalChange`), so a click never commits a peer's drag, and the room's change is applied
+  here when the local drag ends, committed or cancelled.
 - Sharing: the **Share** button mints an edit secret, marks this tab as the room's seeder,
   copies the link, and reloads into room mode. Only the minting tab seeds the empty room
   from the user's current scene, so a mistyped or stale link can never upload your private

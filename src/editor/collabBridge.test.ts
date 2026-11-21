@@ -4,6 +4,7 @@ import { createPart, serializeScene } from '../core/scene/scene'
 import { SCENE_VERSION } from '../core/types'
 import type { PartInstance, SceneJSON } from '../core/types'
 import { CollabBridge } from '../collab/bridge'
+import type { DragPose, PresenceSource } from '../collab/bridge'
 import {
   appendEditEvent,
   docToScene,
@@ -499,5 +500,118 @@ describe('CollabBridge rebuild filter: what actually re-applies the scene', () =
     doc1.transact(() => (partsMap(doc1).get('bc_1') as Y.Map<unknown>).set('px', 9), 'remote')
     expect(rebuilds).toBe(1)
     expect(store.getState().scene.parts.find((p) => p.id === 'bc_1')!.position[0]).toBe(9)
+  })
+})
+
+describe("CollabBridge: the store's scene is not always the room's", () => {
+  const xOf = (scene: SceneJSON, id: string): number | undefined => scene.parts.find((p) => p.id === id)?.position[0]
+  const moved = (scene: SceneJSON, id: string, x: number): SceneJSON => ({
+    ...scene,
+    parts: scene.parts.map((p) => (p.id === id ? { ...p, position: [x, p.position[1], p.position[2]] } : p)),
+  })
+  /** one client in a room, with a peer whose drags the test sets */
+  function withPeerDrags(): { doc: Y.Doc; store: EditorStore; drag: (poses: DragPose[]) => void } {
+    const doc = new Y.Doc()
+    sceneToDoc(richScene(), doc)
+    const store = new EditorStore()
+    store.setCollabMode(true)
+    store.applyRemote(docToScene(doc))
+    let drags = new Map<string, DragPose>()
+    let tick = (): void => {}
+    const presence: PresenceSource = { subscribe: (cb) => ((tick = cb), () => {}), remoteDragPoses: () => drags, isLocalDragging: () => false }
+    new CollabBridge(store, doc, presence)
+    return {
+      doc,
+      store,
+      drag: (poses) => {
+        drags = new Map(poses.map((d) => [d.id, d]))
+        tick()
+      },
+    }
+  }
+
+  it("a click while a peer drags does not write the peer's unfinished drag to the room", () => {
+    const { doc, store, drag } = withPeerDrags()
+    drag([{ id: 'bc_1', position: [12, 0.75, 0], rotationY: 0 }])
+    expect(xOf(store.getState().scene, 'bc_1')).toBe(12) // shown here
+    store.selectMany(['bx_1'])
+    expect(xOf(docToScene(doc), 'bc_1')).toBe(2)
+    // the peer cancels: the part is back where the room has it
+    drag([])
+    expect(xOf(store.getState().scene, 'bc_1')).toBe(2)
+    expect(xOf(docToScene(doc), 'bc_1')).toBe(2)
+  })
+
+  it("an edit made while a peer drags reaches the room without the peer's drag", () => {
+    const { doc, store, drag } = withPeerDrags()
+    drag([{ id: 'bc_1', position: [12, 0.75, 0], rotationY: 0 }])
+    store.commit('Move', moved(store.getState().scene, 'bx_1', 5))
+    expect(xOf(docToScene(doc), 'bx_1')).toBe(5)
+    expect(xOf(docToScene(doc), 'bc_1')).toBe(2)
+    // and a second one, still during the drag
+    store.commit('Move', moved(store.getState().scene, 'bx_1', 6))
+    expect(xOf(docToScene(doc), 'bx_1')).toBe(6)
+    expect(xOf(docToScene(doc), 'bc_1')).toBe(2)
+  })
+
+  /** two clients; the first one's drag state is the test's to set */
+  function twoWithDrag(): { doc1: Y.Doc; store1: EditorStore; store2: EditorStore; setDragging: (on: boolean) => void } {
+    const doc1 = new Y.Doc()
+    sceneToDoc(richScene(), doc1)
+    const doc2 = new Y.Doc()
+    Y.applyUpdate(doc2, Y.encodeStateAsUpdate(doc1))
+    doc1.on('update', (u: Uint8Array) => Y.applyUpdate(doc2, u, 'remote'))
+    doc2.on('update', (u: Uint8Array) => Y.applyUpdate(doc1, u, 'remote'))
+    const stores = [doc1, doc2].map((d) => {
+      const store = new EditorStore()
+      store.setCollabMode(true)
+      store.applyRemote(docToScene(d))
+      return store
+    })
+    let dragging = false
+    let tick = (): void => {}
+    const presence: PresenceSource = { subscribe: (cb) => ((tick = cb), () => {}), remoteDragPoses: () => new Map(), isLocalDragging: () => dragging }
+    new CollabBridge(stores[0]!, doc1, presence)
+    new CollabBridge(stores[1]!, doc2)
+    return {
+      doc1,
+      store1: stores[0]!,
+      store2: stores[1]!,
+      setDragging: (on) => {
+        dragging = on
+        tick()
+      },
+    }
+  }
+  const peerEdits = (store2: EditorStore): void => {
+    const s = store2.getState().scene
+    store2.commit('Edit', { ...moved(s, 'bx_1', 7), parts: [...moved(s, 'bx_1', 7).parts, createPart('group', 'new_1', [9, 0, 9])] })
+  }
+  const shape = (scene: SceneJSON): string => scene.parts.map((p) => `${p.id}@${p.position[0]}`).join(' ')
+
+  it('a change the room took during a local drag is here once the drag is committed', () => {
+    const { doc1, store1, store2, setDragging } = twoWithDrag()
+    setDragging(true)
+    store1.setTransient(moved(store1.getState().scene, 'bc_1', 5))
+    peerEdits(store2)
+    store1.commit('Move', moved(store1.getState().scene, 'bc_1', 6))
+    setDragging(false)
+    const want = 'bld_1@0 bc_1@6 bx_1@7 new_1@9'
+    expect(shape(docToScene(doc1))).toBe(want)
+    expect(shape(store1.getState().scene)).toBe(want)
+    expect(shape(store2.getState().scene)).toBe(want)
+  })
+
+  it('...and once it is cancelled', () => {
+    const { doc1, store1, store2, setDragging } = twoWithDrag()
+    const start = store1.getState().scene
+    setDragging(true)
+    store1.setTransient(moved(start, 'bc_1', 5))
+    peerEdits(store2)
+    store1.setTransient(start)
+    setDragging(false)
+    const want = 'bld_1@0 bc_1@2 bx_1@7 new_1@9'
+    expect(shape(docToScene(doc1))).toBe(want)
+    expect(shape(store1.getState().scene)).toBe(want)
   })
 })
