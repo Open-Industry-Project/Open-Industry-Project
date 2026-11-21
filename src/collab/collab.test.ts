@@ -1046,3 +1046,17 @@ describe('the room gets every definition the scene uses', () => {
     bridge.destroy()
   })
 })
+
+describe('a room holding a part this app cannot read', () => {
+  it("leaves out a part whose type is a name every object has, and still opens", () => {
+    const doc = seededDoc(richScene())
+    doc.transact(() => {
+      for (const type of ['constructor', 'toString']) {
+        const m = makePartMap(createPart('group', `bad_${type}`, [0, 0, 0]))
+        m.set('type', type)
+        partsMap(doc).set(`bad_${type}`, m)
+      }
+    })
+    expect(docToScene(doc).parts.map((p) => p.id)).toEqual(richScene().parts.map((p) => p.id))
+  })
+})

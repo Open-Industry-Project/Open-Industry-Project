@@ -593,7 +593,9 @@ export function makePartMap(part: PartInstance): Y.Map<unknown> {
 /** reconstruct a single part from its Y.Map, or null if it's malformed/unknown */
 function partFromMap(id: string, m: Y.Map<unknown>): PartInstance | null {
   const type = m.get('type')
-  if (typeof type !== 'string' || !(type in PART_DEFS)) return null
+  // own keys only: `in` also answers for 'constructor' and the rest of Object.prototype, and a part of such a type
+  // has no params to read, so the room would fail to open for everyone
+  if (typeof type !== 'string' || !Object.hasOwn(PART_DEFS, type)) return null
   // an SDK part without its package reference resolves to no geometry, no params and no behavior:
   // malformed, not renderable. (Also the shape written by pre-fix clients, which dropped packageId.)
   const packageId = m.get('packageId')
