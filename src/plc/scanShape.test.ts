@@ -52,6 +52,13 @@ PROGRAM Main VAR z : Zone; t : DINT; END_VAR z(On := TRUE, Target := t); END_PRO
     expect(src).not.toMatch(/\b(bool|coI)\(/)
   })
 
+  it('writes one bit of a word with the word\'s own wrap written out, and no helper call', () => {
+    const src = generated('PROGRAM Main VAR d : DINT; w : WORD; b : BOOL; END_VAR d.3 := b; w.0 := TRUE; END_PROGRAM')
+    expect(src).not.toMatch(/\b(wrap|num|bool)\(/)
+    expect(src).toMatch(/\| 8\) >>> 0/)
+    expect(src).toMatch(/& 65535\)/)
+  })
+
   it('copies a STRING place into another in memory, and builds the text only where finding the place runs code', () => {
     const decls = 'VAR a : STRING[80]; b : STRING[5]; arr : ARRAY[0..3] OF STRING[7]; i : INT; END_VAR'
     const copied = generated(`PROGRAM Main ${decls} b := a; arr[i] := b; a := arr[2]; END_PROGRAM`)

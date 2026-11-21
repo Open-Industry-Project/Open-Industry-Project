@@ -924,14 +924,19 @@ ${lines.join(NL)}
     return t === 'BOOL' ? `${view}[${at}] = ${v} ? 1 : 0;` : `${view}[${at}] = ${v};`
   }
 
-  /** a statement storing `v` (a local already holding the coerced value) into `target`, after the value, as assignPlace */
-  place(target: Expr, v: string): string {
+  /** a statement storing `v` (a local already holding the coerced value) into `target`, after the value, as assignPlace.
+   *  `isBool`: `v` is known to hold a boolean (a store's coercion into a BOOL place made it). */
+  place(target: Expr, v: string, isBool = false): string {
     if (target.node === 'var' || target.node === 'member' || target.node === 'index') return this.storeTo(target, v)
     if (target.node === 'bit') {
-      // one bit of a word: the rest of the word kept, the result wrapped to the word's own type
+      // One bit of a word: the rest of the word kept, the result wrapped to the word's own type. The word is read as
+      // the number storage holds (num) and the wrap is written out for the type (wrapCode). As num(), bool() and
+      // wrap() calls a bit store cost more than the rest of its rung, since wrap() switches on the type's name at
+      // each call: 30% of the scan time of a ladder program with 14,000 bit stores.
       const w = `w${this.id()}`
       const mask = 2 ** target.bit
-      return `{ const ${w} = num(${this.expr(target.obj)}); ${this.place(target.obj, `wrap(${JSON.stringify(target.obj.t)}, bool(${v}) ? (${w} | ${mask}) >>> 0 : (${w} & ~${mask}) >>> 0)`)} }`
+      const set = isBool ? v : `bool(${v})`
+      return `{ const ${w} = ${this.num(target.obj)}; ${this.place(target.obj, wrapCode(target.obj.t as ScalarType, `${set} ? (${w} | ${mask}) >>> 0 : (${w} & ~${mask}) >>> 0`))} }`
     }
     return this.unsupported('this place')
   }
@@ -1032,7 +1037,8 @@ ${lines.join(NL)}
         if (copied) return copied
         const coerced = this.coerce(s.target.t as ScalarType, this.x.placeMaxLen(s.target), s.pos, this.expr(s.value), s.value)
         const value = ranged ? `checkRange(${this.k(s.target)}, ${coerced}, ${this.k(s.pos)})` : coerced
-        return `{ const ${v} = ${value}; ${this.place(s.target, v)} }`
+        // (a BOOL place's coercion leaves a boolean: the value as it is when it is one already, else bool() of it)
+        return `{ const ${v} = ${value}; ${this.place(s.target, v, s.target.t === 'BOOL')} }`
       }
       case 'fbcall':
         return this.typedCall(s)
