@@ -283,6 +283,9 @@ have not arrived is left out of the read until they do (the bridge handles a par
 first-party asset is a `url` with a `sha256` ([Shipped asset bytes](#shipped-asset-bytes)), which every app version
 serving that hash has, so it travels as it is.
 
+- An upload is queued in memory, so a tab closed before it lands leaves the room naming bytes the server never
+  got. The page asks before leaving while one is pending, the browser the room was shared from sends a missing
+  model again from its own project, and a model the server refuses for good (too large) is said in a notice.
 - Client: `src/collab/roomAssets.ts`, hooked into `schema.ts` `packageFields` / `packageFromMap`; configured in
   `main.tsx` when a room boots (viewers fetch, only editors upload).
 - Server: `server/assets.mjs` on the collab VM's own disk (`/var/lib/oip-collab/assets`):

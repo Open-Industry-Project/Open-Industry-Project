@@ -37,6 +37,9 @@ piece is open source and can be self-hosted.
   copies the link, and reloads into room mode. Only the minting tab seeds the empty room
   from the user's current scene, so a mistyped or stale link can never upload your private
   solo scene into a foreign room. **Invite** (already in a room) just copies the URL.
+  The browser a project was shared from seeds its room again if the server lost it. It does so only after the
+  server has answered: an empty document may be a cache this browser dropped, and seeding that would merge a
+  second copy of the project into the real one.
 - **Sharing the untouched demo shares the demo itself, not a copy of it** (`src/collab/demoRoom.ts`).
   A copy would freeze the demo on the day of the Share, and an old link would keep opening an old
   demo. The room records which demo it holds (`meta.demoSeed`, a fingerprint of the content it

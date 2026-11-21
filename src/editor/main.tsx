@@ -350,8 +350,9 @@ function joinLiveShare(
 /**
  * `seedHere`: this tab minted the room and enters it in place (roomEntry.ts), so it says what seeds the room. Opened
  * from a link, the seed mark a minting tab left before reloading says it instead (rooms.ts).
+ * `mayExist`: the room is one this browser shared earlier, so the server may hold it already (see the seeding below).
  */
-async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null): Promise<void> {
+async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null, mayExist = false): Promise<void> {
   // `resolved` is the ?room= value classified (rooms.ts resolveRoom) into the server doc name +
   // auth token; view-ness follows from whether we hold the edit secret, so the server enforces it too.
   const { room } = resolved
@@ -383,7 +384,21 @@ async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null
       `This shared project is kept on ${new URL(otherServer).host}, not on the Open Industry Project's server. What you do in it goes there. If you did not expect that, close this tab.`,
     )
   }
-  const { ydoc, provider, idb, whenSynced, serverSynced } = connectRoom(resolved)
+  if (!resolved.view) {
+    // a model still on its way to the server when the tab closes leaves the room without it: ask before leaving
+    window.addEventListener('beforeunload', (e) => {
+      if (roomAssets.roomUploadsPending()) e.preventDefault()
+    })
+    roomAssets.onRoomAssetRefused((status) =>
+      store.showSaveNotice(
+        'A model did not reach the shared project',
+        `The server refused it${status === 413 ? ' because it is too large' : ''}. Other people in this shared project will not see the parts that use it.`,
+      ),
+    )
+    // the browser a room was shared from still has the project's models: it sends again any the server is missing
+    if (mayExist) roomAssets.setLocalAssetSource(() => (soloDocOrDefault().scene.packages ?? []).flatMap((p) => p.assets ?? []))
+  }
+  const { ydoc, provider, idb, whenSynced, serverSynced, whenServerSynced } = connectRoom(resolved)
   // Its owner closed the room (Stop sharing, server/roomOwners.mjs): told while in it, or refused on the way in. Back to
   // the app on its own, saying why, rather than on a copy of the room this browser happens to have cached.
   const leaveClosed = (): void => {
@@ -409,7 +424,8 @@ async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null
   // payload) - but only by the tab that minted the room, so opening a mistyped or stale
   // link can't upload this browser's private solo scene into a foreign room id. A viewer
   // never seeds.
-  const mintedHere = seedHere ?? consumeSeedMark(room)
+  const mark = consumeSeedMark(room)
+  const mintedHere = seedHere ?? mark
   let seededCode: string[] = []
   if (!resolved.view && (mintedHere === 'demo' || demoRoom.isDemoRoom(ydoc))) {
     // Shared from the untouched demo: the room holds the demo until someone edits it, so an editor on a build with a
@@ -422,9 +438,19 @@ async function bootRoom(resolved: ResolvedRoom, seedHere: SeedKind | null = null
   } else if (!resolved.view && mintedHere === 'scene') {
     // scene and program from the same document, so a shared room can't get the layout without
     // the logic (see soloDocOrDefault)
-    const solo = soloDocOrDefault()
-    if (seedIfEmpty(ydoc, solo.scene, solo.stProgram, solo.stScanMs, solo.simHz, solo.controller, solo.stDialect, solo.library))
-      seededCode = (solo.scene.packages ?? []).map((p) => p.behavior)
+    // A room shared earlier is seeded again only if the server lost it, and only the server can say so. An empty
+    // document here may be a cache this browser dropped: seeding it would write the whole project a second time, and
+    // the two would merge when the server's copy arrived (the program twice over). So wait for the server, and leave
+    // the room unseeded if it does not answer. A room minted just now (the mark) cannot be on the server yet.
+    const known = !mayExist || mark !== null
+    if (!known && !serverSynced() && schema.partsMap(ydoc).size === 0) {
+      await Promise.race([whenServerSynced, new Promise((r) => setTimeout(r, 30000))])
+    }
+    if (known || serverSynced()) {
+      const solo = soloDocOrDefault()
+      if (seedIfEmpty(ydoc, solo.scene, solo.stProgram, solo.stScanMs, solo.simHz, solo.controller, solo.stDialect, solo.library))
+        seededCode = (solo.scene.packages ?? []).map((p) => p.behavior)
+    }
   }
   // Whose part code may run here (collab/codeTrust.ts): this app's own parts, in this build or any earlier one (a
   // room keeps a snapshot of the built-ins it places, shippedBehaviors.ts), and code this browser wrote itself,
@@ -748,7 +774,7 @@ if (room) {
     // gate render on first sync so we don't flash an empty scene before remote state loads
     // the working copy is read first: a room is seeded from it (soloDocOrDefault) and written back to it
     if (resolved) {
-      return void Promise.all([openWorkingCopy().catch(() => {}).then(() => bootRoom(resolved, seed)), xremu])
+      return void Promise.all([openWorkingCopy().catch(() => {}).then(() => bootRoom(resolved, seed, seed !== null)), xremu])
         .finally(mount)
         .catch((e: unknown) => console.error('[oip] joining the shared project failed', e))
     }

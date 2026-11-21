@@ -18,6 +18,8 @@ export interface RoomConnection {
   whenSynced: Promise<void>
   /** true once the SERVER has synced, so the doc is the room as it is now rather than this browser's cached copy */
   serverSynced(): boolean
+  /** resolves once the server has synced, which may be never (offline) */
+  whenServerSynced: Promise<void>
 }
 
 /** how long to wait on the server before booting offline from the IndexedDB cache */
@@ -44,6 +46,8 @@ export function connectRoom(resolved: ResolvedRoom): RoomConnection {
   })
 
   let serverDone = false
+  let serverAnswered = (): void => {}
+  const whenServerSynced = new Promise<void>((resolve) => (serverAnswered = resolve))
   const whenSynced = new Promise<void>((resolve) => {
     let idbDone = false
     let timedOut = false
@@ -60,6 +64,7 @@ export function connectRoom(resolved: ResolvedRoom): RoomConnection {
     })
     provider.on('synced', () => {
       serverDone = true
+      serverAnswered()
       tryResolve()
     })
     setTimeout(() => {
@@ -68,7 +73,7 @@ export function connectRoom(resolved: ResolvedRoom): RoomConnection {
     }, SERVER_SYNC_TIMEOUT_MS)
   })
 
-  return { ydoc, provider, idb, whenSynced, serverSynced: () => serverDone }
+  return { ydoc, provider, idb, whenSynced, serverSynced: () => serverDone, whenServerSynced }
 }
 
 /**

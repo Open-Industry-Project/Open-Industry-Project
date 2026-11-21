@@ -4,7 +4,7 @@ import { bytesToBase64 } from '../core/parts/partAssets'
 import { PACKAGE_FORMAT } from '../core/parts/partPackage'
 import type { PartPackage } from '../core/parts/partPackage'
 import { sha256HexOfBytes } from '../core/sha256'
-import { assetBaseFor, configureRoomAssets, onRoomAssetsArrived, resetRoomAssetsForTest } from './roomAssets'
+import { assetBaseFor, configureRoomAssets, onRoomAssetRefused, onRoomAssetsArrived, resetRoomAssetsForTest, roomUploadsPending, setLocalAssetSource } from './roomAssets'
 import { packagesMap, readPackages, writePackage } from './schema'
 
 const glb = new Uint8Array(3000).map((_, i) => (i * 7) & 255)
@@ -125,5 +125,46 @@ describe('a room keeps embedded part assets by hash (roomAssets.ts)', () => {
     expect(blobOf(doc)).toContain(bytesToBase64(glb))
     await settle()
     expect(puts).toHaveLength(0)
+  })
+  it('says an upload is pending until the server has the bytes', async () => {
+    configureRoomAssets(LINK)
+    await settle()
+    const doc = new Y.Doc()
+    writePackage(packagesMap(doc), pkg)
+    expect(roomUploadsPending()).toBe(true)
+    await vi.waitFor(() => expect(server.has(SHA)).toBe(true))
+    await vi.waitFor(() => expect(roomUploadsPending()).toBe(false))
+  })
+
+  it('the browser the room was shared from sends again a model the server never got', async () => {
+    // an editor wrote the hash, and its tab closed before the upload: the server has nothing
+    configureRoomAssets(LINK)
+    await settle()
+    const doc = new Y.Doc()
+    writePackage(packagesMap(doc), pkg)
+    await vi.waitFor(() => expect(server.has(SHA)).toBe(true))
+    server.clear()
+    resetRoomAssetsForTest()
+    // the same browser opens the room again, holding the project it shared
+    configureRoomAssets(LINK)
+    await settle()
+    setLocalAssetSource(() => pkg.assets ?? [])
+    expect(readPackages(doc)).toEqual([]) // not here yet
+    await arrived()
+    expect(readPackages(doc)).toEqual([pkg])
+    await vi.waitFor(() => expect(server.has(SHA)).toBe(true))
+  })
+
+  it('tells the page when the server refuses a model for good', async () => {
+    configureRoomAssets(LINK)
+    await settle()
+    const refused: number[] = []
+    onRoomAssetRefused((status) => refused.push(status))
+    const real = globalThis.fetch
+    vi.stubGlobal('fetch', async (url: string, init?: { method?: string }) =>
+      init?.method === 'PUT' ? new Response('too large', { status: 413 }) : real(url, init as RequestInit),
+    )
+    writePackage(packagesMap(new Y.Doc()), pkg)
+    await vi.waitFor(() => expect(refused).toEqual([413]))
   })
 })

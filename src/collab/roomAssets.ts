@@ -8,7 +8,10 @@
 // Both directions stay SYNCHRONOUS for the schema (collab/schema.ts), because a package is written inside a scene
 // transaction and read by docToScene:
 //   - writing: the hash is computed here (cached by the base64 text) and the upload is queued, retried until it
-//     lands. A peer that asks before it has landed gets a 404 and tries again.
+//     lands. A peer that asks before it has landed gets a 404 and tries again. The queue is in memory, so a tab
+//     closed before it empties leaves the room naming bytes the server never got: {@link roomUploadsPending} lets
+//     the page ask before leaving, and {@link setLocalAssetSource} lets the browser the room was shared from send
+//     them again from its own project.
 //   - reading: an entry whose bytes are here becomes `data` again, exactly as it was written (a `sha256` field only
 //     if the writer's asset had one), so a package reads back equal on every peer. One whose bytes are not here yet
 //     is fetched, and the package is left out until they arrive ({@link onRoomAssetsArrived} says when): the bridge
@@ -49,6 +52,9 @@ const dataBySha = new Map<string, string>()
 const fetching = new Set<string>()
 const uploading = new Set<string>()
 const listeners = new Set<() => void>()
+const refusedListeners = new Set<(status: number) => void>()
+/** assets this browser holds outside the room: the project the room was shared from */
+let localSource: (() => Iterable<unknown>) | null = null
 // One notify per burst of arrivals: each listener re-reads every package and re-applies the scene, so joining a room
 // with N models would otherwise rebuild N times. A timer, not a microtask, so arrivals that land while a rebuild runs
 // join the next one.
@@ -83,6 +89,37 @@ export function onRoomAssetsArrived(cb: () => void): () => void {
   return () => listeners.delete(cb)
 }
 
+/** Is a model this client wrote into the room still on its way to the server? Leaving now would strand its hash. */
+export function roomUploadsPending(): boolean {
+  return uploading.size > 0
+}
+
+/** Hear when the server refuses an upload for good (too large, say): no peer will ever get those bytes. */
+export function onRoomAssetRefused(cb: (status: number) => void): () => void {
+  refusedListeners.add(cb)
+  return () => refusedListeners.delete(cb)
+}
+
+/**
+ * Where to look for bytes the room names and the server does not have: the assets of the project this browser
+ * shared the room from. Read only when a fetch misses, since finding a hash means hashing them.
+ */
+export function setLocalAssetSource(source: (() => Iterable<unknown>) | null): void {
+  localSource = source
+}
+
+/** Find `sha` among the local source's assets. Found, its bytes are cached like fetched ones. */
+function haveLocally(sha: string): boolean {
+  if (!localSource) return false
+  for (const asset of localSource()) {
+    const a = asset as { data?: unknown; sha256?: unknown } | null
+    if (typeof a?.data !== 'string' || a.data === '') continue
+    if (typeof a.sha256 === 'string' && a.sha256 !== sha) continue // says it is other bytes: not worth hashing
+    if (shaOf(a.data) === sha) return true
+  }
+  return false
+}
+
 const pause = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 async function upload(sha: string, bytes: Uint8Array): Promise<void> {
@@ -104,6 +141,7 @@ async function upload(sha: string, bytes: Uint8Array): Promise<void> {
         // refused for good (not an editor, too large, not these bytes): retrying cannot help
         if (res.status === 400 || res.status === 403 || res.status === 413) {
           console.warn(`[room assets] the server refused ${sha.slice(0, 12)}: ${res.status} ${await res.text()}`)
+          for (const cb of refusedListeners) cb(res.status)
           return
         }
       } catch {
@@ -132,6 +170,12 @@ async function fetchAsset(sha: string): Promise<void> {
           }
           bytesBySha.set(sha, bytes)
           notifyArrived()
+          return
+        }
+        // the server never got them (the tab that wrote the hash closed first): this browser may still hold them
+        if (res.status === 404 && attempt === 0 && haveLocally(sha)) {
+          notifyArrived()
+          if (link.token) void upload(sha, bytesBySha.get(sha)!)
           return
         }
       } catch {
@@ -206,6 +250,8 @@ export function resetRoomAssetsForTest(): void {
   fetching.clear()
   uploading.clear()
   listeners.clear()
+  refusedListeners.clear()
+  localSource = null
   if (notifyTimer !== null) clearTimeout(notifyTimer)
   notifyTimer = null
 }
