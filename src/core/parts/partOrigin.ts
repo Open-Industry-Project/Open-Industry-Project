@@ -108,6 +108,19 @@ export function matchesRecord(pkg: PartPackage, record: string): boolean {
   return (record.startsWith(FINGERPRINT_SCHEME) ? partFingerprint(pkg) : storedPackageHash(pkg)) === record
 }
 
+/**
+ * `pkg` with the empty `materials` list its own records say it had. A room written by a build that sent no empty
+ * list holds such a part without the field. The part draws the same, but its fingerprint differs, so an untouched
+ * copy would read as edited. A part whose records do not match either way is returned as it is.
+ */
+export function withRecordedEmptyMaterials(pkg: PartPackage): PartPackage {
+  if (pkg.materials !== undefined) return pkg
+  const records = [...Object.values(pkg.origin ?? {}), pkg.sdk?.of].filter((r): r is string => typeof r === 'string')
+  if (records.length === 0 || records.some((r) => matchesRecord(pkg, r))) return pkg
+  const restored: PartPackage = { ...pkg, materials: [] }
+  return records.some((r) => matchesRecord(restored, r)) ? restored : pkg
+}
+
 /** The fingerprint `pkg` recorded from `source`, if it came from there. */
 export function originOf(pkg: PartPackage, source: PartSource): string | undefined {
   return pkg.origin?.[source]

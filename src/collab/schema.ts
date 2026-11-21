@@ -5,6 +5,7 @@ import { PART_DEFS, SCENE_VERSION, toSimRate } from '../core/types'
 import { fromRoomEntry, toRoomEntry } from './roomAssets'
 import type { ParamSpec, ParamValue, PartInstance, PartType, SceneJSON, SdkPart, SimRate } from '../core/types'
 import { upgradeStoredPackage } from '../core/parts/partUpgrade'
+import { withRecordedEmptyMaterials } from '../core/parts/partOrigin'
 import type { PartPackage } from '../core/parts/partPackage'
 import { validateController } from '../core/controller'
 import { validateScenePlcs } from '../core/scene/scenePlcs'
@@ -391,7 +392,9 @@ export function readEditFeed(ydoc: Y.Doc): FeedEvent[] {
 /** split a package into its three doc fields (see PACKAGES_KEY) - `blob` is '' when there's nothing heavy */
 function packageFields(pkg: PartPackage): { behavior: string; def: string; blob: string } {
   const { behavior, assets, materials, thumbnail, ...def } = pkg
-  const heavy = (assets && assets.length) || (materials && materials.length) || thumbnail
+  // an empty list is sent too: a part's fingerprint tells an empty list from none (core/parts/partOrigin.ts), so
+  // dropping one would make every peer read an untouched part as edited
+  const heavy = assets || materials || thumbnail
   return {
     behavior: behavior ?? '',
     def: JSON.stringify(def),
@@ -431,7 +434,8 @@ export function packageFromMap(id: string, m: Y.Map<unknown>): PartPackage | nul
       // a malformed blob loses the meshes but keeps geometry+behavior loadable
     }
   }
-  return pkg
+  // an entry written without its empty materials list gets it back when its records say it had one
+  return withRecordedEmptyMaterials(pkg)
 }
 
 /**

@@ -197,6 +197,10 @@ const GATES = [
     why: "the app never updates a project's parts by itself, and says when it could (docs/part-sources.md): a project holding older copies opens with a prompt counting them while it still runs its own, Review names the one the project also changed, Keep stops its question, Update all takes the app's version as the project's own stamped copy, and nothing is asked again after a reload",
   },
   {
+    script: 'verify-collab-part-updates.mjs',
+    why: "a shared project holds one set of parts (docs/part-sources.md \"Rooms\"), proven with two people against a real collab server: both are asked about older copies and keep running them, one person's Update all gives the other the app's versions and ends their question without their doing anything, and a later joiner gets the same. The question names only the part the room really changed. Checked to bite: when a room dropped a part's empty materials list, the untouched Belt Conveyor was named as changed too. Runs its own collab server on a free port",
+  },
+  {
     script: 'verify-collab-room-assets.mjs',
     why: "a part's embedded model travels through a room by hash (docs/part-sources.md \"Rooms\"): an editor's bytes land in the collab server's asset store named by their SHA-256, the stored room carries the hash and not the base64, a viewer joining cold gets the exact bytes back, and a viewer uploads nothing. Runs its own collab server (server/index.mjs) on a free port with its own db and asset folder",
   },

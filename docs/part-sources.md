@@ -299,7 +299,12 @@ An update in a room is a library change for everyone in it, which is right (expl
 is allowed: "Use the app's new version", Update all and Keep go out over the room like a part edit, each with its
 line in the room's change feed ("Updated “Diverter” to the app's version") so the others know why their part changed
 (`store.updateFromApp` / `keepProjectVersion` through `sharePackageChange`). The update prompt shows in a room too,
-and Update all says that everyone there gets the change.
+and Update all says that everyone there gets the change. Gate: `e2e/verify-collab-part-updates.mjs`.
+
+A part must fingerprint the same on every peer, or an untouched copy reads as edited. So a package's empty
+`materials` or `assets` list is sent like a filled one. A room written before that holds such a part without the
+list, and reading it puts the list back when the part's own records match only with it
+(`withRecordedEmptyMaterials`, core/parts/partOrigin.ts).
 
 ## Gates
 
