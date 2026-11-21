@@ -43,4 +43,10 @@ describe('convertStep (real CAD kernel)', () => {
   it('says so when the file is not STEP', () => {
     expect(() => convertStep(occt, new TextEncoder().encode('not a step file'), { detail: 'normal', minPartMm: 0, mergeByColour: true, upAxis: 'z' })).toThrow(/could not be read|no solids/)
   })
+
+  it('refuses a read that succeeded with no triangles in any solid, as the kernel answers when it runs out of memory', () => {
+    const emptySolid = { name: 'bolt', attributes: { position: { array: [] } }, index: { array: [] } }
+    const outOfMemory: OcctKernel = { ReadStepFile: () => ({ success: true, meshes: [emptySolid, emptySolid] }) }
+    expect(() => convertStep(outOfMemory, new Uint8Array(), { detail: 'normal', minPartMm: 0, mergeByColour: true, upAxis: 'z' })).toThrow(/No geometry/)
+  })
 })

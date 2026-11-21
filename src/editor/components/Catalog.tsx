@@ -30,6 +30,7 @@ import { importPartsFolder } from '../parts/packageSource'
 import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { importPartFiles, partFilesOf } from '../parts/importPartFiles'
 import { readPartDrop, receivePartDrops, type PartDrop } from '../parts/partDrop'
+import { ImportRunning } from './ImportRunning'
 import { isModelFile, isRobotArchive, isUrdfFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
 import { RobotOptionsDialog } from './RobotOptionsDialog'
 
@@ -51,6 +52,7 @@ const M = defineMessages('catalog', {
   importRobotTitle:
     "Make a new part from a robot description: pick the folder holding its .urdf or .xacro file and its meshes (STL, COLLADA or OBJ). The folder, or a .zip of it, can also be dropped on this panel or the 3D view. Its links and joints become the part's nodes and joints.",
   whichUrdf: 'Import {file}',
+  importingRobot: 'Importing the robot {file}: {time} so far.',
   // i18n-ok: {arg} and {value} are a xacro argument's name and value, as the file spells them
   whichArg: '{arg}: {value}',
   importFiles: 'Part files…',
@@ -223,6 +225,8 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   // where Import part's menu opened, so a follow-up choice (which URDF of a folder) opens in the same place
   const menuAt = useRef({ x: 0, y: 0 })
   // a xacro robot's on/off arguments being asked about before it imports
+  // the robot import under way, shown as a clock and Cancel (ImportRunning)
+  const [robotRun, setRobotRun] = useState<{ file: string; startedAt: number; abort: AbortController } | null>(null)
   const [robotOptions, setRobotOptions] = useState<{ files: ReadonlyMap<string, Blob>; root: string; args: Record<string, string>; switches: Record<string, boolean> } | null>(null)
   const q = query.trim().toLowerCase()
   const searching = q !== ''
@@ -277,7 +281,11 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   const importRobot = async (files: ReadonlyMap<string, Blob>, root: string, args: Record<string, string> = {}, asked = false): Promise<void> => {
     if (!controller || state.readOnly) return
     const { newPartFromUrdf } = await import('../parts/urdfPartImport')
-    const { message, choose, switches } = await newPartFromUrdf(controller, files, root, args, !asked)
+    const abort = new AbortController()
+    setRobotRun({ file: root.split('/').pop() ?? root, startedAt: Date.now(), abort })
+    const { message, choose, switches } = await newPartFromUrdf(controller, files, root, args, !asked, abort.signal).finally(() =>
+      setRobotRun((r) => (r?.abort === abort ? null : r)),
+    )
     if (switches) {
       setRobotOptions({ files, root, args, switches })
       return
@@ -566,6 +574,16 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
       </div>
       {/* the app has newer versions of parts this project holds copies of: Update all / Review (docs/part-sources.md) */}
       <PartUpdatesNotice state={state} controller={controller} />
+      {robotRun && (
+        <div className="catalog-import-running">
+          <ImportRunning
+            testid="robot-import-running"
+            startedAt={robotRun.startedAt}
+            onCancel={() => robotRun.abort.abort()}
+            message={(time) => t(M.importingRobot, { file: robotRun.file, time })}
+          />
+        </div>
+      )}
       <div className="catalog-strip">
         {/* a shelf part that could not be read is missing from its tab; say so where it would be */}
         {shelfApi && shelf && (shelf.error !== null || (shelf.listing?.problems.length ?? 0) > 0) && (

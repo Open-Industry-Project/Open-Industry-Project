@@ -15,6 +15,7 @@
 // left, samples the same texels, so neither is flipped here.
 import * as THREE from 'three'
 import { getOipModelApi } from './desktop/desktopModelBridge'
+import { ImportCancelled, throwIfCancelled } from './importCancel'
 import { usdToGlb, type UsdImage, type UsdMaterial, type UsdPiece, type UsdTextureRef, type UsdToGlbStats, type UsdWrap } from '../core/usdToGlb'
 
 export type UsdDetail = 'full' | 'reduced'
@@ -99,22 +100,30 @@ interface Patch {
 /**
  * Convert the USD model whose root layer is `root` (a key of `files`) to a GLB. `files` holds every file the model
  * may read, keyed by its path relative to the others (a picked folder's webkitRelativePath, or one .usdz).
+ * `signal` cancels: the reader's worker is ended and the promise rejects with ImportCancelled.
  */
 export async function importUsd(
   files: ReadonlyMap<string, Blob>,
   root: string,
   options: UsdImportOptions,
   onProgress?: (fraction: number) => void,
+  signal?: AbortSignal,
 ): Promise<{ glb: Uint8Array; stats: UsdImportStats }> {
   const { loadUsd } = await import('@huggingface/usd-web-viewer')
+  throwIfCancelled(signal)
+  // the reader rejects with its own error when the signal aborts; the caller is told it was a cancel
+  const cancelled = (e: unknown): never => {
+    throw signal?.aborted ? new ImportCancelled() : e
+  }
   const loaded = await loadUsd(root, {
     files,
     textures: 'full',
     maxTextureSize: options.maxTextureSize,
+    signal,
     onProgress: onProgress ? (p) => onProgress(p.fraction * 0.9) : undefined,
-  })
+  }).catch(cancelled)
   try {
-    await loaded.complete
+    await loaded.complete.catch(cancelled)
     loaded.root.updateMatrixWorld(true)
     const simplifier = options.detail === 'reduced' ? await loadSimplifier() : null
     const textures = new TextureBaker(options.maxTextureSize)
@@ -146,6 +155,7 @@ export async function importUsd(
     })
     const instanceMatrix = new THREE.Matrix4()
     for (const mesh of meshes) {
+      throwIfCancelled(signal)
       let geometry = mesh.geometry
       if (!geometry.getAttribute('normal')) {
         geometry = geometry.clone()

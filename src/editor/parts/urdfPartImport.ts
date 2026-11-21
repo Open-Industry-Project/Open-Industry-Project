@@ -11,6 +11,7 @@ import { defineMessages, t } from '../../core/i18n'
 import { UrdfError } from '../../core/urdf'
 import { XacroError, xacroArgChoices } from '../../core/xacro'
 import type { UrdfRigNote } from '../../core/urdfRig'
+import { ImportCancelled } from '../importCancel'
 import { importUrdf, readRobotDescription, urdfCandidates, URDF_TRIANGLE_BUDGET, type UrdfImport } from '../urdfImport'
 import { largeModelAdvisory } from './modelStorage'
 
@@ -117,7 +118,7 @@ export async function droppedFolderFiles(dirs: readonly FileSystemEntry[]): Prom
  * and open it. Returns the part's id (null when nothing was made) and the message to show, or '' when the import went
  * as written. Nothing is made, and the caller asks and imports again, when a xacro argument names a model the folder
  * lacks (`choose`: the values it can take), or when `ask` is set and the description has on/off arguments that change
- * the robot (`switches`, with their values).
+ * the robot (`switches`, with their values). `signal` cancels: nothing is made, and `cancelled` is set.
  */
 export async function newPartFromUrdf(
   controller: EditorController,
@@ -125,7 +126,8 @@ export async function newPartFromUrdf(
   root: string,
   args: Readonly<Record<string, string>> = {},
   ask = false,
-): Promise<{ packageId: string | null; message: string; choose?: { arg: string; value: string; choices: string[] }; switches?: Record<string, boolean> }> {
+  signal?: AbortSignal,
+): Promise<{ packageId: string | null; message: string; choose?: { arg: string; value: string; choices: string[] }; switches?: Record<string, boolean>; cancelled?: boolean }> {
   const file = root.split('/').pop() ?? root
   let result: UrdfImport
   try {
@@ -133,8 +135,9 @@ export async function newPartFromUrdf(
       const { switches } = await readRobotDescription(files, root, args)
       if (Object.keys(switches).length > 0) return { packageId: null, message: '', switches }
     }
-    result = await importUrdf(files, root, args)
+    result = await importUrdf(files, root, args, signal)
   } catch (e) {
+    if (e instanceof ImportCancelled) return { packageId: null, message: '', cancelled: true }
     if (e instanceof XacroError) {
       // an argument names a model the folder lacks (UR's ur_type defaults to none on purpose): ask which
       const choose = xacroArgChoices(e, [...files.keys()])

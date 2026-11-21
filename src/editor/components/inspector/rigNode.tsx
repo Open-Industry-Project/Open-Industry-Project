@@ -22,7 +22,9 @@ import type { EditorStore } from '../../store/store'
 import type { EditorController } from '../../controller'
 import { AxisInput, BoolRow, Fold, NumberField, TextField, useShownLengthUnit, VectorRow } from './fields'
 import { InspectorHeader } from './header'
-import { DEFAULT_STEP_OPTIONS, importStep, isStepFile, type StepImportOptions } from '../../stepImport'
+import { ImportRunning } from '../ImportRunning'
+import { ImportCancelled } from '../../importCancel'
+import { DEFAULT_STEP_OPTIONS, importStep, isStepFile, STEP_LARGE_BYTES, type StepImportOptions } from '../../stepImport'
 import { takePendingModel } from '../../parts/modelPartImport'
 import {
   DEFAULT_USD_OPTIONS,
@@ -55,7 +57,9 @@ const M = defineMessages('inspector.rigNode', {
   importedWarn: 'Imported {file}. {warning}',
   readFailed: 'Could not read the file.',
   notAModel: '{file} is not a model this importer can read. Export it again as glTF Binary (.glb), a STEP file or a USD file.',
-  convertingStep: 'Converting {file} from STEP. A large assembly can take a minute.',
+  convertingStep: 'Converting {file} from STEP: {time} so far. A large assembly can take several minutes.',
+  importCancelled: 'Stopped converting {file}. Nothing was imported.',
+  stepLarge: 'A file this large can be more than the converter can hold, and it says so only at the end. Exporting the assembly in smaller pieces is safer.',
   nothingToImport: 'Nothing to import: all {solids} solids in {file} are smaller than {mm} mm.',
   importSummary: {
     one: 'Imported {file}: {solids} solids, {count} mesh, {k}k triangles, {size} m.',
@@ -194,7 +198,7 @@ const M = defineMessages('inspector.rigNode', {
     "Replace this node's shape with an imported model, embedded in the part: a .glb, a STEP file (.step / .stp) from CAD, or a USD model (.usd / .usda / .usdc / .usdz)",
   converting: 'Converting…',
   importModel: 'Import model…',
-  stepFileSize: '{name} ({mb} MB). Converting takes about 2 s per MB.',
+  stepFileSize: '{name} ({mb} MB). A large assembly can take several minutes to convert.',
   detailTip: 'How closely curved surfaces are followed. Coarse has about half the triangles, which a big assembly needs to stay light.',
   detail: 'Detail',
   detailNormal: 'normal',
@@ -233,7 +237,7 @@ const M = defineMessages('inspector.rigNode', {
   usdDetailReduced: 'reduced',
   usdTextureSize: 'Texture size',
   usdTextureSizeTip: 'The longest side of each imported texture. Larger is sharper up close and heavier to download and draw.',
-  convertingUsd: 'Converting {file} from USD… {pct}%',
+  convertingUsd: 'Converting {file} from USD: {pct}%, {time} so far.',
   usdImportSummary: {
     one: 'Imported {file}: {parts} parts, {count} mesh, {k}k triangles, {size} m.',
     other: 'Imported {file}: {parts} parts, {count} meshes, {k}k triangles, {size} m.',
@@ -393,6 +397,9 @@ export function RigNodePanel({
   const [stepOptions, setStepOptions] = useState<StepImportOptions>({ detail: 'normal', ...DEFAULT_STEP_OPTIONS })
   const [stepGuess, setStepGuess] = useState<StepUpAxisGuess | null>(null)
   const [converting, setConverting] = useState(false)
+  // The conversion under way, shown as a clock and Cancel (ImportRunning). STEP's kernel reports no progress; USD's
+  // reader does, as `pct`.
+  const [importRun, setImportRun] = useState<{ kind: 'step' | 'usd'; file: string; startedAt: number; abort: AbortController; pct: number } | null>(null)
   // A USD model stops at its options too (usdPick). It is often several files - a root layer pulling in others
   // beside it - and a page can only read files it was handed, so a model can also be picked as its folder.
   const folderRef = useRef<HTMLInputElement>(null)
@@ -461,9 +468,11 @@ export function RigNodePanel({
     const options = stepOptions
     setStepFile(null)
     setConverting(true)
-    setMsg(t(M.convertingStep, { file: file.name }))
+    setMsg(null)
+    const abort = new AbortController()
+    setImportRun({ kind: 'step', file: file.name, startedAt: Date.now(), abort, pct: 0 })
     try {
-      const { glb, stats } = await importStep(new Uint8Array(await file.arrayBuffer()), options)
+      const { glb, stats } = await importStep(new Uint8Array(await file.arrayBuffer()), options, abort.signal)
       if (stats.meshes === 0) {
         setMsg(t(M.nothingToImport, { solids: stats.solids, file: file.name, mm: options.minPartMm }))
         return
@@ -477,8 +486,10 @@ export function RigNodePanel({
       )
       setMsg(warning ? t(M.summaryWarn, { summary, warning }) : summary)
     } catch (err) {
-      setMsg(t(M.importFailed, { file: file.name, error: err instanceof Error ? err.message : String(err) }))
+      if (err instanceof ImportCancelled) setMsg(t(M.importCancelled, { file: file.name }))
+      else setMsg(t(M.importFailed, { file: file.name, error: err instanceof Error ? err.message : String(err) }))
     } finally {
+      setImportRun(null)
       setConverting(false)
     }
   }
@@ -519,9 +530,12 @@ export function RigNodePanel({
     const file = pick.root.split('/').pop()!
     setUsdPick(null)
     setConverting(true)
-    setMsg(t(M.convertingUsd, { file, pct: 0 }))
+    setMsg(null)
+    const abort = new AbortController()
+    setImportRun({ kind: 'usd', file, startedAt: Date.now(), abort, pct: 0 })
+    const onProgress = (f: number): void => setImportRun((r) => (r && r.abort === abort ? { ...r, pct: Math.round(f * 100) } : r))
     try {
-      const { glb, stats } = await importUsd(pick.files, pick.root, options, (f) => setMsg(t(M.convertingUsd, { file, pct: Math.round(f * 100) })))
+      const { glb, stats } = await importUsd(pick.files, pick.root, options, onProgress, abort.signal)
       // a lone file whose layers are elsewhere: say so first, it is the likely reason for whatever went missing
       const missingLayers = !pick.folder && stats.warnings.some((w) => w.code === 'layer-missing')
       if (stats.meshes === 0) {
@@ -540,8 +554,10 @@ export function RigNodePanel({
       if (warning) lines.push(warning)
       setMsg(lines.join(' '))
     } catch (err) {
-      setMsg(t(M.importFailed, { file, error: err instanceof Error ? err.message : String(err) }))
+      if (err instanceof ImportCancelled) setMsg(t(M.importCancelled, { file }))
+      else setMsg(t(M.importFailed, { file, error: err instanceof Error ? err.message : String(err) }))
     } finally {
+      setImportRun(null)
       setConverting(false)
     }
   }
@@ -1319,6 +1335,11 @@ export function RigNodePanel({
             <p className="inspector-hint">
               {t(M.stepFileSize, { name: stepFile.name, mb: (stepFile.size / 1e6).toFixed(1) })}
             </p>
+            {stepFile.size > STEP_LARGE_BYTES && (
+              <p className="inspector-hint" data-testid="step-large">
+                {t(M.stepLarge)}
+              </p>
+            )}
             <label className="field">
               <span className="field-label" title={t(M.detailTip)}>
                 {t(M.detail)}
@@ -1381,6 +1402,16 @@ export function RigNodePanel({
               </button>
             </div>
           </div>
+        )}
+        {importRun && (
+          <ImportRunning
+            testid="import-running"
+            startedAt={importRun.startedAt}
+            onCancel={() => importRun.abort.abort()}
+            message={(time) =>
+              importRun.kind === 'step' ? t(M.convertingStep, { file: importRun.file, time }) : t(M.convertingUsd, { file: importRun.file, pct: importRun.pct, time })
+            }
+          />
         )}
 
         {msg && <p className="inspector-hint">{msg}</p>}

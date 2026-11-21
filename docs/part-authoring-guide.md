@@ -913,9 +913,13 @@ STEP to GLB: it reads the file's units, turns its up axis into +Y, and sets the 
 - **Merge by colour**: a handful of meshes instead of one per solid. Turn it off to keep each solid as a named
   node you can split out.
 
-A large assembly takes about 2 s per MB of STEP. Headless, `npm run import-model -- model.step` runs the same
-conversion to `model.glb`, with the same choices as options (`--up z|y`, `--detail coarse`, `--min-part-mm <n>`,
-`--no-merge`) and the up axis guessed from the header when `--up` is not given.
+Converting took 1 to 2 s per MB of STEP on a 2020s desktop, depending on the geometry, whatever the choices
+above: nearly all of it is reading the file's solids, before any of them is skipped or meshed. A STEP, USD or robot
+import shows how long it has been going while it runs, and **Cancel** stops it with nothing imported. A very large
+assembly (a 185 MB one, for example) is more than the converter can hold and is refused at the end of the wait:
+export it in smaller pieces. Headless, `npm run import-model -- model.step` runs the same conversion to
+`model.glb`, with the same choices as options (`--up z|y`, `--detail coarse`, `--min-part-mm <n>`, `--no-merge`)
+and the up axis guessed from the header when `--up` is not given.
 
 It also reads **USD** (`.usd` / `.usda` / `.usdc` / `.usdz`). A USD model is often several files: a model file
 that is only an index of layers and textures in folders beside it. A `.usdz` holds them all. On the desktop,

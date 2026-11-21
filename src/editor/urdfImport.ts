@@ -32,6 +32,7 @@ const readyPoseOf = (geometry: RigGeometry, decl: RobotDecl): Record<string, num
   return kin ? robotReadyPose(kin) : null
 }
 
+import { throwIfCancelled } from './importCancel'
 import { isUrdfFile } from './parts/modelPartImport'
 export { isUrdfFile }
 
@@ -125,10 +126,17 @@ export async function readRobotDescription(
 
 /**
  * Import the robot whose description is `root` (a key of `files`): a URDF, or a xacro file expanded with `args`.
- * `files` holds the picked folder's files by relative path.
+ * `files` holds the picked folder's files by relative path. `signal` cancels between meshes: the promise rejects
+ * with ImportCancelled.
  */
-export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string, args: Readonly<Record<string, string>> = {}): Promise<UrdfImport> {
+export async function importUrdf(
+  files: ReadonlyMap<string, Blob>,
+  root: string,
+  args: Readonly<Record<string, string>> = {},
+  signal?: AbortSignal,
+): Promise<UrdfImport> {
   const { robot, args: used, switches } = await readRobotDescription(files, root, args)
+  throwIfCancelled(signal)
   const paths = [...files.keys()]
   const meshes = new MeshCache(files)
   const images = new ImageStore()
@@ -148,6 +156,7 @@ export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string,
           continue
         }
         const loaded = await meshes.get(path)
+        throwIfCancelled(signal)
         if (!loaded) {
           unreadable.add(path)
           continue
@@ -178,6 +187,7 @@ export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string,
         continue
       }
       const loaded = await meshes.get(path)
+      throwIfCancelled(signal)
       if (!loaded) {
         unreadable.add(path)
         continue
@@ -192,6 +202,7 @@ export async function importUrdf(files: ReadonlyMap<string, Blob>, root: string,
     }
 
   const sourceTriangles = [...byLink.values()].flat().reduce((n, p) => n + p.idx.length / 3, 0)
+  throwIfCancelled(signal)
   if (sourceTriangles > URDF_TRIANGLE_BUDGET) await simplifyAll(byLink, URDF_TRIANGLE_BUDGET / sourceTriangles)
 
   const boxes = new Map<string, Box3Like>()

@@ -100,6 +100,11 @@
   margin: 4px 2px;
 }
 
+/* a running robot import (ImportRunning), inset like the cards below it */
+.catalog-import-running {
+  padding: 6px 10px 0;
+}
+
 .catalog-author:disabled {
   opacity: 0.4;
   cursor: default;

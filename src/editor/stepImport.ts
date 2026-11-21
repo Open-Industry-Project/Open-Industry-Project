@@ -1,6 +1,7 @@
 // Import a STEP file as a GLB. Nothing here loads until it is called: the worker and its 7.6 MB wasm are their own
 // chunk, kept out of the first frame and out of the offline precache (vite.config.ts globIgnores).
 import type { StepToGlbStats } from '../core/stepToGlb'
+import { ImportCancelled } from './importCancel'
 import type { StepImportOptions } from './stepConvert'
 
 export type { StepImportOptions } from './stepConvert'
@@ -8,10 +9,27 @@ export { DEFAULT_STEP_OPTIONS } from '../core/stepToGlb'
 
 export const isStepFile = (name: string): boolean => /\.(step|stp)$/i.test(name)
 
-export function importStep(bytes: Uint8Array, options: StepImportOptions): Promise<{ glb: Uint8Array; stats: StepToGlbStats }> {
+// A file near this size can need more than the kernel's 2 GB of memory, and is refused only after the whole wait.
+// Memory follows the geometry, not the size: a 52 MB board took 1.4 GB, a 185 MB machine ran out.
+export const STEP_LARGE_BYTES = 100e6
+
+/**
+ * `signal` cancels: the promise rejects with ImportCancelled. The kernel's one call cannot be interrupted, so the
+ * worker is ended, which also frees its memory.
+ */
+export function importStep(bytes: Uint8Array, options: StepImportOptions, signal?: AbortSignal): Promise<{ glb: Uint8Array; stats: StepToGlbStats }> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new ImportCancelled())
     const worker = new Worker(new URL('./stepImport.worker.ts', import.meta.url), { type: 'module', name: 'step-import' })
-    const done = (): void => worker.terminate()
+    const onAbort = (): void => {
+      worker.terminate()
+      reject(new ImportCancelled())
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    const done = (): void => {
+      signal?.removeEventListener('abort', onAbort)
+      worker.terminate()
+    }
     worker.onmessage = (e: MessageEvent<{ ok: true; glb: Uint8Array; stats: StepToGlbStats } | { ok: false; error: string }>) => {
       done()
       if (e.data.ok) resolve({ glb: e.data.glb, stats: e.data.stats })
