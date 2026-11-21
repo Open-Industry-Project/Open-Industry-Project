@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync, utimesSync } from 'node:fs'
-import { createServer } from 'node:http'
+import { createServer, request as httpRequest } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, test } from 'node:test'
@@ -89,4 +89,31 @@ test('the sweep deletes what no room names once it is old enough, and keeps the 
   assert.equal((await fetch(`${base}/assets/${sha(kept)}`, { method: 'HEAD' })).status, 200)
   assert.equal((await fetch(`${base}/assets/${sha(gone)}`, { method: 'HEAD' })).status, 404)
   assert.equal((await fetch(`${base}/assets/${sha(young)}`, { method: 'HEAD' })).status, 200, 'younger than a day: kept')
+})
+
+test('a request it cannot read is answered or dropped, and the server keeps serving', async () => {
+  const { port } = server.address()
+  // a path that is not a URL (fetch would normalise it away)
+  const status = await new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port, path: '//', method: 'GET' }, (res) => resolve(res.statusCode))
+    req.on('error', reject)
+    req.end()
+  })
+  assert.equal(status, 400)
+  // an upload whose client goes away half way
+  await new Promise((resolve) => {
+    const req = httpRequest({
+      host: '127.0.0.1',
+      port,
+      path: `/assets/${'c'.repeat(64)}`,
+      method: 'PUT',
+      headers: { authorization: `Bearer ${secret}`, 'x-oip-room': room, 'content-length': '500' },
+    })
+    req.on('error', () => {})
+    req.write(new Uint8Array(100), () => {
+      req.destroy()
+      setTimeout(resolve, 200) // let the server see the socket close
+    })
+  })
+  assert.equal((await fetch(`${base}/assets/${'0'.repeat(64)}`, { method: 'HEAD' })).status, 404, 'still answering')
 })

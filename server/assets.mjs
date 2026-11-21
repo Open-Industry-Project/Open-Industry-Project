@@ -79,10 +79,26 @@ export function createAssetStore({ dir, maxAssetBytes, maxBytesPerIpHour, client
   }
 
   /**
-   * Answer a request for /assets/..., or return false for any other path. Never throws for a bad request: every
-   * refusal is a status code.
+   * Answer a request for /assets/..., or return false for any other path. Never throws: a refusal is a status code,
+   * and so is a request that cannot be read (a path that is no URL, an upload cut off, a disk that will not write).
+   * The caller is an http handler, where a rejection would end the process and every room with it.
    */
   async function handle(request, response) {
+    try {
+      return await answer(request, response)
+    } catch (err) {
+      console.error('[assets] request failed:', err?.message ?? err)
+      try {
+        if (!response.headersSent) send(response, err?.code === 'ERR_INVALID_URL' ? 400 : 500, { 'Content-Type': 'text/plain' })
+        else response.destroy()
+      } catch {
+        /* the client is gone */
+      }
+      return true
+    }
+  }
+
+  async function answer(request, response) {
     const url = new URL(request.url ?? '/', 'http://local')
     const m = /^\/assets\/([^/]+)$/.exec(url.pathname)
     if (!m) return false
