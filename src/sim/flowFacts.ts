@@ -17,9 +17,16 @@ const BEAM_TARGET_MARGIN = 0.03
 
 export class SimFlowFacts {
   readonly tracker: FlowFactTracker
-  // per-step tables handed to the tracker: refilled in place, never reallocated
+  // The tables handed to the tracker, kept from step to step: a part's entry is written when its beam readings or
+  // its tags are a new object, which is when one of them changed (world.ts replaces both and writes neither in place).
   private readonly beamHits = new Map<string, Readonly<Record<string, FlowBeamReading>>>()
   private readonly partTags = new Map<string, Readonly<Record<string, number | boolean>>>()
+  /** what each behavior had on the last step, by its place in the bus's list */
+  private seenParts: unknown[] = []
+  private seenBeams: unknown[] = []
+  private seenTags: unknown[] = []
+  /** the parts whose entry changed on this step (FlowStepInput.beamParts) */
+  private readonly changed: string[] = []
   /** the stock build's pose rows when the registry has no snapshot (no unit loads): read through the getters */
   private poses: Float32Array = new Float32Array(0)
   /** the snapshot the current step reads, for beamTarget (valid only inside step) */
@@ -69,12 +76,41 @@ export class SimFlowFacts {
     this.rows = rows
     const beamHits = this.beamHits
     const partTags = this.partTags
-    beamHits.clear()
-    partTags.clear()
-    for (const b of this.bus.behaviors) {
-      if (!b.partId || !b.beamHits) continue
-      beamHits.set(b.partId, b.beamHits)
-      if (b.tags) partTags.set(b.partId, b.tags)
+    const behaviors = this.bus.behaviors
+    const n2 = behaviors.length
+    const seenParts = this.seenParts
+    let seenBeams = this.seenBeams
+    let seenTags = this.seenTags
+    // the list of behaviors is another one (a live edit added or removed a part): every entry is written again
+    let same = seenParts.length === n2
+    for (let i = 0; same && i < n2; i++) if (seenParts[i] !== behaviors[i]) same = false
+    if (!same) {
+      beamHits.clear()
+      partTags.clear()
+      seenParts.length = 0
+      for (let i = 0; i < n2; i++) seenParts.push(behaviors[i])
+      seenBeams = this.seenBeams = new Array<unknown>(n2).fill(undefined)
+      seenTags = this.seenTags = new Array<unknown>(n2).fill(undefined)
+    }
+    const changed = this.changed
+    changed.length = 0
+    for (let i = 0; i < n2; i++) {
+      const b = behaviors[i]!
+      const hits = b.partId ? b.beamHits : undefined
+      const tags = b.tags
+      if (hits === seenBeams[i] && tags === seenTags[i]) continue
+      seenBeams[i] = hits
+      seenTags[i] = tags
+      if (!b.partId) continue
+      if (!hits) {
+        beamHits.delete(b.partId)
+        partTags.delete(b.partId)
+        continue
+      }
+      beamHits.set(b.partId, hits)
+      if (tags) partTags.set(b.partId, tags)
+      else partTags.delete(b.partId)
+      changed.push(b.partId)
     }
     this.tracker.step({
       t: this.clock.step / this.hz,
@@ -83,7 +119,7 @@ export class SimFlowFacts {
       poses: rows,
       isHeld: this.isHeld,
       speeds: this.bus.conveyorSpeeds,
-      ...(beamHits.size > 0 ? { beamHits, partTags, beamTarget: this.beamTarget } : {}),
+      ...(beamHits.size > 0 ? { beamHits, partTags, beamTarget: this.beamTarget, beamParts: changed } : {}),
     })
   }
 

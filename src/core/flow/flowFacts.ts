@@ -91,6 +91,11 @@ export interface FlowStepInput {
   isHeld?: (id: number) => boolean
   /** raw beam hits by part id, then link */
   beamHits?: ReadonlyMap<string, Readonly<Record<string, FlowBeamReading>>>
+  /** The parts whose entry in `beamHits` or `partTags` is not the object it was on the last step. When given, only
+   *  these parts' beams are looked at, with the beams still being watched for a flicker. A caller that gives it
+   *  replaces a part's table when a reading or a tag changes and never writes one in place. Without it every part in
+   *  `beamHits` is looked at. */
+  beamParts?: readonly string[]
   /** each part's tag writes this step, by part id (a fresh object per step, as the behavior runtime hands them) */
   partTags?: ReadonlyMap<string, Readonly<Record<string, number | boolean>>>
   /** live commanded conveyor speed by part id (m/s, or rad/s for a curve); 0 = stopped */
@@ -245,6 +250,8 @@ export class FlowFactTracker {
   private readonly pendingOrigins = new Map<number, string>()
   /** the previous step's tag writes per sensor part (a fresh object per step, so holding it is free) */
   private readonly prevTags = new Map<string, Readonly<Record<string, number | boolean>>>()
+  /** the parts with a beam that went clear a moment ago: looked at on every step until the gap is a real one */
+  private readonly watching = new Set<string>()
   private conveyors: { part: PartInstance; reach2: number }[] = []
   private names = new Map<string, string>()
   /** each part's position, where a flicker is placed when the sim cannot say where its beam was blocked */
@@ -499,8 +506,33 @@ export class FlowFactTracker {
   // ---- beams ----------------------------------------------------------------------------------------------------
 
   private stepBeams(input: FlowStepInput, t: number): void {
+    const hits = input.beamHits!
+    const changed = input.beamParts
+    if (!changed) {
+      for (const [part, links] of hits) this.stepPartBeams(part, links, input, t)
+      return
+    }
+    // A beam with the reading and the tags it had last step, and no gap being timed, has nothing to say. On a line
+    // of 400 parts, looking at every beam on every step cost more than the cargo did.
+    for (const part of changed) {
+      const links = hits.get(part)
+      if (links) this.stepPartBeams(part, links, input, t)
+    }
+    if (this.watching.size > 0) {
+      const done = new Set(changed)
+      for (const part of [...this.watching]) {
+        if (done.has(part)) continue
+        const links = hits.get(part)
+        if (links) this.stepPartBeams(part, links, input, t)
+        else this.watching.delete(part)
+      }
+    }
+  }
+
+  private stepPartBeams(part: string, links: Readonly<Record<string, FlowBeamReading>>, input: FlowStepInput, t: number): void {
     const tags = input.partTags
-    for (const [part, links] of input.beamHits!) {
+    let watch = false
+    {
       let perPart = this.beams.get(part)
       if (!perPart) this.beams.set(part, (perPart = new Map()))
       const now = tags?.get(part)
@@ -536,9 +568,12 @@ export class FlowFactTracker {
           else s.baseline = undefined // a real gap: stop watching its tags
         }
         if (r.hit) s.lastDistance = r.distance
+        if (s.baseline !== undefined) watch = true
       }
       if (now) this.prevTags.set(part, now)
     }
+    if (watch) this.watching.add(part)
+    else this.watching.delete(part)
   }
 
   /** the sensor's BOOL tags that differ from what they were before the gap */
