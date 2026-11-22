@@ -23,6 +23,8 @@ import type { WatchPlan } from '../plc/types'
 export interface PlcWorldPort {
   /** part→PLC: the tags behaviors wrote on the last step, flattened across parts (last wins) */
   behaviorTagWrites(): Record<string, number | boolean>
+  /** the same writes one at a time and in the same order, where the world can give them without building the table */
+  eachBehaviorTagWrite?(put: (name: string, value: number | boolean) => void): void
   /** PLC→part: hold the scan's output tags for behaviors to read on their next step */
   setBehaviorInputTags(tags: Record<string, number | boolean>): void
   /** physics steps taken so far: 0 means no part has published a tag yet (see {@link PlcHost.interleave}) */

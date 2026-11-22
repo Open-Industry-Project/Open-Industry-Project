@@ -116,7 +116,10 @@ export class SimClient {
     // ?perfparts additionally enables the O(parts) profiling timers (per-part script/rig cost, the beams
     // and zones sub-phases) - off by default because a worker performance.now() is ~350 ns and they run
     // per part per step, inflating the very numbers they report.
-    const name = `jolt${params?.has('joltthreads') ? '-threads' : ''}${params?.has('joltraw') ? '-raw' : ''}${params?.has('jsconveyor') ? '-jsconv' : ''}${params?.has('perfparts') ? '-perfparts' : ''}`
+    // ?plcthread puts the controller on a worker of its own whatever the program's size, ?plcthread=0 keeps it on
+    // the sim worker (sim/plcThread.ts). Without either it goes there wherever it can.
+    const plcThread = !params?.has('plcthread') ? '' : params.get('plcthread') === '0' ? '-noplcthread' : '-plcthread'
+    const name = `jolt${params?.has('joltthreads') ? '-threads' : ''}${params?.has('joltraw') ? '-raw' : ''}${params?.has('jsconveyor') ? '-jsconv' : ''}${params?.has('perfparts') ? '-perfparts' : ''}${plcThread}`
     const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module', name })
     if (typeof SharedArrayBuffer !== 'undefined' && globalThis.crossOriginIsolated === true) {
       this.beacon = new SharedArrayBuffer(PART_CALL_BEACON_BYTES)

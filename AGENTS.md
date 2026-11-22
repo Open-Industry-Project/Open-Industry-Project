@@ -209,6 +209,13 @@ projectTestsRun.ts); eslint enforces both.
   follows the parts' first step (so a normally-closed input reads TRUE on scan 1; changing this moves every bench-sim
   fingerprint), and a controller running one program instance also answers to its variables by bare name. Add any
   by-name surface through `LocalPlcLink` (`aliases` / `tagView`), never by matching `Inst.` prefixes yourself.
+- **Nothing after the parts phase of a step may write a part's tag.** The program scans on a worker of its own
+  ([sim/plcThread.ts](src/sim/plcThread.ts)): the scans for the next step are asked for when the parts have run and
+  made beside the physics. A tag written later in the step would reach that scan a step late, and on time on one
+  worker. A part's tags are written in `tickBehaviors` only, through `BehaviorBus.setPartTags`, which throws outside it. Anything new a scan needs from the world goes through
+  `PlcWorldPort` and across the shared buffers ([plcThreadWire.ts](src/sim/plcThreadWire.ts)): the sim worker cannot
+  take a message inside a step. [src/plc/DEVICE-IO.md](src/plc/DEVICE-IO.md) "The program scans on a worker of
+  its own". Gated by `plcThread.test.ts` and `verify-plc-thread.mjs`.
 - **App-level actions live in [src/editor/commands.ts](src/editor/commands.ts)**: label, enablement and behaviour, once.
   The toolbar, overflow, context menu, native menu and command palette all render that list. `core/keymap.ts` owns
   chords and joins by id. A command sets `accelerator` (the native menu binds it) or `keys` (the app binds it), never

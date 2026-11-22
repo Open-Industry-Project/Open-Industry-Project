@@ -25,6 +25,35 @@ drops the program to STOP worker-side and comes back as a `plcFault` message.
 > would depend on the render frame rate, so timing-sensitive logic would behave differently at 30 vs 120 fps. In
 > the step loop there is no main-thread hop on the latency path.
 
+### The program scans on a worker of its own
+
+A step is the parts, then the physics. The scans before the next step read only what the parts wrote, and nothing
+after the parts in a step writes a tag. So the program is compiled on a second worker
+([`src/sim/plcThread.ts`](../sim/plcThread.ts)), and the sim worker asks for the next step's scans as soon as the
+parts have run. They are made while the physics steps, and their outputs are collected before the parts run again.
+
+What a scan reads and what it drives are the same as on one worker, and so is the run: only when the scan is made
+differs. A Step taken while paused scans on its own turn, so the frame it posts shows that step's scan and no later
+one. A frame's watch table is a copy of the program's memory taken between two scans.
+
+- **When.** One default controller, in a cross-origin isolated page (`plcThreadWanted`), whatever the program's
+  size. `?plcthread=0` turns it off. Several controllers,
+  and a program on the walker engine, scan on the sim worker as before.
+- **How they talk.** Two flags and a few buffers of shared memory ([`plcThreadWire.ts`](../sim/plcThreadWire.ts)).
+  The sim worker asks from inside a step, where it cannot take a message, so nothing crosses by message once a run
+  has started. A tag crosses as a number in a slot its name was given once.
+- **What it gains.** The scan and the rest of the step overlap, so a step costs the parts plus the longer of the
+  two. Measured on a 420-part line whose program scans in 1.6 ms a step: 4.4 to 3.2 ms a step. On the 2,000-part
+  reference line (`e2e/_reference.mjs`), which has almost no physics to overlap with: 146 to 154 steps a second.
+- **What it costs a small program.** On the reference line a 120-line program costs the sim worker 0.035 ms a step
+  more (0.076 to 0.111) and a 1,900-line one 0.04 ms less. The first Play of a page takes about 0.2 s longer, while
+  the second worker's code loads. A later Play takes the same time either way.
+- **The rule it rests on.** Nothing after the parts phase of `SimWorld.step` may write a part's tag. A part's tags
+  are written in one place, `tickBehaviors`, through `BehaviorBus.setPartTags`, which throws outside that phase.
+
+The project-test runner and `bench-sim` scan on one thread. Gated by `plcThread.test.ts` (the hand-over, with both
+ends on one thread) and `e2e/verify-plc-thread.mjs` (the two workers, in a browser).
+
 ## The device-IO tag bridge (the whole bus)
 
 An SDK part's behavior reads and writes PLC tags **by name**: `ctx.readTag`/`writeTag` (BOOL) and

@@ -241,8 +241,9 @@ export interface BehaviorRecord {
   /** a posable conveying array's copy speeds this tick (ctx.setSurfaceSpeed(speed, link, i)), by link; {} when the
    *  part has conveying copies and ran none, so the view stops their belts */
   copySpeeds?: Record<string, number[]>
-  /** latest PLC tags this script wrote this step (ctx.writeTag/writeNumber), captured for the frame */
-  tags?: Record<string, number | boolean>
+  /** latest PLC tags this script wrote this step (ctx.writeTag/writeNumber), captured for the frame. Written by
+   *  BehaviorBus.setPartTags only, which refuses a write outside the parts phase. */
+  readonly tags?: Record<string, number | boolean>
   /** set once the behavior has driven its base (ctx.drive) - the live root pos/fwd has moved off the saved
    *  scene pose, so the frame must emit a basePose for this part and RigDriver.drive must compose from it */
   mobile?: boolean

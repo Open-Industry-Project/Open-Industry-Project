@@ -121,6 +121,9 @@ export type StepStats = {
   /** cumulative split of plcTotalMs (PlcHost.perf): tag writes latched in / the scans / the image handed back.
    *  Absent while no program is attached. */
   plcSplit?: { inputsMs: number; scanMs: number; imageMs: number; scans: number }
+  /** the controller scans on a worker of its own (sim/plcThread.ts). `plcTotalMs` is then the time this worker
+   *  waited for scans, and `plcSplit` their cost over there. */
+  plcThread?: true
   /** the slowest single step() since the world was built, split by phase (SimWorld.worstStep), and how many
    *  steps overran one 60 Hz frame. What averages hide: one long step is a freeze however low the mean. */
   worstStep?: { ms: number; step: number; boxes: number; cull: number; behaviors: number; drives: number; facets: number; solver: number }

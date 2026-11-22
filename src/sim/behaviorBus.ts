@@ -86,12 +86,38 @@ export class BehaviorBus {
     return this.drivenTags
   }
 
+  // Whether a part's tags may be written: only while the parts run (SimWorld.step). The scans for the next step
+  // are asked for when the parts have run (sim/plcThread.ts), so a tag written later in the step would reach a
+  // controller on its own worker a step late, and one on this worker on time.
+  private partsRunning = false
+
+  /** The parts phase of a step begins (true) or has ended (false). */
+  partsPhase(running: boolean): void {
+    this.partsRunning = running
+  }
+
+  /** part→PLC: hold the tags a part wrote on its call. Refused outside the parts phase. */
+  setPartTags(b: BehaviorRecord, tags: Record<string, number | boolean>): void {
+    if (!this.partsRunning) throw new Error("a part's tags are written in the parts phase of a step only (src/plc/DEVICE-IO.md, the program scans on a worker of its own)")
+    ;(b as { tags?: Record<string, number | boolean> }).tags = tags
+  }
+
   /** part→PLC: the tags behaviors wrote on the last step, flattened across parts in attach order, last wins,
    *  partId-gated (SimWorld.behaviorTagWrites) */
   tagWrites(): Record<string, number | boolean> {
     const flat: Record<string, number | boolean> = {}
     for (const b of this.behaviors) if (b.partId && b.tags) Object.assign(flat, b.tags)
     return flat
+  }
+
+  /** {@link tagWrites}, one write at a time and in the same order, with no table built: a later write of a tag is
+   *  the one that counts, as there. For a reader that keeps them elsewhere (sim/plcThread.ts). */
+  eachTagWrite(put: (name: string, value: number | boolean) => void): void {
+    for (const b of this.behaviors) {
+      if (!b.partId || !b.tags) continue
+      const tags = b.tags
+      for (const k in tags) put(k, tags[k]!)
+    }
   }
 
   /** C-interaction: register a "use" on a part; wasUsed reads true for it on the next tick */

@@ -12,6 +12,7 @@ import { catchUpSteps } from './catchUp'
 import { WATCH_HZ } from './plcHost'
 import { PlcGroup } from './plcGroup'
 import type { PlcFrameSent, PlcFrameWire } from './plcHost'
+import { PlcThread, PlcThreadFault, plcThreadWanted, startPlcThread, type PlcThreadWorker } from './plcThread'
 import type { WatchPlan } from '../plc/types'
 import type { MainToWorker, WorkerToMain } from './protocol'
 import { FrameWireEncoder, RecordEncoder } from './frameWire'
@@ -28,7 +29,13 @@ let joltPromise: Promise<JoltModule> | null = null
 let world: SimWorld | null = null
 // the attached ST program, scanning in lockstep with the step loop (null = none). Owned by the
 // world lifecycle: 'start'/'stop' clear it, and the attach ('runProgram') always follows 'start'.
-let plc: PlcGroup | null = null
+// On this thread (PlcGroup), or on a worker of its own where the page can share memory with one (PlcThread).
+let plc: PlcGroup | PlcThread | null = null
+/** Detach the program. A controller on its own worker is ended with it. */
+function dropPlc(): void {
+  if (plc instanceof PlcThread) plc.stop()
+  plc = null
+}
 let intervalId: ReturnType<typeof setInterval> | null = null
 let paused = false
 // sim-clock multiplier (a time-scale factor): the loop accrues scaled time so the
@@ -98,7 +105,7 @@ function post(msg: WorkerToMain, transfer: Transferable[] = []): void {
 // the variable table rides a frame WATCH_HZ times a second, not on every one (PlcHost.snapshot says why); a
 // program just attached sends it at once, so nothing waits a tenth of a second for its first values
 let watchSentAt = -Infinity
-let watchSentFor: PlcGroup | null = null
+let watchSentFor: PlcGroup | PlcThread | null = null
 // counts the programs whose table was sent. A program's keys never change, so the number names a key set.
 let watchKeys = 0
 // where the attached program's watch values are in its memory, when its memory is one buffer (PlcGroup.watchPlan)
@@ -108,8 +115,8 @@ let watchPlan: WatchPlan | null = null
 // changes a few of them. They cross as far as they changed (frameWire.ts RecordEncoder), from whole for each program
 // attached.
 const plcIo = { inputs: new RecordEncoder(), outputs: new RecordEncoder() }
-let plcIoSentFor: PlcGroup | null = null
-function plcIoSent(host: PlcGroup, shot: PlcFrameWire): PlcFrameSent {
+let plcIoSentFor: PlcGroup | PlcThread | null = null
+function plcIoSent(host: PlcGroup | PlcThread, shot: PlcFrameWire): PlcFrameSent {
   if (plcIoSentFor !== host) {
     plcIoSentFor = host
     plcIo.inputs.reset()
@@ -126,11 +133,11 @@ function plcIoSent(host: PlcGroup, shot: PlcFrameWire): PlcFrameSent {
   return out
 }
 
-function plcFrame(host: PlcGroup, force: boolean, transfer: Transferable[]): PlcFrameSent {
+function plcFrame(host: PlcGroup | PlcThread, force: boolean, transfer: Transferable[]): PlcFrameSent {
   return plcIoSent(host, plcFrameWhole(host, force, transfer))
 }
 
-function plcFrameWhole(host: PlcGroup, force: boolean, transfer: Transferable[]): PlcFrameWire {
+function plcFrameWhole(host: PlcGroup | PlcThread, force: boolean, transfer: Transferable[]): PlcFrameWire {
   const now = performance.now()
   if (!force && watchSentFor === host && now - watchSentAt < 1000 / WATCH_HZ) return host.snapshot({ watch: false })
   const first = watchSentFor !== host
@@ -142,7 +149,8 @@ function plcFrameWhole(host: PlcGroup, force: boolean, transfer: Transferable[])
   watchSentFor = host
   if (watchPlan) {
     // the bytes, and the layout with the first of them: the main thread reads a value where it is (core/watchTable.ts)
-    const watchBytes = watchPlan.memory.slice(0)
+    // (a controller on its own worker hands over a copy taken between two scans)
+    const watchBytes = host instanceof PlcThread ? host.watchBytes() : watchPlan.memory.slice(0)
     transfer.push(watchBytes)
     return { ...host.snapshot({ watch: false }), watchBytes, watchKeys, ...(first ? { watchLayout: watchPlan.layout } : {}) }
   }
@@ -150,6 +158,8 @@ function plcFrameWhole(host: PlcGroup, force: boolean, transfer: Transferable[])
 }
 
 function plcFaultMsg(err: unknown): WorkerToMain {
+  // (a fault from the controller's own worker arrives as its message and place)
+  if (err instanceof PlcThreadFault) return { type: 'plcFault', ...err.fault }
   return err instanceof StError
     ? { type: 'plcFault', message: err.message, line: err.pos.line, col: err.pos.col, offset: err.pos.offset }
     : { type: 'plcFault', message: String(err instanceof Error ? err.message : err) }
@@ -178,6 +188,10 @@ const forceJsListener = self.name.includes('-jsconv')
 // sub-phases). Off by default: a worker performance.now() is ~350 ns and these fire per part per step,
 // so with them on ~1.4 us of every part's reported script cost is the measurement itself.
 const perfParts = self.name.includes('-perfparts')
+// ?plcthread - put the controller on a worker of its own whatever the program's size, or (?plcthread=0) never
+// (plcThread.ts plcThreadWanted). Without it the controller goes there wherever it can.
+const plcThreadMode = self.name.includes('-noplcthread') ? 'off' : self.name.includes('-plcthread') ? 'on' : 'auto'
+const spawnPlcThread = (): PlcThreadWorker => new Worker(new URL('./plcThread.worker.ts', import.meta.url), { type: 'module', name: 'plc' }) as unknown as PlcThreadWorker
 
 function getJolt(): Promise<JoltModule> {
   if (!joltPromise) {
@@ -217,7 +231,7 @@ async function handle(msg: MainToWorker): Promise<void> {
       world?.dispose()
       world = null // a throw from the constructor below leaves no reference to the world just disposed
       paused = false
-      plc = null // fresh world, fresh program: the controller's attach message follows its 'start'
+      dropPlc() // fresh world, fresh program: the controller's attach message follows its 'start'
       stepMsTotal = stepMsMax = stepsDone = frameMsTotal = framesDone = plcMsTotal = 0
       resetFrameWire()
       stepQueue = [] // the client drops its waiters on start and stop: nothing to answer
@@ -298,13 +312,17 @@ async function handle(msg: MainToWorker): Promise<void> {
       // attach (or live re-attach): compile here and scan in the step loop. The main thread already
       // compiled this source for validation, so a failure is a backstop - report it and stay detached.
       try {
-        plc = new PlcGroup(msg.runs)
+        // On a worker of its own when that gains something (plcThread.ts); the compile is awaited there, and the
+        // messages behind this one wait with it. A program it cannot take (null) is compiled here.
+        const next = (plcThreadWanted(msg.runs, plcThreadMode) ? await startPlcThread(msg.runs, spawnPlcThread) : null) ?? new PlcGroup(msg.runs)
+        dropPlc()
+        plc = next
       } catch (err) {
-        plc = null
+        dropPlc()
         post(plcFaultMsg(err))
       }
     } else if (msg.type === 'stopProgram') {
-      plc = null
+      dropPlc()
     } else if (msg.type === 'writePlcVars') {
       plc?.write(msg.values)
     } else if (msg.type === 'setScanPeriod') {
@@ -315,7 +333,7 @@ async function handle(msg: MainToWorker): Promise<void> {
       stopLoop()
       paused = false
       stepQueue = []
-      plc = null
+      dropPlc()
       world?.dispose()
       world = null
       liveScene = null
@@ -325,7 +343,7 @@ async function handle(msg: MainToWorker): Promise<void> {
     stopLoop()
     paused = false
     stepQueue = []
-    plc = null
+    dropPlc()
     // free the Jolt world and its behaviors; a throw from the teardown must not hide the error that got us here
     try {
       world?.dispose()
@@ -457,15 +475,31 @@ function advance(w: SimWorld, stepSec: number): void {
   if (plc) {
     const tp = performance.now()
     try {
-      plc.interleave(w, stepSec)
+      // a controller on its own worker was asked for these scans when the last step's parts had run (below)
+      if (plc instanceof PlcThread) plc.beforeStep(w, stepSec)
+      else plc.interleave(w, stepSec)
     } catch (err) {
-      plc = null
+      dropPlc()
       post(plcFaultMsg(err))
     }
     plcMsTotal += performance.now() - tp
   }
   const t0 = performance.now()
-  w.step()
+  // While running, a controller on its own worker scans for the next step beside this one's physics. A Step taken
+  // while paused scans on its own turn instead, so the frame it posts shows that step's scan and no later one.
+  const thread = plc instanceof PlcThread && !paused ? plc : null
+  w.step(
+    thread
+      ? () => {
+          try {
+            thread.afterParts(w, stepSec)
+          } catch (err) {
+            dropPlc()
+            post(plcFaultMsg(err))
+          }
+        }
+      : undefined,
+  )
   const dt = performance.now() - t0
   stepMsTotal += dt
   if (dt > stepMsMax) stepMsMax = dt
@@ -508,7 +542,7 @@ function postFrame(w: SimWorld, held: boolean, fullWatch = false): void {
       ...(held ? { paused: true as const } : {}),
       ...(plc ? { plc: plcFrame(plc, fullWatch, plcTransfer) } : {}),
       ...(flowFacts.length > 0 ? { flowFacts } : {}),
-      stepStats: { totalMs: stepMsTotal, steps: stepsDone, maxMs: stepMsMax, frameTotalMs: frameMsTotal, frames: framesDone, plcTotalMs: plcMsTotal, ...(plc ? { plcSplit: { ...plc.perf } } : {}), worstStep: { ...w.worstStep }, overBudgetSteps: w.overBudgetSteps, ...(w.perfParts ? { worstScriptCall: { ...w.worstScriptCall } } : {}), phases: { ...w.phaseMs, ...w.scriptPerf() }, scriptMsByPart: Object.fromEntries(w.scriptMsByPart), rigMsByPart: Object.fromEntries(w.rigMsByPart), ...w.bodyStats() },
+      stepStats: { totalMs: stepMsTotal, steps: stepsDone, maxMs: stepMsMax, frameTotalMs: frameMsTotal, frames: framesDone, plcTotalMs: plcMsTotal, ...(plc ? { plcSplit: { ...plc.perf } } : {}), ...(plc instanceof PlcThread ? { plcThread: true as const } : {}), worstStep: { ...w.worstStep }, overBudgetSteps: w.overBudgetSteps, ...(w.perfParts ? { worstScriptCall: { ...w.worstScriptCall } } : {}), phases: { ...w.phaseMs, ...w.scriptPerf() }, scriptMsByPart: Object.fromEntries(w.scriptMsByPart), rigMsByPart: Object.fromEntries(w.rigMsByPart), ...w.bodyStats() },
     },
     [
       f.ids.buffer as ArrayBuffer,

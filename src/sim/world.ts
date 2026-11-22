@@ -385,7 +385,9 @@ export class SimWorld implements SimCore<BoxFrame> {
     }
   }
 
-  step(): void {
+  /** One fixed step. `afterParts` is called once the parts have run: from there to the end of the step nothing
+   *  writes a tag, so a controller on another worker starts the next scan there (sim/plcThread.ts). */
+  step(afterParts?: () => void): void {
     const t0 = performance.now()
     const boxesIn = this.boxes.length
     this.cargo.beginStep()
@@ -411,8 +413,11 @@ export class SimWorld implements SimCore<BoxFrame> {
       }
     }
     const t1 = performance.now()
+    this.bus.partsPhase(true)
     this.tickBehaviors()
+    this.bus.partsPhase(false)
     const t2 = performance.now()
+    afterParts?.()
     // flow facts read the rows as the behaviors just sensed them (the same snapshot) and the beams they were handed
     this.flowFacts?.step()
     const tf = this.flowFacts ? performance.now() : t2
@@ -623,7 +628,7 @@ export class SimWorld implements SimCore<BoxFrame> {
           if (b.copyDecks) b.copySpeeds = parsed.copySpeeds ?? {}
         }
         // a behavior's tag writes are captured for any part (deck or rig): the part→PLC half of the bus.
-        b.tags = parsed.tags ?? {}
+        bus.setPartTags(b, parsed.tags ?? {})
         // C-spawn: fulfill cargo-spawn requests at the part's pose + (rotated) local offset
         if (parsed.spawns && parsed.spawns.length > 0) {
           const before = this.boxes.length
@@ -704,6 +709,11 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  same partId gate, so the scan reads exactly what a main-thread controller would. */
   behaviorTagWrites(): Record<string, number | boolean> {
     return this.bus.tagWrites()
+  }
+
+  /** {@link behaviorTagWrites} as one write at a time, with no table built (BehaviorBus.eachTagWrite). */
+  eachBehaviorTagWrite(put: (name: string, value: number | boolean) => void): void {
+    this.bus.eachTagWrite(put)
   }
 
   /** Output ownership: hold the global tag keys the attached controller drives (ctx.tagDriven). */
