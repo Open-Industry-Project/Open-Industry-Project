@@ -1,0 +1,520 @@
+{
+  "version": 4,
+  "parts": [
+    {
+      "id": "robot1",
+      "type": "part",
+      "packageId": "scara.transfer-robot",
+      "position": [
+        0,
+        0.85,
+        0.75
+      ],
+      "rotationY": 0,
+      "params": {
+        "commandTag": "R1Cmd",
+        "executeTag": "R1Execute",
+        "doneTag": "R1Done",
+        "busyTag": "R1Busy",
+        "pointTag": "R1Point",
+        "vacuumTag": "R1Vacuum",
+        "vacOkTag": "R1VacOk",
+        "enableTag": "R1Enable",
+        "xTag": "R1X",
+        "zTag": "R1Z"
+      }
+    },
+    {
+      "id": "robot2",
+      "type": "part",
+      "packageId": "scara.transfer-robot",
+      "position": [
+        0,
+        0.85,
+        -0.15
+      ],
+      "rotationY": 0,
+      "params": {
+        "commandTag": "R2Cmd",
+        "executeTag": "R2Execute",
+        "doneTag": "R2Done",
+        "busyTag": "R2Busy",
+        "pointTag": "R2Point",
+        "vacuumTag": "R2Vacuum",
+        "vacOkTag": "R2VacOk",
+        "enableTag": "R2Enable",
+        "xTag": "R2X",
+        "zTag": "R2Z"
+      }
+    },
+    {
+      "id": "beltA1",
+      "type": "part",
+      "packageId": "oip.belt-conveyor",
+      "position": [
+        0.35,
+        0.85,
+        2.35
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "fpmUnits": false,
+        "segments": [
+          [
+            1.45,
+            0
+          ]
+        ],
+        "width": 0.22,
+        "standHeight": 0.85,
+        "speed": 0.5,
+        "friction": 0.4,
+        "beltColor": "#3a5a46",
+        "runTag": "BeltA1Run"
+      }
+    },
+    {
+      "id": "beltA2",
+      "type": "part",
+      "packageId": "oip.belt-conveyor",
+      "position": [
+        0.35,
+        0.85,
+        0.9
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "fpmUnits": false,
+        "segments": [
+          [
+            0.8,
+            0
+          ]
+        ],
+        "width": 0.22,
+        "standHeight": 0.85,
+        "speed": 0.75,
+        "friction": 0.4,
+        "beltColor": "#3a5a46",
+        "runTag": "BeltA2Run"
+      }
+    },
+    {
+      "id": "beltA3",
+      "type": "part",
+      "packageId": "oip.belt-conveyor",
+      "position": [
+        0.35,
+        0.85,
+        0.1
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "fpmUnits": false,
+        "segments": [
+          [
+            0.85,
+            0
+          ]
+        ],
+        "width": 0.22,
+        "standHeight": 0.85,
+        "speed": 0.75,
+        "friction": 0.4,
+        "beltColor": "#3a5a46",
+        "runTag": "BeltA3Run"
+      }
+    },
+    {
+      "id": "beltB",
+      "type": "part",
+      "packageId": "oip.belt-conveyor",
+      "position": [
+        -0.35,
+        0.85,
+        0.95
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "fpmUnits": false,
+        "segments": [
+          [
+            3,
+            0
+          ]
+        ],
+        "width": 0.3,
+        "standHeight": 0.85,
+        "speed": 0.45,
+        "friction": 0.4,
+        "beltColor": "#3a5a46",
+        "runTag": "BeltBRun"
+      }
+    },
+    {
+      "id": "bladeQ",
+      "type": "part",
+      "packageId": "oip.blade-stop",
+      "position": [
+        0.35,
+        0.85,
+        0.9
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "width": 0.22,
+        "raiseHeight": 0.06,
+        "tag": "BladeUp"
+      }
+    },
+    {
+      "id": "bladeS1",
+      "type": "part",
+      "packageId": "oip.blade-stop",
+      "position": [
+        0.35,
+        0.85,
+        0.315
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "width": 0.22,
+        "raiseHeight": 0.06,
+        "tag": "BladeS1Up"
+      }
+    },
+    {
+      "id": "endStop2",
+      "type": "part",
+      "packageId": "oip.blade-stop",
+      "position": [
+        0.35,
+        0.85,
+        -0.585
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "width": 0.22,
+        "active": true,
+        "raiseHeight": 0.06
+      }
+    },
+    {
+      "id": "feed",
+      "type": "part",
+      "packageId": "oip.box-spawner",
+      "position": [
+        0.35,
+        1.4,
+        2.15
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "boxesPerMinute": 50,
+        "boxColor": "#c49a6c",
+        "length": 0.25,
+        "width": 0.18,
+        "height": 0.12,
+        "mass": 3,
+        "keepSpacing": true,
+        "conveyorId": "beltA1",
+        "runTag": "FeedRun"
+      }
+    },
+    {
+      "id": "sink",
+      "type": "part",
+      "packageId": "oip.despawner",
+      "position": [
+        -0.35,
+        0.85,
+        -1.9
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "length": 0.3,
+        "width": 0.4,
+        "height": 0.4,
+        "showReadout": true,
+        "countTag": "Delivered"
+      }
+    },
+    {
+      "id": "eyeFull",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        0.21,
+        0.82,
+        1.75
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.3,
+        "tag": "EyeFull"
+      }
+    },
+    {
+      "id": "eyeHead",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        0.21,
+        0.82,
+        0.92
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.3,
+        "tag": "EyeHead"
+      }
+    },
+    {
+      "id": "eyeGate1",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        0.21,
+        0.82,
+        0.855
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.3,
+        "tag": "EyeGate1"
+      }
+    },
+    {
+      "id": "eyeZone1",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        0.21,
+        0.82,
+        0.61
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.3,
+        "tag": "EyeZone1"
+      }
+    },
+    {
+      "id": "eyeStop1",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        0.21,
+        0.82,
+        0.365
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.3,
+        "tag": "EyeStop1"
+      }
+    },
+    {
+      "id": "eyeZone2",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        0.21,
+        0.82,
+        -0.3
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.3,
+        "tag": "EyeZone2"
+      }
+    },
+    {
+      "id": "eyeStop2",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        0.21,
+        0.82,
+        -0.535
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.3,
+        "tag": "EyeStop2"
+      }
+    },
+    {
+      "id": "eyeB1a",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        -0.53,
+        0.82,
+        0.52
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.34,
+        "tag": "EyeB1a"
+      }
+    },
+    {
+      "id": "eyeB1b",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        -0.53,
+        0.82,
+        0.35
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.34,
+        "tag": "EyeB1b"
+      }
+    },
+    {
+      "id": "eyeB2a",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        -0.53,
+        0.82,
+        0.05
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.34,
+        "tag": "EyeB2a"
+      }
+    },
+    {
+      "id": "eyeB2b",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        -0.53,
+        0.82,
+        -0.15
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.34,
+        "tag": "EyeB2b"
+      }
+    },
+    {
+      "id": "eyeB2c",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        -0.53,
+        0.82,
+        -0.35
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.34,
+        "tag": "EyeB2c"
+      }
+    },
+    {
+      "id": "eyeB2d",
+      "type": "part",
+      "packageId": "oip.diffuse-sensor",
+      "position": [
+        -0.53,
+        0.82,
+        -0.55
+      ],
+      "rotationY": 1.570796,
+      "params": {
+        "maxRange": 0.34,
+        "tag": "EyeB2d"
+      }
+    },
+    {
+      "id": "panelBase",
+      "type": "part",
+      "packageId": "oip.shape",
+      "position": [
+        -0.85,
+        0,
+        0.36
+      ],
+      "rotationY": 0,
+      "params": {
+        "length": 0.26,
+        "width": 0.44,
+        "height": 0.025,
+        "color": "#1d2025",
+        "solid": false
+      }
+    },
+    {
+      "id": "panel",
+      "type": "part",
+      "packageId": "oip.shape",
+      "position": [
+        -0.85,
+        0,
+        0.36
+      ],
+      "rotationY": 0,
+      "params": {
+        "length": 0.16,
+        "width": 0.34,
+        "height": 1.35,
+        "color": "#363b42",
+        "solid": false
+      }
+    },
+    {
+      "id": "estop",
+      "type": "part",
+      "packageId": "oip.push-button",
+      "position": [
+        -0.96,
+        1.1,
+        0.44
+      ],
+      "rotationY": -1.570796,
+      "params": {
+        "emergencyStop": true,
+        "text": "E-STOP",
+        "tag": "EStopOk"
+      }
+    },
+    {
+      "id": "start",
+      "type": "part",
+      "packageId": "oip.push-button",
+      "position": [
+        -0.96,
+        1.1,
+        0.28
+      ],
+      "rotationY": -1.570796,
+      "params": {
+        "text": "START",
+        "buttonColor": "#1e8f3a",
+        "tag": "StartPB"
+      }
+    },
+    {
+      "id": "stack",
+      "type": "part",
+      "packageId": "oip.stack-light",
+      "position": [
+        -0.85,
+        1.35,
+        0.36
+      ],
+      "rotationY": 0,
+      "params": {
+        "tag": "StackLight"
+      }
+    }
+  ]
+}

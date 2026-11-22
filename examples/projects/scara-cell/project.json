@@ -1,0 +1,16 @@
+{
+  "version": 7,
+  "name": "Dual-SCARA Parallel Transfer Cell",
+  "packages": [
+    "parts/scara.transfer-robot"
+  ],
+  "scene": "scene.json",
+  "program": [
+    "plc/program.st"
+  ],
+  "tests": [
+    "tests/escapement-interlock.test.json",
+    "tests/safety.test.json",
+    "tests/transfer.test.json"
+  ]
+}

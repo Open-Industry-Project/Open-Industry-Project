@@ -1,0 +1,19 @@
+{
+  "name": "Dual-station escapement interlock: ColumnAlarm never fires, both escapement and pass-through blades cycle, <= 1 carton per station",
+  "duration": 40,
+  "inputs": [
+    { "at": 0.2, "tag": "StartPB", "value": true },
+    { "at": 0.4, "tag": "StartPB", "value": false }
+  ],
+  "checks": [
+    { "always": true, "tag": "ColumnAlarm", "equals": false },
+    { "eventually": true, "from": 2, "tag": "BladeUp", "equals": false },
+    { "eventually": true, "from": 2, "tag": "BladeS1Up", "equals": false },
+    { "eventually": true, "tag": "Picked1", "min": 8 },
+    { "eventually": true, "tag": "Picked2", "min": 8 },
+    { "always": true, "max": 1,
+      "probe": { "count": { "zone": { "min": [0.20, 0.85, 0.31], "max": [0.50, 1.0, 0.90] } } } },
+    { "always": true, "max": 1,
+      "probe": { "count": { "zone": { "min": [0.20, 0.85, -0.60], "max": [0.50, 1.0, 0.10] } } } }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "name": "E-stop with both SCARAs mid-transfer: both hold in mid-air with their cartons, belts and feed stop, red light; releasing E-stop restarts nothing, START resumes",
+  "duration": 22,
+  "inputs": [
+    { "at": 0.2, "tag": "StartPB", "value": true },
+    { "at": 0.4, "tag": "StartPB", "value": false },
+    { "at": 13.5, "tag": "StartPB", "value": true },
+    { "at": 13.7, "tag": "StartPB", "value": false }
+  ],
+  "faults": [
+    { "at": 9.65, "until": 12.5, "part": "estop", "kind": "sensorStuck", "value": false }
+  ],
+  "checks": [
+    { "at": 9.6, "tag": "R1Busy", "equals": true },
+    { "at": 9.6, "tag": "R1VacOk", "equals": true },
+    { "at": 9.6, "tag": "R2Busy", "equals": true },
+    { "at": 9.6, "tag": "R2VacOk", "equals": true },
+    { "at": 9.75, "tag": "R1Enable", "equals": false },
+    { "at": 9.75, "tag": "R2Enable", "equals": false },
+    { "at": 9.75, "tag": "Running", "equals": false },
+    { "at": 9.75, "tag": "StackLight", "equals": 4 },
+    { "always": true, "from": 9.75, "until": 13.4, "tag": "BeltA1Run", "equals": false },
+    { "always": true, "from": 9.75, "until": 13.4, "tag": "BeltA2Run", "equals": false },
+    { "always": true, "from": 9.75, "until": 13.4, "tag": "BeltA3Run", "equals": false },
+    { "always": true, "from": 9.75, "until": 13.4, "tag": "BeltBRun", "equals": false },
+    { "always": true, "from": 9.75, "until": 13.4, "tag": "FeedRun", "equals": false },
+    { "always": true, "from": 9.75, "until": 13.4, "tag": "R1VacOk", "equals": true },
+    { "always": true, "from": 9.75, "until": 13.4, "tag": "R2VacOk", "equals": true },
+    { "always": true, "from": 12.6, "until": 13.4, "tag": "Running", "equals": false },
+    { "always": true, "from": 12.6, "until": 13.4, "tag": "R1Enable", "equals": false },
+    { "always": true, "from": 12.6, "until": 13.4, "tag": "R2Enable", "equals": false },
+    { "at": 13.0, "tag": "StackLight", "equals": 2 },
+    { "eventually": true, "from": 13.6, "until": 14.0, "tag": "Running", "equals": true },
+    { "at": 21.9, "tag": "StackLight", "equals": 1 },
+    { "eventually": true, "tag": "Picked", "min": 8 },
+    { "always": true, "max": 0, "probe": { "count": { "zone": { "min": [-3, -1, -3], "max": [3, 0.6, 3] } } } }
+  ]
+}
