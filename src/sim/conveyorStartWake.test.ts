@@ -15,7 +15,8 @@ import { SimWorld } from './world'
 // a starting belt never reaches it (physicsFidelity.test.ts pins that the wake is needed). Waking every cargo body
 // on every deck start anywhere keeps re-settling resting stacks until a pallet stack falls through itself
 // (palletStack.test.ts). These pin both halves: the box
-// on the belt rides away, and a pile standing elsewhere sleeps straight through the start.
+// on the belt rides away, and a pile standing elsewhere sleeps straight through the start. Nothing but cargo wakes
+// either: a part's kinematic bodies share cargo's layer, and a line of them awake costs the solver.
 
 const Jolt = await initJolt()
 
@@ -54,13 +55,16 @@ describe('a deck starting wakes its own cargo, not the whole scene', () => {
   it('the box asleep on the belt rides away; a pile asleep on the floor elsewhere stays asleep', { timeout: 60000 }, () => {
     const belt = loadPkg('belt-conveyor')
     const box = loadPkg('box')
+    const stop = loadPkg('blade-stop')
     // a 4 m belt along +x, held at 0 by its speed tag until the start
     const conveyor = createSdkPart(belt, 'belt', [0, 1, 0], 0) as SdkPart
     Object.assign(conveyor.params, { segments: [[4, 0]], speed: 0.5, speedTag: 'sp' })
     const parts: PartInstance[] = [conveyor, createSdkPart(box, 'ride', [1, 1.6, 0], 0)]
+    // a blade stop on the belt past where the box gets to: its kinematic bodies are inside the deck's bounds
+    parts.push(createSdkPart(stop, 'stop', [3.5, 1, 0], 0))
     // a three-high pile of cases on the floor, 6 m off the belt's side
     for (let i = 0; i < 3; i++) parts.push(createSdkPart(box, `pile${i}`, [2, 0.2 + 0.4 * i, 6], 0))
-    world = new SimWorld(Jolt, { version: SCENE_VERSION, parts, packages: [belt, box] }, { hz: 60 })
+    world = new SimWorld(Jolt, { version: SCENE_VERSION, parts, packages: [belt, box, stop] }, { hz: 60 })
 
     world.setBehaviorInputTags({ sp: 0 })
     for (let i = 0; i < 60 * 3; i++) world.step()
@@ -70,16 +74,21 @@ describe('a deck starting wakes its own cargo, not the whole scene', () => {
     // the precondition the wake exists for: everything has gone to sleep on the stopped line
     expect(rider!.body.IsActive()).toBe(false)
     expect(pile.some((b) => b.body.IsActive())).toBe(false)
+    expect(world.bodyStats().active).toBe(0)
 
     const x0 = rider!.body.GetPosition().GetX()
     world.setBehaviorInputTags({ sp: 0.5 })
     let pileWoke = false
+    let mostAwake = 0
     for (let i = 0; i < 60 * 2; i++) {
       world.step()
       if (pile.some((b) => b.body.IsActive())) pileWoke = true
+      mostAwake = Math.max(mostAwake, world.bodyStats().active)
     }
     // 0.5 m/s for 2 s, less the friction pickup
     expect(rider!.body.GetPosition().GetX() - x0).toBeGreaterThan(0.8)
     expect(pileWoke).toBe(false)
+    // the rider, and no body of the blade stop
+    expect(mostAwake).toBe(1)
   })
 })

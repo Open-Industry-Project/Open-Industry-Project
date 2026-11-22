@@ -153,10 +153,6 @@ export class SimWorld implements SimCore<BoxFrame> {
   private readonly dressings: ReadonlyMap<number, ReadonlyMap<string, FrameDressing>>
   private readonly holders: ReadonlyMap<number, BodyHolder>
   private readonly axisY: Jolt.Vec3
-  /** accept-everything layer filters for the deck-start cargo wake (wakeCargoOn); static bodies it also finds
-   *  have nothing to activate */
-  private readonly anyBroadPhaseLayer: Jolt.BroadPhaseLayerFilter
-  private readonly anyObjectLayer: Jolt.ObjectLayerFilter
   /** reusable kinematic-pose temporaries (worldTypes KinematicScratch), shared with the holds */
   private readonly kin: KinematicScratch
   /** the attached behaviors, the tag bus, pending uses and the conveyor speeds (behaviorBus.ts) */
@@ -289,8 +285,6 @@ export class SimWorld implements SimCore<BoxFrame> {
     const surfaceVel = new J.Vec3(0, 0, 0)
     const angularVel = new J.Vec3(0, 0, 0)
     this.axisY = new J.Vec3(0, 1, 0)
-    this.anyBroadPhaseLayer = new J.BroadPhaseLayerFilter()
-    this.anyObjectLayer = new J.ObjectLayerFilter()
     this.kin = { pos: new J.RVec3(0, 0, 0), quat: new J.Quat(0, 0, 0, 1) }
     this.facets = new ConveyorFacets(J, this.system, surfaceVel, angularVel, { benchRaw, forceJsListener: opts.forceJsListener === true })
     this.bodies = new PartBodies(J, this.bodyInterface, this.axisY, this.facets)
@@ -701,25 +695,52 @@ export class SimWorld implements SimCore<BoxFrame> {
    * start, would ratchet down and lean until it fell through itself (palletStack.test.ts; bodyFactory.ts
    * buildPalletShape holds that stack up either way), and every sleeping pile would rejoin the solver on the tick
    * the line starts.
+   *
+   * Only cargo, too. Cargo and the kinematic bodies of parts share a layer, so activating every body in the deck's
+   * bounds also woke the frames, guards and sensors there. On a 420-part line whose program starts every conveyor
+   * together that was 2,900 bodies awake for over a second, and 5 ms a step in the solver with two boxes on the line.
    */
   private wakeCargoOn(b: BehaviorRecord): void {
     this.wakeCargoOnDecks(b.deckBodies ?? (b.body ? [b.body] : []))
   }
 
   private wakeCargoOnDecks(decks: readonly Jolt.Body[]): void {
-    const J = this.J
+    if (this.boxes.length === 0 || decks.length === 0) return
     const m = CARGO_WAKE_MARGIN
-    for (const deck of decks) {
-      // a copy of the deck's bounds (GetWorldSpaceBounds is a reference into the body), grown so cargo resting on
-      // the top face, whose bounds only touch the deck's, is inside for certain
-      const bounds = deck.GetWorldSpaceBounds()
-      const lo = new J.Vec3(bounds.mMin.GetX() - m, bounds.mMin.GetY() - m, bounds.mMin.GetZ() - m)
-      const hi = new J.Vec3(bounds.mMax.GetX() + m, bounds.mMax.GetY() + m, bounds.mMax.GetZ() + m)
-      const box = new J.AABox(lo, hi)
-      this.bodyInterface.ActivateBodiesInAABox(box, this.anyBroadPhaseLayer, this.anyObjectLayer)
-      J.destroy(box)
-      J.destroy(lo)
-      J.destroy(hi)
+    // each deck's bounds, grown so cargo resting on the top face, whose bounds only touch the deck's, is inside for
+    // certain. Copied out, because GetWorldSpaceBounds is a reference into the body.
+    const reach = new Float64Array(decks.length * 6)
+    for (let i = 0; i < decks.length; i++) {
+      const b = decks[i]!.GetWorldSpaceBounds()
+      const lo = b.mMin
+      const hi = b.mMax
+      const o = i * 6
+      reach[o] = lo.GetX() - m
+      reach[o + 1] = lo.GetY() - m
+      reach[o + 2] = lo.GetZ() - m
+      reach[o + 3] = hi.GetX() + m
+      reach[o + 4] = hi.GetY() + m
+      reach[o + 5] = hi.GetZ() + m
+    }
+    for (const box of this.boxes) {
+      const body = box.body
+      const b = body.GetWorldSpaceBounds()
+      const lo = b.mMin
+      const x0 = lo.GetX()
+      const y0 = lo.GetY()
+      const z0 = lo.GetZ()
+      const hi = b.mMax
+      const x1 = hi.GetX()
+      const y1 = hi.GetY()
+      const z1 = hi.GetZ()
+      for (let o = 0; o < reach.length; o += 6) {
+        if (x1 < reach[o]! || x0 > reach[o + 3]! || y1 < reach[o + 1]! || y0 > reach[o + 4]! || z1 < reach[o + 2]! || z0 > reach[o + 5]!) continue
+        // A box still awake but at rest is part-way to sleep. Its sleep timer starts again, as a wake's does, or it
+        // falls asleep a few steps into the start, having moved less than the sleep test allows.
+        if (body.IsActive()) this.bodyInterface.ResetSleepTimer(body.GetID())
+        else this.bodyInterface.ActivateBody(body.GetID())
+        break
+      }
     }
   }
 
@@ -1680,8 +1701,6 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.facets.dispose()
     this.cargo.dispose()
     J.destroy(this.axisY)
-    J.destroy(this.anyBroadPhaseLayer)
-    J.destroy(this.anyObjectLayer)
     J.destroy(this.kin.pos)
     J.destroy(this.kin.quat)
   }
