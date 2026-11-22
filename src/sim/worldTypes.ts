@@ -5,6 +5,7 @@ import type Jolt from 'jolt-physics'
 import type { FrameBeamHit } from '../core/frame'
 import type { CargoMarkValue, PartPackage } from '../core/parts/partPackage'
 import type { BehaviorInput } from './embeddedBehavior'
+import type { TravelCount } from './travelCount'
 import type { BeamBounds } from './cargoSensing'
 import type { ConveyorEntry } from '../core/geometry/collisionShapes'
 import { packageRev } from '../core/parts/partRegistry'
@@ -247,6 +248,8 @@ export interface BehaviorRecord {
   /** a posable conveying array's copy speeds this tick (ctx.setSurfaceSpeed(speed, link, i)), by link; {} when the
    *  part has conveying copies and ran none, so the view stops their belts */
   copySpeeds?: Record<string, number[]>
+  /** the surface travel the host counts for the part, once it has asked (ctx.countTravel, travelCount.ts) */
+  travel?: TravelCount
   /** latest PLC tags this script wrote this step (ctx.writeTag/writeNumber), captured for the frame. Written by
    *  BehaviorBus.setPartTags only, which refuses a write outside the parts phase. */
   readonly tags?: Record<string, number | boolean>
@@ -298,6 +301,7 @@ export function behaviorRecord(handle: number, pos: [number, number, number], fw
     beamBoxes: undefined,
     subPoses: undefined,
     copySpeeds: undefined,
+    travel: undefined,
     tags: undefined,
     mobile: undefined,
     input: undefined,

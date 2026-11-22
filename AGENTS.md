@@ -167,7 +167,9 @@ projectTestsRun.ts); eslint enforces both.
   to the output. They carry no header saying so, because the same text ships in every project's copy.
 - **A part runs on every step (`step`) or when its inputs change (`react`).** A reactive part is not called on a
   step where nothing the host hands it differs from its last call and it did not ask with `ctx.again()`. What it last
-  commanded stands ([partSleep.ts](src/sim/partSleep.ts), the authoring guide's "`react`" section). Anything new the
+  commanded stands ([partSleep.ts](src/sim/partSleep.ts), the authoring guide's "`react`" section). An encoder is
+  counted by the host on the steps a part waits through (`ctx.countTravel`,
+  [travelCount.ts](src/sim/travelCount.ts)), with one advance a step whether or not the part was called. Anything new the
   host hands a part must be compared in `inputsSame`, or a reactive part never hears it change. Only a part that was
   called has its conveyor surfaces written to the physics table (`ConveyorFacets.syncPart`), so nothing else may write
   a surface entry during a run. A first-party reactive part must give the same run with `wakeAllParts`. Gated by

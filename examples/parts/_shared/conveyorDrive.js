@@ -15,6 +15,8 @@
 //   encoderTag      REAL out: the odometer of surface travel in metres, integrated on sim time in the worker, so it
 //                   cannot drift against the physics as scan-clock dead reckoning does. Latch it at a photo-eye,
 //                   act once it has advanced a known distance.
+//                   The pulse and the encoder are counted by the host (ctx.countTravel), on every step, from the
+//                   speed the conveyor last gave it: a conveyor at a steady speed is not called to count.
 //   accelTime /     THE RAMP: a VFD motor ramps, at a rate set as the time from stopped to rated speed (the speed
 //   decelTime       that reads 30), and everything above that reads the surface follows it. Defaults are a guess
 //                   at the equipment, not a measurement; 0 steps instantly. At Play a PLC-commanded conveyor starts
@@ -48,11 +50,9 @@ export function driveFeedbackParams(speedMs, group) {
   }
 }
 
-/** What a conveyor remembers between steps for its ramp, its pulse and its encoder. Make one at the top level. */
+/** What a conveyor remembers between steps for its ramp. Make one at the top level. */
 export function conveyorDrive() {
   return {
-    pulseTravel: 0, // surface travel since the last pulse (in)
-    odo: 0, // encoder odometer: surface travel (m), signed with the direction of travel
     driven: 0, // what the drive is actually doing (m/s): the command, through the accel/decel ramp
     rampStarted: false, // past the first step, from which every change of command ramps
   }
@@ -93,20 +93,17 @@ export function publishDrive(ctx, drive, cmd, v) {
   // the velocity as a share of the speed at 30
   const at30 = cmd.fpm ? ctx.params.speedAt30Fpm * FPM_MS : ctx.params.speedAt30
   if (ctx.params.velocityTag) ctx.writeNumber(ctx.params.velocityTag, at30 > 0 ? (v / at30) * 30 : 0)
-  // the encoder pulse
-  const pitch = ctx.params.inchesPerPulse > 0 ? ctx.params.inchesPerPulse : 1
-  drive.pulseTravel += (Math.abs(v) * ctx.dt) / 0.0254
-  const pulse = drive.pulseTravel >= pitch - 1e-9 // (a hair of tolerance: twelve twelfths of an inch do not sum to exactly one)
-  if (pulse) drive.pulseTravel = Math.max(0, drive.pulseTravel - pitch * Math.max(1, Math.floor(drive.pulseTravel / pitch + 1e-9)))
-  if (ctx.params.pulseTag) ctx.writeTag(ctx.params.pulseTag, pulse)
-  drive.odo += v * ctx.dt
-  if (ctx.params.encoderTag) ctx.writeNumber(ctx.params.encoderTag, drive.odo)
+  // the pulse and the encoder: the host counts the travel at this speed, on this step and on each one until the
+  // next call, so nothing here keeps the conveyor awake to count
+  if (ctx.params.pulseTag || ctx.params.encoderTag) {
+    const inches = ctx.params.inchesPerPulse > 0 ? ctx.params.inchesPerPulse : 1
+    ctx.countTravel({ speed: v, encoderTag: ctx.params.encoderTag, pulseTag: ctx.params.pulseTag, pulseEvery: inches * 0.0254 })
+  }
 }
 
-/** In react(), last: ask for the next tick while the drive has work of its own. It has while it ramps toward
- *  `target` (the command, gates applied, as handed to rampedSpeed), and while it runs with a pulse or an encoder tag
- *  to count travel on. A conveyor at its commanded speed with neither waits for a tag to change, and its surface
- *  keeps the speed it was last given. */
+/** In react(), last: ask for the next tick while the drive ramps toward `target` (the command, gates applied, as
+ *  handed to rampedSpeed). A conveyor at its commanded speed waits for a tag to change: its surface keeps the speed
+ *  it was last given, and the host goes on counting its pulse and its encoder (publishDrive). */
 export function driveAgain(ctx, drive, target) {
-  if (drive.driven !== target || (drive.driven !== 0 && (ctx.params.pulseTag || ctx.params.encoderTag))) ctx.again()
+  if (drive.driven !== target) ctx.again()
 }

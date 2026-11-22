@@ -84,9 +84,17 @@ describe('built-in reactive parts run the same called on every step', () => {
       const quiet = run(folder, params, ['Run', 'Speed'], DRIVE_SCRIPT, STEPS, box, false)
       const woken = run(folder, params, ['Run', 'Speed'], DRIVE_SCRIPT, STEPS, box, true)
       expect(quiet.trace).toBe(woken.trace)
-      // counting travel needs every tick the surface moves, so it waited only while stopped
-      expect(quiet.calls).toBeGreaterThan(STEPS / 2)
-      expect(quiet.calls).toBeLessThan(STEPS)
+      // the host counts the travel (ctx.countTravel), so it waited at its commanded speed as it does with no encoder
+      const plain = run(folder, DRIVE, ['Run', 'Speed'], DRIVE_SCRIPT, STEPS, box, false)
+      expect(quiet.calls).toBe(plain.calls)
+      // and the count went on while it waited: the encoder climbs on steps it was not called on, and pulses come
+      const tags = quiet.trace.split('\n').slice(0, -1).map((l) => JSON.parse(l) as { Enc: number; Pulse: boolean; Running: boolean })
+      expect(new Set(tags.map((t) => t.Enc)).size).toBeGreaterThan(STEPS / 2)
+      expect(tags.filter((t) => t.Pulse).length).toBeGreaterThan(20)
+      expect(tags.filter((t) => !t.Pulse).length).toBeGreaterThan(20)
+      // stopped, it stands
+      expect(tags[225]!.Enc).toBe(tags[215]!.Enc)
+      expect(tags[225]!.Running).toBe(false)
     })
   }
 

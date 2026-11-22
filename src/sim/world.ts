@@ -61,6 +61,7 @@ import { CargoRegistry } from './cargoRegistry'
 import { DECK_AXES } from './conveyorContacts'
 import { ConveyorFacets } from './conveyorFacets'
 import { newSleepState, noteCall, waits } from './partSleep'
+import { advanceTravel, newTravelCount, writeTravel } from './travelCount'
 import { driveDeckEntries } from './deckDrive'
 import { SimFlowFacts } from './flowFacts'
 import { buildFrame } from './frameBuild'
@@ -567,7 +568,16 @@ export class SimWorld implements SimCore<BoxFrame> {
       inp.conveyorSpeeds = conveyorSpeeds
       // A reactive part with nothing new to answer is not called, and its outputs stand (partSleep.ts)
       const sl = (b.sleep ??= newSleepState())
-      if (waits(sl, inp, this.wakeAllParts)) continue
+      if (waits(sl, inp, this.wakeAllParts)) {
+        // its travel is counted on the steps it waits through (travelCount.ts). Stopped, the count and the tags stand.
+        const tr = b.travel
+        if (tr !== undefined && tr.on && tr.speed !== 0) {
+          const tags = { ...b.tags }
+          writeTravel(tr, advanceTravel(tr, dt), tags)
+          bus.setPartTags(b, tags)
+        }
+        continue
+      }
       this.called.push(b)
       const ts = this.perfParts ? performance.now() : 0
       const parsed = behavior.stepDirect(b.handle, inp, dt)
@@ -640,7 +650,18 @@ export class SimWorld implements SimCore<BoxFrame> {
           if (b.copyDecks) b.copySpeeds = parsed.copySpeeds ?? {}
         }
         // a behavior's tag writes are captured for any part (deck or rig): the part→PLC half of the bus.
-        bus.setPartTags(b, parsed.tags ?? {})
+        const written = parsed.tags ?? {}
+        // ctx.countTravel: this step's travel, at the speed the part just gave. A call that did not ask stops the count.
+        if (parsed.travel !== undefined) {
+          const tr = (b.travel ??= newTravelCount())
+          tr.speed = parsed.travel.speed
+          tr.encoderKey = parsed.travel.encoderKey
+          tr.pulseKey = parsed.travel.pulseKey
+          tr.pitch = parsed.travel.pitch
+          tr.on = true
+          writeTravel(tr, advanceTravel(tr, dt), written)
+        } else if (b.travel !== undefined) b.travel.on = false
+        bus.setPartTags(b, written)
         // C-spawn: fulfill cargo-spawn requests at the part's pose + (rotated) local offset
         if (parsed.spawns && parsed.spawns.length > 0) {
           const before = this.boxes.length

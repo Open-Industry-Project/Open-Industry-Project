@@ -1025,6 +1025,20 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
     /** in `react`: call me on the next tick too; ask on every call while the part is timing or moving something */
     again(): void;
     /**
+     * Count the travel of a surface running at `speed` (m/s): the encoder of a conveyor. The host adds the travel on
+     * this tick and on every tick until the part's next call, so a conveyor at a steady speed need not ask to be
+     * called `again` to keep its encoder counting. `encoderTag` takes the odometer in metres, which counts back while
+     * the speed is negative. `pulseTag` is true for the one tick on which another `pulseEvery` metres (default one
+     * inch, 0.0254) have been travelled, in either direction. The count runs on from where it stood, whatever the
+     * speed becomes. A call that does not ask stops it, and the tags are then no longer written.
+     */
+    countTravel(spec: {
+        speed: number;
+        encoderTag?: string;
+        pulseTag?: string;
+        pulseEvery?: number;
+    }): void;
+    /**
      * Is the conveyor part with this `id` currently running (commanding a non-zero surface speed)? The
      * cross-part interlock primitive: a spawner passes its `partRef` param to pause the line while the feeding
      * conveyor is stopped, without a PLC program - the built-in box/pallet spawner's "pause when conveyor

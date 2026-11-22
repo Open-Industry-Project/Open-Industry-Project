@@ -1389,6 +1389,7 @@ never share one. There is no `ctx.state`.
 | Ownership | `tagDriven(name)`: is the tag an attached program's output (a controller owns it)? |
 | Interaction | `used()`: one-tick pulse on pilot Use |
 | Reactive parts | `again()`: in `react`, call me on the next tick too |
+| Encoder | `countTravel({ speed, encoderTag?, pulseTag?, pulseEvery? })`: the host counts a surface's travel on every tick until the next call (see `react` below) |
 | Readouts | `report(param, value)`: a param's effective value (the Inspector's live readout; see `setpointFor`); `display(name, value)`: a live caption for a `label` link's `textFrom` |
 | Randomness | `rng()`: deterministic, seeded from the instance's params (identical params = identical stream; add a `seed` param to decorrelate) |
 
@@ -1449,15 +1450,30 @@ definePart({
 Two rules:
 
 - **While the part is timing or moving something of its own, it calls `ctx.again()` on every call.** A drive
-  ramping to speed, a rack rising, an encoder counting travel: each needs the next tick, so it asks. `ctx.dt` is one
-  tick's length, as in `step`. A part that forgets to ask stops moving, in the editor and in every test, which is
-  easy to see.
+  ramping to speed, a rack rising: each needs the next tick, so it asks. `ctx.dt` is one tick's length, as in
+  `step`. A part that forgets to ask stops moving, in the editor and in every test, which is easy to see.
 - **A call does not mean something changed.** The host may call `react` on a tick where nothing the part reads is
   different (another part's tag changed the table it shares), so do not count calls as events. Detect an event the
   usual way, with `ctx.rising` / `ctx.falling` or by keeping the last value.
 
 A part that reads a load cell (`ctx.weight`) or a zone's marks is called on every tick while it does. A part with
 a servo is too: the host moves the servo.
+
+**An encoder does not need the next tick.** A conveyor's encoder follows from its speed, so the part gives the host
+the speed and the host counts:
+
+```js
+ctx.countTravel({ speed: v, encoderTag: ctx.params.encoderTag, pulseTag: ctx.params.pulseTag, pulseEvery: 0.0254 })
+```
+
+`speed` is in m/s. `encoderTag` takes the odometer in metres, which counts back while the speed is negative.
+`pulseTag` is true for the one tick on which another `pulseEvery` metres (one inch if left out) have been
+travelled, in either direction. The host adds the travel on the tick of the call and on every tick after it, at
+that speed, until the part is called again. So a conveyor at a steady speed waits like any other reactive part, and
+its encoder goes on counting. Call it on every call while the count should run, with the speed as it is now: a
+call that leaves it out stops the count, and the two tags are then no longer written. The count carries on from
+where it stood whatever the speed becomes, and a part called on every tick gets the same count as one that waits
+([conveyorDrive.js](../examples/parts/_shared/conveyorDrive.js)).
 
 A line of several hundred parts then costs what its busy parts cost. Measured on a 420-part sorter line, writing
 the photo-eyes, chutes and sorter sections as reactive parts left out 77% of the part calls and took the step from

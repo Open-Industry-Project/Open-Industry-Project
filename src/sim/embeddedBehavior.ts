@@ -65,6 +65,7 @@ interface Instance {
     arc: { cx: number; cz: number; omega: number } | null
     deckSpeed: number | number[] | null
     copySpeeds: Record<string, number[]> | null
+    travel: TravelAsk | null
   }
   /** host tag tables held by reference (never copied): cur = this tick's, prev = last tick's (backs
    *  ctx.rising/falling), driven = the controller's output-ownership set. Safe to share because hosts
@@ -320,11 +321,22 @@ export interface BehaviorOutput {
   /** ctx.setSurfaceSpeed(speed, link, i): each copy of a posable conveying array at its own speed along its own
    *  local +X, by link, in copy order (0 = stopped). Present only when commanded this tick. */
   copySpeeds?: Record<string, number[]>
+  /** ctx.countTravel: the surface travel the host is to count from this tick on (sim/travelCount.ts). Present only
+   *  when the part asked on this tick. */
+  travel?: TravelAsk
   /** a reactive part (definePart's `react`) that did not ask to be called again: the host calls it next when
    *  something it is handed changes (partSleep.ts). Never set for a part with `step`. */
   idle?: boolean
   /** the part read a conveyor's speed this step (ctx.conveyorRunning / conveyorSpeed) */
   readSpeeds?: boolean
+}
+
+/** What ctx.countTravel hands the host: the speed, the tags' keys ('' for one the part did not name) and the pitch. */
+export interface TravelAsk {
+  speed: number
+  encoderKey: string
+  pulseKey: string
+  pitch: number
 }
 
 const instances = new Map<number, Instance>()
@@ -420,6 +432,7 @@ export function create(source: string, paramsJson = '{}', jointsJson?: string, a
       arc: null as { cx: number; cz: number; omega: number } | null,
       deckSpeed: null as number | number[] | null,
       copySpeeds: null as Record<string, number[]> | null,
+      travel: null as TravelAsk | null,
     }
     // host tag tables by reference (cur = this tick, prev = last tick, driven = output ownership) - the
     // ctx closures below read through this box, so stepDirect retargets the references each tick (same
@@ -746,6 +759,19 @@ export function create(source: string, paramsJson = '{}', jointsJson?: string, a
       again: () => {
         again.v = true
       },
+      // each field is read once and kept as a number or a string: nothing of the part's object is held
+      countTravel: (spec: { speed: number; encoderTag?: string; pulseTag?: string; pulseEvery?: number }) => {
+        if (spec === null || typeof spec !== 'object') return
+        const speed = spec.speed
+        const encoder = spec.encoderTag
+        const pulse = spec.pulseTag
+        const every = spec.pulseEvery
+        if (typeof speed !== 'number' || !Number.isFinite(speed)) return
+        const encoderKey = typeof encoder === 'string' && encoder !== '' ? tagKey(encoder) : ''
+        const pulseKey = typeof pulse === 'string' && pulse !== '' ? tagKey(pulse) : ''
+        if (encoderKey === '' && pulseKey === '') return // nothing to write the count to
+        out.travel = { speed, encoderKey, pulseKey, pitch: typeof every === 'number' && Number.isFinite(every) && every > 0 ? every : 0.0254 }
+      },
       conveyorRunning: (id: string): boolean => {
         if (typeof id !== 'string' || id === '') return true // unset ⇒ no interlock
         readSpeeds.v = true
@@ -971,6 +997,7 @@ export function stepDirect(handle: number, input: BehaviorInput, dt: number): Be
     inst.out.arc = null
     inst.out.deckSpeed = null
     inst.out.copySpeeds = null
+    inst.out.travel = null
     inst.again.v = false
     inst.readSpeeds.v = false
     const t2 = timed ? now() : 0
@@ -1011,6 +1038,7 @@ export function stepDirect(handle: number, input: BehaviorInput, dt: number): Be
       arc: o.arc ?? undefined,
       deckSpeed: o.deckSpeed ?? undefined,
       copySpeeds: o.copySpeeds ?? undefined,
+      travel: o.travel ?? undefined,
       // a servo is the host's to move every step, so a part with one is never idle
       // (both absent when false, like the fields above: the string boundary's output is then what it was)
       idle: inst.def.react !== undefined && !inst.again.v && inst.servos.size === 0 ? true : undefined,
