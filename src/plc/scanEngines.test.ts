@@ -258,7 +258,8 @@ describe('the typed engine scans exactly as the walker does: a STRING copied fro
   // scanCodegen.ts moves the code units in memory (strCopy) where a STRING place is stored into another. Each line
   // here is one of the stores that does: into a shorter and a longer capacity, onto itself, between elements and
   // fields, a block's VAR_IN_OUT in and back out, its outputs. `arr[Pick(j)] := gs` is the store that must not: finding
-  // its place changes gs, and the walker has read gs by then.
+  // its place changes gs, and the walker has read gs by then. `e` is never given a text, so the stores that read it
+  // copy an empty string, over a text and over nothing, which the generated code does without strCopy.
   const src = `TYPE Rec : STRUCT name : STRING[12]; tag : STRING[4]; END_STRUCT; END_TYPE
 VAR_GLOBAL gs : STRING[20]; END_VAR
 FUNCTION Pick : INT VAR_INPUT i : INT; END_VAR VAR_EXTERNAL gs : STRING[20]; END_VAR
@@ -274,7 +275,8 @@ END_FUNCTION_BLOCK
 PROGRAM Main
 VAR_EXTERNAL gs : STRING[20]; END_VAR
 VAR k : INT; j : INT; a : STRING[80]; b : STRING[5]; c : STRING[80]; d : STRING; arr : ARRAY[0..3] OF STRING[7];
-  recs : ARRAY[1..3] OF Rec; r : Rec; fb : Relay; o1 : STRING[4]; o2 : STRING[40]; io1 : STRING[6]; ios : ARRAY[0..2] OF STRING[6]; END_VAR
+  recs : ARRAY[1..3] OF Rec; r : Rec; fb : Relay; o1 : STRING[4]; o2 : STRING[40]; io1 : STRING[6]; ios : ARRAY[0..2] OF STRING[6];
+  e : STRING[9]; f : STRING[30]; fb2 : Relay; o3 : STRING[12]; END_VAR
 k := k + 1; j := ABS(k MOD 3);
 IF LEN(a) > 70 THEN a := ''; END_IF;
 a := CONCAT(a, INT_TO_STRING(k));
@@ -286,6 +288,9 @@ arr[Pick(j)] := gs;
 io1 := b;
 fb(msg := a, io := io1, last => o1, short => o2);
 fb(msg := o2, io := ios[j], last => recs[2].name);
+f := a; IF (k MOD 4) = 0 THEN f := e; END_IF;
+IF (k MOD 5) = 0 THEN ios[2] := e; recs[1].tag := e; END_IF;
+fb2(msg := e, io := ios[2], last => o3);
 END_PROGRAM`
 
   it('as written, and with every variable overwritten between scans', () => {

@@ -66,6 +66,8 @@ PROGRAM Main VAR z : Zone; t : DINT; END_VAR z(On := TRUE, Target := t); END_PRO
     expect(copied).not.toMatch(/\bstr(At|Put)\(/)
     // the capacity a store cuts to: the shorter place's own
     expect(copied).toMatch(/strCopy\([^,]+, 5, /)
+    // an empty source is its length alone, written in place: only a text is handed to strCopy
+    expect(copied.match(/if \(U16\[z\d+ >> 1\] === 0\) U16\[y\d+ >> 1\] = 0; else strCopy\(y\d+, /g)).toHaveLength(3)
     const called = generated(`FUNCTION Pick : INT VAR_INPUT i : INT; END_VAR Pick := i; END_FUNCTION
 PROGRAM Main ${decls} arr[Pick(i)] := a; END_PROGRAM`)
     expect(called).not.toMatch(/\bstrCopy\(/)

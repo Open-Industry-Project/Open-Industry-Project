@@ -807,12 +807,17 @@ ${lines.join(NL)}
   /** a statement copying the STRING at `src` into the STRING at `dst`, cut as a store cuts it (`maxLen`, then the
    *  capacity): the code units moved in memory, where a load and a store would build the text and take it apart
    *  again (measured: a fifth of the scan of a large program whose blocks pass status strings around). Null when
-   *  either end is not a STRING. `src` is worked out first, as the value is before its place. */
+   *  either end is not a STRING. `src` is worked out first, as the value is before its place.
+   *  An empty source is copied here, as its length alone, and only a text goes to strCopy: on a 2.4 MB ladder
+   *  program whose blocks are handed names and messages, 5,600 strings were copied a step and nine in ten of them
+   *  were empty, and the calls for those were a twentieth of the scan. */
   strCopyAt(dst: Address, src: Address | null, maxLen?: number): string | null {
     if (!src || dst.layout.kind !== 'scalar' || dst.layout.scalar !== 'STRING') return null
     const cap = dst.layout.cap!
-    const z = `z${this.id()}`
-    return `{ const ${z} = ${addrCode(src)}; strCopy(${addrCode(dst)}, ${maxLen === undefined ? cap : Math.min(cap, maxLen)}, ${z}); }`
+    const n = this.id()
+    const z = `z${n}`
+    const y = `y${n}`
+    return `{ const ${z} = ${addrCode(src)}; const ${y} = ${addrCode(dst)}; if (U16[${z} >> 1] === 0) U16[${y} >> 1] = 0; else strCopy(${y}, ${maxLen === undefined ? cap : Math.min(cap, maxLen)}, ${z}); }`
   }
   /** {@link strCopyAt} into the place `target`. Only where finding the place runs nothing but loads: the walker
    *  reads the value before it finds the place, and here the text is read after. */
