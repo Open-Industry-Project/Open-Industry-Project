@@ -456,6 +456,11 @@ export class CargoRegistry {
     this.rowGridMaxR = Math.sqrt(maxRSq)
   }
 
+  /** changes whenever a body is added to the list or removed from it */
+  get listRev(): number {
+    return this.boxesRev
+  }
+
   /** the largest bounding radius of any row, as of the last ensureRowGrid */
   get maxRowRadius(): number {
     return this.rowGridMaxR

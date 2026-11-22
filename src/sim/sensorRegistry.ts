@@ -11,8 +11,8 @@ import type { SdkPart } from '../core/types'
 import type { BodyHolds } from './bodyHolds'
 import type { CargoRegistry } from './cargoRegistry'
 import { GRID_MIN_ROWS } from './cargoRegistry'
-import { castBeamRows, pointInZone, rigBeams, rigZones } from './cargoSensing'
-import type { BeamEmitter, ZoneBox } from './cargoSensing'
+import { castBeamRows, PILOT_BODY_RADIUS, pointInZone, rigBeams, rigZones } from './cargoSensing'
+import type { BeamBounds, BeamEmitter, ZoneBox } from './cargoSensing'
 import type { PilotCapsule } from './pilotCapsule'
 import { marksOf } from './worldTypes'
 import type { LiveBox, StepClock } from './worldTypes'
@@ -96,6 +96,98 @@ export class SensorRegistry {
     const ez = oz + dir[2] * range
     const near = cargo.rowsNear(snap, Math.min(ox, ex) - reach, Math.min(oz, ez) - reach, Math.max(ox, ex) + reach, Math.max(oz, ez) + reach)
     return castBeamRows(origin, dir, range, this.boxes, snap, near, this.beamScratch, this.pilot.body, this.lastBeamHit, prev)
+  }
+
+  // what nothingNear reads of the step: kept while the step and the cargo list are the same
+  private nearStep = -1
+  private nearRev = -1
+  private nearMaxR = 0
+  private nearPilot: { x: number; z: number } | null = null
+
+  /** True when no cargo body and no pilot can be on any of these beams on this step, so each reads clear at its full
+   *  range. `rec` holds the floor box the beams lie in. False on the step that box is measured, or measured again
+   *  because a beam was re-aimed: the caller casts then.
+   *
+   *  A line has far more beams than cargo (832 beams and a dozen boxes on a 420-part sorter), and almost every beam
+   *  has nothing near it. Casting each one against every body cost a quarter of the parts phase there.
+   *
+   *  The test is castBeam's own, made once for the part: a body whose centre is farther from the beams' floor box
+   *  than the largest body's bounding radius cannot touch a beam inside it. */
+  nothingNear(emitters: readonly BeamEmitter[], rec: { beamBounds?: BeamBounds }): boolean {
+    const cargo = this.cargo
+    const snap = cargo.stepSnapshot()
+    if (!snap) return false // the stock build reads each body through its getters: cast as before
+    const n = emitters.length
+    let bounds = rec.beamBounds
+    let fresh = bounds !== undefined && bounds.ranges.length === n
+    if (fresh) {
+      for (let i = 0; i < n; i++) {
+        const e = emitters[i]!
+        if (bounds!.origins[i] !== e.origin || bounds!.dirs[i] !== e.dir || bounds!.ranges[i] !== e.range) {
+          fresh = false
+          break
+        }
+      }
+    }
+    if (!fresh) {
+      bounds = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity, origins: [], dirs: [], ranges: [] }
+      for (let i = 0; i < n; i++) {
+        const e = emitters[i]!
+        const ex = e.origin[0] + e.dir[0] * e.range
+        const ez = e.origin[2] + e.dir[2] * e.range
+        bounds.x0 = Math.min(bounds.x0, e.origin[0], ex)
+        bounds.x1 = Math.max(bounds.x1, e.origin[0], ex)
+        bounds.z0 = Math.min(bounds.z0, e.origin[2], ez)
+        bounds.z1 = Math.max(bounds.z1, e.origin[2], ez)
+        bounds.origins.push(e.origin)
+        bounds.dirs.push(e.dir)
+        bounds.ranges.push(e.range)
+      }
+      rec.beamBounds = bounds
+      return false
+    }
+    const b = bounds!
+    const boxes = this.boxes
+    const rows = boxes.length
+    if (this.nearStep !== this.clock.step || this.nearRev !== cargo.listRev) {
+      this.nearStep = this.clock.step
+      this.nearRev = cargo.listRev
+      let maxRSq = 0
+      for (let i = 0; i < rows; i++) {
+        const box = boxes[i]!
+        const rSq = box.hx * box.hx + box.hy * box.hy + box.hz * box.hz
+        if (rSq > maxRSq) maxRSq = rSq
+      }
+      this.nearMaxR = Math.sqrt(maxRSq) + 1e-6
+      const body = this.pilot.body
+      if (body) {
+        const p = body.GetPosition()
+        this.nearPilot = { x: p.GetX(), z: p.GetZ() }
+      } else this.nearPilot = null
+    }
+    const pilot = this.nearPilot
+    if (pilot) {
+      const r = PILOT_BODY_RADIUS + 1e-6
+      if (pilot.x >= b.x0 - r && pilot.x <= b.x1 + r && pilot.z >= b.z0 - r && pilot.z <= b.z1 + r) return false
+    }
+    const reach = this.nearMaxR
+    const x0 = b.x0 - reach
+    const x1 = b.x1 + reach
+    const z0 = b.z0 - reach
+    const z1 = b.z1 + reach
+    if (!(x1 - x0 < Infinity && z1 - z0 < Infinity)) return false // a beam that is not finite: cast it
+    if (rows >= GRID_MIN_ROWS) {
+      // many bodies: the floor grid's cells under the box
+      const near = cargo.rowsNear(snap, x0, z0, x1, z1)
+      return near !== null && near.length === 0
+    }
+    for (let i = 0; i < rows; i++) {
+      const o = i * 7
+      const cx = snap[o] as number
+      const cz = snap[o + 2] as number
+      if (cx >= x0 && cx <= x1 && cz >= z0 && cz <= z1) return false
+    }
+    return true
   }
 
   // Count cargo whose centre is inside a zone (→ ctx.zone()), leaving their summed age in lastZoneAge.

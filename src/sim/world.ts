@@ -219,6 +219,7 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  look flat and body-independent. Probes turn it on; shipping runs leave it off. */
   perfParts = false
   private readonly wakeAllParts: boolean // a test's check: call every reactive part on every step
+  private readonly castAllBeams: boolean // a test's check: cast every beam on every step
   private disposed = false
 
   /** benchRaw (?joltraw, bench-only): skip the contact listener entirely and disable sleeping, so
@@ -229,8 +230,9 @@ export class SimWorld implements SimCore<BoxFrame> {
    *  hz: the scene's physics step rate; absent steps at DEFAULT_SIM_HZ; anything else goes through toSimRate.
    *  flowFacts: false skips collecting flow facts (sim/flowFacts.ts): the A/B lever that shows they cost little and
    *  change nothing. */
-  constructor(jolt: JoltModule, scene: SceneJSON, opts: { benchRaw?: boolean; forceJsListener?: boolean; perfParts?: boolean; hz?: number; flowFacts?: boolean; wakeAllParts?: boolean } = {}) {
+  constructor(jolt: JoltModule, scene: SceneJSON, opts: { benchRaw?: boolean; forceJsListener?: boolean; perfParts?: boolean; hz?: number; flowFacts?: boolean; wakeAllParts?: boolean; castAllBeams?: boolean } = {}) {
     this.wakeAllParts = opts.wakeAllParts === true
+    this.castAllBeams = opts.castAllBeams === true
     const J = jolt
     this.J = J
     this.hz = toSimRate(opts.hz)
@@ -490,26 +492,36 @@ export class SimWorld implements SimCore<BoxFrame> {
         // the time this loop spends outside the parts.
         const list = (b.beamList ??= [])
         const n = emitters.length
-        let changed = b.beamHits === undefined || list.length !== n
-        let hitBoxes: Record<string, LiveBox> | undefined
-        for (let i = 0; i < n; i++) {
-          const e = emitters[i]!
-          const was = list[i]
-          const now = sensors.castBeam(e.origin, e.dir, e.range, was)
-          const hit = sensors.lastBeamHit.box
-          if (hit) (hitBoxes ??= {})[e.name] = hit
-          if (now !== was) {
-            changed = true
-            list[i] = now
+        // every beam read clear last time and nothing is near any of them: they read clear again, and none is cast
+        const quiet = !this.castAllBeams && sensors.nothingNear(emitters, b) && b.beamsClear === true && b.beamHits !== undefined && list.length === n
+        if (quiet) {
+          beams = b.beamHits
+          b.beamBoxes = undefined
+        } else {
+          let changed = b.beamHits === undefined || list.length !== n
+          let hitBoxes: Record<string, LiveBox> | undefined
+          let clear = true
+          for (let i = 0; i < n; i++) {
+            const e = emitters[i]!
+            const was = list[i]
+            const now = sensors.castBeam(e.origin, e.dir, e.range, was)
+            const hit = sensors.lastBeamHit.box
+            if (hit) (hitBoxes ??= {})[e.name] = hit
+            if (now.hit || now.distance !== e.range) clear = false
+            if (now !== was) {
+              changed = true
+              list[i] = now
+            }
           }
+          if (changed) {
+            list.length = n
+            beams = {}
+            for (let i = 0; i < n; i++) beams[emitters[i]!.name] = list[i]!
+          } else beams = b.beamHits
+          b.beamHits = beams // captured for the frame - the view draws beams from this, never re-casting
+          b.beamBoxes = hitBoxes // what ctx.markHit marks, so the mark lands on the body the part saw
+          b.beamsClear = clear
         }
-        if (changed) {
-          list.length = n
-          beams = {}
-          for (let i = 0; i < n; i++) beams[emitters[i]!.name] = list[i]!
-        } else beams = b.beamHits
-        b.beamHits = beams // captured for the frame - the view draws beams from this, never re-casting
-        b.beamBoxes = hitBoxes // what ctx.markHit marks, so the mark lands on the body the part saw
         if (this.perfParts) this.phaseMs.beams += performance.now() - tb
       }
       const zoneList = b.partId ? sensors.zonesOf(b.partId) : undefined // C-despawn

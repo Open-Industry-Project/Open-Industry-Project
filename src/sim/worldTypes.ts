@@ -5,6 +5,7 @@ import type Jolt from 'jolt-physics'
 import type { FrameBeamHit } from '../core/frame'
 import type { CargoMarkValue, PartPackage } from '../core/parts/partPackage'
 import type { BehaviorInput } from './embeddedBehavior'
+import type { BeamBounds } from './cargoSensing'
 import type { ConveyorEntry } from '../core/geometry/collisionShapes'
 import { packageRev } from '../core/parts/partRegistry'
 import { copySubPose, subPoseEq } from '../core/rig/rigPose'
@@ -234,6 +235,11 @@ export interface BehaviorRecord {
   beamHits?: Record<string, FrameBeamHit>
   /** the same readings in the order of the part's emitters: each is replaced only when its beam reads something new */
   beamList?: FrameBeamHit[]
+  /** every beam read clear at its full range on the last cast, so a step with nothing near them casts none
+   *  (SensorRegistry.nothingNear) */
+  beamsClear?: boolean
+  /** the floor box the part's beams lie in, with the emitters it was measured from (SensorRegistry.nothingNear) */
+  beamBounds?: BeamBounds
   /** the cargo body each beam hit this step, for the beams that hit one (ctx.markHit marks it); absent when none did */
   beamBoxes?: Record<string, LiveBox>
   /** latest free-form link pose overrides this step (rig setSubPose), captured in tickBehaviors */
@@ -287,6 +293,8 @@ export function behaviorRecord(handle: number, pos: [number, number, number], fw
     displays: undefined,
     beamHits: undefined,
     beamList: undefined,
+    beamsClear: undefined,
+    beamBounds: undefined,
     beamBoxes: undefined,
     subPoses: undefined,
     copySpeeds: undefined,

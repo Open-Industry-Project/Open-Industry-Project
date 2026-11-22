@@ -33,6 +33,18 @@ export interface BeamEmitter {
   axis: Vec3
 }
 
+/** The world XZ box a part's beams lie in, and what it was measured from: an emitter is re-aimed by replacing its
+ *  origin and direction (RigDriver.drive), so the same objects and ranges mean the same box. */
+export interface BeamBounds {
+  x0: number
+  z0: number
+  x1: number
+  z1: number
+  origins: Vec3[]
+  dirs: Vec3[]
+  ranges: number[]
+}
+
 // Pilot push body: a kinematic capsule tracking the walking pilot (the pilot
 // capsule - radius 0.3, total height 1.8 measured up from the
 // feet). Driven by MoveKinematic each step like a diverter pusher, it imparts
