@@ -20,7 +20,7 @@ const sinceMs = (now: number, start: number): number => Math.max(0, now - start)
 
 /** Each block's call, over one arena: what generated code is handed as `blk_TON`, `blk_CTU`, ... The parameters after
  *  the instance are the block's accepted inputs in runtime.ts FB_INPUTS order, aliases included. */
-export function blocksOver(a: Arena): Record<string, (...args: never[]) => void> {
+export function blocksOver(a: Arena, channels: Map<number, MotionChannel>): Record<string, (...args: never[]) => void> {
   const { U8, I16, I32, F64 } = a
   const timer = (t: 'TON' | 'TOF'): { q: number; et: number; run: number; start: number; in: number; pt: number } => ({ q: off(t, 'Q'), et: off(t, 'ET'), run: off(t, 'running'), start: off(t, 'start'), in: off(t, 'IN'), pt: off(t, 'PT') })
   const ton = timer('TON')
@@ -49,7 +49,6 @@ export function blocksOver(a: Arena): Record<string, (...args: never[]) => void>
     return I16[at >> 1]!
   }
   const ak = { cmdId: off('AXIS_KERNEL', 'CMDID'), curCmd: off('AXIS_KERNEL', 'CURCMD'), doneCmd: off('AXIS_KERNEL', 'DONECMD'), qLo: off('AXIS_KERNEL', 'QLO'), qHi: off('AXIS_KERNEL', 'QHI'), state: off('AXIS_KERNEL', 'STATE'), x: off('AXIS_KERNEL', 'X'), vel: off('AXIS_KERNEL', 'VEL'), err: off('AXIS_KERNEL', 'ERR'), powered: off('AXIS_KERNEL', 'POWERED'), homed: off('AXIS_KERNEL', 'HOMED') }
-  const channels = new Map<number, MotionChannel>()
   const mo: MotionOutputs = { cmdId: 0, curCmd: 0, doneCmd: 0, state: 0, x: 0, v: 0, error: 0, qLo: 0, qHi: -1, powered: false, homed: false }
 
   return {
@@ -172,8 +171,9 @@ export function blocksOver(a: Arena): Record<string, (...args: never[]) => void>
       if (s) U8[b + rs.q1] = 1
       if (r1) U8[b + rs.q1] = 0 // reset is dominant, so it is applied last
     },
-    // The motion kernel: its plan lives in a channel per instance, kept here by the instance's address (stable for the
-    // program's life, unique per instance); the record holds its outputs, written after every call.
+    // The motion kernel: its plan lives in a channel per instance, kept in `channels` by the instance's address (stable
+    // for the program's life, unique per instance); the record holds its outputs, written after every call. The table
+    // is the program's (TypedProgram.motion), which empties it on a restart.
     blk_AXIS_KERNEL(b: number, CMD: In, P: In, V: In, A: In, D: In, BUF: In, LIMITS: In, LIMITPOS: In, LIMITNEG: In, LIMITDEC: In, now: number): void {
       let ch = channels.get(b)
       if (!ch) channels.set(b, (ch = new MotionChannel()))

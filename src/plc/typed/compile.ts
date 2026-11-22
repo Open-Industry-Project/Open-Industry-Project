@@ -10,7 +10,7 @@ import type { GenInternals } from '../scanCodegen'
 import type { Ast, CompiledProgram } from '../types'
 import { aggregateCalls } from './calls'
 import { Layouts, TypedUnsupported } from './layout'
-import { allocate, finish, stackBytes, TypedFn, TypedPou, type TypedProgram } from './pou'
+import { allocate, finish, rewind, stackBytes, TypedFn, TypedPou, type TypedProgram } from './pou'
 
 /** The arena's first bytes, which no place occupies. */
 const GUARD_BYTES = 8
@@ -19,7 +19,7 @@ export function compileTyped(ast: Ast, fbDefs: FbDefMap, funcDefs: FuncDefMap, s
   // `next` starts past a reserved guard word: no place is ever at address 0, so an address that lost its base (a global
   // addressed without the globals' region, an instance without its own) reads and writes the guard, not a variable,
   // and the oracle sees it
-  const tp: TypedProgram = { layouts: new Layouts(structDefs, enumDefs, fbDefs), internals, fbDefs, next: GUARD_BYTES, arena: null, extra: null, globals: null, pous: [], bodies: new WeakMap(), fbs: new Map(), fns: new Map(), temps: new Map(), inits: new WeakMap(), methods: [], stackBase: 0, sp: 0, depth: 0 }
+  const tp: TypedProgram = { layouts: new Layouts(structDefs, enumDefs, fbDefs), internals, fbDefs, next: GUARD_BYTES, arena: null, extra: null, globals: null, pous: [], bodies: new WeakMap(), fbs: new Map(), fns: new Map(), temps: new Map(), inits: new WeakMap(), methods: [], stackBase: 0, sp: 0, depth: 0, motion: new Map(), built: null }
   // the VAR_GLOBALs and, beside a CONFIGURATION, the controller's tags: one region every POU reads by absolute address
   const shared = [...ast.globals, ...controllerTags(ast)]
   let globalPou: TypedPou | null = null
@@ -30,8 +30,8 @@ export function compileTyped(ast: Ast, fbDefs: FbDefMap, funcDefs: FuncDefMap, s
   }
   const build = (decls: Parameters<typeof implicitProgram>[0]['decls'], body: Parameters<typeof implicitProgram>[0]['body']): TypedPou => new TypedPou(decls, body, tp)
   const program = ast.configuration
-    ? configuredProgram(ast, build, globalPou)
-    : implicitProgram(ast.programDefs[0] ?? { decls: ast.decls, body: ast.body }, build, globalPou, ast.globals)
+    ? configuredProgram(ast, build, globalPou, () => rewind(tp))
+    : implicitProgram(ast.programDefs[0] ?? { decls: ast.decls, body: ast.body }, build, globalPou, ast.globals, () => rewind(tp))
   // every function's region, placed before the arena is made (its call sites are generated after)
   for (const [key, def] of funcDefs) {
     try {

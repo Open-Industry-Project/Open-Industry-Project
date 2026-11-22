@@ -4,7 +4,7 @@
 
 import { StError } from '../plc'
 import type { WiredBindings } from '../plc'
-import type { PlcGroup } from './plcGroup'
+import type { PlcGroup, PlcRerun } from './plcGroup'
 import type { PlcWorldPort, ScanTime } from './plcHost'
 import { Answer, Ask, Ctl, Num, readText, TagReader, TagWriter, writeText, type PlcCommand, type PlcFaultText, type PlcThreadMemory } from './plcThreadWire'
 
@@ -68,7 +68,13 @@ export class PlcThreadServer {
     else if (c.do === 'write') g.write(c.values)
     else if (c.do === 'setPeriod') g.setPeriod(c.periodSec)
     else if (c.do === 'rebind') g.rebind(c.wired as WiredBindings, c.controller)
-    else g.resetScanTimes()
+    else if (c.do === 'restart') {
+      if (!g.restart(c.runs as PlcRerun[])) throw new Error('the controller cannot restart its programs')
+      // the next scans hand over their outputs whatever the last run's were
+      this.#inputs = {}
+      this.#driven = null
+      this.#changed = false
+    } else g.resetScanTimes()
   }
 
   /** Answer the ask in the control words. The caller raises Ctl.Done after it. */

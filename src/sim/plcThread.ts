@@ -15,7 +15,7 @@
 import type { WatchLayout } from '../core/watchTable'
 import type { TagValue, WiredBindings } from '../plc'
 import type { WatchPlan } from '../plc/types'
-import type { PlcRun } from './plcGroup'
+import type { PlcRerun, PlcRun } from './plcGroup'
 import type { PlcFrameWire, PlcHost, PlcWorldPort } from './plcHost'
 import type { PlcThreadStats } from './plcThreadServer'
 import { Answer, Ask, Ctl, newPlcThreadMemory, Num, readText, TagReader, TagWriter, TEXT_BYTES, writeText, type PlcCommand, type PlcFaultText, type PlcThreadMemory } from './plcThreadWire'
@@ -215,6 +215,38 @@ export class PlcThread {
   }
   resetScanTimes(): void {
     this.#command({ do: 'resetScanTimes' })
+  }
+
+  /**
+   * The controller as it was when attached, for another run of the same programs (PlcGroup.restart): its worker and
+   * its compiled programs are kept. False when it could not, and the thread is then to be stopped.
+   */
+  restart(runs: readonly PlcRerun[]): boolean {
+    if (this.#stopped) return false
+    try {
+      // the scans asked for when the last run ended: what they did, a fault too, ended with that run
+      this.#answer()
+    } catch {
+      // (the restart below puts the program back whatever that scan left)
+    }
+    this.#fault = null
+    // nothing queued for the last run reaches this one, and the answer brings the new run's statistics
+    this.#commands = [{ do: 'restart', runs: runs.map((r) => ({ periodSec: r.periodSec, wired: r.wired })) }]
+    this.#statsAt = -Infinity
+    try {
+      this.#ask(Ask.Commands)
+      this.#answer()
+    } catch {
+      return false
+    }
+    this.#scannedFor = -1
+    this.#world = null
+    this.#inputs = {}
+    this.#inputsAt = -1
+    this.#driven = {}
+    this.#handed = true
+    this.#shown = null
+    return true
   }
 
   /** Where the watch table's values are (PlcGroup.watchPlan). A frame takes the bytes through {@link watchBytes}. */

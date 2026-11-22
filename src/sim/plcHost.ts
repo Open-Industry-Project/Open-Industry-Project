@@ -12,7 +12,7 @@
 // proportionally more scans). A main-thread driver would sample inputs at whatever cadence rAF managed;
 // this samples at the sim's own rate, the true information rate of the world. See src/plc/DEVICE-IO.md.
 
-import { LocalPlcLink, SimController, TaskScheduler } from '../plc'
+import { LocalPlcLink, NO_WIRED_BINDINGS, SimController, TaskScheduler } from '../plc'
 import type { RecordPatch } from './frameWire'
 import type { Schedulable, TaskInfo, WiredBindings } from '../plc'
 import type { TagValue } from '../plc'
@@ -132,9 +132,10 @@ export type PlcFrameWire = Omit<PlcFrameState, 'watch'> & {
 }
 
 export class PlcHost {
-  readonly #link: LocalPlcLink
-  readonly #ctl: SimController
-  readonly #engine: TaskScheduler
+  // (the three are made again by a restart)
+  #link!: LocalPlcLink
+  #ctl!: SimController
+  #engine!: TaskScheduler
   // one tally per task, or one for a program with no tasks; indexed as the scheduler numbers them
   #tallies: ScanTally[] = []
   /** the output image last handed on, and what the world was given of it ({@link driveable}) */
@@ -145,7 +146,11 @@ export class PlcHost {
    *  the same source before shipping it, so a throw here is only a defensive backstop). */
   constructor(source: string, periodSec?: number, wired?: WiredBindings) {
     // the scene's bindings by wiring, computed where the scene is (editor/controller.ts runProgram)
-    const link = new LocalPlcLink(source, wired)
+    this.#attach(new LocalPlcLink(source, wired), periodSec)
+  }
+
+  /** The controller and the scheduler around a link, as a new host has them. */
+  #attach(link: LocalPlcLink, periodSec: number | undefined): void {
     this.#link = link
     const ctl = new SimController(link)
     this.#ctl = ctl
@@ -168,6 +173,27 @@ export class PlcHost {
       },
     }
     this.#engine = new TaskScheduler(timed, { ...(periodSec !== undefined ? { periodSec } : {}), maxCatchUp: MAX_SCANS_PER_STEP })
+  }
+
+  /**
+   * The host as a new one over the same program: the program as it was when compiled (CompiledProgram.restart), and
+   * the link, the controller, the scheduler and every count made again, on `periodSec` and `wired`. For a second run
+   * of a program, which then needs no compile and scans on code the first run left optimised. False when the program
+   * cannot restart ({@link restartable}: the walker engine), and then nothing has changed.
+   */
+  get restartable(): boolean {
+    return this.#link.restartable
+  }
+  restart(periodSec?: number, wired?: WiredBindings): boolean {
+    const link = this.#link.restarted(wired ?? NO_WIRED_BINDINGS)
+    if (!link) return false
+    this.#attach(link, periodSec)
+    this.#tallies = []
+    this.#drivenFrom = null
+    this.#driven = {}
+    const p = this.perf
+    p.inputsMs = p.scanMs = p.imageMs = p.scans = 0
+    return true
   }
 
   #record(index: number, ms: number): void {

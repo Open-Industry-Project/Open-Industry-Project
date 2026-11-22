@@ -832,4 +832,10 @@ export interface CompiledProgram {
   scan(dt: number): void
   /** one scan of task `index`: each of its program instances once, in order, with the task's reading of the clock moved on by `dt` */
   scanTask(index: number, dt: number): void
+  /**
+   * The program back as it was when compiled: every variable at its starting value, every block instance as new, the
+   * clock at zero. The scans after it are the scans a newly compiled program makes. On the typed engine only
+   * (docs/plc-typed-storage.md, "Restart"); what a host built around the program holds is the host's to renew.
+   */
+  restart?(): void
 }

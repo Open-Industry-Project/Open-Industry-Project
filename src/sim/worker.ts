@@ -10,7 +10,7 @@ import type { SceneJSON } from '../core/types'
 import { StError } from '../plc'
 import { catchUpSteps } from './catchUp'
 import { WATCH_HZ } from './plcHost'
-import { PlcGroup } from './plcGroup'
+import { PlcGroup, samePrograms, type PlcRun } from './plcGroup'
 import type { PlcFrameSent, PlcFrameWire } from './plcHost'
 import { PlcThread, PlcThreadFault, plcThreadWanted, startPlcThread, type PlcThreadWorker } from './plcThread'
 import type { WatchPlan } from '../plc/types'
@@ -31,10 +31,43 @@ let world: SimWorld | null = null
 // world lifecycle: 'start'/'stop' clear it, and the attach ('runProgram') always follows 'start'.
 // On this thread (PlcGroup), or on a worker of its own where the page can share memory with one (PlcThread).
 let plc: PlcGroup | PlcThread | null = null
-/** Detach the program. A controller on its own worker is ended with it. */
-function dropPlc(): void {
-  if (plc instanceof PlcThread) plc.stop()
+/** the runs `plc` was built from, and whether it came from the run before (StepStats.plcKept) */
+let plcRuns: readonly PlcRun[] | null = null
+let plcKept = false
+// The controller of the last run, kept when that run ended without a fault. A run of the same programs restarts it
+// (PlcGroup.restart): the programs are not compiled again, and they scan on the code the last run left optimised,
+// where a new controller's first seconds are several times slower. One is kept, and any other run ends it.
+let parked: { runs: readonly PlcRun[]; plc: PlcGroup | PlcThread } | null = null
+function endParked(): void {
+  if (parked?.plc instanceof PlcThread) parked.plc.stop()
+  parked = null
+}
+/** Detach the program. `keep`: its run ended as asked, so its controller is kept for the next run. Otherwise a
+ *  controller on its own worker is ended with it. */
+function dropPlc(keep = false): void {
+  if (plc && keep && plcRuns) {
+    endParked()
+    parked = { runs: plcRuns, plc }
+  } else if (plc instanceof PlcThread) plc.stop()
   plc = null
+  plcRuns = null
+  plcKept = false
+}
+/** The kept controller restarted for `runs`, or null (it is then ended): none kept, other programs, or one that
+ *  cannot restart. */
+function takeParked(runs: readonly PlcRun[]): PlcGroup | PlcThread | null {
+  const kept = parked
+  if (!kept) return null
+  parked = null
+  let ok = false
+  try {
+    ok = samePrograms(kept.runs, runs) && kept.plc.restart(runs)
+  } catch {
+    // a controller that fails to restart is not used: the programs are compiled as on a first run
+  }
+  if (ok) return kept.plc
+  if (kept.plc instanceof PlcThread) kept.plc.stop()
+  return null
 }
 let intervalId: ReturnType<typeof setInterval> | null = null
 let paused = false
@@ -231,7 +264,7 @@ async function handle(msg: MainToWorker): Promise<void> {
       world?.dispose()
       world = null // a throw from the constructor below leaves no reference to the world just disposed
       paused = false
-      dropPlc() // fresh world, fresh program: the controller's attach message follows its 'start'
+      dropPlc(true) // fresh world, fresh program: the controller's attach message follows its 'start'
       stepMsTotal = stepMsMax = stepsDone = frameMsTotal = framesDone = plcMsTotal = 0
       resetFrameWire()
       stepQueue = [] // the client drops its waiters on start and stop: nothing to answer
@@ -314,15 +347,23 @@ async function handle(msg: MainToWorker): Promise<void> {
       try {
         // On a worker of its own when that gains something (plcThread.ts); the compile is awaited there, and the
         // messages behind this one wait with it. A program it cannot take (null) is compiled here.
-        const next = (plcThreadWanted(msg.runs, plcThreadMode) ? await startPlcThread(msg.runs, spawnPlcThread) : null) ?? new PlcGroup(msg.runs)
+        const kept = takeParked(msg.runs)
+        const next = kept ?? (plcThreadWanted(msg.runs, plcThreadMode) ? await startPlcThread(msg.runs, spawnPlcThread) : null) ?? new PlcGroup(msg.runs)
         dropPlc()
         plc = next
+        plcRuns = msg.runs
+        plcKept = kept !== null
+        // a kept controller is the same object as the last run's: its table and its I/O are sent whole again
+        if (kept) {
+          watchSentFor = null
+          plcIoSentFor = null
+        }
       } catch (err) {
         dropPlc()
         post(plcFaultMsg(err))
       }
     } else if (msg.type === 'stopProgram') {
-      dropPlc()
+      dropPlc(true)
     } else if (msg.type === 'writePlcVars') {
       plc?.write(msg.values)
     } else if (msg.type === 'setScanPeriod') {
@@ -333,7 +374,7 @@ async function handle(msg: MainToWorker): Promise<void> {
       stopLoop()
       paused = false
       stepQueue = []
-      dropPlc()
+      dropPlc(true)
       world?.dispose()
       world = null
       liveScene = null
@@ -542,7 +583,7 @@ function postFrame(w: SimWorld, held: boolean, fullWatch = false): void {
       ...(held ? { paused: true as const } : {}),
       ...(plc ? { plc: plcFrame(plc, fullWatch, plcTransfer) } : {}),
       ...(flowFacts.length > 0 ? { flowFacts } : {}),
-      stepStats: { totalMs: stepMsTotal, steps: stepsDone, maxMs: stepMsMax, frameTotalMs: frameMsTotal, frames: framesDone, plcTotalMs: plcMsTotal, ...(plc ? { plcSplit: { ...plc.perf } } : {}), ...(plc instanceof PlcThread ? { plcThread: true as const } : {}), worstStep: { ...w.worstStep }, overBudgetSteps: w.overBudgetSteps, ...(w.perfParts ? { worstScriptCall: { ...w.worstScriptCall } } : {}), phases: { ...w.phaseMs, ...w.scriptPerf() }, scriptMsByPart: Object.fromEntries(w.scriptMsByPart), rigMsByPart: Object.fromEntries(w.rigMsByPart), ...w.bodyStats() },
+      stepStats: { totalMs: stepMsTotal, steps: stepsDone, maxMs: stepMsMax, frameTotalMs: frameMsTotal, frames: framesDone, plcTotalMs: plcMsTotal, ...(plc ? { plcSplit: { ...plc.perf } } : {}), ...(plc instanceof PlcThread ? { plcThread: true as const } : {}), ...(plc && plcKept ? { plcKept: true as const } : {}), worstStep: { ...w.worstStep }, overBudgetSteps: w.overBudgetSteps, ...(w.perfParts ? { worstScriptCall: { ...w.worstScriptCall } } : {}), phases: { ...w.phaseMs, ...w.scriptPerf() }, scriptMsByPart: Object.fromEntries(w.scriptMsByPart), rigMsByPart: Object.fromEntries(w.rigMsByPart), ...w.bodyStats() },
     },
     [
       f.ids.buffer as ArrayBuffer,

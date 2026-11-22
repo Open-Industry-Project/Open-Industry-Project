@@ -166,6 +166,28 @@ that lists a table's keys, copies it or counts it uses the helpers in core/watch
 `forEachWatchValue`, `watchKeyCount`, `overlayTable`, and `withWatchValue` in core/watchKeys.ts). What is derived
 from the keys alone is kept per key set (core/watchKeys.ts), not per table.
 
+## Restart
+
+`CompiledProgram.restart()` puts a program back as it was when compiled: every variable at its starting value, every
+block instance as new, the clock at zero. The scans after it are the scans a newly compiled program makes. Only a
+program on the typed engine has it.
+
+The arena holds nearly everything a program remembers, so a restart is mostly one copy. `finish()` keeps the arena's
+bytes as they stand once every POU has started (`TypedProgram.built`), and `rewind()`
+([typed/pou.ts](../src/plc/typed/pou.ts)) copies them back. Three things live outside the arena and are put back by
+hand: each motion kernel's plan (`TypedProgram.motion`), the method stack's top, and the clocks the program builders
+keep ([pou.ts](../src/plc/pou.ts)).
+
+**Anything new a program remembers between scans goes in the arena, or is put back in `rewind()`.** State kept
+elsewhere and left out survives a restart, and nothing fails until a run after one differs from a first run.
+[restart.test.ts](../src/plc/restart.test.ts) is the check: every corpus program is run, written to at random,
+restarted and run again, and the second run must match a newly compiled program's.
+
+A restart renews the program only. The scheduler's phase, the process image, a link's bindings and its held outputs
+belong to what was built around the program, and a host builds those again (`PlcHost.restart`). The simulator
+restarts a controller for a second run of the same programs, where it used to compile them again
+([src/plc/DEVICE-IO.md](../src/plc/DEVICE-IO.md), "A second run restarts the controller it had").
+
 ## Verification
 
 1. `npm test`: the oracle compares the walker against the typed engine on the conformance corpus,
@@ -185,7 +207,9 @@ from the keys alone is kept per key set (core/watchKeys.ts), not per table.
 5. `npm run bench-sim` on a real line: the fingerprint must not move across an engine change.
 6. The watch plan ([watchPlan.test.ts](../src/plc/watchPlan.test.ts)): for every program of the corpus, after every
    scan, the table read from a copy of the arena through the plan is the table `watch` builds, key for key in order.
-7. The size budget ([largeWatchBudget.test.ts](../src/editor/program/largeWatchBudget.test.ts)): on half a million
+7. The restart ([restart.test.ts](../src/plc/restart.test.ts)): for every program of the corpus, the scans after a
+   restart are a newly compiled program's, everything it holds compared after each.
+8. The size budget ([largeWatchBudget.test.ts](../src/editor/program/largeWatchBudget.test.ts)): on half a million
    values, the readers index a program's table once and the wiring check reads it once.
 
 These checks fail on each layout bug they exist for: wrong strides, addresses without their base, an in-out read

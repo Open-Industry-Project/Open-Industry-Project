@@ -54,6 +54,26 @@ one. A frame's watch table is a copy of the program's memory taken between two s
 The project-test runner and `bench-sim` scan on one thread. Gated by `plcThread.test.ts` (the hand-over, with both
 ends on one thread) and `e2e/verify-plc-thread.mjs` (the two workers, in a browser).
 
+### A second run restarts the controller it had
+
+When a run ends without a fault, the sim worker keeps its controller: the compiled programs, and their worker when
+they scan on one ([`src/sim/worker.ts`](../sim/worker.ts) `parked`). The next run of the same programs on the same
+controllers restarts it (`PlcGroup.restart`): each program goes back as it was when compiled
+([docs/plc-typed-storage.md](../../docs/plc-typed-storage.md), "Restart"), and the link, the controller and the
+scheduler around it are made again on that run's scan time and wiring. The run is the run a newly compiled
+controller makes.
+
+- **What it gains.** Nothing is compiled, and the programs scan on the code the last run left optimised. Measured on
+  a generated 6,000-line program: 336 ms to compile against 0.4 ms to restart, 35 ms for the first step's scans
+  against 0.9 ms, and 0.7 to 0.8 ms a step over the first six seconds against 0.4 ms.
+- **When not.** A run that ended in a fault, other program text, other controllers, and a program on the walker
+  engine are compiled as on a first run. One controller is kept, and any other run ends it. The first run after a
+  program edit is a first run.
+- **How it shows.** `StepStats.plcKept`.
+
+Gated by the restart cases of `plcGroup.test.ts` and `plcThread.test.ts`, and by the third run of
+`e2e/verify-plc-thread.mjs`.
+
 ## The device-IO tag bridge (the whole bus)
 
 An SDK part's behavior reads and writes PLC tags **by name**: `ctx.readTag`/`writeTag` (BOOL) and

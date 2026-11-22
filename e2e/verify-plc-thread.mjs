@@ -1,7 +1,8 @@
 ﻿// The controller on a worker of its own (src/sim/plcThread.ts), in the browser. plcThread.test.ts holds the
 // hand-over to what a controller on the sim worker does, with both ends on one thread. Only a browser has the two
 // workers: this checks that a program scans over there, that parts and program reach each other across it, that a
-// force and a fault cross it, and that Stop and a second run leave nothing behind. The same run with ?plcthread=0
+// force and a fault cross it, that Stop and a second run leave nothing behind, and that a run after a clean Stop
+// restarts the controller it had (sim/worker.ts). The same run with ?plcthread=0
 // must come out the same, apart from where it scanned.
 // Run: node e2e/verify-plc-thread.mjs [--headed]
 /* global process, console, window, localStorage */
@@ -98,6 +99,23 @@ async function run(browser, query, threaded) {
     await page.evaluate(() => window.__oip.controller.run())
     const second = await page.waitForFunction(() => (window.__oip.controller.plcWatch?.Count ?? 0) > 20 && window.__oip.controller.programStatus?.attached === true, null, { timeout: 60000 }).then(() => true, () => false)
     check(`${label}: a second run scans from the start`, second)
+    check(`${label}: ...on a controller compiled for it, the last run having ended in a fault`, (await stats(page)).plcKept !== true)
+
+    // Stop with nothing wrong, and a third run: the controller of the second is kept and restarted, not compiled
+    await page.waitForFunction(() => (window.__oip.controller.plcWatch?.Count ?? 0) > 300, null, { timeout: 30000 })
+    const counted = await page.evaluate(() => window.__oip.controller.plcWatch.Count)
+    await page.evaluate(() => window.__oip.controller.stop())
+    await page.waitForFunction(() => window.__oip.store.getState().running === false, null, { timeout: 15000 })
+    await page.evaluate(() => window.__oip.controller.run())
+    const fromZero = await page.waitForFunction((n) => { const c = window.__oip.controller.plcWatch?.Count ?? 0; return c > 0 && c < n && window.__oip.controller.programStatus?.attached === true }, counted, { timeout: 60000 }).then(() => true, () => false)
+    check(`${label}: a third run counts from the start again`, fromZero, `the second run had counted ${counted}`)
+    const third = await stats(page)
+    check(`${label}: ...on the controller the second run had`, third.plcKept === true && (third.plcThread === true) === threaded, `plcKept ${third.plcKept}, plcThread ${third.plcThread}`)
+    const echoedAgain = await page.waitForFunction(() => window.__oip.controller.plcWatch?.Echo === true, null, { timeout: 15000 }).then(() => true, () => false)
+    check(`${label}: ...which runs the belt and reads its answer`, echoedAgain)
+    await page.evaluate(() => window.__oip.controller.forcePlcValue('Go', 'FALSE'))
+    const held = await page.waitForFunction(() => window.__oip.controller.plcWatch?.Go === false && window.__oip.controller.plcWatch?.Echo === false, null, { timeout: 15000 }).then(() => true, () => false)
+    check(`${label}: ...and takes a force`, held)
     check(`${label}: no page errors`, errors.length === 0, errors.slice(0, 3).join(' | '))
   } finally {
     await page.close()

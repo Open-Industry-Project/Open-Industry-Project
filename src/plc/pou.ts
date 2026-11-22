@@ -247,7 +247,7 @@ function wireable(d: Decl): boolean {
 
 /** A program with no CONFIGURATION: one program, no tasks, its variables under their bare names, and its
  *  located variables under their addresses. */
-export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: PouBuilder, globalPou: Pou | null, globalDecls: readonly Decl[]): CompiledProgram {
+export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: PouBuilder, globalPou: Pou | null, globalDecls: readonly Decl[], rewind?: () => void): CompiledProgram {
   const pou = build(main.decls, main.body)
   const located = locatedBindings([
     { pou: globalPou, decls: globalDecls },
@@ -325,6 +325,13 @@ export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: Po
     scanTask(): void {
       throw new Error('a program with no CONFIGURATION has no tasks; scan() runs it')
     },
+    ...(rewind && {
+      restart(): void {
+        // (no value shows this: every reader of the clock takes a difference from a reading it kept)
+        clock = 0
+        rewind()
+      },
+    }),
   }
 }
 
@@ -334,7 +341,7 @@ export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: Po
  * host reads (inputs, outputs, watch, get, setInput); the globals and the controller's tags keep their
  * bare names, and a tag's VAR_INPUT / VAR_OUTPUT puts it on the inputs or outputs like any variable.
  */
-export function configuredProgram(ast: Ast, build: PouBuilder, globalPou: Pou | null): CompiledProgram {
+export function configuredProgram(ast: Ast, build: PouBuilder, globalPou: Pou | null, rewind?: () => void): CompiledProgram {
   const config = ast.configuration!
   const tags = controllerTags(ast)
   const types = new Map(ast.programDefs.map((d) => [identKey(d.name), d]))
@@ -471,5 +478,11 @@ export function configuredProgram(ast: Ast, build: PouBuilder, globalPou: Pou | 
       if (!tasks[index]) throw new Error(`no task ${index}: this controller has ${tasks.length}`)
       runTask(index, dt)
     },
+    ...(rewind && {
+      restart(): void {
+        clocks.fill(0)
+        rewind()
+      },
+    }),
   }
 }

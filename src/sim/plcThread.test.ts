@@ -243,3 +243,72 @@ describe('the controller on a worker of its own', () => {
     }
   })
 })
+
+describe('the controller on a worker of its own, kept for another run', () => {
+  /** `steps` steps on `thread`, as the step loop makes them; what the world was handed */
+  const run = (thread: PlcThread, steps: number): Record<string, number | boolean>[] => {
+    const world = new StubWorld()
+    for (let i = 0; i < steps; i++) {
+      thread.beforeStep(world, 0.01)
+      world.writes = writesAt(i)
+      thread.afterParts(world, 0.01)
+      world.stepCount++
+    }
+    thread.beforeStep(world, 0.01)
+    return world.handed
+  }
+
+  it('restarted, hands a new world what a controller built for it hands it', () => {
+    const { thread, group } = threaded()
+    // a run that ends with scans asked for and never waited on, a force held and a command sent
+    const world = new StubWorld()
+    for (let i = 0; i < 23; i++) {
+      thread.beforeStep(world, 0.01)
+      world.writes = writesAt(i)
+      thread.afterParts(world, 0.01)
+      world.stepCount++
+    }
+    thread.setForces({ Run: true })
+    expect(thread.restart(RUNS)).toBe(true)
+    expect(group.snapshot().scansRun).toBe(0)
+    expect(thread.snapshot().scansRun).toBe(0)
+    expect(thread.perf.scans).toBe(0)
+    const again = run(thread, 40)
+    expect(again).toEqual(runHere(40).handed)
+    expect(again.length).toBeGreaterThan(5)
+  })
+
+  it('restarted on another scan time, scans on it', () => {
+    const slow = [{ controller: null, source: PROGRAM, periodSec: 0.02 }]
+    const { thread } = threaded()
+    run(thread, 15)
+    expect(thread.restart(slow)).toBe(true)
+    const fresh = threaded(slow)
+    expect(run(thread, 40)).toEqual(run(fresh.thread, 40))
+    expect(thread.snapshot().scanTimes[0]!.periodSec).toBe(0.02)
+  })
+
+  it('a run that ended in a fault restarts clean', () => {
+    const faulting = [{ controller: null, source: `VAR_INPUT Eye : BOOL; END_VAR
+VAR_OUTPUT N : DINT; END_VAR
+VAR A : ARRAY[0..3] OF INT; I : INT; END_VAR
+N := N + 1;
+A[I] := 1;
+I := I + 1;
+`, periodSec: 0.01 }]
+    const first = threaded(faulting)
+    expect(() => run(first.thread, 20)).toThrow(PlcThreadFault)
+    expect(first.thread.restart(faulting)).toBe(true)
+    // the same four scans and the same fault, as a controller built now makes them
+    const world = new StubWorld()
+    world.stepCount = 1
+    first.thread.beforeStep(world, 0.01)
+    expect(world.handed.at(-1)).toMatchObject({ N: 1 })
+  })
+
+  it('stopped, does not restart', () => {
+    const { thread } = threaded()
+    thread.stop()
+    expect(thread.restart(RUNS)).toBe(false)
+  })
+})

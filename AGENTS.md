@@ -188,7 +188,9 @@ projectTestsRun.ts); eslint enforces both.
   `Array`) in generated source: bind it in `helpersFor`. Program text from a room becomes code, so every name and
   literal enters the source through `JSON.stringify`. Measure with `npm run bench-sim -- <project> [--engine walker]`
   (fingerprint must not move), A/B in one process for anything under ~20%, and never lower a
-  [scanSpeed.test.ts](src/plc/scanSpeed.test.ts) floor to make it pass.
+  [scanSpeed.test.ts](src/plc/scanSpeed.test.ts) floor to make it pass. Anything a program remembers between scans
+  goes in the arena, or is put back in `rewind()` ([typed/pou.ts](src/plc/typed/pou.ts)): a second run of a program
+  restarts the controller it had, and state left out carries into that run. Gated by `restart.test.ts`.
 - **A reader of the open program asks the program worker; it does not check or compile on the page.** Checking costs
   about 19 ms per thousand lines and compiling about 30, and readers run at every pause in typing and every scene
   edit. [programWorkerClient.ts](src/editor/program/programWorkerClient.ts) answers three questions off the main

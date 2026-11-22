@@ -305,6 +305,20 @@ export class LocalPlcLink implements PlcLink {
     return new LocalPlcLink(this.prog, wired)
   }
 
+  /**
+   * The compiled program put back as it was when compiled (CompiledProgram.restart), behind a new link with
+   * `wired`'s bindings: nothing this link held (its forces, its last outputs) goes with it. Null when the program
+   * cannot restart ({@link restartable}), and then nothing has changed. This link is not to be used after it.
+   */
+  get restartable(): boolean {
+    return this.prog.restart !== undefined
+  }
+  restarted(wired: WiredBindings): LocalPlcLink | null {
+    if (!this.prog.restart) return null
+    this.prog.restart()
+    return new LocalPlcLink(this.prog, wired)
+  }
+
   /** What a scene may bind by wiring (CompiledProgram.bindable), each with its bare {@link aliases alias} when it has one. */
   get bindable(): string[] {
     return withAliases(this.prog.bindable, this.aliases)

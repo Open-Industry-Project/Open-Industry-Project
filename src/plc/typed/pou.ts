@@ -13,6 +13,7 @@ import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from
 import type { WatchRange, WatchShape } from '../../core/watchTable'
 import { Arena, watchKindOf } from './arena'
 import { blocksOver } from './blocks'
+import type { MotionChannel } from '../motionChannel'
 import { CLASS_FIELD, type Layouts, OWN_COPY, type PouLayout, type ScalarLayout, type TypeLayout, TypedUnsupported } from './layout'
 
 /** What every typed POU of one program shares: its layouts, its arena (made once every POU has its region), where the
@@ -46,6 +47,23 @@ export interface TypedProgram {
   stackBase: number
   sp: number
   depth: number
+  /** each motion kernel instance's plan, by the instance's address (typed/blocks.ts): state the arena does not hold */
+  readonly motion: Map<number, MotionChannel>
+  /** the arena as finish() left it, every POU started and nothing scanned: what a restart copies back */
+  built: Uint8Array | null
+}
+
+/**
+ * The program back as it was when compiled (CompiledProgram.restart). The arena holds every variable, block instance
+ * and frame, so copying its first bytes back is most of it. State kept outside the arena is put back here by hand,
+ * and anything new kept outside it has to be added here: restart.test.ts runs every corpus program, restarts it and
+ * holds the scans after to a newly compiled program's.
+ */
+export function rewind(tp: TypedProgram): void {
+  tp.arena!.U8.set(tp.built!)
+  tp.motion.clear()
+  tp.sp = tp.stackBase
+  tp.depth = 0
 }
 
 /** A region of `bytes`, aligned for any scalar. */
@@ -66,7 +84,7 @@ export function finish(tp: TypedProgram): void {
     strCopy: (dst: number, cap: number, src: number) => arena.strCopy(dst, cap, src),
     copyBytes: (dst: number, src: number, n: number) => arena.copy(dst, src, n),
     clearAt: (dst: number, ranges: readonly number[]) => arena.clear(dst, ranges),
-    ...blocksOver(arena),
+    ...blocksOver(arena, tp.motion),
   }
   for (const p of tp.pous) p.start()
   // every block body any of them can reach, generated now: a construct the typed engine cannot run refuses the program
@@ -76,6 +94,7 @@ export function finish(tp: TypedProgram): void {
   for (let pending = unready(); pending.length; pending = unready()) {
     for (const f of pending) f.prepare()
   }
+  tp.built = arena.U8.slice()
 }
 
 /** The bytes of the method stack: room for MAX_CALL_DEPTH frames of the largest method any class has. */

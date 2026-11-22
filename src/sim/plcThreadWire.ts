@@ -273,6 +273,8 @@ export type PlcCommand =
   | { do: 'setPeriod'; periodSec: number }
   | { do: 'rebind'; wired: unknown; controller: string | null }
   | { do: 'resetScanTimes' }
+  /** another run of the same programs: every controller as attached, on each run's scan time and wiring (PlcGroup.restart) */
+  | { do: 'restart'; runs: { periodSec?: number; wired?: unknown }[] }
 
 /** A scan's fault as it crosses: an StError's message and place. */
 export interface PlcFaultText {

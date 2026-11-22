@@ -42,6 +42,15 @@ function prefixed(tags: Readonly<Record<string, TagValue>>, controller: string):
   return out
 }
 
+/** Whether two lists of runs are the same programs on the same controllers: what a controller built from one may be
+ *  restarted for the other on (PlcGroup.restart). Their scan times and wiring may differ. */
+export function samePrograms(a: readonly PlcRun[], b: readonly PlcRun[]): boolean {
+  return a.length === b.length && a.every((r, i) => r.controller === b[i]!.controller && r.source === b[i]!.source && (r.instances ?? []).join(',') === (b[i]!.instances ?? []).join(','))
+}
+
+/** What a restart takes of each run, in the order the group was built from them. */
+export type PlcRerun = Pick<PlcRun, 'periodSec' | 'wired'>
+
 export class PlcGroup {
   readonly #members: Member[]
   // the world of the step being interleaved, and its tag writes, read once for every host
@@ -57,6 +66,23 @@ export class PlcGroup {
       m.port = this.#portFor(m)
       return m
     })
+  }
+
+  /**
+   * Every controller as it was when attached, for another run of the same programs ({@link samePrograms}, which the
+   * caller has checked): each program back as compiled and its host made again on that run's scan time and wiring
+   * (PlcHost.restart). Nothing is compiled. False when a program cannot restart, and then nothing has changed.
+   */
+  restart(runs: readonly PlcRerun[]): boolean {
+    if (runs.length !== this.#members.length || !this.#members.every((m) => m.host.restartable)) return false
+    this.#members.forEach((m, i) => {
+      faultsNamed(m.controller, () => m.host.restart(runs[i]!.periodSec, runs[i]!.wired))
+      m.out = {}
+    })
+    this.#world = null
+    this.#writes = null
+    this.#dirty = false
+    return true
   }
 
   /** The port a host reads and writes the world through: its own tags in, its outputs collected for the merge. */
