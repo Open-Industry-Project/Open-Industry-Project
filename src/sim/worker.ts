@@ -8,6 +8,7 @@ import { setPartCallBeacon } from '../core/parts/partScript'
 import { DEFAULT_SIM_HZ } from '../core/types'
 import type { SceneJSON } from '../core/types'
 import { StError } from '../plc'
+import { setScanEngine } from '../plc/interpreter'
 import { catchUpSteps } from './catchUp'
 import { WATCH_HZ } from './plcHost'
 import { PlcGroup, samePrograms, type PlcRun } from './plcGroup'
@@ -223,7 +224,11 @@ const forceJsListener = self.name.includes('-jsconv')
 const perfParts = self.name.includes('-perfparts')
 // ?plcthread - put the controller on a worker of its own whatever the program's size, or (?plcthread=0) never
 // (plcThread.ts plcThreadWanted). Without it the controller goes there wherever it can.
-const plcThreadMode = self.name.includes('-noplcthread') ? 'off' : self.name.includes('-plcthread') ? 'on' : 'auto'
+// ?plcengine=walker - compile every program on the walker (sim/client.ts), and on this worker: the controller's own
+// worker compiles for itself, on the typed engine.
+const walkerEngine = self.name.includes('-walker')
+if (walkerEngine) setScanEngine('walker')
+const plcThreadMode = walkerEngine || self.name.includes('-noplcthread') ? 'off' : self.name.includes('-plcthread') ? 'on' : 'auto'
 const spawnPlcThread = (): PlcThreadWorker => new Worker(new URL('./plcThread.worker.ts', import.meta.url), { type: 'module', name: 'plc' }) as unknown as PlcThreadWorker
 
 function getJolt(): Promise<JoltModule> {

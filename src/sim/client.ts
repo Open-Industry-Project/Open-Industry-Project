@@ -123,7 +123,10 @@ export class SimClient {
     // ?plcthread puts the controller on a worker of its own whatever the program's size, ?plcthread=0 keeps it on
     // the sim worker (sim/plcThread.ts). Without either it goes there wherever it can.
     const plcThread = !params?.has('plcthread') ? '' : params.get('plcthread') === '0' ? '-noplcthread' : '-plcthread'
-    const name = `jolt${params?.has('joltthreads') ? '-threads' : ''}${params?.has('joltraw') ? '-raw' : ''}${params?.has('jsconveyor') ? '-jsconv' : ''}${params?.has('perfparts') ? '-perfparts' : ''}${plcThread}`
+    // ?plcengine=walker runs the program on the walker, the typed engine's reference (plc/interpreter.ts), to tell a
+    // fault of a device's WebAssembly engine from one of the program
+    const walker = params?.get('plcengine') === 'walker' ? '-walker' : ''
+    const name = `jolt${params?.has('joltthreads') ? '-threads' : ''}${params?.has('joltraw') ? '-raw' : ''}${params?.has('jsconveyor') ? '-jsconv' : ''}${params?.has('perfparts') ? '-perfparts' : ''}${plcThread}${walker}`
     const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module', name })
     if (typeof SharedArrayBuffer !== 'undefined' && globalThis.crossOriginIsolated === true) {
       this.beacon = new SharedArrayBuffer(PART_CALL_BEACON_BYTES)

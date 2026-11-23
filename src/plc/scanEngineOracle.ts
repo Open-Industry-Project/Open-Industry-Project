@@ -7,7 +7,7 @@
 // through the tag surface the scene, an HMI and the tag editor use (setInput, which reaches struct fields, array
 // elements and bits), which is what catches generated code that kept hold of something a write replaced.
 //
-// Test support, not app code: nothing outside the specs imports it.
+// Test support. The one caller in the app is the run log's device check (editor/engineCheck.ts), fetched with ?runlog.
 
 import { compile, setScanEngine, type ScanEngine } from './interpreter'
 import { TaskScheduler } from './scanEngine'

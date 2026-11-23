@@ -51,6 +51,13 @@ every message the page sent the sim worker, touches, the page being hidden, and 
 result is JSON to paste. Record the same scene on a device where it goes right and compare the two: the first change
 or message they disagree on is where to look. It records and never steers the run.
 
+On Stop it also checks the device's PLC engine ([src/editor/engineCheck.ts](../src/editor/engineCheck.ts)): a timer
+program and the open project's program each run on the typed engine and on the walker for thousands of scans, every
+variable compared after every scan, and the log's `about.engineCheck` lists any difference. A program's bodies are
+compiled again by each device's own WebAssembly engine, so this is the one place the two engines are compared on the
+device itself. It takes from a few seconds to a minute. `?plcengine=walker` runs a project on the walker instead: a
+run that goes wrong on the typed engine and right on the walker is a fault of the engine, not of the program.
+
 ## Input latency
 
 `?bench` measures frames with nobody touching the page. For the time from an input to the screen answering, run
