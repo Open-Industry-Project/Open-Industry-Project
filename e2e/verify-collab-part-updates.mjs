@@ -11,12 +11,12 @@
 //
 // Run: node e2e/verify-collab-part-updates.mjs [--headed]
 /* global process, console, setTimeout, window, document, localStorage */
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { chromium } from 'playwright'
 import { freePort } from './_port.mjs'
+import { startCollabServer } from './_collabServer.mjs'
 import { startServer } from './_server.mjs'
 import { editSecret, markSeeder } from './_collabRoom.mjs'
 
@@ -30,22 +30,7 @@ const check = (n, ok, info = '') => {
 // --- collab server on a free port; the client picks it up via VITE_COLLAB_URL ---
 const collabPort = await freePort()
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
-const collab = spawn('node', ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: join(tmpdir(), `oip-collab-part-updates-${collabPort}.sqlite`) },
-  shell: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
-collab.stderr.on('data', (d) => process.stderr.write(`[collab] ${d}`))
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-  collab.stdout.on('data', (d) => {
-    if (String(d).includes('listening')) {
-      clearTimeout(t)
-      resolve()
-    }
-  })
-})
+const collab = await startCollabServer({ port: collabPort, dbPath: join(tmpdir(), `oip-collab-part-updates-${collabPort}.sqlite`) })
 // isolated: VITE_COLLAB_URL is read by the dev server's config, so a shared server would point at the wrong room server
 const { url: APP_URL, vite } = await startServer({ isolated: true })
 const ROOM = editSecret(`verify-part-updates-${collabPort}`)

@@ -9,7 +9,6 @@
 //
 // Run: node e2e/verify-collab-room-assets.mjs [--headed]
 /* global process, console, setTimeout */
-import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -17,6 +16,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { chromium } from 'playwright'
+import { startCollabServer } from './_collabServer.mjs'
 import { freePort } from './_port.mjs'
 import { startServer } from './_server.mjs'
 import { docNameFor, editSecret, markSeeder } from './_collabRoom.mjs'
@@ -35,22 +35,7 @@ const work = mkdtempSync(join(tmpdir(), `oip-room-assets-${collabPort}-`))
 const dbPath = join(work, 'collab.sqlite')
 const assetDir = join(work, 'assets')
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
-const collab = spawn('node', ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: dbPath, ASSET_DIR: assetDir },
-  shell: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
-collab.stderr.on('data', (d) => process.stderr.write(`[collab] ${d}`))
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-  collab.stdout.on('data', (d) => {
-    if (String(d).includes('listening')) {
-      clearTimeout(t)
-      resolve()
-    }
-  })
-})
+const collab = await startCollabServer({ port: collabPort, dbPath: dbPath, env: { ASSET_DIR: assetDir } })
 
 // isolated: VITE_COLLAB_URL is read when vite starts, and a shared server would point at the default collab server
 const { url: APP_URL, vite } = await startServer({ isolated: true })

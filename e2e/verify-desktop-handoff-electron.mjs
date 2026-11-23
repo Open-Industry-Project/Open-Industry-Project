@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
 import { _electron, chromium } from 'playwright'
+import { startCollabServer } from './_collabServer.mjs'
 import { startServer } from './_server.mjs'
 
 const require = createRequire(import.meta.url)
@@ -53,15 +54,7 @@ const freePort = () =>
 // ── the collab server, and a dev server pointed at it ──
 const collabPort = await freePort()
 const tmp = mkdtempSync(join(tmpdir(), 'oip-handoff-'))
-const collab = spawn(process.execPath, ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: join(tmp, 'db.sqlite') },
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-  collab.stdout.on('data', (d) => String(d).includes('listening') && (clearTimeout(t), resolve()))
-})
+const collab = await startCollabServer({ port: collabPort, dbPath: join(tmp, 'db.sqlite') })
 const collabUrl = `ws://localhost:${collabPort}`
 // read by the vite config, so the dev server must be this script's own (isolated), not a shared one
 process.env.VITE_COLLAB_URL = collabUrl

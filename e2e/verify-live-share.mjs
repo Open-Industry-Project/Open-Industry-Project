@@ -16,12 +16,12 @@
 //
 // Run: node e2e/verify-live-share.mjs [--headed]
 /* global process, console, window, document, localStorage, location, navigator, URL, setTimeout, clearTimeout */
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { chromium } from 'playwright'
 import { freePort } from './_port.mjs'
+import { startCollabServer } from './_collabServer.mjs'
 import { startServer } from './_server.mjs'
 import { docNameFor } from './_collabRoom.mjs'
 
@@ -37,24 +37,10 @@ function check(name, ok, info = '') {
 const collabPort = await freePort()
 const dbPath = join(tmpdir(), `oip-collab-live-${collabPort}.sqlite`)
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
-const collab = spawn('node', ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: dbPath },
-  shell: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
+const collab = await startCollabServer({ port: collabPort, dbPath })
 let collabLog = ''
 collab.stderr.on('data', (d) => (collabLog += String(d)))
 collab.stdout.on('data', (d) => (collabLog += String(d)))
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-  collab.stdout.on('data', (d) => {
-    if (String(d).includes('listening')) {
-      clearTimeout(t)
-      resolve()
-    }
-  })
-})
 
 const { url: APP_URL } = await startServer({ isolated: true })
 

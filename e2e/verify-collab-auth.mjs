@@ -11,7 +11,7 @@
 //
 // Run: node e2e/verify-collab-auth.mjs
 /* global process, console, setTimeout, fetch */
-import { spawn } from 'node:child_process'
+import { startCollabServer } from './_collabServer.mjs'
 import { createHash } from 'node:crypto'
 import { mkdtempSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -41,22 +41,7 @@ const check = (name, ok, info = '') => {
 
 const port = await freePort()
 const dbPath = join(mkdtempSync(join(tmpdir(), 'oip-collab-smoke-')), 'db.sqlite')
-const server = spawn(process.execPath, ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(port), DB_PATH: dbPath },
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
-server.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`))
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('server did not start')), 15000)
-  server.stdout.on('data', (d) => {
-    process.stdout.write(`[server] ${d}`)
-    if (String(d).includes('listening')) {
-      clearTimeout(t)
-      resolve()
-    }
-  })
-})
+const server = await startCollabServer({ port: port, dbPath: dbPath, log: true })
 
 const url = `ws://localhost:${port}`
 const secret = 'e-11111111-2222-3333-4444-555555555555'

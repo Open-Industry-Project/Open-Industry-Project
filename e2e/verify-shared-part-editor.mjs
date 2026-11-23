@@ -11,12 +11,12 @@
 //
 // Run: node e2e/verify-shared-part-editor.mjs [--headed]
 /* global process, console, window, localStorage, URL, setTimeout, clearTimeout */
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { chromium } from 'playwright'
 import { freePort } from './_port.mjs'
+import { startCollabServer } from './_collabServer.mjs'
 import { startServer } from './_server.mjs'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
@@ -30,21 +30,7 @@ function check(name, ok, info = '') {
 
 const collabPort = await freePort()
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
-const collab = spawn('node', ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: join(tmpdir(), `oip-collab-part-editor-${collabPort}.sqlite`) },
-  shell: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-  collab.stdout.on('data', (d) => {
-    if (String(d).includes('listening')) {
-      clearTimeout(t)
-      resolve()
-    }
-  })
-})
+const collab = await startCollabServer({ port: collabPort, dbPath: join(tmpdir(), `oip-collab-part-editor-${collabPort}.sqlite`) })
 const { url: APP_URL } = await startServer({ isolated: true })
 
 const waitForApp = (page) => page.waitForFunction(() => !!(window.__oip && window.__oip.store && window.__oip.controller), undefined, { timeout: 120000, polling: 500 })

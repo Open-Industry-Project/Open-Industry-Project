@@ -18,11 +18,12 @@
 // teardown that calls vite.kill() or reads vite.pid stays valid either way (the
 // shared server's lifecycle is owned by `npm run e2e:server`, so tearing it
 // down here is intentionally a no-op).
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { freePort } from './_port.mjs'
+import { installCleanup, spawnedPids, treeKill } from './_procs.mjs'
 // Side-effect import: patches playwright's entry points so every page this script opens is watched
 // for uncaptured WebGPU device errors and reports at exit (e2e/_gpuGuard.mjs). It is imported here
 // because every e2e script imports this module, and the failure it catches is invisible to a gate's
@@ -66,37 +67,6 @@ async function isAlive(url, timeoutMs = 1500) {
     return res.ok
   } catch {
     return false
-  }
-}
-
-// PIDs of vite servers we cold-started, so we can guarantee teardown even if a
-// script forgets to kill, kills wrong, or crashes before its finally block.
-const spawnedPids = new Set()
-
-// vite is spawned as a direct node child (no shell), but taskkill /T still tears
-// down anything it started, synchronously, so the port frees before we exit.
-function treeKill(pid) {
-  if (!pid) return
-  spawnedPids.delete(pid)
-  if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
-  } else {
-    try { process.kill(-pid, 'SIGKILL') } catch { /* already gone */ }
-    try { process.kill(pid, 'SIGKILL') } catch { /* already gone */ }
-  }
-}
-
-// Safety net: whatever a script does (or fails to do) in its own teardown, kill
-// every server we started when this process exits. exit handlers must be sync -
-// taskkill /F is, so the port is freed before the node process is gone.
-let cleanupInstalled = false
-function installCleanup() {
-  if (cleanupInstalled) return
-  cleanupInstalled = true
-  const killAll = () => { for (const pid of [...spawnedPids]) treeKill(pid) }
-  process.on('exit', killAll)
-  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-    process.on(sig, () => { killAll(); process.exit(1) })
   }
 }
 

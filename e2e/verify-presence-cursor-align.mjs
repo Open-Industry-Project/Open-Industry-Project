@@ -15,12 +15,12 @@
 //
 // Run: node e2e/verify-presence-cursor-align.mjs [--headed]
 /* global process, console, setTimeout, clearTimeout, URL, window, document */
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { rmSync } from 'node:fs'
 import { chromium } from 'playwright'
+import { startCollabServer } from './_collabServer.mjs'
 import { freePort } from './_port.mjs'
 import { startServer } from './_server.mjs'
 import { editSecret, markSeeder } from './_collabRoom.mjs'
@@ -42,22 +42,7 @@ function check(name, ok, info = '') {
 const collabPort = await freePort()
 const dbPath = join(tmpdir(), `oip-collab-cursor-${collabPort}.sqlite`)
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
-const collab = spawn('node', ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: dbPath },
-  shell: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
-collab.stderr.on('data', (d) => process.stderr.write(`[collab] ${d}`))
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-  collab.stdout.on('data', (d) => {
-    if (String(d).includes('listening')) {
-      clearTimeout(t)
-      resolve()
-    }
-  })
-})
+const collab = await startCollabServer({ port: collabPort, dbPath: dbPath })
 
 // isolated: a shared `npm run e2e:server` was booted without our VITE_COLLAB_URL, so attaching to
 // it would point both clients at the production collab server and this gate would test nothing

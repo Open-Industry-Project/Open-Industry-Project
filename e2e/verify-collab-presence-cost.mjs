@@ -27,7 +27,6 @@
 // time); the rebuild counts are deterministic and are what fail this gate.
 //
 // Run: node e2e/verify-collab-presence-cost.mjs [--headed] [hz]
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
@@ -35,6 +34,7 @@ import { rmSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
+import { startCollabServer } from './_collabServer.mjs'
 import { freePort } from './_port.mjs'
 import { startServer } from './_server.mjs'
 import { docNameFor, editSecret, markSeeder } from './_collabRoom.mjs'
@@ -47,15 +47,7 @@ const SECS = 4
 const collabPort = await freePort()
 const dbPath = join(tmpdir(), `oip-recvcost-${collabPort}.sqlite`)
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
-const collab = spawn('node', ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: dbPath },
-  shell: true, stdio: ['ignore', 'pipe', 'pipe'],
-})
-await new Promise((res, rej) => {
-  const t = setTimeout(() => rej(new Error('collab did not start')), 15000)
-  collab.stdout.on('data', (d) => { if (String(d).includes('listening')) { clearTimeout(t); res() } })
-})
+const collab = await startCollabServer({ port: collabPort, dbPath: dbPath })
 const { url: APP_URL, vite } = await startServer({ isolated: true })
 const ROOM = editSecret(`recvcost-${collabPort}`)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))

@@ -9,11 +9,11 @@
 //
 // Run: node e2e/verify-collab-room-copy.mjs [--headed]
 /* global process, console, window, indexedDB, localStorage, URL, setTimeout, clearTimeout */
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { chromium } from 'playwright'
+import { startCollabServer } from './_collabServer.mjs'
 import { freePort } from './_port.mjs'
 import { startServer } from './_server.mjs'
 import { editSecret, markSeeder } from './_collabRoom.mjs'
@@ -30,21 +30,7 @@ function check(name, ok, info = '') {
 const collabPort = await freePort()
 const dbPath = join(tmpdir(), `oip-collab-copy-${collabPort}.sqlite`)
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
-const collab = spawn('node', ['index.mjs'], {
-  cwd: join(here, '..', 'server'),
-  env: { ...process.env, PORT: String(collabPort), DB_PATH: dbPath },
-  shell: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-})
-await new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-  collab.stdout.on('data', (d) => {
-    if (String(d).includes('listening')) {
-      clearTimeout(t)
-      resolve()
-    }
-  })
-})
+const collab = await startCollabServer({ port: collabPort, dbPath: dbPath })
 
 // isolated: VITE_COLLAB_URL is set above and a shared server was started without it (see _server.mjs)
 const { url: APP_URL, vite } = await startServer({ isolated: true })

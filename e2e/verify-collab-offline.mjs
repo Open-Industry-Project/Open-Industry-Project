@@ -4,12 +4,12 @@
 //
 // Run: node e2e/verify-collab-offline.mjs [--headed]
 /* global process, console, window, localStorage, setTimeout, clearTimeout */
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { chromium } from 'playwright'
 import { freePort } from './_port.mjs'
+import { startCollabServer } from './_collabServer.mjs'
 import { startServer } from './_server.mjs'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
@@ -25,21 +25,7 @@ const collabPort = await freePort()
 const dbPath = join(tmpdir(), `oip-collab-offline-${collabPort}.sqlite`)
 process.env.VITE_COLLAB_URL = `ws://localhost:${collabPort}`
 /** the collab server, started again on the same port and database to come back */
-const startCollab = () =>
-  new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['index.mjs'], {
-      cwd: join(here, '..', 'server'),
-      env: { ...process.env, PORT: String(collabPort), DB_PATH: dbPath },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    const t = setTimeout(() => reject(new Error('collab server did not start')), 15000)
-    child.stdout.on('data', (d) => {
-      if (String(d).includes('listening')) {
-        clearTimeout(t)
-        resolve(child)
-      }
-    })
-  })
+const startCollab = () => startCollabServer({ port: collabPort, dbPath })
 let collab = await startCollab()
 const { url: APP_URL } = await startServer({ isolated: true })
 
