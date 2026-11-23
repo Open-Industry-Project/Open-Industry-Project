@@ -1140,6 +1140,8 @@ export class Emitter {
     this.w = main.code
     subs.forEach((_, i) => calls.push(i))
     const nImports = this.imports.size
+    // the scan's clock is read from the program's global, not from the argument (scanWasmBase.ts Link.clock)
+    main.code.u8(0x23).uleb(0).u8(0x21).uleb(1)
     for (const i of calls) main.code.u8(0x20).uleb(0).u8(0x20).uleb(1).u8(0x20).uleb(2).u8(0x10).uleb(nImports + 1 + i).u8(0x04).u8(VOID).u8(0x0f).u8(0x0b)
     const all = [main, ...subs]
     const out = new Bytes().op(0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00)
@@ -1147,9 +1149,10 @@ export class Emitter {
     const types = new Bytes().uleb(this.#typeBytes.length)
     for (const t of this.#typeBytes) types.bytes(t)
     section(1, types)
-    const imports = new Bytes().uleb(this.imports.size + 2)
+    const imports = new Bytes().uleb(this.imports.size + 3)
     imports.name('e').name('mem').op(0x02, 0x00).uleb(1)
     imports.name('e').name('tbl').op(0x01, 0x70, 0x00).uleb(0)
+    imports.name('e').name('clk').op(0x03, F64, 0x01)
     for (const [name, im] of this.imports) imports.name('e').name(name).u8(0x00).uleb(im.type)
     section(2, imports)
     const funcs = new Bytes().uleb(all.length)
@@ -1178,7 +1181,7 @@ export class Emitter {
 
 /** One body as WebAssembly over the program's memory, with the generator's code for what is not written yet. */
 /** The module of `body` (and of `value`, an expression whose value it hands back) over the program's memory. */
-function instantiate(body: Stmt[], value: Expr | undefined, scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): { run: WasmBody; host: Host; memory: WebAssembly.Memory; bytes: number } {
+function instantiate(body: Stmt[], value: Expr | undefined, scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): { run: WasmBody; host: Host; memory: WebAssembly.Memory; link: Link; bytes: number } {
   const H = { ...HELPERS, ...extra }
   const memory = memoryOf((H as unknown as { U8: Uint8Array }).U8.buffer as ArrayBuffer)
   if (!memory) throw new Error('the program is not in a WebAssembly memory')
@@ -1187,20 +1190,36 @@ function instantiate(body: Stmt[], value: Expr | undefined, scope: GenScope, int
   em.internals = internals
   const bytes = em.module(body, value)
   const host: Host = { H, W: em.W, x: internals, text: '', args: [], texts: [] }
-  const env: Record<string, unknown> = { mem: memory, tbl: link.table }
+  const env: Record<string, unknown> = { mem: memory, tbl: link.table, clk: link.clock }
   for (const [name, im] of em.imports) env[name] = im.make(host)
   const run = new WebAssembly.Instance(new WebAssembly.Module(bytes as BufferSource), { e: env } as WebAssembly.Imports).exports.body as WasmBody
-  return { run, host, memory, bytes: bytes.length }
+  return { run, host, memory, link, bytes: bytes.length }
 }
 
 /** One body as WebAssembly over the program's memory. */
 export function generateWasmBody(body: Stmt[], scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): GenBody {
   const t0 = performance.now()
-  const { run, memory, bytes } = instantiate(body, undefined, scope, internals, extra)
+  const { run, memory, link, bytes } = instantiate(body, undefined, scope, internals, extra)
   wasmStats.bodies++
   wasmStats.bytes += bytes
   wasmStats.emitMs += performance.now() - t0
-  const made = ((b: number, now: number, m?: number) => run(b, now, m ?? 0)) as GenBody & { wasm?: WasmBody; memory?: WebAssembly.Memory }
+  // the clock goes by the program's global; the argument it once went by is zero (scanWasmBase.ts Link.clock)
+  const made = ((b: number, now: number, m?: number) => {
+    const was = link.now
+    if (was !== now) {
+      link.clock.value = now
+      link.now = now
+    }
+    link.depth++
+    try {
+      run(b, 0, m ?? 0)
+    } finally {
+      if (--link.depth > 0 && was !== now) {
+        link.clock.value = was
+        link.now = was
+      }
+    }
+  }) as GenBody & { wasm?: WasmBody; memory?: WebAssembly.Memory }
   made.wasm = run
   made.memory = memory
   return made

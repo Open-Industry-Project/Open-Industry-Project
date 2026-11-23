@@ -4,7 +4,7 @@
 // the value the last call gave it (runtime.ts). They do what runtime.ts's objects do, line for line - those stay the
 // walker's, so the oracle compares two implementations of every block (docs/plc-typed-storage.md, "Layout"). Every
 // offset comes from the block's layout (layout.ts BLOCKS), so the code and the layout cannot disagree about where a
-// field is. The three timers are not here: a body writes them itself (scanWasmCalls.ts timerBlock says why).
+// field is. The three timers are not here: a body writes them itself (scanWasmCalls.ts timerBlock).
 
 import { bool, num, wrap } from '../runtime'
 import type { FbType, TagValue } from '../types'

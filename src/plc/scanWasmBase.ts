@@ -38,11 +38,26 @@ export type WasmBody = (b: number, now: number, m: number) => void
 export interface Link {
   table: WebAssembly.Table
   places: Map<object, number>
+  /**
+   * The clock of the scan being run, in whole nanoseconds: set before a body is entered, and read by the body as it
+   * starts (scanWasm.ts `module`). A body's own `now` parameter is not what it reads.
+   *
+   * The clock is a whole number past 2^31, and it was handed to a body as an argument of the call. On an iPhone, about
+   * 100 s into a run of the demo, the body began to receive another number: timers read a few milliseconds where
+   * seconds had passed. The walker, handed the same clock by the same code, kept time, and so did the typed engine
+   * once anything was added beside the call. Setting a global is a call into the engine with an ordinary value,
+   * which every browser makes the same way however hot the caller is.
+   */
+  clock: WebAssembly.Global
+  /** what `clock` holds, and how many bodies entered from the host are running: a body entered inside another (a
+   *  function's, on no clock) puts the clock back as it leaves, for the bodies the outer one calls after it */
+  now: number
+  depth: number
 }
 export const links = new WeakMap<WebAssembly.Memory, Link>()
 export function linkOf(memory: WebAssembly.Memory): Link {
   let link = links.get(memory)
-  if (!link) links.set(memory, (link = { table: new WebAssembly.Table({ element: 'anyfunc', initial: 16 }), places: new Map() }))
+  if (!link) links.set(memory, (link = { table: new WebAssembly.Table({ element: 'anyfunc', initial: 16 }), places: new Map(), clock: new WebAssembly.Global({ value: 'f64', mutable: true }, 0), now: 0, depth: 0 }))
   return link
 }
 export function placeOf(link: Link, runner: object): number {

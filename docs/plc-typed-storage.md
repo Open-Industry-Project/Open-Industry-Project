@@ -56,12 +56,14 @@ instruction at an address worked out when the body is written.
   an import: the standard blocks, the builtin functions, faults, methods, texts. A long statement list is split into
   functions of a few kilobytes, and a statement's temporaries go back to a pool when it ends, since a function with
   thousands of locals is slow to compile.
-- **The timers are written in the body.** TON, TOF and TP are instructions over the block's record, reading the
-  scan's clock from the body's own parameter (`timerBlock`). On one phone the host's JavaScript timers, once the
-  browser had optimised them, worked from a clock a few milliseconds off the scan's, about 100 s into a run: a
-  one-second timer fired at once and later ones never finished. The walker on the same clock kept time. Nothing here
-  can test for that, so the timers are kept off the host by construction. The motion kernel still reads the clock
-  on the host ([typed/blocks.ts](../src/plc/typed/blocks.ts)) and has not been run on that phone.
+- **The clock goes by a global.** A scan's clock is a whole number of nanoseconds, past 2^31 after two seconds. A
+  body reads it from a global of the program as it starts, which the host sets before it enters the body
+  (`Link.clock`). It was once an argument of that call, and on one phone, about 100 s into a run of the demo, bodies
+  began to receive another number: a one-second timer fired at once and later ones never finished. The walker,
+  handed the same clock by the same code, kept time. No test here can reproduce that, so the clock does not cross
+  as an argument.
+- **The timers are written in the body.** TON, TOF and TP are instructions over the block's record (`timerBlock`),
+  with no call to the host. The other standard blocks and the motion kernel are imports.
 - **Numbers.** A BOOL and an integer up to 32 bits is an i32, a REAL, an LREAL and the time types an f64. Integer
   arithmetic is done in i64 and held to the type's width after, which gives what the walker's wrap gives.
 - **Texts stay with the host.** A STRING place is read and written in the arena. A text a call answers is kept by the

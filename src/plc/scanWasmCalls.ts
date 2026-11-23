@@ -495,15 +495,9 @@ function hostBlock(em: Emitter, blk: FbType, f: number, given: ReadonlyMap<strin
 }
 
 /**
- * A timer block (TON, TOF, TP) written in the body itself, over its record in the arena: what typed/blocks.ts does
- * for the same block, instruction for instruction, with the scan's clock read from the body's own parameter.
- *
- * Written here and not run by the host because of one device. On an iPhone, about 100 s into a run of the demo, the
- * host's timer functions began to work from a clock a few milliseconds off the one the scan handed the body: a
- * one-second timer fired at once and the next ones never finished. The walker, on the same clock, kept time, and the
- * fault went when anything was added to those functions, so it was in how that browser compiled them once they were
- * hot. Here no JavaScript stands between the clock and the timer. Of the blocks left on the host, only the motion
- * kernel reads the clock.
+ * A timer block (TON, TOF, TP) written in the body itself, over its record in the arena: what runtime.ts's timers do
+ * for the walker, instruction for instruction, with the scan's clock read from the body's own local. A timer is a few
+ * loads, a subtraction and a compare, so it needs no call out to the host.
  */
 function timerBlock(em: Emitter, blk: 'TON' | 'TOF' | 'TP', f: number, given: ReadonlyMap<string, number>, rec: Extract<TypeLayout, { kind: 'struct' }>): void {
   const w = em.w
