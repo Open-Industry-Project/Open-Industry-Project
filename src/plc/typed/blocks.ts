@@ -5,7 +5,7 @@
 // every block (docs/plc-typed-storage.md, "Layout"). Every offset comes from the block's layout (layout.ts BLOCKS),
 // so the code and the layout cannot disagree about where a field is.
 
-import { bool, num, wrap } from '../runtime'
+import { bool, clockProbe, num, wrap } from '../runtime'
 import type { FbType, TagValue } from '../types'
 import type { Arena } from './arena'
 import { BLOCKS } from './layout'
@@ -17,6 +17,24 @@ const off = (t: FbType, field: string): number => BLOCKS[t].byKey.get(field.toUp
 
 /** Milliseconds from clock reading `start` to `now`, never negative (runtime.ts sinceMs). */
 const sinceMs = (now: number, start: number): number => Math.max(0, now - start) / 1e6
+
+/** What a timer block saw of the clock, for the probe (runtime.ts clockProbe). */
+function probeClock(now: number): void {
+  const p = clockProbe
+  p.timerCalls++
+  if (now !== p.scanned) {
+    p.mismatches++
+    if (p.firstMismatches.length < 8) p.firstMismatches.push([p.scanned, now])
+  }
+}
+function probeElapsed(now: number, start: number, et: number, pt: number): void {
+  // (a demo scan is 10 ms, and a timer that has not reached PT has run a whole number of them)
+  if (et < pt && Number.isInteger(et / 10)) return
+  if (et >= pt && Number.isFinite(et)) return
+  const p = clockProbe
+  p.oddElapsed++
+  if (p.firstOddElapsed.length < 8) p.firstOddElapsed.push([now, start, et, pt])
+}
 
 /** Each block's call, over one arena: what generated code is handed as `blk_TON`, `blk_CTU`, ... The parameters after
  *  the instance are the block's accepted inputs in runtime.ts FB_INPUTS order, aliases included. */
@@ -53,6 +71,7 @@ export function blocksOver(a: Arena, channels: Map<number, MotionChannel>): Reco
 
   return {
     blk_TON(b: number, IN: In, PT: In, now: number): void {
+      probeClock(now)
       const pt = keptTime(b + ton.pt, PT)
       if (!keptBool(b + ton.in, IN)) {
         F64[(b + ton.et) >> 3] = 0
@@ -68,6 +87,7 @@ export function blocksOver(a: Arena, channels: Map<number, MotionChannel>): Reco
         return
       }
       const et = Math.min(pt, sinceMs(now, F64[(b + ton.start) >> 3]!))
+      probeElapsed(now, F64[(b + ton.start) >> 3]!, et, pt)
       F64[(b + ton.et) >> 3] = et
       U8[b + ton.q] = et >= pt ? 1 : 0
     },

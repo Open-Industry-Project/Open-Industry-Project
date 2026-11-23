@@ -614,6 +614,24 @@ export function nsOf(dt: number): number {
   return dt > 0 ? Math.round(dt * 1e9) : 0
 }
 
+/**
+ * A probe for one fault (docs/e2e-and-budgets.md, "A run that differs between devices"): on one phone the typed
+ * engine's timers stop reading the clock a scan hands them, about 100 s into a run, and the walker's do not. `scanned`
+ * is the clock a program's scan was last given (pou.ts) and the rest is what the typed timer blocks then saw of it
+ * (typed/blocks.ts). The run log reads it from the frame (?runlog). To be removed with the fault.
+ */
+export const clockProbe = {
+  scans: 0,
+  scanned: 0,
+  timerCalls: 0,
+  /** timer calls whose `now` was not the scan's clock, and the first of them as `[scanned, seen]` */
+  mismatches: 0,
+  firstMismatches: [] as [number, number][],
+  /** elapsed times that are not a whole number of scans of 10 ms, as `[now, start, et, pt]` */
+  oddElapsed: 0,
+  firstOddElapsed: [] as [number, number, number, number][],
+}
+
 // Every standard block keeps its inputs between calls, as a user block's VAR_INPUT does: an input a call leaves out
 // has the value the last call gave it, and FALSE, 0 or T#0s before any call gave one. A block that already keeps an
 // input as an edge's previous value (a trigger's CLK, a counter's CU) uses that. typed/blocks.ts does the same.

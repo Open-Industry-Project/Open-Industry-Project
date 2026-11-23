@@ -18,6 +18,7 @@ import type { Schedulable, TaskInfo, WiredBindings } from '../plc'
 import type { TagValue } from '../plc'
 import type { WatchLayout } from '../core/watchTable'
 import type { WatchPlan } from '../plc/types'
+import { clockProbe } from '../plc/runtime'
 
 /** The slice of SimWorld the host needs - narrow so tests can drive it with a stub. */
 export interface PlcWorldPort {
@@ -43,6 +44,8 @@ export interface PlcFrameState {
   overruns: number
   /** how long each task's scans take to execute, for the Watch dock's scan-time line */
   scanTimes: ScanTime[]
+  /** the clock probe as it stands (plc/runtime.ts clockProbe), from a controller on the sim worker */
+  clockProbe?: typeof clockProbe
 }
 
 /**
@@ -327,6 +330,7 @@ export class PlcHost {
       scansRun: this.#engine.scansRun,
       overruns: this.#engine.overruns,
       scanTimes: this.scanTimes(),
+      clockProbe: { ...clockProbe, firstMismatches: clockProbe.firstMismatches.slice(), firstOddElapsed: clockProbe.firstOddElapsed.slice() },
     }
   }
 }
