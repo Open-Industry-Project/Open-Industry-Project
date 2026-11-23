@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { defineMessages, t } from '../../core/i18n'
+import { watchKeysOf } from '../../core/watchTable'
 import type { SimClient } from '../../sim/client'
 import type { EditorStore } from '../store/store'
 import { checkPlcEngines } from '../engineCheck'
@@ -39,7 +40,16 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
       const named = 'partId' in msg ? msg.partId : 'bodyId' in msg ? msg.bodyId : 'paused' in msg ? msg.paused : ''
       log.message(msg.type, named)
     }
-    sim.frameTap = (f) => log.frame(f, sim.plcState)
+    // the variable table comes ten times a second, a new object each time (core/watchTable.ts)
+    let watched: object | null = null
+    sim.frameTap = (f) => {
+      log.frame(f, sim.plcState)
+      const table = sim.plcState?.watch
+      if (table && table !== watched) {
+        watched = table
+        log.watch(table, watchKeysOf(table))
+      }
+    }
     const onVisibility = (): void => log.note(document.visibilityState)
     const onError = (e: ErrorEvent): void => log.note(`error: ${e.message}`)
     const onRejection = (e: PromiseRejectionEvent): void => log.note(`rejection: ${String(e.reason)}`)

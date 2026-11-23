@@ -79,6 +79,29 @@ describe('the run log (?runlog)', () => {
     expect(r.truncated).toBe(false)
   })
 
+  it('lists a timer when its Q changes or its ET falls back, and once a second while it runs', () => {
+    const log = new RunLog(() => 0)
+    const keys = ['Main.T.ET', 'Main.T.Q', 'Main.T.PT', 'Main.Count', 'Other.ET']
+    const at = (simTime: number, et: number, q: boolean): void => {
+      log.frame(frame(simTime, []), null)
+      log.watch({ 'Main.T.ET': et, 'Main.T.Q': q, 'Main.T.PT': 1000, 'Main.Count': 3, 'Other.ET': 5 }, keys)
+    }
+    at(0.1, 0, false)
+    at(0.2, 100, false) // the same second, still rising: not listed
+    at(0.3, 200, false)
+    at(1.1, 1000, true) // Q changed
+    at(1.2, 1000, true)
+    at(1.3, 0, false) // fell back
+    at(2.4, NaN, false)
+    at(2.5, NaN, false)
+    expect(log.result({}).timers).toEqual([
+      [100, 'Main.T', 0, false],
+      [1100, 'Main.T', 1000, true],
+      [1300, 'Main.T', 0, false],
+      [2400, 'Main.T', 'NaN', false],
+    ])
+  })
+
   it('says so when a list fills up', () => {
     const log = new RunLog(() => 0)
     for (let i = 0; i < 3001; i++) log.message('moveBody', i)

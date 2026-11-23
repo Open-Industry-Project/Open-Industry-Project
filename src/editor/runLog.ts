@@ -19,6 +19,9 @@ const MAX_MESSAGES = 3_000
 const MAX_BODY_NUMBERS = 60_000
 /** How far a body moves, in cm, before a second lists it again. */
 const MOVED_CM = 2
+/** Most readings of a timer kept, and the largest program whose timers are looked for. */
+const MAX_TIMER_READINGS = 6_000
+const MAX_WATCH_KEYS = 20_000
 
 type Value = number | boolean | string
 
@@ -56,6 +59,12 @@ export interface RunLogResult {
   /** `[sim ms, 'i:' or 'o:' and the tag, value]`, and `[0, '#start', wall ms]` where a run started */
   changes: [number, string, Value][]
   seconds: RunLogSecond[]
+  /**
+   * `[sim ms, timer, ET, Q]`: what each timer block of the program read, from the variable table a frame brings (ten
+   * a second). A timer is listed when its Q changes, when its ET falls back or is not a finite number, and otherwise
+   * once a sim second while its ET moves. An ET that is not finite is given as text.
+   */
+  timers: [number, string, number | string, boolean][]
   /** `[sim ms, wall ms, type, what it named]` for each message the page sent the sim worker */
   messages: [number, number, string, Value][]
   /** `[sim ms, wall ms, what]`: the page hidden or shown, an error */
@@ -80,6 +89,10 @@ export class RunLog {
   #second = -1
   #simTime = 0
   #pointerDowns = 0
+  #timers: RunLogResult['timers'] = []
+  /** the timers of the program whose keys these are, and each one's ET, Q and second as last listed */
+  #timerKeys: { of: readonly string[]; names: string[] } | null = null
+  #timerLast = new Map<string, { et: number; q: boolean; second: number }>()
   #truncated = false
 
   constructor(now: () => number) {
@@ -106,6 +119,7 @@ export class RunLog {
       this.#second = -1
       this.#last.clear()
       this.#placed.clear()
+      this.#timerLast.clear()
       this.#changes.push([0, '#start', this.#wall()])
     }
     if (this.#messages.length >= MAX_MESSAGES) this.#truncated = true
@@ -152,6 +166,32 @@ export class RunLog {
     this.#seconds.push({ t: second, wall: this.#wall(), bodies: f.count, plc: plc !== null, moved })
   }
 
+  /**
+   * The program's variable table, as a frame brought it, and its keys. A timer is a block with an `ET` and a `Q`.
+   * `keys` is compared by identity, so hand the same array for the same program.
+   */
+  watch(table: Readonly<Record<string, Value>>, keys: readonly string[]): void {
+    if (keys.length > MAX_WATCH_KEYS) return
+    if (this.#timerKeys?.of !== keys) {
+      const all = new Set(keys)
+      this.#timerKeys = { of: keys, names: keys.filter((k) => k.endsWith('.ET') && all.has(`${k.slice(0, -3)}.Q`)).map((k) => k.slice(0, -3)) }
+    }
+    const ms = Math.round(this.#simTime * 1000)
+    const second = Math.floor(this.#simTime)
+    for (const name of this.#timerKeys.names) {
+      const et = table[`${name}.ET`]
+      const q = table[`${name}.Q`] === true
+      if (typeof et !== 'number') continue
+      const was = this.#timerLast.get(name)
+      const odd = !Number.isFinite(et)
+      if (was && was.q === q && !odd && (et === was.et || (et > was.et && second === was.second))) continue
+      if (was && odd && Object.is(was.et, et) && was.q === q) continue
+      this.#timerLast.set(name, { et, q, second })
+      if (this.#timers.length >= MAX_TIMER_READINGS) this.#truncated = true
+      else this.#timers.push([ms, name, odd ? String(et) : Math.round(et * 1000) / 1000, q])
+    }
+  }
+
   #table(side: string, table: Readonly<Record<string, Value>>, ms: number): void {
     for (const name in table) {
       const key = side + name
@@ -174,6 +214,7 @@ export class RunLog {
       notes: this.#notes.slice(),
       pointerDowns: this.#pointerDowns,
       truncated: this.#truncated,
+      timers: this.#timers.slice(),
       changes: this.#changes.slice(),
       about,
     }
