@@ -744,7 +744,10 @@ export class TypedPou implements Pou {
     if (at && at.layout.kind === 'scalar' && !isRef(at.decl.type) && !isInterface(at.decl.type)) {
       const slot = at.layout
       const addr = at.addr
-      return { set, get: () => this.#arena.load(slot, addr) }
+      const where = this.#arena.cell(slot, addr)
+      // (#setterFor stores a variable that is a scalar or an enumeration, and leaves a constant alone)
+      const writes = !at.decl.constant && (isScalarType(at.decl.type) || isEnum(at.decl.type))
+      return { set, get: () => this.#arena.load(slot, addr), ...(where && { cell: { ...where, writes } }) }
     }
     return { set, get: () => undefined }
   }

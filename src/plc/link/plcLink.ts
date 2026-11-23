@@ -7,7 +7,7 @@
 // backend directly.
 
 import { compile } from '../interpreter'
-import type { CompiledProgram, TagPort, TagValue, TaskInfo, VarInfo, WatchPlan } from '../types'
+import type { CompiledProgram, NumberCells, TagCell, TagPort, TagValue, TaskInfo, VarInfo, WatchPlan } from '../types'
 
 export interface PlcLink {
   readonly inputs: string[]
@@ -20,12 +20,12 @@ export interface PlcLink {
    * One control cycle: write the given input tags, run a scan of `dt` seconds,
    * and return the resulting output tags. Inputs absent from the program are ignored.
    */
-  step(inputs: Readonly<Record<string, TagValue>>, dt: number): Record<string, TagValue>
+  step(inputs: Readonly<Record<string, TagValue>>, dt: number, inputsRev?: number): Record<string, TagValue>
   /** A controller's tasks (CompiledProgram.tasks). Absent or empty when the link runs one program
    *  on its host's scan time - which is every remote link: a real PLC schedules its own tasks. */
   readonly tasks?: readonly TaskInfo[]
   /** {@link step}, for one task: write the inputs, scan task `index` by `dt`, return every output */
-  stepTask?(index: number, inputs: Readonly<Record<string, TagValue>>, dt: number): Record<string, TagValue>
+  stepTask?(index: number, inputs: Readonly<Record<string, TagValue>>, dt: number, inputsRev?: number): Record<string, TagValue>
   /** bare scene tag -> the program variable it also names ({@link soleInstanceAliases}); absent or empty for most links */
   readonly aliases?: ReadonlyMap<string, string>
   /** What kind of value the program variable `name` holds, when its declaration says ({@link valueKinds}); undefined
@@ -253,6 +253,55 @@ export interface WiredBindings {
 
 export const NO_WIRED_BINDINGS: WiredBindings = Object.freeze({ inputs: [], outputs: [] }) as WiredBindings
 
+
+/** Some of a list's variables that are numbers in one view of the program's memory: `cells[at[k]]` is variable `of[k]`. */
+interface CellRun {
+  cells: NumberCells
+  at: Uint32Array
+  of: Uint32Array
+  /** the view holds REALs: a zero has a sign, which an integer's does not */
+  signed0: boolean
+}
+
+/** `ports`' cells that `pick` takes, a run for each view, each in the list's order. */
+function cellRuns(ports: readonly TagPort[], pick: (cell: TagCell) => boolean): CellRun[] {
+  const by = new Map<NumberCells, { at: number[]; of: number[] }>()
+  ports.forEach((p, i) => {
+    if (!p.cell || !pick(p.cell)) return
+    let run = by.get(p.cell.cells)
+    if (!run) by.set(p.cell.cells, (run = { at: [], of: [] }))
+    run.at.push(p.cell.index)
+    run.of.push(i)
+  })
+  return [...by].map(([cells, r]) => ({ cells, at: Uint32Array.from(r.at), of: Uint32Array.from(r.of), signed0: cells instanceof Float32Array || cells instanceof Float64Array }))
+}
+
+/** The inputs as a scan stores them (LocalPlcLink.cycle). */
+class InputCopy {
+  /** the caller's number for the inputs last looked up (PlcLink.step `inputsRev`); null when it gave none */
+  rev: number | null = null
+  /** each input: 1 when the inputs last looked up gave it a value */
+  readonly given: Uint8Array
+  /** the value last looked up, and the number it is stored as */
+  readonly seen: (TagValue | undefined)[]
+  readonly raw: Float64Array
+  readonly runs: CellRun[]
+  /** Every input is a number in memory, and a scan stores the numbers: view by view, each view's in the list's order,
+   *  so of two names of one variable the later one is what the scan reads, as it is through the handles. Otherwise
+   *  (a STRING, or one bit of a word, which may be an input beside the word) each is stored through its handle, one by
+   *  one in the list's order. */
+  readonly numbers: boolean
+
+  constructor(readonly ports: readonly TagPort[]) {
+    const n = ports.length
+    this.given = new Uint8Array(n)
+    this.seen = new Array<TagValue | undefined>(n).fill(undefined)
+    this.raw = new Float64Array(n)
+    this.runs = cellRuns(ports, (c) => c.writes)
+    this.numbers = ports.every((p) => p.cell?.writes === true)
+  }
+}
+
 /** In-process backend: compile an ST program and interpret it locally each tick. */
 export class LocalPlcLink implements PlcLink {
   private readonly prog: CompiledProgram
@@ -297,6 +346,8 @@ export class LocalPlcLink implements PlcLink {
     this.#inputs = bound.inputs
     this.#outputs = bound.outputs
     this.#inPorts = this.#outPorts = null
+    this.#inCopy = null
+    this.#outCells = null
     this.#outTable = null
   }
 
@@ -404,21 +455,66 @@ export class LocalPlcLink implements PlcLink {
     for (const f of this.#forces) f.set(f.value)
   }
 
-  step(inputs: Readonly<Record<string, TagValue>>, dt: number): Record<string, TagValue> {
-    return this.cycle(inputs, () => this.prog.scan(dt))
+  /** `inputsRev`: a number the caller changes whenever `inputs` may hold other values than at its last call. With
+   *  the same number as that call, the inputs are not looked up again. Absent, they are on every call. */
+  step(inputs: Readonly<Record<string, TagValue>>, dt: number, inputsRev?: number): Record<string, TagValue> {
+    return this.cycle(inputs, () => this.prog.scan(dt), inputsRev)
   }
 
-  stepTask(index: number, inputs: Readonly<Record<string, TagValue>>, dt: number): Record<string, TagValue> {
-    return this.cycle(inputs, () => this.prog.scanTask(index, dt))
+  stepTask(index: number, inputs: Readonly<Record<string, TagValue>>, dt: number, inputsRev?: number): Record<string, TagValue> {
+    return this.cycle(inputs, () => this.prog.scanTask(index, dt), inputsRev)
   }
 
-  private cycle(inputs: Readonly<Record<string, TagValue>>, scan: () => void): Record<string, TagValue> {
+  // Every scan stores every input it is given: the program, a force or a write may have changed the variable since
+  // the last scan. A step makes several scans on the same inputs (4.5 on a line of six tasks), and looking each up
+  // by name and storing it through its handle cost 118 ns an input, a scan. So an input's value is looked up once
+  // for the inputs a step brings, the number it is stored as is kept, and a scan stores the numbers.
+  #inCopy: InputCopy | null = null
+
+  /** Look `inputs` up: which are given a value, and the number each value is stored as, read back from a store
+   *  through its handle. */
+  #readInputs(c: InputCopy, inputs: Readonly<Record<string, TagValue>>): void {
     const names = this.#inputs
-    const inPorts = (this.#inPorts ??= names.map((n) => this.prog.port(this.#resolve(n))))
+    const { given, seen, raw, ports } = c
     for (let i = 0; i < names.length; i++) {
       const v = inputs[names[i]!]
-      if (v !== undefined) inPorts[i]!.set(v)
+      if (v === undefined) {
+        given[i] = 0
+        continue
+      }
+      // the same value as the one last looked up is stored as the same number
+      if (given[i] === 1 && Object.is(v, seen[i])) continue
+      given[i] = 1
+      seen[i] = v
+      if (!c.numbers) continue
+      const cell = ports[i]!.cell!
+      ports[i]!.set(v)
+      raw[i] = cell.cells[cell.index]!
     }
+  }
+
+  /** Store every input that is given a value, as a scan finds them. */
+  #storeInputs(c: InputCopy): void {
+    const { given, seen, raw, ports } = c
+    if (!c.numbers) {
+      for (let i = 0; i < given.length; i++) if (given[i] === 1) ports[i]!.set(seen[i]!)
+      return
+    }
+    for (const run of c.runs) {
+      const { cells, at, of } = run
+      for (let k = 0; k < at.length; k++) if (given[of[k]!] === 1) cells[at[k]!] = raw[of[k]!]!
+    }
+  }
+
+  private cycle(inputs: Readonly<Record<string, TagValue>>, scan: () => void, inputsRev?: number): Record<string, TagValue> {
+    const names = this.#inputs
+    const inPorts = (this.#inPorts ??= names.map((n) => this.prog.port(this.#resolve(n))))
+    const c = (this.#inCopy ??= new InputCopy(inPorts))
+    if (inputsRev === undefined || inputsRev !== c.rev) {
+      c.rev = inputsRev ?? null
+      this.#readInputs(c, inputs)
+    }
+    this.#storeInputs(c)
     if (this.#forces.length > 0) this.#applyForces()
     scan()
     if (this.#forces.length > 0) this.#applyForces()
@@ -428,6 +524,28 @@ export class LocalPlcLink implements PlcLink {
   // each output's value as of the last scan, and the table built from them
   #outValues: (TagValue | undefined)[] = []
   #outTable: Readonly<Record<string, TagValue>> | null = null
+  // The outputs as the numbers they are stored as (TagPort.cell), when every one is such a number: held against the
+  // numbers of the scan before, which says the table stands without reading a value through a handle (60 ns an
+  // output, a scan; 682 outputs and 4.5 scans a step on the line above). Null until they are worked out, false when
+  // an output is not a number.
+  #outCells: { runs: CellRun[]; raw: Float64Array } | false | null = null
+
+  /** Whether every output holds the number it held when the table was built. */
+  #outputsStand(o: { runs: CellRun[]; raw: Float64Array }): boolean {
+    const raw = o.raw
+    for (const run of o.runs) {
+      const { cells, at, of } = run
+      if (run.signed0) {
+        // 0 and -0 differ, and a NaN equals a NaN, as below
+        for (let k = 0; k < at.length; k++) {
+          const x = cells[at[k]!]!
+          const l = raw[of[k]!]!
+          if (x === l ? x === 0 && 1 / x !== 1 / l : x === x || l === l) return false
+        }
+      } else for (let k = 0; k < at.length; k++) if (cells[at[k]!] !== raw[of[k]!]) return false
+    }
+    return true
+  }
 
   /**
    * The output image after a scan. A line's outputs are the same as the scan before on nearly every scan (a 675-output
@@ -439,6 +557,10 @@ export class LocalPlcLink implements PlcLink {
   #outputTable(): Record<string, TagValue> {
     const outs = this.#outputs
     const ports = (this.#outPorts ??= outs.map((n) => this.prog.port(this.#resolve(n))))
+    const o = (this.#outCells ??= ports.every((p) => p.cell !== undefined) && { runs: cellRuns(ports, () => true), raw: new Float64Array(ports.length).fill(NaN) })
+    if (o && this.#outTable !== null && this.#outputsStand(o)) return this.#outTable as Record<string, TagValue>
+    // a number changed, or none are held yet: the values, as before, and the numbers for the next scan
+    if (o) for (const run of o.runs) for (let k = 0; k < run.at.length; k++) o.raw[run.of[k]!] = run.cells[run.at[k]!]!
     let last = this.#outValues
     let same = this.#outTable !== null && last.length === ports.length
     if (last.length !== ports.length) last = this.#outValues = new Array<TagValue | undefined>(ports.length).fill(undefined)

@@ -27,6 +27,9 @@ export class SimController {
   // custom-part behavior wrote (ctx.writeTag/writeNumber), latched here by the controller each frame and folded
   // into the input image so the program reads them.
   #externalInputs: ProcessImage = {}
+  /** counts the tables handed to {@link setExternalInputs}: the scans between two of them read the same inputs, which
+   *  the link is told so it looks them up once (PlcLink.step `inputsRev`) */
+  #inputsRev = 0
 
   constructor(private readonly link: PlcLink) {}
 
@@ -54,6 +57,7 @@ export class SimController {
    */
   setExternalInputs(tags: ProcessImage): void {
     this.#externalInputs = tags
+    this.#inputsRev++
   }
 
   sampleInputs(): ProcessImage {
@@ -68,8 +72,8 @@ export class SimController {
    * time (timers / counters / edge memory) by `dt` seconds. Returns the resulting output
    * image (%Q). Also records the %I/%Q for the watch.
    */
-  scan(pii: ProcessImage, dt: number): Record<string, TagValue> {
-    const piq = this.link.step(pii, dt)
+  scan(pii: ProcessImage, dt: number, inputsRev?: number): Record<string, TagValue> {
+    const piq = this.link.step(pii, dt, inputsRev)
     this.#lastInputs = pii
     this.#lastOutputs = piq
     return piq
@@ -82,7 +86,7 @@ export class SimController {
    * drove this scan.
    */
   tick(dt: number): Record<string, TagValue> {
-    return this.scan(this.sampleInputs(), dt)
+    return this.scan(this.sampleInputs(), dt, this.#inputsRev)
   }
 
   /** the controller's tasks; empty for one program on the host's scan time (what a TaskScheduler reads) */
@@ -94,8 +98,7 @@ export class SimController {
   tickTask(index: number, dt: number): Record<string, TagValue> {
     if (!this.link.stepTask) throw new Error('this PLC link runs one program; it has no tasks to scan')
     const pii = this.sampleInputs()
-    const stepTask = this.link.stepTask.bind(this.link)
-    const piq = stepTask(index, pii, dt)
+    const piq = this.link.stepTask(index, pii, dt, this.#inputsRev)
     this.#lastInputs = pii
     this.#lastOutputs = piq
     return piq

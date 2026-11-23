@@ -744,6 +744,25 @@ export interface VarInfo {
 export interface TagPort {
   set(value: TagValue): void
   get(): TagValue | undefined
+  /** where the value is, when it is one number in the program's memory: see {@link TagCell} */
+  cell?: TagCell
+}
+
+/** The views a program's memory is read and written through (typed/arena.ts). */
+export type NumberCells = Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array
+
+/**
+ * A variable that is one number in the program's memory (a scalar on the typed engine, other than a STRING):
+ * `cells[index]` is that number as stored. `get` answers from the stored number alone, so two readings of the same
+ * number are the same value. A caller that moves the same value on every scan may then compare and store the number
+ * itself (LocalPlcLink).
+ */
+export interface TagCell {
+  cells: NumberCells
+  index: number
+  /** `set` stores here, and the number it stores depends on the value given and on nothing else. False for a
+   *  constant, which `set` leaves alone. */
+  writes: boolean
 }
 
 /** The watch table as places in a program's memory ({@link CompiledProgram.watchPlan}): where each value is, and the

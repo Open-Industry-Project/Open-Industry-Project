@@ -3,7 +3,7 @@
 // (layout.ts) aligns it to its own size, so `I32[addr >> 2]` is exact.
 
 import { WATCH_KIND } from '../../core/watchTable'
-import type { ScalarType, TagValue } from '../types'
+import type { NumberCells, ScalarType, TagValue } from '../types'
 import type { ScalarLayout } from './layout'
 
 /** the most code units handed to String.fromCharCode in one call: its arguments go on the stack */
@@ -47,6 +47,22 @@ export class Arena {
       case 'REAL': return this.F32[addr >> 2]!
       case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return this.F64[addr >> 3]!
       case 'STRING': return this.strAt(addr)
+    }
+  }
+
+  /** Where the scalar at `addr` is as one stored number: the view that holds it, and its index there. None for a
+   *  STRING, which is a length and its characters. */
+  cell(slot: ScalarLayout, addr: number): { cells: NumberCells; index: number } | undefined {
+    switch (slot.scalar) {
+      case 'BOOL': case 'USINT': case 'BYTE': return { cells: this.U8, index: addr }
+      case 'SINT': return { cells: this.I8, index: addr }
+      case 'INT': return { cells: this.I16, index: addr >> 1 }
+      case 'UINT': case 'WORD': return { cells: this.U16, index: addr >> 1 }
+      case 'DINT': return { cells: this.I32, index: addr >> 2 }
+      case 'UDINT': case 'DWORD': return { cells: this.U32, index: addr >> 2 }
+      case 'REAL': return { cells: this.F32, index: addr >> 2 }
+      case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return { cells: this.F64, index: addr >> 3 }
+      case 'STRING': return undefined
     }
   }
 
