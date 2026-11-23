@@ -60,7 +60,7 @@ import { CargoFlow } from './cargoFlow'
 import { CargoRegistry } from './cargoRegistry'
 import { DECK_AXES } from './conveyorContacts'
 import { ConveyorFacets } from './conveyorFacets'
-import { newSleepState, noteCall, waits } from './partSleep'
+import { newSleepState, noteCall, stillWaiting, waits } from './partSleep'
 import { advanceTravel, newTravelCount, writeTravel } from './travelCount'
 import { driveDeckEntries } from './deckDrive'
 import { SimFlowFacts } from './flowFacts'
@@ -453,6 +453,17 @@ export class SimWorld implements SimCore<BoxFrame> {
   // Run each attached custom-part script and fold its surface-velocity output into the live conveyor
   // entry, before the physics Step so cargo is dragged this tick. Event-cheap: a handful of parts, a
   // flat JSON in/out per part - dwarfed by the solver. simTime/dt are sim time (deterministic).
+  /** A part that waits through this step: its travel is counted (travelCount.ts). Stopped, the count and the tags
+   *  stand. */
+  private countWaiting(b: BehaviorRecord, dt: number): void {
+    const tr = b.travel
+    if (tr !== undefined && tr.on && tr.speed !== 0) {
+      const tags = { ...b.tags }
+      writeTravel(tr, advanceTravel(tr, dt), tags)
+      this.bus.setPartTags(b, tags)
+    }
+  }
+
   private readonly called: BehaviorRecord[] = [] // this tick: every `step` part, and the `react` parts with a reason
   private tickBehaviors(): void {
     const bus = this.bus
@@ -476,7 +487,16 @@ export class SimWorld implements SimCore<BoxFrame> {
     const conveyorSpeeds = bus.speedSnapshot()
     const sensors = this.sensors
     this.called.length = 0
+    // Nothing every part is handed changed in a way only a call can answer: no click, no PLC memory to read, no
+    // cargo inspected, and no test asking for every part or every beam.
+    const calm = !this.wakeAllParts && !this.castAllBeams && !bus.anyUse
+    const senseRev = sensors.rev * 4096 + this.loadCells.rev
     for (const b of behaviors) {
+      // a waiting part with nothing new to be handed is left out before its input is put together (partSleep.ts)
+      if (calm && stillWaiting(b, tags, driven, conveyorSpeeds, senseRev, sensors, this.loadCells)) {
+        this.countWaiting(b, dt)
+        continue
+      }
       // C-sensing: cast this part's sensor beams against cargo and hand the nearest hits in as `input.beams`
       const emitters = b.partId ? sensors.beamsOf(b.partId) : undefined
       let beams: Record<string, FrameBeamHit> | undefined
@@ -563,13 +583,9 @@ export class SimWorld implements SimCore<BoxFrame> {
       // A reactive part with nothing new to answer is not called, and its outputs stand (partSleep.ts)
       const sl = (b.sleep ??= newSleepState())
       if (waits(sl, inp, this.wakeAllParts)) {
-        // its travel is counted on the steps it waits through (travelCount.ts). Stopped, the count and the tags stand.
-        const tr = b.travel
-        if (tr !== undefined && tr.on && tr.speed !== 0) {
-          const tags = { ...b.tags }
-          writeTravel(tr, advanceTravel(tr, dt), tags)
-          bus.setPartTags(b, tags)
-        }
+        // (its inputs are what it was last handed, so the read-back is as it was then)
+        b.calmRev = b.feedbackRev ?? 0
+        this.countWaiting(b, dt)
         continue
       }
       this.called.push(b)
@@ -641,6 +657,14 @@ export class SimWorld implements SimCore<BoxFrame> {
           b.values = parsed.values ?? {}
           b.displays = parsed.displays ?? {}
           b.subPoses = parsed.subPoses ?? {}
+          b.rigDirty = true
+          b.gripsOn = false
+          for (const g in b.grips) {
+            if (b.grips[g] === true) {
+              b.gripsOn = true
+              break
+            }
+          }
           if (b.copyDecks) b.copySpeeds = parsed.copySpeeds ?? {}
         }
         // a behavior's tag writes are captured for any part (deck or rig): the part→PLC half of the bus.
@@ -676,6 +700,7 @@ export class SimWorld implements SimCore<BoxFrame> {
           b.mobile = true
         }
         noteCall(sl, inp, parsed)
+        b.calmRev = b.feedbackRev ?? 0
       } catch {
         // a script error already surfaced via behavior.error(); leave the last velocity/joints in place
       }

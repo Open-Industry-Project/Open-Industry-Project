@@ -57,6 +57,11 @@ export class RigDriver {
     for (const rig of this.rigs) {
       const tr = perfParts ? performance.now() : 0
       const rec = rig.rec
+      // Parked, and its part not called since: nothing it is posed from can have changed, so nothing is compared.
+      // Only a call writes a part's joints, grips and sub poses, and a rig that is not mobile stands where it was
+      // built. A commanded gripper is the exception, as below: it looks for cargo on every step.
+      if (rig.settleSteps === 2 && rec.rigDirty !== true && rec.mobile !== true && rec.gripsOn !== true) continue
+      rec.rigDirty = false
       const rk = rec.partId ?? '#anon'
       // C-drive: a mobile part (one that called ctx.drive) has a live root pose on its behavior record that has
       // moved off the saved scene pose; compose the rig from it so the kinematic bodies follow as it navigates.
@@ -93,6 +98,8 @@ export class RigDriver {
         continue
       }
       rig.settleSteps = clean ? 1 : 0
+      // what the part reads back is written below (its measured joints, what its grippers hold)
+      rec.feedbackRev = (rec.feedbackRev ?? 0) + 1
       if (!clean) rig.applied = snapshotRigInputs(rec, rootPos, rootYaw)
       reportUnknownRigNames(rig)
       // FK straight into a flat per-rig buffer (7 floats/link). A Map form allocates ~500 short-lived
@@ -159,10 +166,14 @@ export class RigDriver {
           const li = linkIdx.get(e.name)
           if (li === undefined) continue
           const o = li * POSE_STRIDE
-          e.origin = [poses[o]!, poses[o + 1]!, poses[o + 2]!]
+          // (a beam re-aimed to where it already was keeps its arrays: a new one reads as a beam that moved, and
+          // its part's beam box is measured again, SensorRegistry.nothingNear)
+          const ox = poses[o]!, oy = poses[o + 1]!, oz = poses[o + 2]!
+          if (e.origin[0] !== ox || e.origin[1] !== oy || e.origin[2] !== oz) e.origin = [ox, oy, oz]
           const d = qApply([poses[o + 3]!, poses[o + 4]!, poses[o + 5]!, poses[o + 6]!], e.axis)
           const len = Math.hypot(d[0], d[1], d[2]) || 1
-          e.dir = [d[0] / len, d[1] / len, d[2] / len]
+          const dx = d[0] / len, dy = d[1] / len, dz = d[2] / len
+          if (e.dir[0] !== dx || e.dir[1] !== dy || e.dir[2] !== dz) e.dir = [dx, dy, dz]
         }
       }
       if (perfParts) this.rigMsByPart.set(rk, (this.rigMsByPart.get(rk) ?? 0) + (performance.now() - tr))

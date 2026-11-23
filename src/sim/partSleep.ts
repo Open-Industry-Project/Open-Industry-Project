@@ -10,7 +10,9 @@
 // "Differs" is decided here, per input. An input this cannot compare cheaply counts as changed, which only means a
 // call the part did not need: react may be called on any step and must not take a call to mean something changed.
 import type { FrameBeamHit } from '../core/frame'
+import type { BeamEmitter } from './cargoSensing'
 import type { BehaviorInput, BehaviorOutput } from './embeddedBehavior'
+import type { BehaviorRecord } from './worldTypes'
 
 export interface SleepState {
   /** the part's last call was a react that did not ask for another: it waits for an input to change */
@@ -93,6 +95,46 @@ function rememberInputs(s: SleepState, inp: BehaviorInput): void {
   s.joints = inp.joints ? { ...inp.joints } : undefined
   s.grips = inp.grips ? { ...inp.grips } : undefined
   s.gripWidths = inp.gripWidths ? { ...inp.gripWidths } : undefined
+}
+
+/**
+ * Does a waiting part wait again, told without putting its input together? True for one handed the very tables and
+ * pose of its last call, whose rig has written nothing it reads back since (BehaviorRecord.feedbackRev), that has no
+ * zone and no load cell, and whose beams all read clear with nothing near them. These are
+ * inputsSame's tests on what the input would hold. A part with any other input answers false and is asked the long
+ * way. The caller has already ruled out what every part is handed alike: a click, PLC memory to read, cargo
+ * inspected, a test that wakes every part.
+ *
+ * `senseRev` counts the changes to which parts have beams, zones and load cells; what this part senses with is
+ * looked up again when it moves.
+ */
+export function stillWaiting(
+  b: BehaviorRecord,
+  tags: unknown,
+  driven: unknown,
+  speeds: unknown,
+  senseRev: number,
+  sensors: { beamsOf(partId: string): BeamEmitter[] | undefined; zonesOf(partId: string): unknown; nothingNear(emitters: readonly BeamEmitter[], rec: BehaviorRecord): boolean },
+  loadCells: { has(partId: string): boolean },
+): boolean {
+  const s = b.sleep
+  if (s === undefined || !s.idle) return false
+  if (tags !== s.tags || driven !== s.driven || (s.usesSpeeds && speeds !== s.speeds)) return false
+  if (b.pos !== s.position || b.fwd !== s.forward) return false
+  if ((b.feedbackRev ?? 0) !== b.calmRev) return false
+  let sense = b.sense
+  if (sense === undefined || sense.rev !== senseRev) {
+    const id = b.partId
+    sense = b.sense = { rev: senseRev, emitters: id ? sensors.beamsOf(id) : undefined, plain: !id || (sensors.zonesOf(id) === undefined && !loadCells.has(id)) }
+  }
+  if (!sense.plain) return false
+  const em = sense.emitters
+  if (em === undefined) return s.beams === undefined
+  // every beam read clear last time, the part was handed that record, and nothing is near any of them now
+  if (s.beams !== b.beamHits || b.beamsClear !== true || b.beamHits === undefined || b.beamList === undefined || b.beamList.length !== em.length) return false
+  if (!sensors.nothingNear(em, b)) return false
+  b.beamBoxes = undefined
+  return true
 }
 
 /** Is the part left out of this step? One that is not is about to be called, and is no longer waiting. */

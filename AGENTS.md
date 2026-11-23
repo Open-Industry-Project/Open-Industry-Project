@@ -170,7 +170,8 @@ projectTestsRun.ts); eslint enforces both.
   commanded stands ([partSleep.ts](src/sim/partSleep.ts), the authoring guide's "`react`" section). An encoder is
   counted by the host on the steps a part waits through (`ctx.countTravel`,
   [travelCount.ts](src/sim/travelCount.ts)), with one advance a step whether or not the part was called. Anything new the
-  host hands a part must be compared in `inputsSame`, or a reactive part never hears it change. Only a part that was
+  host hands a part must be compared in `inputsSame`, and must make `stillWaiting` (the test that leaves a waiting part
+  out before its input is put together) answer false, or a reactive part never hears it change. Only a part that was
   called has its conveyor surfaces written to the physics table (`ConveyorFacets.syncPart`), so nothing else may write
   a surface entry during a run. A first-party reactive part must give the same run with `wakeAllParts`. Gated by
   `partReact.test.ts`.

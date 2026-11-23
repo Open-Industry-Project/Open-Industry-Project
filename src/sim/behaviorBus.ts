@@ -125,6 +125,11 @@ export class BehaviorBus {
     this.pendingUse.add(partId)
   }
 
+  /** was any part clicked for this tick? */
+  get anyUse(): boolean {
+    return this.pendingUse.size > 0
+  }
+
   wasUsed(partId: string): boolean {
     return this.pendingUse.has(partId)
   }

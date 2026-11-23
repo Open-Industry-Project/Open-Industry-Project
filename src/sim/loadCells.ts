@@ -82,8 +82,17 @@ export class LoadCells {
 
   /** a part's load-cell links, as built (replacing what it had; none clears it) */
   set(partId: string, cells: { name: string; body: Jolt.Body; he: Vec3 }[]): void {
+    this.rev++
     if (cells.length === 0) this.byPart.delete(partId)
     else this.byPart.set(partId, cells.map((c) => ({ name: c.name, body: c.body, id: c.body.GetID(), he: c.he, resting: new Map() })))
+  }
+
+  /** counts the changes to which parts have load cells */
+  rev = 0
+
+  /** does this part have load cells? */
+  has(partId: string): boolean {
+    return this.byPart.has(partId)
   }
 
   /** kg on each of a part's load-cell links this tick (ctx.weight), or undefined when it has none */
@@ -96,6 +105,7 @@ export class LoadCells {
   }
 
   clear(): void {
+    this.rev++
     this.byPart.clear()
   }
 

@@ -31,6 +31,8 @@ export class SensorRegistry {
   // nearest hit to the behavior as `input.beams`. Measured at the rest pose when the part is built; a beam on a
   // link that moves (a photo-eye on a wrapper's film carriage) is re-aimed from the link's pose each time
   // RigDriver.drive poses the rig, so it is cast from where the link stood at the end of the last step.
+  /** counts the changes to which parts have beams and zones: what a part senses with is looked up again after one */
+  rev = 0
   private readonly beamsByPartId = new Map<string, BeamEmitter[]>()
   // C-despawn: precomputed world-space detection/removal zones per part (sinks are static). Each tick counts cargo
   // inside (→ ctx.zone) and removes it on ctx.despawn.
@@ -62,6 +64,7 @@ export class SensorRegistry {
   collectBeams(part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number, resolvedParams: Record<string, ParamValue>): void {
     const beams = rigBeams(part, geo, scale, resolvedParams)
     if (beams.length) this.beamsByPartId.set(part.id, beams)
+    this.rev++
   }
 
   // C-despawn: precompute the world-space detection/removal zone box for each `zone` link of a sink part (sinks are
@@ -69,6 +72,7 @@ export class SensorRegistry {
   collectZones(part: SdkPart, geo: Extract<PartPackage['geometry'], { kind: 'rig' }>, scale: number): void {
     const zones = rigZones(part, geo, scale)
     if (zones.length) this.zonesByPartId.set(part.id, zones)
+    this.rev++
   }
 
   /** a part's beam emitters (live: RigDriver.drive re-aims them in place), or undefined when it has none */
@@ -242,12 +246,14 @@ export class SensorRegistry {
 
   /** drop a part's beams and zones (it is rebuilt or deleted) */
   forget(partId: string): void {
+    this.rev++
     this.beamsByPartId.delete(partId)
     this.zonesByPartId.delete(partId)
   }
 
   /** drop every sensor's geometry (the world is going) */
   clear(): void {
+    this.rev++
     this.beamsByPartId.clear()
     this.zonesByPartId.clear()
   }

@@ -6,7 +6,7 @@ import type { FrameBeamHit } from '../core/frame'
 import type { CargoMarkValue, PartPackage } from '../core/parts/partPackage'
 import type { BehaviorInput } from './embeddedBehavior'
 import type { TravelCount } from './travelCount'
-import type { BeamBounds } from './cargoSensing'
+import type { BeamBounds, BeamEmitter } from './cargoSensing'
 import type { ConveyorEntry } from '../core/geometry/collisionShapes'
 import { packageRev } from '../core/parts/partRegistry'
 import { copySubPose, subPoseEq } from '../core/rig/rigPose'
@@ -179,6 +179,18 @@ export function snapshotRigInputs(rec: BehaviorRecord, rootPos: [number, number,
 
 export interface BehaviorRecord {
   handle: number
+  /** a call wrote this part's joints, grips or sub poses since its rig last looked: the rig driver compares them
+   *  only then (rigDriver.ts), and clears it */
+  rigDirty?: boolean
+  /** a gripper is commanded closed: its rig looks for cargo on every step, called or not */
+  gripsOn?: boolean
+  /** counts the times this part's rig wrote what the part reads back (its measured joints, what its grippers hold) */
+  feedbackRev?: number
+  /** {@link feedbackRev} as it stood when the inputs this part waits on were last found unchanged: equal, the rig has
+   *  written nothing since, and the read-back is not compared (SimWorld.tickBehaviors) */
+  calmRev?: number
+  /** what this part senses with, looked up once per change of the sensor and load-cell registries */
+  sense?: { rev: number; emitters: BeamEmitter[] | undefined; plain: boolean }
   /** conveyor surface entry (deck parts); absent for a joint-only rig behavior */
   entry?: Extract<ConveyorEntry, { kind: 'linear' }>
   /** All of this part's conveying-deck entries (a flat deck has one; a rig can have several, e.g. a curved
