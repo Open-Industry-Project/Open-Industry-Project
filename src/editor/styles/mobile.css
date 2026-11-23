@@ -132,13 +132,15 @@
   display: none;
 }
 
-/* --- the "⋯" overflow: a phone's sim speed, the one control a phone drops from the bar --- */
+/* --- the "⋯" overflow: Settings, whose button the mobile layout drops from the bar, and a phone's
+   sim speed. Settings needs a way in on touch: its Graphics rows are how a device that runs hot or
+   misbehaves under WebGPU is turned down, and its build stamp says which build the device runs. --- */
 .toolbar-overflow {
   position: relative;
   display: none;
 }
 
-.app.phone .toolbar-overflow {
+.app.mobile .toolbar-overflow {
   display: inline-flex;
 }
 

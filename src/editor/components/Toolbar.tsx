@@ -191,7 +191,7 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
       stale = true
     }
   }, [controller])
-  // the "⋯" overflow: the file actions once the row is too narrow for them (and, on a phone, sim speed)
+  // the "⋯" overflow: Settings on the mobile layout (and, on a phone, sim speed)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -478,8 +478,8 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
             {t(M.viewOnly)}
           </span>
         )}
-        {/* The overflow: a phone's sim speed, which it drops from the bar (CSS shows this only there). The file
-            actions are the project menu's on every layout, phones included. */}
+        {/* The overflow: what the mobile layout drops from the bar (CSS shows this only there). That is Settings,
+            and on a phone sim speed too. The file actions are the project menu's on every layout. */}
         <div className="toolbar-overflow" ref={menuRef}>
           <button
             ref={menuButtonRef}
@@ -509,6 +509,18 @@ export function Toolbar({ store, state, controller }: ToolbarProps) {
                 {speedShort
                   ? t(M.speedItemShort, { speed: state.timeScale, actual: state.speedActual ?? 0 })
                   : t(M.speedItem, { speed: state.timeScale })}
+              </button>
+              {/* the Settings button is dropped from the bar on the mobile layout (CSS), so this is its way in there */}
+              <button
+                className="overflow-item"
+                role="menuitem"
+                data-testid="overflow-settings"
+                onClick={() => {
+                  closeMenu()
+                  runCommand('view.settings')
+                }}
+              >
+                {getCommand('view.settings')?.label}
               </button>
             </div>
           )}

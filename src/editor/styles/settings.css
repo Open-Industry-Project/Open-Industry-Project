@@ -116,6 +116,9 @@
 /* ===== Settings dialog (components/SettingsOverlay.tsx) =================== */
 .settings-tabs {
   display: flex;
+  /* On a phone the build stamp does not fit beside the tabs. Reversed, it wraps to a line above them,
+     so the tabs stay on the rule their active underline sits on. */
+  flex-wrap: wrap-reverse;
   gap: 2px;
   margin: 0 0 12px;
   border-bottom: 1px solid var(--panel-edge);

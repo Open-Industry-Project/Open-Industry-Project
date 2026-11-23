@@ -159,6 +159,58 @@ try {
   await page.locator('[data-testid="setting-renderer"]').selectOption('auto')
   await page.waitForTimeout(200)
   expect((await page.evaluate(() => localStorage.getItem('oip-web/renderer'))) === null, 'and Automatic clears it')
+  await page.close()
+
+  // ── the mobile layout: the bar drops the Settings button, so the "⋯" menu is the way in ─────────
+  // Without it a touch device cannot reach the Graphics rows or read which build it runs.
+  for (const [name, width, height] of [
+    ['phone', 390, 844],
+    ['narrow phone', 320, 640],
+    ['tablet', 700, 900],
+  ]) {
+    const touch = await browser.newPage({ viewport: { width, height } })
+    await touch.addInitScript(() => {
+      try {
+        localStorage.setItem('oip-web/tutorial-done', '1')
+      } catch {
+        /* private-mode storage */
+      }
+    })
+    await touch.goto(`${url}?scene=demo`, { waitUntil: 'domcontentloaded' })
+    await touch.waitForFunction(() => !!(window.__oip && window.__oip.store && window.__oip.controller), { timeout: 60000 })
+    await touch.waitForFunction(() => !!document.querySelector('.app.mobile'), { timeout: 8000 })
+    const barButton = await touch.evaluate(() => (document.querySelector('.settings-button')?.getBoundingClientRect().width ?? 0) > 0)
+    expect(!barButton, `${name}: the bar has no Settings button`)
+    await touch.evaluate(() => document.querySelector('.overflow-button').click())
+    await touch.waitForFunction(() => !!document.querySelector('[data-testid="overflow-settings"]'), { timeout: 8000 })
+    const items = await touch.evaluate(() =>
+      [...document.querySelectorAll('.toolbar-overflow [role="menuitem"]')]
+        .filter((i) => i.getBoundingClientRect().width > 0)
+        .map((i) => i.textContent.trim()),
+    )
+    expect(items.length === (width <= 560 ? 2 : 1), `${name}: the "⋯" menu lists ${items.join(' | ')}`)
+    await touch.evaluate(() => document.querySelector('[data-testid="overflow-settings"]').click())
+    expect(await dialogUp(touch, true), `${name}: its Settings item opens the dialog`)
+    expect((await tabOf(touch)) === 'preferences', `${name}: on Preferences`)
+    expect(await touch.evaluate(() => !document.querySelector('.overflow-popover:not(.project-popover)')), `${name}: and the menu closes`)
+    const fit = await touch.evaluate(() => {
+      const stamp = document.querySelector('[data-testid="settings-build"]').getBoundingClientRect()
+      const dialog = document.querySelector('.shortcuts-dialog').getBoundingClientRect()
+      const tabs = [...document.querySelectorAll('.settings-tab')].map((el) => el.getBoundingClientRect())
+      return {
+        text: document.querySelector('[data-testid="settings-build"]').textContent,
+        inside: stamp.left >= dialog.left && stamp.right <= dialog.right && dialog.right <= window.innerWidth && dialog.left >= 0,
+        // beside them where there is room, on a line above them on a phone
+        clearOfTabs: tabs.every((r) => stamp.left >= r.right || stamp.bottom <= r.top),
+        scrolls: document.documentElement.scrollWidth > window.innerWidth,
+      }
+    })
+    expect(/build \S+/i.test(fit.text), `${name}: the build stamp reads ${JSON.stringify(fit.text)}`)
+    expect(fit.inside, `${name}: and sits inside the dialog, which sits inside the screen`)
+    expect(fit.clearOfTabs, `${name}: clear of the tabs`)
+    expect(!fit.scrolls, `${name}: and the page does not scroll sideways`)
+    await touch.close()
+  }
 } finally {
   await browser.close()
   vite.kill()
