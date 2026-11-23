@@ -6,9 +6,9 @@ import { identKey } from './program'
 import { FB_INPUTS } from './runtime'
 import type { MethodRunner } from './scanCodegen'
 import type { Emitter } from './scanWasm'
-import { no, type Kind, type Held, I32, F64, isWidth, kindOf, placeOf, type Address, type Host, textOf, readsOnly } from './scanWasmBase'
+import { no, type Kind, type Held, I32, F64, VOID, isWidth, kindOf, placeOf, type Address, type Host, textOf, readsOnly } from './scanWasmBase'
 import type { TypeLayout } from './typed/layout'
-import type { Expr, ScalarType, Stmt, TagValue } from './types'
+import type { Expr, FbType, ScalarType, Stmt, TagValue } from './types'
 import { StError } from './types'
 
 /** A builtin function's call: its arguments in order, then the function (scanCodegen.ts `call`). A number goes as an
@@ -442,13 +442,30 @@ export function blockCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>): vo
     w.u8(0x21).uleb(v)
     given.set(identKey(a.name), v)
   }
+  if (blk === 'TON' || blk === 'TOF' || blk === 'TP') timerBlock(em, blk, f, given, rec)
+  else if (!hostBlock(em, blk, f, given)) return no('a block with this many inputs')
+  for (const a of s.args.filter((x) => x.out)) {
+    const field = rec.byKey.get(identKey(a.name))
+    if (!field || field.hidden || field.layout.kind !== 'scalar') return no(`the output '${a.name}'`)
+    if (a.value.t === 'STRING' || field.layout.scalar === 'STRING') return no('a STRING output')
+    const k = em.coerceStack(a.value.t as ScalarType, em.loadAt({ dyn: () => void em.w.u8(0x20).uleb(f), off: field.off, layout: field.layout }), undefined)
+    const q = em.local(em.typeOfKind(k))
+    w.u8(0x21).uleb(q)
+    em.place(a.value, q, k)
+  }
+}
+
+/** A standard block the host runs (typed/blocks.ts): its instance, which inputs the call gives, each input, the
+ *  clock. False for a block with more inputs than the mask of the given ones holds. */
+function hostBlock(em: Emitter, blk: FbType, f: number, given: ReadonlyMap<string, number>): boolean {
+  const w = em.w
   const names = FB_INPUTS[blk]
   let mask = 0
   w.u8(0x20).uleb(f)
   names.forEach((name, i) => {
     if (given.has(identKey(name))) mask += 2 ** i
   })
-  if (names.length > 30) return no('a block with this many inputs')
+  if (names.length > 30) return false
   w.u8(0x41).sleb(mask)
   for (const name of names) {
     const v = given.get(identKey(name))
@@ -474,15 +491,189 @@ export function blockCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>): vo
       }
     }),
   )
-  for (const a of s.args.filter((x) => x.out)) {
-    const field = rec.byKey.get(identKey(a.name))
-    if (!field || field.hidden || field.layout.kind !== 'scalar') return no(`the output '${a.name}'`)
-    if (a.value.t === 'STRING' || field.layout.scalar === 'STRING') return no('a STRING output')
-    const k = em.coerceStack(a.value.t as ScalarType, em.loadAt({ dyn: () => void em.w.u8(0x20).uleb(f), off: field.off, layout: field.layout }), undefined)
-    const q = em.local(em.typeOfKind(k))
-    w.u8(0x21).uleb(q)
-    em.place(a.value, q, k)
+  return true
+}
+
+/**
+ * A timer block (TON, TOF, TP) written in the body itself, over its record in the arena: what typed/blocks.ts does
+ * for the same block, instruction for instruction, with the scan's clock read from the body's own parameter.
+ *
+ * Written here and not run by the host because of one device. On an iPhone, about 100 s into a run of the demo, the
+ * host's timer functions began to work from a clock a few milliseconds off the one the scan handed the body: a
+ * one-second timer fired at once and the next ones never finished. The walker, on the same clock, kept time, and the
+ * fault went when anything was added to those functions, so it was in how that browser compiled them once they were
+ * hot. Here no JavaScript stands between the clock and the timer. Of the blocks left on the host, only the motion
+ * kernel reads the clock.
+ */
+function timerBlock(em: Emitter, blk: 'TON' | 'TOF' | 'TP', f: number, given: ReadonlyMap<string, number>, rec: Extract<TypeLayout, { kind: 'struct' }>): void {
+  const w = em.w
+  const off = (field: string): number => rec.byKey.get(identKey(field))!.off
+  const inst = (): void => void w.u8(0x20).uleb(f)
+  const get = (local: number) => (): void => void w.u8(0x20).uleb(local)
+  const i32 = (n: number) => (): void => void w.u8(0x41).sleb(n)
+  const f64 = (x: number) => (): void => void w.u8(0x44).f64(x)
+  const now = get(1)
+  const load8 = (field: string): void => {
+    inst()
+    w.u8(0x2d).uleb(0).uleb(off(field))
   }
+  const store8 = (field: string, value: () => void): void => {
+    inst()
+    value()
+    w.u8(0x3a).uleb(0).uleb(off(field))
+  }
+  const loadF = (field: string): void => {
+    inst()
+    w.u8(0x2b).uleb(0).uleb(off(field))
+  }
+  const storeF = (field: string, value: () => void): void => {
+    inst()
+    value()
+    w.u8(0x39).uleb(0).uleb(off(field))
+  }
+  const when = (then: () => void, otherwise?: () => void): void => {
+    w.u8(0x04).u8(VOID)
+    then()
+    if (otherwise) {
+      w.u8(0x05)
+      otherwise()
+    }
+    w.u8(0x0b)
+  }
+  const pt = em.local(F64)
+  const et = em.local(F64)
+  // an input the call gives is kept in the record first; one it leaves out has what the last call gave
+  const givenPt = given.get(identKey('PT'))
+  if (givenPt !== undefined) storeF('PT', get(givenPt))
+  loadF('PT')
+  w.u8(0x21).uleb(pt)
+  const givenIn = given.get(identKey('IN'))
+  /** the given IN as a BOOL: any number but zero (runtime.ts bool) */
+  const inGiven = (): void => {
+    get(givenIn!)()
+    f64(0)()
+    w.u8(0x62)
+  }
+  /** et := min(pt, max(0, now - start) / 1e6), and into ET */
+  const elapse = (): void => {
+    get(pt)()
+    f64(0)()
+    now()
+    loadF('start')
+    w.u8(0xa1).u8(0xa5)
+    f64(1e6)()
+    w.u8(0xa3).u8(0xa4).u8(0x21).uleb(et)
+    storeF('ET', get(et))
+  }
+  const etBelowPt = (): void => {
+    get(et)()
+    get(pt)()
+    w.u8(0x63)
+  }
+  const etAtPt = (): void => {
+    get(et)()
+    get(pt)()
+    w.u8(0x66)
+  }
+  const start = (): void => {
+    store8('running', i32(1))
+    storeF('start', now)
+    storeF('ET', f64(0))
+  }
+  if (blk === 'TON') {
+    if (givenIn !== undefined) store8('IN', inGiven)
+    load8('IN')
+    when(
+      () => {
+        load8('running')
+        when(
+          () => {
+            elapse()
+            store8('Q', etAtPt)
+          },
+          () => {
+            // the clock starts here, with nothing elapsed yet
+            start()
+            store8('Q', i32(0))
+          },
+        )
+      },
+      () => {
+        storeF('ET', f64(0))
+        store8('Q', i32(0))
+        store8('running', i32(0))
+      },
+    )
+    return
+  }
+  if (blk === 'TOF') {
+    if (givenIn !== undefined) store8('IN', inGiven)
+    load8('IN')
+    when(
+      () => {
+        store8('Q', i32(1))
+        storeF('ET', f64(0))
+        store8('running', i32(0))
+      },
+      () => {
+        // (Q clear: IN was never true, or the off-delay has already expired)
+        load8('Q')
+        when(() => {
+          load8('running')
+          when(
+            () => {
+              elapse()
+              store8('Q', etBelowPt)
+            },
+            // the falling edge: hold Q and start from zero
+            start,
+          )
+        })
+      },
+    )
+    return
+  }
+  // TP: prev is IN as the last call left it
+  const inn = em.local(I32)
+  if (givenIn !== undefined) inGiven()
+  else {
+    load8('prev')
+    w.u8(0x41).sleb(0).u8(0x47)
+  }
+  w.u8(0x21).uleb(inn)
+  const rising = em.local(I32)
+  get(inn)()
+  load8('prev')
+  w.u8(0x45).u8(0x71).u8(0x21).uleb(rising)
+  store8('prev', get(inn))
+  load8('running')
+  w.u8(0x45)
+  get(rising)()
+  w.u8(0x71)
+  when(
+    () => {
+      start()
+      store8('Q', i32(1))
+    },
+    () => {
+      load8('running')
+      when(
+        () => {
+          elapse()
+          store8('Q', etBelowPt)
+          etAtPt()
+          when(() => store8('running', i32(0)))
+        },
+        () => {
+          store8('Q', i32(0))
+          // pulse finished and input released: clear elapsed
+          get(inn)()
+          w.u8(0x45)
+          when(() => storeF('ET', f64(0)))
+        },
+      )
+    },
+  )
 }
 
 /** A user function block's call (scanCodegen.ts userCall), in the walker's order: the instance's place; the scalar

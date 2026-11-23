@@ -32,7 +32,6 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
   const [checking, setChecking] = useState(false)
   const logRef = useRef<RunLog | null>(null)
   const detachRef = useRef<(() => void) | null>(null)
-  const probeRef = useRef<unknown>(null)
 
   useEffect(() => {
     const log = new RunLog(() => performance.now())
@@ -43,11 +42,8 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
     }
     // the variable table comes ten times a second, a new object each time (core/watchTable.ts)
     let watched: object | null = null
-    probeRef.current = null
     sim.frameTap = (f) => {
       log.frame(f, sim.plcState)
-      // (kept from the last frame that had one: a Stop takes the program's state with it)
-      if (sim.plcState?.clockProbe) probeRef.current = sim.plcState.clockProbe
       const table = sim.plcState?.watch
       if (table && table !== watched) {
         watched = table
@@ -109,7 +105,6 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
       timeScale: s.timeScale,
       speedActual: s.speedActual,
       parts: s.scene.parts.length,
-      clockProbe: probeRef.current,
       engineCheck: checkPlcEngines({ stProgram: s.stProgram, controller: s.controller, stScanMs: s.stScanMs }),
     })
     setChecking(false)

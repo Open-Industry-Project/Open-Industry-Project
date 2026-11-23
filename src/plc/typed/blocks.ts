@@ -1,11 +1,12 @@
-// The ten standard function blocks, and the motion kernel, over the typed arena: each one a function of its instance's address, its inputs
-// as a call gives them (undefined for an input the call leaves out) and the controller's clock. A standard block keeps
-// each input in its record, so one a call leaves out has the value the last call gave it (runtime.ts). They do what
-// runtime.ts's objects do, line for line - those stay the walker's, so the oracle compares two implementations of
-// every block (docs/plc-typed-storage.md, "Layout"). Every offset comes from the block's layout (layout.ts BLOCKS),
-// so the code and the layout cannot disagree about where a field is.
+// The standard function blocks other than the timers (the edges, the counters, the bistables), and the motion kernel,
+// over the typed arena: each one a function of its instance's address and its inputs as a call gives them (undefined
+// for an input the call leaves out). A standard block keeps each input in its record, so one a call leaves out has
+// the value the last call gave it (runtime.ts). They do what runtime.ts's objects do, line for line - those stay the
+// walker's, so the oracle compares two implementations of every block (docs/plc-typed-storage.md, "Layout"). Every
+// offset comes from the block's layout (layout.ts BLOCKS), so the code and the layout cannot disagree about where a
+// field is. The three timers are not here: a body writes them itself (scanWasmCalls.ts timerBlock says why).
 
-import { bool, clockProbe, num, wrap } from '../runtime'
+import { bool, num, wrap } from '../runtime'
 import type { FbType, TagValue } from '../types'
 import type { Arena } from './arena'
 import { BLOCKS } from './layout'
@@ -15,35 +16,10 @@ type In = TagValue | undefined
 
 const off = (t: FbType, field: string): number => BLOCKS[t].byKey.get(field.toUpperCase())!.off
 
-/** Milliseconds from clock reading `start` to `now`, never negative (runtime.ts sinceMs). */
-const sinceMs = (now: number, start: number): number => Math.max(0, now - start) / 1e6
-
-/** What a timer block saw of the clock, for the probe (runtime.ts clockProbe). */
-function probeClock(now: number): void {
-  const p = clockProbe
-  p.timerCalls++
-  if (now !== p.scanned) {
-    p.mismatches++
-    if (p.firstMismatches.length < 8) p.firstMismatches.push([p.scanned, now])
-  }
-}
-function probeElapsed(now: number, start: number, et: number, pt: number): void {
-  // (a demo scan is 10 ms, and a timer that has not reached PT has run a whole number of them)
-  if (et < pt && Number.isInteger(et / 10)) return
-  if (et >= pt && Number.isFinite(et)) return
-  const p = clockProbe
-  p.oddElapsed++
-  if (p.firstOddElapsed.length < 8) p.firstOddElapsed.push([now, start, et, pt])
-}
-
-/** Each block's call, over one arena: what generated code is handed as `blk_TON`, `blk_CTU`, ... The parameters after
+/** Each block's call, over one arena: what generated code is handed as `blk_R_TRIG`, `blk_CTU`, ... The parameters after
  *  the instance are the block's accepted inputs in runtime.ts FB_INPUTS order, aliases included. */
 export function blocksOver(a: Arena, channels: Map<number, MotionChannel>): Record<string, (...args: never[]) => void> {
   const { U8, I16, I32, F64 } = a
-  const timer = (t: 'TON' | 'TOF'): { q: number; et: number; run: number; start: number; in: number; pt: number } => ({ q: off(t, 'Q'), et: off(t, 'ET'), run: off(t, 'running'), start: off(t, 'start'), in: off(t, 'IN'), pt: off(t, 'PT') })
-  const ton = timer('TON')
-  const tof = timer('TOF')
-  const tp = { q: off('TP', 'Q'), et: off('TP', 'ET'), prev: off('TP', 'prev'), run: off('TP', 'running'), start: off('TP', 'start'), pt: off('TP', 'PT') }
   const rt = { q: off('R_TRIG', 'Q'), prev: off('R_TRIG', 'prev') }
   const ft = { q: off('F_TRIG', 'Q'), prev: off('F_TRIG', 'prev') }
   const ctu = { cv: off('CTU', 'CV'), q: off('CTU', 'Q'), prev: off('CTU', 'prev'), r: off('CTU', 'R'), pv: off('CTU', 'PV') }
@@ -56,11 +32,6 @@ export function blocksOver(a: Arena, channels: Map<number, MotionChannel>): Reco
     if (v !== undefined) U8[at] = bool(v) ? 1 : 0
     return U8[at] !== 0
   }
-  /** A kept TIME input at `at`, the same way. */
-  const keptTime = (at: number, v: In): number => {
-    if (v !== undefined) F64[at >> 3] = num(v)
-    return F64[at >> 3]!
-  }
   /** A kept INT input at `at`, read at INT width as the walker reads it. */
   const keptInt = (at: number, v: In): number => {
     if (v !== undefined) I16[at >> 1] = wrap('INT', num(v))
@@ -70,68 +41,6 @@ export function blocksOver(a: Arena, channels: Map<number, MotionChannel>): Reco
   const mo: MotionOutputs = { cmdId: 0, curCmd: 0, doneCmd: 0, state: 0, x: 0, v: 0, error: 0, qLo: 0, qHi: -1, powered: false, homed: false }
 
   return {
-    blk_TON(b: number, IN: In, PT: In, now: number): void {
-      probeClock(now)
-      const pt = keptTime(b + ton.pt, PT)
-      if (!keptBool(b + ton.in, IN)) {
-        F64[(b + ton.et) >> 3] = 0
-        U8[b + ton.q] = 0
-        U8[b + ton.run] = 0
-        return
-      }
-      if (U8[b + ton.run] === 0) {
-        U8[b + ton.run] = 1 // the clock starts here, with nothing elapsed yet
-        F64[(b + ton.start) >> 3] = now
-        F64[(b + ton.et) >> 3] = 0
-        U8[b + ton.q] = 0
-        return
-      }
-      const et = Math.min(pt, sinceMs(now, F64[(b + ton.start) >> 3]!))
-      probeElapsed(now, F64[(b + ton.start) >> 3]!, et, pt)
-      F64[(b + ton.et) >> 3] = et
-      U8[b + ton.q] = et >= pt ? 1 : 0
-    },
-    blk_TOF(b: number, IN: In, PT: In, now: number): void {
-      const pt = keptTime(b + tof.pt, PT)
-      if (keptBool(b + tof.in, IN)) {
-        U8[b + tof.q] = 1
-        F64[(b + tof.et) >> 3] = 0
-        U8[b + tof.run] = 0
-        return
-      }
-      if (U8[b + tof.q] === 0) return // IN was never true, or the off-delay has already expired
-      if (U8[b + tof.run] === 0) {
-        U8[b + tof.run] = 1 // the falling edge: hold Q and start from zero
-        F64[(b + tof.start) >> 3] = now
-        F64[(b + tof.et) >> 3] = 0
-        return
-      }
-      const et = Math.min(pt, sinceMs(now, F64[(b + tof.start) >> 3]!))
-      F64[(b + tof.et) >> 3] = et
-      U8[b + tof.q] = et < pt ? 1 : 0
-    },
-    blk_TP(b: number, IN: In, PT: In, now: number): void {
-      const pt = keptTime(b + tp.pt, PT)
-      const inn = IN === undefined ? U8[b + tp.prev] !== 0 : bool(IN) // prev is IN as the last call left it
-      const rising = inn && U8[b + tp.prev] === 0
-      U8[b + tp.prev] = inn ? 1 : 0
-      if (U8[b + tp.run] === 0 && rising) {
-        U8[b + tp.run] = 1
-        F64[(b + tp.start) >> 3] = now
-        F64[(b + tp.et) >> 3] = 0
-        U8[b + tp.q] = 1
-        return
-      }
-      if (U8[b + tp.run] !== 0) {
-        const et = Math.min(pt, sinceMs(now, F64[(b + tp.start) >> 3]!))
-        F64[(b + tp.et) >> 3] = et
-        U8[b + tp.q] = et < pt ? 1 : 0
-        if (et >= pt) U8[b + tp.run] = 0
-        return
-      }
-      U8[b + tp.q] = 0
-      if (!inn) F64[(b + tp.et) >> 3] = 0 // pulse finished and input released: clear elapsed
-    },
     blk_R_TRIG(b: number, CLK: In): void {
       const clk = CLK === undefined ? U8[b + rt.prev] !== 0 : bool(CLK)
       U8[b + rt.q] = clk && U8[b + rt.prev] === 0 ? 1 : 0

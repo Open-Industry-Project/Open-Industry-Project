@@ -8,7 +8,7 @@
 import { canonicalAddress } from '../core/io/iecAddress'
 import type { WatchRange } from '../core/watchTable'
 import { controllerTags, identKey, isScalarType, passOrder, taskTable } from './program'
-import { bool, clockProbe, isInt, isString, nsOf, num, roundEven, str, strLimit, wrap } from './runtime'
+import { bool, isInt, isString, nsOf, num, roundEven, str, strLimit, wrap } from './runtime'
 import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, VarInfo, WatchPlan } from './types'
 import { isEnum, StError } from './types'
 
@@ -320,8 +320,6 @@ export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: Po
     },
     scan(dt: number): void {
       clock += nsOf(dt)
-      clockProbe.scans++
-      clockProbe.scanned = clock
       pou.scan(clock)
     },
     scanTask(): void {
@@ -364,8 +362,6 @@ export function configuredProgram(ast: Ast, build: PouBuilder, globalPou: Pou | 
   let configuredPlan: { plan: WatchPlan | null } | null = null
   const runTask = (index: number, dt: number): void => {
     clocks[index]! += nsOf(dt)
-    clockProbe.scans++
-    clockProbe.scanned = clocks[index]!
     for (const name of tasks[index]!.programs) byName.get(identKey(name))!.pou.scan(clocks[index]!)
   }
   const pass = passOrder(tasks)
