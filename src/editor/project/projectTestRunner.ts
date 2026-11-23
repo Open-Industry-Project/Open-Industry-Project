@@ -179,12 +179,15 @@ export interface ProjectTestOutcome extends TestResult {
 /** `trace`: a recorder fed every sample the checks see (core/project/projectTest.ts `TraceRecorder`), for a caller that has to
  *  say why a check failed; the run is deterministic, so a failed test can be run again with one to see its lead-up.
  *  `onFrame`: handed every step's frame, read-only, after the checks have sampled it (where the cargo is: `--cargo`).
- *  `flowFacts: false` runs without collecting flow facts (the outcome's list is then empty). */
+ *  `flowFacts: false` runs without collecting flow facts (the outcome's list is then empty).
+ *  `kept`: the compiled programs of the runs before, by controller name and source. A run that finds its program
+ *  there restarts it and does not compile it again (plc/types.ts `restart`): on a large program compiling is most
+ *  of a short test. The caller hands the same map to each run of one project, and to nothing running beside it. */
 export function runProjectTest(
   Jolt: JoltModule,
   project: ProjectJSON,
   spec: TestSpec,
-  opts?: { lockstep?: Lockstep; trace?: TraceRecorder; onFrame?: (frame: Readonly<BoxFrame>, extras: FrameExtras) => void; flowFacts?: boolean; wakeAllParts?: boolean },
+  opts?: { lockstep?: Lockstep; trace?: TraceRecorder; onFrame?: (frame: Readonly<BoxFrame>, extras: FrameExtras) => void; flowFacts?: boolean; wakeAllParts?: boolean; kept?: Map<string, LocalPlcLink> },
 ): ProjectTestOutcome {
   const { scene, stProgram, controller, stScanMs, hz } = prepareScene(project)
   const badProbes = probePartErrors(scene.parts, spec.checks)
@@ -206,13 +209,21 @@ export function runProjectTest(
   const plcs = scene.plcs ?? []
   const runs = stProgram !== '' ? controllerRuns(stProgram, controller, defaultMs, { defaultName: plcs[0]?.name, simulated: plcs.slice(1).filter((c) => c.runsOn === 'app' && c.connect).map((c) => c.name) }) : []
   const mainRun = runs.find((r) => r.controller === null)
-  const declared = mainRun ? new LocalPlcLink(runnableSource(mainRun.source, mainRun.table), undefined) : null
-  const plc = declared ? declared.withBindings(wiredBindings(scene.parts, declared)) : null
+  /** the program of one controller bound to `parts`: the one a run before compiled, restarted, or compiled now */
+  const linkFor = (name: string | null, source: string, parts: typeof scene.parts): LocalPlcLink => {
+    const key = JSON.stringify([name, source])
+    const had = opts?.kept?.get(key)
+    const again = had?.restartable ? had.restarted(wiredBindings(parts, had)) : null
+    const declared = again ? null : new LocalPlcLink(source, undefined)
+    const link = again ?? declared!.withBindings(wiredBindings(parts, declared!))
+    opts?.kept?.set(key, link)
+    return link
+  }
+  const plc = mainRun ? linkFor(null, runnableSource(mainRun.source, mainRun.table), scene.parts) : null
   const others = runs.flatMap((r) => {
     if (r.controller === null) return []
     const name = r.controller
-    const own = new LocalPlcLink(runnableSource(r.source, r.table), undefined)
-    const link = own.withBindings(wiredBindings(partsForController(scene.parts, name), own))
+    const link = linkFor(name, runnableSource(r.source, r.table), partsForController(scene.parts, name))
     const ctl = new SimController(link)
     return [{ name, link, ctl, scheduler: new TaskScheduler(ctl, { periodSec: defaultMs / 1000, maxCatchUp: MAX_SCANS_PER_STEP }), out: {} as Record<string, TestValue> }]
   })

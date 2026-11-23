@@ -67,6 +67,8 @@ export async function runProjectTests(
   const Jolt = (await joltMod.default()) as unknown as JoltModule
 
   const runs: ProjectTestRun[] = []
+  // each test restarts the program the first one compiled
+  const kept = new Map<string, never>()
   for (const [i, spec] of specs.entries()) {
     // yield first, so the overlay paints "running" (and each finished row) before the next spec
     // blocks the thread
@@ -75,7 +77,7 @@ export async function runProjectTests(
     try {
       const trace = opts?.trace ? new testMod.TraceRecorder(opts.trace) : undefined
       const snaps = opts?.cargo ? new probeMod.CargoSnapshots(opts.cargo) : undefined
-      const { facts, factsOverflow, ...result } = runnerMod.runProjectTest(Jolt, project, spec, { ...(trace ? { trace } : {}), ...(snaps ? { onFrame: snaps.onFrame } : {}) })
+      const { facts, factsOverflow, ...result } = runnerMod.runProjectTest(Jolt, project, spec, { kept, ...(trace ? { trace } : {}), ...(snaps ? { onFrame: snaps.onFrame } : {}) })
       run = {
         name: testName(spec, i),
         ok: result.ok,
