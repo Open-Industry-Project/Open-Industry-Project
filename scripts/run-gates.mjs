@@ -96,6 +96,10 @@ const GATES = [
     why: 'the device benchmark is how a real phone reports back (editor/bench.ts), and every way it breaks is SILENT: a camera it stops driving, a window it stops closing or an override it stops honouring all still produce a confident-looking blob. Cheap to run, and the numbers it collects decide the mobile defaults',
   },
   {
+    script: 'verify-runlog.mjs',
+    why: "the run log is how a device with no console reports a run that goes wrong on it alone (editor/runLog.ts): it found a clock an iPhone handed a WebAssembly body wrong, which no desktop browser showed. It is off unless asked for, so nothing else notices when it stops recording. Also holds ?plcengine=walker, the switch that tells the engine's fault from the program's",
+  },
+  {
     script: 'verify-idle-pose-beam.mjs',
     why: "a beam on a link a stopped pose moves (the idle preview, Use while stopped) must be drawn from where the link now stands: the stopped beam probe reruns only on a scene, cargo or registry change, so a lift's deck eye stayed drawn at the lower level. Fails without the re-probe in view.applyIdlePose",
   },

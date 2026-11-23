@@ -3,7 +3,6 @@ import { defineMessages, t } from '../../core/i18n'
 import { watchKeysOf } from '../../core/watchTable'
 import type { SimClient } from '../../sim/client'
 import type { EditorStore } from '../store/store'
-import { checkPlcEngines } from '../engineCheck'
 import { RunLog } from '../runLog'
 
 const M = defineMessages('runLog', {
@@ -11,7 +10,6 @@ const M = defineMessages('runLog', {
   recording: 'recording: {sim} s of sim time in {real} s',
   hint: 'Play and use the page as usual. Stop when it has gone wrong.',
   stop: 'Stop and copy',
-  checking: 'checking the PLC engine on this device...',
   done: 'recorded {kb} KB. Paste this',
   doneNoClipboard: 'recorded {kb} KB. Long-press the box, Select All, Copy (http has no clipboard API)',
   copy: 'Copy',
@@ -29,7 +27,6 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
   const [, setTick] = useState(0)
   const [text, setText] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
   const logRef = useRef<RunLog | null>(null)
   const detachRef = useRef<(() => void) | null>(null)
 
@@ -79,14 +76,7 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
   const log = logRef.current
   if (!log) return null
 
-  // The recording ends at the press. The engine check (engineCheck.ts) holds the thread for a second or more, so the
-  // line saying so is drawn first.
   const stop = (): void => {
-    detachRef.current?.()
-    setChecking(true)
-    setTimeout(finish, 60)
-  }
-  const finish = (): void => {
     const s = store.getState()
     const result = log.result({
       build: __BUILD_ID__,
@@ -105,9 +95,8 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
       timeScale: s.timeScale,
       speedActual: s.speedActual,
       parts: s.scene.parts.length,
-      engineCheck: checkPlcEngines({ stProgram: s.stProgram, controller: s.controller, stScanMs: s.stScanMs }),
     })
-    setChecking(false)
+    detachRef.current?.()
     setText(JSON.stringify(result))
   }
 
@@ -125,9 +114,7 @@ export function RunLogOverlay({ store, sim }: { store: EditorStore; sim: SimClie
   return (
     <div className="bench-overlay run-log-overlay">
       <div className="bench-overlay-title">{t(M.title)}</div>
-      {checking ? (
-        <div>{t(M.checking)}</div>
-      ) : text === null ? (
+      {text === null ? (
         <>
           <div>{t(M.recording, { sim: Math.floor(log.simTime), real: Math.round(log.wallSec) })}</div>
           <div className="bench-overlay-note">{t(M.hint)}</div>
