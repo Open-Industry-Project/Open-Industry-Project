@@ -182,13 +182,11 @@ projectTestsRun.ts); eslint enforces both.
 - **Edit `scripts/optimize-assets.mjs` only when the optimizer itself changes.** Asset versions hash its bytes, so any
   edit, even a comment, re-versions every model and texture for every visitor and needs a part-asset re-bake.
 - **The PLC runs on the typed engine; the walker is its reference and fallback.** Read
-  [docs/plc-typed-storage.md](docs/plc-typed-storage.md) first. A body is written as WebAssembly
-  ([scanWasm.ts](src/plc/scanWasm.ts)), with the generated JavaScript kept as the second form (`plcBodies`), so a
-  new AST node is written in both, and `wasmStats.escaped` must stay 0. In JavaScript it is generated in
-  [scanCodegen.ts](src/plc/scanCodegen.ts) (there is no per-node fallback; an unsupported construct refuses the whole
-  program onto the walker). `typedRefusals` and `codegenFallbacks` must stay empty. Never name a free global (`Math`,
-  `Array`) in generated source: bind it in `helpersFor`. Program text from a room becomes code, so every name and
-  literal enters the source through `JSON.stringify`. Measure with `npm run bench-sim -- <project> [--engine walker]`
+  [docs/plc-typed-storage.md](docs/plc-typed-storage.md) first. A body is written as a WebAssembly module, so a
+  new AST node is written in [scanWasm.ts](src/plc/scanWasm.ts) (there is no per-node fallback; an unsupported
+  construct refuses the whole program onto the walker). `typedRefusals` and `codegenFallbacks` must stay empty.
+  Program text from a room is never evaluated: a name or a literal reaches a body through the constants its imports
+  read by index (`wk`), never as code. Measure with `npm run bench-sim -- <project> [--engine walker]`
   (fingerprint must not move), A/B in one process for anything under ~20%, and never lower a
   [scanSpeed.test.ts](src/plc/scanSpeed.test.ts) floor to make it pass. Anything a program remembers between scans
   goes in the arena, or is put back in `rewind()` ([typed/pou.ts](src/plc/typed/pou.ts)): a second run of a program

@@ -11,11 +11,11 @@ import { isBuiltinFunc } from './builtins'
 import { identKey } from './program'
 import { isCalendar, isInt, isReal, MAX_LOOP_ITERATIONS } from './runtime'
 import type { GenBody, GenInternals, GenScope } from './scanCodegen'
-import { escapesOf, helpersOf, makeEscapes } from './scanCodegen'
+import { HELPERS } from './scanCodegen'
 import { clearRanges, type TypeLayout } from './typed/layout'
 import { memoryOf } from './typed/arena'
 import type { Expr, ScalarType, SourcePos, Stmt, TagValue } from './types'
-import { Unsupported, no, wasmStats, type Kind, type Held, I32, I64, F64, VOID, SIGNED_NARROW, MASK, WIDE, isWidth, RANGE, kindOf, type Link, linkOf, Bytes, type Address, type Host, textOf, type Import, type Fn, readsOnly } from './scanWasmBase'
+import { no, wasmStats, type Kind, type Held, I32, I64, F64, VOID, SIGNED_NARROW, MASK, WIDE, isWidth, RANGE, kindOf, type Link, linkOf, Bytes, type Address, type Host, textOf, type Import, type Fn, readsOnly } from './scanWasmBase'
 import type { WasmBody } from './scanWasmBase'
 import * as calls from './scanWasmCalls'
 
@@ -26,7 +26,6 @@ export class Emitter {
   readonly #typeBytes: Bytes[] = []
   readonly imports = new Map<string, Import>()
   readonly fns: Fn[] = []
-  readonly escapes: Stmt[] = []
   #fn!: Fn
   w!: Bytes
   /** the open blocks of the function being written, outermost first: a loop's exit and continue blocks are named */
@@ -103,6 +102,10 @@ export class Emitter {
     // (an f64 here is a whole number a call answered: the checker allows no real where a whole number is needed)
     if (k === 'f') this.w.op(0xfc, 0x06)
     else this.w.u8(k === 'u' ? 0xad : 0xac)
+  }
+  /** `k` on the stack as the 32 bits a bit operation works on: a number held as a real gives its whole part's */
+  toBits(k: Kind): void {
+    if (k === 'f') this.w.op(0xfc, 0x06).u8(0xa7)
   }
   /** the i64 on the stack held to `t`'s width, as an i64 */
   wrapL(t: ScalarType): void {
@@ -276,6 +279,7 @@ export class Emitter {
       case 'call':
         return isBuiltinFunc(e.name) ? this.builtin(e) : this.fnCall(e)
       case 'mcall':
+        if (calls.answersText(this, e)) return no('a text read as a number')
         return this.methodCall(e)
       case 'isref':
         this.at(this.slot(e.obj), 0x28, 2)
@@ -288,14 +292,14 @@ export class Emitter {
           return 'b'
         }
         if (e.op === 'NOT' && isWidth(e.t)) {
-          if (this.num(e.expr) === 'f') return no('NOT of a real')
+          this.toBits(this.num(e.expr))
           w.u8(0x41).sleb(-1).u8(0x73)
           this.wrapI(e.t)
           return kindOf(e.t)
         }
         if (e.op === 'NEG' && isWidth(e.t)) {
           const v = this.local(I32)
-          if (this.num(e.expr) === 'f') return no('a real negated as a whole number')
+          this.toBits(this.num(e.expr))
           w.u8(0x21).uleb(v).u8(0x41).sleb(0).u8(0x20).uleb(v).u8(0x6b)
           this.wrapI(e.t)
           return kindOf(e.t)
@@ -366,8 +370,8 @@ export class Emitter {
         return 'b'
       }
       if (!isWidth(t)) return no(`${op} of ${t}`)
-      if (this.num(e.left) === 'f') return no('a bit operation on a real')
-      if (this.num(e.right) === 'f') return no('a bit operation on a real')
+      this.toBits(this.num(e.left))
+      this.toBits(this.num(e.right))
       w.u8(op === 'AND' ? 0x71 : op === 'OR' ? 0x72 : 0x73)
       this.wrapI(t)
       return kindOf(t)
@@ -391,7 +395,17 @@ export class Emitter {
     }
     if (!isWidth(t)) {
       // a duration: sums and products are a number's (interpreter.ts fits leaves anything but an integer alone)
-      if (t !== 'TIME' || (op !== '+' && op !== '-' && op !== '*')) return no(`${op} of ${t}`)
+      if (t !== 'TIME') return no(`${op} of ${t}`)
+      if (op === '/' || op === 'MOD') {
+        // a whole quotient or remainder, faulting by zero: the helper the walker's rule is written in
+        w.u8(0x41).sleb(op === 'MOD' ? 1 : 0).u8(0x41).sleb(this.wk(t))
+        this.toFAfter(e.left)
+        this.toFAfter(e.right)
+        w.u8(0x41).sleb(this.wk(e.pos))
+        w.u8(0x10).uleb(this.import('divF', [I32, I32, F64, F64, I32], [F64], (h) => (m: number, ti: number, l: number, r: number, pi: number) => (h.H[m ? 'modI' : 'divI'] as (t: unknown, l: number, r: number, p: unknown) => number)(h.W[ti], l, r, h.W[pi])))
+        return 'f'
+      }
+      if (op !== '+' && op !== '-' && op !== '*') return no(`${op} of ${t}`)
       this.toFAfter(e.left)
       this.toFAfter(e.right)
       w.u8(op === '+' ? 0xa0 : op === '-' ? 0xa1 : 0xa2)
@@ -491,10 +505,23 @@ export class Emitter {
       terms.push(() => {
         const w = this.w
         const k = this.num(ix)
-        if (k === 'f') return no('a real subscript')
         const v = this.local(I64)
-        this.toL(k)
-        w.u8(0x22).uleb(v).u8(0x42).sleb(d.lo).u8(0x53).u8(0x20).uleb(v).u8(0x42).sleb(d.hi).u8(0x55).u8(0x72)
+        if (k === 'f') {
+          // held as a real (a TIME): checked as the number it is, so one that is no number at all faults too, and
+          // then its whole part
+          const fv = this.local(F64)
+          w.u8(0x22).uleb(fv).u8(0x44).f64(d.lo).u8(0x66).u8(0x20).uleb(fv).u8(0x44).f64(d.hi).u8(0x65).u8(0x71).u8(0x45)
+          w.u8(0x04).u8(VOID)
+          w.u8(0x20).uleb(fv).u8(0x44).f64(d.lo).u8(0x44).f64(d.hi).u8(0x41).sleb(this.wk(e.pos))
+          w.u8(0x10).uleb(this.import('ixFault', [F64, F64, F64, I32], [], (h) => (i: number, lo: number, hi: number, pi: number) => void (h.H.ixFault as (i: number, lo: number, hi: number, p: unknown) => never)(i, lo, hi, h.W[pi])))
+          w.u8(0x00)
+          w.u8(0x0b)
+          w.u8(0x20).uleb(fv).op(0xfc, 0x06).u8(0x22).uleb(v)
+        } else {
+          this.toL(k)
+          w.u8(0x22).uleb(v)
+        }
+        w.u8(0x42).sleb(d.lo).u8(0x53).u8(0x20).uleb(v).u8(0x42).sleb(d.hi).u8(0x55).u8(0x72)
         w.u8(0x04).u8(VOID)
         w.u8(0x20).uleb(v).u8(0xb9).u8(0x44).f64(d.lo).u8(0x44).f64(d.hi).u8(0x41).sleb(this.wk(e.pos))
         w.u8(0x10).uleb(this.import('ixFault', [F64, F64, F64, I32], [], (h) => (i: number, lo: number, hi: number, pi: number) => void (h.H.ixFault as (i: number, lo: number, hi: number, p: unknown) => never)(i, lo, hi, h.W[pi])))
@@ -553,6 +580,11 @@ export class Emitter {
     if (e.node === 'str' || (e.node === 'var' && typeof e.constValue === 'string')) {
       this.w.u8(0x41).sleb(this.wk(e.node === 'str' ? e.value : e.constValue))
       return 'S'
+    }
+    if (e.node === 'mcall') {
+      if (!calls.answersText(this, e)) return no('a method that answers no text, read as one')
+      this.methodCall(e)
+      return 'T'
     }
     if (e.node === 'call') {
       // what a call answers: kept by the host, its place there left for the reader
@@ -704,54 +736,10 @@ export class Emitter {
 
   /** one statement: as WebAssembly, or (when it cannot be written yet) the generator's own code for it */
   stmt(s: Stmt): void {
-    const w = this.w
-    const mark = w.len
-    const labels = this.#labels.length
-    const open = this.#mine.length
     wasmStats.statements++
     this.#mine.push([])
-    try {
-      this.native(s)
-    } catch (err) {
-      if (!(err instanceof Unsupported)) throw err
-      wasmStats.escaped++
-      wasmStats.why.set(err.message, (wasmStats.why.get(err.message) ?? 0) + 1)
-      w.len = mark
-      this.#labels.length = labels
-      // (a statement inside it that had not finished gives its locals back with it)
-      while (this.#mine.length > open + 1) this.#release()
-      this.escape(s)
-    }
+    this.native(s)
     this.#release()
-  }
-  escape(s: Stmt): void {
-    const w = this.w
-    const index = this.escapes.push(s) - 1
-    const r = this.local(I32)
-    w.u8(0x41).sleb(index).u8(0x20).uleb(0).u8(0x20).uleb(1).u8(0x20).uleb(2)
-    w.u8(0x10).uleb(this.import('esc', [I32, I32, F64, I32], [I32], (h) => (i: number, b: number, now: number, m: number) => h.esc[i]!(b, now, m)))
-    // the code a jump out of it came back as: 1 return, 2 exit, 3 continue
-    w.u8(0x22).uleb(r)
-    w.u8(0x04).u8(VOID)
-    this.open()
-    w.u8(0x20).uleb(r).u8(0x41).sleb(1).u8(0x46).u8(0x04).u8(VOID)
-    this.open()
-    this.ret()
-    this.close()
-    for (const [code, kind] of [[2, 'exit'], [3, 'cont']] as const) {
-      w.u8(0x20).uleb(r).u8(0x41).sleb(code).u8(0x46).u8(0x04).u8(VOID)
-      this.open()
-      const d = this.depth(kind)
-      if (d !== null) w.u8(0x0c).uleb(d)
-      else {
-        w.u8(0x41).sleb(code).u8(0x10).uleb(this.import('signal', [I32], [], (h) => (c: number) => {
-          throw c === 2 ? h.x.EXIT : h.x.CONTINUE
-        }))
-        w.u8(0x00)
-      }
-      this.close()
-    }
-    this.close()
   }
 
   native(s: Stmt): void {
@@ -886,7 +874,9 @@ export class Emitter {
         return this.blockCall(s)
       case 'invoke':
         this.methodCall(s.call)
-        w.u8(0x1a)
+        // (a text it answered is with the host: given back, since nothing reads it)
+        if (calls.answersText(this, s.call)) w.u8(0x10).uleb(this.import('textsDrop', [I32], [], (h) => (at: number) => void (h.texts.length = at)))
+        else w.u8(0x1a)
         return
       case 'bind': {
         // the address a REF_TO or an interface is given, then its slot
@@ -938,9 +928,21 @@ export class Emitter {
         }),
       )
     }
+    this.textPutTo(target, this.x.placeMaxLen(target), s.pos, lit)
+  }
+  /** the STRING at `at` read as a text the host keeps for the store that follows */
+  textFrom(at: Address): void {
+    this.address(at)
+    this.w.u8(0x10).uleb(this.import('textAts', [I32], [], (h) => (a: number) => void (h.text = textOf(h, 's', a))))
+  }
+  /** The text the host keeps (or the literal at `lit` in the constants) stored into the STRING place `target`: the
+   *  place found now, the text cut to `maxLen` and the place's capacity. */
+  textPutTo(target: Expr, maxLen: number | undefined, pos: SourcePos | undefined, lit = -1): void {
+    const w = this.w
+    if (target.node !== 'var' && target.node !== 'index' && target.node !== 'member') return no('a text stored into this')
     const dst = this.addr(target)
     if (dst.layout.kind !== 'scalar' || dst.layout.scalar !== 'STRING') return no('a text stored into something else')
-    const co = this.wk(this.x.coercerFor('STRING', this.x.placeMaxLen(target), s.pos))
+    const co = this.wk(this.x.coercerFor('STRING', maxLen, pos))
     this.address(dst)
     w.u8(0x41).sleb(dst.layout.cap!).u8(0x41).sleb(co).u8(0x41).sleb(lit)
     w.u8(0x10).uleb(
@@ -1087,6 +1089,27 @@ export class Emitter {
     calls.userCall(this, s, inst, name)
   }
 
+  /** one expression's value handed to the host: a truth, a number, or a text (an initial value that is not a literal) */
+  valueOut(e: Expr): void {
+    const w = this.w
+    if (e.t === 'STRING' || e.node === 'str') {
+      const kind = this.text(e)
+      w.u8(0x10).uleb(
+        this.import(`valueT${kind}`, [I32], [], (h) => (a: number) => {
+          h.text = textOf(h, kind, a)
+          if (kind === 'T') h.texts.length = a
+        }),
+      )
+      return
+    }
+    const k = this.expr(e)
+    if (k === 'b') w.u8(0x10).uleb(this.import('valueB', [I32], [], (h) => (v: number) => void (h.text = v !== 0)))
+    else {
+      this.toF(k)
+      w.u8(0x10).uleb(this.import('valueN', [F64], [], (h) => (v: number) => void (h.text = v)))
+    }
+  }
+
   get x(): GenInternals {
     return this.internals!
   }
@@ -1094,7 +1117,7 @@ export class Emitter {
 
   // ---- the module ----
 
-  module(body: Stmt[]): Uint8Array {
+  module(body: Stmt[], value?: Expr): Uint8Array {
     // a long statement list is split into functions of its own, each answering whether it returned
     const SPLIT = 6000
     const main = this.begin(false)
@@ -1110,6 +1133,7 @@ export class Emitter {
       if (cur!.code.len > SPLIT) startSub()
       this.stmt(s)
     }
+    if (value) this.valueOut(value)
     for (const f of subs) f.code.u8(0x41).sleb(0)
     // the body: each part in turn, stopping at one that returned
     this.#fn = main
@@ -1153,26 +1177,40 @@ export class Emitter {
 }
 
 /** One body as WebAssembly over the program's memory, with the generator's code for what is not written yet. */
-/** The body as WebAssembly, or null when the program's memory is not a WebAssembly memory (typed/arena.ts). */
-export function generateWasmBody(body: Stmt[], scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): GenBody | null {
-  const t0 = performance.now()
-  const H = { ...helpersOf(internals), ...extra }
+/** The module of `body` (and of `value`, an expression whose value it hands back) over the program's memory. */
+function instantiate(body: Stmt[], value: Expr | undefined, scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): { run: WasmBody; host: Host; memory: WebAssembly.Memory; bytes: number } {
+  const H = { ...HELPERS, ...extra }
   const memory = memoryOf((H as unknown as { U8: Uint8Array }).U8.buffer as ArrayBuffer)
-  if (!memory) return null
+  if (!memory) throw new Error('the program is not in a WebAssembly memory')
   const link = linkOf(memory)
   const em = new Emitter(scope, link)
   em.internals = internals
-  const bytes = em.module(body)
-  const esc = em.escapes.length > 0 ? makeEscapes(escapesOf(em.escapes, scope, internals, extra), H) : []
-  const host: Host = { H, W: em.W, esc, x: internals, text: '', args: [], texts: [] }
+  const bytes = em.module(body, value)
+  const host: Host = { H, W: em.W, x: internals, text: '', args: [], texts: [] }
   const env: Record<string, unknown> = { mem: memory, tbl: link.table }
   for (const [name, im] of em.imports) env[name] = im.make(host)
-  const run = new WebAssembly.Instance(new WebAssembly.Module(bytes as BufferSource), { e: env } as WebAssembly.Imports).exports.body as (b: number, now: number, m: number) => void
+  const run = new WebAssembly.Instance(new WebAssembly.Module(bytes as BufferSource), { e: env } as WebAssembly.Imports).exports.body as WasmBody
+  return { run, host, memory, bytes: bytes.length }
+}
+
+/** One body as WebAssembly over the program's memory. */
+export function generateWasmBody(body: Stmt[], scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): GenBody {
+  const t0 = performance.now()
+  const { run, memory, bytes } = instantiate(body, undefined, scope, internals, extra)
   wasmStats.bodies++
-  wasmStats.bytes += bytes.length
+  wasmStats.bytes += bytes
   wasmStats.emitMs += performance.now() - t0
   const made = ((b: number, now: number, m?: number) => run(b, now, m ?? 0)) as GenBody & { wasm?: WasmBody; memory?: WebAssembly.Memory }
   made.wasm = run
   made.memory = memory
   return made
+}
+
+/** One expression as a function of its instance (and a method's frame), answering its value. */
+export function generateWasmValue(e: Expr, scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): (b: number, m?: number) => unknown {
+  const { run, host } = instantiate([], e, scope, internals, extra)
+  return (b: number, m?: number): unknown => {
+    run(b, 0, m ?? 0)
+    return host.text
+  }
 }

@@ -35,10 +35,10 @@ layout bug into a difference on the first scan that touches it.
 
 - Both engines implement `Pou` ([pou.ts](../src/plc/pou.ts)); the program builders (`implicitProgram`,
   `configuredProgram`) speak only to a `Pou`, so they are shared.
-- The typed engine has no per-node fallback (the walker reads records). A construct its generator cannot write refuses
+- The typed engine has no per-node fallback (the walker reads records). A construct its emitter cannot write refuses
   the whole program (`TypedUnsupported`), never runs part of it. `compile` then builds it on the walker, says so once,
-  and records why (`typedRefusals`). A host that will not evaluate generated code also gets the walker. No program this
-  repository compiles is refused (the engine tests assert both lists stay empty).
+  and records why (`typedRefusals`). A host that will not run a WebAssembly module also gets the walker. No program
+  this repository compiles is refused (the engine tests assert both lists stay empty).
 
 ## WebAssembly bodies
 
@@ -60,11 +60,11 @@ instruction at an address worked out when the body is written.
   arithmetic is done in i64 and held to the type's width after, which gives what the walker's wrap gives.
 - **Texts stay with the host.** A STRING place is read and written in the arena. A text a call answers is kept by the
   host and handed on by its place in that list, and given back when it is read.
-- **The JavaScript generator stays** ([scanCodegen.ts](../src/plc/scanCodegen.ts)). It is what runs where
-  `plcBodies.wasm` is off ([typed/arena.ts](../src/plc/typed/arena.ts)), and it would run one statement of a body
-  the emitter could not write (`escape`). No statement this repository compiles is left to it:
-  `wasmStats.escaped` stays 0, and scanEngines.test.ts fails otherwise. scanJsBodies.test.ts runs the corpus on the
-  JavaScript bodies, so the two do not drift apart.
+- **Nothing is evaluated as JavaScript.** A program's names and literals are data the module is handed (a table of
+  constants its imports read by index), never source text, so program text from a shared room cannot become code
+  outside its module. An initial value that is not a literal is a small module of its own.
+- **What a body imports is in [scanCodegen.ts](../src/plc/scanCodegen.ts)**, with the types the emitter and the
+  typed POUs share.
 
 ## The arena
 
@@ -216,8 +216,7 @@ restarts a controller for a second run of the same programs, where it used to co
 
 ## Verification
 
-1. `npm test`: the oracle compares the walker against the typed engine (its WebAssembly bodies, and its JavaScript
-   ones in scanJsBodies.test.ts) on the conformance corpus,
+1. `npm test`: the oracle compares the walker against the typed engine on the conformance corpus,
    the demo and targeted programs. It compares every scan and everything each engine holds, including the inside of
    every function block instance (`deepMemory`, which catches a stray write into an array of block instances), with
    random writes between scans. Every value must be in its declared type's form (`inForm`, against `memoryTypes`). A
@@ -226,13 +225,8 @@ restarts a controller for a second run of the same programs, where it used to co
    layout the corpus produces lies inside its holder, aligned, overlapping nothing.
 3. The speed gate ([scanSpeed.test.ts](../src/plc/scanSpeed.test.ts)): the typed:walker ratio on four program shapes,
    each floor measured to fail with the optimisation it guards switched off.
-4. The shape gate ([scanShape.test.ts](../src/plc/scanShape.test.ts)): what the speed gate cannot separate from noise.
-   V8 inlines helper calls only up to a budget per function, so in a long body a helper call can stay a real call. The
-   generated source is checked for a subscript read from storage being checked in place (not through `ix()`), a
-   positional FUNCTION call having no argument array, and a block input that its type already proves going in
-   uncoerced.
-5. `npm run bench-sim` on a real line: the fingerprint must not move across an engine change.
-6. The watch plan ([watchPlan.test.ts](../src/plc/watchPlan.test.ts)): for every program of the corpus, after every
+4. `npm run bench-sim` on a real line: the fingerprint must not move across an engine change.
+5. The watch plan ([watchPlan.test.ts](../src/plc/watchPlan.test.ts)): for every program of the corpus, after every
    scan, the table read from a copy of the arena through the plan is the table `watch` builds, key for key in order.
 7. The restart ([restart.test.ts](../src/plc/restart.test.ts)): for every program of the corpus, the scans after a
    restart are a newly compiled program's, everything it holds compared after each.

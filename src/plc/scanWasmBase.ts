@@ -2,16 +2,16 @@
 // the stack, the link between one program's bodies, and what the host keeps for the helpers a body imports.
 
 import type { GenBody, GenInternals } from './scanCodegen'
-import type { TypeLayout } from './typed/layout'
+import { type TypeLayout, TypedUnsupported } from './typed/layout'
 import type { Expr, ScalarType, TagValue } from './types'
 
-export class Unsupported extends Error {}
+/** a construct the emitter cannot write: the whole program is refused, and runs on the walker */
 export const no = (what: string): never => {
-  throw new Unsupported(what)
+  throw new TypedUnsupported(what)
 }
 
-/** how much of what was generated is WebAssembly, and what was not */
-export const wasmStats = { bodies: 0, statements: 0, escaped: 0, bytes: 0, emitMs: 0, why: new Map<string, number>() }
+/** what was written, for a bench to report */
+export const wasmStats = { bodies: 0, statements: 0, bytes: 0, emitMs: 0 }
 
 export type Kind = 'b' | 'i' | 'u' | 'f'
 /** a held argument: a value of a kind, or a text the host keeps ('t') */
@@ -138,7 +138,6 @@ export interface Address {
 export interface Host {
   H: Record<string, unknown>
   W: unknown[]
-  esc: ((b: number, now: number, m: number) => number)[]
   x: GenInternals
   /** a text on its way from the call that made it to the store that takes it */
   text: TagValue

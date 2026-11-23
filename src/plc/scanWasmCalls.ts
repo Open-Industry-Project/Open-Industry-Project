@@ -304,7 +304,13 @@ export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Ki
       w.u8(0x41).sleb(p.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
       continue
     }
-    if (a.value.t === 'STRING' || (p.layout.kind === 'scalar' && p.layout.scalar === 'STRING')) return no('a STRING output of a method')
+    if (p.layout.kind === 'scalar' && p.layout.scalar === 'STRING') {
+      if (a.value.t !== 'STRING') return no('a STRING output of a method stored to a number')
+      em.textFrom(p)
+      em.textPutTo(a.value, em.x.placeMaxLen(a.value), undefined)
+      continue
+    }
+    if (a.value.t === 'STRING') return no('a number output of a method stored to a STRING')
     const k = em.coerceStack(a.value.t as ScalarType, em.loadAt(p), undefined)
     const q = em.local(em.typeOfKind(k))
     w.u8(0x21).uleb(q)
@@ -317,7 +323,13 @@ export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Ki
     w.u8(0x41).sleb(0).u8(0x21).uleb(result)
   } else {
     const res = at(sig.name)
-    if (res.layout.kind === 'scalar') {
+    if (res.layout.kind === 'scalar' && res.layout.scalar === 'STRING') {
+      // a text: read before the frame is given back and kept by the host, its place there the result
+      em.address(res)
+      w.u8(0x10).uleb(em.import('textKeeps', [I32], [I32], (h) => (a: number) => h.texts.push(textOf(h, 's', a)) - 1))
+      result = em.local(I32)
+      w.u8(0x21).uleb(result)
+    } else if (res.layout.kind === 'scalar') {
       kind = em.loadAt(res)
       result = em.local(em.typeOfKind(kind))
       w.u8(0x21).uleb(result)
@@ -340,6 +352,12 @@ export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Ki
   return kind
 }
 
+/** whether a METHOD call answers a STRING: its result is then a text the host keeps (methodCall) */
+export function answersText(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): boolean {
+  if (e.body || !e.sig || e.sig.ret === null) return false
+  const res = em.scope.typed.frameOf(e.sig).byKey.get(identKey(e.sig.name))
+  return !!res && res.layout.kind === 'scalar' && res.layout.scalar === 'STRING'
+}
 export function ifaceAt(em: Emitter): number {
   return em.import('ifaceAt', [I32, I32], [I32], (h) => (a: number, pi: number) => (h.H.ifaceAt as (a: number, p: unknown) => number)(a >>> 0, h.W[pi]))
 }
@@ -539,7 +557,12 @@ export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst
     if (!m || m.ref) continue
     const slot = fAt(m.off, m.layout)
     if (slot.layout.kind === 'scalar' && slot.layout.scalar === 'STRING') {
-      if (a.value.t !== 'STRING' || !readsOnly(a.value) || !em.strSource(a.value)) return no('a STRING VAR_IN_OUT copied back to this')
+      if (a.value.t !== 'STRING') return no('a STRING VAR_IN_OUT copied back to a number')
+      if (!readsOnly(a.value) || !em.strSource(a.value)) {
+        em.textFrom(slot)
+        em.textPutTo(a.value, undefined, undefined)
+        continue
+      }
       const dst = em.addr(a.value)
       em.strCopy(dst, slot, (dst.layout as Extract<TypeLayout, { kind: 'scalar' }>).cap!)
       continue
@@ -560,7 +583,12 @@ export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst
       continue
     }
     if (m.layout.kind === 'scalar' && m.layout.scalar === 'STRING') {
-      if (a.value.t !== 'STRING' || !readsOnly(a.value) || !em.strSource(a.value)) return no('a STRING output stored to this')
+      if (a.value.t !== 'STRING') return no('a STRING output stored to a number')
+      if (!readsOnly(a.value) || !em.strSource(a.value)) {
+        em.textFrom(m)
+        em.textPutTo(a.value, em.x.placeMaxLen(a.value), undefined)
+        continue
+      }
       const dst = em.addr(a.value)
       const maxLen = em.x.placeMaxLen(a.value)
       const cap = (dst.layout as Extract<TypeLayout, { kind: 'scalar' }>).cap!

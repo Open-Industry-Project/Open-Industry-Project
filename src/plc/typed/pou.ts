@@ -203,7 +203,7 @@ export class TypedMethod {
   prepare(): void {
     if (this.#body) return
     const made = generateBody(this.impl.body, this.scope, this.tp.internals, this.tp.extra!)
-    if (!made) throw new TypedUnsupported('a program on a host that will not evaluate generated code')
+    if (!made) throw new TypedUnsupported('a program on a host that will not run a WebAssembly module')
     this.#body = made
   }
 
@@ -280,7 +280,7 @@ export class TypedFb {
         run: (b, now) => {
           if (!body) {
             body = generateBody(def.body, this.scope, this.tp.internals, this.tp.extra!)
-            if (!body) throw new TypedUnsupported('a program on a host that will not evaluate generated code')
+            if (!body) throw new TypedUnsupported('a program on a host that will not run a WebAssembly module')
           }
           body(b, now)
         },
@@ -298,7 +298,7 @@ export class TypedFb {
   prepare(): GenBody {
     if (!this.#body) {
       const made = generateBody(this.def.body, this.scope, this.tp.internals, this.tp.extra!)
-      if (!made) throw new TypedUnsupported('a program on a host that will not evaluate generated code')
+      if (!made) throw new TypedUnsupported('a program on a host that will not run a WebAssembly module')
       this.#body = made
       // a WebAssembly body is put where the calls of it look
       publishWasmBody(this, made)
@@ -373,7 +373,7 @@ export class TypedFn {
   prepare(): void {
     if (this.#body) return
     const made = generateBody(this.def.body, this.scope, this.tp.internals, this.tp.extra!)
-    if (!made) throw new TypedUnsupported('a program on a host that will not evaluate generated code')
+    if (!made) throw new TypedUnsupported('a program on a host that will not run a WebAssembly module')
     this.#body = made
     const a = this.tp.arena!
     this.#inputs = this.def.decls.filter((d) => d.section === 'VAR_INPUT').map((d) => {
@@ -641,7 +641,7 @@ export class TypedPou implements Pou {
     let gen = this.tp.bodies.get(this.body)
     if (!gen) {
       const made = generateBody(this.body, this.#scope, this.tp.internals, this.tp.extra!)
-      if (!made) throw new TypedUnsupported('a program on a host that will not evaluate generated code')
+      if (!made) throw new TypedUnsupported('a program on a host that will not run a WebAssembly module')
       this.tp.bodies.set(this.body, (gen = made))
     }
     this.#body = gen

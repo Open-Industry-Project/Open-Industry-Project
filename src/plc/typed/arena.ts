@@ -10,12 +10,7 @@ import type { ScalarLayout } from './layout'
 const STR_CHUNK = 4096
 const unitsToString = String.fromCharCode.apply.bind(String.fromCharCode) as (thisArg: null, units: number[]) => string
 
-/**
- * How a program's bodies are made. With `wasm` an arena is a WebAssembly memory and each body is written as
- * WebAssembly over it (scanWasm.ts); without, an arena is a plain buffer and each body is generated JavaScript
- * (scanCodegen.ts). Read when a program is compiled: a program keeps the kind it was compiled with.
- */
-export const plcBodies = { wasm: true }
+// An arena is a WebAssembly memory: each body is a WebAssembly module over it (scanWasm.ts).
 const wasmMemories = new WeakMap<ArrayBuffer, WebAssembly.Memory>()
 /** the WebAssembly memory an arena's buffer is, when it is one */
 export function memoryOf(buffer: ArrayBuffer): WebAssembly.Memory | undefined {
@@ -34,12 +29,10 @@ export class Arena {
   readonly F64: Float64Array
 
   constructor(bytes: number) {
-    // a whole number of 8-byte words, so every view covers all of it
-    if (plcBodies.wasm) {
-      const mem = new WebAssembly.Memory({ initial: Math.max(1, Math.ceil(bytes / 65536)) })
-      this.buffer = mem.buffer
-      wasmMemories.set(this.buffer, mem)
-    } else this.buffer = new ArrayBuffer(Math.max(8, Math.ceil(bytes / 8) * 8))
+    // (a memory is whole 64 KB pages, so every view covers all of it)
+    const mem = new WebAssembly.Memory({ initial: Math.max(1, Math.ceil(bytes / 65536)) })
+    this.buffer = mem.buffer
+    wasmMemories.set(this.buffer, mem)
     this.I8 = new Int8Array(this.buffer)
     this.U8 = new Uint8Array(this.buffer)
     this.I16 = new Int16Array(this.buffer)
@@ -160,17 +153,3 @@ export function watchKindOf(t: ScalarType): number {
   }
 }
 
-/** The view and shift a scalar type is read and written through, for generated code (`I32[(a) >> 2]`). */
-export function viewOf(t: ScalarType): { view: string; shift: number } {
-  switch (t) {
-    case 'BOOL': case 'USINT': case 'BYTE': return { view: 'U8', shift: 0 }
-    case 'SINT': return { view: 'I8', shift: 0 }
-    case 'INT': return { view: 'I16', shift: 1 }
-    case 'UINT': case 'WORD': return { view: 'U16', shift: 1 }
-    case 'DINT': return { view: 'I32', shift: 2 }
-    case 'UDINT': case 'DWORD': return { view: 'U32', shift: 2 }
-    case 'REAL': return { view: 'F32', shift: 2 }
-    case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return { view: 'F64', shift: 3 }
-    case 'STRING': return { view: 'U16', shift: 1 }
-  }
-}

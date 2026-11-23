@@ -1,8 +1,8 @@
 // The AST walker, and `compile`, which builds a checked program on the engine every program runs on.
 //
 // That engine is the typed one (typed/, scanCodegen.ts; docs/plc-typed-storage.md): the program's variables in one
-// typed arena, its bodies turned once into JavaScript. The walker here is its reference and its fallback, permanently: plc/scanEngines.test.ts holds the two together, every variable after every scan, and a program the typed
-// engine refuses (or a host that will not evaluate generated code) runs here, ~9x slower. The walker evaluates no code,
+// typed arena, its bodies each written once as a WebAssembly module. The walker here is its reference and its fallback, permanently: plc/scanEngines.test.ts holds the two together, every variable after every scan, and a program the typed
+// engine refuses (or a host that will not run a WebAssembly module) runs here, ~9x slower. The walker evaluates no code,
 // so it runs under a strict CSP, and it keeps the variables as JS values, so that the comparison is
 // between two independent implementations of storage, not one layout read twice.
 //
