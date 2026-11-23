@@ -42,6 +42,10 @@ export class SimClient {
   onHang: (part: string | null) => void = (p) => console.error('[sim] the simulation stopped responding', p ?? '')
   /** the worker dropped the attached program to STOP - the controller mirrors the detach + shows why */
   onPlcFault: (fault: PlcFault) => void = (f) => console.error('[sim] PLC fault', f.message)
+  /** The run log's taps (editor/runLog.ts), null unless it is on: each message on its way to the worker, and each
+   *  frame of a run before {@link onFrame} has it. */
+  postTap: ((msg: MainToWorker) => void) | null = null
+  frameTap: ((frame: BoxFrame) => void) | null = null
 
   /** the in-worker PLC's latest state (watch / %I / %Q / scan telemetry), refreshed with every
    *  frame while a program is attached; null when none is (or before the first frame lands) */
@@ -161,7 +165,7 @@ export class SimClient {
         if (!this._running) return
         // a paused frame advanced no sim time: sampling it would measure real time passing with the sim still
         if (!msg.paused) this.clock.sample(performance.now(), msg.simTime, this.requestedScale)
-        this.onFrame({
+        const frame: BoxFrame = {
           count: msg.count,
           ids: msg.ids,
           positions: msg.positions,
@@ -176,7 +180,9 @@ export class SimClient {
           ...this.frameWire.records,
           ...(this.frameWire.dressings ? { dressings: this.frameWire.dressings } : {}),
           ...(this.frameWire.shapes ? { shapes: this.frameWire.shapes, shapeRefs: this.frameWire.shapeRefs } : {}),
-        })
+        }
+        this.frameTap?.(frame)
+        this.onFrame(frame)
       } else if (msg.type === 'alive') {
         this.lastAliveAt = performance.now()
       } else if (msg.type === 'stepped' || msg.type === 'cargoDetail') {
@@ -525,6 +531,7 @@ export class SimClient {
   }
 
   private post(msg: MainToWorker): void {
+    this.postTap?.(msg)
     // every caller but start()/prewarm() guards on _running, and those ensure the
     // worker first, so a null worker here means "not running" → nothing to send
     this.worker?.postMessage(msg)

@@ -1,6 +1,7 @@
 // First: part code (geometry, idle Use) runs in this realm, so it locks down before anything else runs
 // (core/lockdownBoot.ts, docs/part-sandbox.md)
 import '../core/lockdownBoot'
+import { lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { blankScene, setNextIdSuffix } from '../core/scene/scene'
 import { DEFAULT_SIM_HZ } from '../core/types'
@@ -32,6 +33,7 @@ import type { PackageManifest } from '../core/parts/partPackage'
 import { partSandboxActive } from '../core/parts/partSandbox'
 import { DESKTOP_SHELL } from './desktop/desktopMenuBridge'
 import { prefetchSceneAssets } from './prefetchSceneAssets'
+import { runLogEnabled } from './runLogFlag'
 import { prefetchThumbnails } from '../render/prefetch'
 import { bundledBehaviors, bundledThumbnailIds, loadBundledExamples, registerBundledPackages } from './parts/bundledExamples'
 import { speculativeFetches } from '../render/gltf'
@@ -124,6 +126,8 @@ initLanguage()
 
 const store = new EditorStore()
 const sim = new SimClient()
+// ?runlog (runLog.ts): its overlay is fetched only when the flag is on
+const RunLogOverlay = runLogEnabled(location.search) ? lazy(() => import('./components/RunLogOverlay').then((m) => ({ default: m.RunLogOverlay }))) : null
 // a gesture's autosave trails it by a moment (store.deferPersist): flush it before the page can go away.
 // `hidden` covers a mobile tab the OS may kill without a pagehide.
 // The working copy's row write is asynchronous, so one still in flight is also kept where a closing page can write it.
@@ -604,6 +608,11 @@ function mount(): void {
   createRoot(document.getElementById('root')!).render(
     <AppCrashBoundary store={store}>
       <App store={store} sim={sim} />
+      {RunLogOverlay && (
+        <Suspense fallback={null}>
+          <RunLogOverlay store={store} sim={sim} />
+        </Suspense>
+      )}
     </AppCrashBoundary>,
   )
 

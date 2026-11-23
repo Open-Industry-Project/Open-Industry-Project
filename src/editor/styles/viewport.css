@@ -450,6 +450,12 @@
   font-size: 11px;
 }
 
+/* ?runlog mounts beside the app, not in the viewport: fixed, and above the docks */
+.run-log-overlay {
+  position: fixed;
+  z-index: 3000;
+}
+
 .bench-overlay-title {
   color: #8ab4f8;
   font-weight: 600;

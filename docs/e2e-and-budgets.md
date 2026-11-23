@@ -41,6 +41,16 @@ they mask each other. The blob reports resolved values, so an ignored override s
 `?bench=<sec>` shortens a run and `?benchwin=2,5,8` names the windows. Gated by
 [e2e/verify-bench-mode.mjs](../e2e/verify-bench-mode.mjs).
 
+## A run that differs between devices
+
+A run is a function of the scene, the program and the step count, so two devices should play the same run, one of
+them more slowly. When one does not, `?runlog` ([src/editor/runLog.ts](../src/editor/runLog.ts)) records what
+happened on it: each change of the program's inputs and outputs in sim time, the cargo that moved once a sim second,
+every message the page sent the sim worker, touches, the page being hidden, and sim time against the clock. Open
+`/app/?scene=demo&runlog`, press Play, use the page as usual, and press **Stop and copy** once it has gone wrong. The
+result is JSON to paste. Record the same scene on a device where it goes right and compare the two: the first change
+or message they disagree on is where to look. It records and never steers the run.
+
 ## Input latency
 
 `?bench` measures frames with nobody touching the page. For the time from an input to the screen answering, run
