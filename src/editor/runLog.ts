@@ -165,15 +165,17 @@ export class RunLog {
   }
 
   result(about: Readonly<Record<string, unknown>>): RunLogResult {
+    // In this order on purpose: a paste that is too long for where it is pasted loses its start, and the positions
+    // are the part to lose. What says which device and build this was is last.
     return {
       version: 1,
-      about,
-      changes: this.#changes.slice(),
       seconds: this.#seconds.slice(),
       messages: this.#messages.slice(),
       notes: this.#notes.slice(),
       pointerDowns: this.#pointerDowns,
       truncated: this.#truncated,
+      changes: this.#changes.slice(),
+      about,
     }
   }
 }
