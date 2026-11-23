@@ -182,7 +182,9 @@ projectTestsRun.ts); eslint enforces both.
 - **Edit `scripts/optimize-assets.mjs` only when the optimizer itself changes.** Asset versions hash its bytes, so any
   edit, even a comment, re-versions every model and texture for every visitor and needs a part-asset re-bake.
 - **The PLC runs on the typed engine; the walker is its reference and fallback.** Read
-  [docs/plc-typed-storage.md](docs/plc-typed-storage.md) first. A new AST node is generated in
+  [docs/plc-typed-storage.md](docs/plc-typed-storage.md) first. A body is written as WebAssembly
+  ([scanWasm.ts](src/plc/scanWasm.ts)), with the generated JavaScript kept as the second form (`plcBodies`), so a
+  new AST node is written in both, and `wasmStats.escaped` must stay 0. In JavaScript it is generated in
   [scanCodegen.ts](src/plc/scanCodegen.ts) (there is no per-node fallback; an unsupported construct refuses the whole
   program onto the walker). `typedRefusals` and `codegenFallbacks` must stay empty. Never name a free global (`Math`,
   `Array`) in generated source: bind it in `helpersFor`. Program text from a room becomes code, so every name and

@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { CONFORMANCE_CASES } from './conformanceCases'
 import { compile, setScanEngine, typedRefusals } from './interpreter'
 import { codegenFallbacks } from './scanCodegen'
+import { wasmStats } from './scanWasmBase'
 import { compareEngines, randomWrites, seeded, type OracleStep } from './scanEngineOracle'
 import type { TagValue } from './types'
 
@@ -309,6 +310,11 @@ describe('the typed engine', () => {
   it('generated every body it was given and refused no program: none fell back to the walker (which would make the comparisons above vacuous)', () => {
     expect(codegenFallbacks).toEqual([])
     expect(typedRefusals).toEqual([])
+  })
+  it('wrote every statement as WebAssembly: none was left to the JavaScript generator', () => {
+    expect(wasmStats.bodies).toBeGreaterThan(100)
+    expect([...wasmStats.why.keys()]).toEqual([])
+    expect(wasmStats.escaped).toBe(0)
   })
 })
 

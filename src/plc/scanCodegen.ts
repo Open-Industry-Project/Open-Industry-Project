@@ -35,6 +35,7 @@ import { bool, calendarRangeError, FB_INPUTS, idiv, imod, isCalendar, isInt, isI
 import type { Expr, MethodDef, ScalarType, SourcePos, Stmt, TagValue } from './types'
 import { StError } from './types'
 import { viewOf } from './typed/arena'
+import { generateWasmBody } from './scanWasm'
 import { clearRanges, type PouLayout, type StructLayout, type TypeLayout, TypedUnsupported } from './typed/layout'
 
 /** One generated body: run on the instance whose region starts at `b`, at controller clock `now`; a METHOD's with its
@@ -641,6 +642,18 @@ ${lines.join(NL)}
     return this.unsupported(`the operator ${op}`) // nothing the checker passes
   }
 
+  /** One statement as a function of its own, for a body written as WebAssembly that cannot write this statement
+   *  (scanWasm.ts). A jump out of it comes back as a code (1 return, 2 exit, 3 continue), as a sub-function a long
+   *  statement list is split into answers. */
+  escape(s: Stmt): string {
+    const name = `e${this.id()}`
+    this.#base = 0
+    const code = this.resolve(this.stmt(s), (kind) => SUB_JUMP[kind])
+    this.#base = null
+    this.fns.push(`function ${name}(b, now, m) {\n${code}\nreturn 0;\n}`)
+    return name
+  }
+
   /** a construct this generator cannot write: the whole program is refused, and runs on the walker */
   unsupported(what: string): never {
     throw new TypedUnsupported(what)
@@ -1108,7 +1121,7 @@ if (++count${n} > MAX) throw new StFault(FAULT.WATCHDOG, 'FOR loop exceeded its 
 
 /** The helpers, per set of internals (built once over them) */
 const helperSets = new WeakMap<GenInternals, Record<string, unknown>>()
-function helpersOf(x: GenInternals): Record<string, unknown> {
+export function helpersOf(x: GenInternals): Record<string, unknown> {
   let h = helperSets.get(x)
   if (!h) helperSets.set(x, (h = helpersFor(x)))
   return h
@@ -1122,6 +1135,25 @@ function evaluate(src: string): unknown {
     return compartment.evaluate(src)
   }
   return new Function(`return ${src}`)()
+}
+
+/** each of `stmts` as a function of its own, in one source (scanWasm.ts) */
+export function escapesOf(stmts: Stmt[], scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): { src: string; consts: unknown[] } {
+  const g = new Generator(scope, internals)
+  const names = stmts.map((s) => g.escape(s))
+  const helperNames = Object.keys({ ...helpersOf(internals), ...extra })
+  const consts = g.consts.map((_, i) => `k${i} = K[${i}]`).join(', ')
+  const src = `(function (H, K) {
+'use strict';
+const { ${helperNames.join(', ')} } = H;
+${consts ? `const ${consts};` : ''}
+${g.fns.join('\n')}
+return [${names.join(', ')}];
+})`
+  return { src, consts: g.consts }
+}
+export function makeEscapes(e: { src: string; consts: unknown[] }, H: Record<string, unknown>): ((b: number, now: number, m: number) => number)[] {
+  return (evaluate(e.src) as (h: Record<string, unknown>, k: unknown[]) => ((b: number, now: number, m: number) => number)[])(H, e.consts)
 }
 
 /** The source of one body (exported for tests that want to see what was generated). */
@@ -1149,6 +1181,9 @@ export const codegenFallbacks: string[] = []
 /** One generated body, or null where it could not be built (the program is then refused, and runs on the walker). */
 export function generateBody(body: Stmt[], scope: GenScope, internals: GenInternals, extra: Record<string, unknown> = {}): GenBody | null {
   try {
+    // as WebAssembly (scanWasm.ts) when the program's memory is one, else as JavaScript
+    const wasm = generateWasmBody(body, scope, internals, extra)
+    if (wasm) return wasm
     const { src, consts } = generateSource(body, scope, internals, extra)
     const factory = evaluate(src) as (h: Record<string, unknown>, k: unknown[]) => GenBody
     return factory({ ...helpersOf(internals), ...extra }, consts)

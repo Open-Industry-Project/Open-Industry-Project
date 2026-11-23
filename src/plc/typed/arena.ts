@@ -10,6 +10,18 @@ import type { ScalarLayout } from './layout'
 const STR_CHUNK = 4096
 const unitsToString = String.fromCharCode.apply.bind(String.fromCharCode) as (thisArg: null, units: number[]) => string
 
+/**
+ * How a program's bodies are made. With `wasm` an arena is a WebAssembly memory and each body is written as
+ * WebAssembly over it (scanWasm.ts); without, an arena is a plain buffer and each body is generated JavaScript
+ * (scanCodegen.ts). Read when a program is compiled: a program keeps the kind it was compiled with.
+ */
+export const plcBodies = { wasm: true }
+const wasmMemories = new WeakMap<ArrayBuffer, WebAssembly.Memory>()
+/** the WebAssembly memory an arena's buffer is, when it is one */
+export function memoryOf(buffer: ArrayBuffer): WebAssembly.Memory | undefined {
+  return wasmMemories.get(buffer)
+}
+
 export class Arena {
   readonly buffer: ArrayBuffer
   readonly I8: Int8Array
@@ -23,7 +35,11 @@ export class Arena {
 
   constructor(bytes: number) {
     // a whole number of 8-byte words, so every view covers all of it
-    this.buffer = new ArrayBuffer(Math.max(8, Math.ceil(bytes / 8) * 8))
+    if (plcBodies.wasm) {
+      const mem = new WebAssembly.Memory({ initial: Math.max(1, Math.ceil(bytes / 65536)) })
+      this.buffer = mem.buffer
+      wasmMemories.set(this.buffer, mem)
+    } else this.buffer = new ArrayBuffer(Math.max(8, Math.ceil(bytes / 8) * 8))
     this.I8 = new Int8Array(this.buffer)
     this.U8 = new Uint8Array(this.buffer)
     this.I16 = new Int16Array(this.buffer)

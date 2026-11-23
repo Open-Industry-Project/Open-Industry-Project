@@ -7,6 +7,7 @@
 import { classIds, type Env, fbDecls, funcDecls, identKey, isScalarType, methodDecls } from '../program'
 import { coerceScalar, coercerFor, type Pou, type WatchPlace } from '../pou'
 import { bool, CALL_DEPTH_MESSAGE, isInt, MAX_CALL_DEPTH, num, wrap } from '../runtime'
+import { publishWasmBody } from '../scanWasmBase'
 import { generateBody, generateValue, type GenBody, type GenInternals, type GenScope, type TypedScope } from '../scanCodegen'
 import type { DataType, Decl, Expr, FbDef, FuncDef, Initializer, MethodDef, ScalarType, Stmt, StructInit, TagPort, TagValue, VarInfo } from '../types'
 import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from '../types'
@@ -299,6 +300,8 @@ export class TypedFb {
       const made = generateBody(this.def.body, this.scope, this.tp.internals, this.tp.extra!)
       if (!made) throw new TypedUnsupported('a program on a host that will not evaluate generated code')
       this.#body = made
+      // a WebAssembly body is put where the calls of it look
+      publishWasmBody(this, made)
     }
     return this.#body
   }

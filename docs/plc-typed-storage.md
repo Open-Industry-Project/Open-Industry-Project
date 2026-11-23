@@ -40,6 +40,32 @@ layout bug into a difference on the first scan that touches it.
   and records why (`typedRefusals`). A host that will not evaluate generated code also gets the walker. No program this
   repository compiles is refused (the engine tests assert both lists stay empty).
 
+## WebAssembly bodies
+
+The typed engine writes each body (a program, a function block, a function, a method) as a WebAssembly module, straight
+from the checked program ([scanWasm.ts](../src/plc/scanWasm.ts), with its calls in
+[scanWasmCalls.ts](../src/plc/scanWasmCalls.ts)). The arena is the module's memory, so a load or a store is one
+instruction at an address worked out when the body is written.
+
+- **Why.** A browser runs WebAssembly at close to full speed from the first call. Generated JavaScript starts in the
+  interpreter and takes seconds of scanning to be optimised, which showed as slow first seconds of every run of a
+  large program. On a 2.4 MB program the scans measured about twice as fast once warm and three to four times as fast
+  in the first second, in three browser engines.
+- **One module per body.** A user block's body is called through a table the bodies of one program share
+  (`publishWasmBody`), with no JavaScript between caller and callee. Everything else a body needs from the host is
+  an import: the standard blocks, the builtin functions, faults, methods, texts. A long statement list is split into
+  functions of a few kilobytes, and a statement's temporaries go back to a pool when it ends, since a function with
+  thousands of locals is slow to compile.
+- **Numbers.** A BOOL and an integer up to 32 bits is an i32, a REAL, an LREAL and the time types an f64. Integer
+  arithmetic is done in i64 and held to the type's width after, which gives what the walker's wrap gives.
+- **Texts stay with the host.** A STRING place is read and written in the arena. A text a call answers is kept by the
+  host and handed on by its place in that list, and given back when it is read.
+- **The JavaScript generator stays** ([scanCodegen.ts](../src/plc/scanCodegen.ts)). It is what runs where
+  `plcBodies.wasm` is off ([typed/arena.ts](../src/plc/typed/arena.ts)), and it would run one statement of a body
+  the emitter could not write (`escape`). No statement this repository compiles is left to it:
+  `wasmStats.escaped` stays 0, and scanEngines.test.ts fails otherwise. scanJsBodies.test.ts runs the corpus on the
+  JavaScript bodies, so the two do not drift apart.
+
 ## The arena
 
 One `ArrayBuffer` per compiled program, sized when it is compiled (a program's shape never changes after; an edit is a
@@ -190,7 +216,8 @@ restarts a controller for a second run of the same programs, where it used to co
 
 ## Verification
 
-1. `npm test`: the oracle compares the walker against the typed engine on the conformance corpus,
+1. `npm test`: the oracle compares the walker against the typed engine (its WebAssembly bodies, and its JavaScript
+   ones in scanJsBodies.test.ts) on the conformance corpus,
    the demo and targeted programs. It compares every scan and everything each engine holds, including the inside of
    every function block instance (`deepMemory`, which catches a stray write into an array of block instances), with
    random writes between scans. Every value must be in its declared type's form (`inForm`, against `memoryTypes`). A

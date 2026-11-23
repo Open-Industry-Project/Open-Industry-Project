@@ -1,0 +1,576 @@
+// The calls a body written as WebAssembly makes (scanWasm.ts): builtin and user functions, methods, standard and user
+// function blocks, and what each is handed. Functions of the emitter, in the walker's order of evaluation.
+
+import { builtinFor, evalBuiltin, isBuiltinFunc } from './builtins'
+import { identKey } from './program'
+import { FB_INPUTS } from './runtime'
+import type { MethodRunner } from './scanCodegen'
+import type { Emitter } from './scanWasm'
+import { no, type Kind, type Held, I32, F64, isWidth, kindOf, placeOf, type Address, type Host, textOf, readsOnly } from './scanWasmBase'
+import type { TypeLayout } from './typed/layout'
+import type { Expr, ScalarType, Stmt, TagValue } from './types'
+import { StError } from './types'
+
+/** A builtin function's call: its arguments in order, then the function (scanCodegen.ts `call`). A number goes as an
+ *  f64 and comes back as one, a truth as an i32; a text is read by the helper from where it is. */
+export function builtin(em: Emitter, e: Extract<Expr, { node: 'call' }>, textOut: boolean | 'T' = false): Kind {
+  const w = em.w
+  let sig = ''
+  for (const a of e.args) {
+    if (a.t === 'STRING' || a.node === 'str') sig += em.text(a)
+    else {
+      const k = em.expr(a)
+      if (k === 'b') sig += 'b'
+      else {
+        em.toF(k)
+        sig += 'n'
+      }
+    }
+  }
+  const res = textOut === 'T' ? 'T' : textOut ? 't' : e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a call answering a text here') : 'n'
+  const direct = e.t ? builtinFor(e.name, e.t, e.args.length) : null
+  const name = e.name
+  const rt = e.t as ScalarType
+  const pos = e.pos
+  // (scanCodegen.ts callB: a builtin's own error takes the call's position)
+  const fn: (...a: TagValue[]) => TagValue =
+    (direct as ((...a: TagValue[]) => TagValue) | null) ??
+    ((...vals: TagValue[]): TagValue => {
+      try {
+        return evalBuiltin(name, rt, vals)
+      } catch (err) {
+        if (err instanceof Error && !(err instanceof StError)) throw new StError(err.message, pos, name.length)
+        throw err
+      }
+    })
+  w.u8(0x41).sleb(em.wk(fn))
+  const params = [...sig].map((c) => (c === 'n' ? F64 : I32))
+  w.u8(0x10).uleb(
+    em.import(`call_${sig}_${res}`, [...params, I32], res === 't' ? [] : [res === 'n' ? F64 : I32], (h) => {
+      const { bool, num } = h.H as { bool(v: TagValue): boolean; num(v: TagValue): number }
+      const given = (kind: string, v: number): TagValue => (kind === 'n' ? v : kind === 'b' ? v !== 0 : textOf(h, kind, v))
+      const out = (r: TagValue): number | undefined => {
+        if (res === 't') {
+          h.text = r
+          return undefined
+        }
+        if (res === 'T') return h.texts.push(r) - 1
+        return res === 'b' ? (bool(r) ? 1 : 0) : num(r)
+      }
+      const f = (k: number): ((...a: TagValue[]) => TagValue) => h.W[k] as (...a: TagValue[]) => TagValue
+      const first = sig.indexOf('T')
+      if (first >= 0)
+        return (...all: number[]) => {
+          const args: TagValue[] = []
+          for (let i = 0; i < sig.length; i++) args.push(given(sig[i]!, all[i]!))
+          h.texts.length = all[first]!
+          return out(f(all[sig.length]!)(...args))
+        }
+      if (sig.length === 0) return (k: number) => out(f(k)())
+      if (sig.length === 1) return (a: number, k: number) => out(f(k)(given(sig[0]!, a)))
+      if (sig.length === 2) return (a: number, b: number, k: number) => out(f(k)(given(sig[0]!, a), given(sig[1]!, b)))
+      if (sig.length === 3) return (a: number, b: number, c: number, k: number) => out(f(k)(given(sig[0]!, a), given(sig[1]!, b), given(sig[2]!, c)))
+      return (...all: number[]) => {
+        const args: TagValue[] = []
+        for (let i = 0; i < sig.length; i++) args.push(given(sig[i]!, all[i]!))
+        return out(f(all[sig.length]!)(...args))
+      }
+    }),
+  )
+  return res === 'b' ? 'b' : res === 'T' ? 'i' : 'f'
+}
+
+/** A user function's call with every input given in order (scanCodegen.ts typedFnCall's direct form): the
+ *  arguments, the function's region reset, each stored where it goes, the body, the result read. */
+export function fnCall(em: Emitter, e: Extract<Expr, { node: 'call' }>): Kind {
+  const w = em.w
+  const fn = em.scope.typed.fn(e.name)
+  if (!(fn.direct && !e.slots && e.args.length === fn.inputSlots.length)) {
+    if (fn.result) return no('a whole value from a call used as a number')
+    const out = e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a function answering a text here') : 'n'
+    em.fnGiven(e, fn)
+    w.u8(0x41).sleb(em.wk(fn)).u8(0x41).sleb(e.slots ? em.wk(e.slots) : -1)
+    w.u8(0x10).uleb(
+      em.import(`fnCall_${out}`, [I32, I32], [out === 'b' ? I32 : F64], (h) => {
+        const { bool, num } = h.H as { bool(v: TagValue): boolean; num(v: TagValue): number }
+        return (k: number, si: number): number => {
+          const r = (h.W[k] as { call(given: unknown[], slots: readonly number[] | undefined): TagValue }).call(h.args.pop()!, si < 0 ? undefined : (h.W[si] as readonly number[]))
+          return out === 'b' ? (bool(r) ? 1 : 0) : num(r)
+        }
+      }),
+    )
+    return out === 'b' ? 'b' : 'f'
+  }
+  if (fn.resultSlot.layout.kind !== 'scalar' || fn.resultSlot.layout.scalar === 'STRING') return no('a function answering a text or a whole value')
+  const given: { v: number; k: Held; e: Expr }[] = []
+  for (const a of e.args) given.push({ ...em.held(a), e: a })
+  const fk = em.wk(fn)
+  w.u8(0x41).sleb(fk).u8(0x10).uleb(em.import('fnEnter', [I32], [], (h) => (k: number) => (h.W[k] as { enter(): void }).enter()))
+  given.forEach(({ v, k, e: a }, i) => {
+    const { off, layout } = fn.inputSlots[i]!
+    if (layout.kind !== 'scalar') return
+    em.storeGiven({ dyn: null, off, layout }, v, k, a)
+  })
+  em.dropTexts(given)
+  w.u8(0x41).sleb(fk).u8(0x10).uleb(em.import('fnExec', [I32], [], (h) => (k: number) => (h.W[k] as { exec(): void }).exec()))
+  return em.loadAt({ dyn: null, off: fn.resultSlot.off, layout: fn.resultSlot.layout })
+}
+
+/** The arguments of a function called through its runner (scanCodegen.ts typedFnCall's list): each in order, a
+ *  whole array or struct by its address, kept by the host until the call takes them. */
+export function fnGiven(em: Emitter, e: Extract<Expr, { node: 'call' }>, fn: { readonly aggregate: readonly boolean[] }): void {
+  const w = em.w
+  w.u8(0x10).uleb(em.import('argsNew', [], [], (h) => () => void h.args.push([])))
+  e.args.forEach((a, k) => {
+    const at = e.slots ? e.slots[k]! : k
+    if (fn.aggregate[at]) {
+      em.aggregate(a)
+      w.u8(0x10).uleb(em.import('argAddr', [I32], [], (h) => (v: number) => void h.args[h.args.length - 1]!.push(v >>> 0)))
+    } else if (a.t === 'STRING' || a.node === 'str') {
+      const kind = em.text(a)
+      w.u8(0x10).uleb(em.import(`argText${kind}`, [I32], [], (h) => (v: number) => {
+        const t = textOf(h, kind, v)
+        if (kind === 'T') h.texts.length = v
+        h.args[h.args.length - 1]!.push(t)
+      }))
+    } else {
+      const k2 = em.expr(a)
+      if (k2 === 'b') w.u8(0x10).uleb(em.import('argBool', [I32], [], (h) => (v: number) => void h.args[h.args.length - 1]!.push(v !== 0)))
+      else {
+        em.toF(k2)
+        w.u8(0x10).uleb(em.import('argNum', [F64], [], (h) => (v: number) => void h.args[h.args.length - 1]!.push(v)))
+      }
+    }
+  })
+}
+
+/** where a whole array or struct value is, left on the stack: a place's address, or a call's copy of its result at
+ *  its own call site (scanCodegen.ts aggregateOf) */
+export function aggregate(em: Emitter, e: Expr): void {
+  const w = em.w
+  if (e.node === 'var' || e.node === 'member' || e.node === 'index') return em.address(em.addr(e))
+  if (e.node === 'call' && !isBuiltinFunc(e.name)) {
+    const fn = em.scope.typed.fn(e.name)
+    if (!fn.result) return no('this whole-array or struct value')
+    const dst = em.scope.typed.temp(e)
+    if (dst === undefined) return no('this call of a function with a whole array or struct result')
+    em.fnGiven(e, fn)
+    w.u8(0x41).sleb(em.wk(fn)).u8(0x41).sleb(e.slots ? em.wk(e.slots) : -1).u8(0x41).sleb(dst | 0)
+    w.u8(0x10).uleb(
+      em.import('fnCallAgg', [I32, I32, I32], [I32], (h) => (k: number, si: number, d: number) =>
+        (h.W[k] as { callAgg(given: unknown[], slots: readonly number[] | undefined, dst: number): number }).callAgg(h.args.pop()!, si < 0 ? undefined : (h.W[si] as readonly number[]), d >>> 0),
+      ),
+    )
+    return
+  }
+  if (e.node === 'mcall' && e.sig?.ret) {
+    const res = em.scope.typed.frameOf(e.sig).byKey.get(identKey(e.sig.name))
+    if (res && res.layout.kind !== 'scalar') return void em.methodCall(e)
+  }
+  return no('this whole-array or struct value')
+}
+
+/**
+ * A METHOD call (scanCodegen.ts methodCall), in the walker's order: the instance; which implementation runs; the
+ * scalar inputs; each copied input, in-out and bound reference or interface; a frame; the arguments stored in it;
+ * the body; each scalar in-out copied back, each output stored; the result; the frame given back. Leaves the
+ * result: a scalar's value, a whole value's address, 0 for none.
+ */
+export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Kind {
+  const w = em.w
+  const typed = em.scope.typed
+  const f = em.local(I32)
+  // the instance: THIS, what an interface refers to (faulting when none), or a place holding one
+  if (e.obj.node === 'this') w.u8(0x20).uleb(0)
+  else if (em.isIface(e.obj)) {
+    em.at(em.slot(e.obj), 0x28, 2)
+    w.u8(0x41).sleb(em.wk(e.pos)).u8(0x10).uleb(em.ifaceAt())
+  } else em.address(em.addr(e.obj))
+  w.u8(0x21).uleb(f)
+  if (e.body) {
+    if (!typed.cls) return no('SUPER^() outside a class')
+    w.u8(0x41).sleb(em.wk(typed.baseBody(typed.cls.name, e.cls!))).u8(0x20).uleb(f).u8(0x20).uleb(1)
+    w.u8(0x10).uleb(em.import('run', [I32, I32, F64], [], (h) => (k: number, at: number, now: number) => (h.W[k] as { run(b: number, now: number): void }).run(at >>> 0, now)))
+    w.u8(0x41).sleb(0)
+    return 'i'
+  }
+  const sig = e.sig!
+  // which implementation: by the instance's class number (a call through an interface or a reference), or known now
+  const cls = em.local(I32)
+  let table: number
+  let dyn = 0
+  if (e.dispatch === 'dynamic') {
+    dyn = 1
+    table = em.wk(typed.dispatch(e.key!))
+    w.u8(0x20).uleb(f).u8(0x28).uleb(2).uleb(0).u8(0x22).uleb(cls)
+    w.u8(0x41).sleb(table).u8(0x41).sleb(em.wk(e.pos))
+    w.u8(0x10).uleb(
+      em.import('mCheck', [I32, I32, I32], [], (h) => (c: number, ti: number, pi: number) => {
+        // nothing behind the class number, no implementation: the fault of an interface that refers to none
+        if ((h.W[ti] as (MethodRunner | undefined)[])[c >>> 0] === undefined) (h.H.ifaceAt as (a: number, p: unknown) => number)(0, h.W[pi])
+      }),
+    )
+  } else {
+    const concrete = e.obj.node === 'this' ? typed.cls?.name : e.cls!
+    if (concrete === undefined) return no('THIS outside a class')
+    const from = e.dispatch === 'self' ? concrete : e.cls!
+    table = em.wk(typed.method(concrete, typed.implOf(from, e.key!)))
+    w.u8(0x41).sleb(0).u8(0x21).uleb(cls)
+  }
+  const runner = (h: Host, ti: number, c: number, d: number): MethodRunner => (d ? (h.W[ti] as MethodRunner[])[c >>> 0]! : (h.W[ti] as MethodRunner))
+  const which = (): void => void w.u8(0x41).sleb(table).u8(0x20).uleb(cls).u8(0x41).sleb(dyn)
+  const frame = typed.frameOf(sig)
+  const fm = em.local(I32)
+  const at = (arg: string): Address => {
+    const m = frame.byKey.get(identKey(arg))
+    if (!m || m.hidden) return no(`the parameter '${arg}'`)
+    return { dyn: () => void em.w.u8(0x20).uleb(fm), off: m.off, layout: m.layout }
+  }
+  const scalars: { arg: string; v: number; k: Held; e: Expr }[] = []
+  for (const a of e.args) {
+    if (a.out || a.inout || a.copy || a.bind) continue
+    scalars.push({ arg: a.name, ...em.held(a.value), e: a.value })
+  }
+  // what each copied input, in-out and bound argument is given, before the frame is taken; stored once it is
+  const stores: (() => void)[] = []
+  for (const a of e.args) {
+    if (a.copy && !a.out) {
+      const p = at(a.name)
+      const v = em.local(I32)
+      em.aggregate(a.value)
+      w.u8(0x21).uleb(v)
+      stores.push(() => {
+        em.address(p)
+        w.u8(0x20).uleb(v).u8(0x41).sleb(p.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
+      })
+    } else if (a.inout) {
+      const m = frame.byKey.get(identKey(a.name))!
+      const p = at(a.name)
+      if (m.ref) {
+        const v = em.local(I32)
+        em.address(em.addr(a.value))
+        w.u8(0x21).uleb(v)
+        stores.push(() => {
+          if (p.dyn) p.dyn()
+          w.u8(0x20).uleb(v).u8(0x36).uleb(2).uleb(p.off)
+        })
+      } else {
+        if (a.value.t === 'STRING') return no('a STRING VAR_IN_OUT of a method')
+        const k = em.expr(a.value)
+        if (p.layout.kind !== 'scalar' || p.layout.scalar === 'STRING' || kindOf(p.layout.scalar) !== k) return no('a VAR_IN_OUT of another kind than its argument')
+        const v = em.local(em.typeOfKind(k))
+        w.u8(0x21).uleb(v)
+        stores.push(() => em.storeAt(p, v))
+      }
+    } else if (a.bind) {
+      const p = at(a.name)
+      const v = em.local(I32)
+      if (a.bind === 'ref') em.refGiven(a.value, a.alias)
+      else em.instanceOf(a.value)
+      w.u8(0x21).uleb(v)
+      stores.push(() => {
+        if (p.dyn) p.dyn()
+        w.u8(0x20).uleb(v).u8(0x36).uleb(2).uleb(p.off)
+      })
+    }
+  }
+  which()
+  w.u8(0x20).uleb(f)
+  w.u8(0x10).uleb(em.import('mEnter', [I32, I32, I32, I32], [I32], (h) => (ti: number, c: number, d: number, inst: number) => runner(h, ti, c, d).enter(inst >>> 0)))
+  w.u8(0x21).uleb(fm)
+  for (const store of stores) store()
+  for (const { arg, v, k, e: given } of scalars) {
+    const p = at(arg)
+    if (p.layout.kind !== 'scalar') return no(`the parameter '${arg}'`)
+    em.storeGiven(p, v, k, given)
+  }
+  em.dropTexts(scalars)
+  which()
+  w.u8(0x20).uleb(f).u8(0x20).uleb(1).u8(0x20).uleb(fm)
+  w.u8(0x10).uleb(em.import('mRun', [I32, I32, I32, I32, F64, I32], [], (h) => (ti: number, c: number, d: number, inst: number, now: number, m: number) => runner(h, ti, c, d).run(inst >>> 0, now, m >>> 0)))
+  for (const a of e.args) {
+    if (!a.inout || frame.byKey.get(identKey(a.name))!.ref) continue
+    const k = em.loadAt(at(a.name))
+    const r = em.local(em.typeOfKind(k))
+    w.u8(0x21).uleb(r)
+    em.place(a.value, r, k)
+  }
+  for (const a of e.args) {
+    if (!a.out) continue
+    const p = at(a.name)
+    if (a.copy) {
+      em.address(em.addr(a.value))
+      em.address(p)
+      w.u8(0x41).sleb(p.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
+      continue
+    }
+    if (a.value.t === 'STRING' || (p.layout.kind === 'scalar' && p.layout.scalar === 'STRING')) return no('a STRING output of a method')
+    const k = em.coerceStack(a.value.t as ScalarType, em.loadAt(p), undefined)
+    const q = em.local(em.typeOfKind(k))
+    w.u8(0x21).uleb(q)
+    em.place(a.value, q, k)
+  }
+  let kind: Kind = 'i'
+  let result: number
+  if (sig.ret === null) {
+    result = em.local(I32)
+    w.u8(0x41).sleb(0).u8(0x21).uleb(result)
+  } else {
+    const res = at(sig.name)
+    if (res.layout.kind === 'scalar') {
+      kind = em.loadAt(res)
+      result = em.local(em.typeOfKind(kind))
+      w.u8(0x21).uleb(result)
+    } else {
+      // a whole array or struct: copied to the call site's own region before the frame is given back, and its address
+      const dst = typed.temp(e)
+      if (dst === undefined) return no('this call of a method with a whole array or struct result')
+      w.u8(0x41).sleb(dst | 0)
+      em.address(res)
+      w.u8(0x41).sleb(res.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
+      result = em.local(I32)
+      w.u8(0x41).sleb(dst | 0).u8(0x21).uleb(result)
+      kind = 'u'
+    }
+  }
+  which()
+  w.u8(0x20).uleb(fm)
+  w.u8(0x10).uleb(em.import('mLeave', [I32, I32, I32, I32], [], (h) => (ti: number, c: number, d: number, m: number) => runner(h, ti, c, d).leave(m >>> 0)))
+  w.u8(0x20).uleb(result)
+  return kind
+}
+
+export function ifaceAt(em: Emitter): number {
+  return em.import('ifaceAt', [I32, I32], [I32], (h) => (a: number, pi: number) => (h.H.ifaceAt as (a: number, p: unknown) => number)(a >>> 0, h.W[pi]))
+}
+
+/** What an argument gives, evaluated now and held in a local until the call stores it: a number or a truth itself,
+ *  a text ('t') by its place with the host, which keeps it as it is now whatever a later argument changes. */
+export function held(em: Emitter, e: Expr): { v: number; k: Held } {
+  const w = em.w
+  if (e.t === 'STRING' || e.node === 'str') {
+    const kind = em.text(e)
+    if (kind !== 'T') w.u8(0x10).uleb(em.import(`textKeep${kind}`, [I32], [I32], (h) => (a: number) => h.texts.push(textOf(h, kind, a)) - 1))
+    const v = em.local(I32)
+    w.u8(0x21).uleb(v)
+    return { v, k: 't' }
+  }
+  const k = em.expr(e)
+  const v = em.local(em.typeOfKind(k))
+  w.u8(0x21).uleb(v)
+  return { v, k }
+}
+
+/** the texts `held` kept for a call's arguments given back, once the call has stored them: the first and all after */
+export function dropTexts(em: Emitter, given: readonly { v: number; k: Held }[]): void {
+  const first = given.find((g) => g.k === 't')
+  if (first) em.w.u8(0x20).uleb(first.v).u8(0x10).uleb(em.import('textsDrop', [I32], [], (h) => (at: number) => void (h.texts.length = at)))
+}
+
+/** the local `v` (what `e` gave, of kind `k`) stored into a block's or a function's scalar input at `m`, coerced as
+ *  the member's setter coerces it */
+export function storeGiven(em: Emitter, m: Address, v: number, k: Held, e: Expr): void {
+  const w = em.w
+  if (m.layout.kind !== 'scalar') return no('a whole value here')
+  const t = m.layout.scalar
+  if (t === 'STRING') {
+    if (k !== 't') return no('a number handed to a STRING input')
+    // the text the host keeps, cut to the input's capacity and written
+    em.address(m)
+    w.u8(0x41).sleb(m.layout.cap!).u8(0x41).sleb(em.wk(em.x.coercerFor('STRING', m.layout.cap, undefined))).u8(0x20).uleb(v)
+    w.u8(0x10).uleb(
+      em.import('textPutKept', [I32, I32, I32, I32], [], (h) => (a: number, cap: number, ci: number, at: number) => {
+        ;(h.H.strPut as (a: number, cap: number, s: string) => void)(a, cap, (h.W[ci] as (v: TagValue) => TagValue)(h.texts[at]!) as string)
+      }),
+    )
+    return
+  }
+  if (k === 't') return no('a text handed to an input that is not a STRING')
+  w.u8(0x20).uleb(v)
+  let kept: Kind
+  if (m.layout.enumerated) {
+    if (k === 'f') em.w.op(0xfc, 0x02)
+    em.wrapI('INT')
+    kept = 'i'
+  } else if (em.canonical(e, t) || (isWidth(t) && e.node !== 'call' && isWidth(e.t) && em.canonical(e, e.t) && em.within(e, t))) {
+    // already in the place's form: only its kind may differ (a whole literal into a REAL)
+    if (kindOf(t) === 'f') em.toF(k)
+    kept = kindOf(t)
+  } else kept = em.coerceStack(t, k, undefined)
+  const held = em.local(em.typeOfKind(kept))
+  w.u8(0x21).uleb(held)
+  em.storeAt(m, held)
+}
+
+/** a standard block's call (scanCodegen.ts typedCall): the instance, its inputs in the call's order, the block,
+ *  then each output binding read from the record, coerced and stored */
+export function blockCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>): void {
+  const w = em.w
+  const inst = em.addr(s.target)
+  if (inst.layout.kind === 'struct' && inst.layout.fb) return em.userCall(s, inst, inst.layout.fb)
+  if (inst.layout.kind !== 'struct') return no('this function block call')
+  const blk = inst.layout.block
+  if (!blk) return no('this function block call')
+  if (s.args.some((a) => a.inout || a.copy)) return no('this function block argument')
+  const rec = inst.layout
+  const f = em.local(I32)
+  em.address(inst)
+  w.u8(0x21).uleb(f)
+  const given = new Map<string, number>()
+  for (const a of s.args.filter((x) => !x.out)) {
+    if (a.value.t === 'STRING') return no('a STRING handed to a block')
+    const v = em.local(F64)
+    em.toF(em.expr(a.value))
+    w.u8(0x21).uleb(v)
+    given.set(identKey(a.name), v)
+  }
+  const names = FB_INPUTS[blk]
+  let mask = 0
+  w.u8(0x20).uleb(f)
+  names.forEach((name, i) => {
+    if (given.has(identKey(name))) mask += 2 ** i
+  })
+  if (names.length > 30) return no('a block with this many inputs')
+  w.u8(0x41).sleb(mask)
+  for (const name of names) {
+    const v = given.get(identKey(name))
+    if (v === undefined) w.u8(0x44).f64(0)
+    else w.u8(0x20).uleb(v)
+  }
+  w.u8(0x20).uleb(1)
+  const arity = names.length
+  w.u8(0x10).uleb(
+    em.import(`blk_${blk}`, [I32, I32, ...names.map(() => F64), F64], [], (h) => {
+      const run = h.H[`blk_${blk}`] as (...a: unknown[]) => void
+      // an input the call left out is undefined: the block then keeps what its record holds
+      const g = (m: number, i: number, v: number): number | undefined => ((m >> i) & 1 ? v : undefined)
+      if (arity === 1) return (at: number, m: number, a: number, now: number) => run(at, g(m, 0, a), now)
+      if (arity === 2) return (at: number, m: number, a: number, b: number, now: number) => run(at, g(m, 0, a), g(m, 1, b), now)
+      if (arity === 3) return (at: number, m: number, a: number, b: number, c: number, now: number) => run(at, g(m, 0, a), g(m, 1, b), g(m, 2, c), now)
+      if (arity === 4) return (at: number, m: number, a: number, b: number, c: number, d: number, now: number) => run(at, g(m, 0, a), g(m, 1, b), g(m, 2, c), g(m, 3, d), now)
+      return (at: number, m: number, ...rest: number[]) => {
+        const args: unknown[] = [at]
+        for (let i = 0; i < arity; i++) args.push(g(m, i, rest[i]!))
+        args.push(rest[arity])
+        run(...args)
+      }
+    }),
+  )
+  for (const a of s.args.filter((x) => x.out)) {
+    const field = rec.byKey.get(identKey(a.name))
+    if (!field || field.hidden || field.layout.kind !== 'scalar') return no(`the output '${a.name}'`)
+    if (a.value.t === 'STRING' || field.layout.scalar === 'STRING') return no('a STRING output')
+    const k = em.coerceStack(a.value.t as ScalarType, em.loadAt({ dyn: () => void em.w.u8(0x20).uleb(f), off: field.off, layout: field.layout }), undefined)
+    const q = em.local(em.typeOfKind(k))
+    w.u8(0x21).uleb(q)
+    em.place(a.value, q, k)
+  }
+}
+
+/** A user function block's call (scanCodegen.ts userCall), in the walker's order: the instance's place; the scalar
+ *  inputs; each bound reference, copied whole input and VAR_IN_OUT; the scalar inputs stored; the body; each scalar
+ *  VAR_IN_OUT copied back; each output read, coerced and stored. */
+export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst: Address, name: string): void {
+  const w = em.w
+  const rec = inst.layout as Extract<TypeLayout, { kind: 'struct' }>
+  const f = em.local(I32)
+  em.address(inst)
+  w.u8(0x21).uleb(f)
+  const fAt = (off: number, layout: TypeLayout): Address => ({ dyn: () => void em.w.u8(0x20).uleb(f), off, layout })
+  const member = (arg: string): Address | null => {
+    const m = rec.byKey.get(identKey(arg))
+    return m && !m.hidden ? fAt(m.off, m.layout) : null
+  }
+  const scalars: { arg: string; v: number; k: Held; e: Expr }[] = []
+  for (const a of s.args) {
+    if (a.out || a.inout || a.copy || a.bind) continue
+    scalars.push({ arg: a.name, ...em.held(a.value), e: a.value })
+  }
+  for (const a of s.args) {
+    const m = rec.byKey.get(identKey(a.name))
+    if (a.bind) {
+      if (!m) continue
+      w.u8(0x20).uleb(f)
+      if (a.bind === 'ref') em.refGiven(a.value, a.alias)
+      else em.instanceOf(a.value)
+      w.u8(0x36).uleb(2).uleb(m.off)
+    } else if (a.copy && !a.out) {
+      if (!m) continue
+      const src = em.local(I32)
+      em.aggregate(a.value)
+      w.u8(0x21).uleb(src).u8(0x20).uleb(f)
+      if (m.off !== 0) w.u8(0x41).sleb(m.off).u8(0x6a)
+      w.u8(0x20).uleb(src).u8(0x41).sleb(m.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
+    } else if (a.inout) {
+      if (!m) continue
+      if (m.ref) {
+        // bound by reference: its address
+        w.u8(0x20).uleb(f)
+        em.address(em.addr(a.value))
+        w.u8(0x36).uleb(2).uleb(m.off)
+      } else {
+        // a scalar: its value, in, and back out below
+        const src = em.strSource(a.value)
+        const slot = fAt(m.off, m.layout)
+        if (src && slot.layout.kind === 'scalar' && slot.layout.scalar === 'STRING') em.strCopy(slot, src, slot.layout.cap!)
+        else {
+          if (a.value.t === 'STRING') return no('a STRING VAR_IN_OUT that is not a place')
+          const k = em.expr(a.value)
+          if (slot.layout.kind !== 'scalar' || slot.layout.scalar === 'STRING' || kindOf(slot.layout.scalar) !== k) return no('a VAR_IN_OUT of another kind than its argument')
+          const v = em.local(em.typeOfKind(k))
+          w.u8(0x21).uleb(v)
+          em.storeAt(slot, v)
+        }
+      }
+    }
+  }
+  for (const { arg, v, k, e } of scalars) {
+    const m = member(arg)
+    if (!m || m.layout.kind !== 'scalar') continue // a name the block does not have: its setter does nothing
+    em.storeGiven(m, v, k, e)
+  }
+  em.dropTexts(scalars)
+  // the block's body, through the program's table: no JavaScript between the two
+  w.u8(0x20).uleb(f).u8(0x20).uleb(1).u8(0x41).sleb(0).u8(0x41).sleb(placeOf(em.link, em.scope.typed.fb(name)))
+  w.u8(0x11).uleb(em.type([I32, F64, I32], [])).uleb(0)
+  for (const a of s.args) {
+    if (!a.inout) continue
+    const m = rec.byKey.get(identKey(a.name))
+    if (!m || m.ref) continue
+    const slot = fAt(m.off, m.layout)
+    if (slot.layout.kind === 'scalar' && slot.layout.scalar === 'STRING') {
+      if (a.value.t !== 'STRING' || !readsOnly(a.value) || !em.strSource(a.value)) return no('a STRING VAR_IN_OUT copied back to this')
+      const dst = em.addr(a.value)
+      em.strCopy(dst, slot, (dst.layout as Extract<TypeLayout, { kind: 'scalar' }>).cap!)
+      continue
+    }
+    const k = em.loadAt(slot)
+    const r = em.local(em.typeOfKind(k))
+    w.u8(0x21).uleb(r)
+    em.place(a.value, r, k)
+  }
+  for (const a of s.args) {
+    if (!a.out) continue
+    const m = member(a.name)
+    if (!m) return no(`the output '${a.name}'`)
+    if (a.copy) {
+      em.address(em.addr(a.value))
+      em.address(m)
+      w.u8(0x41).sleb(m.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
+      continue
+    }
+    if (m.layout.kind === 'scalar' && m.layout.scalar === 'STRING') {
+      if (a.value.t !== 'STRING' || !readsOnly(a.value) || !em.strSource(a.value)) return no('a STRING output stored to this')
+      const dst = em.addr(a.value)
+      const maxLen = em.x.placeMaxLen(a.value)
+      const cap = (dst.layout as Extract<TypeLayout, { kind: 'scalar' }>).cap!
+      em.strCopy(dst, m, maxLen === undefined ? cap : Math.min(cap, maxLen))
+      continue
+    }
+    if (a.value.t === 'STRING') return no('a STRING output')
+    const k = em.coerceStack(a.value.t as ScalarType, em.loadAt(m), undefined)
+    const q = em.local(em.typeOfKind(k))
+    w.u8(0x21).uleb(q)
+    em.place(a.value, q, k)
+  }
+}

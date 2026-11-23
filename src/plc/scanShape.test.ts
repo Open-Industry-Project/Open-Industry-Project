@@ -1,6 +1,9 @@
 // @unlocked-realm: the generated scan source is read where scanCodegen.ts evaluates it with the Function constructor.
 // Locked down it goes to a Compartment instead, which a test cannot look inside.
 //
+// These read the JavaScript generator's output, so they compile with WebAssembly bodies off (typed/arena.ts
+// plcBodies).
+//
 // The shape of the code the typed engine generates, where its speed depends on that shape and a timing gate cannot
 // tell (scanSpeed.test.ts measured both spreads overlapping): helper calls past V8's inlining budget in a long body
 // stay real calls, so a subscript read from storage is checked in place, and a user FUNCTION call stores its arguments
@@ -8,6 +11,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { compile } from './interpreter'
+import { plcBodies } from './typed/arena'
 
 /** Every source the typed engine generated while compiling `src`. */
 function generated(src: string): string {
@@ -17,9 +21,11 @@ function generated(src: string): string {
     seen.push(args[args.length - 1]!)
     return Real(...args)
   }
+  plcBodies.wasm = false
   try {
     compile(src)
   } finally {
+    plcBodies.wasm = true
     ;(globalThis as { Function: unknown }).Function = Real
   }
   return seen.join('\n')
