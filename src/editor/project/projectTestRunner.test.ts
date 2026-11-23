@@ -1,5 +1,5 @@
 import initJolt from 'jolt-physics'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { registerPackage, unregisterPackage } from '../../core/parts/partRegistry'
 import { PROJECT_VERSION } from '../../core/project/project'
 import type { ProjectJSON } from '../../core/project/project'
@@ -10,6 +10,11 @@ import type { BoxFrame } from '../../core/frame'
 import { cargoRows } from '../../core/project/projectProbe'
 import { buildPackage } from '../../sim/buildPackage'
 import { resolveFaults, runProjectTest } from './projectTestRunner'
+import { waitCheck } from '../../sim/partSleep'
+
+// every part left out of a step unasked is asked the long way too, and the two must agree (partSleep.ts)
+beforeAll(() => void (waitCheck.on = true))
+afterAll(() => void (waitCheck.on = false))
 
 // End-to-end proof of the runner: a real SimWorld + a real ST program wired through the tag bus.
 // The program echoes a test-input button (Start) to an actuator tag (Cmd); an "echo" part reflects

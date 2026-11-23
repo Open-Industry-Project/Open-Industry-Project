@@ -4,13 +4,18 @@
 // it did as a `step` part. The conveyors are commanded through a start, a stop, a restart and a change of speed, so
 // the run crosses every reason a drive has to ask for its next tick (conveyorDrive.js driveAgain).
 import initJolt from 'jolt-physics'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { clearPackages, registerPackage } from '../core/parts/partRegistry'
 import type { PackageManifest, PartMaterial, PartPackageGeometry } from '../core/parts/partPackage'
 import { SCENE_VERSION } from '../core/types'
 import type { SceneJSON } from '../core/types'
 import { buildPackage } from './buildPackage'
 import { SimWorld } from './world'
+import { waitCheck } from './partSleep'
+
+// every part left out of a step unasked is asked the long way too, and the two must agree (partSleep.ts)
+beforeAll(() => void (waitCheck.on = true))
+afterAll(() => void (waitCheck.on = false))
 
 const Jolt = await initJolt()
 

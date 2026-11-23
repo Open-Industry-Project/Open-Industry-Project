@@ -1,7 +1,7 @@
 // A reactive part (definePart's `react`): when the host calls it, and that what it commanded stands in between
 // (partSleep.ts).
 import initJolt from 'jolt-physics'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { clearPackages } from '../core/parts/partRegistry'
 import type { PartPackage } from '../core/parts/partPackage'
 import { SCENE_VERSION } from '../core/types'
@@ -10,6 +10,11 @@ import { buildPackage } from './buildPackage'
 import type { PackageManifest } from './buildPackage'
 import { validatePart } from './validatePart'
 import { SimWorld } from './world'
+import { waitCheck } from './partSleep'
+
+// every part left out of a step unasked is asked the long way too, and the two must agree (partSleep.ts)
+beforeAll(() => void (waitCheck.on = true))
+afterAll(() => void (waitCheck.on = false))
 
 const Jolt = await initJolt()
 

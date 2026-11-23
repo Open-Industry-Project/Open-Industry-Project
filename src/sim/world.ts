@@ -60,7 +60,7 @@ import { CargoFlow } from './cargoFlow'
 import { CargoRegistry } from './cargoRegistry'
 import { DECK_AXES } from './conveyorContacts'
 import { ConveyorFacets } from './conveyorFacets'
-import { newSleepState, noteCall, stillWaiting, waits } from './partSleep'
+import { newSleepState, noteCall, stillWaiting, waitCheck, waits } from './partSleep'
 import { advanceTravel, newTravelCount, writeTravel } from './travelCount'
 import { driveDeckEntries } from './deckDrive'
 import { SimFlowFacts } from './flowFacts'
@@ -493,9 +493,13 @@ export class SimWorld implements SimCore<BoxFrame> {
     const senseRev = sensors.rev * 4096 + this.loadCells.rev
     for (const b of behaviors) {
       // a waiting part with nothing new to be handed is left out before its input is put together (partSleep.ts)
+      let unasked = false
       if (calm && stillWaiting(b, tags, driven, conveyorSpeeds, senseRev, sensors, this.loadCells)) {
-        this.countWaiting(b, dt)
-        continue
+        if (!waitCheck.on) {
+          this.countWaiting(b, dt)
+          continue
+        }
+        unasked = true // (a test's check: asked the long way below, which has to agree)
       }
       // C-sensing: cast this part's sensor beams against cargo and hand the nearest hits in as `input.beams`
       const emitters = b.partId ? sensors.beamsOf(b.partId) : undefined
@@ -588,6 +592,7 @@ export class SimWorld implements SimCore<BoxFrame> {
         this.countWaiting(b, dt)
         continue
       }
+      if (unasked) throw new Error(`part '${b.partId ?? ''}' would have been left out of this step, but its inputs are not what it was last handed (partSleep.ts: stillWaiting and inputsSame disagree)`)
       this.called.push(b)
       const ts = this.perfParts ? performance.now() : 0
       const parsed = behavior.stepDirect(b.handle, inp, dt)

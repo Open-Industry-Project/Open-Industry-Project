@@ -32,6 +32,7 @@ import { LocalPlcLink } from '../../src/plc/link/plcLink'
 import { wiredBindings } from '../../src/plc/wiring'
 import { PlcHost } from '../../src/sim/plcHost'
 import { formatPartDiagnostics, validatePart } from '../../src/sim/validatePart'
+import { waitCheck } from '../../src/sim/partSleep'
 import { SimWorld } from '../../src/sim/world'
 
 const env = process.env
@@ -52,6 +53,8 @@ const loadJolt = async (): ReturnType<typeof initJolt> =>
 const ENGINE = (env.BENCH_ENGINE ?? 'typed') as ScanEngine
 if (!['typed', 'walker'].includes(ENGINE)) throw new Error(`BENCH_ENGINE: no engine '${ENGINE}'`)
 setScanEngine(ENGINE)
+// BENCH_CHECK_WAITS=1: every part left out of a step unasked is asked the long way too (a check, not a timing)
+if (env.BENCH_CHECK_WAITS) waitCheck.on = true
 
 /** a project folder's files, by the desktop shell's own walk (scripts/lib/projectFolderFiles.mjs) */
 const folderFiles = (createRequire(import.meta.url)('../../apps/desktop/projectFolderIo.cjs') as { readProjectFolder: (root: string) => ProjectFolderFile[] }).readProjectFolder

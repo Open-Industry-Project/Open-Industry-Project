@@ -1,8 +1,13 @@
 import initJolt from 'jolt-physics'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DEMO_SCAN_MS, demoProject, ladderSpec } from './demoAcceptance'
 import { createPlcDemoScene } from './demoScenes'
 import { runProjectTest } from '../project/projectTestRunner'
+import { waitCheck } from '../../sim/partSleep'
+
+// every part left out of a step unasked is asked the long way too, and the two must agree (partSleep.ts)
+beforeAll(() => void (waitCheck.on = true))
+afterAll(() => void (waitCheck.on = false))
 
 // The demo cell's conveyors and sensors are reactive parts (definePart's `react`): called when an input changes or
 // when they asked, not on every step. A reactive part may be called on any step, so the cell must run the same with

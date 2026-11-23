@@ -97,6 +97,10 @@ function rememberInputs(s: SleepState, inp: BehaviorInput): void {
   s.gripWidths = inp.gripWidths ? { ...inp.gripWidths } : undefined
 }
 
+/** A test's check: while on, a part {@link stillWaiting} would leave out is asked the long way as well, and the step
+ *  throws if {@link waits} then says it does not wait. The two state one rule twice, and this keeps them the same. */
+export const waitCheck = { on: false }
+
 /**
  * Does a waiting part wait again, told without putting its input together? True for one handed the very tables and
  * pose of its last call, whose rig has written nothing it reads back since (BehaviorRecord.feedbackRev), that has no
