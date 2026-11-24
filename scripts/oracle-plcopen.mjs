@@ -52,7 +52,7 @@ async function main() {
   // loader the way exportText.ts can - vite's SSR loader is how the other project scripts
   // (validate-project, test-project) reach src/, and it keeps this pointed at the REAL
   // exporter rather than a copy.
-  const vite = await createServer({ configFile: false, root: ROOT, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false } })
+  const vite = await createServer({ configFile: false, root: ROOT, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false, watch: null } })
   let cases
   let toPlcopenXml
   try {

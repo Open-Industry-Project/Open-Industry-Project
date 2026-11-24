@@ -30,7 +30,7 @@ const check = (n, ok, info = '') => {
 }
 
 // parts made from the drum's source: one under the signed-in account, one under another
-const vite = await createVite({ configFile: false, root: repo, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom', optimizeDeps: { noDiscovery: true } })
+const vite = await createVite({ configFile: false, root: repo, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false, watch: null }, appType: 'custom', optimizeDeps: { noDiscovery: true } })
 const { buildPackage } = await vite.ssrLoadModule('/src/sim/buildPackage.ts')
 const { RIGHTS_LINE } = await vite.ssrLoadModule('/src/core/parts/partSubmission.ts')
 const source = (id, name) => {

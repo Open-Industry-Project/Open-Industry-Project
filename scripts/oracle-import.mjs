@@ -172,7 +172,7 @@ async function main() {
   console.log('ST import oracle - real files, from projects this one did not write\n')
   mkdirSync(WORK, { recursive: true })
 
-  const vite = await createServer({ configFile: false, root: ROOT, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false } })
+  const vite = await createServer({ configFile: false, root: ROOT, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false, watch: null } })
   let importIecText, importPlcopenXml, parseXml, parseAndCheck
   try {
     ;({ importIecText } = await vite.ssrLoadModule('/src/plc/exchange/importText.ts'))

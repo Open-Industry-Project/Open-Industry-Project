@@ -282,8 +282,9 @@ eslint enforces both.
 - **Flow facts are facts, never problems** (core/flow/flowFacts.ts, core/flow/flowFactLog.ts). They reach `get_problems`'
   `flowFacts`, the Tests overlay, `test-project` and `check-flow`, never the Problems dock, an error or warning count, or
   a test verdict, since an accumulating line stalls on purpose. Gated by `verify-flow-facts.mjs`.
-- **A CLI that starts vite in middleware mode passes `server: { middlewareMode: true, hmr: false, ws: false }`**, or it
-  binds the HMR port 24678 and prints a misleading "already in use".
+- **A CLI that starts vite in middleware mode passes `server: { middlewareMode: true, hmr: false, ws: false, watch: null }`**.
+  Without `hmr` and `ws` off it binds the HMR port 24678 and prints a misleading "already in use". Without
+  `watch: null` it watches the repository's files, which took about 8 s of an 11 s `test-project` run.
 - **`src/render/` edits force a full page reload in dev** (`oip-render-full-reload` in [vite.config.ts](vite.config.ts)):
   partial HMR on a live WebGL/WebGPU context corrupts it. Don't re-enable HMR for render.
 - **`/app/*` is cross-origin isolated (COOP/COEP), in dev and prod**, for SharedArrayBuffer (threaded Jolt). Anything

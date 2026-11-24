@@ -55,7 +55,7 @@ const vite = await createServer({
   configFile: false,
   root: repo,
   logLevel: 'error',
-  server: { middlewareMode: true, hmr: false, ws: false },
+  server: { middlewareMode: true, hmr: false, ws: false, watch: null },
   appType: 'custom',
   // core has no bare-import deps; without this, vite's scanner walks the whole app entry and
   // complains about plugin-provided virtual modules (the PWA register) our bare config doesn't have

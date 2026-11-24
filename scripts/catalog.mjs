@@ -60,7 +60,7 @@ const vite = await createServer({
   root: repo,
   logLevel: 'error',
   // no HMR websocket: a CLI needs none, and a second one collides with a running dev server's port
-  server: { middlewareMode: true, hmr: false, ws: false },
+  server: { middlewareMode: true, hmr: false, ws: false, watch: null },
   appType: 'custom',
   optimizeDeps: { noDiscovery: true },
 })
