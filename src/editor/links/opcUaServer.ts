@@ -88,12 +88,15 @@ const BUILTIN_OF: Record<Exclude<VarInfo['type'], WideType>, number> = {
 /** A standard function block's number outputs: a counter's value is an INT, a timer's elapsed time a TIME. */
 const FB_MEMBER: Record<string, number> = { CV: 4, PV: 4, ET: 11, PT: 11 }
 
-/** The OPC UA type a variable is published as: from its declaration, else (a function block's member) from its value. */
-export function builtinFor(name: string, info: VarInfo | undefined, value: TagValue): number {
+/** The OPC UA type a variable is published as: from its declaration, else (a function block's member) from its value.
+ *  `counts`: the type a counter's CV counts in, when the program says (a typed counter's is wider than an INT). */
+export function builtinFor(name: string, info: VarInfo | undefined, value: TagValue, counts?: string): number {
   if (info && !isWide(info.type)) return BUILTIN_OF[info.type]
   if (typeof value === 'boolean') return 1
   if (typeof value === 'string') return 12
-  return FB_MEMBER[name.slice(name.lastIndexOf('.') + 1).toUpperCase()] ?? 11
+  const member = name.slice(name.lastIndexOf('.') + 1).toUpperCase()
+  if (member === 'CV' && counts !== undefined && counts in BUILTIN_OF) return BUILTIN_OF[counts as keyof typeof BUILTIN_OF]
+  return FB_MEMBER[member] ?? 11
 }
 
 /** A variable's value as its node holds it. */
@@ -115,6 +118,8 @@ export function fromClientValue(builtin: number, v: unknown): TagValue | null {
 export interface PublishedProgram {
   readonly watch: Readonly<Record<string, TagValue>>
   varInfo(name: string): VarInfo | undefined
+  /** the declared type of a function block's member (`C1.CV`), where the program can say (LocalPlcLink.memberType) */
+  memberType?(name: string): string | undefined
   /** bare scene tag -> the variable it names (plc/link/plcLink.ts soleInstanceAliases): a part feeding `Go` feeds `Line.Go` */
   readonly aliases?: ReadonlyMap<string, string>
 }
@@ -130,7 +135,10 @@ export function publishedVariables(program: PublishedProgram, sceneFeeds: Readon
   for (const [name, value] of Object.entries(program.watch)) {
     const info = program.varInfo(name)
     if (info && isWide(info.type)) continue
-    const builtin = builtinFor(name, info, value)
+    // a counter's CV is the type its block counts in; a 64-bit one is left out, as a 64-bit variable is
+    const counts = info === undefined && /\.CV$/i.test(name) ? program.memberType?.(name) : undefined
+    if (counts === 'LINT' || counts === 'ULINT') continue
+    const builtin = builtinFor(name, info, value, counts)
     const fromScene = fed.has(name.toLowerCase()) || (info?.location !== undefined && fed.has(info.location.toLowerCase()))
     out.push({ name, builtin, writable: info !== undefined && !info.constant && !fromScene, value: toServerValue(builtin, value) })
   }

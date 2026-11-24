@@ -5,7 +5,7 @@
 // neighbour.
 
 import { classIds, fbDecls, identKey } from '../program'
-import { AXIS_KERNEL_OUTPUTS } from '../runtime'
+import { AXIS_KERNEL_OUTPUTS, forTypedCounters } from '../runtime'
 import type { EnumDefMap, FbDefMap, StructDefMap } from '../program'
 import type { ArrayDim, DataType, Decl, FbType, ScalarType, StructDef } from '../types'
 import { DEFAULT_STRING_LEN, isArray, isEnum, isInterface, isRef, isStruct, isUserFb } from '../types'
@@ -240,6 +240,12 @@ function block(type: FbType, fields: [string, ScalarType, boolean?][]): StructLa
 }
 const TIMER: [string, ScalarType, boolean?][] = [['Q', 'BOOL'], ['ET', 'TIME'], ['running', 'BOOL', true], ['start', 'LREAL', true], ['IN', 'BOOL', true], ['PT', 'TIME', true]]
 export const BLOCKS: Record<FbType, StructLayout> = {
+  // a typed counter: its plain counter's record, with CV and the kept PV of the type it names
+  ...forTypedCounters((kind, t) =>
+    kind === 'CTUD'
+      ? block(`CTUD_${t}` as FbType, [['CV', t], ['QU', 'BOOL'], ['QD', 'BOOL'], ['prevU', 'BOOL', true], ['prevD', 'BOOL', true], ['R', 'BOOL', true], ['LD', 'BOOL', true], ['PV', t, true]])
+      : block(`${kind}_${t}` as FbType, [['CV', t], ['Q', 'BOOL'], ['prev', 'BOOL', true], [kind === 'CTU' ? 'R' : 'LD', 'BOOL', true], ['PV', t, true]]),
+  ),
   // the motion kernel: its outputs only; its plan is the host's (typed/blocks.ts keeps a channel per instance)
   AXIS_KERNEL: block('AXIS_KERNEL', Object.entries(AXIS_KERNEL_OUTPUTS)),
   TON: block('TON', TIMER),

@@ -67,7 +67,14 @@ export const DEFAULT_STRING_LEN = 80
 // MC_MoveAbsolute, ...), which are ST function blocks written over it (plc/motionPrelude.ts) and hold it in their
 // AXIS_REF. It is a builtin because its state (a motion plan) is the host's, like a timer's clock reading; nothing
 // user-facing lists it (USER_FB_TYPES).
-export const FB_TYPES = ['TON', 'TOF', 'TP', 'R_TRIG', 'F_TRIG', 'CTU', 'CTD', 'CTUD', 'SR', 'RS', 'AXIS_KERNEL'] as const
+const STANDARD_FB = ['TON', 'TOF', 'TP', 'R_TRIG', 'F_TRIG', 'CTU', 'CTD', 'CTUD', 'SR', 'RS'] as const
+/** The types a counter counts in beyond CTU, CTD and CTUD's own INT. */
+export const COUNTER_WIDTHS = ['DINT', 'LINT', 'UDINT', 'ULINT'] as const
+/** IEC's typed counters: `CTU_DINT`, `CTD_ULINT`, `CTUD_LINT` and the rest. Each is its plain counter with `PV` and
+ *  `CV` of the type it names. */
+export type TypedCounter = `${'CTU' | 'CTD' | 'CTUD'}_${(typeof COUNTER_WIDTHS)[number]}`
+export const TYPED_COUNTERS: readonly TypedCounter[] = (['CTU', 'CTD', 'CTUD'] as const).flatMap((kind) => COUNTER_WIDTHS.map((t) => `${kind}_${t}` as const))
+export const FB_TYPES: readonly ((typeof STANDARD_FB)[number] | TypedCounter | 'AXIS_KERNEL')[] = [...STANDARD_FB, ...TYPED_COUNTERS, 'AXIS_KERNEL']
 export type FbType = (typeof FB_TYPES)[number]
 /** The builtin blocks a person writes: every one but the motion blocks' kernel. What pickers, catalogs and the
  *  capability manifest list. */
@@ -435,6 +442,10 @@ export interface Decl {
   block?: number
   section: VarSection
   pos: SourcePos
+  /** `Go : BOOL R_EDGE` / `F_EDGE`: an input of a function block that reads TRUE only on a call whose argument rose
+   *  (fell) since the call before. Lowered when the block is parsed (edgeInputs.ts), so nothing after reads this; it
+   *  stays for whoever shows the declaration. */
+  edge?: 'R' | 'F'
   /** declared by the ladder lowering, not by the author: a rung condition held across a write, an edge's memory
    *  (ladder.ts). Kept out of what a scene can bind and out of the watch table. */
   hidden?: boolean

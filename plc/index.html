@@ -221,7 +221,7 @@
           <dt>Types</dt>
           <dd><div class="chips" translate="no"><span class="chip">BOOL</span><span class="chip">SINT</span><span class="chip">INT</span><span class="chip">DINT</span><span class="chip">LINT</span><span class="chip">USINT</span><span class="chip">UINT</span><span class="chip">UDINT</span><span class="chip">ULINT</span><span class="chip">BYTE</span><span class="chip">WORD</span><span class="chip">DWORD</span><span class="chip">LWORD</span><span class="chip">REAL</span><span class="chip">LREAL</span><span class="chip">TIME</span><span class="chip">DATE</span><span class="chip">TOD</span><span class="chip">DT</span><span class="chip">STRING</span></div></dd>
           <dt>Function blocks</dt>
-          <dd><div class="chips" translate="no"><span class="chip">TON</span><span class="chip">TOF</span><span class="chip">TP</span><span class="chip">R_TRIG</span><span class="chip">F_TRIG</span><span class="chip">CTU</span><span class="chip">CTD</span><span class="chip">CTUD</span><span class="chip">SR</span><span class="chip">RS</span></div></dd>
+          <dd><div class="chips" translate="no"><span class="chip">TON</span><span class="chip">TOF</span><span class="chip">TP</span><span class="chip">R_TRIG</span><span class="chip">F_TRIG</span><span class="chip">CTU</span><span class="chip">CTD</span><span class="chip">CTUD</span><span class="chip">SR</span><span class="chip">RS</span><span class="chip">CTU_DINT</span><span class="chip">CTU_LINT</span><span class="chip">CTU_UDINT</span><span class="chip">CTU_ULINT</span><span class="chip">CTD_DINT</span><span class="chip">CTD_LINT</span><span class="chip">CTD_UDINT</span><span class="chip">CTD_ULINT</span><span class="chip">CTUD_DINT</span><span class="chip">CTUD_LINT</span><span class="chip">CTUD_UDINT</span><span class="chip">CTUD_ULINT</span></div></dd>
           <dt>Functions</dt>
           <dd><div class="chips" translate="no"><span class="chip">ABS</span><span class="chip">ACOS</span><span class="chip">ADD</span><span class="chip">ADD_DT_TIME</span><span class="chip">ADD_TIME</span><span class="chip">ADD_TOD_TIME</span><span class="chip">ASIN</span><span class="chip">ATAN</span><span class="chip">BCD_TO_INT</span><span class="chip">CONCAT</span><span class="chip">CONCAT_DATE_TOD</span><span class="chip">COS</span><span class="chip">DELETE</span><span class="chip">DIV</span><span class="chip">DIVTIME</span><span class="chip">DIV_TIME</span><span class="chip">EQ</span><span class="chip">EXP</span><span class="chip">EXPT</span><span class="chip">FIND</span><span class="chip">GE</span><span class="chip">GT</span><span class="chip">INSERT</span><span class="chip">INT_TO_BCD</span><span class="chip">LE</span><span class="chip">LEFT</span><span class="chip">LEN</span><span class="chip">LIMIT</span><span class="chip">LN</span><span class="chip">LOG</span><span class="chip">LT</span><span class="chip">MAX</span><span class="chip">MID</span><span class="chip">MIN</span><span class="chip">MOVE</span><span class="chip">MUL</span><span class="chip">MULTIME</span><span class="chip">MUL_TIME</span><span class="chip">MUX</span><span class="chip">NE</span><span class="chip">REPLACE</span><span class="chip">RIGHT</span><span class="chip">ROL</span><span class="chip">ROR</span><span class="chip">SEL</span><span class="chip">SHL</span><span class="chip">SHR</span><span class="chip">SIN</span><span class="chip">SQRT</span><span class="chip">SUB</span><span class="chip">SUB_DATE_DATE</span><span class="chip">SUB_DT_DT</span><span class="chip">SUB_DT_TIME</span><span class="chip">SUB_TIME</span><span class="chip">SUB_TOD_TIME</span><span class="chip">SUB_TOD_TOD</span><span class="chip">TAN</span><span class="chip">TRUNC</span></div><p class="sub" style="margin:0">Plus the &lt;SRC&gt;_TO_&lt;DST&gt; conversion family over those types.</p></dd>
           <dt>Keywords</dt>
@@ -375,6 +375,17 @@ END_FUNCTION
 
 VAR n : INT; END_VAR
 n := Scale(v := 21);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">R_EDGE and F_EDGE inputs of a function block</div>
+                <pre class="st-code" translate="no"><code>FUNCTION_BLOCK Rises
+VAR_INPUT go : BOOL R_EDGE; END_VAR
+VAR_OUTPUT n : INT; END_VAR
+IF go THEN n := n + 1; END_IF;
+END_FUNCTION_BLOCK
+
+VAR c : Rises; sig : BOOL; END_VAR
+c(go := sig);</code></pre>
               </div>
             </div>
           </div>
@@ -539,6 +550,12 @@ t := ADD_TOD_TIME(t, MULTIME(b, 2));</code></pre>
 END_VAR
 t(IN := TRUE, PT := T#1s);
 cu(CU := t.Q, PV := 10);</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">Typed counters (CTU_DINT, CTD_ULINT, CTUD_LINT, ...)</div>
+                <pre class="st-code" translate="no"><code>VAR parts : CTU_DINT; total : CTUD_LINT; pulse : BOOL; END_VAR
+parts(CU := pulse, R := FALSE, PV := 100000);
+total(CU := pulse, CD := FALSE, R := FALSE, LD := FALSE, PV := 9007199254740993);</code></pre>
               </div>
               <div class="card">
                 <div class="card-head">The &lt;SRC&gt;_TO_&lt;DST&gt; conversion family</div>
@@ -1041,6 +1058,10 @@ s := &quot;wide&quot;;</code></pre></td>
                   <td><div class="what">LDATE, LTOD, LDT (64-bit calendar types)</div><pre class="st-code" translate="no"><code>VAR x : LDT; END_VAR</code></pre></td>
                   <td><div class="said" translate="no">LDT is not supported: the 64-bit calendar types are IEC 3rd edition and not implemented; DT is</div></td>
                 </tr>
+                <tr>
+                  <td><div class="what">LTIME (64-bit duration)</div><pre class="st-code" translate="no"><code>VAR t : LTIME; END_VAR</code></pre></td>
+                  <td><div class="said" translate="no">LTIME is not supported: the 64-bit duration is IEC 3rd edition and not implemented; TIME is</div></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1498,10 +1519,11 @@ VAR start AT %I* : BOOL; END_VAR</code></pre></td>
         </div>
         <p class="body">
           The corpus samples the subset rather than covering it. A real IEC compiler has built and run
-          20/20 of the scalar types, 10/10 of the standard function blocks
+          20/20 of the scalar types, 12/22 of the standard function blocks
           and 54/58 of the named functions, with the results compared with the expected values
           scan for scan. A further 4 were compiled but never run, because the 2nd-edition compiler
-          refuses them by design and only the 3rd-edition one builds them: <span translate="no">BCD_TO_INT, DIV_TIME, INT_TO_BCD, MUL_TIME</span>. Every type, block and function the engine accepts has been through at least one of them.
+          refuses them by design and only the 3rd-edition one builds them: <span translate="no">BCD_TO_INT, DIV_TIME, INT_TO_BCD, MUL_TIME</span>. The rest have not been checked by an outside tool, which is not the same as known to be wrong:
+          <span translate="no">CTD_DINT, CTD_LINT, CTD_UDINT, CTD_ULINT, CTUD_UDINT, CTUD_ULINT, CTU_DINT, CTU_LINT, CTU_UDINT, CTU_ULINT</span>.
         </p>
       </div>
     </section>

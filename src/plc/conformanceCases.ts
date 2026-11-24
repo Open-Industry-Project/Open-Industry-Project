@@ -3935,6 +3935,61 @@ FOR i := 9007199254740992 TO 9007199254740995 DO sum := sum + i; END_FOR;`,
       },
     ],
   },
+  {
+    title: 'typed counters and edge-detecting inputs',
+    cases: [
+      {
+        // loaded with 40000, past what the plain CTUD's INT holds, then one count up
+        name: 'CTUD_DINT counts past what an INT holds',
+        src: `VAR c : CTUD_DINT; up : BOOL; load : BOOL; pv : DINT; n : DINT; qu : BOOL; END_VAR
+c(CU := up, CD := FALSE, R := FALSE, LD := load, PV := pv);
+n := c.CV; qu := c.QU;`,
+        steps: [
+          { in: { load: true, pv: 40000 }, expect: { n: 40000, qu: true } },
+          { in: { load: false, pv: 50000, up: true }, expect: { n: 40001, qu: false } },
+          { in: { up: false }, expect: { n: 40001 } },
+          { in: { up: true }, expect: { n: 40002 } },
+        ],
+      },
+      {
+        // loaded with 2^53 on the first scan, then one count up: 2^53 + 1, which a double does not hold
+        name: 'CTUD_LINT counts exactly past 2^53',
+        src: `VAR c : CTUD_LINT; up : BOOL; first : BOOL := TRUE; pv : LINT := 9007199254740992; n : LINT; END_VAR
+c(CU := up, CD := FALSE, R := FALSE, LD := first, PV := pv);
+first := FALSE; pv := 9007199254740999;
+n := c.CV;`,
+        steps: [{ expect: { n: '9007199254740992' } }, { in: { up: true }, expect: { n: '9007199254740993' } }],
+      },
+      {
+        // the input is TRUE inside the block only on the call where the argument rose: the first call compares
+        // with FALSE, so a TRUE there is a rise
+        name: 'an R_EDGE input reads TRUE on the call its argument rose',
+        src: `FUNCTION_BLOCK Rises
+VAR_INPUT go : BOOL R_EDGE; END_VAR
+VAR_OUTPUT n : INT; END_VAR
+IF go THEN n := n + 1; END_IF;
+END_FUNCTION_BLOCK
+VAR c : Rises; sig : BOOL; total : INT; END_VAR
+c(go := sig);
+total := c.n;`,
+        steps: [
+          { in: { sig: true }, expect: { total: 1 } },
+          { in: { sig: true }, expect: { total: 1 } },
+          { in: { sig: false }, expect: { total: 1 } },
+          { in: { sig: true }, expect: { total: 2 } },
+        ],
+        oracle: {
+          skip: 'MATIEC reads the R_EDGE declaration and then does not know the variable: every use of it in the block reports "Variable not declared in this scope" (measured on this case). The qualifier is IEC 2nd edition, so this is a limit of that compiler, and the case is held in-process, through both engines',
+        },
+      },
+      {
+        name: 'rejects R_EDGE on anything but a BOOL input of a function block',
+        src: 'FUNCTION_BLOCK B VAR_INPUT n : INT R_EDGE; END_VAR END_FUNCTION_BLOCK\nVAR b : B; END_VAR\nb();',
+        steps: [],
+        rejects: /R_EDGE marks a BOOL in VAR_INPUT of a FUNCTION_BLOCK/,
+      },
+    ],
+  },
 ]
 
 /** Every case, flattened - the order the oracle replays them in. */

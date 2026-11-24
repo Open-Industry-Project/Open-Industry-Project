@@ -413,6 +413,12 @@ export class LocalPlcLink implements PlcLink {
   varInfo(name: string): VarInfo | undefined {
     return this.prog.varInfo(this.#resolve(name))
   }
+  #memberTypes: Readonly<Record<string, string>> | null = null
+  /** The declared type of a value `varInfo` does not answer for: a function block's member (`C1.CV`), by its
+   *  watch-table name. Worked out for the whole program on first use. */
+  memberType(name: string): string | undefined {
+    return (this.#memberTypes ??= this.prog.memoryTypes)[this.#resolve(name)]
+  }
   /**
    * Write variables by name between scans, as an HMI or SCADA writes a PLC's tags: a Start button, a
    * setpoint. The next scan reads them. A constant is left alone, and so is a name the program does not

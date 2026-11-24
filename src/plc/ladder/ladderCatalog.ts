@@ -15,7 +15,7 @@ import { insertItem, type LadderSel } from './ladderEdit'
 import { lex } from '../lexer'
 import { declareInstance, freshInstanceName, newItem, readLadder, writeLadder, type RungItem } from './ladderRungs'
 import { parse } from '../parser'
-import { FB_INPUT_TYPES, fbMemberType } from '../runtime'
+import { FB_INPUT_TYPES, fbMemberType, typedCounter } from '../runtime'
 import { USER_FB_TYPES, isArray, type DataType, type Decl, type FbType } from '../types'
 
 /** How a box stands on the rung: a function-block instance (state of its own, declared), a function that runs while
@@ -170,7 +170,9 @@ function standardFunction(name: string): CatalogEntry | null {
 
 function standardBlock(type: FbType): CatalogEntry {
   const info = builtinFbInfo(type)!
-  const [group, summary] = STANDARD_SUMMARIES[type] ?? ['Timers', type]
+  // a typed counter is its plain counter, counting in the type it names
+  const counter = typedCounter(type)
+  const [group, summary]: Std = counter ? ['Counters', `${STANDARD_SUMMARIES[counter.kind]![1]} (PV and CV are ${counter.type})`] : (STANDARD_SUMMARIES[type] ?? ['Timers', type])
   const pin = (name: string, t: string | undefined): CatalogPin => ({ name, type: t ?? '', bool: t === 'BOOL' })
   return {
     name: type,

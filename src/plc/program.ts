@@ -25,7 +25,7 @@ export function identKey(s: string): string {
 export function isFb(t: DeclType): t is FbType {
   return typeof t === 'string' && (FB_TYPES as readonly string[]).includes(t)
 }
-/** A plain scalar type (anything that is neither a builtin FB nor a user FB instance). */
+
 const wideLiterals = new WeakMap<object, bigint>()
 /** A literal whose type is a 64-bit integer, as its exact value held to that type (`-9223372036854775808` is a NEG
  *  over a leaf past LINT, which wraps). Worked out once per node: its digits are text (types.ts). */
@@ -38,6 +38,7 @@ export function literal64(e: Extract<Expr, { node: 'num' }>): bigint {
   return v
 }
 
+/** A plain scalar type (anything that is neither a builtin FB nor a user FB instance). */
 export function isScalarType(t: DeclType): t is ScalarType {
   return typeof t === 'string' && !(FB_TYPES as readonly string[]).includes(t)
 }

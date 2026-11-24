@@ -6,8 +6,8 @@
 // offset comes from the block's layout (layout.ts BLOCKS), so the code and the layout cannot disagree about where a
 // field is. The three timers are not here: a body writes them itself (scanWasmCalls.ts timerBlock).
 
-import { bool, num, wrap } from '../runtime'
-import type { FbType, TagValue } from '../types'
+import { big, bool, counterRange, forTypedCounters, is64, num, wrap, wrap64 } from '../runtime'
+import type { FbType, ScalarType, TagValue } from '../types'
 import type { Arena } from './arena'
 import { BLOCKS } from './layout'
 import { MotionChannel, type MotionOutputs } from '../motionChannel'
@@ -15,6 +15,92 @@ import { MotionChannel, type MotionOutputs } from '../motionChannel'
 type In = TagValue | undefined
 
 const off = (t: FbType, field: string): number => BLOCKS[t].byKey.get(field.toUpperCase())!.off
+
+/**
+ * A typed counter (CTU_DINT, CTD_ULINT, CTUD_LINT, ...) over the arena: its plain counter below, with CV and the kept
+ * PV in the view of the type it names and the count stopping at that type's limits (runtime.ts WideCounter is the
+ * walker's). It counts in whole numbers, so one body serves the 32-bit views and the 64-bit ones.
+ */
+function wideCounter(a: Arena, kind: 'CTU' | 'CTD' | 'CTUD', t: ScalarType): (...args: never[]) => void {
+  const name = `${kind}_${t}` as FbType
+  const { U8 } = a
+  const wide = is64(t)
+  const { min, max } = counterRange(t)
+  const narrow = t === 'DINT' ? a.I32 : a.U32
+  const long = t === 'LINT' ? a.I64 : a.U64
+  const get = (at: number): bigint => (wide ? long[at >> 3]! : BigInt(narrow[at >> 2]!))
+  const set = (at: number, v: bigint): void => {
+    if (wide) long[at >> 3] = v
+    else narrow[at >> 2] = Number(v)
+  }
+  /** the kept PV: a given value is stored first, at the type's width, and the stored value is answered */
+  const keptPv = (at: number, v: In): bigint => {
+    if (v !== undefined) set(at, wide ? wrap64(t, big(v)) : BigInt(wrap(t, num(v))))
+    return get(at)
+  }
+  const keptBool = (at: number, v: In): boolean => {
+    if (v !== undefined) U8[at] = bool(v) ? 1 : 0
+    return U8[at] !== 0
+  }
+  const cvAt = off(name, 'CV')
+  const pvAt = off(name, 'PV')
+  if (kind === 'CTU') {
+    const q = off(name, 'Q')
+    const prev = off(name, 'prev')
+    const r = off(name, 'R')
+    return ((b: number, CU: In, R: In, RESET: In, PV: In): void => {
+      const cu = CU === undefined ? U8[b + prev] !== 0 : bool(CU)
+      const pv = keptPv(b + pvAt, PV)
+      let cv = get(b + cvAt)
+      if (keptBool(b + r, RESET ?? R)) cv = 0n
+      else if (cu && U8[b + prev] === 0 && cv < max) cv++
+      set(b + cvAt, cv)
+      U8[b + prev] = cu ? 1 : 0
+      U8[b + q] = cv >= pv ? 1 : 0
+    }) as (...args: never[]) => void
+  }
+  if (kind === 'CTD') {
+    const q = off(name, 'Q')
+    const prev = off(name, 'prev')
+    const ld = off(name, 'LD')
+    return ((b: number, CD: In, LD: In, PV: In): void => {
+      const cd = CD === undefined ? U8[b + prev] !== 0 : bool(CD)
+      const pv = keptPv(b + pvAt, PV)
+      let cv = get(b + cvAt)
+      if (keptBool(b + ld, LD)) cv = pv
+      else if (cd && U8[b + prev] === 0 && cv > 0n) cv--
+      set(b + cvAt, cv)
+      U8[b + prev] = cd ? 1 : 0
+      U8[b + q] = cv <= 0n ? 1 : 0
+    }) as (...args: never[]) => void
+  }
+  const qu = off(name, 'QU')
+  const qd = off(name, 'QD')
+  const pu = off(name, 'prevU')
+  const pd = off(name, 'prevD')
+  const r = off(name, 'R')
+  const ld = off(name, 'LD')
+  return ((b: number, CU: In, CD: In, R: In, RESET: In, LD: In, PV: In): void => {
+    const cu = CU === undefined ? U8[b + pu] !== 0 : bool(CU)
+    const cd = CD === undefined ? U8[b + pd] !== 0 : bool(CD)
+    const pv = keptPv(b + pvAt, PV)
+    let cv = get(b + cvAt)
+    // both kept before either acts: a reset still keeps the LD it was given
+    const reset = keptBool(b + r, RESET ?? R)
+    const load = keptBool(b + ld, LD)
+    if (reset) cv = 0n
+    else if (load) cv = pv
+    else {
+      if (cu && U8[b + pu] === 0 && cv < max) cv++
+      if (cd && U8[b + pd] === 0 && cv > min) cv--
+    }
+    set(b + cvAt, cv)
+    U8[b + pu] = cu ? 1 : 0
+    U8[b + pd] = cd ? 1 : 0
+    U8[b + qu] = cv >= pv ? 1 : 0
+    U8[b + qd] = cv <= 0n ? 1 : 0
+  }) as (...args: never[]) => void
+}
 
 /** Each block's call, over one arena: what generated code is handed as `blk_R_TRIG`, `blk_CTU`, ... The parameters after
  *  the instance are the block's accepted inputs in runtime.ts FB_INPUTS order, aliases included. */
@@ -41,6 +127,7 @@ export function blocksOver(a: Arena, channels: Map<number, MotionChannel>): Reco
   const mo: MotionOutputs = { cmdId: 0, curCmd: 0, doneCmd: 0, state: 0, x: 0, v: 0, error: 0, qLo: 0, qHi: -1, powered: false, homed: false }
 
   return {
+    ...Object.fromEntries(Object.entries(forTypedCounters((kind, t) => wideCounter(a, kind, t))).map(([name, run]) => [`blk_${name}`, run])),
     blk_R_TRIG(b: number, CLK: In): void {
       const clk = CLK === undefined ? U8[b + rt.prev] !== 0 : bool(CLK)
       U8[b + rt.q] = clk && U8[b + rt.prev] === 0 ? 1 : 0

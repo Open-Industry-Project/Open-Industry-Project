@@ -354,6 +354,8 @@ function lexText(src: string): Token[] {
       // or a typed literal (INT#5, REAL#1.5, WORD#16#FF)
       if (src[i] === '#') {
         advance()
+        // the 64-bit duration, said by name where "LT is not an enumeration" would send an author the wrong way
+        if (up === 'LT' || up === 'LTIME') throw new StError(`${id}# is an LTIME literal, and LTIME (the 64-bit duration) is IEC 3rd edition and not implemented; write a TIME: T#...`, pos, id.length + 1)
         if (up === 'T' || up === 'TIME') {
           let body = ''
           // IEC allows a sign straight after the '#' (T#-5s)

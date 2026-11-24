@@ -52,7 +52,19 @@
     "CTD",
     "CTUD",
     "SR",
-    "RS"
+    "RS",
+    "CTU_DINT",
+    "CTU_LINT",
+    "CTU_UDINT",
+    "CTU_ULINT",
+    "CTD_DINT",
+    "CTD_LINT",
+    "CTD_UDINT",
+    "CTD_ULINT",
+    "CTUD_DINT",
+    "CTUD_LINT",
+    "CTUD_UDINT",
+    "CTUD_ULINT"
   ],
   "functions": {
     "named": [
@@ -551,6 +563,22 @@
       "verdict": "compiles"
     },
     {
+      "id": "typed-counters",
+      "category": "Library",
+      "intent": "supported",
+      "title": "Typed counters (CTU_DINT, CTD_ULINT, CTUD_LINT, ...)",
+      "st": "VAR parts : CTU_DINT; total : CTUD_LINT; pulse : BOOL; END_VAR\nparts(CU := pulse, R := FALSE, PV := 100000);\ntotal(CU := pulse, CD := FALSE, R := FALSE, LD := FALSE, PV := 9007199254740993);",
+      "verdict": "compiles"
+    },
+    {
+      "id": "edge-inputs",
+      "category": "POUs",
+      "intent": "supported",
+      "title": "R_EDGE and F_EDGE inputs of a function block",
+      "st": "FUNCTION_BLOCK Rises\nVAR_INPUT go : BOOL R_EDGE; END_VAR\nVAR_OUTPUT n : INT; END_VAR\nIF go THEN n := n + 1; END_IF;\nEND_FUNCTION_BLOCK\n\nVAR c : Rises; sig : BOOL; END_VAR\nc(go := sig);",
+      "verdict": "compiles"
+    },
+    {
       "id": "conversions",
       "category": "Library",
       "intent": "supported",
@@ -600,6 +628,15 @@
       "st": "VAR x : LDT; END_VAR",
       "verdict": "refused",
       "message": "LDT is not supported: the 64-bit calendar types are IEC 3rd edition and not implemented; DT is"
+    },
+    {
+      "id": "ltime",
+      "category": "Types the subset lacks",
+      "intent": "unsupported",
+      "title": "LTIME (64-bit duration)",
+      "st": "VAR t : LTIME; END_VAR",
+      "verdict": "refused",
+      "message": "LTIME is not supported: the 64-bit duration is IEC 3rd edition and not implemented; TIME is"
     },
     {
       "id": "var-external",
@@ -1379,10 +1416,10 @@
     ]
   },
   "corpus": {
-    "groups": 26,
-    "cases": 271,
-    "rejectionCases": 70,
-    "replayedByOracle": 187,
+    "groups": 27,
+    "cases": 275,
+    "rejectionCases": 71,
+    "replayedByOracle": 190,
     "withheldFromOracle": [
       {
         "case": "integer division by zero faults the scan",
@@ -1719,6 +1756,10 @@
       {
         "case": "an LWORD shifted by its whole width is 0",
         "why": "MATIEC writes the shift as a C shift, and a 64-bit value shifted by 64 is undefined behaviour in C: built for x86 it leaves the word unchanged (measured: SHL(w, 64) answers w). A narrower word is promoted to int first, so its whole-width shift is defined and is replayed above"
+      },
+      {
+        "case": "an R_EDGE input reads TRUE on the call its argument rose",
+        "why": "MATIEC reads the R_EDGE declaration and then does not know the variable: every use of it in the block reports \"Variable not declared in this scope\" (measured on this case). The qualifier is IEC 2nd edition, so this is a limit of that compiler, and the case is held in-process, through both engines"
       }
     ],
     "editionRejects": [
@@ -1822,7 +1863,8 @@
       "object orientation and references: METHOD, EXTENDS, INTERFACE and REF_TO",
       "ladder diagram",
       "tolerated input forms, exported in IEC form",
-      "64-bit integers: LINT, ULINT and LWORD are exact past what a number holds"
+      "64-bit integers: LINT, ULINT and LWORD are exact past what a number holds",
+      "typed counters and edge-detecting inputs"
     ]
   },
   "oracleCoverage": {
@@ -1834,8 +1876,8 @@
       "excluded": "cases the oracle skips (never replayed) and `rejects` cases (they prove refusal, not behaviour)",
       "grades": "executed = replayed through MATIEC tier 2. compiledOnly = reached only by an `editionReject` case, which MATIEC is expected to refuse, so nothing ever ran it. Kept apart so the headline cannot drift upward on the weaker evidence as more editionReject cases accrue."
     },
-    "casesConsidered": 140,
-    "casesExecuted": 122,
+    "casesConsidered": 142,
+    "casesExecuted": 124,
     "compiledOnly": [
       "BCD_TO_INT",
       "DIV_TIME",
@@ -1873,6 +1915,8 @@
         "CTD",
         "CTU",
         "CTUD",
+        "CTUD_DINT",
+        "CTUD_LINT",
         "F_TRIG",
         "RS",
         "R_TRIG",
@@ -1882,7 +1926,18 @@
         "TP"
       ],
       "compiledOnly": [],
-      "unverified": []
+      "unverified": [
+        "CTD_DINT",
+        "CTD_LINT",
+        "CTD_UDINT",
+        "CTD_ULINT",
+        "CTUD_UDINT",
+        "CTUD_ULINT",
+        "CTU_DINT",
+        "CTU_LINT",
+        "CTU_UDINT",
+        "CTU_ULINT"
+      ]
     },
     "functions": {
       "executed": [
@@ -1951,7 +2006,7 @@
     },
     "summary": {
       "types": "20/20",
-      "functionBlocks": "10/10",
+      "functionBlocks": "12/22",
       "functions": "54/58"
     }
   },

@@ -285,6 +285,14 @@ export class DeclParser extends LadderParser {
     } else {
       throw new StError('expected a type', typeTok.pos)
     }
+    // `Go : BOOL R_EDGE`: an edge-detecting input (edgeInputs.ts). Not reserved words, so read only here
+    let edge: 'R' | 'F' | undefined
+    const q = this.peek()
+    if (q.kind === 'ident' && (q.value.toUpperCase() === 'R_EDGE' || q.value.toUpperCase() === 'F_EDGE')) {
+      if (section !== 'VAR_INPUT' || type !== 'BOOL') throw new StError(`${q.value.toUpperCase()} marks a BOOL in VAR_INPUT of a FUNCTION_BLOCK: ${nameToks[0]!.value} : BOOL ${q.value.toUpperCase()};`, q.pos, q.value.length)
+      this.next()
+      edge = q.value.toUpperCase() === 'R_EDGE' ? 'R' : 'F'
+    }
     let init: Expr | null = null
     let arrayInit: Initializer[] | undefined
     let structInit: StructInit | undefined
@@ -313,6 +321,7 @@ export class DeclParser extends LadderParser {
       ...(location ? { location: location.value, locationPos: location.pos, locationLength: location.raw?.length ?? location.value.length } : {}),
       ...(linked ? { linked } : {}),
       ...(block !== undefined ? { block } : {}),
+      ...(edge ? { edge } : {}),
       section,
       pos: tok.pos,
     }))

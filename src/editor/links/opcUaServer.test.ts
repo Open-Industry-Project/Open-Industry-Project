@@ -51,6 +51,17 @@ describe('publishedVariables', () => {
     expect(Object.keys(nodes)).toEqual(['Count'])
   })
 
+  it("publishes a counter's CV in the type it counts in, and not a 64-bit one", () => {
+    const link = new LocalPlcLink('VAR a : CTU; b : CTU_DINT; c : CTU_UDINT; d : CTU_LINT; END_VAR\na(CU := TRUE, PV := 1); b(CU := TRUE, PV := 1); c(CU := TRUE, PV := 1); d(CU := TRUE, PV := 1);')
+    const nodes = Object.fromEntries(publishedVariables(link, new Set()).map((n) => [n.name, n.builtin]))
+    // Int16, Int32, UInt32 (the OPC UA built-in type numbers)
+    expect(nodes['a.CV']).toBe(4)
+    expect(nodes['b.CV']).toBe(6)
+    expect(nodes['c.CV']).toBe(7)
+    expect('d.CV' in nodes).toBe(false)
+    expect(nodes['d.Q']).toBe(1)
+  })
+
   it('keys a CONFIGURATION program instance by its name, which becomes a folder on the server', () => {
     const src = `PROGRAM Conveyor
 VAR Run : BOOL; END_VAR

@@ -8,6 +8,7 @@ import { SCALAR_TYPES, StError } from './types'
 import { lex } from './lexer'
 import { MOTION_LIBRARY_NAMES, MOTION_LIBRARY_SOURCE } from './motionPrelude'
 import { NOT_IEC, VAR_SECTIONS } from './parserBase'
+import { lowerEdgeInputs, refuseDerivedEdgeInputs, refuseEdgeInputs } from './edgeInputs'
 import { DeclParser } from './parserDecl'
 
 /** The words a METHOD or a FUNCTION_BLOCK may carry between its keyword and its name. */
@@ -75,6 +76,10 @@ class Parser extends DeclParser {
       this.note(stray)
     }
     enumDefs.push(...this.inlineEnums)
+    for (const f of funcDefs) refuseEdgeInputs(f.decls, 'a FUNCTION')
+    for (const p of programDefs) refuseEdgeInputs(p.decls, 'a PROGRAM')
+    refuseEdgeInputs(decls, 'a program')
+    refuseDerivedEdgeInputs(fbDefs)
     return { typeDefs, enumDefs, subrangeDefs, aliasDefs, fbDefs, interfaceDefs, funcDefs, globals, programDefs, configuration, decls, body, bodyStart, ladder: this.ladder, bitRefs: this.bitRefs, usesBits: this.usesBits, ...(this.capacities.length ? { capacities: this.capacities, capacitySpans: this.capacitySpans } : {}) }
   }
 
@@ -253,6 +258,8 @@ class Parser extends DeclParser {
     }
     const end = this.eatKw('END_FUNCTION_BLOCK').pos.offset
     if (this.isOp(';')) this.next()
+    for (const m of methods) refuseEdgeInputs(m.decls, 'a METHOD')
+    lowerEdgeInputs(decls, body, methods)
     return {
       name: nameTok.value,
       decls,

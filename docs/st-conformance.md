@@ -349,6 +349,23 @@ its inputs between calls, as a user block does: an input a call leaves out has t
 (`FALSE`, `0` or `T#0s` before any call gave one), so `t(IN := go, PT := T#2s);` then `t(IN := go);` still times
 2 s. Timers: [Timers read the controller clock](#timers-read-the-controller-clock).
 
+**Typed counters.** `CTU_DINT`, `CTU_LINT`, `CTU_UDINT`, `CTU_ULINT` and the same four of `CTD` and `CTUD`: each is
+its plain counter with `PV` and `CV` of the type it names, and the same inputs and outputs. The count stops at the
+limits of that type, as the plain ones stop at an `INT`'s: a `CTU` at the greatest value, a `CTD` at 0, and a
+`CTUD` at the greatest and the least (0 for an unsigned type). A 64-bit one counts exactly
+([64-bit integers](#64-bit-integers)). The ladder catalogue lists them with the counters; the OPC UA server
+publishes a `CV` in its own type and leaves a 64-bit one out, as it does a 64-bit variable.
+
+**Edge-detecting inputs.** `VAR_INPUT Go : BOOL R_EDGE; END_VAR` in a `FUNCTION_BLOCK` (and `F_EDGE`): inside the
+block `Go` is TRUE only on a call whose argument rose (fell) since the call before, as an `R_TRIG` (`F_TRIG`) of
+its own on that input would say. The first call compares with FALSE. A call that leaves the input out sees no
+edge, since the input keeps what the last call gave it. It is lowered when the block is parsed
+([edgeInputs.ts](../src/plc/edgeInputs.ts)), so both engines run ordinary statements. A METHOD of the block reads
+the edge its body last worked out. A block that EXTENDS one with an edge input is refused by name: the edge is
+worked out once at the head of the base's body, which a derived body replaces and may or may not run through
+`SUPER^()`. The qualifier is refused anywhere but on a `BOOL` in `VAR_INPUT` of a function block. IEC text export keeps
+it; PLCopen XML has no place for it on a variable, so that export writes a plain `BOOL` and warns.
+
 **Standard functions.** `ABS`, `MIN`, `MAX`, `LIMIT`, `SEL`, `MUX`, the REAL math set
 (`SQRT`/`LN`/`LOG`/`EXP`/`EXPT`/trig), `TRUNC`, `SHL`/`SHR`/`ROL`/`ROR`, the `<src>_TO_<dst>` family,
 `BCD_TO_INT` / `INT_TO_BCD`, and the functional operators (`ADD`, `SUB`, `MUL`, `DIV`, `MOVE`, and the comparison
@@ -546,11 +563,11 @@ both; the tier-2 harness backs each address with storage in `LOCATED_VARIABLES.h
 
 | Area | Missing |
 |------|---------|
-| Types | `WSTRING` (a double-quoted literal is rejected by name, so the message says which type is missing rather than "unexpected character"); `LDATE`/`LTOD`/`LDT`; a default value on an alias, enumeration or array `TYPE` declaration (`TYPE Count : INT := 5;`; a `STRUCT` field's default is supported) |
+| Types | `WSTRING` (a double-quoted literal is rejected by name, so the message says which type is missing rather than "unexpected character"); `LDATE`/`LTOD`/`LDT` and `LTIME` (the type and an `LTIME#` / `LT#` literal are each refused by name); a default value on an alias, enumeration or array `TYPE` declaration (`TYPE Count : INT := 5;`; a `STRUCT` field's default is supported) |
 | Declarations | `VAR_ACCESS`, `VAR_CONFIG`, `RETAIN`/`NON_RETAIN` (accepted, no effect), 64-bit (`L`) located variables (no I/O point here is 64 bits wide: see [64-bit integers](#64-bit-integers)), and a direct address used in code (see [Located variables](#located-variables)) |
 | Configuration | event tasks (`SINGLE`), instance wiring in the `CONFIGURATION`, more than one `RESOURCE`, `WITH` on a function-block instance (see [Tasks and programs](#tasks-and-programs)) |
 | Statements | FB calls as expressions; leaving an input out of a formal call to a standard function (MATIEC takes it; every input is asked for here) |
-| Library | `SEMA`, a function that reads the date (IEC has none), and the case-mapping/trim string extensions vendors add on top of IEC's nine |
+| Library | `SEMA`, `RTC` and any function that reads the date (the simulator runs on simulated time and never reads the wall clock, and IEC has no such function), and the case-mapping/trim string extensions vendors add on top of IEC's nine |
 | 3rd edition | `CLASS`, `NAMESPACE`, an `ARRAY OF REF_TO`, a reference or an interface in a struct field, and a FUNCTION declaring a `REF_TO`. Each is rejected by name with a substitute where one exists, rather than as a syntax error. `METHOD`, `EXTENDS`/`IMPLEMENTS`, `INTERFACE`, `ABSTRACT`/`FINAL` and `REF_TO` are implemented: see [Object orientation](#object-orientation-and-references-method-extends-interface-ref_to) |
 | Vendor extensions | `PROPERTY`, `VAR_INST`, `REFERENCE TO` / `REF=` / `__ISVALIDREF`, `POINTER TO`, `THIS^`, `AND_THEN`, `OR_ELSE` and `STRUCT EXTENDS`: refused by name, each message naming the IEC form (same section) |
 
@@ -616,6 +633,12 @@ Each is exercised by a corpus case carrying a `divergence` note.
 16. **An `LWORD` shifted by 64 or more is 0**, as a narrower bit string shifted by its whole width is. MATIEC
     writes a C shift, which is undefined at the full width of a 64-bit value (built for x86 it leaves the word
     unchanged), so that case is withheld from it.
+17. **Where a counter stops is this engine's rule.** A `CTU` counts up to the greatest value its type holds, a
+    `CTD` counts down to 0, and a `CTUD` counts up to the greatest value and down to the least (0 for an unsigned
+    type). The typed counters follow the same rule at their own type's limits. Implementations differ here:
+    MATIEC's library `CTUD` counts up only while `CV` is below `PV` and down only while it is above 0. The corpus
+    cases stay in the range where both agree, so a program that counts past `PV`, or below 0, should not assume a
+    target does the same.
 
 ## Known permissiveness
 

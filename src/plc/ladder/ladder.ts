@@ -22,7 +22,7 @@
 // enclosing POU; an edge's memory must survive between scans, so a FUNCTION cannot hold one.
 
 import { isBuiltinFunc, standardInputs } from '../builtins'
-import { AXIS_KERNEL_OUTPUTS, FB_INPUT_TYPES, FB_POSITIONAL, fbMemberType } from '../runtime'
+import { AXIS_KERNEL_OUTPUTS, FB_INPUT_TYPES, FB_POSITIONAL, fbMemberType, forTypedCounters } from '../runtime'
 import type { Expr, FbType, SourcePos } from '../types'
 import { FB_TYPES, StError } from '../types'
 
@@ -198,6 +198,7 @@ export interface LdBlockInfo {
 
 /** The standard function blocks' outputs, in their declaration order (runtime.ts keeps the inputs). */
 const BUILTIN_FB_OUTPUTS: Record<FbType, readonly string[]> = {
+  ...forTypedCounters((kind) => (kind === 'CTUD' ? ['QU', 'QD', 'CV'] : ['Q', 'CV'])),
   AXIS_KERNEL: Object.keys(AXIS_KERNEL_OUTPUTS),
   TON: ['Q', 'ET'],
   TOF: ['Q', 'ET'],

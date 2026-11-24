@@ -132,11 +132,11 @@ Computed once per definition ([typed/layout.ts](../src/plc/typed/layout.ts)), fr
   once per definition (`TypedFb`) and handed the instance's base address. Every body any POU can reach is generated
   when the program is compiled, so a refusal is the program's, never a scan's.
 - **The globals**: one region, first after the guard. **A CONFIGURATION**: each program instance a region.
-- **A standard block** (TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD, SR, RS): a record of its outputs, in the order the
+- **A standard block** (TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD and the typed counters, SR, RS): a record of its outputs, in the order the
   walker's objects list them, then its private state, hidden (a TON's `Q`, `ET`, then whether it runs and when it
   started), then the inputs it keeps for a call that leaves them out, hidden too (a TON's `IN` and `PT`). An input
   the block already keeps as an edge's previous value (a trigger's `CLK`, a counter's `CU`) has no field of its own.
-  The ten blocks are re-implemented over the arena ([typed/blocks.ts](../src/plc/typed/blocks.ts)); runtime.ts's
+  They are re-implemented over the arena ([typed/blocks.ts](../src/plc/typed/blocks.ts)); runtime.ts's
   objects remain the walker's, so the oracle compares two implementations of each.
 - **A FUNCTION**: one region per definition, reused by every call (never live twice: recursion is refused when
   compiled). When every initial value is a literal, the region's starting bytes are kept after the first call and

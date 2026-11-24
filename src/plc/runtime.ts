@@ -9,7 +9,8 @@
 // from the hardware on any accumulation or comparison - the exact class of divergence this
 // engine's portability promise cannot afford. `wrap` is the one place that happens.
 
-import type { FbType, ScalarType, Value } from './types'
+import { TYPED_COUNTERS } from './types'
+import type { FbType, ScalarType, TypedCounter, Value } from './types'
 import { wideValue } from '../core/watchTable'
 import { MotionChannel, type MotionOutputs } from './motionChannel'
 
@@ -859,6 +860,94 @@ class Ctud implements Fb {
   }
 }
 
+/** A typed counter's plain counter and the type it counts in (`CTUD_LINT`: CTUD, LINT); null for any other block. */
+export function typedCounter(fb: string): { kind: 'CTU' | 'CTD' | 'CTUD'; type: ScalarType } | null {
+  const m = /^(CTU|CTD|CTUD)_(DINT|LINT|UDINT|ULINT)$/.exec(fb)
+  return m ? { kind: m[1] as 'CTU' | 'CTD' | 'CTUD', type: m[2] as ScalarType } : null
+}
+
+/** One entry per typed counter, each made from its plain counter and its type. */
+export function forTypedCounters<T>(of: (kind: 'CTU' | 'CTD' | 'CTUD', type: ScalarType) => T): Record<TypedCounter, T> {
+  return Object.fromEntries(TYPED_COUNTERS.map((name) => {
+    const c = typedCounter(name)!
+    return [name, of(c.kind, c.type)]
+  })) as Record<TypedCounter, T>
+}
+
+/** The least and the greatest value a typed counter's type holds: where it stops counting. */
+export function counterRange(t: ScalarType): { min: bigint; max: bigint } {
+  switch (t) {
+    case 'DINT': return { min: -(2n ** 31n), max: 2n ** 31n - 1n }
+    case 'UDINT': return { min: 0n, max: 2n ** 32n - 1n }
+    case 'LINT': return { min: -(2n ** 63n), max: 2n ** 63n - 1n }
+    default: return { min: 0n, max: 2n ** 64n - 1n }
+  }
+}
+
+/**
+ * A typed counter (CTU_DINT, CTD_ULINT, CTUD_LINT, ...): its plain counter's rules above, with PV and CV of the type
+ * it names and the count stopping at that type's limits. It counts in whole numbers and holds CV in the type's own
+ * form, a number up to 32 bits and a bigint at 64, as a variable of the type is held.
+ */
+class WideCounter implements Fb {
+  declare CV: number | bigint
+  declare Q: boolean
+  declare QU: boolean
+  declare QD: boolean
+  readonly #kind: 'CTU' | 'CTD' | 'CTUD'
+  readonly #type: ScalarType
+  readonly #min: bigint
+  readonly #max: bigint
+  #pcu = false
+  #pcd = false
+  #r = false
+  #ld = false
+  #pv = 0n
+  constructor(kind: 'CTU' | 'CTD' | 'CTUD', type: ScalarType) {
+    this.#kind = kind
+    this.#type = type
+    const { min, max } = counterRange(type)
+    this.#min = min
+    this.#max = max
+    // the outputs, in the order the plain counter's object lists them (= the typed record's: layout.ts)
+    this.CV = this.#held(0n)
+    if (kind === 'CTUD') {
+      this.QU = false
+      this.QD = false
+    } else this.Q = false
+  }
+  #held(v: bigint): number | bigint {
+    return is64(this.#type) ? v : Number(v)
+  }
+  call(a: FbArgs): void {
+    const kind = this.#kind
+    const cu = kind === 'CTD' ? false : a.CU === undefined ? this.#pcu : bool(a.CU)
+    const cd = kind === 'CTU' ? false : a.CD === undefined ? this.#pcd : bool(a.CD)
+    const r = a.RESET ?? a.R
+    if (r !== undefined) this.#r = bool(r)
+    if (a.LD !== undefined) this.#ld = bool(a.LD)
+    if (a.PV !== undefined) this.#pv = is64(this.#type) ? wrap64(this.#type, big(a.PV)) : BigInt(wrap(this.#type, num(a.PV)))
+    const pv = this.#pv
+    let cv = big(this.CV)
+    if (kind !== 'CTD' && this.#r) cv = 0n
+    else if (kind !== 'CTU' && this.#ld) cv = pv
+    else {
+      if (cu && !this.#pcu && cv < this.#max) cv++
+      // (a CTD stops at 0, a CTUD at its type's least value, as the plain ones do)
+      if (cd && !this.#pcd && cv > (kind === 'CTD' ? 0n : this.#min)) cv--
+    }
+    this.#pcu = cu
+    this.#pcd = cd
+    this.CV = this.#held(cv)
+    if (kind === 'CTU') this.Q = cv >= pv
+    else if (kind === 'CTD') this.Q = cv <= 0n
+    else {
+      this.QU = cv >= pv
+      this.QD = cv <= 0n
+    }
+  }
+}
+
 /** The motion kernel's inputs, in declaration (= positional) order: the command, its numbers, and the axis's
  *  software limits, read on every call (motionChannel.ts). */
 const AXIS_KERNEL_INPUTS = ['CMD', 'P', 'V', 'A', 'D', 'BUF', 'LIMITS', 'LIMITPOS', 'LIMITNEG', 'LIMITDEC'] as const
@@ -871,6 +960,7 @@ export const AXIS_KERNEL_OUTPUTS: Readonly<Record<string, ScalarType>> = {
  *  (`INN := ...` would otherwise be silently ignored at runtime). `R` is the IEC
  *  spelling of the counter reset; `RESET` is kept as an alias. */
 export const FB_INPUTS: Record<FbType, readonly string[]> = {
+  ...forTypedCounters((kind) => ({ CTU: ['CU', 'R', 'RESET', 'PV'], CTD: ['CD', 'LD', 'PV'], CTUD: ['CU', 'CD', 'R', 'RESET', 'LD', 'PV'] })[kind]),
   AXIS_KERNEL: AXIS_KERNEL_INPUTS,
   TON: ['IN', 'PT'],
   TOF: ['IN', 'PT'],
@@ -894,6 +984,7 @@ export const FB_INPUTS: Record<FbType, readonly string[]> = {
  *  is the set of names accepted, aliases included, so it cannot double as an order - a
  *  positional argument must never land on `RESET` just because `R` has an alias. */
 export const FB_POSITIONAL: Record<FbType, readonly string[]> = {
+  ...forTypedCounters((kind) => ({ CTU: ['CU', 'R', 'PV'], CTD: ['CD', 'LD', 'PV'], CTUD: ['CU', 'CD', 'R', 'LD', 'PV'] })[kind]),
   AXIS_KERNEL: AXIS_KERNEL_INPUTS,
   TON: ['IN', 'PT'],
   TOF: ['IN', 'PT'],
@@ -911,6 +1002,8 @@ export const FB_POSITIONAL: Record<FbType, readonly string[]> = {
  *  anything - `PT := 5` would quietly mean 5 milliseconds where the author meant seconds,
  *  and on a real compiler it would not build at all. */
 export const FB_INPUT_TYPES: Record<FbType, Readonly<Record<string, ScalarType>>> = {
+  // a typed counter's inputs are its plain counter's, with PV of the type it names
+  ...forTypedCounters((kind, type): Record<string, ScalarType> => ({ ...(kind === 'CTD' ? { CD: 'BOOL', LD: 'BOOL' } : kind === 'CTU' ? { CU: 'BOOL', R: 'BOOL', RESET: 'BOOL' } : { CU: 'BOOL', CD: 'BOOL', R: 'BOOL', RESET: 'BOOL', LD: 'BOOL' }), PV: type })),
   AXIS_KERNEL: { CMD: 'INT', P: 'LREAL', V: 'LREAL', A: 'LREAL', D: 'LREAL', BUF: 'BOOL', LIMITS: 'BOOL', LIMITPOS: 'LREAL', LIMITNEG: 'LREAL', LIMITDEC: 'LREAL' },
   TON: { IN: 'BOOL', PT: 'TIME' },
   TOF: { IN: 'BOOL', PT: 'TIME' },
@@ -994,7 +1087,9 @@ class Rs implements Fb {
 }
 
 export function makeFb(type: FbType): Fb {
-  switch (type) {
+  const counter = typedCounter(type)
+  if (counter) return new WideCounter(counter.kind, counter.type)
+  switch (type as Exclude<FbType, TypedCounter>) {
     case 'AXIS_KERNEL': return new AxisKernel()
     case 'SR': return new Sr()
     case 'RS': return new Rs()
@@ -1011,6 +1106,8 @@ export function makeFb(type: FbType): Fb {
 
 /** Type of a function-block output member, or null if the FB has no such output. */
 export function fbMemberType(fb: FbType, member: string): ScalarType | null {
+  const counter = typedCounter(fb)
+  if (counter) return member === 'CV' ? counter.type : fbMemberType(counter.kind, member)
   if (fb === 'AXIS_KERNEL') return AXIS_KERNEL_OUTPUTS[member] ?? null
   if (member === 'Q1' && (fb === 'SR' || fb === 'RS')) return 'BOOL'
   if (member === 'Q' && fb !== 'CTUD' && fb !== 'SR' && fb !== 'RS') return 'BOOL'

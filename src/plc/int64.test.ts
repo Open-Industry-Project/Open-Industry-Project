@@ -401,3 +401,71 @@ ${src}`).toBe(3)
     expect(codegenFallbacks).toEqual([])
   })
 })
+
+// IEC's typed counters: CTU, CTD and CTUD with PV and CV of a wider type than INT. `clk` rises on scans 1, 3, 5...
+describe('typed counters', () => {
+  /** `scans` scans of `src` on each engine, each held to `expected`, and the two held to each other throughout. */
+  function after(scans: number, src: string, expected: Record<string, TagValue>): void {
+    for (const engine of ['walker', 'typed'] as const) {
+      const p = build(engine, src)
+      for (let i = 0; i < scans; i++) p.scan(0.01)
+      const watch = p.watch
+      for (const [k, v] of Object.entries(expected)) expect(k in watch ? watch[k] : p.get(k), `${engine}: ${k}`).toBe(v)
+    }
+    const r = compareEngines(src, Array.from({ length: scans }, () => ({ dt: 0.01 })))
+    expect(r.refused, 'the typed engine runs it').toBeUndefined()
+    expect(r.diffs).toEqual([])
+    expect(r.scans).toBe(scans)
+  }
+  const upDown = (type: string, pv: string, up: boolean): string => `VAR c : CTUD_${type}; clk : BOOL; load : BOOL := TRUE; END_VAR
+clk := NOT clk;
+c(CU := ${up ? 'clk' : 'FALSE'}, CD := ${up ? 'FALSE' : 'clk'}, R := FALSE, LD := load, PV := ${pv});
+load := FALSE;`
+
+  it('count past what an INT holds', () => {
+    // loaded on scan 1 (a load wins over the edge), then one count on scan 3
+    after(3, upDown('DINT', '40000', true), { 'c.CV': 40001, 'c.QU': true, 'c.QD': false })
+    after(3, upDown('UDINT', '4294967294', true), { 'c.CV': 4294967295, 'c.QU': true })
+  })
+
+  it('count exactly past 2^53', () => {
+    after(5, upDown('LINT', '9007199254740992', true), { 'c.CV': '9007199254740994' })
+    after(3, upDown('ULINT', '18446744073709551614', true), { 'c.CV': UMAX })
+  })
+
+  it('stop at the limits of their type', () => {
+    after(5, upDown('LINT', MAX, true), { 'c.CV': MAX, 'c.QU': true })
+    after(5, upDown('UDINT', '4294967295', true), { 'c.CV': 4294967295 })
+    // a CTUD counts down past 0 to its type's least value; an unsigned one has none below 0
+    after(5, upDown('DINT', '0', false), { 'c.CV': -2, 'c.QD': true })
+    after(5, upDown('ULINT', '1', false), { 'c.CV': 0, 'c.QD': true })
+    after(5, upDown('LINT', MIN, false), { 'c.CV': MIN })
+  })
+
+  it('CTU and CTD keep their plain rules: a reset, a load, and a CTD that stops at 0', () => {
+    after(
+      7,
+      `VAR up : CTU_DINT; dn : CTD_LINT; clk : BOOL; first : BOOL := TRUE; done : BOOL; empty : BOOL; END_VAR
+clk := NOT clk;
+up(CU := clk, R := FALSE, PV := 3);
+dn(CD := clk, LD := first, PV := 2);
+first := FALSE;
+done := up.Q; empty := dn.Q;`,
+      // up counts on scans 1, 3, 5, 7; dn loads 2 on scan 1, then counts down on 3 and 5, and stays at 0 on 7
+      { 'up.CV': 4, done: true, 'dn.CV': 0, empty: true },
+    )
+    after(3, 'VAR up : CTU_UDINT; clk : BOOL; END_VAR\nclk := NOT clk;\nup(CU := clk, R := clk, PV := 1);', { 'up.CV': 0, 'up.Q': false })
+  })
+
+  it('a positional call, an output binding, and a PV of the wrong type refused', () => {
+    after(3, 'VAR c : CTU_LINT; clk : BOOL; n : LINT; q : BOOL; END_VAR\nclk := NOT clk;\nc(clk, FALSE, 2);\nc(CU := clk, Q => q, CV => n);', { n: 2, q: true })
+    expect(() => compile('VAR c : CTU_DINT; big : LINT; END_VAR\nc(CU := TRUE, PV := big);')).toThrow(/cannot assign LINT to CTU_DINT input 'PV' of type DINT/)
+  })
+})
+
+describe('64-bit integers, afterwards', () => {
+  it('no program here is refused by the typed engine', () => {
+    expect(typedRefusals).toEqual([])
+    expect(codegenFallbacks).toEqual([])
+  })
+})

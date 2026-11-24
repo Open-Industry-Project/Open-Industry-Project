@@ -153,6 +153,10 @@ const PROBES = [
   // ---- library ----
   { id: 'standard-fbs', category: 'Library', intent: 'supported', title: 'Timers, counters and edge detectors',
     st: 'VAR\n  t : TON; f : TOF; p : TP;\n  r : R_TRIG; ft : F_TRIG;\n  cu : CTU; cd : CTD; ud : CTUD;\n  s : SR; rs : RS;\nEND_VAR\nt(IN := TRUE, PT := T#1s);\ncu(CU := t.Q, PV := 10);' },
+  { id: 'typed-counters', category: 'Library', intent: 'supported', title: 'Typed counters (CTU_DINT, CTD_ULINT, CTUD_LINT, ...)',
+    st: 'VAR parts : CTU_DINT; total : CTUD_LINT; pulse : BOOL; END_VAR\nparts(CU := pulse, R := FALSE, PV := 100000);\ntotal(CU := pulse, CD := FALSE, R := FALSE, LD := FALSE, PV := 9007199254740993);' },
+  { id: 'edge-inputs', category: 'POUs', intent: 'supported', title: 'R_EDGE and F_EDGE inputs of a function block',
+    st: 'FUNCTION_BLOCK Rises\nVAR_INPUT go : BOOL R_EDGE; END_VAR\nVAR_OUTPUT n : INT; END_VAR\nIF go THEN n := n + 1; END_IF;\nEND_FUNCTION_BLOCK\n\nVAR c : Rises; sig : BOOL; END_VAR\nc(go := sig);' },
   { id: 'conversions', category: 'Library', intent: 'supported', title: 'The <SRC>_TO_<DST> conversion family',
     st: "VAR i : INT := 7; r : REAL; w : WORD; s : STRING; END_VAR\nr := INT_TO_REAL(i);\nw := INT_TO_WORD(i);\ns := INT_TO_STRING(i);\ni := STRING_TO_INT('42');" },
   { id: 'comparison-chain', category: 'Library', intent: 'supported', title: 'Functional operator forms, including comparison chains',
@@ -165,6 +169,7 @@ const PROBES = [
   { id: 'wstring-literal', category: 'Types the subset lacks', intent: 'unsupported', title: 'A double-quoted (WSTRING) literal',
     st: 'VAR s : STRING; END_VAR\ns := "wide";' },
   { id: 'ldt', category: 'Types the subset lacks', intent: 'unsupported', title: 'LDATE, LTOD, LDT (64-bit calendar types)', st: 'VAR x : LDT; END_VAR' },
+  { id: 'ltime', category: 'Types the subset lacks', intent: 'unsupported', title: 'LTIME (64-bit duration)', st: 'VAR t : LTIME; END_VAR' },
 
   // ---- the subset boundary: declarations and configuration ----
   { id: 'var-external', category: 'Declarations', intent: 'supported', title: 'VAR_EXTERNAL, checked against the VAR_GLOBAL it names',

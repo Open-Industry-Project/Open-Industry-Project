@@ -338,6 +338,8 @@ function variableXml(d: Decl, source: string, indent: string): string {
 function varSectionsXml(decls: Decl[], source: string, indent: string): string {
   const bySection = new Map<string, Decl[]>()
   for (const d of decls) {
+    // (what an edge input's lowering keeps, edgeInputs.ts: no variable of the program as written)
+    if (d.hidden && d.name.includes('#')) continue
     const el = SECTION_ELEMENT[d.section]
     bySection.set(el, [...(bySection.get(el) ?? []), d])
   }
@@ -1419,6 +1421,8 @@ export function exportProgram(source: string, target: ExportTarget, opts: Export
     // out as ST, so its rungs arrive as the logic they run as, not as rungs. The warning names each such POU.
     const mixed = [...new Set(ast.ladder.filter((s) => !s.whole).map((s) => s.pou || 'the code outside every POU'))]
     if (mixed.length > 0) warnings.push(`${mixed.join(', ')} ${mixed.length === 1 ? 'mixes' : 'mix'} Structured Text with a ladder section. A PLCopen POU is one language, so ${mixed.length === 1 ? 'it goes' : 'they go'} out as Structured Text, the rungs as the statements they run as: keep a POU all ladder or all Structured Text to export it as drawn.`)
+    const edged = ast.fbDefs.flatMap((fb) => fb.decls.filter((d) => d.edge !== undefined).map((d) => `${fb.name}.${d.name}`))
+    if (edged.length > 0) warnings.push(`${edged.join(', ')}: an R_EDGE or F_EDGE input. PLCopen XML has no place for the qualifier on a variable (only on a contact or a pin of a diagram), so the input goes out as a plain BOOL and the block reads its level there, not its edge. Export as IEC text, which keeps it, or detect the edge with an R_TRIG or F_TRIG instance.`)
     return { content: toPlcopenXml(source, o), filename: `${slug(o.projectName)}.xml`, warnings }
   }
   return { content: renderIecText(withoutLadder(source), o), filename: `${slug(o.projectName)}.st`, warnings }

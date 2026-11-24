@@ -246,6 +246,7 @@ const BUILTIN_FB = new Set<string>(FB_TYPES)
  */
 const UNSUPPORTED_TYPES: Record<string, string> = {
   WSTRING: 'wide (UTF-16) strings are not implemented; STRING is',
+  LTIME: 'the 64-bit duration is IEC 3rd edition and not implemented; TIME is',
   LDATE: 'the 64-bit calendar types are IEC 3rd edition and not implemented; DATE is',
   LTOD: 'the 64-bit calendar types are IEC 3rd edition and not implemented; TOD is',
   LDT: 'the 64-bit calendar types are IEC 3rd edition and not implemented; DT is',

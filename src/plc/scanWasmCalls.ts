@@ -3,7 +3,7 @@
 
 import { builtinFor, comparisonMode, evalBuiltin, isBuiltinFunc } from './builtins'
 import { identKey } from './program'
-import { big, FB_INPUTS, is64 } from './runtime'
+import { big, FB_INPUT_TYPES, FB_INPUTS, is64 } from './runtime'
 import type { MethodRunner } from './scanCodegen'
 import type { Emitter } from './scanWasm'
 import { no, type Kind, type Held, I32, I64, F64, VOID, isWidth, isLong, kindOf, placeOf, type Address, type Host, textOf, readsOnly } from './scanWasmBase'
@@ -450,13 +450,27 @@ export function blockCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>): vo
   em.address(inst)
   w.u8(0x21).uleb(f)
   const given = new Map<string, number>()
+  // A 64-bit input (a typed counter's PV) is stored where the block keeps it, exactly: the block's helper takes its
+  // inputs as numbers. The block then reads it as an input the call left out, which is what a kept input is.
+  const kept: (() => void)[] = []
   for (const a of s.args.filter((x) => !x.out)) {
     if (a.value.t === 'STRING') return no('a STRING handed to a block')
+    const wide = FB_INPUT_TYPES[blk][identKey(a.name)]
+    if (wide !== undefined && is64(wide)) {
+      const field = rec.byKey.get(identKey(a.name))
+      if (!field) return no(`the input '${a.name}'`)
+      const k = em.coerce(wide, a.pos, a.value)
+      const held = em.local(em.typeOfKind(k))
+      w.u8(0x21).uleb(held)
+      kept.push(() => em.storeAt({ dyn: () => void em.w.u8(0x20).uleb(f), off: field.off, layout: field.layout }, held))
+      continue
+    }
     const v = em.local(F64)
     em.toF(em.expr(a.value))
     w.u8(0x21).uleb(v)
     given.set(identKey(a.name), v)
   }
+  for (const store of kept) store()
   if (blk === 'TON' || blk === 'TOF' || blk === 'TP') timerBlock(em, blk, f, given, rec)
   else if (!hostBlock(em, blk, f, given)) return no('a block with this many inputs')
   for (const a of s.args.filter((x) => x.out)) {
