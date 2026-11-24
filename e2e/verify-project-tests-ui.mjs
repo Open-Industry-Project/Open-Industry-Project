@@ -1,8 +1,8 @@
 // Verifies the in-app project-test run (src/editor/project/projectTestsRun.ts + TestResultsOverlay) end to
 // end in a real browser:
 //   - the command is disabled while the project carries no tests, and reachable once it does
-//   - running it loads jolt lazily, steps real physics + the ST scan in-tab, and shows a verdict
-//     per spec with the individual check details
+//   - running it loads jolt lazily, steps real physics + the ST scan in a worker of its own, and shows
+//     a verdict per spec with the individual check details
 //   - a passing and a failing spec are told apart, and the failing one's passing checks still show
 //     as passing (CSS scoping: a blanket rule would turn every mark in a failed row red)
 //
@@ -116,6 +116,9 @@ async function main() {
   })
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    // every worker the page starts, by url: the tests run in one of their own
+    const workers = []
+    page.on('worker', (w) => workers.push(w.url()))
     page.on('pageerror', (e) => {
       failures++
       console.error('  FAIL: page error:', e.message)
@@ -175,7 +178,7 @@ async function main() {
 
     expect(verdicts[0]?.error === null, 'the first spec ran (no thrown error)')
     expect(verdicts[0]?.name === 'seal-in latches and unlatches', 'the first row is named from the spec')
-    expect(verdicts[0]?.ok === 'true', 'the correct spec PASSES - real ST scan + physics, in-tab')
+    expect(verdicts[0]?.ok === 'true', 'the correct spec PASSES - real ST scan + physics, in the app')
     expect(
       verdicts[0]?.checks.length === 3 && verdicts[0].checks.every((c) => c === 'true'),
       'all three of its checks are shown, and pass',
@@ -185,6 +188,11 @@ async function main() {
     expect(
       verdicts[1]?.checks[0] === 'true' && verdicts[1]?.checks[1] === 'false',
       'inside the failed row, the passing check still reads as passing',
+    )
+
+    expect(
+      workers.some((u) => u.includes('projectTests.worker')),
+      'the tests ran in their own worker, not on the page (which would freeze the editor for the run)',
     )
 
     const summary = await page.textContent('[data-test-run-summary]')

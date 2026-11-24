@@ -182,7 +182,6 @@ export default tseslint.config(
       'src/editor/agentGuideConventions.test.ts',
       'src/editor/App.tsx',
       'src/editor/project/projectTestRunner.ts',
-      'src/editor/project/projectTestsRun.ts',
     ],
     rules: {
       'no-restricted-imports': ['error', { patterns: [bundledDataBan, examplePartBan, stProgramSeamBan, gplOracleBan, renderViewBan, simWorldBan] }],
@@ -197,7 +196,7 @@ export default tseslint.config(
   },
   {
     // The project-test runner drives a SimWorld in-process, headless, by design.
-    files: ['src/editor/project/projectTestRunner.ts', 'src/editor/project/projectTestsRun.ts'],
+    files: ['src/editor/project/projectTestRunner.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [bundledDataBan, examplePartBan, stProgramSeamBan, gplOracleBan, renderViewBan] }],
     },

@@ -2,7 +2,7 @@
 // prints them: a one-line count by kind for every test, and for a failing one, the facts up to its earliest failing
 // check (what the cargo did before the checks went wrong). Facts never fail a test; this only reports them.
 //
-// Loaded with the runner (projectTestsRun.ts imports it dynamically), so the tracker module stays off the boot path.
+// Loaded with the runner (projectTestsLoop.ts, which the app loads when someone runs the tests), so the tracker module stays off the boot path.
 import { formatFlowFact, summarizeFlowFacts } from '../../core/flow/flowFacts'
 import type { FlowFact } from '../../core/flow/flowFacts'
 import type { CheckResult } from '../../core/project/projectTest'

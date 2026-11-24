@@ -131,8 +131,8 @@ or a new owner, not onto the class; a member is public only because something ou
 e2e script reads or patches by name stays reachable as a forwarding accessor marked `/** @internal test hook */`;
 keep those working, and don't add one for anything else. Fields many areas genuinely share (renderer, scene, store,
 sim handles) stay on the class. `RenderView` is built only in App.tsx (everything else uses `IRenderView`,
-render/api.ts), and `SimWorld` is imported only in `src/sim/` and the project-test runner (projectTestRunner.ts,
-projectTestsRun.ts); eslint enforces both.
+render/api.ts), and `SimWorld` is imported only in `src/sim/` and the project-test runner (projectTestRunner.ts);
+eslint enforces both.
 
 ## Where things live
 

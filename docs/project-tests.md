@@ -515,7 +515,13 @@ is not installable in a standalone repo.
 ## In the app
 
 The editor runs a project's tests in place: run all, red/green per check (`sim.runTests`,
-`TestResultsOverlay.tsx`).
+`TestResultsOverlay.tsx`). The agent's `run_test` uses the same run.
+
+They run in a worker of their own (`projectTests.worker.ts`), started for the run and ended with it, so the editor
+stays live while a long test steps. The worker gets a copy of the project, with every part the page has registered
+that the project does not hold itself, since a worker starts with no parts. Where a worker cannot start, the tests
+run on the page (`projectTestsLoop.ts`, the loop the worker runs), which blocks it for each test.
+`verify-project-tests-ui.mjs` checks that the worker ran.
 
 ## Not building
 

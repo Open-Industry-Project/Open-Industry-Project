@@ -880,7 +880,7 @@ const runTest: AgentTool = {
     'simulated seconds, drive `inputs` at set times, fail devices, comms or cargo flow with `faults`, and evaluate `checks` on tags and world probes. The spec ' +
     'format is in get_guide. It runs the open scene as it is now, unsaved edits included. An input ' +
     'reaches the program only through its inputs (VAR_INPUT, or a variable a part is wired to). Without `spec` it ' +
-    'runs every test the project keeps (save_test). This is how to prove a change works. The editor is busy while it runs. ' +
+    'runs every test the project keeps (save_test). This is how to prove a change works. ' +
     "`summary` says how many tests and checks passed. `trace` records tags through the whole run (each one's value " +
     'at the start and every change with its time): how to read what a value was, or why a check failed. `cargo` ' +
     'lists every box, tote and pallet at chosen sim times: id, part, kind, colour, centre [x,y,z] in metres, ' +
