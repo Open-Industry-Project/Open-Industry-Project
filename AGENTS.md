@@ -87,6 +87,12 @@ a choice is unclear, take the conservative one. Concretely:
   or Ignition as an oracle, a test target, a source of fixtures or screenshots, or a side-by-side reference. The oracles
   are open source (MATIEC, STruC++, OpenPLC, snap7, libplctag's ab_server), kept outside the app by the GPL boundary
   (THIRD_PARTY_NOTICES.md).
+- **One exception, an interop check**: one of our protocol clients or servers may be run against a vendor runtime the
+  tester is licensed to run, to check that the connection works (it connects, finds the tags, values travel both ways
+  with the right types). The check tests our side of the wire only. It never decides what a PLC program means, and
+  nothing the vendor's software produced (output, exports, screenshots) enters the tree. It is never a benchmark:
+  no timing or capacity of the vendor's software is measured or published. Ask before starting a vendor service or
+  changing its run mode.
 - **No vendor-derived data or behaviour**: nothing captured from a vendor's software, and no behaviour fitted to its
   output. Where IEC leaves a choice open, the engine's rule is ours and documented as ours.
 - **Connecting is fine**: protocol clients talk to equipment the user owns (Modbus, OPC UA, S7, SLMP, ADS through the user's
