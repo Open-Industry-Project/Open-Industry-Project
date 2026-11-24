@@ -20,6 +20,8 @@ e2e/__shots/
 # npm run bench-sim: each run's numbers, before/after side by side (machine-specific)
 .bench-sim/
 .claude/settings.local.json
+# the review ledger names findings that are not fixed yet, so it stays on the reviewer's machine
+.claude/review-ledger.md
 *.sqlite
 
 # Custom-part build artifacts (assets embedded at build time from public/models)
