@@ -217,6 +217,11 @@ function parseManifest(text: string | undefined): ManifestMachine | null {
   }
 }
 
+/** A path as a manifest spells it, in the form the folder walk gives: forward slashes, no leading `./`. */
+function manifestPath(p: unknown): string {
+  return String(p).replace(/\\/g, '/').replace(/^\.\//, '')
+}
+
 /**
  * Does loading `taken` leave the scene exactly as it is on screen? Then the engine keeps the live scene (its undo
  * history, its selection) and only the rest of the project moves.
@@ -231,7 +236,9 @@ export function sceneUntouched(taken: readonly string[], manifestBefore: string 
   if (taken.some((p) => p.startsWith('parts/') || p.startsWith(`${PROGRAM_DIR}/`))) return false
   const after = parseManifest(manifestAfter)
   if (!after || after.scene === undefined) return false
-  if (taken.includes(String(after.scene)) || (after.stProgram !== undefined && taken.includes(String(after.stProgram)))) return false
+  // the loader reads these paths normalized, so `./scene.json` names the walked `scene.json`
+  const machineFiles = [after.scene, ...(after.stProgram !== undefined ? [after.stProgram] : []), ...(Array.isArray(after.program) ? after.program : [])]
+  if (machineFiles.some((p) => taken.includes(manifestPath(p)))) return false
   if (!taken.includes(PROJECT_MANIFEST)) return true
   const before = parseManifest(manifestBefore)
   if (!before) return false
@@ -247,7 +254,7 @@ function layoutPathsOf(files: readonly ProjectFolderFile[]): { program: string[]
   const m = parseManifest(typeof text === 'string' ? text : undefined)
   // a folder listing scenes is split before it is synced (editor/project/projectSplit.ts)
   if (!m || m.scenes !== undefined) return null
-  const norm = (p: unknown): string => String(p).replace(/\\/g, '/').replace(/^\.\//, '')
+  const norm = manifestPath
   const program = Array.isArray(m.program) ? m.program.map(norm) : typeof m.stProgram === 'string' ? [norm(m.stProgram)] : []
   return { program, tests: Array.isArray(m.tests) ? m.tests.map(norm) : [] }
 }

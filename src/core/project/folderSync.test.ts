@@ -246,6 +246,14 @@ describe('whether a load disturbs the scene on screen', () => {
     expect(sceneUntouched(['plc/Latch.st'], manifest(), manifest())).toBe(false)
   })
 
+  it('is touched by its scene or program file however the manifest spells the path', () => {
+    expect(sceneUntouched(['scene.json'], manifest(), manifest({ scene: './scene.json' }))).toBe(false)
+    expect(sceneUntouched(['sub/scene.json'], manifest(), manifest({ scene: 'sub\\scene.json' }))).toBe(false)
+    expect(sceneUntouched(['program.st'], manifest(), manifest({ stProgram: './program.st' }))).toBe(false)
+    // a listed program file outside plc/
+    expect(sceneUntouched(['logic/Main.st'], manifest(), manifest({ stProgram: undefined, program: ['./logic/Main.st'] }))).toBe(false)
+  })
+
   it('is touched when the program files are listed differently', () => {
     const listing = (program: string[]): string => manifest({ stProgram: undefined, program })
     expect(sceneUntouched(['project.json'], listing(['plc/A.st', 'plc/B.st']), listing(['plc/B.st', 'plc/A.st']))).toBe(false)
