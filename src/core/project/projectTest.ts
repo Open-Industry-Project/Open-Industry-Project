@@ -310,6 +310,22 @@ const SOURCE_KEYS = ['tag', 'probe'] as const
 const PROBE_KINDS = ['count', 'pose', 'joint', 'lamp', 'passed', 'square'] as const
 const FAULT_KINDS: readonly FaultKind[] = ['sensorStuck', 'actuatorDead', 'commsLoss', 'jam']
 const POSE_AXES: readonly PoseAxis[] = ['x', 'y', 'z', 'yaw']
+const SPEC_KEYS = ['name', 'duration', 'scanMs', 'scene', 'inputs', 'faults', 'checks'] as const
+const INPUT_KEYS = ['at', 'tag', 'value'] as const
+const FAULT_KEYS = ['at', 'until', 'kind', 'part', 'zone', 'value', 'inputs', 'outputs', 'statusTag'] as const
+const CHECK_KEYS = [...SOURCE_KEYS, ...TEMPORAL_KEYS, 'from', 'until', 'within', ...PREDICATE_KEYS, 'tolerance'] as const
+
+/**
+ * Refuse the keys of `o` that the format does not have. A misspelled key otherwise reads as absent, and the test
+ * runs without what it was meant to say: `untill` leaves a deadline open to the end of the run.
+ */
+function refuseUnknownKeys(o: Record<string, unknown>, known: readonly string[], at: string, errors: string[]): boolean {
+  const before = errors.length
+  for (const k of Object.keys(o)) {
+    if (!known.includes(k)) errors.push(`${at === '' ? k : `${at}.${k}`} is not a key ${at === '' ? 'of a test' : 'here'} (${known.join('/')})`)
+  }
+  return errors.length === before
+}
 
 /**
  * The sample-table key a probe check's value is stored under. NUL-prefixed so it can never collide with
@@ -389,6 +405,8 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
     errors.push(`${path} must have exactly one of ${PROBE_KINDS.join('/')}`)
     return undefined
   }
+  // a filter beside the probe and not inside it (`zone` one level too high) would be dropped
+  if (!refuseUnknownKeys(p, PROBE_KINDS, path, errors)) return undefined
 
   if (kinds[0] === 'count' || kinds[0] === 'passed' || kinds[0] === 'square') {
     const kind = kinds[0]
@@ -472,7 +490,7 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
       return undefined
     }
     const j = jo as Record<string, unknown>
-    let jok = true
+    let jok = refuseUnknownKeys(j, ['part', 'joint'], `${path}.joint`, errors)
     if (typeof j.part !== 'string' || j.part === '') {
       errors.push(`${path}.joint.part must be a non-empty part id`)
       jok = false
@@ -491,7 +509,7 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
       return undefined
     }
     const l = lo as Record<string, unknown>
-    let lok = true
+    let lok = refuseUnknownKeys(l, ['part', 'lamp'], `${path}.lamp`, errors)
     if (typeof l.part !== 'string' || l.part === '') {
       errors.push(`${path}.lamp.part must be a non-empty part id`)
       lok = false
@@ -509,7 +527,7 @@ function validateProbe(raw: unknown, path: string, errors: string[]): TestProbe 
     return undefined
   }
   const f = po as Record<string, unknown>
-  let ok = true
+  let ok = refuseUnknownKeys(f, ['part', 'axis'], `${path}.pose`, errors)
   if (typeof f.part !== 'string' || f.part === '') {
     errors.push(`${path}.pose.part must be a non-empty part id`)
     ok = false
@@ -550,9 +568,10 @@ function checkPredicateTypes(at: string, pk: PredicateKey, probe: TestProbe | un
   const numeric = pk === 'min' || pk === 'max' || pk === 'near'
   if (src === 'bool' && (numeric || other === 'number')) {
     errors.push(`${at} must use equals: true or false (or notEquals) - ${describeProbe(probe!)} yields lit / dark, not a number`)
-  } else if (numeric && other === 'bool') {
+  } else if (numeric && operand && other === 'bool') {
     errors.push(`${at}.${pk} compares with ${describeProbe((operand as { probe: TestProbe }).probe)}, which yields lit / dark, not a number`)
-  } else if (src === 'number' && other === 'bool') {
+  } else if (!numeric && src === 'number' && other === 'bool') {
+    // a boolean literal for min/max/near already has its "must be a number" error
     errors.push(
       operand
         ? `${at}.${pk} compares a count/coordinate with ${describeProbe((operand as { probe: TestProbe }).probe)}, which yields lit / dark`
@@ -616,6 +635,9 @@ export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | 
     return { ok: false, errors: ['test must be a JSON object'] }
   }
   const d = data as Record<string, unknown>
+  refuseUnknownKeys(d, SPEC_KEYS, '', errors)
+  // a stimulus at or after the end of the run never happens, and the checks would then judge a run without it
+  const duration = typeof d.duration === 'number' ? d.duration : Infinity
 
   if (typeof d.duration !== 'number' || !(d.duration > 0)) errors.push('duration must be a positive number of seconds')
   if (d.scene !== undefined && typeof d.scene !== 'string') errors.push('scene must be a scene id string')
@@ -627,7 +649,9 @@ export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | 
     else
       d.inputs.forEach((raw, i) => {
         const r = raw as Record<string, unknown>
+        if (typeof r === 'object' && r !== null) refuseUnknownKeys(r, INPUT_KEYS, `inputs[${i}]`, errors)
         if (typeof r?.at !== 'number' || r.at < 0) errors.push(`inputs[${i}].at must be a time ≥ 0`)
+        else if (r.at >= duration) errors.push(`inputs[${i}].at (${r.at}s) is not before the end of the run (duration ${duration}s)`)
         if (typeof r?.tag !== 'string' || r.tag === '') errors.push(`inputs[${i}].tag must be a non-empty string`)
         if (!isValue(r?.value)) errors.push(`inputs[${i}].value must be a boolean or finite number`)
         if (errors.length === 0) inputs.push({ at: r.at as number, tag: r.tag as string, value: r.value as TestValue })
@@ -646,7 +670,9 @@ export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | 
         }
         const r = raw as Record<string, unknown>
         const before = errors.length
+        refuseUnknownKeys(r, FAULT_KEYS, at, errors)
         if (typeof r.at !== 'number' || !(r.at >= 0)) errors.push(`${at}.at must be a time ≥ 0`)
+        else if (r.at >= duration) errors.push(`${at}.at (${r.at}s) is not before the end of the run (duration ${duration}s)`)
         if (r.until !== undefined && (typeof r.until !== 'number' || typeof r.at !== 'number' || !(r.until > r.at))) {
           errors.push(`${at}.until must be a time after at (when the fault clears)`)
         }
@@ -702,6 +728,7 @@ export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | 
   d.checks.forEach((raw, i) => {
     const c = raw as Record<string, unknown>
     const at = `checks[${i}]`
+    if (typeof c === 'object' && c !== null) refuseUnknownKeys(c, CHECK_KEYS, at, errors)
     // source: a tag or a world probe, never both, since everything downstream reads one value per step.
     const sources = SOURCE_KEYS.filter((k) => c?.[k] !== undefined)
     if (sources.length !== 1) errors.push(`${at} must have exactly one of ${SOURCE_KEYS.join('/')}`)
@@ -711,7 +738,7 @@ export function validateTestSpec(data: unknown): { ok: true; spec: TestSpec } | 
     if (temporal.length !== 1) errors.push(`${at} must have exactly one of ${TEMPORAL_KEYS.join('/')}`)
     if (c?.at !== undefined && (typeof c.at !== 'number' || c.at < 0)) errors.push(`${at}.at must be a time ≥ 0`)
     if (c?.within !== undefined && (typeof c.within !== 'number' || c.within <= 0)) errors.push(`${at}.within must be a positive time`)
-    validateWindow(c, at, typeof d.duration === 'number' ? d.duration : Infinity, errors)
+    validateWindow(c, at, duration, errors)
     const given = PREDICATE_KEYS.filter((k) => c?.[k] !== undefined)
     // a range is `min` and `max` together, both numbers: checked here and then judged as one predicate
     const range = given.length === 2 && given.includes('min') && given.includes('max')

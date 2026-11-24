@@ -44,6 +44,55 @@ describe('validateTestSpec', () => {
   })
 })
 
+describe('validateTestSpec - what would run a different test than the one written', () => {
+  const errorsOf = (spec: Record<string, unknown>): string[] => {
+    const res = validateTestSpec({ duration: 20, checks: [{ at: 1, tag: 'x', equals: true }], ...spec })
+    return res.ok ? [] : res.errors
+  }
+  const zone = { min: [0, 0, 0], max: [1, 1, 1] }
+
+  it('refuses a key the format does not have, at every level', () => {
+    expect(errorsOf({ checks: [{ tag: 'Done', eventually: true, untill: 10, equals: true }] }).join()).toContain('checks[0].untill is not a key here')
+    expect(errorsOf({ input: [{ at: 0, tag: 'Start', value: true }] }).join()).toContain('input is not a key of a test')
+    expect(errorsOf({ inputs: [{ at: 0, tag: 'Start', value: true, hold: 2 }] }).join()).toContain('inputs[0].hold is not a key here')
+    expect(errorsOf({ faults: [{ at: 1, kind: 'actuatorDead', part: 'm1', untill: 3 }] }).join()).toContain('faults[0].untill is not a key here')
+    // a filter one level too high would count all the cargo in the scene
+    expect(errorsOf({ checks: [{ at: 1, probe: { count: {}, zone }, max: 3 }] }).join()).toContain('checks[0].probe.zone is not a key here')
+    expect(errorsOf({ checks: [{ at: 1, probe: { pose: { part: 'agv', axis: 'x', frame: 'world' } }, max: 3 }] }).join()).toContain('probe.pose.frame is not a key here')
+  })
+
+  it('accepts every key the format has', () => {
+    expect(
+      errorsOf({
+        name: 't',
+        scanMs: 10,
+        scene: 'main',
+        inputs: [{ at: 0, tag: 'Start', value: true }],
+        faults: [{ at: 1, until: 2, kind: 'commsLoss', part: 'pe1', inputs: 'hold', outputs: 'off', statusTag: 'Lost' }],
+        checks: [
+          { tag: 'a', always: true, from: 1, until: 5, near: 2, tolerance: 0.1 },
+          { tag: 'b', eventually: true, within: 5, notEquals: 0 },
+          { probe: { square: { zone, heading: 90 } }, always: true, min: 0, max: 5 },
+        ],
+      }),
+    ).toEqual([])
+  })
+
+  it('refuses an input or a fault that starts at or after the end of the run', () => {
+    expect(errorsOf({ inputs: [{ at: 25, tag: 'Start', value: true }] }).join()).toContain('inputs[0].at (25s) is not before the end of the run')
+    expect(errorsOf({ inputs: [{ at: 20, tag: 'Start', value: true }] }).join()).toContain('inputs[0].at')
+    expect(errorsOf({ faults: [{ at: 25, kind: 'jam', zone }] }).join()).toContain('faults[0].at (25s) is not before the end of the run')
+    expect(errorsOf({ inputs: [{ at: 19.9, tag: 'Start', value: true }], faults: [{ at: 19, until: 30, kind: 'jam', zone }] })).toEqual([])
+  })
+
+  it('reports a boolean bound as an error and does not throw', () => {
+    for (const pk of ['min', 'max', 'near']) {
+      expect(errorsOf({ checks: [{ tag: 'Speed', at: 1, [pk]: true }] })).toEqual([`checks[0].${pk} must be a number, or {"tag": ...} / {"probe": ...}`])
+      expect(errorsOf({ checks: [{ probe: { count: {} }, at: 1, [pk]: false }] })).toEqual([`checks[0].${pk} must be a number, or {"tag": ...} / {"probe": ...}`])
+    }
+  })
+})
+
 describe('validateTestSpec - faults', () => {
   const base = { duration: 5, checks: [{ at: 1, tag: 'x', equals: true }] }
   const errorsOf = (faults: unknown): string[] => {

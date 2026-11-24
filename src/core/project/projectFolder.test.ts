@@ -196,6 +196,16 @@ describe('folderFilesToProject', () => {
     expect(errs[0]).toContain('not valid JSON')
   })
 
+  it('reports a program, tests or packages entry that is not a list, which would otherwise read as absent', () => {
+    const withManifest = (change: Record<string, unknown>): string[] => {
+      const files = projectToFolderFiles(sampleProject()).map((f) => (f.path === PROJECT_MANIFEST ? { ...f, contents: JSON.stringify({ ...JSON.parse(f.contents as string), ...change }) } : f))
+      return expectErrors(folderFilesToProject(files, { bakePart: testBaker }))
+    }
+    expect(withManifest({ program: 'plc/Main.st' })).toContain('program must be a list of program files (an array of paths)')
+    expect(withManifest({ tests: 'tests/a.test.json' })).toContain('tests must be a list of test files (an array of paths)')
+    expect(withManifest({ packages: 'parts/p' })).toContain('packages must be a list of part folders (an array of paths)')
+  })
+
   it('reports a manifest that names no scene', () => {
     const errs = expectErrors(folderFilesToProject([{ path: PROJECT_MANIFEST, contents: JSON.stringify({ version: PROJECT_VERSION, name: 'x' }) }]))
     expect(errs.some((e) => e.includes('names no scene'))).toBe(true)

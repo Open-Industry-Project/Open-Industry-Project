@@ -447,10 +447,18 @@ export function folderFilesToProject(
     return texts.every((x) => x !== undefined) ? joinProgramFiles(texts as string[]) : undefined
   }
 
+  // A list written as one string would read as absent: the project would open with no program, tests or parts.
+  const needsList = (v: unknown, at: string, what: string): void => {
+    if (v !== undefined && !Array.isArray(v)) errors.push(`${at} must be a list of ${what} (an array of paths)`)
+  }
+  needsList(m.packages, 'packages', 'part folders')
+  needsList(m.tests, 'tests', 'test files')
+
   // The machine: a format-4 folder's own scene + program, or an older folder's scene list (handed on as a list:
   // validateProject is what splits it).
   const listed = m.scene === undefined && Array.isArray(m.scenes)
   const readMachine = (s: Record<string, unknown>, at: string): Record<string, unknown> => {
+    needsList(s.program, `${at}program`, 'program files')
     const scene = readJson(s.scene, `${at}scene`)
     const stProgram = Array.isArray(s.program) ? readProgram(s.program, `${at}program`) : s.stProgram !== undefined ? readText(s.stProgram, `${at}stProgram`) : undefined
     const stScanMs = typeof s.stScanMs === 'number' && Number.isFinite(s.stScanMs) ? s.stScanMs : undefined
