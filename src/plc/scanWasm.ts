@@ -1,11 +1,10 @@
 // A definition's body as WebAssembly, written straight from the checked program (no JavaScript in between). It does
-// what scanCodegen.ts's generator does, statement for statement, over the same arena (docs/plc-typed-storage.md,
-// "WebAssembly bodies"). A statement this cannot write is run by that generator's code for the one statement
-// (`escape`), so a body is always complete; `wasmStats.escaped` counts those, and stays 0.
+// what the walker does, statement for statement, over the program's arena (docs/plc-typed-storage.md, "WebAssembly
+// bodies"). A statement this cannot write refuses the whole program (`no`), which then runs on the walker.
 //
 // Values on the WebAssembly stack: a BOOL and the integers up to 32 bits are an i32 ('b', 'i'; UDINT and DWORD the
 // same bits read unsigned, 'u'), REAL, LREAL and the time types an f64 ('f'). Integer arithmetic is done in i64, where
-// a sum or a product of two 32-bit numbers is exact, and held against its own width as the generator's `add_DINT` is.
+// a sum or a product of two 32-bit numbers is exact, and held to its own width after.
 // A 64-bit integer is an i64 ('l' a LINT; 'L' a ULINT or an LWORD, the same bits read unsigned), and its arithmetic
 // is the i64's own, which wraps as the walker's bigints are wrapped (runtime.ts, "the 64-bit integers").
 
@@ -149,7 +148,7 @@ export class Emitter {
     return 'f'
   }
 
-  /** scanCodegen.ts canonical: is `e` already exactly what a store into a `t` place makes of it? */
+  /** is `e` already exactly what a store into a `t` place makes of it? */
   canonical(e: Expr, t: ScalarType): boolean {
     if (e.node === 'num') {
       const v = e.value
@@ -244,7 +243,7 @@ export class Emitter {
     w.u8(0x20).uleb(kept).u8(0xa7)
   }
 
-  /** `e`'s value coerced for a store into a `t` place (scanCodegen.ts coerce) */
+  /** `e`'s value coerced for a store into a `t` place */
   coerce(t: ScalarType, pos: SourcePos | undefined, e: Expr): Kind {
     if (this.canonical(e, t)) {
       if (e.node === 'num') return this.constOf(t, e.value, e.big)
@@ -480,7 +479,7 @@ export class Emitter {
     this.toL(this.num(e.right))
     w.u8(0x22).uleb(r).u8(0x50)
     w.u8(0x04).u8(I32)
-    // by zero: the generator's divI / modI, which fault the scan or log and carry on as the program's family says
+    // by zero: divI / modI, which fault the scan
     w.u8(0x41).sleb(mod ? 1 : 0).u8(0x41).sleb(tk).u8(0x20).uleb(l).u8(0xb9).u8(0x41).sleb(p)
     w.u8(0x10).uleb(this.import('byZero', [I32, I32, F64, I32], [F64], (h) => (m: number, ti: number, x: number, pi: number) => (h.H[m ? 'modI' : 'divI'] as (t: unknown, l: number, r: number, p: unknown) => number)(h.W[ti], x, 0, h.W[pi])))
     w.op(0xfc, WIDE[t] ? 0x03 : 0x02)
@@ -795,7 +794,7 @@ export class Emitter {
     if (demote) w.u8(0xb6)
     w.u8(op).uleb(align).uleb(a.dyn ? a.off : 0)
   }
-  /** the local `v`, of kind `k` and already coerced, stored into `target` (scanCodegen.ts place) */
+  /** the local `v`, of kind `k` and already coerced, stored into `target` */
   place(target: Expr, v: number, k: Kind): void {
     const w = this.w
     if (target.node === 'var' || target.node === 'index' || target.node === 'member') return this.storeAt(this.addr(target), v)
@@ -883,7 +882,7 @@ export class Emitter {
     for (const s of body) this.stmt(s)
   }
 
-  /** one statement: as WebAssembly, or (when it cannot be written yet) the generator's own code for it */
+  /** one statement, as WebAssembly */
   stmt(s: Stmt): void {
     wasmStats.statements++
     this.#mine.push([])
@@ -1065,7 +1064,7 @@ export class Emitter {
     }
   }
 
-  /** a STRING copied place to place (scanCodegen.ts strCopyAt): the length alone when the text is empty */
+  /** a STRING copied place to place: the length alone when the text is empty */
   stringAssign(s: Extract<Stmt, { node: 'assign' }>): void {
     const v = s.value
     const target = s.target
@@ -1131,7 +1130,7 @@ export class Emitter {
     w.u8(0x21).uleb(z)
     this.address(dst)
     w.u8(0x21).uleb(y)
-    // n = min(the source's length, the capacity); the length word, then that many code units (typed/arena.ts strCopy)
+    // n = min(the source's length, the capacity); the length word, then that many code units
     w.u8(0x20).uleb(z).u8(0x2f).uleb(1).uleb(0).u8(0x22).uleb(n).u8(0x41).sleb(cap).u8(0x20).uleb(n).u8(0x41).sleb(cap).u8(0x49).u8(0x1b).u8(0x21).uleb(n)
     w.u8(0x20).uleb(y).u8(0x20).uleb(n).u8(0x3b).uleb(1).uleb(0)
     w.u8(0x20).uleb(n).u8(0x04).u8(VOID)
@@ -1240,7 +1239,7 @@ export class Emitter {
     this.close()
   }
 
-  /** where the text `e` reads is, when `e` is a whole STRING place (scanCodegen.ts strSource) */
+  /** where the text `e` reads is, when `e` is a whole STRING place */
   strSource(e: Expr): Address | null {
     if (e.t !== 'STRING') return null
     if (e.node === 'var' ? e.constValue !== undefined : e.node !== 'member' && e.node !== 'index') return null
@@ -1403,7 +1402,6 @@ export class Emitter {
   }
 }
 
-/** One body as WebAssembly over the program's memory, with the generator's code for what is not written yet. */
 /** The module of `body` (and of `value`, an expression whose value it hands back) over the program's memory. */
 function instantiate(body: Stmt[], value: Expr | undefined, scope: GenScope, internals: GenInternals, extra: Record<string, unknown>): { run: WasmBody; host: Host; memory: WebAssembly.Memory; link: Link; bytes: number } {
   const H = { ...HELPERS, ...extra }

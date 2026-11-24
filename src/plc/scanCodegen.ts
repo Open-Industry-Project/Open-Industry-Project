@@ -74,16 +74,12 @@ export interface TypedScope {
   temp(call: Expr): number | undefined
 }
 
-/** The interpreter's own pieces a body needs: the store rules and loop signals the walker uses, so the engines
- *  agree. */
+/** The interpreter's own pieces a body needs: the store rules the walker uses, so the engines agree. */
 export interface GenInternals {
-  eq(l: Value, r: Value): boolean
   fits(t: ScalarType, exact: number, kept: number, pos: SourcePos | undefined): number
   checkRange(target: Expr, v: Value, pos: SourcePos): Value
   coercerFor(type: ScalarType, maxLen: number | undefined, pos: SourcePos | undefined): (v: Value) => Value
   placeMaxLen(target: Expr): number | undefined
-  EXIT: symbol
-  CONTINUE: symbol
 }
 
 const subscript = (i: number, lo: number, hi: number, pos: SourcePos): StFault => new StFault(FAULT.SUBSCRIPT, `array index ${i} out of bounds [${lo}..${hi}]`, pos)

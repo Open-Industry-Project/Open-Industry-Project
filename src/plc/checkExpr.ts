@@ -379,7 +379,6 @@ export function inferType(e: Expr, scope: Scope): DataType {
       e.name = def.name
       const inputs = def.decls.filter((d) => d.section === 'VAR_INPUT')
       if (e.names) orderFormalArgs(e, inputs, def.name)
-      if (e.slots) def.omittable = true
       // a positional call gives every input (MATIEC also takes one that stops short, which this engine does not)
       if (!e.slots && e.args.length !== inputs.length) throw new StError(`'${e.name}' expects ${inputs.length} argument(s), got ${e.args.length}`, e.pos)
       e.args.forEach((arg, k) => {

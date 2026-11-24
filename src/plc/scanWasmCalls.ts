@@ -11,7 +11,7 @@ import type { TypeLayout } from './typed/layout'
 import type { Expr, FbType, ScalarType, Stmt, TagValue, Value } from './types'
 import { StError } from './types'
 
-/** A builtin function's call: its arguments in order, then the function (scanCodegen.ts `call`). A number goes as an
+/** A builtin function's call: its arguments in order, then the function. A number goes as an
  *  f64 and comes back as one, a truth as an i32; a text is read by the helper from where it is. A 64-bit integer
  *  goes and comes back as an i64, which the helper sees as the bigint the walker hands the same function ('l'; 'L'
  *  one read unsigned). */
@@ -40,7 +40,7 @@ export function builtin(em: Emitter, e: Extract<Expr, { node: 'call' }>, textOut
   const name = e.name
   const rt = e.t as ScalarType
   const pos = e.pos
-  // (scanCodegen.ts callB: a builtin's own error takes the call's position)
+  // (a builtin's own error takes the call's position)
   const fn: (...a: Value[]) => Value =
     (direct as ((...a: Value[]) => Value) | null) ??
     ((...vals: Value[]): Value => {
@@ -90,7 +90,7 @@ export function builtin(em: Emitter, e: Extract<Expr, { node: 'call' }>, textOut
   return res === 'b' ? 'b' : res === 'T' ? 'i' : res === 'l' || res === 'L' ? res : 'f'
 }
 
-/** A user function's call with every input given in order (scanCodegen.ts typedFnCall's direct form): the
+/** A user function's call with every input given in order: the
  *  arguments, the function's region reset, each stored where it goes, the body, the result read. */
 export function fnCall(em: Emitter, e: Extract<Expr, { node: 'call' }>): Kind {
   const w = em.w
@@ -126,7 +126,7 @@ export function fnCall(em: Emitter, e: Extract<Expr, { node: 'call' }>): Kind {
   return em.loadAt({ dyn: null, off: fn.resultSlot.off, layout: fn.resultSlot.layout })
 }
 
-/** The arguments of a function called through its runner (scanCodegen.ts typedFnCall's list): each in order, a
+/** The arguments of a function called through its runner: each in order, a
  *  whole array or struct by its address, kept by the host until the call takes them. */
 export function fnGiven(em: Emitter, e: Extract<Expr, { node: 'call' }>, fn: { readonly aggregate: readonly boolean[] }): void {
   const w = em.w
@@ -158,7 +158,7 @@ export function fnGiven(em: Emitter, e: Extract<Expr, { node: 'call' }>, fn: { r
 }
 
 /** where a whole array or struct value is, left on the stack: a place's address, or a call's copy of its result at
- *  its own call site (scanCodegen.ts aggregateOf) */
+ *  its own call site */
 export function aggregate(em: Emitter, e: Expr): void {
   const w = em.w
   if (e.node === 'var' || e.node === 'member' || e.node === 'index') return em.address(em.addr(e))
@@ -184,7 +184,7 @@ export function aggregate(em: Emitter, e: Expr): void {
 }
 
 /**
- * A METHOD call (scanCodegen.ts methodCall), in the walker's order: the instance; which implementation runs; the
+ * A METHOD call, in the walker's order: the instance; which implementation runs; the
  * scalar inputs; each copied input, in-out and bound reference or interface; a frame; the arguments stored in it;
  * the body; each scalar in-out copied back, each output stored; the result; the frame given back. Leaves the
  * result: a scalar's value, a whole value's address, 0 for none.
@@ -435,7 +435,7 @@ export function storeGiven(em: Emitter, m: Address, v: number, k: Held, e: Expr)
   em.storeAt(m, held)
 }
 
-/** a standard block's call (scanCodegen.ts typedCall): the instance, its inputs in the call's order, the block,
+/** a standard block's call: the instance, its inputs in the call's order, the block,
  *  then each output binding read from the record, coerced and stored */
 export function blockCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>): void {
   const w = em.w
@@ -685,7 +685,7 @@ function timerBlock(em: Emitter, blk: 'TON' | 'TOF' | 'TP', f: number, given: Re
   )
 }
 
-/** A user function block's call (scanCodegen.ts userCall), in the walker's order: the instance's place; the scalar
+/** A user function block's call, in the walker's order: the instance's place; the scalar
  *  inputs; each bound reference, copied whole input and VAR_IN_OUT; the scalar inputs stored; the body; each scalar
  *  VAR_IN_OUT copied back; each output read, coerced and stored. */
 export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst: Address, name: string): void {

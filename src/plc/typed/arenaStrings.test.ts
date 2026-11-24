@@ -34,31 +34,4 @@ describe('a STRING in the arena', () => {
     arena.strPut(16, 3, 'clipped')
     expect(arena.strAt(16)).toBe('cli')
   })
-
-  it('copies one into another as a read and a write would, at every length around the short copy', () => {
-    for (const n of [0, 1, 31, 32, 33, 34, 200]) {
-      for (const cap of [0, 1, 32, 33, 500]) {
-        let text = ''
-        for (let i = 0; i < n; i++) text += String.fromCharCode(65 + (i % 26))
-        const copied = new Arena(4096)
-        const stored = new Arena(4096)
-        for (const arena of [copied, stored]) {
-          arena.strPut(16, 500, text)
-          arena.strPut(2048, 500, 'what the target held before, longer than a short text so its tail shows')
-        }
-        copied.strCopy(2048, cap, 16)
-        stored.strPut(2048, cap, stored.strAt(16))
-        expect(Array.from(copied.U16), `length ${n} into capacity ${cap}`).toEqual(Array.from(stored.U16))
-      }
-    }
-  })
-
-  it('copies one onto itself, cut to the capacity given', () => {
-    const arena = new Arena(256)
-    arena.strPut(16, 20, 'unchanged')
-    arena.strCopy(16, 20, 16)
-    expect(arena.strAt(16)).toBe('unchanged')
-    arena.strCopy(16, 4, 16)
-    expect(arena.strAt(16)).toBe('unch')
-  })
 })

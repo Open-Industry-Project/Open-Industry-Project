@@ -130,24 +130,6 @@ export class Arena {
     for (let i = 0; i < n; i++) this.U16[at + 1 + i] = s.charCodeAt(i)
   }
 
-  /** The text of the STRING at `src` into the STRING at `dst` of capacity `cap`, cut to fit: what strPut(dst, cap,
-   *  strAt(src)) leaves, with no text built. A short text goes unit by unit: with copyWithin for every copy, a large
-   *  program whose strings are mostly short or empty ran no faster than it did through text. */
-  strCopy(dst: number, cap: number, src: number): void {
-    const s = src >> 1
-    const d = dst >> 1
-    const n = Math.min(this.U16[s]!, cap)
-    this.U16[d] = n
-    if (s === d) return
-    if (n <= 32) for (let i = 1; i <= n; i++) this.U16[d + i] = this.U16[s + i]!
-    else this.U16.copyWithin(d + 1, s + 1, s + 1 + n)
-  }
-
-  /** `aggregate := 0` at `addr`: each [offset, bytes] run of `ranges` (layout.ts clearRanges) zeroed */
-  clear(addr: number, ranges: readonly number[]): void {
-    for (let i = 0; i < ranges.length; i += 2) this.U8.fill(0, addr + ranges[i]!, addr + ranges[i]! + ranges[i + 1]!)
-  }
-
   /** Copy `bytes` from `src` to `dst` (a whole array or struct of one type: the checker allows nothing else). */
   copy(dst: number, src: number, bytes: number): void {
     if (dst !== src) this.U8.copyWithin(dst, src, src + bytes)

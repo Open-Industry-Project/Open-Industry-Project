@@ -26,7 +26,7 @@ export interface TypedProgram {
   /** the next free byte while POUs are being placed */
   next: number
   arena: Arena | null
-  /** what generated code is handed of the arena (its views, string helpers and standard blocks), once it exists */
+  /** what a body is handed of the arena (its bytes, the string helpers and the standard blocks), once it exists */
   extra: Record<string, unknown> | null
   globals: { env: Env; layout: PouLayout; base: number } | null
   /** every POU, in the order built: initialised in that order once the arena exists (the globals first) */
@@ -79,12 +79,10 @@ export function finish(tp: TypedProgram): void {
   const arena = new Arena(tp.next)
   tp.arena = arena
   tp.extra = {
-    I8: arena.I8, U8: arena.U8, I16: arena.I16, U16: arena.U16, I32: arena.I32, U32: arena.U32, F32: arena.F32, F64: arena.F64,
+    // (the bytes, by which a body finds the memory it is a module over: scanWasm.ts instantiate)
+    U8: arena.U8,
     strAt: (a: number) => arena.strAt(a),
     strPut: (a: number, cap: number, s: string) => arena.strPut(a, cap, s),
-    strCopy: (dst: number, cap: number, src: number) => arena.strCopy(dst, cap, src),
-    copyBytes: (dst: number, src: number, n: number) => arena.copy(dst, src, n),
-    clearAt: (dst: number, ranges: readonly number[]) => arena.clear(dst, ranges),
     ...blocksOver(arena, tp.motion),
   }
   for (const p of tp.pous) p.start()
@@ -334,7 +332,7 @@ export class TypedFn {
   /** the layout of a whole array or struct result (null for a scalar one): copied out to the call site's own region */
   readonly result: TypeLayout | null
   /** each input's absolute address and layout, in declaration order, and the result's: where a generated call site
-   *  stores its arguments and reads the answer (scanCodegen.ts typedFnCall) */
+   *  stores its arguments and reads the answer */
   readonly inputSlots: readonly { off: number; layout: TypeLayout }[]
   readonly resultSlot: { off: number; layout: TypeLayout }
   /** every input holds its value (no whole array or struct, no reference or interface) and so does the result */

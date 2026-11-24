@@ -532,9 +532,6 @@ export interface FuncDef {
   retMaxLen?: number
   /** bounds when the return type is a subrange, enforced on every store into the result */
   retRange?: Range
-  /** set by the checker when some formal call leaves one of its inputs out (the call's `slots`): such an input
-   *  keeps its start value */
-  omittable?: boolean
   decls: Decl[]
   body: Stmt[]
   pos: SourcePos

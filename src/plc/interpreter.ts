@@ -134,15 +134,6 @@ class UserFb implements Fb {
     }
     this.pou.scan(now)
   }
-  /** One input of a call, written ahead of {@link run}: call() taken apart, so generated code passes its arguments
-   *  without building an object of them each call (scanCodegen.ts) */
-  enter(name: string, v: Value): void {
-    if (v !== undefined) this.pou.setArg(name, v)
-  }
-  /** the body, once its inputs are entered */
-  run(now: number): void {
-    this.pou.scan(now)
-  }
   /** An output, by its declared name: a scalar, or a whole array or struct as a live reference,
    *  which a reader that keeps it copies (the checker refuses any write through it). */
   read(member: string): DataValue {
@@ -403,10 +394,10 @@ export function setScanEngine(engine: ScanEngine): ScanEngine {
   return was
 }
 
-/** What generated code is handed of this module: the walker's own store rules and loop signals, so the engines agree. */
+/** What a WebAssembly body is handed of this module: the walker's own store rules, so the engines agree. */
 let genInternals: GenInternals | null = null
 function internals(): GenInternals {
-  return (genInternals ??= { eq, fits, checkRange, coercerFor, placeMaxLen, EXIT: EXIT_SIGNAL, CONTINUE: CONTINUE_SIGNAL })
+  return (genInternals ??= { fits, checkRange, coercerFor, placeMaxLen })
 }
 
 /** Why each program the typed engine refused runs on the walker instead (TypedUnsupported): said once per realm, kept

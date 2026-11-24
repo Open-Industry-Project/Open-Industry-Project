@@ -169,7 +169,7 @@ export interface Address {
   layout: TypeLayout
 }
 
-/** what the module is handed for one import: built over the helpers, this body's constants and its escapes */
+/** what the module is handed for one import: built over the helpers and this body's constants */
 export interface Host {
   H: Record<string, unknown>
   W: unknown[]
@@ -197,7 +197,7 @@ export interface Fn {
 }
 
 
-/** scanCodegen.ts readsOnly: a place whose read runs nothing but loads */
+/** a place whose read runs nothing but loads */
 export function readsOnly(e: Expr): boolean {
   switch (e.node) {
     case 'var':
