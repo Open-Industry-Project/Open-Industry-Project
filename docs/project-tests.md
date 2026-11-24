@@ -330,7 +330,7 @@ reset with a box standing at the eye), or delete the fault from the test, and it
 ## The runner
 
 ```
-npm run test-project -- <project-folder> [--only <file-or-name>] [--trace <tag,tag,...|all>] [--cargo <t,t,...>] [--context <seconds>] [--json]
+npm run test-project -- <project-folder> [--only <file-or-name>] [--trace <tag,tag,...|all>] [--cargo <t,t,...>] [--context <seconds>] [--jobs <n>] [--json]
 ```
 
 | exit | meaning |
@@ -365,6 +365,20 @@ a tag that changes too often to read is cut to its first and last changes. `--tr
 lead-up of each failed check and the trace as one object, for an agent to read rather than scrape. This is how an
 agent that cannot look at a running scene sees what the program did.
 
+**Each test says how fast it ran**: `ran 720s in 72.8s, 9.9x real time (sim 45.3s, checks 27.1s, setup 0.4s)`, and
+`--json` carries the three times as `timing` per test, in milliseconds. `sim` is the physics steps and the program's
+scans, `checks` is reading each step's values and judging them, and `setup` is building the world and the program.
+A step's sample holds only the tags the checks and the trace read, each looked up where it is, once every checked
+tag has appeared. Before that, and for `--trace all`, it holds every tag of the line, which on a large line costs
+more than the step itself. A frame of the cargo is built only for a run with a probe, a jam or `--cargo`.
+
+**Tests that would take long run several at a time**, each on a worker thread that opens the folder again
+(scripts/lib/projectTestWorker.mjs). A worker takes about as long to open the folder as the command took to start,
+so with three tests or more the first runs alone, and the rest go to workers only when at its speed they would take
+more than twice that. `--jobs <n>` sets how many run at a time and skips the estimate; `--jobs 1` runs them one
+after another. Each test steps a world of its own, so its result is the same either way, and the report keeps the
+folder's order.
+
 `test-project` runs the project's tests: the specs `project.json` lists under `tests`, plus every `tests/*.test.json`
 it does not list (all of them, when it lists none). Per test: load the project (same codec + part baking
 as `validate-project`), then `runProjectTest(Jolt, project, spec)` builds a `SimWorld`, compiles the
@@ -377,7 +391,8 @@ the checks. Exit codes as in the table above. Same vite-`ssrLoadModule` shape as
 `SimWorld` itself casts sensor beams (`world.ts` tickBehaviors) and lets each part write its
 detections/state as tags, so it runs headless, and the runner wires:
 
-- **part → PLC:** `world.frame().tags` (every part's writes) flattened into the ST program's inputs;
+- **part → PLC:** `world.behaviorTagWrites()` (every part's writes, in the order Play's scan reads them) as the ST
+  program's inputs;
 - **PLC → part:** the ST outputs (plus scheduled test `inputs`) pushed via `setBehaviorInputTags`;
 - **checks** sample the union of part tags + the PLC's own variables (`link.watch`) + the test
   stimulus, so a check can assert on a sensor detection, a conveyor's running flag, or an ST coil

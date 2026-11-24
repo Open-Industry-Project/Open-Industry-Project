@@ -157,7 +157,9 @@ Never hand-edit scene.json; these go through the same checks the editor does.
 - **`npm run test-project -- <folder>`** - control logic behaves. Exit 1 = a check failed, 3 = the project or a test
   could not run. `--only` takes an exact file or test name and falls back to a substring only when nothing matches
   exactly; `--cargo 5,10` lists where every box is at those times, with its tilt, heading, velocity and what it touches. Prefer `passed` + `color` probes, tag-vs-tag
-  checks and `from`/`until` windows over exact counts at exact times: [project-tests.md](project-tests.md).
+  checks and `from`/`until` windows over exact counts at exact times: [project-tests.md](project-tests.md). Each test
+  prints how fast it ran (`ran 720s in 72.8s, 9.9x real time`), and long tests run several at a time (`--jobs <n>`
+  sets how many, `--jobs 1` one after another).
 - **`npm run check-flow -- <project-folder> [--seconds N] [--input Tag=v@t] [--json]`** - what physically happened on
   the line: boxes dropped or lost, tipped, eye flickers with the tags that toggled, boxes still on a running
   conveyor. These are facts, never verdicts: a row former's stall is normal accumulation. `test-project` prints the

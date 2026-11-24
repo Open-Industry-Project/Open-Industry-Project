@@ -5,6 +5,7 @@ import { PROJECT_VERSION } from '../../core/project/project'
 import type { ProjectJSON } from '../../core/project/project'
 import { SCENE_VERSION } from '../../core/types'
 import type { PartInstance, SdkPart } from '../../core/types'
+import { TraceRecorder } from '../../core/project/projectTest'
 import type { TestSpec } from '../../core/project/projectTest'
 import type { BoxFrame } from '../../core/frame'
 import { cargoRows } from '../../core/project/projectProbe'
@@ -654,6 +655,32 @@ describe('runProjectTest - windows, notEquals and a tag on the right-hand side',
     expect(result.checks[0]!.detail).toMatch(/^Echoed became true at t=0\.3\d+s \(must always be = false between t=0s and t=0\.5s\)$/)
     expect(result.checks[1]!.detail).toBe('Echoed was true at t=0.6s, expected ≠ Cmd (true)')
     expect(result.checks[2]!.detail).toMatch(/^tag "Cmdd" \(the right-hand side\) never appeared \(the run did publish: Cmd, Echoed, Start\)/)
+  })
+
+  // Once every checked tag has appeared a step's sample holds the checked and traced tags alone, each looked up where
+  // it is. A trace of every tag keeps every sample whole, so the two runs must agree.
+  it('gives the result and the trace of whole samples from samples of the tags that are read', () => {
+    const spec: TestSpec = {
+      duration: 1,
+      inputs,
+      checks: [
+        { always: true, from: 0.5, tag: 'Echoed', equals: { tag: 'Start' } },
+        { always: true, until: 0.5, tag: 'Echoed', equals: false },
+        { eventually: true, from: 0.3, until: 0.6, tag: 'Echoed', notEquals: false },
+        { at: 0.6, tag: 'Echoed', notEquals: { tag: 'Cmd' } },
+        { at: 0.2, tag: 'Start', equals: true },
+      ],
+    }
+    const tags = ['Echoed', 'Cmd', 'Start', 'Nothing']
+    const some = new TraceRecorder(tags)
+    const every = new TraceRecorder('all')
+    const narrow = runProjectTest(Jolt, project(), spec, { trace: some })
+    const whole = runProjectTest(Jolt, project(), spec, { trace: every })
+    expect(narrow).toEqual(whole)
+    expect(runProjectTest(Jolt, project(), spec)).toEqual(whole)
+    expect(narrow.checks.map((c) => c.ok)).toEqual([true, false, true, false, false])
+    expect(some.result()).toEqual(every.result().filter((t) => tags.includes(t.tag)))
+    expect(some.result().map((t) => t.tag)).toEqual(['Cmd', 'Echoed', 'Start'])
   })
 })
 

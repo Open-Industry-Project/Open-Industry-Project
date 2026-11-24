@@ -88,6 +88,8 @@ interface WatchSource {
   elementKey?(name: string): string | null
   /** the unlisted values under a name ({@link watchElementsUnder}) */
   elementsUnder?(name: string, max: number): { keys: string[]; more: number } | null
+  /** whether `key` is one of `keys`, when the source can say without searching them ({@link watchLists}) */
+  lists?(key: string): boolean
 }
 
 // a layout's ranges by the upper-case key their elements are under, and by that key without its program instance
@@ -240,6 +242,10 @@ class MemorySource implements WatchSource {
 
   has(key: string): boolean {
     return indexOf(this.#layout).has(key) || locate(this.#layout, key, false) !== null
+  }
+
+  lists(key: string): boolean {
+    return indexOf(this.#layout).has(key)
   }
 
   get(key: string): WatchValue | undefined {
@@ -463,6 +469,14 @@ export function forEachWatchValue<V extends WatchValue>(table: Readonly<Record<s
 export function watchHas(table: Readonly<Record<string, WatchValue>>, key: string): boolean {
   const source = sources.get(table)
   return source ? source.has(key) : Object.hasOwn(table, key)
+}
+
+/** Is `key` one of the keys the table lists ({@link watchKeysOf})? An element it answers by name without listing
+ *  (an array too long to list) is not one, where {@link watchHas} says it is. */
+export function watchLists(table: Readonly<Record<string, WatchValue>>, key: string): boolean {
+  const source = sources.get(table)
+  if (!source) return Object.hasOwn(table, key)
+  return source.lists ? source.lists(key) : source.keys.includes(key)
 }
 
 /** The table's key for `name` when `name` is a value the table answers but does not list: an element of an array too

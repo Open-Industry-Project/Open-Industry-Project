@@ -328,7 +328,16 @@ export class ProbeSampler {
       }
     })
     for (const { key, probe } of this.probes) if ('passed' in probe) this.passed.set(key, { entered: new Set(), n: 0 })
+    this.latches = {
+      base: this.probes.some(({ probe }) => 'pose' in probe),
+      joint: this.probes.some(({ probe }) => 'joint' in probe),
+      lamp: this.probes.some(({ probe }) => 'lamp' in probe),
+    }
   }
+
+  // which of the frame's per-part tables a probe reads, so a step latches only those: a line's joints are a key built
+  // and stored for every joint on every step, which a run with no joint probe never reads
+  private readonly latches: { base: boolean; joint: boolean; lamp: boolean }
 
   /** true when the spec has no probe checks: the runner can skip sampling entirely */
   get empty(): boolean {
@@ -348,9 +357,9 @@ export class ProbeSampler {
   values(frame: BoxFrame, marks?: RowMarks): Record<string, TestValue> {
     const out: Record<string, TestValue> = {}
     if (this.probes.length === 0) return out
-    for (const [id, bp] of Object.entries(frame.basePoses ?? {})) this.lastBase.set(id, bp)
-    for (const [id, js] of Object.entries(frame.joints ?? {})) for (const [name, v] of Object.entries(js)) this.lastJoint.set(`${id}\u0000${name}`, v)
-    for (const [id, ls] of Object.entries(frame.lamps ?? {})) for (const [name, v] of Object.entries(ls)) this.lastLamp.set(`${id}\u0000${name}`, v)
+    if (this.latches.base) for (const [id, bp] of Object.entries(frame.basePoses ?? {})) this.lastBase.set(id, bp)
+    if (this.latches.joint) for (const [id, js] of Object.entries(frame.joints ?? {})) for (const [name, v] of Object.entries(js)) this.lastJoint.set(`${id}\u0000${name}`, v)
+    if (this.latches.lamp) for (const [id, ls] of Object.entries(frame.lamps ?? {})) for (const [name, v] of Object.entries(ls)) this.lastLamp.set(`${id}\u0000${name}`, v)
     this.trackColors(frame)
     if (this.passed.size > 0) this.trackPassed(frame, marks)
     for (const { key, probe } of this.probes) {

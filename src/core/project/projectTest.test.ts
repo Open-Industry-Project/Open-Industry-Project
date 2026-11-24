@@ -455,6 +455,59 @@ describe('TestEvaluator - predicates + missing tags', () => {
   })
 })
 
+describe('TestEvaluator - how much of a step a sample has to hold (reads, needsNames)', () => {
+  const checks: TestCheck[] = [
+    { eventually: true, tag: 'Count', min: 2 },
+    { always: true, tag: 'Run', equals: { tag: 'Cmd' } },
+    { always: true, probe: { count: {} }, max: { probe: { count: { kind: 'box' } } } },
+    { at: 1, tag: 'Count', equals: 1 },
+  ]
+
+  it('reads lists each key once: the tags, a right-hand tag, and the probes under their own keys', () => {
+    expect(new TestEvaluator({ duration: 3, checks }).reads).toEqual(['Count', 'Run', probeKey(2), 'Cmd', operandProbeKey(2)])
+  })
+
+  it('needs every name until each checked tag has appeared, a right-hand tag included, and never again after', () => {
+    const ev = new TestEvaluator({ duration: 3, checks })
+    expect(ev.needsNames).toBe(true)
+    ev.sample(0.5, { Count: 0, Run: false, Other: 1 })
+    // Cmd, the right-hand tag, is still to come
+    expect(ev.needsNames).toBe(true)
+    ev.sample(1, { Count: 1, Run: false, Cmd: false })
+    expect(ev.needsNames).toBe(false)
+    ev.sample(1.5, {})
+    expect(ev.needsNames).toBe(false)
+  })
+
+  it('a spec of probes alone needs no names: a probe that never appears is explained without them', () => {
+    expect(new TestEvaluator({ duration: 3, checks: [{ always: true, probe: { count: {} }, max: 4 }] }).needsNames).toBe(false)
+  })
+
+  it('gives the verdict of whole samples from samples of the keys it reads, once it needs no names', () => {
+    const steps: [number, Record<string, TestValue>][] = [
+      [0.5, { Count: 0, Run: false, Cmd: false, Other: 1, [probeKey(2)]: 0, [operandProbeKey(2)]: 0 }],
+      [1, { Count: 1, Run: true, Cmd: true, Other: 2, Late: true, [probeKey(2)]: 1, [operandProbeKey(2)]: 1 }],
+      [2, { Count: 2, Run: true, Cmd: false, Other: 3, [probeKey(2)]: 3, [operandProbeKey(2)]: 2 }],
+    ]
+    const whole = new TestEvaluator({ duration: 3, checks })
+    const narrow = new TestEvaluator({ duration: 3, checks })
+    for (const [t, tags] of steps) {
+      whole.sample(t, tags)
+      narrow.sample(t, narrow.needsNames ? tags : Object.fromEntries(narrow.reads.filter((k) => k in tags).map((k) => [k, tags[k]!])))
+    }
+    expect(narrow.finalize()).toEqual(whole.finalize())
+    expect(whole.finalize().checks.map((c) => c.ok)).toEqual([true, false, false, true])
+  })
+
+  it('a tag that never appears is still explained by every name the run published', () => {
+    const ev = new TestEvaluator({ duration: 3, checks: [{ always: true, tag: 'Jam', equals: false }, { eventually: true, tag: 'Jamm', equals: true }] })
+    ev.sample(1, { Jam: false, Belt: true })
+    expect(ev.needsNames).toBe(true)
+    ev.sample(2, { Jam: false, Belt: true, Eye: false })
+    expect(ev.finalize().checks[1]!.detail).toBe('tag "Jamm" never appeared (the run did publish: Belt, Eye, Jam)')
+  })
+})
+
 describe('when a check failed (failedAt), which a trace of the run is centred on', () => {
   const timeline: [number, Record<string, TestValue>][] = [
     [0.1, { Q: false }],

@@ -14,25 +14,25 @@
 // Every run also collects FLOW FACTS (src/core/flow/flowFacts.ts): what physically happened to the cargo - a box dropped
 // or lost, tipped, a sensor flickering, a box sitting still on a running conveyor. They are printed as a one-line
 // summary per test, listed before a failure's first failing check, and carried in --json. Facts never fail a test.
+// Each test also says how fast it ran, and tests that would take long one after another run several at a time, each
+// on a thread of its own (scripts/lib/projectTestWorker.mjs). Opening the folder and running one test is
+// scripts/lib/projectTestRun.mjs; this file reads the arguments, decides what runs where, and prints.
 
 import { statSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { createServer } from 'vite'
-import { declareBuiltIns } from './lib/builtIns.mjs'
-import { collectTests, listedTestPaths, pickTests, readTestSpecs } from './lib/projectTests.mjs'
-import { readProjectFolder } from './lib/projectFolderFiles.mjs'
+import { availableParallelism } from 'node:os'
+import { Worker } from 'node:worker_threads'
+import { openProjectTests } from './lib/projectTestRun.mjs'
 
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const started = performance.now()
 const args = process.argv.slice(2)
 const USAGE =
-  'usage: npm run test-project -- <project-folder> [--only <file-or-name>] [--trace <tag,tag,...|all>] [--cargo <t,t,...>] [--context <seconds>] [--json]'
+  'usage: npm run test-project -- <project-folder> [--only <file-or-name>] [--trace <tag,tag,...|all>] [--cargo <t,t,...>] [--context <seconds>] [--jobs <n>] [--json]'
 // the exit codes (docs/project-tests.md "The runner")
 const EXIT_FAILED = 1
 const EXIT_USAGE = 2
 const EXIT_UNRUNNABLE = 3
 // flags that take a value, and the one that does not
-const valued = new Set(['--only', '--trace', '--context', '--cargo'])
+const valued = new Set(['--only', '--trace', '--context', '--cargo', '--jobs'])
 const flag = (name) => {
   const i = args.indexOf(name)
   return i >= 0 ? (args[i + 1] ?? null) : null
@@ -50,11 +50,24 @@ const FACTS_SHOWN = 20
 // --cargo: sim times at which to list every live cargo body (id, part, kind, colour, centre): where the boxes ARE
 const cargoArg = flag('--cargo')
 const cargoTimes = cargoArg === null ? null : cargoArg.split(',').map((t) => Number(t.trim())).sort((a, b) => a - b)
+// --jobs: how many tests run at a time. 1 runs them one after another. Not given, the first test's speed decides
+// (see the run below)
+const jobsArg = flag('--jobs')
+const jobs = jobsArg === null ? null : Number(jobsArg)
 const target = args.find((a, i) => !a.startsWith('--') && !valued.has(args[i - 1]))
+// `ran 720s in 81.4s, 8.8x real time (sim 52.0s, checks 20.1s, setup 9.3s)`: how fast the run was, and whether the
+// time went to the simulation (physics steps and program scans), to reading and checking each step, or to building
+// the world and the program
+const formatTiming = (duration, t) => {
+  const s = (ms) => (ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`)
+  const wall = t.setupMs + t.simMs + t.checkMs
+  return `ran ${duration}s in ${s(wall)}, ${wall > 0 ? ((duration * 1000) / wall).toFixed(1) : '-'}x real time (sim ${s(t.simMs)}, checks ${s(t.checkMs)}, setup ${s(t.setupMs)})`
+}
 if (
   !target ||
   !Number.isFinite(context) ||
   context < 0 ||
+  (jobs !== null && (!Number.isInteger(jobs) || jobs < 1)) ||
   (traceArg !== null && traceTags !== 'all' && traceTags.length === 0) ||
   (cargoTimes !== null && (cargoTimes.length === 0 || cargoTimes.some((t) => !Number.isFinite(t) || t < 0)))
 ) {
@@ -74,66 +87,26 @@ if (!stats.isDirectory()) {
   process.exit(EXIT_USAGE)
 }
 
-const vite = await createServer({
-  configFile: false,
-  root: repo,
-  logLevel: 'error',
-  server: { middlewareMode: true, hmr: false, ws: false },
-  appType: 'custom',
-  optimizeDeps: { noDiscovery: true },
-})
+// a note is not part of the report: with --json it goes to stderr, so stdout is the JSON alone
+const note = json ? console.error : console.log
+// what a worker needs to open the same tests (scripts/lib/projectTestWorker.mjs)
+const asked = { target, only, traceTags, cargoTimes, context }
+const opened = await openProjectTests(asked)
 
 let failures = 0
 // tests that could not run at all (invalid spec, a refused fault): what exit 3 means, alongside a project that fails to load
 let errored = 0
 try {
-  // the app's built-in parts: a format-3 project names them by id and keeps no copy (scripts/lib/builtIns.mjs)
-  await declareBuiltIns(vite)
-  const { folderFilesToProject } = await vite.ssrLoadModule('/src/core/project/projectFolder.ts')
-  const { validateTestSpec, TraceRecorder, formatTrace } = await vite.ssrLoadModule('/src/core/project/projectTest.ts')
-  const { CargoSnapshots } = await vite.ssrLoadModule('/src/core/project/projectProbe.ts')
-  const { runProjectTest } = await vite.ssrLoadModule('/src/editor/project/projectTestRunner.ts')
-  const { formatFlowFact, summarizeFlowFacts } = await vite.ssrLoadModule('/src/core/flow/flowFacts.ts')
-  const { validatePart, formatPartDiagnostics } = await vite.ssrLoadModule('/src/sim/validatePart.ts')
-  const initJolt = (await vite.ssrLoadModule('jolt-physics')).default
-
-  const bakePart = (manifestJson, behaviorJs) => {
-    let manifest
-    try {
-      manifest = JSON.parse(manifestJson)
-    } catch {
-      return { error: 'manifest.json is not valid JSON' }
-    }
-    const r = validatePart(manifest, behaviorJs)
-    return r.ok && r.package ? { package: r.package } : { error: formatPartDiagnostics(r.diagnostics) }
-  }
-
-  const loaded = folderFilesToProject(readProjectFolder(target), { bakePart })
-  if (!loaded.ok) {
-    console.error(`✗ project failed to load:\n${loaded.errors.map((e) => `  - ${e}`).join('\n')}`)
+  if (opened.loadErrors) {
+    console.error(`✗ project failed to load:\n${opened.loadErrors.map((e) => `  - ${e}`).join('\n')}`)
     process.exit(EXIT_UNRUNNABLE)
   }
-
-  // Where the specs come from. A project whose manifest CARRIES its tests is the source of truth -
-  // validateProject already ran validateTestSpec over each, so they arrive validated. A folder that lists none
-  // falls back to globbing tests/, which is how every project authored before tests joined the document keeps
-  // working unchanged.
-  //
-  // A folder from before a project held one scene splits when it is read (core/project/project.ts `splitOff`): each of
-  // its other scenes is the project it will be when the app opens it, carrying the tests that named it. Each test
-  // runs against its own project, so a result here means what it meant before.
-  const projects = [loaded.project, ...(loaded.splitOff ?? [])]
-  if (loaded.splitOff) {
-    console.log(`note: this folder holds ${projects.length} scenes, from before a project held one; each runs as the project it becomes:`)
-    for (const p of projects) console.log(`  - "${p.name}"`)
+  const { projects, all, bad, specs, unreadable, ambiguous } = opened
+  const { formatTrace, formatFlowFact, summarizeFlowFacts } = opened.format
+  if (projects.length > 1) {
+    note(`note: this folder holds ${projects.length} scenes, from before a project held one; each runs as the project it becomes:`)
+    for (const p of projects) note(`  - "${p.name}"`)
   }
-  // Each test is named by its FILE where it has one (sort.test.json), which is what `--only` matches first and what
-  // a report leads with, so two tests whose display names share a word stay apart. A file in tests/ the manifest
-  // does not list runs here too, with a note that the app will not run it until it is listed (scripts/lib/projectTests.mjs).
-  const { all, bad } = collectTests(loaded, listedTestPaths(target), readTestSpecs(target), validateTestSpec)
-
-  // --only: an exact file or display name wins; a substring only when nothing matches exactly
-  const { specs, unreadable, ambiguous } = pickTests(all, bad, only)
   if (ambiguous.length > 0) {
     console.error(`note: no test is named exactly "${only}", and ${ambiguous.length} contain it; running all of them:`)
     for (const n of ambiguous) console.error(`  - ${n}`)
@@ -152,73 +125,32 @@ try {
     process.exit(0)
   }
   for (const s of specs) {
-    if (s.unlisted) console.log(`note: tests/${s.file} is not listed in project.json's "tests", so the app will not run it; running it here anyway`)
+    if (s.unlisted) note(`note: tests/${s.file} is not listed in project.json's "tests", so the app will not run it; running it here anyway`)
   }
 
-  const Jolt = await initJolt()
   const report = [] // what --json prints
   const indent = (lines) => lines.map((l) => `        ${l}`)
-  for (const { name, spec, project } of specs) {
-    let result
-    const trace = traceTags !== null ? new TraceRecorder(traceTags) : null
-    // --cargo: the live cargo at the first step reaching each asked-for time
-    const snaps = cargoTimes ? new CargoSnapshots(cargoTimes) : null
-    const onFrame = snaps?.onFrame
-    try {
-      result = runProjectTest(Jolt, project, spec, { ...(trace ? { trace } : {}), ...(onFrame ? { onFrame } : {}) })
-    } catch (e) {
-      // the test could not run (a fault the scene cannot apply, a jam that caught nothing): not a verdict on the program
-      console.error(`✗ ${name}: ${e instanceof Error ? e.message : String(e)}`)
-      report.push({ name, ok: false, error: e instanceof Error ? e.message : String(e) })
-      errored++
-      continue
-    }
-    // Why each failed check failed is in the OTHER tags just before it: run the test again, recording every tag that
-    // changes in the `context` seconds before each failure. Same project, same spec, same seed-free sim: same run.
-    const failedChecks = result.checks.filter((c) => !c.ok && c.failedAt !== undefined)
-    let lead = null
-    if (context > 0 && failedChecks.length > 0) {
-      lead = new TraceRecorder('all', failedChecks.map((c) => ({ from: Math.max(0, c.failedAt - context), to: c.failedAt })))
-      try {
-        runProjectTest(Jolt, project, spec, { trace: lead })
-      } catch {
-        lead = null // it ran once; a second run failing to is no reason to lose the verdict
-      }
-    }
-    const leadOf = (c) => {
-      const k = failedChecks.indexOf(c)
-      if (!lead || k < 0) return null
-      // what changed, and the checked tag itself whether it changed or not: it is what the check was about
-      const all = lead.result(k)
-      return all.filter((t) => t.changes.length > 0 || (c.check.tag !== undefined && t.tag === c.check.tag))
-    }
 
-    // a file-sourced spec shows both (start-stop.test.json - "Start/stop seal-in…"); a document-sourced
-    // one IS its name, so the quoted repeat would just say it twice
-    const title = spec.name ?? name
-    const failed = result.checks.filter((c) => !c.ok).length
-    const label = title === name ? name : `${name} - "${title}"`
-    report.push({
-      name,
-      title,
-      ok: result.ok,
-      project: project.name,
-      duration: spec.duration,
-      checks: result.checks.map((c) => ({ ok: c.ok, detail: c.detail, ...(c.warning ? { warning: c.warning } : {}), ...(c.failedAt !== undefined ? { failedAt: c.failedAt } : {}), ...(leadOf(c) ? { leadUp: leadOf(c) } : {}) })),
-      facts: result.facts,
-      ...(result.factsOverflow > 0 ? { factsOverflow: result.factsOverflow } : {}),
-      ...(trace ? { trace: trace.result() } : {}),
-      ...(snaps ? { cargo: snaps.snapshots } : {}),
-    })
-    if (!result.ok) failures++
-    if (json) continue
-    console.log(`${result.ok ? '✓' : '✗'} ${label} (${projects.length > 1 ? `"${project.name}", ` : ''}${spec.duration}s)`)
+  // One test's record (scripts/lib/projectTestRun.mjs runOne), counted and printed.
+  const emit = ({ report: r, cargoMissed }) => {
+    report.push(r)
+    if (r.error !== undefined) {
+      // the test could not run (a fault the scene cannot apply, a jam that caught nothing): not a verdict on the program
+      console.error(`✗ ${r.name}: ${r.error}`)
+      errored++
+      return
+    }
+    if (!r.ok) failures++
+    if (json) return
+    const failed = r.checks.filter((c) => !c.ok).length
+    const label = r.title === r.name ? r.name : `${r.name} - "${r.title}"`
+    console.log(`${r.ok ? '✓' : '✗'} ${label} (${projects.length > 1 ? `"${r.project}", ` : ''}${r.duration}s)`)
     // the physical facts up to the FIRST failure in time (the earliest failing check): what the cargo did before the
     // program's checks went wrong
-    const firstFail = result.checks.filter((c) => !c.ok).reduce((a, c) => (a === undefined || (c.failedAt ?? Infinity) < (a.failedAt ?? Infinity) ? c : a), undefined)
+    const firstFail = r.checks.filter((c) => !c.ok).reduce((a, c) => (a === undefined || (c.failedAt ?? Infinity) < (a.failedAt ?? Infinity) ? c : a), undefined)
     const printFactsBefore = (c) => {
-      const until = c.failedAt ?? spec.duration
-      const before = result.facts.filter((f) => f.t <= until + 1e-9).sort((a, b) => a.t - b.t)
+      const until = c.failedAt ?? r.duration
+      const before = r.facts.filter((f) => f.t <= until + 1e-9).sort((a, b) => a.t - b.t)
       if (before.length === 0) {
         console.log(`      physical facts before the failure (t <= ${until.toFixed(3)}s): none`)
         return
@@ -228,10 +160,11 @@ try {
       if (before.length > shown.length) console.log(`        ... ${before.length - shown.length} earlier`)
       for (const f of shown) console.log(`        ${formatFlowFact(f)}`)
     }
-    for (const c of result.checks) {
+    for (const c of r.checks) {
       console.log(`    ${c.ok ? '✓' : '✗'} ${c.detail}`)
       if (c.warning) console.log(`      ! ${c.warning}`)
-      const up = leadOf(c)
+      // what changed in the seconds before a failed check, when the run recorded it
+      const up = c.leadUp
       if (!up) {
         if (c === firstFail) printFactsBefore(c)
         continue
@@ -242,10 +175,11 @@ try {
       for (const line of indent(formatTrace(up))) console.log(line)
       if (c === firstFail) printFactsBefore(c)
     }
-    if (!result.ok) console.log(`    ${failed} of ${result.checks.length} checks failed`)
-    console.log(`    flow facts: ${summarizeFlowFacts(result.facts, result.factsOverflow)}`)
-    if (trace) {
-      const traced = trace.result()
+    if (!r.ok) console.log(`    ${failed} of ${r.checks.length} checks failed`)
+    console.log(`    flow facts: ${summarizeFlowFacts(r.facts, r.factsOverflow ?? 0)}`)
+    console.log(`    ${formatTiming(r.duration, r.timing)}`)
+    if (r.trace) {
+      const traced = r.trace
       console.log(`    trace (${traced.length} tag${traced.length === 1 ? '' : 's'}, the whole run): value at the start -> each change`)
       for (const line of indent(formatTrace(traced, 40))) console.log(line)
       // a tag asked for by name that the run never published is a typo or a tag this scene does not have
@@ -254,17 +188,88 @@ try {
         if (missing.length > 0) console.log(`      never published: ${missing.join(', ')}`)
       }
     }
-    if (snaps) {
-      for (const snap of snaps.snapshots) {
+    if (r.cargo) {
+      for (const snap of r.cargo) {
         console.log(`    cargo at t=${snap.t.toFixed(3)}s (${snap.bodies.length} bod${snap.bodies.length === 1 ? 'y' : 'ies'}): id  part  kind  colour  [x, y, z]  tilt  yaw  velocity m/s  touching`)
         for (const b of snap.bodies) {
           console.log(`        ${b.id}  ${b.part ?? '-'}  ${b.kind}  ${b.color}${b.colorName ? ` (${b.colorName})` : ''}  [${b.pos.join(', ')}]  ${b.tiltDeg}°  ${b.yawDeg}°  ${b.vel ? `[${b.vel.join(', ')}]` : '-'}  ${b.touching?.length ? b.touching.join(', ') : '-'}`)
         }
       }
-      const missed = snaps.missed()
-      if (missed.length > 0) console.log(`    cargo: the run ended (${spec.duration}s) before t=${missed.join(', ')}`)
+      if (cargoMissed.length > 0) console.log(`    cargo: the run ended (${r.duration}s) before t=${cargoMissed.join(', ')}`)
     }
   }
+
+  // The records, by test. A test is printed once every test before it has been, so the order is the folder's
+  // whichever finishes first.
+  const records = new Array(specs.length).fill(null)
+  let emitted = 0
+  const done = (i, record) => {
+    records[i] = record
+    while (emitted < specs.length && records[emitted]) emit(records[emitted++])
+  }
+
+  // Run the tests `pending` on up to `n` worker threads, the longest first. A test whose worker stops, or cannot open
+  // the folder as this thread did, is run here afterwards.
+  const runInWorkers = async (pending, n) => {
+    const queue = [...pending].sort((a, b) => specs[b].spec.duration - specs[a].spec.duration)
+    const names = JSON.stringify(specs.map((s) => s.name))
+    await new Promise((settled) => {
+      let live = 0
+      for (let w = Math.min(n, queue.length); w > 0; w--) {
+        const worker = new Worker(new URL('./lib/projectTestWorker.mjs', import.meta.url), { workerData: asked })
+        live++
+        let busy = null
+        const give = () => {
+          const i = queue.shift()
+          if (i === undefined) return worker.postMessage({ close: true })
+          busy = i
+          worker.postMessage({ i })
+        }
+        worker.on('message', (m) => {
+          if (m.ready) {
+            // the folder as this thread read it, or the worker runs nothing
+            if (JSON.stringify(m.names) === names) give()
+            else worker.postMessage({ close: true })
+            return
+          }
+          busy = null
+          done(m.i, m.record)
+          give()
+        })
+        worker.on('error', (e) => console.error(`note: a test worker stopped (${e instanceof Error ? e.message : String(e)}); what it had left runs on the main thread`))
+        worker.on('exit', () => {
+          if (busy !== null) queue.push(busy)
+          if (--live === 0) settled()
+        })
+      }
+    })
+    for (const i of queue) done(i, opened.runOne(i))
+  }
+
+  // How many tests run at a time. A worker opens the folder again, which takes about as long as this thread took to
+  // get here, so workers start only when the tests left would take longer than that one after another. The first
+  // test's speed says how long they would take. --jobs sets the number and skips the estimate.
+  const most = Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)))
+  const opening = performance.now() - started
+  let next = 0
+  if (jobs !== null) {
+    if (jobs > 1 && specs.length > 1) {
+      await runInWorkers(specs.map((_, i) => i), jobs)
+      next = specs.length
+    }
+  } else if (specs.length > 2 && most > 1) {
+    const t0 = performance.now()
+    done(0, opened.runOne(0))
+    next = 1
+    const perSimSecond = (performance.now() - t0) / Math.max(specs[0].spec.duration, 1e-3)
+    const left = specs.slice(1).reduce((sum, s) => sum + s.spec.duration * perSimSecond, 0)
+    if (left > 2 * opening) {
+      await runInWorkers(specs.map((_, i) => i).slice(1), most)
+      next = specs.length
+    }
+  }
+  for (let i = next; i < specs.length; i++) done(i, opened.runOne(i))
+
   const exitCode = errored > 0 ? EXIT_UNRUNNABLE : failures > 0 ? EXIT_FAILED : 0
   if (json) console.log(JSON.stringify({ ok: exitCode === 0, exitCode, tests: report }, null, 2))
 
@@ -280,6 +285,6 @@ try {
   }
   process.exitCode = exitCode
 } finally {
-  await vite.close()
+  await opened.close()
 }
 process.exit(process.exitCode ?? 0)

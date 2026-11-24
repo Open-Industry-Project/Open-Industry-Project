@@ -6,7 +6,7 @@
 //
 // The PLC↔sim seam is the custom-part tag bus, not the built-in binding adapter (which reads
 // render-side sensor beams and is not headless): SimWorld itself casts sensor beams and lets each
-// part write its detections/state as tags (world.frame().tags), while PLC outputs + scheduled test
+// part write its detections/state as tags (world.behaviorTagWrites()), while PLC outputs + scheduled test
 // inputs flow back in via setBehaviorInputTags. That is the same path every first-party part uses -
 // the whole catalog is authored on the SDK (docs/architecture.md).
 
@@ -32,7 +32,7 @@ import { DEFAULT_SCAN_MS } from '../program/stProgram'
 import { LocalPlcLink } from '../../plc/link/plcLink'
 import { wiredBindings } from '../../plc/wiring'
 import { controllerFor, controllerRuns, runnableSource } from '../../plc/controller'
-import { controllerTag, partsForController, tagsForController } from '../../core/io/controllerTag'
+import { CONTROLLER_SEP, controllerTag, partsForController, tagsForController } from '../../core/io/controllerTag'
 import { sceneSettings } from '../../core/scene/scenePlcs'
 import type { Controller } from '../../core/controller'
 import { TaskScheduler } from '../../plc/scanEngine'
@@ -40,18 +40,6 @@ import { SimController } from '../../plc/simController'
 type JoltModule = ConstructorParameters<typeof SimWorld>[0]
 
 const EPS = 1e-9
-
-/** Merge every part's tag map into one flat table. */
-function flattenTags(tags: Readonly<Record<string, Record<string, unknown>>> | undefined): Record<string, TestValue> {
-  const out: Record<string, TestValue> = {}
-  if (!tags) return out
-  for (const perPart of Object.values(tags)) {
-    for (const [k, v] of Object.entries(perPart)) {
-      if (typeof v === 'number' || typeof v === 'boolean') out[k] = v
-    }
-  }
-  return out
-}
 
 /** The project's scene, with its packages registered so the world can build its custom parts. Mirrors the app's
  *  boot: authored library authoritative, the scene's own snapshots non-authoritative. */
@@ -170,6 +158,16 @@ export interface ProjectTestOutcome extends TestResult {
   factsOverflow: number
 }
 
+/** Where a run's wall time went, in milliseconds. The runner fills in the one handed to it as `timing`. */
+export interface RunTiming {
+  /** building the world and the program, before the first step */
+  setupMs: number
+  /** the physics steps and the program's scans: the simulation itself */
+  simMs: number
+  /** the rest of the loop: reading each step's values, the checks, a trace */
+  checkMs: number
+}
+
 /**
  * Run one test spec against a project and return the per-check verdict. `Jolt` is an initialized
  * jolt-physics module (the caller owns `await initJolt()` so the runner stays synchronous, like
@@ -182,13 +180,15 @@ export interface ProjectTestOutcome extends TestResult {
  *  `flowFacts: false` runs without collecting flow facts (the outcome's list is then empty).
  *  `kept`: the compiled programs of the runs before, by controller name and source. A run that finds its program
  *  there restarts it and does not compile it again (plc/types.ts `restart`): on a large program compiling is most
- *  of a short test. The caller hands the same map to each run of one project, and to nothing running beside it. */
+ *  of a short test. The caller hands the same map to each run of one project, and to nothing running beside it.
+ *  `timing`: filled in with where the run's wall time went. */
 export function runProjectTest(
   Jolt: JoltModule,
   project: ProjectJSON,
   spec: TestSpec,
-  opts?: { lockstep?: Lockstep; trace?: TraceRecorder; onFrame?: (frame: Readonly<BoxFrame>, extras: FrameExtras) => void; flowFacts?: boolean; wakeAllParts?: boolean; kept?: Map<string, LocalPlcLink> },
+  opts?: { lockstep?: Lockstep; trace?: TraceRecorder; onFrame?: (frame: Readonly<BoxFrame>, extras: FrameExtras) => void; flowFacts?: boolean; wakeAllParts?: boolean; kept?: Map<string, LocalPlcLink>; timing?: RunTiming },
 ): ProjectTestOutcome {
+  const tStart = performance.now()
   const { scene, stProgram, controller, stScanMs, hz } = prepareScene(project)
   const badProbes = probePartErrors(scene.parts, spec.checks)
   if (badProbes.length > 0) throw new Error(badProbes.join('; '))
@@ -250,6 +250,16 @@ export function runProjectTest(
   const evaluator = new TestEvaluator(spec)
   const probes = new ProbeSampler(spec.checks)
   const needsMarks = probes.needsMarks
+  // What a step's sample holds. Every tag of the line, merged into one table, costs more than the step it describes
+  // on a large line, and the checks read a few of them. So once every checked tag has appeared (TestEvaluator.needsNames) a
+  // sample holds the tags the checks and the trace read, each looked up where it is. `wanted` is null for a trace of
+  // every tag, and `narrow` false for a program that can only hand over its whole table (the walker).
+  const traced = opts?.trace ? opts.trace.tags : undefined
+  const wanted = traced === null ? null : [...new Set([...evaluator.reads, ...(traced ?? [])])].filter((k) => k.charCodeAt(0) !== 0)
+  const plcRead = wanted && plc ? plc.tagReader(wanted) : null
+  // another controller's tags are spelled with its name in front (controllerTag)
+  const otherReads = others.map((o) => (wanted ? o.link.tagReader(wanted.map((k) => (k.startsWith(o.name + CONTROLLER_SEP) ? k.slice(o.name.length + CONTROLLER_SEP.length) : ''))) : null))
+  const narrow = wanted !== null && (!plc || plcRead !== null) && otherReads.every((r) => r !== null)
   const faults = resolveFaults(scene.parts, spec.faults ?? [], plc?.inputs)
   const injector = new FaultInjector(faults)
   // jams, each with the body it caught (null until it catches one, and again once released)
@@ -274,11 +284,20 @@ export function runProjectTest(
   // a later input for the same tag replaces it. Sorted so we can drain by time.
   const queue = [...(spec.inputs ?? [])].sort((a, b) => a.at - b.at)
   const overlay: Record<string, TestValue> = {}
+  // Nothing is scheduled yet and no fault is declared: each side reads the other's table as it stands, with no copy
+  // of it made. False from the first scheduled input on.
+  let plain = faults.length === 0
+  const NO_FAULT: Readonly<Record<string, TestValue>> = Object.freeze({})
 
-  let lastFrame = world.frame()
-  let worldTags = flattenTags(lastFrame.tags)
-  let plcOut: Record<string, TestValue> = {}
+  // The frame is the cargo: a probe, a jam and `onFrame` read it. A run with none of them builds no frame.
+  const needsFrame = !probes.empty || jams.length > 0 || opts?.onFrame !== undefined
+  let lastFrame: BoxFrame | null = needsFrame ? world.frame() : null
+  // The parts' tags as Play's scan reads them (sim/plcHost.ts): a fresh table each step, never written again.
+  let worldTags: Readonly<Record<string, TestValue>> = world.behaviorTagWrites()
+  let plcOut: Readonly<Record<string, TestValue>> = {}
   let flow: { facts: readonly FlowFact[]; overflow: number }
+  const tLoop = performance.now()
+  let simMs = 0
 
   try {
     for (let i = 0; i < steps; i++) {
@@ -286,21 +305,24 @@ export function runProjectTest(
       while (queue.length > 0 && queue[0]!.at <= time + EPS) {
         const inp = queue.shift()!
         overlay[inp.tag] = inp.value
+        plain = false
       }
 
       // faults in effect this step, each side handed what it would read without them (a `hold` fault keeps that).
       // They are applied last on their side: a fault is the wire itself failing, so it outranks both what the device does
       // and what the test pokes
-      const faultToPlc = injector.overrides('toPlc', time, { ...worldTags, ...overlay })
-      const faultToPart = injector.overrides('toPart', time, { ...plcOut, ...overlay })
+      const faultToPlc = faults.length === 0 ? NO_FAULT : injector.overrides('toPlc', time, { ...worldTags, ...overlay })
+      const faultToPart = faults.length === 0 ? NO_FAULT : injector.overrides('toPart', time, { ...plcOut, ...overlay })
 
-      // PLC scan (part→PLC inputs = last frame's tags + the test overlay); outputs hold between scans. Not before
-      // the parts' first step, which is when they first publish: Play's rule (sim/plcHost.ts interleave)
+      // PLC scan (part→PLC inputs = the parts' tags of the last step + the test overlay); outputs hold between scans.
+      // Not before the parts' first step, which is when they first publish: Play's rule (sim/plcHost.ts interleave)
       if (ctl && scheduler && world.stepCount > 0) {
-        const inputs = { ...worldTags, ...overlay, ...faultToPlc }
+        const inputs = plain ? worldTags : { ...worldTags, ...overlay, ...faultToPlc }
         ctl.setExternalInputs(inputs)
+        const t0 = performance.now()
         const scanned = scheduler.advance(dt).scans > 0
-        if (scanned) plcOut = { ...ctl.processImage.outputs } as Record<string, TestValue>
+        // the link's own table: frozen, and the same one until an output changes (LocalPlcLink)
+        if (scanned) plcOut = ctl.processImage.outputs as Readonly<Record<string, TestValue>>
         for (const o of others) {
           o.ctl.setExternalInputs(tagsForController(inputs, o.name))
           if (o.scheduler.advance(dt).scans > 0) o.out = named(o.ctl.processImage.outputs, o.name)
@@ -310,6 +332,7 @@ export function runProjectTest(
           lsScheduler.advance(dt)
           if (scanned) ls.compare(time, plc.watch as Record<string, TestValue>, lsPlc.watch as Record<string, TestValue>)
         }
+        simMs += performance.now() - t0
       }
 
       // a jam in effect catches the first loose body in its zone (as the last frame placed it) and holds it there;
@@ -317,7 +340,7 @@ export function runProjectTest(
       for (const j of jams) {
         const on = faultActive(j.fault, time)
         if (on && !j.caught) {
-          for (const id of cargoInZone(j.fault.zone, lastFrame)) {
+          for (const id of cargoInZone(j.fault.zone, lastFrame!)) {
             if (!world.pinBody(id, true)) continue
             j.body = id
             j.caught = true
@@ -330,28 +353,57 @@ export function runProjectTest(
       }
 
       // PLC outputs + the test overlay drive the parts, then advance the physics one tick
-      world.setBehaviorInputTags({ ...plcOut, ...Object.assign({}, ...others.map((o) => o.out)), ...overlay, ...faultToPart })
+      // (the bus keeps its table when the one handed to it holds the same values, so the link's own table costs nothing
+      // on a step where no output changed)
+      const toParts = plain && others.length === 0 ? plcOut : { ...plcOut, ...Object.assign({}, ...others.map((o) => o.out)), ...overlay, ...faultToPart }
+      world.setBehaviorInputTags(toParts as Record<string, TestValue>)
+      const t1 = performance.now()
       world.step()
+      simMs += performance.now() - t1
 
-      // sample after the step: the unified table the checks see = part tags, then the PLC's own
+      // sample after the step: the table the checks see = part tags, then the PLC's own
       // variables (its view is authoritative on a name clash), then the test stimulus, then the
       // world probes read off the same frame. Probes are written last and under NUL-prefixed keys, so
       // nothing a scene or program can name is able to shadow them (core/project/projectTest probeKey).
-      const frame = world.frame()
+      const frame = needsFrame ? world.frame() : null
       lastFrame = frame
-      worldTags = flattenTags(frame.tags)
+      // the frame's own time, worked out as the frame works it out
+      const simTime = frame ? frame.simTime : world.stepCount / world.hz
+      worldTags = world.behaviorTagWrites()
+      const probed = frame ? probes.values(frame, needsMarks ? world.cargoMarks() : undefined) : NO_FAULT
       // A faulted input reads what the PLC reads (stuck, or lost to comms) - what the device really sensed is a probe's
       // to say. A dead actuator's command reads what the PLC commanded: the program's own view, from its watch.
-      const sample: Record<string, TestValue> = {
-        ...worldTags,
-        ...(plc ? (plc.tagView as Record<string, TestValue>) : {}),
-        ...Object.assign({}, ...others.map((o) => named(o.link.tagView, o.name))),
-        ...overlay,
-        ...faultToPlc,
-        ...probes.values(frame, needsMarks ? world.cargoMarks() : undefined),
+      let sample: Record<string, TestValue>
+      if (!narrow || evaluator.needsNames) {
+        sample = {
+          ...worldTags,
+          ...(plc ? (plc.tagView as Record<string, TestValue>) : {}),
+          ...Object.assign({}, ...others.map((o) => named(o.link.tagView, o.name))),
+          ...overlay,
+          ...faultToPlc,
+          ...probed,
+        }
+      } else {
+        // the same table, for the keys that are read: each from the last of those layers that holds it
+        sample = {}
+        const fromPlc = plcRead?.()
+        const fromOthers = otherReads.map((read) => read!())
+        for (let k = 0; k < wanted!.length; k++) {
+          const key = wanted![k]!
+          let v: unknown
+          if (Object.hasOwn(faultToPlc, key)) v = faultToPlc[key]
+          else if (Object.hasOwn(overlay, key)) v = overlay[key]
+          else {
+            for (let o = fromOthers.length - 1; o >= 0 && v === undefined; o--) v = fromOthers[o]![k]
+            if (v === undefined && fromPlc) v = fromPlc[k]
+            if (v === undefined && Object.hasOwn(worldTags, key)) v = worldTags[key]
+          }
+          if (v !== undefined) sample[key] = v as TestValue
+        }
+        Object.assign(sample, probed)
       }
-      evaluator.sample(frame.simTime, sample)
-      opts?.onFrame?.(frame, frameExtras)
+      evaluator.sample(simTime, sample)
+      if (frame) opts?.onFrame?.(frame, frameExtras)
       // the trace also shows each fault coming and going (`actuatorDead(m1)  FALSE -> 1.000s TRUE`), so a failure's
       // lead-up names its cause beside its effects. Trace only: no check can name a fault row
       if (opts?.trace) {
@@ -359,8 +411,14 @@ export function runProjectTest(
         for (const r of faults) rows[describeFault(r.fault)] ||= faultActive(r.fault, time)
         // a jam's row is whether it is holding a body: it turns true when a box actually sticks, not when it arms
         for (const j of jams) rows[describeFault(j.fault)] ||= j.body !== null
-        opts.trace.sample(frame.simTime, { ...sample, ...rows })
+        opts.trace.sample(simTime, { ...sample, ...rows })
       }
+    }
+    if (opts?.timing) {
+      const loopMs = performance.now() - tLoop
+      opts.timing.setupMs = tLoop - tStart
+      opts.timing.simMs = simMs
+      opts.timing.checkMs = loopMs - simMs
     }
     // A jam that caught nothing tested nothing: every check after it held on a line that never jammed. Refused like
     // a fault that resolves to no tag, only here, because only the run can say whether cargo ever reached the zone.

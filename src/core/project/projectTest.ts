@@ -909,6 +909,11 @@ export class TestEvaluator {
   private readonly seenTags = new Set<string>()
   /** the time of the run's first sample, once there is one */
   private firstTime: number | null = null
+  /** The sample-table keys the checks read, each once: a check's tag or probe, and a right-hand tag or probe. */
+  readonly reads: readonly string[]
+  /** per check: whether its source, and its right-hand side, is a tag (not a probe or a literal) */
+  private readonly tagSides: { source: boolean; operand: boolean }[]
+  private namesNeeded: boolean
 
   constructor(private readonly spec: TestSpec) {
     this.duration = spec.duration
@@ -916,6 +921,10 @@ export class TestEvaluator {
     this.labels = spec.checks.map((c) => (c.probe ? describeProbe(c.probe) : (c.tag ?? '(no source)')))
     this.nouns = spec.checks.map((c) => (c.probe ? `probe ${describeProbe(c.probe)}` : `tag "${c.tag}"`))
     this.preds = spec.checks.map((c, i) => predicateOf(c, i))
+    this.reads = [...new Set([...this.keys, ...this.preds.flatMap((p) => (p.key !== undefined ? [p.key] : []))])]
+    this.tagSides = spec.checks.map((c, i) => ({ source: !c.probe, operand: this.preds[i]!.key !== undefined && this.preds[i]!.key !== operandProbeKey(i) }))
+    // nothing has appeared yet, so any tag a check names is still to come
+    this.namesNeeded = this.tagSides.some((s) => s.source || s.operand)
     this.windows = spec.checks.map((c) => windowOf(c, spec.duration))
     this.states = this.preds.map((p) => ({
       sawTag: false,
@@ -931,10 +940,23 @@ export class TestEvaluator {
     }))
   }
 
-  /** Feed one sampled step: the sim time and the flat value table observed after that step. */
+  /**
+   * Whether a sample must hold every tag of its step, and not only the keys in {@link reads}. True until each tag a
+   * check names has appeared: a tag that never appears fails with the names the run did publish ({@link whyNoTag}),
+   * which are collected from the samples. Once every one has appeared no message lists them, and a sample of the
+   * keys in `reads` gives the same verdict.
+   */
+  get needsNames(): boolean {
+    return this.namesNeeded
+  }
+
+  /** Feed one sampled step: the sim time and the flat value table observed after that step ({@link needsNames}
+   *  says how much of it). */
   sample(time: number, tags: Readonly<Record<string, TestValue>>): void {
-    for (const key of Object.keys(tags)) {
-      if (key.charCodeAt(0) !== 0) this.seenTags.add(key) // NUL-prefixed keys are probe bookkeeping
+    if (this.namesNeeded) {
+      for (const key of Object.keys(tags)) {
+        if (key.charCodeAt(0) !== 0) this.seenTags.add(key) // NUL-prefixed keys are probe bookkeeping
+      }
     }
     this.firstTime ??= time
     this.spec.checks.forEach((check, i) => {
@@ -992,6 +1014,7 @@ export class TestEvaluator {
         return
       }
     })
+    if (this.namesNeeded) this.namesNeeded = this.tagSides.some((s, i) => (s.source && !this.states[i]!.sawTag) || (s.operand && !this.states[i]!.sawOperand))
   }
 
   /**
@@ -1101,20 +1124,21 @@ export interface TraceWindow {
 export class TraceRecorder {
   private readonly last = new Map<string, TestValue>()
   private readonly traces: Map<string, TagTrace>[]
-  private readonly want: ReadonlySet<string> | null
+  /** The tags it keeps, or null for every one: all of a sample that it reads. */
+  readonly tags: ReadonlySet<string> | null
 
   constructor(
     tags: readonly string[] | 'all',
     private readonly windows: readonly TraceWindow[] = [{ from: 0, to: Infinity }],
   ) {
-    this.want = tags === 'all' ? null : new Set(tags)
+    this.tags = tags === 'all' ? null : new Set(tags)
     this.traces = windows.map(() => new Map())
   }
 
   sample(time: number, tags: Readonly<Record<string, TestValue>>): void {
     for (const key of Object.keys(tags)) {
       if (key.charCodeAt(0) === 0) continue // probe bookkeeping, not a tag anyone can name
-      if (this.want && !this.want.has(key)) continue
+      if (this.tags && !this.tags.has(key)) continue
       const v = tags[key]!
       const before = this.last.get(key)
       this.windows.forEach((w, k) => {

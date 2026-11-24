@@ -6,6 +6,7 @@
 // When the sim grows a device-signal bus, it talks to this interface, not to either
 // backend directly.
 
+import { memoryTable, watchLists } from '../../core/watchTable'
 import { compile } from '../interpreter'
 import type { CompiledProgram, NumberCells, TagCell, TagPort, TagValue, TaskInfo, VarInfo, WatchPlan } from '../types'
 
@@ -391,6 +392,33 @@ export class LocalPlcLink implements PlcLink {
       if (v !== undefined && !(bare in out)) out[bare] = v
     }
     return out
+  }
+  /**
+   * {@link tagView}'s values under `names`, for a reader of a few of them after every step (a project test's checks).
+   * The view is every value the program holds, built again each time it is read. The function returned reads each
+   * name's value where the program keeps it, and answers in the order of `names`: undefined for a name the view does
+   * not hold. The array it answers with is its own, written again by its next call. Null when the program's memory is
+   * not one buffer (the walker): its reader takes the view.
+   */
+  tagReader(names: readonly string[]): (() => readonly (TagValue | undefined)[]) | null {
+    const plan = this.watchPlan()
+    if (!plan) return null
+    // the program's own memory, not a copy: a read gives the value as of the last scan
+    const table = memoryTable(plan.layout, plan.memory)
+    // a name is a watch key itself, or else the bare alias of one, as the view has it
+    const keys = names.map((name) => {
+      if (watchLists(table, name)) return name
+      const q = this.aliases.get(name)
+      return q !== undefined && watchLists(table, q) ? q : null
+    })
+    const out = new Array<TagValue | undefined>(names.length).fill(undefined)
+    return () => {
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i]
+        if (key != null) out[i] = table[key]
+      }
+      return out
+    }
   }
   /** the program variable a scene tag name means: its alias's target, or the name itself */
   #resolve(name: string): string {

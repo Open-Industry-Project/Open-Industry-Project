@@ -141,6 +141,21 @@ describe.each(['typed', 'walker'] as const)('bare-name aliases built on demand (
     expect(link.inputs).toContain('Eye')
     expect(link.bindable).toContain('Speed')
   })
+
+  it.each(PROGRAMS)('%s: a reader of some names answers as the whole tag view does, scan after scan', (_name, src) => {
+    const link = new LocalPlcLink(built(src))
+    // every name the view holds, and names it does not: no variable, a qualified name that is none, an index out of range
+    const names = [...Object.keys(link.tagView), ...NOT_ALIASES, 'Line.Nothing']
+    const read = link.tagReader(names)
+    // the walker keeps its variables apart, so its reader takes the view
+    expect(read === null).toBe(engine === 'walker')
+    if (!read) return
+    for (let scan = 0; scan < 3; scan++) {
+      const view = link.tagView
+      expect(read()).toEqual(names.map((n) => (Object.hasOwn(view, n) ? view[n] : undefined)))
+      link.step({}, 0.01)
+    }
+  })
 })
 
 describe.each(['typed', 'walker'] as const)('the kind of value a tag holds, from its declaration (%s engine)', (engine) => {
